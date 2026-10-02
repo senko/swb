@@ -6,6 +6,10 @@ in commit messages, ADRs and other docs.
 
 ## 2026-10-02: M1 senko.net, automation API
 
+- The owner checked senko.net (hover, Tab, Enter, selection, copy) and
+  copy and paste into Wayland applications, including middle-click paste:
+  target 1 is accepted.
+
 - Automation: the `automation` crate (tungstenite server, one thread per
   connection, methods executed on the page thread, `HeadlessBrowser`,
   blocking `Client`), `swb --remote-port PORT` in headless and GUI mode, a

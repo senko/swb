@@ -129,7 +129,9 @@ elements involved. Incremental style and layout remain in the roadmap.
 - Text fragments carry caret stops (8 bytes per cluster) and their line
   box.
 - Copy and paste through Xwayland depends on Mutter's clipboard bridge
-  between X11 and Wayland clients. It could not be tested automatically.
+  between X11 and Wayland clients. It cannot be tested automatically; the
+  owner checked it on GNOME 48 (copy and middle-click paste into Wayland
+  applications work).
 - Selection behaviors that are not implemented yet: the highlight of line
   ends inside the selection (Chromium paints a space-wide box), words that
   cross element boundaries (`un<b>believ</b>able` selects only `believ`),

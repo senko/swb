@@ -79,8 +79,6 @@ Open a URL in a window and read the page.
 - Incremental restyle for state changes (only the elements whose matched
   rules change); a hover on a page with `:hover` rules restyles all
   elements and often lays out again.
-- Copy and paste go through Xwayland on GNOME (no data-control protocol);
-  check with native Wayland applications.
 
 ## Backlog from the M0 review
 
