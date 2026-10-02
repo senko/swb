@@ -8,13 +8,13 @@
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
-use swb_engine::{FontContext, LoadState, Page, PageConfig, Point, Size, Url};
+use swb_engine::{LoadState, Page, Point, Size, Url};
 use swb_net::{Fetcher, NetError, NetworkFetcher, Request, Response};
-use swb_paint::{DisplayItem, DisplayList, ImageRef, ImageSizes};
+use swb_paint::{DisplayItem, DisplayList};
 use swb_style::Rgba;
 
 mod common;
-use common::Site;
+use common::{Site, tiny_png};
 
 /// Fetches local files. A URL whose query starts with `slow` takes 200 ms;
 /// a URL with the query `block` waits until [`TestFetcher::release`].
@@ -65,17 +65,7 @@ impl Fetcher for TestFetcher {
 }
 
 fn new_page(fetcher: Arc<dyn Fetcher>) -> Page {
-    let config = PageConfig {
-        fetcher,
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-    };
-    Page::new(
-        config,
-        FontContext::for_tests(),
-        Size::new(800.0, 600.0),
-        1.0,
-    )
+    common::new_page(fetcher, 2, Size::new(800.0, 600.0))
 }
 
 fn local_page() -> Page {
@@ -88,11 +78,7 @@ fn load(page: &mut Page, url: Url) {
 }
 
 fn finish(page: &mut Page) {
-    assert!(
-        page.wait_until_loaded(Duration::from_secs(20)),
-        "page did not load"
-    );
-    page.update_layout();
+    common::finish_loading(page, Duration::from_secs(20));
 }
 
 fn with_query(url: &Url, query: &str) -> Url {
@@ -379,11 +365,6 @@ fn image_documents_fetch_the_image_once() {
     assert_eq!(img.rect.map(|r| (r.width, r.height)), Some((2.0, 3.0)));
 }
 
-/// A 2x3 PNG.
-fn tiny_png() -> Vec<u8> {
-    swb_engine::Pixmap::new(2, 3).unwrap().encode_png().unwrap()
-}
-
 // ----- Links and hit testing -----
 
 #[test]
@@ -478,23 +459,11 @@ fn mouse_leave_clears_the_hovered_link() {
 
 // ----- Display list -----
 
-struct NoImages;
-
-impl ImageSizes for NoImages {
-    fn size(&self, _image: &ImageRef) -> Option<(f32, f32)> {
-        None
-    }
-}
-
 fn display_list(html: &str, test: &str) -> DisplayList {
     let site = Site::new(test);
     let mut page = local_page();
     load(&mut page, site.page("page.html", html));
-    swb_paint::build_display_list(
-        page.fragments().unwrap(),
-        &NoImages,
-        &swb_paint::NoHighlights,
-    )
+    common::display_list(&mut page)
 }
 
 /// The indices of the rectangles filled with `color`.

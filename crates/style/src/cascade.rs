@@ -180,12 +180,15 @@ impl Styler<'_> {
                 self.cx.root_font_size = style.font_size;
             }
             if style.display != Display::None {
-                self.style_pseudo_elements(&el, &style, layout_parent, &mut map);
+                // Children (and pseudo-elements) of the element see the
+                // element's box as their parent, or the element's own
+                // parent box for `display: contents`.
                 let child_layout_parent = if style.display == Display::Contents {
                     layout_parent
                 } else {
                     Some(style.display)
                 };
+                self.style_pseudo_elements(&el, &style, child_layout_parent, &mut map);
                 children.clear();
                 children.extend(self.doc.element_children(node));
                 if !children.is_empty() {
@@ -263,21 +266,16 @@ impl Styler<'_> {
         style
     }
 
+    /// Styles the pseudo-elements of `el`, whose style is `style`.
+    /// `pseudo_layout_parent` is the display of their parent box.
     fn style_pseudo_elements(
         &mut self,
         el: &DomElement<'_>,
         style: &Arc<ComputedStyle>,
-        layout_parent: Option<Display>,
+        pseudo_layout_parent: Option<Display>,
         map: &mut StyleMap,
     ) {
         let data = el.data();
-        // Children of the element see the element's box as their parent
-        // (or the element's own parent box for `display: contents`).
-        let pseudo_layout_parent = if style.display == Display::Contents {
-            layout_parent
-        } else {
-            Some(style.display)
-        };
         let mut kinds = Vec::with_capacity(3);
         if generates_content_pseudos(data) {
             kinds.extend([PseudoKind::Before, PseudoKind::After]);

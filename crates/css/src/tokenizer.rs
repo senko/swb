@@ -395,9 +395,8 @@ impl<'a> Tokenizer<'a> {
 
     /// <https://www.w3.org/TR/css-syntax-3/#consume-name>
     fn consume_ident_sequence(&mut self) -> Box<str> {
-        let start = self.pos;
         let mut escaped: Option<String> = None;
-        let mut run_start = start;
+        let mut run_start = self.pos;
         loop {
             match self.byte(0) {
                 Some(b) if is_ident_byte(b) => self.pos += 1,
@@ -411,13 +410,7 @@ impl<'a> Tokenizer<'a> {
                 _ => break,
             }
         }
-        match escaped {
-            None => Box::from(&self.input[start..self.pos]),
-            Some(mut out) => {
-                out.push_str(&self.input[run_start..self.pos]);
-                out.into_boxed_str()
-            }
-        }
+        finish_run(escaped, &self.input[run_start..self.pos])
     }
 
     /// <https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token>

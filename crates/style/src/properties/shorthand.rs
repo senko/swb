@@ -27,8 +27,8 @@ use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{ParseResult, ParserContext, parse_non_negative_number};
 use crate::values::{
     BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderStyle, Color,
-    FlexDirection, FlexWrap, FontFamily, FontSizeKeyword, FontStyle, FontVariantCaps,
-    GenericFamily, Length, ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
+    FlexDirection, FlexWrap, FontFamily, FontStyle, FontVariantCaps, GenericFamily, Length,
+    ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
     SpecifiedLengthPercentage as Lp, TextDecorationLine, TextDecorationStyle,
 };
 
@@ -367,15 +367,13 @@ impl ShorthandId {
     }
 }
 
-/// Parses one to four values and expands them to top, right, bottom,
-/// left.
+/// Parses one to four values and expands them to four (top, right,
+/// bottom, left, or the corners from top-left), as the box shorthands do.
 #[allow(clippy::many_single_char_names)]
-fn four_sides<'i, T: Clone>(
+fn one_to_four<'i, T: Clone>(
     p: &mut Parser<'i>,
-    out: &mut Vec<LonghandValue>,
     mut item: impl FnMut(&mut Parser<'i>) -> ParseResult<T>,
-    build: impl FnOnce([T; 4]) -> Vec<LonghandValue>,
-) -> ParseResult<()> {
+) -> ParseResult<[T; 4]> {
     let mut values = vec![item(p)?];
     while values.len() < 4 {
         match item(p) {
@@ -383,14 +381,24 @@ fn four_sides<'i, T: Clone>(
             Err(_) => break,
         }
     }
-    let sides = match values.as_slice() {
+    Ok(match values.as_slice() {
         [a] => [a.clone(), a.clone(), a.clone(), a.clone()],
         [a, b] => [a.clone(), b.clone(), a.clone(), b.clone()],
         [a, b, c] => [a.clone(), b.clone(), c.clone(), b.clone()],
         [a, b, c, d] => [a.clone(), b.clone(), c.clone(), d.clone()],
         _ => return Err(ParseError::Invalid),
-    };
-    out.extend(build(sides));
+    })
+}
+
+/// Parses one to four values and expands them to top, right, bottom,
+/// left.
+fn four_sides<'i, T: Clone>(
+    p: &mut Parser<'i>,
+    out: &mut Vec<LonghandValue>,
+    item: impl FnMut(&mut Parser<'i>) -> ParseResult<T>,
+    build: impl FnOnce([T; 4]) -> Vec<LonghandValue>,
+) -> ParseResult<()> {
+    out.extend(build(one_to_four(p, item)?));
     Ok(())
 }
 
@@ -545,21 +553,9 @@ fn parse_outline(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResul
 /// `border-radius`: `<length-percentage [0,∞]>{1,4} [ / <length-percentage
 /// [0,∞]>{1,4} ]?`.
 fn parse_border_radius(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
-    #[allow(clippy::many_single_char_names)]
     fn corners(p: &mut Parser<'_>) -> ParseResult<[Lp; 4]> {
-        let mut v = vec![parse_length_percentage(p, LengthOptions::NON_NEGATIVE)?];
-        while v.len() < 4 {
-            match parse_length_percentage(p, LengthOptions::NON_NEGATIVE) {
-                Ok(x) => v.push(x),
-                Err(_) => break,
-            }
-        }
-        Ok(match v.as_slice() {
-            [a] => [a.clone(), a.clone(), a.clone(), a.clone()],
-            [a, b] => [a.clone(), b.clone(), a.clone(), b.clone()],
-            [a, b, c] => [a.clone(), b.clone(), c.clone(), b.clone()],
-            [a, b, c, d] => [a.clone(), b.clone(), c.clone(), d.clone()],
-            _ => return Err(ParseError::Invalid),
+        one_to_four(p, |p| {
+            parse_length_percentage(p, LengthOptions::NON_NEGATIVE)
         })
     }
     let horizontal = corners(p)?;
@@ -1014,9 +1010,4 @@ fn parse_flex_flow(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseRes
     ));
     out.push(LonghandValue::FlexWrap(wrap.unwrap_or(FlexWrap::Nowrap)));
     Ok(())
-}
-
-/// The `font-size` value of a legacy `<font size>`.
-pub(crate) fn legacy_font_size(size: i32) -> SpecifiedFontSize {
-    SpecifiedFontSize::Keyword(FontSizeKeyword::from_legacy_size(size))
 }

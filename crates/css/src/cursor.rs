@@ -9,8 +9,7 @@
 //! Most methods skip whitespace before the value they read. Methods whose
 //! name contains `including_whitespace` do not.
 
-use crate::tokenizer::Number;
-use crate::values::{BlockKind, ComponentValue};
+use crate::values::ComponentValue;
 
 /// An error from parsing component values.
 ///
@@ -227,15 +226,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Consumes a number and returns all of its token data (value, integer
-    /// flag, sign flag).
-    pub fn expect_number_token(&mut self) -> Result<Number, ParseError> {
-        self.expect_map(|v| match v {
-            ComponentValue::Number(n) => Some(*n),
-            _ => None,
-        })
-    }
-
     /// Consumes a number with the "integer" type flag.
     pub fn expect_integer(&mut self) -> Result<i32, ParseError> {
         self.expect_map(|v| match v {
@@ -261,14 +251,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Consumes a hash (`#abc`) and returns the value without `#`.
-    pub fn expect_hash(&mut self) -> Result<&'a str, ParseError> {
-        self.expect_map(|v| match v {
-            ComponentValue::Hash { value, .. } => Some(&**value),
-            _ => None,
-        })
-    }
-
     /// Consumes the delim `c`.
     pub fn expect_delim(&mut self, c: char) -> Result<(), ParseError> {
         self.expect_map(|v| v.is_delim(c).then_some(()))
@@ -277,11 +259,6 @@ impl<'a> Parser<'a> {
     /// Consumes a comma.
     pub fn expect_comma(&mut self) -> Result<(), ParseError> {
         self.expect_map(|v| v.is_comma().then_some(()))
-    }
-
-    /// Consumes a colon.
-    pub fn expect_colon(&mut self) -> Result<(), ParseError> {
-        self.expect_map(|v| matches!(v, ComponentValue::Colon).then_some(()))
     }
 
     /// Consumes a function. Returns its name as written and a cursor over
@@ -302,12 +279,6 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         })
-    }
-
-    /// Consumes a simple block of `kind`. Returns a cursor over its
-    /// contents.
-    pub fn expect_block(&mut self, kind: BlockKind) -> Result<Parser<'a>, ParseError> {
-        self.expect_map(|v| v.as_block(kind).map(Parser::new))
     }
 }
 
@@ -364,8 +335,7 @@ mod tests {
 
     #[test]
     fn typed_expectations() {
-        let values =
-            parse_component_values("x 'str' url(a.png) url('b.png') 1.5 7 50% #fff , : / f(1) [z]");
+        let values = parse_component_values("x 'str' url(a.png) url('b.png') 1.5 7 50% , / f(1)");
         let mut p = Parser::new(&values);
         assert_eq!(p.expect_ident_or_string(), Ok("x"));
         assert_eq!(p.expect_string(), Ok("str"));
@@ -375,33 +345,27 @@ mod tests {
         assert_eq!(p.expect_number(), Ok(1.5));
         assert_eq!(p.expect_integer(), Ok(7));
         assert_eq!(p.expect_percentage(), Ok(50.0));
-        assert_eq!(p.expect_hash(), Ok("fff"));
         assert_eq!(p.expect_comma(), Ok(()));
-        assert_eq!(p.expect_colon(), Ok(()));
         assert_eq!(p.expect_delim('/'), Ok(()));
         let (name, mut args) = p.expect_function().expect("function");
         assert_eq!(name, "f");
         assert_eq!(args.expect_integer(), Ok(1));
-        let mut block = p.expect_block(BlockKind::Square).expect("block");
-        assert_eq!(block.expect_ident(), Ok("z"));
         assert!(p.is_exhausted());
     }
 
     #[test]
-    fn keywords_and_number_tokens() {
+    fn keywords() {
         #[derive(Clone, Copy, Debug, PartialEq)]
         enum Display {
             Block,
             None,
         }
-        let values = parse_component_values("NONE x +3");
+        let values = parse_component_values("NONE x");
         let mut p = Parser::new(&values);
         let options = [("block", Display::Block), ("none", Display::None)];
         assert_eq!(p.expect_one_of(&options), Ok(Display::None));
         assert_eq!(p.expect_one_of(&options), Err(ParseError::Unexpected));
         assert_eq!(p.expect_ident(), Ok("x"));
-        let n = p.expect_number_token().expect("number");
-        assert_eq!((n.value, n.int_value, n.has_sign), (3.0, Some(3), true));
     }
 
     #[test]

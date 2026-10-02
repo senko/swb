@@ -54,6 +54,14 @@ pub(crate) struct BoxBase {
     pub(crate) id: usize,
 }
 
+impl BoxBase {
+    /// The element whose own box this is. `None` for anonymous boxes and
+    /// for pseudo-element boxes (their `node` is the originating element).
+    fn element(&self) -> Option<NodeId> {
+        self.node.filter(|_| self.pseudo.is_none())
+    }
+}
+
 /// A block-level box.
 #[derive(Debug)]
 pub(crate) enum BlockLevelBox {
@@ -376,7 +384,7 @@ fn build_independent(
     base: BoxBase,
     state: &mut BuildState,
 ) -> IndependentBox {
-    let element = base.node.filter(|_| base.pseudo.is_none());
+    let element = base.element();
     if let Some(node) = element
         && is_replaced(ctx, node)
     {
@@ -454,9 +462,7 @@ fn build_block_container(
     state: &mut BuildState,
 ) -> BlockContainer {
     let mut builder = ContainerBuilder::new(Arc::clone(&base.style));
-    if let Some(node) = base.node
-        && base.pseudo.is_none()
-    {
+    if let Some(node) = base.element() {
         let is_list = is_list_container(ctx, node);
         if is_list {
             state.counters.enter_list(ctx, node);
@@ -660,9 +666,7 @@ impl ContainerBuilder {
             }
             return;
         }
-        let replaced = base
-            .node
-            .is_some_and(|n| base.pseudo.is_none() && is_replaced(ctx, n));
+        let replaced = base.element().is_some_and(|n| is_replaced(ctx, n));
         if style.display == Display::Inline && !replaced {
             self.inline.push(RawItem::StartBox {
                 base: base.clone(),
@@ -750,15 +754,12 @@ fn build_block_level(
     let establishes_bfc = !matches!(style.display, Display::Block | Display::ListItem)
         || style.overflow_x.is_scroll_container()
         || style.overflow_y.is_scroll_container()
-        || base
-            .node
-            .is_some_and(|n| base.pseudo.is_none() && is_replaced(ctx, n));
+        || base.element().is_some_and(|n| is_replaced(ctx, n));
     if establishes_bfc {
         return BlockLevelBox::Independent(build_independent(ctx, base, state));
     }
     let marker = base
-        .node
-        .filter(|_| base.pseudo.is_none())
+        .element()
         .and_then(|n| build_marker(ctx, n, &base.style, state));
     let contents = build_block_container(ctx, &base, state);
     BlockLevelBox::Block {
@@ -898,8 +899,9 @@ impl InlineBuilder {
     }
 }
 
-/// White-space processing for one text item (CSS Text 3 §4.1.1), followed
-/// by `text-transform`. Appends text items (and line breaks for preserved
+/// White-space processing for one text item (CSS Text 3 §4.1.1,
+/// <https://www.w3.org/TR/css-text-3/#white-space-phase-1>), followed by
+/// `text-transform`. Appends text items (and line breaks for preserved
 /// newlines) to `ifc`. Generated text (`content` of pseudo-elements) has
 /// no source map: it cannot be selected.
 fn process_text(
@@ -1045,13 +1047,15 @@ fn previous_char(ifc: &InlineFormattingContext, start: usize) -> Option<char> {
     ifc.text[..start].chars().next_back()
 }
 
-/// Applies `text-transform` to `text` (CSS Text 3 §2.1). Returns the new
-/// text and, for each character of `text`, its length in the new text and
-/// whether it stayed one character of the same length. `previous` is the
-/// character before the text in the inline formatting context: with
-/// `capitalize`, a word that starts at the beginning of `text` and directly
-/// follows a letter or digit continues a word of a preceding element and is
-/// not changed. Words are found with the word boundaries of UAX #29.
+/// Applies `text-transform` to `text` (CSS Text 3 §2.1,
+/// <https://www.w3.org/TR/css-text-3/#text-transform-property>). Returns
+/// the new text and, for each character of `text`, its length in the new
+/// text and whether it stayed one character of the same length.
+/// `previous` is the character before the text in the inline formatting
+/// context: with `capitalize`, a word that starts at the beginning of
+/// `text` and directly follows a letter or digit continues a word of a
+/// preceding element and is not changed. Words are found with the word
+/// boundaries of UAX #29.
 fn apply_text_transform(
     text: &str,
     transform: TextTransform,

@@ -68,8 +68,9 @@ pub(crate) struct Rule {
     /// Hashes for the ancestor Bloom filter.
     ancestor_hashes: SmallVec<[u32; MAX_ANCESTOR_HASHES]>,
     /// True if the computed values can depend on the element itself, not
-    /// only on the declarations and the parent style (`content` with
-    /// `attr()`). Styles from such rules are not shared between elements.
+    /// only on the declarations and the parent style: the rule sets
+    /// `content`, which can use `attr()`. Styles from such rules are not
+    /// shared between elements.
     pub(crate) uses_element_data: bool,
 }
 

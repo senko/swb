@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-02: M1 maintenance
+
+- End-of-milestone review of the whole codebase. Five clean-context
+  agents each reviewed a group of crates (css; style; layout and text;
+  dom, paint and engine; net, automation, swb and the Python tools) in
+  their own git worktree. The integrator merged the patches, made the
+  changes that cross crates, and fixed the docs.
+- Behaviour is unchanged. The layout agent compared full-precision
+  fragment-tree dumps of all layout tests and fixtures (at several
+  viewport sizes) before and after its changes: byte-identical. Scores
+  and layout tests are unchanged.
+- Removed dead code: unused CSS parser entry points and helpers, unused
+  style value types (`BackgroundLayer`, `Sides`, `Corners`,
+  `ContentItem::Attr`, `GridAutoFlowDirection`), `dump_subtree`, the
+  `markup5ever` dependency, an unused manifest helper in the tools.
+- Removed duplication: one CSS-wide keyword table; one 1-to-4 value
+  expansion for box shorthands; one `@supports` condition-or-declaration
+  fallback; `Fragment::move_by`; one `percent_decode` (exported by
+  `net`); the viewport limits and the network thread count now live in
+  the engine (`check_viewport_size`, `check_scale`,
+  `PageConfig::DEFAULT_NETWORK_THREADS`); `Page::is_fully_loaded`
+  replaces a copy in the automation crate; shared engine test helpers.
+- Split `engine/src/page/mod.rs` (1,220 lines) into `mod.rs`,
+  `loading.rs`, `pipeline.rs` and `scroll.rs`. The moved code is
+  unchanged apart from visibility (`pub(super)`).
+- Narrowed `pub` items, fixed wrong spec section numbers, added spec
+  URLs, corrected module docs, ADR 0006 and 0007 details,
+  `architecture.md`, `testing.md`, `performance.md` and `credits.md`.
+- Fixed a flaky test: `connection_refused_is_an_error` connected to a
+  port that a concurrently running test server could take; it now uses
+  port 0.
+- The reviewers found 12 bugs and 3 undocumented paint simplifications.
+  They are listed in the roadmap ("Backlog from the M1 maintenance
+  review").
+
 ## 2026-10-02: M1 senko.net, automation API
 
 - The owner checked senko.net (hover, Tab, Enter, selection, copy) and

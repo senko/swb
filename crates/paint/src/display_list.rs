@@ -248,7 +248,9 @@ pub fn build_display_list(
         let bg = &canvas_background.style;
         let canvas = Rect::new(0.0, 0.0, tree.scroll_size.width, tree.scroll_size.height);
         // Images are positioned relative to the root element (CSS
-        // Backgrounds 3 §2.11.2); the canvas is the painting area.
+        // Backgrounds 3 §2.11.1,
+        // <https://www.w3.org/TR/css-backgrounds-3/#root-background>); the
+        // canvas is the painting area.
         let (border, padding) = tree.root.as_ref().map_or((canvas, canvas), |root| {
             (root.border_rect, root.padding_rect())
         });
@@ -812,7 +814,8 @@ fn outset(rect: Rect, amount: f32) -> Rect {
 }
 
 /// The value of a background property for layer `i`. The lists of the
-/// properties repeat as needed (CSS Backgrounds 3 §2.2); `None` only for an
+/// properties repeat as needed (CSS Backgrounds 3 §2.1,
+/// <https://www.w3.org/TR/css-backgrounds-3/#layering>); `None` only for an
 /// empty list.
 fn layer_value<T>(list: &[T], i: usize) -> Option<&T> {
     list.get(i % list.len().max(1))
@@ -845,7 +848,8 @@ fn is_block_container_for_text(style: &ComputedStyle) -> bool {
 }
 
 /// Resolves `border-*-radius` against the border box, scaling down
-/// overlapping radii (CSS Backgrounds 3 §5.5).
+/// overlapping radii (CSS Backgrounds 3 §4.5,
+/// <https://www.w3.org/TR/css-backgrounds-3/#corner-overlap>).
 fn resolve_radii(style: &ComputedStyle, rect: Rect) -> Radii {
     let r = |c: &swb_style::CornerRadius| {
         (

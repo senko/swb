@@ -307,7 +307,7 @@ impl ComputedStyle {
     }
 
     /// Copies all inherited properties from `parent`.
-    pub fn copy_inherited_from(&mut self, parent: &ComputedStyle) {
+    fn copy_inherited_from(&mut self, parent: &ComputedStyle) {
         for &id in crate::LonghandId::ALL {
             if id.is_inherited() {
                 id.copy_value(parent, self);

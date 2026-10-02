@@ -15,7 +15,7 @@ use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE, WINDOWS_1252, X_USER_DEFI
 const PRESCAN_LIMIT: usize = 1024;
 
 /// Decodes an HTML document. Returns the text and the encoding used.
-pub fn decode_html<'a>(
+pub(crate) fn decode_html<'a>(
     bytes: &'a [u8],
     transport_charset: Option<&str>,
 ) -> (Cow<'a, str>, &'static Encoding) {
@@ -28,7 +28,7 @@ pub fn decode_html<'a>(
 
 /// Determines the encoding of an HTML document without decoding it. A byte
 /// order mark, if present, still takes priority when decoding.
-pub fn sniff_encoding(bytes: &[u8], transport_charset: Option<&str>) -> &'static Encoding {
+fn sniff_encoding(bytes: &[u8], transport_charset: Option<&str>) -> &'static Encoding {
     if let Some((encoding, _)) = Encoding::for_bom(bytes) {
         return encoding;
     }

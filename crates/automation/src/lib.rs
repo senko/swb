@@ -106,7 +106,7 @@ impl Automation {
         if self.waiters.is_empty() {
             return;
         }
-        let loaded = methods::is_loaded(page);
+        let loaded = page.is_fully_loaded();
         let now = Instant::now();
         self.waiters.retain(|w| {
             if !loaded && now < w.deadline {

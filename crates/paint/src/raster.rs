@@ -645,6 +645,10 @@ impl Rasterizer<'_> {
         self.draw(area, |p, t, m| p.fill_rect(r, &paint, t, m));
     }
 
+    /// Fills `rect` with a linear gradient. The gradient line goes through
+    /// the center of `rect` at the gradient angle, with the length that
+    /// CSS Images 3 §3.1.1 defines
+    /// (<https://www.w3.org/TR/css-images-3/#linear-gradient-syntax>).
     fn linear_gradient(&mut self, rect: Rect, gradient: &swb_style::LinearGradient, current: Rgba) {
         let n = gradient.stops.len();
         if n == 0 {

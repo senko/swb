@@ -168,39 +168,6 @@ pub enum BackgroundSize {
     Auto,
 }
 
-/// One background layer: the image and how it is positioned.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct BackgroundLayer {
-    /// The image; `None` means `none`.
-    pub image: Option<Image>,
-    /// Horizontal position.
-    pub position_x: PositionComponent,
-    /// Vertical position.
-    pub position_y: PositionComponent,
-    /// Size.
-    pub size: BackgroundSize,
-    /// Horizontal repeat.
-    pub repeat_x: BackgroundRepeatKeyword,
-    /// Vertical repeat.
-    pub repeat_y: BackgroundRepeatKeyword,
-    /// `background-origin`.
-    pub origin: BackgroundBox,
-    /// `background-clip`.
-    pub clip: BackgroundBox,
-    /// `background-attachment`.
-    pub attachment: BackgroundAttachment,
-}
-
-impl BackgroundLayer {
-    /// The initial layer: no image, origin `padding-box`, clip `border-box`.
-    pub fn initial() -> Self {
-        BackgroundLayer {
-            origin: BackgroundBox::PaddingBox,
-            ..Default::default()
-        }
-    }
-}
-
 /// The radius of one border corner: horizontal and vertical.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CornerRadius {
@@ -238,10 +205,8 @@ impl Default for FlexBasis {
 /// One item of the `content` property.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContentItem {
-    /// A string.
+    /// A string (also the computed value of `attr()`).
     String(Arc<str>),
-    /// `attr(name)`.
-    Attr(Arc<str>),
     /// An image.
     Image(Image),
     /// `counter(name, style)`.
@@ -272,42 +237,4 @@ pub enum Gap {
     Normal,
     /// A length or percentage.
     LengthPercentage(LengthPercentage),
-}
-
-/// The four sides of a box, in the order top, right, bottom, left.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct Sides<T> {
-    /// Top.
-    pub top: T,
-    /// Right.
-    pub right: T,
-    /// Bottom.
-    pub bottom: T,
-    /// Left.
-    pub left: T,
-}
-
-impl<T: Clone> Sides<T> {
-    /// All four sides set to the same value.
-    pub fn all(value: T) -> Self {
-        Sides {
-            top: value.clone(),
-            right: value.clone(),
-            bottom: value.clone(),
-            left: value,
-        }
-    }
-}
-
-/// The four corners of a box.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct Corners<T> {
-    /// Top-left.
-    pub top_left: T,
-    /// Top-right.
-    pub top_right: T,
-    /// Bottom-right.
-    pub bottom_right: T,
-    /// Bottom-left.
-    pub bottom_left: T,
 }

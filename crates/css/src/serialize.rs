@@ -143,7 +143,7 @@ fn needs_comment(prev: Kind, next: Kind) -> bool {
     }
 }
 
-pub(crate) fn write_values(values: &[ComponentValue], out: &mut String) {
+fn write_values(values: &[ComponentValue], out: &mut String) {
     let mut prev = Kind::Other;
     let mut prev_value = None;
     for value in values {
@@ -246,7 +246,7 @@ fn write_value(value: &ComponentValue, out: &mut String) {
 
 /// Writes a number so that it tokenizes back with the same value, type flag
 /// and sign flag.
-pub(crate) fn write_number(n: &Number, out: &mut String) {
+fn write_number(n: &Number, out: &mut String) {
     if n.value.is_sign_negative() {
         out.push('-');
     } else if n.has_sign {

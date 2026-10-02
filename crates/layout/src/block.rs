@@ -9,7 +9,12 @@
 //! layout and positioned layout exist: a float is placed at the current
 //! position on its side and does not affect the flow; an absolutely
 //! positioned box is placed at its static position with a shrink-to-fit
-//! width, and its offsets (`top`, `left`, ...) are ignored.
+//! width, and its offsets (`top`, `left`, ...) are ignored. Floats and
+//! absolutely positioned boxes that start inside inline content are not
+//! laid out at all (`InlineItem::Float` and
+//! `InlineItem::AbsolutelyPositioned` produce no fragments), unless the
+//! inline content is only collapsible white space (then box construction
+//! moves them to block level).
 
 use std::sync::Arc;
 
@@ -584,19 +589,9 @@ pub(crate) fn finish_fragment(
     mut children: Vec<Fragment>,
     baselines: Baselines,
 ) -> BoxFragment {
-    let offset_x = edges.sum().left;
-    let offset_y = edges.sum().top;
+    let offset = edges.sum();
     for child in &mut children {
-        match child {
-            Fragment::Box(b) => {
-                b.border_rect.x += offset_x;
-                b.border_rect.y += offset_y;
-            }
-            Fragment::Text(t) => {
-                t.rect.x += offset_x;
-                t.rect.y += offset_y;
-            }
-        }
+        child.move_by(offset.left, offset.top);
     }
     BoxFragment {
         node: base.node,
@@ -613,9 +608,10 @@ pub(crate) fn finish_fragment(
     }
 }
 
-/// Shifts a relatively positioned box (CSS 2.2 §9.4.3). Call after the
-/// fragment has its final position. A percentage `top` or `bottom` is
-/// `auto` if the containing block height is not definite.
+/// Shifts a relatively positioned box (CSS 2.2 §9.4.3,
+/// <https://www.w3.org/TR/CSS22/visuren.html#relative-positioning>). Call
+/// after the fragment has its final position. A percentage `top` or
+/// `bottom` is `auto` if the containing block height is not definite.
 pub(crate) fn apply_relative_position(fragment: &mut BoxFragment, cb: ContainingBlock) {
     let (dx, dy) = relative_offset(&fragment.style, cb);
     fragment.border_rect.x += dx;
@@ -676,41 +672,7 @@ pub(crate) fn layout_sized(
         .iter()
         .map(|marker| PendingMarker { marker, inset: 0.0 })
         .collect();
-    let mut children = match &ib.contents {
-        IndependentContents::Flow(container) => layout_block_container(
-            ctx,
-            container,
-            style,
-            child_cb,
-            ChildOptions {
-                collapse_with_parent_start: false,
-                collapse_with_parent_end: false,
-            },
-            &mut markers,
-        ),
-        IndependentContents::Flex(items) => {
-            let layout = crate::flex::layout_flex(ctx, style, items, child_cb);
-            ChildrenLayout {
-                fragments: layout.fragments,
-                content_height: layout.content_height,
-                start_margin: CollapsedMargin::default(),
-                end_margin: CollapsedMargin::default(),
-                collapsed_through: false,
-                baselines: Baselines {
-                    first: layout.first_baseline,
-                    last: layout.first_baseline,
-                },
-            }
-        }
-        IndependentContents::Replaced(_) => ChildrenLayout {
-            fragments: Vec::new(),
-            content_height: 0.0,
-            start_margin: CollapsedMargin::default(),
-            end_margin: CollapsedMargin::default(),
-            collapsed_through: true,
-            baselines: Baselines::default(),
-        },
-    };
+    let mut children = layout_contents(ctx, ib, child_cb, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let height = match content_height {
         Some(h) => h,
@@ -737,6 +699,54 @@ pub(crate) fn layout_sized(
         fragment.content = BoxContent::Image(r.node);
     }
     fragment
+}
+
+/// Lays out the contents of an independent box in its content box `cb`,
+/// with the formatting context that the box establishes.
+fn layout_contents<'a>(
+    ctx: &mut LayoutContext<'_>,
+    ib: &'a IndependentBox,
+    cb: ContainingBlock,
+    markers: &mut Vec<PendingMarker<'a>>,
+) -> ChildrenLayout {
+    let style = &ib.base.style;
+    match &ib.contents {
+        IndependentContents::Flow(container) => layout_block_container(
+            ctx,
+            container,
+            style,
+            cb,
+            ChildOptions {
+                collapse_with_parent_start: false,
+                collapse_with_parent_end: false,
+            },
+            markers,
+        ),
+        IndependentContents::Flex(items) => {
+            let layout = crate::flex::layout_flex(ctx, style, items, cb);
+            ChildrenLayout {
+                fragments: layout.fragments,
+                content_height: layout.content_height,
+                start_margin: CollapsedMargin::default(),
+                end_margin: CollapsedMargin::default(),
+                collapsed_through: false,
+                // Flex layout computes only the first baseline. It is also
+                // the last baseline.
+                baselines: Baselines {
+                    first: layout.first_baseline,
+                    last: layout.first_baseline,
+                },
+            }
+        }
+        IndependentContents::Replaced(_) => ChildrenLayout {
+            fragments: Vec::new(),
+            content_height: 0.0,
+            start_margin: CollapsedMargin::default(),
+            end_margin: CollapsedMargin::default(),
+            collapsed_through: true,
+            baselines: Baselines::default(),
+        },
+    }
 }
 
 /// Lays out a block-level box that establishes an independent formatting

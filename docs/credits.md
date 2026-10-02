@@ -21,9 +21,16 @@ Format: source, license (for code), what it influenced.
   - CSS Grid Layout Level 2
   - CSS Cascade 4/5, Values 4/5, Color 4/5, Variables 1, Display 3,
     Backgrounds 3/4, Fonts 4, Text 3/4, UI 4, Align 3, Images 4, Lists 3,
-    Content 3, Overflow 3, Sizing 3, Conditional 3, Media Queries 4
+    Content 3, Overflow 3, Sizing 3, Conditional 3/4 (`selector()`),
+    Media Queries 4
+  - CSSOM: serialization of identifiers, strings and selectors
+    (`css/src/serialize.rs`, `css/src/selector/display.rs`)
   - HTML Living Standard, Rendering section (CC BY 4.0): the user-agent
-    stylesheet `crates/style/src/ua.css` is based on its CSS
+    stylesheets `crates/style/src/ua.css` and `ua-quirks.css` and the
+    presentational hints in `crates/style/src/hints.css` are based on its
+    CSS
+  - HTML Living Standard, the list of attributes whose values selectors
+    match ASCII case-insensitively (`css/src/selector/parse.rs`)
   - Quirks Mode Standard — https://quirks.spec.whatwg.org/
   - HTML Living Standard, interaction and DOM sections: focusable areas and
     sequential focus navigation (`engine/src/focus.rs`), the `innerText`
@@ -34,6 +41,7 @@ Format: source, license (for code), what it influenced.
 - UI Events KeyboardEvent key values — https://www.w3.org/TR/uievents-key/ —
   key names of the engine and the automation protocol
 - Unicode Standard Annex #14 (line breaking), #9 (bidi)
+- RFC 4647 (language tag matching) — `:lang()`
 
 ## Books and articles
 

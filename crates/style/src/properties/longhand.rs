@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use swb_css::{ParseError, Parser};
 
+use super::CssWideKeyword;
 use super::ids::{LonghandId, LonghandValue};
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedContent, SpecifiedContentItem, SpecifiedFlexBasis,
@@ -275,7 +276,7 @@ pub(crate) fn parse_font_family(p: &mut Parser<'_>) -> ParseResult<Arc<[FontFami
             if let Some(g) = GenericFamily::from_ident(single) {
                 return Ok(FontFamily::Generic(g));
             }
-            if is_css_wide_keyword(single) || single.eq_ignore_ascii_case("default") {
+            if is_reserved_ident(single) {
                 return Err(ParseError::Invalid);
             }
         }
@@ -283,10 +284,10 @@ pub(crate) fn parse_font_family(p: &mut Parser<'_>) -> ParseResult<Arc<[FontFami
     })
 }
 
-fn is_css_wide_keyword(ident: &str) -> bool {
-    ["initial", "inherit", "unset", "revert", "revert-layer"]
-        .iter()
-        .any(|k| k.eq_ignore_ascii_case(ident))
+/// True for the identifiers that cannot be a family or counter style
+/// name: the CSS-wide keywords and `default`.
+fn is_reserved_ident(ident: &str) -> bool {
+    CssWideKeyword::from_ident(ident).is_some() || ident.eq_ignore_ascii_case("default")
 }
 
 /// `font-size`. <https://www.w3.org/TR/css-fonts-4/#font-size-prop>
@@ -659,7 +660,7 @@ pub(crate) fn parse_list_style_type(p: &mut Parser<'_>) -> ParseResult<ListStyle
     if let Some(t) = ListStyleType::from_ident(ident) {
         return Ok(t);
     }
-    if is_css_wide_keyword(ident) || ident.eq_ignore_ascii_case("default") {
+    if is_reserved_ident(ident) {
         return Err(ParseError::Invalid);
     }
     Ok(ListStyleType::Decimal)

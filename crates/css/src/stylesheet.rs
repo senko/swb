@@ -11,10 +11,9 @@
 //! dropped.
 
 use crate::cursor::Parser;
-use crate::media::{MediaEnvironment, MediaQueryList};
-use crate::parser::parse_declaration_from_values;
+use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
-use crate::supports::SupportsCondition;
+use crate::supports::{SupportsCondition, parse_condition_or_declaration};
 use crate::values::ComponentValue;
 
 /// A parsed stylesheet.
@@ -63,11 +62,6 @@ pub struct Declaration {
 }
 
 impl Declaration {
-    /// True if this declares a custom property (`--name`).
-    pub fn is_custom_property(&self) -> bool {
-        self.name.starts_with("--")
-    }
-
     /// A cursor over the value.
     pub fn parser(&self) -> Parser<'_> {
         Parser::new(&self.value)
@@ -109,13 +103,10 @@ impl ImportRule {
             Some(v) if v.is_ident("layer") || v.is_function("layer") => Ok(()),
             _ => Err(()),
         });
-        let supports = p.expect_function_matching("supports").ok().map(|args| {
-            let args = args.remaining();
-            SupportsCondition::parse(args)
-                .ok()
-                .or_else(|| parse_declaration_from_values(args).map(SupportsCondition::Declaration))
-                .unwrap_or(SupportsCondition::Unknown)
-        });
+        let supports = p
+            .expect_function_matching("supports")
+            .ok()
+            .map(|args| parse_condition_or_declaration(args.remaining()));
         Some(ImportRule {
             url,
             supports,
@@ -146,69 +137,11 @@ impl Stylesheet {
     pub fn parse(css: &str) -> Stylesheet {
         crate::parser::parse_stylesheet(css)
     }
-
-    /// Calls `f` for each style rule that applies, in source order.
-    ///
-    /// Descends into `@media` rules whose media list matches `env` and into
-    /// `@supports` rules whose condition is true. `supports_declaration`
-    /// tells whether a property declaration is supported (see
-    /// [`SupportsCondition::evaluate`]). Does not follow `@import`.
-    pub fn for_each_style_rule<'a>(
-        &'a self,
-        env: &MediaEnvironment,
-        supports_declaration: &dyn Fn(&Declaration) -> bool,
-        f: &mut dyn FnMut(&'a StyleRule),
-    ) {
-        visit_rules(&self.rules, env, supports_declaration, f);
-    }
-}
-
-fn visit_rules<'a>(
-    rules: &'a [CssRule],
-    env: &MediaEnvironment,
-    supports_declaration: &dyn Fn(&Declaration) -> bool,
-    f: &mut dyn FnMut(&'a StyleRule),
-) {
-    for rule in rules {
-        match rule {
-            CssRule::Style(style) => f(style),
-            CssRule::Media(media) => {
-                if media.media.matches(env) {
-                    visit_rules(&media.rules, env, supports_declaration, f);
-                }
-            }
-            CssRule::Supports(supports) => {
-                if supports.condition.evaluate(supports_declaration) {
-                    visit_rules(&supports.rules, env, supports_declaration, f);
-                }
-            }
-            CssRule::Import(_) | CssRule::FontFace(_) => {}
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::media::MediaType;
-
-    #[test]
-    fn effective_style_rules() {
-        let sheet = Stylesheet::parse(
-            "a { x: y } @media print { b { x: y } } @media screen { c { x: y } } \
-             @supports (display: grid) { d { x: y } } @supports (display: nope) { e { x: y } }",
-        );
-        let env = MediaEnvironment {
-            media_type: MediaType::Screen,
-            ..MediaEnvironment::default()
-        };
-        let supported = |d: &Declaration| d.name == "display" && d.value[0].is_ident("grid");
-        let mut seen = Vec::new();
-        sheet.for_each_style_rule(&env, &supported, &mut |rule| {
-            seen.push(rule.selectors.to_string());
-        });
-        assert_eq!(seen, vec!["a", "c", "d"]);
-    }
 
     #[test]
     fn import_prelude() {
@@ -235,11 +168,9 @@ mod tests {
     }
 
     #[test]
-    fn declaration_helpers() {
-        let decls = crate::parse_style_attribute("--X: 1; width: 10px");
-        assert!(decls[0].is_custom_property());
-        assert!(!decls[1].is_custom_property());
-        let mut p = decls[1].parser();
+    fn declaration_parser() {
+        let decls = crate::parse_style_attribute("width: 10px");
+        let mut p = decls[0].parser();
         assert_eq!(p.expect_dimension(), Ok((10.0, "px")));
     }
 }

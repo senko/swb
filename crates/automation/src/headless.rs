@@ -40,7 +40,7 @@ impl HeadlessBrowser {
         let config = PageConfig {
             fetcher,
             notify: Arc::clone(&notify),
-            network_threads: 6,
+            network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
         };
         let page = Page::new(config, fonts, viewport, scale);
         let automation = Automation::start(port, notify)?;

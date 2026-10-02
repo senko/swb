@@ -80,6 +80,38 @@ Open a URL in a window and read the page.
   rules change); a hover on a page with `:hover` rules restyles all
   elements and often lays out again.
 
+## Backlog from the M1 maintenance review
+
+Bugs found by the end-of-milestone review. The maintenance commit did not
+change behaviour, so they are not fixed yet.
+
+- CSS: an at-rule that the parser drops (`@media screen;`, `@supports`
+  with an invalid condition) ends the part of the sheet where `@import`
+  is allowed (not checked against Blink).
+- Style: the `background` and `list-style` shorthands reject
+  `cross-fade()`, `element()` and `paint()` images (`looks_like_image`);
+  `text-indent` accepts repeated keywords and `aspect-ratio` accepts
+  `auto auto`; image URLs of pseudo-elements are requested in hash-map
+  order, not in document order.
+- Layout: a float that follows inline content in a flex container is
+  dropped; it should be a flex item.
+- Engine: a click on a visible child of a `visibility: hidden` focusable
+  element focuses the hidden element; the disabled state of `option` and
+  `optgroup` does not follow the HTML spec (a disabled `fieldset` should
+  not disable them, a disabled `optgroup` should); after a navigation
+  starts and the user stops it, the old page's cancelled images stay
+  "loading" and do not load until a reload.
+- Paint: `background-repeat: space` and `round` are painted as `repeat`,
+  `background-attachment: fixed` as `scroll`; text decoration thickness
+  comes from the font size, not from the font's underline metrics.
+- Style: the substitution budget of custom properties is not what ADR
+  0007 says: a nested `var()` reference costs only the size of its result
+  (`Resolver::resolve` in `custom.rs`), so one element can copy up to
+  about 128 × 100,000 component values. Still bounded.
+- `swb --test-fonts` panics when the source tree (with
+  `fixtures/fonts`) is not present; `swbtools perf` does not catch a swb
+  timeout.
+
 ## Backlog from the M0 review
 
 Found by the reviews before the first commit and not fixed yet. Layout

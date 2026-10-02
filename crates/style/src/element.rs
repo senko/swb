@@ -370,10 +370,8 @@ impl Element for DomElement<'_> {
 
     fn has_class(&self, name: &str, case: CaseSensitivity) -> bool {
         match self.states.classes_of(self.id) {
-            Some(classes) if !self.states.class_ranges.is_empty() => {
-                classes.iter().any(|c| case.eq(c, name))
-            }
-            _ => self.data.classes().any(|c| case.eq(c, name)),
+            Some(classes) => classes.iter().any(|c| case.eq(c, name)),
+            None => self.data.classes().any(|c| case.eq(c, name)),
         }
     }
 

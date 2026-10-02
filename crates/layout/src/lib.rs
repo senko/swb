@@ -180,9 +180,11 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
 }
 
 /// The element whose `overflow` applies to the viewport, and that value
-/// (CSS Overflow 3 §3.3): the root element's, or, if the root is an HTML
-/// `html` element with `overflow: visible`, the `body` element's. `None` if
-/// neither has a non-visible overflow.
+/// (CSS Overflow 3 §3.3,
+/// <https://www.w3.org/TR/css-overflow-3/#overflow-propagation>): the root
+/// element's, or, if the root is an HTML `html` element with `overflow:
+/// visible`, the `body` element's. `None` if neither has a non-visible
+/// overflow.
 fn viewport_overflow(doc: &Document, styles: &StyleMap) -> Option<(NodeId, Overflow, Overflow)> {
     let visible =
         |s: &ComputedStyle| s.overflow_x == Overflow::Visible && s.overflow_y == Overflow::Visible;
@@ -204,7 +206,8 @@ fn viewport_overflow(doc: &Document, styles: &StyleMap) -> Option<(NodeId, Overf
 }
 
 /// The background that paints the canvas: the root element's, or the
-/// body's if the root has no background (CSS 2.2 §14.2).
+/// body's if the root has no background (CSS 2.2 §14.2,
+/// <https://www.w3.org/TR/CSS22/colors.html#background>).
 fn canvas_background(doc: &Document, styles: &StyleMap) -> Option<CanvasBackground> {
     let root = doc.document_element()?;
     let root_style = styles.get(root)?;

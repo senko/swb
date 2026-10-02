@@ -1,6 +1,6 @@
-//! Shared code for the engine tests: directories with test pages, and
-//! comparisons of swb's layout with stored Chromium geometry (the scoring
-//! rules follow docs/testing.md, "Scores").
+//! Shared code for the engine tests: directories with test pages, page
+//! setup, and comparisons of swb's layout with stored Chromium geometry
+//! (the scoring rules follow docs/testing.md, "Scores").
 
 #![allow(dead_code)] // Each test binary uses a different subset.
 
@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{ElementBox, FontContext, Page, PageConfig, Rect, Size, Url};
+use swb_engine::{ElementBox, FontContext, Page, PageConfig, Pixmap, Rect, Size, Url};
 use swb_net::Fetcher;
+use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights};
 
 /// A directory with test pages, removed at the end of the test.
 pub(crate) struct Site {
@@ -47,22 +48,59 @@ pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// Loads `url` with `fetcher` and the bundled test fonts, and returns the
-/// element boxes.
-pub(crate) fn load_boxes(fetcher: Arc<dyn Fetcher>, url: Url, viewport: Size) -> Vec<ElementBox> {
+/// Creates a page with `fetcher`, the bundled test fonts and the scale
+/// factor 1.
+pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewport: Size) -> Page {
     let config = PageConfig {
         fetcher,
         notify: Arc::new(|| {}),
-        network_threads: 4,
+        network_threads,
     };
-    let mut page = Page::new(config, FontContext::for_tests(), viewport, 1.0);
-    page.navigate(url);
-    assert!(
-        page.wait_until_loaded(Duration::from_secs(60)),
-        "page did not load"
-    );
+    Page::new(config, FontContext::for_tests(), viewport, 1.0)
+}
+
+/// Waits until the page is loaded, then lays it out. Fails the test if
+/// loading takes longer than `timeout`.
+pub(crate) fn finish_loading(page: &mut Page, timeout: Duration) {
+    assert!(page.wait_until_loaded(timeout), "page did not load");
     page.update_layout();
+}
+
+/// Loads `url` with `fetcher` and the bundled test fonts, and returns the
+/// element boxes.
+pub(crate) fn load_boxes(fetcher: Arc<dyn Fetcher>, url: Url, viewport: Size) -> Vec<ElementBox> {
+    let mut page = new_page(fetcher, 4, viewport);
+    page.navigate(url);
+    finish_loading(&mut page, Duration::from_secs(60));
     swb_engine::element_boxes(&page)
+}
+
+/// A 2x3 PNG.
+pub(crate) fn tiny_png() -> Vec<u8> {
+    Pixmap::new(2, 3)
+        .expect("a 2x3 pixmap")
+        .encode_png()
+        .expect("PNG encoding")
+}
+
+/// Image sizes when no image is loaded.
+pub(crate) struct NoImages;
+
+impl ImageSizes for NoImages {
+    fn size(&self, _image: &ImageRef) -> Option<(f32, f32)> {
+        None
+    }
+}
+
+/// The display list of the page's layout, without images and without the
+/// selection.
+pub(crate) fn display_list(page: &mut Page) -> DisplayList {
+    page.update_layout();
+    swb_paint::build_display_list(
+        page.fragments().expect("the page has a layout"),
+        &NoImages,
+        &NoHighlights,
+    )
 }
 
 /// Reads a box dump (`*.boxes.json`).

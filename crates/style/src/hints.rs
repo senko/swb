@@ -25,11 +25,10 @@ use crate::parse::image::SpecifiedImage;
 use crate::properties::PropertyDeclaration;
 use crate::properties::ids::LonghandValue;
 use crate::properties::longhand::parse_font_family;
-use crate::properties::shorthand::legacy_font_size;
-use crate::properties::specified::SpecifiedSize;
+use crate::properties::specified::{SpecifiedFontSize, SpecifiedSize};
 use crate::values::{
-    BorderStyle, CaptionSide, Color, FontFamily, Length, Rgba, SpecifiedLengthPercentage as Lp,
-    TextAlign, WhiteSpace,
+    BorderStyle, CaptionSide, Color, FontFamily, FontSizeKeyword, Length, Rgba,
+    SpecifiedLengthPercentage as Lp, TextAlign, WhiteSpace,
 };
 
 /// Document-wide data for hints.
@@ -99,7 +98,8 @@ pub(crate) fn parse_dimension(input: &str) -> Option<Dimension> {
         }
         rest = &after_dot[fraction..];
     }
-    let value = (value as f32).min(MAX_HINT_LENGTH);
+    // Huge values must not become infinite lengths.
+    let value = (value as f32).min(Length::MAX_PX);
     if rest.starts_with('%') {
         Some(Dimension::Percentage(value))
     } else {
@@ -108,6 +108,7 @@ pub(crate) fn parse_dimension(input: &str) -> Option<Dimension> {
 }
 
 /// The rules for parsing nonzero dimension values.
+/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-zero-dimension-values>
 fn parse_nonzero_dimension(input: &str) -> Option<Dimension> {
     parse_dimension(input).filter(|d| match d {
         Dimension::Length(v) | Dimension::Percentage(v) => *v != 0.0,
@@ -133,16 +134,15 @@ pub(crate) fn parse_integer(input: &str) -> Option<i64> {
 }
 
 /// The rules for parsing non-negative integers.
+/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers>
 pub(crate) fn parse_non_negative_integer(input: &str) -> Option<i64> {
     parse_integer(input).filter(|v| *v >= 0)
 }
 
-/// The largest length a hint produces (Chromium's layout limit), so that
-/// huge attribute values do not become infinite lengths.
-const MAX_HINT_LENGTH: f32 = 33_554_431.0;
-
+/// A length in px, clamped to [`Length::MAX_PX`] so that huge attribute
+/// values do not become infinite lengths.
 fn px(v: f32) -> Lp {
-    Lp::Length(Length::px(v.clamp(-MAX_HINT_LENGTH, MAX_HINT_LENGTH)))
+    Lp::Length(Length::px(Length::clamp_px(v)))
 }
 
 /// Appends the presentational hints of an HTML element to `out`.
@@ -440,7 +440,8 @@ fn font_hints(e: &ElementData, push: &mut impl FnMut(LonghandValue)) {
         push(LonghandValue::FontFamily(families));
     }
     if let Some(size) = e.attr("size").and_then(parse_legacy_font_size) {
-        push(LonghandValue::FontSize(legacy_font_size(size)));
+        let keyword = FontSizeKeyword::from_legacy_size(size);
+        push(LonghandValue::FontSize(SpecifiedFontSize::Keyword(keyword)));
     }
 }
 
@@ -486,7 +487,7 @@ mod tests {
         let huge = "9".repeat(400);
         assert_eq!(
             parse_dimension(&huge),
-            Some(Dimension::Length(MAX_HINT_LENGTH))
+            Some(Dimension::Length(Length::MAX_PX))
         );
     }
 

@@ -83,13 +83,6 @@ class Entry:
         """The sort key and identity of the entry: (url, method)."""
         return (self.url, self.method)
 
-    def header(self, name: str) -> str | None:
-        """Returns the first value of the header `name` (lowercase)."""
-        for header_name, value in self.headers:
-            if header_name == name:
-                return value
-        return None
-
     def to_json(self) -> dict[str, object]:
         """The entry as a JSON object, fields in file order."""
         return {

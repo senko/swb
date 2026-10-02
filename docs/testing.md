@@ -11,6 +11,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Layout tests           | `tests/layout/*.html` + `*.boxes.json`  | only to regenerate `*.boxes.json` |
 | Page fixtures          | `fixtures/pages/<name>/`                | only to capture and to regenerate `reference/` |
 | Scores (ratchet)       | `fixtures/scores.json`                  | no                                |
+| Engine tests           | `crates/engine/tests/page.rs` (navigation, history, fragments, cancellation, hit testing, display list) | no |
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -58,7 +59,8 @@ Options:
   `files/`, `fixture.json` and `reference/`).
 - `capture --with-swb` / `--no-swb`: record swb's requests too, or not.
   Default: use swb if the binary exists.
-- `capture --swb PATH`, `compare --swb PATH`: the swb binary. Default: the
+- `--swb PATH` (`capture`, `capture-missing`, `compare`, `perf`): the
+  swb binary. Default: the
   `SWB` environment variable, then `target/release/swb`, then
   `target/debug/swb`.
 - `--system-fonts` (`capture`, `reference`, `layout-refs`): use the
@@ -139,8 +141,8 @@ this format. `compare` and the Rust layout tests read it.
     union (bounding box) of all of them. `null` if the element has no box.
   - `parent` (optional): the index of the parent element in `elements`,
     `null` for the root. Chromium dumps have it. `compare` uses it from the
-    Chromium dump for the `relative` score and for element paths. swb can
-    omit it.
+    Chromium dump for the `relative` score and for element paths. swb
+    writes it too. Readers must accept dumps without it.
 
 The elements with a box are the elements whose `getClientRects()` is not
 empty. In Chromium this includes some cases that need attention:
@@ -279,12 +281,12 @@ not sans-serif. The test `test_layout_dump_uses_the_bundled_fonts` in
 
 ### Request interception
 
-`capture` and `reference` intercept every request with the Chrome DevTools
-Protocol `Fetch` domain (`tools/swbtools/routing.py`), not with Playwright's
-`page.route`. Playwright calls a route handler only for the first URL of a
-redirect chain, and the browser then fetches the redirect target from the
-network. With `Fetch`, every hop pauses, so the tools record each hop and
-serve each hop from the fixture.
+`capture`, `capture-missing` and `reference` intercept every request with
+the Chrome DevTools Protocol `Fetch` domain (`tools/swbtools/routing.py`),
+not with Playwright's `page.route`. Playwright calls a route handler only
+for the first URL of a redirect chain, and the browser then fetches the
+redirect target from the network. With `Fetch`, every hop pauses, so the
+tools record each hop and serve each hop from the fixture.
 
 Chromium gets the same response headers in capture and in replay: the
 stored headers (`content-type`, `location`) and

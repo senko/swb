@@ -136,16 +136,16 @@ use crate::file_types::extension_for_mime_type;
 use crate::response::ContentType;
 
 /// The name of the manifest file in a fixture directory.
-pub const MANIFEST_FILE: &str = "manifest.json";
+pub(crate) const MANIFEST_FILE: &str = "manifest.json";
 
 /// The name of the directory for body files in a fixture directory.
-pub const FILES_DIR: &str = "files";
+pub(crate) const FILES_DIR: &str = "files";
 
 /// The manifest format version that this crate reads and writes.
-pub const MANIFEST_VERSION: u32 = 1;
+pub(crate) const MANIFEST_VERSION: u32 = 1;
 
 /// The response headers that [`RecordingFetcher`] stores.
-pub const STORED_HEADERS: [&str; 2] = ["content-type", "location"];
+pub(crate) const STORED_HEADERS: [&str; 2] = ["content-type", "location"];
 
 /// One manifest entry, as stored in the JSON file. The field order is the
 /// order in the file.

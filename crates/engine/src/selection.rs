@@ -233,7 +233,13 @@ pub(crate) fn subtree_range(
         .filter_map(|n| extents.get(&n).map(|e| (n, *e)));
     let (first, (start, first_end)) = texts.next()?;
     let (last, end) = texts.last().map_or((first, first_end), |(n, e)| (n, e.1));
-    Some(Selection::new(
+    Some(text_range(first, start, last, end))
+}
+
+/// The selection from offset `start` in text node `first` to offset `end`
+/// in text node `last`.
+fn text_range(first: NodeId, start: u32, last: NodeId, end: u32) -> Selection {
+    Selection::new(
         TextPosition {
             node: first,
             offset: start as usize,
@@ -242,7 +248,7 @@ pub(crate) fn subtree_range(
             node: last,
             offset: end as usize,
         },
-    ))
+    )
 }
 
 /// The word (or run of spaces or punctuation) at `position`, by the word
@@ -316,16 +322,7 @@ pub(crate) fn paragraph_at(
     }
     let (first, last) = run.filter(|_| found)?;
     let (start, end) = (extents.get(&first)?.0, extents.get(&last)?.1);
-    Some(Selection::new(
-        TextPosition {
-            node: first,
-            offset: start as usize,
-        },
-        TextPosition {
-            node: last,
-            offset: end as usize,
-        },
-    ))
+    Some(text_range(first, start, last, end))
 }
 
 /// The selected text, as the `innerText` algorithm would produce it for

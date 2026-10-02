@@ -1,6 +1,6 @@
 """The box dump format: the border box of every element.
 
-Chromium (through `collect`) and swb (`--dump-boxes FILE`) write this
+Chromium (through `COLLECT_JS`) and swb (`--dump-boxes FILE`) write this
 format. The comparison reads both. The specification is in docs/testing.md.
 
 ```json

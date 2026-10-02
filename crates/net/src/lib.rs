@@ -10,6 +10,8 @@
 //!   use it, so that they never access the network.
 //! - [`RecordingFetcher`]: wraps another fetcher and stores every response
 //!   in a fixture directory.
+//! - [`ExtendingFetcher`]: answers from a fixture directory and fetches and
+//!   records only the requests that it does not have.
 //!
 //! [`fetch_following_redirects`] follows redirects on top of any fetcher.
 //! [`Loader`] runs fetches on worker threads and returns the results through
@@ -32,6 +34,7 @@ mod response;
 #[cfg(test)]
 mod test_util;
 
+pub use data_url::percent_decode;
 pub use error::NetError;
 pub use fetch::{Fetcher, MAX_REDIRECTS, fetch_following_redirects};
 pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};

@@ -125,8 +125,7 @@ fn styles(page: &Page) -> StyleMap {
     )
 }
 
-fn style_of<'a>(page: &Page, styles: &'a StyleMap, node: NodeId) -> &'a ComputedStyle {
-    let _ = page;
+fn style_of(styles: &StyleMap, node: NodeId) -> &ComputedStyle {
     styles.get(node).expect("element has a style")
 }
 
@@ -144,7 +143,7 @@ fn hacker_news() {
 
     // The orange header cell: `<td bgcolor="#ff6600">`.
     let header = first(&page, |e| e.attr("bgcolor") == Some("#ff6600"));
-    let s = style_of(&page, &styles, header);
+    let s = style_of(&styles, header);
     assert_eq!(
         s.background_color.resolve(s.color),
         Rgba::rgb(0xff, 0x66, 0x00)
@@ -153,7 +152,7 @@ fn hacker_news() {
 
     // The main table: width="85%", bgcolor, cellspacing="0".
     let main = first(&page, |e| e.id() == Some("hnmain"));
-    let s = style_of(&page, &styles, main);
+    let s = style_of(&styles, main);
     assert_eq!(
         s.width,
         swb_style::Size::LengthPercentage(LengthPercentage::Percent(0.85))
@@ -173,7 +172,7 @@ fn hacker_news() {
     // `td { font-family: Verdana, Geneva, sans-serif; font-size: 10pt;
     // color: #828282 }`, cellpadding="0".
     let cell = first(&page, |e| e.has_class("title"));
-    let s = style_of(&page, &styles, cell);
+    let s = style_of(&styles, cell);
     assert!((s.font_size - 13.333_333).abs() < 1e-3);
     assert_eq!(s.color, Rgba::rgb(0x82, 0x82, 0x82));
     assert_eq!(s.font_family[0], FontFamily::Named("Verdana".into()));
@@ -186,13 +185,13 @@ fn hacker_news() {
 
     // Links: `a:link { color: #000000; text-decoration: none }`.
     let link = first(&page, |e| e.attr("href") == Some("news"));
-    let s = style_of(&page, &styles, link);
+    let s = style_of(&styles, link);
     assert_eq!(s.color, Rgba::BLACK);
     assert!(s.text_decoration_line.is_empty());
 
     // The logo image: width/height attributes and an inline style.
     let logo = first(&page, |e| e.attr("src") == Some("y18.svg"));
-    let s = style_of(&page, &styles, logo);
+    let s = style_of(&styles, logo);
     assert_eq!(
         s.width,
         swb_style::Size::LengthPercentage(LengthPercentage::Px(18.0))
@@ -225,13 +224,13 @@ fn wikipedia() {
         page.doc.len()
     );
     let body = page.doc.body().expect("body");
-    let s = style_of(&page, &styles, body);
+    let s = style_of(&styles, body);
     assert_eq!(
         &*s.font_family,
         &[FontFamily::Generic(GenericFamily::SansSerif)]
     );
     let html = page.doc.document_element().expect("html");
-    let root = style_of(&page, &styles, html);
+    let root = style_of(&styles, html);
     assert_eq!(root.font_size, 16.0);
     assert!(
         root.custom_properties
@@ -242,7 +241,7 @@ fn wikipedia() {
     // The article text: `.mw-body-content { font-size: var(--font-size-medium) }`
     // is 14px (0.875rem) at the default size.
     let content = first(&page, |e| e.id() == Some("mw-content-text"));
-    let s = style_of(&page, &styles, content);
+    let s = style_of(&styles, content);
     assert!(s.font_size > 13.0 && s.font_size < 17.0, "{}", s.font_size);
     // Text color comes from `var(--color-base)`.
     assert_eq!(s.color, Rgba::rgb(0x20, 0x21, 0x22));

@@ -5,13 +5,14 @@ mod gui;
 mod headless;
 mod url_input;
 
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use swb_engine::Size;
+use swb_engine::{Size, check_scale, check_viewport_size};
 use swb_net::{ExtendingFetcher, Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
 use swb_text::FontContext;
 
@@ -96,29 +97,28 @@ struct Args {
     remote_port: Option<u16>,
 }
 
-/// The largest accepted `--size` in either dimension.
-const MAX_VIEWPORT_SIDE: f32 = 16_384.0;
-
 fn parse_size(s: &str) -> Result<Size, String> {
     let (w, h) = s.split_once('x').ok_or("expected WIDTHxHEIGHT")?;
     let w: f32 = w.trim().parse().map_err(|_| "bad width")?;
     let h: f32 = h.trim().parse().map_err(|_| "bad height")?;
-    let valid = |v: f32| (1.0..=MAX_VIEWPORT_SIDE).contains(&v);
-    if !valid(w) || !valid(h) {
-        return Err(format!(
-            "width and height must be between 1 and {MAX_VIEWPORT_SIDE}"
-        ));
-    }
-    Ok(Size::new(w, h))
+    let size = Size::new(w, h);
+    check_viewport_size(size).map_err(|e| e.to_string())?;
+    Ok(size)
 }
 
 fn parse_scale(s: &str) -> Result<f32, String> {
     let scale: f32 = s.trim().parse().map_err(|_| "bad scale")?;
-    if scale > 0.0 && scale <= 8.0 {
-        Ok(scale)
-    } else {
-        Err("the scale must be above 0 and at most 8".to_owned())
-    }
+    check_scale(scale).map_err(|e| e.to_string())?;
+    Ok(scale)
+}
+
+/// Prints the address of the automation server on standard output. Tools
+/// read this line to find the port (docs/automation.md).
+fn print_server_address(port: u16) -> Result<()> {
+    println!("swb: automation server listening on ws://127.0.0.1:{port}/");
+    std::io::stdout()
+        .flush()
+        .context("cannot write to standard output")
 }
 
 fn main() -> Result<()> {

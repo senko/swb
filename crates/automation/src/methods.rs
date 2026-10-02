@@ -6,7 +6,10 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use swb_engine::{Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Size, Url};
+use swb_engine::{
+    Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Size, Url, check_scale,
+    check_viewport_size,
+};
 
 use crate::protocol::RpcError;
 
@@ -27,9 +30,6 @@ const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 /// The longest accepted timeout: one hour.
 const MAX_TIMEOUT_MS: u64 = 3_600_000;
-
-/// The largest accepted viewport side in CSS px.
-const MAX_VIEWPORT_SIDE: f32 = 16_384.0;
 
 /// Executes a method.
 pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
@@ -90,16 +90,6 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         )),
     };
     Outcome::Done(result)
-}
-
-/// True if the page and all its resources are loaded. Layout can discover
-/// more resources (background images), so the page is laid out first.
-pub(crate) fn is_loaded(page: &mut Page) -> bool {
-    if page.is_loading() {
-        return false;
-    }
-    page.update_layout();
-    !page.is_loading()
 }
 
 /// Parses the parameters of a method. Null counts as an empty object.
@@ -181,18 +171,11 @@ fn default_scale() -> f32 {
 
 fn set_viewport(page: &mut Page, params: Value) -> MethodResult {
     let p: ViewportParams = parse(params)?;
-    let side = |v: f32| (1.0..=MAX_VIEWPORT_SIDE).contains(&v);
-    if !side(p.width) || !side(p.height) {
-        return Err(RpcError::invalid_params(format!(
-            "width and height must be between 1 and {MAX_VIEWPORT_SIDE}"
-        )));
-    }
-    if !(p.scale > 0.0 && p.scale <= 8.0) {
-        return Err(RpcError::invalid_params(
-            "the scale must be above 0 and at most 8",
-        ));
-    }
-    page.set_viewport(Size::new(p.width, p.height), p.scale);
+    let size = Size::new(p.width, p.height);
+    check_viewport_size(size)
+        .and_then(|()| check_scale(p.scale))
+        .map_err(|e| RpcError::invalid_params(e.to_string()))?;
+    page.set_viewport(size, p.scale);
     Ok(json!({}))
 }
 

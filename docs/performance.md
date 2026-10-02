@@ -27,9 +27,9 @@ times:
 | `raster` | Rasterizing the first viewport (1280×800 device pixels) |
 
 Before each run, all results are discarded (`Page::restart_pipeline`), so
-every stage runs again. Fonts, shaping results of earlier runs and glyph
-masks stay cached between runs, as they do in the browser. `--bench`
-prints JSON:
+every stage runs again. Fonts, shape plans and glyph masks stay cached
+between runs, as they do in the browser (shaping results are cached only
+within one layout pass). `--bench` prints JSON:
 
 ```json
 {

@@ -14,7 +14,7 @@ from swbtools.automation import AutomationError, Browser
 def browser():
     if swb.find_swb() is None:
         pytest.skip("the swb binary does not exist")
-    with Browser.start(fixture=paths.fixtures_dir() / "pages" / "senko-net") as b:
+    with Browser.start(fixture=paths.fixture_dir("senko-net")) as b:
         b.navigate("https://senko.net/")
         assert b.wait_for_load()
         yield b

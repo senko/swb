@@ -50,7 +50,6 @@ ureq = { version = "3.4", default-features = false, features = ["rustls-no-provi
 # dom
 encoding_rs = "0.8"
 html5ever = "0.40"
-markup5ever = "0.40"
 
 # css
 

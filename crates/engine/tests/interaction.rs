@@ -8,9 +8,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{
-    Cursor, FontContext, Key, Modifiers, MouseButton, Page, PageConfig, Point, Rect, Size, Url,
-};
+use swb_engine::{Cursor, Key, Modifiers, MouseButton, Page, Point, Rect, Size, Url};
 use swb_net::NetworkFetcher;
 use swb_paint::SELECTION_BACKGROUND;
 use swb_style::TextDecorationLine;
@@ -21,21 +19,16 @@ use common::Site;
 /// Loads `html` into an 800×600 page with the test fonts.
 fn open(site: &Site, html: &str) -> (Page, Url) {
     let url = site.page("page.html", html);
-    let config = PageConfig {
-        fetcher: Arc::new(NetworkFetcher::new()),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-    };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
-        Size::new(800.0, 600.0),
-        1.0,
-    );
-    page.navigate(url.clone());
-    assert!(page.wait_until_loaded(Duration::from_secs(20)));
-    page.update_layout();
-    (page, url)
+    (open_url(url.clone()), url)
+}
+
+/// Loads `url` into an 800×600 page with the test fonts.
+fn open_url(url: Url) -> Page {
+    let fetcher = Arc::new(NetworkFetcher::new());
+    let mut page = common::new_page(fetcher, 2, Size::new(800.0, 600.0));
+    page.navigate(url);
+    common::finish_loading(&mut page, Duration::from_secs(20));
+    page
 }
 
 fn node(page: &Page, id: &str) -> swb_engine::NodeId {
@@ -429,20 +422,7 @@ fn target_matches_on_the_first_load() {
         "<!DOCTYPE html><style>:target { color: red }</style><p id=t>x</p>",
     );
     url.set_fragment(Some("t"));
-    let config = PageConfig {
-        fetcher: Arc::new(NetworkFetcher::new()),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-    };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
-        Size::new(800.0, 600.0),
-        1.0,
-    );
-    page.navigate(url);
-    assert!(page.wait_until_loaded(Duration::from_secs(20)));
-    page.update_layout();
+    let page = open_url(url);
     let t = node(&page, "t");
     assert_eq!(
         page.styles().unwrap().get(t).unwrap().color,
@@ -598,13 +578,8 @@ fn a_partial_selection_highlights_only_its_part() {
 /// The rings that a display list paints with `Border` items: rectangle,
 /// width and color.
 fn rings(page: &mut Page) -> Vec<(Rect, f32, swb_style::Rgba)> {
-    page.update_layout();
-    let list = swb_paint::build_display_list(
-        page.fragments().unwrap(),
-        &NoImageSizes,
-        &swb_paint::NoHighlights,
-    );
-    list.items
+    common::display_list(page)
+        .items
         .iter()
         .filter_map(|item| match item {
             swb_paint::DisplayItem::Border {
@@ -616,14 +591,6 @@ fn rings(page: &mut Page) -> Vec<(Rect, f32, swb_style::Rgba)> {
             _ => None,
         })
         .collect()
-}
-
-struct NoImageSizes;
-
-impl swb_paint::ImageSizes for NoImageSizes {
-    fn size(&self, _image: &swb_paint::ImageRef) -> Option<(f32, f32)> {
-        None
-    }
 }
 
 #[test]
@@ -659,16 +626,7 @@ fn focus_ring_geometry() {
 #[test]
 fn focus_rings_enclose_images_in_links() {
     let site = Site::new("focus-ring-image");
-    let png = site.file(
-        "i.png",
-        &[
-            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48,
-            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
-            0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78,
-            0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0, 0x1f, 0x00, 0x05, 0x00, 0x01, 0xff, 0x89, 0x99,
-            0x3d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-        ],
-    );
+    let png = site.file("i.png", &common::tiny_png());
     let (mut page, _) = open(
         &site,
         &format!(

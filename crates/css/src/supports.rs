@@ -96,13 +96,7 @@ fn parse_condition(p: &mut Parser<'_>) -> Result<SupportsCondition, ParseError> 
 fn parse_in_parens(p: &mut Parser<'_>) -> Result<SupportsCondition, ParseError> {
     let value = p.peek().ok_or(ParseError::EndOfInput)?;
     let condition = if let Some(contents) = value.as_block(BlockKind::Paren) {
-        if let Ok(condition) = Parser::new(contents).parse_entirely(parse_condition) {
-            condition
-        } else if let Some(declaration) = parse_declaration_from_values(contents) {
-            SupportsCondition::Declaration(declaration)
-        } else {
-            SupportsCondition::Unknown
-        }
+        parse_condition_or_declaration(contents)
     } else if let Some(f) = value.as_function() {
         if f.name.eq_ignore_ascii_case("selector") {
             let list = SelectorList::parse(&f.arguments);
@@ -115,6 +109,19 @@ fn parse_in_parens(p: &mut Parser<'_>) -> Result<SupportsCondition, ParseError> 
     };
     p.next();
     Ok(condition)
+}
+
+/// Parses the contents of `( ... )` in a condition, or of `supports( ... )`
+/// in `@import`: a condition or a declaration. Anything else is
+/// `<general-enclosed>`.
+pub(crate) fn parse_condition_or_declaration(values: &[ComponentValue]) -> SupportsCondition {
+    if let Ok(condition) = SupportsCondition::parse(values) {
+        condition
+    } else if let Some(declaration) = parse_declaration_from_values(values) {
+        SupportsCondition::Declaration(declaration)
+    } else {
+        SupportsCondition::Unknown
+    }
 }
 
 #[cfg(test)]

@@ -18,7 +18,7 @@ pub fn content_text(style: &ComputedStyle) -> Option<String> {
     let mut text = String::new();
     for item in items.iter() {
         match item {
-            ContentItem::String(s) | ContentItem::Attr(s) => text.push_str(s),
+            ContentItem::String(s) => text.push_str(s),
             ContentItem::OpenQuote => text.push('\u{201C}'),
             ContentItem::CloseQuote => text.push('\u{201D}'),
             ContentItem::Counter(..) | ContentItem::Image(_) => {}

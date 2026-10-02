@@ -31,7 +31,7 @@ pub struct StyleMap {
 
 impl StyleMap {
     /// Creates an empty map with room for `node_count` nodes.
-    pub fn with_capacity(node_count: usize) -> Self {
+    pub(crate) fn with_capacity(node_count: usize) -> Self {
         StyleMap {
             elements: vec![None; node_count],
             pseudos: HashMap::new(),
@@ -49,7 +49,7 @@ impl StyleMap {
     }
 
     /// Stores the style of an element.
-    pub fn set(&mut self, id: NodeId, style: Arc<ComputedStyle>) {
+    pub(crate) fn set(&mut self, id: NodeId, style: Arc<ComputedStyle>) {
         let index = id.index();
         if index >= self.elements.len() {
             self.elements.resize(index + 1, None);
@@ -79,13 +79,14 @@ impl StyleMap {
     }
 
     /// Stores the style of a pseudo-element.
-    pub fn set_pseudo(&mut self, id: NodeId, kind: PseudoKind, style: Arc<ComputedStyle>) {
+    pub(crate) fn set_pseudo(&mut self, id: NodeId, kind: PseudoKind, style: Arc<ComputedStyle>) {
         self.pseudos.insert((id, kind), style);
     }
 
     /// The absolute URLs of all `background-image` and `list-style-image`
-    /// `url()` values, without duplicates, in document order (element
-    /// styles first, then pseudo-element styles).
+    /// `url()` values, without duplicates: those of element styles in
+    /// document order, then those of pseudo-element styles (in no
+    /// particular order).
     pub fn image_urls(&self) -> Vec<Arc<str>> {
         let mut seen: HashSet<Arc<str>> = HashSet::new();
         let mut urls = Vec::new();

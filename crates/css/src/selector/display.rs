@@ -44,7 +44,7 @@ fn write_selector(selector: &Selector, out: &mut String) {
 }
 
 /// Writes right-to-left components in left-to-right order.
-pub(super) fn write_components(components: &[Component], out: &mut String) {
+fn write_components(components: &[Component], out: &mut String) {
     let mut compounds: Vec<&[Component]> = Vec::new();
     let mut combinators: Vec<Combinator> = Vec::new();
     for part in components.split(|c| matches!(c, Component::Combinator(_))) {

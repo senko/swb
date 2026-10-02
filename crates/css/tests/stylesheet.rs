@@ -297,6 +297,28 @@ fn at_rules() {
     assert_eq!(src.expect_url(), Ok("fonts/example.woff2"));
 }
 
+/// Collects the selectors of the style rules that apply: rules inside
+/// `@media` rules that match `env` and `@supports` rules that are true.
+fn effective_selectors(
+    rules: &[CssRule],
+    env: &MediaEnvironment,
+    supports: &dyn Fn(&Declaration) -> bool,
+    out: &mut Vec<String>,
+) {
+    for rule in rules {
+        match rule {
+            CssRule::Style(style) => out.push(style.selectors.to_string()),
+            CssRule::Media(media) if media.media.matches(env) => {
+                effective_selectors(&media.rules, env, supports, out);
+            }
+            CssRule::Supports(conditional) if conditional.condition.evaluate(supports) => {
+                effective_selectors(&conditional.rules, env, supports, out);
+            }
+            _ => {}
+        }
+    }
+}
+
 #[test]
 fn effective_rules_depend_on_environment() {
     let sheet = parse_stylesheet(SAMPLE);
@@ -308,9 +330,7 @@ fn effective_rules_depend_on_environment() {
     };
     let collect = |env: &MediaEnvironment| {
         let mut selectors = Vec::new();
-        sheet.for_each_style_rule(env, &supports, &mut |rule| {
-            selectors.push(rule.selectors.to_string());
-        });
+        effective_selectors(&sheet.rules, env, &supports, &mut selectors);
         selectors
     };
     let wide = MediaEnvironment {

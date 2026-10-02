@@ -50,13 +50,18 @@ impl CssWideKeyword {
     /// The keyword if `value` consists of exactly one CSS-wide keyword.
     pub(crate) fn from_value(value: &[ComponentValue]) -> Option<Self> {
         match trim_whitespace(value) {
-            [ComponentValue::Ident(ident)] => match ident.to_ascii_lowercase().as_str() {
-                "initial" => Some(CssWideKeyword::Initial),
-                "inherit" => Some(CssWideKeyword::Inherit),
-                "unset" => Some(CssWideKeyword::Unset),
-                "revert" | "revert-layer" => Some(CssWideKeyword::Revert),
-                _ => None,
-            },
+            [ComponentValue::Ident(ident)] => Self::from_ident(ident),
+            _ => None,
+        }
+    }
+
+    /// Parses a CSS-wide keyword (ASCII case-insensitive).
+    pub(crate) fn from_ident(ident: &str) -> Option<Self> {
+        match ident.to_ascii_lowercase().as_str() {
+            "initial" => Some(CssWideKeyword::Initial),
+            "inherit" => Some(CssWideKeyword::Inherit),
+            "unset" => Some(CssWideKeyword::Unset),
+            "revert" | "revert-layer" => Some(CssWideKeyword::Revert),
             _ => None,
         }
     }
@@ -397,8 +402,6 @@ pub(crate) fn is_supported(declaration: &Declaration) -> bool {
 mod tests {
     //! Parsing and computing of property values, one declaration block at
     //! a time (without the cascade).
-
-    use std::sync::Arc;
 
     use swb_css::parse_style_attribute;
 
@@ -1221,7 +1224,6 @@ mod tests {
         assert!(
             matches!(&block.normal[0], PropertyDeclaration::Value(LonghandValue::Color(c)) if *c == rgb(0, 0, 255))
         );
-        let _ = Arc::new(0);
     }
 
     #[test]

@@ -168,7 +168,8 @@ impl FontContext {
 
     /// The bundled test fonts in `fixtures/fonts` with
     /// [`GenericFamilyMap::bundled`]. For tests in any crate of the
-    /// workspace.
+    /// workspace and for `swb --test-fonts`. The directory is found through
+    /// the source path at build time; panics if it has no usable fonts.
     pub fn for_tests() -> Self {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/fonts");
         Self::from_directory(&dir, GenericFamilyMap::bundled())

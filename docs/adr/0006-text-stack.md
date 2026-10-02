@@ -2,6 +2,9 @@
 
 - Status: accepted
 - Date: 2026-10-02
+- Updated: 2026-10-02 (M1 maintenance): the generic-family and
+  character-fallback steps now describe the implementation in full. The
+  decision did not change.
 
 ## Context
 
@@ -81,7 +84,10 @@ The crate has gaps. We work around them:
   Otherwise the family does not exist and the next CSS family is tried.
   Before that, Blink's alternate names are tried: Arial and Helvetica,
   Times and Times New Roman, Courier and Courier New.
-- Generic family: fontconfig's match for the CSS keyword is always
+- Generic family: first the family of Chrome's default font settings on
+  Linux (serif: Times New Roman, sans-serif: Arial, cursive: Comic Sans
+  MS, fantasy: Impact), resolved with the named-family rules above. If it
+  does not exist, fontconfig's match for the CSS keyword, which is always
   accepted. When no family of the list exists, Blink uses its standard
   font, which is serif; fontconfig's `sans` is the last resort. (Measured
   with Chromium: a list of only missing families renders in serif.)
@@ -102,7 +108,9 @@ The crate has gaps. We work around them:
 
 Itemization works on extended grapheme clusters, so marks and variation
 selectors stay with their base. For each cluster: the fonts of the
-requested families, then system fallback, then the first font (`.notdef`).
+requested families, then system fallback, then the requested families
+and the fallback font that have the base character, then the first font
+(`.notdef`).
 A font covers a cluster if it has glyphs for the cluster as written, or
 for its NFC or NFD form, because HarfBuzz composes and decomposes during
 shaping (so `e` + U+0301 stays in a font that has `é`).

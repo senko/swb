@@ -12,7 +12,10 @@
 //!   Otherwise the next CSS family is tried. Blink then retries a few
 //!   alternate names (Arial and Helvetica, Times and Times New Roman,
 //!   Courier and Courier New).
-//! - A generic family: fontconfig's match is always accepted.
+//! - A generic family: the family that Chrome's default font settings
+//!   give it (for example Times New Roman for `serif`), if that family
+//!   exists by the rules above; otherwise fontconfig's match, which is
+//!   always accepted.
 //! - Character fallback: `FcFontSort` for the content language, then the
 //!   first face in that order whose character set contains the character.
 //!

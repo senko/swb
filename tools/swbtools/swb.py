@@ -45,6 +45,22 @@ def record_missing_command(swb: Path, fixture: Path, url: str) -> list[str]:
     return [str(swb), "--headless", "--record-missing", str(fixture), url]
 
 
+def _replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[str]:
+    """The start of a command line that serves all requests from the fixture
+    and uses the test fonts and the viewport size. `compare` and `perf` use
+    the same settings."""
+    width, height = viewport
+    return [
+        str(swb),
+        "--headless",
+        "--replay",
+        str(fixture),
+        "--test-fonts",
+        "--size",
+        f"{width}x{height}",
+    ]
+
+
 def replay_command(
     swb: Path,
     fixture: Path,
@@ -55,15 +71,8 @@ def replay_command(
 ) -> list[str]:
     """Command line that loads `url` from the fixture with the test fonts and
     writes a box dump and a first-viewport screenshot."""
-    width, height = viewport
     return [
-        str(swb),
-        "--headless",
-        "--replay",
-        str(fixture),
-        "--test-fonts",
-        "--size",
-        f"{width}x{height}",
+        *_replay_options(swb, fixture, viewport),
         "--dump-boxes",
         str(boxes),
         "--screenshot",
@@ -95,19 +104,7 @@ def bench_command(
 ) -> list[str]:
     """Command line that loads `url` from the fixture with the test fonts and
     prints the time of each pipeline stage as JSON (`--bench`)."""
-    width, height = viewport
-    return [
-        str(swb),
-        "--headless",
-        "--replay",
-        str(fixture),
-        "--test-fonts",
-        "--size",
-        f"{width}x{height}",
-        "--bench",
-        str(runs),
-        url,
-    ]
+    return [*_replay_options(swb, fixture, viewport), "--bench", str(runs), url]
 
 
 def run(command: list[str], log_file: Path | None = None) -> int:

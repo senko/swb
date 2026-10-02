@@ -59,7 +59,8 @@ compute_styles(doc, stylist, env, states, base_url) -> StyleMap
    other longhands. Unparsed values are substituted and parsed here;
    invalid ones become `unset`. Then the fixups: blockification, `float`
    of absolutely positioned boxes, zero border widths for `none` styles,
-   the `overflow` pairing rule.
+   the `overflow` pairing rule, and `display: contents` computes to `none`
+   for replaced elements and form controls (CSS Display 3, "unbox").
 5. **Pseudo-elements**: `::before`/`::after` when a rule sets `content`
    (not on replaced elements), `::marker` for every `display: list-item`
    element.
@@ -151,8 +152,10 @@ Measured on the Wikipedia fixture (release build, 1280x800): 8 ms for
 ## Consequences
 
 - Adding a longhand means one line in `ids.rs`, a parse arm in
-  `longhand.rs`, a compute arm in `compute.rs` and a field in
-  `ComputedStyle`.
+  `longhand.rs`, a compute arm in `compute.rs`, a field in
+  `ComputedStyle` with its initial value in `ComputedStyle::new_initial`,
+  and an entry in `allows_quirky_length` (`longhand.rs`) if the property
+  accepts unitless lengths in quirks mode.
 - Values that depend on layout (percentages) stay as `LengthPercentage` in
   the computed style; layout resolves them.
 - Not supported yet: `@font-face`, `@import` (the engine loads imports),

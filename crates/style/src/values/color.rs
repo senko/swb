@@ -54,15 +54,6 @@ impl Rgba {
     pub fn alpha_f32(self) -> f32 {
         f32::from(self.a) / 255.0
     }
-
-    /// This color with its alpha multiplied by `opacity` (0..=1).
-    #[must_use]
-    pub fn with_opacity(self, opacity: f32) -> Self {
-        Rgba {
-            a: (f32::from(self.a) * opacity.clamp(0.0, 1.0)).round() as u8,
-            ..self
-        }
-    }
 }
 
 /// A computed color that can still refer to the element's `color`.

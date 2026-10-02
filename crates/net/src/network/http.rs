@@ -1,8 +1,8 @@
 //! HTTP and HTTPS through `ureq` (blocking) and `rustls`.
 //!
-//! All HTTP traffic passes through [`HttpClient::fetch`]. A cookie jar
-//! belongs here: [`request_headers`] adds the `Cookie` header and
-//! [`read_response`] stores `Set-Cookie` headers.
+//! All HTTP traffic passes through [`HttpClient::fetch`]. There is no
+//! cookie jar yet. A jar in this module would add the `Cookie` header in
+//! [`request_headers`] and store `Set-Cookie` headers in [`read_response`].
 
 use std::io::{self, Read as _};
 use std::sync::{Arc, OnceLock};

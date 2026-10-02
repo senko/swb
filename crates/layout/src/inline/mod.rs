@@ -778,10 +778,10 @@ impl LineBuilder<'_, '_> {
         let line_top = self.y;
         let baseline_y = line_top - state.extent.top;
         for fragment in &mut state.top_level {
-            translate(fragment, offset, baseline_y);
+            fragment.move_by(offset, baseline_y);
         }
         for fragment in &mut state.outside_markers {
-            translate(fragment, 0.0, baseline_y);
+            fragment.move_by(0.0, baseline_y);
         }
         let line_height = state.extent.bottom - state.extent.top;
         let cb = self.containing_block();
@@ -795,7 +795,7 @@ impl LineBuilder<'_, '_> {
         self.line_count += 1;
         self.fragments.append(&mut state.top_level);
         self.fragments.append(&mut state.outside_markers);
-        self.y = line_top + (state.extent.bottom - state.extent.top);
+        self.y = line_top + line_height;
     }
 
     /// Appends the fragments of an empty line: zero height at the current
@@ -803,14 +803,16 @@ impl LineBuilder<'_, '_> {
     fn finish_empty_line(&mut self, mut state: LineState) {
         for fragment in &mut state.top_level {
             collapse_to_line_top(fragment);
-            translate(fragment, 0.0, self.y);
+            fragment.move_by(0.0, self.y);
         }
         self.fragments.append(&mut state.top_level);
     }
 
     /// The last text piece of a line and the end of its glyphs without the
     /// trailing collapsible spaces, which are removed at the end of a line
-    /// (CSS Text 3 §4.1.2). `None` if there is nothing to remove.
+    /// (CSS Text 3 §4.1.2,
+    /// <https://www.w3.org/TR/css-text-3/#white-space-phase-2>). `None` if
+    /// there is nothing to remove.
     fn trailing_space_to_remove(&self, pieces: std::ops::Range<usize>) -> Option<(usize, usize)> {
         for i in pieces.rev() {
             match &self.shaped.pieces[i] {
@@ -899,15 +901,15 @@ impl LineBuilder<'_, '_> {
         }
         let mut children = open.children;
         for child in &mut children {
-            translate(child, -rect.x, -rect.y);
+            child.move_by(-rect.x, -rect.y);
         }
-        let node = match &self.ifc.items[open.item] {
+        let (node, pseudo) = match &self.ifc.items[open.item] {
             InlineItem::StartBox { base, .. } => (base.node, base.pseudo),
             _ => (None, None),
         };
         let mut fragment = BoxFragment {
-            node: node.0,
-            pseudo: node.1,
+            node,
+            pseudo,
             style: open.style,
             border_rect: rect,
             border,
@@ -933,7 +935,7 @@ impl LineBuilder<'_, '_> {
             state.outside_markers.extend(shaped.place(x, 0.0));
         } else {
             for fragment in &mut state.top_level {
-                translate(fragment, shaped.width, 0.0);
+                fragment.move_by(shaped.width, 0.0);
             }
             state.x += shaped.width;
             state.top_level.extend(shaped.place(0.0, 0.0));
@@ -951,20 +953,6 @@ impl LineBuilder<'_, '_> {
             TextAlign::Center | TextAlign::WebkitCenter => free / 2.0,
             TextAlign::Right | TextAlign::WebkitRight | TextAlign::End => free,
             _ => 0.0,
-        }
-    }
-}
-
-/// Moves a fragment by (`dx`, `dy`).
-fn translate(fragment: &mut Fragment, dx: f32, dy: f32) {
-    match fragment {
-        Fragment::Box(b) => {
-            b.border_rect.x += dx;
-            b.border_rect.y += dy;
-        }
-        Fragment::Text(t) => {
-            t.rect.x += dx;
-            t.rect.y += dy;
         }
     }
 }

@@ -68,7 +68,7 @@ def test_round_trip_is_stable(tmp_path):
     (tmp_path / MANIFEST_FILE).write_text(RUST_SAMPLE)
     entries = read_manifest(tmp_path)
     assert [entry.url for entry in entries] == ["https://a.test/old", "https://a.test/style.css"]
-    assert entries[0].header("location") == "/"
+    assert entries[0].headers == (("location", "/"),)
     assert format_manifest(entries) == RUST_SAMPLE
     fixture = Fixture(tmp_path)
     fixture.save()

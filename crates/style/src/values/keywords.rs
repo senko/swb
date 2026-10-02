@@ -272,11 +272,6 @@ impl WhiteSpace {
         )
     }
 
-    /// True if newlines collapse into spaces.
-    pub fn collapses_newlines(self) -> bool {
-        matches!(self, WhiteSpace::Normal | WhiteSpace::Nowrap)
-    }
-
     /// True if lines may wrap at soft wrap opportunities.
     pub fn wraps(self) -> bool {
         !matches!(self, WhiteSpace::Pre | WhiteSpace::Nowrap)
@@ -763,15 +758,6 @@ impl Default for FontSizeOrigin {
     fn default() -> Self {
         FontSizeOrigin::Keyword(FontSizeKeyword::Medium)
     }
-}
-
-keyword_enum! {
-    /// The `grid-auto-flow` direction.
-    GridAutoFlowDirection {
-        Row = "row",
-        Column = "column",
-    }
-    default Row
 }
 
 #[cfg(test)]

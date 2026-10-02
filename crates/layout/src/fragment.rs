@@ -22,7 +22,8 @@ pub struct FragmentTree {
     /// The background of the canvas (propagated from the root or body).
     pub canvas_background: Option<CanvasBackground>,
     /// The size of the scrollable area: the union of the initial containing
-    /// block and all content.
+    /// block and all content that is not clipped. On an axis where the
+    /// viewport's overflow is `hidden` or `clip`, the viewport's size.
     pub scroll_size: crate::geom::Size,
 }
 
@@ -113,6 +114,18 @@ pub enum Fragment {
     Text(TextFragment),
 }
 
+impl Fragment {
+    /// Moves the fragment by (`dx`, `dy`) relative to its parent.
+    pub(crate) fn move_by(&mut self, dx: f32, dy: f32) {
+        let rect = match self {
+            Fragment::Box(b) => &mut b.border_rect,
+            Fragment::Text(t) => &mut t.rect,
+        };
+        rect.x += dx;
+        rect.y += dy;
+    }
+}
+
 /// What a box fragment contains besides its children.
 #[derive(Clone, Debug, PartialEq)]
 pub enum BoxContent {
@@ -147,7 +160,8 @@ pub struct BoxFragment {
     /// item that has one), relative to the border-box top, if any.
     pub first_baseline: Option<f32>,
     /// The baseline of the last line box in the box, relative to the
-    /// border-box top, if any. The baseline of an inline-block.
+    /// border-box top, if any. The baseline of an inline-block. For a flex
+    /// container, the same as `first_baseline`.
     pub last_baseline: Option<f32>,
     /// True if this fragment is part of an inline box (not a block).
     pub is_inline: bool,

@@ -1,0 +1,302 @@
+//! The rendering pipeline: style, layout, display list and raster, with
+//! per-stage timings; restyles after state changes; the viewport, its
+//! accepted limits, and screenshots.
+
+use std::time::Instant;
+
+use swb_css::{MediaEnvironment, MediaQueryList};
+use swb_layout::{LayoutInput, Point, Size};
+use swb_net::Url;
+use swb_paint::{NoHighlights, Pixmap, RasterParams};
+use swb_style::Stylist;
+
+use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
+use crate::selection::Highlight;
+
+impl Page {
+    /// Drops the parsed stylesheets, the styles and everything after them.
+    pub(super) fn invalidate_style(&mut self) {
+        self.stylist = None;
+        self.styles = None;
+        self.invalidate_layout();
+    }
+
+    /// Drops the layout and the display list.
+    pub(super) fn invalidate_layout(&mut self) {
+        self.fragments = None;
+        self.display_list = None;
+    }
+
+    /// Recomputes the styles after a change of the element states. The
+    /// layout stays if no style changed.
+    pub(super) fn restyle(&mut self) {
+        let Some(old) = self.styles.take() else {
+            return;
+        };
+        self.compute_styles();
+        if !self
+            .styles
+            .as_ref()
+            .is_some_and(|new| new.same_styles(&old))
+        {
+            self.invalidate_layout();
+        }
+    }
+
+    fn media_environment(&self) -> MediaEnvironment {
+        MediaEnvironment {
+            viewport_width: self.viewport.width,
+            viewport_height: self.viewport.height,
+            device_pixel_ratio: self.scale,
+            ..MediaEnvironment::default()
+        }
+    }
+
+    /// Brings styles and layout up to date. Rendering waits for
+    /// stylesheets: until they are loaded, there is no layout. After the
+    /// first layout of a document, scrolls to the fragment or to the
+    /// restored position.
+    pub fn update_layout(&mut self) {
+        if self.document.is_none() || !self.stylesheets_settled() {
+            return;
+        }
+        if self.styles.is_none() {
+            self.compute_styles();
+        }
+        if self.fragments.is_none()
+            && let (Some(doc), Some(styles)) = (&self.document, &self.styles)
+        {
+            let input = LayoutInput {
+                document: doc,
+                styles,
+                viewport: self.viewport,
+                replaced: &self.images,
+            };
+            let started = Instant::now();
+            let fragments = swb_layout::layout(&input, &mut self.fonts);
+            self.timings.layout = started.elapsed();
+            log::debug!("layout: {:?}", self.timings.layout);
+            self.fragments = Some(fragments);
+            // The scroll target is applied after every layout until the
+            // page is loaded, because images that arrive later move it.
+            // Scrolling by the user cancels it.
+            match self.pending_scroll.clone() {
+                Some(ScrollTarget::Fragment(fragment)) => {
+                    if let Some(position) = self.fragment_position(&fragment) {
+                        self.scroll = position;
+                    }
+                }
+                Some(ScrollTarget::Position(position)) => self.scroll = position,
+                None => {}
+            }
+            self.clamp_scroll();
+            if !self.is_loading() {
+                self.pending_scroll = None;
+            }
+        }
+    }
+
+    /// Brings the display list up to date.
+    pub(super) fn update_display_list(&mut self) {
+        self.update_layout();
+        if self.display_list.is_none()
+            && let Some(fragments) = &self.fragments
+        {
+            let started = Instant::now();
+            let list = match self.selection() {
+                Some(selection) => {
+                    let (start, end) = selection.ordered(&self.tree_order);
+                    let highlight = Highlight {
+                        start,
+                        end,
+                        order: &self.tree_order,
+                    };
+                    swb_paint::build_display_list(fragments, &self.images, &highlight)
+                }
+                None => swb_paint::build_display_list(fragments, &self.images, &NoHighlights),
+            };
+            self.timings.display_list = started.elapsed();
+            log::debug!("display list: {:?}", self.timings.display_list);
+            self.display_list = Some(list);
+        }
+    }
+
+    fn compute_styles(&mut self) {
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let env = self.media_environment();
+        if self.stylist.is_none() {
+            let started = Instant::now();
+            let mut stylist = Stylist::new(doc.quirks_mode);
+            for sheet in &self.sheets {
+                let Some(css) = &sheet.css else {
+                    continue;
+                };
+                if let Some(media) = &sheet.media
+                    && !MediaQueryList::parse_str(media).matches(&env)
+                {
+                    continue;
+                }
+                stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &sheet.base_url);
+            }
+            self.stylist = Some(stylist);
+            self.timings.stylesheets = started.elapsed();
+        }
+        let Some(stylist) = &self.stylist else {
+            return;
+        };
+        let started = Instant::now();
+        let base = self.base_url.clone().unwrap_or_else(about_blank);
+        let styles = swb_style::compute_styles(doc, stylist, &env, &self.input.states, &base);
+        self.timings.style = started.elapsed();
+        log::debug!("style: {:?}", self.timings.style);
+        let image_urls = styles.image_urls();
+        self.styles = Some(styles);
+        for url in image_urls {
+            if let Ok(url) = Url::parse(&url) {
+                self.start_image(url);
+            }
+        }
+        if !self.requests.is_empty() && self.state == LoadState::Complete {
+            self.state = LoadState::LoadingResources;
+        }
+    }
+
+    /// Renders the viewport into `target` (device pixels). The target size
+    /// should be the viewport size times the scale factor.
+    pub fn render(&mut self, target: &mut Pixmap) {
+        swb_paint::fill(target, swb_style::Rgba::WHITE);
+        self.update_display_list();
+        if let Some(list) = &self.display_list {
+            let params = RasterParams {
+                scroll: self.scroll,
+                scale: self.scale,
+            };
+            let started = Instant::now();
+            swb_paint::rasterize(list, target, params, &mut self.fonts, &self.images);
+            self.timings.raster = started.elapsed();
+        }
+    }
+
+    /// The duration of each pipeline stage, the last time it ran.
+    pub fn timings(&self) -> StageTimings {
+        self.timings
+    }
+
+    /// Discards the parsed stylesheets, the styles, the layout and the
+    /// display list, so that the next render runs all stages again. For
+    /// benchmarks.
+    pub fn restart_pipeline(&mut self) {
+        self.invalidate_style();
+    }
+
+    /// Renders a screenshot: the viewport, or with `full_page` the whole
+    /// content height (limited to [`MAX_SCREENSHOT_PIXELS`] device pixels).
+    pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
+        let (viewport, scale) = (self.viewport, self.scale);
+        let size = if full_page {
+            let content = self.content_size();
+            // One row less than the limit, so that rounding cannot exceed
+            // it.
+            let device_width = f64::from((viewport.width * scale).round().max(1.0));
+            let max_height =
+                (((MAX_SCREENSHOT_PIXELS / device_width).floor() - 1.0) / f64::from(scale)) as f32;
+            if content.height > max_height {
+                log::warn!(
+                    "the page is {} px high; the screenshot shows the first {max_height:.0} px",
+                    content.height
+                );
+            }
+            Size::new(viewport.width, content.height.min(max_height).max(1.0))
+        } else {
+            viewport
+        };
+        let (w, h) = device_size(size, scale)?;
+        // tiny-skia aborts the process when an allocation fails, so the
+        // size is checked first (`device_size`).
+        let mut pixmap = Pixmap::new(w, h).ok_or(ScreenshotError::TooLarge(w, h))?;
+        if size == viewport {
+            self.render(&mut pixmap);
+        } else {
+            let scroll = self.scroll;
+            self.set_viewport(size, scale);
+            self.scroll = Point::default();
+            self.render(&mut pixmap);
+            self.set_viewport(viewport, scale);
+            self.scroll = scroll;
+        }
+        Ok(pixmap)
+    }
+
+    /// Changes the viewport size (CSS px) and scale factor.
+    pub fn set_viewport(&mut self, viewport: Size, scale: f32) {
+        if viewport == self.viewport && (scale - self.scale).abs() < f32::EPSILON {
+            return;
+        }
+        self.viewport = viewport;
+        self.scale = scale;
+        // Media queries may change, so styles are recomputed.
+        self.invalidate_style();
+    }
+}
+
+/// The largest viewport width or height in CSS px that the front ends
+/// accept from users (`--size`, `page.setViewport`).
+pub const MAX_VIEWPORT_SIDE: f32 = 16_384.0;
+
+/// The largest scale factor that the front ends accept from users.
+pub const MAX_SCALE: f32 = 8.0;
+
+/// A viewport size or scale factor outside the accepted range.
+#[derive(Debug, thiserror::Error)]
+pub enum ViewportError {
+    /// The width or height is not between 1 and [`MAX_VIEWPORT_SIDE`].
+    #[error("width and height must be between 1 and {}", MAX_VIEWPORT_SIDE)]
+    Size,
+    /// The scale factor is 0 or less, or above [`MAX_SCALE`].
+    #[error("the scale must be above 0 and at most {}", MAX_SCALE)]
+    Scale,
+}
+
+/// Checks a viewport size (CSS px) from a user.
+pub fn check_viewport_size(size: Size) -> Result<(), ViewportError> {
+    let valid = |v: f32| (1.0..=MAX_VIEWPORT_SIDE).contains(&v);
+    if valid(size.width) && valid(size.height) {
+        Ok(())
+    } else {
+        Err(ViewportError::Size)
+    }
+}
+
+/// Checks a scale factor from a user.
+pub fn check_scale(scale: f32) -> Result<(), ViewportError> {
+    if scale > 0.0 && scale <= MAX_SCALE {
+        Ok(())
+    } else {
+        Err(ViewportError::Scale)
+    }
+}
+
+/// The largest screenshot in device pixels: 128 Mpx, 512 MiB of RGBA.
+pub const MAX_SCREENSHOT_PIXELS: f64 = 128.0 * 1024.0 * 1024.0;
+
+/// Why a screenshot failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ScreenshotError {
+    /// The screenshot would be larger than [`MAX_SCREENSHOT_PIXELS`], or
+    /// the memory could not be allocated.
+    #[error("a {0}x{1} screenshot is too large")]
+    TooLarge(u32, u32),
+}
+
+/// The size in device pixels of `size` CSS px at a scale factor, if it is
+/// within [`MAX_SCREENSHOT_PIXELS`].
+pub fn device_size(size: Size, scale: f32) -> Result<(u32, u32), ScreenshotError> {
+    let w = (size.width * scale).round().max(1.0);
+    let h = (size.height * scale).round().max(1.0);
+    if f64::from(w) * f64::from(h) > MAX_SCREENSHOT_PIXELS {
+        return Err(ScreenshotError::TooLarge(w as u32, h as u32));
+    }
+    Ok((w as u32, h as u32))
+}

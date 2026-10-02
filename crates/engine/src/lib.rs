@@ -17,7 +17,8 @@ pub use boxes::{ElementBox, element_boxes};
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};
 pub use page::{
-    LoadState, MAX_SCREENSHOT_PIXELS, Page, PageConfig, ScreenshotError, StageTimings, device_size,
+    LoadState, MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, Page, PageConfig,
+    ScreenshotError, StageTimings, ViewportError, check_scale, check_viewport_size, device_size,
 };
 pub use selection::{Selection, TextPosition};
 pub use swb_dom::NodeId;

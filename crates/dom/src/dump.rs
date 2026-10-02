@@ -1,5 +1,5 @@
 //! Text dump of a DOM tree, in the format of the html5lib tree-construction
-//! tests. Used by tests and by the `swb dump-dom` debugging command.
+//! tests. Used by tests and by the `swb --dump-dom` debugging option.
 
 use std::fmt::Write;
 
@@ -12,13 +12,6 @@ pub fn dump_tree(doc: &Document) -> String {
     let mut out = String::new();
     let roots: Vec<NodeId> = doc.children(NodeId::DOCUMENT).collect();
     dump_nodes(doc, &roots, &mut out);
-    out
-}
-
-/// Dumps one node and its subtree.
-pub fn dump_subtree(doc: &Document, id: NodeId) -> String {
-    let mut out = String::new();
-    dump_nodes(doc, &[id], &mut out);
     out
 }
 

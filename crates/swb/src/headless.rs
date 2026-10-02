@@ -1,7 +1,6 @@
 //! Headless mode: load a page without a window, then save a screenshot or
 //! print debugging dumps; or serve the automation protocol.
 
-use std::io::Write as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,14 +41,7 @@ pub(crate) fn serve(
 ) -> Result<()> {
     let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port)
         .with_context(|| format!("cannot start the automation server on port {port}"))?;
-    // Tools read this line to find the port.
-    println!(
-        "swb: automation server listening on ws://127.0.0.1:{}/",
-        browser.port()
-    );
-    std::io::stdout()
-        .flush()
-        .context("cannot write to standard output")?;
+    crate::print_server_address(browser.port())?;
     if let Some(url) = url {
         browser.page().navigate(url);
     }
@@ -62,7 +54,7 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     let config = PageConfig {
         fetcher: Arc::clone(&options.fetcher),
         notify: Arc::new(|| {}),
-        network_threads: 6,
+        network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
     };
     let mut page = Page::new(config, fonts, options.viewport, options.scale);
     page.navigate(options.url.clone());

@@ -44,18 +44,8 @@ pub fn parse_stylesheet(css: &str) -> Stylesheet {
     let input = preprocess(css);
     let mut parser = RuleParser::new(&input);
     Stylesheet {
-        rules: parser.consume_rule_list(Context::TopLevel),
+        rules: parser.consume_stylesheet_contents(),
     }
-}
-
-/// Parses a list of rules, as found inside a grouping rule such as
-/// `@media`. `@import` and `@charset` are not valid here.
-///
-/// <https://www.w3.org/TR/css-syntax-3/#parse-list-of-rules>
-pub fn parse_rule_list(css: &str) -> Vec<CssRule> {
-    let input = preprocess(css);
-    let mut parser = RuleParser::new(&input);
-    parser.consume_rule_list(Context::Grouping)
 }
 
 /// Parses the declarations of a `style` attribute (a declaration list
@@ -91,7 +81,7 @@ pub fn parse_component_values(css: &str) -> Vec<ComponentValue> {
 /// `raw` is the source text of the value, if known.
 ///
 /// <https://drafts.csswg.org/css-syntax/#consume-declaration>
-pub(crate) fn finish_declaration(
+fn finish_declaration(
     name: Box<str>,
     mut value: Vec<ComponentValue>,
     raw: Option<&str>,
@@ -242,18 +232,16 @@ impl<'a> RuleParser<'a> {
         }
     }
 
-    /// Consumes rules up to the end of the input.
+    /// Consumes the top-level rules up to the end of the input.
     ///
     /// <https://drafts.csswg.org/css-syntax/#consume-stylesheet-contents>
-    fn consume_rule_list(&mut self, context: Context) -> Vec<CssRule> {
+    fn consume_stylesheet_contents(&mut self) -> Vec<CssRule> {
+        let context = Context::TopLevel;
         let mut rules = Vec::new();
         loop {
             match self.input.peek() {
                 None => return rules,
-                Some(Token::Whitespace) => {
-                    self.input.next();
-                }
-                Some(Token::Cdo | Token::Cdc) if context == Context::TopLevel => {
+                Some(Token::Whitespace | Token::Cdo | Token::Cdc) => {
                     self.input.next();
                 }
                 Some(Token::AtKeyword(_)) => self.consume_at_rule(false, context, &mut rules),
@@ -446,7 +434,7 @@ impl<'a> RuleParser<'a> {
     /// Consumes a `{}` block of rules. The `{` is already consumed.
     fn consume_rule_block(&mut self) -> Vec<CssRule> {
         let mut rules = Vec::new();
-        if !self.enter_block() {
+        if !self.enter_block(BlockKind::Curly) {
             return rules;
         }
         self.consume_block_contents(Context::Grouping, &mut Vec::new(), &mut rules);
@@ -457,7 +445,7 @@ impl<'a> RuleParser<'a> {
     /// Consumes a `{}` block of declarations. The `{` is already consumed.
     fn consume_declaration_block(&mut self, context: Context) -> Vec<Declaration> {
         let mut declarations = Vec::new();
-        if !self.enter_block() {
+        if !self.enter_block(BlockKind::Curly) {
             return declarations;
         }
         self.consume_block_contents(context, &mut declarations, &mut Vec::new());
@@ -465,19 +453,20 @@ impl<'a> RuleParser<'a> {
         declarations
     }
 
-    /// Increments the nesting depth for a `{}` block whose `{` is consumed.
-    /// If the block is too deep, skips it and returns false.
-    fn enter_block(&mut self) -> bool {
+    /// Increments the nesting depth for a block or function of `kind` whose
+    /// opening token is consumed. If it is too deep, skips it (up to and
+    /// including the closing token) and returns false.
+    fn enter_block(&mut self, kind: BlockKind) -> bool {
         if self.depth >= MAX_NESTING_DEPTH {
             warn!("CSS blocks nested too deeply; block dropped");
-            self.skip_block(BlockKind::Curly);
+            self.skip_block(kind);
             return false;
         }
         self.depth += 1;
         true
     }
 
-    /// Consumes the closing `}` of a block started with
+    /// Consumes the closing `}` of a `{}` block started with
     /// [`RuleParser::enter_block`].
     fn leave_block(&mut self) {
         self.depth -= 1;
@@ -575,12 +564,9 @@ impl<'a> RuleParser<'a> {
     /// function of `kind`. The opening token is already consumed.
     fn consume_nested_values(&mut self, kind: BlockKind) -> Vec<ComponentValue> {
         let mut values = Vec::new();
-        if self.depth >= MAX_NESTING_DEPTH {
-            warn!("CSS blocks nested too deeply; block dropped");
-            self.skip_block(kind);
+        if !self.enter_block(kind) {
             return values;
         }
-        self.depth += 1;
         loop {
             match self.input.peek() {
                 None => break,
@@ -1088,16 +1074,5 @@ mod tests {
     fn crlf_in_stylesheet() {
         let rules = style_rules("a {\r\n  color: red;\r\n}\r\nb { x: y }");
         assert_eq!(rules.len(), 2);
-    }
-
-    #[test]
-    fn rule_list() {
-        // `@import` and `@charset` are not valid in a rule list; CDO starts
-        // a (invalid) rule prelude instead of being skipped.
-        let rules =
-            parse_rule_list("@import 'x'; @charset 'y'; a { x: y } <!-- b { x: y } c { x: y }");
-        assert_eq!(rules.len(), 2);
-        assert!(matches!(&rules[0], CssRule::Style(s) if s.selectors.to_string() == "a"));
-        assert!(matches!(&rules[1], CssRule::Style(s) if s.selectors.to_string() == "c"));
     }
 }

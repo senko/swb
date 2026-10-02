@@ -59,7 +59,7 @@ fn strip_base64_suffix(mime_type: &str) -> Option<&str> {
 /// as it is.
 ///
 /// <https://url.spec.whatwg.org/#percent-decode>
-fn percent_decode(input: &[u8]) -> Vec<u8> {
+pub fn percent_decode(input: &[u8]) -> Vec<u8> {
     let mut output = Vec::with_capacity(input.len());
     let mut i = 0;
     while i < input.len() {

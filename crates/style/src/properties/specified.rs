@@ -1,6 +1,6 @@
 //! Specified values that need context to compute: font sizes and weights,
-//! line heights, sizes, background positions and sizes, `vertical-align`,
-//! `flex-basis` and `content`.
+//! line heights, `text-align`, sizes, background positions and sizes,
+//! `vertical-align`, `flex-basis` and `content`.
 //!
 //! Keyword properties and colors store their computed value directly; see
 //! [`super::ids::LonghandValue`].

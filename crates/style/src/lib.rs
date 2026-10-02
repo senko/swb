@@ -12,10 +12,14 @@
 //!   computing values.
 //! - `custom`: custom properties and `var()` substitution.
 //! - `stylist`: rule storage and lookup.
+//! - `bloom`: the ancestor Bloom filter that rejects rules early.
 //! - `cascade`: the cascade, inheritance and computed-value fixups.
 //! - `hints`: presentational hints from HTML attributes.
-//! - `element`: the DOM element adapter for selector matching.
+//! - `element`: the DOM element adapter for selector matching, and
+//!   element states.
 //! - `values`, `computed`: computed value types.
+//! - `style_map`: the result for a document; `content`: the text of
+//!   generated content.
 //!
 //! See `docs/adr/0007-style-system.md` for the design.
 

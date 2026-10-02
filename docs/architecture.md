@@ -36,11 +36,11 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 |--------------|--------------------------------------------------------------------------------|-------------------------------|
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Replay from fixtures. | —                             |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree).      | —                             |
-| `css`        | CSS syntax: tokenizer, rule and declaration parser, selector parser and matcher. | —                             |
+| `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
-| `paint`      | Display list, rasterization, image decoding.                                   | `layout`, `text`, `style`     |
+| `paint`      | Display list, rasterization, image decoding.                                   | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
@@ -115,8 +115,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 
 - The box tree (`layout/src/box_tree.rs`) is rebuilt for every layout.
   Inline content is a flat list of items (text, inline box start/end,
-  atomic inlines, line breaks); white space is collapsed while the list is
-  built.
+  atomic inlines, line breaks); white space is collapsed when the inline
+  formatting context is finished, because spaces collapse across inline
+  box boundaries.
 - Inline layout shapes the text of an inline formatting context once
   (cached per layout pass), splits it into pieces at soft wrap
   opportunities, groups pieces into unbreakable groups, fills lines
@@ -155,9 +156,13 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 
 ## Engine modules
 
-- `page/mod.rs`: loading, the pipeline (style, layout, display list,
-  raster) with per-stage timings, restyles after state changes,
-  scrolling, links and fragments.
+- `page/mod.rs`: page state, navigation, history, links, accessors.
+- `page/loading.rs`: network completions, documents (HTML, text, image,
+  error pages), stylesheets and images.
+- `page/pipeline.rs`: style, layout, display list and raster with
+  per-stage timings; restyles after state changes; viewport and
+  screenshots.
+- `page/scroll.rs`: scrolling, scrolling to a fragment, `:target`.
 - `page/input.rs`: mouse and key events, element states, cursor, focus
   navigation, selection by mouse and keyboard.
 - `focus.rs`: focusable elements and the sequential focus order.

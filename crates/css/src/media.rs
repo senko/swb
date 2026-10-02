@@ -402,6 +402,11 @@ impl FeatureName {
     }
 }
 
+/// Parses one media query. A query that does not match the grammar becomes
+/// `not all`.
+///
+/// <https://www.w3.org/TR/mediaqueries-4/#mq-syntax>,
+/// <https://www.w3.org/TR/mediaqueries-4/#error-handling>
 fn parse_query(input: &[ComponentValue]) -> MediaQuery {
     let mut p = Parser::new(input);
     let typed = p.parse_entirely(parse_typed_query);
@@ -537,6 +542,8 @@ fn parse_feature(contents: &[ComponentValue]) -> Option<Feature> {
 
 /// Parses the range forms: `(name < value)`, `(value < name)` and
 /// `(value < name < value)`.
+///
+/// <https://www.w3.org/TR/mediaqueries-4/#mq-range-context>
 fn parse_range(contents: &[ComponentValue]) -> Option<Feature> {
     let (parts, operators) = split_at_comparisons(contents);
     let feature_name = |part: &[ComponentValue]| match part {
@@ -672,7 +679,7 @@ enum MathValue {
 /// Evaluates a math function (`calc()`, `min()`, `max()`, `clamp()`) in a
 /// length feature value, as CSS Values 4 allows. Only absolute length units
 /// are supported, so the value can be computed at parse time; relative
-/// units (`em`, `vw`, ...) make the value unknown, as before.
+/// units (`em`, `vw`, ...) make the feature evaluate to "unknown".
 /// <https://www.w3.org/TR/css-values-4/#math>
 fn math_function(name: &str, args: &[ComponentValue]) -> Option<MathValue> {
     let name = name.to_ascii_lowercase();
@@ -826,6 +833,7 @@ impl Kleene {
 }
 
 impl MediaQuery {
+    /// <https://www.w3.org/TR/mediaqueries-4/#evaluating>
     fn evaluate(&self, env: &MediaEnvironment) -> bool {
         let MediaQuery::Query {
             negated,

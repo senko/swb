@@ -341,11 +341,10 @@ fn non_utf8_header_values_are_latin1() {
 
 #[test]
 fn connection_refused_is_an_error() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let address = listener.local_addr().unwrap();
-    drop(listener);
+    // Nothing can listen on port 0. (A port from a closed listener can be
+    // taken by a test server that runs at the same time.)
     let fetcher = NetworkFetcher::without_proxy();
-    let url = Url::parse(&format!("http://{address}/")).unwrap();
+    let url = Url::parse("http://127.0.0.1:0/").unwrap();
     let result = fetcher.fetch(&Request::get(url, Destination::Document));
     assert!(result.is_err(), "{result:?}");
 }

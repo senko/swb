@@ -8,7 +8,7 @@
 //! iframes), and `contenteditable` elements are not focusable (swb has no
 //! editing).
 
-use swb_dom::{Document, ElementData, NodeId, local_name};
+use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
 
 /// The `tabindex` of an element: the attribute if it is a valid integer,
 /// otherwise 0 for elements that are focusable by default, otherwise
@@ -28,7 +28,7 @@ fn tab_index(doc: &Document, node: NodeId) -> Option<i32> {
 /// Parses a `tabindex` value with the rules for parsing integers.
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers>
 fn parse_tab_index(value: &str) -> Option<i32> {
-    let value = value.trim_start_matches([' ', '\t', '\n', '\x0C', '\r']);
+    let value = value.trim_start_matches(is_html_whitespace);
     let (negative, digits) = match value.as_bytes().first() {
         Some(b'-') => (true, &value[1..]),
         Some(b'+') => (false, &value[1..]),

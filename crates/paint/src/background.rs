@@ -1,4 +1,5 @@
-//! Background image positioning and tiling (CSS Backgrounds 3 §3.6–3.9):
+//! Background image positioning and tiling (CSS Backgrounds 3 §2.6–2.9):
+//! <https://www.w3.org/TR/css-backgrounds-3/#background-position> to
 //! <https://www.w3.org/TR/css-backgrounds-3/#background-size>.
 
 use swb_layout::Rect;
@@ -28,6 +29,7 @@ pub(crate) fn tile(
     let x = positioning.x + offset(layer.position_x, positioning.width - w);
     let y = positioning.y + offset(layer.position_y, positioning.height - h);
     let tile = Rect::new(x, y, w, h);
+    // `space` and `round` are painted as `repeat` (not supported yet).
     let repeat_x = !matches!(layer.repeat.0, BackgroundRepeatKeyword::NoRepeat);
     let repeat_y = !matches!(layer.repeat.1, BackgroundRepeatKeyword::NoRepeat);
     let area = Rect::new(

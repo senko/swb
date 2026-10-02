@@ -2577,7 +2577,6 @@ dependencies = [
  "encoding_rs",
  "html5ever",
  "log",
- "markup5ever",
 ]
 
 [[package]]

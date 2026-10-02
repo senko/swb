@@ -67,10 +67,7 @@ pub(crate) fn run(
             });
             let automation = Automation::start(port, wake)
                 .with_context(|| format!("cannot start the automation server on port {port}"))?;
-            println!(
-                "swb: automation server listening on ws://127.0.0.1:{}/",
-                automation.port()
-            );
+            crate::print_server_address(automation.port())?;
             Some(automation)
         }
         None => None,
@@ -129,7 +126,7 @@ impl App {
         let config = PageConfig {
             fetcher,
             notify,
-            network_threads: 6,
+            network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
         };
         App {
             page: Page::new(config, fonts, Size::new(1024.0, 768.0), 1.0),
@@ -430,37 +427,7 @@ impl App {
         match (button, state) {
             (MouseButton::Left, ElementState::Pressed) => {
                 if y < TOOLBAR_HEIGHT {
-                    let width = self.window_size().width;
-                    match Toolbar::hit(x, y, width) {
-                        Some(ToolbarHit::Back) => {
-                            self.page.go_back();
-                        }
-                        Some(ToolbarHit::Forward) => {
-                            self.page.go_forward();
-                        }
-                        Some(ToolbarHit::Reload) => {
-                            // The button shows "stop" while loading.
-                            if self.page.is_loading() {
-                                self.page.stop();
-                            } else {
-                                self.page.reload();
-                            }
-                        }
-                        Some(ToolbarHit::Address(text_x)) => {
-                            if self.toolbar.focused {
-                                self.toolbar.place_cursor(
-                                    self.page.fonts(),
-                                    text_x,
-                                    self.modifiers.shift_key(),
-                                );
-                                self.selecting = true;
-                            } else {
-                                self.toolbar.focused = true;
-                                self.toolbar.address.select_all();
-                            }
-                        }
-                        None => {}
-                    }
+                    self.press_toolbar(x, y);
                 } else {
                     self.toolbar.focused = false;
                     let y = y - TOOLBAR_HEIGHT;
@@ -497,6 +464,41 @@ impl App {
                 self.request_redraw();
             }
             _ => {}
+        }
+    }
+
+    /// A press of the left button at (x, y) in the toolbar (CSS px of the
+    /// window).
+    fn press_toolbar(&mut self, x: f32, y: f32) {
+        match Toolbar::hit(x, y, self.window_size().width) {
+            Some(ToolbarHit::Back) => {
+                self.page.go_back();
+            }
+            Some(ToolbarHit::Forward) => {
+                self.page.go_forward();
+            }
+            Some(ToolbarHit::Reload) => {
+                // The button shows "stop" while loading.
+                if self.page.is_loading() {
+                    self.page.stop();
+                } else {
+                    self.page.reload();
+                }
+            }
+            Some(ToolbarHit::Address(text_x)) => {
+                if self.toolbar.focused {
+                    self.toolbar.place_cursor(
+                        self.page.fonts(),
+                        text_x,
+                        self.modifiers.shift_key(),
+                    );
+                    self.selecting = true;
+                } else {
+                    self.toolbar.focused = true;
+                    self.toolbar.address.select_all();
+                }
+            }
+            None => {}
         }
     }
 
