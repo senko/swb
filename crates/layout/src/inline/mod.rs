@@ -22,13 +22,13 @@ use swb_style::{ComputedStyle, Display, TextAlign, VerticalAlign, VerticalAlignK
 use crate::LayoutContext;
 use crate::block::{
     BoxEdges, ContainingBlock, LaidOutBlock, apply_relative_position,
-    layout_independent_shrink_to_fit,
+    layout_independent_shrink_to_fit, relative_offset,
 };
 use crate::box_tree::{
     InlineFormattingContext, InlineItem, has_inline_end_edge, has_inline_start_edge,
 };
 use crate::fonts::{self, LineMetrics};
-use crate::fragment::{BoxContent, BoxFragment, Fragment, PositionedGlyph, TextFragment};
+use crate::fragment::{BoxContent, BoxFragment, Caret, Fragment, PositionedGlyph, TextFragment};
 use crate::geom::{Rect, clamp_length};
 use crate::intrinsic::ContentSizes;
 use crate::list_marker::{PendingMarker, shape_marker};
@@ -783,6 +783,11 @@ impl LineBuilder<'_, '_> {
         for fragment in &mut state.outside_markers {
             translate(fragment, 0.0, baseline_y);
         }
+        let line_height = state.extent.bottom - state.extent.top;
+        let cb = self.containing_block();
+        for fragment in &mut state.top_level {
+            set_line_box(fragment, 0.0, line_top, line_height, cb);
+        }
         if self.first_baseline.is_none() {
             self.first_baseline = Some(baseline_y);
         }
@@ -964,6 +969,34 @@ fn translate(fragment: &mut Fragment, dx: f32, dy: f32) {
     }
 }
 
+/// Records the line box (`line_top` to `line_top + line_height`, in the
+/// coordinates of the fragment's parent, offset by `origin_y`) in the text
+/// fragments of a line, also inside inline boxes. The line box moves with
+/// relatively positioned inline boxes, as their text does. Atomic inlines
+/// have their own lines.
+fn set_line_box(
+    fragment: &mut Fragment,
+    origin_y: f32,
+    line_top: f32,
+    line_height: f32,
+    cb: ContainingBlock,
+) {
+    match fragment {
+        Fragment::Text(t) => {
+            t.line_top = line_top - (origin_y + t.rect.y);
+            t.line_height = line_height;
+        }
+        Fragment::Box(b) if b.is_inline => {
+            let origin_y = origin_y + b.border_rect.y;
+            let line_top = line_top + relative_offset(&b.style, cb).1;
+            for child in Arc::make_mut(&mut b.children) {
+                set_line_box(child, origin_y, line_top, line_height, cb);
+            }
+        }
+        Fragment::Box(_) => {}
+    }
+}
+
 /// Gives a fragment of an empty line, and its descendants, zero height at
 /// the top of the line (y = 0).
 fn collapse_to_line_top(fragment: &mut Fragment) {
@@ -1021,7 +1054,7 @@ fn text_fragment(
     baseline: f32,
 ) -> TextFragment {
     let mut pen = 0.0;
-    let positioned: Vec<PositionedGlyph> = run.glyphs[glyphs]
+    let positioned: Vec<PositionedGlyph> = run.glyphs[glyphs.clone()]
         .iter()
         .map(|g| {
             let p = PositionedGlyph {
@@ -1033,9 +1066,21 @@ fn text_fragment(
             p
         })
         .collect();
-    let node = match &ifc.items[run.item] {
-        InlineItem::Text { node, .. } => *node,
-        _ => swb_dom::NodeId::DOCUMENT,
+    let (node, carets) = match &ifc.items[run.item] {
+        InlineItem::Text {
+            node,
+            range,
+            source,
+            ..
+        } => {
+            let carets = source.as_ref().map_or_else(Vec::new, |map| {
+                carets(run, glyphs, |offset| {
+                    map.node_offset(offset.saturating_sub(range.start))
+                })
+            });
+            (*node, carets)
+        }
+        _ => (swb_dom::NodeId::DOCUMENT, Vec::new()),
     };
     TextFragment {
         node,
@@ -1051,7 +1096,44 @@ fn text_fragment(
         font_size: run.font_size,
         glyphs: positioned.into(),
         text: Arc::from(ifc.text.get(text).unwrap_or("")),
+        carets: carets.into(),
+        line_top: 0.0,
+        line_height: run.metrics.ascent + run.metrics.descent,
     }
+}
+
+/// The caret stops of glyphs `glyphs` of `run`: one at the start of each
+/// cluster and one at the end. `node_offset` maps an offset in the
+/// context's text to an offset in the text node.
+fn carets(
+    run: &Run,
+    glyphs: std::ops::Range<usize>,
+    node_offset: impl Fn(usize) -> u32,
+) -> Vec<Caret> {
+    let mut out: Vec<Caret> = Vec::new();
+    let mut pen = 0.0;
+    let mut cluster = None;
+    for g in run.glyphs.get(glyphs.clone()).unwrap_or_default() {
+        if cluster != Some(g.cluster) {
+            cluster = Some(g.cluster);
+            out.push(Caret {
+                offset: node_offset(g.cluster),
+                x: pen,
+            });
+        }
+        pen += g.advance;
+    }
+    // The end: the next glyph's cluster (a removed trailing space, or the
+    // next piece), or the end of the run.
+    let end = run
+        .glyphs
+        .get(glyphs.end)
+        .map_or(run.text.end, |g| g.cluster);
+    out.push(Caret {
+        offset: node_offset(end),
+        x: pen,
+    });
+    out
 }
 
 #[cfg(test)]
@@ -1128,5 +1210,96 @@ mod tests {
         assert_eq!(baseline_shift(&sup, &parent, 0.0, 0.0, 0.0), -11.0);
         let percent = VerticalAlign::LengthPercentage(swb_style::LengthPercentage::Percent(0.5));
         assert_eq!(baseline_shift(&percent, &parent, 40.0, 0.0, 0.0), -20.0);
+    }
+
+    /// The text fragments: text and caret offsets.
+    fn carets_of(l: &crate::test_support::TestLayout) -> Vec<(String, Vec<u32>)> {
+        use crate::FragmentRef;
+        let mut out = Vec::new();
+        l.tree.walk(|f, _| {
+            if let FragmentRef::Text(t) = f {
+                let offsets = t.carets.iter().map(|c| c.offset).collect();
+                out.push((t.text.to_string(), offsets));
+            }
+        });
+        out
+    }
+
+    #[test]
+    fn carets_map_to_node_offsets() {
+        let l = layout_html("<p>  ab \n cd</p>");
+        // One fragment per piece between wrap opportunities.
+        assert_eq!(
+            carets_of(&l),
+            vec![
+                ("ab ".to_owned(), vec![2, 3, 4, 7]),
+                ("cd".to_owned(), vec![7, 8, 9])
+            ]
+        );
+        let l = layout_html("<p>ab</p>");
+        let mut xs = Vec::new();
+        l.tree.walk(|f, _| {
+            if let crate::FragmentRef::Text(t) = f {
+                xs = t.carets.iter().map(|c| c.x).collect();
+                assert_eq!(t.offset_at(-5.0), Some(0));
+                assert_eq!(t.offset_at(t.rect.width + 5.0), Some(2));
+                assert_eq!(t.x_range(0, 2), Some((0.0, t.rect.width)));
+                assert_eq!(t.x_range(1, 1), None);
+            }
+        });
+        assert!(xs.len() == 3 && xs[0] == 0.0 && xs[0] < xs[1] && xs[1] < xs[2]);
+    }
+
+    #[test]
+    fn wrapped_lines_end_before_the_removed_space() {
+        let l = layout_html("<p style='width:0'>aa bb</p>");
+        let carets = carets_of(&l);
+        assert_eq!(carets.len(), 2);
+        assert_eq!(carets[0].1, vec![0, 1, 2]);
+        assert_eq!(carets[1].1, vec![3, 4, 5]);
+    }
+
+    #[test]
+    fn generated_content_has_no_carets() {
+        let l = layout_html("<style>p::before { content: 'x' }</style><ol><li>a</ol><p>b</p>");
+        let carets = carets_of(&l);
+        let generated: Vec<_> = carets.iter().filter(|(_, c)| c.is_empty()).collect();
+        let text: Vec<_> = carets.iter().filter(|(_, c)| !c.is_empty()).collect();
+        assert_eq!(generated.len(), 2, "{carets:?}");
+        assert_eq!(text.len(), 2, "{carets:?}");
+    }
+
+    #[test]
+    fn text_fragments_know_their_line_box() {
+        // One line: the paragraph's box is the line box.
+        let l = layout_html(
+            "<p id=p style='margin:0;font-size:16px;line-height:40px'>a <b style='font-size:8px'>b</b></p>",
+        );
+        let p = l.rect("p");
+        let mut lines = Vec::new();
+        l.tree.walk(|f, origin| {
+            if let crate::FragmentRef::Text(t) = f {
+                lines.push((origin.y + t.rect.y + t.line_top, t.line_height));
+            }
+        });
+        assert_eq!(lines.len(), 2);
+        for (top, height) in lines {
+            assert_eq!((top, height), (p.y, p.height));
+        }
+    }
+
+    #[test]
+    fn line_boxes_move_with_relatively_positioned_text() {
+        let l = layout_html(
+            "<p id=p style='margin:0;line-height:30px'>aaa <span style='position:relative;top:25px'>bbb</span></p>",
+        );
+        let p = l.rect("p");
+        let mut tops = Vec::new();
+        l.tree.walk(|f, origin| {
+            if let crate::FragmentRef::Text(t) = f {
+                tops.push(origin.y + t.rect.y + t.line_top);
+            }
+        });
+        assert_eq!(tops, vec![p.y, p.y + 25.0]);
     }
 }

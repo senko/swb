@@ -5,7 +5,6 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
@@ -14,36 +13,8 @@ use swb_net::{Fetcher, NetError, NetworkFetcher, Request, Response};
 use swb_paint::{DisplayItem, DisplayList, ImageRef, ImageSizes};
 use swb_style::Rgba;
 
-/// A directory with test pages, removed at the end of the test.
-struct Site {
-    dir: PathBuf,
-}
-
-impl Site {
-    fn new(test: &str) -> Site {
-        let dir = std::env::temp_dir().join(format!("swb-page-{}-{test}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Site { dir }
-    }
-
-    /// Writes a file and returns its URL.
-    fn file(&self, name: &str, content: &[u8]) -> Url {
-        let path = self.dir.join(name);
-        std::fs::write(&path, content).unwrap();
-        Url::from_file_path(path).unwrap()
-    }
-
-    fn page(&self, name: &str, html: &str) -> Url {
-        self.file(name, html.as_bytes())
-    }
-}
-
-impl Drop for Site {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dir);
-    }
-}
+mod common;
+use common::Site;
 
 /// Fetches local files. A URL whose query starts with `slow` takes 200 ms;
 /// a URL with the query `block` waits until [`TestFetcher::release`].
@@ -519,7 +490,11 @@ fn display_list(html: &str, test: &str) -> DisplayList {
     let site = Site::new(test);
     let mut page = local_page();
     load(&mut page, site.page("page.html", html));
-    swb_paint::build_display_list(page.fragments().unwrap(), &NoImages)
+    swb_paint::build_display_list(
+        page.fragments().unwrap(),
+        &NoImages,
+        &swb_paint::NoHighlights,
+    )
 }
 
 /// The indices of the rectangles filled with `color`.

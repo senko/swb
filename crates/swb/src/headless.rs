@@ -1,18 +1,22 @@
 //! Headless mode: load a page without a window, then save a screenshot or
-//! print debugging dumps.
+//! print debugging dumps; or serve the automation protocol.
 
+use std::io::Write as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{Context, Result, bail};
-use swb_engine::{Page, PageConfig, Pixmap, Size, Url};
+use anyhow::{Context, Result};
+use swb_automation::HeadlessBrowser;
+use swb_engine::{Page, PageConfig, Size, Url};
 use swb_layout::FragmentRef;
 use swb_net::Fetcher;
 use swb_text::FontContext;
 
 /// What to produce in headless mode.
 pub(crate) struct HeadlessOptions<'a> {
+    /// The fetcher of the page (the benchmark fetches the document again).
+    pub(crate) fetcher: Arc<dyn Fetcher>,
     pub(crate) url: Url,
     pub(crate) viewport: Size,
     pub(crate) scale: f32,
@@ -23,16 +27,40 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) dump_dom: bool,
     pub(crate) dump_layout: bool,
     pub(crate) dump_boxes: Option<&'a Path>,
+    pub(crate) bench: Option<usize>,
+}
+
+/// Runs a headless page with the automation server until a client sends
+/// `browser.close`. Prints the server address on standard output.
+pub(crate) fn serve(
+    fetcher: Arc<dyn Fetcher>,
+    fonts: FontContext,
+    viewport: Size,
+    scale: f32,
+    port: u16,
+    url: Option<Url>,
+) -> Result<()> {
+    let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port)
+        .with_context(|| format!("cannot start the automation server on port {port}"))?;
+    // Tools read this line to find the port.
+    println!(
+        "swb: automation server listening on ws://127.0.0.1:{}/",
+        browser.port()
+    );
+    std::io::stdout()
+        .flush()
+        .context("cannot write to standard output")?;
+    if let Some(url) = url {
+        browser.page().navigate(url);
+    }
+    browser.run();
+    Ok(())
 }
 
 /// Loads the page and produces the requested outputs.
-pub(crate) fn run(
-    fetcher: Arc<dyn Fetcher>,
-    fonts: FontContext,
-    options: &HeadlessOptions<'_>,
-) -> Result<()> {
+pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<()> {
     let config = PageConfig {
-        fetcher,
+        fetcher: Arc::clone(&options.fetcher),
         notify: Arc::new(|| {}),
         network_threads: 6,
     };
@@ -53,12 +81,17 @@ pub(crate) fn run(
     if options.dump_layout {
         print!("{}", dump_layout(&page));
     }
+    if let Some(runs) = options.bench {
+        crate::bench::run(&mut page, &options.fetcher, &options.url, runs)?;
+    }
     if let Some(path) = options.dump_boxes {
-        let json = box_dump(&page, &options.url, options.viewport);
-        std::fs::write(path, json).with_context(|| format!("cannot write {}", path.display()))?;
+        let dump = swb_automation::box_dump(&page, options.url.as_str());
+        let json = serde_json::to_string_pretty(&dump).context("cannot serialize the boxes")?;
+        std::fs::write(path, json + "\n")
+            .with_context(|| format!("cannot write {}", path.display()))?;
     }
     if let Some(path) = options.screenshot.filter(|_| options.with_chrome) {
-        device_size(options.viewport, options.scale)?;
+        swb_engine::device_size(options.viewport, options.scale)?;
         let pixmap = crate::gui::render_window(&mut page, options.viewport, options.scale)?;
         pixmap
             .save_png(path)
@@ -66,78 +99,13 @@ pub(crate) fn run(
         return Ok(());
     }
     if let Some(path) = options.screenshot {
-        let size = if options.full_page {
-            let size = full_page_size(&mut page, options.viewport.width, options.scale);
-            page.set_viewport(size, options.scale);
-            size
-        } else {
-            options.viewport
-        };
-        let (w, h) = device_size(size, options.scale)?;
-        let Some(mut pixmap) = Pixmap::new(w, h) else {
-            bail!("cannot allocate a {w}x{h} screenshot");
-        };
-        page.render(&mut pixmap);
+        let pixmap = page.screenshot(options.full_page)?;
         pixmap
             .save_png(path)
             .with_context(|| format!("cannot write {}", path.display()))?;
         log::info!("saved {}", path.display());
     }
     Ok(())
-}
-
-/// The largest screenshot in device pixels: 128 Mpx, 512 MiB of RGBA.
-const MAX_SCREENSHOT_PIXELS: f64 = 128.0 * 1024.0 * 1024.0;
-
-/// The size of a full-page screenshot: the content height, limited so that
-/// the screenshot stays within [`MAX_SCREENSHOT_PIXELS`].
-fn full_page_size(page: &mut Page, width: f32, scale: f32) -> Size {
-    let content = page.content_size();
-    // One row less than the limit, so that rounding cannot exceed it.
-    let device_width = f64::from((width * scale).round().max(1.0));
-    let max_height =
-        (((MAX_SCREENSHOT_PIXELS / device_width).floor() - 1.0) / f64::from(scale)) as f32;
-    if content.height > max_height {
-        log::warn!(
-            "the page is {} px high; the screenshot shows the first {max_height:.0} px",
-            content.height
-        );
-    }
-    Size::new(width, content.height.min(max_height).max(1.0))
-}
-
-/// The size in device pixels of a screenshot of `size` CSS px, if it is
-/// within [`MAX_SCREENSHOT_PIXELS`]. tiny-skia aborts the process when an
-/// allocation fails, so the size is checked before allocating.
-fn device_size(size: Size, scale: f32) -> Result<(u32, u32)> {
-    let w = (size.width * scale).round().max(1.0);
-    let h = (size.height * scale).round().max(1.0);
-    if f64::from(w) * f64::from(h) > MAX_SCREENSHOT_PIXELS {
-        bail!("a {w}x{h} screenshot is too large");
-    }
-    Ok((w as u32, h as u32))
-}
-
-/// The element box dump used for comparisons with Chromium (format:
-/// docs/testing.md): every element in tree order with the union of its
-/// border boxes, or `null` if it has none.
-fn box_dump(page: &Page, url: &Url, viewport: Size) -> String {
-    let round = |v: f32| (f64::from(v) * 100.0).round() / 100.0;
-    let elements: Vec<_> = swb_engine::element_boxes(page)
-        .into_iter()
-        .map(|b| {
-            let rect = b.rect.map(|r| {
-                serde_json::json!([round(r.x), round(r.y), round(r.width), round(r.height)])
-            });
-            serde_json::json!({ "tag": b.tag, "rect": rect, "parent": b.parent })
-        })
-        .collect();
-    let dump = serde_json::json!({
-        "url": url.as_str(),
-        "viewport": [viewport.width, viewport.height],
-        "elements": elements,
-    });
-    serde_json::to_string_pretty(&dump).unwrap_or_default() + "\n"
 }
 
 /// One line per box fragment: depth, element, and absolute border box.

@@ -12,10 +12,10 @@ use crate::values::{
     Cursor, Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
     FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, Hyphens, Image,
     LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType,
-    MaxSize, ObjectFit, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent, Rgba,
-    Size, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak,
-    ZIndex,
+    MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
+    PositionComponent, Rgba, Size, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace,
+    WordBreak, ZIndex,
 };
 
 /// Custom properties (`--name: value`) of an element, after `var()`
@@ -113,7 +113,7 @@ pub struct ComputedStyle {
     pub border_bottom_right_radius: CornerRadius,
     pub border_bottom_left_radius: CornerRadius,
     pub outline_width: f32,
-    pub outline_style: BorderStyle,
+    pub outline_style: OutlineStyle,
     pub outline_color: Color,
     pub outline_offset: f32,
     pub background_color: Color,
@@ -240,7 +240,7 @@ impl ComputedStyle {
             border_bottom_right_radius: CornerRadius::default(),
             border_bottom_left_radius: CornerRadius::default(),
             outline_width: medium_border,
-            outline_style: BorderStyle::None,
+            outline_style: OutlineStyle::None,
             outline_color: Color::CurrentColor,
             outline_offset: 0.0,
             background_color: Color::TRANSPARENT,

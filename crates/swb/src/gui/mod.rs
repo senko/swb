@@ -7,15 +7,19 @@ mod toolbar;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use swb_engine::{Page, PageConfig, Pixmap, Size, Url};
+use swb_automation::Automation;
+use swb_engine::{Cursor, Modifiers, Page, PageConfig, Pixmap, Size, Url};
 use swb_net::Fetcher;
 use swb_paint::{ImageRef, ImageSource, RasterParams};
 use swb_text::FontContext;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
+use winit::event::{
+    ElementState, KeyEvent, MouseButton, MouseScrollDelta, StartCause, WindowEvent,
+};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, Window, WindowId};
@@ -26,25 +30,53 @@ use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit, ToolbarState};
 /// Pixels scrolled per wheel "line".
 const LINE_SCROLL: f32 = 48.0;
 
+/// The longest time between the clicks of a double or triple click.
+const MULTI_CLICK_TIME: Duration = Duration::from_millis(500);
+
+/// The largest distance (in CSS px) between the clicks of a double click.
+const MULTI_CLICK_DISTANCE: f32 = 4.0;
+
 /// Events sent to the event loop from other threads.
 #[derive(Debug, Clone, Copy)]
 enum UserEvent {
     /// A network request completed.
     Network,
+    /// An automation request arrived.
+    Automation,
 }
 
-/// Runs the GUI until the window is closed.
+/// Runs the GUI until the window is closed. With `remote_port`, also runs
+/// the automation server.
 pub(crate) fn run(
     fetcher: Arc<dyn Fetcher>,
     fonts: FontContext,
     start_url: Option<Url>,
+    remote_port: Option<u16>,
 ) -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .context("cannot create the event loop (is a display available?)")?;
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
+    let automation = match remote_port {
+        Some(port) => {
+            let proxy = proxy.clone();
+            let wake = Arc::new(move || {
+                // The event loop may already be gone at shutdown.
+                let _ = proxy.send_event(UserEvent::Automation);
+            });
+            let automation = Automation::start(port, wake)
+                .with_context(|| format!("cannot start the automation server on port {port}"))?;
+            println!(
+                "swb: automation server listening on ws://127.0.0.1:{}/",
+                automation.port()
+            );
+            Some(automation)
+        }
+        None => None,
+    };
     let mut app = App::new(fetcher, fonts, start_url, proxy);
+    app.automation = automation;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
 }
@@ -64,6 +96,15 @@ struct App {
     /// True while the left button is held after a press in the address
     /// field (drag selection).
     selecting: bool,
+    /// The last press of the left button in the page: time, position (CSS
+    /// px) and click count, to detect double and triple clicks.
+    last_press: Option<(Instant, (f32, f32), u32)>,
+    /// True while the left button is held after a press in the page.
+    page_pressed: bool,
+    /// The system clipboard, opened on first use. `None` if it cannot be
+    /// opened.
+    clipboard: Option<arboard::Clipboard>,
+    automation: Option<Automation>,
 }
 
 struct NoImages;
@@ -98,7 +139,76 @@ impl App {
             modifiers: ModifiersState::empty(),
             cursor: PhysicalPosition::new(0.0, 0.0),
             selecting: false,
+            last_press: None,
+            page_pressed: false,
+            clipboard: None,
+            automation: None,
         }
+    }
+
+    /// The modifiers in the engine's form.
+    fn engine_modifiers(&self) -> Modifiers {
+        Modifiers {
+            shift: self.modifiers.shift_key(),
+            ctrl: self.modifiers.control_key(),
+            alt: self.modifiers.alt_key(),
+            meta: self.modifiers.super_key(),
+        }
+    }
+
+    /// Puts text on the clipboard (or, on Linux, the primary selection,
+    /// which a middle click pastes).
+    fn copy(&mut self, text: String, primary: bool) {
+        if text.is_empty() {
+            return;
+        }
+        if self.clipboard.is_none() {
+            match arboard::Clipboard::new() {
+                Ok(c) => self.clipboard = Some(c),
+                Err(e) => {
+                    log::warn!("cannot open the clipboard: {e}");
+                    return;
+                }
+            }
+        }
+        let Some(clipboard) = self.clipboard.as_mut() else {
+            return;
+        };
+        let result = if primary {
+            set_primary(clipboard, text)
+        } else {
+            clipboard.set_text(text)
+        };
+        if let Err(e) = result {
+            log::warn!("cannot copy to the clipboard: {e}");
+        }
+    }
+
+    /// The text on the clipboard.
+    fn paste(&mut self) -> Option<String> {
+        if self.clipboard.is_none() {
+            self.clipboard = arboard::Clipboard::new()
+                .map_err(|e| log::warn!("cannot open the clipboard: {e}"))
+                .ok();
+        }
+        self.clipboard.as_mut()?.get_text().ok()
+    }
+
+    /// The click count of a press at (x, y): 2 or 3 if it follows earlier
+    /// presses closely, otherwise 1.
+    fn click_count(&mut self, x: f32, y: f32) -> u32 {
+        let now = Instant::now();
+        let count = match self.last_press {
+            Some((time, (px, py), count))
+                if now.duration_since(time) <= MULTI_CLICK_TIME
+                    && (x - px).hypot(y - py) <= MULTI_CLICK_DISTANCE =>
+            {
+                count % 3 + 1
+            }
+            _ => 1,
+        };
+        self.last_press = Some((now, (x, y), count));
+        count
     }
 
     fn scale(&self) -> f32 {
@@ -191,6 +301,19 @@ impl App {
         Ok(())
     }
 
+    /// Executes automation requests. Returns true if one was executed.
+    fn process_automation(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        let Some(automation) = &mut self.automation else {
+            return false;
+        };
+        let executed = automation.process(&mut self.page);
+        if automation.close_requested() {
+            automation.finish_close();
+            event_loop.exit();
+        }
+        executed
+    }
+
     fn handle_key(&mut self, event_loop: &ActiveEventLoop, event: &KeyEvent) {
         if event.state != ElementState::Pressed {
             return;
@@ -246,6 +369,25 @@ impl App {
             Key::Named(NamedKey::Home) => field.home(shift),
             Key::Named(NamedKey::End) => field.end(shift),
             Key::Character(c) if ctrl && c.eq_ignore_ascii_case("a") => field.select_all(),
+            Key::Character(c)
+                if ctrl && (c.eq_ignore_ascii_case("c") || c.eq_ignore_ascii_case("x")) =>
+            {
+                let range = field.selection();
+                if !range.is_empty() {
+                    let text = field.text().get(range).unwrap_or("").to_owned();
+                    if c.eq_ignore_ascii_case("x") {
+                        field.delete();
+                    }
+                    self.copy(text, false);
+                }
+            }
+            Key::Character(c) if ctrl && c.eq_ignore_ascii_case("v") => {
+                if let Some(text) = self.paste() {
+                    // The address is one line.
+                    let line = text.replace(['\n', '\r'], " ");
+                    self.toolbar.address.insert(line.trim());
+                }
+            }
             _ if !ctrl => {
                 if let Some(text) = &event.text {
                     field.insert(text);
@@ -255,35 +397,30 @@ impl App {
         }
     }
 
-    /// A key press while the page has the focus: scrolling, back, stop.
+    /// A key press while the page has the focus: copy, back and stop here;
+    /// the page handles focus navigation, activation and scrolling.
     fn handle_page_key(&mut self, event: &KeyEvent) {
-        let shift = self.modifiers.shift_key();
-        let viewport = self.page.viewport();
-        let page_step = (viewport.height * 0.875).max(LINE_SCROLL);
-        let (dx, dy) = match &event.logical_key {
-            Key::Named(NamedKey::ArrowDown) => (0.0, 40.0),
-            Key::Named(NamedKey::ArrowUp) => (0.0, -40.0),
-            Key::Named(NamedKey::ArrowRight) => (40.0, 0.0),
-            Key::Named(NamedKey::ArrowLeft) => (-40.0, 0.0),
-            Key::Named(NamedKey::PageDown) => (0.0, page_step),
-            Key::Named(NamedKey::PageUp) => (0.0, -page_step),
-            Key::Named(NamedKey::Space) => (0.0, if shift { -page_step } else { page_step }),
-            // Scrolling clamps to the content.
-            Key::Named(NamedKey::Home) => (0.0, -1e9),
-            Key::Named(NamedKey::End) => (0.0, 1e9),
-            Key::Named(NamedKey::Backspace) => {
+        let modifiers = self.engine_modifiers();
+        match &event.logical_key {
+            Key::Character(c) if modifiers.ctrl && c.eq_ignore_ascii_case("c") => {
+                let text = self.page.selected_text();
+                self.copy(text, false);
+            }
+            Key::Named(NamedKey::Backspace) if modifiers.is_empty() => {
                 self.page.go_back();
                 self.sync_address();
-                return;
             }
             Key::Named(NamedKey::Escape) => {
                 self.page.stop();
                 self.sync_address();
-                return;
             }
-            _ => return,
-        };
-        self.page.scroll_by(dx, dy);
+            key => {
+                if let Some(key) = engine_key(key) {
+                    self.page.key_down(&key, modifiers);
+                    self.sync_address();
+                }
+            }
+        }
     }
 
     fn handle_mouse_button(&mut self, button: MouseButton, state: ElementState) {
@@ -326,13 +463,28 @@ impl App {
                     }
                 } else {
                     self.toolbar.focused = false;
-                    self.page.click(x, y - TOOLBAR_HEIGHT);
+                    let y = y - TOOLBAR_HEIGHT;
+                    let count = self.click_count(x, y);
+                    let modifiers = self.engine_modifiers();
+                    self.page_pressed = true;
+                    self.page
+                        .mouse_down(x, y, swb_engine::MouseButton::Primary, modifiers, count);
                 }
                 self.sync_address();
                 self.request_redraw();
             }
             (MouseButton::Left, ElementState::Released) => {
-                self.selecting = false;
+                if self.selecting {
+                    self.selecting = false;
+                } else if self.page_pressed {
+                    self.page_pressed = false;
+                    self.page
+                        .mouse_up(x, y - TOOLBAR_HEIGHT, swb_engine::MouseButton::Primary);
+                    let selected = self.page.selected_text();
+                    self.copy(selected, true);
+                    self.sync_address();
+                    self.request_redraw();
+                }
             }
             (MouseButton::Back, ElementState::Pressed) => {
                 self.page.go_back();
@@ -360,29 +512,116 @@ impl App {
             self.request_redraw();
             return;
         }
-        let over_link = if y >= TOOLBAR_HEIGHT {
+        // While the button is held after a press in the page, the page
+        // gets the movement also above the page area (drag selection).
+        let in_page = y >= TOOLBAR_HEIGHT || self.page_pressed;
+        let changed = if in_page {
             self.page.mouse_move(x, y - TOOLBAR_HEIGHT)
         } else {
             self.page.mouse_leave()
         };
         if let Some(gfx) = &self.gfx {
-            let icon = if y < TOOLBAR_HEIGHT {
-                match Toolbar::hit(x, y, self.window_size().width) {
-                    Some(ToolbarHit::Address(_)) => CursorIcon::Text,
-                    Some(_) => CursorIcon::Pointer,
-                    None => CursorIcon::Default,
-                }
-            } else if self.page.hovered_link().is_some() {
-                CursorIcon::Pointer
+            let icon = if in_page {
+                cursor_icon(self.page.cursor())
             } else {
-                CursorIcon::Default
+                match Toolbar::hit(x, y, self.window_size().width) {
+                    Some(ToolbarHit::Address(_)) => Some(CursorIcon::Text),
+                    Some(_) => Some(CursorIcon::Pointer),
+                    None => Some(CursorIcon::Default),
+                }
             };
-            gfx.window.set_cursor(icon);
+            gfx.window.set_cursor_visible(icon.is_some());
+            if let Some(icon) = icon {
+                gfx.window.set_cursor(icon);
+            }
         }
-        if over_link {
+        if changed {
             self.request_redraw();
         }
     }
+}
+
+/// The engine's form of a key, for keys that the page handles.
+fn engine_key(key: &Key) -> Option<swb_engine::Key> {
+    use swb_engine::Key as K;
+    Some(match key {
+        Key::Character(c) => K::Character(c.to_string()),
+        Key::Named(NamedKey::Space) => K::Character(" ".to_owned()),
+        Key::Named(named) => match named {
+            NamedKey::Tab => K::Tab,
+            NamedKey::Enter => K::Enter,
+            NamedKey::Escape => K::Escape,
+            NamedKey::Backspace => K::Backspace,
+            NamedKey::Delete => K::Delete,
+            NamedKey::ArrowUp => K::ArrowUp,
+            NamedKey::ArrowDown => K::ArrowDown,
+            NamedKey::ArrowLeft => K::ArrowLeft,
+            NamedKey::ArrowRight => K::ArrowRight,
+            NamedKey::PageUp => K::PageUp,
+            NamedKey::PageDown => K::PageDown,
+            NamedKey::Home => K::Home,
+            NamedKey::End => K::End,
+            _ => return None,
+        },
+        _ => return None,
+    })
+}
+
+/// The window cursor for a CSS cursor; `None` hides the cursor.
+fn cursor_icon(cursor: Cursor) -> Option<CursorIcon> {
+    Some(match cursor {
+        Cursor::None => return None,
+        Cursor::Auto | Cursor::Default => CursorIcon::Default,
+        Cursor::Pointer => CursorIcon::Pointer,
+        Cursor::Text => CursorIcon::Text,
+        Cursor::VerticalText => CursorIcon::VerticalText,
+        Cursor::Help => CursorIcon::Help,
+        Cursor::Wait => CursorIcon::Wait,
+        Cursor::Progress => CursorIcon::Progress,
+        Cursor::Crosshair => CursorIcon::Crosshair,
+        Cursor::Move => CursorIcon::Move,
+        Cursor::Grab => CursorIcon::Grab,
+        Cursor::Grabbing => CursorIcon::Grabbing,
+        Cursor::NotAllowed => CursorIcon::NotAllowed,
+        Cursor::NoDrop => CursorIcon::NoDrop,
+        Cursor::ContextMenu => CursorIcon::ContextMenu,
+        Cursor::Cell => CursorIcon::Cell,
+        Cursor::Copy => CursorIcon::Copy,
+        Cursor::Alias => CursorIcon::Alias,
+        Cursor::ColResize => CursorIcon::ColResize,
+        Cursor::RowResize => CursorIcon::RowResize,
+        Cursor::EwResize => CursorIcon::EwResize,
+        Cursor::NsResize => CursorIcon::NsResize,
+        Cursor::NeswResize => CursorIcon::NeswResize,
+        Cursor::NwseResize => CursorIcon::NwseResize,
+        Cursor::NResize => CursorIcon::NResize,
+        Cursor::EResize => CursorIcon::EResize,
+        Cursor::SResize => CursorIcon::SResize,
+        Cursor::WResize => CursorIcon::WResize,
+        Cursor::NeResize => CursorIcon::NeResize,
+        Cursor::NwResize => CursorIcon::NwResize,
+        Cursor::SeResize => CursorIcon::SeResize,
+        Cursor::SwResize => CursorIcon::SwResize,
+        Cursor::AllScroll => CursorIcon::AllScroll,
+        Cursor::ZoomIn => CursorIcon::ZoomIn,
+        Cursor::ZoomOut => CursorIcon::ZoomOut,
+    })
+}
+
+/// Sets the primary selection (Linux), which a middle click pastes.
+#[cfg(target_os = "linux")]
+fn set_primary(clipboard: &mut arboard::Clipboard, text: String) -> Result<(), arboard::Error> {
+    use arboard::{LinuxClipboardKind, SetExtLinux};
+    clipboard
+        .set()
+        .clipboard(LinuxClipboardKind::Primary)
+        .text(text)
+}
+
+/// Other platforms have no primary selection.
+#[cfg(not(target_os = "linux"))]
+fn set_primary(_clipboard: &mut arboard::Clipboard, _text: String) -> Result<(), arboard::Error> {
+    Ok(())
 }
 
 /// Renders a whole window frame: the page below the toolbar, then the
@@ -490,15 +729,30 @@ impl ApplicationHandler<UserEvent> for App {
         self.request_redraw();
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
-        match event {
-            UserEvent::Network => {
-                if self.page.process_network() {
-                    self.sync_address();
-                    self.request_redraw();
-                }
-            }
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
+        let changed = match event {
+            UserEvent::Network => self.page.process_network(),
+            UserEvent::Automation => false,
+        };
+        let automated = self.process_automation(event_loop);
+        if changed || automated {
+            self.sync_address();
+            self.request_redraw();
         }
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        if matches!(cause, StartCause::ResumeTimeReached { .. })
+            && self.process_automation(event_loop)
+        {
+            self.request_redraw();
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        // Wake up when a waiting automation request times out.
+        let deadline = self.automation.as_ref().and_then(Automation::next_deadline);
+        event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {

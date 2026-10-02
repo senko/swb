@@ -165,6 +165,29 @@ pub enum ImageRef {
     Url(Arc<str>),
 }
 
+/// The text selection, for painting the highlight.
+pub trait Highlights {
+    /// The selected range of node offsets of text node `node` (the end can
+    /// be `u32::MAX`), or `None` if no part of it is selected.
+    fn selected(&self, node: NodeId) -> Option<(u32, u32)>;
+}
+
+/// No selection.
+pub struct NoHighlights;
+
+impl Highlights for NoHighlights {
+    fn selected(&self, _node: NodeId) -> Option<(u32, u32)> {
+        None
+    }
+}
+
+/// The background of selected text (Chromium's default, measured with
+/// Chromium 148 on Linux).
+pub const SELECTION_BACKGROUND: Rgba = Rgba::rgb(51, 103, 209);
+
+/// The color of selected text.
+pub const SELECTION_TEXT: Rgba = Rgba::WHITE;
+
 /// Natural sizes of images by reference, for background positioning.
 pub trait ImageSizes {
     /// The natural size of an image in CSS px, if it is loaded.
@@ -206,11 +229,17 @@ impl DisplayList {
     }
 }
 
-/// Builds the display list for the whole document.
-pub fn build_display_list(tree: &FragmentTree, images: &dyn ImageSizes) -> DisplayList {
+/// Builds the display list for the whole document, with the selection
+/// highlight.
+pub fn build_display_list(
+    tree: &FragmentTree,
+    images: &dyn ImageSizes,
+    highlights: &dyn Highlights,
+) -> DisplayList {
     let mut builder = Builder {
         list: Vec::new(),
         images,
+        highlights,
         contexts: Vec::new(),
         clips: Vec::new(),
         canvas_source: None,
@@ -257,6 +286,7 @@ struct OpenClip {
 struct Builder<'a> {
     list: Vec<DisplayItem>,
     images: &'a dyn ImageSizes,
+    highlights: &'a dyn Highlights,
     /// One entry per open stacking context: its positioned descendants, in
     /// tree order.
     contexts: Vec<Vec<Deferred>>,
@@ -382,7 +412,7 @@ impl Builder<'_> {
             self.list.push(DisplayItem::PopClip);
             self.clips.pop();
         }
-        self.outline(&b.style, rect);
+        self.outline(b, origin);
         self.close_group(&group);
     }
 
@@ -487,29 +517,73 @@ impl Builder<'_> {
         }
     }
 
-    fn outline(&mut self, style: &ComputedStyle, rect: Rect) {
-        if style.visibility != Visibility::Visible
-            || style.outline_style == BorderStyle::None
-            || style.outline_width <= 0.0
-        {
+    fn outline(&mut self, b: &BoxFragment, origin: Point) {
+        let style = &b.style;
+        if style.visibility != Visibility::Visible {
+            return;
+        }
+        let rect = b.border_rect.translate(origin);
+        let Some(border_style) = style.outline_style.border_style() else {
+            self.focus_ring(style, with_descendants(b, origin));
+            return;
+        };
+        if border_style == BorderStyle::None || style.outline_width <= 0.0 {
             return;
         }
         let w = style.outline_width;
-        let grow = w + style.outline_offset;
-        let outer = Rect::new(
-            rect.x - grow,
-            rect.y - grow,
-            rect.width + 2.0 * grow,
-            rect.height + 2.0 * grow,
-        );
+        let outer = outset(rect, w + style.outline_offset);
         let color = style.outline_color.resolve(style.color);
         self.list.push(DisplayItem::Border {
             rect: outer,
             widths: [w; 4],
             colors: [color; 4],
-            styles: [style.outline_style; 4],
+            styles: [border_style; 4],
             radii: [(0.0, 0.0); 4],
         });
+    }
+
+    /// Paints `outline-style: auto` as Chromium does around `rect` (the
+    /// border box and its descendants): a ring of 2 px in the outline
+    /// color, centered on `outline-offset` outside the border box (1 px
+    /// further in if the box has a border on every side), with a ring of
+    /// 1 px in white around it for contrast. The corners are rounded. The
+    /// outline width does not matter. An empty box gets no ring. (Measured
+    /// with Chromium 148.) Deliberate simplification: the line fragments of
+    /// a wrapped inline box get one ring each; Chromium merges them.
+    fn focus_ring(&mut self, style: &ComputedStyle, rect: Rect) {
+        if rect.width <= 0.0 || rect.height <= 0.0 {
+            return;
+        }
+        let min_border = style
+            .border_top_width
+            .min(style.border_right_width)
+            .min(style.border_bottom_width)
+            .min(style.border_left_width);
+        let center = style.outline_offset - if min_border >= 1.0 { 1.0 } else { 0.0 };
+        let radii = resolve_radii(style, rect);
+        let ring = |distance: f32| -> (Rect, Radii) {
+            // The radius of the ring's center line is at least 2 px.
+            let radius = |r: f32| (r + distance).max(2.0 + distance - center);
+            let radii = radii.map(|(h, v)| (radius(h), radius(v)));
+            (outset(rect, distance), radii)
+        };
+        // Both rings or none: the color ring must not be degenerate.
+        let (color_rect, _) = ring(center + 1.0);
+        if color_rect.width <= 4.0 || color_rect.height <= 4.0 {
+            return;
+        }
+        let color = style.outline_color.resolve(style.color);
+        for (outer, width, color) in [(center + 2.0, 1.0, Rgba::WHITE), (center + 1.0, 2.0, color)]
+        {
+            let (rect, radii) = ring(outer);
+            self.list.push(DisplayItem::Border {
+                rect,
+                widths: [width; 4],
+                colors: [color; 4],
+                styles: [BorderStyle::Solid; 4],
+                radii,
+            });
+        }
     }
 
     fn background(&mut self, style: &ComputedStyle, areas: &BackgroundAreas, radii: Radii) {
@@ -635,16 +709,49 @@ impl Builder<'_> {
             return;
         }
         let baseline = Point::new(rect.x, rect.y + t.baseline);
-        // Underlines and overlines are painted below the text, line-through
-        // above it.
+        // The highlight fills the line box, as in Chromium.
+        let selected = self
+            .highlights
+            .selected(t.node)
+            .filter(|_| t.is_selectable())
+            .and_then(|(start, end)| t.x_range(start, end))
+            .map(|(x0, x1)| Rect::new(rect.x + x0, rect.y + t.line_top, x1 - x0, t.line_height));
+        if let Some(selected) = selected {
+            self.list.push(DisplayItem::Rect {
+                rect: selected,
+                radii: [(0.0, 0.0); 4],
+                color: SELECTION_BACKGROUND,
+            });
+        }
+        self.text_and_decorations(t, rect, baseline, decorations, None);
+        if let Some(selected) = selected {
+            // The selected part again, in the selection color.
+            self.list.push(DisplayItem::PushClip(selected));
+            self.text_and_decorations(t, rect, baseline, decorations, Some(SELECTION_TEXT));
+            self.list.push(DisplayItem::PopClip);
+        }
+    }
+
+    /// Paints the glyphs and the decorations of a text fragment, in their
+    /// own colors or all in `color`. Underlines and overlines are painted
+    /// below the text, line-through above it.
+    fn text_and_decorations(
+        &mut self,
+        t: &TextFragment,
+        rect: Rect,
+        baseline: Point,
+        decorations: &[Decoration],
+        color: Option<Rgba>,
+    ) {
         let thickness = (t.font_size / 16.0).max(1.0).round();
         for d in decorations {
+            let line_color = color.unwrap_or(d.color);
             if d.lines.contains(TextDecorationLine::UNDERLINE) {
                 let y = (baseline.y + (t.font_size / 9.0).max(1.0)).round();
-                self.decoration_line(rect.x, y, rect.width, thickness, d.color);
+                self.decoration_line(rect.x, y, rect.width, thickness, line_color);
             }
             if d.lines.contains(TextDecorationLine::OVERLINE) {
-                self.decoration_line(rect.x, rect.y.round(), rect.width, thickness, d.color);
+                self.decoration_line(rect.x, rect.y.round(), rect.width, thickness, line_color);
             }
         }
         self.list.push(DisplayItem::Text {
@@ -652,12 +759,12 @@ impl Builder<'_> {
             font: t.font,
             size: t.font_size,
             glyphs: Arc::clone(&t.glyphs),
-            color: style.color,
+            color: color.unwrap_or(t.style.color),
         });
         for d in decorations {
             if d.lines.contains(TextDecorationLine::LINE_THROUGH) {
                 let y = (baseline.y - t.font_size * 0.3).round();
-                self.decoration_line(rect.x, y, rect.width, thickness, d.color);
+                self.decoration_line(rect.x, y, rect.width, thickness, color.unwrap_or(d.color));
             }
         }
     }
@@ -669,6 +776,39 @@ impl Builder<'_> {
             color,
         });
     }
+}
+
+/// The border box of `b` united with the boxes and text of its descendants
+/// (Chromium's focus ring encloses them, for example an image in a link).
+/// The content of a box that clips its overflow does not count. `origin`
+/// is the absolute position of the parent's border-box origin.
+fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
+    let rect = b.border_rect.translate(origin);
+    if b.style.overflow_x.clips() || b.style.overflow_y.clips() {
+        return rect;
+    }
+    let own = rect.origin();
+    b.children.iter().fold(rect, |acc, child| {
+        let r = match child {
+            Fragment::Box(child) => with_descendants(child, own),
+            Fragment::Text(t) => t.rect.translate(own),
+        };
+        if r.width > 0.0 || r.height > 0.0 {
+            acc.union(&r)
+        } else {
+            acc
+        }
+    })
+}
+
+/// `rect` grown by `amount` on every side (shrunk if negative).
+fn outset(rect: Rect, amount: f32) -> Rect {
+    Rect::new(
+        rect.x - amount,
+        rect.y - amount,
+        rect.width + 2.0 * amount,
+        rect.height + 2.0 * amount,
+    )
 }
 
 /// The value of a background property for layer `i`. The lists of the

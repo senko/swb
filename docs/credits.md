@@ -25,6 +25,14 @@ Format: source, license (for code), what it influenced.
   - HTML Living Standard, Rendering section (CC BY 4.0): the user-agent
     stylesheet `crates/style/src/ua.css` is based on its CSS
   - Quirks Mode Standard — https://quirks.spec.whatwg.org/
+  - HTML Living Standard, interaction and DOM sections: focusable areas and
+    sequential focus navigation (`engine/src/focus.rs`), the `innerText`
+    algorithm (the copied text, `engine/src/selection.rs`), the HTML
+    fragment serialization algorithm (`dom/src/serialize.rs`)
+- JSON-RPC 2.0 — https://www.jsonrpc.org/specification — message shape and
+  error codes of the automation protocol
+- UI Events KeyboardEvent key values — https://www.w3.org/TR/uievents-key/ —
+  key names of the engine and the automation protocol
 - Unicode Standard Annex #14 (line breaking), #9 (bidi)
 
 ## Books and articles
@@ -51,6 +59,11 @@ Format: source, license (for code), what it influenced.
   rounding). Chrome's default font settings
   (`locale_settings_linux.grd`), checked against Chromium 148. No code
   copied.
+- Chromium 148, measured with Playwright (behavior, no code read): the
+  focus ring of `outline-style: auto` (two rings, offsets, radii), the
+  selection colors, `a:any-link:focus-visible { outline-offset: 1px }` in
+  `html.css`, the 4 px drag threshold, 40 px arrow-key scrolling and the
+  87.5% page step.
 - Servo and Blink — the idea of an ancestor Bloom filter for selector
   matching (`SelectorFilter`), and right-to-left selector matching with
   limited backtracking, which all browser engines use. No code read for

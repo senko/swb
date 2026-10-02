@@ -385,6 +385,30 @@ fn recording_from_several_threads() {
 }
 
 #[test]
+fn extending_fetches_only_missing_requests() {
+    let dir = TempDir::new();
+    record(dir.path(), &[get("https://a.test/")]);
+    let before = fs::read_to_string(dir.path().join(MANIFEST_FILE)).unwrap();
+    // The site has a newer page now; the fixture keeps the old one.
+    let mut site = site();
+    site.add(Method::Get, "https://a.test/", 200, &[], b"new");
+    let extending = ExtendingFetcher::new(site, dir.path()).unwrap();
+    assert_eq!(extending.fetch(&get("https://a.test/")).unwrap().body, PAGE);
+    let css = extending.fetch(&get("https://a.test/style.css")).unwrap();
+    assert_eq!(css.body, b"p { color: red }");
+    assert!(extending.fetch(&get("https://a.test/missing")).is_ok());
+    // Network errors are passed on and not recorded.
+    assert!(extending.fetch(&get("https://other.test/")).is_err());
+
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    assert_eq!(replay.len(), 3);
+    assert_eq!(replay.fetch(&get("https://a.test/")).unwrap().body, PAGE);
+    assert!(replay.fetch(&get("https://a.test/style.css")).is_ok());
+    let after = fs::read_to_string(dir.path().join(MANIFEST_FILE)).unwrap();
+    assert!(after.len() > before.len());
+}
+
+#[test]
 fn errors_are_not_recorded() {
     let dir = TempDir::new();
     let recorder = RecordingFetcher::new(site(), dir.path()).unwrap();

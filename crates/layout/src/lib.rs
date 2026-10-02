@@ -22,6 +22,7 @@ mod inline;
 mod intrinsic;
 mod list_marker;
 mod replaced;
+mod source_map;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -32,7 +33,7 @@ use swb_style::{ComputedStyle, Overflow, StyleMap};
 use swb_text::FontContext;
 
 pub use fragment::{
-    BoxContent, BoxFragment, CanvasBackground, Fragment, FragmentRef, FragmentTree,
+    BoxContent, BoxFragment, CanvasBackground, Caret, Fragment, FragmentRef, FragmentTree,
     PositionedGlyph, TextFragment,
 };
 pub use geom::{Edges, Point, Rect, Size};

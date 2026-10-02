@@ -4,6 +4,58 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-02: M1 senko.net, automation API
+
+- Automation: the `automation` crate (tungstenite server, one thread per
+  connection, methods executed on the page thread, `HeadlessBrowser`,
+  blocking `Client`), `swb --remote-port PORT` in headless and GUI mode, a
+  Python client (`swbtools.automation`). ADR 0008 accepted with changes: no
+  events yet (a tungstenite connection cannot write while it waits for a
+  read), an `Origin` check so web pages cannot drive swb, `browser.close`.
+- Interaction (ADR 0009): mouse down/move/up and key events in the
+  engine; hover, active, focus, focus-visible and target states with a
+  restyle only when a selector depends on the state, and no relayout when
+  no style changed; cursor shapes; Tab order per the HTML spec; links follow
+  on release, not on press.
+- Text selection: the box tree records a source map from processed text to
+  DOM offsets, text fragments carry caret stops, and a selection is a pair
+  of DOM text positions. Copy uses the `innerText` rules. The GUI copies
+  with Ctrl+C (arboard; X11 fallback on GNOME) and sets the primary
+  selection.
+- Measured in Chromium 148 and matched: selection colors, the focus ring of
+  `outline-style: auto` (and the UA rule that links get `outline-offset:
+  1px`), the 4 px drag threshold.
+- `swb --record-missing DIR` and `just capture-missing NAME`: add only the
+  missing responses to a fixture. Added the two footer SVGs that swb
+  requests to the Wikipedia fixture (scores unchanged).
+- `swb --bench N` and `just perf`: per-stage timings; the baseline is in
+  [performance.md](performance.md). Wikipedia: 30 ms for the whole pipeline.
+- `dom.outerHtml` needed an HTML serializer (`swb_dom::outer_html`);
+  `dom.querySelectorAll` uses `swb_style::query_selector_all`.
+- senko.net is done: geometry 1.0, and hover, focus, selection and the
+  narrow layout look the same as in Chromium side by side.
+- Review before the commit: three clean-context reviewers (layout, paint,
+  style and dom; engine interaction; automation, binary, tools and docs)
+  reported about 40 findings, no panics. Fixed with tests: a full restyle
+  on every scroll step on pages with `:hover` rules (now `:hover` waits for
+  the next mouse movement, as in Chromium); the old page's stylesheet
+  applied to the new document for `:target`; `user-select: none` text
+  selected and copied; tabs between table cells; the cursor one movement
+  behind `:hover` rules; focus on hidden elements; skip links; triple
+  click selected the whole block instead of the paragraph; the selection
+  highlight now fills the line box; focus rings enclose images in links;
+  disabled controls in disabled fieldsets; the `browser.close` reply lost
+  when swb exited quickly; keepalive pings that broke long requests in the
+  Python client; server limits (request size with close code 1009, 16
+  connections, a 10 s deadline for the handshake; all tested except the
+  deadline).
+- A second review of the fixes found 9 more issues, fixed with tests: the
+  line box of text in relatively positioned inline boxes, a trailing tab
+  in copied text, focus rings around clipped overflow, Chromium's exact
+  "center if needed" rules for large elements, `tabindex` with leading
+  zeros, and the server tests above.
+- Next: M2 (Hacker News): tables, SVG images, forms, cookies.
+
 ## 2026-10-02: M0 foundation
 
 - Built all crates of the pipeline. Five crates were written by

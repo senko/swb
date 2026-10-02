@@ -35,6 +35,10 @@ url = "2.5"
 # Tests only.
 similar = "2"
 
+# automation
+data-encoding = "2"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+
 # net
 brotli-decompressor = "6"
 flate2 = "1"
@@ -64,6 +68,9 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 tiny-skia = "0.12"
 
 # swb (binary)
+# Clipboard: the Wayland data-control protocol where the compositor has it,
+# otherwise X11 (Xwayland on GNOME).
+arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"] }
 clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
 softbuffer = "0.4"

@@ -34,7 +34,7 @@ mod test_util;
 
 pub use error::NetError;
 pub use fetch::{Fetcher, MAX_REDIRECTS, fetch_following_redirects};
-pub use fixture::{RecordingFetcher, ReplayFetcher};
+pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};
 pub use headers::Headers;
 pub use loader::{Completion, Loader, RequestId};
 pub use network::{MAX_BODY_SIZE, NetworkFetcher, USER_AGENT};

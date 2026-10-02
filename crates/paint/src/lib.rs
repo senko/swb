@@ -10,7 +10,10 @@ mod display_list;
 mod image;
 mod raster;
 
-pub use display_list::{DisplayItem, DisplayList, ImageRef, ImageSizes, Radii, build_display_list};
+pub use display_list::{
+    DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
+    SELECTION_BACKGROUND, SELECTION_TEXT, build_display_list,
+};
 pub use image::{DecodedImage, ImageError, decode};
 pub use raster::{ImageSource, RasterParams, rasterize};
 pub use tiny_skia::Pixmap;

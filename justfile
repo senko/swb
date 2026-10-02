@@ -52,6 +52,10 @@ tools *ARGS:
 capture URL NAME *ARGS:
     uv run --project tools swbtools capture {{URL}} {{NAME}} {{ARGS}}
 
+# Add the responses that a fixture does not have (after swb learned to load more). Example: just capture-missing senko-net
+capture-missing NAME *ARGS: build
+    uv run --project tools swbtools capture-missing {{NAME}} {{ARGS}}
+
 # Write Chromium's boxes and screenshot for fixtures (default: all).
 reference *NAMES:
     uv run --project tools swbtools reference {{ if NAMES == "" { "--all" } else { NAMES } }}
@@ -64,12 +68,16 @@ compare *NAMES: build
 update-scores: build
     uv run --project tools swbtools compare --all --update-scores
 
+# Time swb's pipeline stages for fixtures (default: all); prints a Markdown table.
+perf *NAMES: build
+    uv run --project tools swbtools perf {{NAMES}}
+
 # Write tests/layout/*.boxes.json with Chromium (default: all layout tests).
 layout-refs *NAMES:
     uv run --project tools swbtools layout-refs {{NAMES}}
 
-# Lint, format check and tests of the Python tools.
-tools-check:
+# Lint, format check and tests of the Python tools. The automation tests use the release binary.
+tools-check: build
     uv --directory tools run ruff check
     uv --directory tools run ruff format --check
     uv --directory tools run pytest -q

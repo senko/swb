@@ -1,5 +1,6 @@
 """`swbtools capture URL NAME`: download a page and its resources into a
-fixture directory.
+fixture directory. `swbtools capture-missing NAME`: add only the resources
+that a fixture does not have.
 
 1. Chromium loads the page from the network (JavaScript disabled) and
    scrolls through it. Every response is recorded.
@@ -20,7 +21,7 @@ from playwright.async_api import async_playwright
 
 from swbtools import browser, paths, swb
 from swbtools.manifest import FILES_DIR, MANIFEST_FILE, Fixture
-from swbtools.pages import META_FILE, REFERENCE_DIR, FixtureMeta, write_meta
+from swbtools.pages import META_FILE, REFERENCE_DIR, FixtureMeta, read_meta, write_meta
 from swbtools.routing import Recorder
 
 log = logging.getLogger(__name__)
@@ -118,4 +119,30 @@ def capture(
 
     size = directory_size(directory / FILES_DIR)
     print(f"{name}: {len(fixture.entries)} entries, {size / 1e6:.2f} MB in {directory}")
+    return 0
+
+
+def capture_missing(name: str, swb_path: Path | None, system_fonts: bool) -> int:
+    """Adds the responses that swb and Chromium request but the fixture
+    does not have. Existing entries do not change, so a dynamic page keeps
+    its recorded version. Use it when swb starts to load more resources."""
+    directory = paths.fixture_dir(name)
+    if not (directory / MANIFEST_FILE).exists():
+        log.error("%s has no manifest; capture it first", directory)
+        return 1
+    swb_binary = swb.find_swb(swb_path)
+    if swb_binary is None:
+        log.error("swb binary not found; build it or pass --swb PATH")
+        return 1
+    url = read_meta(directory).url
+    before = len(Fixture(directory).entries)
+    status = swb.run(swb.record_missing_command(swb_binary, directory, url))
+    if status != 0:
+        log.warning("swb exited with status %d; its recording may be incomplete", status)
+    fixture = Fixture(directory)
+    asyncio.run(chromium_pass(fixture, url, True, system_fonts))
+    added = len(fixture.entries) - before
+    print(f"{name}: {added} entries added, {len(fixture.entries)} in total")
+    if added:
+        print("New resources can change the rendering: run `just reference` for it.")
     return 0

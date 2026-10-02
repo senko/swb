@@ -6,11 +6,12 @@ import sys
 from pathlib import Path
 
 from swbtools import paths, swb
-from swbtools.capture import capture, directory_size
+from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import compare_fixture, update_scores
 from swbtools.layout_refs import layout_refs
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.pages import list_fixtures, read_meta
+from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
 from swbtools.reference import reference
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
@@ -27,6 +28,10 @@ def _names(args: argparse.Namespace) -> list[str] | None:
 
 def cmd_capture(args: argparse.Namespace) -> int:
     return capture(args.url, args.name, args.with_swb, args.swb, args.force, args.system_fonts)
+
+
+def cmd_capture_missing(args: argparse.Namespace) -> int:
+    return capture_missing(args.name, args.swb, args.system_fonts)
 
 
 def cmd_reference(args: argparse.Namespace) -> int:
@@ -59,6 +64,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if args.update_scores and results:
         update_scores(paths.scores_file(), results)
     return 1 if failed else 0
+
+
+def cmd_perf(args: argparse.Namespace) -> int:
+    names = _names(args) or list_fixtures()
+    return perf(names, args.swb, args.runs)
 
 
 def cmd_layout_refs(args: argparse.Namespace) -> int:
@@ -104,6 +114,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_capture)
 
+    p = commands.add_parser(
+        "capture-missing", help="add the responses that fixtures/pages/NAME does not have"
+    )
+    p.add_argument("name")
+    p.add_argument("--swb", type=Path, help="path of the swb binary")
+    p.add_argument("--system-fonts", action="store_true", help=fonts_help)
+    p.set_defaults(func=cmd_capture_missing)
+
     p = commands.add_parser("reference", help="write Chromium's boxes and screenshot")
     p.add_argument("names", nargs="*", metavar="NAME")
     p.add_argument("--all", action="store_true", help="all fixtures in fixtures/pages")
@@ -138,6 +156,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("names", nargs="*", metavar="NAME")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_layout_refs)
+
+    p = commands.add_parser("perf", help="time swb's pipeline stages for fixtures")
+    p.add_argument("names", nargs="*", metavar="NAME")
+    p.add_argument("--all", action="store_true", help="all fixtures (the default)")
+    p.add_argument("--runs", type=int, default=20, help="runs per stage (default: 20)")
+    p.add_argument("--swb", type=Path, help="path of the swb binary")
+    p.set_defaults(func=cmd_perf)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

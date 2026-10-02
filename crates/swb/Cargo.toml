@@ -13,6 +13,8 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
+arboard.workspace = true
+swb-automation.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 log.workspace = true

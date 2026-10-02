@@ -1,5 +1,6 @@
-//! Shared code for tests that compare swb's layout with stored Chromium
-//! geometry. The scoring rules follow docs/testing.md ("Scores").
+//! Shared code for the engine tests: directories with test pages, and
+//! comparisons of swb's layout with stored Chromium geometry (the scoring
+//! rules follow docs/testing.md, "Scores").
 
 #![allow(dead_code)] // Each test binary uses a different subset.
 
@@ -9,6 +10,37 @@ use std::time::Duration;
 
 use swb_engine::{ElementBox, FontContext, Page, PageConfig, Rect, Size, Url};
 use swb_net::Fetcher;
+
+/// A directory with test pages, removed at the end of the test.
+pub(crate) struct Site {
+    dir: PathBuf,
+}
+
+impl Site {
+    pub(crate) fn new(test: &str) -> Site {
+        let dir = std::env::temp_dir().join(format!("swb-page-{}-{test}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("cannot create the test directory");
+        Site { dir }
+    }
+
+    /// Writes a file and returns its URL.
+    pub(crate) fn file(&self, name: &str, content: &[u8]) -> Url {
+        let path = self.dir.join(name);
+        std::fs::write(&path, content).expect("cannot write a test file");
+        Url::from_file_path(path).expect("an absolute path")
+    }
+
+    pub(crate) fn page(&self, name: &str, html: &str) -> Url {
+        self.file(name, html.as_bytes())
+    }
+}
+
+impl Drop for Site {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
 
 /// The repository root.
 pub(crate) fn repo_root() -> PathBuf {

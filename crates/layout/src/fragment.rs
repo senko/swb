@@ -176,6 +176,16 @@ pub struct PositionedGlyph {
     pub y: f32,
 }
 
+/// A caret stop in a text fragment: a boundary between glyph clusters.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Caret {
+    /// Byte offset in the data of the text node. Always a character
+    /// boundary.
+    pub offset: u32,
+    /// Horizontal position relative to the fragment's left edge.
+    pub x: f32,
+}
+
 /// A run of glyphs in one font on one line.
 #[derive(Clone, Debug)]
 pub struct TextFragment {
@@ -194,7 +204,61 @@ pub struct TextFragment {
     pub font_size: f32,
     /// The glyphs.
     pub glyphs: Arc<[PositionedGlyph]>,
-    /// The text of the run (after white-space processing), for hit
-    /// testing, selection and the automation API.
+    /// The text of the run (after white-space processing). For debugging
+    /// dumps.
     pub text: Arc<str>,
+    /// The caret stops in visual order, from the left edge to the right
+    /// edge of the glyphs. Empty for generated content (pseudo-elements,
+    /// list markers), which cannot be selected.
+    pub carets: Arc<[Caret]>,
+    /// The top of the line box that contains the fragment, relative to
+    /// `rect.y` (the selection highlight fills the line box).
+    pub line_top: f32,
+    /// The height of the line box.
+    pub line_height: f32,
+}
+
+impl TextFragment {
+    /// True if the text comes from a text node and can be selected
+    /// (`user-select` is not `none`).
+    pub fn is_selectable(&self) -> bool {
+        !self.carets.is_empty() && self.style.user_select != swb_style::UserSelect::None
+    }
+
+    /// The range of node offsets that the fragment shows.
+    pub fn node_range(&self) -> Option<(u32, u32)> {
+        Some((self.carets.first()?.offset, self.carets.last()?.offset))
+    }
+
+    /// The node offset of the caret stop nearest to `x` (relative to the
+    /// fragment's left edge). The caret stops are searched one by one:
+    /// their x positions decrease with a large negative `letter-spacing`.
+    pub fn offset_at(&self, x: f32) -> Option<u32> {
+        self.carets
+            .iter()
+            .min_by(|a, b| (a.x - x).abs().total_cmp(&(b.x - x).abs()))
+            .map(|c| c.offset)
+    }
+
+    /// The node offset of the start of the cluster at `x` (relative to the
+    /// fragment's left edge): the rightmost cluster start at or before `x`,
+    /// or the leftmost one if `x` is before all of them.
+    pub fn cluster_at(&self, x: f32) -> Option<u32> {
+        // The end stop starts no cluster.
+        let starts = self.carets.get(..self.carets.len().checked_sub(1)?)?;
+        starts
+            .iter()
+            .filter(|c| c.x <= x)
+            .max_by(|a, b| a.x.total_cmp(&b.x))
+            .or_else(|| starts.iter().min_by(|a, b| a.x.total_cmp(&b.x)))
+            .map(|c| c.offset)
+    }
+
+    /// The horizontal extent (relative to the fragment's left edge) of the
+    /// node offsets `start..end`, if it is not empty.
+    pub fn x_range(&self, start: u32, end: u32) -> Option<(f32, f32)> {
+        let left = self.carets.iter().find(|c| c.offset >= start)?;
+        let right = self.carets.iter().rev().find(|c| c.offset <= end)?;
+        (right.x > left.x).then_some((left.x, right.x))
+    }
 }

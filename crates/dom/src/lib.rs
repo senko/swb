@@ -7,12 +7,14 @@
 mod dump;
 mod encoding;
 mod parser;
+mod serialize;
 mod tree;
 
 pub use dump::{dump_subtree, dump_tree};
 pub use encoding::{decode_html, sniff_encoding};
 pub use html5ever::{LocalName, Namespace, QualName, local_name, namespace_url, ns};
 pub use parser::{MAX_TREE_DEPTH, parse_html, parse_html_bytes};
+pub use serialize::outer_html;
 pub use tree::{
     Attribute, Children, Descendants, Document, ElementData, Node, NodeData, NodeId, QuirksMode,
     is_html_whitespace,

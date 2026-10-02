@@ -121,6 +121,7 @@ a:any-link:active { color: ActiveText; }
 area:any-link { cursor: pointer; }
 
 :focus-visible { outline: auto 1px -webkit-focus-ring-color; }
+a:any-link:focus-visible { outline-offset: 1px; }
 html:focus-visible, body:focus-visible { outline: none; }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; }
 

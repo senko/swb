@@ -11,7 +11,8 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Layout tests           | `tests/layout/*.html` + `*.boxes.json`  | only to regenerate `*.boxes.json` |
 | Page fixtures          | `fixtures/pages/<name>/`                | only to capture and to regenerate `reference/` |
 | Scores (ratchet)       | `fixtures/scores.json`                  | no                                |
-| Automation API tests   | integration tests of `automation` (not written yet) | no                    |
+| Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
+| Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
 Chromium are needed only to capture fixtures, to regenerate the expected
@@ -41,10 +42,12 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | just                         | swbtools                               | What it does |
 |------------------------------|----------------------------------------|--------------|
 | `just capture URL NAME`      | `capture URL NAME`                     | Downloads a page into `fixtures/pages/NAME/`. |
+| `just capture-missing NAME`  | `capture-missing NAME`                 | Adds only the responses that the fixture does not have. |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
+| `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
@@ -322,6 +325,23 @@ What `capture` does:
    has everything that Chromium needs for the final HTML.
 4. Body files that no entry uses are deleted.
 
+### Add missing resources to a fixture
+
+When swb starts to load resources that it did not load at capture time
+(for example after support for SVG images or `@font-face`), replay fails
+for them and swb logs `no entry for GET ...`. A new capture would download
+the page again, and a dynamic page (Hacker News) would change.
+`just capture-missing NAME` keeps all existing entries:
+
+1. `swb --headless --record-missing fixtures/pages/NAME URL` serves known
+   URLs from the fixture and fetches only the missing ones from the
+   network (`swb_net::ExtendingFetcher`). They are added to the manifest.
+2. Chromium loads the page from the fixture and fetches only what is
+   missing (normally nothing: the reference was made from the fixture).
+
+If entries were added, check whether Chromium uses them and run
+`just reference NAME` if the rendering can change.
+
 ### Regenerate references
 
 Regenerate after a change of the Chromium settings, a Playwright upgrade,
@@ -433,6 +453,21 @@ reach 1. `geometry` is the main metric.
   example template contents in the tree, or different parser recovery),
   elements in the differing blocks count as missing or extra.
 
+## Automation tests
+
+`crates/automation/tests/headless.rs` starts a `HeadlessBrowser` on a free
+port in a thread of the test process and drives it with
+`swb_automation::Client` over WebSocket: the senko.net fixture (navigation,
+hover, focus, selection, screenshots, the box dump) and the error cases of
+the protocol. `crates/engine/tests/interaction.rs` tests the same
+interactions on the engine API directly, with small pages.
+
+`tools/tests/test_automation.py` tests the Python client against the swb
+binary (skipped if it does not exist). `just tools-check` (part of
+`just check`) builds the release binary first, so the test uses the
+current source. The protocol is documented in
+[automation.md](automation.md).
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`
@@ -441,4 +476,5 @@ reach 1. `geometry` is the main metric.
   (`tools/tests/test_chromium.py`) use local files, a fixture, or an HTTP
   server on 127.0.0.1. They are skipped if Chromium cannot start.
 - Dependencies (licenses): playwright (Apache-2.0), pillow (MIT-CMU),
-  numpy (BSD-3-Clause). Development: pytest (MIT), ruff (MIT).
+  numpy (BSD-3-Clause), websockets (BSD-3-Clause). Development: pytest
+  (MIT), ruff (MIT).

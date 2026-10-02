@@ -1,7 +1,8 @@
 # ADR 0008: Automation protocol
 
-- Status: proposed
-- Date: 2026-10-02
+- Status: accepted
+- Date: 2026-10-02 (proposed), 2026-10-02 (accepted with the changes in
+  "Implementation")
 
 ## Context
 
@@ -31,42 +32,65 @@ Messages:
 - Request: `{"id": 1, "method": "page.navigate", "params": {"url": "..."}}`
 - Response: `{"id": 1, "result": {...}}` or
   `{"id": 1, "error": {"code": -32000, "message": "..."}}`
-- Event (no id): `{"method": "page.loaded", "params": {...}}`
 
-First method set (names are `domain.verb`):
-
-- `page.navigate {url}`, `page.reload`, `page.back`, `page.forward`,
-  `page.stop`
-- `page.waitForLoad {timeoutMs}` → `{loaded}`
-- `page.info` → url, title, load state, scroll position, viewport size,
-  content size
-- `page.setViewport {width, height, scale}`
-- `page.screenshot {fullPage}` → base64 PNG
-- `page.scrollTo {x, y}`, `page.scrollBy {dx, dy}`
-- `dom.querySelectorAll {selector}` → node IDs
-- `dom.text {nodeId}`, `dom.outerHtml {nodeId}`, `dom.attributes {nodeId}`
-- `dom.boxes` → the box dump (docs/testing.md); `dom.box {nodeId}`
-- `input.click {x, y}` or `{nodeId}` (center of the element's first box),
-  `input.mouseMove {x, y}`, `input.key {key, modifiers}`,
-  `input.type {text}`
-- Events: `page.navigated`, `page.loaded`.
+The `jsonrpc: "2.0"` member is not used. Method names are `domain.verb`.
+The method list is in [automation.md](../automation.md). Methods are added
+when tests need them.
 
 Node IDs are `swb_dom::NodeId` indices. They are valid until the next
 navigation.
 
 Threading: the page lives on one thread (the GUI event loop or the
-headless loop). The server thread parses requests and sends them to the
-page thread through a channel, with a one-shot reply channel. In the GUI,
-a request wakes the event loop like a network completion does.
+headless loop). Server threads parse requests and send them to the page
+thread through a channel, with a reply channel. A request wakes the page
+thread like a network completion does.
 
-The `automation` crate contains the message types, the server and a
-blocking Rust client. Integration tests use the client against a headless
-swb started in-process. A Python client lives in `tools/`.
+The `automation` crate contains the message types, the server, the method
+implementations, a headless runner and a blocking Rust client. Integration
+tests use the client against a headless browser in the same process. A
+Python client lives in `tools/`.
+
+## Implementation
+
+Decisions made during implementation (M1):
+
+- **WebSocket library: `tungstenite`** (MIT/Apache-2.0), without TLS. It is
+  synchronous, so it fits the design without an async runtime (ADR 0004).
+- **One blocking thread per connection.** The thread reads a request,
+  passes it to the page thread, waits for the response and writes it.
+  tungstenite's `WebSocket` cannot be read and written from two threads, so
+  a connection cannot send messages while it waits for a request.
+  Therefore:
+- **No events yet.** The proposal had `page.navigated` and `page.loaded`
+  events. Tests wait with `page.waitForLoad` instead, which the page thread
+  answers when the page is loaded or the timeout expires (the request stays
+  pending without blocking the page thread). Events need a writer that is
+  independent of the reader; add them when a client needs them.
+- **Origin check.** Any web page open in a browser on the same machine can
+  open a WebSocket to 127.0.0.1. Through swb it could then read local files
+  (`file:` URLs and `dom.outerHtml`). Browsers always send an `Origin`
+  header in the handshake, so the server rejects handshakes with one. The
+  swb clients send none.
+- **`input.type` is not implemented.** swb has no text inputs yet (M2).
+- **`browser.close`** ends swb (headless or with a window). Tools start
+  swb as a process and need a way to end it. swb waits until the reply is
+  written before it exits.
+- **Limits**: 16 connections, 1 MiB per request message and frame, 10 s
+  for the handshake. A `page.waitForLoad` whose client disconnected stays
+  pending until its deadline.
+- **Keepalive**: a connection thread cannot answer pings while it waits for
+  the page thread, so the clients do not send pings.
+- **Screenshots** are rendered by the page (`Page::screenshot`), not by the
+  window, so they look the same in headless mode and in the GUI and do not
+  include the toolbar.
 
 ## Consequences
 
 - Tools and tests can drive swb from outside the process.
-- The protocol is small and owned by this project; methods are added when
-  tests need them.
-- Listening only on 127.0.0.1 limits exposure, but any local process can
-  connect. A token in the URL can be added later if needed.
+- The protocol is small and owned by this project.
+- Listening only on 127.0.0.1 and rejecting browser origins limits
+  exposure, but any local process can connect. A token in the URL can be
+  added later if needed.
+- A client that pipelines requests gets the responses in order, but a slow
+  request (`page.waitForLoad`) delays the following requests of the same
+  connection.

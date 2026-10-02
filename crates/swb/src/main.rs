@@ -1,5 +1,6 @@
 //! The swb web browser.
 
+mod bench;
 mod gui;
 mod headless;
 mod url_input;
@@ -11,7 +12,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use swb_engine::Size;
-use swb_net::{Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
+use swb_net::{ExtendingFetcher, Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
 use swb_text::FontContext;
 
 /// A web browser written from scratch.
@@ -50,6 +51,11 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     dump_boxes: Option<PathBuf>,
 
+    /// Headless: run each pipeline stage N times and print the times as
+    /// JSON (see docs/performance.md).
+    #[arg(long, value_name = "N")]
+    bench: Option<usize>,
+
     /// Viewport size in CSS px, as `WIDTHxHEIGHT`.
     #[arg(long, default_value = "1280x800", value_parser = parse_size)]
     size: Size,
@@ -63,16 +69,31 @@ struct Args {
     timeout: u64,
 
     /// Serve all requests from this fixture directory (no network).
-    #[arg(long, value_name = "DIR", conflicts_with = "record")]
+    #[arg(long, value_name = "DIR", conflicts_with_all = ["record", "record_missing"])]
     replay: Option<PathBuf>,
 
     /// Record all responses into this fixture directory.
-    #[arg(long, value_name = "DIR")]
+    #[arg(long, value_name = "DIR", conflicts_with = "record_missing")]
     record: Option<PathBuf>,
+
+    /// Serve requests from this fixture directory, and fetch and add the
+    /// ones it does not have.
+    #[arg(long, value_name = "DIR")]
+    record_missing: Option<PathBuf>,
 
     /// Use the bundled test fonts instead of the system fonts.
     #[arg(long)]
     test_fonts: bool,
+
+    /// Start the automation server on this port of 127.0.0.1 (0 picks a
+    /// free port; the port is printed). In headless mode, swb then runs
+    /// until a client sends `browser.close`. See docs/automation.md.
+    #[arg(
+        long,
+        value_name = "PORT",
+        conflicts_with_all = ["screenshot", "dump_dom", "dump_layout", "dump_boxes", "bench", "with_chrome", "full_page"]
+    )]
+    remote_port: Option<u16>,
 }
 
 /// The largest accepted `--size` in either dimension.
@@ -104,16 +125,20 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     let args = Args::parse();
 
-    let fetcher: Arc<dyn Fetcher> = match (&args.replay, &args.record) {
-        (Some(dir), _) => Arc::new(
+    let fetcher: Arc<dyn Fetcher> = match (&args.replay, &args.record, &args.record_missing) {
+        (Some(dir), _, _) => Arc::new(
             ReplayFetcher::load(dir)
                 .with_context(|| format!("cannot load fixture {}", dir.display()))?,
         ),
-        (None, Some(dir)) => Arc::new(
+        (None, Some(dir), _) => Arc::new(
             RecordingFetcher::new(NetworkFetcher::new(), dir)
                 .with_context(|| format!("cannot record into {}", dir.display()))?,
         ),
-        (None, None) => Arc::new(NetworkFetcher::new()),
+        (None, None, Some(dir)) => Arc::new(
+            ExtendingFetcher::new(NetworkFetcher::new(), dir)
+                .with_context(|| format!("cannot extend fixture {}", dir.display()))?,
+        ),
+        (None, None, None) => Arc::new(NetworkFetcher::new()),
     };
     let fonts = if args.test_fonts {
         FontContext::for_tests()
@@ -127,11 +152,17 @@ fn main() -> Result<()> {
         .transpose()
         .map_err(anyhow::Error::msg)?;
 
+    if args.headless
+        && let Some(port) = args.remote_port
+    {
+        return headless::serve(fetcher, fonts, args.size, args.scale, port, url);
+    }
     if args.headless {
         let Some(url) = url else {
-            bail!("headless mode needs a URL");
+            bail!("headless mode needs a URL (or --remote-port)");
         };
         let options = headless::HeadlessOptions {
+            fetcher,
             url,
             viewport: args.size,
             scale: args.scale,
@@ -142,8 +173,9 @@ fn main() -> Result<()> {
             dump_dom: args.dump_dom,
             dump_layout: args.dump_layout,
             dump_boxes: args.dump_boxes.as_deref(),
+            bench: args.bench,
         };
-        return headless::run(fetcher, fonts, &options);
+        return headless::run(fonts, &options);
     }
-    gui::run(fetcher, fonts, url)
+    gui::run(fetcher, fonts, url, args.remote_port)
 }

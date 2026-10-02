@@ -34,6 +34,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ReplacedSizes;
 use crate::list_marker::marker_text;
+use crate::source_map::{CharSource, SourceMap};
 
 /// The maximum nesting depth of boxes (elements, pseudo-elements and
 /// `display: contents` elements count). With this limit, box construction,
@@ -193,11 +194,14 @@ pub(crate) enum InlineItem {
     /// The end of the innermost open inline box. `split` is true if the box
     /// continues after a block-level child.
     EndBox { split: bool },
-    /// Text: a range of [`InlineFormattingContext::text`].
+    /// Text: a range of [`InlineFormattingContext::text`]. `node` is the
+    /// text node, or the element for generated content. `source` maps the
+    /// range to offsets in the text node; generated content has none.
     Text {
         node: NodeId,
         style: Arc<ComputedStyle>,
         range: Range<usize>,
+        source: Option<SourceMap>,
     },
     /// An atomic inline (inline-block, image, ...). Its position in the text
     /// is the U+FFFC at `offset`.
@@ -464,7 +468,7 @@ fn build_block_container(
     } else if let Some(text) = content_text(&base.style)
         && let Some(node) = base.node
     {
-        builder.inline.push_text(node, &base.style, &text);
+        builder.inline.push_generated(node, &base.style, &text);
     }
     builder.finish(state)
 }
@@ -667,7 +671,7 @@ impl ContainerBuilder {
             self.open_inline_boxes.push(base.clone());
             if base.pseudo.is_some() {
                 if let (Some(text), Some(node)) = (content_text(&style), base.node) {
-                    self.inline.push_text(node, &style, &text);
+                    self.inline.push_generated(node, &style, &text);
                 }
             } else if let Some(node) = base.node {
                 self.push_children(ctx, node, state);
@@ -785,6 +789,7 @@ enum RawItem {
         node: NodeId,
         style: Arc<ComputedStyle>,
         text: String,
+        generated: bool,
     },
     Atomic(IndependentBox),
     LineBreak,
@@ -800,7 +805,23 @@ fn is_collapsible_space(c: char) -> bool {
 }
 
 impl InlineBuilder {
+    /// Adds the text of a text node.
     fn push_text(&mut self, node: NodeId, style: &Arc<ComputedStyle>, text: &str) {
+        self.push_text_item(node, style, text, false);
+    }
+
+    /// Adds generated text (the `content` of a pseudo-element) of `element`.
+    fn push_generated(&mut self, element: NodeId, style: &Arc<ComputedStyle>, text: &str) {
+        self.push_text_item(element, style, text, true);
+    }
+
+    fn push_text_item(
+        &mut self,
+        node: NodeId,
+        style: &Arc<ComputedStyle>,
+        text: &str,
+        generated: bool,
+    ) {
         if text.is_empty() {
             return;
         }
@@ -808,6 +829,7 @@ impl InlineBuilder {
             node,
             style: Arc::clone(style),
             text: text.to_owned(),
+            generated,
         });
     }
 
@@ -843,8 +865,18 @@ impl InlineBuilder {
                     ifc.items.push(InlineItem::StartBox { base, continued });
                 }
                 RawItem::EndBox { split } => ifc.items.push(InlineItem::EndBox { split }),
-                RawItem::Text { node, style, text } => {
-                    process_text(&mut ifc, node, &style, &text, &mut after_space);
+                RawItem::Text {
+                    node,
+                    style,
+                    text,
+                    generated,
+                } => {
+                    let source = TextSource {
+                        node,
+                        style: &style,
+                        generated,
+                    };
+                    process_text(&mut ifc, source, &text, &mut after_space);
                 }
                 RawItem::Atomic(inner) => {
                     let offset = ifc.text.len();
@@ -868,76 +900,135 @@ impl InlineBuilder {
 
 /// White-space processing for one text item (CSS Text 3 §4.1.1), followed
 /// by `text-transform`. Appends text items (and line breaks for preserved
-/// newlines) to `ifc`.
+/// newlines) to `ifc`. Generated text (`content` of pseudo-elements) has
+/// no source map: it cannot be selected.
 fn process_text(
     ifc: &mut InlineFormattingContext,
-    node: NodeId,
-    style: &Arc<ComputedStyle>,
+    source: TextSource<'_>,
     text: &str,
     after_space: &mut bool,
 ) {
-    let ws = style.white_space;
-    let mut start = ifc.text.len();
-    // Ends a segment of text (up to a preserved newline or the end): applies
-    // `text-transform` and adds the text item.
-    let finish_segment = |ifc: &mut InlineFormattingContext, start: usize| {
-        if ifc.text.len() <= start {
-            return;
-        }
-        if style.text_transform != TextTransform::None {
-            let previous = previous_char(ifc, start);
-            let transformed =
-                apply_text_transform(&ifc.text[start..], style.text_transform, previous);
-            ifc.text.truncate(start);
-            ifc.text.push_str(&transformed);
-        }
-        ifc.items.push(InlineItem::Text {
-            node,
-            style: Arc::clone(style),
-            range: start..ifc.text.len(),
-        });
-    };
-
+    let ws = source.style.white_space;
+    let mut segment = Segment::new(ifc);
     if ws.collapses_spaces() {
-        // Remove spaces and tabs around newlines first (they are
-        // "collapsible spaces immediately preceding or following a segment
-        // break").
-        let normalized = normalize_segment_breaks(text);
-        for c in normalized.chars() {
-            match c {
-                '\n' if ws == WhiteSpace::PreLine => {
-                    finish_segment(ifc, start);
+        let mut chars = text.char_indices().peekable();
+        while let Some((start, c)) = chars.next() {
+            if !is_collapsible_space(c) {
+                segment.push(ifc, c, start, c.len_utf8());
+                *after_space = false;
+                continue;
+            }
+            // A run of collapsible white space. Spaces and tabs around
+            // segment breaks are removed; CR LF is one segment break.
+            let mut breaks = usize::from(matches!(c, '\n' | '\r'));
+            let mut previous = c;
+            while let Some(&(_, next)) = chars.peek().filter(|(_, n)| is_collapsible_space(*n)) {
+                breaks += usize::from(next == '\r' || (next == '\n' && previous != '\r'));
+                previous = next;
+                chars.next();
+            }
+            if ws == WhiteSpace::PreLine && breaks > 0 {
+                for _ in 0..breaks {
+                    segment = segment.finish(ifc, &source);
                     ifc.items.push(InlineItem::LineBreak);
-                    start = ifc.text.len();
-                    *after_space = true;
                 }
-                c if is_collapsible_space(c) => {
-                    if !*after_space {
-                        ifc.text.push(' ');
-                        *after_space = true;
-                    }
-                }
-                c => {
-                    ifc.text.push(c);
-                    *after_space = false;
-                }
+                *after_space = true;
+            } else if !*after_space {
+                segment.push(ifc, ' ', start, 1);
+                *after_space = true;
             }
         }
     } else {
-        for c in text.chars() {
+        for (start, c) in text.char_indices() {
             match c {
                 '\n' => {
-                    finish_segment(ifc, start);
+                    segment = segment.finish(ifc, &source);
                     ifc.items.push(InlineItem::LineBreak);
-                    start = ifc.text.len();
                 }
                 '\r' => {}
-                c => ifc.text.push(c),
+                c => segment.push(ifc, c, start, c.len_utf8()),
             }
         }
         *after_space = false;
     }
-    finish_segment(ifc, start);
+    segment.finish(ifc, &source);
+}
+
+/// The node and style of a text item, and whether it is generated
+/// content.
+#[derive(Clone, Copy)]
+struct TextSource<'a> {
+    node: NodeId,
+    style: &'a Arc<ComputedStyle>,
+    generated: bool,
+}
+
+/// The text of a text item being built (up to a preserved newline or the
+/// end of the text), with the origin of each character.
+struct Segment {
+    /// The start of the segment in the context's text.
+    start: usize,
+    chars: Vec<CharSource>,
+}
+
+impl Segment {
+    fn new(ifc: &InlineFormattingContext) -> Self {
+        Segment {
+            start: ifc.text.len(),
+            chars: Vec::new(),
+        }
+    }
+
+    /// Appends `c`, which comes from `node_len` bytes at `node` in the
+    /// node's data.
+    fn push(&mut self, ifc: &mut InlineFormattingContext, c: char, node: usize, node_len: usize) {
+        let to_u32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
+        self.chars.push(CharSource {
+            item: to_u32(ifc.text.len() - self.start),
+            item_len: to_u32(c.len_utf8()),
+            node: to_u32(node),
+            node_len: to_u32(node_len),
+            exact: true,
+        });
+        ifc.text.push(c);
+    }
+
+    /// Applies `text-transform`, adds the text item, and returns an empty
+    /// segment that starts at the end of the text.
+    fn finish(mut self, ifc: &mut InlineFormattingContext, source: &TextSource<'_>) -> Segment {
+        let start = self.start;
+        if ifc.text.len() > start {
+            let style = source.style;
+            if style.text_transform != TextTransform::None {
+                let previous = previous_char(ifc, start);
+                let (transformed, lengths) =
+                    apply_text_transform(&ifc.text[start..], style.text_transform, previous);
+                self.remap(&lengths);
+                ifc.text.truncate(start);
+                ifc.text.push_str(&transformed);
+            }
+            ifc.items.push(InlineItem::Text {
+                node: source.node,
+                style: Arc::clone(style),
+                range: start..ifc.text.len(),
+                source: (!source.generated).then(|| SourceMap::new(&self.chars)),
+            });
+        }
+        Segment::new(ifc)
+    }
+
+    /// Updates the item offsets of the characters after `text-transform`.
+    /// `lengths` has, for each character, its new length and whether it
+    /// stayed one character of the same length.
+    fn remap(&mut self, lengths: &[(usize, bool)]) {
+        let mut item = 0;
+        for (c, &(len, exact)) in self.chars.iter_mut().zip(lengths) {
+            c.item = u32::try_from(item).unwrap_or(u32::MAX);
+            c.item_len = u32::try_from(len).unwrap_or(u32::MAX);
+            c.exact &= exact;
+            item += len;
+        }
+    }
 }
 
 /// The character before text offset `start` (where a new text item
@@ -954,87 +1045,157 @@ fn previous_char(ifc: &InlineFormattingContext, start: usize) -> Option<char> {
     ifc.text[..start].chars().next_back()
 }
 
-/// Converts CR LF and CR to LF and removes spaces and tabs adjacent to
-/// newlines.
-fn normalize_segment_breaks(text: &str) -> String {
-    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+/// Applies `text-transform` to `text` (CSS Text 3 §2.1). Returns the new
+/// text and, for each character of `text`, its length in the new text and
+/// whether it stayed one character of the same length. `previous` is the
+/// character before the text in the inline formatting context: with
+/// `capitalize`, a word that starts at the beginning of `text` and directly
+/// follows a letter or digit continues a word of a preceding element and is
+/// not changed. Words are found with the word boundaries of UAX #29.
+fn apply_text_transform(
+    text: &str,
+    transform: TextTransform,
+    previous: Option<char>,
+) -> (String, Vec<(usize, bool)>) {
+    let capitalized = match transform {
+        TextTransform::Capitalize => capitalized_offsets(text, previous),
+        _ => Vec::new(),
+    };
     let mut out = String::with_capacity(text.len());
-    for (i, line) in text.split('\n').enumerate() {
-        if i > 0 {
-            out.push('\n');
-        }
-        let mut line = line;
-        if i > 0 {
-            line = line.trim_start_matches([' ', '\t']);
-        }
-        out.push_str(line);
-    }
-    // Trailing spaces before each newline.
-    let mut result = String::with_capacity(out.len());
-    let mut pending = String::new();
-    for c in out.chars() {
-        match c {
-            ' ' | '\t' => pending.push(c),
-            '\n' => {
-                pending.clear();
-                result.push('\n');
+    let mut lengths = Vec::with_capacity(text.len());
+    for (offset, c) in text.char_indices() {
+        let before = out.len();
+        match transform {
+            TextTransform::Uppercase => out.extend(c.to_uppercase()),
+            // Lowercase per character, except the final sigma below.
+            TextTransform::Lowercase => out.extend(c.to_lowercase()),
+            TextTransform::Capitalize if capitalized.binary_search(&offset).is_ok() => {
+                out.extend(c.to_uppercase());
             }
-            c => {
-                result.push_str(&pending);
-                pending.clear();
-                result.push(c);
-            }
+            _ => out.push(c),
         }
+        let new = &out[before..];
+        let mut chars = new.chars();
+        let single = chars.next().is_some() && chars.next().is_none();
+        lengths.push((new.len(), single && new.len() == c.len_utf8()));
     }
-    result.push_str(&pending);
-    result
+    if transform == TextTransform::Lowercase && text.contains('Σ') {
+        // `str::to_lowercase` maps a final 'Σ' to 'ς' (Unicode
+        // Final_Sigma). Both have the same length as 'σ', so the lengths
+        // stay valid.
+        out = text.to_lowercase();
+    }
+    (out, lengths)
 }
 
-/// Applies `text-transform` to `text`. `previous` is the character before
-/// the text in the inline formatting context; `capitalize` does not start
-/// a word if the text continues a word.
-fn apply_text_transform(text: &str, transform: TextTransform, previous: Option<char>) -> String {
-    match transform {
-        TextTransform::Uppercase => text.to_uppercase(),
-        TextTransform::Lowercase => text.to_lowercase(),
-        TextTransform::Capitalize => capitalize(text, previous),
-        TextTransform::None | TextTransform::FullWidth => text.to_owned(),
-    }
-}
-
-/// Puts the first letter of each word in uppercase (CSS Text 3 §2.1).
-/// Words are found with the word boundaries of UAX #29. A word that starts
-/// at the beginning of `text` and directly follows a letter or digit
-/// (`previous`) continues a word of a preceding element and is not changed.
-fn capitalize(text: &str, previous: Option<char>) -> String {
+/// The byte offsets of the letters that `capitalize` puts in uppercase.
+fn capitalized_offsets(text: &str, previous: Option<char>) -> Vec<usize> {
     let continues_word = previous.is_some_and(char::is_alphanumeric);
-    let mut out = String::with_capacity(text.len());
-    for (offset, segment) in text.split_word_bound_indices() {
-        let mut chars = segment.chars();
-        match chars.next() {
-            Some(first) if first.is_alphabetic() && !(offset == 0 && continues_word) => {
-                out.extend(first.to_uppercase());
-                out.push_str(chars.as_str());
-            }
-            _ => out.push_str(segment),
-        }
-    }
-    out
+    text.split_word_bound_indices()
+        .filter(|&(offset, segment)| {
+            segment.chars().next().is_some_and(char::is_alphabetic)
+                && !(offset == 0 && continues_word)
+        })
+        .map(|(offset, _)| offset)
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The text items of an inline formatting context built from `text`
+    /// in an element with `style`: the item text and the node offset of
+    /// each item offset (the end included).
+    fn processed(style: &str, text: &str) -> Vec<(String, Vec<u32>)> {
+        let doc = swb_dom::parse_html(&format!("<p style='{style}'>{text}</p>"));
+        let styles = crate::test_support::styles_for(&doc);
+        let p = doc
+            .find_element(NodeId::DOCUMENT, |e| e.is_html_named(&local_name!("p")))
+            .expect("a p element");
+        let mut builder = InlineBuilder::default();
+        for child in doc.children(p) {
+            if let Some(data) = doc.node(child).as_text() {
+                builder.push_text(child, styles.get(p).expect("p has a style"), data);
+            }
+        }
+        let mut state = BuildState::default();
+        let ifc = builder.finish(&mut state);
+        ifc.items
+            .iter()
+            .filter_map(|item| match item {
+                InlineItem::Text { range, source, .. } => {
+                    let map = source.as_ref().expect("text nodes have a source map");
+                    let offsets = (0..=range.len()).map(|i| map.node_offset(i)).collect();
+                    Some((ifc.text[range.clone()].to_owned(), offsets))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     #[test]
-    fn segment_break_normalization() {
-        assert_eq!(normalize_segment_breaks("a  \n  b"), "a\nb");
-        assert_eq!(normalize_segment_breaks("a\r\nb\rc"), "a\nb\nc");
-        assert_eq!(normalize_segment_breaks("  a  "), "  a  ");
+    fn white_space_collapsing_keeps_source_offsets() {
+        assert_eq!(
+            processed("", "  a \n\t b  "),
+            vec![("a b ".to_owned(), vec![2, 3, 7, 8, 9])]
+        );
+    }
+
+    #[test]
+    fn pre_line_removes_spaces_around_newlines() {
+        // The parser turns CR LF into LF.
+        let items = processed("white-space:pre-line", "a  \r\n  b \n\nc");
+        let texts: Vec<&str> = items.iter().map(|(t, _)| t.as_str()).collect();
+        assert_eq!(texts, ["a", "b", "c"]);
+        assert_eq!(items[1].1, vec![6, 7]);
+        assert_eq!(items[2].1, vec![10, 11]);
+    }
+
+    #[test]
+    fn carriage_returns_are_segment_breaks() {
+        // Character references keep CR in the DOM: CR LF is one break, a
+        // lone CR another.
+        let items = processed("white-space:pre-line", "a&#13;&#10;b&#13;c");
+        let texts: Vec<&str> = items.iter().map(|(t, _)| t.as_str()).collect();
+        assert_eq!(texts, ["a", "b", "c"]);
+        assert_eq!(items[2].1, vec![5, 6]);
+        let items = processed("", "a&#13;&#10;b&#13;c");
+        assert_eq!(items, vec![("a b c".to_owned(), vec![0, 1, 3, 4, 5, 6])]);
+        let items = processed("white-space:pre", "a&#13;&#10;b");
+        assert_eq!(items[0].0, "a");
+        assert_eq!(items[1], ("b".to_owned(), vec![3, 4]));
+    }
+
+    #[test]
+    fn lowercase_keeps_the_final_sigma() {
+        let items = processed("text-transform:lowercase", "ΟΔΟΣ ΑΣ");
+        assert_eq!(items[0].0, "οδος ας");
+        assert_eq!(items[0].1.len(), "οδος ας".len() + 1);
+    }
+
+    #[test]
+    fn preserved_text_keeps_offsets() {
+        let items = processed("white-space:pre", "a\n b");
+        assert_eq!(items[0], ("a".to_owned(), vec![0, 1]));
+        assert_eq!(items[1], (" b".to_owned(), vec![2, 3, 4]));
+    }
+
+    #[test]
+    fn text_transform_keeps_character_boundaries() {
+        // 'ß' becomes "SS"; offsets inside it map to its end.
+        let items = processed("text-transform:uppercase", "aßc");
+        assert_eq!(items[0], ("ASSC".to_owned(), vec![0, 1, 3, 3, 4]));
+        let items = processed("text-transform:capitalize", "ǰx yz");
+        assert_eq!(items[0].0, "J\u{30C}x Yz");
+        assert_eq!(items[0].1, vec![0, 2, 2, 2, 3, 4, 5, 6]);
     }
 
     #[test]
     fn capitalize_words() {
+        let capitalize = |text: &str, previous: Option<char>| {
+            apply_text_transform(text, TextTransform::Capitalize, previous).0
+        };
         assert_eq!(capitalize("hello big-world", None), "Hello Big-World");
         assert_eq!(capitalize("(hello) \"quoted\"", None), "(Hello) \"Quoted\"");
         assert_eq!(capitalize("don't 3rd", None), "Don't 3rd");

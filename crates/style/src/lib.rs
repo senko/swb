@@ -35,7 +35,7 @@ mod values;
 pub use cascade::compute_styles;
 pub use computed::{ComputedStyle, CustomProperties};
 pub use content::content_text;
-pub use element::ElementStates;
+pub use element::{ElementStates, query_selector_all};
 pub use properties::LonghandId;
 pub use style_map::{PseudoKind, StyleMap};
 pub use stylist::Stylist;

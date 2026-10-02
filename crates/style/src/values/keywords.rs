@@ -197,6 +197,43 @@ impl BorderStyle {
 }
 
 keyword_enum! {
+    /// The `outline-style` property: `auto` or a border style other than
+    /// `hidden`.
+    OutlineStyle {
+        Auto = "auto",
+        None = "none",
+        Dotted = "dotted",
+        Dashed = "dashed",
+        Solid = "solid",
+        Double = "double",
+        Groove = "groove",
+        Ridge = "ridge",
+        Inset = "inset",
+        Outset = "outset",
+    }
+    default None
+}
+
+impl OutlineStyle {
+    /// The border style that draws the outline. `auto` (a focus ring) has
+    /// none.
+    pub fn border_style(self) -> Option<BorderStyle> {
+        Some(match self {
+            OutlineStyle::Auto => return None,
+            OutlineStyle::None => BorderStyle::None,
+            OutlineStyle::Dotted => BorderStyle::Dotted,
+            OutlineStyle::Dashed => BorderStyle::Dashed,
+            OutlineStyle::Solid => BorderStyle::Solid,
+            OutlineStyle::Double => BorderStyle::Double,
+            OutlineStyle::Groove => BorderStyle::Groove,
+            OutlineStyle::Ridge => BorderStyle::Ridge,
+            OutlineStyle::Inset => BorderStyle::Inset,
+            OutlineStyle::Outset => BorderStyle::Outset,
+        })
+    }
+}
+
+keyword_enum! {
     /// The `text-align` property.
     TextAlign {
         Start = "start",

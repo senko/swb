@@ -39,6 +39,12 @@ def record_command(swb: Path, fixture: Path, url: str) -> list[str]:
     return [str(swb), "--headless", "--record", str(fixture), url]
 
 
+def record_missing_command(swb: Path, fixture: Path, url: str) -> list[str]:
+    """Command line that loads `url` from the fixture and fetches only the
+    responses that the fixture does not have, adding them to it."""
+    return [str(swb), "--headless", "--record-missing", str(fixture), url]
+
+
 def replay_command(
     swb: Path,
     fixture: Path,
@@ -62,6 +68,44 @@ def replay_command(
         str(boxes),
         "--screenshot",
         str(screenshot),
+        url,
+    ]
+
+
+def serve_command(
+    swb: Path,
+    viewport: tuple[int, int],
+    fixture: Path | None = None,
+    test_fonts: bool = True,
+) -> list[str]:
+    """Command line that starts a headless swb with the automation server on
+    a free port (swb prints the address on its first output line). With
+    `fixture`, all requests are served from it."""
+    width, height = viewport
+    command = [str(swb), "--headless", "--remote-port", "0", "--size", f"{width}x{height}"]
+    if fixture is not None:
+        command += ["--replay", str(fixture)]
+    if test_fonts:
+        command.append("--test-fonts")
+    return command
+
+
+def bench_command(
+    swb: Path, fixture: Path, url: str, viewport: tuple[int, int], runs: int
+) -> list[str]:
+    """Command line that loads `url` from the fixture with the test fonts and
+    prints the time of each pipeline stage as JSON (`--bench`)."""
+    width, height = viewport
+    return [
+        str(swb),
+        "--headless",
+        "--replay",
+        str(fixture),
+        "--test-fonts",
+        "--size",
+        f"{width}x{height}",
+        "--bench",
+        str(runs),
         url,
     ]
 

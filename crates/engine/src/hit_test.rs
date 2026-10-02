@@ -15,7 +15,10 @@ use swb_paint::DisplayList;
 pub struct HitResult {
     /// The innermost node at the point (a text node or an element).
     pub node: NodeId,
-    /// The target of the innermost link that contains the node.
+    /// The innermost link element (`a` or `area` with `href`) that contains
+    /// the node.
+    pub link_element: Option<NodeId>,
+    /// The target of that link.
     pub link: Option<Url>,
 }
 
@@ -27,21 +30,24 @@ pub(crate) fn hit_test(
     base_url: Option<&Url>,
 ) -> Option<HitResult> {
     let node = list.hit_test(point)?;
-    let link = base_url.and_then(|base| enclosing_link(doc, node, base));
-    Some(HitResult { node, link })
+    let link = base_url.and_then(|base| {
+        std::iter::once(node)
+            .chain(doc.ancestors(node))
+            .find_map(|n| Some((n, link_target(doc, n, base)?)))
+    });
+    Some(HitResult {
+        node,
+        link_element: link.as_ref().map(|(n, _)| *n),
+        link: link.map(|(_, url)| url),
+    })
 }
 
-fn enclosing_link(doc: &Document, node: NodeId, base: &Url) -> Option<Url> {
-    std::iter::once(node)
-        .chain(doc.ancestors(node))
-        .find_map(|n| {
-            let e = doc.element(n)?;
-            let is_link =
-                e.is_html_named(&local_name!("a")) || e.is_html_named(&local_name!("area"));
-            if !is_link {
-                return None;
-            }
-            let href = e.attr("href")?.trim();
-            base.join(href).ok()
-        })
+/// The target of `node` if it is a link: an `a` or `area` element with an
+/// `href` that resolves against `base`.
+pub(crate) fn link_target(doc: &Document, node: NodeId, base: &Url) -> Option<Url> {
+    let e = doc.element(node)?;
+    if !(e.is_html_named(&local_name!("a")) || e.is_html_named(&local_name!("area"))) {
+        return None;
+    }
+    base.join(e.attr("href")?.trim()).ok()
 }

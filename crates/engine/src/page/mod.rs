@@ -7,6 +7,10 @@
 //! arrives; then the navigation commits: the history is updated and the
 //! new document replaces the old one. A navigation that changes only the
 //! fragment of the current document does not load anything; it scrolls.
+//!
+//! Input handling (pointer, keyboard, focus, selection) is in `input.rs`.
+
+mod input;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,13 +20,13 @@ use swb_css::{MediaEnvironment, MediaQueryList};
 use swb_dom::{Document, NodeId, local_name};
 use swb_layout::{FragmentRef, FragmentTree, LayoutInput, Point, Size};
 use swb_net::{Destination, Fetcher, Loader, Request, Response, Url};
-use swb_paint::{DisplayList, Pixmap, RasterParams};
-use swb_style::{ElementStates, StyleMap, Stylist};
+use swb_paint::{DisplayList, NoHighlights, Pixmap, RasterParams};
+use swb_style::{StyleMap, Stylist};
 use swb_text::FontContext;
 
 use crate::history::History;
-use crate::hit_test::{self, HitResult};
 use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
+use crate::selection::{Highlight, TreeOrder};
 
 /// The loading state of a page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,6 +41,23 @@ pub enum LoadState {
     Complete,
     /// The navigation failed.
     Failed,
+}
+
+/// The duration of each pipeline stage, the last time it ran.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct StageTimings {
+    /// Parsing the HTML document.
+    pub parse: Duration,
+    /// Parsing the stylesheets and building the rule index.
+    pub stylesheets: Duration,
+    /// The cascade: the computed styles of all elements.
+    pub style: Duration,
+    /// Box tree construction and layout.
+    pub layout: Duration,
+    /// Building the display list.
+    pub display_list: Duration,
+    /// Rasterizing the viewport.
+    pub raster: Duration,
 }
 
 /// Configuration of a page.
@@ -107,8 +128,10 @@ pub struct Page {
     styles: Option<StyleMap>,
     fragments: Option<FragmentTree>,
     display_list: Option<DisplayList>,
-    states: ElementStates,
-    hovered_link: Option<Url>,
+    /// The tree order of the document's nodes, for the selection.
+    tree_order: TreeOrder,
+    input: input::InputState,
+    timings: StageTimings,
 }
 
 impl Page {
@@ -137,8 +160,9 @@ impl Page {
             styles: None,
             fragments: None,
             display_list: None,
-            states: ElementStates::default(),
-            hovered_link: None,
+            tree_order: TreeOrder::default(),
+            input: input::InputState::default(),
+            timings: StageTimings::default(),
         }
     }
 
@@ -239,8 +263,10 @@ impl Page {
             // position without loading.
             self.save_scroll();
             self.history.go_to(target);
+            let fragment_target = self.set_target(entry.url.fragment());
             self.set_document_url(entry.url);
             self.scroll_to(entry.scroll);
+            self.focus_fragment_target(fragment_target);
             return true;
         }
         self.start_navigation(
@@ -366,6 +392,20 @@ impl Page {
         self.fragments.as_ref()
     }
 
+    /// The elements that match a selector list, in tree order (as
+    /// `querySelectorAll`). `None` if the selector list is invalid or there
+    /// is no document.
+    pub fn query_selector_all(&self, selectors: &str) -> Option<Vec<NodeId>> {
+        swb_style::query_selector_all(self.document.as_ref()?, selectors, &self.input.states)
+    }
+
+    /// The union of the border boxes of an element in document coordinates
+    /// (CSS px), if it has a box.
+    pub fn element_box(&mut self, node: NodeId) -> Option<swb_layout::Rect> {
+        self.update_layout();
+        self.fragments.as_ref()?.element_boxes().get(&node).copied()
+    }
+
     /// The font context.
     pub fn fonts(&mut self) -> &mut FontContext {
         &mut self.fonts
@@ -376,9 +416,9 @@ impl Page {
         self.viewport
     }
 
-    /// The URL of the link under the mouse pointer.
-    pub fn hovered_link(&self) -> Option<&Url> {
-        self.hovered_link.as_ref()
+    /// The device pixel ratio.
+    pub fn scale(&self) -> f32 {
+        self.scale
     }
 
     /// The scroll position in CSS px.
@@ -482,7 +522,10 @@ impl Page {
         let mut images = Images::default();
         let document = if essence == "text/html" || essence == "application/xhtml+xml" {
             let charset = content_type.as_ref().and_then(|c| c.charset.as_deref());
-            swb_dom::parse_html_bytes(&response.body, charset).0
+            let started = Instant::now();
+            let document = swb_dom::parse_html_bytes(&response.body, charset).0;
+            self.timings.parse = started.elapsed();
+            document
         } else if essence.starts_with("text/") || essence == "application/json" {
             let text = String::from_utf8_lossy(&response.body);
             swb_dom::parse_html(&format!("<pre>{}</pre>", escape_html(&text)))
@@ -527,12 +570,20 @@ impl Page {
         self.base_url = Some(base_url(&document, &url));
         self.set_document_url(url);
         self.title = document_title(&document);
+        self.tree_order = TreeOrder::new(&document);
         self.document = Some(document);
         self.sheets.clear();
         self.images = images;
         self.scroll = Point::default();
-        self.states = ElementStates::default();
-        self.hovered_link = None;
+        // The pointer stays where it is; the next mouse movement updates the
+        // hover state for the new document.
+        self.input = self.input.for_new_document();
+        // Set without a restyle: the styles of the new document are not
+        // computed yet.
+        self.input.states.target = self.document.as_ref().and_then(|doc| {
+            let fragment = self.document_url.as_ref()?.fragment()?;
+            indicated(doc, fragment)
+        });
         self.start_subresources();
         self.invalidate_style();
         self.state = LoadState::LoadingResources;
@@ -655,6 +706,22 @@ impl Page {
         self.display_list = None;
     }
 
+    /// Recomputes the styles after a change of the element states. The
+    /// layout stays if no style changed.
+    fn restyle(&mut self) {
+        let Some(old) = self.styles.take() else {
+            return;
+        };
+        self.compute_styles();
+        if !self
+            .styles
+            .as_ref()
+            .is_some_and(|new| new.same_styles(&old))
+        {
+            self.invalidate_layout();
+        }
+    }
+
     fn media_environment(&self) -> MediaEnvironment {
         MediaEnvironment {
             viewport_width: self.viewport.width,
@@ -686,7 +753,8 @@ impl Page {
             };
             let started = Instant::now();
             let fragments = swb_layout::layout(&input, &mut self.fonts);
-            log::debug!("layout: {:?}", started.elapsed());
+            self.timings.layout = started.elapsed();
+            log::debug!("layout: {:?}", self.timings.layout);
             self.fragments = Some(fragments);
             // The scroll target is applied after every layout until the
             // page is loaded, because images that arrive later move it.
@@ -713,7 +781,22 @@ impl Page {
         if self.display_list.is_none()
             && let Some(fragments) = &self.fragments
         {
-            self.display_list = Some(swb_paint::build_display_list(fragments, &self.images));
+            let started = Instant::now();
+            let list = match self.selection() {
+                Some(selection) => {
+                    let (start, end) = selection.ordered(&self.tree_order);
+                    let highlight = Highlight {
+                        start,
+                        end,
+                        order: &self.tree_order,
+                    };
+                    swb_paint::build_display_list(fragments, &self.images, &highlight)
+                }
+                None => swb_paint::build_display_list(fragments, &self.images, &NoHighlights),
+            };
+            self.timings.display_list = started.elapsed();
+            log::debug!("display list: {:?}", self.timings.display_list);
+            self.display_list = Some(list);
         }
     }
 
@@ -723,6 +806,7 @@ impl Page {
         };
         let env = self.media_environment();
         if self.stylist.is_none() {
+            let started = Instant::now();
             let mut stylist = Stylist::new(doc.quirks_mode);
             for sheet in &self.sheets {
                 let Some(css) = &sheet.css else {
@@ -736,14 +820,16 @@ impl Page {
                 stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &sheet.base_url);
             }
             self.stylist = Some(stylist);
+            self.timings.stylesheets = started.elapsed();
         }
         let Some(stylist) = &self.stylist else {
             return;
         };
         let started = Instant::now();
         let base = self.base_url.clone().unwrap_or_else(about_blank);
-        let styles = swb_style::compute_styles(doc, stylist, &env, &self.states, &base);
-        log::debug!("style: {:?}", started.elapsed());
+        let styles = swb_style::compute_styles(doc, stylist, &env, &self.input.states, &base);
+        self.timings.style = started.elapsed();
+        log::debug!("style: {:?}", self.timings.style);
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
         for url in image_urls {
@@ -766,8 +852,60 @@ impl Page {
                 scroll: self.scroll,
                 scale: self.scale,
             };
+            let started = Instant::now();
             swb_paint::rasterize(list, target, params, &mut self.fonts, &self.images);
+            self.timings.raster = started.elapsed();
         }
+    }
+
+    /// The duration of each pipeline stage, the last time it ran.
+    pub fn timings(&self) -> StageTimings {
+        self.timings
+    }
+
+    /// Discards the parsed stylesheets, the styles, the layout and the
+    /// display list, so that the next render runs all stages again. For
+    /// benchmarks.
+    pub fn restart_pipeline(&mut self) {
+        self.invalidate_style();
+    }
+
+    /// Renders a screenshot: the viewport, or with `full_page` the whole
+    /// content height (limited to [`MAX_SCREENSHOT_PIXELS`] device pixels).
+    pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
+        let (viewport, scale) = (self.viewport, self.scale);
+        let size = if full_page {
+            let content = self.content_size();
+            // One row less than the limit, so that rounding cannot exceed
+            // it.
+            let device_width = f64::from((viewport.width * scale).round().max(1.0));
+            let max_height =
+                (((MAX_SCREENSHOT_PIXELS / device_width).floor() - 1.0) / f64::from(scale)) as f32;
+            if content.height > max_height {
+                log::warn!(
+                    "the page is {} px high; the screenshot shows the first {max_height:.0} px",
+                    content.height
+                );
+            }
+            Size::new(viewport.width, content.height.min(max_height).max(1.0))
+        } else {
+            viewport
+        };
+        let (w, h) = device_size(size, scale)?;
+        // tiny-skia aborts the process when an allocation fails, so the
+        // size is checked first (`device_size`).
+        let mut pixmap = Pixmap::new(w, h).ok_or(ScreenshotError::TooLarge(w, h))?;
+        if size == viewport {
+            self.render(&mut pixmap);
+        } else {
+            let scroll = self.scroll;
+            self.set_viewport(size, scale);
+            self.scroll = Point::default();
+            self.render(&mut pixmap);
+            self.set_viewport(viewport, scale);
+            self.scroll = scroll;
+        }
+        Ok(pixmap)
     }
 
     /// Changes the viewport size (CSS px) and scale factor.
@@ -801,16 +939,22 @@ impl Page {
     pub fn scroll_to(&mut self, p: Point) {
         self.update_layout();
         self.pending_scroll = None;
+        let before = self.scroll;
         self.scroll = p;
         self.clamp_scroll();
+        if self.scroll != before {
+            // Other content is under the pointer now.
+            self.update_hover(false);
+        }
     }
 
     /// Clamps the scroll position to the content. Without a layout the
     /// content size is not known; the position is then clamped after the
     /// next layout.
     fn clamp_scroll(&mut self) {
-        self.scroll.x = self.scroll.x.max(0.0);
-        self.scroll.y = self.scroll.y.max(0.0);
+        let max = swb_style::Length::MAX_PX;
+        self.scroll.x = self.scroll.x.clamp(0.0, max);
+        self.scroll.y = self.scroll.y.clamp(0.0, max);
         let Some(fragments) = &self.fragments else {
             return;
         };
@@ -821,40 +965,7 @@ impl Page {
         self.scroll.y = self.scroll.y.min(max_y);
     }
 
-    // ----- Input -----
-
-    /// Hit-tests a point in viewport coordinates (CSS px).
-    pub fn hit_test(&mut self, x: f32, y: f32) -> Option<HitResult> {
-        self.update_display_list();
-        let doc = self.document.as_ref()?;
-        let list = self.display_list.as_ref()?;
-        let point = Point::new(x + self.scroll.x, y + self.scroll.y);
-        hit_test::hit_test(doc, list, point, self.base_url.as_ref())
-    }
-
-    /// Handles mouse movement over the page. Returns true if a repaint is
-    /// needed.
-    pub fn mouse_move(&mut self, x: f32, y: f32) -> bool {
-        let link = self.hit_test(x, y).and_then(|h| h.link);
-        let changed = link != self.hovered_link;
-        self.hovered_link = link;
-        changed
-    }
-
-    /// Handles the mouse pointer leaving the page area. Returns true if a
-    /// repaint is needed.
-    pub fn mouse_leave(&mut self) -> bool {
-        self.hovered_link.take().is_some()
-    }
-
-    /// Handles a primary-button click. Follows links. Returns true if a
-    /// navigation started or the page scrolled to a fragment.
-    pub fn click(&mut self, x: f32, y: f32) -> bool {
-        match self.hit_test(x, y).and_then(|hit| hit.link) {
-            Some(link) => self.follow_link(link),
-            None => false,
-        }
-    }
+    // ----- Links and fragments -----
 
     /// Follows a link. A link to a fragment of the current document scrolls
     /// to it instead of loading. Links with a scheme that cannot be loaded
@@ -876,8 +987,10 @@ impl Page {
             let fragment = fragment.to_owned();
             self.save_scroll();
             self.history.push(link.clone());
+            let target = self.set_target(Some(&fragment));
             self.set_document_url(link);
             self.scroll_to_fragment(&fragment);
+            self.focus_fragment_target(target);
             return true;
         }
         self.navigate(link);
@@ -888,7 +1001,7 @@ impl Page {
     /// the fragment"): the element with that ID or an `<a>` with that name,
     /// or the top of the document for an empty fragment or `top`. Without a
     /// layout yet, scrolls after the first layout.
-    pub fn scroll_to_fragment(&mut self, fragment: &str) {
+    fn scroll_to_fragment(&mut self, fragment: &str) {
         self.update_layout();
         if self.fragments.is_none() {
             self.pending_scroll = Some(ScrollTarget::Fragment(fragment.to_owned()));
@@ -899,14 +1012,24 @@ impl Page {
         }
     }
 
+    /// Makes the element that `fragment` indicates the target (`:target`)
+    /// and returns it.
+    fn set_target(&mut self, fragment: Option<&str>) -> Option<NodeId> {
+        let target = self
+            .document
+            .as_ref()
+            .and_then(|doc| indicated(doc, fragment?));
+        self.update_states(|s| s.target = target);
+        target
+    }
+
     /// The scroll position for a fragment, if it indicates something.
     /// <https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document>
     fn fragment_position(&self, fragment: &str) -> Option<Point> {
         let doc = self.document.as_ref()?;
         let tree = self.fragments.as_ref()?;
         let decoded = percent_decode(fragment);
-        let target = indicated_element(doc, fragment).or_else(|| indicated_element(doc, &decoded));
-        match target {
+        match indicated(doc, fragment) {
             Some(target) => node_position(doc, tree, target).map(|p| Point::new(0.0, p.y)),
             None if decoded.is_empty() || decoded.eq_ignore_ascii_case("top") => {
                 Some(Point::default())
@@ -914,6 +1037,11 @@ impl Page {
             None => None,
         }
     }
+}
+
+/// The element that a fragment indicates: by its text, then percent-decoded.
+fn indicated(doc: &Document, fragment: &str) -> Option<NodeId> {
+    indicated_element(doc, fragment).or_else(|| indicated_element(doc, &percent_decode(fragment)))
 }
 
 /// The element with the ID `name`, or the first `<a>` with that name.
@@ -961,6 +1089,29 @@ impl Page {
                     .as_ref()
                     .is_some_and(|document| document.scheme() == "file"))
     }
+}
+
+/// The largest screenshot in device pixels: 128 Mpx, 512 MiB of RGBA.
+pub const MAX_SCREENSHOT_PIXELS: f64 = 128.0 * 1024.0 * 1024.0;
+
+/// Why a screenshot failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ScreenshotError {
+    /// The screenshot would be larger than [`MAX_SCREENSHOT_PIXELS`], or
+    /// the memory could not be allocated.
+    #[error("a {0}x{1} screenshot is too large")]
+    TooLarge(u32, u32),
+}
+
+/// The size in device pixels of `size` CSS px at a scale factor, if it is
+/// within [`MAX_SCREENSHOT_PIXELS`].
+pub fn device_size(size: Size, scale: f32) -> Result<(u32, u32), ScreenshotError> {
+    let w = (size.width * scale).round().max(1.0);
+    let h = (size.height * scale).round().max(1.0);
+    if f64::from(w) * f64::from(h) > MAX_SCREENSHOT_PIXELS {
+        return Err(ScreenshotError::TooLarge(w as u32, h as u32));
+    }
+    Ok((w as u32, h as u32))
 }
 
 /// True for URL schemes that the browser can load.

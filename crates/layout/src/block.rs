@@ -617,9 +617,16 @@ pub(crate) fn finish_fragment(
 /// fragment has its final position. A percentage `top` or `bottom` is
 /// `auto` if the containing block height is not definite.
 pub(crate) fn apply_relative_position(fragment: &mut BoxFragment, cb: ContainingBlock) {
-    let style = &fragment.style;
+    let (dx, dy) = relative_offset(&fragment.style, cb);
+    fragment.border_rect.x += dx;
+    fragment.border_rect.y += dy;
+}
+
+/// The offset of a relatively positioned box from its normal position;
+/// zero for other boxes.
+pub(crate) fn relative_offset(style: &ComputedStyle, cb: ContainingBlock) -> (f32, f32) {
     if style.position != swb_style::Position::Relative {
-        return;
+        return (0.0, 0.0);
     }
     let dx = match (style.left.resolve(cb.width), style.right.resolve(cb.width)) {
         (Some(l), _) => l,
@@ -633,8 +640,7 @@ pub(crate) fn apply_relative_position(fragment: &mut BoxFragment, cb: Containing
         (None, Some(b)) => -b,
         (None, None) => 0.0,
     };
-    fragment.border_rect.x += dx;
-    fragment.border_rect.y += dy;
+    (dx, dy)
 }
 
 /// Lays out a box that establishes an independent formatting context,

@@ -13,8 +13,9 @@ this repository. There is no JavaScript support yet.
 
 ## Status
 
-Early development. Static pages render; links, scrolling, back/forward
-and the address bar work. No JavaScript, no forms, no tables yet. See
+Early development. Static pages render; links, scrolling, back/forward,
+the address bar, hover effects, keyboard focus (Tab) and text selection
+with copy work. No JavaScript, no forms, no tables yet. See
 [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 
 ## Build and run
@@ -32,7 +33,9 @@ just check                         # format, lint, test, license check
 ```
 
 Keys: Ctrl+L focuses the address bar, Alt+Left/Right go back/forward,
-F5 or Ctrl+R reloads, Ctrl+Q quits. Mouse back/forward buttons work.
+F5 or Ctrl+R reloads, Ctrl+Q quits. Tab and Shift+Tab move the focus
+between links, Enter follows the focused link, Ctrl+A selects all text and
+Ctrl+C copies the selection. Mouse back/forward buttons work.
 
 Headless mode (for tests and scripts):
 
@@ -40,7 +43,12 @@ Headless mode (for tests and scripts):
 swb --headless --screenshot page.png https://senko.net/
 swb --headless --dump-layout https://senko.net/
 swb --headless --with-chrome --screenshot window.png https://senko.net/
+swb --headless --bench 20 https://senko.net/   # time each pipeline stage
 ```
+
+Remote control: `swb --headless --remote-port 0` starts a WebSocket server
+on 127.0.0.1 that tests and tools use to drive the browser (also with a
+window: `swb --remote-port 9222`). See [docs/automation.md](docs/automation.md).
 
 See `swb --help` for all options, and [docs/testing.md](docs/testing.md)
 for the comparison tooling.
@@ -48,6 +56,7 @@ for the comparison tooling.
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Automation protocol](docs/automation.md), [performance](docs/performance.md)
 - [Decision records](docs/adr/)
 - [Roadmap](docs/roadmap.md), [development log](docs/devlog.md)
 - [Credits and sources](docs/credits.md)

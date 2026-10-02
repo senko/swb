@@ -19,10 +19,10 @@ use crate::values::{
     Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
     BorderStyle, BoxSizing, CaptionSide, Clear, Color, Cursor, Direction, Display, EmptyCells,
     FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, Hyphens,
-    ListStylePosition, ListStyleType, ObjectFit, Overflow, OverflowWrap, PointerEvents, Position,
-    SpecifiedLengthPercentage as Lp, TableLayout, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak,
-    ZIndex,
+    ListStylePosition, ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
+    PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout, TextDecorationLine,
+    TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility,
+    WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -169,7 +169,7 @@ longhands! {
     BorderBottomRightRadius "border-bottom-right-radius" reset border_bottom_right_radius: (Lp, Lp);
     BorderBottomLeftRadius "border-bottom-left-radius" reset border_bottom_left_radius: (Lp, Lp);
     OutlineWidth "outline-width" reset outline_width: Lp;
-    OutlineStyle "outline-style" reset outline_style: BorderStyle;
+    OutlineStyle "outline-style" reset outline_style: OutlineStyle;
     OutlineColor "outline-color" reset outline_color: Color;
     OutlineOffset "outline-offset" reset outline_offset: Lp;
     BackgroundColor "background-color" reset background_color: Color;

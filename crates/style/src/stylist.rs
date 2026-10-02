@@ -18,8 +18,8 @@ use std::sync::{Arc, LazyLock};
 
 use log::trace;
 use swb_css::{
-    BucketKey, CssRule, MatchingContext, MediaEnvironment, MediaQueryList, PseudoElement, Selector,
-    StyleRule, Stylesheet, matches,
+    BucketKey, CssRule, ElementState, MatchingContext, MediaEnvironment, MediaQueryList,
+    PseudoElement, Selector, StyleRule, Stylesheet, matches,
 };
 use url::Url;
 
@@ -180,6 +180,8 @@ pub struct Stylist {
     /// one chain.
     media_chains: Vec<Vec<u32>>,
     next_order: u32,
+    /// The element states that any selector depends on.
+    state_dependencies: ElementState,
 }
 
 impl Stylist {
@@ -197,6 +199,7 @@ impl Stylist {
             media_lists: Vec::new(),
             media_chains: Vec::new(),
             next_order: 0,
+            state_dependencies: ElementState::empty(),
         };
         let ua = ParserContext::user_agent();
         stylist.add_rules(&UA_SHEET.rules, &ua, CascadeOrigin::UserAgent, None);
@@ -217,6 +220,12 @@ impl Stylist {
     pub fn add_author_sheet(&mut self, sheet: &Stylesheet, base_url: &Url) {
         let cx = ParserContext::author(Some(Arc::new(base_url.clone())), self.quirks);
         self.add_rules(&sheet.rules, &cx, CascadeOrigin::Author, None);
+    }
+
+    /// The element states that some selector depends on. When other
+    /// states change, styles stay the same.
+    pub fn state_dependencies(&self) -> ElementState {
+        self.state_dependencies
     }
 
     /// True in quirks mode.
@@ -304,6 +313,7 @@ impl Stylist {
             };
             let index = self.rules.len() as u32;
             map.insert(selector.bucket_key(), index, self.quirks);
+            self.state_dependencies |= selector.state_dependencies();
             self.rules.push(Rule {
                 selector: selector.clone(),
                 block: Arc::clone(&block),

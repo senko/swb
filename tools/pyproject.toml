@@ -10,6 +10,9 @@ dependencies = [
     "playwright==1.60.0",
     "pillow>=12.0",
     "numpy>=2.3",
+    # The client of swb's automation protocol (WebSocket). 17.1 added the
+    # `legacy` argument of `connect`.
+    "websockets>=17.1",
 ]
 
 [project.scripts]

@@ -27,6 +27,18 @@
     },
     {
       "method": "GET",
+      "url": "https://en.wikipedia.org/static/images/footer/wikimedia.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/c989c591b888781e.svg"
+    },
+    {
+      "method": "GET",
       "url": "https://en.wikipedia.org/static/images/icons/enwiki-25.svg",
       "status": 200,
       "headers": [
@@ -120,6 +132,18 @@
         ]
       ],
       "body": "files/38fc8ec3eda14fdf.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/resources/assets/mediawiki_compact.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/d0b9c6e983d71f5c.svg"
     },
     {
       "method": "GET",

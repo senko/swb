@@ -607,7 +607,7 @@ mod tests {
         assert_eq!(s.border_top_left_radius.vertical, px(4.0));
         assert_eq!(s.border_bottom_right_radius.horizontal, px(6.0));
         let s = style("outline: 2px auto red; outline-offset: -1px");
-        assert_eq!(s.outline_style, BorderStyle::Solid);
+        assert_eq!(s.outline_style, OutlineStyle::Auto);
         assert_eq!(s.outline_width, 2.0);
         assert_eq!(s.outline_color, rgb(255, 0, 0));
         assert_eq!(s.outline_offset, -1.0);

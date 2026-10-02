@@ -1,7 +1,8 @@
 //! Fixture directories: recorded responses for offline tests.
 //!
 //! [`ReplayFetcher`] answers requests from a fixture directory.
-//! [`RecordingFetcher`] writes one. Python tools (fixture capture with
+//! [`RecordingFetcher`] writes one. [`ExtendingFetcher`] adds the responses
+//! that a fixture does not have. Python tools (fixture capture with
 //! Playwright) read and write the same format, so this documentation is the
 //! format specification. See also ADR 0005 (testing strategy).
 //!
@@ -111,6 +112,7 @@
 //! - Files are written atomically: write a temporary file in the same
 //!   directory, then rename it to the final name.
 
+mod extend;
 mod record;
 mod replay;
 
@@ -125,6 +127,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use url::Url;
 
+pub use extend::ExtendingFetcher;
 pub use record::RecordingFetcher;
 pub use replay::ReplayFetcher;
 

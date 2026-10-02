@@ -26,10 +26,10 @@ use crate::values::{
     Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
     BorderStyle, BoxSizing, CaptionSide, Clear, Cursor, Direction, Display, EmptyCells,
     FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle, FontVariantCaps,
-    GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit, Overflow,
-    OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout, TextAlign,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
-    VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit, OutlineStyle,
+    Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout,
+    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi,
+    UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -762,16 +762,10 @@ pub(crate) fn parse_border_style(p: &mut Parser<'_>) -> ParseResult<BorderStyle>
     keyword(p, BorderStyle::from_ident)
 }
 
-/// `outline-style`: `auto | <outline-line-style>`. `auto` is drawn as
-/// `solid`; `hidden` is not allowed.
-pub(crate) fn parse_outline_style(p: &mut Parser<'_>) -> ParseResult<BorderStyle> {
-    if p.expect_ident_matching("auto").is_ok() {
-        return Ok(BorderStyle::Solid);
-    }
-    match parse_border_style(p)? {
-        BorderStyle::Hidden => Err(ParseError::Invalid),
-        style => Ok(style),
-    }
+/// `outline-style`: `auto | <outline-line-style>` (`hidden` is not
+/// allowed).
+pub(crate) fn parse_outline_style(p: &mut Parser<'_>) -> ParseResult<OutlineStyle> {
+    keyword(p, OutlineStyle::from_ident)
 }
 
 /// `outline-color`: a color, or `invert` (drawn with `currentColor`).

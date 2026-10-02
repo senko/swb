@@ -57,6 +57,27 @@ impl StyleMap {
         self.elements[index] = Some(style);
     }
 
+    /// True if both maps have equal styles for all elements and
+    /// pseudo-elements.
+    pub fn same_styles(&self, other: &StyleMap) -> bool {
+        let same = |a: &Arc<ComputedStyle>, b: &Arc<ComputedStyle>| Arc::ptr_eq(a, b) || a == b;
+        self.elements.len() == other.elements.len()
+            && self
+                .elements
+                .iter()
+                .zip(&other.elements)
+                .all(|pair| match pair {
+                    (Some(a), Some(b)) => same(a, b),
+                    (None, None) => true,
+                    _ => false,
+                })
+            && self.pseudos.len() == other.pseudos.len()
+            && self
+                .pseudos
+                .iter()
+                .all(|(key, a)| other.pseudos.get(key).is_some_and(|b| same(a, b)))
+    }
+
     /// Stores the style of a pseudo-element.
     pub fn set_pseudo(&mut self, id: NodeId, kind: PseudoKind, style: Arc<ComputedStyle>) {
         self.pseudos.insert((id, kind), style);

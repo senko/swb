@@ -28,7 +28,7 @@ use crate::parse::{ParseResult, ParserContext, parse_non_negative_number};
 use crate::values::{
     BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderStyle, Color,
     FlexDirection, FlexWrap, FontFamily, FontSizeKeyword, FontStyle, FontVariantCaps,
-    GenericFamily, Length, ListStylePosition, ListStyleType, Overflow, Rgba,
+    GenericFamily, Length, ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
     SpecifiedLengthPercentage as Lp, TextDecorationLine, TextDecorationStyle,
 };
 
@@ -534,7 +534,7 @@ fn parse_outline(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResul
         color.unwrap_or(Color::CurrentColor),
     ));
     out.push(LonghandValue::OutlineStyle(
-        style.unwrap_or(BorderStyle::None),
+        style.unwrap_or(OutlineStyle::None),
     ));
     out.push(LonghandValue::OutlineWidth(
         width.unwrap_or(Lp::Length(Length::px(3.0))),

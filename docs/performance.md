@@ -1,0 +1,78 @@
+# Performance
+
+How to measure swb's speed, and the current numbers. Measure before you
+optimize, and compare with the baseline below after changes to style,
+layout or paint.
+
+## Measuring
+
+`just perf` builds the release binary and runs `swbtools perf` (directly:
+`uv run --project tools swbtools perf [NAME...] [--runs N]`, which uses the
+existing binary). For each page fixture, it runs:
+
+```
+swb --headless --replay fixtures/pages/NAME --test-fonts --size 1280x800 --bench 20 URL
+```
+
+`--bench N` loads the page, renders it once, and then runs each stage N
+times:
+
+| Stage | What it measures |
+|-------|------------------|
+| `parse` | HTML parsing of the document (the bytes are fetched again from the fixture and parsed N times) |
+| `stylesheets` | Parsing all stylesheets and building the rule index (`Stylist`) |
+| `style` | The cascade: computed styles of all elements |
+| `layout` | Box tree construction and layout (text shaping included) |
+| `display_list` | Building the display list |
+| `raster` | Rasterizing the first viewport (1280×800 device pixels) |
+
+Before each run, all results are discarded (`Page::restart_pipeline`), so
+every stage runs again. Fonts, shaping results of earlier runs and glyph
+masks stay cached between runs, as they do in the browser. `--bench`
+prints JSON:
+
+```json
+{
+  "url": "https://senko.net/",
+  "runs": 20,
+  "elements": 65,
+  "viewport": [1280.0, 800.0],
+  "stages": {
+    "layout": {"first_ms": 0.43, "median_ms": 0.305},
+    ...
+  }
+}
+```
+
+`first_ms` is the time at the end of loading: the last time each stage ran
+while the page loaded (stages run again when stylesheets and images
+arrive, so this is not always the first, cold run), and the first raster.
+`median_ms` is the median of the N runs. `swbtools perf` prints the medians as a Markdown
+table.
+
+With `RUST_LOG=swb_engine=debug`, swb also logs the duration of each stage
+whenever it runs (style, layout, display list).
+
+## Baseline
+
+2026-10-02, M1. Release build, Linux, Intel Core i5-13500, 20 runs, median
+times in ms.
+
+| Fixture | Elements | parse | stylesheets | style | layout | display list | raster | Total |
+|---|---|---|---|---|---|---|---|---|
+| hacker-news | 818 | 0.65 | 0.65 | 1.09 | 1.28 | 0.09 | 0.36 | 4.12 |
+| senko-net | 65 | 0.06 | 0.37 | 0.06 | 0.30 | 0.01 | 0.53 | 1.33 |
+| wikipedia-web-browser | 4052 | 5.22 | 6.76 | 8.12 | 7.97 | 0.74 | 1.24 | 30.05 |
+
+Observations:
+
+- The whole pipeline, HTML parsing included, takes at most 30 ms
+  (Wikipedia), without any incremental work.
+- On Wikipedia, stylesheet parsing (6.8 ms) runs only when the stylesheets
+  or the media query results change, but a resize currently recomputes it
+  (backlog: keep parsed stylesheets across resizes).
+- A hover change on a page with `:hover` rules costs style plus layout
+  (about 16 ms on Wikipedia), see ADR 0009. Scrolling does not restyle for
+  `:hover`; the next mouse movement does.
+- Raster time depends on the window size and on how much of the page has
+  text; glyph masks are cached.

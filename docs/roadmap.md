@@ -29,14 +29,19 @@ Open a URL in a window and read the page.
 - Test tooling: fixture capture, Chromium references, comparison reports,
   scores with ratchet, layout tests.
 
-## M1: senko.net, automation API
+## M1: senko.net, automation API — done
 
-- Automation API (WebSocket JSON-RPC) and client; integration tests that
-  drive a headless browser.
-- `:hover` restyle (links underline on hover), focus, cursor shapes.
-- Text selection and copy to the clipboard.
-- A capture mode that adds only the requests missing from a fixture.
-- Performance baseline: time per pipeline stage for each fixture.
+- Automation API (WebSocket, JSON-RPC style) with a Rust and a Python
+  client; integration tests drive a headless browser
+  ([automation.md](automation.md), ADR 0008).
+- Element states: `:hover`, `:active`, `:focus`, `:focus-visible`,
+  `:target` restyles; cursor shapes; Tab focus navigation with Chromium's
+  focus ring; Enter follows the focused link (ADR 0009).
+- Text selection (drag, double and triple click, Shift+click, Ctrl+A),
+  highlight, copy to the clipboard and the primary selection.
+- `capture-missing`: adds only the requests missing from a fixture.
+- Performance baseline per fixture and stage
+  ([performance.md](performance.md)).
 - Target 1 (senko.net) done.
 
 ## M2: Hacker News
@@ -55,6 +60,27 @@ Open a URL in a window and read the page.
 - `mask-image` (icons), `@font-face`, `@import`.
 - `overflow` scrolling inside elements.
 - Target 3 (Wikipedia "Web browser") done.
+
+## Backlog from M1
+
+- Selection: the highlight of line ends inside the selection (Chromium
+  paints a space-wide box); words across element boundaries for double
+  clicks; extend by words after a double click; auto-scroll while
+  dragging beyond the viewport; `::selection` styles; `text-transform` in
+  the copied text; the tint of selected images (Chromium turns white into
+  the selection color; the blend is not a plain alpha overlay).
+- Hover: update `:hover` after a navigation commits and after a scroll
+  ends without waiting for a mouse movement (Chromium uses a timer).
+- Focus rings of inline elements split over lines: one outline around the
+  union, as Chromium draws `outline-style: auto`.
+- Automation: events (`page.loaded`, `page.navigated`); `input.type` with
+  form inputs (M2); cancel a pending `page.waitForLoad` when its client
+  disconnects.
+- Incremental restyle for state changes (only the elements whose matched
+  rules change); a hover on a page with `:hover` rules restyles all
+  elements and often lays out again.
+- Copy and paste go through Xwayland on GNOME (no data-control protocol);
+  check with native Wayland applications.
 
 ## Backlog from the M0 review
 

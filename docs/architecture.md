@@ -17,12 +17,16 @@ URL ──► net ──► bytes ──► dom (html5ever) ──► Document
                                   paint ──► display list ──► pixels
 ```
 
-`engine` drives this pipeline for one page. It also handles input,
-scrolling, navigation and history. `engine` has no windowing code, so it runs
-the same way in headless mode and in the GUI.
+`engine` drives this pipeline for one page. It also handles input (pointer,
+keyboard, focus, text selection), scrolling, navigation and history.
+`engine` has no windowing code, so it runs the same way in headless mode,
+in the GUI and under the automation server.
 
 Design records per stage: text in [ADR 0006](adr/0006-text-stack.md),
-style in [ADR 0007](adr/0007-style-system.md).
+style in [ADR 0007](adr/0007-style-system.md), interaction in
+[ADR 0009](adr/0009-interaction.md), automation in
+[ADR 0008](adr/0008-automation-protocol.md) and
+[automation.md](automation.md).
 
 ## Crates
 
@@ -37,17 +41,18 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding.                                   | `layout`, `text`, `style`     |
-| `engine`     | Page lifecycle: loading, pipeline, input, hit testing, navigation, history.    | all of the above              |
-| `automation` | Remote-control protocol (planned for M1; the crate is empty).                  | `engine`                      |
-| `swb`        | The binary: CLI, window, browser UI, headless runner.                          | `engine`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
+| `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, hit testing, navigation, history. | all of the above |
+| `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
+| `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
 
 Rules:
 
 - Lower crates must not depend on higher crates. `css` and `text` do not know
   about the DOM. `css` matches selectors through a trait that `style`
   implements for DOM elements.
-- Only `swb` depends on windowing libraries.
-- Only `net` does network I/O.
+- Only `swb` depends on windowing and clipboard libraries.
+- Only `net` does network I/O to load pages. `automation` listens on a
+  local socket for the remote-control protocol.
 
 ## Key data structures
 
@@ -70,6 +75,17 @@ Rules:
   paint order. The rasterizer consumes it. The rasterizer can be replaced
   without changes to layout. The list also contains hit regions, so hit
   testing finds what is painted on top.
+- **Text fragments** (`layout`): a glyph run on one line, with caret
+  stops: the offset in the DOM text node and the x position of each glyph
+  cluster boundary. White-space processing records a source map from the
+  processed text to the node's data (`layout/src/source_map.rs`).
+- **Selection** (`engine`): a range between two positions in text nodes
+  (node and byte offset). It refers to the DOM, so it survives a new
+  layout. The tree order of nodes is computed once per document for
+  comparisons.
+- **Element states** (`engine` → `style`): hovered, active, focused and
+  target elements. A change restyles only if a selector depends on that
+  state; the layout stays if no style changed (ADR 0009).
 - **Session history** (`engine`): one entry per committed document or
   fragment, with the scroll position to restore. A navigation is pending
   until its document arrives; starting a navigation cancels all running
@@ -88,8 +104,12 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   through a channel. The engine processes them when it is polled.
 - The GUI shell runs the window event loop on the main thread and calls the
   engine. Network completions wake the event loop.
-- The automation server reads requests on its own thread and sends them to the
-  engine thread through a channel.
+- The automation server accepts connections on its own thread and runs one
+  thread per connection. Each request goes to the page thread through a
+  channel and wakes it (the GUI through its event loop proxy, the headless
+  runner through its wake-up channel); the response comes back through a
+  reply channel. `page.waitForLoad` stays pending on the page thread until
+  the page is loaded or its timeout expires.
 
 ## Layout details
 
@@ -126,9 +146,25 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   positioned box keeps the overflow clips of the boxes between it and its
   stacking context (except absolutely positioned boxes, whose containing
   block is outside those boxes).
+- The display list contains the selection highlight (a rectangle behind
+  the selected glyphs, then the glyphs again in the selection color) and
+  outlines; `outline-style: auto` is Chromium's two-ring focus ring.
 - Rasterization works in device pixels. Rectangles without rounded corners
   and clips are snapped to whole pixels; an opacity group draws into a layer
   that covers only its visible bounds.
+
+## Engine modules
+
+- `page/mod.rs`: loading, the pipeline (style, layout, display list,
+  raster) with per-stage timings, restyles after state changes,
+  scrolling, links and fragments.
+- `page/input.rs`: mouse and key events, element states, cursor, focus
+  navigation, selection by mouse and keyboard.
+- `focus.rs`: focusable elements and the sequential focus order.
+- `selection.rs`: text positions, the position at a point, words and
+  blocks, the highlight for paint, and the selected text (`innerText`
+  rules).
+- `hit_test.rs`, `history.rs`, `resources.rs`, `boxes.rs`.
 
 ## Testing
 

@@ -128,6 +128,9 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
             font_size: style.font_size,
             glyphs: glyphs.into(),
             text: Arc::from(text),
+            carets: Arc::from([]),
+            line_top: 0.0,
+            line_height: metrics.ascent + metrics.descent,
         });
         shaped.width += glyph_run.advance;
     }

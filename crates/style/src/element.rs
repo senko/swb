@@ -21,8 +21,66 @@ pub struct ElementStates {
     pub active: Option<NodeId>,
     /// The focused element.
     pub focus: Option<NodeId>,
+    /// True if the focused element matches `:focus-visible` (the focus
+    /// moved with the keyboard).
+    pub focus_visible: bool,
     /// The target of the URL fragment (`:target`).
     pub target: Option<NodeId>,
+}
+
+impl ElementStates {
+    /// The state flags that differ between `self` and `other`, for
+    /// [`crate::Stylist::state_dependencies`].
+    pub fn changes(&self, other: &ElementStates) -> ElementState {
+        let mut changed = ElementState::empty();
+        if self.hover != other.hover {
+            changed |= ElementState::HOVER;
+        }
+        if self.active != other.active {
+            changed |= ElementState::ACTIVE;
+        }
+        if self.focus != other.focus {
+            changed |= ElementState::FOCUS | ElementState::FOCUS_WITHIN;
+        }
+        if self.focus != other.focus || self.focus_visible != other.focus_visible {
+            changed |= ElementState::FOCUS_VISIBLE;
+        }
+        if self.target != other.target {
+            changed |= ElementState::TARGET;
+        }
+        changed
+    }
+}
+
+/// The elements of `doc` that match the selector list `selectors`, in
+/// tree order (as `querySelectorAll`), or `None` if the selector list is
+/// invalid. Template contents are not searched. Selectors with a
+/// pseudo-element match nothing (they select pseudo-elements, not
+/// elements).
+pub fn query_selector_all(
+    doc: &Document,
+    selectors: &str,
+    states: &ElementStates,
+) -> Option<Vec<NodeId>> {
+    let list = swb_css::SelectorList::parse_str(selectors).ok()?;
+    let states = StateSet::new(doc, states);
+    let quirks = match doc.quirks_mode {
+        swb_dom::QuirksMode::Quirks => swb_css::QuirksMode::Quirks,
+        _ => swb_css::QuirksMode::NoQuirks,
+    };
+    let mut context = swb_css::MatchingContext::new(quirks);
+    let selectors: Vec<_> = list
+        .iter()
+        .filter(|s| s.pseudo_element().is_none())
+        .collect();
+    Some(
+        doc.descendants(NodeId::DOCUMENT)
+            .filter(|&id| {
+                DomElement::new(doc, id, &states)
+                    .is_some_and(|e| selectors.iter().any(|s| s.matches(&e, &mut context)))
+            })
+            .collect(),
+    )
 }
 
 /// Per-document data for matching: the hover, active and focus chains,
@@ -34,6 +92,7 @@ pub(crate) struct StateSet<'a> {
     active_chain: Vec<NodeId>,
     focus_chain: Vec<NodeId>,
     focus: Option<NodeId>,
+    focus_visible: bool,
     target: Option<NodeId>,
     /// The class names of all elements, concatenated.
     classes: Vec<&'a str>,
@@ -68,6 +127,7 @@ impl<'a> StateSet<'a> {
             active_chain: chain(states.active),
             focus_chain: chain(states.focus),
             focus: states.focus,
+            focus_visible: states.focus_visible,
             target: states.target,
             classes,
             class_ranges,
@@ -94,6 +154,9 @@ impl<'a> StateSet<'a> {
         }
         if self.focus == Some(id) {
             state |= ElementState::FOCUS;
+            if self.focus_visible {
+                state |= ElementState::FOCUS_VISIBLE;
+            }
         }
         if self.target == Some(id) {
             state |= ElementState::TARGET;
@@ -393,6 +456,28 @@ mod tests {
     }
 
     #[test]
+    fn query_selector_all_in_tree_order() {
+        let doc = parse_html("<p id=a class=x></p><div><p id=b></p></div><p id=c class=x></p>");
+        let ids = |selector: &str| {
+            query_selector_all(&doc, selector, &ElementStates::default()).map(|nodes| {
+                nodes
+                    .into_iter()
+                    .filter_map(|n| doc.element(n)?.attr("id").map(str::to_owned))
+                    .collect::<Vec<_>>()
+            })
+        };
+        assert_eq!(ids("p"), Some(vec!["a".into(), "b".into(), "c".into()]));
+        assert_eq!(
+            ids(".x, div p"),
+            Some(vec!["a".into(), "b".into(), "c".into()])
+        );
+        assert_eq!(ids("div > p"), Some(vec!["b".into()]));
+        assert_eq!(ids("p::before"), Some(vec![]));
+        assert_eq!(ids("p::before, div > p"), Some(vec!["b".into()]));
+        assert_eq!(ids("p["), None);
+    }
+
+    #[test]
     fn hover_chain_and_focus() {
         let doc = parse_html("<div id=outer><span id=inner>x</span></div><p id=other>");
         let inner = find(&doc, "inner");
@@ -408,6 +493,15 @@ mod tests {
         assert!(matches(&doc, &s, "inner", ":focus"));
         assert!(matches(&doc, &s, "outer", ":focus-within"));
         assert!(!matches(&doc, &s, "outer", ":focus"));
+        assert!(!matches(&doc, &s, "inner", ":focus-visible"));
+        let states = ElementStates {
+            focus: Some(inner),
+            focus_visible: true,
+            ..ElementStates::default()
+        };
+        let s = StateSet::new(&doc, &states);
+        assert!(matches(&doc, &s, "inner", ":focus-visible"));
+        assert!(!matches(&doc, &s, "outer", ":focus-visible"));
     }
 
     #[test]
