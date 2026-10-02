@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- vertical-align: sub and super (from the parent font size) and
+     lengths and percentages (of the box's line height). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Vertical-align shifts</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .big { font-size: 30px; line-height: normal; }
+  .small { font-size: 10px; }
+</style>
+</head>
+<body>
+  <div>x<sub>2</sub>y<sup>3</sup></div>
+  <div class="big">x<span class="small" style="vertical-align: sub">2</span>y<span class="small" style="vertical-align: super">3</span></div>
+  <div style="line-height: normal">x<span style="vertical-align: 50%">p</span><span style="vertical-align: -7px">l</span></div>
+  <div style="font-size: 13px">a<sub>b</sub>c<sup>d</sup><span style="vertical-align: 30%">e</span></div>
+</body>
+</html>

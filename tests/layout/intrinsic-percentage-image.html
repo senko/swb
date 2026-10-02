@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Intrinsic sizes: an image with a percentage width or max-width
+     contributes its natural width to a float or an inline-block. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Images with percentage sizes in shrink-to-fit boxes</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .float { float: left; background: #eee; }
+  .clear { clear: both; }
+</style>
+</head>
+<body>
+  <div class="float"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="max-width: 100%"></div>
+  <div class="clear"></div>
+  <span style="display: inline-block"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="width: 100%"></span>
+</body>
+</html>

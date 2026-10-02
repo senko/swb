@@ -1,0 +1,171 @@
+# ADR 0006: Text stack and font matching
+
+- Status: accepted
+- Date: 2026-10-02
+
+## Context
+
+The `text` crate selects fonts, splits text into runs by font, shapes runs,
+gives font metrics and rasterizes glyphs. [ADR 0004](0004-engine-structure.md)
+chose harfrust, skrifa, fontconfig and unicode-linebreak, but left the
+fontconfig binding open.
+
+Reference comparisons run Chromium on Linux. Layout geometry matches only if
+both browsers pick the same font files and get the same metrics and
+advances. So the text crate copies Chromium's rules where they are known,
+not only the CSS specification.
+
+Sources read for the rules (ideas only, no code copied): Blink
+`font_cache_skia.cc`, `font_cache_linux.cc`, `alternate_font_family.h`,
+`font_platform_data.cc`; Chromium `ui/gfx/font_fallback_linux.cc`,
+`ui/gfx/linux/fontconfig_util.cc`; Skia `SkFontConfigInterface_direct.cpp`,
+`SkFontHost_FreeType.cpp`, `SkScalerContext.cpp`, `SkTextFormatParams.h`.
+
+## Decision
+
+### Libraries
+
+| Crate                  | Version | License            | Use                                  |
+|------------------------|---------|--------------------|--------------------------------------|
+| `harfrust`             | 0.13    | MIT                | shaping                              |
+| `skrifa`               | 0.46    | MIT OR Apache-2.0  | font tables, metrics, outlines       |
+| `fontconfig`           | 0.11    | MIT                | system fonts (Unix except macOS)     |
+| `unicode-linebreak`    | 0.1     | Apache-2.0         | UAX #14 break opportunities          |
+| `unicode-segmentation` | 1       | MIT OR Apache-2.0  | grapheme clusters for itemization    |
+| `unicode-normalization` | 0.1    | MIT OR Apache-2.0  | NFC/NFD forms for coverage checks    |
+| `tiny-skia`            | 0.12    | BSD-3-Clause       | glyph masks (already used by paint)  |
+
+harfrust 0.13 and skrifa 0.46 both depend on `read-fonts` 0.43, so the
+build has one copy of the font parser. When you upgrade one of them, pick
+versions of both that use the same `read-fonts` minor version.
+
+### fontconfig binding
+
+Options:
+
+1. The `fontconfig` crate (YesLogic, MIT): a safe wrapper over
+   libfontconfig. It exposes pattern creation, `FcConfigSubstitute`,
+   `FcDefaultSubstitute`, `FcFontMatch`, `FcFontSort` and `FcFontList`.
+2. `fontdb` (MIT) with `fontconfig-parser`: pure Rust. It reads the font
+   directories from the configuration files, but it does not implement
+   fontconfig's rule engine (aliases, `<match>` rules, bindings, language
+   preferences) or its match scoring. We would have to write that, and it
+   would still differ from the real library in edge cases.
+
+We use the `fontconfig` crate with its `dlopen` feature. Chromium calls
+libfontconfig; calling the same library with the same patterns gives the
+same answers, including the distribution's and the user's configuration.
+With `dlopen`, the library is loaded at run time: the build needs no
+`-dev` package, and without libfontconfig the browser still runs (without
+system fonts). The crate needs no `unsafe` code in swb.
+
+The crate has gaps. We work around them:
+
+- It reads only the first value of a property. Skia accepts a match if any
+  of its family names fits. We check the other names by listing the
+  requested family and looking for the matched file.
+- It cannot add boolean values, so the pattern cannot ask for
+  `FC_SCALABLE`. We reject matches whose format is not TrueType or CFF
+  instead, as Chromium's validity check does.
+- It cannot read character sets. Fallback reads the `cmap` table of each
+  candidate font file (only that table, not the whole file).
+
+### Font selection in system mode
+
+- Named family (Skia `SkFontConfigInterfaceDirect::matchFamilyName`):
+  fontconfig matches a pattern with the family and regular style. The
+  match is accepted if its family is the requested name, the first family
+  of the pattern after configuration substitution (a strong alias), or a
+  metric-compatible replacement from Skia's fixed table (Arial, Arimo and
+  Liberation Sans; Times New Roman, Tinos and Liberation Serif; and so on).
+  Otherwise the family does not exist and the next CSS family is tried.
+  Before that, Blink's alternate names are tried: Arial and Helvetica,
+  Times and Times New Roman, Courier and Courier New.
+- Generic family: fontconfig's match for the CSS keyword is always
+  accepted. When no family of the list exists, Blink uses its standard
+  font, which is serif; fontconfig's `sans` is the last resort. (Measured
+  with Chromium: a list of only missing families renders in serif.)
+- Within the family: the CSS font matching algorithm (font-stretch, then
+  font-style, then font-weight) over the faces that fontconfig lists for
+  the family. Chromium instead lets fontconfig score weight, slant and
+  width. Both give the same face for normal font families.
+- Synthetic bold (Blink `CreateFontPlatformData`): if the requested weight
+  is more than 200 above the face weight. So `bold` (700) on a regular face
+  is synthesized, `600` is not.
+- Synthetic oblique: if italic or oblique is requested and the face is
+  upright. (Blink synthesizes only for `italic`; we also do it for
+  `oblique`, as the CSS specification says.)
+- Variable fonts with a `wght` axis get the requested weight, clamped to
+  the axis range, for shaping, metrics and outlines.
+
+### Character fallback
+
+Itemization works on extended grapheme clusters, so marks and variation
+selectors stay with their base. For each cluster: the fonts of the
+requested families, then system fallback, then the first font (`.notdef`).
+A font covers a cluster if it has glyphs for the cluster as written, or
+for its NFC or NFD form, because HarfBuzz composes and decomposes during
+shaping (so `e` + U+0301 stays in a font that has `é`).
+
+System fallback follows Chromium's `gfx::GetFallbackFontForChar`:
+`FcFontSort` with the content language (default `en-us`), without a
+family, then the first usable face whose `cmap` has the character. The
+sorted list is computed once per language. Results are cached per
+(character, language). As in Blink `PlatformFallbackFontForCharacter`, the
+fallback face is used as found (normally the regular face) and gets
+synthetic bold if the requested weight is at least 600 and the face is not
+bold, and synthetic oblique if the request is slanted and the face is not.
+
+### Directory mode
+
+`FontContext::from_directory` reads the fonts of one directory and uses an
+explicit `GenericFamilyMap`: the family for each generic family, a default
+family, aliases for missing named families, and a fallback order. It never
+calls fontconfig, so tests give the same results on every machine. Fallback
+tries the regular face of each fallback family, then every face in order of
+file path.
+
+The bundled fonts in `fixtures/fonts` have a matching `fonts.conf`, so that
+Chromium can run with exactly the same fonts and rules. A test checks that
+system mode with that file agrees with directory mode.
+
+### Metrics
+
+Font metrics follow Skia's FreeType port: the OS/2 typographic ascent,
+descent and line gap if `USE_TYPO_METRICS` is set; otherwise `hhea`; if both
+`hhea` ascender and descender are zero, the OS/2 typographic values, then
+the Windows values. Skia checks `USE_TYPO_METRICS` itself, so Chromium uses
+the typographic values for such fonts even with FreeType versions that
+ignore the flag. skrifa's `Metrics` implements the same order and applies
+`MVAR` deltas for variable fonts. x-height and cap height come from OS/2,
+or from the outlines of `x` and `H`. Values are not rounded; Blink rounds
+ascent and descent for line layout, which is the layout crate's decision.
+
+### Shaping and rasterization
+
+- Shaping runs in font units and scales to pixels without rounding. Shape
+  plans are cached per font; shaping results are not cached.
+- Glyph masks: unhinted outlines from skrifa, anti-aliased fill with
+  tiny-skia, horizontal subpixel offsets in quarter pixels. Synthetic bold
+  strokes and fills the outline like Skia (stroke width: font size times
+  1/24 at 9 px, 1/32 at 36 px, linear in between). Synthetic oblique shears
+  by 0.25. Advances do not change for synthetic bold, as in Skia.
+- Color glyphs (COLR, CBDT, sbix) are not supported yet: `glyph_mask`
+  returns `None` and logs a warning once per face.
+
+## Consequences
+
+- System mode needs libfontconfig at run time. It is present on every
+  desktop Linux system.
+- System mode results depend on the machine, as they do in Chromium. Tests
+  use directory mode or the bundled `fonts.conf`.
+- Chromium on Linux renders glyphs with FreeType and slight hinting. Our
+  unhinted masks differ by a few pixels in pixel comparisons, but advances
+  and metrics are the same.
+- Font data stays in memory after first use. There is no cap yet. Glyph
+  masks are cached up to 64 MiB in total (at most 32K entries); when a new
+  mask does not fit, the cache is cleared. Masks larger than 256×256
+  pixels are not cached; they are rasterized for every use.
+- Not done yet: web fonts (`@font-face`), color glyphs, vertical text,
+  `font-synthesis`, Blink's "first family at normal style" fallback step
+  for bold or italic text, emoji presentation selection.

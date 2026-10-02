@@ -1,0 +1,22 @@
+[package]
+name = "swb-paint"
+description = "Display list construction, rasterization and image decoding."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+image.workspace = true
+log.workspace = true
+swb-dom.workspace = true
+swb-layout.workspace = true
+swb-style.workspace = true
+swb-text.workspace = true
+thiserror.workspace = true
+tiny-skia.workspace = true

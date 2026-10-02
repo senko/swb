@@ -1,0 +1,28 @@
+{
+  "url": "tests/layout/inline-block-baseline-scroll.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 216.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 200.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 65.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 8.91, 60.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 28.0, 8.91, 40.0], "parent": 7},
+    {"tag": "span", "rect": [16.91, 54.0, 32.02, 17.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 73.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 73.0, 8.91, 40.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 93.0, 8.91, 20.0], "parent": 11},
+    {"tag": "span", "rect": [16.91, 94.0, 32.02, 17.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 113.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 113.0, 8.91, 40.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 133.0, 8.91, 20.0], "parent": 15},
+    {"tag": "span", "rect": [16.91, 134.0, 32.02, 17.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 153.0, 784.0, 55.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 153.0, 8.91, 50.0], "parent": 18},
+    {"tag": "div", "rect": [8.0, 173.0, 8.91, 20.0], "parent": 19},
+    {"tag": "span", "rect": [16.91, 189.0, 32.02, 17.0], "parent": 18}
+  ]
+}

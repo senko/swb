@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Floats and absolutely positioned boxes that follow inline content. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Floats in inline content</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .float { float: right; width: 100px; height: 50px; background: #ccc; }
+  p { position: relative; }
+</style>
+</head>
+<body>
+  <p>Text <span class="float"></span> more text</p>
+  <p>Text <span style="position: absolute; top: 0; left: 0">badge</span></p>
+</body>
+</html>

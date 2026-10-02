@@ -1,0 +1,14 @@
+{
+  "url": "tests/layout/overflow-propagation.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 98.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 20.0, 784.0, 70.0], "parent": 0},
+    {"tag": "p", "rect": [8.0, 20.0, 784.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 60.0, 784.0, 30.0], "parent": 5}
+  ]
+}

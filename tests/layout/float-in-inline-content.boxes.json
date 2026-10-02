@@ -1,0 +1,16 @@
+{
+  "url": "tests/layout/float-in-inline-content.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 88.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 16.0, 784.0, 56.0], "parent": 0},
+    {"tag": "p", "rect": [8.0, 16.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [692.0, 16.0, 100.0, 50.0], "parent": 6},
+    {"tag": "p", "rect": [8.0, 52.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 52.0, 44.5, 20.0], "parent": 8}
+  ]
+}

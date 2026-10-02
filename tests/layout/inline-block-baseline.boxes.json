@@ -1,0 +1,27 @@
+{
+  "url": "tests/layout/inline-block-baseline.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 196.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 180.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 60.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 51.59, 60.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 28.0, 51.59, 20.0], "parent": 7},
+    {"tag": "span", "rect": [59.59, 49.0, 32.02, 17.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 68.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 68.0, 26.7, 40.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 88.0, 26.7, 20.0], "parent": 11},
+    {"tag": "span", "rect": [34.7, 89.0, 32.02, 17.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 108.0, 784.0, 35.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 108.0, 20.0, 30.0], "parent": 14},
+    {"tag": "span", "rect": [28.0, 124.0, 32.02, 17.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 143.0, 784.0, 45.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 143.0, 8.91, 40.0], "parent": 17},
+    {"tag": "div", "rect": [8.0, 163.0, 8.91, 20.0], "parent": 18},
+    {"tag": "span", "rect": [16.91, 169.0, 32.02, 17.0], "parent": 17}
+  ]
+}

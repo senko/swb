@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Inline layout: the baseline of an inline-block is the baseline of its
+     last line box, or its bottom margin edge without line boxes or with
+     overflow other than visible. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline-block baseline</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .ib { display: inline-block; background: #ddd; }
+  .empty { display: inline-block; width: 20px; height: 30px; background: #bbb; }
+</style>
+</head>
+<body>
+  <div><span class="ib">first<div>second</div>third</span><span>after</span></div>
+  <div><span class="ib">one<div>two</div></span><span>after</span></div>
+  <div><span class="empty"></span><span>after</span></div>
+  <div><span class="ib" style="overflow: hidden">a<div>b</div></span><span>after</span></div>
+</body>
+</html>

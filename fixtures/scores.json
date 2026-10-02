@@ -1,0 +1,20 @@
+{
+  "hacker-news": {
+    "geometry": 0.0,
+    "pixels": 0.8998,
+    "relative": 0.5518,
+    "size": 0.595
+  },
+  "senko-net": {
+    "geometry": 1.0,
+    "pixels": 0.9972,
+    "relative": 1.0,
+    "size": 1.0
+  },
+  "wikipedia-web-browser": {
+    "geometry": 0.0071,
+    "pixels": 0.8854,
+    "relative": 0.4215,
+    "size": 0.5842
+  }
+}

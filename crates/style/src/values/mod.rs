@@ -1,0 +1,313 @@
+//! Value types for CSS properties: specified values (as parsed) and computed
+//! values (as stored in [`crate::ComputedStyle`]).
+
+mod color;
+mod keywords;
+mod length;
+
+use std::sync::Arc;
+
+pub use color::{Color, Rgba, named_color, system_color};
+pub use keywords::*;
+pub use length::{
+    CalcNode, ComputedCalc, Length, LengthContext, LengthPercentage, LengthPercentageOrAuto,
+    LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
+};
+
+/// A generic font family keyword.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GenericFamily {
+    /// `serif`
+    Serif,
+    /// `sans-serif`
+    SansSerif,
+    /// `monospace`
+    Monospace,
+    /// `cursive`
+    Cursive,
+    /// `fantasy`
+    Fantasy,
+    /// `system-ui`
+    SystemUi,
+    /// `math`
+    Math,
+    /// `emoji`
+    Emoji,
+}
+
+impl GenericFamily {
+    /// Parses a generic family keyword (ASCII case-insensitive).
+    pub fn from_ident(ident: &str) -> Option<Self> {
+        let g = match ident.to_ascii_lowercase().as_str() {
+            "serif" => Self::Serif,
+            "sans-serif" => Self::SansSerif,
+            "monospace" => Self::Monospace,
+            "cursive" => Self::Cursive,
+            "fantasy" => Self::Fantasy,
+            "system-ui" | "-apple-system" | "blinkmacsystemfont" => Self::SystemUi,
+            "math" => Self::Math,
+            "emoji" => Self::Emoji,
+            _ => return None,
+        };
+        Some(g)
+    }
+}
+
+/// One entry of `font-family`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FontFamily {
+    /// A family name, for example "Times New Roman".
+    Named(Arc<str>),
+    /// A generic family.
+    Generic(GenericFamily),
+}
+
+/// The computed `line-height`.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub enum LineHeight {
+    /// `normal`: use the font's metrics.
+    #[default]
+    Normal,
+    /// A multiple of the font size. Inherited as the number.
+    Number(f32),
+    /// A length in px. Percentages compute to this.
+    Px(f32),
+}
+
+impl LineHeight {
+    /// The used line height for a font size, or `None` for `normal`.
+    pub fn resolve(self, font_size: f32) -> Option<f32> {
+        match self {
+            LineHeight::Normal => None,
+            LineHeight::Number(n) => Some(n * font_size),
+            LineHeight::Px(px) => Some(px),
+        }
+    }
+}
+
+/// The computed `vertical-align`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum VerticalAlign {
+    /// A keyword.
+    Keyword(VerticalAlignKeyword),
+    /// A length or a percentage of the line height.
+    LengthPercentage(LengthPercentage),
+}
+
+impl Default for VerticalAlign {
+    fn default() -> Self {
+        VerticalAlign::Keyword(VerticalAlignKeyword::Baseline)
+    }
+}
+
+bitflags::bitflags! {
+    /// The `text-decoration-line` property.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+    pub struct TextDecorationLine: u8 {
+        /// `underline`
+        const UNDERLINE = 1;
+        /// `overline`
+        const OVERLINE = 2;
+        /// `line-through`
+        const LINE_THROUGH = 4;
+    }
+}
+
+/// An image reference (for backgrounds, list markers, `content`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Image {
+    /// `url(...)`, already resolved against the stylesheet's base URL.
+    Url(Arc<str>),
+    /// A linear gradient.
+    LinearGradient(Arc<LinearGradient>),
+}
+
+/// A computed `linear-gradient()`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LinearGradient {
+    /// The gradient line angle in degrees (0 = to top, 90 = to right).
+    pub angle_deg: f32,
+    /// Color stops, positions as fractions of the gradient line (resolved
+    /// at computed-value time when given as percentages; `None` means
+    /// "distribute evenly").
+    pub stops: Vec<(Color, Option<LengthPercentage>)>,
+    /// True for `repeating-linear-gradient()`.
+    pub repeating: bool,
+}
+
+/// One axis of a `background-position`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PositionComponent {
+    /// The offset from the start edge (a percentage aligns the image's
+    /// matching point with the box's matching point).
+    pub offset: LengthPercentage,
+    /// True if `offset` is measured from the end edge (`right 10px`).
+    pub from_end: bool,
+}
+
+impl Default for PositionComponent {
+    fn default() -> Self {
+        PositionComponent {
+            offset: LengthPercentage::Percent(0.0),
+            from_end: false,
+        }
+    }
+}
+
+/// The `background-size` of one layer.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum BackgroundSize {
+    /// Width and height; `Auto` keeps the aspect ratio.
+    Explicit(LengthPercentageOrAuto, LengthPercentageOrAuto),
+    /// `cover`.
+    Cover,
+    /// `contain`.
+    Contain,
+    /// `auto auto`.
+    #[default]
+    Auto,
+}
+
+/// One background layer: the image and how it is positioned.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct BackgroundLayer {
+    /// The image; `None` means `none`.
+    pub image: Option<Image>,
+    /// Horizontal position.
+    pub position_x: PositionComponent,
+    /// Vertical position.
+    pub position_y: PositionComponent,
+    /// Size.
+    pub size: BackgroundSize,
+    /// Horizontal repeat.
+    pub repeat_x: BackgroundRepeatKeyword,
+    /// Vertical repeat.
+    pub repeat_y: BackgroundRepeatKeyword,
+    /// `background-origin`.
+    pub origin: BackgroundBox,
+    /// `background-clip`.
+    pub clip: BackgroundBox,
+    /// `background-attachment`.
+    pub attachment: BackgroundAttachment,
+}
+
+impl BackgroundLayer {
+    /// The initial layer: no image, origin `padding-box`, clip `border-box`.
+    pub fn initial() -> Self {
+        BackgroundLayer {
+            origin: BackgroundBox::PaddingBox,
+            ..Default::default()
+        }
+    }
+}
+
+/// The radius of one border corner: horizontal and vertical.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct CornerRadius {
+    /// Horizontal radius (percentages refer to the border box width).
+    pub horizontal: LengthPercentage,
+    /// Vertical radius (percentages refer to the border box height).
+    pub vertical: LengthPercentage,
+}
+
+/// The computed `z-index`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ZIndex {
+    /// `auto`.
+    #[default]
+    Auto,
+    /// An integer.
+    Integer(i32),
+}
+
+/// The computed `flex-basis`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum FlexBasis {
+    /// `content`.
+    Content,
+    /// A `width`/`height` value (`auto` means "use the main size property").
+    Size(Size),
+}
+
+impl Default for FlexBasis {
+    fn default() -> Self {
+        FlexBasis::Size(Size::Auto)
+    }
+}
+
+/// One item of the `content` property.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ContentItem {
+    /// A string.
+    String(Arc<str>),
+    /// `attr(name)`.
+    Attr(Arc<str>),
+    /// An image.
+    Image(Image),
+    /// `counter(name, style)`.
+    Counter(Arc<str>, ListStyleType),
+    /// `open-quote`.
+    OpenQuote,
+    /// `close-quote`.
+    CloseQuote,
+}
+
+/// The computed `content` property.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum Content {
+    /// `normal`.
+    #[default]
+    Normal,
+    /// `none`.
+    None,
+    /// A list of items.
+    Items(Arc<[ContentItem]>),
+}
+
+/// The `gap` value for one axis (`row-gap`, `column-gap`).
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum Gap {
+    /// `normal` (zero for flex and grid).
+    #[default]
+    Normal,
+    /// A length or percentage.
+    LengthPercentage(LengthPercentage),
+}
+
+/// The four sides of a box, in the order top, right, bottom, left.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Sides<T> {
+    /// Top.
+    pub top: T,
+    /// Right.
+    pub right: T,
+    /// Bottom.
+    pub bottom: T,
+    /// Left.
+    pub left: T,
+}
+
+impl<T: Clone> Sides<T> {
+    /// All four sides set to the same value.
+    pub fn all(value: T) -> Self {
+        Sides {
+            top: value.clone(),
+            right: value.clone(),
+            bottom: value.clone(),
+            left: value,
+        }
+    }
+}
+
+/// The four corners of a box.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Corners<T> {
+    /// Top-left.
+    pub top_left: T,
+    /// Top-right.
+    pub top_right: T,
+    /// Bottom-right.
+    pub bottom_right: T,
+    /// Bottom-left.
+    pub bottom_left: T,
+}

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- white-space: nowrap prevents breaks between atomic inlines. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Atomic inlines in nowrap</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .ib { display: inline-block; width: 40px; height: 10px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div style="width: 50px; white-space: nowrap"><span class="ib"></span><span class="ib"></span></div>
+</body>
+</html>

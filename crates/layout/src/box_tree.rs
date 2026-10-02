@@ -1,0 +1,1079 @@
+//! Box tree construction: turns the DOM and computed styles into boxes.
+//!
+//! Follows CSS 2.2 §9.2 (<https://www.w3.org/TR/CSS22/visuren.html#box-gen>)
+//! and CSS Display 3 (<https://www.w3.org/TR/css-display-3/>):
+//!
+//! - A block container holds either only block-level boxes or only inline
+//!   content (an inline formatting context). Inline content next to
+//!   block-level boxes is wrapped in anonymous block boxes.
+//! - A block-level box inside an inline box splits the inline box: the
+//!   inline content before and after the block goes into separate anonymous
+//!   blocks, and the inline box is continued in both.
+//! - Inline content is stored as a flat list of items with start/end
+//!   markers for inline boxes, which makes line breaking straightforward.
+//!
+//! White-space processing (CSS Text 3 §4.1.1) happens when an inline
+//! formatting context is finished, because spaces collapse across inline
+//! box boundaries.
+//!
+//! Boxes nest at most [`MAX_BOX_DEPTH`] levels deep. The content of
+//! elements below that depth is flattened into the box at the limit (only
+//! text and line breaks are kept). This bounds the recursion of box
+//! construction, layout and paint, also for documents that were not built
+//! by the HTML parser (which has its own depth limit).
+
+use std::ops::Range;
+use std::sync::Arc;
+
+use swb_dom::{Document, NodeData, NodeId, local_name};
+use swb_style::{
+    ComputedStyle, Display, LengthPercentageOrAuto, ListStyleType, Overflow, PseudoKind, StyleMap,
+    TextTransform, WhiteSpace, content_text,
+};
+use unicode_segmentation::UnicodeSegmentation;
+
+use crate::ReplacedSizes;
+use crate::list_marker::marker_text;
+
+/// The maximum nesting depth of boxes (elements, pseudo-elements and
+/// `display: contents` elements count). With this limit, box construction,
+/// layout and paint run on a 2 MiB stack (the default stack size of Rust
+/// threads); see `tests/deep_nesting.rs`. Chromium's HTML parser limits the
+/// DOM depth to 512 for the same reason.
+pub(crate) const MAX_BOX_DEPTH: usize = 256;
+
+/// The style and origin of a box.
+#[derive(Clone, Debug)]
+pub(crate) struct BoxBase {
+    pub(crate) node: Option<NodeId>,
+    pub(crate) pseudo: Option<PseudoKind>,
+    pub(crate) style: Arc<ComputedStyle>,
+    /// A number that identifies the box during one layout pass. The parts
+    /// of an inline box that is split by a block share the number.
+    pub(crate) id: usize,
+}
+
+/// A block-level box.
+#[derive(Debug)]
+pub(crate) enum BlockLevelBox {
+    /// A block container in the normal flow that does not establish a new
+    /// block formatting context.
+    Block {
+        base: BoxBase,
+        contents: BlockContainer,
+        marker: Option<Marker>,
+    },
+    /// A block-level box that establishes an independent formatting context
+    /// (flow-root, flex, replaced, ...).
+    Independent(IndependentBox),
+    /// A float.
+    Float(IndependentBox),
+    /// An absolutely positioned box.
+    AbsolutelyPositioned(IndependentBox),
+}
+
+/// The contents of a block container.
+#[derive(Debug)]
+pub(crate) enum BlockContainer {
+    /// Only block-level children.
+    Blocks(Vec<BlockLevelBox>),
+    /// Only inline-level content.
+    Inline(InlineFormattingContext),
+}
+
+/// A box that establishes an independent formatting context.
+#[derive(Debug)]
+pub(crate) struct IndependentBox {
+    pub(crate) base: BoxBase,
+    pub(crate) contents: IndependentContents,
+    pub(crate) marker: Option<Marker>,
+}
+
+/// The kind of formatting context an independent box establishes.
+#[derive(Debug)]
+pub(crate) enum IndependentContents {
+    /// A new block formatting context with flow content.
+    Flow(BlockContainer),
+    /// A flex container with its children: the flex items and the
+    /// absolutely positioned children. Every flex item establishes an
+    /// independent formatting context.
+    Flex(Vec<IndependentBox>),
+    /// A replaced element (an image).
+    Replaced(Replaced),
+}
+
+/// A replaced element.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Replaced {
+    pub(crate) node: NodeId,
+    /// Natural width and height in CSS px, if known.
+    pub(crate) natural_size: Option<(f32, f32)>,
+}
+
+/// A list item marker.
+#[derive(Debug)]
+pub(crate) struct Marker {
+    pub(crate) base: BoxBase,
+    pub(crate) text: String,
+    pub(crate) outside: bool,
+}
+
+/// An inline formatting context: a flat list of inline items and the text
+/// they refer to.
+#[derive(Debug, Default)]
+pub(crate) struct InlineFormattingContext {
+    /// A number that identifies the context during one layout pass (the
+    /// key of the shaping cache).
+    pub(crate) id: usize,
+    pub(crate) items: Vec<InlineItem>,
+    /// All text of the context after white-space processing. Atomic inlines
+    /// are represented by U+FFFC so that line breaking sees them.
+    pub(crate) text: String,
+}
+
+impl InlineFormattingContext {
+    /// True if the context generates no line box that is not empty: it has
+    /// no text, no atomic inlines, no forced line breaks, and no inline box
+    /// with a non-zero margin, border or padding on an inline side (CSS 2.2
+    /// §9.4.2). Floats and absolutely positioned boxes do not count.
+    pub(crate) fn is_empty(&self) -> bool {
+        let mut open: Vec<&ComputedStyle> = Vec::new();
+        for item in &self.items {
+            match item {
+                InlineItem::Text { range, .. } => {
+                    if !range.is_empty() {
+                        return false;
+                    }
+                }
+                InlineItem::StartBox { base, continued } => {
+                    if !continued && has_inline_start_edge(&base.style) {
+                        return false;
+                    }
+                    open.push(&base.style);
+                }
+                InlineItem::EndBox { split } => {
+                    if open.pop().is_some_and(|s| !split && has_inline_end_edge(s)) {
+                        return false;
+                    }
+                }
+                InlineItem::Atomic { .. } | InlineItem::LineBreak => return false,
+                InlineItem::Float(_) | InlineItem::AbsolutelyPositioned(_) => {}
+            }
+        }
+        true
+    }
+}
+
+/// True if a margin, border or padding on the inline-start (left) side of
+/// an inline box is non-zero.
+pub(crate) fn has_inline_start_edge(style: &ComputedStyle) -> bool {
+    nonzero_margin(&style.margin_left)
+        || !style.padding_left.is_zero()
+        || style.border_left_width > 0.0
+}
+
+/// True if a margin, border or padding on the inline-end (right) side of
+/// an inline box is non-zero.
+pub(crate) fn has_inline_end_edge(style: &ComputedStyle) -> bool {
+    nonzero_margin(&style.margin_right)
+        || !style.padding_right.is_zero()
+        || style.border_right_width > 0.0
+}
+
+fn nonzero_margin(m: &LengthPercentageOrAuto) -> bool {
+    m.non_auto().is_some_and(|lp| !lp.is_zero())
+}
+
+/// One item of an inline formatting context.
+#[derive(Debug)]
+pub(crate) enum InlineItem {
+    /// The start of an inline box. `continued` is true if the box was split
+    /// by a block-level child and this is not its first part.
+    StartBox { base: BoxBase, continued: bool },
+    /// The end of the innermost open inline box. `split` is true if the box
+    /// continues after a block-level child.
+    EndBox { split: bool },
+    /// Text: a range of [`InlineFormattingContext::text`].
+    Text {
+        node: NodeId,
+        style: Arc<ComputedStyle>,
+        range: Range<usize>,
+    },
+    /// An atomic inline (inline-block, image, ...). Its position in the text
+    /// is the U+FFFC at `offset`.
+    Atomic {
+        inner: IndependentBox,
+        offset: usize,
+    },
+    /// A forced line break (`<br>` or a preserved newline).
+    LineBreak,
+    /// A float that starts in this inline context.
+    Float(IndependentBox),
+    /// An absolutely positioned box that starts in this inline context.
+    AbsolutelyPositioned(IndependentBox),
+}
+
+/// Inputs for box construction.
+pub(crate) struct BuildContext<'a> {
+    pub(crate) doc: &'a Document,
+    pub(crate) styles: &'a StyleMap,
+    pub(crate) replaced: &'a dyn ReplacedSizes,
+    /// The element whose `overflow` applies to the viewport (CSS Overflow 3
+    /// §3.3). Its box gets the used overflow `visible`.
+    pub(crate) overflow_source: Option<NodeId>,
+}
+
+impl BuildContext<'_> {
+    /// The base of the box of element `node` with computed style `style`.
+    fn element_base(&self, node: NodeId, style: &Arc<ComputedStyle>) -> BoxBase {
+        let style = if self.overflow_source == Some(node) {
+            let mut used = ComputedStyle::clone(style);
+            used.overflow_x = Overflow::Visible;
+            used.overflow_y = Overflow::Visible;
+            Arc::new(used)
+        } else {
+            Arc::clone(style)
+        };
+        BoxBase {
+            node: Some(node),
+            pseudo: None,
+            style,
+            id: 0,
+        }
+    }
+}
+
+/// The state of box construction.
+#[derive(Default)]
+struct BuildState {
+    counters: ListCounters,
+    /// The nesting depth of the box being built.
+    depth: usize,
+    /// The last number given out by [`BuildState::next_id`].
+    last_id: usize,
+    /// True once content was flattened because of [`MAX_BOX_DEPTH`].
+    flattened: bool,
+}
+
+impl BuildState {
+    fn next_id(&mut self) -> usize {
+        self.last_id += 1;
+        self.last_id
+    }
+
+    /// `base` with a new box number.
+    fn numbered(&mut self, mut base: BoxBase) -> BoxBase {
+        base.id = self.next_id();
+        base
+    }
+
+    /// The base of an anonymous box that inherits from `parent`.
+    fn anonymous(&mut self, parent: &ComputedStyle, display: Display) -> BoxBase {
+        let mut style = ComputedStyle::anonymous_from(parent);
+        style.display = display;
+        BoxBase {
+            node: None,
+            pseudo: None,
+            style: Arc::new(style),
+            id: self.next_id(),
+        }
+    }
+}
+
+/// Builds the box of the root element.
+pub(crate) fn build_root(ctx: &BuildContext<'_>) -> Option<IndependentBox> {
+    let root = ctx.doc.document_element()?;
+    let style = ctx.styles.get(root)?;
+    if style.display == Display::None {
+        return None;
+    }
+    let mut state = BuildState::default();
+    let base = state.numbered(ctx.element_base(root, style));
+    Some(build_independent(ctx, base, &mut state))
+}
+
+/// Counters for list item numbering. A stack of scopes; `ol`, `ul`,
+/// `menu` and `dir` open a new scope.
+#[derive(Default)]
+struct ListCounters {
+    scopes: Vec<ListScope>,
+}
+
+struct ListScope {
+    next: i64,
+    step: i64,
+}
+
+/// Parses an integer attribute (`start`, `value`), clamped to the `i32`
+/// range as in Chromium.
+fn integer_attribute(value: &str) -> Option<i64> {
+    let v = value.trim().parse::<i64>().ok()?;
+    Some(v.clamp(i64::from(i32::MIN), i64::from(i32::MAX)))
+}
+
+impl ListCounters {
+    fn enter_list(&mut self, ctx: &BuildContext<'_>, list: NodeId) {
+        let element = ctx.doc.element(list);
+        let reversed = element.is_some_and(|e| e.has_attr("reversed"));
+        let start = element
+            .and_then(|e| e.attr("start"))
+            .and_then(integer_attribute);
+        let (next, step) = if reversed {
+            let count = ctx
+                .doc
+                .element_children(list)
+                .filter(|&c| {
+                    ctx.styles
+                        .get(c)
+                        .is_some_and(|s| s.display == Display::ListItem)
+                })
+                .count();
+            (
+                start.unwrap_or(i64::try_from(count).unwrap_or(i64::MAX)),
+                -1,
+            )
+        } else {
+            (start.unwrap_or(1), 1)
+        };
+        self.scopes.push(ListScope { next, step });
+    }
+
+    fn leave_list(&mut self) {
+        self.scopes.pop();
+    }
+
+    /// The number for the next list item; `value` overrides it.
+    fn next_value(&mut self, value: Option<i64>) -> i64 {
+        if self.scopes.is_empty() {
+            self.scopes.push(ListScope { next: 1, step: 1 });
+        }
+        let scope = self.scopes.last_mut().expect("a scope exists");
+        let v = value.unwrap_or(scope.next);
+        scope.next = v.saturating_add(scope.step);
+        v
+    }
+}
+
+fn is_list_container(ctx: &BuildContext<'_>, node: NodeId) -> bool {
+    ctx.doc.element(node).is_some_and(|e| {
+        e.is_html()
+            && matches!(
+                e.local_name(),
+                &local_name!("ol")
+                    | &local_name!("ul")
+                    | &local_name!("menu")
+                    | &local_name!("dir")
+            )
+    })
+}
+
+fn build_independent(
+    ctx: &BuildContext<'_>,
+    base: BoxBase,
+    state: &mut BuildState,
+) -> IndependentBox {
+    let element = base.node.filter(|_| base.pseudo.is_none());
+    if let Some(node) = element
+        && is_replaced(ctx, node)
+    {
+        return IndependentBox {
+            contents: IndependentContents::Replaced(Replaced {
+                node,
+                natural_size: ctx.replaced.natural_size(node),
+            }),
+            base,
+            marker: None,
+        };
+    }
+    let marker = element.and_then(|n| build_marker(ctx, n, &base.style, state));
+    let contents = match base.style.display {
+        Display::Flex | Display::InlineFlex => {
+            IndependentContents::Flex(build_flex_items(ctx, &base, state))
+        }
+        _ => IndependentContents::Flow(build_block_container(ctx, &base, state)),
+    };
+    IndependentBox {
+        base,
+        contents,
+        marker,
+    }
+}
+
+fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
+    ctx.doc
+        .element(node)
+        .is_some_and(|e| e.is_html_named(&local_name!("img")))
+}
+
+/// The marker of list item `node` (an element, not a pseudo-element).
+fn build_marker(
+    ctx: &BuildContext<'_>,
+    node: NodeId,
+    style: &ComputedStyle,
+    state: &mut BuildState,
+) -> Option<Marker> {
+    if style.display != Display::ListItem {
+        return None;
+    }
+    let value = ctx
+        .doc
+        .element(node)
+        .filter(|e| e.is_html_named(&local_name!("li")))
+        .and_then(|e| e.attr("value"))
+        .and_then(integer_attribute);
+    let number = state.counters.next_value(value);
+    if style.list_style_type == ListStyleType::None && style.list_style_image.is_none() {
+        return None;
+    }
+    let marker_style = ctx.styles.pseudo(node, PseudoKind::Marker)?;
+    let text =
+        content_text(marker_style).unwrap_or_else(|| marker_text(style.list_style_type, number));
+    if text.is_empty() {
+        return None;
+    }
+    Some(Marker {
+        base: BoxBase {
+            node: Some(node),
+            pseudo: Some(PseudoKind::Marker),
+            style: Arc::clone(marker_style),
+            id: state.next_id(),
+        },
+        text,
+        outside: style.list_style_position == swb_style::ListStylePosition::Outside,
+    })
+}
+
+/// Builds the contents of a block container element (or pseudo-element).
+fn build_block_container(
+    ctx: &BuildContext<'_>,
+    base: &BoxBase,
+    state: &mut BuildState,
+) -> BlockContainer {
+    let mut builder = ContainerBuilder::new(Arc::clone(&base.style));
+    if let Some(node) = base.node
+        && base.pseudo.is_none()
+    {
+        let is_list = is_list_container(ctx, node);
+        if is_list {
+            state.counters.enter_list(ctx, node);
+        }
+        builder.push_children(ctx, node, state);
+        if is_list {
+            state.counters.leave_list();
+        }
+    } else if let Some(text) = content_text(&base.style)
+        && let Some(node) = base.node
+    {
+        builder.inline.push_text(node, &base.style, &text);
+    }
+    builder.finish(state)
+}
+
+/// Builds the children of a flex container: every in-flow child becomes a
+/// flex item; contiguous inline content is wrapped in anonymous blocks.
+/// Floats are flex items (`float` does not apply to them).
+fn build_flex_items(
+    ctx: &BuildContext<'_>,
+    base: &BoxBase,
+    state: &mut BuildState,
+) -> Vec<IndependentBox> {
+    let blocks = match build_block_container(ctx, base, state) {
+        BlockContainer::Blocks(blocks) => blocks,
+        BlockContainer::Inline(ifc) if ifc.is_empty() => Vec::new(),
+        BlockContainer::Inline(ifc) => vec![BlockLevelBox::Block {
+            base: state.anonymous(&base.style, Display::Block),
+            contents: BlockContainer::Inline(ifc),
+            marker: None,
+        }],
+    };
+    blocks
+        .into_iter()
+        .map(|b| match b {
+            BlockLevelBox::Block {
+                base,
+                contents,
+                marker,
+            } => IndependentBox {
+                base,
+                contents: IndependentContents::Flow(contents),
+                marker,
+            },
+            BlockLevelBox::Independent(ib)
+            | BlockLevelBox::Float(ib)
+            | BlockLevelBox::AbsolutelyPositioned(ib) => ib,
+        })
+        .collect()
+}
+
+/// Collects the children of one block container.
+struct ContainerBuilder {
+    style: Arc<ComputedStyle>,
+    blocks: Vec<BlockLevelBox>,
+    inline: InlineBuilder,
+    /// Inline boxes that are open at the current position.
+    open_inline_boxes: Vec<BoxBase>,
+}
+
+impl ContainerBuilder {
+    fn new(style: Arc<ComputedStyle>) -> Self {
+        ContainerBuilder {
+            style,
+            blocks: Vec::new(),
+            inline: InlineBuilder::default(),
+            open_inline_boxes: Vec::new(),
+        }
+    }
+
+    fn push_children(&mut self, ctx: &BuildContext<'_>, parent: NodeId, state: &mut BuildState) {
+        let parent_style = ctx.styles.get(parent).cloned();
+        if parent_style.is_some() {
+            self.push_pseudo(ctx, parent, PseudoKind::Before, state);
+        }
+        for child in ctx.doc.children(parent) {
+            match &ctx.doc.node(child).data {
+                NodeData::Text(text) => {
+                    if let Some(style) = &parent_style {
+                        self.inline.push_text(child, style, text);
+                    }
+                }
+                NodeData::Element(_) => self.push_element(ctx, child, state),
+                _ => {}
+            }
+        }
+        if parent_style.is_some() {
+            self.push_pseudo(ctx, parent, PseudoKind::After, state);
+        }
+    }
+
+    fn push_pseudo(
+        &mut self,
+        ctx: &BuildContext<'_>,
+        node: NodeId,
+        kind: PseudoKind,
+        state: &mut BuildState,
+    ) {
+        let Some(style) = ctx.styles.pseudo(node, kind) else {
+            return;
+        };
+        if state.depth >= MAX_BOX_DEPTH {
+            return;
+        }
+        let base = BoxBase {
+            node: Some(node),
+            pseudo: Some(kind),
+            style: Arc::clone(style),
+            id: state.next_id(),
+        };
+        state.depth += 1;
+        self.push_box(ctx, base, state);
+        state.depth -= 1;
+    }
+
+    fn push_element(&mut self, ctx: &BuildContext<'_>, node: NodeId, state: &mut BuildState) {
+        let Some(style) = ctx.styles.get(node) else {
+            return;
+        };
+        if style.display == Display::None {
+            return;
+        }
+        if state.depth >= MAX_BOX_DEPTH {
+            self.push_flattened(ctx, node, state);
+            return;
+        }
+        state.depth += 1;
+        if style.display == Display::Contents {
+            self.push_children(ctx, node, state);
+        } else if ctx
+            .doc
+            .element(node)
+            .is_some_and(|e| e.is_html_named(&local_name!("br")))
+        {
+            self.inline.push(RawItem::LineBreak);
+        } else {
+            let base = state.numbered(ctx.element_base(node, style));
+            self.push_box(ctx, base, state);
+        }
+        state.depth -= 1;
+    }
+
+    /// Adds the text and line breaks of the subtree of `root` as inline
+    /// content of this container, without boxes. Used below
+    /// [`MAX_BOX_DEPTH`]; iterative, so that the depth of the subtree does
+    /// not matter.
+    fn push_flattened(&mut self, ctx: &BuildContext<'_>, root: NodeId, state: &mut BuildState) {
+        if !state.flattened {
+            state.flattened = true;
+            log::warn!("boxes nested deeper than {MAX_BOX_DEPTH} levels; flattening the content");
+        }
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            match &ctx.doc.node(node).data {
+                NodeData::Text(text) => {
+                    if let Some(style) = ctx.doc.parent(node).and_then(|p| ctx.styles.get(p)) {
+                        self.inline.push_text(node, style, text);
+                    }
+                }
+                NodeData::Element(element) => {
+                    if ctx
+                        .styles
+                        .get(node)
+                        .is_none_or(|s| s.display == Display::None)
+                    {
+                        continue;
+                    }
+                    if element.is_html_named(&local_name!("br")) {
+                        self.inline.push(RawItem::LineBreak);
+                        continue;
+                    }
+                    let first = stack.len();
+                    stack.extend(ctx.doc.children(node));
+                    stack[first..].reverse();
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Adds the box of an element or pseudo-element.
+    fn push_box(&mut self, ctx: &BuildContext<'_>, base: BoxBase, state: &mut BuildState) {
+        let style = Arc::clone(&base.style);
+        if style.is_absolutely_positioned() {
+            let inner = build_independent(ctx, base, state);
+            if self.inline.has_content() {
+                self.inline.push(RawItem::AbsolutelyPositioned(inner));
+            } else {
+                self.blocks.push(BlockLevelBox::AbsolutelyPositioned(inner));
+            }
+            return;
+        }
+        if style.is_floating() {
+            let inner = build_independent(ctx, base, state);
+            if self.inline.has_content() {
+                self.inline.push(RawItem::Float(inner));
+            } else {
+                self.flush_inline(state);
+                self.blocks.push(BlockLevelBox::Float(inner));
+            }
+            return;
+        }
+        let replaced = base
+            .node
+            .is_some_and(|n| base.pseudo.is_none() && is_replaced(ctx, n));
+        if style.display == Display::Inline && !replaced {
+            self.inline.push(RawItem::StartBox {
+                base: base.clone(),
+                continued: false,
+            });
+            self.open_inline_boxes.push(base.clone());
+            if base.pseudo.is_some() {
+                if let (Some(text), Some(node)) = (content_text(&style), base.node) {
+                    self.inline.push_text(node, &style, &text);
+                }
+            } else if let Some(node) = base.node {
+                self.push_children(ctx, node, state);
+            }
+            self.open_inline_boxes.pop();
+            self.inline.push(RawItem::EndBox { split: false });
+            return;
+        }
+        if style.display.is_inline_level() {
+            let inner = build_independent(ctx, base, state);
+            self.inline.push(RawItem::Atomic(inner));
+            return;
+        }
+        // A block-level box.
+        let block = build_block_level(ctx, base, state);
+        self.push_block(block, state);
+    }
+
+    /// Adds a block-level box, splitting open inline boxes around it.
+    fn push_block(&mut self, block: BlockLevelBox, state: &mut BuildState) {
+        let open = self.open_inline_boxes.clone();
+        for _ in &open {
+            self.inline.push(RawItem::EndBox { split: true });
+        }
+        self.flush_inline(state);
+        self.blocks.push(block);
+        for base in open {
+            self.inline.push(RawItem::StartBox {
+                base,
+                continued: true,
+            });
+        }
+    }
+
+    /// Wraps the pending inline content in an anonymous block, if it has
+    /// any content.
+    fn flush_inline(&mut self, state: &mut BuildState) {
+        let inline = std::mem::take(&mut self.inline);
+        let ifc = inline.finish(state);
+        if ifc.is_empty() {
+            // Out-of-flow boxes inside whitespace-only inline content still
+            // need a place in the tree.
+            for item in ifc.items {
+                match item {
+                    InlineItem::Float(b) => self.blocks.push(BlockLevelBox::Float(b)),
+                    InlineItem::AbsolutelyPositioned(b) => {
+                        self.blocks.push(BlockLevelBox::AbsolutelyPositioned(b));
+                    }
+                    _ => {}
+                }
+            }
+        } else {
+            self.blocks.push(BlockLevelBox::Block {
+                base: state.anonymous(&self.style, Display::Block),
+                contents: BlockContainer::Inline(ifc),
+                marker: None,
+            });
+        }
+    }
+
+    fn finish(mut self, state: &mut BuildState) -> BlockContainer {
+        if self.blocks.is_empty() {
+            return BlockContainer::Inline(std::mem::take(&mut self.inline).finish(state));
+        }
+        self.flush_inline(state);
+        BlockContainer::Blocks(self.blocks)
+    }
+}
+
+fn build_block_level(
+    ctx: &BuildContext<'_>,
+    base: BoxBase,
+    state: &mut BuildState,
+) -> BlockLevelBox {
+    let style = &base.style;
+    let establishes_bfc = !matches!(style.display, Display::Block | Display::ListItem)
+        || style.overflow_x.is_scroll_container()
+        || style.overflow_y.is_scroll_container()
+        || base
+            .node
+            .is_some_and(|n| base.pseudo.is_none() && is_replaced(ctx, n));
+    if establishes_bfc {
+        return BlockLevelBox::Independent(build_independent(ctx, base, state));
+    }
+    let marker = base
+        .node
+        .filter(|_| base.pseudo.is_none())
+        .and_then(|n| build_marker(ctx, n, &base.style, state));
+    let contents = build_block_container(ctx, &base, state);
+    BlockLevelBox::Block {
+        base,
+        contents,
+        marker,
+    }
+}
+
+/// Inline content before white-space processing.
+#[derive(Default)]
+struct InlineBuilder {
+    items: Vec<RawItem>,
+    /// True once an item other than collapsible white space or an inline
+    /// box marker was pushed (kept up to date so the check is O(1)).
+    has_content: bool,
+}
+
+enum RawItem {
+    StartBox {
+        base: BoxBase,
+        continued: bool,
+    },
+    EndBox {
+        split: bool,
+    },
+    Text {
+        node: NodeId,
+        style: Arc<ComputedStyle>,
+        text: String,
+    },
+    Atomic(IndependentBox),
+    LineBreak,
+    Float(IndependentBox),
+    AbsolutelyPositioned(IndependentBox),
+}
+
+/// True for the characters that white-space processing treats as
+/// collapsible white space (CSS Text 3 §4.1.1, plus form feed and carriage
+/// return as in Chromium).
+fn is_collapsible_space(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0C')
+}
+
+impl InlineBuilder {
+    fn push_text(&mut self, node: NodeId, style: &Arc<ComputedStyle>, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        self.push(RawItem::Text {
+            node,
+            style: Arc::clone(style),
+            text: text.to_owned(),
+        });
+    }
+
+    fn push(&mut self, item: RawItem) {
+        let content = match &item {
+            RawItem::Text { style, text, .. } => {
+                !style.white_space.collapses_spaces() || !text.chars().all(is_collapsible_space)
+            }
+            RawItem::StartBox { .. } | RawItem::EndBox { .. } => false,
+            _ => true,
+        };
+        self.has_content |= content;
+        self.items.push(item);
+    }
+
+    /// True if there is anything other than collapsible white space.
+    fn has_content(&self) -> bool {
+        self.has_content
+    }
+
+    /// Performs white-space processing and produces the final context.
+    fn finish(self, state: &mut BuildState) -> InlineFormattingContext {
+        let mut ifc = InlineFormattingContext {
+            id: state.next_id(),
+            ..InlineFormattingContext::default()
+        };
+        // True if the last character emitted was a collapsible space (or we
+        // are at the start), so that the next collapsible space is removed.
+        let mut after_space = true;
+        for item in self.items {
+            match item {
+                RawItem::StartBox { base, continued } => {
+                    ifc.items.push(InlineItem::StartBox { base, continued });
+                }
+                RawItem::EndBox { split } => ifc.items.push(InlineItem::EndBox { split }),
+                RawItem::Text { node, style, text } => {
+                    process_text(&mut ifc, node, &style, &text, &mut after_space);
+                }
+                RawItem::Atomic(inner) => {
+                    let offset = ifc.text.len();
+                    ifc.text.push('\u{FFFC}');
+                    ifc.items.push(InlineItem::Atomic { inner, offset });
+                    after_space = false;
+                }
+                RawItem::LineBreak => {
+                    ifc.items.push(InlineItem::LineBreak);
+                    after_space = true;
+                }
+                RawItem::Float(b) => ifc.items.push(InlineItem::Float(b)),
+                RawItem::AbsolutelyPositioned(b) => {
+                    ifc.items.push(InlineItem::AbsolutelyPositioned(b));
+                }
+            }
+        }
+        ifc
+    }
+}
+
+/// White-space processing for one text item (CSS Text 3 §4.1.1), followed
+/// by `text-transform`. Appends text items (and line breaks for preserved
+/// newlines) to `ifc`.
+fn process_text(
+    ifc: &mut InlineFormattingContext,
+    node: NodeId,
+    style: &Arc<ComputedStyle>,
+    text: &str,
+    after_space: &mut bool,
+) {
+    let ws = style.white_space;
+    let mut start = ifc.text.len();
+    // Ends a segment of text (up to a preserved newline or the end): applies
+    // `text-transform` and adds the text item.
+    let finish_segment = |ifc: &mut InlineFormattingContext, start: usize| {
+        if ifc.text.len() <= start {
+            return;
+        }
+        if style.text_transform != TextTransform::None {
+            let previous = previous_char(ifc, start);
+            let transformed =
+                apply_text_transform(&ifc.text[start..], style.text_transform, previous);
+            ifc.text.truncate(start);
+            ifc.text.push_str(&transformed);
+        }
+        ifc.items.push(InlineItem::Text {
+            node,
+            style: Arc::clone(style),
+            range: start..ifc.text.len(),
+        });
+    };
+
+    if ws.collapses_spaces() {
+        // Remove spaces and tabs around newlines first (they are
+        // "collapsible spaces immediately preceding or following a segment
+        // break").
+        let normalized = normalize_segment_breaks(text);
+        for c in normalized.chars() {
+            match c {
+                '\n' if ws == WhiteSpace::PreLine => {
+                    finish_segment(ifc, start);
+                    ifc.items.push(InlineItem::LineBreak);
+                    start = ifc.text.len();
+                    *after_space = true;
+                }
+                c if is_collapsible_space(c) => {
+                    if !*after_space {
+                        ifc.text.push(' ');
+                        *after_space = true;
+                    }
+                }
+                c => {
+                    ifc.text.push(c);
+                    *after_space = false;
+                }
+            }
+        }
+    } else {
+        for c in text.chars() {
+            match c {
+                '\n' => {
+                    finish_segment(ifc, start);
+                    ifc.items.push(InlineItem::LineBreak);
+                    start = ifc.text.len();
+                }
+                '\r' => {}
+                c => ifc.text.push(c),
+            }
+        }
+        *after_space = false;
+    }
+    finish_segment(ifc, start);
+}
+
+/// The character before text offset `start` (where a new text item
+/// begins), for word boundaries across elements; `None` after a forced line
+/// break, which always ends a word.
+fn previous_char(ifc: &InlineFormattingContext, start: usize) -> Option<char> {
+    for item in ifc.items.iter().rev() {
+        match item {
+            InlineItem::LineBreak => return None,
+            InlineItem::Text { .. } | InlineItem::Atomic { .. } => break,
+            _ => {}
+        }
+    }
+    ifc.text[..start].chars().next_back()
+}
+
+/// Converts CR LF and CR to LF and removes spaces and tabs adjacent to
+/// newlines.
+fn normalize_segment_breaks(text: &str) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut out = String::with_capacity(text.len());
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        let mut line = line;
+        if i > 0 {
+            line = line.trim_start_matches([' ', '\t']);
+        }
+        out.push_str(line);
+    }
+    // Trailing spaces before each newline.
+    let mut result = String::with_capacity(out.len());
+    let mut pending = String::new();
+    for c in out.chars() {
+        match c {
+            ' ' | '\t' => pending.push(c),
+            '\n' => {
+                pending.clear();
+                result.push('\n');
+            }
+            c => {
+                result.push_str(&pending);
+                pending.clear();
+                result.push(c);
+            }
+        }
+    }
+    result.push_str(&pending);
+    result
+}
+
+/// Applies `text-transform` to `text`. `previous` is the character before
+/// the text in the inline formatting context; `capitalize` does not start
+/// a word if the text continues a word.
+fn apply_text_transform(text: &str, transform: TextTransform, previous: Option<char>) -> String {
+    match transform {
+        TextTransform::Uppercase => text.to_uppercase(),
+        TextTransform::Lowercase => text.to_lowercase(),
+        TextTransform::Capitalize => capitalize(text, previous),
+        TextTransform::None | TextTransform::FullWidth => text.to_owned(),
+    }
+}
+
+/// Puts the first letter of each word in uppercase (CSS Text 3 §2.1).
+/// Words are found with the word boundaries of UAX #29. A word that starts
+/// at the beginning of `text` and directly follows a letter or digit
+/// (`previous`) continues a word of a preceding element and is not changed.
+fn capitalize(text: &str, previous: Option<char>) -> String {
+    let continues_word = previous.is_some_and(char::is_alphanumeric);
+    let mut out = String::with_capacity(text.len());
+    for (offset, segment) in text.split_word_bound_indices() {
+        let mut chars = segment.chars();
+        match chars.next() {
+            Some(first) if first.is_alphabetic() && !(offset == 0 && continues_word) => {
+                out.extend(first.to_uppercase());
+                out.push_str(chars.as_str());
+            }
+            _ => out.push_str(segment),
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn segment_break_normalization() {
+        assert_eq!(normalize_segment_breaks("a  \n  b"), "a\nb");
+        assert_eq!(normalize_segment_breaks("a\r\nb\rc"), "a\nb\nc");
+        assert_eq!(normalize_segment_breaks("  a  "), "  a  ");
+    }
+
+    #[test]
+    fn capitalize_words() {
+        assert_eq!(capitalize("hello big-world", None), "Hello Big-World");
+        assert_eq!(capitalize("(hello) \"quoted\"", None), "(Hello) \"Quoted\"");
+        assert_eq!(capitalize("don't 3rd", None), "Don't 3rd");
+        // A word that continues across an element boundary.
+        assert_eq!(capitalize("bar baz", Some('o')), "bar Baz");
+        assert_eq!(capitalize("bar", Some(' ')), "Bar");
+    }
+
+    fn layout_text(html: &str) -> String {
+        let l = crate::test_support::layout_html(html);
+        l.texts().into_iter().map(|(_, t)| t).collect()
+    }
+
+    #[test]
+    fn text_transform_applies_to_every_preserved_line() {
+        let text = layout_text(
+            "<pre style='text-transform:uppercase'>abc\ndef</pre>\
+             <div style='white-space:pre-line; text-transform:uppercase'>ghi\njkl</div>",
+        );
+        assert_eq!(text, "ABCDEFGHIJKL");
+    }
+
+    #[test]
+    fn capitalize_continues_words_across_elements() {
+        let text = layout_text(
+            "<p style='text-transform:capitalize'>foo<b>bar</b> (hello) <i>x</i>y<br>z</p>",
+        );
+        assert_eq!(text, "Foobar (Hello) XyZ");
+    }
+
+    #[test]
+    fn list_counter_saturates() {
+        let mut counters = ListCounters::default();
+        assert_eq!(counters.next_value(Some(i64::MAX)), i64::MAX);
+        assert_eq!(counters.next_value(None), i64::MAX);
+        assert_eq!(
+            integer_attribute(" 99999999999 "),
+            Some(i64::from(i32::MAX))
+        );
+        assert_eq!(integer_attribute("x"), None);
+    }
+}

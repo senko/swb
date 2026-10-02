@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- List markers: a list item without line boxes still gets a line for
+     its marker; an empty first child does not take the marker; nested
+     list items share the first line. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>List marker placement</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  ul { margin: 0 0 10px; }
+</style>
+</head>
+<body>
+  <ul><li></li></ul>
+  <ul><li><div></div></li></ul>
+  <ul><li><div></div><div>text</div></li></ul>
+  <ul><li><div style="display: flex; height: 40px; align-items: flex-end">flex</div></li></ul>
+  <ul><li><div style="overflow: hidden; padding-top: 10px">overflow</div><div>second</div></li></ul>
+  <ul><li><ul><li>nested</li></ul></li></ul>
+  <ul><li><div style="height: 5px"></div></li></ul>
+</body>
+</html>

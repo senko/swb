@@ -1,0 +1,107 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/senko/swb"
+publish = false
+
+[workspace.dependencies]
+# Internal crates.
+swb-automation = { path = "crates/automation" }
+swb-css = { path = "crates/css" }
+swb-dom = { path = "crates/dom" }
+swb-engine = { path = "crates/engine" }
+swb-layout = { path = "crates/layout" }
+swb-net = { path = "crates/net" }
+swb-paint = { path = "crates/paint" }
+swb-style = { path = "crates/style" }
+swb-text = { path = "crates/text" }
+
+# Shared by several crates.
+anyhow = "1"
+bitflags = "2"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+smallvec = { version = "1", features = ["union", "const_generics"] }
+thiserror = "2"
+url = "2.5"
+
+# Tests only.
+similar = "2"
+
+# net
+brotli-decompressor = "6"
+flate2 = "1"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls-native-certs = "0.8"
+sha2 = "0.11"
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider"] }
+
+# dom
+encoding_rs = "0.8"
+html5ever = "0.40"
+markup5ever = "0.40"
+
+# css
+
+# text
+# harfrust and skrifa must use the same read-fonts version (see ADR 0006).
+fontconfig = { version = "0.11", features = ["dlopen"] }
+harfrust = "0.13"
+skrifa = "0.46"
+unicode-linebreak = "0.1"
+unicode-normalization = "0.1"
+unicode-segmentation = "1"
+
+# paint
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }
+tiny-skia = "0.12"
+
+# swb (binary)
+clap = { version = "4", features = ["derive"] }
+env_logger = "0.11"
+softbuffer = "0.4"
+winit = "0.30"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Pedantic lints that cost more than they give in this codebase.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+similar_names = "allow"
+float_cmp = "allow"
+struct_excessive_bools = "allow"
+# Restriction lints we want: content from the network must not cause panics.
+unwrap_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
+
+[profile.dev]
+# Layout and rasterization are too slow without optimizations; keep debug
+# info but optimize dependencies.
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+debug = "line-tables-only"

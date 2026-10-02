@@ -1,0 +1,21 @@
+{
+  "url": "tests/layout/block-collapse-through.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 94.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 78.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 10.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 28.0, 784.0, 0.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 28.0, 784.0, 10.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 38.0, 784.0, 1.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 51.0, 784.0, 0.0], "parent": 9},
+    {"tag": "div", "rect": [8.0, 51.0, 784.0, 10.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 61.0, 784.0, 15.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 74.0, 784.0, 0.0], "parent": 12},
+    {"tag": "div", "rect": [8.0, 76.0, 784.0, 10.0], "parent": 5}
+  ]
+}

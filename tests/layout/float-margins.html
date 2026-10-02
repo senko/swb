@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Floats: the margins of left and right floats offset them. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Float margins</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .container { width: 400px; height: 60px; background: #eee; }
+  .float { width: 100px; height: 10px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="float" style="float: right; margin-left: 50px; margin-right: 20px"></div>
+    <div class="float" style="float: left; margin-top: 20px; margin-left: 10px"></div>
+  </div>
+</body>
+</html>

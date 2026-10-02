@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Flexbox: the container's min-height applies to flexing (column) and to
+     the cross size of a single line (row). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flex container min-height</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .col { display: flex; flex-direction: column; min-height: 200px; background: #eee; }
+  .row { display: flex; min-height: 100px; align-items: center; background: #ddd; }
+  .stretch { display: flex; min-height: 60px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="col"><div style="flex: 1">main</div><div>footer</div></div>
+  <div class="row"><div>centered</div></div>
+  <div class="stretch"><div>stretched</div></div>
+</body>
+</html>

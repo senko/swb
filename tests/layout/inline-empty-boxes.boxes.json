@@ -1,0 +1,23 @@
+{
+  "url": "tests/layout/inline-empty-boxes.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 96.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 80.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 0.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 0.0, 0.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 0.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 0.0, 0.0], "parent": 8},
+    {"tag": "b", "rect": [8.0, 8.0, 0.0, 0.0], "parent": 8},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 4.0, 10.0, 27.0], "parent": 11},
+    {"tag": "p", "rect": [8.0, 28.0, 784.0, 20.0], "parent": 11},
+    {"tag": "div", "rect": [8.0, 48.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 44.0, 10.0, 27.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 68.0, 784.0, 20.0], "parent": 5}
+  ]
+}

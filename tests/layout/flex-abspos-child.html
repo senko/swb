@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- Flexbox: an absolutely positioned child of a flex container. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolutely positioned flex child</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .flex { display: flex; position: relative; width: 300px; height: 50px; background: #eee; }
+  .abs { position: absolute; right: 0; top: 0; width: 20px; height: 20px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="flex"><div>item</div><span class="abs"></span></div>
+</body>
+</html>

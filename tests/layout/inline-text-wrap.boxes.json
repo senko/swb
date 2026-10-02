@@ -1,0 +1,22 @@
+{
+  "url": "tests/layout/inline-text-wrap.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 298.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 278.0], "parent": 0},
+    {"tag": "p", "rect": [8.0, 8.0, 300.0, 54.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 74.0, 300.0, 54.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 74.0, 289.95, 35.0], "parent": 7},
+    {"tag": "p", "rect": [8.0, 140.0, 300.0, 54.0], "parent": 5},
+    {"tag": "b", "rect": [115.48, 143.0, 85.53, 20.0], "parent": 9},
+    {"tag": "i", "rect": [210.02, 143.0, 84.84, 20.0], "parent": 9},
+    {"tag": "a", "rect": [38.5, 170.0, 207.45, 20.0], "parent": 9},
+    {"tag": "p", "rect": [8.0, 206.0, 300.0, 32.0], "parent": 5},
+    {"tag": "span", "rect": [55.13, 206.0, 37.38, 31.0], "parent": 13},
+    {"tag": "p", "rect": [8.0, 250.0, 80.0, 36.0], "parent": 5}
+  ]
+}

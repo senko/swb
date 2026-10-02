@@ -1,0 +1,15 @@
+{
+  "url": "tests/layout/nowrap-atomic-inlines.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 36.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 20.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 50.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 13.0, 40.0, 10.0], "parent": 6},
+    {"tag": "span", "rect": [48.0, 13.0, 40.0, 10.0], "parent": 6}
+  ]
+}

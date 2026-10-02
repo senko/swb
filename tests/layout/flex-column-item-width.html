@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Flexbox column: an item with a definite width keeps it, with
+     align-items stretch and center. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flex column item width</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .col { display: flex; flex-direction: column; width: 600px; background: #eee; }
+  .center { align-items: center; }
+  .fixed { width: 200px; height: 20px; background: #ccc; }
+  .text { background: #ddd; }
+</style>
+</head>
+<body>
+  <div class="col">
+    <div class="fixed"></div>
+    <div class="text">Auto width stretches</div>
+  </div>
+  <div class="col center">
+    <div class="fixed"></div>
+    <div class="text">Centered text</div>
+  </div>
+</body>
+</html>

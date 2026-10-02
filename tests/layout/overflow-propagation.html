@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Overflow (CSS Overflow 3 §3.3): the body's overflow applies to the
+     viewport, and the body's used overflow is visible, so the body does
+     not establish a formatting context and margins collapse through it. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Overflow propagation</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  body { overflow: hidden; }
+  p { margin: 20px 0; }
+</style>
+</head>
+<body>
+  <p>The paragraph's top margin collapses with the body's.</p>
+  <div style="height: 30px; background: #eee"></div>
+</body>
+</html>

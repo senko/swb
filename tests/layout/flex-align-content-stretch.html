@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- Flexbox: align-content: normal (stretch) grows the lines of a
+     multi-line container, and the items stretch with them. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flex align-content stretch</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .wrap { display: flex; flex-wrap: wrap; width: 200px; height: 300px; background: #eee; }
+  .wrap > div { width: 100px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="wrap"><div>a</div><div>b</div><div>c</div><div>d</div></div>
+  <div class="wrap" style="height: 100px"><div>e</div></div>
+</body>
+</html>

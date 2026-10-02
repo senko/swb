@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Block widths (CSS 2.2 §10.3.3): auto margins center a box; if the box is
+     wider than its container, auto margins are zero. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Block auto margins</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .outer { width: 200px; background: #eee; }
+  .outer > div { height: 10px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div style="width: 100px; margin: 0 auto"></div>
+    <div style="width: 100px; margin-left: auto"></div>
+    <div style="width: 300px; margin-left: auto; margin-right: 0"></div>
+    <div style="width: 300px; margin: 0 auto"></div>
+  </div>
+</body>
+</html>

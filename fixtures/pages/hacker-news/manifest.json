@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://news.ycombinator.com/",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=utf-8"
+        ]
+      ],
+      "body": "files/8e8eec10c3f22bf2.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://news.ycombinator.com/news.css?js7ZHmmYC9ZEXQYX3bYv",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css; charset=utf-8"
+        ]
+      ],
+      "body": "files/de4722818cb6e785.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://news.ycombinator.com/s.gif",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/gif"
+        ]
+      ],
+      "body": "files/2dfe28cbdb83f01c.gif"
+    },
+    {
+      "method": "GET",
+      "url": "https://news.ycombinator.com/triangle.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/3e155f895282e786.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://news.ycombinator.com/y18.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/e1b6622b6ea15f1f.svg"
+    }
+  ]
+}

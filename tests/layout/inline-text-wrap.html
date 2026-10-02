@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Inline layout: line breaking in a fixed-width block, inline elements
+     that split across lines, mixed font sizes on one line, and a word that
+     is wider than the line. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline text wrapping</title>
+<style>
+  body { margin: 8px; font: 16px sans-serif; }
+  p { width: 300px; margin: 0 0 12px; }
+  .serif { font-family: serif; font-size: 18px; line-height: 1.5; }
+  .big { font-size: 28px; }
+  .narrow { width: 80px; }
+  b { font-weight: bold; }
+</style>
+</head>
+<body>
+  <p>The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.</p>
+  <p>Some text with <span>an inline span that is long enough to wrap onto the next line</span> and then more text.</p>
+  <p class="serif">Serif text with <b>bold words</b>, <i>italic words</i> and <a href="#x">a link that wraps across lines</a>.</p>
+  <p>Mixed <span class="big">big</span> and small text on one line.</p>
+  <p class="narrow">Supercalifragilisticexpialidocious word.</p>
+</body>
+</html>

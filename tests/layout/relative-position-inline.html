@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Relative positioning (CSS 2.2 §9.4.3) of inline boxes and atomic
+     inlines: the box moves; the line does not change. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Relative positioning of inline boxes</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .rel { position: relative; top: 10px; left: 5px; }
+  .ib { display: inline-block; position: relative; bottom: 4px; width: 30px; height: 10px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div>before <span class="rel">moved <b>bold</b></span> after</div>
+  <div>before <span class="ib"></span> after</div>
+  <div style="width: 120px">a long <span class="rel">inline box that wraps</span> end</div>
+</body>
+</html>

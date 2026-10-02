@@ -1,0 +1,19 @@
+{
+  "url": "tests/layout/relative-position-inline.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 96.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 80.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [62.81, 19.0, 86.23, 17.0], "parent": 6},
+    {"tag": "b", "rect": [115.28, 19.0, 33.77, 17.0], "parent": 7},
+    {"tag": "div", "rect": [8.0, 28.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [57.81, 29.0, 30.0, 10.0], "parent": 9},
+    {"tag": "div", "rect": [8.0, 48.0, 120.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [13.0, 59.0, 115.66, 37.0], "parent": 11}
+  ]
+}

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Inline layout: a scroll container (overflow hidden) as the last child of
+     an inline-block gives the inline-block's baseline at its bottom edge;
+     overflow: clip is not a scroll container, so its line boxes count. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline-block baseline with scroll containers</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .ib { display: inline-block; background: #ddd; }
+</style>
+</head>
+<body>
+  <div><span class="ib">a<div style="overflow: hidden; height: 40px">b</div></span><span>after</span></div>
+  <div><span class="ib" style="overflow: clip">c<div>d</div></span><span>after</span></div>
+  <div><span class="ib">e<div style="overflow: clip">f</div></span><span>after</span></div>
+  <div><span class="ib">g<div style="overflow: hidden; margin-bottom: 10px">h</div></span><span>after</span></div>
+</body>
+</html>

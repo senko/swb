@@ -1,0 +1,18 @@
+{
+  "url": "tests/layout/vertical-align-top-bottom.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 56.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 40.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 10.0, 10.0], "parent": 6},
+    {"tag": "span", "rect": [44.69, 18.0, 10.0, 10.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 28.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 32.0, 13.91, 11.0], "parent": 9},
+    {"tag": "span", "rect": [48.59, 32.0, 30.58, 11.0], "parent": 9}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "url": "tests/layout/vertical-align-shift.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 146.11], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 130.11], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 30.52], "parent": 5},
+    {"tag": "sub", "rect": [16.0, 20.52, 7.42, 15.0], "parent": 6},
+    {"tag": "sup", "rect": [31.42, 10.0, 7.42, 15.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 38.52, 784.0, 36.0], "parent": 5},
+    {"tag": "span", "rect": [23.0, 63.52, 5.56, 11.0], "parent": 9},
+    {"tag": "span", "rect": [43.56, 45.52, 5.56, 11.0], "parent": 9},
+    {"tag": "div", "rect": [8.0, 74.52, 784.0, 34.0], "parent": 5},
+    {"tag": "span", "rect": [16.0, 74.52, 8.91, 17.0], "parent": 12},
+    {"tag": "span", "rect": [24.91, 90.52, 3.56, 17.0], "parent": 12},
+    {"tag": "div", "rect": [8.0, 108.52, 784.0, 29.59], "parent": 5},
+    {"tag": "sub", "rect": [15.23, 122.11, 6.03, 12.0], "parent": 15},
+    {"tag": "sup", "rect": [27.77, 113.19, 6.03, 12.0], "parent": 15},
+    {"tag": "span", "rect": [33.8, 110.52, 7.23, 15.0], "parent": 15}
+  ]
+}

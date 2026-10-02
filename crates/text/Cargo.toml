@@ -1,0 +1,25 @@
+[package]
+name = "swb-text"
+description = "Fonts, font fallback, text shaping and glyph rasterization."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+harfrust.workspace = true
+log.workspace = true
+skrifa.workspace = true
+thiserror.workspace = true
+tiny-skia.workspace = true
+unicode-linebreak.workspace = true
+unicode-normalization.workspace = true
+unicode-segmentation.workspace = true
+
+[target.'cfg(all(unix, not(any(target_vendor = "apple", target_os = "android"))))'.dependencies]
+fontconfig.workspace = true

@@ -1,0 +1,18 @@
+{
+  "url": "tests/layout/flex-replaced-item.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 66.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 50.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 600.0, 20.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 8.0, 40.0, 20.0], "parent": 6},
+    {"tag": "span", "rect": [48.0, 8.0, 29.64, 20.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 28.0, 600.0, 30.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 28.0, 60.0, 30.0], "parent": 9},
+    {"tag": "span", "rect": [68.0, 33.0, 29.64, 20.0], "parent": 9}
+  ]
+}

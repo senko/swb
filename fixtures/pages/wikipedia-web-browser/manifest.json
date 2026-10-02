@@ -1,0 +1,321 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://auth.wikimedia.org/metawiki/wiki/Special:CentralAutoLogin/checkLoggedIn?useformat=desktop&wikiid=enwiki&usesul3=1&type=1x1",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/fe67e12a6497f851.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/static/images/footer/wikimedia-button.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/0c2aa872dd39b943.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/static/images/icons/enwiki-25.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/095fb188212ac254.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-tagline-en-25.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/400508c091b4e9cd.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-en-25.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/169241aebac0b122.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?lang=en&modules=ext.cite.parsoid.styles%7Cext.cite.styles%7Cext.tmh.player.styles%7Cext.uls.interlanguage%7Cext.visualEditor.desktopArticleTarget.noscript%7Cext.wikimediamessages.styles%7Cjquery.makeCollapsible.styles%7Cjquery.tablesorter.styles%7Cmediawiki.skinning.content.parsoid%7Cskins.vector.icons%2Cstyles%7Cskins.vector.search.codex.styles%7Cwikibase.client.init&only=styles&skin=vector-2022",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css; charset=utf-8"
+        ]
+      ],
+      "body": "files/54eaa11ea56e20f7.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?lang=en&modules=site.styles&only=styles&skin=vector-2022",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css; charset=utf-8"
+        ]
+      ],
+      "body": "files/3f439934c51c220c.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?modules=skins.vector.icons&image=language&variant=progressive&format=original&lang=en&skin=vector-2022&version=2i5by",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/b665bdf3802a0410.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?modules=skins.vector.icons&image=menu&format=original&lang=en&skin=vector-2022&version=2i5by",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/f95bdd835f49a42d.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?modules=skins.vector.icons&image=verticalEllipsis&format=original&lang=en&skin=vector-2022&version=2i5by",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/38fc8ec3eda14fdf.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/resources/assets/poweredby_mediawiki.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/75444929595b7c40.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/resources/src/mediawiki.skinning/images/magnify-clip-ltr.svg?8330e",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/78f5ef3e585b3073.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/skins/Vector/resources/skins.vector.styles/images/arrow-down-progressive.svg?5cd6d",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/57e3ab07391cd97b.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/w/skins/Vector/resources/skins.vector.styles/images/link-external-small-ltr-progressive.svg?fb64d",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/b324430a72a978ff.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/wiki/Special:CentralAutoLogin/start?useformat=desktop&type=1x1&usesul3=1",
+      "status": 302,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ],
+        [
+          "location",
+          "https://auth.wikimedia.org/metawiki/wiki/Special:CentralAutoLogin/checkLoggedIn?useformat=desktop&wikiid=enwiki&usesul3=1&type=1x1"
+        ]
+      ],
+      "body": "files/e3b0c44298fc1c14.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://en.wikipedia.org/wiki/Web_browser",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/e21b21467da0d04c.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Wikiversity_logo_2017.svg/40px-Wikiversity_logo_2017.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/32e9640dfbe916ab.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Chromium_%28web_browser%29.png/250px-Chromium_%28web_browser%29.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/ed3845fd92910d7e.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Safari_15.png/250px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/58d9457b4d2e38e0.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Web_browser_demo.webm/250px--Web_browser_demo.webm.jpg?utm_source=en.wikipedia.org&utm_campaign=parser",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/31ef41e66856f463.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Crystal_Clear_app_linneighborhood.svg/40px-Crystal_Clear_app_linneighborhood.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/30d089dbd48994eb.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/1/1b/Semi-protection-shackle.svg/20px-Semi-protection-shackle.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/a2b3470d4280cd04.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/4/4a/Commons-logo.svg/20px-Commons-logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/4fe97a6c6b6f3e78.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/659912e3ebc4dd65.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/65/Lock-green.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/494500174898f04b.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Lock-gray-alt-2.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/05f4643b05b10111.svg"
+    }
+  ]
+}

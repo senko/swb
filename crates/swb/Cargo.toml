@@ -1,0 +1,29 @@
+[package]
+name = "swb"
+description = "The swb web browser."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+log.workspace = true
+softbuffer.workspace = true
+swb-dom.workspace = true
+swb-engine.workspace = true
+swb-layout.workspace = true
+swb-net.workspace = true
+swb-paint.workspace = true
+swb-style.workspace = true
+swb-text.workspace = true
+tiny-skia.workspace = true
+winit.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- List markers: an inside marker is part of the first line, so its width
+     counts in line breaking. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inside list markers and line breaking</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  ul, ol { list-style-position: inside; padding: 0; margin: 0; width: 70px; }
+</style>
+</head>
+<body>
+  <ul><li><span>aaaa</span> <span>bbbb</span></li></ul>
+  <ol><li><span>aaaa</span> <span>bbbb</span></li></ol>
+</body>
+</html>

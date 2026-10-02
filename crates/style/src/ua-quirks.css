@@ -1,0 +1,34 @@
+/*
+ * User-agent rules that apply only in quirks mode.
+ *
+ * From the HTML Living Standard, section 15 "Rendering" (the "In quirks
+ * mode, the following rules are also expected to apply" blocks):
+ * https://html.spec.whatwg.org/multipage/rendering.html
+ * Copyright WHATWG (Apple, Google, Mozilla, Microsoft). Licensed under the
+ * Creative Commons Attribution 4.0 International License:
+ * https://creativecommons.org/licenses/by/4.0/
+ *
+ * Changes: tables inherit `color` (Chromium's `-internal-quirk-inherit`
+ * behaves as `inherit`), where the specification uses the body's color.
+ */
+
+form { margin-block-end: 1em; }
+
+li { list-style-position: inside; }
+li :is(dir, menu, ol, ul) { list-style-position: outside; }
+:is(dir, menu, ol, ul) :is(dir, menu, ol, ul, li) { list-style-position: unset; }
+
+table {
+  font-weight: initial;
+  font-style: initial;
+  font-variant: initial;
+  font-size: initial;
+  line-height: initial;
+  white-space: initial;
+  text-align: initial;
+}
+
+input:not([type=image i]), textarea { box-sizing: border-box; }
+
+img[align=left i] { margin-right: 3px; }
+img[align=right i] { margin-left: 3px; }

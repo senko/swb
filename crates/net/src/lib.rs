@@ -1,0 +1,43 @@
+//! Resource loading: `http`, `https`, `file`, `data` and `about` URLs, and
+//! replay from fixtures.
+//!
+//! The central abstraction is the [`Fetcher`] trait: one request, one
+//! response, no redirects. Implementations:
+//!
+//! - [`NetworkFetcher`]: the real network (HTTP and HTTPS through `ureq`
+//!   and `rustls`), local files, `data:` and `about:blank`.
+//! - [`ReplayFetcher`]: answers requests from a fixture directory. Tests
+//!   use it, so that they never access the network.
+//! - [`RecordingFetcher`]: wraps another fetcher and stores every response
+//!   in a fixture directory.
+//!
+//! [`fetch_following_redirects`] follows redirects on top of any fetcher.
+//! [`Loader`] runs fetches on worker threads and returns the results through
+//! a channel.
+//!
+//! The fixture directory format is documented in [`fixture`].
+
+mod builtin;
+mod data_url;
+mod error;
+mod fetch;
+mod file_types;
+pub mod fixture;
+mod headers;
+mod loader;
+mod mime;
+mod network;
+mod request;
+mod response;
+#[cfg(test)]
+mod test_util;
+
+pub use error::NetError;
+pub use fetch::{Fetcher, MAX_REDIRECTS, fetch_following_redirects};
+pub use fixture::{RecordingFetcher, ReplayFetcher};
+pub use headers::Headers;
+pub use loader::{Completion, Loader, RequestId};
+pub use network::{MAX_BODY_SIZE, NetworkFetcher, USER_AGENT};
+pub use request::{Destination, Method, Request};
+pub use response::{ContentType, Response};
+pub use url::Url;

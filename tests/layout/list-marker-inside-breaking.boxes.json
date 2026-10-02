@@ -1,0 +1,20 @@
+{
+  "url": "tests/layout/list-marker-inside-breaking.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 96.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 80.0], "parent": 0},
+    {"tag": "ul", "rect": [8.0, 8.0, 70.0, 40.0], "parent": 5},
+    {"tag": "li", "rect": [8.0, 8.0, 70.0, 40.0], "parent": 6},
+    {"tag": "span", "rect": [30.0, 9.0, 35.59, 17.0], "parent": 7},
+    {"tag": "span", "rect": [8.0, 29.0, 35.59, 17.0], "parent": 7},
+    {"tag": "ol", "rect": [8.0, 48.0, 70.0, 40.0], "parent": 5},
+    {"tag": "li", "rect": [8.0, 48.0, 70.0, 40.0], "parent": 10},
+    {"tag": "span", "rect": [25.8, 49.0, 35.59, 17.0], "parent": 11},
+    {"tag": "span", "rect": [8.0, 69.0, 35.59, 17.0], "parent": 11}
+  ]
+}

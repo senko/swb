@@ -1,0 +1,5 @@
+# Fixture files are stored byte-for-byte as downloaded.
+fixtures/** -text -diff
+# Generated JSON in fixtures is text and should be diffable.
+fixtures/pages/*/reference/boxes.json text diff
+fixtures/scores.json text diff

@@ -1,0 +1,17 @@
+[package]
+name = "swb-css"
+description = "CSS syntax: tokenizer, stylesheet parser, selectors and media queries."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags.workspace = true
+log.workspace = true
+thiserror.workspace = true

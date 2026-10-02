@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- text-transform: uppercase on every line of preformatted text, and
+     capitalize with word boundaries across elements and punctuation. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Text transform</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  span { background: #eee; }
+</style>
+</head>
+<body>
+  <pre style="text-transform: uppercase"><span>abc</span>
+<span>def</span></pre>
+  <div style="white-space: pre-line; text-transform: uppercase"><span>ghi</span>
+<span>jkl</span></div>
+  <p style="text-transform: capitalize"><span>foo</span><span>bar</span> <span>(hello)</span> <span>"quoted"</span> <span>big-world</span></p>
+</body>
+</html>

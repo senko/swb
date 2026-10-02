@@ -1,0 +1,24 @@
+{
+  "url": "tests/layout/text-transform.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 164.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 16.0, 784.0, 132.0], "parent": 0},
+    {"tag": "pre", "rect": [8.0, 16.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 17.0, 28.81, 18.0], "parent": 6},
+    {"tag": "span", "rect": [8.0, 37.0, 28.81, 18.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 72.0, 784.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 73.0, 28.45, 17.0], "parent": 9},
+    {"tag": "span", "rect": [8.0, 93.0, 27.58, 17.0], "parent": 9},
+    {"tag": "p", "rect": [8.0, 128.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 129.0, 27.58, 17.0], "parent": 12},
+    {"tag": "span", "rect": [35.58, 129.0, 23.13, 17.0], "parent": 12},
+    {"tag": "span", "rect": [63.16, 129.0, 47.13, 17.0], "parent": 12},
+    {"tag": "span", "rect": [114.73, 129.0, 63.84, 17.0], "parent": 12},
+    {"tag": "span", "rect": [183.03, 129.0, 69.95, 17.0], "parent": 12}
+  ]
+}

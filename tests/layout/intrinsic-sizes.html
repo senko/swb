@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Intrinsic sizes: the min-content contribution of an inline-block, the
+     min-content size of a single-line flex container, and border-box
+     max-width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Intrinsic sizes</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .narrow { width: 10px; }
+  .float { float: left; background: #eee; }
+  .clear { clear: both; }
+</style>
+</head>
+<body>
+  <div class="narrow"><div class="float"><span style="display: inline-block">hello world</span></div></div>
+  <div class="clear"></div>
+  <div style="width: 50px"><div class="float"><div style="display: flex"><span>aaaa</span><span>bbbb</span></div></div></div>
+  <div class="clear"></div>
+  <div class="float"><div style="box-sizing: border-box; max-width: 100px; padding: 0 20px">aaaa aaaa aaaa aaaa aaaa</div></div>
+</body>
+</html>
