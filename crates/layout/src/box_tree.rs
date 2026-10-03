@@ -32,9 +32,9 @@ use swb_style::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::ReplacedSizes;
 use crate::list_marker::marker_text;
 use crate::source_map::{CharSource, SourceMap};
+use crate::{NaturalSize, ReplacedSizes};
 
 /// The maximum nesting depth of boxes (elements, pseudo-elements and
 /// `display: contents` elements count). With this limit, box construction,
@@ -133,8 +133,8 @@ pub(crate) enum IndependentContents {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Replaced {
     pub(crate) node: NodeId,
-    /// Natural width and height in CSS px, if known.
-    pub(crate) natural_size: Option<(f32, f32)>,
+    /// The natural dimensions, if the image is loaded.
+    pub(crate) natural_size: Option<NaturalSize>,
 }
 
 /// A list item marker.

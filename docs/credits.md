@@ -42,6 +42,10 @@ Format: source, license (for code), what it influenced.
   key names of the engine and the automation protocol
 - Unicode Standard Annex #14 (line breaking), #9 (bidi)
 - RFC 4647 (language tag matching) — `:lang()`
+- SVG 2 (coordinate systems; natural dimensions and the `viewBox`
+  transform of SVG images) and CSS Images 3 (natural dimensions, the
+  default sizing algorithm, the default object size) — `paint/src/svg/`,
+  `layout/src/replaced.rs`
 - RFC 6265bis (IETF draft, HTTP State Management Mechanism) — cookie
   parsing, storage, retrieval and `SameSite` (`net/src/cookies/`)
 - WHATWG Fetch, "append a request `Origin` header" — the `Origin` header
@@ -101,6 +105,12 @@ Format: source, license (for code), what it influenced.
   the `Domain` attribute rule; `ComputeSameSiteContext`: the same-site
   contexts), `registry_controlled_domains` (unknown registries have no
   registrable domain). No code copied.
+- usvg, resvg, svgtypes, simplecss, roxmltree, kurbo (Apache-2.0 OR MIT,
+  MIT) — their source was read to mirror their behaviour in the SVG
+  limits (`paint/src/svg/`): usvg's size resolution, viewBox transform,
+  id and href resolution, caching and recursion; simplecss's selector
+  matching; roxmltree's entity limits; kurbo's arc subdivision count.
+  No code copied.
 - Servo and Blink — the idea of an ancestor Bloom filter for selector
   matching (`SelectorFilter`), and right-to-left selector matching with
   limited backtracking, which all browser engines use. No code read for

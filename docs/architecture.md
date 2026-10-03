@@ -40,7 +40,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
-| `paint`      | Display list, rasterization, image decoding.                                   | `dom`, `layout`, `style`, `text` |
+| `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
@@ -91,6 +91,20 @@ Rules:
   until its document arrives; starting a navigation cancels all running
   requests (`Loader::cancel_all`), and only a committed navigation adds a
   history entry.
+- **Natural sizes** (`layout`): `NaturalSize` has an optional width,
+  height and aspect ratio (SVG images can lack any of them). Replaced
+  elements and backgrounds use the CSS default sizing rules; the default
+  object size is 300×150.
+- **SVG images** (`paint/src/svg/`, ADR 0011): usvg and resvg behind
+  limits that are checked before conversion: source size, XML entities,
+  XML nodes and depth, style sheets (`css.rs`), the size of the render
+  tree with copies, reference depth and cycles (`expansion.rs`). An
+  estimate of the rendering time and memory (`cost.rs`) sets the
+  resolution. SVG images load only `data:` URLs. They are rendered at the
+  device pixel size of each tile and cached per document (`VectorCache`
+  in the engine's `Images`, 128 MiB). One frame renders new renderings up
+  to a work budget; after that, images use the closest cached rendering
+  or are not drawn until a later repaint.
 - **Cookie jar** (`net`): one `CookieJar` per `NetworkFetcher` (so one per
   swb process), inside the HTTP client. It adds `Cookie` to every HTTP
   request and stores `Set-Cookie` on every redirect hop. Cookies are

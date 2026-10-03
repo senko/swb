@@ -3,19 +3,22 @@
 //! [`build_display_list`] turns a fragment tree into drawing commands;
 //! [`rasterize`] draws them into a pixmap with tiny-skia. The display list
 //! does not depend on tiny-skia, so another backend can replace the
-//! rasterizer.
+//! rasterizer. Images are raster images or SVG images (`svg`), which are
+//! rendered at the size they are drawn at.
 
 mod background;
 mod display_list;
 mod image;
 mod raster;
+mod svg;
 
 pub use display_list::{
     DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, SELECTION_TEXT, build_display_list,
 };
-pub use image::{DecodedImage, ImageError, decode};
+pub use image::{DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_with_type};
 pub use raster::{ImageSource, RasterParams, rasterize};
+pub use svg::VectorCache;
 pub use tiny_skia::Pixmap;
 
 /// Fills the whole pixmap with one color.

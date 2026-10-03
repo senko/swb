@@ -38,6 +38,7 @@ pub use fragment::{
     FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
 pub use geom::{Edges, Point, Rect, Size};
+pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};
@@ -45,16 +46,16 @@ use geom::clamp_length;
 
 /// Natural sizes of replaced elements (images), supplied by the engine.
 pub trait ReplacedSizes {
-    /// The natural width and height of the replaced element `node`, in CSS
-    /// px, or `None` if unknown (not loaded or broken).
-    fn natural_size(&self, node: NodeId) -> Option<(f32, f32)>;
+    /// The natural dimensions of the replaced element `node`, or `None` if
+    /// its image is not loaded or broken.
+    fn natural_size(&self, node: NodeId) -> Option<NaturalSize>;
 }
 
 /// A `ReplacedSizes` that knows no sizes.
 pub struct NoReplacedSizes;
 
 impl ReplacedSizes for NoReplacedSizes {
-    fn natural_size(&self, _node: NodeId) -> Option<(f32, f32)> {
+    fn natural_size(&self, _node: NodeId) -> Option<NaturalSize> {
         None
     }
 }

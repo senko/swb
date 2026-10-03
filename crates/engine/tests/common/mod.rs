@@ -87,7 +87,7 @@ pub(crate) fn tiny_png() -> Vec<u8> {
 pub(crate) struct NoImages;
 
 impl ImageSizes for NoImages {
-    fn size(&self, _image: &ImageRef) -> Option<(f32, f32)> {
+    fn size(&self, _image: &ImageRef) -> Option<swb_layout::NaturalSize> {
         None
     }
 }

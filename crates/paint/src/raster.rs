@@ -13,21 +13,31 @@
 //!   opacity.
 //! - Glyphs come from the `text` crate as alpha masks and are blended by
 //!   [`blit_mask`].
+//! - Vector (SVG) images are rendered at the device pixel size of one tile
+//!   and then drawn like raster images.
+
+use std::sync::Arc;
 
 use swb_layout::{Point, Rect};
 use swb_style::{BorderStyle, Rgba};
 use swb_text::FontContext;
 use tiny_skia::{
-    FillRule, FilterQuality, GradientStop, LinearGradient, Mask, Paint, Path, PathBuilder, Pattern,
-    Pixmap, PixmapPaint, Shader, SpreadMode, Stroke, StrokeDash, Transform,
+    FillRule, FilterQuality, GradientStop, IntSize, LinearGradient, Mask, Paint, Path, PathBuilder,
+    Pattern, Pixmap, PixmapPaint, Shader, SpreadMode, Stroke, StrokeDash, Transform,
 };
 
 use crate::display_list::{DisplayItem, DisplayList, ImageRef, Radii};
+use crate::image::{DecodedImage, ImageKind, MAX_DIMENSION};
+use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
 /// Supplies decoded images to the rasterizer.
 pub trait ImageSource {
-    /// The pixmap of an image, if it is loaded.
-    fn pixmap(&self, image: &ImageRef) -> Option<&Pixmap>;
+    /// The decoded image, if it is loaded.
+    fn image(&self, image: &ImageRef) -> Option<&DecodedImage>;
+
+    /// The cache for vector images rendered at their drawn size. Without a
+    /// cache, vector images are rendered for every draw.
+    fn vector_cache(&self) -> Option<&VectorCache>;
 }
 
 /// Where and how to rasterize.
@@ -41,6 +51,11 @@ pub struct RasterParams {
 }
 
 /// Rasterizes a display list into `target`. The target is not cleared.
+///
+/// New renderings of SVG images share one work budget per call. When it is
+/// used up, later SVG images are drawn from a cached rendering of another
+/// size, or not at all; a later call (a repaint) renders them if its budget
+/// allows. Normal pages stay far below the budget.
 pub fn rasterize(
     list: &DisplayList,
     target: &mut Pixmap,
@@ -54,12 +69,16 @@ pub fn rasterize(
         target.width() as f32 / params.scale,
         target.height() as f32 / params.scale,
     );
+    let vectors = images
+        .vector_cache()
+        .map_or_else(FrameBudget::new, VectorCache::begin_frame);
     let mut r = Rasterizer {
         target,
         params,
         layers: Vec::new(),
         clips: Vec::new(),
         mask: None,
+        vectors,
     };
     for item in &list.items {
         if item
@@ -73,6 +92,12 @@ pub fn rasterize(
     // Close unbalanced opacity groups.
     while !r.layers.is_empty() {
         r.pop_layer();
+    }
+    if r.vectors.skipped() {
+        log::warn!(
+            "SVG images: the rendering budget of this frame ran out; some images \
+             use a rendering of another size or are not drawn"
+        );
     }
 }
 
@@ -97,6 +122,8 @@ struct Rasterizer<'a> {
     /// The mask of the innermost clip for the current surface, created on
     /// demand.
     mask: Option<Mask>,
+    /// The rendering budget of this frame for SVG images.
+    vectors: FrameBudget,
 }
 
 impl Rasterizer<'_> {
@@ -123,8 +150,8 @@ impl Rasterizer<'_> {
                 tile,
                 clip,
             } => {
-                if let Some(pixmap) = images.pixmap(image) {
-                    self.image(pixmap, *rect, *tile, *clip);
+                if let Some(decoded) = images.image(image) {
+                    self.decoded_image(decoded, images.vector_cache(), *rect, *tile, *clip);
                 }
             }
             DisplayItem::LinearGradient {
@@ -599,6 +626,36 @@ impl Rasterizer<'_> {
 
     // ----- Images and gradients -----
 
+    /// Draws a raster image, or a vector image rendered for the device
+    /// pixel size of `tile`.
+    fn decoded_image(
+        &mut self,
+        image: &DecodedImage,
+        cache: Option<&VectorCache>,
+        area: Rect,
+        tile: Rect,
+        clip: Rect,
+    ) {
+        let svg = match image.kind() {
+            ImageKind::Raster(pixmap) => return self.image(pixmap, area, tile, clip),
+            ImageKind::Vector(svg) => svg,
+        };
+        let Some(size) = vector_render_size(self.to_device(tile)) else {
+            return;
+        };
+        let concrete = (tile.width, tile.height);
+        let pixmap = match cache {
+            Some(cache) => cache.get(svg, size, concrete, &mut self.vectors),
+            None if self.vectors.take(svg.render_work(size, concrete)) => {
+                svg.render(size, concrete).map(Arc::new)
+            }
+            None => None,
+        };
+        if let Some(pixmap) = pixmap {
+            self.image(&pixmap, area, tile, clip);
+        }
+    }
+
     fn image(&mut self, pixmap: &Pixmap, area: Rect, tile: Rect, clip: Rect) {
         // How far the painted area may extend past the tile and still count
         // as a single, untiled image (CSS px).
@@ -869,6 +926,30 @@ fn push_polygon(pb: &mut PathBuilder, points: &[(f32, f32)]) {
         pb.line_to(p.0, p.1);
     }
     pb.close();
+}
+
+/// The pixel size to render a vector image at for a tile of `device` px:
+/// the tile size, rounded. A size above [`MAX_RENDER_PIXELS`] or
+/// [`MAX_DIMENSION`] is reduced, keeping its proportions; the drawing then
+/// scales the rendering up. `None` for an empty tile.
+fn vector_render_size(device: Rect) -> Option<IntSize> {
+    let valid = |v: f32| v > 0.0 && v.is_finite();
+    if !(valid(device.width) && valid(device.height)) {
+        return None;
+    }
+    // f64: the product of two large f32 sizes overflows f32.
+    let mut width = f64::from(device.width).round().max(1.0);
+    let mut height = f64::from(device.height).round().max(1.0);
+    let max_dimension = f64::from(MAX_DIMENSION);
+    let reduction = (f64::from(MAX_RENDER_PIXELS) / (width * height))
+        .sqrt()
+        .min(max_dimension / width)
+        .min(max_dimension / height);
+    if reduction < 1.0 {
+        width = (width * reduction).floor().max(1.0);
+        height = (height * reduction).floor().max(1.0);
+    }
+    IntSize::from_wh(width as u32, height as u32)
 }
 
 /// A mask that covers `clip` (target device px) on a surface at `surface`.
@@ -1150,16 +1231,24 @@ mod tests {
     struct NoImages;
 
     impl ImageSource for NoImages {
-        fn pixmap(&self, _image: &ImageRef) -> Option<&Pixmap> {
+        fn image(&self, _image: &ImageRef) -> Option<&DecodedImage> {
+            None
+        }
+
+        fn vector_cache(&self) -> Option<&VectorCache> {
             None
         }
     }
 
-    struct OneImage(Pixmap);
+    struct OneImage(DecodedImage, Option<VectorCache>);
 
     impl ImageSource for OneImage {
-        fn pixmap(&self, _image: &ImageRef) -> Option<&Pixmap> {
+        fn image(&self, _image: &ImageRef) -> Option<&DecodedImage> {
             Some(&self.0)
+        }
+
+        fn vector_cache(&self) -> Option<&VectorCache> {
+            self.1.as_ref()
         }
     }
 
@@ -1317,8 +1406,80 @@ mod tests {
             tile: rect,
             clip: rect,
         };
-        let p = render_with(vec![item], 1.0, &OneImage(image));
+        let p = render_with(
+            vec![item],
+            1.0,
+            &OneImage(DecodedImage::from_pixmap(image), None),
+        );
         assert_eq!(rgb(&p, 50, 0), (0, 0, 0));
+    }
+
+    fn svg(source: &str) -> DecodedImage {
+        crate::decode_with_type(source.as_bytes(), Some(crate::SVG_MIME_TYPE)).unwrap()
+    }
+
+    fn image_item(tile: Rect, area: Rect) -> DisplayItem {
+        DisplayItem::Image {
+            image: ImageRef::Url("x".into()),
+            rect: area,
+            tile,
+            clip: area,
+        }
+    }
+
+    #[test]
+    fn vector_images_are_sharp_at_any_scale() {
+        // A 1x1 checkerboard of four squares: rendered at the device size,
+        // the edge between the squares is a sharp pixel edge, also at 3x.
+        let image = svg(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2">
+            <rect width="1" height="1"/><rect x="1" y="1" width="1" height="1"/></svg>"#,
+        );
+        let rect = Rect::new(10.0, 10.0, 20.0, 20.0);
+        let images = OneImage(image, Some(VectorCache::default()));
+        for scale in [1.0, 2.0, 3.0] {
+            let p = render_with(vec![image_item(rect, rect)], scale, &images);
+            let at = |x: f32, y: f32| rgb(&p, (x * scale) as u32, (y * scale) as u32);
+            let edge = 20.0 * scale;
+            assert_eq!(rgb(&p, edge as u32 - 1, (15.0 * scale) as u32), (0, 0, 0));
+            assert_eq!(rgb(&p, edge as u32, (15.0 * scale) as u32), (255, 255, 255));
+            assert_eq!(at(25.0, 25.0), (0, 0, 0));
+            assert_eq!(at(5.0, 5.0), (255, 255, 255), "outside the image");
+        }
+    }
+
+    #[test]
+    fn vector_images_tile_at_the_tile_size() {
+        // A 10x10 tile: black left half.
+        let image = svg(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">
+            <rect width="2" height="4"/></svg>"#,
+        );
+        let tile = Rect::new(0.0, 0.0, 10.0, 10.0);
+        let area = Rect::new(0.0, 0.0, 40.0, 10.0);
+        let p = render_with(vec![image_item(tile, area)], 1.0, &OneImage(image, None));
+        for x in [0, 4, 10, 14, 30, 34] {
+            assert_eq!(rgb(&p, x, 5), (0, 0, 0), "x = {x}");
+            assert_eq!(rgb(&p, x + 5, 5), (255, 255, 255), "x = {}", x + 5);
+        }
+        assert_eq!(rgb(&p, 45, 5), (255, 255, 255), "outside the area");
+    }
+
+    #[test]
+    fn render_sizes_are_bounded() {
+        let size = |w: f32, h: f32| {
+            vector_render_size(Rect::new(0.0, 0.0, w, h)).map(|s| (s.width(), s.height()))
+        };
+        assert_eq!(size(10.4, 0.2), Some((10, 1)));
+        assert_eq!(size(0.0, 10.0), None);
+        assert_eq!(size(f32::NAN, 10.0), None);
+        assert_eq!(size(f32::INFINITY, 10.0), None);
+        for huge in [1e9, 1e30] {
+            let (w, h) = size(huge, huge).unwrap();
+            assert!(w * h <= MAX_RENDER_PIXELS && w == h && w > 1000, "{w}x{h}");
+        }
+        let (w, h) = size(1e6, 2.0).unwrap();
+        assert_eq!((w, h), (MAX_DIMENSION, 1));
     }
 
     #[test]

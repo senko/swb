@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- SVG images in other formatting contexts. An image with only a viewBox
+     fills the available width of an inline formatting context and of a flex
+     container, and contributes 0 to intrinsic sizes (an inline-block around
+     it is empty). An image without any natural dimension contributes 300 px. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>SVG images in inline, inline-block and flex contexts</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .box { width: 400px; }
+  .flex { display: flex; width: 400px; }
+  .ib { display: inline-block; }
+</style>
+</head>
+<body>
+  <div class="box"><img src="svg/viewbox.svg"></div>
+  <div class="box"><img src="svg/width-height.svg"> text</div>
+  <div class="box"><span class="ib"><img src="svg/viewbox.svg"></span></div>
+  <div class="box"><span class="ib"><img src="svg/no-size.svg"></span></div>
+  <div class="flex"><img src="svg/viewbox.svg"></div>
+  <div class="flex"><img src="svg/width-height.svg"></div>
+  <div class="flex"><img src="svg/viewbox.svg" style="height: 20px"><span>text</span></div>
+  <div class="box"><span class="ib"><img src="svg/viewbox.svg" style="height: 20px"></span></div>
+</body>
+</html>

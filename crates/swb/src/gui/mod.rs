@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use swb_automation::Automation;
 use swb_engine::{Cursor, Modifiers, Page, PageConfig, Pixmap, Size, Url};
 use swb_net::Fetcher;
-use swb_paint::{ImageRef, ImageSource, RasterParams};
+use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 use swb_text::FontContext;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
@@ -107,7 +107,11 @@ struct App {
 struct NoImages;
 
 impl ImageSource for NoImages {
-    fn pixmap(&self, _image: &ImageRef) -> Option<&Pixmap> {
+    fn image(&self, _image: &ImageRef) -> Option<&DecodedImage> {
+        None
+    }
+
+    fn vector_cache(&self) -> Option<&VectorCache> {
         None
     }
 }

@@ -50,7 +50,9 @@ Open a URL in a window and read the page.
   `-webkit-center` alignment, quirks-mode line height and table cell
   rules: done (ADR 0010). Hacker News geometry 0.9876; the rest is the
   search `<input>` (forms).
-- SVG images (`resvg`).
+- SVG images (`resvg`): `<img>` and CSS backgrounds, natural sizes and
+  CSS default sizing, rendering at device resolution, resource limits:
+  done (ADR 0011).
 - Forms: text inputs, buttons, GET/POST submission.
 - Cookies (RFC 6265bis jar, `SameSite`, Public Suffix List) and `POST`
   requests with `Origin`: done (ADR 0012).
@@ -82,6 +84,20 @@ Open a URL in a window and read the page.
   headers; raw bytes in cookie values (now re-encoded as UTF-8);
   Chromium's 30-day protection in global eviction.
 - Owner decision: the Public Suffix List data is MPL-2.0 (ADR 0012).
+- SVG images: `<text>` is not drawn (no fonts in resvg); non-UTF-8
+  sources are rejected; `list-style-image` is not drawn (also for raster
+  images); percentages inside an SVG without `viewBox` and absolute size
+  resolve against 300×150; `ex` is half an `em`; decoding and rendering
+  run on the page thread (up to about 0.6 s per rendering and 1.2 s per
+  frame for hostile files); whole tiles are rendered, not only the
+  visible part. On a hostile page, images beyond the per-frame budget
+  stay blank or blurred until a repaint. The limits mirror resvg, usvg,
+  roxmltree, svgtypes and simplecss as pinned in `Cargo.toml` (kurbo
+  through `Cargo.lock`): an update of any of them needs the same
+  adversarial review.
+- Style: `aspect-ratio` is stored as one optional ratio, so
+  `auto && <ratio>` loses `auto` (the natural ratio of an image should win
+  over the given one).
 
 ## Backlog from M1
 
@@ -141,8 +157,8 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
 - Layout: floats and absolutely positioned boxes inside inline content are
   not placed; absolutely positioned children of flex containers are
-  dropped; flex container min/max sizes; `align-content: stretch` order; replaced flex items with
-  only `height`; `vertical-align: top/bottom`; min-content of inline-blocks
+  dropped; flex container min/max sizes; `align-content: stretch` order;
+  `vertical-align: top/bottom`; min-content of inline-blocks
   and row flex containers; `box-sizing` in intrinsic min/max; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
   breaking (and `text-indent`); column flex items with a definite height

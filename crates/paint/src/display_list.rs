@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_layout::{
-    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, Point, PositionedGlyph, Rect,
-    TextFragment,
+    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, Point,
+    PositionedGlyph, Rect, TextFragment,
 };
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
@@ -192,8 +192,8 @@ pub const SELECTION_TEXT: Rgba = Rgba::WHITE;
 
 /// Natural sizes of images by reference, for background positioning.
 pub trait ImageSizes {
-    /// The natural size of an image in CSS px, if it is loaded.
-    fn size(&self, image: &ImageRef) -> Option<(f32, f32)>;
+    /// The natural dimensions of an image, if it is loaded.
+    fn size(&self, image: &ImageRef) -> Option<NaturalSize>;
 }
 
 /// A list of drawing commands.
@@ -703,7 +703,7 @@ impl Builder<'_> {
                         position_y,
                         repeat,
                     };
-                    let (tile, area) = background::tile(&layer, positioning, clip, natural);
+                    let (tile, area) = background::tile(&layer, positioning, clip, &natural);
                     self.list.push(DisplayItem::Image {
                         image: image_ref,
                         rect: area,

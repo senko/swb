@@ -1,0 +1,32 @@
+{
+  "url": "tests/layout/svg-image-contexts.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 706.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 690.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 400.0, 205.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 8.0, 400.0, 200.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 213.0, 400.0, 35.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 213.0, 60.0, 30.0], "parent": 8},
+    {"tag": "div", "rect": [8.0, 248.0, 400.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 248.0, 0.0, 20.0], "parent": 10},
+    {"tag": "img", "rect": [8.0, 263.0, 0.0, 0.0], "parent": 11},
+    {"tag": "div", "rect": [8.0, 268.0, 400.0, 155.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 268.0, 300.0, 155.0], "parent": 13},
+    {"tag": "img", "rect": [8.0, 268.0, 300.0, 150.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 423.0, 400.0, 200.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 423.0, 400.0, 200.0], "parent": 16},
+    {"tag": "div", "rect": [8.0, 623.0, 400.0, 30.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 623.0, 60.0, 30.0], "parent": 18},
+    {"tag": "div", "rect": [8.0, 653.0, 400.0, 20.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 653.0, 40.0, 20.0], "parent": 20},
+    {"tag": "span", "rect": [48.0, 653.0, 25.8, 20.0], "parent": 20},
+    {"tag": "div", "rect": [8.0, 673.0, 400.0, 25.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 673.0, 40.0, 25.0], "parent": 23},
+    {"tag": "img", "rect": [8.0, 673.0, 40.0, 20.0], "parent": 24}
+  ]
+}

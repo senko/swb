@@ -5,7 +5,6 @@ flex-abspos-child  # absolutely positioned children of flex containers are not l
 intrinsic-percentage-image  # clear is not implemented (the float is not cleared)
 flex-container-min-size  # the flex container's min/max size is ignored by the flex algorithm
 flex-align-content-stretch  # align-content: stretch grows lines after the items are stretched
-flex-replaced-item  # an image flex item ignores its specified height and aspect ratio
 vertical-align-top-bottom  # vertical-align: top and bottom align as baseline
 intrinsic-sizes  # inline-block min-content, nowrap flex min-content and border-box min/max are wrong
 pre-tabs  # tabs do not advance to tab stops

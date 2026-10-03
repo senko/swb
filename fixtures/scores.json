@@ -1,7 +1,7 @@
 {
   "hacker-news": {
     "geometry": 0.9876,
-    "pixels": 0.9901,
+    "pixels": 0.9908,
     "relative": 0.9876,
     "size": 0.9876
   },
@@ -13,7 +13,7 @@
   },
   "wikipedia-web-browser": {
     "geometry": 0.0071,
-    "pixels": 0.8854,
+    "pixels": 0.885,
     "relative": 0.4574,
     "size": 0.6162
   }

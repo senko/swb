@@ -66,7 +66,18 @@ unicode-segmentation = "1"
 
 # paint
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }
+# SVG images (ADR 0011): no text, fonts or svgz. resvg and usvg must use the
+# same tiny-skia version as swb, and roxmltree, simplecss and svgtypes the
+# versions that usvg uses. Exact versions: the resource limits in
+# paint/src/svg mirror the behavior of these crates; an update needs a new
+# review of them. kurbo (through usvg) is pinned only by Cargo.lock, so a
+# `cargo update` that changes it needs the same review.
+resvg = { version = "=0.48.1", default-features = false, features = ["raster-images"] }
+roxmltree = "=0.21.1"
+simplecss = "=0.2.2"
+svgtypes = "=0.16.1"
 tiny-skia = "0.12"
+usvg = { version = "=0.48.1", default-features = false }
 
 # swb (binary)
 # Clipboard: the Wayland data-control protocol where the compositor has it,

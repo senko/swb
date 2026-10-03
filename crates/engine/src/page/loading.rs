@@ -130,7 +130,7 @@ impl Page {
             // without fetching it again.
             images.by_url.insert(
                 response.url.clone(),
-                ImageState::decode(&response.url, &response.body),
+                ImageState::decode(&response.url, &response),
             );
             swb_dom::parse_html(&format!(
                 "<body style=\"margin:0\"><img src=\"{}\">",

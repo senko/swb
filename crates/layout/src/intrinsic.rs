@@ -63,7 +63,8 @@ pub(crate) fn independent_content_sizes(
             sizes
         }
         IndependentContents::Replaced(r) => {
-            let w = r.natural_size.map_or(0.0, |(w, _)| w);
+            let edges = BoxEdges::resolve(&ib.base.style, 0.0);
+            let w = crate::replaced::natural_content_width(&ib.base.style, r, &edges);
             ContentSizes { min: w, max: w }
         }
         IndependentContents::Table(table) => {

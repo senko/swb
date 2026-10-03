@@ -122,7 +122,8 @@ fn hover_underlines_links() {
     let hovered = client.screenshot(false).unwrap();
     assert_ne!(before, hovered);
     let image = swb_paint::decode(&hovered).unwrap();
-    assert_eq!(image.natural_size(), (1280.0, 800.0));
+    let pixmap = image.raster().unwrap();
+    assert_eq!((pixmap.width(), pixmap.height()), (1280, 800));
     // Over plain text, the text cursor.
     let paragraph = client.query_selector("p").unwrap().unwrap();
     let rect = client
@@ -206,8 +207,9 @@ fn scrolling_and_viewport() {
     assert!(info["contentSize"]["height"].as_f64().unwrap() > 1400.0);
     let full = client.screenshot(true).unwrap();
     let image = swb_paint::decode(&full).unwrap();
-    assert_eq!(image.natural_size().0, 400.0);
-    assert!(image.natural_size().1 > 1400.0);
+    let pixmap = image.raster().unwrap();
+    assert_eq!(pixmap.width(), 400);
+    assert!(pixmap.height() > 1400);
     stop(client, thread);
 }
 

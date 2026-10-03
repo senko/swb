@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Images whose size comes from the aspect ratio and another axis: column
+     flex items with a stretched width (the content size suggestion is the
+     height at that width, so a definite height can shrink), min sizes of
+     images with only a ratio and no available width, and the automatic
+     minimum width of row flex items with only a ratio. The PNG is 100x50;
+     viewbox.svg has only a 2:1 ratio. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Replaced elements: sizes through the aspect ratio</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .col { display: flex; flex-direction: column; width: 100px; margin-bottom: 8px; }
+  .row { display: flex; width: 50px; margin-bottom: 8px; }
+  .zero { width: 0; margin-bottom: 8px; }
+  .zero img { display: block; }
+</style>
+</head>
+<body>
+<div class="col" style="height: 50px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 80px"></div>
+<div class="col" style="width: 200px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></div>
+<div class="col" style="width: 200px; height: 50px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></div>
+<div class="col" style="height: 50px; align-items: flex-start"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 80px"></div>
+<div class="col" style="width: 200px"><img src="svg/viewbox.svg"></div>
+<div class="col" style="width: 200px; height: 50px"><img src="svg/viewbox.svg" style="height: 80px"></div>
+<div class="col" style="width: 60px; height: 30px; align-items: flex-start"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 80px"></div>
+<div class="col" style="width: 300px; height: 30px; align-items: flex-start"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 80px; min-width: 120px"></div>
+<div class="col" style="width: 300px; height: 30px; align-items: flex-start"><img src="svg/viewbox.svg" style="height: 80px"></div>
+<div class="col" style="width: 300px; height: 30px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 80px; max-width: 120px"></div>
+<div class="col" style="width: 300px; height: 300px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="max-height: 70px"></div>
+<div class="col" style="height: 30px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="width: 100px; height: 80px"></div>
+<div class="col" style="height: 30px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="width: 40px; height: 80px"></div>
+<div class="zero"><img src="svg/viewbox.svg" style="min-width: 100px"></div>
+<div class="zero"><img src="svg/viewbox.svg" style="min-height: 40px"></div>
+<div class="zero"><img src="svg/viewbox.svg" style="min-width: 100px; max-height: 20px"></div>
+<div class="zero"><span><img src="svg/viewbox.svg" style="display: inline; min-width: 60px"></span></div>
+<div class="row"><img src="svg/viewbox.svg" style="width: 100px"></div>
+<div class="row"><img src="svg/viewbox.svg" style="height: 40px"></div>
+<div class="row"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="width: 100px"></div>
+<div class="row"><img src="svg/viewbox.svg" style="width: 100px; max-height: 20px"></div>
+</body>
+</html>

@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
+use swb_layout::NaturalSize;
 use swb_net::{NetError, RequestId, Response, Url};
-use swb_paint::{DecodedImage, ImageRef, ImageSizes, ImageSource, Pixmap};
+use swb_paint::{DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
 
 /// What an in-flight request is for.
 #[derive(Clone, Debug)]
@@ -51,7 +52,7 @@ impl ImageState {
     /// The state after a fetch of the image at `url` completed.
     pub(crate) fn from_fetch(url: &Url, result: Result<Response, NetError>) -> Self {
         match result {
-            Ok(response) if response.is_success() => Self::decode(url, &response.body),
+            Ok(response) if response.is_success() => Self::decode(url, &response),
             Ok(response) => {
                 log::warn!("image {url}: HTTP {}", response.status);
                 ImageState::Failed
@@ -63,9 +64,13 @@ impl ImageState {
         }
     }
 
-    /// Decodes the image data of `url`.
-    pub(crate) fn decode(url: &Url, data: &[u8]) -> Self {
-        match swb_paint::decode(data) {
+    /// Decodes the image in `response`, which was loaded for `url`. The
+    /// content type selects SVG; raster formats are recognized from the
+    /// data.
+    pub(crate) fn decode(url: &Url, response: &Response) -> Self {
+        let content_type = response.content_type();
+        let essence = content_type.as_ref().map(|c| c.essence.as_str());
+        match swb_paint::decode_with_type(&response.body, essence) {
             Ok(image) => ImageState::Loaded(Arc::new(image)),
             Err(e) => {
                 log::warn!("image {url}: {e}");
@@ -81,6 +86,8 @@ pub(crate) struct Images {
     pub(crate) by_url: HashMap<Url, ImageState>,
     /// The image URL of each `<img>` element.
     pub(crate) by_node: HashMap<NodeId, Url>,
+    /// Renderings of the page's SVG images.
+    vector_cache: VectorCache,
 }
 
 impl Images {
@@ -94,28 +101,27 @@ impl Images {
             _ => None,
         }
     }
-
-    /// The natural size of an element's image, if loaded.
-    pub(crate) fn node_size(&self, node: NodeId) -> Option<(f32, f32)> {
-        self.get(&ImageRef::Node(node)).map(|i| i.natural_size())
-    }
 }
 
 impl ImageSizes for Images {
-    fn size(&self, image: &ImageRef) -> Option<(f32, f32)> {
+    fn size(&self, image: &ImageRef) -> Option<NaturalSize> {
         self.get(image).map(|i| i.natural_size())
     }
 }
 
 impl ImageSource for Images {
-    fn pixmap(&self, image: &ImageRef) -> Option<&Pixmap> {
-        self.get(image).map(|i| &i.pixmap)
+    fn image(&self, image: &ImageRef) -> Option<&DecodedImage> {
+        self.get(image).map(Arc::as_ref)
+    }
+
+    fn vector_cache(&self) -> Option<&VectorCache> {
+        Some(&self.vector_cache)
     }
 }
 
 impl swb_layout::ReplacedSizes for Images {
-    fn natural_size(&self, node: NodeId) -> Option<(f32, f32)> {
-        self.node_size(node)
+    fn natural_size(&self, node: NodeId) -> Option<NaturalSize> {
+        self.size(&ImageRef::Node(node))
     }
 }
 

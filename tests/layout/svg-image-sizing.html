@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- SVG images as block-level <img>: natural sizes from the root's width,
+     height and viewBox, missing dimensions from the aspect ratio or the
+     default object size (300x150), HTML width/height attributes, CSS sizes
+     and max-width. An image with only a viewBox fills the container width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>SVG image sizing</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { width: 400px; }
+  img { display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div>
+  <img src="svg/viewbox.svg">
+  <img src="svg/viewbox.svg" width="100">
+  <img src="svg/viewbox.svg" height="50">
+  <img src="svg/viewbox.svg" style="max-width: 100px">
+  <img src="svg/viewbox.svg" style="padding: 5px; border: 2px solid">
+  <img src="svg/viewbox.svg" style="margin-left: 30px">
+  <img src="svg/width.svg">
+  <img src="svg/width.svg" height="50">
+  <img src="svg/height.svg">
+  <img src="svg/percent-width.svg">
+  <img src="svg/width-height.svg">
+  <img src="svg/width-height.svg" width="120">
+  <img src="svg/width-height.svg" width="18" height="18" style="border: 1px white solid">
+  <img src="svg/width-viewbox.svg">
+  <img src="svg/auto-width.svg">
+  <img src="svg/no-size.svg">
+  <img src="svg/no-size.svg" width="100">
+  <img src="svg/no-size.svg" style="height: 20px">
+  <img src="svg/zero-width.svg">
+  <img src="svg/huge.svg" style="max-width: 50px">
+  <img src="svg/empty-viewbox.svg">
+  <img src="svg/units.svg">
+  <img src="svg/broken.svg" width="30" height="10">
+</div>
+</body>
+</html>

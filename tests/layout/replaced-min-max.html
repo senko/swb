@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Min/max constraints on images with automatic sizes (CSS 2.2 §10.4
+     table: the aspect ratio is kept where the constraints allow it), and a
+     definite height of an image flex item. The PNG is 100x50; viewbox.svg
+     has only a 2:1 ratio; width-height.svg is 60x30. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Replaced elements: min/max constraints</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .box { width: 400px; }
+  .box img { display: block; margin-bottom: 4px; }
+  .flex { display: flex; width: 400px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="max-width: 80px; max-height: 20px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="max-width: 30px; max-height: 40px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="min-width: 200px; min-height: 120px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="min-width: 150px; max-height: 40px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="max-width: 50px; min-height: 60px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="min-height: 70px">
+  <img src="svg/viewbox.svg" style="max-width: 300px; max-height: 50px">
+  <img src="svg/viewbox.svg" style="min-height: 250px">
+  <img src="svg/width-height.svg" style="max-height: 10px">
+  <img src="svg/width-height.svg" style="min-width: 90px; max-height: 40px">
+</div>
+<div class="flex"><img src="svg/width-height.svg" style="height: 10px"></div>
+<div class="flex"><img src="svg/width-height.svg" style="height: 10px"><span>text</span></div>
+<div class="flex"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII=" style="height: 10px"></div>
+</body>
+</html>

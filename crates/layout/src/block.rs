@@ -932,10 +932,15 @@ pub(crate) fn layout_flex_item(
     ctx.uncached_layouts += 1;
     let height = match &item.contents {
         IndependentContents::Replaced(r) if content_height.is_none() => {
-            let edges = BoxEdges::resolve(&item.base.style, cb.width);
-            let (w, h) = crate::replaced::used_size(&item.base.style, r, cb, &edges);
-            // Keep the aspect ratio for a stretched width.
-            Some(if w > 0.0 { h * content_width / w } else { h })
+            let style = &item.base.style;
+            let edges = BoxEdges::resolve(style, cb.width);
+            Some(crate::replaced::flex_item_height(
+                style,
+                r,
+                content_width,
+                cb,
+                &edges,
+            ))
         }
         _ => content_height,
     };

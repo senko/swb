@@ -31,6 +31,29 @@ in commit messages, ADRs and other docs.
   borders have a budget per layout pass. Two findings (struts in list
   items, row backgrounds under hidden empty cells) were checked against
   Chromium and are not bugs.
+- SVG images (ADR 0011): resvg 0.48 (no `text` feature), detection by
+  MIME type as in Chromium, natural sizes and the CSS default sizing
+  measured against Chromium (24 `<img>` cases), rendering at device
+  resolution with a size cache, only `data:` URLs inside SVG images.
+  Three adversarial review rounds with about 75 attack files found
+  crashes (reference cycles and chains that overflow the stack in usvg)
+  and unbounded costs (`<use>`, markers, arcs, entities, CSS, masks,
+  filters); each is bounded before conversion or rendering. Each frame
+  has an SVG rendering budget; when it runs out, images use a cached
+  rendering of another size or stay blank until a repaint. The Hacker
+  News logo and vote arrows now match Chromium (pixels 0.9901 →
+  0.9909).
+- Two integration reviews of the SVG work found: a cost estimate that
+  missed canvas area outside the image box (a crafted file could render
+  for tens of seconds), infinite sizes from extreme aspect ratios, NaN in
+  the cost bound, a redraw loop in the first per-frame budget design
+  (replaced by the simpler budget above), nondeterministic choice of a
+  cached rendering, and replaced-element sizing bugs that also affected
+  raster images: `max-width` and `max-height` together (now the full CSS
+  2.2 §10.4 table), definite heights of images in row and column flex
+  containers (the known failure `flex-replaced-item` now passes). All
+  fixed with tests; 3 new layout tests against Chromium. Wikipedia pixels went down 0.8854 → 0.8850: its SVG images now
+  render, at positions that are wrong until floats and grid exist (M3).
 - M2 runs as four parallel workstreams (cookies, tables, SVG images,
   forms), each in its own worktree; each lands as its own commit.
 

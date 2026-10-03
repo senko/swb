@@ -14,9 +14,14 @@ workspace = true
 [dependencies]
 image.workspace = true
 log.workspace = true
+resvg.workspace = true
+roxmltree.workspace = true
 swb-dom.workspace = true
 swb-layout.workspace = true
 swb-style.workspace = true
 swb-text.workspace = true
+simplecss.workspace = true
+svgtypes.workspace = true
 thiserror.workspace = true
 tiny-skia.workspace = true
+usvg.workspace = true

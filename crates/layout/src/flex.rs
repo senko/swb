@@ -253,12 +253,16 @@ fn new_item<'a>(
     };
     let (min_content, max_content) = if axes.row {
         let sizes = intrinsic::independent_content_sizes(ctx, b);
-        (sizes.min, sizes.max)
+        let max = crate::replaced::flex_width(b, cb, &edges).unwrap_or(sizes.max);
+        (sizes.min, max)
     } else {
         // The content height at the item's cross size.
         let width = column_cross_size(ctx, &item, container, axes, cb);
-        let f = layout_flex_item(ctx, b, width, None, cb);
-        let h = (f.border_rect.height - main_edges).max(0.0);
+        let cross = column_cross_is_definite(&item, container, axes, cb).then_some(width);
+        let h = crate::replaced::column_flex_height(b, cross, cb, &edges).unwrap_or_else(|| {
+            let f = layout_flex_item(ctx, b, width, None, cb);
+            (f.border_rect.height - main_edges).max(0.0)
+        });
         (h, h)
     };
     item.base_size = basis.unwrap_or(max_content);
@@ -320,6 +324,25 @@ fn column_cross_size(
     clamp_width(style, width, cb.width, item.cross_edges)
 }
 
+/// True if the width of an item of a column container is definite or
+/// stretched, not fit-content.
+fn column_cross_is_definite(
+    item: &Item<'_>,
+    container: &ComputedStyle,
+    axes: &Axes,
+    cb: ContainingBlock,
+) -> bool {
+    let style = item.style;
+    resolve_size(
+        &style.width,
+        Some(cb.width),
+        style.box_sizing,
+        item.cross_edges,
+    )
+    .is_some()
+        || (axes.cross_available.is_some() && item.stretches(container, false))
+}
+
 /// §9.3: collects the items into flex lines.
 fn collect_lines(
     container: &ComputedStyle,
@@ -372,7 +395,14 @@ fn determine_cross_sizes(
         let (w, h) = if axes.row {
             (item.target, None)
         } else {
-            let cross = column_cross_size(ctx, item, container, axes, cb);
+            // An image with a fit-content width takes its width from its
+            // flexed height.
+            let edges = BoxEdges::resolve(item.style, cb.width);
+            let ratio_width = (!column_cross_is_definite(item, container, axes, cb))
+                .then(|| crate::replaced::column_flex_width(item.box_, item.target, cb, &edges))
+                .flatten();
+            let cross =
+                ratio_width.unwrap_or_else(|| column_cross_size(ctx, item, container, axes, cb));
             (cross, Some(item.target))
         };
         let fragment = layout_flex_item(ctx, item.box_, w, h, cb);
