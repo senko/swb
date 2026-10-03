@@ -231,6 +231,25 @@ impl TreeSink for Sink {
     fn is_mathml_annotation_xml_integration_point(&self, handle: &NodeId) -> bool {
         self.integration_points.borrow().contains(handle)
     }
+
+    /// Records the form element pointer for a form-associated element, if
+    /// the form and the element's intended parent are in the same tree
+    /// (the document or one template's contents).
+    fn associate_with_form(
+        &self,
+        target: &NodeId,
+        form: &NodeId,
+        nodes: (&NodeId, Option<&NodeId>),
+    ) {
+        let mut doc = self.doc.borrow_mut();
+        let root = |doc: &Document, node: NodeId| doc.ancestors(node).last().unwrap_or(node);
+        if root(&doc, *form) != root(&doc, *nodes.0) {
+            return;
+        }
+        if let Some(element) = doc.element_mut(*target) {
+            element.parser_form = Some(*form);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -293,6 +312,15 @@ mod tests {
         assert_eq!(doc.children(template).count(), 0);
         let contents = doc.element(template).unwrap().template_contents.unwrap();
         assert_eq!(doc.text_content(contents), "t");
+    }
+
+    #[test]
+    fn controls_in_tables_belong_to_the_open_form() {
+        let doc = parse_html("<table><form id=f><tr><td><input id=i></td></tr></form></table>");
+        let form = doc.element_by_id("f").expect("form");
+        let input = doc.element_by_id("i").expect("input");
+        assert!(!doc.ancestors(input).any(|a| a == form));
+        assert_eq!(doc.element(input).and_then(|e| e.parser_form), Some(form));
     }
 
     #[test]

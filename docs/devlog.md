@@ -4,7 +4,7 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
-## 2026-10-03: M2 Hacker News (in progress)
+## 2026-10-03: M2 Hacker News
 
 - Cookies: an RFC 6265bis jar in the `net` HTTP client with Chromium's
   defaults (Lax by default, schemeful sites, a 400-day cap, 180 cookies
@@ -54,8 +54,29 @@ in commit messages, ADRs and other docs.
   containers (the known failure `flex-replaced-item` now passes). All
   fixed with tests; 3 new layout tests against Chromium. Wikipedia pixels went down 0.8854 → 0.8850: its SVG images now
   render, at positions that are wrong until floats and grid exist (M3).
-- M2 runs as four parallel workstreams (cookies, tables, SVG images,
-  forms), each in its own worktree; each lands as its own commit.
+- Forms (ADR 0013): control state outside the DOM (`Forms`, keyed by
+  node), one editing model (`TextEdit`) for page fields and the address
+  bar, controls as atomic boxes with Chromium's sizes and light theme,
+  activation of buttons, checkboxes, radio buttons, labels and links
+  around controls, the HTML form submission algorithm with the
+  urlencoded, multipart and text/plain encodings, `POST` navigations
+  that keep their body and initiator in history ("Confirm form
+  resubmission" on back/forward), automation `input.type` and
+  `dom.value`. The integration review found a CSRF-relevant bug (a
+  reloaded `POST` lost its initiator, so it was sent without `Origin` and
+  with same-site cookies), a duplicate `POST` on reload during a pending
+  submission, quadratic time in disabled fieldsets, and activation and
+  spec details; all fixed with tests. `swb_net::Response::redirected`
+  lets a post/redirect/get to the same URL drop the body.
+- Flex containers: max-content widths now include `column-gap`
+  (Wikipedia geometry 0.0072 → 0.0099; pixels 0.8850 → 0.8848).
+- Hacker News is done: geometry 1.0 (818 elements), pixels 0.9909; the
+  search form submits to hn.algolia.com, links and history work.
+- M2 ran as four parallel workstreams (cookies, tables, SVG images,
+  forms), each in its own worktree and with its own commit. Each
+  workstream had one or two integration reviews after the merge; they
+  found real bugs in every workstream.
+- Next: end-of-milestone maintenance for M2, then M3 (Wikipedia).
 
 ## 2026-10-02: M1 maintenance
 

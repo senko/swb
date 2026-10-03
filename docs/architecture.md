@@ -41,7 +41,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
-| `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, hit testing, navigation, history. | all of the above |
+| `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
 
@@ -71,8 +71,9 @@ Rules:
   boxes, line boxes and glyph runs in CSS pixels. It is immutable. The engine
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
-  borders, glyph runs, images, clips, opacity groups with their bounds) in
-  paint order. The rasterizer consumes it. The rasterizer can be replaced
+  borders, glyph runs, images, polylines, clips, opacity groups with their
+  bounds) in paint order. Form controls with the native look are drawn by
+  `paint/src/control.rs`. The rasterizer consumes it. The rasterizer can be replaced
   without changes to layout. The list also contains hit regions, so hit
   testing finds what is painted on top.
 - **Text fragments** (`layout`): a glyph run on one line, with caret
@@ -90,7 +91,14 @@ Rules:
   fragment, with the scroll position to restore. A navigation is pending
   until its document arrives; starting a navigation cancels all running
   requests (`Loader::cancel_all`), and only a committed navigation adds a
-  history entry.
+  history entry. Entries record their document number, the initiator of
+  the request and, for `POST` results, the body.
+- **Form controls** (`engine/src/forms/`, ADR 0013): per-document `Forms`
+  keyed by `NodeId` (value as `TextEdit`, checkedness, select options,
+  form owner). Layout gets them through `LayoutInput::controls`; style
+  gets `:checked`, `:placeholder-shown`, `:valid` and `:invalid` through
+  `ElementStates::controls`. The disabled state of all elements comes
+  from one tree walk (`DisabledElements`, linear time).
 - **Natural sizes** (`layout`): `NaturalSize` has an optional width,
   height and aspect ratio (SVG images can lack any of them). Replaced
   elements and backgrounds use the CSS default sizing rules; the default
@@ -180,6 +188,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   without `auto` margins (`<center>`).
 - Quirks mode: the line height quirks and the table cell quirks are in
   layout (`LayoutContext::quirks`, `line_height_quirks`).
+- Form controls are atomic boxes with generated content
+  (`layout/src/control.rs`); their sizes follow Chromium.
 - `<br>` elements and inline boxes around block-level children get boxes
   for the box dump; the latter are `BoxContent::GeometryOnly`.
 - Paint order: each stacking context (root, positioned boxes, opacity < 1)
@@ -206,6 +216,10 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `page/scroll.rs`: scrolling, scrolling to a fragment, `:target`.
 - `page/input.rs`: mouse and key events, element states, cursor, focus
   navigation, selection by mouse and keyboard.
+- `page/forms.rs`: editing, activation and submission of form controls;
+  `forms/` (state, view for layout, select, value sanitization, the
+  entry list and submission, encodings); `edit.rs` (`TextEdit`, the
+  editing model, also used by the GUI address bar).
 - `focus.rs`: focusable elements and the sequential focus order.
 - `selection.rs`: text positions, the position at a point, words and
   blocks, the highlight for paint, and the selected text (`innerText`

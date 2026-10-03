@@ -266,7 +266,7 @@ impl AtomicLayout {
                 fragment.last_baseline
             };
         let baseline = match (&fragment.content, content_baseline) {
-            (BoxContent::None | BoxContent::Table(_), Some(b))
+            (BoxContent::None | BoxContent::Table(_) | BoxContent::Control(_), Some(b))
                 if !style.overflow_x.is_scroll_container()
                     && !style.overflow_y.is_scroll_container() =>
             {

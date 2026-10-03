@@ -111,6 +111,7 @@ impl HttpClient {
             status: parts.status.as_u16(),
             headers,
             body,
+            redirected: false,
         })
     }
 }

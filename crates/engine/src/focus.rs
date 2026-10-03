@@ -9,14 +9,15 @@
 //! editing).
 
 use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
+use swb_style::{DisabledElements, is_actually_disabled};
 
 /// The `tabindex` of an element: the attribute if it is a valid integer,
 /// otherwise 0 for elements that are focusable by default, otherwise
 /// `None` (not focusable). Disabled form controls are not focusable, also
-/// with a `tabindex`.
-fn tab_index(doc: &Document, node: NodeId) -> Option<i32> {
+/// with a `tabindex`; `disabled` tells whether `node` is disabled.
+fn tab_index(doc: &Document, node: NodeId, disabled: impl FnOnce() -> bool) -> Option<i32> {
     let element = doc.element(node)?;
-    if is_actually_disabled(doc, node, element) {
+    if disabled() {
         return None;
     }
     if let Some(value) = element.attr("tabindex").and_then(parse_tab_index) {
@@ -49,47 +50,6 @@ fn parse_tab_index(value: &str) -> Option<i32> {
     };
     let number = if negative { -number } else { number };
     Some(number.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32)
-}
-
-/// True for a form control that is disabled: its `disabled` attribute, or
-/// a disabled `fieldset` ancestor (except inside that fieldset's first
-/// `legend`).
-/// <https://html.spec.whatwg.org/multipage/semantics-other.html#concept-element-disabled>
-fn is_actually_disabled(doc: &Document, node: NodeId, element: &ElementData) -> bool {
-    let disableable = element.is_html()
-        && matches!(
-            *element.local_name(),
-            local_name!("button")
-                | local_name!("input")
-                | local_name!("select")
-                | local_name!("textarea")
-                | local_name!("optgroup")
-                | local_name!("option")
-                | local_name!("fieldset")
-        );
-    if !disableable {
-        return false;
-    }
-    if element.has_attr("disabled") {
-        return true;
-    }
-    // The child of each ancestor on the path from the node.
-    let mut child = node;
-    for ancestor in doc.ancestors(node) {
-        let is_disabled_fieldset = doc
-            .element(ancestor)
-            .is_some_and(|e| e.is_html_named(&local_name!("fieldset")) && e.has_attr("disabled"));
-        if is_disabled_fieldset {
-            let first_legend = doc
-                .element_children(ancestor)
-                .find(|&c| doc.is_html_element(c, &local_name!("legend")));
-            if first_legend != Some(child) {
-                return true;
-            }
-        }
-        child = ancestor;
-    }
-    false
 }
 
 /// HTML elements that are focusable without `tabindex`.
@@ -132,13 +92,13 @@ pub(crate) fn click_target(
 ) -> Option<NodeId> {
     std::iter::once(node)
         .chain(doc.ancestors(node))
-        .find(|&n| tab_index(doc, n).is_some() && rendered(n))
+        .find(|&n| tab_index(doc, n, || is_actually_disabled(doc, n)).is_some() && rendered(n))
 }
 
 /// True if `node` can be focused (with a click or a script) when it is
 /// rendered.
 pub(crate) fn is_focusable(doc: &Document, node: NodeId) -> bool {
-    tab_index(doc, node).is_some()
+    tab_index(doc, node, || is_actually_disabled(doc, node)).is_some()
 }
 
 /// The next element in sequential focus order after `from` (or before it,
@@ -154,19 +114,21 @@ pub(crate) fn next_in_order(
     backward: bool,
     rendered: impl Fn(NodeId) -> bool,
 ) -> Option<NodeId> {
+    let disabled = DisabledElements::new(doc);
     // (tabindex group, tree position, node); group 0 is tabindex 0.
     let mut order: Vec<(i32, usize, NodeId)> = Vec::new();
     let mut from_key = None;
     for (position, node) in doc.descendants(NodeId::DOCUMENT).enumerate() {
         if Some(node) == from {
-            from_key = Some(match tab_index(doc, node) {
+            from_key = Some(match tab_index(doc, node, || disabled.contains(node)) {
                 Some(index) if index > 0 => (index, position),
                 // Not in the order: it sorts after the positive group, at
                 // its tree position.
                 _ => (i32::MAX, position),
             });
         }
-        let Some(index) = tab_index(doc, node).filter(|&i| i >= 0) else {
+        let Some(index) = tab_index(doc, node, || disabled.contains(node)).filter(|&i| i >= 0)
+        else {
             continue;
         };
         if rendered(node) {

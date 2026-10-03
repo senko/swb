@@ -43,25 +43,7 @@ pub(crate) fn independent_content_sizes(
         IndependentContents::Flow(container) => {
             container_content_sizes(ctx, container, &ib.base.style)
         }
-        IndependentContents::Flex(items) => {
-            let row = ib.base.style.flex_direction.is_row();
-            let mut sizes = ContentSizes::default();
-            let in_flow = items
-                .iter()
-                .filter(|item| !item.base.style.is_absolutely_positioned());
-            for item in in_flow {
-                let s = crate::table::TableCache::percent_free(ctx, |ctx| {
-                    independent_outer_sizes(ctx, item)
-                });
-                if row {
-                    sizes.min = sizes.min.max(s.min);
-                    sizes.max += s.max;
-                } else {
-                    sizes = sizes.max_with(s);
-                }
-            }
-            sizes
-        }
+        IndependentContents::Flex(items) => flex_content_sizes(ctx, &ib.base.style, items),
         IndependentContents::Replaced(r) => {
             let edges = BoxEdges::resolve(&ib.base.style, 0.0);
             let w = crate::replaced::natural_content_width(&ib.base.style, r, &edges);
@@ -77,7 +59,41 @@ pub(crate) fn independent_content_sizes(
                 max: (outer.max - edges).max(0.0),
             }
         }
+        IndependentContents::Control(control) => {
+            crate::control::content_sizes(ctx, &ib.base.style, control)
+        }
     }
+}
+
+/// Content-box sizes of a flex container with style `style` and `items`.
+pub(crate) fn flex_content_sizes(
+    ctx: &mut LayoutContext<'_>,
+    style: &ComputedStyle,
+    items: &[IndependentBox],
+) -> ContentSizes {
+    let row = style.flex_direction.is_row();
+    let mut sizes = ContentSizes::default();
+    let in_flow = items
+        .iter()
+        .filter(|item| !item.base.style.is_absolutely_positioned());
+    let mut count = 0_usize;
+    for item in in_flow {
+        count += 1;
+        let s =
+            crate::table::TableCache::percent_free(ctx, |ctx| independent_outer_sizes(ctx, item));
+        if row {
+            sizes.min = sizes.min.max(s.min);
+            sizes.max += s.max;
+        } else {
+            sizes = sizes.max_with(s);
+        }
+    }
+    if row && count > 1 {
+        // The gaps between the items of one line; percentages resolve
+        // against 0 for intrinsic sizes.
+        sizes.max += crate::flex::gap(&style.column_gap, 0.0) * (count - 1) as f32;
+    }
+    sizes
 }
 
 /// Margin-box sizes of an independent box, honoring a fixed `width`.

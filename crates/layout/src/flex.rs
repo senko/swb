@@ -62,7 +62,8 @@ impl Axes {
     }
 }
 
-fn gap(g: &Gap, basis: f32) -> f32 {
+/// The used size of a gap; percentages resolve against `basis`.
+pub(crate) fn gap(g: &Gap, basis: f32) -> f32 {
     match g {
         Gap::Normal => 0.0,
         Gap::LengthPercentage(lp) => lp.resolve(basis),
@@ -136,7 +137,21 @@ impl Item<'_> {
 }
 
 /// Lays out flex items inside a container whose content box is `cb`.
+/// Tables inside do not use column percentages for their intrinsic widths
+/// (see [`crate::table::TableCache::percent_free`]).
 pub(crate) fn layout_flex(
+    ctx: &mut LayoutContext<'_>,
+    container: &ComputedStyle,
+    children: &[IndependentBox],
+    cb: ContainingBlock,
+) -> FlexLayout {
+    crate::table::TableCache::percent_free(ctx, |ctx| {
+        layout_flex_items(ctx, container, children, cb)
+    })
+}
+
+/// [`layout_flex`] without the table setting.
+fn layout_flex_items(
     ctx: &mut LayoutContext<'_>,
     container: &ComputedStyle,
     children: &[IndependentBox],

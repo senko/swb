@@ -46,6 +46,11 @@ Format: source, license (for code), what it influenced.
   transform of SVG images) and CSS Images 3 (natural dimensions, the
   default sizing algorithm, the default object size) — `paint/src/svg/`,
   `layout/src/replaced.rs`
+- HTML Living Standard, forms: form submission, constructing the entry
+  list, implicit submission, value sanitization, radio button groups,
+  selectedness, labels, constraint validation (`engine/src/forms/`);
+  WHATWG URL `application/x-www-form-urlencoded` serializer; Infra
+  newline normalization; RFC 7578 (`multipart/form-data`)
 - RFC 6265bis (IETF draft, HTTP State Management Mechanism) — cookie
   parsing, storage, retrieval and `SameSite` (`net/src/cookies/`)
 - WHATWG Fetch, "append a request `Origin` header" — the `Origin` header
@@ -99,6 +104,14 @@ Format: source, license (for code), what it influenced.
   selection colors, `a:any-link:focus-visible { outline-offset: 1px }` in
   `html.css`, the 4 px drag threshold, 40 px arrow-key scrolling and the
   87.5% page step.
+- Chromium / Blink (BSD-3-Clause), forms, from recollection and
+  confirmed by measurements with Chromium 148: text field widths
+  (`layout_text_control.cc`: `GetAvgCharWidth`, `HasValidAvgCharWidth`
+  and its family list, `PreferredContentLogicalWidth`), select option
+  widths and optgroup indentation (`LayoutMenuList::UpdateOptionsWidth`),
+  the check mark of `NativeThemeBase::PaintCheckbox`, label activation
+  (`HTMLLabelElement::DefaultEventHandler`) and line breaks in pasted
+  text (`TextFieldInputType`). No code copied.
 - Chromium (BSD-3-Clause), cookies: `net/cookies/cookie_monster.cc`
   (limits of 180/150 cookies per domain and 3300/3000 in total, LRU
   eviction), `net/cookies/cookie_util.cc` (`GetCookieDomainWithString`:

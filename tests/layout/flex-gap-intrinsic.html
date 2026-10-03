@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- The max-content width of a row flex container includes column-gap
+     (an inline-flex container and a float shrink to it). -->
+<style>
+  body { font: 16px/20px sans-serif; margin: 8px; }
+  .f { display: inline-flex; gap: 10px; background: #eee; }
+  .f > div { width: 30px; height: 20px; background: #888; }
+  .p { display: inline-flex; column-gap: 50%; background: #ddd; }
+  .p > div { width: 40px; height: 20px; background: #666; }
+</style>
+<div><div class="f"><div></div><div></div><div></div></div></div>
+<div><div class="f" style="gap: 0 25px"><div></div><div></div></div></div>
+<div><div class="p"><div></div><div></div></div></div>

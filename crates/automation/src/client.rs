@@ -148,6 +148,20 @@ impl Client {
         Ok(result["handled"].as_bool().unwrap_or(false))
     }
 
+    /// Types text into the focused text field or text area
+    /// (`input.type`).
+    pub fn type_text(&mut self, text: &str) -> Result<(), ClientError> {
+        self.call("input.type", json!({ "text": text }))?;
+        Ok(())
+    }
+
+    /// The value of a form control, or `None` for other nodes
+    /// (`dom.value`).
+    pub fn value(&mut self, node: u64) -> Result<Option<String>, ClientError> {
+        let result = self.call("dom.value", json!({ "nodeId": node }))?;
+        Ok(result["value"].as_str().map(str::to_owned))
+    }
+
     /// The page state (`page.info`).
     pub fn info(&mut self) -> Result<Value, ClientError> {
         self.call("page.info", Value::Null)

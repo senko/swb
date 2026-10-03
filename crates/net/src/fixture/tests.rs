@@ -50,6 +50,7 @@ impl Fetcher for CannedFetcher {
             status,
             headers,
             body,
+            redirected: false,
         })
     }
 }

@@ -316,7 +316,11 @@ textarea {
   border: 1px solid #767676;
   background-color: Field;
   padding: 2px;
+  overflow: auto;
 }
+
+/* Chromium: the placeholder text (measured: rgb(117, 117, 117)). */
+::placeholder { color: #757575; white-space: pre; }
 
 select {
   box-sizing: border-box;
@@ -327,6 +331,10 @@ select {
   border-radius: 0;
   cursor: default;
 }
+
+/* Chromium clips the label of a select (in an inner box; the select's own
+   computed overflow stays visible). */
+select { overflow: clip; }
 
 optgroup { display: block; font-weight: bolder; }
 option { display: block; white-space: nowrap; }

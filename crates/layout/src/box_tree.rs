@@ -32,6 +32,7 @@ use swb_style::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::control::FormControls;
 use crate::list_marker::marker_text;
 use crate::source_map::{CharSource, SourceMap};
 use crate::{NaturalSize, ReplacedSizes};
@@ -127,6 +128,8 @@ pub(crate) enum IndependentContents {
     Replaced(Replaced),
     /// A table (CSS 2.2 §17): its captions, columns and row groups.
     Table(crate::table::TableBox),
+    /// A form control (see `control.rs`).
+    Control(Box<crate::control::ControlBox>),
 }
 
 /// A replaced element.
@@ -249,6 +252,7 @@ pub(crate) struct BuildContext<'a> {
     pub(crate) doc: &'a Document,
     pub(crate) styles: &'a StyleMap,
     pub(crate) replaced: &'a dyn ReplacedSizes,
+    pub(crate) controls: &'a dyn FormControls,
     /// The element whose `overflow` applies to the viewport (CSS Overflow 3
     /// §3.3). Its box gets the used overflow `visible`.
     pub(crate) overflow_source: Option<NodeId>,
@@ -416,6 +420,15 @@ pub(crate) fn build_independent(
             marker: None,
         };
     }
+    if let Some(node) = element
+        && let Some(contents) = crate::control::build(ctx, node, &base, state)
+    {
+        return IndependentBox {
+            contents,
+            base,
+            marker: None,
+        };
+    }
     let marker = element.and_then(|n| build_marker(ctx, n, &base.style, state));
     let contents = match base.style.display {
         Display::Flex | Display::InlineFlex => {
@@ -438,6 +451,12 @@ pub(crate) fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
     ctx.doc
         .element(node)
         .is_some_and(|e| e.is_html_named(&local_name!("img")))
+}
+
+/// True for elements whose box is atomic like a replaced element: images
+/// and form controls.
+pub(crate) fn is_atomic(ctx: &BuildContext<'_>, node: NodeId) -> bool {
+    is_replaced(ctx, node) || ctx.controls.is_control(node)
 }
 
 /// The marker of list item `node` (an element, not a pseudo-element).
@@ -479,7 +498,7 @@ fn build_marker(
 }
 
 /// Builds the contents of a block container element (or pseudo-element).
-fn build_block_container(
+pub(crate) fn build_block_container(
     ctx: &BuildContext<'_>,
     base: &BoxBase,
     state: &mut BuildState,
@@ -505,7 +524,7 @@ fn build_block_container(
 /// Builds the children of a flex container: every in-flow child becomes a
 /// flex item; contiguous inline content is wrapped in anonymous blocks.
 /// Floats are flex items (`float` does not apply to them).
-fn build_flex_items(
+pub(crate) fn build_flex_items(
     ctx: &BuildContext<'_>,
     base: &BoxBase,
     state: &mut BuildState,
@@ -781,8 +800,8 @@ impl ContainerBuilder {
         state: &mut BuildState,
     ) {
         let style = Arc::clone(&base.style);
-        let replaced = base.element().is_some_and(|n| is_replaced(ctx, n));
-        if style.display.is_table_internal() && !replaced {
+        let atomic = base.element().is_some_and(|n| is_atomic(ctx, n));
+        if style.display.is_table_internal() && !atomic {
             // A misparented table part on its own (a pseudo-element; runs of
             // elements are collected in `push_children`).
             let mut table = self.anonymous_table(state);
@@ -810,7 +829,7 @@ impl ContainerBuilder {
             }
             return;
         }
-        if style.display == Display::Inline && !replaced {
+        if style.display == Display::Inline && !atomic {
             self.inline.push(RawItem::StartBox {
                 base: base.clone(),
                 continued: false,
@@ -909,7 +928,7 @@ fn build_block_level(
     let establishes_bfc = !matches!(style.display, Display::Block | Display::ListItem)
         || style.overflow_x.is_scroll_container()
         || style.overflow_y.is_scroll_container()
-        || base.element().is_some_and(|n| is_replaced(ctx, n));
+        || base.element().is_some_and(|n| is_atomic(ctx, n));
     if establishes_bfc {
         return BlockLevelBox::Independent(build_independent(ctx, base, state));
     }
@@ -971,16 +990,35 @@ impl AnonymousTable {
 }
 
 /// True if `node` is an element with an internal table display type.
-/// Replaced elements are not table parts: they keep their image as
-/// block-level boxes (inside a table, in an anonymous cell), as in
+/// Replaced elements and form controls are not table parts: they stay
+/// atomic block-level boxes (inside a table, in an anonymous cell), as in
 /// Chromium.
 fn is_table_internal(ctx: &BuildContext<'_>, node: NodeId) -> bool {
     ctx.doc.element(node).is_some()
-        && !is_replaced(ctx, node)
+        && !is_atomic(ctx, node)
         && ctx
             .styles
             .get(node)
             .is_some_and(|s| s.display.is_table_internal())
+}
+
+/// An inline formatting context with the text of form control `node`:
+/// the value of a text field (`selectable`: its caret stops are byte
+/// offsets in `text`) or a label (generated content).
+pub(crate) fn control_text(
+    node: NodeId,
+    style: &Arc<ComputedStyle>,
+    text: &str,
+    selectable: bool,
+    state: &mut BuildState,
+) -> InlineFormattingContext {
+    let mut builder = InlineBuilder::default();
+    if selectable {
+        builder.push_text(node, style, text);
+    } else {
+        builder.push_generated(node, style, text);
+    }
+    builder.finish(state)
 }
 
 /// Inline content before white-space processing.

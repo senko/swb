@@ -10,7 +10,7 @@ the owner as ready for review), `accepted` (the owner verified it).
 | # | URL                                          | Fixture                          | Status  | Notes |
 |---|----------------------------------------------|----------------------------------|---------|-------|
 | 1 | https://senko.net/                           | `fixtures/pages/senko-net`       | accepted | Layout matches Chromium (all 65 element boxes within 0.1 px at 1280×800); the narrow layout (`max-width: 480px`) looks the same in a side-by-side screenshot. Hover underline, cursor, Tab focus rings, text selection and copy work. |
-| 2 | https://news.ycombinator.com/                | `fixtures/pages/hacker-news`     | in progress | Readable. Needs table layout, SVG logo, `<center>` alignment (M2). |
+| 2 | https://news.ycombinator.com/                | `fixtures/pages/hacker-news`     | done | Layout matches Chromium (all 818 element boxes within 2 px at 1280×800; quirks mode, nested tables); logo and vote arrows (SVG) match. Links, the search form (GET to hn.algolia.com) and back/forward work. Login (POST and the session cookie) is implemented and tested with local servers; it was not tried against the live site. |
 | 3 | https://en.wikipedia.org/wiki/Web_browser    | `fixtures/pages/wikipedia-web-browser` | in progress | Readable. Needs grid (sidebar), floats (images), SVG, `mask-image` icons (M3). |
 
 Scores per fixture are in `fixtures/scores.json` (see

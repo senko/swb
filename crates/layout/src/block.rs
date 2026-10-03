@@ -718,6 +718,9 @@ pub(crate) fn layout_sized(
     cb: ContainingBlock,
 ) -> BoxFragment {
     let base = &ib.base;
+    if let IndependentContents::Control(control) = &ib.contents {
+        return crate::control::layout(ctx, base, control, content_width, content_height, cb);
+    }
     let style = &base.style;
     let edges = BoxEdges::resolve(style, cb.width);
     let edge_sum = edges.sum();
@@ -795,9 +798,7 @@ pub(crate) fn layout_contents<'a>(
             markers,
         ),
         IndependentContents::Flex(items) => {
-            let layout = crate::table::TableCache::percent_free(ctx, |ctx| {
-                crate::flex::layout_flex(ctx, style, items, cb)
-            });
+            let layout = crate::flex::layout_flex(ctx, style, items, cb);
             ChildrenLayout {
                 fragments: layout.fragments,
                 content_height: layout.content_height,
@@ -812,8 +813,11 @@ pub(crate) fn layout_contents<'a>(
                 },
             }
         }
-        // Tables size their own box (`layout_sized` calls table layout).
-        IndependentContents::Replaced(_) | IndependentContents::Table(_) => ChildrenLayout {
+        // Tables size their own box (`layout_sized` calls table layout);
+        // controls are laid out by `control::layout`.
+        IndependentContents::Replaced(_)
+        | IndependentContents::Table(_)
+        | IndependentContents::Control(_) => ChildrenLayout {
             fragments: Vec::new(),
             content_height: 0.0,
             start_margin: CollapsedMargin::default(),
@@ -842,6 +846,10 @@ pub(crate) fn layout_independent_block_level(
             let (w, h) = crate::replaced::used_size(style, r, cb, &edges);
             let (_, ml, _) = block_width_and_margins(style, cb, &edges, Some(w));
             (w, ml, Some(h))
+        } else if let IndependentContents::Control(control) = &ib.contents {
+            let w = crate::control::block_level_width(ctx, style, control, cb, &edges);
+            let (_, ml, _) = block_width_and_margins(style, cb, &edges, Some(w));
+            (w, ml, None)
         } else {
             let (w, ml, _) = block_width_and_margins(style, cb, &edges, None);
             (w, ml, None)

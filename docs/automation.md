@@ -21,7 +21,8 @@ swb --remote-port 9222 [URL]          # with a window
   not send one.
 - There is no authentication: every local process that can connect to the
   port controls the browser. It can also read all cookies with
-  `cookies.get`, including `HttpOnly` session cookies. Do not start the
+  `cookies.get`, including `HttpOnly` session cookies, and the values of
+  password fields in plain text with `dom.value`. Do not start the
   server in a session that is logged in to accounts that matter, on a
   machine that other users share.
 - Limits: at most 16 connections at the same time; a request message is at
@@ -134,6 +135,7 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 | `dom.outerHtml` | `nodeId` | `{"html"}` (HTML serialization) |
 | `dom.attributes` | `nodeId` | `{"attributes": {"name": "value", ...}}` |
 | `dom.box` | `nodeId` | `{"rect": [x, y, w, h]}` (the union of the element's border boxes) or `{"rect": null}` |
+| `dom.value` | `nodeId` | `{"value", "checked"}`: the current value of a form control (as the `value` IDL attribute; for a select, the value of its first selected option), and the checkedness of a checkbox or radio button or the selectedness of an option. `null` where it does not apply. The value of a password field is returned in plain text. |
 | `dom.boxes` | — | the box dump of all elements (format: [testing.md](testing.md), "Box dump") |
 
 `:hover`, `:focus` and the other state pseudo-classes in selectors match
@@ -148,6 +150,7 @@ the current state of the page.
 | `input.mouseUp` | point, `button` | `{}` |
 | `input.click` | point, `button`, `clickCount` (1 to 3), `modifiers` | `{}`. For `clickCount` n, presses and releases n times with click counts 1 to n. |
 | `input.key` | `key`, `modifiers` | `{"handled": bool}` |
+| `input.type` | `text` | `{}`. Types the text into the focused text field or text area, as key presses would (`maxlength` applies). A line break presses Enter (a new line in a text area, implicit submission in a text field); a tab presses Tab (the focus moves to the next element, and typing goes on there). Typing stops when Enter starts a navigation or when the focus leaves editable fields. Error -32000 if no editable field has the focus. |
 
 - A point is `x` and `y`, or `nodeId`: the center of the node's box. If
   that center is outside the viewport, the page first scrolls the node into
@@ -159,6 +162,16 @@ the current state of the page.
   the focused link), Ctrl+A (select all), the arrows, Page Up, Page Down,
   Space, Shift+Space, Home and End (scrolling). Browser shortcuts of the
   window (Ctrl+L, Ctrl+C, Backspace for back) are not part of the page.
+- A focused form control gets keys first: in a text field or text area,
+  characters type, and Backspace, Delete, the arrows (Shift selects,
+  Control moves by words), Home, End and Ctrl+A edit; Enter submits the
+  form of a text field (implicit submission) and adds a line in a text
+  area. Space and Enter click buttons; Space toggles checkboxes and radio
+  buttons, the arrows move between the radio buttons of a group; the
+  arrows, Home, End and characters select an option of a select. A click
+  in a text field places the caret; a click on a label clicks its
+  control. The form controls are described in
+  [ADR 0013](adr/0013-forms.md).
 
 ### selection
 

@@ -179,8 +179,48 @@ impl Rasterizer<'_> {
                     self.pop_layer();
                 }
             }
+            DisplayItem::Polyline {
+                points,
+                width,
+                color,
+            } => self.polyline(points, *width, *color),
             DisplayItem::HitRegion { .. } => {}
         }
+    }
+
+    /// Strokes a line through `points` with butt caps and miter joins.
+    fn polyline(&mut self, points: &[Point], width: f32, color: Rgba) {
+        if color.is_transparent() || width <= 0.0 || points.len() < 2 {
+            return;
+        }
+        let mut pb = PathBuilder::new();
+        for (i, p) in points.iter().enumerate() {
+            let d = self.to_device_point(*p);
+            if i == 0 {
+                pb.move_to(d.x, d.y);
+            } else {
+                pb.line_to(d.x, d.y);
+            }
+        }
+        let Some(path) = pb.finish() else {
+            return;
+        };
+        let stroke = Stroke {
+            width: width * self.params.scale,
+            ..Stroke::default()
+        };
+        let bounds = path.bounds();
+        let grow = stroke.width * 2.0;
+        let device = Rect::new(
+            bounds.x() - grow,
+            bounds.y() - grow,
+            bounds.width() + 2.0 * grow,
+            bounds.height() + 2.0 * grow,
+        );
+        let paint = solid_paint(color, true);
+        self.draw(device, |p, t, m| {
+            p.stroke_path(&path, &paint, &stroke, t, m);
+        });
     }
 
     // ----- Coordinates and surfaces -----

@@ -7,8 +7,8 @@ use swb_style::{ElementStates, StyleMap, Stylist, compute_styles};
 use swb_text::FontContext;
 
 use crate::{
-    BoxFragment, FragmentRef, FragmentTree, LayoutContext, LayoutInput, NoReplacedSizes, Rect,
-    Size, layout_with,
+    BoxFragment, Control, ControlKind, FormControls, FragmentRef, FragmentTree, LayoutContext,
+    LayoutInput, NoReplacedSizes, Point, Rect, Size, layout_with,
 };
 
 /// The result of a test layout.
@@ -72,6 +72,7 @@ pub(crate) fn layout_document(doc: Document) -> TestLayout {
         styles: &styles,
         viewport: Size::new(800.0, 600.0),
         replaced: &NoReplacedSizes,
+        controls: &TestControls(&doc),
     };
     let tree = layout_with(&input, &mut ctx);
     let uncached_layouts = ctx.uncached_layouts;
@@ -79,6 +80,82 @@ pub(crate) fn layout_document(doc: Document) -> TestLayout {
         doc,
         tree,
         uncached_layouts,
+    }
+}
+
+/// Form controls from the attributes of `input`, `textarea`, `select`
+/// and `button` elements (the value is the `value` attribute), for tests.
+/// The engine keeps the real state of controls.
+pub(crate) struct TestControls<'a>(pub(crate) &'a Document);
+
+impl FormControls for TestControls<'_> {
+    fn is_control(&self, node: NodeId) -> bool {
+        self.control(node).is_some()
+    }
+
+    fn control(&self, node: NodeId) -> Option<Control> {
+        let doc = self.0;
+        let e = doc.element(node).filter(|e| e.is_html())?;
+        let number = |name: &str, default: u32| {
+            e.attr(name)
+                .and_then(|v| v.trim().parse::<u32>().ok())
+                .filter(|v| *v > 0)
+                .unwrap_or(default)
+        };
+        let value = |default: &str| e.attr("value").unwrap_or(default).to_owned();
+        let mut options = Vec::new();
+        let (kind, text) = match &**e.local_name() {
+            "input" => match e
+                .attr("type")
+                .unwrap_or("text")
+                .to_ascii_lowercase()
+                .as_str()
+            {
+                "hidden" => return None,
+                "checkbox" => (ControlKind::Checkbox, String::new()),
+                "radio" => (ControlKind::Radio, String::new()),
+                "submit" => (ControlKind::Button, value("Submit")),
+                "reset" => (ControlKind::Button, value("Reset")),
+                "button" => (ControlKind::Button, value("")),
+                _ => (
+                    ControlKind::TextField {
+                        size: number("size", 20),
+                    },
+                    value(""),
+                ),
+            },
+            "textarea" => (
+                ControlKind::TextArea {
+                    cols: number("cols", 20),
+                    rows: number("rows", 2),
+                },
+                doc.text_content(node),
+            ),
+            "select" => {
+                options = doc
+                    .descendants(node)
+                    .filter(|&n| doc.is_html_element(n, &local_name!("option")))
+                    .map(|n| doc.text_content(n))
+                    .collect();
+                (
+                    ControlKind::Select,
+                    options.first().cloned().unwrap_or_default(),
+                )
+            }
+            "button" => (ControlKind::ButtonElement, String::new()),
+            _ => return None,
+        };
+        Some(Control {
+            kind,
+            text,
+            placeholder: false,
+            options,
+            caret: None,
+            focus: None,
+            scroll: Point::default(),
+            checked: e.has_attr("checked"),
+            disabled: e.has_attr("disabled"),
+        })
     }
 }
 

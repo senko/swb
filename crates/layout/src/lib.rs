@@ -5,8 +5,9 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images), flex layout, table layout, relative positioning. Floats and
-//! absolute positioning are approximated (see `block.rs`).
+//! (images), form controls, flex layout, table layout, relative
+//! positioning. Floats and absolute positioning are approximated (see
+//! `block.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
@@ -14,6 +15,7 @@
 
 mod block;
 mod box_tree;
+mod control;
 mod flex;
 mod fonts;
 mod fragment;
@@ -33,9 +35,10 @@ use swb_dom::{Document, NodeId, local_name};
 use swb_style::{ComputedStyle, Overflow, StyleMap};
 use swb_text::FontContext;
 
+pub use control::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, NoFormControls};
 pub use fragment::{
-    BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, Fragment,
-    FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
+    BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, ControlContent,
+    Fragment, FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
 pub use geom::{Edges, Point, Rect, Size};
 pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
@@ -70,6 +73,8 @@ pub struct LayoutInput<'a> {
     pub viewport: Size,
     /// Natural sizes of images.
     pub replaced: &'a dyn ReplacedSizes,
+    /// The states of form controls.
+    pub controls: &'a dyn FormControls,
 }
 
 /// State shared by all layout functions during one layout pass.
@@ -177,6 +182,7 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         doc: input.document,
         styles: input.styles,
         replaced: input.replaced,
+        controls: input.controls,
         overflow_source: viewport_overflow.map(|(node, _, _)| node),
     };
     let root_box = box_tree::build_root(&build);

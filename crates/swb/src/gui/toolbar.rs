@@ -3,14 +3,13 @@
 
 use std::sync::Arc;
 
+use swb_engine::TextEdit;
 use swb_layout::{Point, PositionedGlyph, Rect};
 use swb_paint::{DisplayItem, DisplayList};
 use swb_style::{BorderStyle, Rgba};
 use swb_text::{
     Direction, FamilyName, FontContext, FontId, FontQuery, FontStyle, GenericFamily, ShapeOptions,
 };
-
-use super::text_field::TextField;
 
 /// Height of the toolbar in CSS px.
 pub(crate) const TOOLBAR_HEIGHT: f32 = 40.0;
@@ -45,7 +44,7 @@ pub(crate) struct ToolbarState<'a> {
 /// The toolbar: address field state and geometry.
 #[derive(Default)]
 pub(crate) struct Toolbar {
-    pub(crate) address: TextField,
+    pub(crate) address: TextEdit,
     pub(crate) focused: bool,
 }
 

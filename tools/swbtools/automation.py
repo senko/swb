@@ -137,6 +137,15 @@ class Browser:
         True if the page handled it."""
         return bool(self.call("input.key", key=key, modifiers=modifiers or [])["handled"])
 
+    def type_text(self, text: str) -> None:
+        """Types text into the focused text field or text area, as keyboard
+        input would (a line break presses Enter, a tab presses Tab)."""
+        self.call("input.type", text=text)
+
+    def value(self, node_id: int) -> str | None:
+        """The current value of a form control, or None for other nodes."""
+        return self.call("dom.value", nodeId=node_id)["value"]
+
     def screenshot(self, full_page: bool = False) -> bytes:
         """A PNG screenshot of the viewport, or of the whole page."""
         return base64.b64decode(self.call("page.screenshot", fullPage=full_page)["png"])

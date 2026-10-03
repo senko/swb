@@ -1,11 +1,13 @@
-//! Page lifecycle: loading, the rendering pipeline, input, navigation and
-//! history.
+//! Page lifecycle: loading, the rendering pipeline, input, form controls,
+//! navigation and history.
 //!
 //! The engine has no windowing code. The GUI shell and the headless runner
 //! both drive a [`Page`].
 
 mod boxes;
+mod edit;
 mod focus;
+mod forms;
 mod history;
 mod hit_test;
 mod input;
@@ -14,6 +16,7 @@ mod resources;
 mod selection;
 
 pub use boxes::{ElementBox, element_boxes};
+pub use edit::TextEdit;
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};
 pub use page::{

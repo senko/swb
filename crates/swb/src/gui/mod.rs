@@ -1,7 +1,6 @@
 //! The windowed browser: a winit window, a softbuffer surface, the toolbar
 //! and one page.
 
-mod text_field;
 mod toolbar;
 
 use std::num::NonZeroU32;
@@ -363,8 +362,12 @@ impl App {
                 self.toolbar.focused = false;
                 self.sync_address();
             }
-            Key::Named(NamedKey::Backspace) => field.backspace(),
-            Key::Named(NamedKey::Delete) => field.delete(),
+            Key::Named(NamedKey::Backspace) => {
+                field.backspace();
+            }
+            Key::Named(NamedKey::Delete) => {
+                field.delete();
+            }
             Key::Named(NamedKey::ArrowLeft) => field.left(shift),
             Key::Named(NamedKey::ArrowRight) => field.right(shift),
             Key::Named(NamedKey::Home) => field.home(shift),
@@ -377,7 +380,7 @@ impl App {
                 if !range.is_empty() {
                     let text = field.text().get(range).unwrap_or("").to_owned();
                     if c.eq_ignore_ascii_case("x") {
-                        field.delete();
+                        field.delete_selection();
                     }
                     self.copy(text, false);
                 }
@@ -390,7 +393,12 @@ impl App {
                 }
             }
             _ if !ctrl => {
-                if let Some(text) = &event.text {
+                // Tab and other control keys produce text too.
+                if let Some(text) = event
+                    .text
+                    .as_deref()
+                    .filter(|t| !t.chars().any(char::is_control))
+                {
                     field.insert(text);
                 }
             }
@@ -399,15 +407,42 @@ impl App {
     }
 
     /// A key press while the page has the focus: copy, back and stop here;
-    /// the page handles focus navigation, activation and scrolling.
+    /// the page handles focus navigation, activation and scrolling. While
+    /// a text field of the page has the focus, typed text, Backspace and
+    /// cut and paste go to the field.
     fn handle_page_key(&mut self, event: &KeyEvent) {
         let modifiers = self.engine_modifiers();
+        let editing = self.page.has_editable_focus();
         match &event.logical_key {
             Key::Character(c) if modifiers.ctrl && c.eq_ignore_ascii_case("c") => {
                 let text = self.page.selected_text();
                 self.copy(text, false);
             }
-            Key::Named(NamedKey::Backspace) if modifiers.is_empty() => {
+            Key::Character(c) if editing && modifiers.ctrl && c.eq_ignore_ascii_case("x") => {
+                let text = self.page.cut_selection();
+                self.copy(text, false);
+            }
+            Key::Character(c) if editing && modifiers.ctrl && c.eq_ignore_ascii_case("v") => {
+                if let Some(text) = self.paste() {
+                    self.page.insert_text(&text);
+                }
+            }
+            // Typed text (also composed characters and Space) without
+            // shortcut modifiers.
+            _ if editing
+                && !modifiers.ctrl
+                && !modifiers.alt
+                && !modifiers.meta
+                && event
+                    .text
+                    .as_deref()
+                    .is_some_and(|t| !t.chars().any(char::is_control)) =>
+            {
+                if let Some(text) = &event.text {
+                    self.page.insert_text(text);
+                }
+            }
+            Key::Named(NamedKey::Backspace) if modifiers.is_empty() && !editing => {
                 self.page.go_back();
                 self.sync_address();
             }

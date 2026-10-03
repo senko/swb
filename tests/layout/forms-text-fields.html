@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Text fields and text areas: the width from `size` and `cols` uses the
+     font's average character width (Liberation Sans, Serif and Mono), the
+     height is the line height; `Courier`, `Times` and `Helvetica` use the
+     width of "0"; a fixed height centers the text vertically. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Text fields</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <div>a <input> b <input size=1> c <input size=5 value="value"></div>
+  <div><input type=password value=secret><input type=email size=10><input type=number size=4></div>
+  <div><input type=search placeholder="Search"><input type=url size=3><input type=tel size=0></div>
+  <div><input size=17 style="font-family: monospace; font-size: 10pt"></div>
+  <div><input size=40 style="font: 20px monospace"> x</div>
+  <div><input size=10 style="font: 13.333333px serif"><input size=10 style="font: 14px sans-serif"></div>
+  <div><input size=10 style="font: 13.333333px Times"><input size=10 style="font: 13.333333px Courier"><input size=10 style="font: 13.333333px Helvetica"></div>
+  <div><input size=12 style="font: 22px serif"> big</div>
+  <div>x<input style="width: 60px; height: 40px" value="tall">y<input style="height: 10px" value="short"></div>
+  <div><input style="display: block"><input style="display: block; width: 50%"></div>
+  <div><input style="padding: 5px 10px; border: 3px solid black" value="styled"></div>
+  <div>t <textarea>text</textarea> <textarea cols=10 rows=4></textarea></div>
+  <div><textarea style="font: 16px sans-serif" cols=5 rows=1>wrap these words</textarea></div>
+  <div><input size=99999999 style="width: 30px"><textarea cols=100000 rows=100000 style="width: 40px; height: 30px"></textarea></div>
+</body>
+</html>

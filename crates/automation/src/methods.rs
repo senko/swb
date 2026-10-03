@@ -66,6 +66,12 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
             json!({ "html": html })
         }),
         "dom.attributes" => with_node(page, params, attributes),
+        "dom.value" => with_node(page, params, |page, node| {
+            json!({
+                "value": page.control_value(node),
+                "checked": page.control_checked(node),
+            })
+        }),
         "dom.box" => with_node(
             page,
             params,
@@ -81,6 +87,7 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         "input.mouseDown" => mouse_down(page, params),
         "input.mouseUp" => mouse_up(page, params),
         "input.key" => key(page, params),
+        "input.type" => type_text(page, params),
         "selection.get" => Ok(json!({ "text": page.selected_text() })),
         "selection.selectAll" => Ok(json!({ "changed": page.select_all() })),
         "selection.clear" => Ok(json!({ "changed": page.clear_selection() })),
@@ -483,6 +490,45 @@ struct KeyParams {
     key: String,
     #[serde(default)]
     modifiers: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct TypeParams {
+    text: String,
+}
+
+/// Types text into the focused text field or text area, as keyboard input
+/// would: line breaks press Enter (a new line in a text area, implicit
+/// submission in a text field) and tabs press Tab (the focus moves to the
+/// next element). Typing stops when Enter starts a navigation (the rest
+/// would go to the old document) or when the focus leaves editable
+/// fields.
+fn type_text(page: &mut Page, params: Value) -> MethodResult {
+    let p: TypeParams = parse(params)?;
+    if !page.has_editable_focus() {
+        return Err(RpcError::failed("no editable element is focused"));
+    }
+    let text = p.text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut rest = text.as_str();
+    loop {
+        let end = rest.find(['\n', '\t']).unwrap_or(rest.len());
+        let (chunk, tail) = rest.split_at(end);
+        page.insert_text(chunk);
+        let Some(separator) = tail.chars().next() else {
+            break;
+        };
+        let key = if separator == '\n' {
+            Key::Enter
+        } else {
+            Key::Tab
+        };
+        page.key_down(&key, Modifiers::NONE);
+        if page.load_state() == LoadState::LoadingDocument || !page.has_editable_focus() {
+            break;
+        }
+        rest = &tail[separator.len_utf8()..];
+    }
+    Ok(json!({}))
 }
 
 fn key(page: &mut Page, params: Value) -> MethodResult {

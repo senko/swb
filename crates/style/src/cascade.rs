@@ -296,6 +296,9 @@ impl Styler<'_> {
         if style.display == Display::ListItem {
             kinds.push(PseudoKind::Marker);
         }
+        if has_placeholder(data) {
+            kinds.push(PseudoKind::Placeholder);
+        }
         for kind in kinds {
             let mut matched = std::mem::take(&mut self.matched);
             matched.clear();
@@ -311,7 +314,10 @@ impl Styler<'_> {
                 );
             }
             let is_marker = kind == PseudoKind::Marker;
-            if !matched.is_empty() || is_marker {
+            // Markers and placeholders always have a box (the user-agent
+            // sheet has rules for both).
+            let always = is_marker || kind == PseudoKind::Placeholder;
+            if !matched.is_empty() || always {
                 let mut pseudo = cascade(
                     &self.cx,
                     &matched,
@@ -320,10 +326,10 @@ impl Styler<'_> {
                     Some(data),
                     false,
                 );
-                if !is_marker {
+                if !always {
                     apply_fixups(&mut pseudo, false, pseudo_layout_parent);
                 }
-                let generates_box = is_marker
+                let generates_box = always
                     || (!matches!(pseudo.content, Content::Normal | Content::None)
                         && pseudo.display != Display::None);
                 if generates_box {
@@ -358,6 +364,15 @@ fn contents_is_none(data: &ElementData) -> bool {
                 | "frame"
                 | "frameset"
         )
+}
+
+/// True if `::placeholder` applies: an `input` or `textarea` with a
+/// `placeholder` attribute. (Input types without a placeholder, such as
+/// checkboxes, never show it.)
+fn has_placeholder(data: &ElementData) -> bool {
+    data.is_html()
+        && matches!(&**data.local_name(), "input" | "textarea")
+        && data.has_attr("placeholder")
 }
 
 /// True if `::before` and `::after` apply: not for replaced elements and
@@ -1044,6 +1059,30 @@ mod tests {
             .expect("::before");
         assert_eq!(flex_before.display, Display::Block, "blockified flex item");
         assert!(map.pseudo(node(&doc, "img"), PseudoKind::Before).is_none());
+    }
+
+    #[test]
+    fn placeholder_styles() {
+        let (doc, map) = render(
+            "<input id=a placeholder=x><textarea id=b placeholder=y></textarea><input id=c>",
+            "#b::placeholder { color: red }",
+        );
+        let a = map
+            .pseudo(node(&doc, "a"), PseudoKind::Placeholder)
+            .expect("input::placeholder");
+        assert_eq!(a.color, Rgba::rgb(0x75, 0x75, 0x75));
+        assert_eq!(
+            a.font_size,
+            map.get(node(&doc, "a")).expect("style").font_size
+        );
+        let b = map
+            .pseudo(node(&doc, "b"), PseudoKind::Placeholder)
+            .expect("textarea::placeholder");
+        assert_eq!(b.color, RED);
+        assert!(
+            map.pseudo(node(&doc, "c"), PseudoKind::Placeholder)
+                .is_none()
+        );
     }
 
     #[test]

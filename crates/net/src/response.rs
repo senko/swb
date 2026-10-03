@@ -21,6 +21,11 @@ pub struct Response {
     pub headers: Headers,
     /// The response body, decompressed.
     pub body: Vec<u8>,
+    /// True if the response came after one or more redirects (Fetch's
+    /// response "URL list" has more than one URL). Fetchers set false;
+    /// [`fetch_following_redirects`](crate::fetch_following_redirects)
+    /// sets it.
+    pub redirected: bool,
 }
 
 impl Response {
@@ -83,6 +88,7 @@ mod tests {
             status,
             headers: content_type.iter().map(|v| ("content-type", *v)).collect(),
             body: Vec::new(),
+            redirected: false,
         }
     }
 

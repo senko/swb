@@ -146,6 +146,8 @@ pub enum BoxContent {
     /// their cells), and the part of an inline box around a block-level
     /// child.
     GeometryOnly,
+    /// A form control. Its text (value, label) is in its children.
+    Control(ControlContent),
 }
 
 /// What a table paints besides its children.
@@ -196,6 +198,27 @@ pub struct PartBackground {
     pub area: Rect,
     /// The area to paint, relative to the cell's border box.
     pub clip: Rect,
+}
+
+/// What paint needs to know about a form control.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ControlContent {
+    /// The kind of control.
+    pub kind: crate::ControlKind,
+    /// True for a checked checkbox or radio button.
+    pub checked: bool,
+    /// True if the control is disabled.
+    pub disabled: bool,
+    /// True if the control has the native look (its border and background
+    /// are the user-agent defaults); paint then draws it as Chromium's
+    /// theme does instead of with its CSS border and background.
+    pub native: bool,
+    /// The text caret, relative to the border box, if the control is
+    /// focused and editable.
+    pub caret: Option<Rect>,
+    /// The scroll offset of the text that layout used. The next layout
+    /// starts from it, so that the text does not jump.
+    pub scroll: Point,
 }
 
 /// The fragment of a box.

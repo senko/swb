@@ -19,6 +19,8 @@ use swb_layout::{
     BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, Point,
     PositionedGlyph, Rect, TextFragment,
 };
+
+use crate::control;
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
 };
@@ -105,6 +107,15 @@ pub enum DisplayItem {
     },
     /// End the most recent opacity group.
     PopOpacity,
+    /// Stroke a line through `points` (butt caps, miter joins).
+    Polyline {
+        /// The points.
+        points: Arc<[Point]>,
+        /// The line width.
+        width: f32,
+        /// The color.
+        color: Rgba,
+    },
     /// An area that hit testing finds. Not drawn.
     HitRegion {
         /// The area.
@@ -129,6 +140,7 @@ impl DisplayItem {
                 glyphs,
                 ..
             } => text_bounds(*origin, *size, glyphs),
+            DisplayItem::Polyline { points, width, .. } => polyline_bounds(points, *width),
             DisplayItem::PushClip(_)
             | DisplayItem::PopClip
             | DisplayItem::PushOpacity { .. }
@@ -155,6 +167,26 @@ fn text_bounds(origin: Point, size: f32, glyphs: &[PositionedGlyph]) -> Option<R
         origin.y + y0 - 3.0 * size,
         x1 - x0 + 5.0 * size,
         y1 - y0 + 5.0 * size,
+    ))
+}
+
+/// The area of a stroked line: the box of its points, grown by the line
+/// width (which covers miter joins of moderate angles).
+fn polyline_bounds(points: &[Point], width: f32) -> Option<Rect> {
+    let first = points.first()?;
+    let (mut x0, mut x1, mut y0, mut y1) = (first.x, first.x, first.y, first.y);
+    for p in points {
+        x0 = x0.min(p.x);
+        x1 = x1.max(p.x);
+        y0 = y0.min(p.y);
+        y1 = y1.max(p.y);
+    }
+    let grow = width.max(0.0) * 2.0;
+    Some(Rect::new(
+        x0 - grow,
+        y0 - grow,
+        x1 - x0 + 2.0 * grow,
+        y1 - y0 + 2.0 * grow,
     ))
 }
 
@@ -429,6 +461,11 @@ impl Builder<'_> {
         {
             self.collapsed_borders(collapsed, rect.origin());
         }
+        if let BoxContent::Control(c) = &b.content
+            && b.style.visibility == Visibility::Visible
+        {
+            self.list.extend(control::caret(c, &b.style, rect.origin()));
+        }
         if group.context {
             self.paint_deferred(negative_z_at);
         }
@@ -524,18 +561,27 @@ impl Builder<'_> {
                 };
                 paint_border = table.collapsed.is_none();
             }
-            BoxContent::None | BoxContent::Image(_) | BoxContent::GeometryOnly => {}
+            BoxContent::None
+            | BoxContent::Image(_)
+            | BoxContent::GeometryOnly
+            | BoxContent::Control(_) => {}
         }
         let radii = resolve_radii(style, border_rect);
         // The root's background (or the body's, if it was propagated)
         // paints the canvas instead.
         let paints_canvas =
             is_root || (b.pseudo.is_none() && b.node.is_some() && b.node == self.canvas_source);
-        if !paints_canvas {
+        // Controls with the native look draw their own background and
+        // border.
+        let native = matches!(&b.content, BoxContent::Control(c) if c.native);
+        if !paints_canvas && !native {
             self.background(style, &areas, radii);
         }
-        if paint_border {
+        if paint_border && !native {
             self.border(b, border_rect, radii);
+        }
+        if let BoxContent::Control(c) = &b.content {
+            self.list.extend(control::native_look(c, style, rect));
         }
         if let BoxContent::Image(node) = b.content {
             let content = b.content_rect().translate(origin);

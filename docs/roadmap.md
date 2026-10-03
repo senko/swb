@@ -44,19 +44,22 @@ Open a URL in a window and read the page.
   ([performance.md](performance.md)).
 - Target 1 (senko.net) done.
 
-## M2: Hacker News
+## M2: Hacker News — done
 
 - Table layout (auto and fixed, separated and collapsing borders),
   `-webkit-center` alignment, quirks-mode line height and table cell
-  rules: done (ADR 0010). Hacker News geometry 0.9876; the rest is the
-  search `<input>` (forms).
+  rules: done (ADR 0010).
 - SVG images (`resvg`): `<img>` and CSS backgrounds, natural sizes and
   CSS default sizing, rendering at device resolution, resource limits:
   done (ADR 0011).
-- Forms: text inputs, buttons, GET/POST submission.
+- Forms: text fields, text areas, buttons, checkboxes, radio buttons,
+  drop-down selects, labels; editing; GET/POST submission with the three
+  encodings; POST results in history; automation `input.type` and
+  `dom.value`: done (ADR 0013).
 - Cookies (RFC 6265bis jar, `SameSite`, Public Suffix List) and `POST`
   requests with `Origin`: done (ADR 0012).
-- Target 2 (news.ycombinator.com) done.
+- Target 2 (news.ycombinator.com) done: geometry 1.0 (all 818 element
+  boxes within 2 px of Chromium), logo and vote arrows, search form.
 
 ## M3: Wikipedia
 
@@ -77,13 +80,26 @@ Open a URL in a window and read the page.
   min-content` keywords on inline-blocks. Limits: 10,000 columns;
   collapsed grids over 4M edges use each box's own borders and paint
   none; inline wrapper boxes only for the 8 innermost inline boxes.
-- Cookies: keep the initiator in the history entry, so that reload and
-  back/forward after a cross-site link do not send `SameSite=Strict`
-  cookies; persistence; `Partitioned`, `Priority`, `__Http-` prefixes,
+- Cookies: persistence; `Partitioned`, `Priority`, `__Http-` prefixes,
   Lax+POST; the redirect-tainted `Origin`; `Sec-Fetch-*` and `Referer`
   headers; raw bytes in cookie values (now re-encoded as UTF-8);
   Chromium's 30-day protection in global eviction.
 - Owner decision: the Public Suffix List data is MPL-2.0 (ADR 0012).
+- Forms: list boxes (`<select multiple>` or `size` > 1 look like
+  drop-downs) and the popup list of a select (the keyboard changes the
+  selection); date, time, color, range and file inputs (text fields or a
+  button); image buttons show their `alt` text; the legend of a fieldset
+  sits inside the border; `wrap=hard`; validation other than `required`
+  and its messages; IME composition; middle-click paste into a field;
+  mouse-wheel scrolling of a text area; ArrowUp/Down in a text area move
+  by logical lines; `dir=auto` for `dirname`; every keystroke lays out
+  the page again, and select option labels are measured again on every
+  layout (cache their widths); the native look is decided from computed
+  values (an author value equal to the default keeps the native look).
+- Layout: an `inline-flex` column container whose items have no text
+  makes its line 5 px taller than in Chromium (baseline of the
+  container; `<div style="display:inline-flex; flex-direction:column">`
+  with two empty 20 px items).
 - SVG images: `<text>` is not drawn (no fonts in resvg); non-UTF-8
   sources are rejected; `list-style-image` is not drawn (also for raster
   images); percentages inside an SVG without `viewBox` and absolute size
@@ -111,9 +127,8 @@ Open a URL in a window and read the page.
   ends without waiting for a mouse movement (Chromium uses a timer).
 - Focus rings of inline elements split over lines: one outline around the
   union, as Chromium draws `outline-style: auto`.
-- Automation: events (`page.loaded`, `page.navigated`); `input.type` with
-  form inputs (M2); cancel a pending `page.waitForLoad` when its client
-  disconnects.
+- Automation: events (`page.loaded`, `page.navigated`); cancel a pending
+  `page.waitForLoad` when its client disconnects.
 - Incremental restyle for state changes (only the elements whose matched
   rules change); a hover on a page with `:hover` rules restyles all
   elements and often lays out again.
@@ -134,9 +149,7 @@ change behaviour, so they are not fixed yet.
 - Layout: a float that follows inline content in a flex container is
   dropped; it should be a flex item.
 - Engine: a click on a visible child of a `visibility: hidden` focusable
-  element focuses the hidden element; the disabled state of `option` and
-  `optgroup` does not follow the HTML spec (a disabled `fieldset` should
-  not disable them, a disabled `optgroup` should); after a navigation
+  element focuses the hidden element; after a navigation
   starts and the user stops it, the old page's cancelled images stay
   "loading" and do not load until a reload.
 - Paint: `background-repeat: space` and `round` are painted as `repeat`,

@@ -5,12 +5,13 @@
 use std::time::Instant;
 
 use swb_css::{MediaEnvironment, MediaQueryList};
-use swb_layout::{LayoutInput, Point, Size};
+use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point, Size};
 use swb_net::Url;
 use swb_paint::{NoHighlights, Pixmap, RasterParams};
 use swb_style::Stylist;
 
 use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
+use crate::forms::LayoutControls;
 use crate::selection::Highlight;
 
 impl Page {
@@ -66,17 +67,24 @@ impl Page {
         if self.fragments.is_none()
             && let (Some(doc), Some(styles)) = (&self.document, &self.styles)
         {
+            let controls = LayoutControls {
+                doc,
+                forms: &self.forms,
+                focus: self.input.states.focus,
+            };
             let input = LayoutInput {
                 document: doc,
                 styles,
                 viewport: self.viewport,
                 replaced: &self.images,
+                controls: &controls,
             };
             let started = Instant::now();
             let fragments = swb_layout::layout(&input, &mut self.fonts);
             self.timings.layout = started.elapsed();
             log::debug!("layout: {:?}", self.timings.layout);
             self.fragments = Some(fragments);
+            self.keep_control_scroll();
             // The scroll target is applied after every layout until the
             // page is loaded, because images that arrive later move it.
             // Scrolling by the user cancels it.
@@ -96,24 +104,42 @@ impl Page {
         }
     }
 
+    /// Stores the scroll offsets of the text in form controls that layout
+    /// used, so that the next layout starts from them.
+    fn keep_control_scroll(&mut self) {
+        let Some(tree) = &self.fragments else {
+            return;
+        };
+        let forms = &mut self.forms;
+        tree.walk(|fragment, _| {
+            if let FragmentRef::Box(b) = fragment
+                && let (Some(node), BoxContent::Control(c)) = (b.node, &b.content)
+                && let Some(state) = forms.get_mut(node)
+            {
+                state.scroll = c.scroll;
+            }
+        });
+    }
+
     /// Brings the display list up to date.
     pub(super) fn update_display_list(&mut self) {
         self.update_layout();
         if self.display_list.is_none()
-            && let Some(fragments) = &self.fragments
+            && let (Some(fragments), Some(doc)) = (&self.fragments, &self.document)
         {
             let started = Instant::now();
-            let list = match self.selection() {
-                Some(selection) => {
-                    let (start, end) = selection.ordered(&self.tree_order);
-                    let highlight = Highlight {
-                        start,
-                        end,
-                        order: &self.tree_order,
-                    };
-                    swb_paint::build_display_list(fragments, &self.images, &highlight)
-                }
-                None => swb_paint::build_display_list(fragments, &self.images, &NoHighlights),
+            let page = self.selection().map(|s| s.ordered(&self.tree_order));
+            let control = self.control_selection();
+            let list = if page.is_some() || control.is_some() {
+                let highlight = Highlight {
+                    page,
+                    control,
+                    order: &self.tree_order,
+                    doc,
+                };
+                swb_paint::build_display_list(fragments, &self.images, &highlight)
+            } else {
+                swb_paint::build_display_list(fragments, &self.images, &NoHighlights)
             };
             self.timings.display_list = started.elapsed();
             log::debug!("display list: {:?}", self.timings.display_list);

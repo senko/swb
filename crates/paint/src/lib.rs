@@ -7,6 +7,7 @@
 //! rendered at the size they are drawn at.
 
 mod background;
+mod control;
 mod display_list;
 mod image;
 mod raster;

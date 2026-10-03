@@ -250,6 +250,7 @@ mod tests {
                 status: 200,
                 headers: Headers::new(),
                 body: request.url.path().as_bytes().to_vec(),
+                redirected: false,
             })
         }
     }

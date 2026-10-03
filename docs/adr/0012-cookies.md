@@ -195,6 +195,13 @@ not send. To fix this, store the initiator in the pending navigation and
 in the history entry. This was left out to keep this change out of the
 navigation code, which form submission changes at the same time.
 
+Update (ADR 0013): the forms change implements this. The pending
+navigation and the history entry keep the initiator, and reload, back
+and forward use it again, as RFC 6265bis §5.2.1 requires and as Chromium
+does. Form submissions set the origin of the form's document. The
+deviation above and the item "the initiator for reload and history
+traversal" under "Later work" no longer apply.
+
 `Destination::Document` means a top-level navigation (Fetch's `document`
 destination). Frames, when swb supports them, need their own destination,
 because cookies treat them as subresources.

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Buttons: input buttons are as wide as their label, <button> as its
+     content; the content is centered vertically in a taller button;
+     block-level buttons keep their width; flex buttons lay out their
+     content as flex items. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Buttons</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <div>a <input type=submit> <input type=reset> <input type=button value="Push"> <input type=button></div>
+  <div><input type=submit value="login" style="font-family: Verdana, Geneva, sans-serif; font-size: 10pt"></div>
+  <div>x <button>Button</button> <button><b>bold</b> and <i>italic</i></button> <button></button></div>
+  <div>x<button style="height: 50px">tall</button>y<input type=submit style="height: 40px" value="t"></div>
+  <div><button style="display: block">block button</button><input type=submit style="display: block" value="block input"></div>
+  <div><button style="width: 120px">wide</button><input type=submit style="width: 30px" value="narrow input"></div>
+  <div><button style="font-size: 24px">big</button><input type=submit style="padding: 10px; border: 1px solid" value="padded"></div>
+  <div><button><span style="display: block">block content</span></button></div>
+  <div>x <button style="display: inline-flex; align-items: center"><span>flex</span><span style="margin-left: 6px; font-size: 24px">items</span></button>
+    <button style="display: flex; flex-direction: column; width: 90px"><span>column</span><span>flex</span></button></div>
+</body>
+</html>

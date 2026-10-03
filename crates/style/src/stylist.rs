@@ -175,6 +175,7 @@ pub struct Stylist {
     before_rules: RuleMap,
     after_rules: RuleMap,
     marker_rules: RuleMap,
+    placeholder_rules: RuleMap,
     /// All media query lists that rules depend on.
     media_lists: Vec<MediaQueryList>,
     /// Chains of media query lists (nested `@media`); each rule refers to
@@ -197,6 +198,7 @@ impl Stylist {
             before_rules: RuleMap::default(),
             after_rules: RuleMap::default(),
             marker_rules: RuleMap::default(),
+            placeholder_rules: RuleMap::default(),
             media_lists: Vec::new(),
             media_chains: Vec::new(),
             next_order: 0,
@@ -299,6 +301,7 @@ impl Stylist {
                 Some(PseudoElement::Before) => &mut self.before_rules,
                 Some(PseudoElement::After) => &mut self.after_rules,
                 Some(PseudoElement::Marker) => &mut self.marker_rules,
+                Some(PseudoElement::Placeholder) => &mut self.placeholder_rules,
                 Some(other) => {
                     trace!(
                         "ignored rule for unsupported pseudo-element ::{}",
@@ -349,6 +352,7 @@ impl Stylist {
             RuleTarget::Pseudo(PseudoKind::Before) => &self.before_rules,
             RuleTarget::Pseudo(PseudoKind::After) => &self.after_rules,
             RuleTarget::Pseudo(PseudoKind::Marker) => &self.marker_rules,
+            RuleTarget::Pseudo(PseudoKind::Placeholder) => &self.placeholder_rules,
         }
     }
 

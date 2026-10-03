@@ -18,6 +18,10 @@ pub enum PseudoKind {
     After,
     /// `::marker`
     Marker,
+    /// `::placeholder` of a text field (`input` or `textarea` with a
+    /// `placeholder` attribute). Layout uses its style for the placeholder
+    /// text.
+    Placeholder,
 }
 
 /// Computed styles for the elements of a document.

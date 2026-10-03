@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use swb_dom::{Document, NodeData, NodeId, local_name};
-use swb_layout::{BoxFragment, Fragment, FragmentTree, Point, Rect, TextFragment};
+use swb_layout::{BoxContent, BoxFragment, Fragment, FragmentTree, Point, Rect, TextFragment};
 use swb_style::{ComputedStyle, Display, StyleMap, UserSelect, Visibility, WhiteSpace};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -84,27 +84,41 @@ impl TreeOrder {
     }
 }
 
-/// The selected part of each text node, for painting.
+/// The selected part of each text node, and of the text of the focused
+/// form control, for painting.
 pub(crate) struct Highlight<'a> {
-    pub(crate) start: TextPosition,
-    pub(crate) end: TextPosition,
+    /// The page selection: its start and end in tree order.
+    pub(crate) page: Option<(TextPosition, TextPosition)>,
+    /// The selection in the focused text control: the control and the
+    /// range of offsets in its shown text.
+    pub(crate) control: Option<(NodeId, u32, u32)>,
     pub(crate) order: &'a TreeOrder,
+    pub(crate) doc: &'a Document,
 }
 
 impl swb_paint::Highlights for Highlight<'_> {
     fn selected(&self, node: NodeId) -> Option<(u32, u32)> {
+        if let Some((control, from, to)) = self.control
+            && control == node
+        {
+            return (from < to).then_some((from, to));
+        }
+        // The page selection covers text nodes only; the text of form
+        // controls belongs to the control elements.
+        let (start, end) = self.page?;
+        self.doc.get(node)?.as_text()?;
         let rank = self.order.rank(node);
-        if rank < self.order.rank(self.start.node) || rank > self.order.rank(self.end.node) {
+        if rank < self.order.rank(start.node) || rank > self.order.rank(end.node) {
             return None;
         }
         let to_u32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
-        let from = if node == self.start.node {
-            to_u32(self.start.offset)
+        let from = if node == start.node {
+            to_u32(start.offset)
         } else {
             0
         };
-        let to = if node == self.end.node {
-            to_u32(self.end.offset)
+        let to = if node == end.node {
+            to_u32(end.offset)
         } else {
             u32::MAX
         };
@@ -172,6 +186,9 @@ fn find_text_block<'a>(
     point: Point,
     found: &mut Option<(&'a BoxFragment, Point)>,
 ) -> bool {
+    if is_control(b) {
+        return false;
+    }
     let rect = b.border_rect.translate(origin);
     let mut has_text = false;
     for child in b.children.iter() {
@@ -186,10 +203,28 @@ fn find_text_block<'a>(
     has_text
 }
 
+/// True for the box of a form control: its text is not part of the page
+/// selection.
+fn is_control(b: &BoxFragment) -> bool {
+    matches!(b.content, BoxContent::Control(_))
+}
+
 /// Calls `visit` for each selectable text fragment in the subtree of `b`
-/// with its absolute rectangle. `origin` is the absolute position of the
-/// parent's border-box origin.
+/// (outside form controls) with its absolute rectangle. `origin` is the
+/// absolute position of the parent's border-box origin.
 fn walk_text<'a>(
+    b: &'a BoxFragment,
+    origin: Point,
+    visit: &mut impl FnMut(&'a TextFragment, Rect),
+) {
+    if is_control(b) {
+        return;
+    }
+    walk_all_text(b, origin, visit);
+}
+
+/// [`walk_text`] including the text of form controls.
+fn walk_all_text<'a>(
     b: &'a BoxFragment,
     origin: Point,
     visit: &mut impl FnMut(&'a TextFragment, Rect),
@@ -202,6 +237,39 @@ fn walk_text<'a>(
             Fragment::Box(child) => walk_text(child, own, visit),
         }
     }
+}
+
+/// The offset in the shown text of form control `control` nearest to
+/// `point` (document coordinates): the nearest line, then the nearest
+/// caret stop. `None` if the control has no box; 0 if it has no text.
+pub(crate) fn control_offset_at(tree: &FragmentTree, control: NodeId, point: Point) -> Option<u32> {
+    let mut found = None;
+    tree.walk(|fragment, origin| {
+        if found.is_none()
+            && let swb_layout::FragmentRef::Box(b) = fragment
+            && b.node == Some(control)
+            && is_control(b)
+        {
+            found = Some((b, origin));
+        }
+    });
+    let (b, origin) = found?;
+    let mut best: Option<((f32, f32), u32)> = None;
+    walk_all_text(b, origin, &mut |t, rect| {
+        if t.node != control {
+            return;
+        }
+        let key = (
+            distance(point.y, rect.y, rect.y + rect.height),
+            distance(point.x, rect.x, rect.x + rect.width),
+        );
+        if let Some(offset) = t.offset_at(point.x - rect.x)
+            && best.is_none_or(|(k, _)| key < k)
+        {
+            best = Some((key, offset));
+        }
+    });
+    Some(best.map_or(0, |(_, offset)| offset))
 }
 
 /// The first and last selectable offsets of each text node that has

@@ -110,6 +110,7 @@ impl Fetcher for ReplayFetcher {
             status: entry.status,
             headers: entry.headers.clone(),
             body: entry.body.as_ref().clone(),
+            redirected: false,
         })
     }
 }

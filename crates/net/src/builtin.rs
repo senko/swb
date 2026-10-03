@@ -40,6 +40,7 @@ fn fetch_about(request: &Request) -> Result<Response, NetError> {
         status: 200,
         headers,
         body: Vec::new(),
+        redirected: false,
     })
 }
 
@@ -52,6 +53,7 @@ fn fetch_data(request: &Request) -> Result<Response, NetError> {
         status: 200,
         headers,
         body: data.body,
+        redirected: false,
     })
 }
 

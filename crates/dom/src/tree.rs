@@ -64,6 +64,11 @@ pub struct ElementData {
     attrs: Vec<Attribute>,
     /// For `<template>` elements: the document fragment with the contents.
     pub template_contents: Option<NodeId>,
+    /// For form-associated elements: the form that the parser associated
+    /// with the element (the form element pointer), also when the element
+    /// is not a descendant of the form (`<table><form><tr><td><input>`).
+    /// <https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token>
+    pub parser_form: Option<NodeId>,
 }
 
 impl ElementData {
@@ -73,6 +78,7 @@ impl ElementData {
             name,
             attrs,
             template_contents: None,
+            parser_form: None,
         }
     }
 

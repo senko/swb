@@ -69,6 +69,7 @@ pub(crate) fn fetch(url: &Url) -> Result<Response, NetError> {
         status: 200,
         headers,
         body,
+        redirected: false,
     })
 }
 
@@ -80,6 +81,7 @@ fn not_found(url: &Url, path: &Path) -> Response {
         status: 404,
         headers,
         body: format!("File not found: {}\n", path.display()).into_bytes(),
+        redirected: false,
     }
 }
 
@@ -130,6 +132,7 @@ fn directory_listing(url: &Url, dir: &Path) -> Result<Response, NetError> {
         status: 200,
         headers,
         body: html.into_bytes(),
+        redirected: false,
     })
 }
 

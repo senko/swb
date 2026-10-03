@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Drop-down selects: as wide as the widest option (options in an optgroup
+     are indented) plus room for the arrow; one line high. Options have no
+     boxes. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Selects</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <div>a <select><option>One</option><option>Longer option</option></select> b</div>
+  <div><select><option>a</option><optgroup label="Group label"><option>b</option></optgroup></select><select></select></div>
+  <div><select><option selected>x</option><option label="labelled">long text that is not the label</option></select></div>
+  <div><select style="font: 20px serif"><option>Serif</option></select><select style="width: 50px"><option>A long option text</option></select></div>
+  <div><select style="display: block"><option>block</option></select></div>
+  <div><select style="height: 40px"><option>tall</option></select>x</div>
+</body>
+</html>

@@ -1,14 +1,17 @@
 //! Loading: network completions, the document of a navigation (or an
 //! error page), and its subresources (stylesheets and images).
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use encoding_rs::Encoding;
 use swb_dom::{Document, NodeId, local_name};
 use swb_layout::Point;
 use swb_net::{Destination, Request, Response, Url};
 
 use super::scroll::indicated;
 use super::{LoadState, Page, about_blank, is_loadable};
+use crate::forms::Forms;
 use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
 use crate::selection::TreeOrder;
 
@@ -111,16 +114,21 @@ impl Page {
         if !response.is_success() {
             log::warn!("{}: HTTP {}", response.url, response.status);
         }
+        if response.redirected {
+            self.set_redirected();
+        }
         let content_type = response.content_type();
         let essence = content_type
             .as_ref()
             .map_or("text/html", |c| c.essence.as_str());
         let mut images = Images::default();
+        let mut encoding = encoding_rs::UTF_8;
         let document = if essence == "text/html" || essence == "application/xhtml+xml" {
             let charset = content_type.as_ref().and_then(|c| c.charset.as_deref());
             let started = Instant::now();
-            let document = swb_dom::parse_html_bytes(&response.body, charset).0;
+            let (document, name) = swb_dom::parse_html_bytes(&response.body, charset);
             self.timings.parse = started.elapsed();
+            encoding = Encoding::for_label(name.as_bytes()).unwrap_or(encoding_rs::UTF_8);
             document
         } else if essence.starts_with("text/") || essence == "application/json" {
             let text = String::from_utf8_lossy(&response.body);
@@ -140,24 +148,42 @@ impl Page {
             self.show_error(&format!("Cannot display content of type {essence}"));
             return;
         };
-        self.set_document(document, response.url, images);
+        self.set_document(document, response.url, images, encoding);
     }
 
     fn show_error(&mut self, message: &str) {
         log::warn!("{message}");
+        self.show_message("Cannot load page", message);
+    }
+
+    /// Commits the pending navigation with a page that shows a heading and
+    /// a message, and sets the error to the message (the load failed).
+    pub(super) fn show_message(&mut self, heading: &str, message: &str) {
         self.error = Some(message.to_owned());
         let html = format!(
-            "<!DOCTYPE html><title>Error</title><body style=\"font-family:sans-serif;margin:2em\"><h1>Cannot load page</h1><p>{}</p>",
+            "<!DOCTYPE html><title>Error</title><body style=\"font-family:sans-serif;margin:2em\"><h1>{}</h1><p>{}</p>",
+            escape_html(heading),
             escape_html(message)
         );
         let url = self.url.clone().unwrap_or_else(about_blank);
-        self.set_document(swb_dom::parse_html(&html), url, Images::default());
+        self.set_document(
+            swb_dom::parse_html(&html),
+            url,
+            Images::default(),
+            encoding_rs::UTF_8,
+        );
         self.state = LoadState::Failed;
     }
 
-    /// Commits the pending navigation with `document`. `images` contains
-    /// images that are already loaded.
-    fn set_document(&mut self, document: Document, url: Url, images: Images) {
+    /// Commits the pending navigation with `document` in `encoding`.
+    /// `images` contains images that are already loaded.
+    fn set_document(
+        &mut self,
+        document: Document,
+        url: Url,
+        images: Images,
+        encoding: &'static Encoding,
+    ) {
         self.commit_navigation(&url);
         // Requests that are still pending belong to the previous document
         // (for example images that a restyle of it started).
@@ -167,6 +193,8 @@ impl Page {
         self.set_document_url(url);
         self.title = document_title(&document);
         self.tree_order = TreeOrder::new(&document);
+        self.forms = Forms::new(&document);
+        self.encoding = encoding;
         self.document = Some(document);
         self.sheets.clear();
         self.images = images;
@@ -180,6 +208,9 @@ impl Page {
             let fragment = self.document_url.as_ref()?.fragment()?;
             indicated(doc, fragment)
         });
+        if let Some(doc) = &self.document {
+            self.input.states.controls = Arc::new(self.forms.element_states(doc));
+        }
         self.start_subresources();
         self.invalidate_style();
         self.state = LoadState::LoadingResources;
@@ -311,7 +342,7 @@ fn decode_css(bytes: &[u8], charset: Option<&str>) -> String {
     // BOM, then the protocol charset, then @charset, then UTF-8. The BOM
     // (handled by `decode`), the protocol charset and UTF-8 are supported.
     let encoding = charset
-        .and_then(|c| encoding_rs::Encoding::for_label(c.as_bytes()))
+        .and_then(|c| Encoding::for_label(c.as_bytes()))
         .unwrap_or(encoding_rs::UTF_8);
     let (text, _, _) = encoding.decode(bytes);
     text.into_owned()

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Checkboxes and radio buttons are 13 px squares with Chromium's margins;
+     their baseline is the bottom of the border box. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Checkboxes and radio buttons</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+</style>
+</head>
+<body>
+  <div>a<input type=checkbox>b<input type=radio>c</div>
+  <div style="font: 30px/30px serif">x<input type=checkbox checked><input type=radio checked></div>
+  <div style="font: 10px/10px monospace">x<input type=checkbox><input type=radio></div>
+  <div><input type=checkbox style="width: 30px; height: 30px"><input type=checkbox style="margin: 0"><input type=radio style="margin: 10px"></div>
+  <div><input type=checkbox style="display: block"><input type=radio style="display: block"></div>
+  <div><label><input type=checkbox> Label</label> <label><input type=radio name=r> One</label></div>
+  <div><input type=checkbox style="vertical-align: middle">middle<input type=radio style="vertical-align: text-top">top</div>
+</body>
+</html>

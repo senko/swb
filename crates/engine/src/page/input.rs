@@ -24,11 +24,14 @@ const ARROW_SCROLL: f32 = 40.0;
 struct Press {
     /// Where the press started, in viewport coordinates.
     origin: Point,
-    /// The link element under the pointer at the press.
-    link_element: Option<NodeId>,
+    /// The element whose activation behavior a click would run (a link, a
+    /// button, a label; see `Page::activation_target`).
+    target: Option<NodeId>,
     /// Where a drag selection starts. `None` after a double or triple
     /// click, whose selection a drag does not change.
     anchor: Option<TextPosition>,
+    /// The text control in which a drag selects text.
+    control: Option<NodeId>,
     /// True once the pointer moved beyond the drag threshold.
     dragging: bool,
 }
@@ -97,8 +100,13 @@ impl Page {
     }
 
     /// The selected text, with white space collapsed and line breaks
-    /// between blocks (as `innerText`). Empty without a selection.
+    /// between blocks (as `innerText`). Empty without a selection. While a
+    /// text control has the focus, the text selected in it (nothing for a
+    /// password field).
     pub fn selected_text(&mut self) -> String {
+        if let Some(text) = self.control_selected_text() {
+            return text;
+        }
         self.update_layout();
         let (Some(selection), Some(doc), Some(styles)) =
             (self.selection(), &self.document, &self.styles)
@@ -171,9 +179,10 @@ impl Page {
         if let Some(press) = &mut self.input.press {
             let (dx, dy) = (point.x - press.origin.x, point.y - press.origin.y);
             press.dragging |= dx.hypot(dy) > DRAG_THRESHOLD;
-            if press.dragging
-                && let Some(anchor) = press.anchor
-            {
+            let (dragging, anchor, control) = (press.dragging, press.anchor, press.control);
+            if dragging && let Some(control) = control {
+                changed |= self.drag_in_control(control, point);
+            } else if dragging && let Some(anchor) = anchor {
                 let focus = self.position_at(point, Snap::Nearest);
                 if let Some(focus) = focus {
                     changed |= self.set_selection(Some(Selection::new(anchor, focus)));
@@ -217,7 +226,8 @@ impl Page {
     /// Handles a mouse button press at a point in viewport coordinates.
     /// The primary button focuses, activates (`:active`) and starts a
     /// selection; `click_count` 2 selects a word, 3 a paragraph, and Shift
-    /// extends the selection. Returns true if a repaint is needed.
+    /// extends the selection. In a text field, the press places the caret
+    /// (and selects in the field). Returns true if a repaint is needed.
     pub fn mouse_down(
         &mut self,
         x: f32,
@@ -237,12 +247,21 @@ impl Page {
         if focus.is_none() {
             self.input.focus_start = hit.as_ref().map(|h| h.node);
         }
-        let (selection, anchor) = self.press_selection(point, modifiers, click_count);
+        // A text control gets the caret; the page selection goes away.
+        let control = focus.filter(|&n| self.forms.is_text_control(n));
+        let (selection, anchor) = match control {
+            Some(_) => (None, None),
+            None => self.press_selection(point, modifiers, click_count),
+        };
+        // The offset in the text as shown before the focus changes (which
+        // can scroll the text).
+        let offset = control.map(|c| self.control_offset_at(c, point));
         self.set_selection(selection);
         self.input.press = Some(Press {
             origin: point,
-            link_element: hit.as_ref().and_then(|h| h.link_element),
+            target: hit.as_ref().and_then(|h| self.activation_target(h.node)),
             anchor,
+            control,
             dragging: false,
         });
         self.update_states(|s| {
@@ -250,6 +269,9 @@ impl Page {
             s.focus = focus;
             s.focus_visible = false;
         });
+        if let (Some(control), Some(offset)) = (control, offset) {
+            self.press_in_control(control, offset, modifiers.shift, click_count);
+        }
         self.update_hover(true);
         true
     }
@@ -283,14 +305,17 @@ impl Page {
     }
 
     /// Handles a mouse button release. A primary-button click (press and
-    /// release on the same link, without a drag) follows the link. Returns
-    /// true if a repaint is needed.
+    /// release on the same link, button, checkbox, radio button or label,
+    /// without a drag) runs its activation behavior: it follows the link,
+    /// submits or resets the form, or changes the control. Returns true if
+    /// a repaint is needed.
     pub fn mouse_up(&mut self, x: f32, y: f32, button: MouseButton) -> bool {
-        let (changed, followed) = self.release(x, y, button);
-        changed || followed
+        let (changed, activated) = self.release(x, y, button);
+        changed || activated
     }
 
-    /// Returns whether a repaint is needed and whether a link was followed.
+    /// Returns whether a repaint is needed and whether a click activated
+    /// something.
     fn release(&mut self, x: f32, y: f32, button: MouseButton) -> (bool, bool) {
         if button != MouseButton::Primary {
             return (false, false);
@@ -300,20 +325,18 @@ impl Page {
         let Some(press) = press.filter(|p| !p.dragging) else {
             return (changed, false);
         };
-        let followed = match self.hit_test(x, y) {
-            Some(HitResult {
-                link_element: Some(element),
-                link: Some(link),
-                ..
-            }) if press.link_element == Some(element) => self.follow_link(link),
+        let hit = self.hit_test(x, y);
+        let target = hit.and_then(|h| self.activation_target(h.node));
+        let activated = match target {
+            Some(target) if press.target == Some(target) => self.activate(target, Point::new(x, y)),
             _ => false,
         };
-        (changed, followed)
+        (changed, activated)
     }
 
     /// Clicks the primary button at a point in viewport coordinates.
-    /// Returns true if a navigation started or the page scrolled to a
-    /// fragment.
+    /// Returns true if the click activated something: a navigation
+    /// started, the page scrolled to a fragment, or a control changed.
     pub fn click(&mut self, x: f32, y: f32) -> bool {
         self.mouse_down(x, y, MouseButton::Primary, Modifiers::NONE, 1);
         self.release(x, y, MouseButton::Primary).1
@@ -321,11 +344,17 @@ impl Page {
 
     // ----- Keyboard and focus -----
 
-    /// Handles a key press: Tab and Shift+Tab move the focus, Enter
+    /// Handles a key press: a focused form control gets it first (typing,
+    /// editing and caret keys in text fields, Space and Enter on buttons
+    /// and checkboxes, the arrows in selects and radio groups, Enter for
+    /// implicit submission). Then Tab and Shift+Tab move the focus, Enter
     /// follows the focused link, Ctrl+A selects all, and the arrows, Page
     /// Up/Down, Space, Home and End scroll. Returns true if the page
     /// handled the key (and needs a repaint).
     pub fn key_down(&mut self, key: &Key, modifiers: Modifiers) -> bool {
+        if let Some(handled) = self.control_key(key, modifiers) {
+            return handled;
+        }
         let ctrl = modifiers.ctrl || modifiers.meta;
         match key {
             Key::Tab if !ctrl && !modifiers.alt => self.focus_next(modifiers.shift),
@@ -398,6 +427,10 @@ impl Page {
         let next = focus::next_in_order(doc, from, backward, rendered);
         self.input.focus_start = None;
         self.focus(next, true);
+        // Keyboard focus selects the text of a text field.
+        if let Some(next) = next {
+            self.select_field_text(next);
+        }
         true
     }
 
@@ -543,9 +576,11 @@ impl Page {
     /// state that changed. Returns true if a repaint is needed.
     fn set_states(&mut self, states: ElementStates) -> bool {
         let changed = self.input.states.changes(&states);
+        let old_focus = self.input.states.focus;
         self.input.states = states;
+        let focus_moved = old_focus != self.input.states.focus && self.focus_changed(old_focus);
         if changed.is_empty() {
-            return false;
+            return focus_moved;
         }
         let affected = self
             .stylist
@@ -554,7 +589,7 @@ impl Page {
         if affected {
             self.restyle();
         }
-        affected
+        affected || focus_moved
     }
 }
 

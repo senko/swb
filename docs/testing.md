@@ -13,6 +13,8 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Scores (ratchet)       | `fixtures/scores.json`                  | no                                |
 | Engine tests           | `crates/engine/tests/page.rs` (navigation, history, fragments, cancellation, hit testing, display list) | no |
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
+| Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
+| SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and

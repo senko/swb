@@ -32,7 +32,7 @@ use swb_style::{ComputedStyle, Display, PseudoKind, content_text};
 use super::{CellBox, ColumnBox, MAX_COLSPAN, MAX_ROWSPAN, RowBox, SectionBox, TableBox};
 use crate::box_tree::{
     BoxBase, BuildContext, BuildState, ContainerBuilder, IndependentBox, MAX_BOX_DEPTH,
-    build_independent, is_collapsible_space, is_replaced,
+    build_independent, is_atomic, is_collapsible_space,
 };
 
 /// Builds the table of a table element or pseudo-element.
@@ -98,12 +98,12 @@ enum Item<'a> {
 }
 
 impl Item<'_> {
-    /// The kind of box the item makes. Replaced elements are never table
-    /// parts (Chromium keeps the image as a block-level box in an
-    /// anonymous cell).
+    /// The kind of box the item makes. Replaced elements and form controls
+    /// are never table parts (Chromium keeps them as block-level boxes in
+    /// an anonymous cell).
     fn kind(&self, ctx: &BuildContext<'_>) -> Kind {
         match self {
-            Item::Element(node, _) if is_replaced(ctx, *node) => Kind::Other,
+            Item::Element(node, _) if is_atomic(ctx, *node) => Kind::Other,
             Item::Element(_, style) => kind(style.display),
             Item::Pseudo(base) => kind(base.style.display),
             Item::Text(..) | Item::Generated(..) => Kind::Other,

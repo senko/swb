@@ -6,7 +6,7 @@
 
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, NodeId, QualName, local_name, ns, parse_html};
-use swb_layout::{FragmentRef, LayoutInput, NoReplacedSizes, Size, layout};
+use swb_layout::{FragmentRef, LayoutInput, NoFormControls, NoReplacedSizes, Size, layout};
 use swb_style::{ElementStates, Stylist, compute_styles};
 use swb_text::FontContext;
 
@@ -66,6 +66,7 @@ fn layout_on_small_stack(names: &'static [&'static str], style: &'static str) ->
                 styles: &styles,
                 viewport: Size::new(800.0, 600.0),
                 replaced: &NoReplacedSizes,
+                controls: &NoFormControls,
             };
             let tree = layout(&input, &mut fonts);
             let mut count = 0;

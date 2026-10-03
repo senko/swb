@@ -757,6 +757,7 @@ impl Fetcher for HttpPageFetcher {
                 status: 200,
                 headers,
                 body: self.html.clone().into_bytes(),
+                redirected: false,
             });
         }
         self.fetched.lock().unwrap().push(request.url.clone());
@@ -817,6 +818,7 @@ impl Fetcher for RequestLog {
             status,
             headers,
             body: body.into_bytes(),
+            redirected: false,
         })
     }
 }
@@ -858,7 +860,8 @@ fn requests_carry_their_initiator() {
     assert_eq!(initiator("https://c.test/", Destination::Document), a_test);
     drop(requests);
 
-    // Back, forward and reload count as started by the user (ADR 0012).
+    // Back, forward and reload use the initiator of the history entry
+    // (ADR 0012): the typed address has none, the link has a.test.
     let last_initiator = |page: &mut Page, go: fn(&mut Page)| {
         go(page);
         finish(page);
@@ -867,6 +870,9 @@ fn requests_carry_their_initiator() {
         last.unwrap().initiator.clone()
     };
     assert_eq!(last_initiator(&mut page, |p| assert!(p.go_back())), None);
-    assert_eq!(last_initiator(&mut page, |p| assert!(p.go_forward())), None);
-    assert_eq!(last_initiator(&mut page, Page::reload), None);
+    assert_eq!(
+        last_initiator(&mut page, |p| assert!(p.go_forward())),
+        a_test
+    );
+    assert_eq!(last_initiator(&mut page, Page::reload), a_test);
 }

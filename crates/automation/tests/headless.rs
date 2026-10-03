@@ -445,3 +445,54 @@ fn cookies_get_and_clear() {
     );
     stop(client, thread);
 }
+
+#[test]
+fn typing_into_a_form_and_submitting_it() {
+    let dir = std::env::temp_dir().join(format!("swb-automation-forms-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("form.html"),
+        "<!DOCTYPE html><form action=result.html><input id=q name=q>\
+         <input id=c type=checkbox name=c><textarea id=t></textarea></form><input id=r>",
+    )
+    .unwrap();
+    std::fs::write(dir.join("result.html"), "<title>result</title>").unwrap();
+    let url = swb_net::Url::from_file_path(dir.join("form.html")).unwrap();
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    client.navigate(url.as_str()).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    // Nothing editable has the focus yet.
+    assert_eq!(
+        rpc_code(client.call("input.type", json!({ "text": "x" }))),
+        RpcError::FAILED
+    );
+    let q = client.query_selector("#q").unwrap().unwrap();
+    let c = client.query_selector("#c").unwrap().unwrap();
+    let t = client.query_selector("#t").unwrap().unwrap();
+    client.click_node(t).unwrap();
+    client.type_text("one\ntwo").unwrap();
+    assert_eq!(client.value(t).unwrap().as_deref(), Some("one\ntwo"));
+    // A tab presses Tab: typing goes on in the next field.
+    client.type_text("\tthree").unwrap();
+    assert_eq!(client.value(t).unwrap().as_deref(), Some("one\ntwo"));
+    let r = client.query_selector("#r").unwrap().unwrap();
+    assert_eq!(client.value(r).unwrap().as_deref(), Some("three"));
+    client.click_node(c).unwrap();
+    let checkbox = client.call("dom.value", json!({ "nodeId": c })).unwrap();
+    assert_eq!(checkbox["checked"], true);
+    assert_eq!(checkbox["value"], "on");
+    let form = client.query_selector("form").unwrap().unwrap();
+    assert_eq!(client.value(form).unwrap(), None);
+    client.click_node(q).unwrap();
+    client.type_text("hello world").unwrap();
+    assert_eq!(client.value(q).unwrap().as_deref(), Some("hello world"));
+    // A line break presses Enter: the form is submitted.
+    client.type_text("\n").unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let info = client.info().unwrap();
+    assert_eq!(info["title"], "result");
+    let url = info["url"].as_str().unwrap();
+    assert!(url.ends_with("result.html?q=hello+world&c=on"), "{url}");
+    stop(client, thread);
+    let _ = std::fs::remove_dir_all(&dir);
+}

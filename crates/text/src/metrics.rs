@@ -14,6 +14,9 @@
 //!   Without both, the x-height is 0.56 times the ascent, as in Blink
 //!   (`SimpleFontData::PlatformInit`), and the cap height is the ascent.
 //! - underline: the `post` table; strikeout: the OS/2 table.
+//! - average character width: OS/2 `xAvgCharWidth`; maximum character
+//!   width: the width of the `head` bounding box (as Skia's `fXMax -
+//!   fXMin`). Text fields use them for their width.
 //!
 //! All values are unrounded. Blink rounds ascent and descent to integers
 //! for line layout on Linux; that is the caller's decision.
@@ -49,6 +52,12 @@ pub struct FontMetrics {
     pub strikeout_offset: f32,
     /// Thickness of the strikeout line.
     pub strikeout_thickness: f32,
+    /// The average width of characters (OS/2 `xAvgCharWidth`), if the
+    /// font has a positive one.
+    pub avg_char_width: Option<f32>,
+    /// The width of the font's bounding box (`head` `xMax - xMin`), 0 if
+    /// unknown.
+    pub max_char_width: f32,
     /// Font design units per em.
     pub units_per_em: u16,
 }
@@ -67,6 +76,8 @@ impl FontMetrics {
             underline_thickness: thickness,
             strikeout_offset: -(size * 0.25 + thickness / 2.0),
             strikeout_thickness: thickness,
+            avg_char_width: None,
+            max_char_width: size,
             units_per_em: 1000,
         }
     }
@@ -113,6 +124,8 @@ pub(crate) fn compute(face: &LoadedFace, coords: &[NormalizedCoord], size: f32) 
         underline_thickness,
         strikeout_offset,
         strikeout_thickness,
+        avg_char_width: m.average_width.filter(|w| *w > 0.0),
+        max_char_width: m.bounds.map_or(0.0, |b| (b.x_max - b.x_min).max(0.0)),
         units_per_em: face.units_per_em,
     }
 }

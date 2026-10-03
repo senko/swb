@@ -76,7 +76,8 @@ impl<F: Fetcher + ?Sized> Fetcher for Box<F> {
 /// - A redirect status without a `Location` header is returned as the
 ///   response.
 ///
-/// [`Response::url`] of the result is the final URL.
+/// [`Response::url`] of the result is the final URL; [`Response::redirected`]
+/// is true if a redirect was followed.
 ///
 /// <https://fetch.spec.whatwg.org/#http-redirect-fetch>
 pub fn fetch_following_redirects(
@@ -86,8 +87,9 @@ pub fn fetch_following_redirects(
     let start_url = request.url.clone();
     let mut redirect_count = 0;
     loop {
-        let response = fetcher.fetch(&request)?;
+        let mut response = fetcher.fetch(&request)?;
         let Some(location) = location_url(&request.url, &response)? else {
+            response.redirected = redirect_count > 0;
             return Ok(response);
         };
         if redirect_count == MAX_REDIRECTS {
@@ -194,6 +196,7 @@ mod tests {
                 status,
                 headers,
                 body: Vec::new(),
+                redirected: false,
             })
         }
     }
@@ -225,6 +228,7 @@ mod tests {
                 status: 302,
                 headers,
                 body: Vec::new(),
+                redirected: false,
             }
         };
         let current = url("https://a.test/");
@@ -242,7 +246,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(response.status, 200);
+        assert!(!response.redirected);
         assert_eq!(fetcher.log().len(), 1);
+    }
+
+    #[test]
+    fn redirected_responses_are_marked() {
+        // The engine uses the flag, not a comparison of URLs: a POST can
+        // redirect to its own URL.
+        let fetcher = MockFetcher::default().route("https://a.test/form", 303, Some("/form?done"));
+        let fetcher = fetcher.route("https://a.test/form?done", 200, None);
+        let request = Request::post(
+            url("https://a.test/form"),
+            b"a=1".to_vec(),
+            "application/x-www-form-urlencoded",
+            Destination::Document,
+        );
+        let response = fetch_following_redirects(&fetcher, request).unwrap();
+        assert!(response.redirected);
     }
 
     #[test]
@@ -257,6 +278,7 @@ mod tests {
         .unwrap();
         assert_eq!(response.status, 200);
         assert_eq!(response.url.as_str(), "https://a.test/other?q=1");
+        assert!(response.redirected);
     }
 
     #[test]
