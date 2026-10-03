@@ -1,0 +1,38 @@
+<!-- No doctype: quirks mode. The table quirks: a cell's height includes
+     its border and padding (cell height box sizing quirk); a nowrap cell
+     is at least as wide as its width (nowrap minimum width quirk); in a
+     cell with an auto width, images do not wrap (cell width calculation
+     quirk); a table without rows ignores its height. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quirks: table cells</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { margin-bottom: 4px; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <tr><td style="height: 30px; padding: 5px">padded</td><td height="20" style="border: 3px solid">border</td></tr>
+  </table>
+  <table id="t2" style="width: 100px">
+    <tr><td nowrap width="200">nowrap cell</td><td>b</td></tr>
+  </table>
+  <table id="t3" style="width: 100px">
+    <tr><td width="200">no nowrap</td><td>b</td></tr>
+  </table>
+  <table id="t4" style="width: 10px">
+    <tr><td id="c4"><img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="></td></tr>
+  </table>
+  <table id="t5" style="width: 10px">
+    <tr><td id="c5" style="width: 5px"><img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="></td></tr>
+  </table>
+  <table id="t6" style="height: 100px; border: 1px solid"></table>
+  <table id="t7" style="width: 300px"><tr><td><img height="10" width="0" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><table width="100%" cellspacing="0" cellpadding="1"><tr><td bgcolor="#ff6600"></td></tr></table></td></tr></table>
+  <!-- Taller than the viewport, so that the body fills viewport quirk
+       (not implemented) does not apply. -->
+  <div style="height: 600px"></div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- Limited-quirks mode (this doctype): the line height quirks apply as in
+     quirks mode; the table cell quirks do not. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Limited quirks: line height</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { margin-bottom: 2px; background: #eee; }
+  .ib { display: inline-block; width: 10px; height: 8px; background: #888; }
+</style>
+</head>
+<body>
+  <div id="d1"><span class="ib"></span></div>
+  <div id="d2">text<span class="ib"></span></div>
+  <div id="d3"><span style="padding-left: 5px"><span class="ib"></span></span></div>
+  <table><tr><td id="c1" style="height: 30px; padding: 5px">not quirky</td></tr></table>
+</body>
+</html>

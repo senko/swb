@@ -133,6 +133,69 @@ pub enum BoxContent {
     None,
     /// The image of a replaced element, painted into the content box.
     Image(NodeId),
+    /// A table. Its border box contains its captions; the table's
+    /// background and border are painted around the grid.
+    Table(Arc<TablePaint>),
+    /// A table cell that paints more than its own background and border.
+    TableCell(Arc<CellPaint>),
+    /// A table row group or row. It paints no background or border (cells
+    /// paint them, see [`CellPaint`]).
+    TablePart,
+    /// A box that only has geometry: it paints nothing and hit testing
+    /// does not find it. Table column groups and columns (their boxes cover
+    /// their cells), and the part of an inline box around a block-level
+    /// child.
+    GeometryOnly,
+}
+
+/// What a table paints besides its children.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TablePaint {
+    /// The table grid box (the area without captions), relative to the
+    /// table's border box. The table's background and border fill it.
+    pub grid: Rect,
+    /// The borders of the collapsing border model, painted by the table
+    /// after its cells; `None` in the separated border model (the table
+    /// paints its own border).
+    pub collapsed: Option<Vec<CollapsedEdge>>,
+}
+
+/// A segment of a collapsed border, relative to the table's border box.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CollapsedEdge {
+    /// The area of the segment.
+    pub rect: Rect,
+    /// True for a vertical segment (between columns).
+    pub vertical: bool,
+    /// The border style.
+    pub style: swb_style::BorderStyle,
+    /// The border color.
+    pub color: swb_style::Rgba,
+}
+
+/// What a table cell paints besides its own background and border.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CellPaint {
+    /// The backgrounds of its column group, column, row group and row, in
+    /// paint order (CSS 2.2 §17.5.1), painted below its own background.
+    pub backgrounds: Vec<PartBackground>,
+    /// True if the cell paints no background and border
+    /// (`empty-cells: hide` and no content).
+    pub hidden: bool,
+    /// True if the table paints the cell's borders (collapsing borders).
+    pub collapsed_borders: bool,
+}
+
+/// The background of a table part, painted in a cell.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PartBackground {
+    /// The style with the background.
+    pub style: Arc<ComputedStyle>,
+    /// The part's border box (the background positioning area), relative
+    /// to the cell's border box.
+    pub area: Rect,
+    /// The area to paint, relative to the cell's border box.
+    pub clip: Rect,
 }
 
 /// The fragment of a box.

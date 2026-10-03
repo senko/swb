@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!-- Automatic table layout: percentage, fixed and auto columns, a
+     percentage table width, and the distribution of extra width (auto
+     columns grow in proportion to their max-content widths). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Column widths</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { border-spacing: 0; margin-bottom: 4px; }
+  td { background: #ddd; padding: 0; }
+</style>
+</head>
+<body>
+  <table id="t1" style="width: 100%">
+    <tr><td style="width: 24px">f</td><td>auto column one</td><td>two</td></tr>
+  </table>
+  <table id="t2" style="width: 500px">
+    <tr><td style="width: 20%">p</td><td style="width: 100px">fixed</td><td>auto</td></tr>
+  </table>
+  <table id="t3">
+    <tr><td style="width: 50%">half</td><td>the other cell</td></tr>
+  </table>
+  <table id="t4" style="width: 300px">
+    <tr><td style="width: 50px">a</td><td style="width: 50px">b</td></tr>
+  </table>
+  <table id="t5" style="width: 300px">
+    <tr><td style="width: 70%">a</td><td style="width: 60%">b</td><td>c</td></tr>
+  </table>
+  <table id="t6" style="width: 200px">
+    <tr><td>a long text that is wider than the table can be</td><td style="width: 40px">x</td></tr>
+  </table>
+  <table id="t7" style="width: 85%; min-width: 600px">
+    <tr><td>min-width</td></tr>
+  </table>
+  <table id="t8" style="width: 50px">
+    <tr><td>content wider than the specified table width</td></tr>
+  </table>
+  <table id="t9" style="width: 400px">
+    <tr><td style="max-width: 50px">max-width is ignored for cells in the content max</td><td>b</td></tr>
+  </table>
+</body>
+</html>

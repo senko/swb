@@ -1,0 +1,31 @@
+{
+  "url": "tests/layout/table-captions.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 402.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 386.0], "parent": 0},
+    {"tag": "table", "rect": [8.0, 8.0, 51.59, 190.0], "parent": 5},
+    {"tag": "caption", "rect": [8.0, 8.0, 51.59, 160.0], "parent": 6},
+    {"tag": "tbody", "rect": [12.0, 172.0, 43.59, 22.0], "parent": 6},
+    {"tag": "tr", "rect": [12.0, 172.0, 43.59, 22.0], "parent": 8},
+    {"tag": "td", "rect": [12.0, 172.0, 20.8, 22.0], "parent": 9},
+    {"tag": "td", "rect": [34.8, 172.0, 20.8, 22.0], "parent": 9},
+    {"tag": "table", "rect": [8.0, 204.0, 208.34, 60.0], "parent": 5},
+    {"tag": "caption", "rect": [18.0, 239.0, 188.34, 20.0], "parent": 12},
+    {"tag": "tbody", "rect": [12.0, 208.0, 200.34, 22.0], "parent": 12},
+    {"tag": "tr", "rect": [12.0, 208.0, 200.34, 22.0], "parent": 14},
+    {"tag": "td", "rect": [12.0, 208.0, 200.34, 22.0], "parent": 15},
+    {"tag": "table", "rect": [8.0, 270.0, 300.0, 74.0], "parent": 5},
+    {"tag": "caption", "rect": [108.0, 270.0, 100.0, 20.0], "parent": 17},
+    {"tag": "caption", "rect": [8.0, 324.0, 300.0, 20.0], "parent": 17},
+    {"tag": "tbody", "rect": [12.0, 298.0, 292.0, 22.0], "parent": 17},
+    {"tag": "tr", "rect": [12.0, 298.0, 292.0, 22.0], "parent": 20},
+    {"tag": "td", "rect": [12.0, 298.0, 292.0, 22.0], "parent": 21},
+    {"tag": "table", "rect": [8.0, 350.0, 51.59, 44.0], "parent": 5},
+    {"tag": "caption", "rect": [8.0, 350.0, 51.59, 40.0], "parent": 23}
+  ]
+}

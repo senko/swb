@@ -46,8 +46,10 @@ Open a URL in a window and read the page.
 
 ## M2: Hacker News
 
-- Table layout (auto and fixed), `-webkit-center` alignment, quirks-mode
-  line height rules.
+- Table layout (auto and fixed, separated and collapsing borders),
+  `-webkit-center` alignment, quirks-mode line height and table cell
+  rules: done (ADR 0010). Hacker News geometry 0.9876; the rest is the
+  search `<input>` (forms).
 - SVG images (`resvg`).
 - Forms: text inputs, buttons, GET/POST submission.
 - Cookies (RFC 6265bis jar, `SameSite`, Public Suffix List) and `POST`
@@ -64,6 +66,15 @@ Open a URL in a window and read the page.
 
 ## Backlog from M2
 
+- Tables: `visibility: collapse`; fragmentation (repeated headers); the
+  quirky margins of the first and last children of cells and of the body;
+  the body and html fill-viewport quirks; collapsed-border joints
+  (horizontal edges always cover the joint; Chromium decides per joint);
+  column percentages are ignored only inside cells and flex containers
+  (grid does not exist yet); inset/outset border shading; `width:
+  min-content` keywords on inline-blocks. Limits: 10,000 columns;
+  collapsed grids over 4M edges use each box's own borders and paint
+  none; inline wrapper boxes only for the 8 innermost inline boxes.
 - Cookies: keep the initiator in the history entry, so that reload and
   back/forward after a cross-site link do not send `SameSite=Strict`
   cookies; persistence; `Partitioned`, `Priority`, `__Http-` prefixes,
@@ -130,8 +141,7 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
 - Layout: floats and absolutely positioned boxes inside inline content are
   not placed; absolutely positioned children of flex containers are
-  dropped; percentage sizes of images in intrinsic sizing; flex container
-  min/max sizes; `align-content: stretch` order; replaced flex items with
+  dropped; flex container min/max sizes; `align-content: stretch` order; replaced flex items with
   only `height`; `vertical-align: top/bottom`; min-content of inline-blocks
   and row flex containers; `box-sizing` in intrinsic min/max; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line

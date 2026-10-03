@@ -147,7 +147,10 @@ this format. `compare` and the Rust layout tests read it.
 The elements with a box are the elements whose `getClientRects()` is not
 empty. In Chromium this includes some cases that need attention:
 
-- `<br>` has a box of width 0. Empty inline elements have a box of width 0.
+- `<br>` has a box of width 0 (the content area of its parent's font).
+  Empty inline elements have a box of width 0. An inline element around a
+  block-level child has a box as wide as its containing block (Chromium's
+  block-in-inline).
 - `display: none` elements and their descendants, `display: contents`
   elements, `<head>` and its content, `<wbr>`, `<template>`, `<input
   type=hidden>`, `<audio>` without `controls`, `<option>` and `<optgroup>`
@@ -399,7 +402,9 @@ down. Scores only go up unless the commit message explains why.
 1. Write `tests/layout/<name>.html`: one feature, a `<!DOCTYPE html>`, a
    comment that says what it tests, fixed sizes where possible, and the
    generic families `serif`, `sans-serif` or `monospace` (or Arial, Times
-   New Roman, Courier New, which map to the bundled fonts).
+   New Roman, Courier New, which map to the bundled fonts). A quirks-mode
+   test has no doctype; make its content taller than the viewport,
+   because swb does not implement the body and html fill-viewport quirks.
 2. `just layout-refs <name>`
 3. Check `tests/layout/<name>.boxes.json` (for example, open the HTML in a
    browser and compare a few rectangles).

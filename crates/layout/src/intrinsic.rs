@@ -50,7 +50,9 @@ pub(crate) fn independent_content_sizes(
                 .iter()
                 .filter(|item| !item.base.style.is_absolutely_positioned());
             for item in in_flow {
-                let s = independent_outer_sizes(ctx, item);
+                let s = crate::table::TableCache::percent_free(ctx, |ctx| {
+                    independent_outer_sizes(ctx, item)
+                });
                 if row {
                     sizes.min = sizes.min.max(s.min);
                     sizes.max += s.max;
@@ -64,6 +66,16 @@ pub(crate) fn independent_content_sizes(
             let w = r.natural_size.map_or(0.0, |(w, _)| w);
             ContentSizes { min: w, max: w }
         }
+        IndependentContents::Table(table) => {
+            // The table's contribution without margins, border and padding.
+            let style = &ib.base.style;
+            let outer = crate::table::table_outer_sizes(ctx, ib, table);
+            let edges = BoxEdges::resolve(style, 0.0).sum().horizontal() + fixed_margins(style);
+            ContentSizes {
+                min: (outer.min - edges).max(0.0),
+                max: (outer.max - edges).max(0.0),
+            }
+        }
     }
 }
 
@@ -73,18 +85,31 @@ pub(crate) fn independent_outer_sizes(
     ib: &IndependentBox,
 ) -> ContentSizes {
     let style = &ib.base.style;
+    if let IndependentContents::Table(table) = &ib.contents {
+        return crate::table::table_outer_sizes(ctx, ib, table);
+    }
     if let IndependentContents::Replaced(r) = &ib.contents {
+        // Percentages count as `auto`; with a percentage `width` or
+        // `max-width`, the min-content contribution is the `min-width`
+        // (Chromium: compressible replaced elements, CSS Sizing 3 §5.2.2).
         let edges = BoxEdges::resolve(style, 0.0);
-        let cb = crate::block::ContainingBlock {
-            width: 0.0,
-            height: None,
+        let extra = edges.sum().horizontal() + fixed_margins(style);
+        let max = crate::replaced::intrinsic_width(style, r, &edges) + extra;
+        let percentage = |lp: Option<&swb_style::LengthPercentage>| {
+            lp.is_some_and(swb_style::LengthPercentage::has_percentage)
         };
-        let (w, _) = crate::replaced::used_size(style, r, cb, &edges);
-        let outer = w + edges.sum().horizontal() + fixed_margins(style);
-        return ContentSizes {
-            min: outer,
-            max: outer,
+        let min = if percentage(style.width.as_length_percentage())
+            || percentage(style.max_width.as_length_percentage())
+        {
+            let edge_sum = edges.sum().horizontal();
+            let min_width =
+                crate::block::resolve_size(&style.min_width, None, style.box_sizing, edge_sum)
+                    .unwrap_or(0.0);
+            min_width + extra
+        } else {
+            max
         };
+        return ContentSizes { min, max };
     }
     outer_sizes(style, || independent_content_sizes(ctx, ib))
 }
@@ -98,6 +123,7 @@ fn block_level_outer_sizes(ctx: &mut LayoutContext<'_>, b: &BlockLevelBox) -> Co
             independent_outer_sizes(ctx, ib)
         }
         BlockLevelBox::AbsolutelyPositioned(_) => ContentSizes::default(),
+        BlockLevelBox::InInline(b) => block_level_outer_sizes(ctx, &b.block),
     }
 }
 

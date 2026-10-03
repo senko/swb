@@ -2,7 +2,7 @@
 # Format: test name, two spaces, then "# reason".
 float-in-inline-content  # floats and absolutely positioned boxes after inline content are not laid out
 flex-abspos-child  # absolutely positioned children of flex containers are not laid out
-intrinsic-percentage-image  # images with percentage width/max-width contribute 0 to intrinsic sizes
+intrinsic-percentage-image  # clear is not implemented (the float is not cleared)
 flex-container-min-size  # the flex container's min/max size is ignored by the flex algorithm
 flex-align-content-stretch  # align-content: stretch grows lines after the items are stretched
 flex-replaced-item  # an image flex item ignores its specified height and aspect ratio

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Images with an internal table display are not table parts: they keep
+     their image as block-level boxes (outside a table, in a div; inside
+     a table or row, in an anonymous cell). A table's min-height is the
+     height of its grid; the extra height goes to the rows. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Replaced table parts and min-height</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <div id="d1"><img id="i1" style="display: table-cell" width="30" height="20" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="></div>
+  <div id="t1" style="display: table-row"><div style="display: table-cell">a</div><img id="i2" style="display: table-cell" width="30" height="20" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><img id="i5" style="display: table-cell" width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="></div>
+  <div id="d2" style="display: table"><img id="i3" style="display: table-row" width="30" height="20" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="><img id="i4" style="display: table-row-group" width="30" height="20" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="></div>
+  <table id="t2" style="min-height: 200px"><tr><td>x</td></tr><tr><td>y</td></tr></table>
+  <table id="t3" style="height: 50px; min-height: 100px"><tr><td>z</td></tr></table>
+</body>
+</html>

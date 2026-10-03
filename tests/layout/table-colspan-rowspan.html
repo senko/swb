@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Cells that span columns and rows: the grid positions, rowspan=0
+     (to the end of the row group), spans beyond the grid, and the
+     distribution of spanning cells' widths and heights. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Colspan and rowspan</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <tr><td rowspan="2">r2</td><td>a</td><td>b</td></tr>
+    <tr><td colspan="2">wide cell across two</td></tr>
+    <tr><td>c</td><td rowspan="3">three<br>rows<br>tall<br>cell</td><td>d</td></tr>
+    <tr><td>e</td><td>f</td></tr>
+  </table>
+  <table id="t2">
+    <tbody>
+      <tr><td rowspan="0">all</td><td>1</td></tr>
+      <tr><td>2</td></tr>
+      <tr><td>3</td></tr>
+    </tbody>
+    <tbody><tr><td>other group</td><td>x</td></tr></tbody>
+  </table>
+  <table id="t3">
+    <tr><td colspan="1000">huge colspan</td><td>after</td></tr>
+    <tr><td>a</td><td>b</td><td>c</td></tr>
+  </table>
+  <table id="t4">
+    <tr><td rowspan="5">beyond the group</td><td>x</td></tr>
+    <tr><td>y</td></tr>
+  </table>
+  <table id="t5">
+    <tr><td colspan="3">this spanning cell is wider than its three columns together</td></tr>
+    <tr><td>a</td><td>bbbbbb</td><td>c</td></tr>
+  </table>
+  <table id="t6">
+    <tr><td rowspan="2" style="height: 100px">tall</td><td>1</td></tr>
+    <tr><td>2</td></tr>
+  </table>
+</body>
+</html>

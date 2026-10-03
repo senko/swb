@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Tables in other formatting contexts: an inline table on a line (its
+     baseline is its first row's), a table in a flex container, a
+     floated table, a table with auto margins. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tables in other contexts</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <div id="d1">before <table id="it1" style="display: inline-table"><tr><td>first</td></tr><tr><td>second</td></tr></table> after</div>
+  <div id="d2" style="display: flex"><table id="ft1"><tr><td>flex item</td></tr></table><div>next</div></div>
+  <div id="d3" style="display: flex"><table id="ft2" style="flex: 1"><tr><td>grows</td></tr></table></div>
+  <table id="mt1" style="margin: 0 auto"><tr><td>auto margins</td></tr></table>
+  <table id="mt2" style="margin-left: auto"><tr><td>right</td></tr></table>
+  <div id="d4" style="width: 300px"><table id="pt1" style="width: 50%; border: 2px solid; box-sizing: content-box"><tr><td>content-box</td></tr></table></div>
+  <div id="d5" style="display: inline-block"><table><tr><td>in an inline block</td><td style="width: 50%">p</td></tr></table></div>
+</body>
+</html>

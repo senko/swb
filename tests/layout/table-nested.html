@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Nested automatic tables: an inner table's widths are the min-content
+     and max-content contributions of its cell; percentage widths inside
+     cells. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nested tables</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: rgba(0, 0, 0, 0.1); }
+</style>
+</head>
+<body>
+  <table id="outer">
+    <tr>
+      <td><table id="inner1"><tr><td>inner one</td><td>x</td></tr></table></td>
+      <td>outer text</td>
+    </tr>
+    <tr>
+      <td colspan="2"><table id="inner2" style="width: 100%"><tr><td>full width</td><td>y</td></tr></table></td>
+    </tr>
+  </table>
+  <table id="outer2" style="width: 600px">
+    <tr><td><table id="inner3" style="width: 50%"><tr><td>half</td></tr></table></td><td>b</td></tr>
+  </table>
+  <table id="outer3">
+    <tr><td><table id="inner4"><tr><td style="width: 50%">percent in a nested table</td><td>z</td></tr></table></td></tr>
+  </table>
+  <div style="display: inline-block; border: 1px solid">
+    <table id="inner5"><tr><td>in an inline-block</td></tr></table>
+  </div>
+</body>
+</html>

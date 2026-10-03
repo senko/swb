@@ -141,8 +141,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   stages.
 - Lengths are clamped to ±33,554,431 px (the range of Blink's
   `LayoutUnit`), so hostile values cannot produce infinite geometry.
-- Flex item layouts are cached per layout pass by box and constraints, so
-  nested flex containers do not cost exponential time. Fragment children
+- Flex item and table cell layouts are cached per layout pass by box and
+  constraints (`LayoutContext::layouts`), so nested flex containers and
+  tables do not cost exponential time. Fragment children
   are shared (`Arc`), so a cached subtree is stored once and copying a
   fragment is cheap.
 - The overflow of the root (or of the body, if the root's is `visible`)
@@ -150,6 +151,23 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   has a used overflow of `visible`.
 - List markers wait for the first line box of the list item, also inside
   nested blocks and independent formatting contexts.
+- Tables (`layout/src/table/`, ADR 0010) follow Chromium's LayoutNG
+  algorithm: box construction with the anonymous table fixup
+  (`build.rs`), the grid (`grid.rs`), column constraints and the grid's
+  intrinsic widths (`columns.rs`), width distribution (`distribute.rs`),
+  row heights (`rows.rs`, `cells.rs`), placement and fragments
+  (`layout.rs`, `fragments.rs`), collapsing borders (`collapsed.rs`).
+  The `<table>` box contains its captions; row groups, rows, cells,
+  columns and column groups have fragments. `BoxContent` tells paint how
+  to paint table parts: the table's background and border fill the grid;
+  cells paint the backgrounds of their columns, row groups and rows; the
+  table paints collapsed borders after its cells.
+- `text-align: -webkit-left/center/right` aligns block-level children
+  without `auto` margins (`<center>`).
+- Quirks mode: the line height quirks and the table cell quirks are in
+  layout (`LayoutContext::quirks`, `line_height_quirks`).
+- `<br>` elements and inline boxes around block-level children get boxes
+  for the box dump; the latter are `BoxContent::GeometryOnly`.
 - Paint order: each stacking context (root, positioned boxes, opacity < 1)
   paints its normal-flow content in tree order, then its positioned
   descendants in z-index order (negative z-index before the content). A

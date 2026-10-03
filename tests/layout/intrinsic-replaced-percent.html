@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Intrinsic sizes of images with a percentage width or max-width: the
+     max-content contribution is the natural width, the min-content
+     contribution the min-width (with box-sizing), as in Chromium. A table
+     of width 1px gives its cell the min-content width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Images with percentage sizes in intrinsic sizing</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { border-spacing: 0; }
+  td { padding: 0; background: #eee; }
+  .max { display: inline-block; background: #ddd; }
+  img { max-width: 100%; padding: 5px; }
+</style>
+</head>
+<body>
+  <table style="width: 1px"><tr><td id="c1"><img id="i1" style="min-width: 30px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></td></tr></table>
+  <table style="width: 1px"><tr><td id="c2"><img id="i2" style="min-width: 30px; box-sizing: border-box" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></td></tr></table>
+  <div><span id="s3" class="max"><img id="i3" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></span></div>
+</body>
+</html>

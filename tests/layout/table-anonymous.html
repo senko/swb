@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- Anonymous table objects (CSS 2.2 §17.2.1): table-internal boxes
+     outside a table get an anonymous table, row group and row; other
+     content inside a table gets an anonymous cell; white space between
+     table parts is dropped. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Anonymous table objects</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .cell { display: table-cell; background: #ddd; padding: 2px; }
+  .row { display: table-row; }
+  .table { display: table; border-spacing: 3px; }
+</style>
+</head>
+<body>
+  <div id="d1"><span class="cell">a</span> <span class="cell">bb</span>
+    <span class="cell">ccc</span></div>
+  <div id="d2">before <span class="cell">x</span><span class="cell">y</span> after</div>
+  <div id="d3"><div class="row"><span class="cell">r1</span></div>
+    <div class="row"><span class="cell">r2</span><span class="cell">r2b</span></div></div>
+  <div id="d4" class="table">text in a table <b>bold</b><div class="cell">cell</div></div>
+  <p id="p1">inline <span style="display: inline"><span class="cell">in</span><span class="cell">line</span></span> text</p>
+  <div id="d5" class="table"><div class="cell">one</div><div>two</div><div class="row"><div class="cell">three</div></div></div>
+  <div id="d6"><span style="display: inline-table; border: 1px solid"><span class="cell">it</span></span> next</div>
+  <div id="d7"><div class="cell">c</div><script></script><span style="display: none">x</span><!-- c --><div class="cell">d</div></div>
+</body>
+</html>

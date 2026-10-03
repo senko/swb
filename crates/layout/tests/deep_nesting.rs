@@ -25,6 +25,9 @@ fn nested_document(names: &[&str], style: &str) -> Document {
             "span" => local_name!("span"),
             "ul" => local_name!("ul"),
             "li" => local_name!("li"),
+            "table" => local_name!("table"),
+            "tr" => local_name!("tr"),
+            "td" => local_name!("td"),
             _ => local_name!("div"),
         };
         let child = doc.create_element(QualName::new(None, ns!(html), local), Vec::new());
@@ -102,6 +105,24 @@ fn nested_inline_blocks_and_lists() {
 fn nested_flex_containers() {
     let style = "div { display: flex; flex-direction: column } span { display: flex }";
     assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+}
+
+#[test]
+fn nested_tables() {
+    // `tr` directly in `table`: every level also gets an anonymous row
+    // group.
+    let style = "table { display: table } tr { display: table-row } \
+                 td { display: table-cell; padding: 1px }";
+    assert!(layout_on_small_stack(&["table", "tr", "td"], style) > 100);
+}
+
+#[test]
+fn nested_misparented_table_cells() {
+    // Every cell gets an anonymous table, row group and row.
+    let style = "div { display: table-cell; border: 1px solid } span { display: table-row }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+    let style = "div { display: table; border-collapse: collapse; border: 1px solid }";
+    assert!(layout_on_small_stack(&["div"], style) > 100);
 }
 
 #[test]

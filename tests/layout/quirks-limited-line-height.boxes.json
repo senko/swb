@@ -1,0 +1,23 @@
+{
+  "url": "tests/layout/quirks-limited-line-height.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 114.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 98.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 8.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 8.0, 10.0, 8.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 18.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [33.8, 25.0, 10.0, 8.0], "parent": 8},
+    {"tag": "div", "rect": [8.0, 40.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 41.0, 15.0, 17.0], "parent": 10},
+    {"tag": "span", "rect": [13.0, 47.0, 10.0, 8.0], "parent": 11},
+    {"tag": "table", "rect": [8.0, 62.0, 83.38, 44.0], "parent": 5},
+    {"tag": "tbody", "rect": [10.0, 64.0, 79.38, 40.0], "parent": 13},
+    {"tag": "tr", "rect": [10.0, 64.0, 79.38, 40.0], "parent": 14},
+    {"tag": "td", "rect": [10.0, 64.0, 79.38, 40.0], "parent": 15}
+  ]
+}

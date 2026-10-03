@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- The collapsing border model (CSS 2.2 §17.6.2): no border spacing or
+     table padding; each cell and the table get half of the borders on
+     their edges; conflicts resolve by style, width and origin. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Collapsed borders</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { border-collapse: collapse; margin-bottom: 6px; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1" style="border: 4px solid">
+    <tr><td style="border: 1px solid">a</td><td style="border: 3px solid">b</td></tr>
+    <tr><td style="border: 2px solid">c</td><td style="border: 1px solid">d</td></tr>
+  </table>
+  <table id="t2" border="1" style="padding: 10px">
+    <tr><td>border</td><td>attribute</td></tr>
+  </table>
+  <table id="t3" style="border: 1px solid">
+    <tr style="border: 5px solid"><td>row</td><td>border</td></tr>
+    <tr><td style="border: 7px hidden">hidden</td><td style="border: 3px dotted">dotted</td></tr>
+  </table>
+  <table id="t4">
+    <tr><td style="border-left: 9px solid; border-right: 2px solid">odd</td><td style="border-left: 5px solid">x</td></tr>
+  </table>
+  <table id="t5" style="border: 2px solid; width: 200px">
+    <tr><td colspan="2" style="border-bottom: 6px solid">span</td></tr>
+    <tr><td>a</td><td style="border-top: 4px double">b</td></tr>
+  </table>
+</body>
+</html>

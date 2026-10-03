@@ -12,6 +12,14 @@
 //! A line without text, atomic inlines, forced breaks and inline box edges
 //! is empty (CSS 2.2 §9.4.2): it has zero height, its inline boxes get
 //! zero-height fragments, and it does not count as a line box.
+//!
+//! In quirks and limited-quirks mode, the line height quirks apply as in
+//! Chromium (<https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk>,
+//! <https://quirks.spec.whatwg.org/#the-blocks-ignore-line-height-quirk>):
+//! the strut of the root inline box and of an inline box counts only if
+//! the box contains text or a forced line break directly, or (for an
+//! inline box) has a margin, border or padding on its start or end side.
+//! Lines of list items always have the root strut.
 
 mod shaping;
 
@@ -63,7 +71,7 @@ pub(crate) fn layout_inline(
         height: None,
     };
     let atomics = layout_atomics(ctx, ifc, cb);
-    let groups = build_groups(ifc, &shaped, &atomics, width);
+    let groups = build_groups(ifc, &shaped, &shaped.break_before, &atomics, width);
     let indent = clamp_length(container_style.text_indent.resolve(width));
     let lines = break_lines(&groups, width, indent);
 
@@ -146,13 +154,29 @@ pub(crate) fn content_sizes(
     container_style: &ComputedStyle,
 ) -> ContentSizes {
     let shaped = ctx.shaped(ifc);
-    let atomics = atomic_content_sizes(ctx, ifc);
-    let groups = build_groups(ifc, &shaped, &atomics, 0.0);
+    let (min_atomics, max_atomics) = atomic_content_sizes(ctx, ifc);
+    // The table cell width calculation quirk
+    // (https://quirks.spec.whatwg.org/#the-table-cell-width-calculation-quirk):
+    // in a cell with an auto width, images do not wrap, as if they were
+    // no-break spaces (Chromium's sticky images quirk).
+    let sticky_images = ctx.quirks
+        && container_style.display == Display::TableCell
+        && container_style.width.is_auto();
+    let break_before = if sticky_images {
+        sticky_image_breaks(ifc, &shaped)
+    } else {
+        shaped.break_before.clone()
+    };
     let indent = clamp_length(container_style.text_indent.resolve(0.0));
     let mut sizes = ContentSizes::default();
-    let mut line = indent;
-    for group in &groups {
+    // Min-content: the widest unbreakable group, with the atomic inlines at
+    // their min-content widths.
+    for group in &build_groups(ifc, &shaped, &break_before, &min_atomics, 0.0) {
         sizes.min = sizes.min.max(group.width - group.trailing_space);
+    }
+    // Max-content: the longest line between forced breaks.
+    let mut line = indent;
+    for group in &build_groups(ifc, &shaped, &break_before, &max_atomics, 0.0) {
         line += group.width;
         sizes.max = sizes.max.max(line - group.trailing_space);
         if group.forced_break_after {
@@ -180,28 +204,33 @@ fn layout_atomics(
         .collect()
 }
 
-/// For content sizes: atomic inlines contribute their own content sizes.
-/// Represented as an `AtomicLayout` whose width is the max-content width.
+/// For content sizes: atomic inlines contribute their own content sizes,
+/// represented as `AtomicLayout`s whose width is the min-content width
+/// (first list) or the max-content width (second list).
 fn atomic_content_sizes(
     ctx: &mut LayoutContext<'_>,
     ifc: &InlineFormattingContext,
-) -> Vec<Option<AtomicLayout>> {
-    ifc.items
-        .iter()
-        .map(|item| match item {
-            InlineItem::Atomic { inner, .. } => {
-                let sizes = crate::intrinsic::independent_outer_sizes(ctx, inner);
-                Some(AtomicLayout {
-                    fragment: None,
-                    margin_width: sizes.max,
-                    margin_top: 0.0,
-                    margin_height: 0.0,
-                    baseline: 0.0,
-                })
-            }
-            _ => None,
-        })
-        .collect()
+) -> (Vec<Option<AtomicLayout>>, Vec<Option<AtomicLayout>>) {
+    let sized = |width: f32| AtomicLayout {
+        fragment: None,
+        margin_width: width,
+        margin_top: 0.0,
+        margin_height: 0.0,
+        baseline: 0.0,
+    };
+    let mut min = Vec::with_capacity(ifc.items.len());
+    let mut max = Vec::with_capacity(ifc.items.len());
+    for item in &ifc.items {
+        if let InlineItem::Atomic { inner, .. } = item {
+            let sizes = crate::intrinsic::independent_outer_sizes(ctx, inner);
+            min.push(Some(sized(sizes.min)));
+            max.push(Some(sized(sizes.max)));
+        } else {
+            min.push(None);
+            max.push(None);
+        }
+    }
+    (min, max)
 }
 
 /// A laid-out atomic inline.
@@ -228,14 +257,16 @@ impl AtomicLayout {
         // of its last line box, unless it has none or it is a scroll
         // container (`overflow: clip` is not one); then it is the bottom
         // margin edge. An inline flex container uses its first baseline
-        // (CSS Flexbox 1 §8.5).
-        let content_baseline = if style.display == Display::InlineFlex {
-            fragment.first_baseline
-        } else {
-            fragment.last_baseline
-        };
+        // (CSS Flexbox 1 §8.5), an inline table the baseline of its first
+        // row (CSS 2.2 §17.5.3).
+        let content_baseline =
+            if matches!(style.display, Display::InlineFlex | Display::InlineTable) {
+                fragment.first_baseline
+            } else {
+                fragment.last_baseline
+            };
         let baseline = match (&fragment.content, content_baseline) {
-            (BoxContent::None, Some(b))
+            (BoxContent::None | BoxContent::Table(_), Some(b))
                 if !style.overflow_x.is_scroll_container()
                     && !style.overflow_y.is_scroll_container() =>
             {
@@ -300,9 +331,45 @@ struct Group {
     forced_break_after: bool,
 }
 
+/// The soft wrap opportunities of `shaped` with the sticky images quirk:
+/// no break before an image unless after a space, and none after an image.
+fn sticky_image_breaks(ifc: &InlineFormattingContext, shaped: &ShapedText) -> Vec<bool> {
+    let mut breaks = shaped.break_before.clone();
+    let is_image = |piece: &Piece| match piece {
+        Piece::Atomic(item) => matches!(
+            ifc.items.get(*item),
+            Some(InlineItem::Atomic { inner, .. })
+                if matches!(inner.contents, crate::box_tree::IndependentContents::Replaced(_))
+        ),
+        _ => false,
+    };
+    let mut after_image = false;
+    let mut after_space = false;
+    for (i, piece) in shaped.pieces.iter().enumerate() {
+        match piece {
+            Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow => continue,
+            _ => {}
+        }
+        if (after_image || (is_image(piece) && !after_space))
+            && let Some(b) = breaks.get_mut(i)
+        {
+            *b = false;
+        }
+        after_image = is_image(piece);
+        after_space = match piece {
+            Piece::Text { text, .. } => {
+                ifc.text.get(text.clone()).is_some_and(|t| t.ends_with(' '))
+            }
+            _ => false,
+        };
+    }
+    breaks
+}
+
 fn build_groups(
     ifc: &InlineFormattingContext,
     shaped: &ShapedText,
+    break_before: &[bool],
     atomics: &[Option<AtomicLayout>],
     cb_width: f32,
 ) -> Vec<Group> {
@@ -325,7 +392,7 @@ fn build_groups(
         }
         let is_content = matches!(piece, Piece::Text { .. } | Piece::Atomic(_));
         if is_content
-            && shaped.break_before[i]
+            && break_before.get(i).copied().unwrap_or(false)
             && let Some(group) = current.take()
         {
             groups.push(group);
@@ -358,7 +425,7 @@ fn build_groups(
                     group.width += inline_box_edges(ifc, *start, cb_width).map_or(0.0, |e| e.end());
                 }
             }
-            Piece::LineBreak => group.forced_break_after = true,
+            Piece::LineBreak(_) => group.forced_break_after = true,
             Piece::StartBox(_) | Piece::OutOfFlow => {}
         }
         group.pieces.end = i + 1;
@@ -495,6 +562,13 @@ struct OpenBox {
     edges: InlineBoxEdges,
     /// True if the box started on an earlier line.
     continued: bool,
+    /// True once something on this line counts for the box's height (its
+    /// strut, text, an atomic inline, a child box); for the line height
+    /// quirks.
+    has_metrics: bool,
+    /// True once the box's strut counts on this line (for the line height
+    /// quirks).
+    has_strut: bool,
     children: Vec<Fragment>,
 }
 
@@ -523,9 +597,27 @@ struct Extent {
 }
 
 impl Extent {
+    /// An extent that includes nothing yet.
+    const EMPTY: Extent = Extent {
+        top: f32::INFINITY,
+        bottom: f32::NEG_INFINITY,
+    };
+
     fn include(&mut self, top: f32, bottom: f32) {
         self.top = self.top.min(top);
         self.bottom = self.bottom.max(bottom);
+    }
+
+    /// The extent, or zero at the baseline if it includes nothing.
+    fn or_zero(self) -> Extent {
+        if self.top > self.bottom {
+            Extent {
+                top: 0.0,
+                bottom: 0.0,
+            }
+        } else {
+            self
+        }
     }
 }
 
@@ -534,6 +626,13 @@ impl Extent {
 struct LineState {
     root: Strut,
     extent: Extent,
+    /// True if struts count only for boxes with text (the line height
+    /// quirks).
+    quirky: bool,
+    /// [`OpenBox::has_metrics`] for the root inline box.
+    root_has_metrics: bool,
+    /// [`OpenBox::has_strut`] for the root inline box.
+    root_has_strut: bool,
     /// Fragments that are not inside an open inline box.
     top_level: Vec<Fragment>,
     /// Fragments of outside list markers; `text-align` does not move them.
@@ -546,13 +645,20 @@ struct LineState {
 }
 
 impl LineState {
-    fn new(root: Strut, indent: f32) -> Self {
+    fn new(root: Strut, indent: f32, quirky: bool) -> Self {
         LineState {
             root,
-            extent: Extent {
-                top: -root.above,
-                bottom: root.below,
+            extent: if quirky {
+                Extent::EMPTY
+            } else {
+                Extent {
+                    top: -root.above,
+                    bottom: root.below,
+                }
             },
+            quirky,
+            root_has_metrics: !quirky,
+            root_has_strut: !quirky,
             top_level: Vec::new(),
             outside_markers: Vec::new(),
             stack: Vec::new(),
@@ -568,12 +674,58 @@ impl LineState {
             .map_or((0.0, self.root), |b| (b.baseline, b.strut))
     }
 
-    fn push_open(&mut self, open: OpenBox) {
+    /// Opens an inline box; its strut counts unless the line height
+    /// quirks apply and `quirky_strut` is false.
+    fn push_open(&mut self, mut open: OpenBox, quirky_strut: bool) {
+        if !self.quirky || quirky_strut {
+            self.include_strut(&mut open);
+        }
+        self.stack.push(open);
+    }
+
+    fn include_strut(&mut self, open: &mut OpenBox) {
         self.extent.include(
             open.baseline - open.strut.above,
             open.baseline + open.strut.below,
         );
-        self.stack.push(open);
+        open.has_metrics = true;
+        open.has_strut = true;
+    }
+
+    /// With the line height quirks: includes the strut of the innermost
+    /// open box (or the root), which has text or a line break directly.
+    /// For a line break, only if nothing counted for the box yet.
+    fn include_parent_strut(&mut self, line_break: bool) {
+        if !self.quirky || (line_break && self.parent_has_metrics()) {
+            return;
+        }
+        let (baseline, strut) = self.parent();
+        self.extent
+            .include(baseline - strut.above, baseline + strut.below);
+        self.set_parent_has_metrics();
+        match self.stack.last_mut() {
+            Some(open) => open.has_strut = true,
+            None => self.root_has_strut = true,
+        }
+    }
+
+    fn parent_has_strut(&self) -> bool {
+        self.stack
+            .last()
+            .map_or(self.root_has_strut, |b| b.has_strut || !self.quirky)
+    }
+
+    fn parent_has_metrics(&self) -> bool {
+        self.stack
+            .last()
+            .map_or(self.root_has_metrics, |b| b.has_metrics)
+    }
+
+    fn set_parent_has_metrics(&mut self) {
+        match self.stack.last_mut() {
+            Some(open) => open.has_metrics = true,
+            None => self.root_has_metrics = true,
+        }
     }
 
     fn push_child(&mut self, fragment: Fragment) {
@@ -607,13 +759,21 @@ impl LineBuilder<'_, '_> {
                 let text = self.ifc.text.get(text.clone()).unwrap_or("");
                 !text.is_empty() && (!collapses || text.chars().any(|c| c != ' '))
             }
-            Piece::Atomic(_) | Piece::LineBreak => true,
+            Piece::Atomic(_) | Piece::LineBreak(_) => true,
+            // In quirks mode, margins do not make a line non-empty.
             Piece::StartBox(item) => {
                 !is_continued(self.ifc, *item)
-                    && inline_box_style(self.ifc, *item).is_some_and(|s| has_inline_start_edge(s))
+                    && inline_box_style(self.ifc, *item).is_some_and(|s| {
+                        has_quirky_start_edge(s)
+                            || (!self.ctx.line_height_quirks && has_inline_start_edge(s))
+                    })
             }
             Piece::EndBox { start, split } => {
-                !split && inline_box_style(self.ifc, *start).is_some_and(|s| has_inline_end_edge(s))
+                !split
+                    && inline_box_style(self.ifc, *start).is_some_and(|s| {
+                        has_quirky_end_edge(s)
+                            || (!self.ctx.line_height_quirks && has_inline_end_edge(s))
+                    })
             }
             Piece::OutOfFlow => false,
         })
@@ -627,12 +787,14 @@ impl LineBuilder<'_, '_> {
         markers: &[PendingMarker<'_>],
         empty: bool,
     ) {
-        let mut state = LineState::new(self.root_metrics, indent);
+        let quirky =
+            self.ctx.line_height_quirks && self.container_style.display != Display::ListItem;
+        let mut state = LineState::new(self.root_metrics, indent, quirky);
         // Re-open boxes that continue from the previous line.
         for (item, style) in std::mem::take(&mut self.open) {
             let (baseline, strut) = state.parent();
             let open = self.open_box(item, &style, state.x, baseline, &strut, true);
-            state.push_open(open);
+            state.push_open(open, false);
         }
 
         let piece_range = Self::piece_range(groups, line);
@@ -641,7 +803,13 @@ impl LineBuilder<'_, '_> {
             match &self.shaped.pieces[i] {
                 Piece::StartBox(item) => self.start_box(&mut state, *item),
                 Piece::EndBox { split, .. } => {
-                    if let Some(open) = state.stack.pop() {
+                    if let Some(mut open) = state.stack.pop() {
+                        if state.quirky && !split && has_quirky_end_edge(&open.style) {
+                            state.include_strut(&mut open);
+                        }
+                        if open.has_metrics {
+                            state.set_parent_has_metrics();
+                        }
                         let fragment = self.close_box(open, &mut state.x, *split);
                         state.push_child(Fragment::Box(fragment));
                     }
@@ -651,7 +819,8 @@ impl LineBuilder<'_, '_> {
                     self.place_text(&mut state, i, trim_end);
                 }
                 Piece::Atomic(item) => self.place_atomic(&mut state, *item),
-                Piece::LineBreak | Piece::OutOfFlow => {}
+                Piece::LineBreak(item) => self.place_line_break(&mut state, *item),
+                Piece::OutOfFlow => {}
             }
         }
 
@@ -681,7 +850,7 @@ impl LineBuilder<'_, '_> {
         if !continued {
             state.x += open.edges.start();
         }
-        state.push_open(open);
+        state.push_open(open, !continued && has_quirky_start_edge(&style));
         state.trailing_space = 0.0;
     }
 
@@ -701,10 +870,16 @@ impl LineBuilder<'_, '_> {
         let run = &self.shaped.runs[*run];
         let (baseline, _) = state.parent();
         let style = self.text_style(run);
-        let strut = strut_for(&style, run.metrics);
-        state
-            .extent
-            .include(baseline - strut.above, baseline + strut.below);
+        // Text whose glyphs are all removed at the end of the line (only
+        // collapsible spaces) does not count for the line height (Chromium
+        // skips text items of length 0).
+        if trim_end != Some(glyphs.start) {
+            let strut = strut_for(&style, run.metrics);
+            state
+                .extent
+                .include(baseline - strut.above, baseline + strut.below);
+            state.include_parent_strut(false);
+        }
         let (glyphs, width, trailing_space) = match trim_end {
             Some(end) => {
                 let kept = glyphs.start..end;
@@ -725,6 +900,35 @@ impl LineBuilder<'_, '_> {
         state.x += width;
         state.trailing_space = trailing_space;
         state.push_child(Fragment::Text(fragment));
+    }
+
+    /// Places a forced line break; a `<br>` gets a box of width 0 with the
+    /// content area of its parent's font (Chromium; with the line height
+    /// quirks, height 0 at the baseline if the parent's strut does not
+    /// count).
+    fn place_line_break(&mut self, state: &mut LineState, item: usize) {
+        state.include_parent_strut(true);
+        let Some(InlineItem::LineBreak(Some(base))) = self.ifc.items.get(item) else {
+            return;
+        };
+        let (baseline, strut) = state.parent();
+        let (top, height) = if state.parent_has_strut() {
+            (
+                baseline - strut.metrics.ascent,
+                strut.metrics.ascent + strut.metrics.descent,
+            )
+        } else {
+            (baseline, 0.0)
+        };
+        let mut fragment = crate::block::finish_fragment(
+            base,
+            Rect::new(state.x, top, 0.0, height),
+            &BoxEdges::default(),
+            Vec::new(),
+            crate::block::Baselines::default(),
+        );
+        fragment.is_inline = true;
+        state.push_child(Fragment::Box(fragment));
     }
 
     fn place_atomic(&mut self, state: &mut LineState, item: usize) {
@@ -753,6 +957,7 @@ impl LineBuilder<'_, '_> {
             );
         let top = baseline - atomic.baseline;
         state.extent.include(top, top + atomic.margin_height);
+        state.set_parent_has_metrics();
         if let Some(mut fragment) = atomic.fragment {
             fragment.border_rect.x += state.x;
             fragment.border_rect.y = top + atomic.margin_top;
@@ -773,6 +978,7 @@ impl LineBuilder<'_, '_> {
     /// Aligns the line horizontally, positions it below the previous line
     /// and appends its fragments.
     fn finish_line(&mut self, mut state: LineState) {
+        state.extent = state.extent.or_zero();
         let line_width = state.x - state.trailing_space;
         let offset = self.align_offset(line_width);
         let line_top = self.y;
@@ -873,6 +1079,8 @@ impl LineBuilder<'_, '_> {
             strut,
             edges,
             continued,
+            has_metrics: false,
+            has_strut: false,
             children: Vec::new(),
         }
     }
@@ -930,6 +1138,8 @@ impl LineBuilder<'_, '_> {
     fn place_marker(&mut self, pending: PendingMarker<'_>, state: &mut LineState) {
         let shaped = shape_marker(self.ctx, pending.marker);
         state.extent.include(-shaped.above, shaped.below);
+        // With the line height quirks, a marker brings the root strut.
+        state.extent.include(-state.root.above, state.root.below);
         if pending.marker.outside {
             let x = pending.x(shaped.width);
             state.outside_markers.extend(shaped.place(x, 0.0));
@@ -955,6 +1165,18 @@ impl LineBuilder<'_, '_> {
             _ => 0.0,
         }
     }
+}
+
+/// True if an inline box has a border or padding on its start side; with
+/// the line height quirks, only these make the box's strut count (Chromium's
+/// `IsInlineBoxStartEmpty`: margins do not count in quirks mode).
+fn has_quirky_start_edge(style: &ComputedStyle) -> bool {
+    style.border_left_width > 0.0 || !style.padding_left.is_zero()
+}
+
+/// The end-side version of [`has_quirky_start_edge`].
+fn has_quirky_end_edge(style: &ComputedStyle) -> bool {
+    style.border_right_width > 0.0 || !style.padding_right.is_zero()
 }
 
 /// Records the line box (`line_top` to `line_top + line_height`, in the

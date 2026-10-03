@@ -1,0 +1,32 @@
+{
+  "url": "tests/layout/quirks-line-height-spaces.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 794.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 778.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 10.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 8.0, 20.0, 10.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 20.0, 784.0, 8.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 14.0, 10.0, 17.0], "parent": 8},
+    {"tag": "span", "rect": [8.0, 20.0, 10.0, 8.0], "parent": 9},
+    {"tag": "div", "rect": [8.0, 30.0, 784.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 37.0, 10.0, 8.0], "parent": 11},
+    {"tag": "span", "rect": [22.45, 37.0, 10.0, 8.0], "parent": 11},
+    {"tag": "ul", "rect": [8.0, 66.0, 784.0, 104.0], "parent": 5},
+    {"tag": "li", "rect": [48.0, 66.0, 744.0, 20.0], "parent": 14},
+    {"tag": "span", "rect": [48.0, 73.0, 10.0, 8.0], "parent": 15},
+    {"tag": "li", "rect": [48.0, 88.0, 744.0, 40.0], "parent": 14},
+    {"tag": "span", "rect": [48.0, 95.0, 10.0, 8.0], "parent": 17},
+    {"tag": "br", "rect": [58.0, 89.0, 0.0, 17.0], "parent": 17},
+    {"tag": "span", "rect": [48.0, 115.0, 10.0, 8.0], "parent": 17},
+    {"tag": "li", "rect": [48.0, 130.0, 744.0, 40.0], "parent": 14},
+    {"tag": "span", "rect": [48.0, 137.0, 10.0, 8.0], "parent": 21},
+    {"tag": "br", "rect": [58.0, 131.0, 0.0, 17.0], "parent": 21},
+    {"tag": "span", "rect": [48.0, 157.0, 10.0, 8.0], "parent": 21},
+    {"tag": "div", "rect": [8.0, 186.0, 784.0, 600.0], "parent": 5}
+  ]
+}

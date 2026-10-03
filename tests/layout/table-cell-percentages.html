@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Percentage heights inside cells resolve when the cell's height is
+     definite (a fixed cell height, or a table height that made the row
+     grow), not for a row height. Tables reset the -webkit- values of
+     text-align, so <center> does not align block-level content of cells. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Percentages in cells</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .b { width: 20px; height: 10px; background: #888; }
+  .p { height: 50%; background: #ccc; }
+</style>
+</head>
+<body>
+  <center><table style="width: 300px"><tr><td><div id="b1" class="b"></div>x</td></tr></table></center>
+  <div style="text-align: -webkit-right"><table style="width: 300px"><tr><td><div id="b2" class="b"></div></td></tr></table></div>
+  <table style="width: 300px"><tr><td style="height: 100px"><div id="p1" class="p">half of the cell</div></td></tr></table>
+  <table style="width: 300px; height: 120px"><tr><td><div id="p2" class="p">half of the grown cell</div></td></tr></table>
+  <table style="width: 300px"><tr style="height: 100px"><td><div id="p3" class="p">auto: the row height does not count</div></td></tr></table>
+</body>
+</html>

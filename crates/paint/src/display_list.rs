@@ -16,7 +16,8 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_layout::{
-    BoxContent, BoxFragment, Fragment, FragmentTree, Point, PositionedGlyph, Rect, TextFragment,
+    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, Point, PositionedGlyph, Rect,
+    TextFragment,
 };
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
@@ -79,10 +80,12 @@ pub enum DisplayItem {
         /// Clip.
         clip: Rect,
     },
-    /// Fill `rect` with a linear gradient.
+    /// Fill the part of `rect` inside `clip` with a linear gradient.
     LinearGradient {
-        /// The area.
+        /// The area of the gradient.
         rect: Rect,
+        /// The area to paint.
+        clip: Rect,
         /// The gradient.
         gradient: Arc<swb_style::LinearGradient>,
         /// The current color for `currentColor` stops.
@@ -117,10 +120,9 @@ impl DisplayItem {
     /// one or more font sizes around the pen positions.
     pub(crate) fn bounds(&self) -> Option<Rect> {
         match self {
-            DisplayItem::Rect { rect, .. }
-            | DisplayItem::Border { rect, .. }
-            | DisplayItem::LinearGradient { rect, .. } => Some(*rect),
-            DisplayItem::Image { rect, clip, .. } => rect.intersection(clip),
+            DisplayItem::Rect { rect, .. } | DisplayItem::Border { rect, .. } => Some(*rect),
+            DisplayItem::Image { rect, clip, .. }
+            | DisplayItem::LinearGradient { rect, clip, .. } => rect.intersection(clip),
             DisplayItem::Text {
                 origin,
                 size,
@@ -257,7 +259,7 @@ pub fn build_display_list(
         let areas = BackgroundAreas {
             border,
             padding,
-            canvas: Some(canvas),
+            painting: PaintingArea::Canvas(canvas),
         };
         builder.background(bg, &areas, [(0.0, 0.0); 4]);
         builder.canvas_source = Some(canvas_background.source);
@@ -310,8 +312,20 @@ struct Decoration {
 struct BackgroundAreas {
     border: Rect,
     padding: Rect,
-    /// For the canvas background: the painting area of all layers.
-    canvas: Option<Rect>,
+    painting: PaintingArea,
+}
+
+/// Where the layers of a background are painted.
+#[derive(Clone, Copy)]
+enum PaintingArea {
+    /// The box's own area that `background-clip` selects.
+    Own,
+    /// The canvas, for the root background. A gradient fills all of it.
+    Canvas(Rect),
+    /// A table cell, for the background of a row, row group, column or
+    /// column group: the layers are positioned in the part's areas and
+    /// painted in the cell (CSS 2.2 §17.5.1).
+    Cell(Rect),
 }
 
 impl BackgroundAreas {
@@ -319,7 +333,7 @@ impl BackgroundAreas {
         BackgroundAreas {
             border: b.border_rect.translate(origin),
             padding: b.padding_rect().translate(origin),
-            canvas: None,
+            painting: PaintingArea::Own,
         }
     }
 
@@ -332,7 +346,10 @@ impl BackgroundAreas {
     }
 
     fn painting_area(&self, clip: BackgroundBox) -> Rect {
-        self.canvas.unwrap_or_else(|| self.area(clip))
+        match self.painting {
+            PaintingArea::Own => self.area(clip),
+            PaintingArea::Canvas(area) | PaintingArea::Cell(area) => area,
+        }
     }
 }
 
@@ -407,6 +424,11 @@ impl Builder<'_> {
                 Fragment::Text(t) => self.text(t, rect.origin(), &own),
             }
         }
+        if let BoxContent::Table(table) = &b.content
+            && let Some(collapsed) = &table.collapsed
+        {
+            self.collapsed_borders(collapsed, rect.origin());
+        }
         if group.context {
             self.paint_deferred(negative_z_at);
         }
@@ -460,22 +482,61 @@ impl Builder<'_> {
     /// The box's own hit region, background, border and replaced content.
     fn paint_box(&mut self, b: &BoxFragment, origin: Point, is_root: bool) {
         let style = &b.style;
-        if style.visibility != Visibility::Visible {
+        if style.visibility != Visibility::Visible || b.content == BoxContent::GeometryOnly {
             return;
         }
         let rect = b.border_rect.translate(origin);
         if let Some(node) = b.node {
             self.list.push(DisplayItem::HitRegion { rect, node });
         }
-        let radii = resolve_radii(style, rect);
+        let mut areas = BackgroundAreas::of(b, origin);
+        let mut border_rect = rect;
+        let mut paint_border = true;
+        match &b.content {
+            // Cells paint the backgrounds of rows and row groups.
+            BoxContent::TablePart => return,
+            BoxContent::TableCell(cell) => {
+                // The part's background is positioned in the part (a
+                // gradient is continuous across its cells) and painted in
+                // the cell.
+                for part in &cell.backgrounds {
+                    let area = part.area.translate(rect.origin());
+                    let part_areas = BackgroundAreas {
+                        border: area,
+                        padding: area,
+                        painting: PaintingArea::Cell(part.clip.translate(rect.origin())),
+                    };
+                    self.background(&part.style, &part_areas, [(0.0, 0.0); 4]);
+                }
+                if cell.hidden {
+                    return;
+                }
+                paint_border = !cell.collapsed_borders;
+            }
+            // The table's background and border surround the grid, not the
+            // captions; collapsed borders are painted after the cells.
+            BoxContent::Table(table) => {
+                border_rect = table.grid.translate(rect.origin());
+                areas = BackgroundAreas {
+                    border: border_rect,
+                    padding: border_rect.inset(&b.border),
+                    painting: PaintingArea::Own,
+                };
+                paint_border = table.collapsed.is_none();
+            }
+            BoxContent::None | BoxContent::Image(_) | BoxContent::GeometryOnly => {}
+        }
+        let radii = resolve_radii(style, border_rect);
         // The root's background (or the body's, if it was propagated)
         // paints the canvas instead.
         let paints_canvas =
             is_root || (b.pseudo.is_none() && b.node.is_some() && b.node == self.canvas_source);
         if !paints_canvas {
-            self.background(style, &BackgroundAreas::of(b, origin), radii);
+            self.background(style, &areas, radii);
         }
-        self.border(b, rect, radii);
+        if paint_border {
+            self.border(b, border_rect, radii);
+        }
         if let BoxContent::Image(node) = b.content {
             let content = b.content_rect().translate(origin);
             self.list.push(DisplayItem::Image {
@@ -599,10 +660,9 @@ impl Builder<'_> {
         if !color.is_transparent() {
             self.list.push(DisplayItem::Rect {
                 rect: areas.painting_area(color_clip),
-                radii: if areas.canvas.is_some() {
-                    [(0.0, 0.0); 4]
-                } else {
-                    radii
+                radii: match areas.painting {
+                    PaintingArea::Own => radii,
+                    PaintingArea::Canvas(_) | PaintingArea::Cell(_) => [(0.0, 0.0); 4],
                 },
                 color,
             });
@@ -654,18 +714,49 @@ impl Builder<'_> {
                 Image::LinearGradient(gradient) => {
                     // Gradients are not tiled yet: one gradient fills the
                     // positioning area (the whole canvas for the canvas).
-                    let rect = if areas.canvas.is_some() {
-                        clip
-                    } else {
-                        clip.intersection(&positioning).unwrap_or(clip)
+                    let rect = match areas.painting {
+                        PaintingArea::Own => clip.intersection(&positioning).unwrap_or(clip),
+                        PaintingArea::Canvas(_) => clip,
+                        PaintingArea::Cell(_) => positioning,
                     };
                     self.list.push(DisplayItem::LinearGradient {
                         rect,
+                        clip,
                         gradient: Arc::clone(gradient),
                         current_color: style.color,
                     });
                 }
             }
+        }
+    }
+
+    /// Paints the borders of a table with collapsing borders. `origin` is
+    /// the table's border-box origin.
+    fn collapsed_borders(&mut self, edges: &[CollapsedEdge], origin: Point) {
+        for edge in edges {
+            let width = if edge.vertical {
+                edge.rect.width
+            } else {
+                edge.rect.height
+            };
+            if width <= 0.0 || edge.style == BorderStyle::None || edge.style == BorderStyle::Hidden
+            {
+                continue;
+            }
+            // A one-sided border: the left side of a vertical segment, the
+            // top side of a horizontal one.
+            let widths = if edge.vertical {
+                [0.0, 0.0, 0.0, width]
+            } else {
+                [width, 0.0, 0.0, 0.0]
+            };
+            self.list.push(DisplayItem::Border {
+                rect: edge.rect.translate(origin),
+                widths,
+                colors: [edge.color; 4],
+                styles: [edge.style; 4],
+                radii: [(0.0, 0.0); 4],
+            });
         }
     }
 

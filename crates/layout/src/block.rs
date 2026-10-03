@@ -240,7 +240,7 @@ pub(crate) struct Baselines {
 }
 
 impl Baselines {
-    fn offset(self, dy: f32) -> Baselines {
+    pub(crate) fn offset(self, dy: f32) -> Baselines {
         Baselines {
             first: self.first.map(|b| b + dy),
             last: self.last.map(|b| b + dy),
@@ -299,7 +299,7 @@ pub(crate) fn layout_block_container<'a>(
             }
         }
         BlockContainer::Blocks(children) => {
-            layout_block_children(ctx, children, cb, options, markers)
+            layout_block_children(ctx, children, container_style, cb, options, markers)
         }
     }
 }
@@ -307,6 +307,7 @@ pub(crate) fn layout_block_container<'a>(
 fn layout_block_children<'a>(
     ctx: &mut LayoutContext<'_>,
     children: &'a [BlockLevelBox],
+    container_style: &ComputedStyle,
     cb: ContainingBlock,
     options: ChildOptions,
     markers: &mut Vec<PendingMarker<'a>>,
@@ -320,6 +321,11 @@ fn layout_block_children<'a>(
     let mut baselines = Baselines::default();
 
     for child in children {
+        let (child, inline_boxes) = match child {
+            BlockLevelBox::InInline(b) => (&b.block, Some(&b.inline_boxes)),
+            other => (other, None),
+        };
+        let content_end = y;
         let laid_out = match child {
             BlockLevelBox::Block {
                 base,
@@ -332,11 +338,17 @@ fn layout_block_children<'a>(
                 fragments.push(Fragment::Box(fragment));
                 continue;
             }
+            // Box construction never nests these.
+            BlockLevelBox::InInline(_) => continue,
         };
         let LaidOutBlock {
             mut fragment,
             margins,
         } = laid_out;
+        fragment.border_rect.x += webkit_align_offset(container_style, &fragment, cb);
+        let wrapper = |fragment: &BoxFragment| {
+            inline_boxes.map(|boxes| inline_box_wrappers(boxes, fragment, content_end, cb))
+        };
 
         if margins.collapsed_through {
             let combined = margins.start.adjoin(margins.end);
@@ -347,6 +359,7 @@ fn layout_block_children<'a>(
                 pending = pending.adjoin(combined);
                 fragment.border_rect.y = y + pending.solve();
             }
+            fragments.extend(wrapper(&fragment).into_iter().flatten());
             apply_relative_position(&mut fragment, cb);
             fragments.push(Fragment::Box(fragment));
             continue;
@@ -384,6 +397,7 @@ fn layout_block_children<'a>(
         }
         y += fragment.border_rect.height;
         pending = margins.end;
+        fragments.extend(wrapper(&fragment).into_iter().flatten());
         apply_relative_position(&mut fragment, cb);
         fragments.push(Fragment::Box(fragment));
     }
@@ -427,6 +441,59 @@ fn escaping_margins(
         (start, pending, 0.0)
     } else {
         (start, none, pending.solve())
+    }
+}
+
+/// The boxes of the inline boxes around a block-level child (Chromium's
+/// block-in-inline): as wide as the containing block, from the child's top
+/// margin edge (but not above the end of the previous content, so a
+/// collapsed margin does not count) to its bottom margin edge. They only
+/// have geometry: Chromium paints no inline box background there.
+fn inline_box_wrappers(
+    boxes: &[BoxBase],
+    child: &BoxFragment,
+    content_end: f32,
+    cb: ContainingBlock,
+) -> Vec<Fragment> {
+    let margin = |m: &LengthPercentageOrAuto| margin_or_zero(m, cb.width);
+    let top = content_end.max(child.border_rect.y - margin(&child.style.margin_top));
+    let bottom = child.border_rect.bottom() + margin(&child.style.margin_bottom);
+    boxes
+        .iter()
+        .map(|base| {
+            let rect = Rect::new(0.0, top, cb.width, (bottom - top).max(0.0));
+            let mut fragment = finish_fragment(
+                base,
+                rect,
+                &BoxEdges::default(),
+                Vec::new(),
+                Baselines::default(),
+            );
+            fragment.content = BoxContent::GeometryOnly;
+            fragment.is_inline = true;
+            Fragment::Box(fragment)
+        })
+        .collect()
+}
+
+/// The horizontal offset of an in-flow block-level child for the
+/// `-webkit-left`, `-webkit-center` and `-webkit-right` values of its
+/// parent's `text-align`, if the child has no `auto` margins (Chromium's
+/// `WebkitTextAlignAndJustifySelfOffset`; HTML's `<center>` and `align`
+/// attributes use them).
+fn webkit_align_offset(parent: &ComputedStyle, child: &BoxFragment, cb: ContainingBlock) -> f32 {
+    let style = &child.style;
+    let (Some(left), Some(right)) = (
+        style.margin_left.resolve(cb.width),
+        style.margin_right.resolve(cb.width),
+    ) else {
+        return 0.0;
+    };
+    let free = (cb.width - child.border_rect.width - left - right).max(0.0);
+    match parent.text_align {
+        swb_style::TextAlign::WebkitCenter => free / 2.0,
+        swb_style::TextAlign::WebkitRight => free,
+        _ => 0.0,
     }
 }
 
@@ -654,6 +721,11 @@ pub(crate) fn layout_sized(
     let style = &base.style;
     let edges = BoxEdges::resolve(style, cb.width);
     let edge_sum = edges.sum();
+    if let IndependentContents::Table(table) = &ib.contents {
+        let width = content_width + edge_sum.horizontal();
+        let height = content_height.map(|h| h + edge_sum.vertical());
+        return crate::table::layout_with_width(ctx, ib, table, width, height, cb);
+    }
     let specified_height = content_height.or_else(|| {
         resolve_size(
             &style.height,
@@ -703,7 +775,7 @@ pub(crate) fn layout_sized(
 
 /// Lays out the contents of an independent box in its content box `cb`,
 /// with the formatting context that the box establishes.
-fn layout_contents<'a>(
+pub(crate) fn layout_contents<'a>(
     ctx: &mut LayoutContext<'_>,
     ib: &'a IndependentBox,
     cb: ContainingBlock,
@@ -723,7 +795,9 @@ fn layout_contents<'a>(
             markers,
         ),
         IndependentContents::Flex(items) => {
-            let layout = crate::flex::layout_flex(ctx, style, items, cb);
+            let layout = crate::table::TableCache::percent_free(ctx, |ctx| {
+                crate::flex::layout_flex(ctx, style, items, cb)
+            });
             ChildrenLayout {
                 fragments: layout.fragments,
                 content_height: layout.content_height,
@@ -738,7 +812,8 @@ fn layout_contents<'a>(
                 },
             }
         }
-        IndependentContents::Replaced(_) => ChildrenLayout {
+        // Tables size their own box (`layout_sized` calls table layout).
+        IndependentContents::Replaced(_) | IndependentContents::Table(_) => ChildrenLayout {
             fragments: Vec::new(),
             content_height: 0.0,
             start_margin: CollapsedMargin::default(),
@@ -751,12 +826,15 @@ fn layout_contents<'a>(
 
 /// Lays out a block-level box that establishes an independent formatting
 /// context, in normal flow: its width fills the containing block unless
-/// specified.
-fn layout_independent_block_level(
+/// specified (tables size themselves).
+pub(crate) fn layout_independent_block_level(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
     cb: ContainingBlock,
 ) -> LaidOutBlock {
+    if let IndependentContents::Table(table) = &ib.contents {
+        return crate::table::layout_block_level(ctx, ib, table, cb);
+    }
     let style = &ib.base.style;
     let edges = BoxEdges::resolve(style, cb.width);
     let (width, margin_left, content_height) =
@@ -806,6 +884,9 @@ pub(crate) fn layout_independent_shrink_to_fit(
     ib: &IndependentBox,
     cb: ContainingBlock,
 ) -> LaidOutBlock {
+    if let IndependentContents::Table(table) = &ib.contents {
+        return crate::table::layout_shrink_to_fit(ctx, ib, table, cb);
+    }
     let style = &ib.base.style;
     let edges = BoxEdges::resolve(style, cb.width);
     let edge_sum = edges.sum().horizontal();
@@ -845,10 +926,10 @@ pub(crate) fn layout_flex_item(
     cb: ContainingBlock,
 ) -> BoxFragment {
     let key = LayoutKey::new(item.base.id, content_width, content_height, cb);
-    if let Some(fragment) = ctx.flex_items.get(&key) {
+    if let Some(fragment) = ctx.layouts.get(&key) {
         return fragment.clone();
     }
-    ctx.flex_item_layouts += 1;
+    ctx.uncached_layouts += 1;
     let height = match &item.contents {
         IndependentContents::Replaced(r) if content_height.is_none() => {
             let edges = BoxEdges::resolve(&item.base.style, cb.width);
@@ -859,7 +940,7 @@ pub(crate) fn layout_flex_item(
         _ => content_height,
     };
     let fragment = layout_sized(ctx, item, content_width, height, cb);
-    ctx.flex_items.insert(key, fragment.clone());
+    ctx.layouts.insert(key, fragment.clone());
     fragment
 }
 
@@ -960,6 +1041,33 @@ mod tests {
         assert_eq!(li.height, 20.0);
         let disc = rects_of_text(&l.texts(), "\u{2022} ")[0];
         assert!(disc.y >= li.y && disc.bottom() <= li.bottom());
+    }
+
+    #[test]
+    fn inline_boxes_around_blocks_get_a_box() {
+        let l = layout_html(&body(
+            "<div style='width:300px'><a id=a><div id=b style='width:50px;height:10px;\
+             margin:3px 0 6px'></div></a></div>",
+        ));
+        let (a, b) = (l.rect("a"), l.rect("b"));
+        assert_eq!((a.x, a.width), (0.0, 300.0));
+        assert_eq!((a.y, a.bottom()), (b.y, b.bottom() + 6.0));
+    }
+
+    #[test]
+    fn blocks_in_deep_inline_boxes_get_a_bounded_number_of_boxes() {
+        let open = "<span>".repeat(50);
+        let blocks = "<div>x</div>".repeat(20);
+        let l = layout_html(&body(&format!("{open}{blocks}")));
+        let mut wrappers = 0;
+        l.tree.walk(|f, _| {
+            if let crate::FragmentRef::Box(b) = f
+                && b.content == BoxContent::GeometryOnly
+            {
+                wrappers += 1;
+            }
+        });
+        assert!(wrappers <= 8 * 20, "{wrappers} boxes");
     }
 
     #[test]

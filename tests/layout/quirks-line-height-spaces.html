@@ -1,0 +1,34 @@
+<!-- No doctype: quirks mode. The line height quirks with pretty-printed
+     white space: collapsible spaces at the end of a line give no strut;
+     list items (with and without a marker) on every line. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quirks: line height and white space</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div, li { margin-bottom: 2px; background: #eee; }
+  .ib { display: inline-block; width: 10px; height: 8px; background: #888; }
+</style>
+</head>
+<body>
+  <div id="d1">
+    <img width="20" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+  </div>
+  <div id="d2">
+    <span>
+      <span class="ib"></span>
+    </span>
+  </div>
+  <div id="d3"><span class="ib"></span> <span class="ib"></span>
+  </div>
+  <ul>
+    <li id="l1" style="list-style: none"><span class="ib"></span></li>
+    <li id="l2"><span class="ib"></span><br><span class="ib"></span></li>
+    <li id="l3" style="list-style: none"><span class="ib"></span><br><span class="ib"></span></li>
+  </ul>
+  <!-- Taller than the viewport, so that the body fills viewport quirk
+       (not implemented) does not apply. -->
+  <div style="height: 600px"></div>
+</body>
+</html>

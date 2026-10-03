@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Fixed table layout (table-layout: fixed with a width): column widths
+     come from columns and the first row only; the rest is shared evenly. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fixed table layout</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { table-layout: fixed; margin-bottom: 4px; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1" style="width: 400px">
+    <tr><td style="width: 100px">a</td><td>b</td><td>c</td></tr>
+    <tr><td>a very long text in the second row does not count</td><td>e</td><td>f</td></tr>
+  </table>
+  <table id="t2" style="width: 300px">
+    <col style="width: 50px"><col style="width: 20%"><col>
+    <tr><td>a</td><td>b</td><td>c</td></tr>
+  </table>
+  <table id="t3" style="width: 200px">
+    <tr><td style="width: 150px">a</td><td style="width: 150px">b</td></tr>
+  </table>
+  <table id="t4" style="width: 500px">
+    <tr><td style="width: 50px">a</td><td style="width: 50px">b</td></tr>
+  </table>
+  <table id="t5" style="width: 50%">
+    <tr><td colspan="2">spanning first row</td><td>c</td></tr>
+    <tr><td>a</td><td>b</td><td>c</td></tr>
+  </table>
+  <table id="t6" style="width: auto">
+    <tr><td style="width: 100px">auto width: not fixed layout</td><td>b</td></tr>
+  </table>
+</body>
+</html>

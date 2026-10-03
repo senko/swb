@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- Column groups and columns: their widths, span attributes, and their
+     boxes (the area of their cells). Row groups in Chromium's order:
+     the first thead first and the first tfoot last. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Columns</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <colgroup span="2" style="width: 40px"></colgroup>
+    <colgroup><col style="width: 80px"><col span="2"></colgroup>
+    <tr><td>a</td><td>b</td><td>c</td><td>d</td><td>e</td></tr>
+  </table>
+  <table id="t2">
+    <col style="width: 60px">
+    <col span="3">
+    <tr><td>a</td><td>b</td></tr>
+  </table>
+  <table id="t3">
+    <tfoot><tr><td>foot</td></tr></tfoot>
+    <tbody><tr><td>body</td></tr></tbody>
+    <thead><tr><td>head</td></tr></thead>
+    <thead><tr><td>second head</td></tr></thead>
+    <tbody><tr><td>body two</td></tr></tbody>
+  </table>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- The cellspacing, cellpadding and border attributes, border-spacing
+     with two values, and cell borders in the separated border model. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cell spacing and padding</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1" cellspacing="0" cellpadding="0">
+    <tr><td>no</td><td>spacing</td></tr>
+    <tr><td>or</td><td>padding</td></tr>
+  </table>
+  <table id="t2" cellspacing="5" cellpadding="4">
+    <tr><td>five</td><td>four</td></tr>
+  </table>
+  <table id="t3" border="1">
+    <tr><td>border</td><td>attribute</td></tr>
+  </table>
+  <table id="t4" border="3" cellspacing="10">
+    <tr><td>thick</td></tr>
+  </table>
+  <table id="t5" style="border-spacing: 8px 2px">
+    <tr><td style="border: 2px solid">a</td><td style="padding: 6px">b</td></tr>
+    <tr><td>c</td><td>d</td></tr>
+  </table>
+  <table id="t6" cellpadding="3" style="border-spacing: 0">
+    <tr><td style="padding: 0">css wins</td><td>attr</td></tr>
+  </table>
+</body>
+</html>

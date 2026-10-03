@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- Row heights: the height attribute and property on rows and cells,
+     empty rows with a height, a row group height, a table height that
+     is distributed to rows, and percentage row heights. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Row heights</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <tr style="height: 40px"><td>row height</td></tr>
+    <tr><td height="35">td height</td></tr>
+    <tr style="height: 10px"></tr>
+    <tr><td style="height: 30px; padding: 5px">cell with padding</td></tr>
+    <tr style="height: 5px"><td>content wins</td></tr>
+  </table>
+  <table id="t2" style="height: 150px">
+    <tr><td>a</td></tr>
+    <tr style="height: 30px"><td>b</td></tr>
+    <tr><td>c<br>c</td></tr>
+  </table>
+  <table id="t3">
+    <tbody style="height: 80px"><tr><td>group</td></tr><tr><td>height</td></tr></tbody>
+  </table>
+  <table id="t4" style="height: 200px">
+    <thead><tr><td>head</td></tr></thead>
+    <tbody><tr style="height: 25%"><td>quarter</td></tr><tr><td>rest</td></tr></tbody>
+    <tfoot><tr><td>foot</td></tr></tfoot>
+  </table>
+  <table id="t5" style="height: 60px">
+    <tr style="height: 10px"></tr>
+    <tr style="height: 10px"></tr>
+  </table>
+</body>
+</html>

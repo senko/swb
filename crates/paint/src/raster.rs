@@ -129,9 +129,10 @@ impl Rasterizer<'_> {
             }
             DisplayItem::LinearGradient {
                 rect,
+                clip,
                 gradient,
                 current_color,
-            } => self.linear_gradient(*rect, gradient, *current_color),
+            } => self.linear_gradient(*rect, *clip, gradient, *current_color),
             DisplayItem::PushClip(rect) => {
                 let device = snap(self.to_device(*rect));
                 let clip = match self.clips.last() {
@@ -645,12 +646,21 @@ impl Rasterizer<'_> {
         self.draw(area, |p, t, m| p.fill_rect(r, &paint, t, m));
     }
 
-    /// Fills `rect` with a linear gradient. The gradient line goes through
-    /// the center of `rect` at the gradient angle, with the length that
-    /// CSS Images 3 §3.1.1 defines
+    /// Fills the part of `rect` inside `clip` with a linear gradient. The
+    /// gradient line goes through the center of `rect` at the gradient
+    /// angle, with the length that CSS Images 3 §3.1.1 defines
     /// (<https://www.w3.org/TR/css-images-3/#linear-gradient-syntax>).
-    fn linear_gradient(&mut self, rect: Rect, gradient: &swb_style::LinearGradient, current: Rgba) {
+    fn linear_gradient(
+        &mut self,
+        rect: Rect,
+        clip: Rect,
+        gradient: &swb_style::LinearGradient,
+        current: Rgba,
+    ) {
         let n = gradient.stops.len();
+        let Some(fill) = rect.intersection(&clip) else {
+            return;
+        };
         if n == 0 {
             return;
         }
@@ -702,11 +712,11 @@ impl Rasterizer<'_> {
         let Some(shader) = shader else {
             // A single stop or degenerate line: fill with the first color.
             if let Some((c, _)) = gradient.stops.first() {
-                self.fill_rect(rect, &[(0.0, 0.0); 4], c.resolve(current));
+                self.fill_rect(fill, &[(0.0, 0.0); 4], c.resolve(current));
             }
             return;
         };
-        let area = snap(self.to_device(rect));
+        let area = snap(self.to_device(fill));
         let Some(r) = skia_rect(area) else {
             return;
         };

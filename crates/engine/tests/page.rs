@@ -443,6 +443,21 @@ fn transparent_links_can_be_clicked() {
 }
 
 #[test]
+fn links_in_table_cells_and_around_blocks_are_hit() {
+    let site = Site::new("table-links");
+    let url = site.page(
+        "t.html",
+        "<!DOCTYPE html><body style='margin:0'><table cellspacing=0 cellpadding=0><tr>\
+         <td><a href='vote.html'><div style='width:10px;height:10px;margin:3px'></div></a></td>\
+         <td><a href='title.html'>title</a></td></tr></table>",
+    );
+    let mut page = local_page();
+    load(&mut page, url);
+    assert_eq!(link_at(&mut page, 5.0, 5.0).as_deref(), Some("vote.html"));
+    assert_eq!(link_at(&mut page, 25.0, 8.0).as_deref(), Some("title.html"));
+}
+
+#[test]
 fn mouse_leave_clears_the_hovered_link() {
     let site = Site::new("hover");
     let url = site.page(
@@ -583,6 +598,144 @@ fn opacity_groups_record_their_bounds() {
         _ => None,
     });
     assert_eq!(bounds, Some(swb_engine::Rect::new(10.0, 10.0, 50.0, 20.0)));
+}
+
+/// The rectangle of a `DisplayItem::Rect`.
+fn rect_at(list: &DisplayList, index: usize) -> swb_engine::Rect {
+    match &list.items[index] {
+        DisplayItem::Rect { rect, .. } => *rect,
+        other => panic!("not a rectangle: {other:?}"),
+    }
+}
+
+#[test]
+fn row_and_column_backgrounds_are_painted_in_cells() {
+    // Border spacing 10px: the row's background is not painted between the
+    // cells; the column's only in its cell.
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'>\
+         <table style='border-spacing:10px'><col><col style='background:rgb(4,5,6)'>\
+         <tr style='background:rgb(1,2,3)'><td style='width:30px;padding:0'>a</td>\
+         <td style='width:40px;padding:0'>b</td></tr></table>",
+        "dl-table-backgrounds",
+    );
+    // The row's color fills each cell, without a clip.
+    let rows = rects_of(&list, MARK);
+    assert_eq!(rows.len(), 2, "one rectangle per cell");
+    let x_width = |index: usize| (rect_at(&list, index).x, rect_at(&list, index).width);
+    assert_eq!(x_width(rows[0]), (10.0, 30.0));
+    assert_eq!(x_width(rows[1]), (50.0, 40.0));
+    assert_eq!(clips_at(&list, rows[1]).len(), 0);
+    let columns = rects_of(&list, MARK2);
+    assert_eq!(columns.len(), 1);
+    assert_eq!(rect_at(&list, columns[0]).x, 50.0);
+    assert!(columns[0] < rows[1], "the column is below the row");
+}
+
+#[test]
+fn row_gradients_continue_across_cells() {
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'><table style='border-spacing:10px'>\
+         <tr style='background:linear-gradient(white, black)'><td style='width:30px;padding:0'>a</td>\
+         <td style='width:40px;padding:0'>b</td></tr></table>",
+        "dl-row-gradient",
+    );
+    // Each cell paints the gradient of the whole row, in the cell only.
+    let gradients: Vec<(swb_engine::Rect, swb_engine::Rect)> = list
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            DisplayItem::LinearGradient { rect, clip, .. } => Some((*rect, *clip)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(gradients.len(), 2);
+    assert!(
+        gradients
+            .iter()
+            .all(|(r, _)| r.x == 10.0 && r.width == 80.0)
+    );
+    assert_eq!((gradients[0].1.x, gradients[0].1.width), (10.0, 30.0));
+    assert_eq!((gradients[1].1.x, gradients[1].1.width), (50.0, 40.0));
+    assert!(
+        !list
+            .items
+            .iter()
+            .any(|item| matches!(item, DisplayItem::PushClip(_))),
+        "no clip per cell"
+    );
+}
+
+#[test]
+fn a_float_makes_a_cell_non_empty() {
+    let list = display_list(
+        "<!DOCTYPE html><table style='empty-cells:hide'><tr>\
+         <td style='background:rgb(1,2,3)'><div style='float:left;width:5px;height:5px'></div></td>\
+         </tr></table>",
+        "dl-empty-cells-float",
+    );
+    assert_eq!(rects_of(&list, MARK).len(), 1);
+}
+
+#[test]
+fn column_group_background_is_painted_once_per_cell() {
+    let list = display_list(
+        "<!DOCTYPE html><table><colgroup span=3 style='background:rgb(1,2,3)'></colgroup>\
+         <tr><td>a</td><td>b</td><td>c</td></tr><tr><td colspan=3>wide</td></tr></table>",
+        "dl-colgroup",
+    );
+    assert_eq!(rects_of(&list, MARK).len(), 4, "one per cell");
+}
+
+#[test]
+fn table_background_fills_the_grid_without_captions() {
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'>\
+         <table style='background:rgb(1,2,3)'><caption style='height:30px'>c</caption>\
+         <tr><td>a</td></tr></table>",
+        "dl-table-caption",
+    );
+    let rects = rects_of(&list, MARK);
+    assert_eq!(rects.len(), 1);
+    assert_eq!(rect_at(&list, rects[0]).y, 30.0);
+}
+
+#[test]
+fn empty_cells_hide_paints_no_background() {
+    let list = display_list(
+        "<!DOCTYPE html><table style='empty-cells:hide'>\
+         <tr><td style='background:rgb(1,2,3)'></td><td style='background:rgb(4,5,6)'>x</td></tr>\
+         </table>",
+        "dl-empty-cells",
+    );
+    assert_eq!(rects_of(&list, MARK), Vec::<usize>::new());
+    assert_eq!(rects_of(&list, MARK2).len(), 1);
+}
+
+#[test]
+fn the_table_paints_collapsed_borders() {
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'>\
+         <table style='border-collapse:collapse;border:4px solid rgb(1,2,3)'>\
+         <tr><td style='border:2px solid rgb(4,5,6)'>a</td><td>b</td></tr></table>",
+        "dl-collapsed",
+    );
+    let borders: Vec<(swb_engine::Rect, Rgba)> = list
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            DisplayItem::Border { rect, colors, .. } => Some((*rect, colors[0])),
+            _ => None,
+        })
+        .collect();
+    // Each segment is one border item; the table's 4px border wins on the
+    // outside, the cell's 2px border between the cells.
+    assert!(borders.iter().all(|(_, c)| *c == MARK || *c == MARK2));
+    let inner: Vec<_> = borders.iter().filter(|(_, c)| *c == MARK2).collect();
+    assert_eq!(inner.len(), 1, "{borders:?}");
+    assert_eq!(inner[0].0.width, 2.0);
+    let outer = borders.iter().filter(|(_, c)| *c == MARK).count();
+    assert_eq!(outer, 4, "one segment per side");
 }
 
 // ----- Security -----

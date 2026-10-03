@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Overlapping spans: a cell that spans columns and rows crosses a
+     column that an earlier cell spans for more rows. The column stays
+     occupied until the longer span ends, so f goes to the column after B. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Overlapping spans</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <tr><td>a</td><td rowspan="4">B</td></tr>
+    <tr><td colspan="3" rowspan="2">C</td></tr>
+    <tr><td>d</td></tr>
+    <tr><td>e</td><td>f</td></tr>
+  </table>
+  <table id="t2">
+    <tr><td rowspan="3">A</td><td>b</td><td rowspan="2">C</td><td>d</td></tr>
+    <tr><td colspan="4" rowspan="1">E</td></tr>
+    <tr><td>f</td><td>g</td><td>h</td></tr>
+  </table>
+</body>
+</html>

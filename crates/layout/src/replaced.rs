@@ -15,10 +15,28 @@ pub(crate) fn used_size(
     cb: ContainingBlock,
     edges: &BoxEdges,
 ) -> (f32, f32) {
+    sized(style, replaced, Some(cb.width), cb.height, edges)
+}
+
+/// The content width of a replaced element for intrinsic sizing:
+/// percentages of the containing block's width count as `auto` (Chromium's
+/// `ComputeMinAndMaxContentContributionForReplaced`).
+pub(crate) fn intrinsic_width(style: &ComputedStyle, replaced: &Replaced, edges: &BoxEdges) -> f32 {
+    sized(style, replaced, None, None, edges).0
+}
+
+fn sized(
+    style: &ComputedStyle,
+    replaced: &Replaced,
+    cb_width: Option<f32>,
+    cb_height: Option<f32>,
+    edges: &BoxEdges,
+) -> (f32, f32) {
+    let cb = (cb_width, cb_height);
     let h_edges = edges.sum().horizontal();
     let v_edges = edges.sum().vertical();
-    let width = resolve_size(&style.width, Some(cb.width), style.box_sizing, h_edges);
-    let height = resolve_size(&style.height, cb.height, style.box_sizing, v_edges);
+    let width = resolve_size(&style.width, cb.0, style.box_sizing, h_edges);
+    let height = resolve_size(&style.height, cb.1, style.box_sizing, v_edges);
     let natural = replaced.natural_size;
     let ratio = style
         .aspect_ratio
@@ -39,13 +57,11 @@ pub(crate) fn used_size(
 
     // Min/max constraints, keeping the aspect ratio when both dimensions
     // are automatic (a simplified form of the §10.4 table).
-    let min_w =
-        resolve_size(&style.min_width, Some(cb.width), style.box_sizing, h_edges).unwrap_or(0.0);
-    let max_w = resolve_max_size(&style.max_width, Some(cb.width), style.box_sizing, h_edges)
+    let min_w = resolve_size(&style.min_width, cb.0, style.box_sizing, h_edges).unwrap_or(0.0);
+    let max_w = resolve_max_size(&style.max_width, cb.0, style.box_sizing, h_edges)
         .unwrap_or(f32::INFINITY);
-    let min_h =
-        resolve_size(&style.min_height, cb.height, style.box_sizing, v_edges).unwrap_or(0.0);
-    let max_h = resolve_max_size(&style.max_height, cb.height, style.box_sizing, v_edges)
+    let min_h = resolve_size(&style.min_height, cb.1, style.box_sizing, v_edges).unwrap_or(0.0);
+    let max_h = resolve_max_size(&style.max_height, cb.1, style.box_sizing, v_edges)
         .unwrap_or(f32::INFINITY);
 
     let clamped_w = w.min(max_w).max(min_w);

@@ -57,8 +57,8 @@ pub(crate) enum Piece {
     EndBox { start: usize, split: bool },
     /// The atomic inline at item index.
     Atomic(usize),
-    /// A forced line break.
-    LineBreak,
+    /// A forced line break at item index.
+    LineBreak(usize),
     /// An out-of-flow box (float or absolutely positioned).
     OutOfFlow,
 }
@@ -116,8 +116,8 @@ pub(crate) fn shape(fonts: &mut FontContext, ifc: &InlineFormattingContext) -> S
                 pieces.push(Piece::Atomic(index));
                 break_before.push(opportunities.binary_search(offset).is_ok());
             }
-            InlineItem::LineBreak => {
-                pieces.push(Piece::LineBreak);
+            InlineItem::LineBreak(_) => {
+                pieces.push(Piece::LineBreak(index));
                 break_before.push(false);
             }
             InlineItem::Float(_) | InlineItem::AbsolutelyPositioned(_) => {

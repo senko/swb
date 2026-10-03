@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Table captions: caption-side top and bottom, a caption wider than
+     the grid (the table becomes as wide), caption margins, and the
+     table's box (it contains its captions, as in Chromium). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Captions</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { border: 2px solid; margin-bottom: 6px; }
+  td { background: #ddd; }
+  caption { background: #eee; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <caption>A caption that is wider than the table grid</caption>
+    <tr><td>a</td><td>b</td></tr>
+  </table>
+  <table id="t2" style="caption-side: bottom">
+    <caption style="margin: 5px 10px">bottom</caption>
+    <tr><td>a cell wider than the caption</td></tr>
+  </table>
+  <table id="t3" style="width: 300px">
+    <caption style="width: 100px; margin: 0 auto 4px">centered</caption>
+    <caption style="caption-side: bottom; text-align: left">second</caption>
+    <tr><td>x</td></tr>
+  </table>
+  <table id="t4"><caption>only a caption</caption></table>
+</body>
+</html>

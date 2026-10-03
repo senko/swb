@@ -15,8 +15,8 @@ use crate::{
 pub(crate) struct TestLayout {
     pub(crate) doc: Document,
     pub(crate) tree: FragmentTree,
-    /// [`LayoutContext::flex_item_layouts`] after the layout.
-    pub(crate) flex_item_layouts: usize,
+    /// [`LayoutContext::uncached_layouts`] after the layout.
+    pub(crate) uncached_layouts: usize,
 }
 
 impl TestLayout {
@@ -74,11 +74,11 @@ pub(crate) fn layout_document(doc: Document) -> TestLayout {
         replaced: &NoReplacedSizes,
     };
     let tree = layout_with(&input, &mut ctx);
-    let flex_item_layouts = ctx.flex_item_layouts;
+    let uncached_layouts = ctx.uncached_layouts;
     TestLayout {
         doc,
         tree,
-        flex_item_layouts,
+        uncached_layouts,
     }
 }
 

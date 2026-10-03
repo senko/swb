@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- text-align: -webkit-center, -webkit-left and -webkit-right align
+     block-level children without auto margins (center, align attributes),
+     as in Chromium. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>-webkit-center</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .box { width: 100px; height: 10px; background: #888; }
+</style>
+</head>
+<body>
+  <center id="c1">
+    <table id="t1" style="width: 50%"><tr><td>centered table</td></tr></table>
+    <div id="b1" class="box"></div>
+    <div id="b2" class="box" style="margin-left: 20px"></div>
+    <div id="b3" class="box" style="margin-left: auto"></div>
+    <p id="p1">text is centered too</p>
+  </center>
+  <div align="right"><div id="b4" class="box"></div></div>
+  <div style="text-align: -webkit-right"><div style="text-align: -webkit-left"><div id="b5" class="box"></div></div></div>
+  <div style="text-align: -webkit-center; width: 50px"><div id="b6" class="box">wide</div></div>
+  <table style="width: 300px"><tr><td align="center"><div id="b7" class="box"></div></td></tr></table>
+</body>
+</html>

@@ -12,6 +12,25 @@ in commit messages, ADRs and other docs.
   `Request::initiator` for `SameSite`, `Request::post` and the `Origin`
   header, automation `cookies.get` and `cookies.clear` (ADR 0012). Open
   question for the owner: the list's data is MPL-2.0.
+- Tables (ADR 0010): Chromium's LayoutNG algorithm for column widths,
+  row heights and cell alignment, automatic and fixed layout, separated
+  and collapsing borders, captions, column and row backgrounds, the
+  anonymous table fixup; `-webkit-center` for blocks; the quirks-mode line
+  height and table cell rules; boxes for `<br>` and for inline elements
+  around blocks. Hacker News geometry went from 0 to 0.9876 (the rest is
+  the search field, which needs forms); Wikipedia size 0.58 → 0.62. 20
+  new layout tests against Chromium. The author's review found three bugs
+  (memory of block-in-inline boxes, a `display: none` sibling that split
+  anonymous tables, column backgrounds painted per spanned column); the
+  integration review found more: trimmed trailing spaces added a strut in
+  quirks mode, table `min-height` was ignored, `<img>` with a table
+  display lost its image, row gradients restarted in every cell, floats
+  did not make a cell non-empty, and hostile tables could cost quadratic
+  time (grid placement) or much memory (collapsed borders). All fixed
+  with tests; grid placement now uses a segment tree, and collapsed
+  borders have a budget per layout pass. Two findings (struts in list
+  items, row backgrounds under hidden empty cells) were checked against
+  Chromium and are not bugs.
 - M2 runs as four parallel workstreams (cookies, tables, SVG images,
   forms), each in its own worktree; each lands as its own commit.
 

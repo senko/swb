@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- vertical-align in table cells: baseline (cells of a row share a
+     baseline), top, middle, bottom, and other values that act as
+     baseline; the valign attribute; cells without text. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Vertical alignment in cells</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  td { background: #ddd; }
+  .big { font-size: 40px; line-height: 50px; }
+  .box { display: inline-block; width: 10px; height: 30px; background: #888; }
+</style>
+</head>
+<body>
+  <table id="t1">
+    <tr>
+      <td class="big">Big</td>
+      <td>baseline</td>
+      <td style="vertical-align: top">top</td>
+      <td style="vertical-align: middle">middle</td>
+      <td style="vertical-align: bottom">bottom</td>
+      <td style="vertical-align: sub">sub</td>
+      <td style="vertical-align: 10px">len</td>
+    </tr>
+  </table>
+  <table id="t2" style="height: 100px">
+    <tr valign="top"><td>top row</td><td valign="bottom">bottom</td></tr>
+    <tr><td>middle row</td><td><span class="box"></span></td></tr>
+  </table>
+  <table id="t3">
+    <tr><td><div style="height: 40px; width: 20px; background: #aaa"></div></td><td>text</td><td><span class="box"></span>x</td></tr>
+    <tr><td rowspan="2">span<br>two</td><td class="big">B</td></tr>
+    <tr><td>c</td></tr>
+  </table>
+</body>
+</html>

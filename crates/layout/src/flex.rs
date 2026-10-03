@@ -676,9 +676,9 @@ mod tests {
         let column = "<div style='display:flex; flex-direction:column'>".repeat(DEPTH);
         let l = layout_html(&format!("<!DOCTYPE html><body>{column}x"));
         assert!(
-            l.flex_item_layouts <= 4 * DEPTH,
+            l.uncached_layouts <= 4 * DEPTH,
             "{} layouts",
-            l.flex_item_layouts
+            l.uncached_layouts
         );
 
         // Row containers whose first item is shorter than its sibling: the
@@ -692,9 +692,9 @@ mod tests {
         }
         let l = layout_html(&format!("<!DOCTYPE html><body>{html}"));
         assert!(
-            l.flex_item_layouts <= 8 * DEPTH,
+            l.uncached_layouts <= 8 * DEPTH,
             "{} layouts",
-            l.flex_item_layouts
+            l.uncached_layouts
         );
     }
 
@@ -707,9 +707,9 @@ mod tests {
         let content = "<div>x</div>".repeat(2000);
         let l = layout_html(&format!("<!DOCTYPE html><body>{column}{content}"));
         assert!(
-            l.flex_item_layouts <= 4 * (DEPTH + 2000),
+            l.uncached_layouts <= 4 * (DEPTH + 2000),
             "{} layouts",
-            l.flex_item_layouts
+            l.uncached_layouts
         );
     }
 }

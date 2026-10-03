@@ -66,6 +66,22 @@ Format: source, license (for code), what it influenced.
   `ui/gfx/linux/fontconfig_util.cc`. Also Blink's rounding of font metrics
   on Linux (`SimpleFontData`) and the `vertical-align: sub/super` offsets
   (`layout` crate). No code copied.
+- Chromium / Blink LayoutNG table layout (BSD-3-Clause): in
+  `third_party/blink/renderer/core/layout/table/`:
+  `table_layout_utils.cc/.h`, `table_layout_algorithm.cc`,
+  `table_layout_algorithm_types.cc/.h`,
+  `table_section_layout_algorithm.cc`, `table_row_layout_algorithm.cc`,
+  `table_borders.cc/.h`, `table_node.cc`, `layout_table_cell.cc/.h`,
+  `layout_table_column_visitor.h`; in `core/layout/`: `length_utils.cc`
+  (table width, auto margins, replaced contributions),
+  `block_layout_algorithm.cc` (the `-webkit-` text-align offset, baseline
+  propagation), `block_layout_algorithm_utils.cc`, `layout_utils.cc`,
+  `block_node.cc`, `inline/inline_box_state.cc/.h`,
+  `inline/inline_layout_algorithm.cc`, `inline/logical_line_builder.cc`,
+  `inline/inline_item.cc`, `inline/inline_node.cc/.h`,
+  `inline/line_breaker.cc` (line height quirks); `core/paint/
+  table_painters.cc` (collapsed borders). Read for the algorithms
+  (`layout/src/table/`, ADR 0010); no code copied.
 - Chromium / Blink, style: `html.css` and `quirks.css` (user-agent
   defaults, compared with the HTML spec), `font_size_functions.cc` (font
   size keyword tables), `font_builder.cc` (`CheckForGenericFamilyChange`,

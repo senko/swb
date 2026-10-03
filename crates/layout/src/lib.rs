@@ -5,8 +5,8 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images), flex layout, relative positioning. Floats and absolute
-//! positioning are approximated (see `block.rs`).
+//! (images), flex layout, table layout, relative positioning. Floats and
+//! absolute positioning are approximated (see `block.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
@@ -23,6 +23,7 @@ mod intrinsic;
 mod list_marker;
 mod replaced;
 mod source_map;
+mod table;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -33,8 +34,8 @@ use swb_style::{ComputedStyle, Overflow, StyleMap};
 use swb_text::FontContext;
 
 pub use fragment::{
-    BoxContent, BoxFragment, CanvasBackground, Caret, Fragment, FragmentRef, FragmentTree,
-    PositionedGlyph, TextFragment,
+    BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, Fragment,
+    FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
 pub use geom::{Edges, Point, Rect, Size};
 
@@ -73,22 +74,33 @@ pub struct LayoutInput<'a> {
 /// State shared by all layout functions during one layout pass.
 pub(crate) struct LayoutContext<'a> {
     pub(crate) fonts: &'a mut FontContext,
+    /// True if the document is in quirks mode.
+    pub(crate) quirks: bool,
+    /// True in quirks mode and limited-quirks mode: the line height quirks
+    /// apply (see `inline/mod.rs`).
+    pub(crate) line_height_quirks: bool,
     /// Shaped text per inline formatting context, keyed by its number.
     shaped: HashMap<usize, Rc<inline::ShapedText>>,
-    /// Laid-out flex items per item and constraints (see
-    /// [`block::layout_flex_item`]).
-    pub(crate) flex_items: FlexItemCache,
-    /// The number of flex item layouts that were not in the cache.
-    pub(crate) flex_item_layouts: usize,
+    /// Laid-out boxes per box and constraints: flex items (see
+    /// [`block::layout_flex_item`]) and table cells.
+    pub(crate) layouts: LayoutCache,
+    /// The number of flex item and table cell layouts that were not in the
+    /// cache.
+    pub(crate) uncached_layouts: usize,
+    /// Data of the tables of this layout pass.
+    pub(crate) tables: table::TableCache,
 }
 
 impl<'a> LayoutContext<'a> {
     pub(crate) fn new(fonts: &'a mut FontContext) -> Self {
         LayoutContext {
             fonts,
+            quirks: false,
+            line_height_quirks: false,
             shaped: HashMap::new(),
-            flex_items: FlexItemCache::default(),
-            flex_item_layouts: 0,
+            layouts: LayoutCache::default(),
+            uncached_layouts: 0,
+            tables: table::TableCache::default(),
         }
     }
 
@@ -103,15 +115,16 @@ impl<'a> LayoutContext<'a> {
     }
 }
 
-/// The flex item layout cache. Entries are cheap: a fragment's children
-/// are shared (`Arc`), so a nested flex item's subtree is stored once, not
-/// once per level, and a cache hit copies only the top fragment.
+/// The layout cache of flex items and table cells, which their containers
+/// lay out several times. Entries are cheap: a fragment's children are
+/// shared (`Arc`), so a nested subtree is stored once, not once per level,
+/// and a cache hit copies only the top fragment.
 #[derive(Default)]
-pub(crate) struct FlexItemCache {
+pub(crate) struct LayoutCache {
     entries: HashMap<LayoutKey, BoxFragment>,
 }
 
-impl FlexItemCache {
+impl LayoutCache {
     pub(crate) fn get(&self, key: &LayoutKey) -> Option<&BoxFragment> {
         self.entries.get(key)
     }
@@ -122,7 +135,7 @@ impl FlexItemCache {
 }
 
 /// A box (by its number) and the constraints it is laid out with: the key
-/// of the flex item layout cache. Sizes are compared by their bits.
+/// of the layout cache. Sizes are compared by their bits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LayoutKey {
     box_id: usize,
@@ -156,6 +169,8 @@ pub fn layout(input: &LayoutInput<'_>, fonts: &mut FontContext) -> FragmentTree 
 
 /// Lays out a document with an existing layout context.
 pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) -> FragmentTree {
+    ctx.quirks = input.document.quirks_mode == swb_dom::QuirksMode::Quirks;
+    ctx.line_height_quirks = input.document.quirks_mode != swb_dom::QuirksMode::NoQuirks;
     let viewport_overflow = viewport_overflow(input.document, input.styles);
     let build = BuildContext {
         doc: input.document,
@@ -328,7 +343,12 @@ mod tests {
              <div style='display:flex'><div style='flex-grow:1e39'>a</div>\
              <div style='flex-grow:1e39'>b</div></div>\
              <div style='display:flex; width:100px'><div style='flex-shrink:1e39; width:1e39px'>a\
-             </div><div style='flex-shrink:1e39; width:1e39px'>b</div></div>",
+             </div><div style='flex-shrink:1e39; width:1e39px'>b</div></div>\
+             <table style='border-spacing:1e39px'><tr><td style='width:1e39px'>a</td>\
+             <td style='width:1e39px; height:1e39px'>b</td></tr>\
+             <tr style='height:1e39px'><td colspan=2 style='padding:1e39px'>c</td></tr></table>\
+             <table style='width:1e39px; height:1e39px; border-collapse:collapse'>\
+             <tr><td style='border:1e39px solid'>d</td></tr></table>",
         );
         assert!(l.tree.scroll_size.width.is_finite() && l.tree.scroll_size.height.is_finite());
         let mut all_finite = true;

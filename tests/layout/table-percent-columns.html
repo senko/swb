@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- Percentage columns: they raise a table's max-content width (100px at
+     50% asks for 200px), except for tables inside cells, flex items and
+     grid items when the table's intrinsic width is measured; in the
+     table's own layout they always count. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Percentage columns</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  table { margin-bottom: 4px; }
+  td { background: rgba(0, 0, 0, 0.1); }
+  .w { display: inline-block; width: 100px; height: 10px; }
+</style>
+</head>
+<body>
+  <table id="t1"><tr><td style="width: 50%"><span class="w"></span></td><td>x</td></tr></table>
+  <table id="t2"><tr><td>
+    <table id="n1"><tr><td style="width: 50%"><span class="w"></span></td><td>y</td></tr></table>
+  </td><td>outer</td></tr></table>
+  <table id="t3" style="width: 500px"><tr><td>
+    <table id="n2"><tr><td width="50%"><span class="w"></span></td><td>z</td></tr></table>
+  </td></tr></table>
+  <div style="display: flex"><table id="f1"><tr><td style="width: 50%"><span class="w"></span></td><td>f</td></tr></table></div>
+  <div style="display: inline-block"><table id="i1"><tr><td style="width: 50%"><span class="w"></span></td><td>i</td></tr></table></div>
+</body>
+</html>

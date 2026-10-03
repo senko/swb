@@ -45,7 +45,9 @@ use crate::properties::{
 };
 use crate::style_map::{PseudoKind, StyleMap};
 use crate::stylist::{CascadeOrigin, RuleTarget, Stylist};
-use crate::values::{Content, Display, Float, FontSizeOrigin, LengthContext, Overflow, UserSelect};
+use crate::values::{
+    Content, Display, Float, FontSizeOrigin, LengthContext, Overflow, TextAlign, UserSelect,
+};
 
 /// The ratio of the default fixed (monospace) font size to the default
 /// font size: 13px / 16px.
@@ -255,6 +257,17 @@ impl Styler<'_> {
         };
         let mut style = cascade(&self.cx, &matched, extra, parent, Some(data), is_root);
         apply_fixups(&mut style, is_root, layout_parent);
+        // Chromium (`StyleAdjuster`): tables do not take the `-webkit-`
+        // values of `text-align`, so `<center>` and `align` do not align the
+        // content of their cells.
+        if data.is_html_named(&swb_dom::local_name!("table"))
+            && matches!(
+                style.text_align,
+                TextAlign::WebkitLeft | TextAlign::WebkitCenter | TextAlign::WebkitRight
+            )
+        {
+            style.text_align = TextAlign::Start;
+        }
         if contents_is_none && style.display == Display::Contents {
             style.display = Display::None;
         }
@@ -1222,6 +1235,19 @@ mod tests {
         assert_eq!(get(&doc, &map, "div").text_align, TextAlign::WebkitRight);
         assert_eq!(get(&doc, &map, "pre").white_space, WhiteSpace::PreWrap);
         assert_eq!(get(&doc, &map, "ifr").border_widths(), [0.0; 4]);
+    }
+
+    #[test]
+    fn tables_reset_webkit_text_align() {
+        let (doc, map) = render(
+            "<!DOCTYPE html><center><table id=t><tr><td id=td>x</td></tr></table>\
+             <div id=d style='display:table'>y</div></center>",
+            "",
+        );
+        assert_eq!(get(&doc, &map, "t").text_align, TextAlign::Start);
+        assert_eq!(get(&doc, &map, "td").text_align, TextAlign::Start);
+        // Only table elements, as in Chromium.
+        assert_eq!(get(&doc, &map, "d").text_align, TextAlign::WebkitCenter);
     }
 
     #[test]
