@@ -50,7 +50,8 @@ Open a URL in a window and read the page.
   line height rules.
 - SVG images (`resvg`).
 - Forms: text inputs, buttons, GET/POST submission.
-- Cookies.
+- Cookies (RFC 6265bis jar, `SameSite`, Public Suffix List) and `POST`
+  requests with `Origin`: done (ADR 0012).
 - Target 2 (news.ycombinator.com) done.
 
 ## M3: Wikipedia
@@ -60,6 +61,16 @@ Open a URL in a window and read the page.
 - `mask-image` (icons), `@font-face`, `@import`.
 - `overflow` scrolling inside elements.
 - Target 3 (Wikipedia "Web browser") done.
+
+## Backlog from M2
+
+- Cookies: keep the initiator in the history entry, so that reload and
+  back/forward after a cross-site link do not send `SameSite=Strict`
+  cookies; persistence; `Partitioned`, `Priority`, `__Http-` prefixes,
+  Lax+POST; the redirect-tainted `Origin`; `Sec-Fetch-*` and `Referer`
+  headers; raw bytes in cookie values (now re-encoded as UTF-8);
+  Chromium's 30-day protection in global eviction.
+- Owner decision: the Public Suffix List data is MPL-2.0 (ADR 0012).
 
 ## Backlog from M1
 

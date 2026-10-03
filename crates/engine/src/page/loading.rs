@@ -253,7 +253,10 @@ impl Page {
                 }
                 continue;
             }
-            let id = self.loader.start(Request::get(url, Destination::Style));
+            let request = Request::get(url, Destination::Style);
+            let id = self
+                .loader
+                .start(request.with_initiator(self.document_origin()));
             self.requests
                 .pending
                 .insert(id, Pending::Stylesheet { slot });
@@ -272,9 +275,10 @@ impl Page {
             return;
         }
         self.images.by_url.insert(url.clone(), ImageState::Loading);
+        let request = Request::get(url.clone(), Destination::Image);
         let id = self
             .loader
-            .start(Request::get(url.clone(), Destination::Image));
+            .start(request.with_initiator(self.document_origin()));
         self.requests.pending.insert(id, Pending::Image { url });
     }
 

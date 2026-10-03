@@ -42,12 +42,19 @@ Format: source, license (for code), what it influenced.
   key names of the engine and the automation protocol
 - Unicode Standard Annex #14 (line breaking), #9 (bidi)
 - RFC 4647 (language tag matching) — `:lang()`
+- RFC 6265bis (IETF draft, HTTP State Management Mechanism) — cookie
+  parsing, storage, retrieval and `SameSite` (`net/src/cookies/`)
+- WHATWG Fetch, "append a request `Origin` header" — the `Origin` header
+  of `POST` requests
 
 ## Books and articles
 
 - "Web Browser Engineering", Pavel Panchekha and Chris Harrelson —
   https://browser.engineering/ — overall structure of a minimal browser
   (layout tree, display list, the order of pipeline stages).
+- Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
+  https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
+  (`net/src/cookies/date.rs`).
 
 ## Projects (read for ideas only)
 
@@ -72,6 +79,12 @@ Format: source, license (for code), what it influenced.
   selection colors, `a:any-link:focus-visible { outline-offset: 1px }` in
   `html.css`, the 4 px drag threshold, 40 px arrow-key scrolling and the
   87.5% page step.
+- Chromium (BSD-3-Clause), cookies: `net/cookies/cookie_monster.cc`
+  (limits of 180/150 cookies per domain and 3300/3000 in total, LRU
+  eviction), `net/cookies/cookie_util.cc` (`GetCookieDomainWithString`:
+  the `Domain` attribute rule; `ComputeSameSiteContext`: the same-site
+  contexts), `registry_controlled_domains` (unknown registries have no
+  registrable domain). No code copied.
 - Servo and Blink — the idea of an ancestor Bloom filter for selector
   matching (`SelectorFilter`), and right-to-left selector matching with
   limited backtracking, which all browser engines use. No code read for
@@ -92,3 +105,10 @@ Format: source, license (for code), what it influenced.
   in the public domain — `fixtures/fonts/`, test fonts.
 
 See `fixtures/fonts/README.md` for file details.
+
+## Data in dependencies
+
+- Public Suffix List (Mozilla, MPL-2.0) — compiled into the `psl` crate
+  (`MIT OR Apache-2.0`) — registrable domains for cookies and sites
+  (`net/src/site.rs`). The license of the list is an open question for
+  the owner (ADR 0012).

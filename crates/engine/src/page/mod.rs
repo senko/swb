@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use swb_dom::{Document, NodeId};
 use swb_layout::{FragmentTree, Point, Size};
-use swb_net::{Destination, Fetcher, Loader, Request, Url};
+use swb_net::{CookieJar, Destination, Fetcher, Loader, Origin, Request, Url};
 use swb_paint::DisplayList;
 use swb_style::{StyleMap, Stylist};
 use swb_text::FontContext;
@@ -183,10 +183,11 @@ impl Page {
 
     // ----- Navigation -----
 
-    /// Navigates to `url`. The new history entry is added when the document
+    /// Navigates to `url`, as if the user typed it (the request has no
+    /// initiator). The new history entry is added when the document
     /// arrives.
     pub fn navigate(&mut self, url: Url) {
-        self.start_navigation(url, HistoryHandling::Push, None);
+        self.start_navigation(url, HistoryHandling::Push, None, None);
     }
 
     /// Follows a link. A link to a fragment of the current document scrolls
@@ -215,7 +216,8 @@ impl Page {
             self.focus_fragment_target(target);
             return true;
         }
-        self.navigate(link);
+        let initiator = self.document_origin();
+        self.start_navigation(link, HistoryHandling::Push, None, initiator);
         true
     }
 
@@ -225,12 +227,12 @@ impl Page {
         if let Some(pending) = self.pending
             && let Some(url) = self.url.clone()
         {
-            self.start_navigation(url, pending.handling, pending.restore_scroll);
+            self.start_navigation(url, pending.handling, pending.restore_scroll, None);
             return;
         }
         if let Some(entry) = self.history.current() {
             let url = entry.url.clone();
-            self.start_navigation(url, HistoryHandling::Replace, Some(self.scroll));
+            self.start_navigation(url, HistoryHandling::Replace, Some(self.scroll), None);
         }
     }
 
@@ -318,6 +320,7 @@ impl Page {
             entry.url,
             HistoryHandling::Traverse(target),
             Some(entry.scroll),
+            None,
         );
         true
     }
@@ -325,11 +328,17 @@ impl Page {
     /// Starts loading a document. Cancels all requests that are still
     /// running: those of a previous pending navigation and those of the
     /// current document's subresources.
+    ///
+    /// `initiator` is the origin of the document that started the
+    /// navigation (a link), or `None` if the user started it (address bar,
+    /// reload, back and forward). Cookies use it for `SameSite`
+    /// (ADR 0012).
     fn start_navigation(
         &mut self,
         url: Url,
         handling: HistoryHandling,
         restore_scroll: Option<Point>,
+        initiator: Option<Origin>,
     ) {
         self.loader.cancel_all();
         self.requests = Requests::default();
@@ -341,7 +350,7 @@ impl Page {
         self.error = None;
         let id = self
             .loader
-            .start(Request::get(url.clone(), Destination::Document));
+            .start(Request::get(url.clone(), Destination::Document).with_initiator(initiator));
         self.requests.pending.insert(id, Pending::Document);
         log::info!("navigating to {url}");
         // Keep showing the old page until the new document arrives, but
@@ -391,6 +400,12 @@ impl Page {
         self.document_url = Some(url);
     }
 
+    /// The origin of the current document: the initiator of its
+    /// subresource requests and of the navigations it starts.
+    fn document_origin(&self) -> Option<Origin> {
+        self.document_url.as_ref().map(Url::origin)
+    }
+
     // ----- Accessors -----
 
     /// The URL to show to the user: the URL being loaded, or the document
@@ -412,6 +427,12 @@ impl Page {
     /// The error of a failed navigation.
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
+    }
+
+    /// The cookie jar of the page's fetcher, if it has one (a fetcher that
+    /// replays a fixture has none).
+    pub fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.loader.cookie_jar()
     }
 
     /// True while the document or subresources are loading.

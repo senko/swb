@@ -32,9 +32,16 @@ struct TestServer {
 
 impl TestServer {
     fn start(routes: Vec<(&'static str, Vec<u8>)>) -> Self {
+        Self::start_with(|_| routes)
+    }
+
+    /// Starts a server whose routes depend on its port (for absolute
+    /// `Location` URLs).
+    fn start_with(routes: impl FnOnce(u16) -> Vec<(&'static str, Vec<u8>)>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let base = Url::parse(&format!("http://{}/", listener.local_addr().unwrap())).unwrap();
-        let routes: HashMap<&str, Vec<u8>> = routes.into_iter().collect();
+        let address = listener.local_addr().unwrap();
+        let base = Url::parse(&format!("http://{address}/")).unwrap();
+        let routes: HashMap<&str, Vec<u8>> = routes(address.port()).into_iter().collect();
         let (sender, received) = mpsc::channel();
         thread::spawn(move || {
             for stream in listener.incoming() {
@@ -173,6 +180,53 @@ fn server() -> TestServer {
                 "200 OK",
                 &[("Content-Encoding", "gzip, gzip, gzip, gzip, gzip")],
                 &gzip(&gzip(&gzip(&gzip(&gzip(PAGE))))),
+            ),
+        ),
+        (
+            "/set-cookies",
+            raw_response(
+                "200 OK",
+                &[
+                    ("Set-Cookie", "a=1"),
+                    ("Set-Cookie", "dir=2; Path=/dir"),
+                    // http://127.0.0.1 is a loopback URL, so it counts as
+                    // secure.
+                    ("Set-Cookie", "s=3; Secure; HttpOnly"),
+                    ("Set-Cookie", "bad=4; Domain=example.com"),
+                ],
+                b"",
+            ),
+        ),
+        (
+            "/redirect-307",
+            raw_response("307 Temporary Redirect", &[("Location", "/form")], b""),
+        ),
+        (
+            "/redirect-303",
+            raw_response("303 See Other", &[("Location", "/plain")], b""),
+        ),
+        (
+            "/delete-cookie",
+            raw_response("200 OK", &[("Set-Cookie", "a=; Max-Age=0")], b""),
+        ),
+        (
+            "/redirect-with-cookie",
+            raw_response(
+                "302 Found",
+                &[("Location", "/plain"), ("Set-Cookie", "hop=1")],
+                b"",
+            ),
+        ),
+        (
+            "/same-site-cookies",
+            raw_response(
+                "200 OK",
+                &[
+                    ("Set-Cookie", "strict=1; SameSite=Strict"),
+                    ("Set-Cookie", "lax=1; SameSite=Lax"),
+                    ("Set-Cookie", "none=1; SameSite=None; Secure"),
+                ],
+                b"",
             ),
         ),
     ])
@@ -387,4 +441,357 @@ fn too_many_content_codings_are_an_error() {
         matches!(result, Err(NetError::ContentDecoding { .. })),
         "{result:?}"
     );
+}
+
+/// Fetches `request` and returns the `Cookie` header that the server got.
+fn cookie_sent(server: &TestServer, fetcher: &NetworkFetcher, request: &Request) -> Option<String> {
+    fetcher.fetch(request).unwrap();
+    let received = server.next_request();
+    assert!(received.request_line.contains(request.url.path()));
+    received.headers.get("cookie").cloned()
+}
+
+/// The names of the cookies in the fetcher's jar, oldest first.
+fn cookie_names(fetcher: &NetworkFetcher) -> Vec<String> {
+    let jar = fetcher.cookie_jar().expect("a network fetcher has a jar");
+    jar.cookies().into_iter().map(|c| c.name).collect()
+}
+
+#[test]
+fn set_cookie_then_cookie_on_next_request() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let get = |path: &str| Request::get(server.url(path), Destination::Document);
+    assert_eq!(cookie_sent(&server, &fetcher, &get("/set-cookies")), None);
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &get("/plain")).as_deref(),
+        Some("a=1; s=3")
+    );
+    // Longer paths first.
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &get("/dir/page")).as_deref(),
+        Some("dir=2; a=1; s=3")
+    );
+    assert_eq!(cookie_names(&fetcher), ["a", "dir", "s"]);
+
+    // Max-Age=0 deletes the cookie.
+    cookie_sent(&server, &fetcher, &get("/delete-cookie"));
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &get("/plain")).as_deref(),
+        Some("s=3")
+    );
+
+    // Each fetcher has its own jar.
+    let other = NetworkFetcher::without_proxy();
+    assert_eq!(cookie_sent(&server, &other, &get("/plain")), None);
+}
+
+#[test]
+fn cookies_are_stored_on_redirect_hops() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let response = fetch_following_redirects(
+        &fetcher,
+        Request::get(server.url("/redirect-with-cookie"), Destination::Document),
+    )
+    .unwrap();
+    assert_eq!(response.url, server.url("/plain"));
+    assert_eq!(server.next_request().headers.get("cookie"), None);
+    // The second hop sends the cookie that the redirect set.
+    assert_eq!(
+        server
+            .next_request()
+            .headers
+            .get("cookie")
+            .map(String::as_str),
+        Some("hop=1")
+    );
+}
+
+#[test]
+fn same_site_cookies_for_cross_site_requests() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let same_site = Request::get(server.url("/same-site-cookies"), Destination::Document);
+    cookie_sent(&server, &fetcher, &same_site);
+    let other_site = Some(Url::parse("https://example.org/").unwrap().origin());
+
+    // A cross-site subresource sends only SameSite=None cookies.
+    let image =
+        Request::get(server.url("/plain"), Destination::Image).with_initiator(other_site.clone());
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &image).as_deref(),
+        Some("none=1")
+    );
+    // A cross-site top-level navigation with GET also sends Lax cookies.
+    let link = Request::get(server.url("/plain"), Destination::Document)
+        .with_initiator(other_site.clone());
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &link).as_deref(),
+        Some("lax=1; none=1")
+    );
+    // A cross-site top-level POST sends only SameSite=None cookies.
+    let post = Request::post(
+        server.url("/form"),
+        b"a=1".to_vec(),
+        "application/x-www-form-urlencoded",
+        Destination::Document,
+    )
+    .with_initiator(other_site);
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &post).as_deref(),
+        Some("none=1")
+    );
+    // A same-site subresource sends all of them.
+    let image = Request::get(server.url("/plain"), Destination::Image)
+        .with_initiator(Some(server.url("/").origin()));
+    assert_eq!(
+        cookie_sent(&server, &fetcher, &image).as_deref(),
+        Some("strict=1; lax=1; none=1")
+    );
+}
+
+#[test]
+fn cross_site_subresource_response_sets_only_same_site_none_cookies() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let image = Request::get(server.url("/same-site-cookies"), Destination::Image)
+        .with_initiator(Some(Url::parse("https://example.org/").unwrap().origin()));
+    fetcher.fetch(&image).unwrap();
+    assert_eq!(cookie_names(&fetcher), ["none"]);
+}
+
+#[test]
+fn post_sends_origin_and_content_length() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let form = |body: &[u8], initiator: Option<&str>| {
+        Request::post(
+            server.url("/form"),
+            body.to_vec(),
+            "application/x-www-form-urlencoded",
+            Destination::Document,
+        )
+        .with_initiator(initiator.map(|s| Url::parse(s).unwrap().origin()))
+    };
+
+    fetcher
+        .fetch(&form(b"name=value", Some("http://127.0.0.1:1/page")))
+        .unwrap();
+    let received = server.next_request();
+    assert_eq!(received.request_line, "POST /form HTTP/1.1");
+    assert_eq!(received.body, b"name=value");
+    assert_eq!(received.headers["content-length"], "10");
+    assert_eq!(
+        received.headers["content-type"],
+        "application/x-www-form-urlencoded"
+    );
+    assert_eq!(received.headers["origin"], "http://127.0.0.1:1");
+
+    // An empty body still has a Content-Length.
+    fetcher.fetch(&form(b"", None)).unwrap();
+    let received = server.next_request();
+    assert_eq!(
+        received.headers.get("content-length").map(String::as_str),
+        Some("0")
+    );
+    // No initiator, no Origin header.
+    assert!(!received.headers.contains_key("origin"));
+
+    // From an https: page to an http: URL, and from an opaque origin, the
+    // Origin is "null".
+    for initiator in ["https://example.org/", "data:text/html,x"] {
+        fetcher.fetch(&form(b"x", Some(initiator))).unwrap();
+        assert_eq!(
+            server.next_request().headers["origin"],
+            "null",
+            "{initiator}"
+        );
+    }
+
+    // GET requests have no Origin header.
+    let get = Request::get(server.url("/plain"), Destination::Document)
+        .with_initiator(Some(server.url("/").origin()));
+    fetcher.fetch(&get).unwrap();
+    assert!(!server.next_request().headers.contains_key("origin"));
+}
+
+#[test]
+fn post_through_307_and_303_redirects() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let origin = server.url("/").origin();
+    let post = |path: &str| {
+        Request::post(
+            server.url(path),
+            b"a=1".to_vec(),
+            "application/x-www-form-urlencoded",
+            Destination::Document,
+        )
+        .with_initiator(Some(origin.clone()))
+    };
+
+    // 307 keeps the method, the body, Content-Type and Origin.
+    let response = fetch_following_redirects(&fetcher, post("/redirect-307")).unwrap();
+    assert_eq!(response.body, b"posted");
+    assert_eq!(
+        server.next_request().request_line,
+        "POST /redirect-307 HTTP/1.1"
+    );
+    let second = server.next_request();
+    assert_eq!(second.request_line, "POST /form HTTP/1.1");
+    assert_eq!(second.body, b"a=1");
+    assert_eq!(second.headers["content-length"], "3");
+    assert_eq!(
+        second.headers["content-type"],
+        "application/x-www-form-urlencoded"
+    );
+    assert_eq!(second.headers["origin"], origin.ascii_serialization());
+
+    // 303 changes to GET without a body, Content-Type and Origin.
+    fetch_following_redirects(&fetcher, post("/redirect-303")).unwrap();
+    server.next_request();
+    let second = server.next_request();
+    assert_eq!(second.request_line, "GET /plain HTTP/1.1");
+    assert_eq!(second.body, b"");
+    for name in ["content-length", "content-type", "origin"] {
+        assert!(!second.headers.contains_key(name), "{name}");
+    }
+}
+
+#[test]
+fn cookie_and_origin_request_headers_are_ignored() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let with_headers = |mut request: Request| {
+        request.headers.append("Cookie", "injected=1");
+        request.headers.append("Origin", "https://evil.example");
+        request
+    };
+    let get = |path: &str| Request::get(server.url(path), Destination::Document);
+    fetcher.fetch(&with_headers(get("/plain"))).unwrap();
+    let received = server.next_request();
+    assert!(!received.headers.contains_key("cookie"));
+    assert!(!received.headers.contains_key("origin"));
+
+    // The jar's cookies and the initiator's origin are sent instead.
+    cookie_sent(&server, &fetcher, &get("/set-cookies"));
+    let post = Request::post(
+        server.url("/form"),
+        b"a=1".to_vec(),
+        "text/plain",
+        Destination::Document,
+    )
+    .with_initiator(Some(server.url("/").origin()));
+    fetcher.fetch(&with_headers(post)).unwrap();
+    let received = server.next_request();
+    assert_eq!(received.headers["cookie"], "a=1; s=3");
+    assert_eq!(
+        received.headers["origin"],
+        server.url("/").origin().ascii_serialization()
+    );
+}
+
+#[test]
+fn loopback_hosts_bypass_the_proxy() {
+    let server = server();
+    // Nothing listens on port 1, so requests through the proxy fail.
+    let proxy = ureq::Proxy::new("http://127.0.0.1:1").unwrap();
+    let fetcher = NetworkFetcher {
+        http: http::HttpClient::with_proxy(Some(proxy)),
+    };
+    let get = |url: &str| Request::get(Url::parse(url).unwrap(), Destination::Document);
+    let response = fetcher.fetch(&get(server.url("/plain").as_str())).unwrap();
+    assert_eq!(response.body, PAGE);
+    server.next_request();
+    // Other hosts go through the proxy (without it, the name would not
+    // resolve: `.invalid` never does).
+    let result = fetcher.fetch(&get("http://swb.invalid/"));
+    assert!(
+        matches!(result, Err(NetError::ConnectionFailed(_))),
+        "{result:?}"
+    );
+}
+
+/// Two sites on one test server: `http://127.0.0.1:PORT` and
+/// `http://localhost:PORT`. Both count as secure, so `SameSite=None;
+/// Secure` cookies work on both.
+#[test]
+fn each_redirect_hop_has_its_own_same_site_context() {
+    let server = TestServer::start_with(|port| {
+        let to_ip = format!("http://127.0.0.1:{port}/plain");
+        let to_localhost = format!("http://localhost:{port}/set-cookies-2");
+        vec![
+            (
+                "/same-site-cookies",
+                raw_response(
+                    "200 OK",
+                    &[
+                        ("Set-Cookie", "strict=1; SameSite=Strict"),
+                        ("Set-Cookie", "lax=1; SameSite=Lax"),
+                        ("Set-Cookie", "none=1; SameSite=None; Secure"),
+                    ],
+                    b"",
+                ),
+            ),
+            ("/plain", raw_response("200 OK", &[], PAGE)),
+            (
+                "/to-ip",
+                raw_response("302 Found", &[("Location", &to_ip)], b""),
+            ),
+            (
+                "/to-localhost",
+                raw_response("302 Found", &[("Location", &to_localhost)], b""),
+            ),
+            (
+                "/set-cookies-2",
+                raw_response(
+                    "200 OK",
+                    &[
+                        ("Set-Cookie", "lax2=1; SameSite=Lax"),
+                        ("Set-Cookie", "none2=1; SameSite=None; Secure"),
+                    ],
+                    b"",
+                ),
+            ),
+        ]
+    });
+    let port = server.base.port().unwrap();
+    let ip = |path: &str| Url::parse(&format!("http://127.0.0.1:{port}{path}")).unwrap();
+    let localhost = |path: &str| Url::parse(&format!("http://localhost:{port}{path}")).unwrap();
+    let fetcher = NetworkFetcher::without_proxy();
+    let follow = |request: Request| fetch_following_redirects(&fetcher, request).unwrap();
+    follow(Request::get(
+        ip("/same-site-cookies"),
+        Destination::Document,
+    ));
+    server.next_request();
+
+    // A link on localhost to localhost, redirected to 127.0.0.1: the first
+    // hop is same-site, the second is a cross-site navigation, so the
+    // Strict cookie of 127.0.0.1 stays at home.
+    let link = Request::get(localhost("/to-ip"), Destination::Document)
+        .with_initiator(Some(localhost("/").origin()));
+    follow(link);
+    assert_eq!(server.next_request().headers.get("cookie"), None);
+    let second = server.next_request();
+    assert_eq!(second.request_line, "GET /plain HTTP/1.1");
+    assert_eq!(second.headers["cookie"], "lax=1; none=1");
+
+    // An image on 127.0.0.1, redirected to localhost: the second hop is a
+    // cross-site subresource, so its response can set only the
+    // SameSite=None cookie.
+    let image = Request::get(ip("/to-localhost"), Destination::Image)
+        .with_initiator(Some(ip("/").origin()));
+    follow(image);
+    server.next_request();
+    server.next_request();
+    let jar = fetcher.cookie_jar().unwrap();
+    let on_localhost: Vec<String> = jar
+        .cookies()
+        .into_iter()
+        .filter(|c| c.domain == "localhost")
+        .map(|c| c.name)
+        .collect();
+    assert_eq!(on_localhost, ["none2"]);
 }

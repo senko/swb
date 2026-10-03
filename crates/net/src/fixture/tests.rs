@@ -408,6 +408,29 @@ fn extending_fetches_only_missing_requests() {
     assert!(after.len() > before.len());
 }
 
+/// Recording keeps the cookies of the network fetcher; replay has none.
+#[test]
+fn only_the_network_fetcher_has_a_cookie_jar() {
+    let dir = TempDir::new();
+    let recorder = RecordingFetcher::new(crate::NetworkFetcher::new(), dir.path()).unwrap();
+    let jar = recorder.cookie_jar().unwrap();
+    assert!(std::ptr::eq(jar, recorder.inner().cookie_jar().unwrap()));
+    let extending = ExtendingFetcher::new(crate::NetworkFetcher::new(), dir.path()).unwrap();
+    assert!(extending.cookie_jar().is_some());
+    assert!(
+        ReplayFetcher::load(dir.path())
+            .unwrap()
+            .cookie_jar()
+            .is_none()
+    );
+    assert!(
+        RecordingFetcher::new(site(), dir.path())
+            .unwrap()
+            .cookie_jar()
+            .is_none()
+    );
+}
+
 #[test]
 fn errors_are_not_recorded() {
     let dir = TempDir::new();

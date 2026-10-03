@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use log::{error, warn};
 
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::fetch::{Fetcher, fetch_following_redirects};
 use crate::request::Request;
@@ -52,6 +53,8 @@ struct Job {
 /// worker that is in a fetch stops when the fetch ends; the loader does not
 /// wait for it. Requests that have not started are dropped.
 pub struct Loader {
+    /// The fetcher of the workers.
+    fetcher: Arc<dyn Fetcher>,
     /// `None` only during drop.
     jobs: Option<Sender<Job>>,
     completions: Receiver<Completion>,
@@ -69,10 +72,6 @@ impl Loader {
     ///
     /// `notify` is called from a worker thread after each completion is
     /// queued. The GUI uses it to wake its event loop.
-    #[expect(
-        clippy::needless_pass_by_value,
-        reason = "by value, callers can pass an Arc<ConcreteFetcher>, which coerces to Arc<dyn Fetcher>"
-    )]
     pub fn new(
         fetcher: Arc<dyn Fetcher>,
         workers: usize,
@@ -100,6 +99,7 @@ impl Loader {
             }
         }
         Loader {
+            fetcher,
             jobs: Some(job_sender),
             completions,
             completion_sender,
@@ -156,6 +156,11 @@ impl Loader {
     /// Waits up to `timeout` for the next completion.
     pub fn recv_timeout(&self, timeout: Duration) -> Option<Completion> {
         self.completions.recv_timeout(timeout).ok()
+    }
+
+    /// Returns the cookie jar of the fetcher, if it has one.
+    pub fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.fetcher.cookie_jar()
     }
 }
 

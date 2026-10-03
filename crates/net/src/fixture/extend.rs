@@ -3,6 +3,7 @@
 use std::fmt;
 
 use super::{RecordingFetcher, ReplayFetcher};
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::fetch::Fetcher;
 use crate::request::Request;
@@ -40,6 +41,10 @@ impl<F: Fetcher> Fetcher for ExtendingFetcher<F> {
             }
             other => other,
         }
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.recorder.cookie_jar()
     }
 }
 

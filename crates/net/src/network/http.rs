@@ -1,8 +1,11 @@
 //! HTTP and HTTPS through `ureq` (blocking) and `rustls`.
 //!
-//! All HTTP traffic passes through [`HttpClient::fetch`]. There is no
-//! cookie jar yet. A jar in this module would add the `Cookie` header in
-//! [`request_headers`] and store `Set-Cookie` headers in [`read_response`].
+//! All HTTP traffic passes through [`HttpClient::fetch`]. The client's
+//! [`CookieJar`] adds the `Cookie` header to each request and stores the
+//! `Set-Cookie` headers of each response as soon as the headers arrive,
+//! before the body. [`fetch_following_redirects`](crate::fetch_following_redirects)
+//! calls the client once per redirect hop, so every hop sends and stores
+//! cookies.
 
 use std::io::{self, Read as _};
 use std::sync::{Arc, OnceLock};
@@ -14,10 +17,12 @@ use ureq::tls::{Certificate, RootCerts, TlsConfig, TlsProvider};
 use url::Url;
 
 use super::{MAX_BODY_SIZE, USER_AGENT, decode};
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::headers::Headers;
 use crate::request::{Destination, Method, Request};
 use crate::response::Response;
+use crate::site;
 
 /// The time to open the connection, including the TLS handshake.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -45,10 +50,14 @@ const ACCEPT_ENCODING: &str = "gzip, deflate, br";
 
 const ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
 
-/// A `ureq` agent with the browser's settings.
+/// `ureq` agents with the browser's settings, and the cookie jar.
 #[derive(Debug)]
 pub(crate) struct HttpClient {
+    /// Uses the proxy, if there is one.
     agent: ureq::Agent,
+    /// Connects directly, for loopback hosts.
+    direct: ureq::Agent,
+    cookies: CookieJar,
 }
 
 impl HttpClient {
@@ -63,38 +72,69 @@ impl HttpClient {
         Self::with_proxy(None)
     }
 
-    fn with_proxy(proxy: Option<ureq::Proxy>) -> Self {
-        let tls = TlsConfig::builder()
-            .provider(TlsProvider::Rustls)
-            .root_certs(native_root_certs())
-            .unversioned_rustls_crypto_provider(Arc::new(rustls::crypto::ring::default_provider()))
-            .build();
-        let agent = ureq::Agent::config_builder()
-            .proxy(proxy)
-            // fetch_following_redirects handles redirects.
-            .max_redirects(0)
-            // 4xx and 5xx are responses, not errors.
-            .http_status_as_error(false)
-            .timeout_connect(Some(CONNECT_TIMEOUT))
-            .timeout_global(Some(REQUEST_TIMEOUT))
-            // Sent to proxies; requests set their own User-Agent header.
-            .user_agent(USER_AGENT)
-            .tls_config(tls)
-            .build()
-            .new_agent();
-        HttpClient { agent }
+    /// Creates a client that sends requests through `proxy`, except
+    /// requests to loopback hosts ([`site::is_loopback`]).
+    pub(super) fn with_proxy(proxy: Option<ureq::Proxy>) -> Self {
+        HttpClient {
+            agent: build_agent(proxy),
+            direct: build_agent(None),
+            cookies: CookieJar::new(),
+        }
+    }
+
+    /// Returns the cookie jar.
+    pub(crate) fn cookie_jar(&self) -> &CookieJar {
+        &self.cookies
     }
 
     /// Performs one HTTP request. Does not follow redirects.
     pub(crate) fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        let http_request = build_request(request)?;
+        let cookie = self.cookies.cookie_header(request);
+        let http_request = build_request(request, cookie)?;
+        let agent = if site::is_loopback(&request.url) {
+            &self.direct
+        } else {
+            &self.agent
+        };
         let result = match &request.body {
-            Some(body) => self.agent.run(http_request.map(|()| body.as_slice())),
-            None => self.agent.run(http_request),
+            Some(body) => agent.run(http_request.map(|()| body.as_slice())),
+            None => agent.run(http_request),
         };
         let response = result.map_err(|error| map_error(error, &request.url))?;
-        read_response(&request.url, response)
+        let (parts, mut body) = response.into_parts();
+        let headers = convert_headers(&parts.headers);
+        self.cookies.store_response_cookies(request, &headers);
+        let raw = read_body(&request.url, &mut body)?;
+        let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE)?;
+        Ok(Response {
+            url: request.url.clone(),
+            status: parts.status.as_u16(),
+            headers,
+            body,
+        })
     }
+}
+
+/// Creates a `ureq` agent with the browser's settings.
+fn build_agent(proxy: Option<ureq::Proxy>) -> ureq::Agent {
+    let tls = TlsConfig::builder()
+        .provider(TlsProvider::Rustls)
+        .root_certs(native_root_certs())
+        .unversioned_rustls_crypto_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        .build();
+    ureq::Agent::config_builder()
+        .proxy(proxy)
+        // fetch_following_redirects handles redirects.
+        .max_redirects(0)
+        // 4xx and 5xx are responses, not errors.
+        .http_status_as_error(false)
+        .timeout_connect(Some(CONNECT_TIMEOUT))
+        .timeout_global(Some(REQUEST_TIMEOUT))
+        // Sent to proxies; requests set their own User-Agent header.
+        .user_agent(USER_AGENT)
+        .tls_config(tls)
+        .build()
+        .new_agent()
 }
 
 /// Loads the root certificates of the operating system once per process.
@@ -121,7 +161,8 @@ fn native_root_certs() -> RootCerts {
 }
 
 /// Converts the request to an `http` crate request without the body.
-fn build_request(request: &Request) -> Result<http::Request<()>, NetError> {
+/// `cookie` is the value of the `Cookie` header from the jar.
+fn build_request(request: &Request, cookie: Option<String>) -> Result<http::Request<()>, NetError> {
     let mut target = request.url.clone();
     target.set_fragment(None);
     let uri = http::Uri::try_from(target.as_str()).map_err(|error| NetError::InvalidUrl {
@@ -135,7 +176,7 @@ fn build_request(request: &Request) -> Result<http::Request<()>, NetError> {
     };
     *http_request.uri_mut() = uri;
     let headers = http_request.headers_mut();
-    for (name, value) in request_headers(request).iter() {
+    for (name, value) in request_headers(request, cookie).iter() {
         match (
             http::HeaderName::from_bytes(name.as_bytes()),
             http::HeaderValue::from_bytes(value.as_bytes()),
@@ -149,22 +190,68 @@ fn build_request(request: &Request) -> Result<http::Request<()>, NetError> {
     Ok(http_request)
 }
 
+/// Request headers that only the fetcher sets: [`request_headers`] ignores
+/// them in [`Request::headers`]. They are "forbidden request-header" names
+/// in Fetch. A caller's value would replace the jar's cookies and be sent
+/// again on every redirect hop, also to other sites.
+///
+/// <https://fetch.spec.whatwg.org/#forbidden-request-header>
+const COMPUTED_HEADERS: [&str; 2] = ["cookie", "origin"];
+
 /// Returns the headers to send: the default headers, then the headers of
 /// the request. A request header replaces the default header with the same
-/// name.
-fn request_headers(request: &Request) -> Headers {
+/// name, except the [`COMPUTED_HEADERS`]: the defaults include `Origin`
+/// (see [`origin_header`]) and `Cookie` (from the jar), and `Cookie` and
+/// `Origin` in the request are dropped. `ureq` adds `Host` and, for a
+/// request with a body, `Content-Length`.
+fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
     let defaults = [
-        ("user-agent", USER_AGENT),
-        ("accept", accept(request.destination)),
-        ("accept-encoding", ACCEPT_ENCODING),
-        ("accept-language", ACCEPT_LANGUAGE),
+        ("user-agent", Some(USER_AGENT.to_owned())),
+        ("accept", Some(accept(request.destination).to_owned())),
+        ("accept-encoding", Some(ACCEPT_ENCODING.to_owned())),
+        ("accept-language", Some(ACCEPT_LANGUAGE.to_owned())),
+        ("origin", origin_header(request)),
+        ("cookie", cookie),
     ];
+    let is_computed = |name: &str| COMPUTED_HEADERS.contains(&name);
     let mut headers: Headers = defaults
         .into_iter()
-        .filter(|(name, _)| !request.headers.contains(name))
+        .filter_map(|(name, value)| Some((name, value?)))
+        .filter(|(name, _)| is_computed(name) || !request.headers.contains(name))
         .collect();
-    headers.extend(request.headers.iter());
+    for (name, value) in request.headers.iter() {
+        if is_computed(name) {
+            debug!("{}: ignoring the request header {name}", request.url);
+        } else {
+            headers.append(name, value);
+        }
+    }
     headers
+}
+
+/// Returns the value of the `Origin` header: the initiator's origin for a
+/// request whose method is not `GET`, as Fetch sends it with the default
+/// referrer policy (`strict-origin-when-cross-origin`). It is `null` for an
+/// opaque origin and for a request from an `https:` origin to a URL that
+/// is not `https:`. A request without an initiator has no `Origin` header.
+///
+/// Not implemented: the "redirect-tainted origin" (`null` after a redirect
+/// chain that went from the initiator's origin to another origin and then
+/// to a third one).
+///
+/// <https://fetch.spec.whatwg.org/#append-a-request-origin-header>
+fn origin_header(request: &Request) -> Option<String> {
+    if request.method.is_safe() {
+        return None;
+    }
+    let origin = request.initiator.as_ref()?;
+    let downgrade = matches!(origin, url::Origin::Tuple(scheme, _, _) if scheme == "https")
+        && request.url.scheme() != "https";
+    Some(if downgrade {
+        "null".to_owned()
+    } else {
+        origin.ascii_serialization()
+    })
 }
 
 fn accept(destination: Destination) -> &'static str {
@@ -201,22 +288,12 @@ fn read_body(url: &Url, body: &mut ureq::Body) -> Result<Vec<u8>, NetError> {
     }
 }
 
-/// Reads the body and converts the response.
-fn read_response(url: &Url, response: http::Response<ureq::Body>) -> Result<Response, NetError> {
-    let (parts, mut body) = response.into_parts();
-    let headers: Headers = parts
-        .headers
+/// Converts the response headers.
+fn convert_headers(headers: &http::HeaderMap) -> Headers {
+    headers
         .iter()
         .map(|(name, value)| (name.as_str(), decode_header_value(value.as_bytes())))
-        .collect();
-    let raw = read_body(url, &mut body)?;
-    let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE)?;
-    Ok(Response {
-        url: url.clone(),
-        status: parts.status.as_u16(),
-        headers,
-        body,
-    })
+        .collect()
 }
 
 /// Decodes a header value as UTF-8 if it is valid UTF-8, otherwise as

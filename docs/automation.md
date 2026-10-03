@@ -19,6 +19,11 @@ swb --remote-port 9222 [URL]          # with a window
 - The server rejects WebSocket handshakes that have an `Origin` header.
   Browsers always send one, so web pages cannot connect; the swb clients do
   not send one.
+- There is no authentication: every local process that can connect to the
+  port controls the browser. It can also read all cookies with
+  `cookies.get`, including `HttpOnly` session cookies. Do not start the
+  server in a session that is logged in to accounts that matter, on a
+  machine that other users share.
 - Limits: at most 16 connections at the same time; a request message is at
   most 1 MiB (a larger one closes the connection with the close code 1009,
   without a response); the handshake must complete in 10 s.
@@ -162,6 +167,38 @@ the current state of the page.
 | `selection.get` | — | `{"text"}`: the selected text as it would be copied (empty without a selection) |
 | `selection.selectAll` | — | `{"changed": bool}` |
 | `selection.clear` | — | `{"changed": bool}` |
+
+### cookies
+
+| Method | Parameters | Result |
+|--------|------------|--------|
+| `cookies.get` | — | `{"cookies": [...]}`: all cookies of the session, oldest first |
+| `cookies.clear` | — | `{}`. Removes all cookies. |
+
+A cookie:
+
+```json
+{
+  "name": "user",
+  "value": "abc",
+  "domain": "news.ycombinator.com",
+  "hostOnly": true,
+  "path": "/",
+  "secure": true,
+  "httpOnly": true,
+  "sameSite": "Default",
+  "expires": 1767225600
+}
+```
+
+- `hostOnly`: true if the cookie had no `Domain` attribute; it is then
+  sent only to `domain` itself, not to its subdomains.
+- `sameSite`: `Strict`, `Lax`, `None`, or `Default` (no attribute or an
+  unknown value; treated as `Lax`).
+- `expires`: seconds since the Unix epoch, or `null` for a session cookie.
+- With `--replay`, there are no cookies: fixtures do not store
+  `Set-Cookie` headers. All pages of one swb process share one cookie jar
+  ([ADR 0012](adr/0012-cookies.md)).
 
 ### browser
 

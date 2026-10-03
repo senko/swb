@@ -10,6 +10,7 @@ mod tests;
 use log::debug;
 
 use crate::builtin;
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::fetch::Fetcher;
 use crate::request::Request;
@@ -32,7 +33,9 @@ pub const MAX_BODY_SIZE: u64 = 64 * 1024 * 1024;
 ///   does not follow redirects and returns 4xx and 5xx responses as
 ///   responses. Bodies are decompressed (`gzip`, `deflate`, `br`).
 ///   Timeouts: 15 s to connect, 60 s for the whole request. Proxies from the
-///   environment (`HTTPS_PROXY`, `NO_PROXY` and so on) are used.
+///   environment (`HTTPS_PROXY`, `NO_PROXY` and so on) are used, except for
+///   loopback hosts (`localhost`, `*.localhost`, `127.0.0.0/8`, `::1`),
+///   which are always connected directly.
 /// - `file:` URLs read the file. The `Content-Type` comes from the file
 ///   name extension; an unknown extension gives no `Content-Type` header.
 ///   A missing file gives a 404 response. A directory gives an HTML listing.
@@ -40,15 +43,19 @@ pub const MAX_BODY_SIZE: u64 = 64 * 1024 * 1024;
 /// - `about:blank` is an empty HTML document. Other `about:` URLs are
 ///   errors.
 ///
-/// There is no cookie jar and no cache yet.
+/// Each fetcher has its own [`CookieJar`], empty at the start, for all its
+/// HTTP and HTTPS requests ([`Fetcher::cookie_jar`] returns it). A browser
+/// session uses one fetcher, so that all its pages share the cookies. There
+/// is no cache yet.
 #[derive(Debug)]
 pub struct NetworkFetcher {
     http: http::HttpClient,
 }
 
 impl NetworkFetcher {
-    /// Creates a fetcher. Loads the root certificates of the operating
-    /// system the first time it is called in a process.
+    /// Creates a fetcher with an empty cookie jar. Loads the root
+    /// certificates of the operating system the first time it is called in
+    /// a process.
     pub fn new() -> Self {
         NetworkFetcher {
             http: http::HttpClient::new(),
@@ -91,5 +98,10 @@ impl Fetcher for NetworkFetcher {
             Err(error) => debug!("{} failed: {error}", request.url),
         }
         result
+    }
+
+    /// Always returns the jar: every network fetcher has one.
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        Some(self.http.cookie_jar())
     }
 }

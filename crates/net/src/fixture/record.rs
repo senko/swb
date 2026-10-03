@@ -13,6 +13,7 @@ use super::{
     read_manifest, write_atomic, write_manifest,
 };
 use crate::builtin;
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::fetch::Fetcher;
 use crate::request::Request;
@@ -112,6 +113,10 @@ impl<F: Fetcher> Fetcher for RecordingFetcher<F> {
             self.record(request, &response)?;
         }
         Ok(response)
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.inner.cookie_jar()
     }
 }
 

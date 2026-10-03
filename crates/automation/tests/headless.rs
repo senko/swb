@@ -404,3 +404,42 @@ fn drag_selection_over_the_protocol() {
     assert_eq!(changed["changed"], true);
     stop(client, thread);
 }
+
+#[test]
+fn cookies_get_and_clear() {
+    let fetcher = Arc::new(NetworkFetcher::new());
+    let request = swb_net::Request::get(
+        swb_net::Url::parse("https://example.com/").unwrap(),
+        swb_net::Destination::Document,
+    );
+    let headers: swb_net::Headers = [("Set-Cookie", "sid=abc; Secure; HttpOnly; Max-Age=60")]
+        .into_iter()
+        .collect();
+    let jar = fetcher.cookie_jar().unwrap();
+    jar.store_response_cookies(&request, &headers);
+    let (mut client, thread) = start(fetcher);
+
+    let result = client.call("cookies.get", Value::Null).unwrap();
+    let cookies = result["cookies"].as_array().unwrap();
+    assert_eq!(cookies.len(), 1);
+    let cookie = &cookies[0];
+    assert_eq!(cookie["name"], "sid");
+    assert_eq!(cookie["value"], "abc");
+    assert_eq!(cookie["domain"], "example.com");
+    assert_eq!(cookie["hostOnly"], true);
+    assert_eq!(cookie["path"], "/");
+    assert_eq!(cookie["secure"], true);
+    assert_eq!(cookie["httpOnly"], true);
+    assert_eq!(cookie["sameSite"], "Default");
+    assert!(cookie["expires"].is_i64());
+
+    assert_eq!(
+        client.call("cookies.clear", Value::Null).unwrap(),
+        json!({})
+    );
+    assert_eq!(
+        client.call("cookies.get", Value::Null).unwrap(),
+        json!({ "cookies": [] })
+    );
+    stop(client, thread);
+}

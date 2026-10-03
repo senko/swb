@@ -15,6 +15,7 @@ workspace = true
 brotli-decompressor.workspace = true
 flate2.workspace = true
 log.workspace = true
+psl.workspace = true
 rustls.workspace = true
 rustls-native-certs.workspace = true
 serde.workspace = true

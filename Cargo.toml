@@ -42,6 +42,8 @@ tungstenite = { version = "0.30", default-features = false, features = ["handsha
 # net
 brotli-decompressor = "6"
 flate2 = "1"
+# The Public Suffix List, compiled into code (see ADR 0012).
+psl = { version = "2.1", default-features = false }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-native-certs = "0.8"
 sha2 = "0.11"

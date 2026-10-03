@@ -10,6 +10,7 @@ use swb_engine::{
     Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Size, Url, check_scale,
     check_viewport_size,
 };
+use swb_net::CookieJar;
 
 use crate::protocol::RpcError;
 
@@ -83,6 +84,13 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         "selection.get" => Ok(json!({ "text": page.selected_text() })),
         "selection.selectAll" => Ok(json!({ "changed": page.select_all() })),
         "selection.clear" => Ok(json!({ "changed": page.clear_selection() })),
+        "cookies.get" => Ok(cookies(page)),
+        "cookies.clear" => {
+            if let Some(jar) = page.cookie_jar() {
+                jar.clear();
+            }
+            Ok(json!({}))
+        }
         "browser.close" => return Outcome::Close,
         _ => Err(RpcError::new(
             RpcError::METHOD_NOT_FOUND,
@@ -129,6 +137,31 @@ fn wait_for_load(params: Value) -> Outcome {
         }
         Err(e) => Outcome::Done(Err(e)),
     }
+}
+
+/// All cookies of the session, oldest first. Empty if the fetcher has no
+/// cookie jar (fixture replay).
+fn cookies(page: &Page) -> Value {
+    let cookies: Vec<Value> = page
+        .cookie_jar()
+        .map(CookieJar::cookies)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|c| {
+            json!({
+                "name": c.name,
+                "value": c.value,
+                "domain": c.domain,
+                "hostOnly": c.host_only,
+                "path": c.path,
+                "secure": c.secure,
+                "httpOnly": c.http_only,
+                "sameSite": c.same_site.as_str(),
+                "expires": c.expires,
+            })
+        })
+        .collect();
+    json!({ "cookies": cookies })
 }
 
 fn info(page: &mut Page) -> Value {

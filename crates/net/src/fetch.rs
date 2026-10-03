@@ -7,6 +7,7 @@ use std::sync::Arc;
 use log::debug;
 use url::Url;
 
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::request::{Method, Request};
 use crate::response::Response;
@@ -35,17 +36,31 @@ const REQUEST_BODY_HEADER_NAMES: [&str; 4] = [
 pub trait Fetcher: Send + Sync {
     /// Fetches the resource for `request`.
     fn fetch(&self, request: &Request) -> Result<Response, NetError>;
+
+    /// Returns the cookie jar that the fetcher uses, if it has one. A
+    /// fetcher that wraps another one returns the jar of the inner fetcher.
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        None
+    }
 }
 
 impl<F: Fetcher + ?Sized> Fetcher for Arc<F> {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         (**self).fetch(request)
     }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        (**self).cookie_jar()
+    }
 }
 
 impl<F: Fetcher + ?Sized> Fetcher for Box<F> {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         (**self).fetch(request)
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        (**self).cookie_jar()
     }
 }
 
@@ -188,12 +203,12 @@ mod tests {
     }
 
     fn post(target: &str) -> Request {
-        let mut request = Request::get(url(target), Destination::Document);
-        request.method = Method::Post;
-        request.body = Some(b"a=1".to_vec());
-        request
-            .headers
-            .append("Content-Type", "application/x-www-form-urlencoded");
+        let mut request = Request::post(
+            url(target),
+            b"a=1".to_vec(),
+            "application/x-www-form-urlencoded",
+            Destination::Document,
+        );
         request.headers.append("Authorization", "Basic xyz");
         request
     }
@@ -313,6 +328,21 @@ mod tests {
             // Cross origin: the Authorization header is removed.
             assert!(!second.headers.contains("authorization"));
         }
+    }
+
+    #[test]
+    fn redirects_keep_the_initiator_and_destination() {
+        let fetcher = MockFetcher::default()
+            .route("https://a.test/1", 302, Some("https://b.test/2"))
+            .route("https://b.test/2", 200, None);
+        let initiator = Some(url("https://a.test/").origin());
+        let request = Request::get(url("https://a.test/1"), Destination::Image)
+            .with_initiator(initiator.clone());
+        fetch_following_redirects(&fetcher, request).unwrap();
+        let second = &fetcher.log()[1];
+        assert_eq!(second.url.as_str(), "https://b.test/2");
+        assert_eq!(second.initiator, initiator);
+        assert_eq!(second.destination, Destination::Image);
     }
 
     #[test]

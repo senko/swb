@@ -4,6 +4,17 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-03: M2 Hacker News (in progress)
+
+- Cookies: an RFC 6265bis jar in the `net` HTTP client with Chromium's
+  defaults (Lax by default, schemeful sites, a 400-day cap, 180 cookies
+  per domain and 3300 in total), the Public Suffix List through `psl`,
+  `Request::initiator` for `SameSite`, `Request::post` and the `Origin`
+  header, automation `cookies.get` and `cookies.clear` (ADR 0012). Open
+  question for the owner: the list's data is MPL-2.0.
+- M2 runs as four parallel workstreams (cookies, tables, SVG images,
+  forms), each in its own worktree; each lands as its own commit.
+
 ## 2026-10-02: M1 maintenance
 
 - End-of-milestone review of the whole codebase. Five clean-context

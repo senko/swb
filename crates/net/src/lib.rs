@@ -17,9 +17,13 @@
 //! [`Loader`] runs fetches on worker threads and returns the results through
 //! a channel.
 //!
+//! [`CookieJar`] stores cookies. Each [`NetworkFetcher`] has one jar for
+//! all its HTTP requests (see ADR 0012).
+//!
 //! The fixture directory format is documented in [`fixture`].
 
 mod builtin;
+mod cookies;
 mod data_url;
 mod error;
 mod fetch;
@@ -31,9 +35,11 @@ mod mime;
 mod network;
 mod request;
 mod response;
+mod site;
 #[cfg(test)]
 mod test_util;
 
+pub use cookies::{Cookie, CookieJar, SameSite};
 pub use data_url::percent_decode;
 pub use error::NetError;
 pub use fetch::{Fetcher, MAX_REDIRECTS, fetch_following_redirects};
@@ -43,4 +49,4 @@ pub use loader::{Completion, Loader, RequestId};
 pub use network::{MAX_BODY_SIZE, NetworkFetcher, USER_AGENT};
 pub use request::{Destination, Method, Request};
 pub use response::{ContentType, Response};
-pub use url::Url;
+pub use url::{Origin, Url};

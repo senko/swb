@@ -34,7 +34,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 
 | Crate        | Responsibility                                                                 | Depends on                    |
 |--------------|--------------------------------------------------------------------------------|-------------------------------|
-| `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Replay from fixtures. | —                             |
+| `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree).      | —                             |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
@@ -91,6 +91,14 @@ Rules:
   until its document arrives; starting a navigation cancels all running
   requests (`Loader::cancel_all`), and only a committed navigation adds a
   history entry.
+- **Cookie jar** (`net`): one `CookieJar` per `NetworkFetcher` (so one per
+  swb process), inside the HTTP client. It adds `Cookie` to every HTTP
+  request and stores `Set-Cookie` on every redirect hop. Cookies are
+  grouped by registrable domain (Public Suffix List, `net/src/site.rs`).
+  Each `Request` carries its `initiator` (the origin of the document that
+  started it); with `Destination::Document` (a top-level navigation) this
+  gives the `SameSite` context. In memory only; fixture replay has no
+  cookies (ADR 0012).
 
 ## Units
 
@@ -101,7 +109,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 
 - The engine runs on one thread.
 - `net` runs fetches on a pool of worker threads. Results return to the engine
-  through a channel. The engine processes them when it is polled.
+  through a channel. The engine processes them when it is polled. The
+  workers share the cookie jar (a mutex).
 - The GUI shell runs the window event loop on the main thread and calls the
   engine. Network completions wake the event loop.
 - The automation server accepts connections on its own thread and runs one

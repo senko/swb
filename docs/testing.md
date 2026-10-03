@@ -448,7 +448,11 @@ reach 1. `geometry` is the main metric.
   recorded; the third capture step makes the fixture complete again.
 - The fixture stores only `content-type` and `location`. Responses that
   depend on other headers (for example `Content-Security-Policy`) behave
-  differently from the live site, in both browsers.
+  differently from the live site, in both browsers. Replays have no
+  cookies.
+- Record fixtures logged out: a fixture stores the page as the recording
+  session saw it, and a page recorded after a login contains session data
+  (on Hacker News, the `auth=` tokens of the `logout` and `vote` links).
 - Chromium loads web fonts from the fixture. swb does not support
   `@font-face` yet, so text with web fonts differs.
 - Alignment works on tags only. When swb builds a different DOM (for

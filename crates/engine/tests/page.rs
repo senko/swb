@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
 use swb_engine::{LoadState, Page, Point, Size, Url};
-use swb_net::{Fetcher, NetError, NetworkFetcher, Request, Response};
+use swb_net::{Destination, Fetcher, NetError, NetworkFetcher, Request, Response};
 use swb_paint::{DisplayItem, DisplayList};
 use swb_style::Rgba;
 
@@ -638,4 +638,82 @@ fn web_pages_cannot_load_local_files() {
     );
     load(&mut page, local);
     assert_eq!(fetcher.fetched.lock().unwrap().len(), 2);
+}
+
+// ----- Request initiators -----
+
+/// Serves `html` at `https://a.test/` and 404 for every other URL. Records
+/// every request.
+struct RequestLog {
+    html: String,
+    requests: Mutex<Vec<Request>>,
+}
+
+impl Fetcher for RequestLog {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        self.requests.lock().unwrap().push(request.clone());
+        let (status, body) = if request.url.as_str() == "https://a.test/" {
+            (200, self.html.clone())
+        } else {
+            (404, String::new())
+        };
+        let mut headers = swb_net::Headers::new();
+        headers.append("content-type", "text/html");
+        Ok(Response {
+            url: request.url.clone(),
+            status,
+            headers,
+            body: body.into_bytes(),
+        })
+    }
+}
+
+/// Cookies decide `SameSite` from the initiator: subresources and links
+/// carry the document's origin, typed addresses carry none.
+#[test]
+fn requests_carry_their_initiator() {
+    let fetcher = Arc::new(RequestLog {
+        html: "<!DOCTYPE html><link rel=stylesheet href='https://b.test/s.css'>\
+               <img src='https://b.test/i.png'>"
+            .to_owned(),
+        requests: Mutex::new(Vec::new()),
+    });
+    let mut page = new_page(fetcher.clone());
+    load(&mut page, Url::parse("https://a.test/").unwrap());
+    assert!(page.follow_link(Url::parse("https://c.test/").unwrap()));
+    finish(&mut page);
+
+    let a_test = Some(Url::parse("https://a.test/").unwrap().origin());
+    let requests = fetcher.requests.lock().unwrap();
+    let initiator = |url: &str, destination: Destination| {
+        let request = requests
+            .iter()
+            .find(|r| r.url.as_str() == url)
+            .unwrap_or_else(|| panic!("no request for {url}"));
+        assert_eq!(request.destination, destination, "{url}");
+        request.initiator.clone()
+    };
+    assert_eq!(initiator("https://a.test/", Destination::Document), None);
+    assert_eq!(
+        initiator("https://b.test/s.css", Destination::Style),
+        a_test
+    );
+    assert_eq!(
+        initiator("https://b.test/i.png", Destination::Image),
+        a_test
+    );
+    assert_eq!(initiator("https://c.test/", Destination::Document), a_test);
+    drop(requests);
+
+    // Back, forward and reload count as started by the user (ADR 0012).
+    let last_initiator = |page: &mut Page, go: fn(&mut Page)| {
+        go(page);
+        finish(page);
+        let requests = fetcher.requests.lock().unwrap();
+        let last = requests.iter().rev().find(|r| r.is_top_level_navigation());
+        last.unwrap().initiator.clone()
+    };
+    assert_eq!(last_initiator(&mut page, |p| assert!(p.go_back())), None);
+    assert_eq!(last_initiator(&mut page, |p| assert!(p.go_forward())), None);
+    assert_eq!(last_initiator(&mut page, Page::reload), None);
 }
