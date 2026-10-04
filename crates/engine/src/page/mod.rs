@@ -251,11 +251,11 @@ impl Page {
             // The entry shows the same document: it keeps the POST body and
             // the initiator of the document's entry, because a reload of it
             // requests that document again.
-            let current = self.history.current();
+            let current = self.history.current().map(|e| &e.commit);
             self.history.push(Commit {
                 url: link.clone(),
-                post: current.and_then(|e| e.post.clone()),
-                initiator: current.and_then(|e| e.initiator.clone()),
+                post: current.and_then(|c| c.post.clone()),
+                initiator: current.and_then(|c| c.initiator.clone()),
                 document: self.document_number,
             });
             let target = self.set_target(Some(&fragment));
@@ -292,11 +292,11 @@ impl Page {
         }
         if let Some(entry) = self.history.current().cloned() {
             self.start_navigation(
-                entry.url,
-                entry.post,
+                entry.commit.url,
+                entry.commit.post,
                 HistoryHandling::Replace,
                 Some(self.scroll),
-                entry.initiator,
+                entry.commit.initiator,
             );
         }
     }
@@ -367,18 +367,18 @@ impl Page {
     /// request again: shows a page that asks for a reload (as Chromium's
     /// form resubmission page). The entry keeps its body, so a reload
     /// sends it.
-    fn traverse_to_post(&mut self, target: usize, entry: Entry) {
+    fn traverse_to_post(&mut self, target: usize, commit: Commit) {
         self.loader.cancel_all();
         self.requests = Requests::default();
         self.pending = Some(PendingNavigation {
             handling: HistoryHandling::Traverse(target),
             restore_scroll: None,
-            url: entry.url.clone(),
-            post: entry.post,
-            initiator: entry.initiator,
+            url: commit.url.clone(),
+            post: commit.post,
+            initiator: commit.initiator,
             redirected: false,
         });
-        self.url = Some(entry.url);
+        self.url = Some(commit.url);
         self.show_message(
             "Confirm form resubmission",
             "This page was the result of a form submission. \
@@ -390,14 +390,14 @@ impl Page {
         let Some(target) = self.history_index().checked_add_signed(delta) else {
             return false;
         };
-        let Some(entry) = self.history.get(target).cloned() else {
+        let Some(Entry { commit, scroll }) = self.history.get(target).cloned() else {
             return false;
         };
         let same_document = self.pending.is_none()
             && self.document.is_some()
-            && entry.document == self.document_number;
-        if !same_document && entry.post.is_some() {
-            self.traverse_to_post(target, entry);
+            && commit.document == self.document_number;
+        if !same_document && commit.post.is_some() {
+            self.traverse_to_post(target, commit);
             return true;
         }
         if same_document {
@@ -406,18 +406,18 @@ impl Page {
             // loading.
             self.save_scroll();
             self.history.go_to(target);
-            let fragment_target = self.set_target(entry.url.fragment());
-            self.set_document_url(entry.url);
-            self.scroll_to(entry.scroll);
+            let fragment_target = self.set_target(commit.url.fragment());
+            self.set_document_url(commit.url);
+            self.scroll_to(scroll);
             self.focus_fragment_target(fragment_target);
             return true;
         }
         self.start_navigation(
-            entry.url,
+            commit.url,
             None,
             HistoryHandling::Traverse(target),
-            Some(entry.scroll),
-            entry.initiator,
+            Some(scroll),
+            commit.initiator,
         );
         true
     }

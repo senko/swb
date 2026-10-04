@@ -18,6 +18,7 @@ use swb_net::{Fetcher, Headers, Method, NetError, Request, Response};
 use swb_paint::{DisplayItem, SELECTION_BACKGROUND};
 
 mod common;
+use common::{CTRL, SHIFT, node, rect};
 
 const ORIGIN: &str = "https://site.test/";
 
@@ -128,15 +129,6 @@ fn control_scroll(page: &mut Page) -> f32 {
     scroll.unwrap()
 }
 
-fn node(page: &Page, id: &str) -> swb_engine::NodeId {
-    page.document().unwrap().element_by_id(id).unwrap()
-}
-
-fn rect(page: &mut Page, id: &str) -> Rect {
-    let node = node(page, id);
-    page.element_box(node).unwrap()
-}
-
 /// Clicks the center of the element with `id` (the page is not scrolled).
 fn click(page: &mut Page, id: &str) -> bool {
     let r = rect(page, id);
@@ -162,15 +154,17 @@ fn checked(page: &Page, id: &str) -> bool {
     page.control_checked(node(page, id)).unwrap()
 }
 
-const SHIFT: Modifiers = Modifiers {
-    shift: true,
-    ..Modifiers::NONE
-};
-
-const CTRL: Modifiers = Modifiers {
-    ctrl: true,
-    ..Modifiers::NONE
-};
+/// The text of all text fragments of the page, in tree order.
+fn shown_text(page: &mut Page) -> String {
+    page.update_layout();
+    let mut shown = String::new();
+    page.fragments().unwrap().walk(|f, _| {
+        if let FragmentRef::Text(t) = f {
+            shown.push_str(&t.text);
+        }
+    });
+    shown
+}
 
 const BODY: &str = "<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>";
 
@@ -418,14 +412,7 @@ fn text_areas_keep_line_breaks() {
 #[test]
 fn passwords_show_bullets_and_cannot_be_copied() {
     let (mut page, _) = open(&format!("{BODY}<input id=p type=password value=secret>"));
-    page.update_layout();
-    let mut shown = String::new();
-    page.fragments().unwrap().walk(|f, _| {
-        if let FragmentRef::Text(t) = f {
-            shown.push_str(&t.text);
-        }
-    });
-    assert_eq!(shown, "\u{2022}".repeat(6));
+    assert_eq!(shown_text(&mut page), "\u{2022}".repeat(6));
     click(&mut page, "p");
     page.key_down(&Key::Character("a".to_owned()), CTRL);
     assert_eq!(page.selected_text(), "");
@@ -486,13 +473,7 @@ fn selects_change_with_the_keyboard() {
     assert_eq!(value(&page, "s"), "alpha");
     key(&mut page, &Key::ArrowUp);
     assert_eq!(value(&page, "s"), "alpha");
-    page.update_layout();
-    let mut label = String::new();
-    page.fragments().unwrap().walk(|f, _| {
-        if let FragmentRef::Text(t) = f {
-            label.push_str(&t.text);
-        }
-    });
+    let label = shown_text(&mut page);
     assert!(label.starts_with("alpha"), "{label}");
     click(&mut page, "b");
     wait(&mut page);
@@ -665,7 +646,6 @@ fn placeholder_shown_follows_the_value() {
     let color = |page: &Page| page.styles().unwrap().get(t).unwrap().color;
     assert_eq!(color(&page), red);
     // The placeholder text is drawn in the placeholder color.
-    common::display_list(&mut page);
     let list = common::display_list(&mut page);
     assert!(list.items.iter().any(|item| matches!(
         item,

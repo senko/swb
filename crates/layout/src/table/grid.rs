@@ -1,6 +1,8 @@
 //! The table grid: the row and column of every cell, and its spans
-//! (CSS Tables 3 §3.3, <https://www.w3.org/TR/css-tables-3/#table-grid>,
-//! and the HTML table model).
+//! (CSS Tables 3 §3.3,
+//! <https://www.w3.org/TR/css-tables-3/#dimensioning-the-row-column-grid>,
+//! and the HTML table model,
+//! <https://html.spec.whatwg.org/multipage/tables.html#forming-a-table>).
 //!
 //! A cell takes the first column of its row that no cell from an earlier
 //! row spans into. A `rowspan` is clamped to the rows of its row group
@@ -198,6 +200,8 @@ impl Occupancy {
         self.raise(1, 0..self.size, &columns, until);
     }
 
+    /// The first column at or after `from` in the columns `span` of `node`
+    /// that is free in row `row`.
     fn find(&mut self, node: usize, span: Range<usize>, from: usize, row: usize) -> Option<usize> {
         if span.end <= from || self.min[node] > row {
             return None;
@@ -211,6 +215,8 @@ impl Occupancy {
             .or_else(|| self.find(2 * node + 1, middle..span.end, from, row))
     }
 
+    /// Raises the leaves of `columns` below `node` (which covers `span`)
+    /// to at least `value`.
     fn raise(&mut self, node: usize, span: Range<usize>, columns: &Range<usize>, value: usize) {
         if columns.end <= span.start || span.end <= columns.start {
             return;
@@ -235,6 +241,7 @@ impl Occupancy {
         }
     }
 
+    /// Moves the pending value of `node` to its children.
     fn push_down(&mut self, node: usize) {
         let value = std::mem::take(&mut self.pending[node]);
         if value > 0 {

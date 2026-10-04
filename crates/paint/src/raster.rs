@@ -1141,15 +1141,15 @@ fn push_rounded_rect(pb: &mut PathBuilder, r: Rect, radii: &Radii) {
 }
 
 /// An alpha mask: one coverage byte per pixel, row by row.
-pub(crate) struct AlphaMask<'a> {
-    pub(crate) data: &'a [u8],
-    pub(crate) width: u32,
-    pub(crate) height: u32,
+struct AlphaMask<'a> {
+    data: &'a [u8],
+    width: u32,
+    height: u32,
 }
 
 /// Blends `mask` in `color` into a premultiplied RGBA pixmap, with the
 /// mask's top-left corner at `origin` (pixmap px), clipped to `clip`.
-pub(crate) fn blit_mask(
+fn blit_mask(
     pixmap: &mut Pixmap,
     mask: &AlphaMask<'_>,
     origin: (i64, i64),

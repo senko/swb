@@ -148,7 +148,8 @@ const MAX_CMAP_LEN: u32 = 16 << 20;
 
 /// Reads only the `cmap` table of face `index` of a font file. System
 /// fallback uses this to test character coverage without reading whole
-/// files.
+/// files. Parses the collection header and the table directory
+/// (<https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory>).
 pub(crate) fn read_cmap_table(path: &Path, index: u32) -> Option<Vec<u8>> {
     use std::io::{Read, Seek, SeekFrom};
 

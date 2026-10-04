@@ -297,6 +297,8 @@ impl Page {
         }
     }
 
+    /// Starts loading the image at `url`, unless it is known already or
+    /// the document may not load it (then it fails).
     pub(super) fn start_image(&mut self, url: Url) {
         if self.images.by_url.contains_key(&url) {
             return;
@@ -320,6 +322,7 @@ impl Page {
         }
     }
 
+    /// True if every stylesheet arrived or failed: rendering can start.
     pub(super) fn stylesheets_settled(&self) -> bool {
         self.sheets.iter().all(SheetSlot::is_settled)
     }

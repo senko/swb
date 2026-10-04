@@ -49,6 +49,10 @@ why we do not use Servo's crates.
 - Break opportunities: `unicode-linebreak` (UAX #14). Line layout itself is
   ours.
 
+Update (2026-10-04): [ADR 0006](0006-text-stack.md) chose the fontconfig
+binding: the `fontconfig` crate with its `dlopen` feature, behind the
+`FontSource` trait of the `text` crate.
+
 ### Rasterization
 
 CPU rasterization with `tiny-skia` into an RGBA buffer. The display list is

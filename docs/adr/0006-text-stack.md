@@ -5,6 +5,8 @@
 - Updated: 2026-10-02 (M1 maintenance): the generic-family and
   character-fallback steps now describe the implementation in full. The
   decision did not change.
+- Updated: 2026-10-04 (M2 maintenance): see "Update (2026-10-04)" at the
+  end. The decision did not change.
 
 ## Context
 
@@ -177,3 +179,17 @@ ascent and descent for line layout, which is the layout crate's decision.
 - Not done yet: web fonts (`@font-face`), color glyphs, vertical text,
   `font-synthesis`, Blink's "first family at normal style" fallback step
   for bold or italic text, emoji presentation selection.
+
+## Update (2026-10-04)
+
+Corrections to the consequences above, from the M2 maintenance review:
+
+- The glyph mask cache limits a mask by its area, not by its sides:
+  masks of more than 65,536 pixels (256 × 256) are not cached. A
+  1024 × 64 mask is cached.
+- Directory mode (`FontContext::from_directory`, used by tests and
+  `swb --test-fonts`) reads every font file when the context is created,
+  not on first use. The data stays in memory.
+- System mode keeps the `cmap` table of every face that system fallback
+  has checked (`FontconfigSource::cmaps`, at most 16 MiB per table). There
+  is no limit on the total.

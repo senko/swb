@@ -35,7 +35,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | Crate        | Responsibility                                                                 | Depends on                    |
 |--------------|--------------------------------------------------------------------------------|-------------------------------|
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
-| `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree).      | —                             |
+| `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
@@ -71,11 +71,11 @@ Rules:
   boxes, line boxes and glyph runs in CSS pixels. It is immutable. The engine
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
-  borders, glyph runs, images, polylines, clips, opacity groups with their
-  bounds) in paint order. Form controls with the native look are drawn by
-  `paint/src/control.rs`. The rasterizer consumes it. The rasterizer can be replaced
-  without changes to layout. The list also contains hit regions, so hit
-  testing finds what is painted on top.
+  borders, glyph runs, images, linear gradients, polylines, clips, opacity
+  groups with their bounds) in paint order. Form controls with the native
+  look are drawn by `paint/src/control.rs`. The rasterizer consumes it. The
+  rasterizer can be replaced without changes to layout. The list also
+  contains hit regions, so hit testing finds what is painted on top.
 - **Text fragments** (`layout`): a glyph run on one line, with caret
   stops: the offset in the DOM text node and the x position of each glyph
   cluster boundary. White-space processing records a source map from the
@@ -224,7 +224,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `selection.rs`: text positions, the position at a point, words and
   blocks, the highlight for paint, and the selected text (`innerText`
   rules).
-- `hit_test.rs`, `history.rs`, `resources.rs`, `boxes.rs`.
+- `input.rs` (the input event types `Key`, `Modifiers`, `MouseButton`),
+  `hit_test.rs`, `history.rs`, `resources.rs`, `boxes.rs`.
 
 ## Testing
 

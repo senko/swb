@@ -8,10 +8,9 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use swb_dom::{Document, NodeData, NodeId, local_name};
+use swb_dom::{Document, NodeData, NodeId, is_html_whitespace, local_name};
 use swb_layout::{BoxContent, BoxFragment, Fragment, FragmentTree, Point, Rect, TextFragment};
 use swb_style::{ComputedStyle, Display, StyleMap, UserSelect, Visibility, WhiteSpace};
-use unicode_segmentation::UnicodeSegmentation;
 
 /// A position in a text node: a byte offset in its data, at a character
 /// boundary.
@@ -62,6 +61,7 @@ pub(crate) struct TreeOrder {
 }
 
 impl TreeOrder {
+    /// The tree order of the nodes of `doc`.
     pub(crate) fn new(doc: &Document) -> Self {
         let mut rank = vec![u32::MAX; doc.len()];
         for (i, node) in doc.descendants(NodeId::DOCUMENT).enumerate() {
@@ -77,7 +77,8 @@ impl TreeOrder {
         self.rank.get(node.index()).copied().unwrap_or(u32::MAX)
     }
 
-    pub(crate) fn compare(&self, a: TextPosition, b: TextPosition) -> Ordering {
+    /// Compares two positions: by node in tree order, then by offset.
+    fn compare(&self, a: TextPosition, b: TextPosition) -> Ordering {
         self.rank(a.node)
             .cmp(&self.rank(b.node))
             .then(a.offset.cmp(&b.offset))
@@ -146,10 +147,7 @@ pub(crate) fn position_at(tree: &FragmentTree, point: Point, snap: Snap) -> Opti
     let (block, origin) = scope.unwrap_or((root, Point::default()));
     let mut best: Option<((f32, f32), &TextFragment, Rect)> = None;
     walk_text(block, origin, &mut |fragment, rect| {
-        let key = (
-            distance(point.y, rect.y, rect.y + rect.height),
-            distance(point.x, rect.x, rect.x + rect.width),
-        );
+        let key = distance_to(point, rect);
         if best.as_ref().is_none_or(|(k, _, _)| key < *k) {
             best = Some((key, fragment, rect));
         }
@@ -166,15 +164,23 @@ pub(crate) fn position_at(tree: &FragmentTree, point: Point, snap: Snap) -> Opti
     })
 }
 
-/// The distance from `v` to the range `start..end`.
-fn distance(v: f32, start: f32, end: f32) -> f32 {
-    if v < start {
-        start - v
-    } else if v > end {
-        v - end
-    } else {
-        0.0
-    }
+/// The vertical and the horizontal distance from `point` to `rect` (0
+/// inside it), in this order, so that comparisons find the nearest line
+/// first.
+fn distance_to(point: Point, rect: Rect) -> (f32, f32) {
+    let distance = |v: f32, start: f32, end: f32| {
+        if v < start {
+            start - v
+        } else if v > end {
+            v - end
+        } else {
+            0.0
+        }
+    };
+    (
+        distance(point.y, rect.y, rect.y + rect.height),
+        distance(point.x, rect.x, rect.x + rect.width),
+    )
 }
 
 /// Finds the innermost block-level box that contains `point` and
@@ -259,10 +265,7 @@ pub(crate) fn control_offset_at(tree: &FragmentTree, control: NodeId, point: Poi
         if t.node != control {
             return;
         }
-        let key = (
-            distance(point.y, rect.y, rect.y + rect.height),
-            distance(point.x, rect.x, rect.x + rect.width),
-        );
+        let key = distance_to(point, rect);
         if let Some(offset) = t.offset_at(point.x - rect.x)
             && best.is_none_or(|(k, _)| key < k)
         {
@@ -323,15 +326,12 @@ fn text_range(first: NodeId, start: u32, last: NodeId, end: u32) -> Selection {
 /// boundaries of UAX #29.
 pub(crate) fn word_at(doc: &Document, position: TextPosition) -> Option<Selection> {
     let text = doc.get(position.node)?.as_text()?;
-    let (start, word) = text
-        .split_word_bound_indices()
-        .find(|(start, word)| position.offset < start + word.len())
-        .or_else(|| text.split_word_bound_indices().next_back())?;
+    let word = crate::edit::word_at(text, position.offset)?;
     let at = |offset| TextPosition {
         node: position.node,
         offset,
     };
-    Some(Selection::new(at(start), at(start + word.len())))
+    Some(Selection::new(at(word.start), at(word.end)))
 }
 
 /// True if the element is rendered and is not inline-level: a block
@@ -576,7 +576,7 @@ impl TextBuilder {
         let pre_line = white_space == WhiteSpace::PreLine;
         let mut chars = text.chars().peekable();
         while let Some(c) = chars.next() {
-            if !matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0C') {
+            if !is_html_whitespace(c) {
                 self.started = true;
                 self.flush_breaks();
                 self.out.push(c);
@@ -584,7 +584,7 @@ impl TextBuilder {
             }
             let mut newlines = usize::from(c == '\n');
             while let Some(&next) = chars.peek() {
-                if !matches!(next, ' ' | '\t' | '\n' | '\r' | '\x0C') {
+                if !is_html_whitespace(next) {
                     break;
                 }
                 newlines += usize::from(next == '\n');

@@ -54,13 +54,28 @@ fn senko_net() -> (Client, JoinHandle<()>) {
     (client, thread)
 }
 
+/// The box `[x, y, width, height]` of a node (`dom.box`), in document
+/// coordinates.
+fn rect(client: &mut Client, node: u64) -> [f64; 4] {
+    let value = client.call("dom.box", json!({ "nodeId": node })).unwrap()["rect"].clone();
+    std::array::from_fn(|i| value[i].as_f64().unwrap())
+}
+
 /// The viewport coordinates of the center of a node's box.
 fn center(client: &mut Client, node: u64) -> (f32, f32) {
-    let rect = client.call("dom.box", json!({ "nodeId": node })).unwrap()["rect"].clone();
-    let info = client.info().unwrap();
-    let v = |i: usize| rect[i].as_f64().unwrap() as f32;
-    let scroll_y = info["scroll"]["y"].as_f64().unwrap() as f32;
-    (v(0) + v(2) / 2.0, v(1) + v(3) / 2.0 - scroll_y)
+    let [x, y, width, height] = rect(client, node).map(|v| v as f32);
+    let scroll_y = client.info().unwrap()["scroll"]["y"].as_f64().unwrap() as f32;
+    (x + width / 2.0, y + height / 2.0 - scroll_y)
+}
+
+/// A fetcher that fails every request with a timeout after a delay.
+struct Slow(Duration);
+
+impl Fetcher for Slow {
+    fn fetch(&self, _: &swb_net::Request) -> Result<swb_net::Response, swb_net::NetError> {
+        thread::sleep(self.0);
+        Err(swb_net::NetError::Timeout("slow".to_owned()))
+    }
 }
 
 fn rpc_code(result: Result<Value, ClientError>) -> i64 {
@@ -126,15 +141,8 @@ fn hover_underlines_links() {
     assert_eq!((pixmap.width(), pixmap.height()), (1280, 800));
     // Over plain text, the text cursor.
     let paragraph = client.query_selector("p").unwrap().unwrap();
-    let rect = client
-        .call("dom.box", json!({ "nodeId": paragraph }))
-        .unwrap()["rect"]
-        .clone();
-    let (px, py) = (
-        rect[0].as_f64().unwrap() as f32 + 5.0,
-        rect[1].as_f64().unwrap() as f32 + 10.0,
-    );
-    client.mouse_move(px, py).unwrap();
+    let [x, y, ..] = rect(&mut client, paragraph);
+    client.mouse_move(x as f32 + 5.0, y as f32 + 10.0).unwrap();
     assert_eq!(client.info().unwrap()["cursor"], "text");
     stop(client, thread);
 }
@@ -177,11 +185,8 @@ fn keyboard_focus_and_selection() {
     // A double click selects a word: "there" in "Hey there!", about 45 px
     // from the start of the line.
     let first = client.query_selector("p").unwrap().unwrap();
-    let rect = client.call("dom.box", json!({ "nodeId": first })).unwrap()["rect"].clone();
-    let (x, y) = (
-        rect[0].as_f64().unwrap() + 45.0,
-        rect[1].as_f64().unwrap() + 10.0,
-    );
+    let [x, y, ..] = rect(&mut client, first);
+    let (x, y) = (x + 45.0, y + 10.0);
     client
         .call("input.click", json!({ "x": x, "y": y, "clickCount": 2 }))
         .unwrap();
@@ -259,15 +264,8 @@ fn errors() {
 
 #[test]
 fn wait_for_load_times_out() {
-    /// A fetcher that never answers within the test.
-    struct Slow;
-    impl Fetcher for Slow {
-        fn fetch(&self, _: &swb_net::Request) -> Result<swb_net::Response, swb_net::NetError> {
-            thread::sleep(Duration::from_secs(5));
-            Err(swb_net::NetError::Timeout("slow".to_owned()))
-        }
-    }
-    let (mut client, thread) = start(Arc::new(Slow));
+    // The fetcher does not answer within the test.
+    let (mut client, thread) = start(Arc::new(Slow(Duration::from_secs(5))));
     client.navigate("https://slow.test/").unwrap();
     assert!(!client.wait_for_load(Duration::from_millis(100)).unwrap());
     assert_eq!(client.info().unwrap()["loadState"], "loadingDocument");
@@ -302,15 +300,8 @@ fn malformed_messages_and_web_pages_are_rejected() {
 
 #[test]
 fn a_waiting_request_does_not_block_other_connections() {
-    /// A fetcher that answers after 3 seconds.
-    struct Slow;
-    impl Fetcher for Slow {
-        fn fetch(&self, _: &swb_net::Request) -> Result<swb_net::Response, swb_net::NetError> {
-            thread::sleep(Duration::from_secs(3));
-            Err(swb_net::NetError::Timeout("slow".to_owned()))
-        }
-    }
-    let (thread, port) = spawn(Arc::new(Slow));
+    // The fetcher answers (with an error) after 3 s.
+    let (thread, port) = spawn(Arc::new(Slow(Duration::from_secs(3))));
     let mut waiting = Client::connect(port).unwrap();
     waiting.navigate("https://slow.test/").unwrap();
     let waiter = thread::spawn(move || {
@@ -389,8 +380,8 @@ fn the_server_stops_with_the_browser() {
 fn drag_selection_over_the_protocol() {
     let (mut client, thread) = senko_net();
     let first = client.query_selector("p").unwrap().unwrap();
-    let rect = client.call("dom.box", json!({ "nodeId": first })).unwrap()["rect"].clone();
-    let (x, y) = (rect[0].as_f64().unwrap(), rect[1].as_f64().unwrap() + 10.0);
+    let [x, y, ..] = rect(&mut client, first);
+    let y = y + 10.0;
     client
         .call("input.mouseDown", json!({ "x": x + 1.0, "y": y }))
         .unwrap();

@@ -233,10 +233,6 @@ fn viewport_overflow(doc: &Document, styles: &StyleMap) -> Option<(NodeId, Overf
 fn canvas_background(doc: &Document, styles: &StyleMap) -> Option<CanvasBackground> {
     let root = doc.document_element()?;
     let root_style = styles.get(root)?;
-    let has_background = |s: &ComputedStyle| {
-        !s.background_color.resolve(s.color).is_transparent()
-            || s.background_image.iter().any(Option::is_some)
-    };
     if has_background(root_style) {
         return Some(CanvasBackground {
             source: root,
@@ -254,6 +250,12 @@ fn canvas_background(doc: &Document, styles: &StyleMap) -> Option<CanvasBackgrou
         });
     }
     None
+}
+
+/// True if a style has a background color or image.
+pub(crate) fn has_background(style: &ComputedStyle) -> bool {
+    !style.background_color.resolve(style.color).is_transparent()
+        || style.background_image.iter().any(Option::is_some)
 }
 
 /// The size of the scrollable area: the union of the viewport and all

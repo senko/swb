@@ -145,6 +145,43 @@ impl Selector {
         }
     }
 
+    /// The ID, class and type selectors that some ancestor of the subject
+    /// must match, for an ancestor Bloom filter. They come from each
+    /// compound selector that has a descendant or child combinator to its
+    /// right, from left to right, each compound in source order.
+    /// Compounds with a sibling combinator to their right match siblings
+    /// and are skipped; selector arguments (`:is()`, `:not()`, ...) are
+    /// ignored. The keys are never [`BucketKey::Universal`].
+    pub fn ancestor_keys(&self) -> Vec<BucketKey<'_>> {
+        // Right to left: the subject compound, then a combinator and a
+        // compound at a time. A compound before a descendant or child
+        // combinator matches an ancestor of the subject, also when sibling
+        // combinators come between (siblings share the parent).
+        let mut ancestors = Vec::new();
+        let mut rest = matching::split_compound(&self.components).1;
+        while let Some((Component::Combinator(combinator), after)) = rest.split_first() {
+            let (compound, next) = matching::split_compound(after);
+            if matches!(combinator, Combinator::Descendant | Combinator::Child) {
+                ancestors.push(compound);
+            }
+            rest = next;
+        }
+        ancestors
+            .iter()
+            .rev()
+            .flat_map(|compound| compound.iter())
+            .filter_map(|component| match component {
+                Component::Id(id) => Some(BucketKey::Id(id)),
+                Component::Class(class) => Some(BucketKey::Class(class)),
+                Component::LocalName(name) => Some(BucketKey::LocalName {
+                    name: &name.name,
+                    lower_name: name.lower(),
+                }),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// The element state flags that the selector depends on, including
     /// inside `:is()`, `:not()`, `:has()` and `:nth-child(... of S)`.
     /// `:link` and `:visited` add [`ElementState::VISITED`]. The style crate
@@ -189,7 +226,8 @@ fn state_dependencies(components: &[Component]) -> ElementState {
         })
 }
 
-/// A rule lookup key. See [`Selector::bucket_key`].
+/// A rule lookup key (see [`Selector::bucket_key`]), or a key of the
+/// ancestor Bloom filter (see [`Selector::ancestor_keys`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BucketKey<'a> {
     /// An ID, as written.
@@ -284,7 +322,7 @@ impl PseudoElement {
 
     /// True for the pseudo-elements that also have a legacy single-colon
     /// form (`:before`, `:after`, `:first-line`, `:first-letter`).
-    pub fn has_legacy_syntax(self) -> bool {
+    pub(crate) fn has_legacy_syntax(self) -> bool {
         matches!(
             self,
             PseudoElement::Before

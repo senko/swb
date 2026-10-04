@@ -193,7 +193,10 @@ fn outer_sizes(style: &ComputedStyle, content: impl FnOnce() -> ContentSizes) ->
     .add(edge_sum + fixed_margins(style))
 }
 
-fn fixed_margins(style: &ComputedStyle) -> f32 {
+/// The sum of the left and right margins that do not depend on the
+/// containing block (percentages and `auto` count as 0), for intrinsic
+/// sizes.
+pub(crate) fn fixed_margins(style: &ComputedStyle) -> f32 {
     let m = |lp: &swb_style::LengthPercentageOrAuto| match lp.non_auto() {
         Some(lp) if !lp.has_percentage() => lp.resolve(0.0),
         _ => 0.0,

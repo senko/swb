@@ -52,7 +52,7 @@ use swb_style::{
 
 use crate::LayoutContext;
 use crate::block::{
-    Baselines, BoxEdges, ChildOptions, ContainingBlock, clamp_height, clamp_width, finish_fragment,
+    Baselines, BoxEdges, ChildOptions, ContainingBlock, clamp_height, finish_fragment,
     layout_block_container, resolve_size,
 };
 use crate::box_tree::{
@@ -312,28 +312,6 @@ pub(crate) fn content_sizes(
         min: width,
         max: width,
     }
-}
-
-/// The used width of a block-level control: the specified width, or
-/// shrink-to-fit (controls do not fill their containing block).
-pub(crate) fn block_level_width(
-    ctx: &mut LayoutContext<'_>,
-    style: &ComputedStyle,
-    control: &ControlBox,
-    cb: ContainingBlock,
-    edges: &BoxEdges,
-) -> f32 {
-    let edge_sum = edges.sum().horizontal();
-    let width = resolve_size(&style.width, Some(cb.width), style.box_sizing, edge_sum)
-        .unwrap_or_else(|| {
-            let sizes = content_sizes(ctx, style, control);
-            let margin = |m: &swb_style::LengthPercentageOrAuto| m.resolve(cb.width).unwrap_or(0.0);
-            let available =
-                (cb.width - margin(&style.margin_left) - margin(&style.margin_right) - edge_sum)
-                    .max(0.0);
-            sizes.max.min(available).max(sizes.min)
-        });
-    clamp_width(style, width, cb.width, edge_sum)
 }
 
 /// The laid-out content of a control, relative to the top left of the area
@@ -728,13 +706,10 @@ fn char_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle) -> CharWidth {
             max: (metrics.max_char_width * scale).round(),
         };
     }
-    let options = swb_text::ShapeOptions {
-        direction: swb_text::Direction::Ltr,
-        language: None,
-        features: &[],
-    };
-    let run = ctx.fonts.shape(font, size, "0", &options);
-    CharWidth::Zero(run.glyphs.iter().map(|g| g.x_advance).sum())
+    let run = ctx
+        .fonts
+        .shape(font, size, "0", &swb_text::ShapeOptions::default());
+    CharWidth::Zero(run.advance)
 }
 
 /// The content width of a text field `size` characters wide.
@@ -767,11 +742,7 @@ fn ceil(v: f32) -> f32 {
 fn options_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, options: &[String]) -> f32 {
     let families = fonts::family_names(&style.font_family);
     let query = fonts::query(style, &families);
-    let shape_options = swb_text::ShapeOptions {
-        direction: swb_text::Direction::Ltr,
-        language: None,
-        features: &[],
-    };
+    let shape_options = swb_text::ShapeOptions::default();
     let mut widest: f32 = 0.0;
     for label in options.iter().take(MAX_SELECT_OPTIONS) {
         let mut width = 0.0;
@@ -782,7 +753,7 @@ fn options_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, options: &[
             let shaped = ctx
                 .fonts
                 .shape(run.font, style.font_size, text, &shape_options);
-            width += shaped.glyphs.iter().map(|g| g.x_advance).sum::<f32>();
+            width += shaped.advance;
         }
         widest = widest.max(width);
     }
@@ -841,11 +812,7 @@ const BUTTON_BACKGROUNDS: [Rgba; 2] = [Rgba::rgb(239, 239, 239), Rgba::new(239, 
 
 #[cfg(test)]
 mod tests {
-    use crate::test_support::layout_html;
-
-    fn body(html: &str) -> String {
-        format!("<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>{html}")
-    }
+    use crate::test_support::{body, layout_html};
 
     #[test]
     fn text_field_widths_follow_the_average_character_width() {

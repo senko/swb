@@ -111,7 +111,7 @@ pub(crate) fn parse_integer(p: &mut Parser<'_>) -> ParseResult<i32> {
 
 /// Converts an angle dimension to degrees.
 /// <https://www.w3.org/TR/css-values-4/#angles>
-pub(crate) fn angle_to_degrees(value: f32, unit: &str) -> Option<f32> {
+fn angle_to_degrees(value: f32, unit: &str) -> Option<f32> {
     let degrees = match unit.to_ascii_lowercase().as_str() {
         "deg" => value,
         "grad" => value * 0.9,

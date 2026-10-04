@@ -57,7 +57,7 @@ impl LengthOptions {
 }
 
 /// Converts a length dimension. Returns `None` for unknown units.
-pub(crate) fn length_from_dimension(value: f32, unit: &str) -> Option<Length> {
+fn length_from_dimension(value: f32, unit: &str) -> Option<Length> {
     LengthUnit::from_name(unit).map(|unit| Length { value, unit })
 }
 

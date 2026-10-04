@@ -222,6 +222,8 @@ impl CollapsedBorders {
         }
     }
 
+    /// The index in `edges` of the vertical edge on the left of slot
+    /// (`row`, `column`), or of the horizontal edge on its top.
     fn index(&self, row: usize, column: usize, horizontal: bool) -> usize {
         (row * (self.columns + 1) + column) * 2 + usize::from(horizontal)
     }
@@ -233,7 +235,7 @@ impl CollapsedBorders {
         let (style, side) = edge.winner?;
         let style = self.styles.get(style as usize)?;
         let (width, border_style) = border(style, side);
-        if width <= 0.0 || matches!(border_style, BorderStyle::None | BorderStyle::Hidden) {
+        if width <= 0.0 || border_style.has_no_width() {
             return None;
         }
         Some((width, border_style, color(style, side)))
@@ -308,6 +310,8 @@ impl CollapsedBorders {
         }
     }
 
+    /// Merges the `side` border of `style` (at `style_index` in `styles`)
+    /// into edge `index`, unless the edge is inside a spanning cell.
     fn merge_edge(&mut self, index: usize, style: &ComputedStyle, style_index: u32, side: Side) {
         let (width, border_style) = border(style, side);
         if border_style == BorderStyle::None {
@@ -401,6 +405,7 @@ fn border(style: &ComputedStyle, side: Side) -> (f32, BorderStyle) {
     (width, border_style)
 }
 
+/// The used color of one side of a box's border.
 fn color(style: &ComputedStyle, side: Side) -> Rgba {
     let color = match side {
         Side::Top => style.border_top_color,

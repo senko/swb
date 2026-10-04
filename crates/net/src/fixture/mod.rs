@@ -279,6 +279,7 @@ pub(crate) fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     result
 }
 
+/// Returns a [`NetError::Fixture`] for `path` with `message`.
 pub(crate) fn fixture_error(path: &Path, message: &dyn fmt::Display) -> NetError {
     NetError::Fixture {
         path: path.to_path_buf(),

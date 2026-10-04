@@ -10,14 +10,10 @@
 //!
 //! The filter never gives false negatives, so it only affects speed. The
 //! idea is the same as in Servo and Blink (`SelectorFilter`); the code is
-//! our own.
-//!
-//! The css crate does not expose selector components, so the ancestor
-//! keys are read from the selector's serialization, which has one fixed
-//! form (CSSOM "serialize a selector"): compound selectors separated by
-//! `" "`, `" > "`, `" + "` or `" ~ "`.
+//! our own. The css crate gives the ancestor keys of a selector
+//! ([`Selector::ancestor_keys`]).
 
-use swb_css::{BlockKind, ComponentValue, Selector, parse_component_values};
+use swb_css::{BucketKey, Selector};
 use swb_dom::ElementData;
 
 /// The number of counters (a power of two).
@@ -115,32 +111,15 @@ fn for_each_element_hash(e: &ElementData, quirks: bool, mut f: impl FnMut(u32)) 
 /// match (at most [`MAX_ANCESTOR_HASHES`]; IDs first, then classes, then
 /// local names).
 pub(crate) fn ancestor_hashes(selector: &Selector, quirks: bool) -> Vec<u32> {
-    let text = selector.to_string();
-    let tokens = parse_component_values(&text);
-    let (compounds, combinators) = split_compounds(&tokens);
     let mut ids = Vec::new();
     let mut classes = Vec::new();
     let mut tags = Vec::new();
-    // compounds[i] is an ancestor of the subject if the combinator to its
-    // right is a descendant or child combinator.
-    for (compound, combinator) in compounds.iter().zip(&combinators) {
-        if !matches!(combinator, Combinator::Descendant | Combinator::Child) {
-            continue;
-        }
-        let mut previous: Option<&ComponentValue> = None;
-        for (j, token) in compound.iter().enumerate() {
-            let after_colon = matches!(previous, Some(ComponentValue::Colon));
-            match token {
-                ComponentValue::Hash { value, .. } => ids.push(hash(Kind::Id, value, quirks)),
-                ComponentValue::Ident(name) if matches!(previous, Some(v) if v.is_delim('.')) => {
-                    classes.push(hash(Kind::Class, name, quirks));
-                }
-                ComponentValue::Ident(name) if j == 0 && !after_colon => {
-                    tags.push(hash(Kind::Tag, name, true));
-                }
-                _ => {}
-            }
-            previous = Some(token);
+    for key in selector.ancestor_keys() {
+        match key {
+            BucketKey::Id(id) => ids.push(hash(Kind::Id, id, quirks)),
+            BucketKey::Class(class) => classes.push(hash(Kind::Class, class, quirks)),
+            BucketKey::LocalName { lower_name, .. } => tags.push(hash(Kind::Tag, lower_name, true)),
+            BucketKey::Universal => {}
         }
     }
     ids.into_iter()
@@ -148,66 +127,6 @@ pub(crate) fn ancestor_hashes(selector: &Selector, quirks: bool) -> Vec<u32> {
         .chain(tags)
         .take(MAX_ANCESTOR_HASHES)
         .collect()
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Combinator {
-    Descendant,
-    Child,
-    Sibling,
-}
-
-/// Splits serialized selector tokens into compound selectors (left to
-/// right) and the combinator to the right of each compound except the
-/// last.
-fn split_compounds(tokens: &[ComponentValue]) -> (Vec<&[ComponentValue]>, Vec<Combinator>) {
-    let mut compounds = Vec::new();
-    let mut combinators = Vec::new();
-    let mut start = 0;
-    let mut i = 0;
-    while i < tokens.len() {
-        let token = &tokens[i];
-        let combinator = match token {
-            ComponentValue::Whitespace => Some(Combinator::Descendant),
-            ComponentValue::Delim('>') => Some(Combinator::Child),
-            ComponentValue::Delim('+' | '~') => Some(Combinator::Sibling),
-            _ => None,
-        };
-        let Some(mut combinator) = combinator else {
-            i += 1;
-            continue;
-        };
-        if start < i {
-            compounds.push(&tokens[start..i]);
-        }
-        // Merge `" > "` into one combinator.
-        let mut j = i;
-        while j < tokens.len() {
-            match &tokens[j] {
-                ComponentValue::Whitespace => {}
-                ComponentValue::Delim('>') => combinator = Combinator::Child,
-                ComponentValue::Delim('+' | '~') => combinator = Combinator::Sibling,
-                _ => break,
-            }
-            j += 1;
-        }
-        combinators.push(combinator);
-        start = j;
-        i = j;
-    }
-    if start < tokens.len() {
-        compounds.push(&tokens[start..]);
-    }
-    // Blocks never appear at the top level of a serialized selector; a
-    // malformed split must not produce wrong keys.
-    if compounds.len() != combinators.len() + 1
-        || tokens
-            .iter()
-            .any(|t| matches!(t, ComponentValue::Block(b) if b.kind == BlockKind::Curly))
-    {
-        return (Vec::new(), Vec::new());
-    }
-    (compounds, combinators)
 }
 
 #[cfg(test)]

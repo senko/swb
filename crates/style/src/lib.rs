@@ -15,8 +15,8 @@
 //! - `bloom`: the ancestor Bloom filter that rejects rules early.
 //! - `cascade`: the cascade, inheritance and computed-value fixups.
 //! - `hints`: presentational hints from HTML attributes.
-//! - `element`: the DOM element adapter for selector matching, and
-//!   element states.
+//! - `element`: the DOM element adapter for selector matching, element
+//!   states, disabled form controls and `querySelectorAll`.
 //! - `values`, `computed`: computed value types.
 //! - `style_map`: the result for a document; `content`: the text of
 //!   generated content.
@@ -42,7 +42,6 @@ pub use content::content_text;
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };
-pub use properties::LonghandId;
 pub use style_map::{PseudoKind, StyleMap};
 pub use stylist::Stylist;
 pub use values::*;

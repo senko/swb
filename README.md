@@ -34,10 +34,13 @@ just run https://senko.net/        # open a window
 just check                         # format, lint, test, license check
 ```
 
-Keys: Ctrl+L focuses the address bar, Alt+Left/Right go back/forward,
-F5 or Ctrl+R reloads, Ctrl+Q quits. Tab and Shift+Tab move the focus
-between links, Enter follows the focused link, Ctrl+A selects all text and
-Ctrl+C copies the selection. Mouse back/forward buttons work.
+Keys: Ctrl+L focuses the address bar, Alt+Left/Right go back/forward
+(Backspace goes back when no editable text field has the focus), F5 or Ctrl+R
+reloads, Escape stops loading, Ctrl+Q or Ctrl+W quits. Tab and Shift+Tab
+move the focus between links and form controls, Enter follows the focused
+link, Ctrl+A selects all text and Ctrl+C copies the selection. In text
+fields and the address bar, Ctrl+X cuts and Ctrl+V pastes. Mouse
+back/forward buttons work.
 
 Headless mode (for tests and scripts):
 

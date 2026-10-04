@@ -40,7 +40,7 @@ pub(crate) use layout::{
 /// are not laid out; spans end at the last column. This bounds the memory
 /// and time that hostile `colspan` and `span` values can use (Chromium has
 /// no such limit).
-pub(crate) const MAX_COLUMNS: usize = 10_000;
+const MAX_COLUMNS: usize = 10_000;
 
 /// The largest `colspan` (HTML: 1000).
 const MAX_COLSPAN: usize = 1000;
@@ -54,67 +54,63 @@ const MAX_ROWSPAN: usize = 65_534;
 #[derive(Debug, Default)]
 pub(crate) struct TableBox {
     /// Captions in tree order.
-    pub(crate) captions: Vec<IndependentBox>,
+    captions: Vec<IndependentBox>,
     /// Column groups and columns in tree order.
-    pub(crate) columns: Vec<ColumnBox>,
+    columns: Vec<ColumnBox>,
     /// Row groups in layout order: the first header group, then the other
     /// groups in tree order, then the first footer group (as in Chromium).
-    pub(crate) sections: Vec<SectionBox>,
+    sections: Vec<SectionBox>,
 }
 
 /// A column (`display: table-column`) or a column group.
 #[derive(Debug)]
 pub(crate) struct ColumnBox {
-    pub(crate) base: BoxBase,
+    base: BoxBase,
     /// The number of columns: `span` of a column, or of a group without
     /// column children.
-    pub(crate) span: usize,
+    span: usize,
     /// True for a column group.
-    pub(crate) is_group: bool,
+    is_group: bool,
     /// The columns of a column group.
-    pub(crate) children: Vec<ColumnBox>,
+    children: Vec<ColumnBox>,
 }
 
 /// A row group (`thead`, `tbody`, `tfoot` or anonymous).
 #[derive(Debug)]
 pub(crate) struct SectionBox {
-    pub(crate) base: BoxBase,
-    pub(crate) rows: Vec<RowBox>,
+    base: BoxBase,
+    rows: Vec<RowBox>,
     /// False for the header and footer groups that are laid out first and
     /// last (they do not take extra table height before other groups).
-    pub(crate) is_body: bool,
+    is_body: bool,
 }
 
 /// A table row.
 #[derive(Debug)]
 pub(crate) struct RowBox {
-    pub(crate) base: BoxBase,
-    pub(crate) cells: Vec<CellBox>,
+    base: BoxBase,
+    cells: Vec<CellBox>,
 }
 
 /// A table cell: a block container that establishes a block formatting
 /// context.
 #[derive(Debug)]
 pub(crate) struct CellBox {
-    pub(crate) inner: IndependentBox,
+    inner: IndependentBox,
     /// The number of columns the cell spans, 1 to [`MAX_COLSPAN`].
-    pub(crate) colspan: usize,
+    colspan: usize,
     /// The number of rows the cell spans, 0 (the rest of the row group) to
     /// [`MAX_ROWSPAN`].
-    pub(crate) rowspan: usize,
+    rowspan: usize,
     /// True for a `td` or `th` element with a `nowrap` attribute (for the
     /// nowrap minimum width quirk).
-    pub(crate) nowrap: bool,
+    nowrap: bool,
 }
 
 #[cfg(test)]
 mod tests {
     use crate::fragment::CollapsedEdge;
-    use crate::test_support::layout_html;
-
-    fn body(html: &str) -> String {
-        format!("<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>{html}")
-    }
+    use crate::test_support::{body, layout_html};
 
     #[test]
     fn misparented_cells_share_one_anonymous_table() {
@@ -162,19 +158,37 @@ mod tests {
             "<table>{columns}<tr>{cells}</tr></table><table>{rows}</table>\
              <table style='table-layout:fixed; width:100px'><tr>{cells}</tr></table>"
         )));
-        assert!(l.tree.scroll_size.width.is_finite());
+        // 10 cells of the first and the third table fit; each `rowspan=0`
+        // cell of the second table takes the next column.
+        assert_eq!(cell_boxes(&l), 10 + 200 + 10);
     }
 
     #[test]
     fn rows_after_spans_over_all_columns_are_fast() {
         // Every column is spanned to the end of the group; later cells are
-        // dropped without scanning the spans of each column.
+        // dropped without scanning the spans of each column (the test
+        // checks the time by finishing quickly).
         let spans = "<td rowspan=0>s</td>".repeat(super::MAX_COLUMNS);
         let rows = "<tr><td>x</td><td>y</td></tr>".repeat(5000);
         let l = layout_html(&body(&format!(
             "<table style='table-layout:fixed; width:1px'><tr>{spans}</tr>{rows}</table>"
         )));
-        assert!(l.tree.scroll_size.height.is_finite());
+        assert_eq!(cell_boxes(&l), super::MAX_COLUMNS);
+    }
+
+    /// The number of `td` element boxes.
+    fn cell_boxes(l: &crate::test_support::TestLayout) -> usize {
+        let mut count = 0;
+        l.tree.walk(|f, _| {
+            if let crate::FragmentRef::Box(b) = f
+                && let Some(node) = b.node
+                && b.pseudo.is_none()
+                && l.doc.is_html_element(node, &swb_dom::local_name!("td"))
+            {
+                count += 1;
+            }
+        });
+        count
     }
 
     #[test]

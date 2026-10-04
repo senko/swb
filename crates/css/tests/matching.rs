@@ -133,7 +133,7 @@ impl Element for El<'_> {
     }
 
     fn is_link(&self) -> bool {
-        matches!(self.local_name(), "a" | "area" | "link") && self.attribute("href").is_some()
+        matches!(self.local_name(), "a" | "area") && self.attribute("href").is_some()
     }
 
     fn has_children(&self) -> bool {
@@ -776,7 +776,6 @@ fn sibling_index_cache_gives_the_same_results() {
                 assert_eq!(actual, expected, "{selector} on child {id}, pass {pass}");
             }
         }
-        cached.clear_caches();
     }
 }
 

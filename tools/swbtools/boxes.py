@@ -112,8 +112,9 @@ def _parse_rect(value: Any) -> Rect | None:
 
 
 def parse_dump(text: str) -> BoxDump:
-    """Parses a box dump. Tags are lowercased: swb keeps the case of SVG
-    names such as `clipPath`. `parent` is optional."""
+    """Parses a box dump. Lowercases tags again, so that `clipPath` and
+    `clippath` are equal also if a writer did not lowercase them. `parent`
+    is optional."""
     data = json.loads(text)
     elements = [
         Element(

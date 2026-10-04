@@ -26,9 +26,9 @@ pub type CustomProperties = HashMap<Arc<str>, Arc<[ComponentValue]>>;
 /// pseudo-element).
 ///
 /// Lengths are in CSS px. Percentages are kept where layout resolves them.
-/// Field names follow the CSS property names.
+/// Each field is the CSS property of the same name (with `_` for `-`),
+/// unless its documentation says otherwise.
 #[derive(Clone, Debug, PartialEq)]
-#[allow(missing_docs)] // Each field is the CSS property of the same name.
 pub struct ComputedStyle {
     // ----- Inherited properties -----
     pub color: Rgba,
@@ -63,11 +63,14 @@ pub struct ComputedStyle {
     pub cursor: Cursor,
     pub direction: Direction,
     pub border_collapse: BorderCollapse,
+    /// The horizontal part of `border-spacing`.
     pub border_spacing_horizontal: f32,
+    /// The vertical part of `border-spacing`.
     pub border_spacing_vertical: f32,
     pub caption_side: CaptionSide,
     pub empty_cells: EmptyCells,
     pub pointer_events: PointerEvents,
+    /// The custom properties (`--*`), `None` if there are none.
     pub custom_properties: Option<Arc<CustomProperties>>,
 
     // ----- Non-inherited properties -----
@@ -308,7 +311,7 @@ impl ComputedStyle {
 
     /// Copies all inherited properties from `parent`.
     fn copy_inherited_from(&mut self, parent: &ComputedStyle) {
-        for &id in crate::LonghandId::ALL {
+        for &id in crate::properties::LonghandId::ALL {
             if id.is_inherited() {
                 id.copy_value(parent, self);
             }
@@ -316,10 +319,9 @@ impl ComputedStyle {
         self.custom_properties.clone_from(&parent.custom_properties);
     }
 
-    /// The used border widths (top, right, bottom, left), zero for styles
-    /// `none` and `hidden`. (The computed width is already zero in that
-    /// case; this is a convenience.)
-    pub fn border_widths(&self) -> [f32; 4] {
+    /// The border widths (top, right, bottom, left), for test assertions.
+    #[cfg(test)]
+    pub(crate) fn border_widths(&self) -> [f32; 4] {
         [
             self.border_top_width,
             self.border_right_width,

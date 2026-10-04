@@ -66,9 +66,10 @@ fn keep_best(remaining: &mut Vec<usize>, key: impl Fn(usize) -> (u8, f32)) {
     remaining.retain(|&i| key(i) == best);
 }
 
-/// Distance from `value` to the range: zero inside, positive outside.
+/// The signed distances from the range to `value`: `value - max`
+/// (positive if the range is below `value`) and `min - value` (positive if
+/// the range is above `value`).
 fn below_above(range: (f32, f32), value: f32) -> (f32, f32) {
-    // (distance if the range is below value, distance if above)
     (value - range.1, range.0 - value)
 }
 

@@ -1,6 +1,6 @@
 //! Shared code for the engine tests: directories with test pages, page
-//! setup, and comparisons of swb's layout with stored Chromium geometry
-//! (the scoring rules follow docs/testing.md, "Scores").
+//! setup, element lookup, and comparisons of swb's layout with stored
+//! Chromium geometry (the scoring rules follow docs/testing.md, "Scores").
 
 #![allow(dead_code)] // Each test binary uses a different subset.
 
@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{ElementBox, FontContext, Page, PageConfig, Pixmap, Rect, Size, Url};
+use swb_engine::{
+    ElementBox, FontContext, Modifiers, NodeId, Page, PageConfig, Pixmap, Rect, Size, Url,
+};
 use swb_net::Fetcher;
 use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights};
 
@@ -58,6 +60,33 @@ pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewpo
     };
     Page::new(config, FontContext::for_tests(), viewport, 1.0)
 }
+
+/// The element with the ID `id`.
+pub(crate) fn node(page: &Page, id: &str) -> NodeId {
+    page.document()
+        .expect("the page has a document")
+        .element_by_id(id)
+        .unwrap_or_else(|| panic!("no element #{id}"))
+}
+
+/// The border box of the element with the ID `id` (document coordinates).
+pub(crate) fn rect(page: &mut Page, id: &str) -> Rect {
+    let node = node(page, id);
+    page.element_box(node)
+        .unwrap_or_else(|| panic!("#{id} has no box"))
+}
+
+/// Shift held.
+pub(crate) const SHIFT: Modifiers = Modifiers {
+    shift: true,
+    ..Modifiers::NONE
+};
+
+/// Control held.
+pub(crate) const CTRL: Modifiers = Modifiers {
+    ctrl: true,
+    ..Modifiers::NONE
+};
 
 /// Waits until the page is loaded, then lays it out. Fails the test if
 /// loading takes longer than `timeout`.

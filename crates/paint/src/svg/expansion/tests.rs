@@ -3,6 +3,7 @@
 use std::fmt::Write as _;
 
 use super::*;
+use crate::svg::tests::use_chain;
 
 const LIMITS: Limits = Limits {
     depth: 1024.0,
@@ -32,16 +33,6 @@ fn segments(content: &str) -> f64 {
     measure_content(content)
         .unwrap_or_else(|e| panic!("{e}"))
         .segments
-}
-
-/// Groups that each use the previous group ten times.
-fn use_chain(levels: usize) -> String {
-    let mut defs = String::from("<g id='g0'><rect width='1' height='1'/></g>");
-    for i in 1..levels {
-        let uses = format!("<use href='#g{}'/>", i - 1).repeat(10);
-        write!(defs, "<g id='g{i}'>{uses}</g>").unwrap();
-    }
-    format!("<defs>{defs}</defs><use href='#g{}'/>", levels - 1)
 }
 
 #[test]

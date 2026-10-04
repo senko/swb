@@ -31,6 +31,7 @@ pub(crate) enum EntryValue {
 }
 
 impl Entry {
+    /// An entry with a string value.
     pub(crate) fn text(name: &str, value: &str) -> Entry {
         Entry {
             name: name.to_owned(),
@@ -48,10 +49,12 @@ impl Entry {
 }
 
 /// Replaces every CR not followed by LF, every LF not preceded by CR, and
-/// CR LF with CR LF.
-/// <https://infra.spec.whatwg.org/#normalize-newlines> (to CRLF, as the
-/// form encodings require).
-pub(crate) fn normalize_newlines(s: &str) -> String {
+/// CR LF with CR LF, as the form encodings require for names and values
+/// (<https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#convert-to-a-list-of-name-value-pairs>,
+/// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm>).
+/// Infra's "normalize newlines" converts to LF instead; see
+/// `normalize_newlines` in the parent module.
+fn to_crlf(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
@@ -84,15 +87,9 @@ pub(crate) fn urlencoded(entries: &[Entry], encoding: &'static Encoding) -> Stri
         if i > 0 {
             out.push('&');
         }
-        percent_encode(
-            &encode(encoding, &normalize_newlines(&entry.name)),
-            &mut out,
-        );
+        percent_encode(&encode(encoding, &to_crlf(&entry.name)), &mut out);
         out.push('=');
-        percent_encode(
-            &encode(encoding, &normalize_newlines(entry.value_string())),
-            &mut out,
-        );
+        percent_encode(&encode(encoding, &to_crlf(entry.value_string())), &mut out);
     }
     out
 }
@@ -121,9 +118,9 @@ fn percent_encode(bytes: &[u8], out: &mut String) {
 pub(crate) fn text_plain(entries: &[Entry], encoding: &'static Encoding) -> Vec<u8> {
     let mut out = String::new();
     for entry in entries {
-        out.push_str(&normalize_newlines(&entry.name));
+        out.push_str(&to_crlf(&entry.name));
         out.push('=');
-        out.push_str(&normalize_newlines(entry.value_string()));
+        out.push_str(&to_crlf(entry.value_string()));
         out.push_str("\r\n");
     }
     encode(encoding, &out).into_owned()
@@ -142,7 +139,7 @@ pub(crate) fn multipart(entries: &[Entry], encoding: &'static Encoding, boundary
         match &entry.value {
             EntryValue::Text(value) => {
                 out.extend_from_slice(b"\r\n\r\n");
-                out.extend_from_slice(&encode(encoding, &normalize_newlines(value)));
+                out.extend_from_slice(&encode(encoding, &to_crlf(value)));
             }
             EntryValue::File {
                 filename,
@@ -168,7 +165,7 @@ pub(crate) fn multipart(entries: &[Entry], encoding: &'static Encoding, boundary
 /// Escapes a name or a file name for a `Content-Disposition` header: line
 /// breaks are normalized, then `"`, CR and LF are percent-encoded.
 fn escape_name(name: &str) -> String {
-    normalize_newlines(name)
+    to_crlf(name)
         .replace('"', "%22")
         .replace('\r', "%0D")
         .replace('\n', "%0A")

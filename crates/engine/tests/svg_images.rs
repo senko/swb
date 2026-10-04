@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{FontContext, Page, PageConfig, Pixmap, Size, Url};
+use swb_engine::{Page, Pixmap, Size, Url};
 use swb_net::NetworkFetcher;
 
 mod common;
@@ -22,17 +22,9 @@ const CHECKER: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" heig
 
 /// Loads `url` in a 200x100 viewport at `scale` and returns a screenshot.
 fn screenshot(url: Url, scale: f32) -> (Page, Pixmap) {
-    let config = PageConfig {
-        fetcher: Arc::new(NetworkFetcher::new()),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-    };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
-        Size::new(200.0, 100.0),
-        scale,
-    );
+    let viewport = Size::new(200.0, 100.0);
+    let mut page = common::new_page(Arc::new(NetworkFetcher::new()), 2, viewport);
+    page.set_viewport(viewport, scale);
     page.navigate(url);
     common::finish_loading(&mut page, Duration::from_secs(30));
     let pixmap = page.screenshot(false).unwrap();

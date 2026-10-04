@@ -471,9 +471,12 @@ reach 1. `geometry` is the main metric.
 `crates/automation/tests/headless.rs` starts a `HeadlessBrowser` on a free
 port in a thread of the test process and drives it with
 `swb_automation::Client` over WebSocket: the senko.net fixture (navigation,
-hover, focus, selection, screenshots, the box dump) and the error cases of
-the protocol. `crates/engine/tests/interaction.rs` tests the same
-interactions on the engine API directly, with small pages.
+hover, focus, selection, scrolling, screenshots, the box dump), typing
+into a form in a local file and submitting it, `cookies.get` and
+`cookies.clear`, `page.waitForLoad` timeouts, the error cases of the
+protocol, the `Origin` check and the server limits (connections, request
+size). `crates/engine/tests/interaction.rs` tests the same interactions
+on the engine API directly, with small pages.
 
 `tools/tests/test_automation.py` tests the Python client against the swb
 binary (skipped if it does not exist). `just tools-check` (part of

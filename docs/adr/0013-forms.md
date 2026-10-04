@@ -233,6 +233,14 @@ checkboxes, radio buttons and labels, and submission with `GET` and
   `docs/automation.md`). This replaces the note "`input.type` is not
   implemented" of ADR 0008.
 
+Update (2026-10-04, M2 maintenance review): the state type is `Forms` in
+`crates/engine/src/forms/mod.rs`; it is internal to the engine crate
+(there is no public `swb_engine::forms` module). Enter on a focused
+checkbox or radio button also does implicit submission. `novalidate` and
+`formnovalidate` are checked by `Page::submit_form`
+(`crates/engine/src/page/forms.rs`) before `submit.rs` builds the
+request. The decision did not change.
+
 ## Consequences
 
 - Text fields, text areas, buttons, checkboxes, radio buttons and

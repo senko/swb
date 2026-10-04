@@ -19,14 +19,12 @@ use swb_layout::{
     BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, Point,
     PositionedGlyph, Rect, TextFragment,
 };
-
-use crate::control;
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
 };
 use swb_text::FontId;
 
-use crate::background;
+use crate::{background, control};
 
 /// Corner radii (horizontal, vertical) in px: top-left, top-right,
 /// bottom-right, bottom-left.
@@ -154,14 +152,7 @@ impl DisplayItem {
 /// to the left of their pen position, four to the right, three above the
 /// baseline and two below it.
 fn text_bounds(origin: Point, size: f32, glyphs: &[PositionedGlyph]) -> Option<Rect> {
-    let first = glyphs.first()?;
-    let (mut x0, mut x1, mut y0, mut y1) = (first.x, first.x, first.y, first.y);
-    for g in glyphs {
-        x0 = x0.min(g.x);
-        x1 = x1.max(g.x);
-        y0 = y0.min(g.y);
-        y1 = y1.max(g.y);
-    }
+    let (x0, y0, x1, y1) = extent(glyphs.iter().map(|g| (g.x, g.y)))?;
     Some(Rect::new(
         origin.x + x0 - size,
         origin.y + y0 - 3.0 * size,
@@ -170,17 +161,10 @@ fn text_bounds(origin: Point, size: f32, glyphs: &[PositionedGlyph]) -> Option<R
     ))
 }
 
-/// The area of a stroked line: the box of its points, grown by the line
-/// width (which covers miter joins of moderate angles).
+/// The area of a stroked line: the box of its points, grown by twice the
+/// line width (which covers miter joins of moderate angles).
 fn polyline_bounds(points: &[Point], width: f32) -> Option<Rect> {
-    let first = points.first()?;
-    let (mut x0, mut x1, mut y0, mut y1) = (first.x, first.x, first.y, first.y);
-    for p in points {
-        x0 = x0.min(p.x);
-        x1 = x1.max(p.x);
-        y0 = y0.min(p.y);
-        y1 = y1.max(p.y);
-    }
+    let (x0, y0, x1, y1) = extent(points.iter().map(|p| (p.x, p.y)))?;
     let grow = width.max(0.0) * 2.0;
     Some(Rect::new(
         x0 - grow,
@@ -188,6 +172,15 @@ fn polyline_bounds(points: &[Point], width: f32) -> Option<Rect> {
         x1 - x0 + 2.0 * grow,
         y1 - y0 + 2.0 * grow,
     ))
+}
+
+/// The smallest and largest coordinates of `points`, as
+/// `(x0, y0, x1, y1)`, or `None` if there are no points.
+fn extent(points: impl Iterator<Item = (f32, f32)>) -> Option<(f32, f32, f32, f32)> {
+    points.fold(None, |extent, (x, y)| {
+        let (x0, y0, x1, y1) = extent.unwrap_or((x, y, x, y));
+        Some((x0.min(x), y0.min(y), x1.max(x), y1.max(y)))
+    })
 }
 
 /// A reference to an image.
@@ -220,7 +213,7 @@ impl Highlights for NoHighlights {
 pub const SELECTION_BACKGROUND: Rgba = Rgba::rgb(51, 103, 209);
 
 /// The color of selected text.
-pub const SELECTION_TEXT: Rgba = Rgba::WHITE;
+const SELECTION_TEXT: Rgba = Rgba::WHITE;
 
 /// Natural sizes of images by reference, for background positioning.
 pub trait ImageSizes {
@@ -1018,4 +1011,50 @@ fn resolve_radii(style: &ComputedStyle, rect: Rect) -> Radii {
         }
     }
     radii
+}
+
+#[cfg(test)]
+mod tests {
+    use swb_style::{CornerRadius, LengthPercentage};
+
+    use super::*;
+
+    fn corner(horizontal: LengthPercentage, vertical: LengthPercentage) -> CornerRadius {
+        CornerRadius {
+            horizontal,
+            vertical,
+        }
+    }
+
+    #[test]
+    fn overlapping_radii_are_scaled_down() {
+        let mut style = (*ComputedStyle::initial()).clone();
+        style.border_top_left_radius =
+            corner(LengthPercentage::Px(80.0), LengthPercentage::Px(40.0));
+        style.border_top_right_radius =
+            corner(LengthPercentage::Px(40.0), LengthPercentage::Percent(0.2));
+        // The top radii need 120 px of the 60 px width: all radii are
+        // halved.
+        let radii = resolve_radii(&style, Rect::new(0.0, 0.0, 60.0, 100.0));
+        assert_eq!(radii, [(40.0, 20.0), (20.0, 10.0), (0.0, 0.0), (0.0, 0.0)]);
+        // A box wide enough keeps them.
+        let radii = resolve_radii(&style, Rect::new(0.0, 0.0, 200.0, 100.0));
+        assert_eq!(radii, [(80.0, 40.0), (40.0, 20.0), (0.0, 0.0), (0.0, 0.0)]);
+    }
+
+    #[test]
+    fn polyline_bounds_include_the_line_width() {
+        let line = DisplayItem::Polyline {
+            points: Arc::from([Point::new(10.0, 20.0), Point::new(30.0, 5.0)]),
+            width: 1.0,
+            color: Rgba::BLACK,
+        };
+        assert_eq!(line.bounds(), Some(Rect::new(8.0, 3.0, 24.0, 19.0)));
+        let empty = DisplayItem::Polyline {
+            points: Arc::from([]),
+            width: 1.0,
+            color: Rgba::BLACK,
+        };
+        assert_eq!(empty.bounds(), None);
+    }
 }

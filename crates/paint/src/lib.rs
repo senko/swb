@@ -15,7 +15,7 @@ mod svg;
 
 pub use display_list::{
     DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
-    SELECTION_BACKGROUND, SELECTION_TEXT, build_display_list,
+    SELECTION_BACKGROUND, build_display_list,
 };
 pub use image::{DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_with_type};
 pub use raster::{ImageSource, RasterParams, rasterize};

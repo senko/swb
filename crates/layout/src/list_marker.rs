@@ -82,11 +82,7 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
     let families = fonts::family_names(&style.font_family);
     let query = fonts::query(style, &families);
     let runs = ctx.fonts.itemize(&marker.text, &query);
-    let options = swb_text::ShapeOptions {
-        direction: swb_text::Direction::Ltr,
-        language: None,
-        features: &[],
-    };
+    let options = swb_text::ShapeOptions::default();
     let mut shaped = ShapedMarker {
         fragments: Vec::new(),
         width: 0.0,

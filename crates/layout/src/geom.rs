@@ -1,6 +1,6 @@
 //! Geometry types in CSS pixels.
 
-use std::ops::{Add, Sub};
+use std::ops::Add;
 
 /// Clamps a length or coordinate in px to the range that layout produces
 /// (see [`swb_style::Length::MAX_PX`]); NaN becomes 0. Lengths from styles
@@ -30,13 +30,6 @@ impl Add for Point {
     type Output = Point;
     fn add(self, o: Point) -> Point {
         Point::new(self.x + o.x, self.y + o.y)
-    }
-}
-
-impl Sub for Point {
-    type Output = Point;
-    fn sub(self, o: Point) -> Point {
-        Point::new(self.x - o.x, self.y - o.y)
     }
 }
 
@@ -83,11 +76,6 @@ impl Rect {
     /// The top-left corner.
     pub fn origin(&self) -> Point {
         Point::new(self.x, self.y)
-    }
-
-    /// The size.
-    pub fn size(&self) -> Size {
-        Size::new(self.width, self.height)
     }
 
     /// The right edge.
@@ -137,17 +125,6 @@ impl Rect {
         let right = self.right().min(other.right());
         let bottom = self.bottom().min(other.bottom());
         (right > x && bottom > y).then(|| Rect::new(x, y, right - x, bottom - y))
-    }
-
-    /// This rectangle grown by `sides` (shrunk for negative values).
-    #[must_use]
-    pub fn outset(&self, sides: &Edges) -> Rect {
-        Rect::new(
-            self.x - sides.left,
-            self.y - sides.top,
-            (self.width + sides.left + sides.right).max(0.0),
-            (self.height + sides.top + sides.bottom).max(0.0),
-        )
     }
 
     /// This rectangle shrunk by `sides`.
@@ -226,7 +203,9 @@ mod tests {
         assert!(a.contains(Point::new(0.0, 9.9)));
         assert!(!a.contains(Point::new(10.0, 0.0)));
         let e = Edges::new(1.0, 2.0, 3.0, 4.0);
-        assert_eq!(a.outset(&e), Rect::new(-4.0, -1.0, 16.0, 14.0));
-        assert_eq!(a.outset(&e).inset(&e), a);
+        assert_eq!(a.inset(&e), Rect::new(4.0, 1.0, 4.0, 6.0));
+        // Insets larger than the rectangle give zero size.
+        let all = Edges::new(6.0, 6.0, 6.0, 6.0);
+        assert_eq!(a.inset(&all), Rect::new(6.0, 6.0, 0.0, 0.0));
     }
 }

@@ -184,7 +184,7 @@ pub(crate) fn extract_mime_type(headers: &Headers) -> Option<MimeType> {
 /// strings.
 ///
 /// <https://fetch.spec.whatwg.org/#header-value-get-decode-and-split>
-pub(crate) fn split_header_value(input: &str) -> Vec<String> {
+fn split_header_value(input: &str) -> Vec<String> {
     let mut cursor = Cursor::new(input);
     let mut values = Vec::new();
     let mut temporary = String::new();

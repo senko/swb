@@ -1,16 +1,19 @@
 //! Table cells: their width constraints, their layout, the row heights
 //! and baselines they give, and the vertical alignment of their content.
 //!
-//! A cell is laid out once at its column width with an automatic height
-//! (its `height` is ignored, as in Chromium); its fragment is then made as
-//! tall as its rows, and its content moved for `vertical-align`
+//! A cell is laid out at its column width with an automatic height (its
+//! `height` is ignored, as in Chromium); its fragment is then made as tall
+//! as its rows, and its content moved for `vertical-align`
 //! (CSS 2.2 §17.5.3, <https://www.w3.org/TR/CSS22/tables.html#height-layout>).
-//! Layouts are cached per cell and width, so that nested tables do not
-//! take exponential time.
+//! A cell whose height is definite is laid out a second time with that
+//! height (see `fragments.rs`). Layouts are cached per cell and
+//! constraints, so that nested tables do not take exponential time.
 
 use std::sync::Arc;
 
-use swb_style::{BoxSizing, ComputedStyle, LengthPercentage, VerticalAlign, VerticalAlignKeyword};
+use swb_style::{
+    BoxSizing, ComputedStyle, LengthPercentage, Size, VerticalAlign, VerticalAlignKeyword,
+};
 
 use super::TableCache;
 use super::columns::{CellWidths, cell_border_padding, sizes_from_style};
@@ -83,13 +86,8 @@ pub(crate) fn cell_widths(
 /// `basis` (the width of the table's row groups).
 pub(crate) fn cell_edges(style: &ComputedStyle, border: Edges, basis: f32) -> BoxEdges {
     BoxEdges {
-        padding: Edges::new(
-            style.padding_top.resolve(basis),
-            style.padding_right.resolve(basis),
-            style.padding_bottom.resolve(basis),
-            style.padding_left.resolve(basis),
-        ),
         border,
+        ..BoxEdges::resolve(style, basis)
     }
 }
 
@@ -142,7 +140,7 @@ pub(crate) fn layout_cell(
 /// align to the cell's content box; all other values align the first
 /// baseline with the row's baseline.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CellAlign {
+enum CellAlign {
     Top,
     Middle,
     Bottom,
@@ -150,7 +148,7 @@ pub(crate) enum CellAlign {
 }
 
 impl CellAlign {
-    pub(crate) fn of(style: &ComputedStyle) -> Self {
+    fn of(style: &ComputedStyle) -> Self {
         match style.vertical_align {
             VerticalAlign::Keyword(VerticalAlignKeyword::Top) => CellAlign::Top,
             VerticalAlign::Keyword(VerticalAlignKeyword::Middle) => CellAlign::Middle,
@@ -173,14 +171,14 @@ fn cell_baseline(fragment: &BoxFragment) -> f32 {
 /// cells with content; without such cells, the bottom of the content box
 /// of the cell with the smallest bottom border and padding.
 #[derive(Default)]
-pub(crate) struct RowBaseline {
+struct RowBaseline {
     ascent: Option<f32>,
     descent: Option<f32>,
     fallback_descent: Option<f32>,
 }
 
 impl RowBaseline {
-    pub(crate) fn add(&mut self, fragment: &BoxFragment, spans_rows: bool) {
+    fn add(&mut self, fragment: &BoxFragment, spans_rows: bool) {
         let align = CellAlign::of(&fragment.style);
         if align == CellAlign::Baseline && !fragment.children.is_empty() {
             let baseline = cell_baseline(fragment);
@@ -199,7 +197,7 @@ impl RowBaseline {
     }
 
     /// The row height for cells of at most `cell_height`.
-    pub(crate) fn row_height(&self, cell_height: f32) -> f32 {
+    fn row_height(&self, cell_height: f32) -> f32 {
         match (self.ascent, self.descent) {
             (Some(a), Some(d)) => cell_height.max(a + d),
             _ => cell_height,
@@ -207,7 +205,7 @@ impl RowBaseline {
     }
 
     /// The baseline of a row of height `height`.
-    pub(crate) fn baseline(&self, height: f32) -> f32 {
+    fn baseline(&self, height: f32) -> f32 {
         match (self.ascent, self.fallback_descent) {
             (Some(a), _) => a,
             (None, Some(d)) => (height - d).max(0.0),
@@ -219,11 +217,25 @@ impl RowBaseline {
 /// True if a cell's height is definite for its content (Chromium's
 /// `ComputeCellBlockSize`): it has a fixed height, or the table has a
 /// height and the cell grew beyond its content.
-pub(crate) fn has_definite_height(style: &ComputedStyle, table_height: bool, grew: bool) -> bool {
+pub(crate) fn has_definite_height(
+    style: &ComputedStyle,
+    table_height_specified: bool,
+    grew: bool,
+) -> bool {
     matches!(
         style.height.as_length_percentage(),
         Some(LengthPercentage::Px(_))
-    ) || (table_height && grew)
+    ) || (table_height_specified && grew)
+}
+
+/// A specified `height` as a fixed length in px or as a percentage (100%
+/// is 100.0); `auto` and mixed values give neither.
+pub(crate) fn fixed_or_percent(height: &Size) -> (Option<f32>, Option<f32>) {
+    match height.as_length_percentage() {
+        Some(LengthPercentage::Px(v)) => (Some(*v), None),
+        Some(LengthPercentage::Percent(p)) => (None, Some(p * 100.0)),
+        _ => (None, None),
+    }
 }
 
 /// The specified height of a cell as a border-box height (fixed lengths),
@@ -235,19 +247,16 @@ fn cell_height(
     edges: &BoxEdges,
     quirks: bool,
 ) -> (Option<f32>, Option<f32>) {
-    match style.height.as_length_percentage() {
-        Some(LengthPercentage::Px(v)) => {
-            let border_padding = edges.sum().vertical();
-            let height = if quirks || style.box_sizing == BoxSizing::BorderBox {
-                border_padding.max(*v)
-            } else {
-                border_padding + v
-            };
-            (Some(height), None)
+    let (fixed, percent) = fixed_or_percent(&style.height);
+    let fixed = fixed.map(|v| {
+        let border_padding = edges.sum().vertical();
+        if quirks || style.box_sizing == BoxSizing::BorderBox {
+            border_padding.max(v)
+        } else {
+            border_padding + v
         }
-        Some(LengthPercentage::Percent(p)) => (None, Some(p * 100.0)),
-        _ => (None, None),
-    }
+    });
+    (fixed, percent)
 }
 
 /// A row's constraints from its laid-out cells and its own height
@@ -285,17 +294,16 @@ pub(crate) fn row_data(
             tallest = tallest.max(measured).max(css_height.unwrap_or(0.0));
         }
     }
-    match row_style.height.as_length_percentage() {
-        Some(LengthPercentage::Percent(p)) => {
+    match fixed_or_percent(&row_style.height) {
+        (_, Some(p)) => {
             data.constrained = true;
-            let p = p * 100.0;
             data.percent = Some(data.percent.map_or(p, |q| q.max(p)));
         }
-        Some(LengthPercentage::Px(v)) => {
+        (Some(v), _) => {
             data.constrained = true;
-            tallest = tallest.max(*v);
+            tallest = tallest.max(v);
         }
-        _ => {}
+        (None, None) => {}
     }
     data.height = clamp_length(baseline.row_height(tallest));
     data.baseline = baseline.baseline(data.height);

@@ -49,6 +49,12 @@ elements involved. Incremental style and layout remain in the roadmap.
   for back, Escape for stop). The page handles Tab, Enter, Ctrl+A and the
   scrolling keys.
 
+Update (2026-10-04): since [ADR 0013](0013-forms.md), a focused form
+control gets the keys first (`Page::key_down`). While an editable text
+field or text area has the focus, Backspace, Ctrl+X and Ctrl+V go to it;
+otherwise Backspace goes back. A focused text control has its own
+selection, which Ctrl+C copies instead of the page selection.
+
 ### Focus
 
 - Focusable elements and the sequential focus order follow the HTML

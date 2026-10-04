@@ -1,6 +1,6 @@
 //! Box construction for tables, with the anonymous table object fixup of
 //! CSS 2.2 §17.2.1 (<https://www.w3.org/TR/CSS22/tables.html#anonymous-boxes>)
-//! and CSS Tables 3 §3.1
+//! and CSS Tables 3 §2.2.1
 //! (<https://www.w3.org/TR/css-tables-3/#fixup-algorithm>):
 //!
 //! - Children of a table that are not rows, row groups, columns, column
@@ -32,7 +32,7 @@ use swb_style::{ComputedStyle, Display, PseudoKind, content_text};
 use super::{CellBox, ColumnBox, MAX_COLSPAN, MAX_ROWSPAN, RowBox, SectionBox, TableBox};
 use crate::box_tree::{
     BoxBase, BuildContext, BuildState, ContainerBuilder, IndependentBox, MAX_BOX_DEPTH,
-    build_independent, is_atomic, is_collapsible_space,
+    build_independent, is_atomic, is_collapsible_white_space,
 };
 
 /// Builds the table of a table element or pseudo-element.
@@ -42,14 +42,9 @@ pub(crate) fn build_table(
     state: &mut BuildState,
 ) -> TableBox {
     let mut builder = TableBuilder::new(Arc::clone(&base.style), 0);
-    match base.element() {
-        Some(node) => builder.push_children(ctx, node, state),
-        None => {
-            if let (Some(text), Some(node)) = (content_text(&base.style), base.node) {
-                builder.push_generated(ctx, node, &base.style, &text, state);
-            }
-        }
-    }
+    for_each_item(ctx, base, state, &mut |item, state| {
+        builder.push_item(ctx, item, state);
+    });
     builder.finish(state)
 }
 
@@ -66,6 +61,8 @@ enum Kind {
     Other,
 }
 
+/// The kind of box that an element or pseudo-element with `display` makes
+/// inside a table.
 fn kind(display: Display) -> Kind {
     match display {
         Display::TableCaption => Kind::Caption,
@@ -78,11 +75,6 @@ fn kind(display: Display) -> Kind {
         Display::TableCell => Kind::Cell,
         _ => Kind::Other,
     }
-}
-
-/// True if `text` is only collapsible white space in `style`.
-fn is_collapsible_white_space(style: &ComputedStyle, text: &str) -> bool {
-    style.white_space.collapses_spaces() && text.chars().all(is_collapsible_space)
 }
 
 /// One child of a table part during construction.
@@ -152,6 +144,26 @@ fn for_each_child(
     pseudo(ctx, parent, PseudoKind::After, state, f);
 }
 
+/// Calls `f` for every item of the table part `base`: the children of an
+/// element (see [`for_each_child`]), or the generated text of a
+/// pseudo-element.
+fn for_each_item(
+    ctx: &BuildContext<'_>,
+    base: &BoxBase,
+    state: &mut BuildState,
+    f: &mut dyn FnMut(Item<'_>, &mut BuildState),
+) {
+    match base.element() {
+        Some(node) => for_each_child(ctx, node, state, f),
+        None => {
+            if let (Some(text), Some(node)) = (content_text(&base.style), base.node) {
+                f(Item::Generated(node, &base.style, &text), state);
+            }
+        }
+    }
+}
+
+/// Calls `f` with the `kind` pseudo-element box of `node`, if it has one.
 fn pseudo(
     ctx: &BuildContext<'_>,
     node: NodeId,
@@ -215,12 +227,6 @@ impl TableBuilder {
         }
     }
 
-    fn push_children(&mut self, ctx: &BuildContext<'_>, parent: NodeId, state: &mut BuildState) {
-        for_each_child(ctx, parent, state, &mut |item, state| {
-            self.push_item(ctx, item, state);
-        });
-    }
-
     /// Adds an element that is a child of an anonymous table.
     pub(crate) fn push_element(
         &mut self,
@@ -253,17 +259,6 @@ impl TableBuilder {
         state: &mut BuildState,
     ) {
         self.push_item(ctx, Item::Pseudo(base), state);
-    }
-
-    fn push_generated(
-        &mut self,
-        ctx: &BuildContext<'_>,
-        node: NodeId,
-        style: &Arc<ComputedStyle>,
-        text: &str,
-        state: &mut BuildState,
-    ) {
-        self.push_item(ctx, Item::Generated(node, style, text), state);
     }
 
     fn push_item(&mut self, ctx: &BuildContext<'_>, item: Item<'_>, state: &mut BuildState) {
@@ -303,24 +298,25 @@ impl TableBuilder {
                 }
             }
             Kind::Row | Kind::Cell | Kind::Other => {
-                let style = &self.style;
-                let section = self.section.get_or_insert_with(|| {
-                    SectionBuilder::new(state.anonymous(style, Display::TableRowGroup), extra + 1)
-                });
-                section.push_item(ctx, item, state);
+                self.anonymous_section(state).push_item(ctx, item, state);
             }
         }
+    }
+
+    /// The open anonymous row group (created on first use).
+    fn anonymous_section(&mut self, state: &mut BuildState) -> &mut SectionBuilder {
+        let style = &self.style;
+        let extra = self.extra_depth;
+        self.section.get_or_insert_with(|| {
+            SectionBuilder::new(state.anonymous(style, Display::TableRowGroup), extra + 1)
+        })
     }
 
     /// Keeps only the text of a table part that is too deep.
     fn push_flattened(&mut self, ctx: &BuildContext<'_>, base: &BoxBase, state: &mut BuildState) {
         if let Some(node) = base.element() {
-            let style = &self.style;
-            let extra = self.extra_depth;
-            let section = self.section.get_or_insert_with(|| {
-                SectionBuilder::new(state.anonymous(style, Display::TableRowGroup), extra + 1)
-            });
-            section.push_flattened(ctx, node, state);
+            self.anonymous_section(state)
+                .push_flattened(ctx, node, state);
         }
     }
 
@@ -364,18 +360,12 @@ fn element_base(ctx: &BuildContext<'_>, item: Item<'_>, state: &mut BuildState) 
     }
 }
 
+/// Builds a row group element or pseudo-element with its rows.
 fn build_section(ctx: &BuildContext<'_>, base: &BoxBase, state: &mut BuildState) -> SectionBox {
     let mut builder = SectionBuilder::new(base.clone(), 0);
-    match base.element() {
-        Some(node) => for_each_child(ctx, node, state, &mut |item, state| {
-            builder.push_item(ctx, item, state);
-        }),
-        None => {
-            if let (Some(text), Some(node)) = (content_text(&base.style), base.node) {
-                builder.push_item(ctx, Item::Generated(node, &base.style, &text), state);
-            }
-        }
-    }
+    for_each_item(ctx, base, state, &mut |item, state| {
+        builder.push_item(ctx, item, state);
+    });
     builder.finish(state)
 }
 
@@ -446,18 +436,12 @@ impl SectionBuilder {
     }
 }
 
+/// Builds a row element or pseudo-element with its cells.
 fn build_row(ctx: &BuildContext<'_>, base: &BoxBase, state: &mut BuildState) -> RowBox {
     let mut builder = RowBuilder::new(base.clone(), 0);
-    match base.element() {
-        Some(node) => for_each_child(ctx, node, state, &mut |item, state| {
-            builder.push_item(ctx, item, state);
-        }),
-        None => {
-            if let (Some(text), Some(node)) = (content_text(&base.style), base.node) {
-                builder.push_item(ctx, Item::Generated(node, &base.style, &text), state);
-            }
-        }
-    }
+    for_each_item(ctx, base, state, &mut |item, state| {
+        builder.push_item(ctx, item, state);
+    });
     builder.finish(state)
 }
 
@@ -549,6 +533,8 @@ impl RowBuilder {
     }
 }
 
+/// Builds a cell element or pseudo-element, with the `colspan`, `rowspan`
+/// and `nowrap` attributes of a `td` or `th` element.
 fn build_cell(ctx: &BuildContext<'_>, base: BoxBase, state: &mut BuildState) -> CellBox {
     let element = base
         .element()

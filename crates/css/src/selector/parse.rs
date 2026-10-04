@@ -835,6 +835,39 @@ mod tests {
     }
 
     #[test]
+    fn ancestor_keys() {
+        use crate::selector::BucketKey;
+        let keys = |css: &str| {
+            let list = parse(css).expect("valid");
+            format!("{:?}", list.selectors()[0].ancestor_keys())
+        };
+        let local = |name, lower_name| BucketKey::LocalName { name, lower_name };
+        assert_eq!(keys(".a"), "[]");
+        assert_eq!(
+            keys("DIV#x.y > p.z .s"),
+            format!(
+                "{:?}",
+                [
+                    local("DIV", "div"),
+                    BucketKey::Id("x"),
+                    BucketKey::Class("y"),
+                    local("p", "p"),
+                    BucketKey::Class("z"),
+                ]
+            )
+        );
+        // Siblings are not ancestors; the ancestor of a sibling is.
+        assert_eq!(keys(".s + .t"), "[]");
+        assert_eq!(keys(".a .s ~ .t"), format!("{:?}", [BucketKey::Class("a")]));
+        // Selector arguments, attributes and `*` give no keys.
+        assert_eq!(keys(":is(.a) [b] * .c"), "[]");
+        assert_eq!(
+            keys(".a:not(.b):hover .c"),
+            format!("{:?}", [BucketKey::Class("a")])
+        );
+    }
+
+    #[test]
     fn state_dependencies() {
         use crate::selector::ElementState;
         let deps = |css: &str| parse(css).expect("valid").selectors()[0].state_dependencies();

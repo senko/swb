@@ -2,6 +2,8 @@
 
 - Status: accepted
 - Date: 2026-10-03
+- Updated: 2026-10-04 (M2 maintenance): see "Update (2026-10-04)" at the
+  end. The decision did not change.
 
 ## Context
 
@@ -223,3 +225,19 @@ pushed per cell, so raster work stays proportional to the cell's area.
 - Changing table code means checking it against Chromium again: the
   layout tests and `just compare` show regressions.
 - `BoxContent` has table variants that paint and hit testing must handle.
+
+## Update (2026-10-04)
+
+Corrections from the M2 maintenance review:
+
+- The anonymous table object fixup is CSS Tables 3 §2.2.1
+  (`#fixup-algorithm`), not §3.1.
+- The header and footer groups are found by their display type
+  (`table-header-group`, `table-footer-group`), not by the element name:
+  the first group of each type moves.
+- Mergeable columns exist only in automatic layout. In fixed layout every
+  column takes width and border spacing.
+- Column percentages are clamped to 100% in total only in automatic
+  layout. Fixed layout scales them down in proportion when their total is
+  more than 100%.
+- With forms (ADR 0013), the Hacker News geometry score is 1.0.

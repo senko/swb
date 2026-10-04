@@ -244,7 +244,9 @@ fn share(available: f32, weight: f32, total: f32, count: usize) -> f32 {
 }
 
 /// The column widths of fixed table layout for an assignable width of
-/// `target` (Chromium's `SynchronizeAssignableTableInlineSizeAndColumnsFixed`):
+/// `target` (CSS 2.2 §17.5.2.1,
+/// <https://www.w3.org/TR/CSS22/tables.html#fixed-table-layout>, as
+/// Chromium's `SynchronizeAssignableTableInlineSizeAndColumnsFixed`):
 /// columns with a fixed width first (scaled down if they do not fit, up if
 /// there are no auto columns), then percentage columns, then auto columns
 /// share the rest evenly. Columns with a width of 0 count as auto columns

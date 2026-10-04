@@ -195,7 +195,7 @@ fn declarations() {
     );
 
     let html = find(&sheet, "html, body");
-    let mut p = declaration(html, "font-family").parser();
+    let mut p = Parser::new(&declaration(html, "font-family").value);
     let families = p
         .parse_comma_separated(|p| {
             let mut words = Vec::new();
@@ -293,7 +293,7 @@ fn at_rules() {
         })
         .collect();
     assert_eq!(ranges, vec![(0, 0xFF), (0x131, 0x131), (0x152, 0x153)]);
-    let mut src = font_face.declarations[1].parser();
+    let mut src = Parser::new(&font_face.declarations[1].value);
     assert_eq!(src.expect_url(), Ok("fonts/example.woff2"));
 }
 

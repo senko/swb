@@ -35,7 +35,7 @@ use crate::values::{
 
 /// True for the properties where the quirks mode unitless length quirk
 /// applies. <https://www.w3.org/TR/css-values-4/#quirky-lengths>
-pub(crate) fn allows_quirky_length(id: LonghandId) -> bool {
+fn allows_quirky_length(id: LonghandId) -> bool {
     use LonghandId as L;
     matches!(
         id,
@@ -424,7 +424,7 @@ fn parse_text_indent(p: &mut Parser<'_>, quirky: bool) -> ParseResult<Lp> {
 /// `white-space`: the CSS 2 keywords, and the CSS Text 4 shorthand form
 /// (`<white-space-collapse> || <text-wrap-mode> || <white-space-trim>`).
 /// <https://www.w3.org/TR/css-text-4/#white-space-property>
-pub(crate) fn parse_white_space(p: &mut Parser<'_>) -> ParseResult<WhiteSpace> {
+fn parse_white_space(p: &mut Parser<'_>) -> ParseResult<WhiteSpace> {
     let single = p.try_parse(|p| {
         let v = keyword(p, |i| {
             WhiteSpace::from_ident(i).or_else(|| match i.to_ascii_lowercase().as_str() {
@@ -563,10 +563,7 @@ pub(crate) fn parse_text_decoration_line(p: &mut Parser<'_>) -> ParseResult<Text
 }
 
 /// `vertical-align`: a keyword or a length-percentage.
-pub(crate) fn parse_vertical_align(
-    p: &mut Parser<'_>,
-    quirky: bool,
-) -> ParseResult<SpecifiedVerticalAlign> {
+fn parse_vertical_align(p: &mut Parser<'_>, quirky: bool) -> ParseResult<SpecifiedVerticalAlign> {
     if let Ok(k) = keyword(p, |i| {
         VerticalAlignKeyword::from_ident(i).or_else(|| {
             i.eq_ignore_ascii_case("-webkit-baseline-middle")
@@ -790,11 +787,7 @@ fn parse_corner_radius(p: &mut Parser<'_>) -> ParseResult<(Lp, Lp)> {
 ///
 /// `stretch`, `-webkit-fill-available` and `-moz-available` compute to
 /// `auto` (`none` for the maximums): swb has no stretch sizing.
-pub(crate) fn parse_size(
-    p: &mut Parser<'_>,
-    quirky: bool,
-    max: bool,
-) -> ParseResult<SpecifiedSize> {
+fn parse_size(p: &mut Parser<'_>, quirky: bool, max: bool) -> ParseResult<SpecifiedSize> {
     if let Ok(lp) = parse_length_percentage(p, LengthOptions::NON_NEGATIVE.with_quirks(quirky)) {
         return Ok(SpecifiedSize::LengthPercentage(lp));
     }
@@ -855,7 +848,7 @@ fn parse_z_index(p: &mut Parser<'_>) -> ParseResult<ZIndex> {
 }
 
 /// `opacity`: a number or a percentage (clamped when computed).
-pub(crate) fn parse_opacity(p: &mut Parser<'_>) -> ParseResult<f32> {
+fn parse_opacity(p: &mut Parser<'_>) -> ParseResult<f32> {
     if let Ok(v) = p.expect_percentage() {
         return Ok(v / 100.0);
     }
@@ -876,7 +869,7 @@ fn parse_caption_side(p: &mut Parser<'_>) -> ParseResult<CaptionSide> {
 
 /// `display`, including the two-value syntax and legacy keywords.
 /// <https://www.w3.org/TR/css-display-3/#the-display-properties>
-pub(crate) fn parse_display(p: &mut Parser<'_>) -> ParseResult<Display> {
+fn parse_display(p: &mut Parser<'_>) -> ParseResult<Display> {
     let mut words = Vec::new();
     while let Ok(w) = p.expect_ident() {
         words.push(w.to_ascii_lowercase());

@@ -87,7 +87,7 @@ impl From<Rgba> for Color {
 
 /// Looks up a CSS named color (ASCII case-insensitive), including
 /// `transparent`.
-pub fn named_color(name: &str) -> Option<Rgba> {
+pub(crate) fn named_color(name: &str) -> Option<Rgba> {
     let lower = name.to_ascii_lowercase();
     if lower == "transparent" {
         return Some(Rgba::TRANSPARENT);
@@ -104,7 +104,7 @@ pub fn named_color(name: &str) -> Option<Rgba> {
 /// Looks up a CSS system color (ASCII case-insensitive). The values are
 /// those Chromium uses for a light color scheme.
 /// <https://www.w3.org/TR/css-color-4/#css-system-colors>
-pub fn system_color(name: &str) -> Option<Rgba> {
+pub(crate) fn system_color(name: &str) -> Option<Rgba> {
     let c = match name.to_ascii_lowercase().as_str() {
         "canvas" | "field" | "buttonhighlight" | "accentcolortext" => Rgba::WHITE,
         "canvastext" | "fieldtext" | "buttontext" | "highlighttext" | "marktext" => Rgba::BLACK,

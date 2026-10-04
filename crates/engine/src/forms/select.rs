@@ -74,7 +74,7 @@ pub(super) fn select_options(
 /// The list of options of a select: its `option` children and the
 /// `option` children of its `optgroup` children, in tree order.
 /// <https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list>
-pub(crate) fn list_of_options(doc: &Document, select: NodeId) -> Vec<NodeId> {
+fn list_of_options(doc: &Document, select: NodeId) -> Vec<NodeId> {
     let mut out = Vec::new();
     for child in doc.element_children(select) {
         if doc.is_html_element(child, &local_name!("option")) {

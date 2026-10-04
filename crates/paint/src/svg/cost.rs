@@ -411,9 +411,7 @@ mod tests {
         );
         assert!(morphology.quadratic > 0.0, "{morphology:?}");
         let pixels = morphology.max_pixels(WORK, LAYERS).unwrap();
-        let work =
-            morphology.fixed + morphology.linear * pixels + morphology.quadratic * pixels * pixels;
-        assert!((work - WORK).abs() / WORK < 1e-6);
+        assert!((morphology.work(pixels) - WORK).abs() / WORK < 1e-6);
     }
 
     #[test]

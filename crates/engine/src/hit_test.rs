@@ -30,16 +30,20 @@ pub(crate) fn hit_test(
     base_url: Option<&Url>,
 ) -> Option<HitResult> {
     let node = list.hit_test(point)?;
-    let link = base_url.and_then(|base| {
-        std::iter::once(node)
-            .chain(doc.ancestors(node))
-            .find_map(|n| Some((n, link_target(doc, n, base)?)))
-    });
+    let link = base_url.and_then(|base| link_around(doc, node, base));
     Some(HitResult {
         node,
         link_element: link.as_ref().map(|(n, _)| *n),
         link: link.map(|(_, url)| url),
     })
+}
+
+/// The innermost link element that contains `node` (or is `node`), and its
+/// target resolved against `base`.
+pub(crate) fn link_around(doc: &Document, node: NodeId, base: &Url) -> Option<(NodeId, Url)> {
+    std::iter::once(node)
+        .chain(doc.ancestors(node))
+        .find_map(|n| Some((n, link_target(doc, n, base)?)))
 }
 
 /// The target of `node` if it is a link: an `a` or `area` element with an

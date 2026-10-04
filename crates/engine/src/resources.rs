@@ -31,10 +31,13 @@ pub(crate) struct SheetSlot {
     pub(crate) base_url: Url,
     /// The `media` attribute.
     pub(crate) media: Option<String>,
+    /// True if the load failed, was not allowed, or was stopped.
     pub(crate) failed: bool,
 }
 
 impl SheetSlot {
+    /// True if the sheet arrived or failed: rendering no longer waits for
+    /// it.
     pub(crate) fn is_settled(&self) -> bool {
         self.css.is_some() || self.failed
     }
@@ -83,6 +86,7 @@ impl ImageState {
 /// Images of a page, by URL, and which elements use them.
 #[derive(Default)]
 pub(crate) struct Images {
+    /// The state of each image URL that the page uses.
     pub(crate) by_url: HashMap<Url, ImageState>,
     /// The image URL of each `<img>` element.
     pub(crate) by_node: HashMap<NodeId, Url>,
@@ -128,10 +132,12 @@ impl swb_layout::ReplacedSizes for Images {
 /// In-flight requests of a page.
 #[derive(Default)]
 pub(crate) struct Requests {
+    /// What each running request is for.
     pub(crate) pending: HashMap<RequestId, Pending>,
 }
 
 impl Requests {
+    /// True if no request is running.
     pub(crate) fn is_empty(&self) -> bool {
         self.pending.is_empty()
     }

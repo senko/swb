@@ -56,8 +56,6 @@ ureq = { version = "3.4", default-features = false, features = ["rustls-no-provi
 encoding_rs = "0.8"
 html5ever = "0.40"
 
-# css
-
 # text
 # harfrust and skrifa must use the same read-fonts version (see ADR 0006).
 fontconfig = { version = "0.11", features = ["dlopen"] }

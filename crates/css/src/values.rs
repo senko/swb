@@ -248,7 +248,9 @@ pub fn trim_whitespace(values: &[ComponentValue]) -> &[ComponentValue] {
 
 /// Splits `values` at top-level commas. Commas inside functions and blocks
 /// do not split. The parts are not trimmed.
-pub fn split_on_commas(values: &[ComponentValue]) -> impl Iterator<Item = &[ComponentValue]> {
+pub(crate) fn split_on_commas(
+    values: &[ComponentValue],
+) -> impl Iterator<Item = &[ComponentValue]> {
     values.split(ComponentValue::is_comma)
 }
 

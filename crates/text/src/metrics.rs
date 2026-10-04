@@ -38,9 +38,11 @@ pub struct FontMetrics {
     pub descent: f32,
     /// Recommended extra space between lines.
     pub line_gap: f32,
-    /// Height of lowercase `x`. Falls back to 0.56 times the ascent.
+    /// Height of lowercase `x`: the OS/2 value, else the top of the outline
+    /// of `x`, else 0.56 times the ascent.
     pub x_height: f32,
-    /// Height of uppercase `H`. Falls back to the ascent.
+    /// Height of uppercase `H`: the OS/2 value, else the top of the outline
+    /// of `H`, else the ascent.
     pub cap_height: f32,
     /// Offset from the baseline to the top of the underline; positive is
     /// below the baseline.

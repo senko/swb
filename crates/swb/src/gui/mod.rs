@@ -35,6 +35,9 @@ const MULTI_CLICK_TIME: Duration = Duration::from_millis(500);
 /// The largest distance (in CSS px) between the clicks of a double click.
 const MULTI_CLICK_DISTANCE: f32 = 4.0;
 
+/// The window size (CSS px) that the page uses before the window exists.
+const SIZE_WITHOUT_WINDOW: Size = Size::new(1024.0, 768.0);
+
 /// Events sent to the event loop from other threads.
 #[derive(Debug, Clone, Copy)]
 enum UserEvent {
@@ -97,8 +100,8 @@ struct App {
     last_press: Option<(Instant, (f32, f32), u32)>,
     /// True while the left button is held after a press in the page.
     page_pressed: bool,
-    /// The system clipboard, opened on first use. `None` if it cannot be
-    /// opened.
+    /// The system clipboard. `None` until the first use, and after a failed
+    /// open (the next use tries again).
     clipboard: Option<arboard::Clipboard>,
     automation: Option<Automation>,
 }
@@ -132,7 +135,7 @@ impl App {
             network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
         };
         App {
-            page: Page::new(config, fonts, Size::new(1024.0, 768.0), 1.0),
+            page: Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0),
             start_url,
             gfx: None,
             toolbar: Toolbar::default(),
@@ -162,16 +165,7 @@ impl App {
         if text.is_empty() {
             return;
         }
-        if self.clipboard.is_none() {
-            match arboard::Clipboard::new() {
-                Ok(c) => self.clipboard = Some(c),
-                Err(e) => {
-                    log::warn!("cannot open the clipboard: {e}");
-                    return;
-                }
-            }
-        }
-        let Some(clipboard) = self.clipboard.as_mut() else {
+        let Some(clipboard) = self.clipboard() else {
             return;
         };
         let result = if primary {
@@ -186,12 +180,18 @@ impl App {
 
     /// The text on the clipboard.
     fn paste(&mut self) -> Option<String> {
+        self.clipboard()?.get_text().ok()
+    }
+
+    /// The system clipboard. Opens it on first use; logs a warning and
+    /// returns `None` if it cannot be opened.
+    fn clipboard(&mut self) -> Option<&mut arboard::Clipboard> {
         if self.clipboard.is_none() {
             self.clipboard = arboard::Clipboard::new()
                 .map_err(|e| log::warn!("cannot open the clipboard: {e}"))
                 .ok();
         }
-        self.clipboard.as_mut()?.get_text().ok()
+        self.clipboard.as_mut()
     }
 
     /// The click count of a press at (x, y): 2 or 3 if it follows earlier
@@ -220,7 +220,7 @@ impl App {
     /// Window size in CSS px.
     fn window_size(&self) -> Size {
         let Some(gfx) = &self.gfx else {
-            return Size::new(1024.0, 768.0);
+            return SIZE_WITHOUT_WINDOW;
         };
         let s = gfx.window.inner_size();
         let scale = self.scale();

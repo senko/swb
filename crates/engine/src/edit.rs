@@ -78,13 +78,6 @@ impl TextEdit {
         self.text.get(self.selection()).unwrap_or("")
     }
 
-    /// Selects from `anchor` to `cursor` (clamped to character
-    /// boundaries).
-    pub fn select(&mut self, anchor: usize, cursor: usize) {
-        self.anchor = self.boundary(anchor);
-        self.cursor = self.boundary(cursor);
-    }
-
     /// Selects the whole text.
     pub fn select_all(&mut self) {
         self.anchor = 0;
@@ -264,14 +257,9 @@ impl TextEdit {
 
     /// Selects the word (or run of spaces or punctuation) at `pos`.
     pub fn select_word_at(&mut self, pos: usize) {
-        let found = self
-            .text
-            .split_word_bound_indices()
-            .find(|(start, word)| pos < start + word.len())
-            .or_else(|| self.text.split_word_bound_indices().next_back());
-        if let Some((start, word)) = found {
-            self.anchor = start;
-            self.cursor = start + word.len();
+        if let Some(word) = word_at(&self.text, pos) {
+            self.anchor = word.start;
+            self.cursor = word.end;
         }
     }
 
@@ -331,6 +319,17 @@ impl TextEdit {
             .nth(column)
             .map_or(end, |(i, _)| start + i)
     }
+}
+
+/// The byte range of the word (or run of spaces or punctuation) at byte
+/// offset `pos` of `text`, by the word boundaries of UAX #29; the last
+/// word if `pos` is at or after the end. `None` for an empty text.
+pub(crate) fn word_at(text: &str, pos: usize) -> Option<Range<usize>> {
+    let (start, word) = text
+        .split_word_bound_indices()
+        .find(|(start, word)| pos < start + word.len())
+        .or_else(|| text.split_word_bound_indices().next_back())?;
+    Some(start..start + word.len())
 }
 
 /// The length of `s` in UTF-16 code units.

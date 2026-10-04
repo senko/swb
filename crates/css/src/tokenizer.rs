@@ -109,7 +109,7 @@ pub enum Token {
 /// unchanged (without a copy) when it contains none of these.
 ///
 /// <https://www.w3.org/TR/css-syntax-3/#input-preprocessing>
-pub fn preprocess(input: &str) -> Cow<'_, str> {
+pub(crate) fn preprocess(input: &str) -> Cow<'_, str> {
     if !input.bytes().any(|b| matches!(b, b'\r' | b'\x0c' | b'\0')) {
         return Cow::Borrowed(input);
     }

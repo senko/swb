@@ -5,7 +5,10 @@
 use swb_dom::{Document, ElementData, NodeId, local_name};
 use swb_layout::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, Point};
 
-use super::{ControlState, ControlType, Forms, InputType, option_label, parse_non_negative};
+use super::{
+    ControlState, ControlType, Forms, InputType, normalize_newlines, option_label,
+    parse_non_negative,
+};
 
 /// The bullet that shows one character of a password.
 const BULLET: char = '\u{2022}';
@@ -108,7 +111,7 @@ fn text_view(e: &ElementData, state: &ControlState, control: &mut Control, focus
     if value.is_empty() {
         if let Some(placeholder) = e.attr("placeholder").filter(|p| !p.is_empty()) {
             control.text = if state.ty == ControlType::TextArea {
-                placeholder.replace("\r\n", "\n").replace('\r', "\n")
+                normalize_newlines(placeholder)
             } else {
                 placeholder.replace(['\r', '\n'], "")
             };
@@ -119,23 +122,21 @@ fn text_view(e: &ElementData, state: &ControlState, control: &mut Control, focus
     } else {
         value.clone_into(&mut control.text);
     }
-    let editable = !control.disabled && !e.has_attr("readonly");
-    if focused && editable && state.edit.selection().is_empty() {
-        control.caret = Some(if control.placeholder {
-            0
-        } else {
-            display_offset(value, state.edit.cursor(), password)
-        });
+    if !focused {
+        return;
     }
-    if focused {
-        control.scroll = state.scroll;
-        // With the placeholder shown, the start of the field stays visible.
-        control.focus = Some(if control.placeholder {
-            0
-        } else {
-            display_offset(value, state.edit.cursor(), password)
-        });
+    // With the placeholder shown, the caret is at the start, and the start
+    // of the field stays visible.
+    let cursor = if control.placeholder {
+        0
+    } else {
+        display_offset(value, state.edit.cursor(), password)
+    };
+    if state.is_editable(e) && state.edit.selection().is_empty() {
+        control.caret = Some(cursor);
     }
+    control.scroll = state.scroll;
+    control.focus = Some(cursor);
 }
 
 /// Fills the label and the option labels of a select. Options in an

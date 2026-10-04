@@ -1,7 +1,7 @@
 //! Column widths: column constraints from columns and cells, their
 //! distribution, and the grid's min-content and max-content widths.
 //!
-//! CSS Tables 3 §3.9 (<https://www.w3.org/TR/css-tables-3/#width-distribution>)
+//! CSS Tables 3 §3.8 (<https://www.w3.org/TR/css-tables-3/#content-measure>)
 //! as Chromium's `LayoutNG` implements it (`table_layout_utils.cc`,
 //! `table_layout_algorithm_types.cc`). Percentages are stored as in
 //! Chromium: 100% is 100.0.
@@ -11,16 +11,18 @@
 
 use swb_style::{BoxSizing, ComputedStyle, LengthPercentage, MaxSize, Size};
 
-use super::ColumnBox;
 use super::distribute::distribute_auto;
 use super::grid::Grid;
+use super::{ColumnBox, MAX_COLUMNS};
 use crate::geom::{Edges, clamp_length};
 use crate::intrinsic::ContentSizes;
 
 /// The width constraints of one column.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Column {
+    /// The min-content width, if a cell or column element gave one.
     pub(crate) min: Option<f32>,
+    /// The max-content width (or the specified width), if known.
     pub(crate) max: Option<f32>,
     /// A percentage width (100% is 100.0).
     pub(crate) percent: Option<f32>,
@@ -31,14 +33,17 @@ pub(crate) struct Column {
     pub(crate) constrained: bool,
     /// True if no cell starts in this column (automatic layout).
     pub(crate) mergeable: bool,
+    /// True if the column belongs to a table with fixed layout.
     pub(crate) fixed_table: bool,
 }
 
 impl Column {
+    /// The min-content width (0 if unknown).
     pub(crate) fn min(&self) -> f32 {
         self.min.unwrap_or(0.0)
     }
 
+    /// The max-content width (0 if unknown).
     pub(crate) fn max(&self) -> f32 {
         self.max.unwrap_or(0.0)
     }
@@ -51,6 +56,7 @@ impl Column {
             .max(percent * basis / 100.0 + self.percent_border_padding)
     }
 
+    /// True for a column with a specified (non-percentage) width.
     pub(super) fn is_fixed(&self) -> bool {
         self.constrained && self.percent.is_none() && self.max.is_some()
     }
@@ -87,13 +93,17 @@ impl Column {
     }
 }
 
-/// The width constraints of one cell (CSS Tables 3 §3.9.2, "outer
-/// min-content and outer max-content widths for table cells").
+/// The width constraints of one cell (CSS Tables 3 §3.8.2,
+/// <https://www.w3.org/TR/css-tables-3/#computing-cell-measures>).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct CellWidths {
+    /// The outer min-content width.
     pub(crate) min: f32,
+    /// The outer max-content width.
     pub(crate) max: f32,
+    /// A percentage width (100% is 100.0).
     pub(crate) percent: Option<f32>,
+    /// Border and padding added to a resolved percentage (fixed layout).
     pub(crate) percent_border_padding: f32,
     /// True if the cell has a specified (non-percentage) width.
     pub(crate) constrained: bool,
@@ -157,7 +167,8 @@ pub(crate) fn sizes_from_style(
 }
 
 /// The constraints of a column element (`col`, `colgroup`) with
-/// `default_width` from its group (CSS Tables 3 §3.9.2, "for colgroups").
+/// `default_width` from its group (CSS Tables 3 §3.8.3,
+/// <https://www.w3.org/TR/css-tables-3/#computing-column-measures>).
 fn element_column(style: &ComputedStyle, default_width: Option<f32>, fixed: bool) -> Column {
     let (width, min, _, percent) = sizes_from_style(style, 0.0);
     let mut width = width.or(default_width);
@@ -176,8 +187,10 @@ fn element_column(style: &ComputedStyle, default_width: Option<f32>, fixed: bool
     }
 }
 
-/// The constraints that column elements give, one per column.
-fn element_columns(columns: &[ColumnBox], fixed: bool, limit: usize) -> Vec<Column> {
+/// The constraints that column elements give, one per column (at most
+/// [`MAX_COLUMNS`]).
+fn element_columns(columns: &[ColumnBox], fixed: bool) -> Vec<Column> {
+    let limit = MAX_COLUMNS;
     let mut out = Vec::new();
     for column in columns {
         if out.len() >= limit {
@@ -207,7 +220,7 @@ fn element_columns(columns: &[ColumnBox], fixed: bool, limit: usize) -> Vec<Colu
 /// The number of columns up to the last column element that is not
 /// mergeable (that has a width).
 pub(crate) fn element_column_count(columns: &[ColumnBox], fixed: bool) -> usize {
-    let constraints = element_columns(columns, fixed, super::MAX_COLUMNS);
+    let constraints = element_columns(columns, fixed);
     constraints
         .iter()
         .rposition(|c| !c.mergeable)
@@ -215,14 +228,14 @@ pub(crate) fn element_column_count(columns: &[ColumnBox], fixed: bool) -> usize 
 }
 
 /// A cell with its constraints and grid position, for column constraints.
-pub(crate) struct MeasuredCell {
-    pub(crate) column: usize,
-    pub(crate) colspan: usize,
-    pub(crate) widths: CellWidths,
+struct MeasuredCell {
+    column: usize,
+    colspan: usize,
+    widths: CellWidths,
 }
 
-/// Computes the column constraints of a table (Chromium's
-/// `ComputeColumnConstraints`). `measure(cell index)` returns the
+/// Computes the column constraints of a table (CSS Tables 3 §3.8.3,
+/// Chromium's `ComputeColumnConstraints`). `measure(cell index)` returns the
 /// constraints of a cell of the grid; in fixed layout only the cells of
 /// the first row are measured.
 pub(crate) fn column_constraints(
@@ -230,10 +243,9 @@ pub(crate) fn column_constraints(
     grid: &Grid<'_>,
     fixed: bool,
     border_spacing: f32,
-    limit: usize,
     measure: &mut dyn FnMut(usize) -> CellWidths,
 ) -> Vec<Column> {
-    let mut constraints = element_columns(columns, fixed, limit);
+    let mut constraints = element_columns(columns, fixed);
     let mut cells: Vec<Option<CellWidths>> = Vec::new();
     let mut spanning: Vec<MeasuredCell> = Vec::new();
     let first_row = grid
@@ -424,6 +436,9 @@ fn distribute_spanning_auto(cell: &MeasuredCell, border_spacing: f32, columns: &
     }
 }
 
+/// Gives the part of a spanning cell's percentage that its columns do not
+/// have yet to its columns without a percentage, in proportion to their
+/// max-content widths (evenly if they are all 0).
 fn distribute_spanning_percent(cell_percent: f32, span: &mut [Column]) {
     let active = || span.iter().filter(|c| !c.mergeable);
     let columns_percent: f32 = active().filter_map(|c| c.percent).sum();
@@ -510,7 +525,9 @@ pub(crate) fn grid_min_max(
 pub(crate) const TABLE_MAX_WIDTH: f32 = 1_000_000.0;
 
 /// The border, padding and border spacing that do not belong to columns
-/// (Chromium's `ComputeUndistributableTableSpace`).
+/// (CSS Tables 3 §3.8.1,
+/// <https://www.w3.org/TR/css-tables-3/#computing-undistributable-space>;
+/// Chromium's `ComputeUndistributableTableSpace`).
 pub(crate) fn undistributable_space(columns: &[Column], border_padding: f32, spacing: f32) -> f32 {
     let active = columns.iter().filter(|c| !c.mergeable).count();
     border_padding + (active.max(1) + 1) as f32 * spacing
@@ -560,7 +577,6 @@ pub(crate) fn cell_border_padding(style: &ComputedStyle, border: Edges) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::distribute::distribute_auto;
     use super::*;
 
     fn auto(min: f32, max: f32) -> Column {

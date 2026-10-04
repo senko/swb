@@ -1,6 +1,7 @@
 //! Itemization: splitting text into runs that one font can render.
 //!
-//! The unit of font assignment is the extended grapheme cluster (UAX #29),
+//! The unit of font assignment is the extended grapheme cluster (UAX #29,
+//! <https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>),
 //! so combining marks and variation selectors stay with their base
 //! character. A font covers a cluster if it has glyphs for all its
 //! characters as written, or for all characters of its NFC or NFD form: the
@@ -157,8 +158,10 @@ fn is_neutral(cluster: &str) -> bool {
         .all(|c| c.is_whitespace() || is_ignorable(c))
 }
 
-/// Control characters and Unicode default-ignorable code points. They do
-/// not need a glyph: shaping hides them, or layout handles them.
+/// Control characters and Unicode default-ignorable code points
+/// (`Default_Ignorable_Code_Point` in
+/// <https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt>).
+/// They do not need a glyph: shaping hides them, or layout handles them.
 fn is_ignorable(c: char) -> bool {
     c.is_control()
         || matches!(

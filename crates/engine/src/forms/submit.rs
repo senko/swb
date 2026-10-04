@@ -8,12 +8,12 @@
 //! only `required`.
 
 use encoding_rs::Encoding;
-use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
+use swb_dom::{Document, NodeId, is_html_whitespace};
 use swb_net::Url;
 use swb_style::is_actually_disabled;
 
 use super::encode::{self, Entry, EntryValue};
-use super::{ControlType, Forms, InputType, option_value};
+use super::{ControlType, Forms, InputType, in_datalist, option_value};
 use crate::history::PostData;
 
 /// What submits a form.
@@ -30,7 +30,8 @@ pub(crate) enum Submitter {
 }
 
 impl Submitter {
-    fn node(self) -> Option<NodeId> {
+    /// The submit button, if a button submits the form.
+    pub(crate) fn node(self) -> Option<NodeId> {
         match self {
             Submitter::Form => None,
             Submitter::Button { node, .. } => Some(node),
@@ -189,9 +190,7 @@ fn entry_list(
             || state.disabled
             || (state.ty.is_button() && submitter.node() != Some(node))
             || (state.ty.is_checkable() && !state.checked)
-            || doc
-                .ancestors(node)
-                .any(|a| doc.is_html_element(a, &local_name!("datalist")));
+            || in_datalist(doc, node);
         if skipped {
             continue;
         }
@@ -337,7 +336,7 @@ pub(crate) fn blocking_fields(doc: &Document, forms: &Forms, form: NodeId) -> us
 #[cfg(test)]
 mod tests {
     use super::*;
-    use swb_dom::parse_html;
+    use swb_dom::{local_name, parse_html};
 
     fn submit(html: &str, submitter: Option<&str>) -> Option<FormRequest> {
         let doc = parse_html(html);

@@ -6,9 +6,9 @@
 //!
 //! - text fields, text areas and selects: the background, and a 1 px
 //!   border in the border color without its corner pixels;
-//! - buttons: the background and a 1 px border with a 2 px radius;
-//! - checkboxes: a 13 px box with a 2 px radius, white with a gray border,
-//!   or filled with the accent color and a white check mark;
+//! - buttons: the background and a 1 px border with a 3 px radius;
+//! - checkboxes: a 13 px box with a 3 px radius, white with a gray border,
+//!   or filled with the accent color (2 px radius) and a white check mark;
 //! - radio buttons: a circle with a gray border, or with an accent border
 //!   and an accent dot.
 //!

@@ -70,6 +70,10 @@ commit. Scores only go up unless a commit explains why.
 Integration tests start swb in headless mode with the remote-control server
 and drive it through the client library, on fixtures only.
 
+Update (2026-10-04): the automation tests also load `data:` URLs and local
+files that they write (form submission), and fill the cookie jar in the
+test process. None of them uses the network.
+
 ## Consequences
 
 - Fixtures add binary files to the repository. Keep them small: only the

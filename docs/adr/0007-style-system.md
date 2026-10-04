@@ -165,3 +165,37 @@ Measured on the Wikipedia fixture (release build, 1280x800): 8 ms for
   styles, `white-space-collapse`/`text-wrap-mode` as separate longhands,
   `tab-size` lengths, string `list-style-type` values, relative color
   syntax, writing modes and right-to-left logical properties.
+
+## Update (2026-10-04)
+
+Changes up to the end of milestone M2 (tables, forms) that the sections
+above do not describe:
+
+- `::placeholder` is supported (the "Not supported yet" list above is out
+  of date for it). Its rules have their own bucket, like `::before`,
+  `::after` and `::marker`. An `input` or `textarea` with a `placeholder`
+  attribute always gets a placeholder style (the user-agent sheet has a
+  rule for it); layout uses it for the placeholder text.
+- Form-control pseudo-classes (`:checked`, `:disabled`, `:enabled`,
+  `:placeholder-shown`, `:valid`, `:invalid`, `:read-only`, `:required`,
+  ...) come from attributes (`element.rs`), except `CONTROL_STATES`
+  (`:checked`, `:placeholder-shown`, `:valid`, `:invalid`), which the page
+  passes in `ElementStates::controls` from the current state of the
+  controls that it knows (ADR 0013); other elements get them from
+  attributes too. `DisabledElements` computes the disabled state of all
+  elements in one tree walk.
+- Table properties: `border-collapse`, `border-spacing` (stored as two
+  internal longhands, `-swb-border-spacing-horizontal` and `-vertical`,
+  which are not valid property names in stylesheets), `table-layout`,
+  `caption-side` and `empty-cells`. `hints.rs` also maps `cellspacing`,
+  `bordercolor`, the body margin attributes, `hr`, `iframe frameborder`
+  and the `width`, `height`, `hspace`, `vspace` and `border` attributes
+  of replaced elements.
+- Chromium compatibility: tables drop the `-webkit-` values of
+  `text-align` (Chromium's `StyleAdjuster`), so `<center>` and `align` do
+  not align the content of their cells. `overflow: clip` also applies to
+  `select` and to all `input` types except `range`, `checkbox` and
+  `radio`, not only to text inputs.
+- Ancestor Bloom filter: the css crate now gives the ancestor keys of a
+  selector (`Selector::ancestor_keys`); the style crate no longer reads
+  them from the selector's serialization. The keys are the same.

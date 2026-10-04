@@ -167,7 +167,7 @@ pub(crate) fn clamp_height(
 }
 
 /// A margin; `auto` is 0.
-fn margin_or_zero(m: &LengthPercentageOrAuto, cb_width: f32) -> f32 {
+pub(crate) fn margin_or_zero(m: &LengthPercentageOrAuto, cb_width: f32) -> f32 {
     m.resolve(cb_width).unwrap_or(0.0)
 }
 
@@ -175,7 +175,7 @@ fn margin_or_zero(m: &LengthPercentageOrAuto, cb_width: f32) -> f32 {
 /// (CSS 2.2 §10.3.3 and §10.4). `width` is the content width if already
 /// known (for example from shrink-to-fit); otherwise it comes from the
 /// style. Returns (content width, margin-left, margin-right).
-pub(crate) fn block_width_and_margins(
+fn block_width_and_margins(
     style: &ComputedStyle,
     cb: ContainingBlock,
     edges: &BoxEdges,
@@ -549,7 +549,7 @@ fn place_unplaced_markers(
 /// Lays out an in-flow block box that does not establish a new block
 /// formatting context. `marker` is its own list marker; `markers` are the
 /// markers of ancestors that wait for a line box.
-pub(crate) fn layout_block_box<'a>(
+fn layout_block_box<'a>(
     ctx: &mut LayoutContext<'_>,
     base: &BoxBase,
     contents: &'a BlockContainer,
@@ -710,7 +710,7 @@ pub(crate) fn relative_offset(style: &ComputedStyle, cb: ContainingBlock) -> (f3
 /// with a known content-box width. The height is `content_height` if given,
 /// else the specified height, else the content height; then clamped. The
 /// returned fragment is at (0, 0).
-pub(crate) fn layout_sized(
+fn layout_sized(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
     content_width: f32,
@@ -846,8 +846,9 @@ pub(crate) fn layout_independent_block_level(
             let (w, h) = crate::replaced::used_size(style, r, cb, &edges);
             let (_, ml, _) = block_width_and_margins(style, cb, &edges, Some(w));
             (w, ml, Some(h))
-        } else if let IndependentContents::Control(control) = &ib.contents {
-            let w = crate::control::block_level_width(ctx, style, control, cb, &edges);
+        } else if let IndependentContents::Control(_) = &ib.contents {
+            // Controls do not fill their containing block.
+            let w = shrink_to_fit_width(ctx, ib, cb, &edges);
             let (_, ml, _) = block_width_and_margins(style, cb, &edges, Some(w));
             (w, ml, None)
         } else {
@@ -876,7 +877,10 @@ pub(crate) fn layout_root(
     fragment
 }
 
-fn own_margins(style: &ComputedStyle, cb: ContainingBlock) -> BlockMargins {
+/// The margins of a box that establishes an independent formatting
+/// context: its own top and bottom margins (`auto` is 0), which do not
+/// collapse through it.
+pub(crate) fn own_margins(style: &ComputedStyle, cb: ContainingBlock) -> BlockMargins {
     BlockMargins {
         start: CollapsedMargin::new(margin_or_zero(&style.margin_top, cb.width)),
         end: CollapsedMargin::new(margin_or_zero(&style.margin_bottom, cb.width)),
@@ -897,27 +901,42 @@ pub(crate) fn layout_independent_shrink_to_fit(
     }
     let style = &ib.base.style;
     let edges = BoxEdges::resolve(style, cb.width);
-    let edge_sum = edges.sum().horizontal();
-    let margin_left = margin_or_zero(&style.margin_left, cb.width);
-    let margin_right = margin_or_zero(&style.margin_right, cb.width);
     let (width, content_height) = if let IndependentContents::Replaced(r) = &ib.contents {
         let (w, h) = crate::replaced::used_size(style, r, cb, &edges);
         (w, Some(h))
     } else {
-        let width = resolve_size(&style.width, Some(cb.width), style.box_sizing, edge_sum)
-            .unwrap_or_else(|| {
-                let sizes = crate::intrinsic::independent_content_sizes(ctx, ib);
-                let available = (cb.width - margin_left - margin_right - edge_sum).max(0.0);
-                sizes.max.min(available).max(sizes.min)
-            });
-        (clamp_width(style, width, cb.width, edge_sum), None)
+        (shrink_to_fit_width(ctx, ib, cb, &edges), None)
     };
     let mut fragment = layout_sized(ctx, ib, width, content_height, cb);
-    fragment.border_rect.x = margin_left;
+    fragment.border_rect.x = margin_or_zero(&style.margin_left, cb.width);
     LaidOutBlock {
         fragment,
         margins: own_margins(style, cb),
     }
+}
+
+/// The shrink-to-fit content width of an independent box (CSS 2.2
+/// §10.3.5, <https://www.w3.org/TR/CSS22/visudet.html#float-width>): its
+/// specified width, or else its max-content width limited to the
+/// available width but at least its min-content width; then clamped by
+/// `min-width` and `max-width`.
+fn shrink_to_fit_width(
+    ctx: &mut LayoutContext<'_>,
+    ib: &IndependentBox,
+    cb: ContainingBlock,
+    edges: &BoxEdges,
+) -> f32 {
+    let style = &ib.base.style;
+    let edge_sum = edges.sum().horizontal();
+    let width = resolve_size(&style.width, Some(cb.width), style.box_sizing, edge_sum)
+        .unwrap_or_else(|| {
+            let sizes = crate::intrinsic::independent_content_sizes(ctx, ib);
+            let margin_left = margin_or_zero(&style.margin_left, cb.width);
+            let margin_right = margin_or_zero(&style.margin_right, cb.width);
+            let available = (cb.width - margin_left - margin_right - edge_sum).max(0.0);
+            sizes.max.min(available).max(sizes.min)
+        });
+    clamp_width(style, width, cb.width, edge_sum)
 }
 
 /// Lays out a flex item with a fixed content-box width and, optionally, a
@@ -960,11 +979,7 @@ pub(crate) fn layout_flex_item(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{layout_html, rects_of_text};
-
-    fn body(html: &str) -> String {
-        format!("<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>{html}")
-    }
+    use crate::test_support::{body, layout_html, rects_of_text};
 
     #[test]
     fn auto_margin_is_zero_when_the_box_does_not_fit() {

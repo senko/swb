@@ -164,7 +164,8 @@ pub trait Element: Sized + Clone {
     fn attribute(&self, local_name: &str) -> Option<&str>;
     /// True for the document element.
     fn is_root(&self) -> bool;
-    /// True for `a`, `area` and `link` elements with an `href` attribute.
+    /// True if the element is a link (`:any-link`). In HTML: `a` and
+    /// `area` elements with an `href` attribute.
     fn is_link(&self) -> bool;
     /// True if the element has an element child or a non-empty text child
     /// (`:empty` is the opposite).
@@ -187,9 +188,8 @@ pub const MATCH_BUDGET: u32 = 200_000;
 
 /// Settings and caches for matching.
 ///
-/// The caches assume that the document does not change. Call
-/// [`MatchingContext::clear_caches`] (or create a new context) after a DOM
-/// change.
+/// The caches assume that the document does not change. Create a new
+/// context after a DOM change.
 #[derive(Clone, Debug, Default)]
 pub struct MatchingContext {
     /// The document's quirks mode.
@@ -205,13 +205,6 @@ impl MatchingContext {
         MatchingContext {
             quirks_mode,
             ..MatchingContext::default()
-        }
-    }
-
-    /// Empties the caches.
-    pub fn clear_caches(&mut self) {
-        for map in &mut self.nth_indices {
-            map.clear();
         }
     }
 }

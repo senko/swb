@@ -14,7 +14,7 @@ use crate::forms::{
     ButtonType, ControlType, FormContext, InputType, Submitter, blocking_fields, default_button,
     display_offset, form_submission, labeled_control, option_label, value_offset,
 };
-use crate::hit_test::link_target;
+use crate::hit_test::link_around;
 use crate::input::{Key, Modifiers};
 use crate::selection;
 
@@ -83,11 +83,8 @@ impl Page {
     /// The focused text control, if it can be edited.
     fn editable_focus(&self) -> Option<NodeId> {
         let node = self.input.states.focus?;
-        let doc = self.document.as_ref()?;
-        let editable = self.forms.is_text_control(node)
-            && !doc.element(node)?.has_attr("readonly")
-            && !self.forms.is_disabled(node);
-        editable.then_some(node)
+        let e = self.document.as_ref()?.element(node)?;
+        self.forms.get(node)?.is_editable(e).then_some(node)
     }
 
     /// The focused text control and its type.
@@ -283,10 +280,8 @@ impl Page {
         let (Some(doc), Some(base)) = (self.document.as_ref(), self.base_url.as_ref()) else {
             return false;
         };
-        let link = std::iter::once(node)
-            .chain(doc.ancestors(node))
-            .find_map(|n| link_target(doc, n, base));
-        link.is_some_and(|link| self.follow_link(link))
+        let link = link_around(doc, node, base);
+        link.is_some_and(|(_, link)| self.follow_link(link))
     }
 
     /// True if a click on control `node` does something: checkboxes and
@@ -322,11 +317,7 @@ impl Page {
     /// radio button, submits or resets the form. `coordinate` is the
     /// point of a click relative to the control (for image buttons).
     /// Returns true if something happened.
-    pub(super) fn activate_control(
-        &mut self,
-        node: NodeId,
-        coordinate: Option<(i32, i32)>,
-    ) -> bool {
+    fn activate_control(&mut self, node: NodeId, coordinate: Option<(i32, i32)>) -> bool {
         let (Some(doc), Some(ty)) = (self.document.as_ref(), self.forms.control_type(node)) else {
             return false;
         };
@@ -536,12 +527,9 @@ impl Page {
         else {
             return false;
         };
-        let submitter_node = match submitter {
-            Submitter::Button { node, .. } => Some(node),
-            Submitter::Form => None,
-        };
         let novalidate = doc.element(form).is_some_and(|e| e.has_attr("novalidate"))
-            || submitter_node
+            || submitter
+                .node()
                 .and_then(|n| doc.element(n))
                 .is_some_and(|e| e.has_attr("formnovalidate"));
         if !novalidate && let Some(&first) = self.forms.invalid_controls(doc, form).first() {

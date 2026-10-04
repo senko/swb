@@ -1,5 +1,5 @@
-//! Resource loading: `http`, `https`, `file`, `data` and `about` URLs, and
-//! replay from fixtures.
+//! Resource loading: `http`, `https`, `file`, `data` and `about` URLs,
+//! cookies, and replay from fixtures.
 //!
 //! The central abstraction is the [`Fetcher`] trait: one request, one
 //! response, no redirects. Implementations:

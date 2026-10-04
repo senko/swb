@@ -15,9 +15,7 @@ use swb_style::{CaptionSide, ComputedStyle, EmptyCells};
 use super::cells::{align_cell, has_content, has_definite_height, layout_cell};
 use super::columns::ColumnLocation;
 use super::layout::{Geometry, Measured, Prepared};
-use super::rows::distribute_table_height;
 use super::{ColumnBox, TableBox};
-use crate::LayoutContext;
 use crate::block::{
     Baselines, BoxEdges, ContainingBlock, apply_relative_position, finish_fragment,
     layout_independent_block_level,
@@ -25,6 +23,7 @@ use crate::block::{
 use crate::box_tree::IndependentBox;
 use crate::fragment::{BoxContent, BoxFragment, CellPaint, Fragment, PartBackground, TablePaint};
 use crate::geom::{Rect, clamp_length};
+use crate::{LayoutContext, has_background};
 
 /// The results of the layout steps that the fragments are built from.
 pub(super) struct Assembly<'a, 'b> {
@@ -41,24 +40,10 @@ pub(super) fn assemble(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
     table: &TableBox,
-    mut parts: Assembly<'_, '_>,
+    parts: &Assembly<'_, '_>,
 ) -> BoxFragment {
     let (prepared, geometry) = (parts.prepared, parts.geometry);
     let edges = prepared.edges.sum();
-    if let Some(css_height) = parts.css_height {
-        let available = (css_height - edges.vertical()).max(0.0);
-        let measured = &mut parts.measured;
-        let minimum: f32 = measured.sections.iter().map(|s| s.height).sum();
-        if available > minimum {
-            let spacing = prepared.spacing.1;
-            distribute_table_height(
-                spacing,
-                available,
-                &mut measured.sections,
-                &mut measured.rows,
-            );
-        }
-    }
     let caption_cb = ContainingBlock {
         width: parts.table_width,
         height: None,
@@ -88,7 +73,7 @@ pub(super) fn assemble(
     let sections = Parts {
         prepared,
         geometry,
-        rows: &parts.measured,
+        measured: &parts.measured,
         layout: &layout,
         columns: &columns,
     };
@@ -180,13 +165,18 @@ struct SectionLayout {
 }
 
 impl SectionLayout {
-    fn new(prepared: &Prepared<'_>, geometry: &Geometry<'_>, rows: &Measured, start: f32) -> Self {
+    fn new(
+        prepared: &Prepared<'_>,
+        geometry: &Geometry<'_>,
+        measured: &Measured,
+        start: f32,
+    ) -> Self {
         let spacing = geometry.spacing.1;
         let mut layout = SectionLayout {
             x: prepared.edges.sum().left + geometry.spacing.0,
             sections: Vec::new(),
-            row_tops: vec![0.0; rows.rows.len()],
-            row_heights: rows.rows.iter().map(|r| r.height).collect(),
+            row_tops: vec![0.0; measured.rows.len()],
+            row_heights: measured.rows.iter().map(|r| r.height).collect(),
             end: start,
         };
         let mut y = start;
@@ -194,7 +184,7 @@ impl SectionLayout {
         for (index, section) in prepared.grid.sections.iter().enumerate() {
             if section.rows.is_empty() {
                 // A group without rows takes no border spacing.
-                let height = rows.sections[index].height;
+                let height = measured.sections[index].height;
                 layout.sections.push((y, height));
                 y += height;
                 continue;
@@ -206,7 +196,7 @@ impl SectionLayout {
                     y += spacing;
                 }
                 layout.row_tops[row] = y;
-                y = clamp_length(y + rows.rows[row].height);
+                y = clamp_length(y + measured.rows[row].height);
             }
             layout.sections.push((top, y - top));
             spacing_after = spacing;
@@ -268,7 +258,7 @@ impl Columns {
             let span = column.span.min(locations.len() - index);
             if let Some(r) = column_rect(locations, area, index, span) {
                 out.add_background(column, index, span, r);
-                out.fragments.push(part_fragment(column, r, Vec::new()));
+                out.fragments.push(column_fragment(column, r, Vec::new()));
             }
             index += span;
         }
@@ -308,9 +298,10 @@ impl Columns {
         for (child, child_start, span, r) in children {
             self.add_background(child, child_start, span, r);
             let local = Rect::new(r.x - group_rect.x, r.y - group_rect.y, r.width, r.height);
-            kids.push(Fragment::Box(part_fragment(child, local, Vec::new())));
+            kids.push(Fragment::Box(column_fragment(child, local, Vec::new())));
         }
-        self.fragments.push(part_fragment(group, group_rect, kids));
+        self.fragments
+            .push(column_fragment(group, group_rect, kids));
         index
     }
 
@@ -365,7 +356,9 @@ fn column_rect(
     ))
 }
 
-fn part_fragment(column: &ColumnBox, rect: Rect, children: Vec<Fragment>) -> BoxFragment {
+/// The fragment of a column or column group at `rect`, with `children`
+/// (the columns of a group). It has only geometry.
+fn column_fragment(column: &ColumnBox, rect: Rect, children: Vec<Fragment>) -> BoxFragment {
     let mut fragment = finish_fragment(
         &column.base,
         rect,
@@ -377,17 +370,11 @@ fn part_fragment(column: &ColumnBox, rect: Rect, children: Vec<Fragment>) -> Box
     fragment
 }
 
-/// True if a style has a background color or image.
-fn has_background(style: &ComputedStyle) -> bool {
-    !style.background_color.resolve(style.color).is_transparent()
-        || style.background_image.iter().any(Option::is_some)
-}
-
 /// What building the fragments of row groups, rows and cells needs.
 struct Parts<'a, 'b> {
     prepared: &'a Prepared<'b>,
     geometry: &'a Geometry<'a>,
-    rows: &'a Measured,
+    measured: &'a Measured,
     layout: &'a SectionLayout,
     columns: &'a Columns,
 }
@@ -441,7 +428,7 @@ fn row_fragment(
     index: usize,
 ) -> BoxFragment {
     let row = &parts.prepared.grid.rows[index];
-    let data = &parts.rows.rows[index];
+    let data = &parts.measured.rows[index];
     let row_rect = Rect::new(
         section_rect.x,
         parts.layout.row_tops[index],
@@ -480,7 +467,7 @@ fn cell_fragment(
     let Parts {
         prepared,
         geometry,
-        rows,
+        measured,
         layout,
         columns,
     } = *parts;
@@ -490,13 +477,13 @@ fn cell_fragment(
     let (x, width) = geometry.cell_span(cell.column, cell.colspan);
     let last = cell.row + cell.rowspan - 1;
     let height = layout.row_tops[last] + layout.row_heights[last] - row_rect.y;
-    let (measured, edges) = &rows.cells[cell_index];
-    let grew = height > measured.border_rect.height;
+    let (measured_cell, edges) = &measured.cells[cell_index];
+    let grew = height > measured_cell.border_rect.height;
     let style = &cell.cell.inner.base.style;
     let mut fragment = if has_definite_height(style, prepared.height_specified, grew) {
         // Lay out again, so that percentage heights inside resolve.
         let content_height = (height - edges.sum().vertical()).max(0.0);
-        let width = measured.border_rect.width;
+        let width = measured_cell.border_rect.width;
         layout_cell(
             ctx,
             cell,
@@ -506,9 +493,9 @@ fn cell_fragment(
             Some(content_height),
         )
     } else {
-        measured.clone()
+        measured_cell.clone()
     };
-    align_cell(&mut fragment, height, rows.rows[cell.row].baseline);
+    align_cell(&mut fragment, height, measured.rows[cell.row].baseline);
     fragment.border_rect.x = x;
     fragment.border_rect.width = width;
     let area = Rect::new(row_rect.x + x, row_rect.y, width, height);

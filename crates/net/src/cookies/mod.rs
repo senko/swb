@@ -123,6 +123,8 @@ pub(crate) enum SameSiteContext {
 }
 
 impl SameSiteContext {
+    /// Returns the context of `request`, from the sites of its initiator
+    /// and its URL, and from its destination.
     pub(crate) fn of(request: &Request) -> Self {
         let same_site = match &request.initiator {
             // Only the user starts requests without an initiator, and the

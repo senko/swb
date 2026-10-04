@@ -11,7 +11,7 @@ mod serialize;
 mod tree;
 
 pub use dump::dump_tree;
-pub use html5ever::{LocalName, Namespace, QualName, local_name, namespace_url, ns};
+pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
 pub use parser::{MAX_TREE_DEPTH, parse_html, parse_html_bytes};
 pub use serialize::outer_html;
 pub use tree::{

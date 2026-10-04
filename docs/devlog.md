@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-04: M2 maintenance
+
+- End-of-milestone review of the whole codebase. Five clean-context
+  agents each reviewed a group of crates (css and style; layout and text;
+  dom and paint; engine; net, automation, swb and the Python tools) in
+  their own git worktree; the integrator merged the patches and fixed the
+  shared docs.
+- Behaviour is unchanged. A snapshot script wrote the layout dump, the
+  DOM dump and full-page screenshots (1280×800, 700×900, and 1280×800 at
+  scale 2) of every fixture, and the layout dump and a screenshot of
+  every layout test. The snapshots before and after the changes are
+  byte-identical, for each agent's patch and for the merged result.
+- Dead code removed: unused helpers in css (`Declaration::parser`,
+  `MatchingContext::clear_caches`, `Stylesheet::parse`), layout
+  (`Rect::size`, `Rect::outset`, unused table builder methods and
+  parameters), net (`impl Extend for Headers`) and engine
+  (`TextEdit::select`).
+- Duplication removed: style's Bloom filter keys come from the parsed
+  selector (`Selector::ancestor_keys`) instead of serializing and
+  re-tokenizing each selector; one shrink-to-fit width; shared table
+  helpers; one word lookup for double clicks and text fields; one
+  "nearest link" search; one editability rule for form controls; the
+  history entry holds its `Commit`; shared test helpers in every crate.
+- Narrowed many `pub` and `pub(crate)` items; corrected wrong spec
+  section numbers and anchors (tables, form encodings), outdated module
+  docs and comments; dated update notes in ADRs 0004 to 0010 and 0013.
+- The reviewers found 10 bugs (one panic on a malformed system font).
+  They are listed in the roadmap ("Backlog from the M2 maintenance
+  review").
+- M3 plan: five workstreams (floats, positioning, grid, masks,
+  scrolling). `@font-face` and `@import` moved to "Later": the Wikipedia
+  page uses neither.
+
 ## 2026-10-03: M2 Hacker News
 
 - The owner accepted Hacker News (target 2).

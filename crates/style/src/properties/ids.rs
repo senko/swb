@@ -29,20 +29,19 @@ macro_rules! longhands {
     ($($id:ident $name:literal $kind:ident $field:ident: $spec:ty;)+) => {
         /// A longhand property.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-        #[allow(missing_docs)]
-        pub enum LonghandId {
+        pub(crate) enum LonghandId {
             $($id),+
         }
 
         impl LonghandId {
             /// All longhands, in declaration order.
-            pub const ALL: &'static [LonghandId] = &[$(LonghandId::$id),+];
+            pub(crate) const ALL: &'static [LonghandId] = &[$(LonghandId::$id),+];
 
             /// The number of longhands.
-            pub const COUNT: usize = Self::ALL.len();
+            pub(crate) const COUNT: usize = Self::ALL.len();
 
             /// Looks up a longhand by its CSS name (already lowercase).
-            pub fn from_name(name: &str) -> Option<Self> {
+            pub(crate) fn from_name(name: &str) -> Option<Self> {
                 match name {
                     $($name => Some(LonghandId::$id),)+
                     _ => None,
@@ -50,14 +49,15 @@ macro_rules! longhands {
             }
 
             /// The CSS name.
-            pub fn name(self) -> &'static str {
+            #[cfg(test)]
+            fn name(self) -> &'static str {
                 match self {
                     $(LonghandId::$id => $name),+
                 }
             }
 
             /// True if the property is inherited by default.
-            pub fn is_inherited(self) -> bool {
+            pub(crate) fn is_inherited(self) -> bool {
                 match self {
                     $(LonghandId::$id => longhands!(@inherited $kind)),+
                 }

@@ -5,8 +5,8 @@
 //! and
 //! <https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation>.
 //! Deliberate simplifications: no focus navigation scopes (shadow trees,
-//! iframes), and `contenteditable` elements are not focusable (swb has no
-//! editing).
+//! iframes), and `contenteditable` elements are not focusable (swb edits
+//! only form controls).
 
 use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
 use swb_style::{DisabledElements, is_actually_disabled};
@@ -92,7 +92,7 @@ pub(crate) fn click_target(
 ) -> Option<NodeId> {
     std::iter::once(node)
         .chain(doc.ancestors(node))
-        .find(|&n| tab_index(doc, n, || is_actually_disabled(doc, n)).is_some() && rendered(n))
+        .find(|&n| is_focusable(doc, n) && rendered(n))
 }
 
 /// True if `node` can be focused (with a click or a script) when it is

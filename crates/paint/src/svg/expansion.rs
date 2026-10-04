@@ -126,15 +126,6 @@ pub(super) fn measure(xml: &Document<'_>, limits: &Limits) -> Result<Usage, &'st
     })
 }
 
-/// How an element refers to another.
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Link {
-    /// `url()` in a property: usvg follows cycles longer than two forever.
-    Url,
-    /// `href` of a gradient, pattern, filter or `feImage`.
-    Href,
-}
-
 /// Facts about the document that the counts need.
 struct Analysis<'a, 'input> {
     /// Elements by `id` for `<use>`: the first element with an id wins.
@@ -231,10 +222,10 @@ impl<'a, 'input> Analysis<'a, 'input> {
         self.use_ids.get(id).copied()
     }
 
-    /// The elements that `node` refers to, except through `<use>` and
-    /// marker properties (marker instances count per vertex, see
-    /// [`Counter::add_markers`]).
-    fn references(&self, node: Node<'a, 'input>) -> Vec<(Node<'a, 'input>, Link)> {
+    /// The elements that `node` refers to and how ([`Edge::Url`] or
+    /// [`Edge::Href`]), except through `<use>` and marker properties
+    /// (marker instances count per vertex, see [`Counter::add_markers`]).
+    fn references(&self, node: Node<'a, 'input>) -> Vec<(Node<'a, 'input>, Edge)> {
         let mut ids: Vec<&'a str> = Vec::new();
         for attribute in node.attributes() {
             if LINK_PROPERTIES.contains(&attribute.name()) {
@@ -250,18 +241,18 @@ impl<'a, 'input> Analysis<'a, 'input> {
         if let Some(css_ids) = self.css.references.get(&node.id()) {
             ids.extend(css_ids);
         }
-        let mut targets: Vec<(Node<'a, 'input>, Link)> = ids
+        let mut targets: Vec<(Node<'a, 'input>, Edge)> = ids
             .into_iter()
             .filter_map(|id| self.link_ids.get(id).copied())
             .filter(|target| LINK_TARGETS.contains(&target.tag_name().name()))
-            .map(|target| (target, Link::Url))
+            .map(|target| (target, Edge::Url))
             .collect();
         let follows_href = is_svg(node) && HREF_ELEMENTS.contains(&node.tag_name().name());
         if follows_href
             && let Some(id) = href(node).and_then(|h| svgtypes::IRI::from_str(h).ok())
             && let Some(&target) = self.link_ids.get(id.0)
         {
-            targets.push((target, Link::Href));
+            targets.push((target, Edge::Href));
         }
         targets
     }
@@ -307,8 +298,8 @@ impl<'a, 'input> Analysis<'a, 'input> {
     fn checked_links(&self, node: Node<'a, 'input>) -> Vec<Node<'a, 'input>> {
         self.references(node)
             .into_iter()
-            .filter(|(target, link)| {
-                *link == Link::Url && LINK_CHECKED.contains(&target.tag_name().name())
+            .filter(|(target, edge)| {
+                *edge == Edge::Url && LINK_CHECKED.contains(&target.tag_name().name())
             })
             .map(|(target, _)| target)
             .collect()
@@ -470,12 +461,13 @@ impl Count {
     }
 }
 
-/// How the counter reached an element.
+/// How the counter reached an element, or how an element refers to
+/// another.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Edge {
     /// As a child, or through `<use>`: usvg's tree, whose depth usvg limits.
     Tree,
-    /// Through a `url()` reference.
+    /// Through a `url()` reference in a property.
     Url,
     /// Through the `href` of a gradient, pattern, filter or `feImage`.
     Href,
@@ -562,11 +554,7 @@ impl<'a, 'input> Counter<'_, 'a, 'input> {
             let target_count = self.count(target, depth + 2.0, Edge::Tree);
             count.add(target_count, 2.0);
         }
-        for (target, link) in analysis.references(node) {
-            let edge = match link {
-                Link::Url => Edge::Url,
-                Link::Href => Edge::Href,
-            };
+        for (target, edge) in analysis.references(node) {
             let target_count = self.count(target, depth + LINK_DEPTH, edge);
             if analysis.is_shared(target) {
                 // usvg converts a shared target once, but walks its tree for

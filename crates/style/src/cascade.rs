@@ -2,7 +2,7 @@
 //!
 //! [`compute_styles`] walks the element tree (iteratively, so deep trees
 //! cannot overflow the stack) and computes one style per element, plus
-//! styles for `::before`, `::after` and `::marker`.
+//! styles for `::before`, `::after`, `::marker` and `::placeholder`.
 //!
 //! For each element:
 //!
@@ -20,7 +20,12 @@
 //! 4. Apply the computed-value fixups: blockification
 //!    (<https://www.w3.org/TR/css-display-3/#transformations>), `float`
 //!    for absolutely positioned boxes, zero border widths for `none`
-//!    styles, and the `overflow` pairing rule.
+//!    styles, and the `overflow` pairing rule. For elements also:
+//!    `display: contents` computes to `none` on the elements that CSS
+//!    Display 3 Appendix B lists
+//!    (<https://www.w3.org/TR/css-display-3/#unbox-html>), and tables
+//!    reset `-webkit-left/center/right` in `text-align` to `start`
+//!    (Chromium).
 //!
 //! Elements inside a `display: none` subtree get no style.
 
@@ -53,8 +58,8 @@ use crate::values::{
 /// font size: 13px / 16px.
 const FIXED_FONT_RATIO: f32 = 13.0 / 16.0;
 
-/// Computes styles for all elements (and `::before`, `::after` and
-/// `::marker`) of the document.
+/// Computes styles for all elements (and `::before`, `::after`, `::marker`
+/// and `::placeholder`) of the document.
 pub fn compute_styles(
     doc: &Document,
     stylist: &Stylist,
@@ -67,7 +72,7 @@ pub fn compute_styles(
 
 /// [`compute_styles`] with the ancestor Bloom filter optional (tests check
 /// that the filter does not change the result).
-pub(crate) fn compute_styles_with_options(
+fn compute_styles_with_options(
     doc: &Document,
     stylist: &Stylist,
     env: &MediaEnvironment,
@@ -341,8 +346,8 @@ impl Styler<'_> {
     }
 }
 
-/// True if `display: contents` computes to `none` for the element:
-/// replaced elements and form controls.
+/// True if `display: contents` computes to `none` for the element (the
+/// list in CSS Display 3 Appendix B).
 /// <https://www.w3.org/TR/css-display-3/#unbox-html>
 fn contents_is_none(data: &ElementData) -> bool {
     data.is_html()
@@ -664,11 +669,7 @@ fn apply_css_wide(
 /// for monospace, 16px otherwise), and a size relative to a keyword size
 /// is scaled by 13/16 (or 16/13). Absolute sizes do not change. This
 /// follows Blink's `FontBuilder::CheckForGenericFamilyChange`.
-pub(crate) fn adjust_font_size_for_family(
-    style: &mut ComputedStyle,
-    parent: &ComputedStyle,
-    quirks: bool,
-) {
+fn adjust_font_size_for_family(style: &mut ComputedStyle, parent: &ComputedStyle, quirks: bool) {
     let monospace = is_monospace(&style.font_family);
     let parent_monospace = is_monospace(&parent.font_family);
     if monospace == parent_monospace {
@@ -689,11 +690,7 @@ pub(crate) fn adjust_font_size_for_family(
 
 /// Computed-value fixups that depend on several properties and on the
 /// parent box.
-pub(crate) fn apply_fixups(
-    style: &mut ComputedStyle,
-    is_root: bool,
-    layout_parent: Option<Display>,
-) {
+fn apply_fixups(style: &mut ComputedStyle, is_root: bool, layout_parent: Option<Display>) {
     let absolutely_positioned = style.position.is_absolutely_positioned();
     // <https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo>
     if absolutely_positioned {
@@ -1378,6 +1375,24 @@ mod tests {
         assert_eq!(get(&doc, &map, "link").color, GREEN);
         assert_eq!(get(&doc, &map, "link").outline_width, 1.0);
         assert_eq!(get(&doc, &map, "other").color, Rgba::BLACK);
+        // Only the states that some selector uses can change styles.
+        let mut stylist = Stylist::new(doc.quirks_mode);
+        stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
+        let deps = stylist.state_dependencies();
+        assert!(deps.contains(swb_css::ElementState::HOVER | swb_css::ElementState::FOCUS));
+        assert!(!deps.contains(swb_css::ElementState::TARGET));
+    }
+
+    #[test]
+    fn same_styles_compares_values() {
+        let html = "<p id=p>x</p><ul><li>i</li></ul>";
+        let (_, a) = render(html, "p { color: red }");
+        let (_, b) = render(html, "p { color: red }");
+        let (_, c) = render(html, "p { color: blue }");
+        let (_, d) = render(html, "p { color: red } li::marker { color: blue }");
+        assert!(a.same_styles(&b));
+        assert!(!a.same_styles(&c));
+        assert!(!a.same_styles(&d), "pseudo-element styles count");
     }
 
     #[test]
@@ -1422,7 +1437,7 @@ mod tests {
     }
 
     #[test]
-    fn replaced_elements_and_review_fixes() {
+    fn replaced_elements_and_edge_cases() {
         let (doc, map) = render(
             "<img id=img src=x style='display: contents'><div id=div style='display: contents'></div>\
              <canvas id=canvas width=300 height=150></canvas><img id=mid align=middle>\
@@ -1545,7 +1560,12 @@ mod tests {
             let mut compared = 0;
             for node in doc.descendants(NodeId::DOCUMENT) {
                 assert_eq!(with.get(node), without.get(node), "{name}: {node:?}");
-                for kind in [PseudoKind::Before, PseudoKind::After, PseudoKind::Marker] {
+                for kind in [
+                    PseudoKind::Before,
+                    PseudoKind::After,
+                    PseudoKind::Marker,
+                    PseudoKind::Placeholder,
+                ] {
                     assert_eq!(with.pseudo(node, kind), without.pseudo(node, kind));
                 }
                 compared += usize::from(with.get(node).is_some());

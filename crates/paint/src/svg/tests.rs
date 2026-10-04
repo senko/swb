@@ -9,6 +9,17 @@ fn svg(attributes: &str, content: &str) -> String {
     format!(r#"<svg xmlns="http://www.w3.org/2000/svg" {attributes}>{content}</svg>"#)
 }
 
+/// SVG content in which `<use>` copies a rectangle `10^(levels - 1)`
+/// times: each group uses the previous group ten times.
+pub(super) fn use_chain(levels: usize) -> String {
+    let mut defs = String::from("<g id='g0'><rect width='1' height='1'/></g>");
+    for i in 1..levels {
+        let uses = format!("<use href='#g{}'/>", i - 1).repeat(10);
+        write!(defs, "<g id='g{i}'>{uses}</g>").unwrap();
+    }
+    format!("<defs>{defs}</defs><use href='#g{}'/>", levels - 1)
+}
+
 fn natural(attributes: &str) -> NaturalSize {
     decode(svg(attributes, "").as_bytes())
         .unwrap_or_else(|e| panic!("{attributes}: {e}"))
@@ -337,6 +348,15 @@ fn with_image(href: &str) -> String {
     )
 }
 
+/// An SVG that shows the SVG image `source` (as a `data:` URL) in a 10x10
+/// `<image>`.
+fn with_svg_image(source: &str) -> String {
+    with_image(&format!(
+        "data:image/svg+xml;base64,{}",
+        base64(source.as_bytes())
+    ))
+}
+
 #[test]
 fn embedded_data_images_are_drawn() {
     let png = crate::image::tests::png(2, 2, [255, 0, 0, 255]);
@@ -347,14 +367,7 @@ fn embedded_data_images_are_drawn() {
     );
     assert_eq!(pixel(&p, 5, 5), RED);
     let inner = svg(r#"viewBox="0 0 1 1""#, r#"<rect width="1" height="1"/>"#);
-    let p = render(
-        &with_image(&format!(
-            "data:image/svg+xml;base64,{}",
-            base64(inner.as_bytes())
-        )),
-        10,
-        10,
-    );
+    let p = render(&with_svg_image(&inner), 10, 10);
     assert_eq!(pixel(&p, 5, 5), BLACK);
 }
 
@@ -394,16 +407,10 @@ fn embedded_images_are_checked() {
     // SVG images nested deeper than MAX_NESTING are not drawn.
     let mut nested = svg(r#"viewBox="0 0 1 1""#, r#"<rect width="1" height="1"/>"#);
     for _ in 0..MAX_NESTING {
-        nested = with_image(&format!(
-            "data:image/svg+xml;base64,{}",
-            base64(nested.as_bytes())
-        ));
+        nested = with_svg_image(&nested);
     }
     assert_eq!(pixel(&render(&nested, 10, 10), 5, 5), BLACK);
-    let deeper = with_image(&format!(
-        "data:image/svg+xml;base64,{}",
-        base64(nested.as_bytes())
-    ));
+    let deeper = with_svg_image(&nested);
     assert_eq!(pixel(&render(&deeper, 10, 10), 5, 5).3, 0);
 }
 
@@ -424,12 +431,7 @@ fn files_are_not_loaded() {
 #[test]
 fn expansion_limits_are_enforced() {
     // 10^6 rectangles through <use>: rejected before usvg copies them.
-    let mut defs = String::from("<g id='l0'><rect width='1' height='1'/></g>");
-    for i in 1..7 {
-        let uses = format!("<use href='#l{}'/>", i - 1).repeat(10);
-        write!(defs, "<g id='l{i}'>{uses}</g>").unwrap();
-    }
-    let bomb = svg("", &format!("<defs>{defs}</defs><use href='#l6'/>"));
+    let bomb = svg("", &use_chain(7));
     assert!(error(bomb.as_bytes()).contains("too many elements"));
     // A marker on each of 100,000 vertices.
     let marker = format!("<marker id='m'>{}</marker>", "<rect/>".repeat(10));
@@ -440,10 +442,7 @@ fn expansion_limits_are_enforced() {
     );
     assert!(error(markers.as_bytes()).contains("too many elements"));
     // Embedded SVG images have the same limits.
-    let inner = with_image(&format!(
-        "data:image/svg+xml;base64,{}",
-        base64(bomb.as_bytes())
-    ));
+    let inner = with_svg_image(&bomb);
     assert_eq!(pixel(&render(&inner, 10, 10), 5, 5).3, 0);
 }
 
@@ -646,15 +645,7 @@ fn reference_chains_fit_a_small_stack() {
 fn embedded_images_share_one_budget() {
     // An embedded image with about 32,000 elements, copied 20 times: each
     // copy is converted again, and together they exceed the budget.
-    let mut defs = String::from("<g id='l0'><rect width='1' height='1'/></g>");
-    for i in 1..5 {
-        let uses = format!("<use href='#l{}'/>", i - 1).repeat(10);
-        write!(defs, "<g id='l{i}'>{uses}</g>").unwrap();
-    }
-    let inner = svg(
-        "viewBox='0 0 1 1'",
-        &format!("<defs>{defs}</defs><use href='#l4'/>"),
-    );
+    let inner = svg("viewBox='0 0 1 1'", &use_chain(5));
     let image = format!(
         "<g id='i'><image href='data:image/svg+xml;base64,{}' width='1' height='1'/></g>",
         base64(inner.as_bytes())

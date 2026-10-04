@@ -22,6 +22,7 @@ pub(crate) struct PostData {
 /// A committed document: what a new or replaced history entry records.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Commit {
+    /// The URL of the document, with the fragment of the entry.
     pub(crate) url: Url,
     /// The body of the `POST` request that loaded the document, if any.
     pub(crate) post: Option<PostData>,
@@ -48,16 +49,11 @@ impl Commit {
 /// One history entry.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Entry {
-    pub(crate) url: Url,
+    /// What the entry shows and requests again.
+    pub(crate) commit: Commit,
     /// The scroll position when the entry was last left; restored when the
     /// user returns to it.
     pub(crate) scroll: Point,
-    /// The body of the `POST` request that loaded the document, if any.
-    pub(crate) post: Option<PostData>,
-    /// The origin of the document that started the navigation.
-    pub(crate) initiator: Option<Origin>,
-    /// The number of the document (see `Page`) that the entry shows.
-    pub(crate) document: u64,
 }
 
 /// Session history of a page.
@@ -79,7 +75,7 @@ impl History {
         if commit.post.is_none()
             && self
                 .current()
-                .is_some_and(|e| e.url == commit.url && e.post.is_none())
+                .is_some_and(|e| e.commit.url == commit.url && e.commit.post.is_none())
         {
             self.replace_current(commit);
             return;
@@ -95,26 +91,18 @@ impl History {
             self.entries.truncate(self.index + 1);
         }
         self.entries.push(Entry {
-            url: commit.url,
+            commit,
             scroll: Point::default(),
-            post: commit.post,
-            initiator: commit.initiator,
-            document: commit.document,
         });
         self.index = self.entries.len() - 1;
     }
 
-    /// Replaces the URL, the `POST` body, the initiator and the document of
+    /// Replaces the commit (URL, `POST` body, initiator and document) of
     /// the current entry (after a redirect or a reload); keeps its scroll
     /// position. Adds the first entry if there is none.
     pub(crate) fn replace_current(&mut self, commit: Commit) {
         match self.entries.get_mut(self.index) {
-            Some(entry) => {
-                entry.url = commit.url;
-                entry.post = commit.post;
-                entry.initiator = commit.initiator;
-                entry.document = commit.document;
-            }
+            Some(entry) => entry.commit = commit,
             None => self.push(commit),
         }
     }
@@ -162,7 +150,7 @@ mod tests {
     }
 
     fn current(h: &History) -> &str {
-        h.current().unwrap().url.as_str()
+        h.current().unwrap().commit.url.as_str()
     }
 
     #[test]
@@ -207,7 +195,7 @@ mod tests {
             ..Commit::get(u("http://a/"), 2)
         });
         assert_eq!(h.len(), 2);
-        assert_eq!(h.current().unwrap().post, Some(post));
+        assert_eq!(h.current().unwrap().commit.post, Some(post));
         // A GET of the same URL after a POST result is a new entry too.
         h.push(Commit::get(u("http://a/"), 1));
         assert_eq!(h.len(), 3);

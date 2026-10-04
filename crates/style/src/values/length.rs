@@ -375,7 +375,8 @@ impl LengthPercentageOrAuto {
     pub const ZERO: Self = Self::LengthPercentage(LengthPercentage::ZERO);
 
     /// A px value.
-    pub fn px(v: f32) -> Self {
+    #[cfg(test)]
+    pub(crate) fn px(v: f32) -> Self {
         Self::LengthPercentage(LengthPercentage::Px(v))
     }
 

@@ -63,7 +63,7 @@ pub(crate) fn layout_html(html: &str) -> TestLayout {
 }
 
 /// Lays out a document.
-pub(crate) fn layout_document(doc: Document) -> TestLayout {
+fn layout_document(doc: Document) -> TestLayout {
     let styles = styles_for(&doc);
     let mut fonts = FontContext::for_tests();
     let mut ctx = LayoutContext::new(&mut fonts);
@@ -86,7 +86,7 @@ pub(crate) fn layout_document(doc: Document) -> TestLayout {
 /// Form controls from the attributes of `input`, `textarea`, `select`
 /// and `button` elements (the value is the `value` attribute), for tests.
 /// The engine keeps the real state of controls.
-pub(crate) struct TestControls<'a>(pub(crate) &'a Document);
+struct TestControls<'a>(&'a Document);
 
 impl FormControls for TestControls<'_> {
     fn is_control(&self, node: NodeId) -> bool {
@@ -178,6 +178,12 @@ pub(crate) fn styles_for(doc: &Document) -> StyleMap {
         &ElementStates::default(),
         &base,
     )
+}
+
+/// A no-quirks document whose body has no margin and the font
+/// `16px/20px sans-serif`, with `html` as the body's content.
+pub(crate) fn body(html: &str) -> String {
+    format!("<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>{html}")
 }
 
 /// The rectangles of the text fragments whose text is `text`.

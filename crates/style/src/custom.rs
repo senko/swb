@@ -28,7 +28,7 @@ use crate::properties::{CssWideKeyword, CustomDeclaration};
 
 /// The maximum number of component values that substitution may produce
 /// for one value.
-pub(crate) const SUBSTITUTION_BUDGET: usize = 100_000;
+const SUBSTITUTION_BUDGET: usize = 100_000;
 
 /// The maximum depth of nested `var()` references between custom
 /// properties.
@@ -38,7 +38,7 @@ const MAX_DEPTH: usize = 128;
 /// (the CSS parser's limit). Without it, each element could wrap an
 /// inherited value in more parentheses, and recursive code on the value
 /// (parsing, cloning, dropping) could overflow the stack.
-pub(crate) const MAX_NESTING: usize = 64;
+const MAX_NESTING: usize = 64;
 
 /// The number of component values in `values`, counted recursively, and
 /// their nesting depth. Values are at most [`MAX_NESTING`] deep (the CSS

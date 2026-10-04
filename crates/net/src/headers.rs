@@ -101,14 +101,6 @@ impl<N: AsRef<str>, V: Into<String>> FromIterator<(N, V)> for Headers {
     }
 }
 
-impl<N: AsRef<str>, V: Into<String>> Extend<(N, V)> for Headers {
-    fn extend<I: IntoIterator<Item = (N, V)>>(&mut self, iter: I) {
-        for (name, value) in iter {
-            self.append(name.as_ref(), value);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

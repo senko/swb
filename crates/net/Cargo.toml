@@ -1,6 +1,6 @@
 [package]
 name = "swb-net"
-description = "Resource loading: http, https, file, data and about URLs, and replay from fixtures."
+description = "Resource loading: http, https, file, data and about URLs, cookies, and replay from fixtures."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

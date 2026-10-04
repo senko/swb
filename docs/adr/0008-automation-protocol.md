@@ -84,6 +84,11 @@ Decisions made during implementation (M1):
   window, so they look the same in headless mode and in the GUI and do not
   include the toolbar.
 
+Update (2026-10-04): M2 added `input.type` and `dom.value` (form controls,
+ADR 0013) and `cookies.get` and `cookies.clear` (ADR 0012). With them, a
+local client can read `HttpOnly` cookies and the values of password
+fields; [automation.md](../automation.md) states this risk.
+
 ## Consequences
 
 - Tools and tests can drive swb from outside the process.

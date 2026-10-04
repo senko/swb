@@ -1,5 +1,6 @@
-//! The DOM element handle that selectors match against, and the dynamic
-//! element states (hover, focus, ...).
+//! The DOM element handle that selectors match against, the dynamic
+//! element states (hover, focus, ...), the disabled state of form
+//! controls, and `querySelectorAll`.
 //!
 //! [`DomElement`] implements [`swb_css::Element`] for elements of a
 //! [`swb_dom::Document`]. Form-control pseudo-classes come from attributes,
@@ -362,10 +363,6 @@ impl<'a> DomElement<'a> {
         DomElement::new(self.doc, id?, self.states)
     }
 
-    fn is_html(&self, name: &str) -> bool {
-        self.data.is_html() && &**self.data.local_name() == name
-    }
-
     /// Form-control states from attributes, and the [`CONTROL_STATES`]
     /// from the page if it knows them.
     /// <https://html.spec.whatwg.org/multipage/semantics-other.html#pseudo-classes>
@@ -562,7 +559,9 @@ impl Element for DomElement<'_> {
     /// an href attribute, and all area elements that have an href
     /// attribute").
     fn is_link(&self) -> bool {
-        (self.is_html("a") || self.is_html("area")) && self.data.has_attr("href")
+        (self.data.is_html_named(&local_name!("a"))
+            || self.data.is_html_named(&local_name!("area")))
+            && self.data.has_attr("href")
     }
 
     fn has_children(&self) -> bool {

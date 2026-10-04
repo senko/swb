@@ -149,7 +149,7 @@ fn fragment_scroll_follows_images_that_load_later() {
     // down and the scroll position follows it.
     fetcher.release();
     finish(&mut page);
-    let sec = page.document().unwrap().element_by_id("sec").unwrap();
+    let sec = common::node(&page, "sec");
     let target_y = page.fragments().unwrap().border_boxes(sec)[0].y;
     assert!(target_y > 0.0);
     assert_eq!(page.scroll_position().y, target_y);

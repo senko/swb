@@ -63,11 +63,44 @@ Open a URL in a window and read the page.
 
 ## M3: Wikipedia
 
-- Floats and clearance, absolute and fixed positioning.
+Five parallel workstreams; each will record its design in a new ADR:
+
+- Floats, clearance and block formatting contexts.
+- Absolute, fixed and sticky positioning; 2D `transform`.
 - Grid layout.
-- `mask-image` (icons), `@font-face`, `@import`.
-- `overflow` scrolling inside elements.
+- `mask-image` and the other mask properties (icons).
+- Scroll containers: `overflow` scrolling inside elements.
 - Target 3 (Wikipedia "Web browser") done.
+
+`@font-face` and `@import` were planned for M3, but the Wikipedia page
+uses neither; they moved to "Later".
+
+## Backlog from the M2 maintenance review
+
+Bugs found by the end-of-milestone review. The maintenance commit did not
+change behaviour, so they are not fixed yet.
+
+- HTML integers: four separate parsers of the HTML integer microsyntax
+  (`style/src/hints.rs`, `layout/src/table/build.rs`,
+  `engine/src/forms/values.rs`, `engine/src/focus.rs`); move one into
+  `dom`. `maxlength="-0"` and `rowspan="-0"` are ignored (HTML parses
+  `-0` as 0). List `start` and `value` use `str::parse` instead
+  (`<ol start="3x">` starts at 1, not 3).
+- Style: `:required` and `:optional` match `range` and `color` inputs
+  (the `required` attribute does not apply to them); `background: ...
+  text` sets `background-origin` to `border-box` (`text` sets only
+  `background-clip`); ignored properties (`justify-items`,
+  `text-underline-offset`, ...) accept any value, so `@supports` with an
+  invalid value for them is true.
+- Paint: with `background-clip: padding-box`, the background color uses
+  the outer border radii instead of the inner ones.
+- Forms: `readonly` blocks editing of range and color fields (shown as
+  text fields); it does not apply to them.
+- Selection: keyboard focus on a text field does not clear the page
+  selection (both are highlighted).
+- Text: a variable font whose `fvar` `wght` axis has min > max panics in
+  `f32::clamp` (`instance_weight`); sanitize the axis range when the
+  font is read.
 
 ## Backlog from M2
 
@@ -78,8 +111,9 @@ Open a URL in a window and read the page.
   column percentages are ignored only inside cells and flex containers
   (grid does not exist yet); inset/outset border shading; `width:
   min-content` keywords on inline-blocks. Limits: 10,000 columns;
-  collapsed grids over 4M edges use each box's own borders and paint
-  none; inline wrapper boxes only for the 8 innermost inline boxes.
+  collapsed grids over 2,000,000 edges (`MAX_EDGES`, all tables of a
+  layout pass together) use each box's own borders and paint none;
+  inline wrapper boxes only for the 8 innermost inline boxes.
 - Cookies: persistence; `Partitioned`, `Priority`, `__Http-` prefixes,
   Lax+POST; the redirect-tainted `Origin`; `Sec-Fetch-*` and `Referer`
   headers; raw bytes in cookie values (now re-encoded as UTF-8);
@@ -170,14 +204,15 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 - Layout: floats and absolutely positioned boxes inside inline content are
   not placed; absolutely positioned children of flex containers are
   dropped; flex container min/max sizes; `align-content: stretch` order;
-  `vertical-align: top/bottom`; min-content of inline-blocks
-  and row flex containers; `box-sizing` in intrinsic min/max; tab stops;
+  `vertical-align: top/bottom`; min-content of nowrap row flex
+  containers; `box-sizing` in intrinsic min/max; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
   breaking (and `text-indent`); column flex items with a definite height
   cannot shrink; empty lines ignore `text-align` and relative offsets;
   percentage `top`/`bottom` on inline boxes; `capitalize` across element
   boundaries inside words (`don<b>'t</b>`).
-- Paint: `border-radius` does not clip backgrounds, images or overflow;
+- Paint: `border-radius` does not clip background images, gradients,
+  replaced images or overflow;
   `content-box` background clip/origin; gradients ignore background size
   and position, repeating gradients and implicit stop positions; block
   backgrounds should paint before inline content (Appendix E steps 4/7).
@@ -198,6 +233,8 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
 ## Later
 
+- `@font-face` (web fonts) and `@import` (the parser supports both rules;
+  nothing loads them).
 - Find in page, tabs, bookmarks.
 - Bidirectional text.
 - Incremental style and layout; GPU rasterization if needed.

@@ -225,7 +225,7 @@ impl ControlType {
 
     /// True for the controls to which `readonly` applies.
     /// <https://html.spec.whatwg.org/multipage/input.html#do-not-apply>
-    pub(crate) fn has_readonly(self) -> bool {
+    fn has_readonly(self) -> bool {
         match self {
             ControlType::Input(t) => {
                 t.has_size() || matches!(t, InputType::Number | InputType::Date(_))
@@ -235,7 +235,7 @@ impl ControlType {
     }
 
     /// True for the controls to which `required` applies.
-    pub(crate) fn has_required(self) -> bool {
+    fn has_required(self) -> bool {
         match self {
             ControlType::Input(t) => {
                 self.has_readonly()
@@ -275,6 +275,15 @@ pub(crate) struct ControlState {
     barred: bool,
 }
 
+impl ControlState {
+    /// True for a text field or a text area that can be edited: not
+    /// disabled and without a `readonly` attribute. `e` is the control's
+    /// element.
+    pub(crate) fn is_editable(&self, e: &ElementData) -> bool {
+        self.ty.is_text() && !self.disabled && !e.has_attr("readonly")
+    }
+}
+
 /// The states of all form controls of a document.
 #[derive(Debug, Default)]
 pub(crate) struct Forms {
@@ -302,9 +311,7 @@ impl Forms {
                 || (ty.is_button() && !ty.is_submit_button())
                 || ty == ControlType::Input(InputType::Hidden)
                 || (ty.has_readonly() && e.has_attr("readonly"))
-                || doc
-                    .ancestors(node)
-                    .any(|a| doc.is_html_element(a, &local_name!("datalist")));
+                || in_datalist(doc, node);
             let state = ControlState {
                 owner: form_owner(doc, node, &ids),
                 disabled,
@@ -655,10 +662,7 @@ fn default_state(
     let default_value = match (ty, e) {
         // The child text content; the parser already dropped a leading
         // newline. Line breaks are normalized to LF (the API value).
-        (ControlType::TextArea, _) => doc
-            .text_content(node)
-            .replace("\r\n", "\n")
-            .replace('\r', "\n"),
+        (ControlType::TextArea, _) => normalize_newlines(&doc.text_content(node)),
         (ControlType::Input(t), Some(e)) => sanitize(e, t, e.attr("value").unwrap_or("")),
         _ => String::new(),
     };
@@ -691,6 +695,12 @@ fn default_state(
         disabled: false,
         barred: false,
     }
+}
+
+/// Replaces every CR LF pair and every other CR with LF.
+/// <https://infra.spec.whatwg.org/#normalize-newlines>
+fn normalize_newlines(s: &str) -> String {
+    s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 /// True for elements whose `form` attribute names their form owner.
@@ -730,6 +740,13 @@ fn form_owner(doc: &Document, node: NodeId, ids: &HashMap<&str, NodeId>) -> Opti
         return Some(form);
     }
     doc.ancestors(node).find(|&n| is_form(n))
+}
+
+/// True if `node` has a `datalist` ancestor: such a control is barred
+/// from constraint validation and is not submitted.
+fn in_datalist(doc: &Document, node: NodeId) -> bool {
+    doc.ancestors(node)
+        .any(|a| doc.is_html_element(a, &local_name!("datalist")))
 }
 
 /// True if `node` is in the document tree (not detached, not in a

@@ -206,7 +206,7 @@ fn shortest_time(time: &str) -> String {
 
 /// True for a valid floating-point number
 /// (<https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number>).
-pub(crate) fn is_valid_float(s: &str) -> bool {
+fn is_valid_float(s: &str) -> bool {
     let s = s.strip_prefix('-').unwrap_or(s);
     let (mantissa, exponent) = match s.split_once(['e', 'E']) {
         Some((m, e)) => (m, Some(e)),

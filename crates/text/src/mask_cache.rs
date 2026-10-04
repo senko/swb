@@ -2,10 +2,11 @@
 //!
 //! Policy:
 //!
-//! - Masks of at most [`MAX_CACHED_MASK_BYTES`] (256 × 256 pixels) are
-//!   cached. Larger masks occur only at very large font sizes; they are
-//!   rasterized again on every request and are never kept. Skia also stops
-//!   caching glyph images above 256 pixels and draws such glyphs as paths.
+//! - Masks of at most [`MAX_CACHED_MASK_BYTES`] (65,536 pixels, the area
+//!   of 256 × 256) are cached. Larger masks occur only at very large font
+//!   sizes; they are rasterized again on every request and are never kept.
+//!   Skia also stops caching glyph images above 256 pixels and draws such
+//!   glyphs as paths.
 //! - The cached mask data never exceeds [`MASK_CACHE_BUDGET`] bytes, and the
 //!   cache never has more than [`MAX_CACHED_MASKS`] entries (glyphs without
 //!   a mask count as entries of zero bytes). If a new entry does not fit,

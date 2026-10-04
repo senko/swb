@@ -1,6 +1,6 @@
 [package]
 name = "swb-automation"
-description = "Remote-control protocol: messages, WebSocket server and client."
+description = "Remote-control protocol: messages, WebSocket server, methods, headless runner and client."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

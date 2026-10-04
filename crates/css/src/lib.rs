@@ -44,8 +44,7 @@ pub use stylesheet::{
     CssRule, Declaration, FontFaceRule, ImportRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };
 pub use supports::SupportsCondition;
-pub use tokenizer::{Number, Token, preprocess, tokenize};
+pub use tokenizer::{Number, Token, tokenize};
 pub use values::{
-    BlockKind, ComponentValue, Function, SimpleBlock, contains_function, split_on_commas,
-    trim_whitespace,
+    BlockKind, ComponentValue, Function, SimpleBlock, contains_function, trim_whitespace,
 };

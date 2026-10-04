@@ -1,9 +1,8 @@
-//! Table layout: the table width, column widths, row heights, and the
-//! fragments of the table, its captions, row groups, rows, cells, column
-//! groups and columns.
+//! Table layout: the table width, column widths and row heights, and the
+//! entry points that block, inline and intrinsic layout call.
 //!
 //! The steps follow Chromium's `TableLayoutAlgorithm`
-//! (CSS Tables 3 §3.8–§3.10, <https://www.w3.org/TR/css-tables-3/#layout-principles>):
+//! (CSS Tables 3 §3.2–§3.10, <https://www.w3.org/TR/css-tables-3/#table-layout-algorithm>):
 //!
 //! 1. Column constraints from columns and cells (`columns.rs`), cached per
 //!    table for the layout pass.
@@ -14,18 +13,17 @@
 //!    border spacing) distributed to the columns.
 //! 4. Row heights: every cell laid out at its width; spanning cells, row
 //!    group heights and the table height distributed to rows (`rows.rs`).
-//! 5. Fragments. The table's border box contains its captions (as in
-//!    Chromium); its border and background are painted around the grid.
+//! 5. Fragments (`fragments.rs`). The table's border box contains its
+//!    captions (as in Chromium); its border and background are painted
+//!    around the grid.
 
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use swb_style::{
-    BorderCollapse, BoxSizing, ComputedStyle, LengthPercentage, LengthPercentageOrAuto, Size,
-    TableLayout,
-};
+use swb_style::{BorderCollapse, BoxSizing, ComputedStyle, LengthPercentage, Size, TableLayout};
 
-use super::cells::{cell_edges, cell_widths, layout_cell, row_data};
+use super::TableBox;
+use super::cells::{cell_edges, cell_widths, fixed_or_percent, layout_cell, row_data};
 use super::collapsed::{self, CollapsedBorders, EdgeBudget};
 use super::columns::{
     Column, ColumnLocation, TABLE_MAX_WIDTH, column_constraints, column_locations, grid_min_max,
@@ -35,18 +33,18 @@ use super::distribute::{distribute_auto, distribute_fixed};
 use super::fragments::{Assembly, assemble};
 use super::grid::{Grid, GridSection, Placement, place};
 use super::rows::{
-    RowData, SectionData, distribute_rowspan_cell, distribute_to_rows, sort_rowspan_cells,
+    RowData, SectionData, distribute_rowspan_cell, distribute_table_height, distribute_to_rows,
+    sort_rowspan_cells,
 };
-use super::{MAX_COLUMNS, TableBox};
 use crate::LayoutContext;
 use crate::block::{
-    BlockMargins, BoxEdges, CollapsedMargin, ContainingBlock, LaidOutBlock, resolve_max_size,
+    BoxEdges, ContainingBlock, LaidOutBlock, margin_or_zero, own_margins, resolve_max_size,
     resolve_size,
 };
 use crate::box_tree::IndependentBox;
 use crate::fragment::BoxFragment;
 use crate::geom::{Edges, clamp_length};
-use crate::intrinsic::{ContentSizes, independent_outer_sizes};
+use crate::intrinsic::{ContentSizes, fixed_margins, independent_outer_sizes};
 
 /// Table data that is kept for one layout pass.
 #[derive(Default)]
@@ -65,7 +63,7 @@ pub(crate) struct TableCache {
     /// The number of table cells and flex containers that are being
     /// measured or laid out. The intrinsic widths of tables inside them do
     /// not use column percentages (Chromium's `AllowColumnPercentages`).
-    pub(crate) percent_free_depth: usize,
+    percent_free_depth: usize,
 }
 
 impl TableCache {
@@ -117,17 +115,13 @@ pub(crate) fn layout_shrink_to_fit(
     cb: ContainingBlock,
 ) -> LaidOutBlock {
     let style = &ib.base.style;
-    let margin = |m: &LengthPercentageOrAuto| m.resolve(cb.width).unwrap_or(0.0);
-    let available = cb.width - margin(&style.margin_left) - margin(&style.margin_right);
+    let margin_left = margin_or_zero(&style.margin_left, cb.width);
+    let available = cb.width - margin_left - margin_or_zero(&style.margin_right, cb.width);
     let mut fragment = layout_table(ctx, ib, table, TableWidth::Available(available), None, cb);
-    fragment.border_rect.x = margin(&style.margin_left);
+    fragment.border_rect.x = margin_left;
     LaidOutBlock {
         fragment,
-        margins: BlockMargins {
-            start: CollapsedMargin::new(margin(&style.margin_top)),
-            end: CollapsedMargin::new(margin(&style.margin_bottom)),
-            collapsed_through: false,
-        },
+        margins: own_margins(style, cb),
     }
 }
 
@@ -165,11 +159,7 @@ pub(crate) fn table_outer_sizes(
     if let Some(min_width) = min_width {
         (min, max) = (min.max(min_width), max.max(min_width));
     }
-    let fixed_margin = |m: &LengthPercentageOrAuto| match m.non_auto() {
-        Some(LengthPercentage::Px(v)) => *v,
-        _ => 0.0,
-    };
-    let margins = fixed_margin(&style.margin_left) + fixed_margin(&style.margin_right);
+    let margins = fixed_margins(style);
     ContentSizes {
         min: min.max(intrinsic.min) + margins,
         max: max.max(intrinsic.min) + margins,
@@ -259,7 +249,6 @@ impl<'a> Prepared<'a> {
                 &grid,
                 fixed,
                 spacing.0,
-                MAX_COLUMNS,
                 &mut |i| cell_widths(ctx, &grid.cells[i], cell_borders[i], fixed),
             ));
             ctx.tables.columns.insert(ib.base.id, Rc::clone(&columns));
@@ -325,7 +314,9 @@ fn caption_min_width(ctx: &mut LayoutContext<'_>, table: &TableBox) -> f32 {
 }
 
 /// The used border-box width of a table whose width is not given
-/// (Chromium's `ComputeUsedInlineSizeForTableFragment`).
+/// (CSS Tables 3 §3.9.1,
+/// <https://www.w3.org/TR/css-tables-3/#computing-the-table-width>;
+/// Chromium's `ComputeUsedInlineSizeForTableFragment`).
 fn used_width(
     style: &ComputedStyle,
     edges: &BoxEdges,
@@ -395,17 +386,26 @@ fn layout_table(
         spacing,
         section_width,
     };
-    let quirks = ctx.quirks;
-    let rows = measure_rows(ctx, &prepared, &geometry, quirks);
-    let css_height = table_height(style, &prepared, height, cb, quirks);
+    let mut measured = measure_rows(ctx, &prepared, &geometry);
+    let css_height = table_height(style, &prepared, height, cb, ctx.quirks);
+    if let Some(css_height) = css_height {
+        // The height of the grid without the table's border and padding.
+        let available = (css_height - prepared.edges.sum().vertical()).max(0.0);
+        distribute_table_height(
+            prepared.spacing.1,
+            available,
+            &mut measured.sections,
+            &mut measured.rows,
+        );
+    }
     let parts = Assembly {
         prepared: &prepared,
         geometry: &geometry,
-        measured: rows,
+        measured,
         css_height,
         table_width,
     };
-    assemble(ctx, ib, table, parts)
+    assemble(ctx, ib, table, &parts)
 }
 
 /// The column positions and the table's border-box width: the
@@ -494,7 +494,6 @@ fn measure_rows(
     ctx: &mut LayoutContext<'_>,
     prepared: &Prepared<'_>,
     geometry: &Geometry<'_>,
-    quirks: bool,
 ) -> Measured {
     let grid = &prepared.grid;
     let cells: Vec<(BoxFragment, BoxEdges)> = grid
@@ -523,7 +522,7 @@ fn measure_rows(
                 .map(|i| (&grid.cells[i], &cells[i].0, &cells[i].1))
                 .collect();
             let style = &row.row.base.style;
-            let mut data = row_data(style, index, &row_cells, quirks, &mut spanning);
+            let mut data = row_data(style, index, &row_cells, ctx.quirks, &mut spanning);
             // The percentages of a group's rows add up to at most 100%.
             if let Some(p) = data.percent {
                 let p = p.min(100.0 - percent_total);
@@ -549,11 +548,7 @@ fn measure_rows(
 /// height (if larger) is distributed to the rows.
 fn section_data(section: &GridSection<'_>, rows: &mut [RowData], spacing: f32) -> SectionData {
     let style = &section.section.base.style;
-    let (fixed_height, percent) = match style.height.as_length_percentage() {
-        Some(LengthPercentage::Px(v)) => (Some(*v), None),
-        Some(LengthPercentage::Percent(p)) => (None, Some(p * 100.0)),
-        _ => (None, None),
-    };
+    let (fixed_height, percent) = fixed_or_percent(&style.height);
     let section_rows = rows.get_mut(section.rows.clone()).unwrap_or_default();
     let count = section_rows.len();
     let mut height: f32 = section_rows.iter().map(|r| r.height).sum::<f32>()
@@ -581,8 +576,9 @@ fn section_data(section: &GridSection<'_>, rows: &mut [RowData], spacing: f32) -
 }
 
 /// The table's specified border-box height, if any (`forced` from a flex
-/// container wins). In quirks mode a table without row groups ignores its
-/// height.
+/// container wins; CSS Tables 3 §3.10.1,
+/// <https://www.w3.org/TR/css-tables-3/#computing-the-table-height>). In
+/// quirks mode a table without row groups ignores its height.
 fn table_height(
     style: &ComputedStyle,
     prepared: &Prepared<'_>,
@@ -596,8 +592,8 @@ fn table_height(
     if forced.is_some() {
         return forced;
     }
-    let edges = prepared.edges.sum().vertical();
-    let outer = |v: f32| outer_size(style, v, edges);
+    let border_padding = prepared.edges.sum().vertical();
+    let outer = |v: f32| outer_size(style, v, border_padding);
     let min = resolve_size(&style.min_height, cb.height, BoxSizing::ContentBox, 0.0).map(outer);
     let height = style
         .height

@@ -6,8 +6,8 @@
 //! ([`swb_css::Selector::bucket_key`]): ID, class, local name, or
 //! universal. To find the rules that can match an element, the cascade
 //! looks up the element's ID, classes and local name, plus the universal
-//! bucket. Rules for `::before`, `::after` and `::marker` have their own
-//! maps; rules for other pseudo-elements are dropped.
+//! bucket. Rules for `::before`, `::after`, `::marker` and `::placeholder`
+//! have their own maps; rules for other pseudo-elements are dropped.
 //!
 //! `@media` conditions are evaluated when styles are computed (the
 //! environment can change); `@supports` conditions are evaluated when a
@@ -19,7 +19,7 @@ use std::sync::{Arc, LazyLock};
 use log::trace;
 use swb_css::{
     BucketKey, CssRule, ElementState, MatchingContext, MediaEnvironment, MediaQueryList,
-    PseudoElement, Selector, StyleRule, Stylesheet, matches,
+    PseudoElement, Selector, StyleRule, Stylesheet, matches, parse_stylesheet,
 };
 use url::Url;
 
@@ -32,15 +32,15 @@ use crate::properties::{DeclarationBlock, is_supported};
 use crate::style_map::PseudoKind;
 
 /// The user-agent stylesheet.
-static UA_SHEET: LazyLock<Stylesheet> = LazyLock::new(|| Stylesheet::parse(include_str!("ua.css")));
+static UA_SHEET: LazyLock<Stylesheet> = LazyLock::new(|| parse_stylesheet(include_str!("ua.css")));
 
 /// User-agent rules that apply only in quirks mode.
 static UA_QUIRKS_SHEET: LazyLock<Stylesheet> =
-    LazyLock::new(|| Stylesheet::parse(include_str!("ua-quirks.css")));
+    LazyLock::new(|| parse_stylesheet(include_str!("ua-quirks.css")));
 
 /// Presentational hints that the HTML specification gives as CSS rules.
 static HINTS_SHEET: LazyLock<Stylesheet> =
-    LazyLock::new(|| Stylesheet::parse(include_str!("hints.css")));
+    LazyLock::new(|| parse_stylesheet(include_str!("hints.css")));
 
 /// The cascade origin of a rule, in increasing precedence for normal
 /// declarations.
@@ -76,7 +76,7 @@ pub(crate) struct Rule {
 
 impl Rule {
     /// The full cascade sort key: origin, specificity, source order.
-    pub(crate) fn cascade_key(&self) -> (CascadeOrigin, u64) {
+    fn cascade_key(&self) -> (CascadeOrigin, u64) {
         (self.origin, self.sort_key)
     }
 }
@@ -238,7 +238,7 @@ impl Stylist {
 
     /// The number of rules (one per selector).
     #[cfg(test)]
-    pub(crate) fn rule_count(&self) -> usize {
+    fn rule_count(&self) -> usize {
         self.rules.len()
     }
 
@@ -468,7 +468,7 @@ mod tests {
     #[test]
     fn media_chains() {
         let mut stylist = Stylist::new(swb_dom::QuirksMode::NoQuirks);
-        let sheet = Stylesheet::parse(
+        let sheet = parse_stylesheet(
             "@media (min-width: 500px) { a { color: red } @media (max-width: 900px) { b { color: red } } }",
         );
         stylist.add_author_sheet(&sheet, &Url::parse("https://example.com/").expect("url"));

@@ -7,7 +7,7 @@
 use std::ops::Range;
 
 use swb_style::{ComputedStyle, WhiteSpace};
-use swb_text::{BreakKind, Direction, FontContext, FontId, GlyphId, ShapeOptions};
+use swb_text::{BreakKind, FontContext, FontId, GlyphId, ShapeOptions};
 
 use crate::box_tree::{
     InlineFormattingContext, InlineItem, has_inline_end_edge, has_inline_start_edge,
@@ -247,11 +247,7 @@ fn shape_group(
     let text = &ifc.text[range.clone()];
     let families = fonts::family_names(&style.font_family);
     let query = fonts::query(style, &families);
-    let options = ShapeOptions {
-        direction: Direction::Ltr,
-        language: None,
-        features: &[],
-    };
+    let options = ShapeOptions::default();
     for font_run in fonts.itemize(text, &query) {
         let sub = &text[font_run.range.clone()];
         let shaped = fonts.shape(font_run.font, style.font_size, sub, &options);

@@ -447,7 +447,7 @@ pub(crate) fn build_independent(
 }
 
 /// True for a replaced element (an image).
-pub(crate) fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
+fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
     ctx.doc
         .element(node)
         .is_some_and(|e| e.is_html_named(&local_name!("img")))
@@ -976,9 +976,8 @@ impl AnonymousTable {
                 .get(child)
                 .is_none_or(|s| s.display == Display::None),
             NodeData::Text(text) => {
-                let collapsible = parent_style.is_some_and(|style| {
-                    style.white_space.collapses_spaces() && text.chars().all(is_collapsible_space)
-                });
+                let collapsible =
+                    parent_style.is_some_and(|style| is_collapsible_white_space(style, text));
                 if collapsible {
                     self.spaces.push(child);
                 }
@@ -1057,6 +1056,11 @@ pub(crate) fn is_collapsible_space(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0C')
 }
 
+/// True if `text` is only collapsible white space in `style`.
+pub(crate) fn is_collapsible_white_space(style: &ComputedStyle, text: &str) -> bool {
+    style.white_space.collapses_spaces() && text.chars().all(is_collapsible_space)
+}
+
 impl InlineBuilder {
     /// Adds the text of a text node.
     fn push_text(&mut self, node: NodeId, style: &Arc<ComputedStyle>, text: &str) {
@@ -1088,9 +1092,7 @@ impl InlineBuilder {
 
     fn push(&mut self, item: RawItem) {
         let content = match &item {
-            RawItem::Text { style, text, .. } => {
-                !style.white_space.collapses_spaces() || !text.chars().all(is_collapsible_space)
-            }
+            RawItem::Text { style, text, .. } => !is_collapsible_white_space(style, text),
             RawItem::StartBox { .. } | RawItem::EndBox { .. } => false,
             _ => true,
         };

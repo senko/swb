@@ -23,7 +23,7 @@ use std::sync::Arc;
 use log::trace;
 use swb_css::{ComponentValue, Declaration, Parser, contains_function, trim_whitespace};
 
-pub use ids::LonghandId;
+pub(crate) use ids::LonghandId;
 use ids::LonghandValue;
 use shorthand::ShorthandId;
 
@@ -280,7 +280,7 @@ const IGNORED_PROPERTIES: &[&str] = &[
 /// Looks up a property name (lowercase). The flag is true if the name is
 /// the property's own name, false for aliases (the quirks mode unitless
 /// length quirk applies only to the listed names).
-pub(crate) fn lookup_property(name: &str) -> Option<(PropertyId, bool)> {
+fn lookup_property(name: &str) -> Option<(PropertyId, bool)> {
     // Internal longhands (set through shorthands) are not valid names.
     if name.starts_with("-swb-") {
         return None;

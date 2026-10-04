@@ -18,8 +18,8 @@
 //! <https://quirks.spec.whatwg.org/#the-blocks-ignore-line-height-quirk>):
 //! the strut of the root inline box and of an inline box counts only if
 //! the box contains text or a forced line break directly, or (for an
-//! inline box) has a margin, border or padding on its start or end side.
-//! Lines of list items always have the root strut.
+//! inline box) has a border or padding on its start or end side (margins
+//! do not count). Lines of list items always have the root strut.
 
 mod shaping;
 
@@ -1349,11 +1349,7 @@ fn carets(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{layout_html, rects_of_text};
-
-    fn body(html: &str) -> String {
-        format!("<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>{html}")
-    }
+    use crate::test_support::{body, layout_html, rects_of_text};
 
     #[test]
     fn empty_inline_boxes_make_no_line_box() {

@@ -14,7 +14,7 @@ use swb_paint::SELECTION_BACKGROUND;
 use swb_style::TextDecorationLine;
 
 mod common;
-use common::Site;
+use common::{CTRL, SHIFT, Site, node, rect};
 
 /// Loads `html` into an 800×600 page with the test fonts.
 fn open(site: &Site, html: &str) -> (Page, Url) {
@@ -31,17 +31,6 @@ fn open_url(url: Url) -> Page {
     page
 }
 
-fn node(page: &Page, id: &str) -> swb_engine::NodeId {
-    page.document().unwrap().element_by_id(id).unwrap()
-}
-
-/// The border box of the element with `id` (document coordinates).
-fn rect(page: &mut Page, id: &str) -> Rect {
-    page.update_layout();
-    let node = node(page, id);
-    page.fragments().unwrap().element_boxes()[&node]
-}
-
 fn center(r: Rect) -> (f32, f32) {
     (r.x + r.width / 2.0, r.y + r.height / 2.0)
 }
@@ -53,16 +42,6 @@ fn press(page: &mut Page, x: f32, y: f32, clicks: u32) {
 fn key(page: &mut Page, key: &Key, modifiers: Modifiers) -> bool {
     page.key_down(key, modifiers)
 }
-
-const SHIFT: Modifiers = Modifiers {
-    shift: true,
-    ..Modifiers::NONE
-};
-
-const CTRL: Modifiers = Modifiers {
-    ctrl: true,
-    ..Modifiers::NONE
-};
 
 /// The address of the root fragment's children: it changes when the page
 /// is laid out again.

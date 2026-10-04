@@ -11,10 +11,14 @@ from swbtools import paths, swb
 from swbtools.automation import AutomationError, Browser
 
 
-@pytest.fixture
-def browser():
+@pytest.fixture(autouse=True)
+def _require_swb():
     if swb.find_swb() is None:
         pytest.skip("the swb binary does not exist")
+
+
+@pytest.fixture
+def browser():
     with Browser.start(fixture=paths.fixture_dir("senko-net")) as b:
         b.navigate("https://senko.net/")
         assert b.wait_for_load()
@@ -39,8 +43,6 @@ def test_keyboard_and_errors(browser):
 
 
 def test_typing_into_a_text_field():
-    if swb.find_swb() is None:
-        pytest.skip("the swb binary does not exist")
     with Browser.start() as b:
         b.navigate("data:text/html,<input id=q value=a><textarea id=t></textarea>")
         assert b.wait_for_load()

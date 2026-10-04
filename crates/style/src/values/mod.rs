@@ -7,7 +7,8 @@ mod length;
 
 use std::sync::Arc;
 
-pub use color::{Color, Rgba, named_color, system_color};
+pub use color::{Color, Rgba};
+pub(crate) use color::{named_color, system_color};
 pub use keywords::*;
 pub use length::{
     CalcNode, ComputedCalc, Length, LengthContext, LengthPercentage, LengthPercentageOrAuto,

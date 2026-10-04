@@ -217,7 +217,7 @@ fn grow_empty_rows(
     true
 }
 
-/// Adds `amount / rows.len()` to each of `rows`.
+/// Adds `amount / indices.len()` to each row in `indices`.
 fn grow_evenly(rows: &mut [RowData], indices: &[usize], amount: f32) {
     let each = amount / indices.len().max(1) as f32;
     for &i in indices {
@@ -225,7 +225,7 @@ fn grow_evenly(rows: &mut [RowData], indices: &[usize], amount: f32) {
     }
 }
 
-/// Adds `amount` to `rows` in proportion to their heights.
+/// Adds `amount` to the rows in `indices` in proportion to their heights.
 fn grow_proportionally(rows: &mut [RowData], indices: &[usize], amount: f32) {
     let total: f32 = indices.iter().map(|&i| rows[i].height).sum();
     if total <= 0.0 {

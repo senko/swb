@@ -8,7 +8,7 @@ use swb_layout::{Point, PositionedGlyph, Rect};
 use swb_paint::{DisplayItem, DisplayList};
 use swb_style::{BorderStyle, Rgba};
 use swb_text::{
-    Direction, FamilyName, FontContext, FontId, FontQuery, FontStyle, GenericFamily, ShapeOptions,
+    FamilyName, FontContext, FontId, FontQuery, FontStyle, GenericFamily, ShapeOptions,
 };
 
 /// Height of the toolbar in CSS px.
@@ -285,11 +285,7 @@ fn shape_line(fonts: &mut FontContext, text: &str, size: f32) -> UiLine {
         stretch: 100.0,
         language: None,
     };
-    let options = ShapeOptions {
-        direction: Direction::Ltr,
-        language: None,
-        features: &[],
-    };
+    let options = ShapeOptions::default();
     let mut runs = Vec::new();
     let mut cluster_x: Vec<(usize, f32)> = Vec::new();
     let mut pen = 0.0;

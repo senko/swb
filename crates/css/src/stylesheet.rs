@@ -61,13 +61,6 @@ pub struct Declaration {
     pub important: bool,
 }
 
-impl Declaration {
-    /// A cursor over the value.
-    pub fn parser(&self) -> Parser<'_> {
-        Parser::new(&self.value)
-    }
-}
-
 /// An `@media` rule.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MediaRule {
@@ -132,13 +125,6 @@ pub struct SupportsRule {
     pub rules: Vec<CssRule>,
 }
 
-impl Stylesheet {
-    /// Parses a stylesheet. Same as [`crate::parse_stylesheet`].
-    pub fn parse(css: &str) -> Stylesheet {
-        crate::parser::parse_stylesheet(css)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,12 +151,5 @@ mod tests {
         .expect("valid @import");
         assert!(matches!(rule.supports, Some(SupportsCondition::And(_))));
         assert!(ImportRule::parse(&crate::parse_component_values("foo")).is_none());
-    }
-
-    #[test]
-    fn declaration_parser() {
-        let decls = crate::parse_style_attribute("width: 10px");
-        let mut p = decls[0].parser();
-        assert_eq!(p.expect_dimension(), Ok((10.0, "px")));
     }
 }

@@ -35,11 +35,11 @@ use crate::values::{
 #[derive(Clone, Debug)]
 pub(crate) struct HintContext {
     /// For `background` attributes.
-    pub(crate) parser: ParserContext,
+    parser: ParserContext,
     /// True in quirks mode.
-    pub(crate) quirks: bool,
+    quirks: bool,
     /// The `link` attribute color of the body element.
-    pub(crate) link_color: Option<Rgba>,
+    link_color: Option<Rgba>,
 }
 
 impl HintContext {
@@ -61,7 +61,7 @@ impl HintContext {
 
 /// A parsed dimension value: a length in px or a percentage.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Dimension {
+enum Dimension {
     /// Pixels.
     Length(f32),
     /// A percentage (50 for 50%).
@@ -79,7 +79,7 @@ impl Dimension {
 
 /// The rules for parsing dimension values.
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values>
-pub(crate) fn parse_dimension(input: &str) -> Option<Dimension> {
+fn parse_dimension(input: &str) -> Option<Dimension> {
     let input = input.trim_start_matches(is_html_whitespace);
     let digits = input.bytes().take_while(u8::is_ascii_digit).count();
     if digits == 0 {
@@ -118,7 +118,7 @@ fn parse_nonzero_dimension(input: &str) -> Option<Dimension> {
 /// The rules for parsing integers (leading whitespace, optional sign,
 /// digits; trailing text is ignored).
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers>
-pub(crate) fn parse_integer(input: &str) -> Option<i64> {
+fn parse_integer(input: &str) -> Option<i64> {
     let input = input.trim_start_matches(is_html_whitespace);
     let (negative, rest) = match input.as_bytes().first() {
         Some(b'-') => (true, &input[1..]),
@@ -135,7 +135,7 @@ pub(crate) fn parse_integer(input: &str) -> Option<i64> {
 
 /// The rules for parsing non-negative integers.
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers>
-pub(crate) fn parse_non_negative_integer(input: &str) -> Option<i64> {
+fn parse_non_negative_integer(input: &str) -> Option<i64> {
     parse_integer(input).filter(|v| *v >= 0)
 }
 
@@ -447,7 +447,7 @@ fn font_hints(e: &ElementData, push: &mut impl FnMut(LonghandValue)) {
 
 /// The rules for parsing a legacy font size: returns 1 to 7.
 /// <https://html.spec.whatwg.org/multipage/rendering.html#rules-for-parsing-a-legacy-font-size>
-pub(crate) fn parse_legacy_font_size(input: &str) -> Option<i32> {
+fn parse_legacy_font_size(input: &str) -> Option<i32> {
     let input = input.trim_start_matches(is_html_whitespace);
     let (mode, rest) = match input.as_bytes().first()? {
         b'+' => (1, &input[1..]),

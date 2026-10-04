@@ -183,9 +183,7 @@ impl FontContext {
     /// any fonts it returns a placeholder font that has no glyphs.
     pub fn select(&mut self, query: &FontQuery<'_>) -> FontId {
         for family in query.families {
-            if let Some(family) = self.resolve_family(*family)
-                && let Some(font) = self.select_in_family(family, query)
-            {
+            if let Some(font) = self.family_font(*family, query) {
                 return font;
             }
         }
@@ -230,19 +228,21 @@ impl FontContext {
     }
 
     /// True if `font` has a glyph for `c`.
-    pub fn has_glyph(&self, font: FontId, c: char) -> bool {
+    pub(crate) fn has_glyph(&self, font: FontId, c: char) -> bool {
         self.instance(font)
             .and_then(|i| i.face.as_ref())
             .is_some_and(|face| face.covers(c))
     }
 
     /// The anti-aliased coverage mask of a glyph at `size` device pixels,
-    /// shifted right by `subpixel` quarter pixels (0 to 3). Returns `None`
-    /// for glyphs without an outline (spaces), color glyphs (not supported
-    /// yet), glyphs wider or taller than 4096 pixels and invalid arguments.
+    /// shifted right by `subpixel` quarter pixels (0 to 3; larger values
+    /// count as 3). Returns `None` for glyphs without an outline (spaces),
+    /// color glyphs (not supported yet), glyphs wider or taller than 4096
+    /// pixels and invalid arguments.
     ///
-    /// Masks of up to 256 × 256 pixels are cached, with at most 64 MiB of
-    /// mask data in total. Larger masks are rasterized on every call.
+    /// Masks of up to 65,536 pixels (256 × 256) are cached, with at most
+    /// 64 MiB of mask data and 32K masks in total. Larger masks are
+    /// rasterized on every call.
     pub fn glyph_mask(
         &mut self,
         font: FontId,
@@ -299,14 +299,19 @@ impl FontContext {
     pub(crate) fn family_fonts(&mut self, query: &FontQuery<'_>) -> Vec<FontId> {
         let mut fonts = Vec::with_capacity(query.families.len());
         for family in query.families {
-            if let Some(family) = self.resolve_family(*family)
-                && let Some(font) = self.select_in_family(family, query)
+            if let Some(font) = self.family_font(*family, query)
                 && !fonts.contains(&font)
             {
                 fonts.push(font);
             }
         }
         fonts
+    }
+
+    /// The font of `family` for `query`, if the family exists.
+    fn family_font(&mut self, family: FamilyName<'_>, query: &FontQuery<'_>) -> Option<FontId> {
+        let family = self.resolve_family(family)?;
+        self.select_in_family(family, query)
     }
 
     /// The font of the default family for `query`, or the placeholder.
@@ -595,7 +600,8 @@ fn system_source() -> Box<dyn FontSource> {
     Box::new(EmptySource)
 }
 
-/// Font sizes must be finite and positive; others become 0.
+/// Font sizes must be finite and positive; others become 0. Sizes above
+/// 16384 px become 16384 px.
 pub(crate) fn sanitize_size(size: f32) -> f32 {
     if size.is_finite() && size > 0.0 {
         size.min(16384.0)

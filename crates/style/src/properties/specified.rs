@@ -18,7 +18,7 @@ use crate::values::{
 
 /// The ratio between adjacent font sizes for `larger` and `smaller`.
 /// <https://www.w3.org/TR/css-fonts-4/#relative-size-value>
-pub(crate) const FONT_SIZE_RATIO: f32 = 1.2;
+const FONT_SIZE_RATIO: f32 = 1.2;
 
 /// A specified `font-size`.
 #[derive(Clone, Debug, PartialEq)]
