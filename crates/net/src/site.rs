@@ -4,6 +4,13 @@
 //! compiled into the `psl` crate. Browsers use both sections of the list
 //! (ICANN and private domains such as `github.io`), and so does swb.
 //!
+//! License: the list is MPL-2.0. The crate's hand-written code is
+//! MIT/Apache-2.0, but its generated table is the list, and swb treats it
+//! as MPL-2.0. It is the only MPL-2.0 component of swb, a one-off
+//! exception to the dependency policy: see ADR 0014 and
+//! `THIRD_PARTY_NOTICES.md`. This is the only module that uses the crate
+//! (`deny.toml` enforces that only `swb-net` depends on it).
+//!
 //! A site is a scheme and a registrable domain ("schemeful same-site", as
 //! in Chromium since version 89), so `http://a.com` and `https://a.com`
 //! are different sites.

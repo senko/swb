@@ -1,7 +1,10 @@
 # ADR 0012: Cookies
 
-- Status: accepted (one license question is open, see "Public Suffix List")
+- Status: accepted (the license question in "Public Suffix List" was
+  decided in ADR 0014)
 - Date: 2026-10-02
+- Updated: 2026-10-03 (ADR 0013: the initiator in history; ADR 0014: the
+  license of the Public Suffix List)
 
 ## Context
 
@@ -120,6 +123,10 @@ this list. The alternatives are to embed `public_suffix_list.dat` as a data
 file (the same license question, plus a small parser), or to have no list,
 which is unsafe: `Domain=co.uk` would be accepted, and `a.co.uk` and
 `b.co.uk` would be one site. swb uses `psl` until the owner decides.
+
+Update (2026-10-03): the owner allowed the list as a one-off exception to
+ADR 0003, with the license stated clearly in the repository and in
+`deny.toml`; see [ADR 0014](0014-public-suffix-list-license-exception.md).
 
 ### Where the jar lives
 

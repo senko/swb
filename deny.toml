@@ -28,10 +28,31 @@ allow = [
 [licenses.private]
 ignore = true
 
+# One-off exception (ADR 0014): the `psl` crate compiles the Public Suffix
+# List into code. The crate declares only "MIT/Apache-2.0", but its table
+# is the list, which is MPL-2.0 data. Declare the real license, and allow
+# MPL-2.0 for this crate only. Any other crate that declares MPL-2.0 still
+# fails this check. cargo-deny sees only declared licenses: check the
+# license of data in a new dependency yourself.
+[[licenses.clarify]]
+crate = "psl"
+expression = "(MIT OR Apache-2.0) AND MPL-2.0"
+license-files = []
+
+[[licenses.exceptions]]
+crate = "psl"
+allow = ["MPL-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
 allow-wildcard-paths = true
+# The scope of the Public Suffix List exception (ADR 0014): only swb-net
+# may use `psl`, and no second copy of the list may come in.
+deny = [
+    { crate = "psl", wrappers = ["swb-net"], reason = "MPL-2.0 data, one-off exception (ADR 0014)" },
+    { crate = "publicsuffix", reason = "a second copy of the Public Suffix List (MPL-2.0, ADR 0014)" },
+]
 
 [sources]
 unknown-registry = "deny"

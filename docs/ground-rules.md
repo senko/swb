@@ -62,3 +62,12 @@ repository. Read them before you start work.
   or test. Use separate branches for spikes that can fail.
 - JavaScript: not in scope until a target needs it. Before adding JS, ask the
   owner whether a third-party JS *parser* (source to AST only) is acceptable.
+
+## Decisions from 2026-10-03
+
+- License exception: the Public Suffix List (MPL-2.0) may be shipped,
+  because cookies need it and every normal client (browser) ships it. This is a
+  one-off exception, not a precedent: other copyleft dependencies or data
+  need a new decision. The license must be documented clearly wherever it
+  applies, so that the MIT license of the project does not hide it
+  ([ADR 0014](adr/0014-public-suffix-list-license-exception.md)).

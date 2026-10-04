@@ -84,7 +84,6 @@ Open a URL in a window and read the page.
   Lax+POST; the redirect-tainted `Origin`; `Sec-Fetch-*` and `Referer`
   headers; raw bytes in cookie values (now re-encoded as UTF-8);
   Chromium's 30-day protection in global eviction.
-- Owner decision: the Public Suffix List data is MPL-2.0 (ADR 0012).
 - Forms: list boxes (`<select multiple>` or `size` > 1 look like
   drop-downs) and the popup list of a select (the keyboard changes the
   selection); date, time, color, range and file inputs (text fields or a

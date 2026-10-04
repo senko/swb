@@ -147,7 +147,9 @@ See `fixtures/fonts/README.md` for file details.
 
 ## Data in dependencies
 
-- Public Suffix List (Mozilla, MPL-2.0) — compiled into the `psl` crate
-  (`MIT OR Apache-2.0`) — registrable domains for cookies and sites
-  (`net/src/site.rs`). The license of the list is an open question for
-  the owner (ADR 0012).
+- Public Suffix List (Public Suffix List project, Mozilla; **MPL-2.0**) —
+  compiled into a table in the `psl` crate (the crate's hand-written code
+  is `MIT OR Apache-2.0`; the table is the list, under MPL-2.0) —
+  registrable domains for cookies and sites (`net/src/site.rs`). A
+  one-off exception to the dependency policy, see ADR 0014 and
+  `THIRD_PARTY_NOTICES.md`.

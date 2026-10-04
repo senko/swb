@@ -13,10 +13,12 @@ this repository. There is no JavaScript support yet.
 
 ## Status
 
-Early development. Static pages render; links, scrolling, back/forward,
-the address bar, hover effects, keyboard focus (Tab) and text selection
-with copy work. No JavaScript, no forms, no tables yet. See
-[docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
+Early development. Static pages render, with tables, SVG images and
+quirks mode; links, scrolling, back/forward, the address bar, hover
+effects, keyboard focus (Tab), text selection with copy, forms (GET and
+POST) and cookies work. No JavaScript, floats, absolute or fixed
+positioning, or grid yet.
+See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 
 ## Build and run
 
@@ -63,4 +65,17 @@ for the comparison tooling.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+swb's own source code is MIT-licensed. See [LICENSE](LICENSE).
+
+swb binaries also contain third-party material that is not under swb's
+MIT License, and the MIT License does not apply to it: the Public Suffix
+List under the Mozilla Public License 2.0 (MPL-2.0, a one-off exception,
+[ADR 0014](docs/adr/0014-public-suffix-list-license-exception.md)), and
+stylesheets based on the WHATWG HTML Standard under CC BY 4.0. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The test data in `fixtures/` (snapshots of web pages, fonts) is
+third-party material under its own licenses; see
+[fixtures/pages/README.md](fixtures/pages/README.md) and
+[fixtures/fonts/README.md](fixtures/fonts/README.md). It is not part of
+swb binaries.

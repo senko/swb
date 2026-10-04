@@ -2,6 +2,9 @@
 
 - Status: accepted
 - Date: 2026-10-02
+- Updated: 2026-10-03: one exception, the Public Suffix List (MPL-2.0
+  data), allowed by the owner in [ADR 0014](0014-public-suffix-list-license-exception.md).
+  The policy itself is unchanged; the exception is not a precedent.
 
 ## Context
 

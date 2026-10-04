@@ -6,12 +6,22 @@ in commit messages, ADRs and other docs.
 
 ## 2026-10-03: M2 Hacker News
 
+- The owner accepted Hacker News (target 2).
+- The owner allowed the Public Suffix List (MPL-2.0) as a one-off license
+  exception (ADR 0014). `deny.toml` now declares the real license of the
+  `psl` crate (the crate metadata says only MIT/Apache-2.0, and its copy
+  of the list has the license header removed) and allows MPL-2.0 for that
+  crate only, and only `swb-net` may depend on it. `THIRD_PARTY_NOTICES.md`
+  states the license for binaries; it also names the WHATWG-derived
+  stylesheets (CC BY 4.0), which binaries contain too. `fixtures/pages`
+  has a note that the page snapshots are third-party material.
+
 - Cookies: an RFC 6265bis jar in the `net` HTTP client with Chromium's
   defaults (Lax by default, schemeful sites, a 400-day cap, 180 cookies
   per domain and 3300 in total), the Public Suffix List through `psl`,
   `Request::initiator` for `SameSite`, `Request::post` and the `Origin`
-  header, automation `cookies.get` and `cookies.clear` (ADR 0012). Open
-  question for the owner: the list's data is MPL-2.0.
+  header, automation `cookies.get` and `cookies.clear` (ADR 0012). The
+  list's data is MPL-2.0 (decided later the same day: ADR 0014).
 - Tables (ADR 0010): Chromium's LayoutNG algorithm for column widths,
   row heights and cell alignment, automatic and fixed layout, separated
   and collapsing borders, captions, column and row backgrounds, the

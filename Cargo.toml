@@ -42,7 +42,10 @@ tungstenite = { version = "0.30", default-features = false, features = ["handsha
 # net
 brotli-decompressor = "6"
 flate2 = "1"
-# The Public Suffix List, compiled into code (see ADR 0012).
+# The Public Suffix List, compiled into code (see ADR 0012). The crate's
+# hand-written code is MIT/Apache-2.0, but its generated table is the
+# list, which is MPL-2.0: a one-off license exception (ADR 0014,
+# deny.toml, THIRD_PARTY_NOTICES.md).
 psl = { version = "2.1", default-features = false }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-native-certs = "0.8"
