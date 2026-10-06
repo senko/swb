@@ -277,8 +277,6 @@ const IGNORED_PROPERTIES: &[&str] = &[
     "text-underline-offset",
     "text-underline-position",
     "text-decoration-skip-ink",
-    "justify-items",
-    "justify-self",
 ];
 
 /// Looks up a property name (lowercase). The flag is true if the name is
@@ -1111,8 +1109,82 @@ mod tests {
         assert_eq!(s.align_content, Alignment::Center);
         assert_eq!(s.justify_content, Alignment::SpaceAround);
         assert_eq!(s.align_items, Alignment::End);
+        assert_eq!(s.justify_items, Alignment::Start);
         assert_eq!(s.align_self, Alignment::Stretch);
-        assert!(valid("justify-items", "legacy center"));
+        assert_eq!(s.justify_self, Alignment::Stretch);
+    }
+
+    #[test]
+    fn justify_items_and_self() {
+        let justify_items = |css: &str| style(css).justify_items;
+        assert_eq!(justify_items("place-items: center"), Alignment::Center);
+        assert_eq!(
+            justify_items("justify-items: legacy center"),
+            Alignment::Center
+        );
+        assert_eq!(
+            justify_items("justify-items: right legacy"),
+            Alignment::Right
+        );
+        assert_eq!(justify_items("justify-items: legacy"), Alignment::Normal);
+        assert_eq!(style("justify-self: auto").justify_self, Alignment::Auto);
+        assert!(!valid("justify-items", "legacy start"));
+        assert!(!valid("justify-items", "auto"));
+        assert!(!valid("justify-items", "space-between"));
+        assert!(!valid("justify-self", "legacy"));
+    }
+
+    #[test]
+    fn grid_properties() {
+        let s = style(
+            "grid-template: min-content 1fr / 12.25rem minmax(0, 1fr); \
+             grid-template-areas: 'a b' 'c c'; grid-auto-flow: column dense; \
+             grid-auto-rows: 10px 2em; grid-area: b / 2 / span 3",
+        );
+        assert_eq!(s.grid_template_rows.entries().len(), 2);
+        let TrackListValue::Track(first) = &s.grid_template_columns.entries()[0].value else {
+            panic!("a track");
+        };
+        assert_eq!(first, &TrackSize::Breadth(TrackBreadth::Length(px(196.0))));
+        assert!(
+            s.grid_template_areas
+                .as_ref()
+                .is_some_and(|a| a.areas().len() == 3)
+        );
+        assert_eq!(
+            s.grid_auto_flow,
+            GridAutoFlow {
+                column: true,
+                dense: true
+            }
+        );
+        assert_eq!(
+            &*s.grid_auto_rows,
+            &[
+                TrackSize::Breadth(TrackBreadth::Length(px(10.0))),
+                TrackSize::Breadth(TrackBreadth::Length(px(32.0)))
+            ]
+        );
+        assert_eq!(s.grid_row_start, GridLine::Name("b".into()));
+        assert_eq!(s.grid_column_start, GridLine::Line(2, None));
+        assert_eq!(s.grid_row_end, GridLine::Span(3, None));
+        assert_eq!(s.grid_column_end, GridLine::Auto);
+        // `grid` resets the template when it sets the auto tracks.
+        let s = style("grid-template-columns: 10px; grid: auto-flow / 1fr");
+        assert!(!s.grid_auto_flow.column);
+        assert_eq!(s.grid_template_columns.entries().len(), 1);
+        assert!(s.grid_template_rows.is_none());
+        let s = style("grid-row: x; grid-column: 3 / -1");
+        assert_eq!(s.grid_row_end, GridLine::Name("x".into()));
+        assert_eq!(s.grid_column_end, GridLine::Line(-1, None));
+        assert!(valid(
+            "grid-template-columns",
+            "repeat(auto-fill, minmax(10rem, 1fr))"
+        ));
+        assert!(!valid("grid-template-columns", "subgrid"));
+        assert!(!valid("grid-row", "span 0"));
+        assert!(!valid("grid-template-areas", "'a b' 'a a'"));
+        assert!(valid("grid", "none"));
     }
 
     #[test]
@@ -1243,6 +1315,12 @@ mod tests {
         assert!(check("(display: grid)"));
         assert!(check("(display: flex) and (gap: 1px)"));
         assert!(!check("(display: grid-lanes)"));
+        assert!(check("(grid-template-columns: repeat(2, [a] 1fr))"));
+        assert!(check("(grid-area: a / b)"));
+        assert!(check("(justify-self: center)"));
+        assert!(!check("(justify-items: banana)"));
+        assert!(!check("(grid-template-rows: subgrid)"));
+        assert!(!check("(grid-template-rows: masonry)"));
         assert!(check("(color: var(--x))"));
         assert!(check("(--x: anything)"));
         assert!(check("(mask-image: none)"));

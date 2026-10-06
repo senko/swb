@@ -1,0 +1,32 @@
+{
+  "url": "tests/layout/grid-auto-repeat.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 268.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 252.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 530.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 8.0, 100.0, 20.0], "parent": 6},
+    {"tag": "div", "rect": [118.0, 8.0, 100.0, 20.0], "parent": 6},
+    {"tag": "div", "rect": [228.0, 8.0, 100.0, 20.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 36.0, 530.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [168.0, 36.0, 100.0, 20.0], "parent": 10},
+    {"tag": "div", "rect": [278.0, 36.0, 100.0, 20.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 64.0, 530.0, 50.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 64.0, 125.0, 20.0], "parent": 13},
+    {"tag": "div", "rect": [143.0, 64.0, 125.0, 20.0], "parent": 13},
+    {"tag": "div", "rect": [278.0, 64.0, 125.0, 20.0], "parent": 13},
+    {"tag": "div", "rect": [413.0, 64.0, 125.0, 20.0], "parent": 13},
+    {"tag": "div", "rect": [8.0, 94.0, 125.0, 20.0], "parent": 13},
+    {"tag": "div", "rect": [8.0, 122.0, 530.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 122.0, 50.0, 20.0], "parent": 19},
+    {"tag": "div", "rect": [68.0, 122.0, 410.0, 20.0], "parent": 19},
+    {"tag": "div", "rect": [8.0, 150.0, 784.0, 110.0], "parent": 5},
+    {"tag": "div", "rect": [208.0, 245.0, 20.0, 20.0], "parent": 22},
+    {"tag": "div", "rect": [8.0, 150.0, 40.0, 20.0], "parent": 22},
+    {"tag": "div", "rect": [58.0, 150.0, 60.0, 20.0], "parent": 22}
+  ]
+}

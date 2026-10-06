@@ -128,6 +128,9 @@ pub(crate) enum IndependentContents {
     /// absolutely positioned children. Every flex item establishes an
     /// independent formatting context.
     Flex(Vec<IndependentBox>),
+    /// A grid container with its children: the grid items (built as flex
+    /// items are) and the absolutely positioned children.
+    Grid(Vec<IndependentBox>),
     /// A replaced element (an image).
     Replaced(Replaced),
     /// A table (CSS 2.2 §17): its captions, columns and row groups.
@@ -438,6 +441,9 @@ pub(crate) fn build_independent(
         Display::Flex | Display::InlineFlex => {
             IndependentContents::Flex(build_flex_items(ctx, &base, state))
         }
+        Display::Grid | Display::InlineGrid => {
+            IndependentContents::Grid(build_flex_items(ctx, &base, state))
+        }
         Display::Table | Display::InlineTable => {
             IndependentContents::Table(crate::table::build_table(ctx, &base, state))
         }
@@ -525,9 +531,9 @@ pub(crate) fn build_block_container(
     builder.finish(state)
 }
 
-/// Builds the children of a flex container: every in-flow child becomes a
-/// flex item; contiguous inline content is wrapped in anonymous blocks.
-/// Floats are flex items (`float` does not apply to them).
+/// Builds the children of a flex or grid container: every in-flow child
+/// becomes an item; contiguous inline content is wrapped in anonymous
+/// blocks. Floats are items (`float` does not apply to them).
 pub(crate) fn build_flex_items(
     ctx: &BuildContext<'_>,
     base: &BoxBase,

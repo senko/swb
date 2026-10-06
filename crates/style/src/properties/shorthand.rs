@@ -22,6 +22,7 @@ use super::specified::{
     SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize,
 };
 use crate::parse::color::parse_color;
+use crate::parse::grid;
 use crate::parse::image::{SpecifiedImage, looks_like_image, parse_image};
 use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{ParseResult, ParserContext, parse_non_negative_number};
@@ -129,8 +130,16 @@ shorthands! {
     Gap "gap" [RowGap, ColumnGap];
     Overflow "overflow" [OverflowX, OverflowY];
     PlaceContent "place-content" [AlignContent, JustifyContent];
-    PlaceItems "place-items" [AlignItems];
-    PlaceSelf "place-self" [AlignSelf];
+    PlaceItems "place-items" [AlignItems, JustifyItems];
+    PlaceSelf "place-self" [AlignSelf, JustifySelf];
+    GridRow "grid-row" [GridRowStart, GridRowEnd];
+    GridColumn "grid-column" [GridColumnStart, GridColumnEnd];
+    GridArea "grid-area" [GridRowStart, GridColumnStart, GridRowEnd, GridColumnEnd];
+    GridTemplate "grid-template" [GridTemplateRows, GridTemplateColumns, GridTemplateAreas];
+    Grid "grid" [
+        GridTemplateRows, GridTemplateColumns, GridTemplateAreas, GridAutoRows, GridAutoColumns,
+        GridAutoFlow
+    ];
 }
 
 impl ShorthandId {
@@ -366,25 +375,72 @@ impl ShorthandId {
                     out.push(LonghandValue::JustifyContent(justify));
                     Ok(())
                 }
+                // An omitted second value copies the first (CSS Align 3
+                // §6.3, §6.1).
                 S::PlaceItems => {
                     let align = parse_alignment(p, AlignKind::AlignItems)?;
-                    if !p.is_exhausted() {
-                        parse_alignment(p, AlignKind::JustifyItems)?;
-                    }
+                    let justify = if p.is_exhausted() {
+                        align
+                    } else {
+                        parse_alignment(p, AlignKind::JustifyItems)?
+                    };
                     out.push(LonghandValue::AlignItems(align));
+                    out.push(LonghandValue::JustifyItems(justify));
                     Ok(())
                 }
                 S::PlaceSelf => {
                     let align = parse_alignment(p, AlignKind::AlignSelf)?;
-                    if !p.is_exhausted() {
-                        parse_alignment(p, AlignKind::JustifySelf)?;
-                    }
+                    let justify = if p.is_exhausted() {
+                        align
+                    } else {
+                        parse_alignment(p, AlignKind::JustifySelf)?
+                    };
                     out.push(LonghandValue::AlignSelf(align));
+                    out.push(LonghandValue::JustifySelf(justify));
+                    Ok(())
+                }
+                S::GridRow => {
+                    let (start, end) = grid::parse_grid_line_pair(p)?;
+                    out.push(LonghandValue::GridRowStart(start));
+                    out.push(LonghandValue::GridRowEnd(end));
+                    Ok(())
+                }
+                S::GridColumn => {
+                    let (start, end) = grid::parse_grid_line_pair(p)?;
+                    out.push(LonghandValue::GridColumnStart(start));
+                    out.push(LonghandValue::GridColumnEnd(end));
+                    Ok(())
+                }
+                S::GridArea => {
+                    let [row_start, column_start, row_end, column_end] = grid::parse_grid_area(p)?;
+                    out.push(LonghandValue::GridRowStart(row_start));
+                    out.push(LonghandValue::GridColumnStart(column_start));
+                    out.push(LonghandValue::GridRowEnd(row_end));
+                    out.push(LonghandValue::GridColumnEnd(column_end));
+                    Ok(())
+                }
+                S::GridTemplate => {
+                    push_grid_template(grid::parse_grid_template(p)?, out);
+                    Ok(())
+                }
+                S::Grid => {
+                    let g = grid::parse_grid(p)?;
+                    push_grid_template(g.template, out);
+                    out.push(LonghandValue::GridAutoRows(g.auto_rows));
+                    out.push(LonghandValue::GridAutoColumns(g.auto_columns));
+                    out.push(LonghandValue::GridAutoFlow(g.auto_flow));
                     Ok(())
                 }
             }
         })
     }
+}
+
+/// Appends the longhands of the `grid-template` shorthand.
+fn push_grid_template(t: grid::GridTemplate, out: &mut Vec<LonghandValue>) {
+    out.push(LonghandValue::GridTemplateRows(t.rows));
+    out.push(LonghandValue::GridTemplateColumns(t.columns));
+    out.push(LonghandValue::GridTemplateAreas(t.areas));
 }
 
 /// Parses one to four values and expands them to four (top, right,

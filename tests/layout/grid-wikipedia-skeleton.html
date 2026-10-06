@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Grid: a reduction of Wikipedia's page skeleton (Vector 2022 at
+     1120px to 1679px): .mw-page-container-inner with grid-template and
+     areas, and .mw-body with min-content rows, minmax(0, 1fr) and
+     min-content columns, and a '.' area. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: Wikipedia skeleton</title>
+<style>
+  body { margin: 0; font: 14px/22px sans-serif; }
+  .page { margin: 0 24px; }
+  .inner {
+    display: grid; column-gap: 24px;
+    grid-template: min-content 1fr min-content / 12.25rem minmax(0, 1fr);
+    grid-template-areas: 'siteNotice siteNotice' 'columnStart pageContent' 'footer footer';
+  }
+  .notice { grid-area: siteNotice; height: 10px; background: #eee; }
+  .start { grid-area: columnStart; margin-top: 2.8rem; border-top: 1px solid transparent; }
+  .content { grid-area: pageContent; }
+  .footer { grid-area: footer; background: #ddd; padding: 8px; }
+  .body {
+    display: grid; column-gap: 24px;
+    grid-template: min-content min-content min-content 1fr / minmax(0, 59.25rem) min-content;
+    grid-template-areas: 'titlebar-cx .' 'titlebar columnEnd' 'toolbar columnEnd' 'content columnEnd';
+  }
+  .titlebar { grid-area: titlebar; border-bottom: 1px solid #a2a9b1; font-size: 28px; line-height: 1.3; }
+  .toolbar { grid-area: toolbar; height: 33px; }
+  .end { grid-area: columnEnd; width: 140px; margin-top: 2.8rem; }
+  .bodycontent { grid-area: content; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="inner">
+      <div class="notice"></div>
+      <div class="start"><div>Contents</div><div>(Top)</div><div>Function</div></div>
+      <div class="content">
+        <main class="body">
+          <header class="titlebar">Web browser</header>
+          <div class="toolbar">Article Talk</div>
+          <div class="end">Tools</div>
+          <div class="bodycontent">
+            <p>A web browser, often abbreviated as browser, is an application
+            for accessing websites. When a user requests a web page from a
+            particular website, the browser retrieves its files from a web
+            server and then displays the page on the user's screen.</p>
+            <p>Browsers are used on a range of devices.</p>
+          </div>
+        </main>
+      </div>
+      <div class="footer">Footer</div>
+    </div>
+  </div>
+</body>
+</html>

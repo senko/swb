@@ -2,7 +2,7 @@
 //!
 //! <https://www.w3.org/TR/css-sizing-3/#intrinsic-sizes>. Used for
 //! shrink-to-fit widths (floats, inline-blocks, absolutely positioned
-//! boxes) and for flex base sizes.
+//! boxes), for flex base sizes and for grid track sizes.
 
 use swb_style::{BoxSizing, ComputedStyle, Size};
 
@@ -44,6 +44,7 @@ pub(crate) fn independent_content_sizes(
             container_content_sizes(ctx, container, &ib.base.style)
         }
         IndependentContents::Flex(items) => flex_content_sizes(ctx, &ib.base.style, items),
+        IndependentContents::Grid(items) => crate::grid::content_sizes(ctx, ib, items),
         IndependentContents::Replaced(r) => {
             let edges = BoxEdges::resolve(&ib.base.style, 0.0);
             let w = crate::replaced::natural_content_width(&ib.base.style, r, &edges);
@@ -166,23 +167,26 @@ pub(crate) fn container_content_sizes(
 fn outer_sizes(style: &ComputedStyle, content: impl FnOnce() -> ContentSizes) -> ContentSizes {
     let edges = BoxEdges::resolve(style, 0.0);
     let edge_sum = edges.sum().horizontal();
+    // A fixed size property as a content-box width.
+    let content_box = |w: f32| match style.box_sizing {
+        BoxSizing::ContentBox => w,
+        BoxSizing::BorderBox => (w - edge_sum).max(0.0),
+    };
     let inner = match &style.width {
         Size::LengthPercentage(lp) if !lp.has_percentage() => {
-            let w = lp.resolve(0.0);
-            let w = match style.box_sizing {
-                BoxSizing::ContentBox => w,
-                BoxSizing::BorderBox => (w - edge_sum).max(0.0),
-            };
+            let w = content_box(lp.resolve(0.0));
             ContentSizes { min: w, max: w }
         }
         _ => content(),
     };
     let min_width = match &style.min_width {
-        Size::LengthPercentage(lp) if !lp.has_percentage() => lp.resolve(0.0),
+        Size::LengthPercentage(lp) if !lp.has_percentage() => content_box(lp.resolve(0.0)),
         _ => 0.0,
     };
     let max_width = match &style.max_width {
-        swb_style::MaxSize::LengthPercentage(lp) if !lp.has_percentage() => lp.resolve(0.0),
+        swb_style::MaxSize::LengthPercentage(lp) if !lp.has_percentage() => {
+            content_box(lp.resolve(0.0))
+        }
         _ => f32::INFINITY,
     };
     let clamp = |v: f32| v.min(max_width).max(min_width);

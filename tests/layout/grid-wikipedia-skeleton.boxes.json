@@ -1,0 +1,28 @@
+{
+  "url": "tests/layout/grid-wikipedia-skeleton.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 292.39], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [0.0, 0.0, 800.0, 292.39], "parent": 0},
+    {"tag": "div", "rect": [24.0, 0.0, 752.0, 292.39], "parent": 5},
+    {"tag": "div", "rect": [24.0, 0.0, 752.0, 292.39], "parent": 6},
+    {"tag": "div", "rect": [24.0, 0.0, 752.0, 10.0], "parent": 7},
+    {"tag": "div", "rect": [24.0, 54.8, 196.0, 199.59], "parent": 7},
+    {"tag": "div", "rect": [24.0, 55.8, 196.0, 22.0], "parent": 9},
+    {"tag": "div", "rect": [24.0, 77.8, 196.0, 22.0], "parent": 9},
+    {"tag": "div", "rect": [24.0, 99.8, 196.0, 22.0], "parent": 9},
+    {"tag": "div", "rect": [244.0, 10.0, 532.0, 244.39], "parent": 7},
+    {"tag": "main", "rect": [244.0, 10.0, 532.0, 244.39], "parent": 13},
+    {"tag": "header", "rect": [244.0, 10.0, 368.0, 37.39], "parent": 14},
+    {"tag": "div", "rect": [244.0, 47.39, 368.0, 33.0], "parent": 14},
+    {"tag": "div", "rect": [636.0, 54.8, 140.0, 199.59], "parent": 14},
+    {"tag": "div", "rect": [244.0, 80.39, 368.0, 174.0], "parent": 14},
+    {"tag": "p", "rect": [244.0, 94.39, 368.0, 110.0], "parent": 18},
+    {"tag": "p", "rect": [244.0, 218.39, 368.0, 22.0], "parent": 18},
+    {"tag": "div", "rect": [24.0, 254.39, 752.0, 38.0], "parent": 7}
+  ]
+}

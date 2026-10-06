@@ -17,6 +17,7 @@ use super::specified::{
     SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
 use crate::parse::color::parse_color;
+use crate::parse::grid;
 use crate::parse::image::{SpecifiedImage, parse_image};
 use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{
@@ -212,6 +213,18 @@ pub(crate) fn parse_longhand(
             L::AlignContent => V::AlignContent(parse_alignment(p, AlignKind::AlignContent)?),
             L::RowGap => V::RowGap(parse_gap(p)?),
             L::ColumnGap => V::ColumnGap(parse_gap(p)?),
+            L::JustifyItems => V::JustifyItems(parse_alignment(p, AlignKind::JustifyItems)?),
+            L::JustifySelf => V::JustifySelf(parse_alignment(p, AlignKind::JustifySelf)?),
+            L::GridTemplateColumns => V::GridTemplateColumns(grid::parse_track_list(p)?),
+            L::GridTemplateRows => V::GridTemplateRows(grid::parse_track_list(p)?),
+            L::GridTemplateAreas => V::GridTemplateAreas(grid::parse_template_areas(p)?),
+            L::GridAutoColumns => V::GridAutoColumns(grid::parse_track_sizes(p)?),
+            L::GridAutoRows => V::GridAutoRows(grid::parse_track_sizes(p)?),
+            L::GridAutoFlow => V::GridAutoFlow(grid::parse_auto_flow(p)?),
+            L::GridRowStart => V::GridRowStart(grid::parse_grid_line(p)?),
+            L::GridRowEnd => V::GridRowEnd(grid::parse_grid_line(p)?),
+            L::GridColumnStart => V::GridColumnStart(grid::parse_grid_line(p)?),
+            L::GridColumnEnd => V::GridColumnEnd(grid::parse_grid_line(p)?),
             L::TableLayout => V::TableLayout(keyword(p, TableLayout::from_ident)?),
             L::Content => V::Content(parse_content(p, cx)?),
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
@@ -1228,9 +1241,16 @@ pub(crate) enum AlignKind {
     JustifySelf,
 }
 
+/// The positions that can follow `legacy` in `justify-items`.
+const LEGACY_POSITIONS: &[(&str, Alignment)] = &[
+    ("left", Alignment::Left),
+    ("right", Alignment::Right),
+    ("center", Alignment::Center),
+];
+
 /// Box alignment values. `first baseline` and `last baseline` map to
 /// `baseline`; `safe` and `unsafe` are ignored; `legacy` (for
-/// `justify-items`) maps to `normal`.
+/// `justify-items`) maps to `normal`, `legacy center` to `center`.
 /// <https://www.w3.org/TR/css-align-3/>
 pub(crate) fn parse_alignment(p: &mut Parser<'_>, kind: AlignKind) -> ParseResult<Alignment> {
     use AlignKind as K;
@@ -1266,9 +1286,13 @@ pub(crate) fn parse_alignment(p: &mut Parser<'_>, kind: AlignKind) -> ParseResul
         {
             return Ok(v);
         }
+        // `legacy` alone behaves as `normal`; `legacy left | right |
+        // center` as the position (Chromium's `ResolvedSelfAlignment`).
+        // The inheritance of `legacy` values is not supported.
         if kind == K::JustifyItems && p.expect_ident_matching("legacy").is_ok() {
-            let _ = p.expect_one_of(&[("left", ()), ("right", ()), ("center", ())]);
-            return Ok(Alignment::Normal);
+            return Ok(p
+                .expect_one_of(LEGACY_POSITIONS)
+                .unwrap_or(Alignment::Normal));
         }
         let _ = p.expect_one_of(&[("safe", ()), ("unsafe", ())]);
         let ident = p.expect_ident()?.to_ascii_lowercase();
@@ -1284,8 +1308,15 @@ pub(crate) fn parse_alignment(p: &mut Parser<'_>, kind: AlignKind) -> ParseResul
             "right" if is_justify => Alignment::Right,
             _ => return Err(ParseError::Unexpected),
         };
-        if kind == K::JustifyItems && p.expect_ident_matching("legacy").is_ok() {
-            return Ok(Alignment::Normal);
+        // Only `left`, `right` and `center` pair with `legacy`.
+        if kind == K::JustifyItems
+            && p.expect_ident_matching("legacy").is_ok()
+            && !matches!(
+                value,
+                Alignment::Left | Alignment::Right | Alignment::Center
+            )
+        {
+            return Err(ParseError::Invalid);
         }
         Ok(value)
     })

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Grid: baselines: items with align-self: baseline and different font
+     sizes in one row, the first baseline of inline grids (from the
+     baseline-aligned items of the first row if there are any, else from
+     the item that comes first in row-major order, synthesized from its
+     border box if it has no text), a grid with an order-modified
+     first item, and inline-blocks that contain a grid (their baseline
+     comes from the first row of the grid, also when the grid is not
+     their last child). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: baselines</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .g { display: grid; grid-template-columns: 100px 100px 100px; align-items: baseline;
+       background: #eee; margin-bottom: 8px; }
+  .g > div { background: #ccc; }
+  .big { font-size: 32px; line-height: 40px; }
+  .pad { padding-top: 15px; }
+  .ig { display: inline-grid; grid-template-columns: 50px 50px; background: #eee; }
+  .ig > div { background: #ccc; }
+  .g2 { display: grid; background: #eee; }
+</style>
+</head>
+<body>
+  <div class="g"><div>small</div><div class="big">big</div><div class="pad">padded</div></div>
+  <div>
+    before
+    <div class="ig"><div style="height: 30px"></div><div>text</div></div>
+    middle
+    <div class="ig"><div style="order: 1">second</div><div class="big" style="grid-row: 2">first</div></div>
+    after
+  </div>
+  <div>
+    text <div class="ig"><div>a</div><div style="align-self: baseline; padding-top: 30px">b</div></div>
+    text <div class="ig"><div style="padding-top: 30px">c</div><div style="align-self: baseline">d</div></div>
+    text <div class="ig" style="align-items: start"><div>e</div><div style="padding-top: 30px">f</div></div>
+  </div>
+  <div>
+    text <div style="display: inline-block"><div class="g2"><div>a</div><div>b</div></div></div>
+    text <div style="display: inline-block"><div><div class="g2"><div>c</div><div>d</div></div></div></div>
+    text <div style="display: inline-block"><div class="g2"><div>e</div><div>f</div></div><div style="height: 10px"></div></div>
+  </div>
+</body>
+</html>

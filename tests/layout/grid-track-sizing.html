@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- Grid: track sizing with fixed, percentage, fr, minmax(), auto,
+     min-content, max-content and fit-content() tracks, gaps, and items
+     that span several tracks. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: track sizing</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .g { display: grid; width: 600px; margin-bottom: 10px; background: #eee; }
+  .g > div { background: #ccc; }
+  .a { grid-template-columns: 100px 20% 1fr 2fr; column-gap: 10px; }
+  .b { grid-template-columns: auto min-content max-content; }
+  .c { grid-template-columns: fit-content(120px) fit-content(400px) 1fr; }
+  .d { grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr) minmax(50px, 100px); gap: 5px 20px; }
+  .e { grid-template-columns: 50px auto auto; grid-template-rows: 30px auto 40px; }
+  .span2 { grid-column: span 2; }
+  .wide { grid-column: 2 / 4; }
+</style>
+</head>
+<body>
+  <div class="g a"><div>one</div><div>two</div><div>three</div><div>four</div></div>
+  <div class="g b"><div>auto text here</div><div>min content words</div><div>max content</div></div>
+  <div class="g c"><div>a long text that wraps inside</div><div>short</div><div>x</div></div>
+  <div class="g d"><div>a</div><div>b</div><div>c</div><div class="span2">spanning item</div><div>d</div></div>
+  <div class="g e">
+    <div>1</div><div>two</div><div>3</div>
+    <div class="wide">a spanning item with a lot of text in it that wraps</div><div>x</div>
+    <div>y</div><div>z</div>
+  </div>
+</body>
+</html>

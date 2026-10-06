@@ -7,7 +7,8 @@
 //!
 //! Module overview:
 //!
-//! - `parse`: value parsers (lengths and `calc()`, colors, images).
+//! - `parse`: value parsers (lengths and `calc()`, colors, images, grid
+//!   track lists, lines and areas).
 //! - `properties`: longhand and shorthand parsers, specified values,
 //!   computing values.
 //! - `custom`: custom properties and `var()` substitution.

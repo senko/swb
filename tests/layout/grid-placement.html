@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Grid: line placement (numbers, negative numbers, spans, named lines,
+     named areas and their implicit lines) and the auto-placement
+     algorithm (sparse, dense, column flow, implicit tracks before and
+     after the explicit grid). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: placement</title>
+<style>
+  body { margin: 8px; font: 12px/16px sans-serif; }
+  .g { display: grid; grid-auto-rows: 20px; grid-auto-columns: 30px; margin-bottom: 8px; background: #eee; }
+  .g > div { background: #ccc; border: 1px solid #888; }
+  .lines { grid-template-columns: [a] 50px [b c] 60px [d] repeat(2, [e] 40px) [f]; grid-template-rows: 25px 25px; }
+  .areas { grid-template-columns: 50px 50px 50px; grid-template-areas: 'h h .' 's m m'; }
+  .auto { grid-template-columns: repeat(4, 40px); }
+  .dense { grid-template-columns: repeat(4, 40px); grid-auto-flow: dense; }
+  .column { grid-template-rows: repeat(3, 20px); grid-auto-flow: column; }
+</style>
+</head>
+<body>
+  <div class="g lines">
+    <div style="grid-column: b / e 2">b-e2</div>
+    <div style="grid-column: -2; grid-row: -1">neg</div>
+    <div style="grid-column: span e 2 / f">span-e</div>
+    <div style="grid-column: c; grid-row: 3 / span 2">c</div>
+    <div style="grid-column: 7; grid-row: -4">implicit</div>
+    <div style="grid-column: x 2">missing</div>
+  </div>
+  <div class="g areas">
+    <div style="grid-area: m">m</div>
+    <div style="grid-area: h">h</div>
+    <div style="grid-row: s; grid-column: s-start / m-end">s</div>
+    <div style="grid-area: nope">nope</div>
+    <div>auto</div>
+  </div>
+  <div class="g auto">
+    <div style="grid-column: span 3">1</div>
+    <div style="grid-column: span 2">2</div>
+    <div>3</div>
+    <div style="grid-row: 1">row1</div>
+    <div style="grid-column: 1">col1</div>
+    <div style="grid-row: span 2">4</div>
+  </div>
+  <div class="g dense">
+    <div style="grid-column: span 3">1</div>
+    <div style="grid-column: span 2">2</div>
+    <div>3</div>
+    <div style="grid-column: 4">col4</div>
+    <div>5</div>
+  </div>
+  <div class="g column">
+    <div>1</div><div style="grid-row: span 2">2</div><div>3</div><div>4</div><div style="grid-column: 1">c1</div>
+  </div>
+</body>
+</html>

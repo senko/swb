@@ -13,7 +13,9 @@
 //!   §2.2): the margin boxes of the in-flow children and floats before
 //!   relative positioning, the line boxes up to the end of their content,
 //!   and the auto height of the content (with the collapsed margins of the
-//!   last child). Flex items count with their margin boxes;
+//!   last child). Flex items count with their margin boxes; the in-flow
+//!   content of a grid container is its tracks after content alignment
+//!   (its items count only as descendants, below);
 //! - the border boxes of the descendants for which the scroll container is
 //!   in the chain of containing blocks, with their own overflow if it is
 //!   `visible` (limited to their padding box on axes with `overflow:
@@ -90,7 +92,7 @@ pub fn clamp_scroll_offset(offset: Point, max: Point) -> Point {
 
 /// True if a box with this style is a scroll container (CSS Overflow 3
 /// §3, <https://www.w3.org/TR/css-overflow-3/#scroll-container>). Layout
-/// gives only block containers and flex containers a scrollable overflow
+/// gives only block, flex and grid containers a scrollable overflow
 /// rectangle; replaced elements, tables, table cells and form controls
 /// only clip (ADR 0019).
 pub(crate) fn is_scroll_container(style: &ComputedStyle) -> bool {

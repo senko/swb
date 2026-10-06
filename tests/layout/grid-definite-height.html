@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Grid: stretched grid items whose layout depends on their height
+     becoming definite, although the stretched height equals the height
+     they measured: a grid with repeat(auto-fill) rows, grids and column
+     flex containers whose min-height or max-height clamps their content,
+     flexible items that grow into a min-height, and flex containers with
+     a percentage row-gap. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: definite heights of stretched items</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .g { display: grid; }
+  .outer { display: grid; grid-template-columns: 200px; margin-bottom: 8px; }
+  .outer div { background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="outer"><div class="g" style="grid-template-rows: repeat(auto-fill, 40px)">
+    <div style="height: 20px">1</div><div style="height: 20px">2</div><div style="height: 20px">3</div>
+  </div></div>
+  <div class="outer"><div class="g" style="max-height: 50px">
+    <div style="overflow: auto"><div style="height: 80px"></div></div>
+  </div></div>
+  <div class="outer"><div style="display: flex; flex-direction: column; min-height: 150px">
+    <div style="flex-grow: 1">grow</div><div style="height: 30px">fixed</div>
+  </div></div>
+  <div class="outer"><div style="display: flex; flex-direction: column; max-height: 50px">
+    <div style="min-height: 0; overflow: hidden"><div style="height: 80px"></div></div>
+  </div></div>
+  <div class="outer"><div class="g" style="max-height: 50px; grid-template-rows: auto auto">
+    <div style="overflow: hidden"><div style="height: 60px"></div></div>
+    <div style="overflow: hidden"><div style="height: 60px"></div></div>
+  </div></div>
+  <div class="outer"><div style="display: flex; flex-direction: column; row-gap: 10%">
+    <div style="height: 50px; flex-shrink: 0"></div><div style="height: 50px; flex-shrink: 0"></div>
+  </div></div>
+  <div class="outer"><div style="display: flex; flex-wrap: wrap; row-gap: 20%">
+    <div style="width: 150px; height: 40px"></div><div style="width: 150px; height: 40px"></div>
+  </div></div>
+</body>
+</html>

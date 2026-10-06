@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Baselines of inline flex and grid containers that are scroll
+     containers: they keep the first baseline of their content (unlike
+     inline-blocks, which use their bottom margin edge), clamped to their
+     border box; empty ones use their bottom edge. Without overflow there
+     is no clamp. An inline table with overflow: hidden is not a scroll
+     container and keeps the baseline of its first row. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline flex and grid scroll container baselines</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .box { overflow: hidden; height: 40px; width: 50px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div>x<div class="box" style="display: inline-flex"><div>t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-grid"><div>t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-grid; overflow: visible"></div>y</div>
+  <div>x<div class="box" style="display: inline-grid"></div>y</div>
+  <div>x<div class="box" style="display: inline-grid; height: auto; grid-template-rows: 20px 20px"><div style="grid-row: 2">t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-block"><div>t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-flex; height: 10px"><div style="padding-top: 30px">t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-grid; height: 10px; padding-top: 5px; border-bottom: 3px solid; margin-bottom: 4px"><div style="padding-top: 30px">t</div></div>y</div>
+  <div style="padding-top: 30px">x<div class="box" style="display: inline-grid"><div style="margin-top: -30px">t</div></div>y</div>
+  <div style="padding-top: 30px">x<div class="box" style="display: inline-flex; overflow: visible"><div style="margin-top: -30px">t</div></div>y</div>
+  <div>x<div class="box" style="display: inline-table"><div style="display: table-cell; padding-top: 10px">c</div></div>y</div>
+</body>
+</html>

@@ -60,15 +60,16 @@ pub(crate) struct TableCache {
     collapsed_edges: EdgeBudget,
     /// Column constraints per table box.
     columns: HashMap<usize, Rc<Vec<Column>>>,
-    /// The number of table cells and flex containers that are being
-    /// measured or laid out. The intrinsic widths of tables inside them do
-    /// not use column percentages (Chromium's `AllowColumnPercentages`).
+    /// The number of table cells, flex containers and grid containers
+    /// that are being measured or laid out. The intrinsic widths of tables
+    /// inside them do not use column percentages (Chromium's
+    /// `AllowColumnPercentages`).
     percent_free_depth: usize,
 }
 
 impl TableCache {
-    /// Runs `f` inside a table cell or a flex container (see
-    /// [`TableCache::percent_free_depth`]).
+    /// Runs `f` inside a table cell, a flex container or a grid container
+    /// (see [`TableCache::percent_free_depth`]).
     pub(crate) fn percent_free<T>(
         ctx: &mut LayoutContext<'_>,
         f: impl FnOnce(&mut LayoutContext<'_>) -> T,

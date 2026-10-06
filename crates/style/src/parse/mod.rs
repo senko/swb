@@ -1,11 +1,12 @@
 //! Parsers for CSS value types: numbers, angles, lengths (with `calc()`),
-//! colors and images.
+//! colors, images, and the values of the grid properties.
 //!
 //! The property parsers in [`crate::properties`] combine these. All
 //! parsers work on a [`swb_css::Parser`] cursor and leave the position
 //! unchanged on error.
 
 pub(crate) mod color;
+pub(crate) mod grid;
 pub(crate) mod image;
 pub(crate) mod length;
 

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Grid: stretching and percentages: a grid that is a stretched flex
+     item with fr rows, auto rows stretched to a definite height,
+     percentage heights of items, auto margins in the block axis, a table
+     as a grid item, a max-content minimum, a scroll container item in a
+     1fr track, and grids as row flex items (intrinsic widths). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: stretch</title>
+<style>
+  body { margin: 8px; font: 14px/18px sans-serif; }
+  .flex { display: flex; height: 120px; background: #ddd; margin-bottom: 8px; }
+  .flex > .g { flex: 1; }
+  .g { display: grid; background: #eee; }
+  .g > * { background: #ccc; }
+  .fr { grid-template-rows: 1fr 2fr; grid-template-columns: 1fr 1fr; }
+  .auto { grid-template-rows: auto auto; height: 100px; width: 300px; margin-bottom: 8px; }
+  .pct { grid-template-columns: 100px 100px; grid-template-rows: 80px; width: 300px; margin-bottom: 8px; }
+  .mmax { grid-template-columns: minmax(max-content, 50px) 1fr; width: 400px; margin-bottom: 8px; }
+  .scroll { grid-template-columns: 1fr 1fr; width: 200px; margin-bottom: 8px; }
+  .row { display: flex; align-items: flex-start; }
+  .row > .g { grid-template-columns: auto auto; margin-right: 10px; }
+</style>
+</head>
+<body>
+  <div class="flex"><div class="g fr"><div>a</div><div>b</div><div>c</div></div><div style="width: 100px">side</div></div>
+  <div class="g auto"><div>one</div><div>two</div></div>
+  <div class="g pct">
+    <div><div style="height: 50%; background: #999">half</div></div>
+    <div style="height: 25%; margin: auto 0">quarter</div>
+    <table style="border-spacing: 2px"><tr><td>cell</td><td>table</td></tr></table>
+  </div>
+  <div class="g mmax"><div>max content minimum</div><div>b</div></div>
+  <div class="g scroll"><div style="overflow: auto"><div style="width: 300px">wide</div></div><div>b</div></div>
+  <div class="row">
+    <div class="g"><div>first grid</div><div>x</div></div>
+    <div class="g"><div>second</div><div>grid</div></div>
+  </div>
+</body>
+</html>

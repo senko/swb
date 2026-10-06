@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use swb_style::{BoxSizing, ComputedStyle, LengthPercentageOrAuto, MaxSize, Size};
+use swb_style::{BoxSizing, ComputedStyle, Display, LengthPercentageOrAuto, MaxSize, Size};
 
 use crate::box_tree::{
     BlockContainer, BlockLevelBox, BoxBase, IndependentBox, IndependentContents, Marker,
@@ -257,13 +257,22 @@ impl Baselines {
     /// The baselines a child contributes to its parent. A scroll
     /// container's last baseline is its block-end margin edge (its content
     /// can be scrolled out of view), as in Chromium and CSS Align 3 §9.1.
+    /// A flex or grid container contributes its first baseline as the last
+    /// one too (Chromium's `UseLastBaselineForInlineBaseline`).
     fn of(fragment: &BoxFragment, margin_bottom: f32) -> Baselines {
-        let scroll_container = fragment.style.overflow_x.is_scroll_container()
-            || fragment.style.overflow_y.is_scroll_container();
+        let style = &fragment.style;
+        let scroll_container =
+            style.overflow_x.is_scroll_container() || style.overflow_y.is_scroll_container();
+        let flex_or_grid = matches!(
+            style.display,
+            Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid
+        );
         Baselines {
             first: fragment.first_baseline,
             last: if scroll_container {
                 Some(fragment.border_rect.height + margin_bottom)
+            } else if flex_or_grid {
+                fragment.first_baseline
             } else {
                 fragment.last_baseline
             },
@@ -747,6 +756,9 @@ fn layout_sized(
         let height = content_height.map(|h| h + edge_sum.vertical());
         return crate::table::layout_with_width(ctx, ib, table, width, height, cb);
     }
+    if let IndependentContents::Grid(children) = &ib.contents {
+        return crate::grid::layout(ctx, ib, children, content_width, content_height, cb);
+    }
     let specified_height = content_height.or_else(|| {
         resolve_size(
             &style.height,
@@ -837,10 +849,12 @@ pub(crate) fn layout_contents<'a>(
                 inflow,
             }
         }
-        // Tables size their own box (`layout_sized` calls table layout);
-        // controls are laid out by `control::layout`.
+        // Tables and grids size their own box (`layout_sized` calls their
+        // layout; grid layout also sets the scrollable overflow of a grid
+        // scroll container); controls are laid out by `control::layout`.
         IndependentContents::Replaced(_)
         | IndependentContents::Table(_)
+        | IndependentContents::Grid(_)
         | IndependentContents::Control(_) => ChildrenLayout {
             fragments: Vec::new(),
             content_height: 0.0,
@@ -964,12 +978,12 @@ fn shrink_to_fit_width(
     clamp_width(style, width, cb.width, edge_sum)
 }
 
-/// Lays out a flex item with a fixed content-box width and, optionally, a
-/// fixed content-box height. The fragment is at (0, 0).
+/// Lays out a flex or grid item with a fixed content-box width and,
+/// optionally, a fixed content-box height. The fragment is at (0, 0).
 ///
-/// Flex layout lays out an item several times (to measure it, then at its
-/// final size). Results are cached per item and constraints, so that nested
-/// flex containers do not take exponential time.
+/// Flex and grid layout lay out an item several times (to measure it, then
+/// at its final size). Results are cached per item and constraints, so that
+/// nested containers do not take exponential time.
 pub(crate) fn layout_flex_item(
     ctx: &mut LayoutContext<'_>,
     item: &IndependentBox,

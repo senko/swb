@@ -91,6 +91,18 @@ Format: source, license (for code), what it influenced.
   `inline/line_breaker.cc` (line height quirks); `core/paint/
   table_painters.cc` (collapsed borders). Read for the algorithms
   (`layout/src/table/`, ADR 0010); no code copied.
+- Chromium / Blink LayoutNG grid layout (BSD-3-Clause): in
+  `third_party/blink/renderer/core/layout/grid/`:
+  `grid_layout_algorithm.cc`, `grid_track_sizing_algorithm.cc`,
+  `grid_track_collection.cc`, `grid_placement.cc`,
+  `grid_layout_utils.cc`, `grid_item.cc`, `grid_baseline_accumulator.h`;
+  `core/css/properties/css_parsing_utils.cc`. Read for the ranges and
+  sets of tracks, the distribution of extra space, the automatic
+  repetitions, the minimum contribution, item alignment, the
+  auto-placement cursors, grid baselines, grid value parsing and limits
+  (`kGridMaxTracks`), and `TableNode::AllowColumnPercentages`
+  (`layout/src/grid/`, `style/src/parse/grid.rs`, ADR 0017). No code
+  copied.
 - Chromium / Blink, style: `html.css` and `quirks.css` (user-agent
   defaults, compared with the HTML spec), `font_size_functions.cc` (font
   size keyword tables), `font_builder.cc` (`CheckForGenericFamilyChange`,

@@ -171,11 +171,19 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   stages.
 - Lengths are clamped to ±33,554,431 px (the range of Blink's
   `LayoutUnit`), so hostile values cannot produce infinite geometry.
-- Flex item and table cell layouts are cached per layout pass by box and
-  constraints (`LayoutContext::layouts`), so nested flex containers and
-  tables do not cost exponential time. Fragment children
-  are shared (`Arc`), so a cached subtree is stored once and copying a
-  fragment is cheap.
+- Flex item, grid item and table cell layouts are cached per layout pass
+  by box and constraints (`LayoutContext::layouts`), so nested flex
+  containers, grids and tables do not cost exponential time. Fragment
+  children are shared (`Arc`), so a cached subtree is stored once and
+  copying a fragment is cheap.
+- Grid containers (`layout/src/grid/`, ADR 0017): the explicit grid of
+  each axis as segments of repeated track lists (`template.rs`),
+  placement and auto-placement with per-row interval occupancy
+  (`placement.rs`), tracks grouped into ranges and sets as in Chromium
+  (`tracks.rs`), the track sizing algorithm on sets (`sizing.rs`), and
+  the grid sizing algorithm, item contributions, alignment and baselines
+  (`mod.rs`). Placements and intrinsic widths are cached per layout pass
+  (`LayoutContext::grids`). Lines are clamped to ±10,000.
 - The overflow of the root (or of the body, if the root's is `visible`)
   applies to the viewport (CSS Overflow 3 §3.3); the source element then
   has a used overflow of `visible`.

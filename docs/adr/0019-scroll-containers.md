@@ -30,8 +30,8 @@ Chromium references hide scrollbars (headless shell).
   `hidden`, `scroll` or `auto` (§3). Style already computes `visible`
   to `auto` and `clip` to `hidden` when the other axis is scrollable.
   `overflow: clip` clips but does not scroll.
-- Layout gives a scrollable overflow rectangle to block containers and
-  flex containers. Replaced elements, tables, table cells and form
+- Layout gives a scrollable overflow rectangle to block containers,
+  flex containers and grid containers. Replaced elements, tables, table cells and form
   controls only clip (text fields and text areas scroll their text
   themselves, ADR 0013). Deviation: Chromium scrolls table cells with
   `overflow: auto`; table layout changes the size and the content
@@ -64,7 +64,10 @@ for about 70 cases). It is the union of:
    with its specified value), the line boxes up to the end of their
    content (with `text-align`; the end margins of inline boxes count),
    and the auto content height (so the collapsed end margins of the last
-   child count). Flex items count with their margin boxes. A block inside
+   child count). Flex items count with their margin boxes. The in-flow
+   content of a grid container is its tracks after content alignment;
+   its items count only as descendants, without margins (measured in
+   Chromium, `tests/layout/grid-scroll.html`). A block inside
    an inline box counts only as a descendant (Chromium's block-in-inline
    puts it in a line box);
 3. the border boxes of the descendants for which the scroll container is
@@ -131,8 +134,10 @@ scroll` lays out like `auto`.
 
 The in-flow extent comes from the layout algorithms through
 `ChildrenLayout::inflow` (block flow, inline layout's
-`InlineLayout::content_right`, flex). A new formatting context (grid)
-must fill it.
+`InlineLayout::content_right`, flex). Grid layout builds its own
+fragment (like tables) and passes the end of its tracks to
+`scroll::scrollable_overflow` itself (ADR 0017). A new formatting context
+must provide its in-flow extent in one of these ways.
 
 ### Scroll offsets and which boxes move
 

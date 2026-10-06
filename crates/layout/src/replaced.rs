@@ -275,6 +275,20 @@ pub(crate) fn column_flex_width(
     cb: ContainingBlock,
     edges: &BoxEdges,
 ) -> Option<f32> {
+    width_from_height(ib, height, Some(cb.width), edges)
+}
+
+/// The content width of an image with an aspect ratio and an automatic
+/// width whose content height is `height`: the height through the ratio,
+/// within `min-width` and `max-width` (percentages of `cb_width`; without
+/// it, a percentage `min-width` is 0 and a percentage `max-width` is
+/// `none`). `None` for other boxes.
+pub(crate) fn width_from_height(
+    ib: &IndependentBox,
+    height: f32,
+    cb_width: Option<f32>,
+    edges: &BoxEdges,
+) -> Option<f32> {
     let IndependentContents::Replaced(replaced) = &ib.contents else {
         return None;
     };
@@ -284,9 +298,8 @@ pub(crate) fn column_flex_width(
     }
     let ratio = aspect_ratio(style, &replaced.natural_size.unwrap_or(NO_IMAGE))?;
     let h_edges = edges.sum().horizontal();
-    let min_w =
-        resolve_size(&style.min_width, Some(cb.width), style.box_sizing, h_edges).unwrap_or(0.0);
-    let max_w = resolve_max_size(&style.max_width, Some(cb.width), style.box_sizing, h_edges)
+    let min_w = resolve_size(&style.min_width, cb_width, style.box_sizing, h_edges).unwrap_or(0.0);
+    let max_w = resolve_max_size(&style.max_width, cb_width, style.box_sizing, h_edges)
         .unwrap_or(f32::INFINITY)
         .max(min_w);
     Some(clamp_length((height * ratio).min(max_w).max(min_w)))

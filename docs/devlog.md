@@ -68,6 +68,36 @@ in commit messages, ADRs and other docs.
   with `overflow: hidden` that scripts could not scroll, one display
   list rebuild per wheel event, and full-page screenshots that reset
   element offsets; all fixed with tests.
+- Grid (ADR 0017): CSS Grid Layout 2 without subgrid and masonry.
+  Style: the grid longhands and shorthands, `justify-items` and
+  `justify-self` (`place-*` set them now), `@supports`. Layout:
+  placement and auto-placement (sparse, dense, both flows, named lines
+  and areas), Chromium's track collection of ranges and sets, the track
+  sizing algorithm as in Chromium, the grid sizing algorithm with
+  Chromium's extra row pass, item alignment, intrinsic sizes and
+  baselines. Limits: lines clamped to ±10,000, a span budget per layout
+  pass, work budgets for placement and named lines; because tracks are
+  sets, `repeat(100000, ...)` costs as much as one track. The final
+  layout of an item reuses its measuring layout when the result cannot
+  differ (without this, Wikipedia's nested grids made layout 25% slower;
+  now +5%). Grid scroll containers: as in Chromium, their in-flow
+  content is the area of their tracks after content alignment, and items
+  count only with their border boxes. Wikipedia: the table of contents
+  sits beside the article; size 0.6175 → 0.8100, relative 0.4587 →
+  0.7728, geometry 0.0099 → 0.0345; pixels 0.8858 → 0.8722 until floats
+  exist (the text is now in its column, where Chromium wraps it around
+  floated images). 13 new layout tests match Chromium. The author's
+  review found 4 bugs (parser prefixes, image widths with percentage
+  heights, measuring-layout reuse with a percentage `flex-basis`,
+  stretched size keywords). The integration review found more: the
+  measuring layout was reused where a definite height changes the
+  result (`min-height`, `max-height`, auto-repeat rows); named areas and
+  line names were rebuilt for every layout (20,000 areas shared by 3,000
+  grids took 90 s; now they are indexed once per declaration, 0.1 s);
+  the grid baseline ignored baseline-aligned items (§11.6); explicit
+  `stretch` on images; border-box `min-width`/`max-width` counted the
+  padding twice in intrinsic sizes (also outside grid); inline flex and
+  grid scroll containers use their first baseline. All fixed with tests.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

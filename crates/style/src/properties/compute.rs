@@ -12,7 +12,7 @@ use super::specified::clamp_non_negative;
 use crate::ComputedStyle;
 use crate::values::{
     CornerRadius, FontFamily, Gap, GenericFamily, LengthContext, LengthPercentage,
-    LengthPercentageOrAuto, SpecifiedLengthPercentage as Lp,
+    LengthPercentageOrAuto, SpecifiedLengthPercentage as Lp, SpecifiedTrackSize, TrackSize,
 };
 
 /// What computing a value depends on.
@@ -206,6 +206,18 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::AlignContent(v) => s.align_content = *v,
         V::RowGap(v) => s.row_gap = gap(cx, v.as_ref()),
         V::ColumnGap(v) => s.column_gap = gap(cx, v.as_ref()),
+        V::JustifyItems(v) => s.justify_items = *v,
+        V::JustifySelf(v) => s.justify_self = *v,
+        V::GridTemplateColumns(v) => s.grid_template_columns = v.map(&|l| cx.non_negative(l)),
+        V::GridTemplateRows(v) => s.grid_template_rows = v.map(&|l| cx.non_negative(l)),
+        V::GridTemplateAreas(v) => s.grid_template_areas.clone_from(v),
+        V::GridAutoColumns(v) => s.grid_auto_columns = track_sizes(cx, v),
+        V::GridAutoRows(v) => s.grid_auto_rows = track_sizes(cx, v),
+        V::GridAutoFlow(v) => s.grid_auto_flow = *v,
+        V::GridRowStart(v) => s.grid_row_start.clone_from(v),
+        V::GridRowEnd(v) => s.grid_row_end.clone_from(v),
+        V::GridColumnStart(v) => s.grid_column_start.clone_from(v),
+        V::GridColumnEnd(v) => s.grid_column_end.clone_from(v),
         V::TableLayout(v) => s.table_layout = *v,
         V::Content(v) => s.content = v.compute(cx),
         V::ObjectFit(v) => s.object_fit = *v,
@@ -219,6 +231,14 @@ fn radius(cx: &ComputeContext<'_>, (h, v): &(Lp, Lp)) -> CornerRadius {
         horizontal: cx.non_negative(h),
         vertical: cx.non_negative(v),
     }
+}
+
+/// Computes `grid-auto-rows` or `grid-auto-columns`.
+fn track_sizes(cx: &ComputeContext<'_>, sizes: &[SpecifiedTrackSize]) -> Arc<[TrackSize]> {
+    sizes
+        .iter()
+        .map(|t| t.map(&|l| cx.non_negative(l)))
+        .collect()
 }
 
 fn gap(cx: &ComputeContext<'_>, value: Option<&Lp>) -> Gap {

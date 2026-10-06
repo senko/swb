@@ -262,19 +262,29 @@ impl AtomicLayout {
         // CSS 2.2 §10.8.1: the baseline of an inline-block is the baseline
         // of its last line box, unless it has none or it is a scroll
         // container (`overflow: clip` is not one); then it is the bottom
-        // margin edge. An inline flex container uses its first baseline
-        // (CSS Flexbox 1 §8.5), an inline table the baseline of its first
-        // row (CSS 2.2 §17.5.3).
-        let content_baseline =
-            if matches!(style.display, Display::InlineFlex | Display::InlineTable) {
-                fragment.first_baseline
-            } else {
-                fragment.last_baseline
-            };
+        // margin edge. An inline flex or grid container uses its first
+        // baseline (CSS Flexbox 1 §8.5, CSS Grid 2 §11.6); as a scroll
+        // container, clamped to its border box (as in Chromium). An inline
+        // table uses the baseline of its first row (CSS 2.2 §17.5.3), also
+        // with `overflow` set (Chromium does not make tables scroll
+        // containers).
+        let flex_or_grid = matches!(style.display, Display::InlineFlex | Display::InlineGrid);
+        let table = style.display == Display::InlineTable;
+        let content_baseline = if flex_or_grid || table {
+            fragment.first_baseline
+        } else {
+            fragment.last_baseline
+        };
+        let scroll_container = !table
+            && (style.overflow_x.is_scroll_container() || style.overflow_y.is_scroll_container());
         let baseline = match (&fragment.content, content_baseline) {
             (BoxContent::None | BoxContent::Table(_) | BoxContent::Control(_), Some(b))
-                if !style.overflow_x.is_scroll_container()
-                    && !style.overflow_y.is_scroll_container() =>
+                if flex_or_grid && scroll_container =>
+            {
+                margin_top + b.clamp(0.0, border_height.max(0.0))
+            }
+            (BoxContent::None | BoxContent::Table(_) | BoxContent::Control(_), Some(b))
+                if !scroll_container =>
             {
                 margin_top + b
             }

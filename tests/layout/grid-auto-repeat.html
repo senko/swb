@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Grid: repeat(auto-fill) and repeat(auto-fit) with fixed and minmax()
+     tracks, gaps, and collapsed empty auto-fit tracks; grid-auto-columns
+     and grid-auto-rows patterns for implicit tracks. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: automatic repetitions</title>
+<style>
+  body { margin: 8px; font: 12px/16px sans-serif; }
+  .g { display: grid; width: 530px; gap: 10px; margin-bottom: 8px; background: #eee; }
+  .g > div { background: #ccc; height: 20px; }
+  .fill { grid-template-columns: repeat(auto-fill, 100px); }
+  .fit { grid-template-columns: repeat(auto-fit, 100px); justify-content: center; }
+  .minmax { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .fitmax { grid-template-columns: 50px repeat(auto-fit, minmax(80px, 1fr)) 50px; }
+  .implicit { grid-template-columns: 60px; grid-auto-columns: 20px 40px; grid-auto-rows: 15px 25px; width: auto; }
+</style>
+</head>
+<body>
+  <div class="g fill"><div></div><div></div><div></div></div>
+  <div class="g fit"><div></div><div></div></div>
+  <div class="g minmax"><div></div><div></div><div></div><div></div><div></div></div>
+  <div class="g fitmax"><div></div><div></div></div>
+  <div class="g implicit">
+    <div style="grid-column: 4; grid-row: 3"></div>
+    <div style="grid-column: -3; grid-row: -2"></div>
+    <div style="grid-column: 1"></div>
+  </div>
+</body>
+</html>

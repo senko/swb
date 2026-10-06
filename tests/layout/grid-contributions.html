@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Grid: intrinsic size contributions of items: items that span several
+     intrinsic tracks, items that span a flexible track in an
+     intrinsically sized container, automatic minimum sizes clamped by
+     fixed maximums, minmax(min-content, max-content), percentage gaps in
+     an auto-height grid, and the grid and grid-template shorthands. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: contributions</title>
+<style>
+  body { margin: 8px; font: 14px/18px sans-serif; }
+  .g { display: grid; margin-bottom: 8px; background: #eee; }
+  .g > div { background: #ccc; }
+  .span { grid-template-columns: auto auto 40px; width: 500px; }
+  .flexspan { display: inline-grid; grid-template-columns: auto 1fr 2fr; }
+  .clamp { grid-template-columns: minmax(auto, 60px) 1fr; width: 400px; }
+  .mm { grid-template-columns: minmax(min-content, max-content) 1fr; width: 300px; }
+  .gaps { grid-template-columns: 1fr 1fr; gap: 10% 5%; width: 400px; }
+  .short1 { grid: [top] 30px [mid] auto / [l] 100px [r] auto-flow 50px; }
+  .short2 { grid: auto-flow dense 25px / 80px 80px 80px; width: 300px; }
+  .short3 { grid-template: 'a b' 20px 'c c' / 70px 1fr; width: 300px; }
+</style>
+</head>
+<body>
+  <div class="g span">
+    <div>one</div><div>two</div><div>3</div>
+    <div style="grid-column: 1 / 3">an item that spans the two auto tracks with text</div>
+    <div style="grid-column: 2 / 4">spanning auto and fixed</div>
+  </div>
+  <div>
+    <div class="g flexspan">
+      <div>a</div><div>b</div><div>c</div>
+      <div style="grid-column: 2 / 4">spans both flexible tracks</div>
+      <div style="grid-column: 1 / 3">auto and flexible</div>
+    </div>
+  </div>
+  <div class="g clamp"><div>averyveryverylongwordhere</div><div>b</div></div>
+  <div class="g mm"><div>min and max content</div><div>b</div></div>
+  <div class="g gaps"><div>a</div><div>b</div><div>c</div><div>d</div></div>
+  <div class="g short1"><div>1</div><div>2</div><div style="grid-row: mid">3</div><div>4</div></div>
+  <div class="g short2"><div style="grid-column: span 2">1</div><div style="grid-column: span 2">2</div><div>3</div></div>
+  <div class="g short3"><div style="grid-area: c">c</div><div style="grid-area: a">a</div><div style="grid-area: b">b</div></div>
+</body>
+</html>

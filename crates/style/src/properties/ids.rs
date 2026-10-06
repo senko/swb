@@ -20,8 +20,9 @@ use crate::values::{
     Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
     BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Cursor, Direction,
     Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps,
-    Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle,
-    Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout,
+    GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip,
+    MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
+    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, TableLayout,
     TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
     Visibility, WhiteSpace, WordBreak, ZIndex,
 };
@@ -211,6 +212,18 @@ longhands! {
     AlignContent "align-content" reset align_content: Alignment;
     RowGap "row-gap" reset row_gap: Option<Lp>;
     ColumnGap "column-gap" reset column_gap: Option<Lp>;
+    JustifyItems "justify-items" reset justify_items: Alignment;
+    JustifySelf "justify-self" reset justify_self: Alignment;
+    GridTemplateColumns "grid-template-columns" reset grid_template_columns: SpecifiedTrackList;
+    GridTemplateRows "grid-template-rows" reset grid_template_rows: SpecifiedTrackList;
+    GridTemplateAreas "grid-template-areas" reset grid_template_areas: Option<Arc<GridTemplateAreas>>;
+    GridAutoColumns "grid-auto-columns" reset grid_auto_columns: Arc<[SpecifiedTrackSize]>;
+    GridAutoRows "grid-auto-rows" reset grid_auto_rows: Arc<[SpecifiedTrackSize]>;
+    GridAutoFlow "grid-auto-flow" reset grid_auto_flow: GridAutoFlow;
+    GridRowStart "grid-row-start" reset grid_row_start: GridLine;
+    GridRowEnd "grid-row-end" reset grid_row_end: GridLine;
+    GridColumnStart "grid-column-start" reset grid_column_start: GridLine;
+    GridColumnEnd "grid-column-end" reset grid_column_end: GridLine;
     TableLayout "table-layout" reset table_layout: TableLayout;
     Content "content" reset content: SpecifiedContent;
     ObjectFit "object-fit" reset object_fit: ObjectFit;

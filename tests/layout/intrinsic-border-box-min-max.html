@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Intrinsic sizes: a border-box min-width or max-width limits the
+     border box, so the padding counts once: in an inline-block, a flex
+     item, a grid track sized by its item, and a fit-content grid item. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Intrinsic sizes: border-box min-width and max-width</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .min { min-width: 120px; box-sizing: border-box; padding: 0 10px; background: #ccc; }
+  .max { max-width: 50px; box-sizing: border-box; padding: 0 10px; background: #ccc; }
+  .grid { display: grid; grid-template-columns: auto auto; width: 400px; justify-content: start; }
+</style>
+</head>
+<body>
+  <div><div style="display: inline-block"><div class="min">u</div></div></div>
+  <div><div style="display: inline-block"><div class="max">uuuuuuuuuuuuuuu</div></div></div>
+  <div style="display: flex"><div class="min">u</div></div>
+  <div class="grid"><div class="min">u</div><div>v</div></div>
+  <div class="grid"><div class="max">uuuuuuuuuuuuuuu</div><div>v</div></div>
+  <div style="display: grid; grid-template-columns: 200px"><div class="min" style="justify-self: start">u</div></div>
+</body>
+</html>

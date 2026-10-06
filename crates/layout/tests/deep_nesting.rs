@@ -109,6 +109,27 @@ fn nested_flex_containers() {
 }
 
 #[test]
+fn nested_grid_containers() {
+    let style = "div { display: grid; grid-template-columns: auto 1fr } \
+                 span { display: grid; grid-template-rows: repeat(2, min-content) }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+}
+
+#[test]
+fn nested_inline_grids() {
+    // Each inline grid is an atomic inline of a block, which is its item.
+    let style = "span { display: inline-grid; grid-template-columns: auto }";
+    assert!(layout_on_small_stack(&["ul", "span"], style) > 100);
+}
+
+#[test]
+fn grids_nested_in_flex_containers() {
+    let style = "div { display: grid; align-items: start } \
+                 span { display: flex; flex-direction: column }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+}
+
+#[test]
 fn nested_tables() {
     // `tr` directly in `table`: every level also gets an anonymous row
     // group.

@@ -202,3 +202,32 @@ above do not describe:
 - Masks are supported (ADR 0018), so `@supports (mask-image: ...)`
   takes the same branch as in Chromium; the validation difference and
   the "Not supported yet" entry above are out of date for masks.
+
+## Update (2026-10-04, M3 grid)
+
+Grid layout ([ADR 0017](0017-grid-layout.md)) added the grid properties
+(the "Not supported yet" list above is out of date for grid templates):
+
+- Longhands `grid-template-columns`, `grid-template-rows`,
+  `grid-template-areas`, `grid-auto-columns`, `grid-auto-rows`,
+  `grid-auto-flow`, `grid-row-start`, `grid-row-end`,
+  `grid-column-start`, `grid-column-end`, `justify-items` and
+  `justify-self`; shorthands `grid-row`, `grid-column`, `grid-area`,
+  `grid-template` and `grid`. `place-items` and `place-self` set the
+  `justify-*` longhands too; `justify-items` and `justify-self` are no
+  longer in the list of accepted but ignored properties.
+- Track lists are generic over the length type (`GenericTrackList<L>`):
+  the specified value holds specified lengths, the computed value
+  `LengthPercentage`. `repeat()` is kept as written; layout expands it.
+  A track list carries the positions of its line names
+  (`LineNameTable`) and the index of its automatic repetition, built once
+  when the declaration is parsed and shared by all computed values;
+  `GridTemplateAreas` indexes its areas by name. Layout then finds a name
+  without walking all names of a grid. The fields that this data comes
+  from are private (read through accessors), so it cannot get out of
+  date.
+- `justify-items: legacy` computes to `normal`, `legacy center`,
+  `legacy left` and `legacy right` to the position (as Chromium resolves
+  them for grid items); `legacy` is not inherited.
+- `subgrid` and `masonry` are invalid values, so `@supports` with them is
+  false.

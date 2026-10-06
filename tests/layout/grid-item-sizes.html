@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- Grid: item sizes that depend on the grid area: images with a
+     percentage height or max-height (their width follows through the
+     aspect ratio), a stretched column flex container whose item has a
+     percentage flex-basis, items with min-content and max-content sizes
+     (they do not stretch), and images with an explicit stretch in one
+     axis (the other size follows the aspect ratio) or both. A stretched
+     image in an auto column and fixed rows contributes the width that
+     follows from the height of the rows and the gaps between them, also
+     to the grid's intrinsic width (in inline-blocks), and percentage rows
+     of a grid with a definite height count as fixed. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: item sizes</title>
+<style>
+  body { margin: 8px; font: 14px/18px sans-serif; }
+  .g { display: grid; margin-bottom: 8px; background: #eee; }
+  .g > * { background: #ccc; }
+  .img { grid-template-columns: 100px 100px; grid-template-rows: 80px 30px; }
+  .col { display: flex; flex-direction: column; }
+  .half { flex: 0 0 50%; min-height: 0; background: #999; }
+  .flexrow { grid-template-columns: 150px 150px; }
+  .keywords { grid-template-columns: 300px; grid-template-rows: 100px 100px; }
+  .stretch { grid-template-columns: 200px; grid-template-rows: 100px; }
+  .fixedrow { grid-template-columns: auto 50px; grid-template-rows: 90px; justify-content: start; }
+</style>
+</head>
+<body>
+  <div class="g img">
+    <img style="height: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20'/%3E" alt="">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20'/%3E" alt="">
+    <img style="max-height: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20'/%3E" alt="">
+  </div>
+  <div class="g flexrow">
+    <div class="col"><div class="half">half<br>half</div></div>
+    <div>sibling</div>
+  </div>
+  <div class="g flexrow">
+    <div class="col"><div class="half">half<br>half</div></div>
+    <div style="height: 37px">taller</div>
+  </div>
+  <div class="g keywords">
+    <div style="width: min-content; height: min-content">min content</div>
+    <div style="width: max-content; height: max-content">max content</div>
+  </div>
+  <div class="g stretch"><img style="align-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div>
+  <div class="g stretch"><img style="justify-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div>
+  <div class="g stretch"><img style="place-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div>
+  <div class="g stretch" style="align-items: stretch"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div>
+  <div class="g fixedrow"><img style="align-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""><div></div></div>
+  <div class="g fixedrow" style="align-items: stretch"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""><div></div></div>
+  <div style="display: inline-block; background: #ddd"><div class="g" style="grid-template-rows: 60px"><img style="align-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div></div>
+  <div><div style="display: inline-block; background: #ddd"><div class="g fixedrow" style="grid-template-rows: 50px 50px; row-gap: 20px"><img style="align-self: stretch; grid-row: span 2" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""><div></div></div></div></div>
+  <div><div style="display: inline-block; background: #ddd"><div class="g fixedrow" style="height: 200px; grid-template-rows: 50%"><img style="align-self: stretch" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""><div></div></div></div></div>
+</body>
+</html>

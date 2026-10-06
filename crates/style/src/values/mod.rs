@@ -2,6 +2,7 @@
 //! values (as stored in [`crate::ComputedStyle`]).
 
 mod color;
+mod grid;
 mod keywords;
 mod length;
 mod mask;
@@ -10,6 +11,13 @@ use std::sync::Arc;
 
 pub use color::{Color, Rgba};
 pub(crate) use color::{named_color, system_color};
+pub use grid::{
+    GenericTrackBreadth, GenericTrackList, GenericTrackListEntry, GenericTrackListValue,
+    GenericTrackRepeat, GenericTrackSize, GridAutoFlow, GridLine, GridTemplateAreas, LineName,
+    LineNameTable, LineNames, NamePosition, NamedArea, RepeatCount, TrackBreadth, TrackList,
+    TrackListEntry, TrackListValue, TrackRepeat, TrackSize,
+};
+pub(crate) use grid::{SpecifiedTrackList, SpecifiedTrackSize};
 pub use keywords::*;
 pub use length::{
     CalcNode, ComputedCalc, Length, LengthContext, LengthPercentage, LengthPercentageOrAuto,

@@ -5,8 +5,8 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images), form controls, flex layout, table layout, relative
-//! positioning, the scrollable overflow of scroll containers (see
+//! (images), form controls, flex layout, grid layout, table layout,
+//! relative positioning, the scrollable overflow of scroll containers (see
 //! `scroll.rs`). Floats and absolute positioning are approximated (see
 //! `block.rs`).
 //!
@@ -21,6 +21,7 @@ mod flex;
 mod fonts;
 mod fragment;
 mod geom;
+mod grid;
 mod inline;
 mod intrinsic;
 mod list_marker;
@@ -91,13 +92,15 @@ pub(crate) struct LayoutContext<'a> {
     /// Shaped text per inline formatting context, keyed by its number.
     shaped: HashMap<usize, Rc<inline::ShapedText>>,
     /// Laid-out boxes per box and constraints: flex items (see
-    /// [`block::layout_flex_item`]) and table cells.
+    /// [`block::layout_flex_item`]), grid items and table cells.
     pub(crate) layouts: LayoutCache,
     /// The number of flex item and table cell layouts that were not in the
     /// cache.
     pub(crate) uncached_layouts: usize,
     /// Data of the tables of this layout pass.
     pub(crate) tables: table::TableCache,
+    /// Data of the grid containers of this layout pass.
+    pub(crate) grids: grid::GridCache,
 }
 
 impl<'a> LayoutContext<'a> {
@@ -110,6 +113,7 @@ impl<'a> LayoutContext<'a> {
             layouts: LayoutCache::default(),
             uncached_layouts: 0,
             tables: table::TableCache::default(),
+            grids: grid::GridCache::default(),
         }
     }
 

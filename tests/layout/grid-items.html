@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Grid: grid items: margins, padding and border, percentage sizes and
+     margins (against the grid area), the automatic minimum size in
+     1fr and minmax(0, 1fr) tracks, overflow, min-width, images, a nested
+     grid, a flex container item, relative positioning, order, and an
+     anonymous item for text. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: items</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .g { display: grid; width: 400px; margin-bottom: 8px; background: #eee; }
+  .g > * { background: #ccc; }
+  .box { grid-template-columns: 200px 200px; }
+  .box > div:nth-child(1) { margin: 10px 5%; padding: 4px 2%; border: 3px solid #888; }
+  .box > div:nth-child(2) { width: 50%; height: 50%; }
+  .min { grid-template-columns: 1fr 1fr; }
+  .min0 { grid-template-columns: minmax(0, 1fr) 1fr; }
+  .wide { width: 300px; }
+  .clip { overflow: hidden; }
+  .minw { min-width: 150px; }
+  .nested { grid-template-columns: 100px 1fr; }
+  .inner { display: grid; grid-template-columns: auto auto; gap: 4px; }
+  .flex { display: flex; justify-content: space-between; }
+  .rel { position: relative; top: 10%; left: 5px; }
+</style>
+</head>
+<body>
+  <div class="g box"><div>margins</div><div>half</div></div>
+  <div class="g min"><div><div class="wide">wide</div></div><div>b</div></div>
+  <div class="g min0"><div><div class="wide">wide</div></div><div>b</div></div>
+  <div class="g min"><div class="clip"><div class="wide">clipped</div></div><div>b</div></div>
+  <div class="g min"><div class="minw">min-width</div><div>b</div></div>
+  <div class="g nested">
+    <div>side</div>
+    <div class="inner"><div>a</div><div>bb</div><div>ccc</div></div>
+    <div class="flex"><span>left</span><span>right</span></div>
+    <div class="rel" style="order: -1">first</div>
+  </div>
+  <div class="g box">text directly in the grid<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'/%3E" alt=""></div>
+</body>
+</html>

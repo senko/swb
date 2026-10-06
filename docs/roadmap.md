@@ -67,7 +67,7 @@ Five parallel workstreams; each will record its design in a new ADR:
 
 - Floats, clearance and block formatting contexts.
 - Absolute, fixed and sticky positioning; 2D `transform`.
-- Grid layout.
+- Grid layout: done (ADR 0017).
 - `mask-image` and the other mask properties (icons): done (ADR 0018).
 - Scroll containers: `overflow` scrolling inside elements: done (ADR 0019).
 - Target 3 (Wikipedia "Web browser") done.
@@ -83,6 +83,20 @@ uses neither; they moved to "Later".
   `border-box`); masks of inline boxes split over lines (each fragment
   uses its own positioning area); CORS mode for mask images;
   `mask-repeat: space | round` (painted as `repeat`).
+- Grid: baseline shims in track sizing, `last baseline`, excluding items
+  whose size depends on intrinsic tracks from baseline alignment; §12.1
+  steps 3 and 4 (a second column pass for items whose width depends on
+  their height); `fit-content(<length>)` item sizes; inheritance of `justify-items:
+  legacy`; `safe` and `unsafe` (parsed, ignored); absolutely positioned
+  items placed by grid lines; fragmentation; `display: grid` on
+  `<button>`; subgrid; masonry. The intrinsic pass resolves a
+  percentage `height` against an indefinite size, so `repeat(auto-fill)`
+  rows can get another count there.
+- Paint: `z-index` on non-positioned flex and grid items does not create
+  a stacking context.
+- Layout: block layout ignores `width: min-content | max-content |
+  fit-content` outside flex and grid items; `aspect-ratio` works only
+  for images.
 - Scrolling: wheel-gesture latching; `overscroll-behavior`, smooth
   scrolling, snapping, `scroll-padding` and `scroll-margin`; classic
   scrollbars that take space, `scrollbar-gutter`, dragging the
@@ -120,9 +134,9 @@ change behaviour, so they are not fixed yet.
 - Style: `:required` and `:optional` match `range` and `color` inputs
   (the `required` attribute does not apply to them); `background: ...
   text` sets `background-origin` to `border-box` (`text` sets only
-  `background-clip`); ignored properties (`justify-items`,
-  `text-underline-offset`, ...) accept any value, so `@supports` with an
-  invalid value for them is true.
+  `background-clip`); ignored properties (`text-underline-offset`,
+  `text-decoration-thickness`, ...) accept any value, so `@supports` with
+  an invalid value for them is true.
 - Paint: with `background-clip: padding-box`, the background color uses
   the outer border radii instead of the inner ones.
 - Forms: `readonly` blocks editing of range and color fields (shown as
@@ -233,7 +247,7 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
   not placed; absolutely positioned children of flex containers are
   dropped; flex container min/max sizes; `align-content: stretch` order;
   `vertical-align: top/bottom`; min-content of nowrap row flex
-  containers; `box-sizing` in intrinsic min/max; tab stops;
+  containers; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
   breaking (and `text-indent`); column flex items with a definite height
   cannot shrink; empty lines ignore `text-align` and relative offsets;

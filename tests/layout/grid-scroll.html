@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!-- Grid containers that are scroll containers, scrolled to the end of
+     their range (data-scroll): the scrollable overflow rectangle as
+     Chromium computes it. Cases: tracks and gaps larger than the items,
+     tracks that overflow with justify-content: center (the part left of
+     the padding box is unreachable), items that overflow their area (with
+     margins), a track without items, an absolutely positioned child (at
+     its static position, moved by margins), a grid inside a block scroll
+     container, rows that overflow at the top with align-content: end, a
+     grid with max-height whose rows overflow, and a relatively positioned
+     item. The in-flow content is the tracks; the items count with their border
+     boxes, without margins. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid: scrollable overflow</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .s { overflow: auto; width: 100px; height: 100px; padding: 10px; margin: 0 0 10px; }
+  .g { display: grid; }
+  .b { background: #ccc; }
+  .small { width: 20px; height: 20px; justify-self: start; align-self: start; }
+</style>
+</head>
+<body>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: 80px 80px; grid-template-rows: 80px 80px; gap: 20px">
+    <div class="b small"></div><div class="b small"></div><div class="b small"></div><div class="b small"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: 150px 150px; grid-template-rows: 30px; justify-content: center">
+    <div class="b"></div><div class="b"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: 50px; grid-template-rows: 50px">
+    <div class="b" style="width: 200px; height: 150px; margin: 0 20px 30px 0"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: 50px 300px; grid-template-rows: 50px 250px">
+    <div class="b"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="position: relative; grid-template-columns: 50px">
+    <div class="b" style="height: 50px"></div>
+    <div class="b" style="position: absolute; margin: 200px 0 0 150px; width: 30px; height: 30px"></div>
+  </div>
+  <div class="s" data-scroll="9999 9999">
+    <div class="g" style="grid-template-columns: 60px 60px; gap: 10px">
+      <div class="b" style="height: 150px"></div><div class="b" style="height: 180px; width: 120px"></div>
+    </div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: repeat(3, 60px); grid-auto-rows: 60px; gap: 5px; align-content: end">
+    <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="height: auto; max-height: 100px; grid-template-columns: 1fr 1fr; gap: 10px">
+    <div class="b" style="height: 40px"></div><div class="b" style="height: 40px"></div>
+    <div class="b" style="height: 40px"></div><div class="b" style="height: 40px"></div>
+    <div class="b" style="height: 40px"></div><div class="b" style="height: 40px"></div>
+  </div>
+  <div class="s g" data-scroll="9999 9999" style="grid-template-columns: 50px; grid-template-rows: 50px">
+    <div class="b" style="position: relative; left: 120px; top: 90px"></div>
+  </div>
+</body>
+</html>

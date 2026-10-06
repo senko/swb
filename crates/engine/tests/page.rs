@@ -587,6 +587,25 @@ fn positioned_boxes_paint_in_z_index_order() {
 }
 
 #[test]
+fn grid_items_paint_and_hit_in_order_modified_document_order() {
+    // Two items in the same cell: the one with the higher `order` comes
+    // later, so it is painted on top and receives the click.
+    let html = "<!DOCTYPE html><body style='margin:0'>\
+         <div style='display:grid; grid-template-columns:100px; grid-template-rows:50px'>\
+         <a href='first.html' style='grid-area:1/1; order:2; background:rgb(1,2,3)'>first</a>\
+         <a href='second.html' style='grid-area:1/1; background:rgb(4,5,6)'>second</a></div>";
+    let list = display_list(html, "dl-grid-order");
+    assert!(rects_of(&list, MARK2)[0] < rects_of(&list, MARK)[0]);
+    let site = Site::new("hit-grid-order");
+    let mut page = local_page();
+    load(&mut page, site.page("page.html", html));
+    assert_eq!(
+        link_at(&mut page, 10.0, 25.0).as_deref(),
+        Some("first.html")
+    );
+}
+
+#[test]
 fn opacity_groups_record_their_bounds() {
     let list = display_list(
         "<!DOCTYPE html><body style='margin:0'>\
