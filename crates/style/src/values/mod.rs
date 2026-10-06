@@ -4,6 +4,7 @@
 mod color;
 mod keywords;
 mod length;
+mod mask;
 
 use std::sync::Arc;
 
@@ -14,6 +15,7 @@ pub use length::{
     CalcNode, ComputedCalc, Length, LengthContext, LengthPercentage, LengthPercentageOrAuto,
     LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
 };
+pub use mask::{CompositeOperator, MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode};
 
 /// A generic font family keyword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

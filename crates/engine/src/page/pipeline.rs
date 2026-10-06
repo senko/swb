@@ -192,6 +192,14 @@ impl Page {
     /// Renders the viewport into `target` (device pixels). The target size
     /// should be the viewport size times the scale factor.
     pub fn render(&mut self, target: &mut Pixmap) {
+        let rows = target.height();
+        self.render_in_strips(target, rows);
+    }
+
+    /// [`Page::render`] in strips of `strip_rows` device rows, each with the
+    /// rasterizer's budgets of a viewport
+    /// ([`swb_paint::rasterize_in_strips`]).
+    fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32) {
         swb_paint::fill(target, swb_style::Rgba::WHITE);
         self.update_display_list();
         if let Some(list) = &self.display_list {
@@ -200,7 +208,14 @@ impl Page {
                 scale: self.scale,
             };
             let started = Instant::now();
-            swb_paint::rasterize(list, target, params, &mut self.fonts, &self.images);
+            swb_paint::rasterize_in_strips(
+                list,
+                target,
+                params,
+                strip_rows,
+                &mut self.fonts,
+                &self.images,
+            );
             self.timings.raster = started.elapsed();
         }
     }
@@ -219,6 +234,9 @@ impl Page {
 
     /// Renders a screenshot: the viewport, or with `full_page` the whole
     /// content height (limited to [`MAX_SCREENSHOT_PIXELS`] device pixels).
+    /// A full page is rasterized in equal strips of at most the viewport's
+    /// height or [`MIN_STRIP_PIXELS`], whichever is more: the rasterizer's
+    /// budgets (group layers, masks) apply to each strip as to a window.
     pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
         let (viewport, scale) = (self.viewport, self.scale);
         let size = if full_page {
@@ -246,9 +264,11 @@ impl Page {
             self.render(&mut pixmap);
         } else {
             let scroll = self.scroll;
+            let min_rows = (MIN_STRIP_PIXELS / f64::from(w)).ceil() as f32;
+            let strip_rows = (viewport.height * scale).round().max(min_rows).max(1.0) as u32;
             self.set_viewport(size, scale);
             self.scroll = Point::default();
-            self.render(&mut pixmap);
+            self.render_in_strips(&mut pixmap, strip_rows);
             self.set_viewport(viewport, scale);
             self.scroll = scroll;
         }
@@ -306,6 +326,14 @@ pub fn check_scale(scale: f32) -> Result<(), ViewportError> {
 
 /// The largest screenshot in device pixels: 128 Mpx, 512 MiB of RGBA.
 pub const MAX_SCREENSHOT_PIXELS: f64 = 128.0 * 1024.0 * 1024.0;
+
+/// The pixels of the strips that a full-page screenshot is split into, if
+/// the viewport has fewer (16 Mpx). The rasterizer makes the strips equal,
+/// so they can be smaller, but there are no more of them than if they had
+/// this size. The rasterizer's budgets have a floor per strip, so the
+/// number of strips bounds the total work: the largest screenshot has at
+/// most 8 strips.
+const MIN_STRIP_PIXELS: f64 = 16.0 * 1024.0 * 1024.0;
 
 /// Why a screenshot failed.
 #[derive(Debug, thiserror::Error)]

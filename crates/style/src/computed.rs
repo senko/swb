@@ -8,14 +8,14 @@ use swb_css::ComponentValue;
 
 use crate::values::{
     Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BackgroundSize,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, Content, CornerRadius,
-    Cursor, Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
-    FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, Hyphens, Image,
-    LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType,
-    MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    PositionComponent, Rgba, Size, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace,
-    WordBreak, ZIndex,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Content,
+    CornerRadius, Cursor, Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap,
+    Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, Hyphens,
+    Image, LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType,
+    MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
+    PointerEvents, Position, PositionComponent, Rgba, Size, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// Custom properties (`--name: value`) of an element, after `var()`
@@ -128,6 +128,18 @@ pub struct ComputedStyle {
     pub background_origin: Arc<[BackgroundBox]>,
     pub background_clip: Arc<[BackgroundBox]>,
     pub background_attachment: Arc<[BackgroundAttachment]>,
+    pub mask_image: Arc<[MaskImage]>,
+    pub mask_mode: Arc<[MaskMode]>,
+    /// `-webkit-mask-position-x` (`mask-position` is a shorthand, as in
+    /// Chromium).
+    pub mask_position_x: Arc<[PositionComponent]>,
+    /// `-webkit-mask-position-y`.
+    pub mask_position_y: Arc<[PositionComponent]>,
+    pub mask_size: Arc<[BackgroundSize]>,
+    pub mask_repeat: Arc<[(BackgroundRepeatKeyword, BackgroundRepeatKeyword)]>,
+    pub mask_origin: Arc<[BackgroundBox]>,
+    pub mask_clip: Arc<[MaskClip]>,
+    pub mask_composite: Arc<[CompositeOperator]>,
     pub overflow_x: Overflow,
     pub overflow_y: Overflow,
     pub text_overflow: TextOverflow,
@@ -258,6 +270,18 @@ impl ComputedStyle {
             background_origin: Arc::from([BackgroundBox::PaddingBox]),
             background_clip: Arc::from([BackgroundBox::BorderBox]),
             background_attachment: Arc::from([BackgroundAttachment::Scroll]),
+            mask_image: Arc::from([MaskImage::None]),
+            mask_mode: Arc::from([MaskMode::MatchSource]),
+            mask_position_x: Arc::from([PositionComponent::default()]),
+            mask_position_y: Arc::from([PositionComponent::default()]),
+            mask_size: Arc::from([BackgroundSize::Auto]),
+            mask_repeat: Arc::from([(
+                BackgroundRepeatKeyword::Repeat,
+                BackgroundRepeatKeyword::Repeat,
+            )]),
+            mask_origin: Arc::from([BackgroundBox::BorderBox]),
+            mask_clip: Arc::from([MaskClip::BorderBox]),
+            mask_composite: Arc::from([CompositeOperator::SourceOver]),
             overflow_x: Overflow::Visible,
             overflow_y: Overflow::Visible,
             text_overflow: TextOverflow::Clip,
@@ -346,5 +370,14 @@ impl ComputedStyle {
     /// True if the box is absolutely positioned (`absolute` or `fixed`).
     pub fn is_absolutely_positioned(&self) -> bool {
         self.position.is_absolutely_positioned()
+    }
+
+    /// True if the element is masked: a `mask-image` layer is not `none`
+    /// (CSS Masking 1 §7.1). A masked element is a stacking context, as
+    /// with `opacity` below 1; unlike in the specification of filters, it
+    /// is not a containing block for positioned descendants (as in
+    /// Chromium).
+    pub fn has_mask(&self) -> bool {
+        self.mask_image.iter().any(|i| *i != MaskImage::None)
     }
 }

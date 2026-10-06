@@ -181,6 +181,15 @@ pub(crate) fn parse_longhand(
             L::BackgroundAttachment => {
                 V::BackgroundAttachment(list(p, |p| keyword(p, BackgroundAttachment::from_ident))?)
             }
+            L::MaskImage
+            | L::MaskMode
+            | L::MaskPositionX
+            | L::MaskPositionY
+            | L::MaskSize
+            | L::MaskRepeat
+            | L::MaskOrigin
+            | L::MaskClip
+            | L::MaskComposite => super::mask::parse_longhand(id, p, cx)?,
             L::OverflowX => V::OverflowX(keyword(p, Overflow::from_ident)?),
             L::OverflowY => V::OverflowY(keyword(p, Overflow::from_ident)?),
             L::TextOverflow => V::TextOverflow(keyword(p, TextOverflow::from_ident)?),
@@ -1014,6 +1023,22 @@ pub(crate) fn parse_bg_position(
     p: &mut Parser<'_>,
     quirky: bool,
 ) -> ParseResult<(SpecifiedPosition, SpecifiedPosition)> {
+    parse_position_items(p, quirky, true)
+}
+
+/// `<position>`: one, two or four values (no three-value form).
+/// <https://www.w3.org/TR/css-values-4/#position>
+pub(crate) fn parse_position(
+    p: &mut Parser<'_>,
+) -> ParseResult<(SpecifiedPosition, SpecifiedPosition)> {
+    parse_position_items(p, false, false)
+}
+
+fn parse_position_items(
+    p: &mut Parser<'_>,
+    quirky: bool,
+    three_values: bool,
+) -> ParseResult<(SpecifiedPosition, SpecifiedPosition)> {
     p.try_parse(|p| {
         let mut items = Vec::new();
         while items.len() < 4 {
@@ -1024,6 +1049,9 @@ pub(crate) fn parse_bg_position(
         }
         if items.is_empty() {
             return Err(ParseError::Unexpected);
+        }
+        if items.len() == 3 && !three_values {
+            return Err(ParseError::Invalid);
         }
         interpret_position(&items).ok_or(ParseError::Invalid)
     })
@@ -1090,7 +1118,7 @@ fn interpret_position(items: &[PositionItem]) -> Option<(SpecifiedPosition, Spec
 /// `background-position-x` / `-y`: `center | [start-keyword | end-keyword]?
 /// <length-percentage>?`.
 /// <https://www.w3.org/TR/css-backgrounds-4/#background-position-longhands>
-fn parse_position_axis(
+pub(crate) fn parse_position_axis(
     p: &mut Parser<'_>,
     horizontal: bool,
     quirky: bool,

@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use super::mask::SpecifiedMaskImage;
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedContent, SpecifiedFlexBasis, SpecifiedFontSize,
     SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign,
@@ -17,12 +18,12 @@ use crate::ComputedStyle;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
-    BorderStyle, BoxSizing, CaptionSide, Clear, Color, Cursor, Direction, Display, EmptyCells,
-    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, Hyphens,
-    ListStylePosition, ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
-    PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout, TextDecorationLine,
-    TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility,
-    WhiteSpace, WordBreak, ZIndex,
+    BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Cursor, Direction,
+    Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps,
+    Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle,
+    Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -181,6 +182,15 @@ longhands! {
     BackgroundOrigin "background-origin" reset background_origin: Arc<[BackgroundBox]>;
     BackgroundClip "background-clip" reset background_clip: Arc<[BackgroundBox]>;
     BackgroundAttachment "background-attachment" reset background_attachment: Arc<[BackgroundAttachment]>;
+    MaskImage "mask-image" reset mask_image: Arc<[SpecifiedMaskImage]>;
+    MaskMode "mask-mode" reset mask_mode: Arc<[MaskMode]>;
+    MaskPositionX "-webkit-mask-position-x" reset mask_position_x: Arc<[SpecifiedPosition]>;
+    MaskPositionY "-webkit-mask-position-y" reset mask_position_y: Arc<[SpecifiedPosition]>;
+    MaskSize "mask-size" reset mask_size: Arc<[SpecifiedBackgroundSize]>;
+    MaskRepeat "mask-repeat" reset mask_repeat: Arc<[(BackgroundRepeatKeyword, BackgroundRepeatKeyword)]>;
+    MaskOrigin "mask-origin" reset mask_origin: Arc<[BackgroundBox]>;
+    MaskClip "mask-clip" reset mask_clip: Arc<[MaskClip]>;
+    MaskComposite "mask-composite" reset mask_composite: Arc<[CompositeOperator]>;
     OverflowX "overflow-x" reset overflow_x: Overflow;
     OverflowY "overflow-y" reset overflow_y: Overflow;
     TextOverflow "text-overflow" reset text_overflow: TextOverflow;

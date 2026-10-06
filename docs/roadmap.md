@@ -68,12 +68,28 @@ Five parallel workstreams; each will record its design in a new ADR:
 - Floats, clearance and block formatting contexts.
 - Absolute, fixed and sticky positioning; 2D `transform`.
 - Grid layout.
-- `mask-image` and the other mask properties (icons).
+- `mask-image` and the other mask properties (icons): done (ADR 0018).
 - Scroll containers: `overflow` scrolling inside elements.
 - Target 3 (Wikipedia "Web browser") done.
 
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
 uses neither; they moved to "Later".
+
+## Backlog from M3
+
+- Masks: SVG `<mask>` references (they hide the box, as a missing target
+  does in Chromium); radial and conic gradients as masks (shown
+  unmasked); `-webkit-mask-box-image`; `mask-clip: text` (painted as
+  `border-box`); masks of inline boxes split over lines (each fragment
+  uses its own positioning area); CORS mode for mask images;
+  `mask-repeat: space | round` (painted as `repeat`).
+- Flexbox: the baseline of a flex container comes from the first item
+  that has a baseline, not from the startmost item (known failure
+  `inline-flex-baseline`; Wikipedia's icon buttons are 6 px taller).
+- Style: `background-position-x/-y` accept `x-start`, `x-end`,
+  `y-start` and `y-end` (Chromium rejects them; affects `@supports`
+  only); `background` with thousands of layers computes every layer on
+  every element (masks keep only 32).
 
 ## Backlog from the M2 maintenance review
 
@@ -98,9 +114,6 @@ change behaviour, so they are not fixed yet.
   text fields); it does not apply to them.
 - Selection: keyboard focus on a text field does not clear the page
   selection (both are highlighted).
-- Text: a variable font whose `fvar` `wght` axis has min > max panics in
-  `f32::clamp` (`instance_weight`); sanitize the axis range when the
-  font is read.
 
 ## Backlog from M2
 

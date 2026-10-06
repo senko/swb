@@ -105,6 +105,19 @@ shorthands! {
         BackgroundSize, BackgroundRepeat, BackgroundAttachment, BackgroundOrigin, BackgroundClip
     ];
     BackgroundPosition "background-position" [BackgroundPositionX, BackgroundPositionY];
+    Mask "mask" [
+        MaskImage, MaskPositionX, MaskPositionY, MaskSize, MaskRepeat, MaskOrigin, MaskClip,
+        MaskComposite, MaskMode
+    ];
+    WebkitMask "-webkit-mask" [
+        MaskImage, MaskPositionX, MaskPositionY, MaskSize, MaskRepeat, MaskOrigin, MaskClip,
+        MaskComposite, MaskMode
+    ];
+    MaskPosition "mask-position" [MaskPositionX, MaskPositionY];
+    WebkitMaskPosition "-webkit-mask-position" [MaskPositionX, MaskPositionY];
+    WebkitMaskOrigin "-webkit-mask-origin" [MaskOrigin];
+    WebkitMaskClip "-webkit-mask-clip" [MaskClip];
+    WebkitMaskComposite "-webkit-mask-composite" [MaskComposite];
     Font "font" [
         FontStyle, FontVariantCaps, FontWeight, FontStretch, FontSize, LineHeight, FontFamily
     ];
@@ -304,6 +317,13 @@ impl ShorthandId {
                     out.push(LonghandValue::BackgroundPositionY(Arc::from(y)));
                     Ok(())
                 }
+                S::Mask
+                | S::WebkitMask
+                | S::MaskPosition
+                | S::WebkitMaskPosition
+                | S::WebkitMaskOrigin
+                | S::WebkitMaskClip
+                | S::WebkitMaskComposite => super::mask::parse_shorthand(self, p, cx, out),
                 S::Font => parse_font(p, out),
                 S::FontVariant => {
                     out.push(LonghandValue::FontVariantCaps(parse_font_variant(p)?));

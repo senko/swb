@@ -24,6 +24,7 @@ use swb_style::{
 };
 use swb_text::FontId;
 
+use crate::mask::{self, MaskBoxes, MaskLayer};
 use crate::{background, control};
 
 /// Corner radii (horizontal, vertical) in px: top-left, top-right,
@@ -105,6 +106,17 @@ pub enum DisplayItem {
     },
     /// End the most recent opacity group.
     PopOpacity,
+    /// Start a group that is masked by `layers` (CSS Masking 1 §7): its
+    /// pixels are multiplied by the mask when it ends.
+    PushMask {
+        /// An area that contains everything the group shows: its content
+        /// inside the area of the mask layers.
+        bounds: Rect,
+        /// The mask layers, top first.
+        layers: Arc<[MaskLayer]>,
+    },
+    /// End the most recent mask group.
+    PopMask,
     /// Stroke a line through `points` (butt caps, miter joins).
     Polyline {
         /// The points.
@@ -143,7 +155,33 @@ impl DisplayItem {
             | DisplayItem::PopClip
             | DisplayItem::PushOpacity { .. }
             | DisplayItem::PopOpacity
+            | DisplayItem::PushMask { .. }
+            | DisplayItem::PopMask
             | DisplayItem::HitRegion { .. } => None,
+        }
+    }
+
+    /// The area that the item draws, for the `no-clip` area of masks: as
+    /// [`DisplayItem::bounds`], but for text closer to the ink than the
+    /// culling estimate: the glyph origins grown by one font size to the
+    /// right and above, and a third of it below.
+    pub(crate) fn ink_bounds(&self) -> Option<Rect> {
+        match self {
+            DisplayItem::Text {
+                origin,
+                size,
+                glyphs,
+                ..
+            } => {
+                let (x0, y0, x1, y1) = extent(glyphs.iter().map(|g| (g.x, g.y)))?;
+                Some(Rect::new(
+                    origin.x + x0,
+                    origin.y + y0 - size,
+                    x1 - x0 + size,
+                    y1 - y0 + size * 4.0 / 3.0,
+                ))
+            }
+            other => other.bounds(),
         }
     }
 }
@@ -231,7 +269,7 @@ pub struct DisplayList {
 impl DisplayList {
     /// The node of the topmost hit region at `point` (document coordinates,
     /// CSS px) that is not clipped away. Regions that are painted later are
-    /// on top.
+    /// on top. Masks do not matter, as in Chromium.
     pub fn hit_test(&self, point: Point) -> Option<NodeId> {
         let mut clips: Vec<bool> = Vec::new();
         let mut hit = None;
@@ -270,6 +308,7 @@ pub fn build_display_list(
         contexts: Vec::new(),
         clips: Vec::new(),
         canvas_source: None,
+        root_canvas: Vec::new(),
     };
     if let Some(canvas_background) = &tree.canvas_background {
         let bg = &canvas_background.style;
@@ -286,8 +325,19 @@ pub fn build_display_list(
             padding,
             painting: PaintingArea::Canvas(canvas),
         };
+        let start = builder.list.len();
         builder.background(bg, &areas, [(0.0, 0.0); 4]);
         builder.canvas_source = Some(canvas_background.source);
+        // The opacity and the mask of the root element apply to the canvas
+        // background too (as in Chromium): it is painted inside the root's
+        // groups.
+        if tree
+            .root
+            .as_ref()
+            .is_some_and(|r| r.style.has_mask() || r.style.opacity < 1.0)
+        {
+            builder.root_canvas = builder.list.split_off(start);
+        }
     }
     if let Some(root) = &tree.root {
         builder.box_contents(root, Point::default(), &[], true);
@@ -301,6 +351,10 @@ pub fn build_display_list(
 struct Deferred {
     z: i32,
     items: Vec<DisplayItem>,
+    /// The number of clips of the boxes between the stacking context and
+    /// the box: the items start with their `PushClip`s and end with their
+    /// `PopClip`s.
+    clips: usize,
 }
 
 /// An open overflow clip.
@@ -324,6 +378,9 @@ struct Builder<'a> {
     /// The element whose background paints the canvas; its own box does
     /// not paint the background again.
     canvas_source: Option<NodeId>,
+    /// The canvas background of a root element with opacity or a mask,
+    /// which its groups paint first.
+    root_canvas: Vec<DisplayItem>,
 }
 
 /// A text decoration propagated from an ancestor.
@@ -382,6 +439,8 @@ impl BackgroundAreas {
 struct Group {
     /// The index of the `PushOpacity` item, if the box has opacity < 1.
     opacity_item: Option<usize>,
+    /// The index of the `PushMask` item, if the box is masked.
+    mask_item: Option<usize>,
     /// True if the box opened a stacking context.
     context: bool,
     /// `contexts.len()` before the box's own context.
@@ -420,7 +479,11 @@ impl Builder<'_> {
         self.list.extend(clips.iter().map(|_| DisplayItem::PopClip));
         let items = std::mem::replace(&mut self.list, saved);
         match self.contexts.last_mut() {
-            Some(context) => context.push(Deferred { z, items }),
+            Some(context) => context.push(Deferred {
+                z,
+                items,
+                clips: clips.len(),
+            }),
             None => self.list.extend(items),
         }
     }
@@ -459,19 +522,21 @@ impl Builder<'_> {
         {
             self.list.extend(control::caret(c, &b.style, rect.origin()));
         }
-        if group.context {
-            self.paint_deferred(negative_z_at);
-        }
+        let positioned = if group.context {
+            self.paint_deferred(negative_z_at, mask::needs_positioned_area(&b.style))
+        } else {
+            None
+        };
         if clipped {
             self.list.push(DisplayItem::PopClip);
             self.clips.pop();
         }
         self.outline(b, origin);
-        self.close_group(&group);
+        self.close_group(&group, b, origin, positioned);
     }
 
-    /// Starts the opacity group and the stacking context of a box, as
-    /// needed.
+    /// Starts the opacity group, the mask group and the stacking context
+    /// of a box, as needed.
     fn open_group(&mut self, b: &BoxFragment, stacking_context: bool) -> Group {
         let opacity = b.style.opacity;
         let outer_depth = self.contexts.len();
@@ -482,31 +547,92 @@ impl Builder<'_> {
             });
             self.list.len() - 1
         });
-        let context = stacking_context || opacity_item.is_some() || outer_depth == 0;
+        // The layers are computed when the group ends.
+        let mask_item = b.style.has_mask().then(|| {
+            self.list.push(DisplayItem::PushMask {
+                bounds: Rect::default(),
+                layers: Arc::from([]),
+            });
+            self.list.len() - 1
+        });
+        if (opacity_item.is_some() || mask_item.is_some()) && outer_depth == 0 {
+            let canvas = std::mem::take(&mut self.root_canvas);
+            self.list.extend(canvas);
+        }
+        let context =
+            stacking_context || opacity_item.is_some() || mask_item.is_some() || outer_depth == 0;
         if context {
             self.contexts.push(Vec::new());
         }
         Group {
             opacity_item,
+            mask_item,
             context,
             outer_depth,
         }
     }
 
-    /// Ends the opacity group of a box and records the area it draws.
-    fn close_group(&mut self, group: &Group) {
-        let Some(at) = group.opacity_item else {
-            return;
-        };
-        let bounds = self.list[at + 1..]
+    /// Ends the mask and opacity groups of a box and records the areas
+    /// they draw. `origin` is the parent's border-box origin; `positioned`
+    /// the area of the positioned descendants, if a `no-clip` mask needs
+    /// it.
+    fn close_group(
+        &mut self,
+        group: &Group,
+        b: &BoxFragment,
+        origin: Point,
+        positioned: Option<Rect>,
+    ) {
+        if let Some(at) = group.mask_item {
+            // With `no-clip`, the area of the descendants with their own
+            // layer in Chromium: positioned ones, and nested groups (with
+            // the positioned descendants inside them).
+            let layered = mask::needs_positioned_area(&b.style)
+                .then(|| {
+                    let groups = mask::group_area(self.list.get(at + 1..).unwrap_or_default());
+                    positioned
+                        .into_iter()
+                        .chain(groups)
+                        .reduce(|a, b| a.union(&b))
+                })
+                .flatten();
+            let boxes = MaskBoxes::of(b, origin, layered);
+            let layers = mask::layers(&b.style, &boxes, self.images);
+            let extent = layers
+                .iter()
+                .filter_map(MaskLayer::extent)
+                .reduce(|a, b| a.union(&b));
+            let bounds = self
+                .bounds_after(at)
+                .zip(extent)
+                .and_then(|(content, extent)| content.intersection(&extent))
+                .unwrap_or_default();
+            if let Some(DisplayItem::PushMask {
+                bounds: bounds_slot,
+                layers: layers_slot,
+            }) = self.list.get_mut(at)
+            {
+                *bounds_slot = bounds;
+                *layers_slot = Arc::from(layers);
+            }
+            self.list.push(DisplayItem::PopMask);
+        }
+        if let Some(at) = group.opacity_item {
+            let bounds = self.bounds_after(at).unwrap_or_default();
+            if let Some(DisplayItem::PushOpacity { bounds: slot, .. }) = self.list.get_mut(at) {
+                *slot = bounds;
+            }
+            self.list.push(DisplayItem::PopOpacity);
+        }
+    }
+
+    /// The area that the items after index `at` draw.
+    fn bounds_after(&self, at: usize) -> Option<Rect> {
+        self.list
+            .get(at + 1..)?
             .iter()
             .filter_map(DisplayItem::bounds)
             .reduce(|a, b| a.union(&b))
-            .unwrap_or_default();
-        if let Some(DisplayItem::PushOpacity { bounds: slot, .. }) = self.list.get_mut(at) {
-            *slot = bounds;
-        }
-        self.list.push(DisplayItem::PopOpacity);
     }
 
     /// The box's own hit region, background, border and replaced content.
@@ -605,9 +731,23 @@ impl Builder<'_> {
 
     /// Paints the positioned descendants of the stacking context that is
     /// closing: negative z-index at `negative_z_at` (below the normal-flow
-    /// content), the others at the end.
-    fn paint_deferred(&mut self, negative_z_at: usize) {
+    /// content), the others at the end. With `want_area`, returns the area
+    /// that they draw.
+    fn paint_deferred(&mut self, negative_z_at: usize, want_area: bool) -> Option<Rect> {
         let mut deferred = self.contexts.pop().unwrap_or_default();
+        // The ink of each box inside its own clips, not those of the boxes
+        // around it.
+        let area = want_area
+            .then(|| {
+                deferred
+                    .iter()
+                    .filter_map(|d| {
+                        let own = d.items.get(d.clips..d.items.len().saturating_sub(d.clips));
+                        mask::clipped_ink(own.unwrap_or_default())
+                    })
+                    .reduce(|a, b| a.union(&b))
+            })
+            .flatten();
         // Stable sort: equal z-index keeps tree order.
         deferred.sort_by_key(|d| d.z);
         let split = deferred.partition_point(|d| d.z < 0);
@@ -617,6 +757,7 @@ impl Builder<'_> {
         for d in positive {
             self.list.extend(d.items);
         }
+        area
     }
 
     fn outline(&mut self, b: &BoxFragment, origin: Point) {
@@ -914,7 +1055,7 @@ impl Builder<'_> {
 /// (Chromium's focus ring encloses them, for example an image in a link).
 /// The content of a box that clips its overflow does not count. `origin`
 /// is the absolute position of the parent's border-box origin.
-fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
+pub(crate) fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
     let rect = b.border_rect.translate(origin);
     if b.style.overflow_x.clips() || b.style.overflow_y.clips() {
         return rect;
@@ -934,7 +1075,7 @@ fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
 }
 
 /// `rect` grown by `amount` on every side (shrunk if negative).
-fn outset(rect: Rect, amount: f32) -> Rect {
+pub(crate) fn outset(rect: Rect, amount: f32) -> Rect {
     Rect::new(
         rect.x - amount,
         rect.y - amount,
@@ -947,7 +1088,7 @@ fn outset(rect: Rect, amount: f32) -> Rect {
 /// properties repeat as needed (CSS Backgrounds 3 §2.1,
 /// <https://www.w3.org/TR/css-backgrounds-3/#layering>); `None` only for an
 /// empty list.
-fn layer_value<T>(list: &[T], i: usize) -> Option<&T> {
+pub(crate) fn layer_value<T>(list: &[T], i: usize) -> Option<&T> {
     list.get(i % list.len().max(1))
 }
 

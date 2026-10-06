@@ -7,7 +7,7 @@ use std::sync::Arc;
 use swb_dom::NodeId;
 
 use crate::ComputedStyle;
-use crate::values::Image;
+use crate::values::{Image, MaskImage};
 
 /// A pseudo-element that generates a box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -87,10 +87,10 @@ impl StyleMap {
         self.pseudos.insert((id, kind), style);
     }
 
-    /// The absolute URLs of all `background-image` and `list-style-image`
-    /// `url()` values, without duplicates: those of element styles in
-    /// document order, then those of pseudo-element styles (in no
-    /// particular order).
+    /// The absolute URLs of all `background-image`, `mask-image` and
+    /// `list-style-image` `url()` values, without duplicates: those of
+    /// element styles in document order, then those of pseudo-element
+    /// styles (in no particular order).
     pub fn image_urls(&self) -> Vec<Arc<str>> {
         let mut seen: HashSet<Arc<str>> = HashSet::new();
         let mut urls = Vec::new();
@@ -100,10 +100,15 @@ impl StyleMap {
             if !visited.insert(Arc::as_ptr(style)) {
                 continue;
             }
+            let masks = style.mask_image.iter().filter_map(|m| match m {
+                MaskImage::Image(image) => Some(image),
+                _ => None,
+            });
             let images = style
                 .background_image
                 .iter()
                 .flatten()
+                .chain(masks)
                 .chain(style.list_style_image.as_ref());
             for image in images {
                 if let Image::Url(url) = image

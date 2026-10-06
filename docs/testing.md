@@ -54,6 +54,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
+| `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
 
 Options:
 
@@ -411,6 +412,21 @@ down. Scores only go up unless the commit message explains why.
 3. Check `tests/layout/<name>.boxes.json` (for example, open the HTML in a
    browser and compare a few rectangles).
 4. Commit both files.
+
+### Check that a refactoring does not change rendering
+
+`just snapshot DIR` writes the layout dump (`--dump-layout`), the DOM dump
+and full-page screenshots (1280×800, 700×900, and 1280×800 at scale 2) of
+every page fixture, and the layout dump and a screenshot of every layout
+test. The output is deterministic.
+
+1. Before the change: `just snapshot /tmp/before`.
+2. After the change: `just snapshot /tmp/after`.
+3. `diff -rq /tmp/before /tmp/after` must print nothing.
+
+The layout dump rounds to 2 decimals; the screenshots catch smaller
+differences that reach the pixels. Interaction, forms and history are not
+covered: their tests must pass.
 
 ## Scores
 

@@ -199,3 +199,6 @@ above do not describe:
 - Ancestor Bloom filter: the css crate now gives the ancestor keys of a
   selector (`Selector::ancestor_keys`); the style crate no longer reads
   them from the selector's serialization. The keys are the same.
+- Masks are supported (ADR 0018), so `@supports (mask-image: ...)`
+  takes the same branch as in Chromium; the validation difference and
+  the "Not supported yet" entry above are out of date for masks.

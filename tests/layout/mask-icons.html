@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!-- A reduction of Wikipedia's icons: masked inline-block spans and
+     ::after icons inside Codex buttons, with Wikipedia's rules (both mask
+     property names, var() and calc(max()) sizes, @supports branches that
+     change the layout). Masks do not change the layout; a masked box is
+     a stacking context (the relatively positioned span). The buttons have
+     `height: 32px` instead of Wikipedia's `min-height: 32px`: swb ignores
+     the min-height of flex containers (known failure
+     flex-container-min-size), and the buttons are flex items, because
+     swb takes the baseline of an inline-flex button from the first item
+     that has one, not from the first item (the empty icon). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mask icons</title>
+<style>
+  body { margin: 8px; font: 16px/1.6 sans-serif; }
+  .vector-icon {
+    -webkit-mask-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=);
+    mask-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=);
+    min-width: 10px; min-height: 10px;
+    width: calc(var(--font-size-medium, 1rem) + 4px);
+    height: calc(var(--font-size-medium, 1rem) + 4px);
+    display: inline-block; vertical-align: text-bottom;
+    background-color: var(--color-base, #202122);
+  }
+  @supports not ((-webkit-mask-image: none) or (mask-image: none)) {
+    .vector-icon { background-position: center; background-repeat: no-repeat; margin: 7px; }
+  }
+  @supports (-webkit-mask-image: none) or (mask-image: none) {
+    .vector-icon {
+      -webkit-mask-position: center; mask-position: center;
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+      -webkit-mask-size: calc(max(calc(var(--font-size-medium, 1rem) + 4px), 10px));
+      mask-size: calc(max(calc(var(--font-size-medium, 1rem) + 4px), 10px));
+    }
+  }
+  .menu { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M1 3v2h18V3zm0 8h18V9H1zm0 6h18v-2H1z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M1 3v2h18V3zm0 8h18V9H1zm0 6h18v-2H1z'/%3E%3C/svg%3E"); }
+  .cdx-button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    box-sizing: border-box; height: 32px; max-width: 28rem; margin: 0;
+    border: 1px solid transparent; border-radius: 2px; padding: 0 11px;
+    font-size: var(--font-size-medium, 1rem); font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cdx-button--icon-only { min-width: 32px; padding-right: 0; padding-left: 0; }
+  .dropdown .label:not(.cdx-button--icon-only)::after {
+    content: ''; min-width: 10px; min-height: 10px;
+    width: calc(var(--font-size-medium, 1rem) - 4px);
+    height: calc(var(--font-size-medium, 1rem) - 4px);
+    display: inline-block; vertical-align: text-bottom; width: 0.75rem; height: 0.75rem;
+    background-color: #36c;
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"%23000\"><path d=\"m16.7 8-6 6H9.3l-6-6 1.4-1.4 5.3 5.3 5.3-5.3z\"/></svg>");
+    mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"%23000\"><path d=\"m16.7 8-6 6H9.3l-6-6 1.4-1.4 5.3 5.3 5.3-5.3z\"/></svg>");
+  }
+  @supports not ((-webkit-mask-image: none) or (mask-image: none)) {
+    .dropdown .label:not(.cdx-button--icon-only)::after { width: 30px; }
+  }
+  .wrapped { mask: linear-gradient(black, transparent) no-clip; width: 200px; }
+  .rel { position: relative; top: 5px; left: 7px; z-index: 2; }
+  .header, .dropdown { display: flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <label class="cdx-button cdx-button--icon-only"><span class="vector-icon menu"></span></label>
+    <span class="dropdown"><label class="label cdx-button"><span class="vector-icon"></span><span>145 languages</span></label></span>
+    <label class="cdx-button cdx-button--icon-only"><span class="vector-icon" style="mask-size: var(--font-size-small, 0.875rem)"></span></label>
+  </div>
+  <p class="wrapped">Text in a masked paragraph with a <span class="rel">relatively positioned</span> span and an <span class="vector-icon"></span> icon.</p>
+</body>
+</html>

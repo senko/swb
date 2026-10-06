@@ -10,3 +10,4 @@ intrinsic-sizes  # clear is not implemented; nowrap flex min-content and border-
 pre-tabs  # tabs do not advance to tab stops
 nowrap-atomic-inlines  # white-space: nowrap does not prevent breaks between atomic inlines
 list-marker-inside-breaking  # inside markers are added after line breaking, and are narrower than in Chromium
+inline-flex-baseline  # the flex baseline comes from the first item with a baseline, not from the startmost item (synthesized from its border box)

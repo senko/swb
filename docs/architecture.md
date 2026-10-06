@@ -72,7 +72,9 @@ Rules:
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
   borders, glyph runs, images, linear gradients, polylines, clips, opacity
-  groups with their bounds) in paint order. Form controls with the native
+  and mask groups with their bounds) in paint order. A mask group carries
+  its mask layers: images or gradients positioned like background layers
+  (`paint/src/mask.rs`, ADR 0018). Form controls with the native
   look are drawn by `paint/src/control.rs`. The rasterizer consumes it. The
   rasterizer can be replaced without changes to layout. The list also
   contains hit regions, so hit testing finds what is painted on top.
@@ -192,18 +194,27 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   (`layout/src/control.rs`); their sizes follow Chromium.
 - `<br>` elements and inline boxes around block-level children get boxes
   for the box dump; the latter are `BoxContent::GeometryOnly`.
-- Paint order: each stacking context (root, positioned boxes, opacity < 1)
-  paints its normal-flow content in tree order, then its positioned
-  descendants in z-index order (negative z-index before the content). A
-  positioned box keeps the overflow clips of the boxes between it and its
-  stacking context (except absolutely positioned boxes, whose containing
-  block is outside those boxes).
+- Paint order: each stacking context (root, positioned boxes, opacity < 1,
+  masked boxes) paints its normal-flow content in tree order, then its
+  positioned descendants in z-index order (negative z-index before the
+  content). A positioned box keeps the overflow clips of the boxes
+  between it and its stacking context (except absolutely positioned
+  boxes, whose containing block is outside those boxes).
 - The display list contains the selection highlight (a rectangle behind
   the selected glyphs, then the glyphs again in the selection color) and
   outlines; `outline-style: auto` is Chromium's two-ring focus ring.
 - Rasterization works in device pixels. Rectangles without rounded corners
-  and clips are snapped to whole pixels; an opacity group draws into a layer
-  that covers only its visible bounds.
+  and clips are snapped to whole pixels; an opacity or mask group draws
+  into a layer that covers only its visible bounds, and a mask group's
+  layer is multiplied by the mask when the group ends. The rasterizer
+  works in strips: a window is one strip; a full-page screenshot is split
+  into equal strips of at most the viewport height or 16 Mpx, drawn in
+  place. Per strip, the layers of open groups share a memory budget
+  (max(64 Mpx, 4 × strip pixels); beyond it, opacity groups draw directly
+  and mask groups draw nothing), and mask groups share a work budget: a
+  group starts only if all its work fits (layer pixels, a cost per row,
+  gradient tiles). The SVG rendering budget is shared by all strips. The root
+  element's opacity and mask also apply to the canvas background.
 
 ## Engine modules
 

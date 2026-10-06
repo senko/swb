@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!-- @supports for the mask properties: each box is 100px wide if the
+     condition is true in the browser, 10px otherwise. The conditions
+     include Chromium's -webkit- aliases and legacy syntaxes, and the
+     conditions of Wikipedia's stylesheets. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mask @supports</title>
+<style>
+  body { margin: 8px; }
+  div { width: 10px; height: 4px; margin-bottom: 2px; background: #888; }
+  @supports (mask-image: none) { .a1 { width: 100px } }
+  @supports (-webkit-mask-image: none) or (mask-image: none) { .a2 { width: 100px } }
+  @supports not ((-webkit-mask-image: none) or (mask-image: none)) { .a3 { width: 100px } }
+  @supports (mask-image: url(#m)) { .a4 { width: 100px } }
+  @supports (mask-image: element(#m)) { .a5 { width: 100px } }
+  @supports (mask: url(a.png) center / 10px no-repeat luminance subtract) { .b1 { width: 100px } }
+  @supports (mask: url(a.png) no-clip padding-box) { .b2 { width: 100px } }
+  @supports (mask: url(a.png) border) { .b3 { width: 100px } }
+  @supports (-webkit-mask: url(a.png) padding text) { .b4 { width: 100px } }
+  @supports (-webkit-mask: url(a.png) no-clip) { .b5 { width: 100px } }
+  @supports (mask-position: left 10px top) { .c1 { width: 100px } }
+  @supports (-webkit-mask-position: left 10px top) { .c2 { width: 100px } }
+  @supports (-webkit-mask-position-x: right 10px) { .c3 { width: 100px } }
+  @supports (mask-position-x: 10px) { .c4 { width: 100px } }
+  @supports (mask-size: calc(max(calc(var(--font-size-medium, 1rem) + 4px), 10px))) { .c5 { width: 100px } }
+  @supports (-webkit-mask-repeat: space round) { .c6 { width: 100px } }
+  @supports (mask-clip: text) { .d1 { width: 100px } }
+  @supports (-webkit-mask-clip: text) { .d2 { width: 100px } }
+  @supports (mask-clip: no-clip) { .d3 { width: 100px } }
+  @supports (-webkit-mask-origin: padding) { .d4 { width: 100px } }
+  @supports (mask-origin: fill-box) { .d5 { width: 100px } }
+  @supports (mask-composite: exclude) { .e1 { width: 100px } }
+  @supports (mask-composite: xor) { .e2 { width: 100px } }
+  @supports (-webkit-mask-composite: xor) { .e3 { width: 100px } }
+  @supports (-webkit-mask-composite: add) { .e4 { width: 100px } }
+  @supports (mask-mode: luminance) { .e5 { width: 100px } }
+  @supports (-webkit-mask-mode: luminance) { .e6 { width: 100px } }
+  @supports (mask-type: alpha) { .e7 { width: 100px } }
+  @supports (mask-type: match-source) { .e8 { width: 100px } }
+  @supports (mask-border: none) { .e9 { width: 100px } }
+</style>
+</head>
+<body>
+  <div class="a1"></div><div class="a2"></div><div class="a3"></div><div class="a4"></div><div class="a5"></div>
+  <div class="b1"></div><div class="b2"></div><div class="b3"></div><div class="b4"></div><div class="b5"></div>
+  <div class="c1"></div><div class="c2"></div><div class="c3"></div><div class="c4"></div><div class="c5"></div><div class="c6"></div>
+  <div class="d1"></div><div class="d2"></div><div class="d3"></div><div class="d4"></div><div class="d5"></div>
+  <div class="e1"></div><div class="e2"></div><div class="e3"></div><div class="e4"></div><div class="e5"></div>
+  <div class="e6"></div><div class="e7"></div><div class="e8"></div><div class="e9"></div>
+</body>
+</html>

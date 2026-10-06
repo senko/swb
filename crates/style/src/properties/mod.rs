@@ -13,6 +13,7 @@
 pub(crate) mod compute;
 pub(crate) mod ids;
 pub(crate) mod longhand;
+pub(crate) mod mask;
 pub(crate) mod shorthand;
 pub(crate) mod specified;
 
@@ -260,6 +261,9 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "min-block-size" => L::MinHeight,
         "max-inline-size" => L::MaxWidth,
         "max-block-size" => L::MaxHeight,
+        "-webkit-mask-image" => L::MaskImage,
+        "-webkit-mask-size" => L::MaskSize,
+        "-webkit-mask-repeat" => L::MaskRepeat,
         "overflow-inline" => L::OverflowX,
         "overflow-block" => L::OverflowY,
         _ => return None,
@@ -322,6 +326,9 @@ pub(crate) fn parse_declaration(
         return true;
     }
     let Some((property, canonical)) = lookup_property(name) else {
+        if let Some(valid) = mask::ignored_property(name, value) {
+            return valid;
+        }
         if IGNORED_PROPERTIES.contains(&name) {
             return true;
         }
@@ -1206,7 +1213,7 @@ mod tests {
         assert_eq!(out.len(), LonghandId::COUNT - 2);
         assert!(!parse("all", "red").0);
         assert!(!parse("frobnicate", "1").0);
-        assert!(!parse("-webkit-mask-image", "none").0);
+        assert!(!parse("-webkit-mask-box-image", "none").0);
         assert!(!parse("color", "inherit red").0);
     }
 
@@ -1238,7 +1245,8 @@ mod tests {
         assert!(!check("(display: grid-lanes)"));
         assert!(check("(color: var(--x))"));
         assert!(check("(--x: anything)"));
-        assert!(!check("(mask-image: none)"));
+        assert!(check("(mask-image: none)"));
+        assert!(check("(-webkit-mask-image: none) or (mask-image: none)"));
         assert!(check("not (backdrop-filter: blur(1px))"));
     }
 }

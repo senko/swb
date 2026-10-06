@@ -4,6 +4,53 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-04: M3 Wikipedia
+
+- M3 runs as five parallel workstreams (floats, positioning, grid, masks,
+  scrolling), each in its own worktree. The integrator merges them one
+  after another, with a clean-context integration review and a commit
+  for each.
+- Masks (ADR 0018): `mask-image`, `mask-mode`, `mask-repeat`,
+  `mask-position`, `mask-size`, `mask-origin`, `mask-clip`,
+  `mask-composite` and `mask`, with Chromium's property model: pure
+  aliases (`-webkit-mask-image`, `-size`, `-repeat`), legacy syntaxes
+  (`-webkit-mask`, `-webkit-mask-clip`, `-origin`, `-composite`,
+  `-position`), and `mask-position` as a shorthand of
+  `-webkit-mask-position-x/-y`. `@supports` answers as in Chromium, so
+  Wikipedia takes its mask branch. A masked box paints into a layer that
+  is multiplied by the mask (alpha or luminance; layers composited with
+  `mask-composite`, the bottom layer's operator ignored). Mask images
+  load like background images. Measured in Chromium: a failed image
+  hides the box, masks do not change hit testing, and a masked box is a
+  stacking context but not a containing block. The root element's mask
+  and opacity also apply to the canvas background, as in Chromium.
+  Limits: 32 layers per box; one memory budget for the layers of all
+  open opacity and mask groups (beyond it, opacity groups draw without
+  opacity and mask groups draw nothing); a mask work budget (a mask group
+  starts only if its work fits). Wikipedia's menu, language, chevron and
+  ellipsis icons match the reference (pixels 0.8848 → 0.8859). The
+  author's two review rounds found a hang (tiled gradient masks), a
+  regression (large opacity groups in full-page screenshots) and smaller
+  bugs. The integration review found that full-page screenshots of long
+  pages went blank when page-high groups exceeded the budgets: full-page
+  screenshots are now rasterized in strips of the viewport height (at
+  least 16 Mpx, `swb_paint::rasterize_in_strips`), and the budgets apply
+  per strip. It also found that `mask-clip: no-clip` must cover the
+  descendants that have their own layer (positioned, opacity, mask). A
+  review of those fixes found unbounded gradient-tile work in nested
+  masks, a seam at the last strip (it had other budgets), and inexact
+  strip offsets at fractional scales: mask groups are now admitted with
+  all their work (layer pixels, a cost per row, gradient tiles), the
+  strips of a screenshot have equal heights and budgets, and strips are
+  drawn in place with the device coordinates of one pass. All fixed with
+  tests.
+- Text: a variable font with a malformed `wght` axis (min > max) no
+  longer panics; the axis range includes the default value, as in
+  HarfBuzz.
+- `just snapshot DIR` (`tools/snapshot.sh`) writes swb's rendering of
+  all fixtures and layout tests, to check that a refactoring changes
+  nothing (testing.md). The M2 maintenance pass used it first.
+
 ## 2026-10-04: M2 maintenance
 
 - End-of-milestone review of the whole codebase. Five clean-context

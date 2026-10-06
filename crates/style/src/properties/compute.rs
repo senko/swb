@@ -177,6 +177,15 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::BackgroundOrigin(v) => s.background_origin = Arc::clone(v),
         V::BackgroundClip(v) => s.background_clip = Arc::clone(v),
         V::BackgroundAttachment(v) => s.background_attachment = Arc::clone(v),
+        V::MaskImage(_)
+        | V::MaskMode(_)
+        | V::MaskPositionX(_)
+        | V::MaskPositionY(_)
+        | V::MaskSize(_)
+        | V::MaskRepeat(_)
+        | V::MaskOrigin(_)
+        | V::MaskClip(_)
+        | V::MaskComposite(_) => super::mask::apply(value, cx, s),
         V::OverflowX(v) => s.overflow_x = *v,
         V::OverflowY(v) => s.overflow_y = *v,
         V::TextOverflow(v) => s.text_overflow = *v,

@@ -1,0 +1,24 @@
+{
+  "url": "tests/layout/mask-icons.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 148.78], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 124.78], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 32.0], "parent": 5},
+    {"tag": "label", "rect": [8.0, 8.0, 32.0, 32.0], "parent": 6},
+    {"tag": "span", "rect": [14.0, 14.0, 20.0, 20.0], "parent": 7},
+    {"tag": "span", "rect": [44.0, 8.0, 178.28, 32.0], "parent": 6},
+    {"tag": "label", "rect": [44.0, 8.0, 178.28, 32.0], "parent": 9},
+    {"tag": "span", "rect": [56.0, 14.0, 20.0, 20.0], "parent": 10},
+    {"tag": "span", "rect": [82.0, 11.2, 110.28, 25.59], "parent": 10},
+    {"tag": "label", "rect": [226.28, 8.0, 32.0, 32.0], "parent": 6},
+    {"tag": "span", "rect": [232.28, 14.0, 20.0, 20.0], "parent": 13},
+    {"tag": "p", "rect": [8.0, 56.0, 200.0, 76.78], "parent": 5},
+    {"tag": "span", "rect": [61.25, 90.59, 140.53, 17.0], "parent": 15},
+    {"tag": "span", "rect": [100.53, 108.19, 20.0, 20.0], "parent": 15}
+  ]
+}

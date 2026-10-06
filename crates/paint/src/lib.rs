@@ -1,15 +1,18 @@
 //! Display list construction, rasterization and image decoding.
 //!
 //! [`build_display_list`] turns a fragment tree into drawing commands;
-//! [`rasterize`] draws them into a pixmap with tiny-skia. The display list
+//! [`rasterize`] draws them into a pixmap with tiny-skia, a tall target
+//! (a full-page screenshot) in strips ([`rasterize_in_strips`]). The display list
 //! does not depend on tiny-skia, so another backend can replace the
 //! rasterizer. Images are raster images or SVG images (`svg`), which are
-//! rendered at the size they are drawn at.
+//! rendered at the size they are drawn at. Masks (`mask`) multiply a
+//! group of drawing commands by images or gradients.
 
 mod background;
 mod control;
 mod display_list;
 mod image;
+mod mask;
 mod raster;
 mod svg;
 
@@ -18,7 +21,8 @@ pub use display_list::{
     SELECTION_BACKGROUND, build_display_list,
 };
 pub use image::{DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_with_type};
-pub use raster::{ImageSource, RasterParams, rasterize};
+pub use mask::{MaskLayer, MaskLayerImage};
+pub use raster::{ImageSource, RasterParams, rasterize, rasterize_in_strips};
 pub use svg::VectorCache;
 pub use tiny_skia::Pixmap;
 

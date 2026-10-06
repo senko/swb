@@ -76,6 +76,10 @@ perf *NAMES: build
 layout-refs *NAMES:
     uv run --project tools swbtools layout-refs {{NAMES}}
 
+# Write layout dumps, DOM dumps and screenshots of all fixtures and layout tests to DIR. Compare two snapshots with `diff -r`.
+snapshot DIR: build
+    tools/snapshot.sh {{DIR}}
+
 # Lint, format check and tests of the Python tools. The automation tests use the release binary.
 tools-check: build
     uv --directory tools run ruff check

@@ -2,6 +2,8 @@
 
 - Status: accepted
 - Date: 2026-10-03
+- Updated: 2026-10-04 (M3): see "Update (2026-10-04, masks)" at the end.
+  The decision did not change.
 
 ## Context
 
@@ -227,3 +229,10 @@ other decode failures.
   (within the per-frame budget); whole tiles are rendered, not only their
   visible part.
 - usvg and resvg are replaceable: only `paint/src/svg` uses them.
+
+## Update (2026-10-04, masks)
+
+Mask images (`mask-image`, ADR 0018) use the same path as background
+images: detection by MIME type, the limits above, rendering at the device
+pixel size of each tile, the per-document `VectorCache` and the per-frame
+rendering budget. The limits did not change.

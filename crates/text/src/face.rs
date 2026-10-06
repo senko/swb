@@ -38,11 +38,31 @@ pub(crate) struct FamilyDesc {
     pub(crate) faces: Vec<FaceDesc>,
 }
 
-/// The range of a variation axis in user units.
+/// The range of a variation axis in user units. `min <= max` always holds.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct AxisRange {
     pub(crate) min: f32,
     pub(crate) max: f32,
+}
+
+impl AxisRange {
+    /// The range of an `fvar` axis record, extended to include the default
+    /// value, as `HarfBuzz` does. A malformed record with min > max gives a
+    /// valid range (only the default if both are on the wrong side), so
+    /// `f32::clamp` with the range cannot panic.
+    fn new(min: f32, default: f32, max: f32) -> AxisRange {
+        AxisRange {
+            min: min.min(default),
+            max: max.max(default),
+        }
+    }
+}
+
+/// The range of the `wght` axis of a variable font.
+fn wght_range(font: &FontRef<'_>) -> Option<AxisRange> {
+    font.axes()
+        .get_by_tag(Tag::new(b"wght"))
+        .map(|axis| AxisRange::new(axis.min_value(), axis.default_value(), axis.max_value()))
 }
 
 /// A parsed face. The font data is shared; `FontRef`s are created on demand
@@ -90,13 +110,7 @@ impl LoadedFace {
                 ascii |= 1 << c;
             }
         }
-        let wght = font
-            .axes()
-            .get_by_tag(Tag::new(b"wght"))
-            .map(|axis| AxisRange {
-                min: axis.min_value(),
-                max: axis.max_value(),
-            });
+        let wght = wght_range(&font);
         let has_color = [b"COLR", b"CBDT", b"sbix"]
             .iter()
             .any(|tag| font.table_data(Tag::new(tag)).is_some());
@@ -268,12 +282,7 @@ fn describe_face(path: &Path, data: &Arc<[u8]>, index: u32) -> Option<(Vec<Strin
         skrifa::attribute::Style::Oblique(_) => FaceStyle::Oblique,
     };
     let weight = attributes.weight.value();
-    let weight = font
-        .axes()
-        .get_by_tag(Tag::new(b"wght"))
-        .map_or((weight, weight), |axis| {
-            (axis.min_value(), axis.max_value())
-        });
+    let weight = wght_range(&font).map_or((weight, weight), |axis| (axis.min, axis.max));
     let desc = FaceDesc {
         path: path.to_owned(),
         index,
@@ -345,6 +354,31 @@ mod tests {
         assert_eq!(desc.weight, Some((700.0, 700.0)));
         assert_eq!(desc.style, FaceStyle::Italic);
         assert_eq!(desc.stretch, 100.0);
+    }
+
+    #[test]
+    fn malformed_axis_ranges_are_valid() {
+        assert_eq!(
+            AxisRange::new(900.0, 400.0, 100.0),
+            AxisRange {
+                min: 400.0,
+                max: 400.0
+            }
+        );
+        assert_eq!(
+            AxisRange::new(100.0, 950.0, 900.0),
+            AxisRange {
+                min: 100.0,
+                max: 950.0
+            }
+        );
+        assert_eq!(
+            AxisRange::new(100.0, 400.0, 900.0),
+            AxisRange {
+                min: 100.0,
+                max: 900.0
+            }
+        );
     }
 
     #[test]
