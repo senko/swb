@@ -13,6 +13,7 @@ use super::scroll::indicated;
 use super::{LoadState, Page, about_blank, is_loadable};
 use crate::forms::Forms;
 use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
+use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
 
 impl Page {
@@ -199,6 +200,7 @@ impl Page {
         self.sheets.clear();
         self.images = images;
         self.scroll = Point::default();
+        self.scrollers = Scrollers::default();
         // The pointer stays where it is; the next mouse movement updates the
         // hover state for the new document.
         self.input = self.input.for_new_document();

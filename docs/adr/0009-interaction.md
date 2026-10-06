@@ -84,6 +84,15 @@ selection, which Ctrl+C copies instead of the page selection.
   simplification: each line fragment of a wrapped link gets its own ring;
   Chromium merges them into one outline.
 
+Update (2026-10-04): since [ADR 0019](0019-scroll-containers.md), focus,
+fragment navigation and automation clicks scroll every scroll container
+that contains the element, then the viewport. The scrolling keys and the
+mouse wheel scroll the first scroll container in the scroll chain (of the
+focused element or the last clicked node; of the node under the pointer)
+that can scroll in their direction, else the viewport. Scrolling an
+element updates the hovered link and the cursor, but not `:hover`, as for
+the viewport. Text selection and hit testing use the scrolled positions.
+
 ### Text selection
 
 - A selection is a range between two **positions in text nodes** (node and

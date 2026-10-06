@@ -16,7 +16,8 @@
 //! This file has the page state, navigation and the accessors. The other
 //! parts of `Page` are in `loading.rs` (network completions, documents and
 //! subresources), `pipeline.rs` (style, layout, display list, raster),
-//! `scroll.rs` (scrolling and fragment targets), `input.rs` (pointer,
+//! `scroll.rs` (scrolling of the viewport and of scroll containers, and
+//! fragment targets), `input.rs` (pointer,
 //! keyboard, focus, selection) and `forms.rs` (form controls: editing,
 //! activation, submission).
 
@@ -40,12 +41,14 @@ use swb_text::FontContext;
 use crate::forms::Forms;
 use crate::history::{Commit, Entry, History, PostData};
 use crate::resources::{Images, Pending, Requests, SheetSlot};
+use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
 
 pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
     check_scale, check_viewport_size, device_size,
 };
+pub use scroll::ElementScroll;
 
 /// The loading state of a page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -164,6 +167,10 @@ pub struct Page {
     scale: f32,
     scroll: Point,
     pending_scroll: Option<ScrollTarget>,
+    /// The scroll containers of the document and their scroll offsets.
+    scrollers: Scrollers,
+    /// True to draw overlay scroll indicators (the GUI).
+    scroll_indicators: bool,
 
     stylist: Option<Stylist>,
     styles: Option<StyleMap>,
@@ -200,6 +207,8 @@ impl Page {
             scale,
             scroll: Point::default(),
             pending_scroll: None,
+            scrollers: Scrollers::default(),
+            scroll_indicators: false,
             stylist: None,
             styles: None,
             fragments: None,
@@ -602,10 +611,15 @@ impl Page {
     }
 
     /// The union of the border boxes of an element in document coordinates
-    /// (CSS px), if it has a box.
+    /// (CSS px), with the scroll offsets of scroll containers applied, if
+    /// it has a box.
     pub fn element_box(&mut self, node: NodeId) -> Option<swb_layout::Rect> {
         self.update_layout();
-        self.fragments.as_ref()?.element_boxes().get(&node).copied()
+        self.fragments
+            .as_ref()?
+            .element_boxes_scrolled(self.scrollers.offsets())
+            .get(&node)
+            .copied()
     }
 
     /// The font context.

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Reduction of the Wikipedia structures with overflow: hidden: they are
+     scroll containers, so they establish block formatting contexts (the
+     margins of their children do not collapse through them).
+     .vector-body-before-content, headings with a bottom border,
+     blockquote, and pre with overflow-x: hidden (its overflow-y computes
+     to auto). -->
+<style>
+body { margin: 0; font: 14px/22px sans-serif; width: 600px; }
+.vector-body-before-content { overflow: hidden; }
+.vector-body-before-content div { margin: 8px 0 12px; height: 10px; }
+h2 { overflow: hidden; border-bottom: 2px solid #101418; margin: 16px 0 8px; font: 22px/1.375 serif; }
+h2 span { display: inline-block; margin-top: 10px; }
+blockquote { overflow: hidden; margin: 1em 0; padding: 0 40px; }
+blockquote p { margin: 20px 0; }
+pre { padding: 1em; white-space: pre-wrap; overflow-x: hidden; overflow-wrap: break-word; border: 1px solid #eaecf0; margin: 10px 0; }
+</style>
+<div class=vector-body-before-content><div></div></div>
+<h2><span>History</span></h2>
+<p>Text before the quote.</p>
+<blockquote><p>A quotation with margins that do not collapse through its block.</p></blockquote>
+<pre>A preformatted block with a long line that wraps because of pre-wrap, and more words after it so that it needs three lines in the block.</pre>
+<h2>References</h2>

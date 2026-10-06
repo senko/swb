@@ -53,6 +53,10 @@ pub(crate) struct InlineLayout {
     pub(crate) line_count: usize,
     pub(crate) first_baseline: Option<f32>,
     pub(crate) last_baseline: Option<f32>,
+    /// The largest end of the content of a line box (after `text-align`),
+    /// relative to the content box: the inline extent of the line boxes
+    /// in the scrollable overflow of a scroll container.
+    pub(crate) content_right: f32,
 }
 
 /// Lays out an inline formatting context in a container of `width`. The
@@ -90,6 +94,7 @@ pub(crate) fn layout_inline(
         line_count: 0,
         first_baseline: None,
         last_baseline: None,
+        content_right: 0.0,
     };
     for (index, line) in lines.iter().enumerate() {
         let empty = !builder.has_content(&groups, line);
@@ -107,6 +112,7 @@ pub(crate) fn layout_inline(
         line_count: builder.line_count,
         first_baseline: builder.first_baseline,
         last_baseline: builder.last_baseline,
+        content_right: builder.content_right,
     }
 }
 
@@ -587,6 +593,8 @@ struct LineBuilder<'a, 'b> {
     line_count: usize,
     first_baseline: Option<f32>,
     last_baseline: Option<f32>,
+    /// See [`InlineLayout::content_right`].
+    content_right: f32,
 }
 
 /// Vertical extent of the line content relative to the root baseline.
@@ -799,6 +807,7 @@ impl LineBuilder<'_, '_> {
 
         let piece_range = Self::piece_range(groups, line);
         let trim = self.trailing_space_to_remove(piece_range.clone());
+        let soft_wrap = self.ends_at_soft_wrap(piece_range.clone());
         for i in piece_range {
             match &self.shaped.pieces[i] {
                 Piece::StartBox(item) => self.start_box(&mut state, *item),
@@ -836,8 +845,25 @@ impl LineBuilder<'_, '_> {
         if empty {
             self.finish_empty_line(state);
         } else {
-            self.finish_line(state);
+            self.finish_line(state, soft_wrap);
         }
+    }
+
+    /// True if the line of the pieces `range` ends at a soft wrap: not at
+    /// a forced line break and not at the end of the content.
+    fn ends_at_soft_wrap(&self, range: std::ops::Range<usize>) -> bool {
+        if range.end >= self.shaped.pieces.len() {
+            return false;
+        }
+        let last = self.shaped.pieces.get(range).and_then(|pieces| {
+            pieces.iter().rev().find(|p| {
+                !matches!(
+                    p,
+                    Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow
+                )
+            })
+        });
+        !matches!(last, Some(Piece::LineBreak(_)))
     }
 
     fn start_box(&mut self, state: &mut LineState, item: usize) {
@@ -976,11 +1002,13 @@ impl LineBuilder<'_, '_> {
     }
 
     /// Aligns the line horizontally, positions it below the previous line
-    /// and appends its fragments.
-    fn finish_line(&mut self, mut state: LineState) {
+    /// and appends its fragments. `soft_wrap` is true if the line ends at a
+    /// soft wrap opportunity.
+    fn finish_line(&mut self, mut state: LineState, soft_wrap: bool) {
         state.extent = state.extent.or_zero();
         let line_width = state.x - state.trailing_space;
         let offset = self.align_offset(line_width);
+        self.content_right = self.content_right.max(offset + line_width);
         let line_top = self.y;
         let baseline_y = line_top - state.extent.top;
         for fragment in &mut state.top_level {
@@ -991,8 +1019,15 @@ impl LineBuilder<'_, '_> {
         }
         let line_height = state.extent.bottom - state.extent.top;
         let cb = self.containing_block();
+        // The white space at the end hangs at a soft wrap, and at a forced
+        // break or the end of the content only if it does not fit (CSS
+        // Text 3 §4.1.3, as Chromium 148).
+        let hangs = state.trailing_space > 0.0 && (soft_wrap || state.x > self.width);
         for fragment in &mut state.top_level {
             set_line_box(fragment, 0.0, line_top, line_height, cb);
+            if hangs {
+                mark_hanging(fragment, offset + line_width);
+            }
         }
         if self.first_baseline.is_none() {
             self.first_baseline = Some(baseline_y);
@@ -1127,6 +1162,9 @@ impl LineBuilder<'_, '_> {
             first_baseline: None,
             last_baseline: None,
             is_inline: true,
+            scrollable_overflow: None,
+            in_positioned_inline: false,
+            hanging_from: None,
         };
         apply_relative_position(&mut fragment, self.containing_block());
         fragment
@@ -1204,6 +1242,27 @@ fn set_line_box(
             }
         }
         Fragment::Box(_) => {}
+    }
+}
+
+/// Marks the inline boxes of a line where white space hangs at the end
+/// (`BoxFragment::hanging_from`): their content after the end of the line's
+/// content does not count in scrollable overflow. `line_end` is that end
+/// in the coordinates of the fragment's parent. As in Chromium 148, it
+/// does not move with relatively positioned inline boxes or negative
+/// margins: all inline content of the line counts only up to the end of
+/// the unshifted line.
+fn mark_hanging(fragment: &mut Fragment, line_end: f32) {
+    let Fragment::Box(b) = fragment else {
+        return;
+    };
+    if !b.is_inline {
+        return;
+    }
+    let inner = line_end - b.border_rect.x;
+    b.hanging_from = Some(inner);
+    for child in Arc::make_mut(&mut b.children) {
+        mark_hanging(child, inner);
     }
 }
 
@@ -1359,6 +1418,18 @@ mod tests {
         let d = l.rect("d");
         assert_eq!(d.height, 0.0);
         assert_eq!(l.rect("s"), Rect::new(0.0, d.y, 0.0, 0.0));
+    }
+
+    #[test]
+    fn preserved_tabs_hang_at_the_end_of_a_line() {
+        // Chromium 148: the tabs hang, so "b" starts the second line.
+        let l = layout_html(&body(
+            "<div style='width:100px;white-space:pre-wrap;font:16px monospace'>\
+             aaaaa aaaa\t\t<span id=b>b</span></div>",
+        ));
+        let b = l.rect("b");
+        assert_eq!(b.x, 0.0);
+        assert!(b.y > 10.0, "{b:?}");
     }
 
     #[test]

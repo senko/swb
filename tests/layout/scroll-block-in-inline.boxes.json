@@ -1,0 +1,25 @@
+{
+  "url": "tests/layout/scroll-block-in-inline.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 330.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [0.0, 0.0, 800.0, 320.0], "parent": 0},
+    {"tag": "div", "rect": [0.0, 0.0, 200.0, 100.0], "parent": 3},
+    {"tag": "a", "rect": [0.0, -50.0, 200.0, 40.0], "parent": 4},
+    {"tag": "div", "rect": [0.0, -50.0, 200.0, 40.0], "parent": 5},
+    {"tag": "div", "rect": [185.0, -10.0, 30.0, 30.0], "parent": 5},
+    {"tag": "div", "rect": [0.0, -10.0, 200.0, 300.0], "parent": 4},
+    {"tag": "div", "rect": [0.0, 110.0, 200.0, 100.0], "parent": 3},
+    {"tag": "a", "rect": [-80.0, -130.0, 200.0, 40.0], "parent": 9},
+    {"tag": "div", "rect": [-80.0, -130.0, 200.0, 40.0], "parent": 10},
+    {"tag": "div", "rect": [170.0, -90.0, 30.0, 300.0], "parent": 10},
+    {"tag": "div", "rect": [0.0, 220.0, 200.0, 100.0], "parent": 3},
+    {"tag": "span", "rect": [0.0, 171.0, 200.0, 39.0], "parent": 13},
+    {"tag": "span", "rect": [0.0, 190.0, 200.0, 20.0], "parent": 14},
+    {"tag": "span", "rect": [0.0, 190.0, 200.0, 20.0], "parent": 15},
+    {"tag": "div", "rect": [0.0, 210.0, 30.0, 30.0], "parent": 15},
+    {"tag": "div", "rect": [0.0, 210.0, 200.0, 300.0], "parent": 13}
+  ]
+}

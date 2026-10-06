@@ -69,7 +69,7 @@ Five parallel workstreams; each will record its design in a new ADR:
 - Absolute, fixed and sticky positioning; 2D `transform`.
 - Grid layout.
 - `mask-image` and the other mask properties (icons): done (ADR 0018).
-- Scroll containers: `overflow` scrolling inside elements.
+- Scroll containers: `overflow` scrolling inside elements: done (ADR 0019).
 - Target 3 (Wikipedia "Web browser") done.
 
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
@@ -83,6 +83,21 @@ uses neither; they moved to "Later".
   `border-box`); masks of inline boxes split over lines (each fragment
   uses its own positioning area); CORS mode for mask images;
   `mask-repeat: space | round` (painted as `repeat`).
+- Scrolling: wheel-gesture latching; `overscroll-behavior`, smooth
+  scrolling, snapping, `scroll-padding` and `scroll-margin`; classic
+  scrollbars that take space, `scrollbar-gutter`, dragging the
+  indicators; `background-attachment: local`; table cells as scroll
+  containers; keyboard-focusable scrollers; element offsets in history;
+  autoscroll while drag-selecting; right-to-left, vertical writing modes
+  and the start-edge overflow of reverse flex containers; scrolling of
+  pseudo-elements. Absolutely positioned boxes inside a nested clipping
+  box, whose containing block is outside it, do not extend the outer
+  scroll range (the walk stops at clipping boxes to stay linear).
+  `page.navigate` to a fragment of the current URL loads the document
+  again (Chromium navigates within the document).
+- Text: `white-space: break-spaces` does not wrap; with `text-align:
+  right | center`, trailing `pre-wrap` spaces that fit are left out of
+  the line width.
 - Flexbox: the baseline of a flex container comes from the first item
   that has a baseline, not from the startmost item (known failure
   `inline-flex-baseline`; Wikipedia's icon buttons are 6 px taller).
@@ -241,8 +256,6 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 - Text: spaces after fallback characters use the fallback font;
   `FcFontSort` for named families with old fontconfig; bounded caches for
   languages and features.
-- Scrolling inside elements (needed when `html, body { height: 100% }` and
-  the body has `overflow: auto`).
 
 ## Later
 

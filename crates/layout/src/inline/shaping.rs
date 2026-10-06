@@ -344,11 +344,13 @@ fn split_run(
         let end_offset = run.glyphs.get(end).map_or(run.text.end, |g| g.cluster);
         let glyphs = &run.glyphs[start..end];
         let width: f32 = glyphs.iter().map(|g| g.advance).sum();
+        // Preserved tabs at the end of a line hang too (CSS Text 3 §4.1.3;
+        // the other styles that hang have no tabs left).
         let trailing_space = if hangs {
             glyphs
                 .iter()
                 .rev()
-                .take_while(|g| text[g.cluster..].starts_with(' '))
+                .take_while(|g| text[g.cluster..].starts_with([' ', '\t']))
                 .map(|g| g.advance)
                 .sum()
         } else {

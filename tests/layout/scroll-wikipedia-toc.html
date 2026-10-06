@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's (Vector 2022) table of contents: the sticky
+     container has overflow: hidden auto and max-height: calc(100vh - 48px);
+     it is scrolled to the end (data-scroll). The container starts below
+     24 px, so the sticky offset does not apply before the page scrolls. -->
+<style>
+body { margin: 0; font: 14px/22px sans-serif; }
+.column { width: 220px; margin: 40px 0 0 20px; }
+.vector-sticky-pinned-container { overflow: hidden auto; position: sticky; top: 24px; box-sizing: border-box; max-height: calc(100vh - (24px * 2)); padding: 0 0 12px; }
+.vector-pinnable-header { margin-left: 12px; }
+h2 { font-size: 100%; margin: 0; padding: 4px 0; }
+.vector-toc-contents, .vector-toc-list { margin: 0; padding: 0; list-style: none; }
+.vector-toc-list-item { position: relative; list-style-type: none; padding-left: 12px; margin: 0; }
+.vector-toc-link { display: block; word-break: break-word; }
+.vector-toc-text { padding: 6px 0; }
+.vector-toc-numb { display: none; }
+</style>
+<div class=column>
+<div class=vector-sticky-pinned-container data-scroll="0 9999">
+<nav class=vector-toc>
+<div class=vector-pinnable-header><h2>Contents</h2></div>
+<ul class=vector-toc-contents>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#"><div class=vector-toc-text>(Top)</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#a"><div class=vector-toc-text><span class=vector-toc-numb>1</span> <span>Function</span></div></a>
+<ul class=vector-toc-list>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#b"><div class=vector-toc-text>Rendering engines and their history</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#c"><div class=vector-toc-text>User interface</div></a></li>
+</ul></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#d"><div class=vector-toc-text>History</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#e"><div class=vector-toc-text>Features</div></a>
+<ul class=vector-toc-list>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#f"><div class=vector-toc-text>Privacy</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#g"><div class=vector-toc-text>Security</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#h"><div class=vector-toc-text>Standards support</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#i"><div class=vector-toc-text>Extensions and add-ons</div></a></li>
+</ul></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#j"><div class=vector-toc-text>Browser market</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#k"><div class=vector-toc-text>Market share by device and region</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#l"><div class=vector-toc-text>Mobile browsers</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#m"><div class=vector-toc-text>Text-based browsers</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#n"><div class=vector-toc-text>Headless browsers</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#o"><div class=vector-toc-text>See also</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#p"><div class=vector-toc-text>Notes</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#q"><div class=vector-toc-text>References</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#r"><div class=vector-toc-text>Further reading</div></a></li>
+<li class=vector-toc-list-item><a class=vector-toc-link href="#s"><div class=vector-toc-text>External links</div></a></li>
+</ul>
+</nav>
+</div>
+</div>

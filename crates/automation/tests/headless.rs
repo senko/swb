@@ -219,6 +219,93 @@ fn scrolling_and_viewport() {
 }
 
 #[test]
+fn a_click_on_a_box_taller_than_its_scrollport_hits_its_visible_part() {
+    // The label is partly visible; scroll into view puts its top at the
+    // top of the scrollport, and its center stays hidden below.
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    client
+        .navigate(
+            "data:text/html,<body style='margin:0'><input type=checkbox id=c>\
+             <div id=s style='overflow:auto;height:100px;width:200px'>\
+             <div style='height:60px'></div>\
+             <label for=c id=l style='display:block;height:300px'>label</label>\
+             <div style='height:300px'></div></div><div style='height:2000px'></div>",
+        )
+        .unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let label = client.query_selector("#l").unwrap().unwrap();
+    client.click_node(label).unwrap();
+    let checkbox = client.query_selector("#c").unwrap().unwrap();
+    let value = client
+        .call("dom.value", json!({ "nodeId": checkbox }))
+        .unwrap();
+    assert_eq!(value["checked"], true);
+    stop(client, thread);
+}
+
+#[test]
+fn scrolling_elements() {
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    client
+        .navigate(
+            "data:text/html,<body style='margin:0'><div id=s style='overflow:auto;height:100px;\
+             width:200px'><div style='height:300px'></div><input type=checkbox id=c></div>\
+             <div style='height:2000px'></div>",
+        )
+        .unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let s = client.query_selector("#s").unwrap().unwrap();
+    let info = client
+        .call("dom.scrollInfo", json!({ "nodeId": s }))
+        .unwrap();
+    assert_eq!(info["scroll"], json!({ "x": 0.0, "y": 0.0 }));
+    assert_eq!(info["clientHeight"], 100.0);
+    assert_eq!(info["scrollable"], true);
+    let max = info["scrollHeight"].as_f64().unwrap() - 100.0;
+    assert!(max > 200.0, "{info}");
+    // The wheel over the container scrolls it, not the page.
+    let wheel = client
+        .call(
+            "input.wheel",
+            json!({ "x": 50, "y": 50, "dx": 0, "dy": 60 }),
+        )
+        .unwrap();
+    assert_eq!(wheel["scrolled"], true);
+    let info = client
+        .call("dom.scrollInfo", json!({ "nodeId": s }))
+        .unwrap();
+    assert_eq!(info["scroll"]["y"], 60.0);
+    assert_eq!(client.info().unwrap()["scroll"]["y"], 0.0);
+    let scrolled = client
+        .call("dom.scrollTo", json!({ "nodeId": s, "x": 0, "y": 1e6 }))
+        .unwrap();
+    assert_eq!(scrolled["scroll"]["y"].as_f64(), Some(max));
+    client
+        .call("dom.scrollTo", json!({ "nodeId": s, "x": 0, "y": 0 }))
+        .unwrap();
+    // A click on a node that the container hides scrolls it into view.
+    let checkbox = client.query_selector("#c").unwrap().unwrap();
+    client.click_node(checkbox).unwrap();
+    let value = client
+        .call("dom.value", json!({ "nodeId": checkbox }))
+        .unwrap();
+    assert_eq!(value["checked"], true);
+    let info = client
+        .call("dom.scrollInfo", json!({ "nodeId": s }))
+        .unwrap();
+    assert!(info["scroll"]["y"].as_f64().unwrap() > 0.0, "{info}");
+    assert_eq!(
+        rpc_code(client.call("dom.scrollTo", json!({ "nodeId": s }))),
+        RpcError::INVALID_PARAMS
+    );
+    assert_eq!(
+        rpc_code(client.call("dom.scrollInfo", json!({ "nodeId": 999_999 }))),
+        RpcError::FAILED
+    );
+    stop(client, thread);
+}
+
+#[test]
 fn errors() {
     let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
     assert_eq!(

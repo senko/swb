@@ -1,0 +1,19 @@
+{
+  "url": "tests/layout/scroll-wikipedia-hidden.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 366.5], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [0.0, 0.0, 600.0, 358.5], "parent": 0},
+    {"tag": "div", "rect": [0.0, 0.0, 600.0, 30.0], "parent": 3},
+    {"tag": "div", "rect": [0.0, 8.0, 600.0, 10.0], "parent": 4},
+    {"tag": "h2", "rect": [0.0, 46.0, 600.0, 42.25], "parent": 3},
+    {"tag": "span", "rect": [0.0, 56.0, 66.0, 30.25], "parent": 6},
+    {"tag": "p", "rect": [0.0, 102.25, 600.0, 22.0], "parent": 3},
+    {"tag": "blockquote", "rect": [0.0, 138.25, 600.0, 62.0], "parent": 3},
+    {"tag": "p", "rect": [40.0, 158.25, 520.0, 22.0], "parent": 9},
+    {"tag": "pre", "rect": [0.0, 214.25, 600.0, 96.0], "parent": 3},
+    {"tag": "h2", "rect": [0.0, 326.25, 600.0, 32.25], "parent": 3}
+  ]
+}

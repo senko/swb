@@ -89,6 +89,12 @@ Rules:
 - **Element states** (`engine` → `style`): hovered, active, focused and
   target elements. A change restyles only if a selector depends on that
   state; the layout stays if no style changed (ADR 0009).
+- **Scroll offsets** (`engine`, ADR 0019): one per scroll container,
+  keyed by `NodeId`, in whole CSS px, clamped after each layout. Layout
+  stores each scroll container's scrollable overflow in
+  `BoxFragment::scrollable_overflow` (`layout/src/scroll.rs`);
+  `swb_layout::ScrollState` applies the offsets in tree walks, paint
+  and hit testing. A scroll rebuilds only the display list.
 - **Session history** (`engine`): one entry per committed document or
   fragment, with the scroll position to restore. A navigation is pending
   until its document arrives; starting a navigation cancels all running
@@ -200,6 +206,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   content). A positioned box keeps the overflow clips of the boxes
   between it and its stacking context (except absolutely positioned
   boxes, whose containing block is outside those boxes).
+- The content of scroll containers is translated by their offsets in
+  the display list; `paint/src/scroll_indicator.rs` draws the GUI's
+  overlay scroll indicators (not in headless screenshots).
 - The display list contains the selection highlight (a rectangle behind
   the selected glyphs, then the glyphs again in the selection color) and
   outlines; `outline-style: auto` is Chromium's two-ring focus ring.
@@ -224,7 +233,10 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `page/pipeline.rs`: style, layout, display list and raster with
   per-stage timings; restyles after state changes; viewport and
   screenshots.
-- `page/scroll.rs`: scrolling, scrolling to a fragment, `:target`.
+- `page/scroll.rs`: scrolling of the viewport and of scroll containers
+  (wheel, keys, scroll into view), scrolling to a fragment, `:target`.
+- `scrollers.rs`: scroll offsets per element, scroll ranges, scroll
+  chains, alignment for scroll into view.
 - `page/input.rs`: mouse and key events, element states, cursor, focus
   navigation, selection by mouse and keyboard.
 - `page/forms.rs`: editing, activation and submission of form controls;

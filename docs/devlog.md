@@ -44,6 +44,30 @@ in commit messages, ADRs and other docs.
   strips of a screenshot have equal heights and budgets, and strips are
   drawn in place with the device coordinates of one pass. All fixed with
   tests.
+- Scroll containers (ADR 0019): `overflow: auto | scroll | hidden`
+  boxes scroll (`hidden` only for scripts and scroll into view). Layout
+  computes the scrollable overflow rectangle of each scroll container as
+  Chromium does (about 70 cases measured): in-flow margin boxes, line
+  boxes and the content height with the end padding, plus the border
+  boxes of descendants; hanging `pre-wrap` spaces do not count. The
+  engine keeps one offset per element, in whole CSS px and clamped after
+  each layout; a scroll rebuilds only the display list. Absolutely
+  positioned boxes whose containing block is outside a scroller, and
+  fixed boxes, do not move with it (also through block-in-inline
+  structures). The wheel scrolls the innermost scrollable container and
+  chains outwards; keys use the scroll chain of the focused or last
+  clicked node; focus, fragments and automation clicks scroll every
+  container into view; selection and hit testing work in scrolled
+  content. A root with `overflow: hidden` scrolls for scripts but not
+  for the user. The GUI batches wheel events and shows overlay scroll
+  indicators. Automation: `dom.scrollTo`, `dom.scrollInfo`,
+  `input.wheel`; layout tests can scroll elements first
+  (`data-scroll`). Fixture scores are unchanged (nothing on them
+  scrolls at 1280×800). Three integration reviews found, among others,
+  abspos boxes in positioned inline boxes that did not scroll, a root
+  with `overflow: hidden` that scripts could not scroll, one display
+  list rebuild per wheel event, and full-page screenshots that reset
+  element offsets; all fixed with tests.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

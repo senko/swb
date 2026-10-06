@@ -103,7 +103,12 @@ Format: source, license (for code), what it influenced.
   focus ring of `outline-style: auto` (two rings, offsets, radii), the
   selection colors, `a:any-link:focus-visible { outline-offset: 1px }` in
   `html.css`, the 4 px drag threshold, 40 px arrow-key scrolling and the
-  87.5% page step.
+  87.5% page step; the scrollable overflow of scroll containers
+  (`scrollWidth`, `scrollHeight`), scroll chaining of the wheel and keys,
+  scroll into view of nested containers, whole-pixel scroll offsets.
+  Blink's design names (`ScrollableOverflowCalculator`,
+  `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
+  recollection.
 - Chromium / Blink (BSD-3-Clause), forms, from recollection and
   confirmed by measurements with Chromium 148: text field widths
   (`layout_text_control.cc`: `GetAvgCharWidth`, `HasValidAvgCharWidth`

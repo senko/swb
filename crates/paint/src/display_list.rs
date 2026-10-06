@@ -11,13 +11,21 @@
 //!
 //! The list also contains hit regions in paint order, so that hit testing
 //! ([`DisplayList::hit_test`]) finds what is painted on top.
+//!
+//! The content of a scroll container is moved by its scroll offset inside
+//! its clip; its own background and border stay (CSS Overflow 3 §2.3,
+//! <https://www.w3.org/TR/css-overflow-3/#scrolling>). The offsets come
+//! from the engine ([`Scrolling`]); a change of an offset rebuilds the
+//! display list, not the layout. `swb_layout::ScrollState` decides which
+//! boxes move (not the absolutely positioned boxes whose containing block
+//! is outside the scroll container).
 
 use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_layout::{
-    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, Point,
-    PositionedGlyph, Rect, TextFragment,
+    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, NoScroll, Point,
+    PositionedGlyph, Rect, ScrollOffsets, ScrollState, TextFragment,
 };
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
@@ -25,6 +33,7 @@ use swb_style::{
 use swb_text::FontId;
 
 use crate::mask::{self, MaskBoxes, MaskLayer};
+use crate::scroll_indicator::element_scroll_indicators;
 use crate::{background, control};
 
 /// Corner radii (horizontal, vertical) in px: top-left, top-right,
@@ -294,12 +303,32 @@ impl DisplayList {
     }
 }
 
+/// The scroll state of the page's scroll containers, for painting.
+#[derive(Clone, Copy)]
+pub struct Scrolling<'a> {
+    /// The scroll offset of each scroll container.
+    pub offsets: &'a dyn ScrollOffsets,
+    /// True to draw overlay scroll indicators on the scroll containers
+    /// that the user can scroll (the GUI; screenshots for comparisons with
+    /// Chromium have none, as Chromium's headless shell hides scrollbars).
+    pub indicators: bool,
+}
+
+impl Scrolling<'_> {
+    /// Nothing is scrolled, and there are no indicators.
+    pub const NONE: Scrolling<'static> = Scrolling {
+        offsets: &NoScroll,
+        indicators: false,
+    };
+}
+
 /// Builds the display list for the whole document, with the selection
-/// highlight.
+/// highlight and the scroll offsets of scroll containers.
 pub fn build_display_list(
     tree: &FragmentTree,
     images: &dyn ImageSizes,
     highlights: &dyn Highlights,
+    scrolling: &Scrolling<'_>,
 ) -> DisplayList {
     let mut builder = Builder {
         list: Vec::new(),
@@ -309,6 +338,10 @@ pub fn build_display_list(
         clips: Vec::new(),
         canvas_source: None,
         root_canvas: Vec::new(),
+        offsets: scrolling.offsets,
+        scroll: ScrollState::default(),
+        cb_clips: None,
+        indicators: scrolling.indicators,
     };
     if let Some(canvas_background) = &tree.canvas_background {
         let bg = &canvas_background.style;
@@ -381,6 +414,18 @@ struct Builder<'a> {
     /// The canvas background of a root element with opacity or a mask,
     /// which its groups paint first.
     root_canvas: Vec<DisplayItem>,
+    /// The scroll offsets of scroll containers.
+    offsets: &'a dyn ScrollOffsets,
+    /// The scroll offsets that apply to the children of the box being
+    /// painted.
+    scroll: ScrollState,
+    /// The number of open clips outside the nearest block in a positioned
+    /// inline box, if there is one below the nearest positioned box: the
+    /// absolutely positioned boxes in it keep these clips (their
+    /// containing block, the inline box, is inside them).
+    cb_clips: Option<usize>,
+    /// True to draw overlay scroll indicators.
+    indicators: bool,
 }
 
 /// A text decoration propagated from an ancestor.
@@ -449,29 +494,22 @@ struct Group {
 
 impl Builder<'_> {
     fn box_fragment(&mut self, b: &BoxFragment, origin: Point, decorations: &[Decoration]) {
+        // An absolutely positioned box does not move with the scroll
+        // containers outside its containing block.
+        let origin = self.scroll.origin_of(b, origin);
         if b.style.position == swb_style::Position::Static {
             self.box_contents(b, origin, decorations, false);
             return;
         }
         // A positioned box is painted after the normal-flow content of the
-        // enclosing stacking context, in z-index order (`auto` as 0). The
-        // overflow clips between that stacking context and the box still
-        // apply, unless the box is absolutely positioned: its containing
-        // block is then outside those clipping boxes.
+        // enclosing stacking context, in z-index order (`auto` as 0), with
+        // the overflow clips between that stacking context and the box
+        // that also contain its containing block.
         let z = match b.style.z_index {
             ZIndex::Auto => 0,
             ZIndex::Integer(z) => z,
         };
-        let clips: Vec<Rect> = if b.style.is_absolutely_positioned() {
-            Vec::new()
-        } else {
-            let depth = self.contexts.len();
-            self.clips
-                .iter()
-                .filter(|c| c.context_depth == depth)
-                .map(|c| c.rect)
-                .collect()
-        };
+        let clips = self.context_clips(b);
         let saved = std::mem::take(&mut self.list);
         self.list
             .extend(clips.iter().map(|&r| DisplayItem::PushClip(r)));
@@ -486,6 +524,28 @@ impl Builder<'_> {
             }),
             None => self.list.extend(items),
         }
+    }
+
+    /// The overflow clips of the current stacking context that apply to
+    /// positioned box `b`: all of them for a relatively positioned box (and
+    /// for an absolutely positioned box in a positioned inline box, which
+    /// is its containing block); none for a fixed box; for another
+    /// absolutely positioned box, those outside the nearest block in a
+    /// positioned inline box (its containing block is that inline box),
+    /// else none (its containing block is outside them).
+    fn context_clips(&self, b: &BoxFragment) -> Vec<Rect> {
+        let depth = self.contexts.len();
+        let count = match b.style.position {
+            swb_style::Position::Fixed => 0,
+            swb_style::Position::Absolute if !b.in_positioned_inline => self.cb_clips.unwrap_or(0),
+            _ => self.clips.len(),
+        };
+        self.clips
+            .iter()
+            .take(count)
+            .filter(|c| c.context_depth == depth)
+            .map(|c| c.rect)
+            .collect()
     }
 
     /// Paints a box and its descendants. A stacking context root collects
@@ -504,14 +564,26 @@ impl Builder<'_> {
         let is_root = group.outer_depth == 0;
         self.paint_box(b, origin, is_root);
         let own = child_decorations(b, decorations);
+        let clips_outside = self.clips.len();
         let clipped = self.push_overflow_clip(b, origin, group.outer_depth);
         let negative_z_at = self.list.len();
+        // The children of a scroll container move by its scroll offset.
+        let (child_origin, child_scroll) = self.scroll.enter(b, rect.origin(), self.offsets);
+        let outer_scroll = std::mem::replace(&mut self.scroll, child_scroll);
+        let outer_cb_clips = self.cb_clips;
+        if b.style.position != swb_style::Position::Static {
+            self.cb_clips = None;
+        } else if b.in_positioned_inline {
+            self.cb_clips = Some(clips_outside);
+        }
         for child in b.children.iter() {
             match child {
-                Fragment::Box(cb) => self.box_fragment(cb, rect.origin(), &own),
-                Fragment::Text(t) => self.text(t, rect.origin(), &own),
+                Fragment::Box(cb) => self.box_fragment(cb, child_origin, &own),
+                Fragment::Text(t) => self.text(t, child_origin, &own),
             }
         }
+        self.scroll = outer_scroll;
+        self.cb_clips = outer_cb_clips;
         if let BoxContent::Table(table) = &b.content
             && let Some(collapsed) = &table.collapsed
         {
@@ -527,6 +599,10 @@ impl Builder<'_> {
         } else {
             None
         };
+        if self.indicators && b.style.visibility == Visibility::Visible {
+            self.list
+                .extend(element_scroll_indicators(b, rect, self.offsets));
+        }
         if clipped {
             self.list.push(DisplayItem::PopClip);
             self.clips.pop();

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's wide tables on narrow screens
+     (@media (max-width: 639px) .mw-parser-output table { display: block;
+     overflow: auto; max-width: 100% }): the table element is a block scroll
+     container around an anonymous table; it is scrolled to the end
+     (data-scroll). -->
+<style>
+body { margin: 0; font: 14px/20px sans-serif; }
+.mw-parser-output { width: 300px; margin: 10px; }
+.mw-parser-output table { display: block; overflow: auto; max-width: 100%; border: 1px solid #a2a9b1; }
+td, th { border: 1px solid #a2a9b1; padding: 4px 8px; white-space: nowrap; }
+</style>
+<div class=mw-parser-output>
+<table data-scroll="9999 9999">
+<tr><th>Browser</th><th>Engine</th><th>First release</th><th>Latest version</th></tr>
+<tr><td>Chromium</td><td>Blink</td><td>2008</td><td>148</td></tr>
+<tr><td>Firefox</td><td>Gecko</td><td>2002</td><td>140</td></tr>
+<tr><td>Safari</td><td>WebKit</td><td>2003</td><td>19</td></tr>
+</table>
+</div>

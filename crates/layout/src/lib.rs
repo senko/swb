@@ -6,7 +6,8 @@
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
 //! (images), form controls, flex layout, table layout, relative
-//! positioning. Floats and absolute positioning are approximated (see
+//! positioning, the scrollable overflow of scroll containers (see
+//! `scroll.rs`). Floats and absolute positioning are approximated (see
 //! `block.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
@@ -24,6 +25,7 @@ mod inline;
 mod intrinsic;
 mod list_marker;
 mod replaced;
+mod scroll;
 mod source_map;
 mod table;
 
@@ -42,6 +44,7 @@ pub use fragment::{
 };
 pub use geom::{Edges, Point, Rect, Size};
 pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
+pub use scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};
@@ -191,13 +194,13 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         height: Some(input.viewport.height),
     };
     let root = root_box.map(|root_box| block::layout_root(ctx, &root_box, icb));
-    let (overflow_x, overflow_y) =
-        viewport_overflow.map_or((Overflow::Visible, Overflow::Visible), |(_, x, y)| (x, y));
-    let scroll_size = scroll_size(root.as_ref(), input.viewport, overflow_x, overflow_y);
+    let scroll_size = scroll_size(root.as_ref(), input.viewport);
     FragmentTree {
         root,
         canvas_background: canvas_background(input.document, input.styles),
         scroll_size,
+        viewport_overflow: viewport_overflow
+            .map_or((Overflow::Visible, Overflow::Visible), |(_, x, y)| (x, y)),
     }
 }
 
@@ -259,43 +262,44 @@ pub(crate) fn has_background(style: &ComputedStyle) -> bool {
 }
 
 /// The size of the scrollable area: the union of the viewport and all
-/// content that is not clipped. On an axis where the viewport's overflow
-/// is `hidden` or `clip`, the viewport does not scroll and the size is the
-/// viewport's.
-fn scroll_size(
-    root: Option<&BoxFragment>,
-    viewport: Size,
-    overflow_x: Overflow,
-    overflow_y: Overflow,
-) -> Size {
+/// content that is not clipped. Also on an axis where the viewport's
+/// overflow is `hidden` (or `clip`, which applies as `hidden` to the
+/// viewport): scripts can scroll it there, the user cannot (as in
+/// Chromium). Content after the end of a line where white space hangs does
+/// not count ([`scroll::text_overflow_rect`], [`scroll::box_overflow_rect`]).
+/// Rectangles with zero width or height count with their position:
+/// Chromium counts the line boxes of zero-size inline content (but not a
+/// zero-size block, a deviation).
+fn scroll_size(root: Option<&BoxFragment>, viewport: Size) -> Size {
     let mut extent = Rect::new(0.0, 0.0, viewport.width, viewport.height);
     if let Some(root) = root {
-        fn visit(b: &BoxFragment, origin: Point, extent: &mut Rect) {
+        fn add(extent: &mut Rect, r: Rect) {
+            *extent = extent.union(&r);
+        }
+        fn visit(b: &BoxFragment, origin: Point, limit: Option<f32>, extent: &mut Rect) {
             let rect = b.border_rect.translate(origin);
-            *extent = extent.union(&rect);
+            add(
+                extent,
+                scroll::box_overflow_rect(b, limit).translate(origin),
+            );
             if b.style.overflow_x.clips() && b.style.overflow_y.clips() {
                 return;
             }
+            let limit = scroll::child_limit(b, limit);
             for child in b.children.iter() {
                 match child {
-                    Fragment::Box(cb) => visit(cb, rect.origin(), extent),
-                    Fragment::Text(t) => *extent = extent.union(&t.rect.translate(rect.origin())),
+                    Fragment::Box(cb) => visit(cb, rect.origin(), limit, extent),
+                    Fragment::Text(t) => {
+                        let text = scroll::text_overflow_rect(t, limit);
+                        add(extent, text.translate(rect.origin()));
+                    }
                 }
             }
         }
-        visit(root, Point::default(), &mut extent);
+        visit(root, Point::default(), None, &mut extent);
     }
-    let fixed = |o: Overflow| matches!(o, Overflow::Hidden | Overflow::Clip);
-    let width = if fixed(overflow_x) {
-        viewport.width
-    } else {
-        extent.right().max(viewport.width)
-    };
-    let height = if fixed(overflow_y) {
-        viewport.height
-    } else {
-        extent.bottom().max(viewport.height)
-    };
+    let width = extent.right().max(viewport.width);
+    let height = extent.bottom().max(viewport.height);
     Size::new(clamp_length(width), clamp_length(height))
 }
 
@@ -313,18 +317,56 @@ mod tests {
             "<!DOCTYPE html><style>html, body { height: 100% } body { overflow-x: hidden }\
              </style><body style='margin:0'><div style='height:2000px; width:3000px'></div>",
         );
-        assert_eq!(l.tree.scroll_size, Size::new(800.0, 2000.0));
+        // The hidden axis keeps its extent: scripts can scroll it.
+        assert_eq!(l.tree.scroll_size, Size::new(3000.0, 2000.0));
+        assert_eq!(l.tree.viewport_overflow, (Overflow::Hidden, Overflow::Auto));
         let body = l.tree.border_boxes(l.doc.body().expect("body"));
         assert_eq!(body.len(), 1);
     }
 
     #[test]
-    fn root_overflow_hidden_disables_scrolling() {
+    fn root_overflow_hidden_keeps_the_scroll_size() {
         let l = layout_html(
             "<!DOCTYPE html><style>html { overflow: hidden }</style>\
-             <body><div style='height:2000px'></div>",
+             <body style='margin:0'><div style='height:2000px'></div>",
         );
-        assert_eq!(l.tree.scroll_size, Size::new(800.0, 600.0));
+        assert_eq!(l.tree.scroll_size, Size::new(800.0, 2000.0));
+        assert_eq!(
+            l.tree.viewport_overflow,
+            (Overflow::Hidden, Overflow::Hidden)
+        );
+    }
+
+    #[test]
+    fn hanging_spaces_do_not_extend_the_scroll_size() {
+        // Chromium 148: 800 px for `pre-wrap`; `pre` keeps its spaces.
+        let spaces = " ".repeat(200);
+        let html = |white_space: &str| {
+            format!(
+                "<!DOCTYPE html><body style='margin:0'><div style='width:100px;\
+                 white-space:{white_space};font:16px monospace'>bbbb{spaces}</div>"
+            )
+        };
+        assert_eq!(layout_html(&html("pre-wrap")).tree.scroll_size.width, 800.0);
+        assert!(layout_html(&html("pre")).tree.scroll_size.width > 1900.0);
+        // Also when an inline box covers the spaces.
+        let in_span = format!(
+            "<!DOCTYPE html><body style='margin:0;white-space:pre-wrap;font:16px monospace'>\
+             aa <span>bb{spaces}</span>"
+        );
+        assert_eq!(layout_html(&in_span).tree.scroll_size.width, 800.0);
+        // A line break after them is a box without width at their end; it
+        // does not count either (Chromium 148: the viewport width).
+        let with_br = format!(
+            "<!DOCTYPE html><body style='margin:0;white-space:pre-wrap;font:16px monospace'>\
+             aa{spaces}<br>b"
+        );
+        assert_eq!(layout_html(&with_br).tree.scroll_size.width, 800.0);
+        // Zero-size inline content counts with its position (Chromium
+        // counts its line box: 1500).
+        let empty_span = "<!DOCTYPE html><body style='margin:0'>\
+                          <span style='margin-left:1500px'></span>";
+        assert_eq!(layout_html(empty_span).tree.scroll_size.width, 1500.0);
     }
 
     #[test]

@@ -12,7 +12,7 @@ use swb_engine::{
     ElementBox, FontContext, Modifiers, NodeId, Page, PageConfig, Pixmap, Rect, Size, Url,
 };
 use swb_net::Fetcher;
-use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights};
+use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights, Scrolling};
 
 /// A directory with test pages, removed at the end of the test.
 pub(crate) struct Site {
@@ -96,12 +96,35 @@ pub(crate) fn finish_loading(page: &mut Page, timeout: Duration) {
 }
 
 /// Loads `url` with `fetcher` and the bundled test fonts, and returns the
-/// element boxes.
+/// element boxes. Elements with a `data-scroll="X Y"` attribute are
+/// scrolled to that offset first (as `swbtools layout-refs` does in
+/// Chromium).
 pub(crate) fn load_boxes(fetcher: Arc<dyn Fetcher>, url: Url, viewport: Size) -> Vec<ElementBox> {
     let mut page = new_page(fetcher, 4, viewport);
     page.navigate(url);
     finish_loading(&mut page, Duration::from_secs(60));
+    apply_data_scroll(&mut page);
     swb_engine::element_boxes(&page)
+}
+
+/// Scrolls the elements that have a `data-scroll="X Y"` attribute, in
+/// tree order.
+fn apply_data_scroll(page: &mut Page) {
+    let doc = page.document().expect("the page has a document");
+    let targets: Vec<(NodeId, swb_engine::Point)> = doc
+        .descendants(NodeId::DOCUMENT)
+        .filter_map(|n| {
+            let value = doc.element(n)?.attr("data-scroll")?;
+            let mut parts = value.split_whitespace().map(str::parse::<f32>);
+            match (parts.next(), parts.next()) {
+                (Some(Ok(x)), Some(Ok(y))) => Some((n, swb_engine::Point::new(x, y))),
+                _ => panic!("data-scroll needs two numbers: {value:?}"),
+            }
+        })
+        .collect();
+    for (node, offset) in targets {
+        page.scroll_element_to(node, offset);
+    }
 }
 
 /// A 2x3 PNG.
@@ -121,14 +144,15 @@ impl ImageSizes for NoImages {
     }
 }
 
-/// The display list of the page's layout, without images and without the
-/// selection.
+/// The display list of the page's layout, without images, without the
+/// selection and without scroll offsets.
 pub(crate) fn display_list(page: &mut Page) -> DisplayList {
     page.update_layout();
     swb_paint::build_display_list(
         page.fragments().expect("the page has a layout"),
         &NoImages,
         &NoHighlights,
+        &Scrolling::NONE,
     )
 }
 

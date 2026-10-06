@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use swb_engine::{
-    Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Size, Url, check_scale,
+    Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Rect, Size, Url, check_scale,
     check_viewport_size,
 };
 use swb_net::CookieJar;
@@ -82,7 +82,10 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
             let url = page.url().map_or("", Url::as_str).to_owned();
             Ok(crate::box_dump(page, &url))
         }
+        "dom.scrollTo" => scroll_element_to(page, params),
+        "dom.scrollInfo" => with_node(page, params, scroll_info),
         "input.click" => click(page, params),
+        "input.wheel" => wheel(page, params),
         "input.mouseMove" => mouse_move(page, params),
         "input.mouseDown" => mouse_down(page, params),
         "input.mouseUp" => mouse_up(page, params),
@@ -346,8 +349,58 @@ fn attributes(page: &mut Page, node: NodeId) -> Value {
     json!({ "attributes": attributes })
 }
 
-fn rect_json(r: swb_engine::Rect) -> Value {
+fn rect_json(r: Rect) -> Value {
     json!([r.x, r.y, r.width, r.height])
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScrollElementParams {
+    node_id: usize,
+    x: f32,
+    y: f32,
+}
+
+/// Scrolls an element (a scroll container, or the element that scrolls the
+/// page: the root element, in quirks mode the body if it is not a scroll
+/// container), as the DOM's `scrollTo`.
+fn scroll_element_to(page: &mut Page, params: Value) -> MethodResult {
+    let p: ScrollElementParams = parse(params)?;
+    let node = node(page, p.node_id)?;
+    let offset = Point::new(finite(p.x)?, finite(p.y)?);
+    page.scroll_element_to(node, offset).ok_or_else(no_box)?;
+    Ok(scroll_info(page, node))
+}
+
+/// The scroll state of an element: its offset, the size of its
+/// scrollable overflow and of its scrollport (`null` without a box).
+fn scroll_info(page: &mut Page, node: NodeId) -> Value {
+    match page.element_scroll(node) {
+        Some(s) => json!({
+            "scroll": { "x": s.offset.x, "y": s.offset.y },
+            "scrollWidth": s.scroll_size.width,
+            "scrollHeight": s.scroll_size.height,
+            "clientWidth": s.client_size.width,
+            "clientHeight": s.client_size.height,
+            "scrollable": s.scrollable,
+        }),
+        None => Value::Null,
+    }
+}
+
+#[derive(Deserialize)]
+struct WheelParams {
+    x: f32,
+    y: f32,
+    dx: f32,
+    dy: f32,
+}
+
+/// A mouse wheel event at a point in viewport coordinates.
+fn wheel(page: &mut Page, params: Value) -> MethodResult {
+    let p: WheelParams = parse(params)?;
+    let scrolled = page.wheel(finite(p.x)?, finite(p.y)?, finite(p.dx)?, finite(p.dy)?);
+    Ok(json!({ "scrolled": scrolled }))
 }
 
 #[derive(Deserialize, Default, Clone, Copy)]
@@ -393,27 +446,18 @@ fn one() -> u32 {
 
 impl MouseParams {
     /// The point in viewport coordinates: `x` and `y`, or the center of
-    /// the node's box (scrolled into view first, if needed).
+    /// the node's box (scrolled into view first, if the viewport or a
+    /// scroll container hides the center).
     fn point(&self, page: &mut Page) -> Result<Point, RpcError> {
         match (self.x, self.y, self.node_id) {
             (Some(x), Some(y), None) => Ok(Point::new(finite(x)?, finite(y)?)),
             (None, None, Some(id)) => {
                 let node = node(page, id)?;
-                let visible = |page: &mut Page| {
-                    let rect = page.element_box(node)?;
-                    let scroll = page.scroll_position();
-                    let viewport = page.viewport();
-                    let x = rect.x + rect.width / 2.0 - scroll.x;
-                    let y = rect.y + rect.height / 2.0 - scroll.y;
-                    let inside =
-                        (0.0..viewport.width).contains(&x) && (0.0..viewport.height).contains(&y);
-                    Some((Point::new(x, y), inside))
-                };
-                match visible(page) {
+                match click_target(page, node) {
                     Some((point, true)) => Ok(point),
                     Some(_) => {
                         page.scroll_into_view(node);
-                        visible(page).map(|(p, _)| p).ok_or_else(no_box)
+                        click_target(page, node).map(|(p, _)| p).ok_or_else(no_box)
                     }
                     None => Err(no_box()),
                 }
@@ -421,6 +465,47 @@ impl MouseParams {
             _ => Err(RpcError::invalid_params("give x and y, or nodeId")),
         }
     }
+}
+
+/// Where a click on `node` goes, in viewport coordinates, and whether the
+/// center of its box is visible (inside the viewport and the scrollports
+/// of its scroll containers). If the center is hidden but a part of the box
+/// is visible, the point is the center of that part. `None` if the node has
+/// no box.
+fn click_target(page: &mut Page, node: NodeId) -> Option<(Point, bool)> {
+    let rect = page.element_box(node)?;
+    let scroll = page.scroll_position();
+    let viewport = page.viewport();
+    let view = Rect::new(scroll.x, scroll.y, viewport.width, viewport.height);
+    let clip = page.scroll_clip(node);
+    let visible = match clip {
+        None => rect.intersection(&view),
+        Some(clip) => clip
+            .and_then(|c| c.intersection(&rect))
+            .and_then(|r| r.intersection(&view)),
+    };
+    let center = Point::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+    // The intersection excludes boxes without area: their center counts
+    // if it is in the view and in the clip of the scroll containers (edges
+    // included).
+    let in_clip =
+        |c: Rect| (c.x..=c.right()).contains(&center.x) && (c.y..=c.bottom()).contains(&center.y);
+    let center_visible = match visible {
+        Some(v) => v.contains(center),
+        None => {
+            (rect.width <= 0.0 || rect.height <= 0.0)
+                && view.contains(center)
+                && clip.is_none_or(|c| c.is_some_and(in_clip))
+        }
+    };
+    let point = match visible {
+        Some(v) if !center_visible => Point::new(v.x + v.width / 2.0, v.y + v.height / 2.0),
+        _ => center,
+    };
+    Some((
+        Point::new(point.x - scroll.x, point.y - scroll.y),
+        center_visible,
+    ))
 }
 
 fn no_box() -> RpcError {

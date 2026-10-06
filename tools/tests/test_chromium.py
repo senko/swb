@@ -153,3 +153,16 @@ def test_layout_dump_ignores_css_animations(tmp_path):
     dump = read_dump(boxes_path(html))
     assert [element.tag for element in dump.elements] == ["html", "head", "style", "body", "div"]
     assert dump.elements[4].rect == (8.0, 8.0, 100.0, 10.0)
+
+
+def test_layout_dump_scrolls_elements_with_data_scroll(tmp_path):
+    html = tmp_path / "scrolled.html"
+    html.write_text(
+        "<!DOCTYPE html><style>body { margin: 0 }</style>"
+        "<div data-scroll='5 9999' style='overflow: auto; width: 100px; height: 100px'>"
+        "<div style='width: 120px; height: 300px'></div></div>"
+    )
+    asyncio.run(dump_layout_tests([html], system_fonts=False))
+    dump = read_dump(boxes_path(html))
+    # The inner box moves by the offset, clamped to the range (20, 200).
+    assert dump.elements[5].rect == (-5.0, -200.0, 120.0, 300.0)

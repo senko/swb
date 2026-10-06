@@ -15,6 +15,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
+| Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -201,6 +202,12 @@ the boxes with a tolerance of 1 px. Every layout test must pass, except the
 ones listed in `tests/layout/known-failures.txt` (one name per line, `#`
 comments allowed). A listed test that passes fails the run, so that the list
 stays current.
+
+An element with a `data-scroll="X Y"` attribute is scrolled to that offset
+before the boxes are read, in Chromium (`swbtools layout-refs`) and in swb
+(the Rust test), in tree order. The boxes of its content then show the
+offset; a large offset (`data-scroll="9999 9999"`) tests that the scroll
+range (the scrollable overflow) matches Chromium's.
 
 The fixture ratchet test is `crates/engine/tests/fixture_scores.rs`. It
 loads each fixture in `fixtures/scores.json` from its manifest and fails if

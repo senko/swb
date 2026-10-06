@@ -230,6 +230,13 @@ pub(crate) struct ChildrenLayout {
     /// True if every child collapsed through (no content).
     pub(crate) collapsed_through: bool,
     pub(crate) baselines: Baselines,
+    /// The right and bottom edges of the in-flow content, relative to the
+    /// content box: the line boxes up to the end of their content, the
+    /// margin boxes of in-flow children and floats before relative
+    /// positioning (not of blocks inside inline boxes), and the content
+    /// height. A scroll container adds its padding to it for its
+    /// scrollable overflow (see `scroll.rs`).
+    pub(crate) inflow: crate::geom::Size,
 }
 
 /// The first and last baselines of a box, relative to some origin.
@@ -296,6 +303,7 @@ pub(crate) fn layout_block_container<'a>(
                     first: lines.first_baseline,
                     last: lines.last_baseline,
                 },
+                inflow: crate::geom::Size::new(lines.content_right, lines.height),
             }
         }
         BlockContainer::Blocks(children) => {
@@ -319,11 +327,12 @@ fn layout_block_children<'a>(
     let mut at_start = options.collapse_with_parent_start;
     let mut all_collapsed_through = true;
     let mut baselines = Baselines::default();
+    let mut inflow = crate::scroll::InflowExtent::default();
 
     for child in children {
-        let (child, inline_boxes) = match child {
-            BlockLevelBox::InInline(b) => (&b.block, Some(&b.inline_boxes)),
-            other => (other, None),
+        let (child, inline_boxes, in_positioned_inline) = match child {
+            BlockLevelBox::InInline(b) => (&b.block, Some(&b.inline_boxes), b.in_positioned_inline),
+            other => (other, None, false),
         };
         let content_end = y;
         let laid_out = match child {
@@ -334,7 +343,9 @@ fn layout_block_children<'a>(
             } => layout_block_box(ctx, base, contents, marker.as_ref(), cb, markers),
             BlockLevelBox::Independent(ib) => layout_independent_block_level(ctx, ib, cb),
             BlockLevelBox::Float(ib) | BlockLevelBox::AbsolutelyPositioned(ib) => {
-                let fragment = layout_out_of_flow(ctx, ib, cb, y + pending.solve());
+                let mut fragment = layout_out_of_flow(ctx, ib, cb, y + pending.solve());
+                fragment.in_positioned_inline = in_positioned_inline;
+                inflow.add(&fragment, cb, false);
                 fragments.push(Fragment::Box(fragment));
                 continue;
             }
@@ -345,6 +356,7 @@ fn layout_block_children<'a>(
             mut fragment,
             margins,
         } = laid_out;
+        fragment.in_positioned_inline = in_positioned_inline;
         fragment.border_rect.x += webkit_align_offset(container_style, &fragment, cb);
         let wrapper = |fragment: &BoxFragment| {
             inline_boxes.map(|boxes| inline_box_wrappers(boxes, fragment, content_end, cb))
@@ -361,6 +373,7 @@ fn layout_block_children<'a>(
             }
             fragments.extend(wrapper(&fragment).into_iter().flatten());
             apply_relative_position(&mut fragment, cb);
+            inflow.add(&fragment, cb, inline_boxes.is_some());
             fragments.push(Fragment::Box(fragment));
             continue;
         }
@@ -399,6 +412,7 @@ fn layout_block_children<'a>(
         pending = margins.end;
         fragments.extend(wrapper(&fragment).into_iter().flatten());
         apply_relative_position(&mut fragment, cb);
+        inflow.add(&fragment, cb, inline_boxes.is_some());
         fragments.push(Fragment::Box(fragment));
     }
 
@@ -411,6 +425,7 @@ fn layout_block_children<'a>(
         end_margin,
         collapsed_through: all_collapsed_through,
         baselines,
+        inflow: inflow.finish(y + trailing),
     }
 }
 
@@ -672,6 +687,9 @@ pub(crate) fn finish_fragment(
         first_baseline: baselines.first,
         last_baseline: baselines.last,
         is_inline: false,
+        scrollable_overflow: None,
+        in_positioned_inline: false,
+        hanging_from: None,
     }
 }
 
@@ -749,6 +767,7 @@ fn layout_sized(
         .collect();
     let mut children = layout_contents(ctx, ib, child_cb, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
+    let inflow = children.inflow;
     let height = match content_height {
         Some(h) => h,
         None => clamp_height(
@@ -772,6 +791,8 @@ fn layout_sized(
     );
     if let IndependentContents::Replaced(r) = &ib.contents {
         fragment.content = BoxContent::Image(r.node);
+    } else if crate::scroll::is_scroll_container(style) {
+        fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(&fragment, inflow));
     }
     fragment
 }
@@ -799,6 +820,8 @@ pub(crate) fn layout_contents<'a>(
         ),
         IndependentContents::Flex(items) => {
             let layout = crate::flex::layout_flex(ctx, style, items, cb);
+            let mut inflow = crate::scroll::margin_box_extent(&layout.fragments, cb);
+            inflow.height = inflow.height.max(layout.content_height);
             ChildrenLayout {
                 fragments: layout.fragments,
                 content_height: layout.content_height,
@@ -811,6 +834,7 @@ pub(crate) fn layout_contents<'a>(
                     first: layout.first_baseline,
                     last: layout.first_baseline,
                 },
+                inflow,
             }
         }
         // Tables size their own box (`layout_sized` calls table layout);
@@ -824,6 +848,7 @@ pub(crate) fn layout_contents<'a>(
             end_margin: CollapsedMargin::default(),
             collapsed_through: true,
             baselines: Baselines::default(),
+            inflow: crate::geom::Size::default(),
         },
     }
 }
@@ -1096,6 +1121,18 @@ mod tests {
             }
         });
         assert!(wrappers <= 8 * 20, "{wrappers} boxes");
+    }
+
+    #[test]
+    fn inline_boxes_continue_after_a_float() {
+        // The float does not end the open inline box: the text after it is
+        // still inside the span.
+        let l = layout_html(&body(
+            "<span id=s style='position:relative'><div style='float:left;width:10px;\
+             height:10px'></div>text</span>",
+        ));
+        let span = l.node("s");
+        assert_ne!(l.tree.border_boxes(span).len(), 0);
     }
 
     #[test]

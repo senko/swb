@@ -104,6 +104,11 @@ struct App {
     /// open (the next use tries again).
     clipboard: Option<arboard::Clipboard>,
     automation: Option<Automation>,
+    /// The wheel delta (CSS px) since the last batch of events: the wheel
+    /// events of one batch scroll once, so a scroll container's display
+    /// list is built at most once per batch. The fraction of a pixel stays
+    /// here (scroll offsets are whole pixels, as in Chromium).
+    pending_wheel: (f32, f32),
 }
 
 struct NoImages;
@@ -134,8 +139,11 @@ impl App {
             notify,
             network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
         };
+        let mut page = Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0);
+        // Scrollbars take no space; overlay indicators show what scrolls.
+        page.set_scroll_indicators(true);
         App {
-            page: Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0),
+            page,
             start_url,
             gfx: None,
             toolbar: Toolbar::default(),
@@ -146,6 +154,27 @@ impl App {
             page_pressed: false,
             clipboard: None,
             automation: None,
+            pending_wheel: (0.0, 0.0),
+        }
+    }
+
+    /// Scrolls by the whole pixels of the wheel delta collected since the
+    /// last batch of events: over the page, the innermost scroll container
+    /// under the pointer that can scroll in that direction, else the page;
+    /// over the toolbar, the page. Returns true if something scrolled.
+    fn apply_wheel(&mut self) -> bool {
+        let ((whole_x, whole_y), rest) = split_wheel(self.pending_wheel);
+        self.pending_wheel = rest;
+        if whole_x == 0.0 && whole_y == 0.0 {
+            return false;
+        }
+        let scale = self.scale();
+        let x = self.cursor.x as f32 / scale;
+        let y = self.cursor.y as f32 / scale - TOOLBAR_HEIGHT;
+        if y >= 0.0 {
+            self.page.wheel(x, y, whole_x, whole_y)
+        } else {
+            self.page.wheel_page(whole_x, whole_y)
         }
     }
 
@@ -649,6 +678,17 @@ fn cursor_icon(cursor: Cursor) -> Option<CursorIcon> {
     })
 }
 
+/// Splits a wheel delta (CSS px) into the whole pixels to scroll now and
+/// the fraction to keep for later, on each axis (toward zero, so that
+/// small deltas in either direction add up). A component that is not
+/// finite (a sum that overflowed) counts as 0.
+fn split_wheel((dx, dy): (f32, f32)) -> ((f32, f32), (f32, f32)) {
+    let finite = |v: f32| if v.is_finite() { v } else { 0.0 };
+    let (dx, dy) = (finite(dx), finite(dy));
+    let whole = (dx.trunc(), dy.trunc());
+    (whole, (dx - whole.0, dy - whole.1))
+}
+
 /// Sets the primary selection (Linux), which a middle click pastes.
 #[cfg(target_os = "linux")]
 fn set_primary(clipboard: &mut arboard::Clipboard, text: String) -> Result<(), arboard::Error> {
@@ -717,6 +757,7 @@ fn compose_frame(
 pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result<Pixmap> {
     let mut toolbar = Toolbar::default();
     toolbar.address.set_text(page.url().map_or("", Url::as_str));
+    page.set_scroll_indicators(true);
     page.set_viewport(
         Size::new(window.width, (window.height - TOOLBAR_HEIGHT).max(1.0)),
         scale,
@@ -791,6 +832,10 @@ impl ApplicationHandler<UserEvent> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        // The wheel events of this batch scroll once.
+        if self.apply_wheel() {
+            self.request_redraw();
+        }
         // Wake up when a waiting automation request times out.
         let deadline = self.automation.as_ref().and_then(Automation::next_deadline);
         event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
@@ -827,10 +872,32 @@ impl ApplicationHandler<UserEvent> for App {
                         (-(p.x / scale) as f32, -(p.y / scale) as f32)
                     }
                 };
-                self.page.scroll_by(dx, dy);
-                self.request_redraw();
+                // Applied after this batch of events (`apply_wheel` in
+                // `about_to_wait`).
+                if dx.is_finite() && dy.is_finite() {
+                    self.pending_wheel.0 += dx;
+                    self.pending_wheel.1 += dy;
+                }
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wheel_deltas_scroll_whole_pixels_and_keep_the_fraction() {
+        assert_eq!(split_wheel((48.0, -2.75)), ((48.0, -2.0), (0.0, -0.75)));
+        // Half-pixel deltas (a touchpad at scale 2) add up in both
+        // directions.
+        let (whole, rest) = split_wheel((0.0, -0.5));
+        assert_eq!((whole, rest), ((0.0, 0.0), (0.0, -0.5)));
+        let (whole, _) = split_wheel((rest.0, rest.1 - 0.5));
+        assert_eq!(whole, (0.0, -1.0));
+        // An overflowed sum is dropped, not kept as NaN.
+        assert_eq!(split_wheel((f32::INFINITY, 3.5)), ((0.0, 3.0), (0.0, 0.5)));
     }
 }

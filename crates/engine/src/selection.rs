@@ -9,7 +9,10 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use swb_dom::{Document, NodeData, NodeId, is_html_whitespace, local_name};
-use swb_layout::{BoxContent, BoxFragment, Fragment, FragmentTree, Point, Rect, TextFragment};
+use swb_layout::{
+    BoxContent, BoxFragment, Fragment, FragmentTree, NoScroll, Point, Rect, ScrollOffsets,
+    ScrollState, TextFragment,
+};
 use swb_style::{ComputedStyle, Display, StyleMap, UserSelect, Visibility, WhiteSpace};
 
 /// A position in a text node: a byte offset in its data, at a character
@@ -136,19 +139,26 @@ pub(crate) enum Snap {
     Character,
 }
 
-/// The text position at `point` (document coordinates). The text is
-/// searched in the innermost block that contains the point and has text
-/// (the whole document if there is none): the nearest line, then the
-/// nearest fragment on it.
-pub(crate) fn position_at(tree: &FragmentTree, point: Point, snap: Snap) -> Option<TextPosition> {
+/// The text position at `point` (document coordinates), with the scroll
+/// offsets of scroll containers applied. The text is searched in the
+/// innermost block that contains the point and has text (the whole
+/// document if there is none): the nearest line, then the nearest fragment
+/// on it. Text that clipping boxes (scroll containers, `overflow: hidden`)
+/// hide is skipped.
+pub(crate) fn position_at(
+    tree: &FragmentTree,
+    offsets: &dyn ScrollOffsets,
+    point: Point,
+    snap: Snap,
+) -> Option<TextPosition> {
     let root = tree.root.as_ref()?;
     let mut scope = None;
-    find_text_block(root, Point::default(), point, &mut scope);
-    let (block, origin) = scope.unwrap_or((root, Point::default()));
+    find_text_block(root, Place::ROOT, offsets, point, &mut scope);
+    let (block, place) = scope.unwrap_or((root, Place::ROOT));
     let mut best: Option<((f32, f32), &TextFragment, Rect)> = None;
-    walk_text(block, origin, &mut |fragment, rect| {
+    walk_text(block, place, offsets, &mut |fragment, rect, visible| {
         let key = distance_to(point, rect);
-        if best.as_ref().is_none_or(|(k, _, _)| key < *k) {
+        if visible && best.as_ref().is_none_or(|(k, _, _)| key < *k) {
             best = Some((key, fragment, rect));
         }
     });
@@ -183,28 +193,161 @@ fn distance_to(point: Point, rect: Rect) -> (f32, f32) {
     )
 }
 
-/// Finds the innermost block-level box that contains `point` and
-/// selectable text (the first one in tree order). Returns true if `b` has
-/// selectable text.
+/// The area that the clipping boxes (scroll containers, `overflow:
+/// hidden`, `overflow: clip`) above a box leave visible.
+#[derive(Clone, Copy, Debug)]
+enum Clip {
+    /// Nothing clips.
+    None,
+    /// Only this area is visible. An axis that no box clips has a range
+    /// that covers all coordinates.
+    Area(Rect),
+    /// Nothing is visible.
+    Empty,
+}
+
+impl Clip {
+    /// This clip and `area`. An area without width or height leaves
+    /// nothing visible.
+    fn and(self, area: Rect) -> Clip {
+        match self {
+            Clip::None if area.width > 0.0 && area.height > 0.0 => Clip::Area(area),
+            Clip::Area(c) => c.intersection(&area).map_or(Clip::Empty, Clip::Area),
+            Clip::None | Clip::Empty => Clip::Empty,
+        }
+    }
+
+    /// True if a part of `r` is visible.
+    fn shows(self, r: Rect) -> bool {
+        match self {
+            Clip::None => true,
+            Clip::Area(c) => {
+                r.x < c.right() && r.right() > c.x && r.y < c.bottom() && r.bottom() > c.y
+            }
+            Clip::Empty => false,
+        }
+    }
+
+    /// True if `p` is visible.
+    fn contains(self, p: Point) -> bool {
+        match self {
+            Clip::None => true,
+            Clip::Area(c) => c.contains(p),
+            Clip::Empty => false,
+        }
+    }
+}
+
+/// The area that box `b` clips its content to (its padding box on the
+/// axes where its overflow clips), in absolute coordinates; `None` if it
+/// does not clip. `origin` is the absolute position that `b` is placed
+/// against.
+fn clip_area(b: &BoxFragment, origin: Point) -> Option<Rect> {
+    let style = &b.style;
+    if !style.overflow_x.clips() && !style.overflow_y.clips() {
+        return None;
+    }
+    let padding = b.padding_rect().translate(origin);
+    let far = 4.0 * swb_style::Length::MAX_PX;
+    let (x, width) = if style.overflow_x.clips() {
+        (padding.x, padding.width)
+    } else {
+        (-far, 2.0 * far)
+    };
+    let (y, height) = if style.overflow_y.clips() {
+        (padding.y, padding.height)
+    } else {
+        (-far, 2.0 * far)
+    };
+    Some(Rect::new(x, y, width, height))
+}
+
+/// Where a box is during a walk of the fragment tree with the scroll
+/// offsets applied: the absolute position it is placed against, the
+/// scroll state, and the clip of the boxes above it.
+#[derive(Clone, Copy)]
+struct Place {
+    origin: Point,
+    scroll: ScrollState,
+    clip: Clip,
+    /// The clip of the absolutely positioned boxes here: inside the nearest
+    /// positioned box (their containing block), or outside the nearest
+    /// block in a positioned inline box below it (the inline box is their
+    /// containing block). `None` without either.
+    cb_clip: Option<Clip>,
+}
+
+impl Place {
+    /// The place of the root box.
+    const ROOT: Place = Place {
+        origin: Point::new(0.0, 0.0),
+        scroll: ScrollState::DEFAULT,
+        clip: Clip::None,
+        cb_clip: None,
+    };
+
+    /// The absolute border box of `b` at this place, the clip that applies
+    /// to `b`, and the place of its children: moved by the scroll offset of
+    /// `b` and clipped by it. As paint's clips, an absolutely positioned box
+    /// is clipped by its containing block (a positioned box) and the boxes
+    /// above it, or, inside a positioned inline box, by the boxes above
+    /// the nearest block in it; without a positioned ancestor it is not
+    /// clipped. A fixed box is not clipped.
+    fn enter(self, b: &BoxFragment, offsets: &dyn ScrollOffsets) -> (Rect, Clip, Place) {
+        let origin = self.scroll.origin_of(b, self.origin);
+        let rect = b.border_rect.translate(origin);
+        let own = match b.style.position {
+            swb_style::Position::Fixed => Clip::None,
+            swb_style::Position::Absolute if !b.in_positioned_inline => {
+                self.cb_clip.unwrap_or(Clip::None)
+            }
+            _ => self.clip,
+        };
+        let clip = clip_area(b, origin).map_or(own, |area| own.and(area));
+        let cb_clip = if b.style.position != swb_style::Position::Static {
+            // The containing block of the absolutely positioned boxes
+            // inside: they are clipped by it (paint draws them in its
+            // stacking context, inside its clip).
+            Some(clip)
+        } else if b.in_positioned_inline {
+            Some(own)
+        } else {
+            self.cb_clip
+        };
+        let (child_origin, scroll) = self.scroll.enter(b, rect.origin(), offsets);
+        let place = Place {
+            origin: child_origin,
+            scroll,
+            clip,
+            cb_clip,
+        };
+        (rect, own, place)
+    }
+}
+
+/// Finds the innermost block-level box that contains `point` (and is not
+/// clipped away there) and selectable text (the first one in tree order).
+/// Returns true if `b` has selectable text. `place` is where `b` is.
 fn find_text_block<'a>(
     b: &'a BoxFragment,
-    origin: Point,
+    place: Place,
+    offsets: &dyn ScrollOffsets,
     point: Point,
-    found: &mut Option<(&'a BoxFragment, Point)>,
+    found: &mut Option<(&'a BoxFragment, Place)>,
 ) -> bool {
     if is_control(b) {
         return false;
     }
-    let rect = b.border_rect.translate(origin);
+    let (rect, clip, children) = place.enter(b, offsets);
     let mut has_text = false;
     for child in b.children.iter() {
         has_text |= match child {
             Fragment::Text(t) => t.is_selectable(),
-            Fragment::Box(child) => find_text_block(child, rect.origin(), point, found),
+            Fragment::Box(child) => find_text_block(child, children, offsets, point, found),
         };
     }
-    if has_text && found.is_none() && !b.is_inline && rect.contains(point) {
-        *found = Some((b, origin));
+    if has_text && found.is_none() && !b.is_inline && rect.contains(point) && clip.contains(point) {
+        *found = Some((b, place));
     }
     has_text
 }
@@ -216,41 +359,52 @@ fn is_control(b: &BoxFragment) -> bool {
 }
 
 /// Calls `visit` for each selectable text fragment in the subtree of `b`
-/// (outside form controls) with its absolute rectangle. `origin` is the
-/// absolute position of the parent's border-box origin.
+/// (outside form controls) with its absolute rectangle and whether a part
+/// of it is visible (not clipped away). `place` is where `b` is.
 fn walk_text<'a>(
     b: &'a BoxFragment,
-    origin: Point,
-    visit: &mut impl FnMut(&'a TextFragment, Rect),
+    place: Place,
+    offsets: &dyn ScrollOffsets,
+    visit: &mut impl FnMut(&'a TextFragment, Rect, bool),
 ) {
     if is_control(b) {
         return;
     }
-    walk_all_text(b, origin, visit);
+    walk_all_text(b, place, offsets, visit);
 }
 
 /// [`walk_text`] including the text of form controls.
 fn walk_all_text<'a>(
     b: &'a BoxFragment,
-    origin: Point,
-    visit: &mut impl FnMut(&'a TextFragment, Rect),
+    place: Place,
+    offsets: &dyn ScrollOffsets,
+    visit: &mut impl FnMut(&'a TextFragment, Rect, bool),
 ) {
-    let own = origin + b.border_rect.origin();
+    let (_, _, children) = place.enter(b, offsets);
     for child in b.children.iter() {
         match child {
-            Fragment::Text(t) if t.is_selectable() => visit(t, t.rect.translate(own)),
+            Fragment::Text(t) if t.is_selectable() => {
+                let rect = t.rect.translate(children.origin);
+                visit(t, rect, children.clip.shows(rect));
+            }
             Fragment::Text(_) => {}
-            Fragment::Box(child) => walk_text(child, own, visit),
+            Fragment::Box(child) => walk_text(child, children, offsets, visit),
         }
     }
 }
 
 /// The offset in the shown text of form control `control` nearest to
-/// `point` (document coordinates): the nearest line, then the nearest
-/// caret stop. `None` if the control has no box; 0 if it has no text.
-pub(crate) fn control_offset_at(tree: &FragmentTree, control: NodeId, point: Point) -> Option<u32> {
+/// `point` (document coordinates, scroll offsets applied): the nearest
+/// line, then the nearest caret stop. `None` if the control has no box; 0
+/// if it has no text.
+pub(crate) fn control_offset_at(
+    tree: &FragmentTree,
+    offsets: &dyn ScrollOffsets,
+    control: NodeId,
+    point: Point,
+) -> Option<u32> {
     let mut found = None;
-    tree.walk(|fragment, origin| {
+    tree.walk_scrolled(offsets, |fragment, origin| {
         if found.is_none()
             && let swb_layout::FragmentRef::Box(b) = fragment
             && b.node == Some(control)
@@ -260,8 +414,14 @@ pub(crate) fn control_offset_at(tree: &FragmentTree, control: NodeId, point: Poi
         }
     });
     let (b, origin) = found?;
+    // The origin already has the scroll offsets; a control is not a scroll
+    // container.
+    let place = Place {
+        origin,
+        ..Place::ROOT
+    };
     let mut best: Option<((f32, f32), u32)> = None;
-    walk_all_text(b, origin, &mut |t, rect| {
+    walk_all_text(b, place, &NoScroll, &mut |t, rect, _| {
         if t.node != control {
             return;
         }
@@ -276,11 +436,11 @@ pub(crate) fn control_offset_at(tree: &FragmentTree, control: NodeId, point: Poi
 }
 
 /// The first and last selectable offsets of each text node that has
-/// fragments.
+/// fragments (also where clipping boxes hide them).
 pub(crate) fn text_extents(tree: &FragmentTree) -> HashMap<NodeId, (u32, u32)> {
     let mut extents: HashMap<NodeId, (u32, u32)> = HashMap::new();
     if let Some(root) = &tree.root {
-        walk_text(root, Point::default(), &mut |t, _| {
+        walk_text(root, Place::ROOT, &NoScroll, &mut |t, _, _| {
             if let Some((start, end)) = t.node_range() {
                 extents
                     .entry(t.node)

@@ -5,9 +5,9 @@
 use std::time::Instant;
 
 use swb_css::{MediaEnvironment, MediaQueryList};
-use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point, Size};
+use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point, Rect, Size};
 use swb_net::Url;
-use swb_paint::{NoHighlights, Pixmap, RasterParams};
+use swb_paint::{DisplayList, NoHighlights, Pixmap, RasterParams, Scrolling};
 use swb_style::Stylist;
 
 use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
@@ -83,6 +83,7 @@ impl Page {
             let fragments = swb_layout::layout(&input, &mut self.fonts);
             self.timings.layout = started.elapsed();
             log::debug!("layout: {:?}", self.timings.layout);
+            self.scrollers.update(&fragments);
             self.fragments = Some(fragments);
             self.keep_control_scroll();
             // The scroll target is applied after every layout until the
@@ -90,9 +91,7 @@ impl Page {
             // Scrolling by the user cancels it.
             match self.pending_scroll.clone() {
                 Some(ScrollTarget::Fragment(fragment)) => {
-                    if let Some(position) = self.fragment_position(&fragment) {
-                        self.scroll = position;
-                    }
+                    self.reveal_fragment(&fragment);
                 }
                 Some(ScrollTarget::Position(position)) => self.scroll = position,
                 None => {}
@@ -130,6 +129,10 @@ impl Page {
             let started = Instant::now();
             let page = self.selection().map(|s| s.ordered(&self.tree_order));
             let control = self.control_selection();
+            let scrolling = Scrolling {
+                offsets: self.scrollers.offsets(),
+                indicators: self.scroll_indicators,
+            };
             let list = if page.is_some() || control.is_some() {
                 let highlight = Highlight {
                     page,
@@ -137,9 +140,9 @@ impl Page {
                     order: &self.tree_order,
                     doc,
                 };
-                swb_paint::build_display_list(fragments, &self.images, &highlight)
+                swb_paint::build_display_list(fragments, &self.images, &highlight, &scrolling)
             } else {
-                swb_paint::build_display_list(fragments, &self.images, &NoHighlights)
+                swb_paint::build_display_list(fragments, &self.images, &NoHighlights, &scrolling)
             };
             self.timings.display_list = started.elapsed();
             log::debug!("display list: {:?}", self.timings.display_list);
@@ -218,6 +221,31 @@ impl Page {
             );
             self.timings.raster = started.elapsed();
         }
+        if self.scroll_indicators {
+            self.render_viewport_indicators(target);
+        }
+    }
+
+    /// Draws the overlay scroll indicators of the viewport over the page
+    /// (the same indicators as those of scroll containers).
+    fn render_viewport_indicators(&mut self, target: &mut Pixmap) {
+        let Some(fragments) = &self.fragments else {
+            return;
+        };
+        let port = Rect::new(0.0, 0.0, self.viewport.width, self.viewport.height);
+        // No indicator on axes with `overflow: hidden`.
+        let (user_x, user_y) = self.viewport_user_axes();
+        let size = fragments.scroll_size;
+        let items = swb_paint::scroll_indicators(port, size, self.scroll, user_x, user_y);
+        if items.is_empty() {
+            return;
+        }
+        let params = RasterParams {
+            scroll: Point::default(),
+            scale: self.scale,
+        };
+        let list = DisplayList { items };
+        swb_paint::rasterize(&list, target, params, &mut self.fonts, &self.images);
     }
 
     /// The duration of each pipeline stage, the last time it ran.
@@ -263,14 +291,22 @@ impl Page {
         if size == viewport {
             self.render(&mut pixmap);
         } else {
+            // The layout for the temporary viewport clamps the scroll
+            // offsets of scroll containers to its ranges (`vh` sizes
+            // change) and moves the text in form controls; the real ones
+            // come back with the real viewport.
             let scroll = self.scroll;
             let min_rows = (MIN_STRIP_PIXELS / f64::from(w)).ceil() as f32;
             let strip_rows = (viewport.height * scale).round().max(min_rows).max(1.0) as u32;
+            let scrollers = self.scrollers.clone();
+            let text_scroll = self.forms.text_scroll();
             self.set_viewport(size, scale);
             self.scroll = Point::default();
             self.render_in_strips(&mut pixmap, strip_rows);
             self.set_viewport(viewport, scale);
             self.scroll = scroll;
+            self.scrollers = scrollers;
+            self.forms.restore_text_scroll(&text_scroll);
         }
         Ok(pixmap)
     }

@@ -42,6 +42,24 @@ def test_keyboard_and_errors(browser):
     assert error.value.code == -32601
 
 
+def test_scrolling_an_element():
+    with Browser.start() as b:
+        b.navigate(
+            "data:text/html,<body style='margin:0'><div id=s style='overflow:auto;"
+            "height:100px;width:200px'><div style='height:300px'></div></div>"
+        )
+        assert b.wait_for_load()
+        s = b.query_selector("#s")
+        info = b.scroll_info(s)
+        assert info["scrollable"]
+        assert info["clientHeight"] == 100.0
+        assert info["scrollHeight"] == 300.0
+        assert b.wheel(50, 50, 0, 40)
+        assert b.scroll_info(s)["scroll"] == {"x": 0.0, "y": 40.0}
+        assert b.scroll_element_to(s, 0, 1000)["scroll"]["y"] == 200.0
+        assert b.info()["scroll"]["y"] == 0.0
+
+
 def test_typing_into_a_text_field():
     with Browser.start() as b:
         b.navigate("data:text/html,<input id=q value=a><textarea id=t></textarea>")

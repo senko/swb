@@ -3,6 +3,11 @@
 For each `tests/layout/<name>.html`, Chromium loads the file and writes
 `tests/layout/<name>.boxes.json`. The `url` field is the path relative to the
 repository root, so the files do not depend on the checkout location.
+
+Before the dump, every element with a `data-scroll="X Y"` attribute is
+scrolled to that offset (`scrollLeft`, `scrollTop`; Chromium clamps it). The
+boxes of its content then show the scroll offset, and a large offset tests
+the scroll range. The Rust layout test does the same in swb.
 """
 
 import asyncio
@@ -17,6 +22,17 @@ from swbtools.boxes import BoxDump, write_dump
 log = logging.getLogger(__name__)
 
 BOXES_SUFFIX = ".boxes.json"
+
+# Scrolls the elements with `data-scroll="X Y"` in tree order.
+_APPLY_DATA_SCROLL_JS = """
+() => {
+  for (const element of document.querySelectorAll('[data-scroll]')) {
+    const [x, y] = element.dataset.scroll.trim().split(/\\s+/).map(Number);
+    element.scrollLeft = x;
+    element.scrollTop = y;
+  }
+}
+"""
 
 
 def layout_tests(names: list[str]) -> list[Path]:
@@ -50,6 +66,7 @@ async def dump_layout_tests(files: list[Path], system_fonts: bool) -> None:
         for file in (file.resolve() for file in files):
             await page.goto(file.as_uri(), wait_until="load")
             await browser.stop_animations(page)
+            await page.evaluate(_APPLY_DATA_SCROLL_JS)
             dump = await browser.collect_boxes(page, _dump_url(file))
             write_dump(boxes_path(file), dump)
             print(f"{_dump_url(boxes_path(file))}: {_count_boxes(dump)} boxes")

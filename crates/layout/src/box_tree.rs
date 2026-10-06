@@ -96,6 +96,10 @@ pub(crate) struct BlockInInline {
     /// [`MAX_INLINE_WRAPPERS`]).
     pub(crate) inline_boxes: Vec<BoxBase>,
     pub(crate) block: BlockLevelBox,
+    /// True if any open inline box is positioned (all of them, not only
+    /// `inline_boxes`): it is the containing block of the absolutely
+    /// positioned boxes in the block (see `BoxFragment::in_positioned_inline`).
+    pub(crate) in_positioned_inline: bool,
 }
 
 /// The contents of a block container.
@@ -815,7 +819,7 @@ impl ContainerBuilder {
             if self.inline.has_content() {
                 self.inline.push(RawItem::AbsolutelyPositioned(inner));
             } else {
-                self.blocks.push(BlockLevelBox::AbsolutelyPositioned(inner));
+                self.push_out_of_flow(BlockLevelBox::AbsolutelyPositioned(inner));
             }
             return;
         }
@@ -824,8 +828,11 @@ impl ContainerBuilder {
             if self.inline.has_content() {
                 self.inline.push(RawItem::Float(inner));
             } else {
-                self.flush_inline(state);
-                self.blocks.push(BlockLevelBox::Float(inner));
+                // The pending inline content (collapsible white space and
+                // the starts of open inline boxes) stays pending, as for
+                // absolutely positioned boxes: the inline boxes continue
+                // after the float.
+                self.push_out_of_flow(BlockLevelBox::Float(inner));
             }
             return;
         }
@@ -856,6 +863,30 @@ impl ContainerBuilder {
         self.push_block(block, state);
     }
 
+    /// True if any open inline box is positioned (all of them, not only the
+    /// ones that get wrapper boxes; see `BlockInInline::in_positioned_inline`).
+    fn in_positioned_inline(&self) -> bool {
+        self.open_inline_boxes
+            .iter()
+            .any(|b| b.style.position != swb_style::Position::Static)
+    }
+
+    /// Adds a float or an absolutely positioned box at block level. Inside
+    /// a positioned inline box, it gets the mark of that box (it needs no
+    /// inline box wrappers: out-of-flow boxes do not split inline boxes).
+    fn push_out_of_flow(&mut self, block: BlockLevelBox) {
+        if self.in_positioned_inline() {
+            self.blocks
+                .push(BlockLevelBox::InInline(Box::new(BlockInInline {
+                    inline_boxes: Vec::new(),
+                    block,
+                    in_positioned_inline: true,
+                })));
+        } else {
+            self.blocks.push(block);
+        }
+    }
+
     /// Adds a block-level box, splitting open inline boxes around it.
     fn push_block(&mut self, block: BlockLevelBox, state: &mut BuildState) {
         let open = self.open_inline_boxes.clone();
@@ -869,10 +900,12 @@ impl ContainerBuilder {
             // The innermost boxes only, so that memory does not grow with
             // the nesting depth times the number of blocks.
             let skip = open.len().saturating_sub(MAX_INLINE_WRAPPERS);
+            let in_positioned_inline = self.in_positioned_inline();
             self.blocks
                 .push(BlockLevelBox::InInline(Box::new(BlockInInline {
                     inline_boxes: open[skip..].to_vec(),
                     block,
+                    in_positioned_inline,
                 })));
         }
         for base in open {

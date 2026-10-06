@@ -132,6 +132,26 @@ class Browser:
         """Moves the mouse pointer to a point in viewport coordinates."""
         self.call("input.mouseMove", x=x, y=y)
 
+    def wheel(self, x: float, y: float, dx: float, dy: float) -> bool:
+        """Turns the mouse wheel at a point in viewport coordinates: scrolls
+        by (`dx`, `dy`) CSS px the innermost scroll container there that can
+        scroll in that direction, else the page. Returns True if something
+        scrolled."""
+        return bool(self.call("input.wheel", x=x, y=y, dx=dx, dy=dy)["scrolled"])
+
+    def scroll_info(self, node_id: int) -> dict[str, Any] | None:
+        """The scroll state of an element: `scroll` (x, y), `scrollWidth`,
+        `scrollHeight`, `clientWidth`, `clientHeight` and `scrollable`, or
+        None if it has no box."""
+        return self.call("dom.scrollInfo", nodeId=node_id)
+
+    def scroll_element_to(self, node_id: int, x: float, y: float) -> dict[str, Any]:
+        """Scrolls an element (a scroll container, or the element that
+        scrolls the page: the root element, in quirks mode the body if it is
+        not a scroll container) to an offset, clamped to its range. Returns
+        its scroll state as `scroll_info` does."""
+        return self.call("dom.scrollTo", nodeId=node_id, x=x, y=y)
+
     def key(self, key: str, modifiers: list[str] | None = None) -> bool:
         """Presses a key (a DOM key value such as "Tab" or "a"). Returns
         True if the page handled it."""

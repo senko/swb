@@ -14,15 +14,17 @@ mod display_list;
 mod image;
 mod mask;
 mod raster;
+mod scroll_indicator;
 mod svg;
 
 pub use display_list::{
     DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
-    SELECTION_BACKGROUND, build_display_list,
+    SELECTION_BACKGROUND, Scrolling, build_display_list,
 };
 pub use image::{DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_with_type};
 pub use mask::{MaskLayer, MaskLayerImage};
 pub use raster::{ImageSource, RasterParams, rasterize, rasterize_in_strips};
+pub use scroll_indicator::scroll_indicators;
 pub use svg::VectorCache;
 pub use tiny_skia::Pixmap;
 

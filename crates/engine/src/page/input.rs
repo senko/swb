@@ -3,7 +3,7 @@
 //! the element states that depend on them.
 
 use swb_dom::NodeId;
-use swb_layout::Point;
+use swb_layout::{Point, Size};
 use swb_style::{Cursor, ElementStates, UserSelect, Visibility};
 
 use super::Page;
@@ -43,7 +43,7 @@ pub(super) struct InputState {
     pub(super) states: ElementStates,
     /// The pointer position in viewport coordinates, while it is over the
     /// page.
-    pointer: Option<Point>,
+    pub(super) pointer: Option<Point>,
     press: Option<Press>,
     hovered_link: Option<swb_net::Url>,
     cursor: Cursor,
@@ -52,6 +52,9 @@ pub(super) struct InputState {
     /// focused: the node of the last click or the target of the last
     /// fragment navigation.
     focus_start: Option<NodeId>,
+    /// The node of the last press of the primary button. Without a focused
+    /// element, keyboard scrolling starts at its scroll container.
+    last_press: Option<NodeId>,
 }
 
 impl InputState {
@@ -247,6 +250,7 @@ impl Page {
         if focus.is_none() {
             self.input.focus_start = hit.as_ref().map(|h| h.node);
         }
+        self.input.last_press = hit.as_ref().map(|h| h.node);
         // A text control gets the caret; the page selection goes away.
         let control = focus.filter(|&n| self.forms.is_text_control(n));
         let (selection, anchor) = match control {
@@ -458,46 +462,36 @@ impl Page {
             && tree.element_boxes().contains_key(&node)
     }
 
-    /// Scrolls for a scrolling key. Returns true if the key is one.
+    /// Scrolls for a scrolling key. Returns true if the key is one. As in
+    /// Chromium, the key scrolls the first scroll container that can
+    /// scroll in its direction in the scroll chain of the focused element
+    /// (or, without one, of the node of the last click); else the
+    /// viewport. Page Up, Page Down and Space scroll by 87.5 % of the
+    /// scrollport in whole pixels (`scrollers::page_step`).
     fn scroll_key(&mut self, key: &Key, shift: bool) -> bool {
-        let page_step = (self.viewport.height * 0.875).max(ARROW_SCROLL);
-        let (dx, dy) = match key {
-            Key::ArrowDown => (0.0, ARROW_SCROLL),
-            Key::ArrowUp => (0.0, -ARROW_SCROLL),
-            Key::ArrowRight => (ARROW_SCROLL, 0.0),
-            Key::ArrowLeft => (-ARROW_SCROLL, 0.0),
-            Key::PageDown => (0.0, page_step),
-            Key::PageUp => (0.0, -page_step),
-            key if key.is_char(' ') => (0.0, if shift { -page_step } else { page_step }),
-            // Scrolling clamps to the content.
-            Key::Home => (0.0, f32::MIN),
-            Key::End => (0.0, f32::MAX),
-            _ => return false,
+        // The delta for a scrollport of `port` px.
+        let delta = |port: Size| -> Option<(f32, f32)> {
+            let page_step = crate::scrollers::page_step(port.height);
+            Some(match key {
+                Key::ArrowDown => (0.0, ARROW_SCROLL),
+                Key::ArrowUp => (0.0, -ARROW_SCROLL),
+                Key::ArrowRight => (ARROW_SCROLL, 0.0),
+                Key::ArrowLeft => (-ARROW_SCROLL, 0.0),
+                Key::PageDown => (0.0, page_step),
+                Key::PageUp => (0.0, -page_step),
+                key if key.is_char(' ') => (0.0, if shift { -page_step } else { page_step }),
+                // Scrolling clamps to the content.
+                Key::Home => (0.0, -swb_style::Length::MAX_PX),
+                Key::End => (0.0, swb_style::Length::MAX_PX),
+                _ => return None,
+            })
         };
-        self.scroll_by(dx, dy);
+        let Some(viewport) = delta(self.viewport) else {
+            return false;
+        };
+        let start = self.input.states.focus.or(self.input.last_press);
+        self.user_scroll(start, |port| delta(port).unwrap_or_default(), viewport);
         true
-    }
-
-    /// Scrolls so that the element is visible, as Chromium does for focus
-    /// navigation ("center if needed"), on each axis: no scroll if it is
-    /// visible, the nearest edge if it is partly visible, centered if it
-    /// is not visible.
-    pub fn scroll_into_view(&mut self, node: NodeId) {
-        self.update_layout();
-        let Some(rect) = self
-            .fragments
-            .as_ref()
-            .and_then(|f| f.element_boxes().get(&node).copied())
-        else {
-            return;
-        };
-        let (scroll, viewport) = (self.scroll, self.viewport);
-        // Blink does not scroll horizontally if 32 px of the box are visible.
-        let x = center_if_needed(rect.x, rect.width, scroll.x, viewport.width, Some(32.0));
-        let y = center_if_needed(rect.y, rect.height, scroll.y, viewport.height, None);
-        if (x, y) != (scroll.x, scroll.y) {
-            self.scroll_to(Point::new(x, y));
-        }
     }
 
     // ----- Helpers -----
@@ -507,7 +501,7 @@ impl Page {
         self.update_layout();
         let tree = self.fragments.as_ref()?;
         let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
-        selection::position_at(tree, document_point, snap)
+        selection::position_at(tree, self.scroll_offsets(), document_point, snap)
     }
 
     /// The selection of a triple click: the paragraph at a point.
@@ -590,51 +584,5 @@ impl Page {
             self.restyle();
         }
         affected || focus_moved
-    }
-}
-
-/// The scroll position on one axis that shows `start..start + size` in a
-/// view of `view` px scrolled to `scroll`, with Chromium's "center if
-/// needed" alignment (`ScrollAlignment` in Blink): no scroll if the box is
-/// visible (or, with `min_reveal`, if that much of it is visible) or covers
-/// the view; the nearest edge if it is partly visible; centered if it is
-/// not visible.
-fn center_if_needed(start: f32, size: f32, scroll: f32, view: f32, min_reveal: Option<f32>) -> f32 {
-    let (end, view_end) = (start + size, scroll + view);
-    let visible = (end.min(view_end) - start.max(scroll)).max(0.0);
-    if visible >= size || min_reveal.is_some_and(|m| visible >= m) || visible >= view {
-        scroll
-    } else if visible > 0.0 {
-        // The nearest edge is the end if the box is after the view and
-        // smaller than it, or before the view and larger than it.
-        let align_end = (end > view_end && size < view) || (end < view_end && size > view);
-        if align_end { end - view } else { start }
-    } else {
-        start + size / 2.0 - view / 2.0
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scroll_alignment() {
-        let y = |start, size, scroll| center_if_needed(start, size, scroll, 600.0, None);
-        // Visible: no scroll.
-        assert_eq!(y(100.0, 50.0, 0.0), 0.0);
-        // Below the view: centered.
-        assert_eq!(y(1000.0, 50.0, 0.0), 725.0);
-        // Partly below: the bottom edge at the bottom of the view.
-        assert_eq!(y(580.0, 50.0, 0.0), 30.0);
-        // Partly above: the top edge at the top of the view.
-        assert_eq!(y(80.0, 50.0, 100.0), 80.0);
-        // Larger than the view and covering it: no scroll.
-        assert_eq!(y(500.0, 2000.0, 1000.0), 1000.0);
-        // Larger than the view, partly below: the top edge at the top.
-        assert_eq!(y(300.0, 2000.0, 0.0), 300.0);
-        // Horizontally, 32 visible px are enough.
-        assert_eq!(center_if_needed(760.0, 100.0, 0.0, 800.0, Some(32.0)), 0.0);
-        assert_eq!(center_if_needed(780.0, 100.0, 0.0, 800.0, Some(32.0)), 80.0);
     }
 }

@@ -161,10 +161,11 @@ impl Page {
     pub(super) fn control_offset_at(&mut self, node: NodeId, point: Point) -> usize {
         self.update_layout();
         let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
+        let offsets = self.scroll_offsets();
         let shown = self
             .fragments
             .as_ref()
-            .and_then(|tree| selection::control_offset_at(tree, node, document_point))
+            .and_then(|tree| selection::control_offset_at(tree, offsets, node, document_point))
             .unwrap_or(0) as usize;
         let Some(state) = self.forms.get(node) else {
             return 0;

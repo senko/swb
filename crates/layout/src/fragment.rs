@@ -3,7 +3,9 @@
 //! Every fragment's position is relative to the border-box origin of its
 //! parent [`BoxFragment`]. The root fragment is positioned relative to the
 //! initial containing block (the page origin). Use [`FragmentTree::walk`]
-//! to visit fragments with absolute positions.
+//! to visit fragments with absolute positions, and
+//! [`FragmentTree::walk_scrolled`] for their positions with the scroll
+//! offsets of scroll containers applied (see `scroll.rs`).
 
 use std::sync::Arc;
 
@@ -12,6 +14,7 @@ use swb_style::{ComputedStyle, PseudoKind};
 use swb_text::{FontId, GlyphId};
 
 use crate::geom::{Edges, Point, Rect};
+use crate::scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range};
 
 /// The result of laying out a document.
 #[derive(Clone, Debug)]
@@ -22,9 +25,12 @@ pub struct FragmentTree {
     /// The background of the canvas (propagated from the root or body).
     pub canvas_background: Option<CanvasBackground>,
     /// The size of the scrollable area: the union of the initial containing
-    /// block and all content that is not clipped. On an axis where the
-    /// viewport's overflow is `hidden` or `clip`, the viewport's size.
+    /// block and all content that is not clipped.
     pub scroll_size: crate::geom::Size,
+    /// The overflow of the viewport (propagated from the root or the body;
+    /// `visible` if neither has another value), horizontal and vertical.
+    /// The user cannot scroll an axis with `hidden` or `clip`; scripts can.
+    pub viewport_overflow: (swb_style::Overflow, swb_style::Overflow),
 }
 
 /// The background that paints the canvas, and the element it comes from.
@@ -49,32 +55,65 @@ pub enum FragmentRef<'a> {
 impl FragmentTree {
     /// Calls `visit` for every fragment, the root included, in tree order
     /// (parents before children). The second argument is the absolute
-    /// position of the fragment's parent border-box origin.
-    pub fn walk<'a>(&'a self, mut visit: impl FnMut(FragmentRef<'a>, Point)) {
+    /// position of the fragment's parent border-box origin. Scroll offsets
+    /// are not applied: these are the positions of the layout.
+    pub fn walk<'a>(&'a self, visit: impl FnMut(FragmentRef<'a>, Point)) {
+        self.walk_scrolled(&NoScroll, visit);
+    }
+
+    /// [`FragmentTree::walk`] with the scroll offsets of scroll containers
+    /// applied: the second argument is the absolute position that the
+    /// fragment is placed against (for an absolutely positioned box, the
+    /// offsets of the scroll containers outside its containing block are
+    /// taken back; see [`ScrollState`]).
+    pub fn walk_scrolled<'a>(
+        &'a self,
+        offsets: &dyn ScrollOffsets,
+        mut visit: impl FnMut(FragmentRef<'a>, Point),
+    ) {
         fn walk_box<'a>(
             b: &'a BoxFragment,
             origin: Point,
+            state: ScrollState,
+            offsets: &dyn ScrollOffsets,
             visit: &mut impl FnMut(FragmentRef<'a>, Point),
         ) {
+            let origin = state.origin_of(b, origin);
             visit(FragmentRef::Box(b), origin);
-            let own_origin = origin + b.border_rect.origin();
+            let (child_origin, child_state) =
+                state.enter(b, origin + b.border_rect.origin(), offsets);
             for child in b.children.iter() {
                 match child {
-                    Fragment::Box(cb) => walk_box(cb, own_origin, visit),
-                    Fragment::Text(t) => visit(FragmentRef::Text(t), own_origin),
+                    Fragment::Box(cb) => walk_box(cb, child_origin, child_state, offsets, visit),
+                    Fragment::Text(t) => visit(FragmentRef::Text(t), child_origin),
                 }
             }
         }
         if let Some(root) = &self.root {
-            walk_box(root, Point::default(), &mut visit);
+            walk_box(
+                root,
+                Point::default(),
+                ScrollState::default(),
+                offsets,
+                &mut visit,
+            );
         }
     }
 
     /// The union of the absolute border boxes of each element's fragments
     /// (pseudo-element boxes excluded).
     pub fn element_boxes(&self) -> std::collections::HashMap<NodeId, Rect> {
+        self.element_boxes_scrolled(&NoScroll)
+    }
+
+    /// [`FragmentTree::element_boxes`] with the scroll offsets of scroll
+    /// containers applied.
+    pub fn element_boxes_scrolled(
+        &self,
+        offsets: &dyn ScrollOffsets,
+    ) -> std::collections::HashMap<NodeId, Rect> {
         let mut boxes: std::collections::HashMap<NodeId, Rect> = std::collections::HashMap::new();
-        self.walk(|f, origin| {
+        self.walk_scrolled(offsets, |f, origin| {
             if let FragmentRef::Box(b) = f
                 && let Some(node) = b.node
                 && b.pseudo.is_none()
@@ -251,12 +290,68 @@ pub struct BoxFragment {
     pub last_baseline: Option<f32>,
     /// True if this fragment is part of an inline box (not a block).
     pub is_inline: bool,
+    /// The scrollable overflow rectangle (CSS Overflow 3 §2.2), relative
+    /// to the border-box origin, if the box is a scroll container. It
+    /// starts at the padding box (see `scroll.rs`).
+    pub scrollable_overflow: Option<Rect>,
+    /// True for a block-level box inside a positioned inline box (block in
+    /// inline): that inline box is the containing block of the absolutely
+    /// positioned boxes in it, but it is not an ancestor in the fragment
+    /// tree (its fragments are siblings of this one). Scrolling
+    /// (`scroll.rs`), paint's clips and the selection clip use it;
+    /// positioned layout does not yet.
+    pub in_positioned_inline: bool,
+    /// For an inline box on a line where white space hangs at the end
+    /// (`white-space: pre-wrap`): the end of the line's content, relative
+    /// to the box's own border-box origin. The box and its inline content
+    /// after it do not count in scrollable overflow (as in Chromium); see
+    /// `scroll::box_overflow_rect`.
+    pub hanging_from: Option<f32>,
 }
 
 impl BoxFragment {
     /// The padding box, relative to the parent's border-box origin.
     pub fn padding_rect(&self) -> Rect {
         self.border_rect.inset(&self.border)
+    }
+
+    /// The element whose scroll offset moves the content of this box: the
+    /// element of a scroll container. Pseudo-element boxes and anonymous
+    /// boxes cannot be scrolled.
+    pub fn scroll_node(&self) -> Option<NodeId> {
+        self.scrollable_overflow?;
+        self.node.filter(|_| self.pseudo.is_none())
+    }
+
+    /// The padding box relative to the box's own border-box origin: the
+    /// scrollport of a scroll container.
+    pub fn scrollport(&self) -> Rect {
+        let size = self.border_rect;
+        Rect::new(0.0, 0.0, size.width, size.height).inset(&self.border)
+    }
+
+    /// The largest scroll offset of a scroll container on each axis (zero
+    /// for other boxes): how far the scrollable overflow extends beyond
+    /// the scrollport.
+    pub fn max_scroll_offset(&self) -> Point {
+        let Some(overflow) = self.scrollable_overflow else {
+            return Point::default();
+        };
+        let port = self.scrollport();
+        // The overflow rectangle starts at the scrollport.
+        scroll_range(
+            crate::geom::Size::new(overflow.width, overflow.height),
+            crate::geom::Size::new(port.width, port.height),
+        )
+    }
+
+    /// The scroll offset of this box from `offsets`, clamped to its scroll
+    /// range; zero if the box cannot be scrolled.
+    pub fn scroll_offset(&self, offsets: &dyn ScrollOffsets) -> Point {
+        let Some(node) = self.scroll_node() else {
+            return Point::default();
+        };
+        clamp_scroll_offset(offsets.scroll_offset(node), self.max_scroll_offset())
     }
 
     /// The content box, relative to the parent's border-box origin.
@@ -305,7 +400,8 @@ pub struct TextFragment {
     /// The glyphs.
     pub glyphs: Arc<[PositionedGlyph]>,
     /// The text of the run (after white-space processing). For debugging
-    /// dumps.
+    /// dumps, and for the hanging white space at its end
+    /// (`scroll::text_overflow_rect`).
     pub text: Arc<str>,
     /// The caret stops in visual order, from the left edge to the right
     /// edge of the glyphs. Empty for generated content (pseudo-elements,

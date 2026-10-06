@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned boxes whose containing block is a positioned
+     inline box around blocks (block in inline), inside scroll containers
+     scrolled with data-scroll: they move with the scroll container and
+     count in its scroll range, also inside a nested block. -->
+<style>
+body { margin: 0; font: 16px/20px monospace; }
+.s { overflow: auto; width: 200px; height: 100px; background: #eee; margin-bottom: 10px; }
+</style>
+<div class=s data-scroll="0 50">
+  <a href="#" style="position:relative"><div style="height:40px; background:#ccf">card</div><div style="position:absolute; width:30px; height:30px; margin-left:185px; background:red"></div></a>
+  <div style="height:300px"></div>
+</div>
+<div class=s data-scroll="9999 9999">
+  <a href="#" style="position:relative"><div style="height:40px">card</div><div style="position:absolute; width:30px; height:300px; margin-left:250px; background:red"></div></a>
+</div>
+<div class=s data-scroll="0 50">
+  <span style="position:relative">text <span style="display:block"><span style="display:block">block</span><div style="position:absolute; width:30px; height:30px; background:red"></div></span></span>
+  <div style="height:300px"></div>
+</div>
