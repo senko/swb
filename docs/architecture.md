@@ -71,10 +71,13 @@ Rules:
   boxes, line boxes and glyph runs in CSS pixels. It is immutable. The engine
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
-  borders, glyph runs, images, linear gradients, polylines, clips, opacity
-  and mask groups with their bounds) in paint order. A mask group carries
+  borders, glyph runs, images, linear gradients, polylines, clips, opacity,
+  mask and transform groups with their bounds) in paint order. A mask group carries
   its mask layers: images or gradients positioned like background layers
-  (`paint/src/mask.rs`, ADR 0018). Form controls with the native
+  (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
+  (`paint/src/rope.rs`), so moving the items of positioned boxes copies
+  each item a bounded number of times, and computes the bounds of all
+  groups in one pass at the end (`paint/src/group_bounds.rs`). Form controls with the native
   look are drawn by `paint/src/control.rs`. The rasterizer consumes it. The
   rasterizer can be replaced without changes to layout. The list also
   contains hit regions, so hit testing finds what is painted on top.
@@ -208,12 +211,33 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   (`layout/src/control.rs`); their sizes follow Chromium.
 - `<br>` elements and inline boxes around block-level children get boxes
   for the box dump; the latter are `BoxContent::GeometryOnly`.
-- Paint order: each stacking context (root, positioned boxes, opacity < 1,
+- Absolutely positioned boxes (`layout/src/positioned.rs`, ADR 0016)
+  get a placeholder fragment at their static position (block, inline,
+  flex and grid layout). After layout, one walk lays each box out in its
+  containing block (the nearest positioned or transformed ancestor; a
+  positioned inline box from its first to its last fragment) and
+  replaces the placeholder, so fragments stay relative to their parents
+  and in tree order. The walk then recomputes the scrollable overflow of
+  scroll containers that contain placed boxes. Sticky offsets and
+  transforms do not change layout: paint applies them (`Ancestry`,
+  `GroupTransform`), and `FragmentTree::element_boxes_scrolled` gives
+  the painted boxes.
+- Paint order: each stacking context (root; positioned boxes with an
+  integer z-index; fixed, sticky and transformed boxes; opacity < 1;
   masked boxes) paints its normal-flow content in tree order, then its
-  positioned descendants in z-index order (negative z-index before the
-  content). A positioned box keeps the overflow clips of the boxes
-  between it and its stacking context (except absolutely positioned
-  boxes, whose containing block is outside those boxes).
+  positioned and transformed descendants in z-index order (negative
+  z-index before the content). Relative and absolute boxes with
+  `z-index: auto` paint in that order but form no stacking context. A
+  positioned box repeats the clips between its stacking context and
+  itself that belong to its containing block chain; a box fixed to the
+  viewport replaces all clips (`PushViewportClip`) except `clip`
+  rectangles.
+- Transform groups (`PushTransform`/`PopTransform`) wrap a box's opacity
+  and mask groups. Fixed and sticky boxes are translation groups that
+  the rasterizer and hit testing resolve at the viewport scroll offset,
+  so a viewport scroll does not rebuild the display list. Translation
+  groups move their items exactly; other transforms draw into a bounded
+  layer (anti-aliased edges, per-strip budgets, at most 8 deep).
 - The content of scroll containers is translated by their offsets in
   the display list; `paint/src/scroll_indicator.rs` draws the GUI's
   overlay scroll indicators (not in headless screenshots).
@@ -230,7 +254,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   (max(64 Mpx, 4 × strip pixels); beyond it, opacity groups draw directly
   and mask groups draw nothing), and mask groups share a work budget: a
   group starts only if all its work fits (layer pixels, a cost per row,
-  gradient tiles). The SVG rendering budget is shared by all strips. The root
+  gradient tiles). The SVG rendering budget is shared by all strips.
+  Full-page screenshots keep the layout of the viewport and draw at
+  scroll offset 0, as Chromium does. The root
   element's opacity and mask also apply to the canvas background.
 
 ## Engine modules

@@ -5,16 +5,13 @@
 //! <https://www.w3.org/TR/CSS22/box.html#collapsing-margins>,
 //! <https://www.w3.org/TR/CSS22/visudet.html>.
 //!
-//! Floats and absolutely positioned boxes are approximated until float
-//! layout and positioned layout exist: a float is placed at the current
-//! position on its side and does not affect the flow; an absolutely
-//! positioned box is placed at its static position with a shrink-to-fit
-//! width, and its offsets (`top`, `left`, ...) are ignored. Floats and
-//! absolutely positioned boxes that start inside inline content are not
-//! laid out at all (`InlineItem::Float` and
-//! `InlineItem::AbsolutelyPositioned` produce no fragments), unless the
-//! inline content is only collapsible white space (then box construction
-//! moves them to block level).
+//! Floats are approximated until float layout exists: a float is placed
+//! at the current position on its side and does not affect the flow.
+//! Floats that start inside inline content are not laid out at all
+//! (`InlineItem::Float` produces no fragments), unless the inline content
+//! is only collapsible white space (then box construction moves them to
+//! block level). An absolutely positioned box gets a placeholder at its
+//! static position; `positioned.rs` lays it out later.
 
 use std::sync::Arc;
 
@@ -24,8 +21,9 @@ use crate::box_tree::{
     BlockContainer, BlockLevelBox, BoxBase, IndependentBox, IndependentContents, Marker,
 };
 use crate::fragment::{BoxContent, BoxFragment, Fragment};
-use crate::geom::{Edges, Rect};
+use crate::geom::{Edges, Point, Rect};
 use crate::list_marker::{PendingMarker, markers_at_baseline, shift_markers};
+use crate::positioned::{StaticParent, placeholder};
 use crate::{LayoutContext, LayoutKey, inline};
 
 /// The containing block of a box: the content box of its parent.
@@ -338,12 +336,19 @@ fn layout_block_children<'a>(
     let mut baselines = Baselines::default();
     let mut inflow = crate::scroll::InflowExtent::default();
 
-    for child in children {
-        let (child, inline_boxes, in_positioned_inline) = match child {
+    for entry in children {
+        let (child, inline_boxes, in_positioned_inline) = match entry {
             BlockLevelBox::InInline(b) => (&b.block, Some(&b.inline_boxes), b.in_positioned_inline),
             other => (other, None, false),
         };
         let content_end = y;
+        if let Some(fragment) = out_of_flow_fragment(ctx, entry, cb, y + pending.solve()) {
+            if let Fragment::Box(b) = &fragment {
+                inflow.add(b, cb, false);
+            }
+            fragments.push(fragment);
+            continue;
+        }
         let laid_out = match child {
             BlockLevelBox::Block {
                 base,
@@ -351,15 +356,8 @@ fn layout_block_children<'a>(
                 marker,
             } => layout_block_box(ctx, base, contents, marker.as_ref(), cb, markers),
             BlockLevelBox::Independent(ib) => layout_independent_block_level(ctx, ib, cb),
-            BlockLevelBox::Float(ib) | BlockLevelBox::AbsolutelyPositioned(ib) => {
-                let mut fragment = layout_out_of_flow(ctx, ib, cb, y + pending.solve());
-                fragment.in_positioned_inline = in_positioned_inline;
-                inflow.add(&fragment, cb, false);
-                fragments.push(Fragment::Box(fragment));
-                continue;
-            }
-            // Box construction never nests these.
-            BlockLevelBox::InInline(_) => continue,
+            // Box construction never nests `InInline`.
+            _ => continue,
         };
         let LaidOutBlock {
             mut fragment,
@@ -435,6 +433,40 @@ fn layout_block_children<'a>(
         collapsed_through: all_collapsed_through,
         baselines,
         inflow: inflow.finish(y + trailing),
+    }
+}
+
+/// The fragment of an out-of-flow child at `y` (`entry` can be inside an
+/// inline box): a float (laid out in place, see the module documentation)
+/// or the placeholder of an absolutely positioned box (see
+/// `positioned.rs`). `None` for in-flow children.
+fn out_of_flow_fragment(
+    ctx: &mut LayoutContext<'_>,
+    entry: &BlockLevelBox,
+    cb: ContainingBlock,
+    y: f32,
+) -> Option<Fragment> {
+    let (child, in_positioned_inline) = match entry {
+        BlockLevelBox::InInline(b) => (&b.block, b.in_positioned_inline),
+        other => (other, false),
+    };
+    match child {
+        BlockLevelBox::Float(ib) => {
+            let mut fragment = layout_out_of_flow(ctx, ib, cb, y);
+            fragment.in_positioned_inline = in_positioned_inline;
+            Some(Fragment::Box(fragment))
+        }
+        BlockLevelBox::AbsolutelyPositioned(ib) => {
+            // The static-position rectangle: the content box's width.
+            Some(placeholder(
+                ctx,
+                ib,
+                Point::new(0.0, y),
+                StaticParent::Flow,
+                crate::geom::Size::new(cb.width, 0.0),
+            ))
+        }
+        _ => None,
     }
 }
 
@@ -521,8 +553,8 @@ fn webkit_align_offset(parent: &ComputedStyle, child: &BoxFragment, cb: Containi
     }
 }
 
-/// Lays out a float or an absolutely positioned box among block-level
-/// siblings, at the current position `y` (see the module comment).
+/// Lays out a float among block-level siblings, at the current position
+/// `y` (see the module comment).
 fn layout_out_of_flow(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
@@ -737,7 +769,7 @@ pub(crate) fn relative_offset(style: &ComputedStyle, cb: ContainingBlock) -> (f3
 /// with a known content-box width. The height is `content_height` if given,
 /// else the specified height, else the content height; then clamped. The
 /// returned fragment is at (0, 0).
-fn layout_sized(
+pub(crate) fn layout_sized(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
     content_width: f32,
@@ -909,6 +941,11 @@ pub(crate) fn layout_root(
     root: &IndependentBox,
     icb: ContainingBlock,
 ) -> BoxFragment {
+    // An absolutely positioned (or fixed) root is placed in the initial
+    // containing block like any absolutely positioned box (as Chromium).
+    if root.base.style.is_absolutely_positioned() {
+        return crate::positioned::layout_absolute_root(ctx, root, icb);
+    }
     let laid_out = layout_independent_block_level(ctx, root, icb);
     let mut fragment = laid_out.fragment;
     fragment.border_rect.y = laid_out.margins.start.solve();

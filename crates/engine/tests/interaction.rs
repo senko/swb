@@ -293,6 +293,23 @@ fn selection_is_highlighted() {
 }
 
 #[test]
+fn text_hidden_by_clip_rect_is_not_selected() {
+    // Visually hidden text (`clip: rect(0, 0, 0, 0)`, without an overflow
+    // clip) over a paragraph: a drag there selects the paragraph.
+    let site = Site::new("clip-select");
+    let (mut page, _) = open(
+        &site,
+        "<!DOCTYPE html><body style='margin:0;font:20px sans-serif'>\
+         <div style='position:absolute; top:0; left:0; clip:rect(0, 0, 0, 0)'>hidden words</div>\
+         <p style='margin:0'>Visible text here.</p>",
+    );
+    press(&mut page, 1.0, 10.0, 1);
+    page.mouse_move(700.0, 10.0);
+    page.mouse_up(700.0, 10.0, MouseButton::Primary);
+    assert_eq!(page.selected_text(), "Visible text here.");
+}
+
+#[test]
 fn double_and_triple_clicks() {
     let site = Site::new("multi-click");
     let (mut page, _) = open(&site, TEXT);

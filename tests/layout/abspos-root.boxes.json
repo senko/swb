@@ -1,0 +1,13 @@
+{
+  "url": "tests/layout/abspos-root.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [20.0, 50.0, 316.0, 3036.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [28.0, 58.0, 300.0, 3020.0], "parent": 0},
+    {"tag": "div", "rect": [28.0, 58.0, 300.0, 20.0], "parent": 3},
+    {"tag": "div", "rect": [28.0, 78.0, 100.0, 3000.0], "parent": 3},
+    {"tag": "div", "rect": [326.0, 3076.0, 10.0, 10.0], "parent": 3}
+  ]
+}

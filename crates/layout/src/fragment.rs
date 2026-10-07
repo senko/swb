@@ -13,8 +13,9 @@ use swb_dom::NodeId;
 use swb_style::{ComputedStyle, PseudoKind};
 use swb_text::{FontId, GlyphId};
 
-use crate::geom::{Edges, Point, Rect};
+use crate::geom::{Edges, Matrix, Point, Rect};
 use crate::scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range};
+use crate::{Ancestry, GroupTransform, StickyCache};
 
 /// The result of laying out a document.
 #[derive(Clone, Debug)]
@@ -31,6 +32,8 @@ pub struct FragmentTree {
     /// `visible` if neither has another value), horizontal and vertical.
     /// The user cannot scroll an axis with `hidden` or `clip`; scripts can.
     pub viewport_overflow: (swb_style::Overflow, swb_style::Overflow),
+    /// The size of the viewport (the initial containing block).
+    pub viewport: crate::geom::Size,
 }
 
 /// The background that paints the canvas, and the element it comes from.
@@ -100,25 +103,119 @@ impl FragmentTree {
         }
     }
 
-    /// The union of the absolute border boxes of each element's fragments
-    /// (pseudo-element boxes excluded).
-    pub fn element_boxes(&self) -> std::collections::HashMap<NodeId, Rect> {
-        self.element_boxes_scrolled(&NoScroll)
+    /// Calls `visit` for every fragment in tree order (parents before
+    /// children) with its absolute rectangle (the border box of a box, the
+    /// rectangle of a text), with the scroll offsets of scroll containers
+    /// `offsets` applied ([`ScrollState`]), and the transform from these
+    /// coordinates to painted document coordinates at the viewport scroll
+    /// offset `scroll`: the transforms of the box and its ancestors, the
+    /// scroll offset for boxes fixed to the viewport, and sticky offsets
+    /// (see [`Ancestry::group_transforms`]). Paint and hit testing place
+    /// the fragments the same way.
+    pub fn walk_painted<'a>(
+        &'a self,
+        offsets: &dyn ScrollOffsets,
+        scroll: Point,
+        mut visit: impl FnMut(FragmentRef<'a>, Rect, &Matrix),
+    ) {
+        /// The state of the walk above a box.
+        struct Above<'s> {
+            origin: Point,
+            matrix: Matrix,
+            state: ScrollState,
+            offsets: &'s dyn ScrollOffsets,
+            scroll: Point,
+        }
+        fn walk_box<'a>(
+            b: &'a BoxFragment,
+            above: &Above<'_>,
+            ancestry: &Ancestry,
+            cache: &mut (StickyCache, Vec<GroupTransform>),
+            visit: &mut impl FnMut(FragmentRef<'a>, Rect, &Matrix),
+        ) {
+            let origin = above.state.origin_of(b, above.origin);
+            let rect = b.border_rect.translate(origin);
+            let groups = ancestry.group_transforms(b, rect);
+            // The cache is keyed by the address of the sticky constraints:
+            // they stay alive until the walk ends.
+            cache.1.extend(
+                groups
+                    .iter()
+                    .filter(|g| matches!(g, GroupTransform::Sticky(_)))
+                    .cloned(),
+            );
+            let matrix = groups.iter().fold(above.matrix, |m, g| {
+                g.resolve_with(&m, above.scroll, &mut cache.0)
+            });
+            visit(FragmentRef::Box(b), rect, &matrix);
+            let (child_origin, state) = above.state.enter(b, rect.origin(), above.offsets);
+            let shift = Point::new(child_origin.x - rect.x, child_origin.y - rect.y);
+            let inner = ancestry.enter(b, rect, &groups, shift);
+            let below = Above {
+                origin: child_origin,
+                matrix,
+                state,
+                ..*above
+            };
+            for child in b.children.iter() {
+                match child {
+                    Fragment::Box(child) => walk_box(child, &below, &inner, cache, visit),
+                    Fragment::Text(t) => {
+                        visit(
+                            FragmentRef::Text(t),
+                            t.rect.translate(child_origin),
+                            &matrix,
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(root) = &self.root {
+            let above = Above {
+                origin: Point::default(),
+                matrix: Matrix::IDENTITY,
+                state: ScrollState::default(),
+                offsets,
+                scroll,
+            };
+            let mut cache = (StickyCache::default(), Vec::new());
+            walk_box(
+                root,
+                &above,
+                &Ancestry::root(self.viewport),
+                &mut cache,
+                &mut visit,
+            );
+        }
     }
 
-    /// [`FragmentTree::element_boxes`] with the scroll offsets of scroll
-    /// containers applied.
+    /// The union of the border boxes of each element's fragments as
+    /// painted without scroll offsets (pseudo-element boxes excluded). See
+    /// [`FragmentTree::element_boxes_scrolled`].
+    pub fn element_boxes(&self) -> std::collections::HashMap<NodeId, Rect> {
+        self.element_boxes_scrolled(&NoScroll, Point::default())
+    }
+
+    /// The union of the border boxes of each element's fragments as
+    /// painted with the scroll offsets of scroll containers `offsets` and
+    /// at the viewport scroll offset `scroll`, in document coordinates
+    /// (pseudo-element boxes excluded). A transformed box gives the
+    /// bounding box of its transformed border box, as `getClientRects()`
+    /// in browsers.
     pub fn element_boxes_scrolled(
         &self,
         offsets: &dyn ScrollOffsets,
+        scroll: Point,
     ) -> std::collections::HashMap<NodeId, Rect> {
         let mut boxes: std::collections::HashMap<NodeId, Rect> = std::collections::HashMap::new();
-        self.walk_scrolled(offsets, |f, origin| {
+        self.walk_painted(offsets, scroll, |f, rect, matrix| {
             if let FragmentRef::Box(b) = f
                 && let Some(node) = b.node
                 && b.pseudo.is_none()
             {
-                let rect = b.border_rect.translate(origin);
+                let r = matrix.map_rect(&rect);
+                let clamp = crate::geom::clamp_length;
+                let rect = Rect::new(clamp(r.x), clamp(r.y), clamp(r.width), clamp(r.height));
                 boxes
                     .entry(node)
                     .and_modify(|r| *r = r.union(&rect))
@@ -187,6 +284,9 @@ pub enum BoxContent {
     GeometryOnly,
     /// A form control. Its text (value, label) is in its children.
     Control(ControlContent),
+    /// The static position of an absolutely positioned box while layout
+    /// runs (see `positioned.rs`). A finished fragment tree has none.
+    Placeholder(crate::Placeholder),
 }
 
 /// What a table paints besides its children.
@@ -297,9 +397,9 @@ pub struct BoxFragment {
     /// True for a block-level box inside a positioned inline box (block in
     /// inline): that inline box is the containing block of the absolutely
     /// positioned boxes in it, but it is not an ancestor in the fragment
-    /// tree (its fragments are siblings of this one). Scrolling
-    /// (`scroll.rs`), paint's clips and the selection clip use it;
-    /// positioned layout does not yet.
+    /// tree (its fragments are siblings of this one, right before it).
+    /// Positioned layout (`positioned.rs`), scrolling (`scroll.rs`),
+    /// paint's clips and the selection clip use it.
     pub in_positioned_inline: bool,
     /// For an inline box on a line where white space hangs at the end
     /// (`white-space: pre-wrap`): the end of the line's content, relative

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Static position of absolutely positioned children of flex containers:
+     aligned as if each were the only flex item (CSS Flexbox 1 §4.1). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: flex containers</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .flex { display: flex; position: relative; width: 200px; height: 60px;
+          padding: 5px 10px; border: 2px solid; margin-bottom: 8px; }
+  .abs { position: absolute; width: 30px; height: 20px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="flex"><div>item</div><div class="abs" id="a1"></div></div>
+  <div class="flex" style="justify-content: center; align-items: center"><div class="abs" id="a2"></div><div>item</div></div>
+  <div class="flex" style="justify-content: flex-end; align-items: flex-end"><div class="abs" id="a3"></div></div>
+  <div class="flex" style="flex-direction: row-reverse"><div class="abs" id="a4"></div></div>
+  <div class="flex" style="flex-direction: column; justify-content: center; align-items: flex-end"><div class="abs" id="a5"></div></div>
+  <div class="flex" style="justify-content: space-between; align-items: stretch"><div class="abs" id="a6"></div><div class="abs" id="a7" style="align-self: center"></div></div>
+  <div class="flex" style="justify-content: space-around"><div class="abs" id="a8" style="margin: 5px"></div></div>
+  <div class="flex" style="align-items: center"><div class="abs" id="a9" style="top: 0"></div></div>
+  <div class="flex" style="flex-wrap: wrap-reverse; align-items: baseline"><div class="abs" id="a10"></div></div>
+</body>
+</html>

@@ -169,10 +169,13 @@ The module has five parts:
      max-content and a min-content constraint (min = the min-content
      size, max = the larger of both).
    - Items paint in order-modified document order (fragment order).
-   - Absolutely positioned children are laid out at the start of the
-     padding box with a shrink-to-fit width (their static position,
-     §10.2); the offsets and the grid-area containing block of §10.1
-     belong to the positioning work.
+   - Absolutely positioned children get a placeholder (their static
+     position: aligned by `justify-self`/`align-self`, or the container's
+     `justify-items`/`align-items`, in the padding box if the grid
+     container is their containing block, else in the content box); the
+     out-of-flow pass
+     of ADR 0016 lays them out with their offsets. Grid areas as their
+     containing blocks are not supported (ADR 0016).
    - Tables inside grid items do not use column percentages for their
      intrinsic widths (Chromium's `AllowColumnPercentages`, through
      `TableCache::percent_free`).

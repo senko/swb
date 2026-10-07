@@ -19,7 +19,8 @@
 //! - the border boxes of the descendants for which the scroll container is
 //!   in the chain of containing blocks, with their own overflow if it is
 //!   `visible` (limited to their padding box on axes with `overflow:
-//!   clip`), without margins or padding. Text counts with its rectangle.
+//!   clip`), without margins or padding; a transformed box and its
+//!   content with their transformed bounds. Text counts with its rectangle.
 //!   On a line where white space hangs at the end, text and inline boxes
 //!   count only up to the end of the line's content
 //!   ([`text_overflow_rect`], [`box_overflow_rect`]). Boxes with zero width
@@ -33,11 +34,12 @@
 //! Scroll offsets are engine state, keyed by the element of the scroll
 //! container ([`ScrollOffsets`]). [`ScrollState`] applies them during a
 //! walk of the fragment tree: the content of a scroll container moves by
-//! minus its offset, except the absolutely positioned descendants whose
-//! containing block is outside the scroll container, and fixed
-//! descendants. Paint, hit testing and the engine's element positions use
-//! the same rule. A positioned inline box around blocks is not an
-//! ancestor of the blocks in the fragment tree; the blocks carry
+//! minus its offset, except the absolutely positioned and fixed
+//! descendants whose containing block is outside the scroll container (a
+//! fixed box without a transformed ancestor never moves). Paint, hit
+//! testing and the engine's element positions use the same rule. A
+//! positioned inline box around blocks is not an ancestor of the blocks in
+//! the fragment tree; the blocks carry
 //! [`BoxFragment::in_positioned_inline`] instead.
 
 use std::collections::HashMap;
@@ -47,7 +49,10 @@ use swb_style::{ComputedStyle, Position, WhiteSpace};
 
 use crate::block::{ContainingBlock, margin_or_zero, relative_offset};
 use crate::fragment::{BoxContent, BoxFragment, Fragment, TextFragment};
-use crate::geom::{Point, Rect, Size};
+use crate::geom::{Matrix, Point, Rect, Size, clamp_length};
+use crate::positioned::{
+    is_absolute_containing_block, is_fixed_containing_block, transform_matrix,
+};
 
 /// The scroll offsets of scroll containers, supplied by the engine.
 pub trait ScrollOffsets {
@@ -99,19 +104,12 @@ pub(crate) fn is_scroll_container(style: &ComputedStyle) -> bool {
     style.overflow_x.is_scroll_container() || style.overflow_y.is_scroll_container()
 }
 
-/// True if a box with this style is the containing block of its
-/// absolutely positioned descendants (CSS 2.2 §10.1). Transforms also
-/// make one, when they are supported.
-fn contains_absolute(style: &ComputedStyle) -> bool {
-    style.position != Position::Static
-}
-
 /// True if the containing block of the absolutely positioned boxes in `b`
-/// (and of `b` itself) is `b` or a box below the parent of `b`: `b` is
-/// positioned, or it is a block inside a positioned inline box, whose
+/// is `b` or a box below the parent of `b`: `b` is positioned or
+/// transformed, or it is a block inside a positioned inline box, whose
 /// fragments are siblings of `b`.
 fn contains_absolute_box(b: &BoxFragment) -> bool {
-    contains_absolute(&b.style) || b.in_positioned_inline
+    is_absolute_containing_block(b) || b.in_positioned_inline
 }
 
 /// The scroll offsets that apply to the boxes during a walk of the
@@ -119,25 +117,27 @@ fn contains_absolute_box(b: &BoxFragment) -> bool {
 ///
 /// A scroll container moves the boxes for which it is in the chain of
 /// containing blocks. An absolutely positioned box whose containing block
-/// (the nearest positioned ancestor) is outside a scroll container does
-/// not move with it; a fixed box does not move with any element (its
-/// containing block is the viewport).
+/// (the nearest positioned or transformed ancestor) is outside a scroll
+/// container does not move with it; a fixed box moves only with the
+/// scroll containers above its containing block (the nearest transformed
+/// ancestor), so without one with no element.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ScrollState {
     /// The offsets of the scroll containers below the nearest positioned
-    /// ancestor (and not that ancestor itself): an absolutely positioned
-    /// box does not move with them.
+    /// or transformed ancestor (and not that ancestor itself): an
+    /// absolutely positioned box does not move with them.
     since_positioned: Point,
-    /// The offsets of all scroll containers above, since the nearest fixed
-    /// box: a fixed box does not move with them.
-    total: Point,
+    /// The offsets of the scroll containers below the nearest transformed
+    /// ancestor (all of them without one), since the nearest fixed box: a
+    /// fixed box does not move with them.
+    since_fixed: Point,
 }
 
 impl ScrollState {
     /// The state at the root of the fragment tree (also the `Default`).
     pub const DEFAULT: ScrollState = ScrollState {
         since_positioned: Point::new(0.0, 0.0),
-        total: Point::new(0.0, 0.0),
+        since_fixed: Point::new(0.0, 0.0),
     };
 
     /// The absolute position that box `b` is placed against: `origin` is
@@ -148,9 +148,7 @@ impl ScrollState {
     /// taken back.
     pub fn origin_of(&self, b: &BoxFragment, origin: Point) -> Point {
         match b.style.position {
-            Position::Fixed => origin + self.total,
-            // The positioned inline box around it is its containing block.
-            Position::Absolute if b.in_positioned_inline => origin,
+            Position::Fixed => origin + self.since_fixed,
             Position::Absolute => origin + self.since_positioned,
             _ => origin,
         }
@@ -169,20 +167,29 @@ impl ScrollState {
         let mut state = *self;
         match b.style.position {
             Position::Fixed => state = ScrollState::default(),
-            Position::Absolute if !b.in_positioned_inline => {
-                state.total = sub(state.total, state.since_positioned);
+            // The box itself did not move with the scroll containers below
+            // its containing block.
+            Position::Absolute => {
+                state.since_fixed = sub(state.since_fixed, state.since_positioned);
             }
             _ => {}
         }
         if contains_absolute_box(b) {
             state.since_positioned = Point::default();
         }
+        let fixed_containing_block = is_fixed_containing_block(b);
+        if fixed_containing_block {
+            state.since_fixed = Point::default();
+        }
         let offset = b.scroll_offset(offsets);
         if offset == Point::default() {
             return (border_origin, state);
         }
-        state.total = state.total + offset;
-        if !contains_absolute(&b.style) {
+        // Boxes whose containing block is `b` move with its content.
+        if !fixed_containing_block {
+            state.since_fixed = state.since_fixed + offset;
+        }
+        if !is_absolute_containing_block(b) {
             state.since_positioned = state.since_positioned + offset;
         }
         (sub(border_origin, offset), state)
@@ -193,6 +200,111 @@ fn sub(a: Point, b: Point) -> Point {
     Point::new(a.x - b.x, a.y - b.y)
 }
 
+/// The size of the scrollable area: the union of the viewport and all
+/// content that is not clipped, with transforms (as in Chromium). Also on
+/// an axis where the viewport's overflow is `hidden` (or `clip`, which
+/// applies as `hidden` to the viewport): scripts can scroll it there, the
+/// user cannot (as in Chromium). Boxes fixed to the viewport do not count,
+/// and an absolutely positioned or fixed box is clipped only by the boxes
+/// in its containing block chain. Content after the end of a line where
+/// white space hangs does not count ([`text_overflow_rect`],
+/// [`box_overflow_rect`]). Rectangles with zero width or height
+/// count with their position: Chromium counts the line boxes of zero-size
+/// inline content (but not a zero-size block, a deviation).
+pub(crate) fn viewport_scroll_size(root: Option<&BoxFragment>, viewport: Size) -> Size {
+    /// Whether the content of a box is clipped, and whether the content
+    /// of the containing blocks of its absolutely positioned and fixed
+    /// descendants is.
+    #[derive(Clone, Copy, Default)]
+    struct Clipped {
+        content: bool,
+        absolute: bool,
+        fixed: bool,
+    }
+    /// The state of the walk above a box.
+    #[derive(Clone, Copy)]
+    struct Above<'m> {
+        origin: Point,
+        matrix: &'m Matrix,
+        clipped: Clipped,
+        /// True if an ancestor is transformed (fixed boxes count).
+        transformed: bool,
+        /// The end of the line's content for inline content on a line with
+        /// hanging white space ([`child_limit`]).
+        limit: Option<f32>,
+    }
+    fn visit(b: &BoxFragment, above: Above<'_>, extent: &mut Rect) {
+        let rect = b.border_rect.translate(above.origin);
+        let state = above.clipped;
+        let clipped = match b.style.position {
+            Position::Fixed if !above.transformed => return,
+            Position::Fixed => state.fixed,
+            Position::Absolute => state.absolute,
+            _ => state.content,
+        };
+        let own = transform_matrix(b, rect).map(|t| above.matrix.multiply(&t));
+        let matrix = own.as_ref().unwrap_or(above.matrix);
+        if !clipped {
+            let area = box_overflow_rect(b, above.limit).translate(above.origin);
+            *extent = extent.union(&matrix.map_rect(&area));
+        }
+        let content = clipped || (b.style.overflow_x.clips() && b.style.overflow_y.clips());
+        let inner = Clipped {
+            content,
+            absolute: if is_absolute_containing_block(b) {
+                content
+            } else if b.in_positioned_inline {
+                // The containing block is the inline box around `b`.
+                clipped
+            } else {
+                state.absolute
+            },
+            fixed: if is_fixed_containing_block(b) {
+                content
+            } else {
+                state.fixed
+            },
+        };
+        let transformed = above.transformed || own.is_some();
+        // Nothing inside can extend the area: all content is clipped (fixed
+        // boxes without a transformed ancestor never count).
+        if inner.content && inner.absolute && (inner.fixed || !transformed) {
+            return;
+        }
+        let below = Above {
+            origin: rect.origin(),
+            matrix,
+            clipped: inner,
+            transformed,
+            limit: child_limit(b, above.limit),
+        };
+        for child in b.children.iter() {
+            match child {
+                Fragment::Box(child) => visit(child, below, extent),
+                Fragment::Text(t) if !content => {
+                    let text = text_overflow_rect(t, below.limit).translate(rect.origin());
+                    *extent = extent.union(&matrix.map_rect(&text));
+                }
+                Fragment::Text(_) => {}
+            }
+        }
+    }
+    let mut extent = Rect::new(0.0, 0.0, viewport.width, viewport.height);
+    if let Some(root) = root {
+        let above = Above {
+            origin: Point::default(),
+            matrix: &Matrix::IDENTITY,
+            clipped: Clipped::default(),
+            transformed: false,
+            limit: None,
+        };
+        visit(root, above, &mut extent);
+    }
+    let width = extent.right().max(viewport.width);
+    let height = extent.bottom().max(viewport.height);
+    Size::new(clamp_length(width), clamp_length(height))
+}
+
 /// The scrollable overflow rectangle of scroll container `b`, relative to
 /// its border-box origin (see the module documentation). `inflow` is the
 /// extent of its in-flow content from the content-box origin
@@ -201,7 +313,9 @@ pub(crate) fn scrollable_overflow(b: &BoxFragment, inflow: Size) -> Rect {
     let padding_box = b.scrollport();
     // The in-flow content starts at the content box; with the padding
     // around it, at the padding box.
-    let mut extent = Extent {
+    let extent = Extent {
+        left: padding_box.x,
+        top: padding_box.y,
         right: padding_box
             .right()
             .max(padding_box.x + b.padding.horizontal() + inflow.width),
@@ -209,9 +323,35 @@ pub(crate) fn scrollable_overflow(b: &BoxFragment, inflow: Size) -> Rect {
             .bottom()
             .max(padding_box.y + b.padding.vertical() + inflow.height),
     };
-    let positioned = contains_absolute(&b.style);
+    with_descendants(b, extent)
+}
+
+/// The scrollable overflow rectangle of scroll container `b` after its
+/// absolutely positioned descendants were laid out (they are placeholders
+/// when `block::layout_sized` computes the rectangle): its rectangle with
+/// the descendants added again.
+pub(crate) fn with_out_of_flow(b: &BoxFragment, overflow: Rect) -> Rect {
+    let extent = Extent {
+        left: overflow.x,
+        top: overflow.y,
+        right: overflow.right(),
+        bottom: overflow.bottom(),
+    };
+    with_descendants(b, extent)
+}
+
+/// `extent` with the contributions of the descendants of scroll container
+/// `b`, as a rectangle from its padding box.
+fn with_descendants(b: &BoxFragment, mut extent: Extent) -> Rect {
+    let padding_box = b.scrollport();
+    // Not `contains_absolute_box`: the positioned inline box around a
+    // scroll container is outside it.
+    let contains = Contains {
+        absolute: is_absolute_containing_block(b),
+        fixed: is_fixed_containing_block(b),
+    };
     for child in b.children.iter() {
-        add_contribution(child, Point::default(), positioned, None, &mut extent);
+        add_contribution(child, Point::default(), contains, None, &mut extent);
     }
     Rect::new(
         padding_box.x,
@@ -305,16 +445,21 @@ fn clamp_right(mut r: Rect, limit: Option<f32>) -> Rect {
     r
 }
 
-/// The right and bottom edges of the scrollable overflow. The left and top
-/// edges are always the padding box's.
+/// The edges of the scrollable overflow. The rectangle starts at the
+/// padding box; the left and top edges count for the transformed bounds
+/// of transformed boxes.
 #[derive(Clone, Copy, Debug)]
 struct Extent {
+    left: f32,
+    top: f32,
     right: f32,
     bottom: f32,
 }
 
 impl Extent {
     const NONE: Extent = Extent {
+        left: f32::INFINITY,
+        top: f32::INFINITY,
         right: f32::NEG_INFINITY,
         bottom: f32::NEG_INFINITY,
     };
@@ -323,27 +468,58 @@ impl Extent {
     /// in Chromium).
     fn add(&mut self, r: Rect) {
         if r.width > 0.0 && r.height > 0.0 {
+            self.left = self.left.min(r.x);
+            self.top = self.top.min(r.y);
             self.right = self.right.max(r.right());
             self.bottom = self.bottom.max(r.bottom());
         }
     }
+
+    /// Adds another extent.
+    fn add_extent(&mut self, other: Extent) {
+        self.left = self.left.min(other.left);
+        self.top = self.top.min(other.top);
+        self.right = self.right.max(other.right);
+        self.bottom = self.bottom.max(other.bottom);
+    }
+
+    /// The extent as a rectangle, if it is not empty.
+    fn rect(&self) -> Option<Rect> {
+        (self.right > self.left && self.bottom > self.top).then(|| {
+            Rect::new(
+                self.left,
+                self.top,
+                self.right - self.left,
+                self.bottom - self.top,
+            )
+        })
+    }
+}
+
+/// Whether a box between a scroll container (included) and a fragment
+/// contains absolutely positioned boxes, and whether one contains fixed
+/// boxes: such boxes count in the scroll container.
+#[derive(Clone, Copy, Debug)]
+struct Contains {
+    absolute: bool,
+    fixed: bool,
 }
 
 /// Adds what fragment `f` contributes to the scrollable overflow of a
 /// scroll container: its border box (or text rectangle) and, if it does
-/// not clip, the contributions of its children. `origin` is the position
+/// not clip, the contributions of its children; a transformed box with the
+/// transformed bounds of both (as in Chromium). `origin` is the position
 /// of its parent's border-box origin relative to the scroll container's;
-/// `positioned` is true if a box between the scroll container (included)
-/// and `f` contains absolutely positioned boxes; `limit` is the end of the
-/// line's content for inline content on a line with hanging white space
-/// ([`child_limit`]).
+/// `contains` says which positioned boxes have their containing block
+/// inside the scroll container; `limit` is the end of the line's content
+/// for inline content on a line with hanging white space ([`child_limit`]).
 ///
 /// The recursion depth is bounded by the box tree depth (see
 /// `box_tree.rs`).
 fn add_contribution(
     f: &Fragment,
     origin: Point,
-    positioned: bool,
+    contains: Contains,
     limit: Option<f32>,
     extent: &mut Extent,
 ) {
@@ -357,10 +533,32 @@ fn add_contribution(
     // A box whose containing block is outside the scroll container belongs
     // to the scrollable overflow of that containing block.
     match b.style.position {
-        Position::Fixed => return,
-        Position::Absolute if !positioned && !b.in_positioned_inline => return,
+        Position::Fixed if !contains.fixed => return,
+        Position::Absolute if !contains.absolute => return,
         _ => {}
     }
+    let rect = b.border_rect.translate(origin);
+    match transform_matrix(b, rect) {
+        Some(m) => {
+            let mut own = Extent::NONE;
+            add_box(b, origin, contains, limit, &mut own);
+            if let Some(r) = own.rect() {
+                extent.add(m.map_rect(&r));
+            }
+        }
+        None => add_box(b, origin, contains, limit, extent),
+    }
+}
+
+/// Adds the border box of `b` and the contributions of its children (see
+/// [`add_contribution`]), without its transform.
+fn add_box(
+    b: &BoxFragment,
+    origin: Point,
+    contains: Contains,
+    limit: Option<f32>,
+    extent: &mut Extent,
+) {
     let rect = b.border_rect.translate(origin);
     if b.content != BoxContent::GeometryOnly {
         extent.add(box_overflow_rect(b, limit).translate(origin));
@@ -370,22 +568,26 @@ fn add_contribution(
         return;
     }
     let mut inner = Extent::NONE;
-    let positioned = positioned || contains_absolute_box(b);
+    let contains = Contains {
+        absolute: contains.absolute || contains_absolute_box(b),
+        fixed: contains.fixed || is_fixed_containing_block(b),
+    };
     let limit = child_limit(b, limit);
     for child in b.children.iter() {
-        add_contribution(child, rect.origin(), positioned, limit, &mut inner);
+        add_contribution(child, rect.origin(), contains, limit, &mut inner);
     }
     // `overflow: clip` on one axis clips the content at the padding box on
     // that axis (`overflow-clip-margin` is not supported).
     let padding_box = b.padding_rect().translate(origin);
     if style.overflow_x.clips() {
+        inner.left = inner.left.max(padding_box.x);
         inner.right = inner.right.min(padding_box.right());
     }
     if style.overflow_y.clips() {
+        inner.top = inner.top.max(padding_box.y);
         inner.bottom = inner.bottom.min(padding_box.bottom());
     }
-    extent.right = extent.right.max(inner.right);
-    extent.bottom = extent.bottom.max(inner.bottom);
+    extent.add_extent(inner);
 }
 
 /// The in-flow extent of the children of a block container
@@ -709,7 +911,7 @@ mod tests {
         ));
         let mut offsets = HashMap::new();
         offsets.insert(l.node("s"), Point::new(0.0, 50.0));
-        let scrolled = l.tree.element_boxes_scrolled(&offsets);
+        let scrolled = l.tree.element_boxes_scrolled(&offsets, Point::default());
         let plain = l.tree.element_boxes();
         let dy = |id: &str| scrolled[&l.node(id)].y - plain[&l.node(id)].y;
         assert_eq!(dy("s"), 0.0);
@@ -727,7 +929,7 @@ mod tests {
         ));
         let mut offsets = HashMap::new();
         offsets.insert(l.node("s"), Point::new(500.0, 500.0));
-        let scrolled = l.tree.element_boxes_scrolled(&offsets);
+        let scrolled = l.tree.element_boxes_scrolled(&offsets, Point::default());
         assert_eq!(scrolled[&l.node("in")].y, -200.0);
         assert_eq!(scrolled[&l.node("in")].x, 0.0);
     }

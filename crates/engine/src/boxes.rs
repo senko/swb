@@ -11,9 +11,11 @@ use crate::Page;
 pub struct ElementBox {
     /// The element's local name, lowercase.
     pub tag: String,
-    /// The union of the element's border boxes in document coordinates
-    /// (with the scroll offsets of scroll containers applied, as Chromium's
-    /// `getClientRects`), or `None` if it generates no box.
+    /// The union of the element's border boxes as painted, in document
+    /// coordinates: with the scroll offsets of scroll containers, and with
+    /// transforms and fixed and sticky positioning at the current scroll
+    /// position (as Chromium's `getClientRects` plus the scroll offset), or
+    /// `None` if it generates no box.
     pub rect: Option<Rect>,
     /// Index of the parent element in the list, if any.
     pub parent: Option<usize>,
@@ -25,7 +27,7 @@ pub fn element_boxes(page: &Page) -> Vec<ElementBox> {
     let (Some(doc), Some(tree)) = (page.document(), page.fragments()) else {
         return Vec::new();
     };
-    let boxes = tree.element_boxes_scrolled(page.scroll_offsets());
+    let boxes = tree.element_boxes_scrolled(page.scroll_offsets(), page.scroll_position());
     let mut out = Vec::new();
     let mut index_of = std::collections::HashMap::new();
     for node in doc.descendants(NodeId::DOCUMENT) {

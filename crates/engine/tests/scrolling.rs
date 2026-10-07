@@ -745,8 +745,8 @@ fn scrolled_boxes_in_a_positioned_inline_box_are_clipped_by_the_scroll_container
 
 #[test]
 fn a_full_page_screenshot_keeps_the_scroll_offsets() {
-    // The full-page screenshot lays the page out for a taller viewport,
-    // where the `vh`-sized container has no scroll range.
+    // The full-page screenshot keeps the layout of the viewport (as in
+    // Chromium), where the `vh`-sized container has a scroll range.
     let site = Site::new("scroll-full-page-shot");
     let (mut page, _) = open(
         &site,

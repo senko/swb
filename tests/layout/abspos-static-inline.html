@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Static position of absolutely positioned boxes in inline content: an
+     originally inline-level box stays where it would be on the line; an
+     originally block-level one goes to the start of the next line. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: static position in inline content</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .cb { position: relative; width: 300px; margin-bottom: 10px; }
+  .abs { position: absolute; width: 20px; height: 10px; background: #ccc; }
+  .tall { line-height: 40px; }
+</style>
+</head>
+<body>
+  <div class="cb">Text <span class="abs" id="i1"></span>after the span</div>
+  <div class="cb">Text <div class="abs" id="b1"></div>after the div</div>
+  <div class="cb tall">Tall <span class="abs" id="i2"></span>line <span style="font-size: 30px">big</span></div>
+  <div class="cb" style="text-align: center">Centered <span class="abs" id="i3"></span>text</div>
+  <div class="cb">Before <span style="padding-left: 15px; border-left: 3px solid">in <span class="abs" id="i4"></span>box</span></div>
+  <div class="cb">Line one<br><span class="abs" id="i5"></span><br>three</div>
+  <div class="cb"><div class="abs" id="b2"></div>Block first</div>
+  <div class="cb">A long line of text that wraps <span class="abs" id="i6"></span>around the end of the line box here</div>
+  <div class="cb">Inline block <span class="abs" id="ib1" style="display: inline-block; top: 2px">ib</span> end</div>
+</body>
+</html>

@@ -298,8 +298,8 @@ impl Page {
         else {
             return false;
         };
-        let chain = self.scrollers.chain(doc, styles, node, false);
-        let ports = self.scrollers.ports(tree, &chain);
+        let (chain, fixed) = self.scrollers.chain_and_fixed(doc, styles, node, false);
+        let ports = self.scrollers.ports(tree, &chain, self.scroll);
         let mut rect = rect;
         let mut changed = false;
         for scroller in chain {
@@ -321,6 +321,11 @@ impl Page {
                 rect = rect.translate(Point::new(offset.x - new.x, offset.y - new.y));
             }
             rect = rect.intersection(&port).unwrap_or(rect);
+        }
+        // A scroll of the viewport does not move a box fixed to it (as in
+        // Chromium, also when it is partly outside the viewport).
+        if fixed {
+            return changed;
         }
         let before = self.scroll;
         let (scroll, viewport) = (self.scroll, self.viewport);
@@ -345,7 +350,7 @@ impl Page {
             self.fragments.as_ref()?,
         );
         let chain = self.scrollers.chain(doc, styles, node, false);
-        let ports = self.scrollers.ports(tree, &chain);
+        let ports = self.scrollers.ports(tree, &chain, self.scroll);
         let mut clips = chain.iter().filter_map(|scroller| ports.get(scroller));
         let first = *clips.next()?;
         Some(clips.try_fold(first, |clip, port| clip.intersection(port)))
@@ -393,7 +398,8 @@ impl Page {
         let decoded = percent_decode(fragment);
         match indicated(doc, fragment) {
             Some(target) => {
-                let Some((node, rect)) = first_rendered(doc, tree, self.scroll_offsets(), target)
+                let Some((node, rect)) =
+                    first_rendered(doc, tree, self.scroll_offsets(), self.scroll, target)
                 else {
                     return false;
                 };
@@ -431,27 +437,30 @@ fn indicated_element(doc: &Document, name: &str) -> Option<NodeId> {
     })
 }
 
-/// The first fragment of `node` (document coordinates, scroll offsets
-/// applied) and the node it belongs to. A node without fragments (for
+/// The first fragment of `node` as painted at the viewport scroll offset
+/// `scroll` (document coordinates, with the scroll offsets of scroll
+/// containers, transforms, and fixed and sticky positioning) and the node
+/// it belongs to. A node without fragments (for
 /// example an empty `<a name>`) uses the first fragment that follows it in
 /// tree order.
 fn first_rendered(
     doc: &Document,
     tree: &FragmentTree,
     offsets: &dyn ScrollOffsets,
+    scroll: Point,
     node: NodeId,
 ) -> Option<(NodeId, Rect)> {
     let mut first: HashMap<NodeId, Rect> = HashMap::new();
-    tree.walk_scrolled(offsets, |fragment, origin| {
-        let (owner, rect) = match fragment {
+    tree.walk_painted(offsets, scroll, |fragment, rect, matrix| {
+        let owner = match fragment {
             FragmentRef::Box(b) if b.pseudo.is_none() => match b.node {
-                Some(owner) => (owner, b.border_rect.translate(origin)),
+                Some(owner) => owner,
                 None => return,
             },
-            FragmentRef::Text(t) => (t.node, t.rect.translate(origin)),
+            FragmentRef::Text(t) => t.node,
             FragmentRef::Box(_) => return,
         };
-        first.entry(owner).or_insert(rect);
+        first.entry(owner).or_insert_with(|| matrix.map_rect(&rect));
     });
     doc.descendants(NodeId::DOCUMENT)
         .skip_while(|&n| n != node)

@@ -74,7 +74,7 @@ impl Page {
         let doc = self.document.as_ref()?;
         let list = self.display_list.as_ref()?;
         let point = Point::new(x + self.scroll.x, y + self.scroll.y);
-        hit_test::hit_test(doc, list, point, self.base_url.as_ref())
+        hit_test::hit_test(doc, list, point, self.scroll, self.base_url.as_ref())
     }
 
     /// The URL of the link under the mouse pointer.

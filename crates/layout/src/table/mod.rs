@@ -107,6 +107,24 @@ pub(crate) struct CellBox {
     nowrap: bool,
 }
 
+impl TableBox {
+    /// Calls `f` for the boxes with flow content in the table: the
+    /// captions and the cells.
+    pub(crate) fn for_each_box<'t>(&'t self, mut f: impl FnMut(&'t IndependentBox)) {
+        for caption in &self.captions {
+            f(caption);
+        }
+        for cell in self
+            .sections
+            .iter()
+            .flat_map(|s| &s.rows)
+            .flat_map(|r| &r.cells)
+        {
+            f(&cell.inner);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::fragment::CollapsedEdge;

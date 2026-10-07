@@ -16,6 +16,7 @@ pub(crate) mod longhand;
 pub(crate) mod mask;
 pub(crate) mod shorthand;
 pub(crate) mod specified;
+pub(crate) mod transform;
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -266,6 +267,8 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-mask-repeat" => L::MaskRepeat,
         "overflow-inline" => L::OverflowX,
         "overflow-block" => L::OverflowY,
+        "-webkit-transform" => L::Transform,
+        "-webkit-transform-origin" => L::TransformOrigin,
         _ => return None,
     })
 }
@@ -1185,6 +1188,44 @@ mod tests {
         assert!(!valid("grid-row", "span 0"));
         assert!(!valid("grid-template-areas", "'a b' 'a a'"));
         assert!(valid("grid", "none"));
+    }
+
+    #[test]
+    fn transforms_and_clip() {
+        let s = style(
+            "font-size: 10px; transform: translate(1em, 50%) rotate(0.25turn); \
+             transform-origin: right 2em; clip: rect(1em, auto, 2px, 0)",
+        );
+        assert_eq!(
+            s.transform.to_vec(),
+            vec![
+                TransformFunction::Translate(
+                    LengthPercentage::Px(10.0),
+                    LengthPercentage::Percent(0.5)
+                ),
+                TransformFunction::Rotate(90.0),
+            ]
+        );
+        assert_eq!(
+            s.transform_origin,
+            TransformOrigin {
+                x: LengthPercentage::Percent(1.0),
+                y: LengthPercentage::Px(20.0)
+            }
+        );
+        assert_eq!(
+            s.clip,
+            Some(ClipRect {
+                top: Some(10.0),
+                right: None,
+                bottom: Some(2.0),
+                left: Some(0.0)
+            })
+        );
+        assert!(style("-webkit-transform: scale(2)").has_transform());
+        assert!(!style("transform: none").has_transform());
+        assert!(style("transform: translateZ(0)").has_transform());
+        assert!(!valid("transform", "rotateY(10deg)"));
     }
 
     #[test]

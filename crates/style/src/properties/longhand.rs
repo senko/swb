@@ -16,6 +16,7 @@ use super::specified::{
     SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize,
     SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
+use super::transform;
 use crate::parse::color::parse_color;
 use crate::parse::grid;
 use crate::parse::image::{SpecifiedImage, parse_image};
@@ -129,6 +130,9 @@ pub(crate) fn parse_longhand(
             L::Bottom => V::Bottom(lp_or_auto(p, quirky)?),
             L::Left => V::Left(lp_or_auto(p, quirky)?),
             L::ZIndex => V::ZIndex(parse_z_index(p)?),
+            L::Transform => V::Transform(transform::parse_transform(p)?),
+            L::TransformOrigin => V::TransformOrigin(transform::parse_transform_origin(p)?),
+            L::Clip => V::Clip(transform::parse_clip(p)?),
             L::Width => V::Width(parse_size(p, quirky, false)?),
             L::Height => V::Height(parse_size(p, quirky, false)?),
             L::MinWidth => V::MinWidth(parse_size(p, quirky, false)?),

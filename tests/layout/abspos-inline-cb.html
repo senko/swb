@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- A positioned inline box is the containing block of its absolutely
+     positioned descendants: the padding boxes of its first and last
+     fragments (CSS 2.2 §10.1, item 4). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: inline containing block</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .rel { position: relative; padding: 2px 4px; border: 1px solid; }
+  .abs { position: absolute; width: 10px; height: 10px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div style="width: 300px">One line <span class="rel" id="r1">relative <span class="abs" id="a1" style="top: 0; left: 0"></span><span class="abs" id="a2" style="bottom: 0; right: 0"></span></span> end</div>
+  <div style="width: 200px; margin-top: 20px">Two lines with <span class="rel" id="r2">a relative span that wraps <span class="abs" id="a3" style="top: 0; left: 0"></span><span class="abs" id="a4" style="bottom: 0; right: 0"></span>here</span></div>
+  <div style="width: 300px; margin-top: 20px">Inset <span class="rel" id="r3">box<span class="abs" id="a5" style="inset: 0; width: auto; height: auto"></span></span></div>
+  <div style="width: 300px; margin-top: 20px"><span class="rel" id="r4" style="margin-left: 30px; padding: 4px; border: 2px solid"><span class="abs" id="a6" style="inset: 0; width: auto; height: auto"></span>first child</span></div>
+</body>
+</html>

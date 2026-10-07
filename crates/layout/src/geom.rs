@@ -139,6 +139,154 @@ impl Rect {
     }
 }
 
+/// A 2D affine transform. It maps (x, y) to (a·x + c·y + e, b·x + d·y +
+/// f), as CSS `matrix(a, b, c, d, e, f)`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Matrix {
+    /// Horizontal scale.
+    pub a: f32,
+    /// Vertical shear.
+    pub b: f32,
+    /// Horizontal shear.
+    pub c: f32,
+    /// Vertical scale.
+    pub d: f32,
+    /// Horizontal translation.
+    pub e: f32,
+    /// Vertical translation.
+    pub f: f32,
+}
+
+// The names of the entries are those of CSS `matrix(a, b, c, d, e, f)`.
+#[allow(clippy::many_single_char_names)]
+impl Matrix {
+    /// The identity.
+    pub const IDENTITY: Matrix = Matrix::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+
+    /// Creates a matrix.
+    pub const fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
+        Matrix { a, b, c, d, e, f }
+    }
+
+    /// A translation.
+    pub const fn translate(x: f32, y: f32) -> Self {
+        Matrix::new(1.0, 0.0, 0.0, 1.0, x, y)
+    }
+
+    /// The product `self × other`: `other` is applied first.
+    #[must_use]
+    pub fn multiply(&self, other: &Matrix) -> Matrix {
+        // f64, so that large factors do not lose the small ones.
+        let (a, b, c, d, e, f) = (
+            f64::from(self.a),
+            f64::from(self.b),
+            f64::from(self.c),
+            f64::from(self.d),
+            f64::from(self.e),
+            f64::from(self.f),
+        );
+        let (oa, ob, oc, od, oe, of) = (
+            f64::from(other.a),
+            f64::from(other.b),
+            f64::from(other.c),
+            f64::from(other.d),
+            f64::from(other.e),
+            f64::from(other.f),
+        );
+        Matrix::new(
+            (a * oa + c * ob) as f32,
+            (b * oa + d * ob) as f32,
+            (a * oc + c * od) as f32,
+            (b * oc + d * od) as f32,
+            (a * oe + c * of + e) as f32,
+            (b * oe + d * of + f) as f32,
+        )
+    }
+
+    /// The image of a point.
+    pub fn apply(&self, p: Point) -> Point {
+        Point::new(
+            self.a * p.x + self.c * p.y + self.e,
+            self.b * p.x + self.d * p.y + self.f,
+        )
+    }
+
+    /// The bounding box of the image of a rectangle.
+    pub fn map_rect(&self, r: &Rect) -> Rect {
+        if self.is_translation() {
+            return r.translate(Point::new(self.e, self.f));
+        }
+        let corners = [
+            self.apply(Point::new(r.x, r.y)),
+            self.apply(Point::new(r.right(), r.y)),
+            self.apply(Point::new(r.x, r.bottom())),
+            self.apply(Point::new(r.right(), r.bottom())),
+        ];
+        let (mut x0, mut y0) = (corners[0].x, corners[0].y);
+        let (mut x1, mut y1) = (x0, y0);
+        for p in &corners[1..] {
+            x0 = x0.min(p.x);
+            y0 = y0.min(p.y);
+            x1 = x1.max(p.x);
+            y1 = y1.max(p.y);
+        }
+        Rect::new(x0, y0, x1 - x0, y1 - y0)
+    }
+
+    /// The inverse, if the matrix is invertible and its entries are
+    /// finite.
+    pub fn invert(&self) -> Option<Matrix> {
+        let (a, b, c, d, e, f) = (
+            f64::from(self.a),
+            f64::from(self.b),
+            f64::from(self.c),
+            f64::from(self.d),
+            f64::from(self.e),
+            f64::from(self.f),
+        );
+        let det = a * d - b * c;
+        if !self.is_finite() || det.abs() < 1e-12 {
+            return None;
+        }
+        let inv = Matrix::new(
+            (d / det) as f32,
+            (-b / det) as f32,
+            (-c / det) as f32,
+            (a / det) as f32,
+            ((c * f - d * e) / det) as f32,
+            ((b * e - a * f) / det) as f32,
+        );
+        inv.is_finite().then_some(inv)
+    }
+
+    /// True if the matrix only translates.
+    pub fn is_translation(&self) -> bool {
+        self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0
+    }
+
+    /// True if all entries are finite.
+    pub fn is_finite(&self) -> bool {
+        [self.a, self.b, self.c, self.d, self.e, self.f]
+            .iter()
+            .all(|v| v.is_finite())
+    }
+
+    /// The largest factor by which the matrix stretches a length: the
+    /// largest singular value of its linear part.
+    pub fn max_scale(&self) -> f32 {
+        let (a, b, c, d) = (
+            f64::from(self.a),
+            f64::from(self.b),
+            f64::from(self.c),
+            f64::from(self.d),
+        );
+        let s = a * a + b * b + c * c + d * d;
+        let det = a * d - b * c;
+        let root = (s * s - 4.0 * det * det).max(0.0).sqrt();
+        f64::midpoint(s, root).sqrt() as f32
+    }
+}
+
 /// Widths of the four edges of a box (margins, borders or padding).
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Edges {
@@ -207,5 +355,29 @@ mod tests {
         // Insets larger than the rectangle give zero size.
         let all = Edges::new(6.0, 6.0, 6.0, 6.0);
         assert_eq!(a.inset(&all), Rect::new(6.0, 6.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn matrix_ops() {
+        let rotate = Matrix::new(0.0, 1.0, -1.0, 0.0, 0.0, 0.0); // 90° clockwise
+        let t = Matrix::translate(10.0, 0.0);
+        // Translate first, then rotate.
+        let m = rotate.multiply(&t);
+        assert_eq!(m.apply(Point::new(0.0, 0.0)), Point::new(0.0, 10.0));
+        let inv = m.invert().expect("invertible");
+        assert_eq!(inv.apply(Point::new(0.0, 10.0)), Point::new(0.0, 0.0));
+        assert_eq!(
+            rotate.map_rect(&Rect::new(0.0, 0.0, 10.0, 20.0)),
+            Rect::new(-20.0, 0.0, 20.0, 10.0)
+        );
+        assert!(Matrix::new(0.0, 0.0, 0.0, 0.0, 1.0, 1.0).invert().is_none());
+        assert!(
+            Matrix::new(f32::INFINITY, 0.0, 0.0, 1.0, 0.0, 0.0)
+                .invert()
+                .is_none()
+        );
+        assert!((Matrix::new(2.0, 0.0, 0.0, 0.5, 0.0, 0.0).max_scale() - 2.0).abs() < 1e-6);
+        assert!((rotate.max_scale() - 1.0).abs() < 1e-6);
+        assert!(t.is_translation() && !rotate.is_translation());
     }
 }

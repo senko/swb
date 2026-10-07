@@ -360,21 +360,6 @@ impl Forms {
         self.controls.get(&node)
     }
 
-    /// The scroll offsets of the text of all controls (to restore them
-    /// after a temporary layout).
-    pub(crate) fn text_scroll(&self) -> Vec<(NodeId, Point)> {
-        self.controls.iter().map(|(&n, s)| (n, s.scroll)).collect()
-    }
-
-    /// Restores scroll offsets from [`Forms::text_scroll`].
-    pub(crate) fn restore_text_scroll(&mut self, saved: &[(NodeId, Point)]) {
-        for (node, scroll) in saved {
-            if let Some(state) = self.controls.get_mut(node) {
-                state.scroll = *scroll;
-            }
-        }
-    }
-
     /// The state of control `node`, for changing it.
     pub(crate) fn get_mut(&mut self, node: NodeId) -> Option<&mut ControlState> {
         self.controls.get_mut(&node)
@@ -798,20 +783,6 @@ mod tests {
 
     fn id(doc: &Document, id: &str) -> NodeId {
         doc.element_by_id(id).expect("element exists")
-    }
-
-    #[test]
-    fn text_scroll_offsets_are_saved_and_restored() {
-        let doc = parse_html("<textarea id=t></textarea><input id=i>");
-        let mut forms = Forms::new(&doc);
-        let (t, i) = (id(&doc, "t"), id(&doc, "i"));
-        forms.get_mut(t).expect("a control").scroll = Point::new(0.0, 40.0);
-        let saved = forms.text_scroll();
-        forms.get_mut(t).expect("a control").scroll = Point::default();
-        forms.get_mut(i).expect("a control").scroll = Point::new(7.0, 0.0);
-        forms.restore_text_scroll(&saved);
-        assert_eq!(forms.get(t).map(|s| s.scroll), Some(Point::new(0.0, 40.0)));
-        assert_eq!(forms.get(i).map(|s| s.scroll), Some(Point::default()));
     }
 
     #[test]

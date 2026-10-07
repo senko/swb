@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned replaced elements (CSS 2.2 §10.3.8, §10.6.5):
+     natural sizes, insets, auto margins, and stretched sizes. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: replaced elements</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .cb { position: relative; width: 400px; height: 200px; border: 1px solid; }
+  img { position: absolute; }
+</style>
+</head>
+<body>
+  <div class="cb">
+    <img id="i1" src="svg/width-height.svg" style="top: 10px; left: 10px">
+    <img id="i2" src="svg/width-height.svg" style="bottom: 0; right: 0">
+    <img id="i3" src="svg/width-height.svg" style="left: 0; right: 0; top: 50px; margin: 0 auto">
+    <img id="i4" src="svg/viewbox.svg" style="left: 0; right: 0; top: 90px; width: 100px">
+    <img id="i5" src="svg/width-height.svg" style="top: 0; bottom: 0; left: 200px; margin: auto 0">
+    <img id="i6" src="svg/width-height.svg" style="left: 300px; top: 120px; height: 50%">
+  </div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- 2D transforms (CSS Transforms 1): element boxes are the bounding boxes
+     of the transformed border boxes; layout does not change; transforms of
+     ancestors apply to descendants. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Transforms</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .box { width: 100px; height: 40px; background: #ccc; margin: 30px 50px; }
+</style>
+</head>
+<body>
+  <div class="box" id="t1" style="transform: translate(10px, 5px)"></div>
+  <div class="box" id="t2" style="transform: translateY(-50%) translateX(25%)"></div>
+  <div class="box" id="t3" style="transform: rotate(90deg)"></div>
+  <div class="box" id="t4" style="transform: scale(2, 0.5)"></div>
+  <div class="box" id="t5" style="transform: scale(0.5); transform-origin: 0 0"></div>
+  <div class="box" id="t6" style="transform: rotate(45deg); transform-origin: left top"></div>
+  <div class="box" id="t7" style="transform: skewX(30deg)"></div>
+  <div class="box" id="t8" style="transform: matrix(1, 0, 0, 1, 20, -10)">
+    <div id="t8c" style="width: 20px; height: 10px; transform: translate(5px, 5px) rotate(180deg)"></div>
+  </div>
+  <div class="box" id="t9" style="transform: rotate(30deg) scale(1.5)">
+    <div id="t9a" style="position: absolute; top: 0; left: 0; width: 10px; height: 10px"></div>
+  </div>
+  <div id="t10" style="display: inline-block; width: 30px; height: 30px; transform: translate(100px)"></div>
+  <span id="t11" style="transform: translate(100px)">inline boxes are not transformed</span>
+</body>
+</html>

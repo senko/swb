@@ -2,7 +2,8 @@
 //!
 //! The display list has hit regions in paint order (see
 //! `swb_paint::DisplayList::hit_test`), so the node found is the one that
-//! is painted on top, with positioned boxes, z-index and overflow clips
+//! is painted on top, with positioned boxes, z-index, overflow clips,
+//! transforms, and fixed and sticky boxes at the current scroll offset
 //! taken into account.
 
 use swb_dom::{Document, NodeId, local_name};
@@ -22,14 +23,16 @@ pub struct HitResult {
     pub link: Option<Url>,
 }
 
-/// Finds the topmost node at `point` (document coordinates, CSS px).
+/// Finds the topmost node at `point` (document coordinates, CSS px) when
+/// the viewport is scrolled to `scroll`.
 pub(crate) fn hit_test(
     doc: &Document,
     list: &DisplayList,
     point: Point,
+    scroll: Point,
     base_url: Option<&Url>,
 ) -> Option<HitResult> {
-    let node = list.hit_test(point)?;
+    let node = list.hit_test(point, scroll)?;
     let link = base_url.and_then(|base| link_around(doc, node, base));
     Some(HitResult {
         node,

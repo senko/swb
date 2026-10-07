@@ -199,6 +199,22 @@ impl InlineFormattingContext {
         }
         true
     }
+
+    /// True if an absolutely positioned box is inside an inline box (which
+    /// can be its containing block, so the content stays inline even if it
+    /// makes no line box).
+    pub(crate) fn has_absolute_in_inline_box(&self) -> bool {
+        let mut depth = 0_usize;
+        for item in &self.items {
+            match item {
+                InlineItem::StartBox { .. } => depth += 1,
+                InlineItem::EndBox { .. } => depth = depth.saturating_sub(1),
+                InlineItem::AbsolutelyPositioned(_) if depth > 0 => return true,
+                _ => {}
+            }
+        }
+        false
+    }
 }
 
 /// True if a margin, border or padding on the inline-start (left) side of
@@ -822,10 +838,13 @@ impl ContainerBuilder {
         }
         if style.is_absolutely_positioned() {
             let inner = build_independent(ctx, base, state);
-            if self.inline.has_content() {
+            // Inside an inline box, the box stays inline: the inline box
+            // can be its containing block, and the box is then in its
+            // fragments (it needs no `in_positioned_inline` mark).
+            if self.inline.has_content() || !self.open_inline_boxes.is_empty() {
                 self.inline.push(RawItem::AbsolutelyPositioned(inner));
             } else {
-                self.push_out_of_flow(BlockLevelBox::AbsolutelyPositioned(inner));
+                self.blocks.push(BlockLevelBox::AbsolutelyPositioned(inner));
             }
             return;
         }
@@ -877,9 +896,9 @@ impl ContainerBuilder {
             .any(|b| b.style.position != swb_style::Position::Static)
     }
 
-    /// Adds a float or an absolutely positioned box at block level. Inside
-    /// a positioned inline box, it gets the mark of that box (it needs no
-    /// inline box wrappers: out-of-flow boxes do not split inline boxes).
+    /// Adds a float at block level. Inside a positioned inline box, it gets
+    /// the mark of that box (it needs no inline box wrappers: out-of-flow
+    /// boxes do not split inline boxes).
     fn push_out_of_flow(&mut self, block: BlockLevelBox) {
         if self.in_positioned_inline() {
             self.blocks
@@ -927,7 +946,7 @@ impl ContainerBuilder {
     fn flush_inline(&mut self, state: &mut BuildState) {
         let inline = std::mem::take(&mut self.inline);
         let ifc = inline.finish(state);
-        if ifc.is_empty() {
+        if ifc.is_empty() && !ifc.has_absolute_in_inline_box() {
             // Out-of-flow boxes inside whitespace-only inline content still
             // need a place in the tree.
             for item in ifc.items {

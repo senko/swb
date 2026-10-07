@@ -223,8 +223,14 @@ impl Page {
 
     /// Navigates to `url`, as if the user typed it (the request has no
     /// initiator). The new history entry is added when the document
-    /// arrives.
+    /// arrives. A URL with a fragment that equals the document's apart
+    /// from the fragment scrolls to the fragment instead of loading (HTML
+    /// "navigate to a fragment", as for links), unless a load is in
+    /// progress or the page shows an error.
     pub fn navigate(&mut self, url: Url) {
+        if self.navigate_to_fragment(&url) {
+            return;
+        }
         self.start_navigation(url, None, HistoryHandling::Push, None, None);
     }
 
@@ -251,30 +257,44 @@ impl Page {
             log::warn!("not allowed to load local resource {link}");
             return false;
         }
-        if let Some(fragment) = link.fragment()
-            && self.pending.is_none()
-            && self.is_same_document(&link)
-        {
-            let fragment = fragment.to_owned();
-            self.save_scroll();
-            // The entry shows the same document: it keeps the POST body and
-            // the initiator of the document's entry, because a reload of it
-            // requests that document again.
-            let current = self.history.current().map(|e| &e.commit);
-            self.history.push(Commit {
-                url: link.clone(),
-                post: current.and_then(|c| c.post.clone()),
-                initiator: current.and_then(|c| c.initiator.clone()),
-                document: self.document_number,
-            });
-            let target = self.set_target(Some(&fragment));
-            self.set_document_url(link);
-            self.scroll_to_fragment(&fragment);
-            self.focus_fragment_target(target);
+        if self.navigate_to_fragment(&link) {
             return true;
         }
         let initiator = self.document_origin();
         self.start_navigation(link, None, HistoryHandling::Push, None, initiator);
+        true
+    }
+
+    /// If `url` is the current document with a fragment (and nothing is
+    /// loading), scrolls to the fragment, adds a history entry and returns
+    /// true (HTML "navigate to a fragment",
+    /// <https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-fragid>).
+    /// An error page is not the document of its URL: a navigation loads it
+    /// again.
+    fn navigate_to_fragment(&mut self, url: &Url) -> bool {
+        let Some(fragment) = url.fragment() else {
+            return false;
+        };
+        if self.pending.is_some() || self.state == LoadState::Failed || !self.is_same_document(url)
+        {
+            return false;
+        }
+        let fragment = fragment.to_owned();
+        self.save_scroll();
+        // The entry shows the same document: it keeps the POST body and the
+        // initiator of the document's entry, because a reload of it
+        // requests that document again.
+        let current = self.history.current().map(|e| &e.commit);
+        self.history.push(Commit {
+            url: url.clone(),
+            post: current.and_then(|c| c.post.clone()),
+            initiator: current.and_then(|c| c.initiator.clone()),
+            document: self.document_number,
+        });
+        let target = self.set_target(Some(&fragment));
+        self.set_document_url(url.clone());
+        self.scroll_to_fragment(&fragment);
+        self.focus_fragment_target(target);
         true
     }
 
@@ -610,14 +630,16 @@ impl Page {
         swb_style::query_selector_all(self.document.as_ref()?, selectors, &self.input.states)
     }
 
-    /// The union of the border boxes of an element in document coordinates
-    /// (CSS px), with the scroll offsets of scroll containers applied, if
-    /// it has a box.
+    /// The union of the border boxes of an element as painted, in document
+    /// coordinates (CSS px), if it has a box: with the scroll offsets of
+    /// scroll containers, and with transforms and fixed and sticky
+    /// positioning at the current scroll position (as
+    /// `getBoundingClientRect()` plus the scroll offset).
     pub fn element_box(&mut self, node: NodeId) -> Option<swb_layout::Rect> {
         self.update_layout();
         self.fragments
             .as_ref()?
-            .element_boxes_scrolled(self.scrollers.offsets())
+            .element_boxes_scrolled(self.scrollers.offsets(), self.scroll)
             .get(&node)
             .copied()
     }

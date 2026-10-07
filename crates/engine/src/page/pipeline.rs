@@ -14,6 +14,17 @@ use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
 use crate::forms::LayoutControls;
 use crate::selection::Highlight;
 
+/// What [`Page::render_in_strips`] draws.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Rendering {
+    /// The viewport at the page's scroll offset, with the scroll
+    /// indicators of the viewport.
+    Viewport,
+    /// The page from its top-left corner, without the viewport's scroll
+    /// indicators (full-page screenshots).
+    Page,
+}
+
 impl Page {
     /// Drops the parsed stylesheets, the styles and everything after them.
     pub(super) fn invalidate_style(&mut self) {
@@ -196,18 +207,25 @@ impl Page {
     /// should be the viewport size times the scale factor.
     pub fn render(&mut self, target: &mut Pixmap) {
         let rows = target.height();
-        self.render_in_strips(target, rows);
+        self.render_in_strips(target, rows, Rendering::Viewport);
     }
 
-    /// [`Page::render`] in strips of `strip_rows` device rows, each with the
-    /// rasterizer's budgets of a viewport
-    /// ([`swb_paint::rasterize_in_strips`]).
-    fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32) {
+    /// Renders `what` into `target` in strips of `strip_rows` device rows,
+    /// each with the rasterizer's budgets of a viewport
+    /// ([`swb_paint::rasterize_in_strips`]). Fixed and sticky boxes are
+    /// where they are at the page's scroll offset.
+    fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32, what: Rendering) {
         swb_paint::fill(target, swb_style::Rgba::WHITE);
         self.update_display_list();
+        // The document point at the top-left corner of the target.
+        let origin = match what {
+            Rendering::Viewport => self.scroll,
+            Rendering::Page => Point::default(),
+        };
         if let Some(list) = &self.display_list {
             let params = RasterParams {
-                scroll: self.scroll,
+                scroll: origin,
+                viewport_scroll: self.scroll,
                 scale: self.scale,
             };
             let started = Instant::now();
@@ -221,7 +239,8 @@ impl Page {
             );
             self.timings.raster = started.elapsed();
         }
-        if self.scroll_indicators {
+        // The viewport indicators belong on a rendering of the viewport.
+        if self.scroll_indicators && what == Rendering::Viewport {
             self.render_viewport_indicators(target);
         }
     }
@@ -242,6 +261,7 @@ impl Page {
         }
         let params = RasterParams {
             scroll: Point::default(),
+            viewport_scroll: Point::default(),
             scale: self.scale,
         };
         let list = DisplayList { items };
@@ -261,10 +281,13 @@ impl Page {
     }
 
     /// Renders a screenshot: the viewport, or with `full_page` the whole
-    /// content height (limited to [`MAX_SCREENSHOT_PIXELS`] device pixels).
-    /// A full page is rasterized in equal strips of at most the viewport's
-    /// height or [`MIN_STRIP_PIXELS`], whichever is more: the rasterizer's
-    /// budgets (group layers, masks) apply to each strip as to a window.
+    /// content height (limited to [`MAX_SCREENSHOT_PIXELS`] device pixels)
+    /// from the top of the page, with the layout of the viewport and fixed
+    /// and sticky boxes where they are at the current scroll offset (as
+    /// Chromium's full-page screenshots). A full page is rasterized in equal strips of
+    /// at most the viewport's height or [`MIN_STRIP_PIXELS`], whichever is
+    /// more: the rasterizer's budgets (group layers, masks, transform
+    /// layers) apply to each strip as to a window.
     pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
         let (viewport, scale) = (self.viewport, self.scale);
         let size = if full_page {
@@ -291,22 +314,12 @@ impl Page {
         if size == viewport {
             self.render(&mut pixmap);
         } else {
-            // The layout for the temporary viewport clamps the scroll
-            // offsets of scroll containers to its ranges (`vh` sizes
-            // change) and moves the text in form controls; the real ones
-            // come back with the real viewport.
-            let scroll = self.scroll;
+            // As in Chromium: the layout keeps the viewport, and the page is
+            // drawn from its top with fixed and sticky boxes where they are
+            // at the current scroll offset; the viewport does not clip them.
             let min_rows = (MIN_STRIP_PIXELS / f64::from(w)).ceil() as f32;
             let strip_rows = (viewport.height * scale).round().max(min_rows).max(1.0) as u32;
-            let scrollers = self.scrollers.clone();
-            let text_scroll = self.forms.text_scroll();
-            self.set_viewport(size, scale);
-            self.scroll = Point::default();
-            self.render_in_strips(&mut pixmap, strip_rows);
-            self.set_viewport(viewport, scale);
-            self.scroll = scroll;
-            self.scrollers = scrollers;
-            self.forms.restore_text_scroll(&text_scroll);
+            self.render_in_strips(&mut pixmap, strip_rows, Rendering::Page);
         }
         Ok(pixmap)
     }

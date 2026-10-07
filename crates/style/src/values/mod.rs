@@ -6,6 +6,7 @@ mod grid;
 mod keywords;
 mod length;
 mod mask;
+mod transform;
 
 use std::sync::Arc;
 
@@ -24,6 +25,7 @@ pub use length::{
     LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
 };
 pub use mask::{CompositeOperator, MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode};
+pub use transform::{ClipRect, TransformFunction, TransformOrigin};
 
 /// A generic font family keyword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

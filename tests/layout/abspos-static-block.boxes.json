@@ -1,0 +1,31 @@
+{
+  "url": "tests/layout/abspos-static-block.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 309.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 281.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 312.0, 97.0], "parent": 5},
+    {"tag": "div", "rect": [14.0, 29.0, 300.0, 20.0], "parent": 6},
+    {"tag": "div", "rect": [14.0, 64.0, 30.0, 10.0], "parent": 6},
+    {"tag": "div", "rect": [14.0, 64.0, 300.0, 20.0], "parent": 6},
+    {"tag": "div", "rect": [23.0, 106.0, 30.0, 10.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 125.0, 312.0, 62.0], "parent": 5},
+    {"tag": "div", "rect": [14.0, 146.0, 300.0, 20.0], "parent": 11},
+    {"tag": "div", "rect": [39.0, 146.0, 30.0, 10.0], "parent": 12},
+    {"tag": "div", "rect": [39.0, 146.0, 275.0, 20.0], "parent": 12},
+    {"tag": "div", "rect": [59.0, 181.0, 30.0, 10.0], "parent": 11},
+    {"tag": "div", "rect": [8.0, 217.0, 300.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 217.0, 300.0, 20.0], "parent": 16},
+    {"tag": "div", "rect": [8.0, 217.0, 30.0, 10.0], "parent": 17},
+    {"tag": "div", "rect": [8.0, 217.0, 300.0, 20.0], "parent": 17},
+    {"tag": "div", "rect": [8.0, 257.0, 312.0, 32.0], "parent": 5},
+    {"tag": "div", "rect": [14.0, 263.0, 30.0, 10.0], "parent": 20},
+    {"tag": "div", "rect": [284.0, 263.0, 30.0, 10.0], "parent": 20},
+    {"tag": "div", "rect": [14.0, 278.0, 30.0, 10.0], "parent": 20},
+    {"tag": "p", "rect": [14.0, 263.0, 300.0, 20.0], "parent": 20}
+  ]
+}

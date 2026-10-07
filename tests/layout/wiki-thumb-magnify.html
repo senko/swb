@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's thumbnails: the image link is a positioned
+     block (`figure > .mw-file-description`), and its magnify icon
+     (`::after`, here a span) hangs below it with `bottom: -11px;
+     right: 6px`. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wikipedia thumbnail magnify icon</title>
+<style>
+  body { margin: 8px; font: 14px/22px sans-serif; }
+  figure { display: table; text-align: center; border-collapse: collapse; line-height: 0; margin: 0.5em 0 1.3em 1.4em; border: 1px solid #c8ccd1; border-bottom: 0; }
+  figure > a { display: block; position: relative; border: 0; }
+  figure > a img { margin: 3px; }
+  figure > a .magnify { width: 15px; height: 11px; position: absolute; bottom: -11px; right: 6px; background: #999; }
+  figcaption { display: table-caption; caption-side: bottom; line-height: 1.4em; text-align: start; padding: 0 6px 6px 6px; border: 1px solid #c8ccd1; border-top: 0; }
+</style>
+</head>
+<body>
+  <figure id="fig">
+    <a href="#" id="a"><img id="img" src="svg/width-height.svg" width="250" height="125"><span class="magnify" id="m"></span></a>
+    <figcaption id="cap">A web browser showing a page</figcaption>
+  </figure>
+</body>
+</html>

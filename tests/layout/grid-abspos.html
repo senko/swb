@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned children of grid containers: the static position
+     is the start of the padding box; without grid placement properties,
+     the containing block of a positioned grid container is its padding
+     box. A positioned grid scroll container counts them in its scroll
+     range (scrolled to the end). -->
+<style>
+body { margin: 0; font: 16px/20px monospace; }
+.g { display: grid; grid-template-columns: 100px 100px; gap: 10px; padding: 10px; border: 5px solid; width: 300px; margin-bottom: 10px; }
+.g > div { height: 30px; background: #ccc; }
+.a { position: absolute; width: 40px; height: 20px; background: red; }
+</style>
+<div class=g style="position: relative">
+  <div></div><div></div><div></div>
+  <span class=a style="right: 10px; bottom: 5px"></span>
+  <span class=a style="width: auto; height: auto; left: 20px; right: 30%; top: 50%"></span>
+  <span class=a style="margin: 5px"></span>
+</div>
+<div class=g>
+  <div style="position: relative"><span class=a style="left: 50px; top: 10px"></span></div>
+  <div></div>
+  <span class=a style="top: auto; left: auto"></span>
+</div>
+<div class=g style="position: relative; overflow: auto; height: 80px" data-scroll="9999 9999">
+  <div></div><div></div>
+  <span class=a style="top: 200px; left: 280px"></span>
+</div>

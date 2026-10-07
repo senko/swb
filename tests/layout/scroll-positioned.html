@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Positioned and transformed boxes in scroll containers scrolled with
+     data-scroll: which ones move with the scroll container, and which
+     count in its scroll range (scrolled to the end: the content shows the
+     range). -->
+<style>
+body { margin: 0; font: 16px/20px monospace; }
+.s { overflow: auto; width: 200px; height: 100px; padding: 10px; background: #eee; margin: 0 0 10px 0; }
+.b { width: 30px; height: 30px; background: red; }
+</style>
+<div style="position: relative; width: 800px">
+  <!-- The containing block is outside: the box does not move and does not
+       count. -->
+  <div class=s data-scroll="0 40">
+    <div class=b style="position: absolute; top: 20px; left: 300px"></div>
+    <div style="height: 200px"></div>
+  </div>
+  <!-- A positioned scroll container: the box counts (Chromium: scrollHeight
+       230). -->
+  <div class=s style="position: relative" data-scroll="9999 9999">
+    <div class=b style="position: absolute; top: 200px"></div>
+  </div>
+  <!-- A transformed box counts with its transformed bounds. -->
+  <div class=s data-scroll="9999 9999">
+    <div class=b style="transform: translateY(150px) scale(2)"></div>
+  </div>
+  <!-- A fixed box does not move. -->
+  <div class=s data-scroll="0 40">
+    <div class=b style="position: fixed; top: 400px; left: 600px"></div>
+    <div style="height: 200px"></div>
+  </div>
+  <!-- A fixed box in a transformed box moves and counts. -->
+  <div class=s data-scroll="9999 9999">
+    <div style="transform: translateX(10px)"><div class=b style="position: fixed; top: 300px"></div></div>
+  </div>
+  <!-- A transformed box is the containing block of an absolutely
+       positioned box: it moves and counts. -->
+  <div class=s data-scroll="0 9999">
+    <div style="transform: translateX(0px); height: 10px"><div class=b style="position: absolute; top: 250px; left: 50px"></div></div>
+  </div>
+  <!-- Absolutely positioned boxes inside a positioned box inside the scroll
+       container: they move and count, also with offsets from the right and
+       the bottom. -->
+  <div class=s data-scroll="9999 9999">
+    <div style="position: relative; height: 50px">
+      <div class=b style="position: absolute; top: 280px; left: 10px"></div>
+      <div class=b style="position: absolute; right: -300px; bottom: 0"></div>
+    </div>
+  </div>
+  <!-- A positioned inline box around a block (block in inline): the box in
+       the block uses the inline box as its containing block. -->
+  <div class=s data-scroll="0 9999">
+    <span style="position: relative">text <span style="display: block">block<span class=b style="position: absolute; display: block; top: 150px; left: 20px"></span></span></span>
+  </div>
+</div>

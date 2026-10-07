@@ -141,6 +141,17 @@ Format: source, license (for code), what it influenced.
   id and href resolution, caching and recursion; simplecss's selector
   matching; roxmltree's entity limits; kurbo's arc subdivision count.
   No code copied.
+- Chromium / Blink (BSD-3-Clause), positioning, from recollection and
+  confirmed by measurements with Chromium 148: static positions in
+  inline content (`InlineLayoutAlgorithm::PlaceOutOfFlowObjects`,
+  `IsOriginalDisplayInlineType`), inline containing blocks, sticky
+  offsets with shifting sticky ancestors
+  (`StickyPositionScrollingConstraints`), `clip` on fixed descendants
+  (`CssClipFixedPosition`). No code copied (`layout/src/positioned.rs`,
+  ADR 0016).
+- Servo (layout 2020, MPL-2.0) — the idea of keeping a fragment at the
+  static position of a hoisted absolutely positioned box; swb replaces
+  it with the laid-out fragment. No code copied.
 - Servo and Blink — the idea of an ancestor Bloom filter for selector
   matching (`SelectorFilter`), and right-to-left selector matching with
   limited backtracking, which all browser engines use. No code read for

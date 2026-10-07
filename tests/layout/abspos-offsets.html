@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Absolute positioning (CSS 2.2 §10.3.7, §10.6.4): insets, auto
+     margins, percentages, shrink-to-fit and min/max sizes, in the padding
+     box of a positioned ancestor. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: offsets and sizes</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .cb { position: relative; width: 400px; height: 300px; margin: 10px 20px;
+        border: 5px solid #333; padding: 7px 11px 13px 17px; }
+  .cb > div { position: absolute; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="cb">
+    <div id="tl" style="top: 10px; left: 20px; width: 50px; height: 20px"></div>
+    <div id="br" style="bottom: 10px; right: 20px; width: 50px; height: 20px"></div>
+    <div id="stretch" style="left: 10px; right: 30px; top: 40px; height: 10px"></div>
+    <div id="center" style="left: 0; right: 0; top: 60px; width: 100px; height: 10px; margin: 0 auto"></div>
+    <div id="vcenter" style="top: 0; bottom: 0; left: 300px; width: 10px; height: 50px; margin: auto 0"></div>
+    <div id="pct" style="left: 50%; top: 25%; width: 10%; height: 10%"></div>
+    <div id="shrink" style="top: 80px; left: 30px">shrink to fit</div>
+    <div id="shrink-right" style="top: 100px; right: 0">right aligned</div>
+    <div id="shrink-wrap" style="top: 120px; left: 350px">wraps at the edge</div>
+    <div id="vstretch" style="top: 150px; bottom: 20px; left: 0; width: 20px"></div>
+    <div id="maxw" style="left: 0; right: 0; top: 160px; max-width: 80px; height: 10px; margin: 0 auto"></div>
+    <div id="minw" style="left: 10px; top: 175px; min-width: 120px; height: 10px">x</div>
+    <div id="maxh" style="top: 0; bottom: 0; right: 0; width: 15px; max-height: 100px"></div>
+    <div id="edges" style="top: 200px; left: 40px; padding: 5px; border: 3px solid; margin: 4px 6px">edges</div>
+    <div id="inset" style="inset: 250px 100px 10px 200px"></div>
+    <div id="overcon" style="left: 10px; right: 10px; top: 0; width: 50px; height: 5px"></div>
+    <div id="bb" style="top: 215px; right: 10px; width: 50px; height: 30px; padding: 5px; box-sizing: border-box"></div>
+    <div id="table" style="display: table; left: 10px; right: 10px; top: 270px; background: #999"><span id="cell" style="display: table-cell">fit-content table</span></div>
+  </div>
+</body>
+</html>

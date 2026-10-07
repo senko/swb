@@ -53,13 +53,13 @@ use swb_style::{
 use crate::LayoutContext;
 use crate::block::{
     Baselines, BoxEdges, ContainingBlock, apply_relative_position, clamp_height, clamp_width,
-    finish_fragment, layout_flex_item, layout_independent_shrink_to_fit, own_margins,
-    resolve_max_size, resolve_size,
+    finish_fragment, layout_flex_item, resolve_max_size, resolve_size,
 };
 use crate::box_tree::{IndependentBox, IndependentContents};
 use crate::fragment::{BoxFragment, Fragment};
 use crate::geom::Rect;
 use crate::intrinsic::{self, ContentSizes};
+use crate::positioned::{StaticParent, add_placeholders};
 use placement::{Area, AxisLines, Placement};
 use sizing::{Constraint, Contribution, SizingInput, SizingItem};
 use template::{LineNameIndex, Template};
@@ -88,14 +88,15 @@ pub(crate) struct GridCache {
     warned: bool,
 }
 
-/// The children of a grid container: the in-flow items in order-modified
-/// document order (§6.3), and the absolutely positioned children.
-fn split_children(children: &[IndependentBox]) -> (Vec<&IndependentBox>, Vec<&IndependentBox>) {
-    let (abspos, mut items): (Vec<&IndependentBox>, Vec<&IndependentBox>) = children
+/// The in-flow items of a grid container, in order-modified document
+/// order (§6.3). Absolutely positioned children are not items.
+fn in_flow_items(children: &[IndependentBox]) -> Vec<&IndependentBox> {
+    let mut items: Vec<&IndependentBox> = children
         .iter()
-        .partition(|c| c.base.style.is_absolutely_positioned());
+        .filter(|c| !c.base.style.is_absolutely_positioned())
+        .collect();
     items.sort_by_key(|c| c.base.style.order);
-    (items, abspos)
+    items
 }
 
 /// The used size of a gap ([`crate::flex::gap`]); percentages of an
@@ -735,7 +736,7 @@ fn compute_content_sizes(
     children: &[IndependentBox],
 ) -> ContentSizes {
     let style = ib.base.style.as_ref();
-    let (boxes, _) = split_children(children);
+    let boxes = in_flow_items(children);
     let edges = BoxEdges::resolve(style, 0.0).sum();
     let min_width =
         resolve_size(&style.min_width, None, style.box_sizing, edges.horizontal()).unwrap_or(0.0);
@@ -846,17 +847,12 @@ fn layout_grid(
 ) -> BoxFragment {
     let style = ib.base.style.as_ref();
     let edges = BoxEdges::resolve(style, cb.width);
-    let (boxes, abspos) = split_children(children);
+    let boxes = in_flow_items(children);
     let grid = size_grid(ctx, ib, &boxes, width, given_height, cb);
     let (mut fragments, baselines) = place_items(ctx, &grid, style);
-    let padding_box = ContainingBlock {
-        width: width + edges.padding.horizontal(),
-        height: Some(grid.content_height + edges.padding.vertical()),
-    };
-    for child in abspos {
-        let fragment = layout_absolute_child(ctx, child, padding_box, edges.padding);
-        fragments.push(Fragment::Box(fragment));
-    }
+    // Absolutely positioned children are laid out after the document
+    // (`positioned.rs`).
+    add_placeholders(ctx, children, &mut fragments, StaticParent::Grid);
     let mut fragment = finish_fragment(
         &ib.base,
         Rect::new(
@@ -1317,24 +1313,6 @@ fn grid_baselines(
             last.map(|(_, f, ..)| f.border_rect.y + f.last_baseline.unwrap_or(f.border_rect.height))
         }),
     }
-}
-
-/// Lays out an absolutely positioned child of a grid container at its
-/// static position (§10.2): at the start of the container's padding box
-/// (`padding_box`, which starts `padding` before the content box), with a
-/// shrink-to-fit width. The offsets are not applied.
-fn layout_absolute_child(
-    ctx: &mut LayoutContext<'_>,
-    child: &IndependentBox,
-    padding_box: ContainingBlock,
-    padding: crate::geom::Edges,
-) -> BoxFragment {
-    let laid_out = layout_independent_shrink_to_fit(ctx, child, padding_box);
-    let mut fragment = laid_out.fragment;
-    fragment.border_rect.x -= padding.left;
-    fragment.border_rect.y =
-        own_margins(&child.base.style, padding_box).start.solve() - padding.top;
-    fragment
 }
 
 #[cfg(test)]

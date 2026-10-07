@@ -1,0 +1,26 @@
+{
+  "url": "tests/layout/abspos-inline-cb.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 176.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 160.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 300.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [72.05, 6.0, 66.03, 23.0], "parent": 6},
+    {"tag": "span", "rect": [73.05, 7.0, 10.0, 10.0], "parent": 7},
+    {"tag": "span", "rect": [127.08, 18.0, 10.0, 10.0], "parent": 7},
+    {"tag": "div", "rect": [8.0, 48.0, 200.0, 40.0], "parent": 5},
+    {"tag": "span", "rect": [8.0, 46.0, 173.97, 43.0], "parent": 10},
+    {"tag": "span", "rect": [113.05, 47.0, 10.0, 10.0], "parent": 11},
+    {"tag": "span", "rect": [151.44, 78.0, 10.0, 10.0], "parent": 11},
+    {"tag": "div", "rect": [8.0, 108.0, 300.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [47.14, 106.0, 35.8, 23.0], "parent": 14},
+    {"tag": "span", "rect": [48.14, 107.0, 33.8, 21.0], "parent": 15},
+    {"tag": "div", "rect": [8.0, 148.0, 300.0, 20.0], "parent": 5},
+    {"tag": "span", "rect": [38.0, 143.0, 75.13, 29.0], "parent": 17},
+    {"tag": "span", "rect": [40.0, 145.0, 71.13, 25.0], "parent": 18}
+  ]
+}

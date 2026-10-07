@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned tables size as fit-content in both axes (as in
+     Chromium): they do not stretch between their insets, and `auto`
+     margins center them. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: tables</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .cb { position: relative; width: 400px; height: 300px; border: 1px solid; }
+  .t { position: absolute; display: table; background: #999; }
+  .c { display: table-cell; }
+</style>
+</head>
+<body>
+  <div class="cb">
+    <div class="t" id="t1" style="top: 10px; bottom: 10px; left: 10px; right: 10px"><span class="c" id="c1">stretched?</span></div>
+    <div class="t" id="t2" style="top: 0; left: 0; right: 0; margin: 0 auto"><span class="c">centered</span></div>
+    <div class="t" id="t3" style="top: 50px; left: 0; right: 0; margin-left: auto"><span class="c">right</span></div>
+    <table id="t4" style="position: absolute; top: 100px; left: 10px; right: 10px; background: #999"><tr><td id="td">native table</td></tr></table>
+    <div class="t" id="t5" style="top: 0; bottom: 0; right: 0; margin: auto 0"><span class="c">middle</span></div>
+  </div>
+</body>
+</html>

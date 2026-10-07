@@ -703,6 +703,7 @@ fn apply_fixups(style: &mut ComputedStyle, is_root: bool, layout_parent: Option<
         layout_parent,
         Some(Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid)
     );
+    style.original_display = style.display;
     let blockify =
         is_root || absolutely_positioned || style.float != Float::None || in_flex_or_grid;
     if blockify && !matches!(style.display, Display::None | Display::Contents) {
@@ -932,6 +933,7 @@ mod tests {
         assert_eq!(get(&doc, &map, "f").display, Display::Block);
         let a = get(&doc, &map, "a");
         assert_eq!(a.display, Display::Block);
+        assert_eq!(a.original_display, Display::Inline);
         assert_eq!(a.float, Float::None);
         assert_eq!(get(&doc, &map, "item").display, Display::Block);
         assert_eq!(get(&doc, &map, "cont").display, Display::Contents);

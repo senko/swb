@@ -37,9 +37,10 @@ use crate::box_tree::{
 };
 use crate::fonts::{self, LineMetrics};
 use crate::fragment::{BoxContent, BoxFragment, Caret, Fragment, PositionedGlyph, TextFragment};
-use crate::geom::{Rect, clamp_length};
+use crate::geom::{Point, Rect, clamp_length};
 use crate::intrinsic::ContentSizes;
 use crate::list_marker::{PendingMarker, shape_marker};
+use crate::positioned::{StaticParent, placeholder};
 
 use shaping::{Piece, Run};
 pub(crate) use shaping::{ShapedText, shape as shape_ifc};
@@ -363,7 +364,7 @@ fn sticky_image_breaks(ifc: &InlineFormattingContext, shaped: &ShapedText) -> Ve
     let mut after_space = false;
     for (i, piece) in shaped.pieces.iter().enumerate() {
         match piece {
-            Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow => continue,
+            Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow(_) => continue,
             _ => {}
         }
         if (after_image || (is_image(piece) && !after_space))
@@ -442,7 +443,7 @@ fn build_groups(
                 }
             }
             Piece::LineBreak(_) => group.forced_break_after = true,
-            Piece::StartBox(_) | Piece::OutOfFlow => {}
+            Piece::StartBox(_) | Piece::OutOfFlow(_) => {}
         }
         group.pieces.end = i + 1;
         if group.forced_break_after
@@ -660,6 +661,11 @@ struct LineState {
     x: f32,
     /// Width of hanging white space at the current end of the line.
     trailing_space: f32,
+    /// True once text or an atomic inline is on the line.
+    has_content: bool,
+    /// The static position rules of the placeholders on the line, in
+    /// tree order.
+    placeholders: Vec<StaticRule>,
 }
 
 impl LineState {
@@ -682,6 +688,8 @@ impl LineState {
             stack: Vec::new(),
             x: indent,
             trailing_space: 0.0,
+            has_content: false,
+            placeholders: Vec::new(),
         }
     }
 
@@ -793,7 +801,7 @@ impl LineBuilder<'_, '_> {
                             || (!self.ctx.line_height_quirks && has_inline_end_edge(s))
                     })
             }
-            Piece::OutOfFlow => false,
+            Piece::OutOfFlow(_) => false,
         })
     }
 
@@ -839,7 +847,7 @@ impl LineBuilder<'_, '_> {
                 }
                 Piece::Atomic(item) => self.place_atomic(&mut state, *item),
                 Piece::LineBreak(item) => self.place_line_break(&mut state, *item),
-                Piece::OutOfFlow => {}
+                Piece::OutOfFlow(item) => self.place_out_of_flow(&mut state, *item),
             }
         }
 
@@ -869,7 +877,7 @@ impl LineBuilder<'_, '_> {
             pieces.iter().rev().find(|p| {
                 !matches!(
                     p,
-                    Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow
+                    Piece::StartBox(_) | Piece::EndBox { .. } | Piece::OutOfFlow(_)
                 )
             })
         });
@@ -915,6 +923,7 @@ impl LineBuilder<'_, '_> {
                 .extent
                 .include(baseline - strut.above, baseline + strut.below);
             state.include_parent_strut(false);
+            state.has_content = true;
         }
         let (glyphs, width, trailing_space) = match trim_end {
             Some(end) => {
@@ -969,6 +978,7 @@ impl LineBuilder<'_, '_> {
 
     fn place_atomic(&mut self, state: &mut LineState, item: usize) {
         state.trailing_space = 0.0;
+        state.has_content = true;
         let Some(atomic) = self.atomics.get_mut(item).and_then(Option::take) else {
             return;
         };
@@ -1001,6 +1011,30 @@ impl LineBuilder<'_, '_> {
             state.push_child(Fragment::Box(fragment));
         }
         state.x += atomic.margin_width;
+    }
+
+    /// Places the placeholder of an absolutely positioned box at the
+    /// current position (floats are not placed). Its vertical position
+    /// (and for a box that was block-level, its horizontal one) is set
+    /// when the line box is known: see [`move_placeholders`].
+    fn place_out_of_flow(&mut self, state: &mut LineState, item: usize) {
+        let Some(InlineItem::AbsolutelyPositioned(ib)) = self.ifc.items.get(item) else {
+            return;
+        };
+        let at = Point::new(state.x, 0.0);
+        let inline_level = ib.base.style.original_display.is_inline_level();
+        // The static-position rectangle has no width; it gets the height
+        // of the line box in `move_placeholders`.
+        let extent = crate::geom::Size::default();
+        let fragment = placeholder(self.ctx, ib, at, StaticParent::Inline, extent);
+        state.push_child(fragment);
+        state.placeholders.push(if inline_level {
+            StaticRule::Inline
+        } else {
+            StaticRule::Block {
+                after_content: state.has_content,
+            }
+        });
     }
 
     /// The containing block of the inline-level boxes of the line.
@@ -1044,6 +1078,10 @@ impl LineBuilder<'_, '_> {
         }
         self.last_baseline = Some(baseline_y);
         self.line_count += 1;
+        if !state.placeholders.is_empty() {
+            let line = (line_top, line_top + line_height);
+            move_placeholders(&mut state.top_level, &state.placeholders, line);
+        }
         self.fragments.append(&mut state.top_level);
         self.fragments.append(&mut state.outside_markers);
         self.y = line_top + line_height;
@@ -1055,6 +1093,10 @@ impl LineBuilder<'_, '_> {
         for fragment in &mut state.top_level {
             collapse_to_line_top(fragment);
             fragment.move_by(0.0, self.y);
+        }
+        if !state.placeholders.is_empty() {
+            let line = (self.y, self.y);
+            move_placeholders(&mut state.top_level, &state.placeholders, line);
         }
         self.fragments.append(&mut state.top_level);
     }
@@ -1225,6 +1267,64 @@ fn has_quirky_start_edge(style: &ComputedStyle) -> bool {
 /// The end-side version of [`has_quirky_start_edge`].
 fn has_quirky_end_edge(style: &ComputedStyle) -> bool {
     style.border_right_width > 0.0 || !style.padding_right.is_zero()
+}
+
+/// How the static position of an absolutely positioned box in inline
+/// content follows from its line (as in Chromium's
+/// `InlineLayoutAlgorithm::PlaceOutOfFlowObjects`).
+#[derive(Clone, Copy, Debug)]
+enum StaticRule {
+    /// A box that was inline-level: where it is on the line, at the top
+    /// of the line box.
+    Inline,
+    /// A box that was block-level: at the start of the line; below the
+    /// line box if content comes before it on the line, else at its top.
+    Block { after_content: bool },
+}
+
+/// Moves the placeholders in the fragments of a finished line (positioned
+/// in the coordinates of the inline formatting context) to their static
+/// positions. `rules` has the rule of each placeholder in tree order;
+/// `line` is the top and bottom of the line box.
+fn move_placeholders(fragments: &mut [Fragment], rules: &[StaticRule], line: (f32, f32)) {
+    fn walk(
+        fragments: &mut [Fragment],
+        origin: Point,
+        rules: &mut std::slice::Iter<'_, StaticRule>,
+        line: (f32, f32),
+    ) {
+        for fragment in fragments {
+            let Fragment::Box(b) = fragment else {
+                continue;
+            };
+            if let BoxContent::Placeholder(p) = &mut b.content {
+                match rules.next() {
+                    Some(StaticRule::Inline) => {
+                        b.border_rect.y = line.0 - origin.y;
+                        p.set_extent(crate::geom::Size::new(0.0, line.1 - line.0));
+                    }
+                    Some(&StaticRule::Block { after_content }) => {
+                        // Below the line if the box follows content on it,
+                        // with the line's height (Chromium 148).
+                        b.border_rect.x = -origin.x;
+                        let y = if after_content { line.1 } else { line.0 };
+                        b.border_rect.y = y - origin.y;
+                        p.set_extent(crate::geom::Size::new(0.0, line.1 - line.0));
+                    }
+                    None => {}
+                }
+            } else if b.is_inline {
+                let inner = origin + b.border_rect.origin();
+                walk(
+                    Arc::make_mut(&mut b.children).as_mut_slice(),
+                    inner,
+                    rules,
+                    line,
+                );
+            }
+        }
+    }
+    walk(fragments, Point::default(), &mut rules.iter(), line);
 }
 
 /// Records the line box (`line_top` to `line_top + line_height`, in the

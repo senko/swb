@@ -6,9 +6,9 @@
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
 //! (images), form controls, flex layout, grid layout, table layout,
-//! relative positioning, the scrollable overflow of scroll containers (see
-//! `scroll.rs`). Floats and absolute positioning are approximated (see
-//! `block.rs`).
+//! relative, absolute, fixed and sticky positioning (`positioned.rs`),
+//! transforms (paint applies them), the scrollable overflow of scroll
+//! containers (see `scroll.rs`). Floats are approximated (see `block.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
@@ -25,6 +25,7 @@ mod grid;
 mod inline;
 mod intrinsic;
 mod list_marker;
+mod positioned;
 mod replaced;
 mod scroll;
 mod source_map;
@@ -43,13 +44,17 @@ pub use fragment::{
     BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, ControlContent,
     Fragment, FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
-pub use geom::{Edges, Point, Rect, Size};
+pub use geom::{Edges, Matrix, Point, Rect, Size};
+pub use positioned::{
+    Ancestry, GroupTransform, Placeholder, StickyCache, StickyConstraints, clip_property_area,
+    forms_stacking_context, has_transform, is_absolute_containing_block, is_fixed_containing_block,
+    transform_matrix,
+};
 pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
 pub use scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};
-use geom::clamp_length;
 
 /// Natural sizes of replaced elements (images), supplied by the engine.
 pub trait ReplacedSizes {
@@ -97,6 +102,9 @@ pub(crate) struct LayoutContext<'a> {
     /// The number of flex item and table cell layouts that were not in the
     /// cache.
     pub(crate) uncached_layouts: usize,
+    /// The number of placeholders of absolutely positioned boxes created
+    /// (see `positioned.rs`).
+    pub(crate) placeholders: usize,
     /// Data of the tables of this layout pass.
     pub(crate) tables: table::TableCache,
     /// Data of the grid containers of this layout pass.
@@ -112,6 +120,7 @@ impl<'a> LayoutContext<'a> {
             shaped: HashMap::new(),
             layouts: LayoutCache::default(),
             uncached_layouts: 0,
+            placeholders: 0,
             tables: table::TableCache::default(),
             grids: grid::GridCache::default(),
         }
@@ -144,6 +153,10 @@ impl LayoutCache {
 
     pub(crate) fn insert(&mut self, key: LayoutKey, fragment: BoxFragment) {
         self.entries.insert(key, fragment);
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
     }
 }
 
@@ -197,14 +210,19 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         width: input.viewport.width,
         height: Some(input.viewport.height),
     };
-    let root = root_box.map(|root_box| block::layout_root(ctx, &root_box, icb));
-    let scroll_size = scroll_size(root.as_ref(), input.viewport);
+    let root = root_box.map(|root_box| {
+        let mut root = block::layout_root(ctx, &root_box, icb);
+        positioned::place_out_of_flow(ctx, &root_box, &mut root, input.viewport);
+        root
+    });
+    let scroll_size = scroll::viewport_scroll_size(root.as_ref(), input.viewport);
     FragmentTree {
         root,
         canvas_background: canvas_background(input.document, input.styles),
         scroll_size,
         viewport_overflow: viewport_overflow
             .map_or((Overflow::Visible, Overflow::Visible), |(_, x, y)| (x, y)),
+        viewport: input.viewport,
     }
 }
 
@@ -265,48 +283,6 @@ pub(crate) fn has_background(style: &ComputedStyle) -> bool {
         || style.background_image.iter().any(Option::is_some)
 }
 
-/// The size of the scrollable area: the union of the viewport and all
-/// content that is not clipped. Also on an axis where the viewport's
-/// overflow is `hidden` (or `clip`, which applies as `hidden` to the
-/// viewport): scripts can scroll it there, the user cannot (as in
-/// Chromium). Content after the end of a line where white space hangs does
-/// not count ([`scroll::text_overflow_rect`], [`scroll::box_overflow_rect`]).
-/// Rectangles with zero width or height count with their position:
-/// Chromium counts the line boxes of zero-size inline content (but not a
-/// zero-size block, a deviation).
-fn scroll_size(root: Option<&BoxFragment>, viewport: Size) -> Size {
-    let mut extent = Rect::new(0.0, 0.0, viewport.width, viewport.height);
-    if let Some(root) = root {
-        fn add(extent: &mut Rect, r: Rect) {
-            *extent = extent.union(&r);
-        }
-        fn visit(b: &BoxFragment, origin: Point, limit: Option<f32>, extent: &mut Rect) {
-            let rect = b.border_rect.translate(origin);
-            add(
-                extent,
-                scroll::box_overflow_rect(b, limit).translate(origin),
-            );
-            if b.style.overflow_x.clips() && b.style.overflow_y.clips() {
-                return;
-            }
-            let limit = scroll::child_limit(b, limit);
-            for child in b.children.iter() {
-                match child {
-                    Fragment::Box(cb) => visit(cb, rect.origin(), limit, extent),
-                    Fragment::Text(t) => {
-                        let text = scroll::text_overflow_rect(t, limit);
-                        add(extent, text.translate(rect.origin()));
-                    }
-                }
-            }
-        }
-        visit(root, Point::default(), None, &mut extent);
-    }
-    let width = extent.right().max(viewport.width);
-    let height = extent.bottom().max(viewport.height);
-    Size::new(clamp_length(width), clamp_length(height))
-}
-
 #[cfg(test)]
 pub(crate) mod test_support;
 
@@ -326,6 +302,27 @@ mod tests {
         assert_eq!(l.tree.viewport_overflow, (Overflow::Hidden, Overflow::Auto));
         let body = l.tree.border_boxes(l.doc.body().expect("body"));
         assert_eq!(body.len(), 1);
+    }
+
+    #[test]
+    fn transformed_boxes_count_with_their_transformed_bounds() {
+        // Scaled 4 times about its center (750, 50): 550 to 950.
+        let l = layout_html(
+            "<!DOCTYPE html><body style='margin:0'>\
+             <div style='margin-left:700px; width:100px; height:100px; transform:scale(4)'></div>",
+        );
+        assert_eq!(l.tree.scroll_size.width, 950.0);
+    }
+
+    #[test]
+    fn clipped_boxes_in_a_block_in_a_positioned_inline_box_do_not_count() {
+        // The inline box is the containing block, inside the clipping box.
+        let l = layout_html(
+            "<!DOCTYPE html><body style='margin:0'><div style='overflow:hidden; height:100px'>\
+             <span style='position:relative'><div><div style='position:absolute; top:3000px;\
+             width:10px; height:10px'></div></div></span></div>",
+        );
+        assert_eq!(l.tree.scroll_size.height, 600.0);
     }
 
     #[test]

@@ -743,6 +743,7 @@ fn compose_frame(
         &mut frame,
         RasterParams {
             scroll: swb_layout::Point::default(),
+            viewport_scroll: swb_layout::Point::default(),
             scale,
         },
         page.fonts(),

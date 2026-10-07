@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's page title bar (a positioned flex container
+     with a 1 px line at its bottom: `.vector-page-titlebar::after`) and of
+     its dropdowns (`.vector-dropdown`: a transparent checkbox over the
+     label, and the hidden menu below it at `top: 100%`). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wikipedia title bar and dropdown</title>
+<style>
+  body { margin: 8px; font: 14px/22px sans-serif; }
+  .titlebar { position: relative; display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; }
+  .titlebar h1 { flex-grow: 1; margin: 0; font-size: 28px; line-height: 1.3; padding: 4px 0; }
+  .titlebar .line { display: block; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background-color: #a2a9b1; }
+  .dropdown { position: relative; }
+  .dropdown .checkbox { cursor: pointer; position: absolute; top: 0; left: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; margin: 0; padding: 0; }
+  .dropdown .label { display: inline-flex; align-items: center; min-height: 32px; padding: 5px 12px; box-sizing: border-box; }
+  .dropdown .content { position: absolute; top: 100%; left: -1px; opacity: 0; height: 0; visibility: hidden; overflow: hidden auto; z-index: 50; padding: 16px; width: max-content; }
+  .dropdown .checkbox:checked ~ .content { opacity: 1; visibility: visible; height: auto; }
+</style>
+</head>
+<body>
+  <header class="titlebar" id="tb">
+    <div class="dropdown" id="d1">
+      <input type="checkbox" class="checkbox" id="c1">
+      <label class="label" id="l1" for="c1">Contents</label>
+      <div class="content" id="m1">menu item one<br>menu item two</div>
+    </div>
+    <h1 id="h">Web browser</h1>
+    <div class="dropdown" id="d2">
+      <input type="checkbox" class="checkbox" id="c2" checked>
+      <label class="label" id="l2" for="c2">82 languages</label>
+      <div class="content" id="m2">open menu</div>
+    </div>
+    <span class="line" id="line"></span>
+  </header>
+</body>
+</html>

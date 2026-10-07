@@ -7,10 +7,11 @@
 //! start), `align-content` (start, end, center, space-*, stretch), `gap`,
 //! and auto margins on the main axis.
 //!
-//! Not supported yet: absolutely positioned children (they are not laid
-//! out), the container's min/max size in the flex algorithm, auto margins
-//! on the cross axis. `align-content: stretch` grows the lines after the
-//! items were stretched, so the items do not grow with their lines.
+//! Absolutely positioned children get a placeholder (see
+//! `positioned.rs`). Not supported yet: the container's min/max size in
+//! the flex algorithm, auto margins on the cross axis. `align-content:
+//! stretch` grows the lines after the items were stretched, so the items
+//! do not grow with their lines.
 
 use swb_style::{Alignment, ComputedStyle, FlexBasis, FlexWrap, Gap, LengthPercentageOrAuto};
 
@@ -22,6 +23,7 @@ use crate::block::{
 use crate::box_tree::IndependentBox;
 use crate::fragment::{BoxFragment, Fragment};
 use crate::intrinsic;
+use crate::positioned::{StaticParent, add_placeholders};
 
 /// The result of laying out a flex container's contents.
 pub(crate) struct FlexLayout {
@@ -175,7 +177,7 @@ fn layout_flex_items(
     }
 
     let line_cross = determine_cross_sizes(ctx, container, &mut items, &lines, &axes, cb);
-    place_items(
+    let mut layout = place_items(
         container,
         &mut items,
         &lines,
@@ -183,7 +185,9 @@ fn layout_flex_items(
         container_main,
         &axes,
         cb,
-    )
+    );
+    add_placeholders(ctx, children, &mut layout.fragments, StaticParent::Flex);
+    layout
 }
 
 /// §9.2: the flex base size and hypothetical main size of every in-flow

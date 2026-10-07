@@ -98,6 +98,45 @@ in commit messages, ADRs and other docs.
   `stretch` on images; border-box `min-width`/`max-width` counted the
   padding twice in intrinsic sizes (also outside grid); inline flex and
   grid scroll containers use their first baseline. All fixed with tests.
+- Positioning (ADR 0016): absolute, fixed and sticky positioning, 2D
+  transforms and `clip: rect()`. Layout puts a placeholder fragment at
+  the static position of each absolutely positioned box (block, inline,
+  flex and grid layout); after layout, one walk lays out each box in its
+  containing block and replaces the placeholder, so each box is laid out
+  once, also inside cached flex items and cells. Static positions, the
+  CSS 2.2 §10.3.7/§10.6.4 rules, inline containing blocks, flex static
+  positions, sticky offsets (Chromium's algorithm, nested sticky boxes,
+  sticky boxes in scroll containers) and painted element boxes match
+  Chromium in 18 new layout tests, among them reductions of Wikipedia's
+  title bar, dropdowns, search field, thumbnails and sticky table of
+  contents. Paint: transform groups (matrix, fixed, sticky) in the
+  display list, resolved with the scroll offset when rasterizing and
+  hit testing; translations are exact, other transforms draw into a
+  bounded, anti-aliased layer that shares the per-strip budgets with
+  opacity and mask layers. Positioned boxes with `z-index: auto` no
+  longer form stacking contexts; positioned boxes keep only the clips of
+  their containing block chain; fixed boxes escape all ancestor clips
+  except `clip`. Scroll containers: transformed boxes are containing
+  blocks for scrolling too, and out-of-flow boxes count in scroll
+  ranges. Full-page screenshots keep the viewport layout and draw at
+  scroll offset 0, as Chromium does. Wikipedia: geometry 0.0345 →
+  0.1577, size 0.8100 → 0.9592, relative 0.7728 → 0.9217, pixels 0.8722
+  → 0.8730, no missing element boxes (was 542). Hacker News at 700×900
+  now scales its vote arrows (`transform: scale(1.3)` in its narrow
+  layout). The integration review found the `inset: 0; margin: auto;
+  height: fit-content` centering idiom broken (intrinsic height keywords
+  stretched), self-alignment of abspos boxes ignored (now CSS Position 3
+  §4.4, measured in Chromium), fragment navigation to a fixed element
+  that scrolled the viewport, full-page screenshots of a scrolled page
+  that differed from Chromium, and hostile pages that took 1–39 s (an
+  opacity group around a tiny fixed box became a full-surface layer;
+  sticky offsets were recomputed per group; the display-list build was
+  O(items × depth)). Fixed: the display list collects items in chunks
+  and computes group bounds in one pass, sticky offsets are cached per
+  frame, fixed content has its own bounds; those pages take 2–31 ms.
+  Typed URLs that differ only in the fragment scroll without a reload;
+  selection honours `clip: rect()`; `html { position: absolute }`
+  works.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

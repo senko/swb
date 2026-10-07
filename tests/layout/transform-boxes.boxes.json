@@ -1,0 +1,25 @@
+{
+  "url": "tests/layout/transform-boxes.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 703.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 30.0, 784.0, 665.0], "parent": 0},
+    {"tag": "div", "rect": [68.0, 35.0, 100.0, 40.0], "parent": 5},
+    {"tag": "div", "rect": [83.0, 80.0, 100.0, 40.0], "parent": 5},
+    {"tag": "div", "rect": [88.0, 140.0, 40.0, 100.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 250.0, 200.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [58.0, 310.0, 50.0, 20.0], "parent": 5},
+    {"tag": "div", "rect": [29.72, 380.0, 98.99, 98.99], "parent": 5},
+    {"tag": "div", "rect": [46.45, 450.0, 123.09, 40.0], "parent": 5},
+    {"tag": "div", "rect": [78.0, 510.0, 100.0, 40.0], "parent": 5},
+    {"tag": "div", "rect": [83.0, 515.0, 20.0, 10.0], "parent": 13},
+    {"tag": "div", "rect": [28.05, 546.52, 159.9, 126.96], "parent": 5},
+    {"tag": "div", "rect": [50.55, 546.52, 20.49, 20.49], "parent": 15},
+    {"tag": "div", "rect": [108.0, 660.0, 30.0, 30.0], "parent": 5},
+    {"tag": "span", "rect": [42.45, 676.0, 228.58, 17.0], "parent": 5}
+  ]
+}

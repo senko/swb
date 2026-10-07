@@ -59,8 +59,8 @@ pub(crate) enum Piece {
     Atomic(usize),
     /// A forced line break at item index.
     LineBreak(usize),
-    /// An out-of-flow box (float or absolutely positioned).
-    OutOfFlow,
+    /// An out-of-flow box (float or absolutely positioned) at item index.
+    OutOfFlow(usize),
 }
 
 /// The shaped text of an inline formatting context.
@@ -121,7 +121,7 @@ pub(crate) fn shape(fonts: &mut FontContext, ifc: &InlineFormattingContext) -> S
                 break_before.push(false);
             }
             InlineItem::Float(_) | InlineItem::AbsolutelyPositioned(_) => {
-                pieces.push(Piece::OutOfFlow);
+                pieces.push(Piece::OutOfFlow(index));
                 break_before.push(false);
             }
         }

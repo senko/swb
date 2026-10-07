@@ -1,0 +1,19 @@
+{
+  "url": "tests/layout/abspos-replaced.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 218.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 202.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 402.0, 202.0], "parent": 5},
+    {"tag": "img", "rect": [19.0, 19.0, 60.0, 30.0], "parent": 6},
+    {"tag": "img", "rect": [349.0, 179.0, 60.0, 30.0], "parent": 6},
+    {"tag": "img", "rect": [179.0, 59.0, 60.0, 30.0], "parent": 6},
+    {"tag": "img", "rect": [9.0, 99.0, 100.0, 50.0], "parent": 6},
+    {"tag": "img", "rect": [209.0, 94.0, 60.0, 30.0], "parent": 6},
+    {"tag": "img", "rect": [309.0, 129.0, 200.0, 100.0], "parent": 6}
+  ]
+}

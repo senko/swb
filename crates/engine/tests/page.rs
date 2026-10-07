@@ -192,6 +192,44 @@ fn fragment_navigation_and_history_do_not_reload() {
     assert!(!page.can_go_forward());
 }
 
+/// Fetches local files, or fails while `fail` is set.
+struct FailingFetcher {
+    inner: NetworkFetcher,
+    fail: std::sync::atomic::AtomicBool,
+}
+
+impl Fetcher for FailingFetcher {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(NetError::HostNotFound("test".to_owned()));
+        }
+        self.inner.fetch(request)
+    }
+}
+
+#[test]
+fn a_fragment_url_on_an_error_page_loads_the_document() {
+    let site = Site::new("fragment-error-page");
+    let url = site.page("long.html", LONG_PAGE);
+    let fetcher = Arc::new(FailingFetcher {
+        inner: NetworkFetcher::new(),
+        fail: true.into(),
+    });
+    let mut page = new_page(fetcher.clone());
+    load(&mut page, url.clone());
+    assert_eq!(page.load_state(), LoadState::Failed);
+    // A typed URL with a fragment loads the document (the error page is not
+    // the document of the URL) and scrolls to the fragment.
+    fetcher
+        .fail
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+    page.navigate(with_fragment(&url, "sec"));
+    assert!(page.is_loading());
+    finish(&mut page);
+    assert_eq!(page.load_state(), LoadState::Complete);
+    assert_eq!(page.scroll_position().y, 3000.0);
+}
+
 #[test]
 fn empty_fragment_and_top_scroll_to_the_top() {
     let site = Site::new("fragment-top");
@@ -493,17 +531,20 @@ fn rects_of(list: &DisplayList, color: Rgba) -> Vec<usize> {
 
 /// The clip rectangles that are active at item `index`.
 fn clips_at(list: &DisplayList, index: usize) -> Vec<swb_engine::Rect> {
-    let mut clips = Vec::new();
+    // `None` for a viewport clip, which replaces the enclosing clips.
+    let mut clips: Vec<Option<swb_engine::Rect>> = Vec::new();
     for item in &list.items[..index] {
         match item {
-            DisplayItem::PushClip(r) => clips.push(*r),
+            DisplayItem::PushClip(r) => clips.push(Some(*r)),
+            DisplayItem::PushViewportClip => clips.push(None),
             DisplayItem::PopClip => {
                 clips.pop();
             }
             _ => {}
         }
     }
-    clips
+    let start = clips.iter().rposition(Option::is_none).map_or(0, |i| i + 1);
+    clips[start..].iter().flatten().copied().collect()
 }
 
 const MARK: Rgba = Rgba::rgb(1, 2, 3);

@@ -9,6 +9,7 @@ use swb_dom::ElementData;
 
 use super::ids::LonghandValue;
 use super::specified::clamp_non_negative;
+use super::transform;
 use crate::ComputedStyle;
 use crate::values::{
     CornerRadius, FontFamily, Gap, GenericFamily, LengthContext, LengthPercentage,
@@ -123,6 +124,9 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::Bottom(v) => s.bottom = cx.lp_or_auto(v.as_ref()),
         V::Left(v) => s.left = cx.lp_or_auto(v.as_ref()),
         V::ZIndex(v) => s.z_index = *v,
+        V::Transform(v) => s.transform = transform::compute_transform(v, cx),
+        V::TransformOrigin(v) => s.transform_origin = transform::compute_transform_origin(v, cx),
+        V::Clip(v) => s.clip = transform::compute_clip(v, cx),
         V::Width(v) => s.width = v.compute_size(cx),
         V::Height(v) => s.height = v.compute_size(cx),
         V::MinWidth(v) => s.min_width = v.compute_size(cx),

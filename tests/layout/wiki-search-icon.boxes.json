@@ -1,0 +1,21 @@
+{
+  "url": "tests/layout/wiki-search-icon.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 50.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 34.0], "parent": 0},
+    {"tag": "form", "rect": [8.0, 8.0, 784.0, 34.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 34.0], "parent": 6},
+    {"tag": "span", "rect": [7.0, 7.0, 1.0, 1.0], "parent": 7},
+    {"tag": "div", "rect": [8.0, 8.0, 713.77, 34.0], "parent": 7},
+    {"tag": "input", "rect": [8.0, 8.0, 713.77, 34.0], "parent": 9},
+    {"tag": "span", "rect": [17.0, 15.0, 20.0, 20.0], "parent": 9},
+    {"tag": "span", "rect": [696.77, 17.0, 16.0, 16.0], "parent": 9},
+    {"tag": "button", "rect": [721.77, 8.0, 70.23, 34.0], "parent": 7},
+    {"tag": "a", "rect": [7.0, 41.0, 1.0, 1.0], "parent": 5}
+  ]
+}

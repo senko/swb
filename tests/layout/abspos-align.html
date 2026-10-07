@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!-- Self-alignment of absolutely positioned boxes (CSS Position 3 §4.4,
+     measured with Chromium 148): in the inset-modified containing block
+     when both insets of an axis are set (an overflowing box stays at the
+     start; `auto` sizes shrink to fit unless the alignment is `normal` or
+     `stretch`), else in the static-position rectangle (unsafe). -->
+<style>
+body { margin: 0; font: 16px/20px monospace; }
+.c { position: relative; width: 200px; height: 100px; border: 2px solid; padding: 5px; margin: 0 0 10px 10px; }
+.b { position: absolute; width: 10px; height: 10px; background: red; }
+.g { display: grid; }
+.f { display: flex; }
+.s { position: static; }
+.h { position: relative; width: 300px; height: 200px; border: 1px solid; margin: 0 0 10px 10px; }
+</style>
+<!-- Block containing block, auto insets. -->
+<div class=c><div id=a1 class=b style="justify-self: center"></div></div>
+<div class=c><div id=a2 class=b style="justify-self: end"></div></div>
+<div class=c><div id=a3 class=b style="align-self: center"></div></div>
+<div class=c><div id=a4 class=b style="align-self: end"></div></div>
+<div class=c style="justify-items: center; align-items: end"><div id=a5 class=b></div></div>
+<div class=c><div style="height: 30px"></div><div id=a6 class=b style="justify-self: center; align-self: center"></div></div>
+<!-- Block containing block, insets. -->
+<div class=c><div id=b1 class=b style="inset: 0; justify-self: center; align-self: end"></div></div>
+<div class=c><div id=b2 class=b style="left: 20px; justify-self: center"></div></div>
+<div class=c><div id=b3 class=b style="left: 20px; right: 40px; justify-self: center"></div></div>
+<div class=c><div id=b4 class=b style="inset: 0; width: 300px; justify-self: center"></div></div>
+<div class=c><div id=b5 class=b style="inset: 0; width: 300px; justify-self: safe center"></div></div>
+<div class=c><div id=b6 class=b style="inset: 0; width: 300px; justify-self: end"></div></div>
+<div class=c><div id=b7 class=b style="inset: 0; width: auto; height: auto; justify-self: start; align-self: start">text</div></div>
+<div class=c><div id=b8 class=b style="inset: 0; width: auto; height: auto; justify-self: center; align-self: center">text</div></div>
+<div class=c><div id=b9 class=b style="inset: 0; width: auto; height: auto">text</div></div>
+<div class=c style="justify-items: center; align-items: center"><div id=b10 class=b style="inset: 0"></div></div>
+<div class=c><div id=b11 class=b style="inset: 0; margin: auto; justify-self: end"></div></div>
+<div class=c><div id=b12 class=b style="inset: 0; margin-left: 20px; justify-self: end"></div></div>
+<div class=c><div id=b14 class=b style="inset: 0; justify-self: left; align-self: self-end"></div></div>
+<div class=c><div id=b15 class=b style="inset: 0; justify-self: stretch; width: auto"></div></div>
+<!-- Inline static position: the rectangle has no width; `auto` does not
+     take `justify-items`. -->
+<div class=c>text <span id=c1 class=b style="justify-self: center; align-self: end"></span></div>
+<div class=c style="justify-items: center">text <div id=c2 class=b></div> more</div>
+<div class=c>text <div id=c3 class=b style="justify-self: end"></div> more</div>
+<div class=c style="line-height: 40px">text<br><div id=c4 class=b style="justify-self: center; align-self: end"></div>more</div>
+<div class=c>text <span style="justify-items: center">x<span id=c5 class=b></span></span></div>
+<div class=c>text <div id=c6 class=b style="align-self: end"></div>more<br><span style="display: inline-block; width: 10px; height: 60px"></span></div>
+<!-- Grid that is not the containing block. -->
+<div class=c><div class="g" style="justify-items: center; align-items: end; height: 50px"><div id=d1 class=b></div></div></div>
+<div class=c><div class="g" style="justify-items: center; align-items: end; height: 50px"><div id=d2 class=b style="justify-self: end"></div></div></div>
+<div class=c><div class="g" style="height: 50px"><div id=d3 class=b style="left: 30px; justify-self: center; align-self: center"></div></div></div>
+<!-- Grid containing block. -->
+<div class="c g" style="place-items: center"><div id=e1 class=b></div></div>
+<div class="c g"><div id=e2 class=b style="inset: 0; align-self: end; justify-self: center"></div></div>
+<div class="c g"><div id=e3 class=b style="justify-self: end; align-self: end"></div></div>
+<!-- Flex that is not the containing block. -->
+<div class=c><div class="f" style="height: 50px; justify-content: center; align-items: end"><div id=f1 class=b></div></div></div>
+<div class=c><div class="f" style="height: 50px"><div id=f2 class=b style="justify-self: center; align-self: end"></div></div></div>
+<!-- Flex containing block. -->
+<div class="c f" style="align-items: center; justify-content: end"><div id=g1 class=b></div></div>
+<div class="c f"><div id=g2 class=b style="justify-self: center; align-self: center"></div></div>
+<!-- Intrinsic height keywords take the content height. -->
+<div class=h><div id=k1 style="position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 10px">Centered dialog</div></div>
+<div class=h><div id=k2 style="position: absolute; top: 0; bottom: 0; height: max-content; width: 50px">two lines of text</div></div>
+<div class=h><div id=k3 style="position: absolute; top: 0; bottom: 0; height: min-content; margin: auto 0; width: 50px">a</div></div>

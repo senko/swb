@@ -66,7 +66,7 @@ Open a URL in a window and read the page.
 Five parallel workstreams; each will record its design in a new ADR:
 
 - Floats, clearance and block formatting contexts.
-- Absolute, fixed and sticky positioning; 2D `transform`.
+- Absolute, fixed and sticky positioning; 2D `transform`: done (ADR 0016).
 - Grid layout: done (ADR 0017).
 - `mask-image` and the other mask properties (icons): done (ADR 0018).
 - Scroll containers: `overflow` scrolling inside elements: done (ADR 0019).
@@ -112,6 +112,26 @@ uses neither; they moved to "Later".
 - Text: `white-space: break-spaces` does not wrap; with `text-align:
   right | center`, trailing `pre-wrap` spaces that fit are left out of
   the line width.
+- Positioning: an abspos box directly before inline content is
+  block-level in the box tree (aligned as in block flow); abspos
+  children of table rows get the static position of an anonymous cell;
+  `unsafe` alignment is ignored; block-level `justify-self` and
+  `justify-items` for in-flow blocks (Chromium aligns them, which moves
+  static positions); swb accepts `fit-content(<length>)` for `width` and
+  `height` (Chromium rejects it); opacity layers have no work budget
+  (many large overlapping opacity groups are slow); `hit_test`
+  allocates the transform ends on each hit test that skips a group;
+  grid areas as containing blocks (abspos children of a grid with
+  `grid-row`/`grid-column`); abspos boxes inside floats inside
+  positioned inline boxes use the next containing block; text selection
+  in transformed, stuck sticky and scrolled fixed boxes uses layout
+  positions; rotated, skewed and scaled text is a resampled layer (glyph
+  outlines would keep it sharp); non-positioned boxes with opacity < 1
+  paint in normal-flow order, not with the positioned boxes at z-index
+  0; `z-index` on static flex items is ignored; 3D transforms,
+  `perspective`, the `translate`/`rotate`/`scale` properties,
+  `transform-box`; `will-change`, `filter` and `contain` as containing
+  blocks for fixed boxes; `clip-path`.
 - Flexbox: the baseline of a flex container comes from the first item
   that has a baseline, not from the startmost item (known failure
   `inline-flex-baseline`; Wikipedia's icon buttons are 6 px taller).
@@ -243,9 +263,8 @@ change behaviour, so they are not fixed yet.
 Found by the reviews before the first commit and not fixed yet. Layout
 issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
-- Layout: floats and absolutely positioned boxes inside inline content are
-  not placed; absolutely positioned children of flex containers are
-  dropped; flex container min/max sizes; `align-content: stretch` order;
+- Layout: floats inside inline content are not placed; flex container
+  min/max sizes; `align-content: stretch` order;
   `vertical-align: top/bottom`; min-content of nowrap row flex
   containers; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
@@ -258,8 +277,6 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
   `content-box` background clip/origin; gradients ignore background size
   and position, repeating gradients and implicit stop positions; block
   backgrounds should paint before inline content (Appendix E steps 4/7).
-- Paint: a `position: fixed` box inside `overflow: hidden` is clipped
-  (fixed positioning is not implemented yet).
 - Engine: `<meta charset>` after the first 1024 bytes and charset for
   `text/*` documents; keep parsed stylesheets across resizes (only
   re-evaluate media queries); decode images off the UI thread; a total

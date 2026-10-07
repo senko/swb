@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!-- Sticky boxes in scroll containers scrolled with data-scroll: they stick
+     to the scrollport without its padding, and stay in their containing
+     block (for the scroll container itself: its scrollable overflow
+     without the padding). Measured with Chromium. -->
+<style>
+body { margin: 0; font: 16px/20px monospace; }
+.s { overflow: auto; width: 150px; height: 100px; padding: 10px; background: #eee; margin: 0 0 10px 0; }
+.k { position: sticky; height: 20px; background: blue; }
+</style>
+<div class=s data-scroll="0 50">
+  <div style="height: 20px"></div>
+  <div class=k style="top: 0"></div>
+  <div style="height: 300px"></div>
+</div>
+<div class=s data-scroll="0 100">
+  <div style="height: 300px"></div>
+  <div class=k style="bottom: 0"></div>
+  <div style="height: 50px"></div>
+</div>
+<!-- The limit: the scrollable overflow without the padding. -->
+<div class=s data-scroll="0 9999">
+  <div style="height: 50px"></div>
+  <div class=k style="top: 0; height: 150px"></div>
+  <div style="height: 200px"></div>
+</div>
+<div class=s data-scroll="0 9999">
+  <div style="height: 50px"></div>
+  <div class=k style="top: 0; height: 150px"></div>
+  <div style="height: 10px"><div style="height: 300px; width: 10px"></div></div>
+</div>
+<!-- The containing block is a block inside the scroll container. -->
+<div class=s data-scroll="0 120">
+  <div style="height: 20px"></div>
+  <div style="height: 150px"><div class=k style="top: 5px"></div></div>
+  <div style="height: 300px"></div>
+</div>
+<!-- Nested sticky boxes. -->
+<div class=s data-scroll="0 80">
+  <div class=k style="top: 0; height: 120px; background: #ccf">
+    <div style="height: 30px"></div>
+    <div class=k style="top: 10px"></div>
+  </div>
+  <div style="height: 300px"></div>
+</div>
+<!-- Horizontal. -->
+<div class=s data-scroll="60 0" style="white-space: nowrap">
+  <div style="width: 400px; height: 20px"></div>
+  <div class=k style="left: 0; width: 30px; margin-left: 40px"></div>
+</div>
+<!-- A sticky box in a scroll container inside a scroll container. -->
+<div class=s data-scroll="0 30">
+  <div class=s style="width: 100px; margin: 20px 0 0" data-scroll="0 40">
+    <div style="height: 20px"></div>
+    <div class=k style="top: 0"></div>
+    <div style="height: 300px"></div>
+  </div>
+  <div style="height: 300px"></div>
+</div>
+<!-- A sticky box in an absolutely positioned box whose containing block is
+     outside the scroll container: it sticks in the viewport (the scroll
+     container in its chain of containing blocks), not in the scroll
+     container around it. -->
+<div style="position: relative">
+  <div class=s data-scroll="0 50">
+    <div style="height: 30px"></div>
+    <div style="position: absolute; top: 0; left: 200px; width: 100px; height: 200px; background: #cfc">
+      <div style="height: 20px"></div>
+      <div class=k style="top: 40px"></div>
+    </div>
+    <div style="height: 300px"></div>
+  </div>
+</div>

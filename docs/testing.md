@@ -16,6 +16,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
+| Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and

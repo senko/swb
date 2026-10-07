@@ -28,7 +28,7 @@
 
 use std::sync::Arc;
 
-use swb_layout::{BoxFragment, NaturalSize, Point, Rect};
+use swb_layout::{BoxFragment, Matrix, NaturalSize, Point, Rect, StickyCache};
 use swb_style::{
     BackgroundBox, BorderStyle, CompositeOperator, ComputedStyle, Image, LinearGradient,
     MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode, Rgba,
@@ -36,8 +36,9 @@ use swb_style::{
 
 use crate::background;
 use crate::display_list::{
-    DisplayItem, ImageRef, ImageSizes, layer_value, outset, with_descendants,
+    DisplayItem, ImageRef, ImageSizes, UNBOUNDED, layer_value, outset, with_descendants,
 };
+use crate::group_bounds::union;
 
 /// One layer of a mask, in document coordinates (CSS px).
 #[derive(Clone, Debug)]
@@ -169,75 +170,129 @@ pub(crate) fn needs_positioned_area(style: &ComputedStyle) -> bool {
 /// `PopClip` without a `PushClip` in `items` is ignored): the area that a
 /// descendant with its own layer draws, for the `no-clip` area. Chromium
 /// clips that area by the descendant's own overflow clip, not by those of
-/// the boxes around it.
-pub(crate) fn clipped_ink(items: &[DisplayItem]) -> Option<Rect> {
-    // The open clips; `None` for a clip that hides everything.
-    let mut clips: Vec<Option<Rect>> = Vec::new();
-    let mut area: Option<Rect> = None;
+/// the boxes around it. Content fixed to the viewport is not clipped, and
+/// transform groups map their content (fixed and sticky groups at scroll
+/// offset 0; deliberate simplification: the area does not follow the
+/// scroll offset).
+pub(crate) fn clipped_ink<'a>(items: impl IntoIterator<Item = &'a DisplayItem>) -> Option<Rect> {
+    let mut ink = ClippedInk::new();
     for item in items {
-        match item {
-            DisplayItem::PushClip(rect) => {
-                let clip = match clips.last() {
-                    None => Some(*rect),
-                    Some(outer) => outer.and_then(|c| c.intersection(rect)),
-                };
-                clips.push(clip);
-            }
-            DisplayItem::PopClip => {
-                clips.pop();
-            }
-            _ => {
-                let ink = item.ink_bounds().and_then(|b| match clips.last() {
-                    None => Some(b),
-                    Some(clip) => clip.and_then(|c| b.intersection(&c)),
-                });
-                if let Some(ink) = ink {
-                    area = Some(area.map_or(ink, |a| a.union(&ink)));
-                }
-            }
-        }
+        ink.feed(item);
     }
-    area
+    ink.area
 }
 
-/// The area of the opacity and mask groups in `items` that are not inside
-/// another group of `items`: the [`clipped_ink`] of each group, inside the
-/// bounds of a mask group.
-pub(crate) fn group_area(items: &[DisplayItem]) -> Option<Rect> {
-    let mut area: Option<Rect> = None;
-    let mut rest = items;
-    while let Some(start) = rest.iter().position(is_group_start) {
-        let group = rest.get(start..).unwrap_or_default();
-        // The matching end of the group (or the end of the items).
-        let mut depth = 0usize;
-        let end = group
-            .iter()
-            .position(|item| {
-                if is_group_start(item) {
-                    depth += 1;
-                } else if matches!(item, DisplayItem::PopOpacity | DisplayItem::PopMask) {
-                    depth = depth.saturating_sub(1);
-                }
-                depth == 0
-            })
-            .unwrap_or(group.len());
-        let inner = group.get(1..end).unwrap_or_default();
-        let ink = clipped_ink(inner).and_then(|ink| match group.first() {
-            Some(DisplayItem::PushMask { bounds, .. }) => ink.intersection(bounds),
-            _ => Some(ink),
-        });
-        if let Some(ink) = ink {
-            area = Some(area.map_or(ink, |a| a.union(&ink)));
+/// The state of [`clipped_ink`] while it reads the items one at a time.
+struct ClippedInk {
+    /// The open clips; `None` for a clip that hides everything.
+    clips: Vec<Option<Rect>>,
+    /// The transform of the open transform groups, and those around them.
+    matrix: Matrix,
+    outer: Vec<Matrix>,
+    /// The offsets of sticky groups (at scroll offset 0).
+    sticky: StickyCache,
+    area: Option<Rect>,
+}
+
+impl ClippedInk {
+    fn new() -> ClippedInk {
+        ClippedInk {
+            clips: Vec::new(),
+            matrix: Matrix::IDENTITY,
+            outer: Vec::new(),
+            sticky: StickyCache::default(),
+            area: None,
         }
-        rest = group.get(end + 1..).unwrap_or_default();
     }
-    area
+
+    fn feed(&mut self, item: &DisplayItem) {
+        match item {
+            DisplayItem::PushClip(rect) => {
+                let rect = self.matrix.map_rect(rect);
+                let clip = match self.clips.last() {
+                    None => Some(rect),
+                    Some(outer) => outer.and_then(|c| c.intersection(&rect)),
+                };
+                self.clips.push(clip);
+            }
+            DisplayItem::PushViewportClip => self.clips.push(Some(UNBOUNDED)),
+            DisplayItem::PopClip => {
+                self.clips.pop();
+            }
+            DisplayItem::PushTransform { transform, .. } => {
+                self.outer.push(self.matrix);
+                self.matrix =
+                    transform.resolve_with(&self.matrix, Point::default(), &mut self.sticky);
+            }
+            DisplayItem::PopTransform => {
+                self.matrix = self.outer.pop().unwrap_or(Matrix::IDENTITY);
+            }
+            _ => {
+                let ink = item.ink_bounds().and_then(|b| {
+                    let b = self.matrix.map_rect(&b);
+                    match self.clips.last() {
+                        None => Some(b),
+                        Some(clip) => clip.and_then(|c| b.intersection(&c)),
+                    }
+                });
+                self.area = union(self.area, ink);
+            }
+        }
+    }
+}
+
+/// The area of the opacity, mask and transform groups in `items` that are
+/// not inside another group of `items`: the [`clipped_ink`] of each group,
+/// inside the bounds of a mask group. One pass over the items.
+pub(crate) fn group_area<'a>(items: impl IntoIterator<Item = &'a DisplayItem>) -> Option<Rect> {
+    let mut area: Option<Rect> = None;
+    // The outermost open group: the ink of its items so far (the group's
+    // own push and pop items have no ink) and the bounds of a mask.
+    let mut open: Option<(ClippedInk, Option<Rect>)> = None;
+    let mut depth = 0usize;
+    for item in items {
+        if is_group_start(item) {
+            if depth == 0 {
+                let bounds = match item {
+                    DisplayItem::PushMask { bounds, .. } => Some(*bounds),
+                    _ => None,
+                };
+                open = Some((ClippedInk::new(), bounds));
+            }
+            depth += 1;
+        } else if matches!(
+            item,
+            DisplayItem::PopOpacity | DisplayItem::PopMask | DisplayItem::PopTransform
+        ) {
+            depth = depth.saturating_sub(1);
+        }
+        if let Some((ink, _)) = &mut open {
+            ink.feed(item);
+        }
+        if depth == 0 {
+            area = union(area, open.take().and_then(group_ink));
+        }
+    }
+    // A group without its end (at the end of the items).
+    union(area, open.and_then(group_ink))
+}
+
+/// The ink of a group that [`group_area`] has read, inside the bounds of a
+/// mask.
+fn group_ink((ink, bounds): (ClippedInk, Option<Rect>)) -> Option<Rect> {
+    let area = ink.area?;
+    match bounds {
+        Some(bounds) => area.intersection(&bounds),
+        None => Some(area),
+    }
 }
 
 fn is_group_start(item: &DisplayItem) -> bool {
     matches!(
         item,
-        DisplayItem::PushOpacity { .. } | DisplayItem::PushMask { .. }
+        DisplayItem::PushOpacity { .. }
+            | DisplayItem::PushMask { .. }
+            | DisplayItem::PushTransform { .. }
     )
 }
 

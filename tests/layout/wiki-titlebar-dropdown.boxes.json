@@ -1,0 +1,24 @@
+{
+  "url": "tests/layout/wiki-titlebar-dropdown.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 60.39], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 44.39], "parent": 0},
+    {"tag": "header", "rect": [8.0, 8.0, 784.0, 44.39], "parent": 5},
+    {"tag": "div", "rect": [8.0, 14.19, 80.05, 32.0], "parent": 6},
+    {"tag": "input", "rect": [8.0, 14.19, 80.05, 32.0], "parent": 7},
+    {"tag": "label", "rect": [8.0, 14.19, 80.05, 32.0], "parent": 7},
+    {"tag": "div", "rect": [7.0, 46.19, 124.61, 32.0], "parent": 7},
+    {"tag": "br", "rect": [115.61, 65.19, 0.0, 16.0], "parent": 10},
+    {"tag": "h1", "rect": [88.05, 8.0, 595.88, 44.39], "parent": 6},
+    {"tag": "div", "rect": [683.92, 14.19, 108.08, 32.0], "parent": 6},
+    {"tag": "input", "rect": [683.92, 14.19, 108.08, 32.0], "parent": 13},
+    {"tag": "label", "rect": [683.92, 14.19, 108.08, 32.0], "parent": 13},
+    {"tag": "div", "rect": [682.92, 46.19, 102.06, 54.0], "parent": 13},
+    {"tag": "span", "rect": [8.0, 51.39, 784.0, 1.0], "parent": 6}
+  ]
+}

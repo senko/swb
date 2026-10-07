@@ -55,6 +55,16 @@ field or text area has the focus, Backspace, Ctrl+X and Ctrl+V go to it;
 otherwise Backspace goes back. A focused text control has its own
 selection, which Ctrl+C copies instead of the page selection.
 
+Update (2026-10-04): since [ADR 0016](0016-positioning-and-transforms.md),
+hit testing (in the display list) uses the scroll offset and transforms:
+a fixed box is hit where it is on the screen, a sticky box at its stuck
+position, a transformed box where it is painted (a transform that cannot
+be inverted is never hit), and an absolutely positioned box is clipped
+only by the boxes in its containing block chain. Text positions for
+selection (`selection::position_at`) still use the layout geometry, so in
+transformed boxes, in sticky boxes that are stuck, and in fixed boxes of
+a scrolled page, a click selects at the layout position of the text.
+
 ### Focus
 
 - Focusable elements and the sequential focus order follow the HTML

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned boxes without a positioned ancestor use the
+     initial containing block (the viewport rectangle at the origin of the
+     document); nested absolutely positioned boxes use their positioned
+     ancestor. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: initial containing block</title>
+<style>
+  html { margin: 5px; border: 2px solid; padding: 3px; }
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .abs { position: absolute; background: #ccc; }
+</style>
+</head>
+<body>
+  <div style="height: 1000px">
+    <div class="abs" id="a1" style="bottom: 0; right: 0; width: 40px; height: 40px"></div>
+    <div class="abs" id="a2" style="top: 0; left: 0; right: 0; height: 10px"></div>
+    <div class="abs" id="a3" style="top: 50%; left: 50%; width: 10%; height: 10%">
+      <div class="abs" id="a4" style="bottom: 0; right: 0; width: 5px; height: 5px"></div>
+    </div>
+    <div class="abs" id="a5" style="top: 100px">static left</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "url": "tests/layout/abspos-tables.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 318.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 302.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 402.0, 302.0], "parent": 5},
+    {"tag": "div", "rect": [19.0, 19.0, 74.72, 20.0], "parent": 6},
+    {"tag": "span", "rect": [19.0, 19.0, 74.72, 20.0], "parent": 7},
+    {"tag": "div", "rect": [177.86, 9.0, 62.27, 20.0], "parent": 6},
+    {"tag": "span", "rect": [177.86, 9.0, 62.27, 20.0], "parent": 9},
+    {"tag": "div", "rect": [377.88, 59.0, 31.13, 20.0], "parent": 6},
+    {"tag": "span", "rect": [377.88, 59.0, 31.13, 20.0], "parent": 11},
+    {"tag": "table", "rect": [19.0, 109.0, 87.84, 26.0], "parent": 6},
+    {"tag": "tbody", "rect": [21.0, 111.0, 83.84, 22.0], "parent": 13},
+    {"tag": "tr", "rect": [21.0, 111.0, 83.84, 22.0], "parent": 14},
+    {"tag": "td", "rect": [21.0, 111.0, 83.84, 22.0], "parent": 15},
+    {"tag": "div", "rect": [361.86, 149.0, 47.14, 20.0], "parent": 6},
+    {"tag": "span", "rect": [361.86, 149.0, 47.14, 20.0], "parent": 17}
+  ]
+}

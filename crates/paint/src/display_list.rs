@@ -3,11 +3,34 @@
 //! Built from the fragment tree by [`build_display_list`]. Paint order
 //! follows a simplified form of CSS 2.2 Appendix E
 //! (<https://www.w3.org/TR/CSS22/zindex.html>): normal-flow content in tree
-//! order, then positioned boxes in z-index order (stable for equal values).
-//! Deliberate simplifications: boxes with `z-index: auto` are treated as
-//! stacking contexts, and a box paints its background, border and content
-//! before the next box in tree order (no separate phases for block
-//! backgrounds, floats and inline content).
+//! order, then positioned and transformed boxes in z-index order (stable
+//! for equal values; `auto` counts as 0). A box with `z-index: auto` and
+//! `position: relative` or `absolute` (without a transform or opacity) does
+//! not form a stacking context: its positioned descendants take part in
+//! the enclosing one. Deliberate simplification: a box paints its
+//! background, border and content before the next box in tree order (no
+//! separate phases for block backgrounds, floats and inline content).
+//!
+//! Transforms, fixed boxes and sticky boxes are transform groups
+//! ([`DisplayItem::PushTransform`]). The offsets of fixed and sticky boxes
+//! depend on the scroll offset, so the rasterizer and hit testing compute
+//! them; the list does not change when the page scrolls. A positioned box
+//! keeps only the overflow clips of the boxes in its containing block
+//! chain (CSS Overflow 3 §3): an absolutely positioned box is not clipped
+//! by a box between it and its containing block, and a fixed box only by
+//! the `clip` properties of its ancestors (and the clips of a transformed
+//! containing block). A stacking
+//! context paints its positioned descendants outside its own overflow
+//! clip; each of them repeats the clips that apply to it. Deliberate
+//! simplification: the clips around a stacking context also clip the
+//! positioned descendants in it whose containing block is outside those
+//! clips (a relative containing block, then a static box with
+//! `overflow: hidden`, then a box with opacity, then the absolutely
+//! positioned box: the overflow clip applies; ADR 0016).
+//!
+//! The builder collects the items in chunks (`rope.rs`), so that moving
+//! the items of positioned boxes is linear, and computes the bounds of
+//! all groups in one pass at the end (`group_bounds.rs`).
 //!
 //! The list also contains hit regions in paint order, so that hit testing
 //! ([`DisplayList::hit_test`]) finds what is painted on top.
@@ -24,15 +47,20 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_layout::{
-    BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, NaturalSize, NoScroll, Point,
-    PositionedGlyph, Rect, ScrollOffsets, ScrollState, TextFragment,
+    Ancestry, BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, GroupTransform,
+    Matrix, NaturalSize, NoScroll, Point, PositionedGlyph, Rect, ScrollOffsets, ScrollState,
+    StickyCache, TextFragment, clip_property_area, forms_stacking_context, has_transform,
+    is_absolute_containing_block, is_fixed_containing_block,
 };
 use swb_style::{
-    BackgroundBox, BorderStyle, ComputedStyle, Image, Rgba, TextDecorationLine, Visibility, ZIndex,
+    BackgroundBox, BorderStyle, ComputedStyle, Image, Position, Rgba, TextDecorationLine,
+    Visibility, ZIndex,
 };
 use swb_text::FontId;
 
+use crate::group_bounds::{finish_groups, transform_ends};
 use crate::mask::{self, MaskBoxes, MaskLayer};
+use crate::rope::ItemRope;
 use crate::scroll_indicator::element_scroll_indicators;
 use crate::{background, control};
 
@@ -103,6 +131,10 @@ pub enum DisplayItem {
     },
     /// Start clipping to a rectangle.
     PushClip(Rect),
+    /// Start a clip that covers the whole target and replaces the
+    /// enclosing clips: content fixed to the viewport is not clipped by the
+    /// overflow clips of its ancestors. Ends at the next `PopClip`.
+    PushViewportClip,
     /// End the most recent clip.
     PopClip,
     /// Start a group that is composited with `opacity`.
@@ -110,8 +142,16 @@ pub enum DisplayItem {
         /// The group opacity, 0 to 1. A group with opacity 0 is not drawn,
         /// but its hit regions count.
         opacity: f32,
-        /// An area that contains everything the group draws.
+        /// An area that contains everything the group draws, except
+        /// content fixed to the viewport.
         bounds: Rect,
+        /// An area that contains what content fixed to the viewport in the
+        /// group draws, in viewport coordinates (it moves with the scroll
+        /// offset); `None` without such content.
+        fixed_bounds: Option<Rect>,
+        /// True if the group contains content fixed to the viewport, which
+        /// the enclosing clips do not clip.
+        escapes_clips: bool,
     },
     /// End the most recent opacity group.
     PopOpacity,
@@ -121,11 +161,33 @@ pub enum DisplayItem {
         /// An area that contains everything the group shows: its content
         /// inside the area of the mask layers.
         bounds: Rect,
-        /// The mask layers, top first.
+        /// The mask layers, top first. The enclosing clips clip the mask,
+        /// so they also clip content fixed to the viewport in the group (as
+        /// in Chromium).
         layers: Arc<[MaskLayer]>,
     },
     /// End the most recent mask group.
     PopMask,
+    /// Start a group whose items are drawn with a transform, up to the
+    /// matching [`DisplayItem::PopTransform`].
+    PushTransform {
+        /// How the group's coordinates map to the coordinates around it.
+        transform: GroupTransform,
+        /// An area that contains everything the group draws, in the
+        /// group's coordinates, except content fixed to the viewport. For
+        /// a [`GroupTransform::Fixed`] group, in viewport coordinates and
+        /// with that content.
+        bounds: Rect,
+        /// `bounds` and the hit regions of the group.
+        hit_bounds: Rect,
+        /// An area that contains what content fixed to the viewport in the
+        /// group draws and its hit regions, in viewport coordinates (it
+        /// moves with the scroll offset); `None` without such content and
+        /// for a [`GroupTransform::Fixed`] group.
+        fixed_bounds: Option<Rect>,
+    },
+    /// End the most recent transform group.
+    PopTransform,
     /// Stroke a line through `points` (butt caps, miter joins).
     Polyline {
         /// The points.
@@ -161,11 +223,14 @@ impl DisplayItem {
             } => text_bounds(*origin, *size, glyphs),
             DisplayItem::Polyline { points, width, .. } => polyline_bounds(points, *width),
             DisplayItem::PushClip(_)
+            | DisplayItem::PushViewportClip
             | DisplayItem::PopClip
             | DisplayItem::PushOpacity { .. }
             | DisplayItem::PopOpacity
             | DisplayItem::PushMask { .. }
             | DisplayItem::PopMask
+            | DisplayItem::PushTransform { .. }
+            | DisplayItem::PopTransform
             | DisplayItem::HitRegion { .. } => None,
         }
     }
@@ -230,6 +295,15 @@ fn extent(points: impl Iterator<Item = (f32, f32)>) -> Option<(f32, f32, f32, f3
     })
 }
 
+/// An area that contains everything: the bounds of a group whose content
+/// moves with the scroll offset.
+pub(crate) const UNBOUNDED: Rect = Rect::new(
+    -swb_style::Length::MAX_PX,
+    -swb_style::Length::MAX_PX,
+    2.0 * swb_style::Length::MAX_PX,
+    2.0 * swb_style::Length::MAX_PX,
+);
+
 /// A reference to an image.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImageRef {
@@ -277,22 +351,66 @@ pub struct DisplayList {
 
 impl DisplayList {
     /// The node of the topmost hit region at `point` (document coordinates,
-    /// CSS px) that is not clipped away. Regions that are painted later are
-    /// on top. Masks do not matter, as in Chromium.
-    pub fn hit_test(&self, point: Point) -> Option<NodeId> {
+    /// CSS px) that is not clipped away, at the viewport scroll offset
+    /// `scroll` (fixed and sticky boxes move with it). Regions that are
+    /// painted later are on top. Masks do not matter, as in Chromium. A
+    /// region in a transform group is hit in the group's coordinates; a
+    /// group whose transform cannot be inverted is not hit. Groups whose
+    /// bounds do not contain the point are skipped, so the list must have
+    /// the bounds that [`build_display_list`] sets.
+    pub fn hit_test(&self, point: Point, scroll: Point) -> Option<NodeId> {
         let mut clips: Vec<bool> = Vec::new();
+        // The transforms of the enclosing groups and the point in their
+        // coordinates.
+        let mut groups: Vec<(Matrix, Option<Point>)> = Vec::new();
+        let mut matrix = Matrix::IDENTITY;
+        let mut local = Some(point);
         let mut hit = None;
-        for item in &self.items {
+        let mut sticky = StickyCache::default();
+        // The ends of the transform groups, once a group is skipped.
+        let mut ends: Option<Vec<usize>> = None;
+        let inside = |rect: &Rect, local: Option<Point>| local.is_some_and(|p| rect.contains(p));
+        let mut i = 0;
+        while let Some(item) = self.items.get(i) {
+            i += 1;
             match item {
                 DisplayItem::PushClip(rect) => {
-                    let inside = clips.last().is_none_or(|&c| c) && rect.contains(point);
-                    clips.push(inside);
+                    let visible = clips.last().is_none_or(|&c| c) && inside(rect, local);
+                    clips.push(visible);
                 }
+                DisplayItem::PushViewportClip => clips.push(true),
                 DisplayItem::PopClip => {
                     clips.pop();
                 }
+                DisplayItem::PushTransform {
+                    transform,
+                    hit_bounds,
+                    fixed_bounds,
+                    ..
+                } => {
+                    let m = transform.resolve_with(&matrix, scroll, &mut sticky);
+                    let p = m.invert().map(|inverse| inverse.apply(point));
+                    // A group whose bounds the point misses has no region
+                    // there: skip it (and its nested groups).
+                    let near = inside(hit_bounds, p)
+                        || fixed_bounds.is_some_and(|f| f.translate(scroll).contains(point));
+                    if !near {
+                        let ends = ends.get_or_insert_with(|| transform_ends(&self.items));
+                        i = ends.get(i - 1).map_or(self.items.len(), |end| end + 1);
+                        continue;
+                    }
+                    groups.push((matrix, local));
+                    matrix = m;
+                    local = p;
+                }
+                DisplayItem::PopTransform => {
+                    if let Some((m, p)) = groups.pop() {
+                        matrix = m;
+                        local = p;
+                    }
+                }
                 DisplayItem::HitRegion { rect, node }
-                    if clips.last().is_none_or(|&c| c) && rect.contains(point) =>
+                    if clips.last().is_none_or(|&c| c) && inside(rect, local) =>
                 {
                     hit = Some(*node);
                 }
@@ -331,16 +449,17 @@ pub fn build_display_list(
     scrolling: &Scrolling<'_>,
 ) -> DisplayList {
     let mut builder = Builder {
-        list: Vec::new(),
+        list: ItemRope::default(),
         images,
         highlights,
         contexts: Vec::new(),
         clips: Vec::new(),
+        absolute_clips: 0,
+        fixed_clips: 0,
         canvas_source: None,
-        root_canvas: Vec::new(),
+        root_canvas: ItemRope::default(),
         offsets: scrolling.offsets,
         scroll: ScrollState::default(),
-        cb_clips: None,
         indicators: scrolling.indicators,
     };
     if let Some(canvas_background) = &tree.canvas_background {
@@ -373,57 +492,69 @@ pub fn build_display_list(
         }
     }
     if let Some(root) = &tree.root {
-        builder.box_contents(root, Point::default(), &[], true);
+        let ancestry = Ancestry::root(tree.viewport);
+        builder.box_contents(root, Point::default(), &[], &ancestry, true);
     }
-    DisplayList {
-        items: builder.list,
-    }
+    let mut items = builder.list.into_vec();
+    finish_groups(&mut items);
+    DisplayList { items }
 }
 
 /// A positioned box painted after the normal flow of its stacking context.
 struct Deferred {
     z: i32,
-    items: Vec<DisplayItem>,
-    /// The number of clips of the boxes between the stacking context and
-    /// the box: the items start with their `PushClip`s and end with their
-    /// `PopClip`s.
+    items: ItemRope,
+    /// The number of clips that the items repeat around the box: they
+    /// start with a `PushViewportClip` (for a box fixed to the viewport)
+    /// and the `PushClip`s of the clips that apply to the box, and end with
+    /// as many `PopClip`s.
     clips: usize,
 }
 
-/// An open overflow clip.
+/// An open clip (overflow or `clip` property).
 struct OpenClip {
-    /// The clip rectangle (the padding box).
+    /// The clip rectangle (for overflow, the padding box).
     rect: Rect,
-    /// The number of open stacking contexts outside the clipping box. Clips
-    /// of the current stacking context have the value `contexts.len()`.
+    /// The stacking context the clip belongs to: the number of open
+    /// stacking contexts at the clipping box, including the box's own
+    /// context. The positioned descendants in that context repeat it.
     context_depth: usize,
+    /// True for the clip of the `clip` property, which also clips fixed
+    /// descendants.
+    property: bool,
 }
 
 struct Builder<'a> {
-    list: Vec<DisplayItem>,
+    /// The items painted so far, in chunks: moving the items of positioned
+    /// boxes between stacking contexts moves chunks (see `rope.rs`).
+    list: ItemRope,
     images: &'a dyn ImageSizes,
     highlights: &'a dyn Highlights,
     /// One entry per open stacking context: its positioned descendants, in
     /// tree order.
     contexts: Vec<Vec<Deferred>>,
-    /// Overflow clips of the boxes that are being painted, outermost first.
+    /// The clips (overflow and `clip` property) of the boxes that are being
+    /// painted, outermost first.
     clips: Vec<OpenClip>,
+    /// The number of entries of `clips` that apply to absolutely
+    /// positioned descendants: the clips of the containing block and its
+    /// ancestors.
+    absolute_clips: usize,
+    /// The number of entries of `clips` that apply to fixed descendants:
+    /// those of the nearest transformed ancestor and above (0 without
+    /// one). The `clip` properties after them apply too.
+    fixed_clips: usize,
     /// The element whose background paints the canvas; its own box does
     /// not paint the background again.
     canvas_source: Option<NodeId>,
     /// The canvas background of a root element with opacity or a mask,
     /// which its groups paint first.
-    root_canvas: Vec<DisplayItem>,
+    root_canvas: ItemRope,
     /// The scroll offsets of scroll containers.
     offsets: &'a dyn ScrollOffsets,
     /// The scroll offsets that apply to the children of the box being
     /// painted.
     scroll: ScrollState,
-    /// The number of open clips outside the nearest block in a positioned
-    /// inline box, if there is one below the nearest positioned box: the
-    /// absolutely positioned boxes in it keep these clips (their
-    /// containing block, the inline box, is inside them).
-    cb_clips: Option<usize>,
     /// True to draw overlay scroll indicators.
     indicators: bool,
 }
@@ -493,97 +624,137 @@ struct Group {
 }
 
 impl Builder<'_> {
-    fn box_fragment(&mut self, b: &BoxFragment, origin: Point, decorations: &[Decoration]) {
-        // An absolutely positioned box does not move with the scroll
-        // containers outside its containing block.
+    fn box_fragment(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        decorations: &[Decoration],
+        ancestry: &Ancestry,
+    ) {
+        // An absolutely positioned or fixed box does not move with the
+        // scroll containers outside its containing block.
         let origin = self.scroll.origin_of(b, origin);
-        if b.style.position == swb_style::Position::Static {
-            self.box_contents(b, origin, decorations, false);
+        let style = &b.style;
+        let positioned = style.position != Position::Static;
+        let transformed = has_transform(b);
+        if !positioned && !transformed {
+            self.box_contents(b, origin, decorations, ancestry, false);
             return;
         }
-        // A positioned box is painted after the normal-flow content of the
-        // enclosing stacking context, in z-index order (`auto` as 0), with
-        // the overflow clips between that stacking context and the box
-        // that also contain its containing block.
-        let z = match b.style.z_index {
-            ZIndex::Auto => 0,
-            ZIndex::Integer(z) => z,
+        // A positioned or transformed box is painted after the normal-flow
+        // content of the enclosing stacking context, in z-index order
+        // (`auto` as 0; a transformed box counts as positioned, CSS
+        // Transforms 1 §3). It forms a stacking context if it has an
+        // integer z-index, a transform, or fixed or sticky positioning.
+        let z = match style.z_index {
+            ZIndex::Integer(z) if positioned => z,
+            _ => 0,
         };
-        let clips = self.context_clips(b);
-        let saved = std::mem::take(&mut self.list);
+        let context = forms_stacking_context(b);
+        // The clips between the stacking context and the box still apply,
+        // if they belong to the box's containing block chain; the `clip`
+        // properties of ancestors also apply to fixed boxes (Chromium). A
+        // box fixed to the viewport replaces all clips and repeats only the
+        // `clip` properties.
+        let viewport_fixed = ancestry.is_viewport_fixed(b);
+        let depth = self.contexts.len();
+        let applies = |i: usize, c: &OpenClip| match style.position {
+            _ if viewport_fixed => c.property,
+            Position::Absolute => i < self.absolute_clips && c.context_depth == depth,
+            Position::Fixed => (i < self.fixed_clips || c.property) && c.context_depth == depth,
+            _ => c.context_depth == depth,
+        };
+        let clips: Vec<Rect> = self
+            .clips
+            .iter()
+            .enumerate()
+            .filter(|&(i, c)| applies(i, c))
+            .map(|(_, c)| c.rect)
+            .collect();
+        // The box's place in the stacking context comes before its
+        // positioned descendants, which it does not contain if it forms no
+        // stacking context.
+        let slot = self.contexts.last_mut().map(|c| {
+            c.push(Deferred {
+                z,
+                items: ItemRope::default(),
+                // The viewport clip and the repeated clips.
+                clips: clips.len() + usize::from(viewport_fixed),
+            });
+            c.len() - 1
+        });
+        // The box paints into the list and its items are split off (they
+        // keep their chunks, see `rope.rs`).
+        let start = self.list.len();
+        if viewport_fixed {
+            self.list.push(DisplayItem::PushViewportClip);
+        }
         self.list
             .extend(clips.iter().map(|&r| DisplayItem::PushClip(r)));
-        self.box_contents(b, origin, decorations, true);
+        self.box_contents(b, origin, decorations, ancestry, context);
         self.list.extend(clips.iter().map(|_| DisplayItem::PopClip));
-        let items = std::mem::replace(&mut self.list, saved);
-        match self.contexts.last_mut() {
-            Some(context) => context.push(Deferred {
-                z,
-                items,
-                clips: clips.len(),
-            }),
-            None => self.list.extend(items),
+        if viewport_fixed {
+            self.list.push(DisplayItem::PopClip);
         }
-    }
-
-    /// The overflow clips of the current stacking context that apply to
-    /// positioned box `b`: all of them for a relatively positioned box (and
-    /// for an absolutely positioned box in a positioned inline box, which
-    /// is its containing block); none for a fixed box; for another
-    /// absolutely positioned box, those outside the nearest block in a
-    /// positioned inline box (its containing block is that inline box),
-    /// else none (its containing block is outside them).
-    fn context_clips(&self, b: &BoxFragment) -> Vec<Rect> {
-        let depth = self.contexts.len();
-        let count = match b.style.position {
-            swb_style::Position::Fixed => 0,
-            swb_style::Position::Absolute if !b.in_positioned_inline => self.cb_clips.unwrap_or(0),
-            _ => self.clips.len(),
-        };
-        self.clips
-            .iter()
-            .take(count)
-            .filter(|c| c.context_depth == depth)
-            .map(|c| c.rect)
-            .collect()
+        if let Some(deferred) = slot
+            .zip(self.contexts.last_mut())
+            .and_then(|(slot, context)| context.get_mut(slot))
+        {
+            deferred.items = self.list.split_off(start);
+        }
     }
 
     /// Paints a box and its descendants. A stacking context root collects
     /// its positioned descendants and paints them at the end: negative
     /// z-index below its normal-flow content, the others after its content.
-    /// Both are inside the box's own overflow clip.
+    /// They are outside the box's own overflow clip; each positioned
+    /// descendant repeats the clips that apply to it (see `box_fragment`).
     fn box_contents(
         &mut self,
         b: &BoxFragment,
         origin: Point,
         decorations: &[Decoration],
+        ancestry: &Ancestry,
         stacking_context: bool,
     ) {
         let rect = b.border_rect.translate(origin);
+        let groups = ancestry.group_transforms(b, rect);
+        let transforms = self.open_transforms(&groups);
         let group = self.open_group(b, stacking_context);
         let is_root = group.outer_depth == 0;
+        // The clips of a stacking context root belong to the context: its
+        // positioned descendants repeat them.
+        let clip_depth = self.contexts.len();
+        let outer_clips = (self.absolute_clips, self.fixed_clips);
+        let clip_property = self.push_clip_property(b, rect, clip_depth);
         self.paint_box(b, origin, is_root);
         let own = child_decorations(b, decorations);
-        let clips_outside = self.clips.len();
-        let clipped = self.push_overflow_clip(b, origin, group.outer_depth);
         let negative_z_at = self.list.len();
+        let clips_outside = self.clips.len();
+        let clipped = self.push_overflow_clip(b, origin, clip_depth);
+        if is_absolute_containing_block(b) {
+            self.absolute_clips = self.clips.len();
+        } else if b.in_positioned_inline {
+            // The containing block of the absolutely positioned boxes in a
+            // block inside a positioned inline box is that inline box,
+            // outside the block's own clip.
+            self.absolute_clips = clips_outside;
+        }
+        if is_fixed_containing_block(b) {
+            self.fixed_clips = self.clips.len();
+        }
         // The children of a scroll container move by its scroll offset.
         let (child_origin, child_scroll) = self.scroll.enter(b, rect.origin(), self.offsets);
         let outer_scroll = std::mem::replace(&mut self.scroll, child_scroll);
-        let outer_cb_clips = self.cb_clips;
-        if b.style.position != swb_style::Position::Static {
-            self.cb_clips = None;
-        } else if b.in_positioned_inline {
-            self.cb_clips = Some(clips_outside);
-        }
+        let shift = Point::new(child_origin.x - rect.x, child_origin.y - rect.y);
+        let inner = ancestry.enter(b, rect, &groups, shift);
         for child in b.children.iter() {
             match child {
-                Fragment::Box(cb) => self.box_fragment(cb, child_origin, &own),
+                Fragment::Box(cb) => self.box_fragment(cb, child_origin, &own, &inner),
                 Fragment::Text(t) => self.text(t, child_origin, &own),
             }
         }
         self.scroll = outer_scroll;
-        self.cb_clips = outer_cb_clips;
         if let BoxContent::Table(table) = &b.content
             && let Some(collapsed) = &table.collapsed
         {
@@ -594,21 +765,69 @@ impl Builder<'_> {
         {
             self.list.extend(control::caret(c, &b.style, rect.origin()));
         }
+        if clipped {
+            self.list.push(DisplayItem::PopClip);
+            self.clips.pop();
+        }
         let positioned = if group.context {
             self.paint_deferred(negative_z_at, mask::needs_positioned_area(&b.style))
         } else {
             None
         };
+        (self.absolute_clips, self.fixed_clips) = outer_clips;
+        // Above the content and the positioned descendants of the box's own
+        // stacking context, inside the padding box.
         if self.indicators && b.style.visibility == Visibility::Visible {
             self.list
                 .extend(element_scroll_indicators(b, rect, self.offsets));
         }
-        if clipped {
+        self.outline(b, origin);
+        if clip_property {
             self.list.push(DisplayItem::PopClip);
             self.clips.pop();
         }
-        self.outline(b, origin);
         self.close_group(&group, b, origin, positioned);
+        self.close_transforms(transforms);
+    }
+
+    /// Starts the transform groups `groups` of a box (see
+    /// [`Ancestry::group_transforms`]). Returns the indices of the
+    /// `PushTransform` items.
+    fn open_transforms(&mut self, groups: &[GroupTransform]) -> std::ops::Range<usize> {
+        let start = self.list.len();
+        self.list
+            .extend(groups.iter().map(|transform| DisplayItem::PushTransform {
+                transform: transform.clone(),
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            }));
+        start..self.list.len()
+    }
+
+    /// Ends the transform groups that [`Builder::open_transforms`]
+    /// started. Their bounds are computed when the list is finished
+    /// (`group_bounds.rs`).
+    fn close_transforms(&mut self, transforms: std::ops::Range<usize>) {
+        self.list
+            .extend(transforms.map(|_| DisplayItem::PopTransform));
+    }
+
+    /// Starts the clip of the `clip` property (CSS 2.2 §11.1.2) of an
+    /// absolutely positioned box whose border box is at `rect`, if it has
+    /// one. It clips the box and all its descendants, fixed ones too (as in
+    /// Chromium). Returns true if it did.
+    fn push_clip_property(&mut self, b: &BoxFragment, rect: Rect, context_depth: usize) -> bool {
+        let Some(area) = clip_property_area(b, rect) else {
+            return false;
+        };
+        self.list.push(DisplayItem::PushClip(area));
+        self.clips.push(OpenClip {
+            rect: area,
+            context_depth,
+            property: true,
+        });
+        true
     }
 
     /// Starts the opacity group, the mask group and the stacking context
@@ -620,6 +839,8 @@ impl Builder<'_> {
             self.list.push(DisplayItem::PushOpacity {
                 opacity: opacity.max(0.0),
                 bounds: Rect::default(),
+                fixed_bounds: None,
+                escapes_clips: false,
             });
             self.list.len() - 1
         });
@@ -633,7 +854,7 @@ impl Builder<'_> {
         });
         if (opacity_item.is_some() || mask_item.is_some()) && outer_depth == 0 {
             let canvas = std::mem::take(&mut self.root_canvas);
-            self.list.extend(canvas);
+            self.list.append(canvas);
         }
         let context =
             stacking_context || opacity_item.is_some() || mask_item.is_some() || outer_depth == 0;
@@ -662,53 +883,38 @@ impl Builder<'_> {
         if let Some(at) = group.mask_item {
             // With `no-clip`, the area of the descendants with their own
             // layer in Chromium: positioned ones, and nested groups (with
-            // the positioned descendants inside them).
+            // the positioned descendants inside them). Each `no-clip` mask
+            // reads the items of its content once.
             let layered = mask::needs_positioned_area(&b.style)
                 .then(|| {
-                    let groups = mask::group_area(self.list.get(at + 1..).unwrap_or_default());
                     positioned
                         .into_iter()
-                        .chain(groups)
+                        .chain(mask::group_area(self.list.iter_from(at + 1)))
                         .reduce(|a, b| a.union(&b))
                 })
                 .flatten();
             let boxes = MaskBoxes::of(b, origin, layered);
             let layers = mask::layers(&b.style, &boxes, self.images);
+            // The bounds are the content inside this extent (computed when
+            // the list is finished, `group_bounds.rs`).
             let extent = layers
                 .iter()
                 .filter_map(MaskLayer::extent)
-                .reduce(|a, b| a.union(&b));
-            let bounds = self
-                .bounds_after(at)
-                .zip(extent)
-                .and_then(|(content, extent)| content.intersection(&extent))
+                .reduce(|a, b| a.union(&b))
                 .unwrap_or_default();
             if let Some(DisplayItem::PushMask {
                 bounds: bounds_slot,
                 layers: layers_slot,
             }) = self.list.get_mut(at)
             {
-                *bounds_slot = bounds;
+                *bounds_slot = extent;
                 *layers_slot = Arc::from(layers);
             }
             self.list.push(DisplayItem::PopMask);
         }
-        if let Some(at) = group.opacity_item {
-            let bounds = self.bounds_after(at).unwrap_or_default();
-            if let Some(DisplayItem::PushOpacity { bounds: slot, .. }) = self.list.get_mut(at) {
-                *slot = bounds;
-            }
+        if group.opacity_item.is_some() {
             self.list.push(DisplayItem::PopOpacity);
         }
-    }
-
-    /// The area that the items after index `at` draw.
-    fn bounds_after(&self, at: usize) -> Option<Rect> {
-        self.list
-            .get(at + 1..)?
-            .iter()
-            .filter_map(DisplayItem::bounds)
-            .reduce(|a, b| a.union(&b))
     }
 
     /// The box's own hit region, background, border and replaced content.
@@ -759,7 +965,8 @@ impl Builder<'_> {
             BoxContent::None
             | BoxContent::Image(_)
             | BoxContent::GeometryOnly
-            | BoxContent::Control(_) => {}
+            | BoxContent::Control(_)
+            | BoxContent::Placeholder(_) => {}
         }
         let radii = resolve_radii(style, border_rect);
         // The root's background (or the body's, if it was propagated)
@@ -791,7 +998,7 @@ impl Builder<'_> {
 
     /// Starts the overflow clip of a box, if it has one. Returns true if it
     /// did.
-    fn push_overflow_clip(&mut self, b: &BoxFragment, origin: Point, outer_depth: usize) -> bool {
+    fn push_overflow_clip(&mut self, b: &BoxFragment, origin: Point, context_depth: usize) -> bool {
         let style = &b.style;
         if !(style.overflow_x.clips() || style.overflow_y.clips()) {
             return false;
@@ -800,7 +1007,8 @@ impl Builder<'_> {
         self.list.push(DisplayItem::PushClip(rect));
         self.clips.push(OpenClip {
             rect,
-            context_depth: outer_depth,
+            context_depth,
+            property: false,
         });
         true
     }
@@ -812,14 +1020,14 @@ impl Builder<'_> {
     fn paint_deferred(&mut self, negative_z_at: usize, want_area: bool) -> Option<Rect> {
         let mut deferred = self.contexts.pop().unwrap_or_default();
         // The ink of each box inside its own clips, not those of the boxes
-        // around it.
+        // around it (for `no-clip` masks).
         let area = want_area
             .then(|| {
                 deferred
                     .iter()
                     .filter_map(|d| {
-                        let own = d.items.get(d.clips..d.items.len().saturating_sub(d.clips));
-                        mask::clipped_ink(own.unwrap_or_default())
+                        let own = d.items.len().saturating_sub(2 * d.clips);
+                        mask::clipped_ink(d.items.iter_from(d.clips).take(own))
                     })
                     .reduce(|a, b| a.union(&b))
             })
@@ -828,10 +1036,13 @@ impl Builder<'_> {
         deferred.sort_by_key(|d| d.z);
         let split = deferred.partition_point(|d| d.z < 0);
         let positive = deferred.split_off(split);
-        let negative: Vec<DisplayItem> = deferred.into_iter().flat_map(|d| d.items).collect();
-        self.list.splice(negative_z_at..negative_z_at, negative);
+        let mut negative = ItemRope::default();
+        for d in deferred {
+            negative.append(d.items);
+        }
+        self.list.insert(negative_z_at, negative);
         for d in positive {
-            self.list.extend(d.items);
+            self.list.append(d.items);
         }
         area
     }
@@ -1257,6 +1468,73 @@ mod tests {
         // A box wide enough keeps them.
         let radii = resolve_radii(&style, Rect::new(0.0, 0.0, 200.0, 100.0));
         assert_eq!(radii, [(80.0, 40.0), (40.0, 20.0), (0.0, 0.0), (0.0, 0.0)]);
+    }
+
+    #[test]
+    fn hit_testing_maps_points_into_groups() {
+        let node = NodeId::DOCUMENT;
+        let region = |rect| DisplayItem::HitRegion { rect, node };
+        // The bounds of the groups, as `build_display_list` sets them.
+        let finished = |mut items: Vec<DisplayItem>| {
+            finish_groups(&mut items);
+            DisplayList { items }
+        };
+        let list = finished(vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Fixed,
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            region(Rect::new(0.0, 0.0, 10.0, 10.0)),
+            DisplayItem::PopTransform,
+        ]);
+        let scroll = Point::new(0.0, 500.0);
+        assert_eq!(list.hit_test(Point::new(5.0, 505.0), scroll), Some(node));
+        assert_eq!(list.hit_test(Point::new(5.0, 5.0), scroll), None);
+        let flat = finished(vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(Matrix::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)),
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            region(Rect::new(-10.0, -10.0, 20.0, 20.0)),
+            DisplayItem::PopTransform,
+        ]);
+        assert_eq!(flat.hit_test(Point::default(), Point::default()), None);
+        // A group that the point misses is skipped with its nested groups;
+        // the regions after it count.
+        let skipped = finished(vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(Matrix::translate(100.0, 0.0)),
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(Matrix::translate(0.0, 0.0)),
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            region(Rect::new(0.0, 0.0, 10.0, 10.0)),
+            DisplayItem::PopTransform,
+            DisplayItem::PopTransform,
+            region(Rect::new(0.0, 0.0, 10.0, 10.0)),
+        ]);
+        assert_eq!(
+            skipped.hit_test(Point::new(5.0, 5.0), Point::default()),
+            Some(node)
+        );
+        assert_eq!(
+            skipped.hit_test(Point::new(105.0, 5.0), Point::default()),
+            Some(node)
+        );
+        assert_eq!(
+            skipped.hit_test(Point::new(55.0, 5.0), Point::default()),
+            None
+        );
     }
 
     #[test]

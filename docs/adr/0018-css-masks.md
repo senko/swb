@@ -170,18 +170,20 @@ the main ones):
   element compute and store 10,000 entries of nine lists (2 GB for 800
   elements in a test). Declarations with more layers are logged at debug
   level (a value with `var()` is parsed again for every element).
-- The rasterizer works in strips (`rasterize_in_strips`): a window is one
-  strip; a full-page screenshot is split into the fewest equal strips of
-  at most the viewport's height or 16 Mpx, whichever is more
+- The rasterizer works in strips (`rasterize_in_strips`): a window is
+  one strip; a full-page screenshot is split into the fewest equal
+  strips of at most the viewport's height or 16 Mpx, whichever is more
   (`MIN_STRIP_PIXELS` in the engine); equal strips can be smaller than
   that. Each strip is rasterized as if it were a viewport, in place in
   the screenshot's rows. All strips get the budgets of the common strip
   height (the last one can be lower by fewer rows than there are
   strips), so the budgets do not change at a strip boundary. The group
   layer and mask budgets below apply to each strip, and a group layer is
-  at most a strip high. The budgets have a floor per strip, so the
-  number of strips bounds their total: the largest screenshot (128 Mpx)
-  has at most 8 strips. The SVG rendering budget (ADR 0011) is shared by all strips;
+  at most a strip high. Transform layers (ADR 0016) count as open layers
+  for the group layer budget and have a work budget per strip of their
+  own. The budgets have a floor per strip, so the number of strips
+  bounds their total: the largest screenshot (128 Mpx) has at most 8
+  strips. The SVG rendering budget (ADR 0011) is shared by all strips;
   renderings that do not fit into the cache (more than 128 MiB of them)
   are rendered again in each strip that needs them, within that shared
   budget. Culling uses the strip grown by 1 device px on every side,

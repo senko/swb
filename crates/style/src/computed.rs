@@ -18,6 +18,7 @@ use crate::values::{
     TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
     VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
+use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
 /// Custom properties (`--name: value`) of an element, after `var()`
 /// substitution. Shared with the parent when unchanged.
@@ -76,6 +77,10 @@ pub struct ComputedStyle {
 
     // ----- Non-inherited properties -----
     pub display: Display,
+    /// The `display` value before blockification (not a CSS property).
+    /// The static position of an absolutely positioned box depends on it
+    /// (CSS Position 3 §4.1, Chromium's `IsOriginalDisplayInlineType`).
+    pub original_display: Display,
     pub position: Position,
     pub float: Float,
     pub clear: Clear,
@@ -84,6 +89,11 @@ pub struct ComputedStyle {
     pub bottom: LengthPercentageOrAuto,
     pub left: LengthPercentageOrAuto,
     pub z_index: ZIndex,
+    /// The transform functions in order; empty for `none`.
+    pub transform: Arc<[TransformFunction]>,
+    pub transform_origin: TransformOrigin,
+    /// `None` for `auto`.
+    pub clip: Option<ClipRect>,
     pub width: Size,
     pub height: Size,
     pub min_width: Size,
@@ -230,6 +240,7 @@ impl ComputedStyle {
             custom_properties: None,
 
             display: Display::Inline,
+            original_display: Display::Inline,
             position: Position::Static,
             float: Float::None,
             clear: Clear::None,
@@ -238,6 +249,9 @@ impl ComputedStyle {
             bottom: LengthPercentageOrAuto::Auto,
             left: LengthPercentageOrAuto::Auto,
             z_index: ZIndex::Auto,
+            transform: Arc::from([]),
+            transform_origin: TransformOrigin::default(),
+            clip: None,
             width: Size::Auto,
             height: Size::Auto,
             min_width: Size::Auto,
@@ -407,5 +421,12 @@ impl ComputedStyle {
     /// Chromium).
     pub fn has_mask(&self) -> bool {
         self.mask_image.iter().any(|i| *i != MaskImage::None)
+    }
+
+    /// True if `transform` is not `none`. Transforms do not apply to
+    /// inline boxes (only to block-level and atomic boxes); layout and
+    /// paint check that.
+    pub fn has_transform(&self) -> bool {
+        !self.transform.is_empty()
     }
 }

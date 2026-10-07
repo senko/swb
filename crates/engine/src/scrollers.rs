@@ -8,7 +8,9 @@
 use std::collections::{HashMap, HashSet};
 
 use swb_dom::{Document, NodeId};
-use swb_layout::{FragmentRef, FragmentTree, Point, Rect, Size, clamp_scroll_offset};
+use swb_layout::{
+    FragmentRef, FragmentTree, Point, Rect, Size, clamp_scroll_offset, has_transform,
+};
 use swb_style::{Display, Overflow, Position, StyleMap};
 
 /// One scroll container, from the last layout.
@@ -36,6 +38,10 @@ pub(crate) struct Scrollers {
     offsets: HashMap<NodeId, Point>,
     /// The scroll containers of the last layout.
     boxes: HashMap<NodeId, ScrollBox>,
+    /// The transformed elements of the last layout (containing blocks of
+    /// absolutely positioned and fixed boxes), as layout decides it
+    /// (`swb_layout::has_transform`: not inline boxes).
+    transformed: HashSet<NodeId>,
 }
 
 impl Scrollers {
@@ -59,7 +65,15 @@ impl Scrollers {
     /// clamped to the new ranges.
     pub(crate) fn update(&mut self, tree: &FragmentTree) {
         self.boxes.clear();
+        self.transformed.clear();
         tree.walk(|fragment, _| {
+            if let FragmentRef::Box(b) = fragment
+                && has_transform(b)
+                && b.pseudo.is_none()
+                && let Some(node) = b.node
+            {
+                self.transformed.insert(node);
+            }
             if let FragmentRef::Box(b) = fragment
                 && let (Some(node), Some(overflow)) = (b.scroll_node(), b.scrollable_overflow)
             {
@@ -128,12 +142,13 @@ impl Scrollers {
     /// The scroll containers whose offsets move `node` (an element or a
     /// text node), innermost first: its ancestors in the chain of
     /// containing blocks (an absolutely positioned element skips the
-    /// ancestors below its nearest positioned ancestor; nothing moves a
-    /// fixed element), and with `include_self` the element `node` itself.
-    /// For a text node, the chain starts at its parent element. This is the
-    /// scroll chain of wheel and keyboard scrolling and the list of boxes
-    /// that "scroll into view" scrolls. The same rule as
-    /// `swb_layout::ScrollState`. At most the DOM depth long.
+    /// ancestors below its nearest positioned or transformed ancestor, a
+    /// fixed element those below its nearest transformed ancestor, so
+    /// without one all of them), and with `include_self` the element
+    /// `node` itself. For a text node, the chain starts at its parent
+    /// element. This is the scroll chain of wheel and keyboard scrolling
+    /// and the list of boxes that "scroll into view" scrolls. The same rule
+    /// as `swb_layout::ScrollState`. At most the DOM depth long.
     pub(crate) fn chain(
         &self,
         doc: &Document,
@@ -141,55 +156,95 @@ impl Scrollers {
         node: NodeId,
         include_self: bool,
     ) -> Vec<NodeId> {
+        self.chain_and_fixed(doc, styles, node, include_self).0
+    }
+
+    /// [`Scrollers::chain`], and whether `node` is fixed to the viewport (a
+    /// fixed box or inside one, without a transformed ancestor between
+    /// them): a scroll of the viewport does not move it.
+    pub(crate) fn chain_and_fixed(
+        &self,
+        doc: &Document,
+        styles: &StyleMap,
+        node: NodeId,
+        include_self: bool,
+    ) -> (Vec<NodeId>, bool) {
+        /// The ancestors that do not move the element.
+        #[derive(Clone, Copy, PartialEq)]
+        enum Skip {
+            None,
+            /// Up to the nearest positioned or transformed ancestor.
+            ToPositioned,
+            /// Up to the nearest transformed ancestor.
+            ToTransformed,
+        }
         let start = if doc.get(node).is_some_and(swb_dom::Node::is_element) {
             Some(node)
         } else {
             doc.parent_element(node)
         };
         let mut chain = Vec::new();
-        let mut skip_to_positioned = false;
+        let mut skip = Skip::None;
         // True while `element` is `node` itself.
         let mut is_self = start == Some(node);
         let mut current = start;
         while let Some(element) = current {
-            let position = styles
+            let style = styles
                 .get(element)
-                .filter(|s| s.display != Display::Contents && s.display != Display::None)
-                .map_or(Position::Static, |s| s.position);
-            if !is_self && position != Position::Static {
-                skip_to_positioned = false;
+                .filter(|s| s.display != Display::Contents && s.display != Display::None);
+            let position = style.map_or(Position::Static, |s| s.position);
+            // As layout decides it (`swb_layout::has_transform`).
+            let transformed = self.transformed.contains(&element);
+            if !is_self {
+                match skip {
+                    Skip::ToPositioned if position != Position::Static || transformed => {
+                        skip = Skip::None;
+                    }
+                    Skip::ToTransformed if transformed => skip = Skip::None,
+                    _ => {}
+                }
             }
-            if (include_self || !is_self)
-                && !skip_to_positioned
-                && self.boxes.contains_key(&element)
+            if (include_self || !is_self) && skip == Skip::None && self.boxes.contains_key(&element)
             {
                 chain.push(element);
             }
-            match position {
-                Position::Fixed => break,
-                Position::Absolute => skip_to_positioned = true,
-                _ => {}
+            // An ancestor between a box and its containing block does not
+            // change what the box skips.
+            if skip == Skip::None {
+                match position {
+                    Position::Fixed => skip = Skip::ToTransformed,
+                    Position::Absolute => skip = Skip::ToPositioned,
+                    _ => {}
+                }
             }
             is_self = false;
             current = doc.parent_element(element);
         }
-        chain
+        (chain, skip == Skip::ToTransformed)
     }
 
     /// The scrollports (padding boxes) of the scroll containers in
-    /// `nodes`, in document coordinates with the scroll offsets applied.
-    pub(crate) fn ports(&self, tree: &FragmentTree, nodes: &[NodeId]) -> HashMap<NodeId, Rect> {
+    /// `nodes`, as painted in document coordinates at the viewport scroll
+    /// offset `scroll` (with the scroll offsets of scroll containers, and
+    /// transforms and fixed and sticky positioning; a transformed
+    /// scrollport gives its bounding box), as `Page::element_box`.
+    pub(crate) fn ports(
+        &self,
+        tree: &FragmentTree,
+        nodes: &[NodeId],
+        scroll: Point,
+    ) -> HashMap<NodeId, Rect> {
         let mut ports = HashMap::new();
         if nodes.is_empty() {
             return ports;
         }
         let wanted: HashSet<NodeId> = nodes.iter().copied().collect();
-        tree.walk_scrolled(&self.offsets, |fragment, origin| {
+        tree.walk_painted(&self.offsets, scroll, |fragment, rect, matrix| {
             if let FragmentRef::Box(b) = fragment
                 && let Some(node) = b.scroll_node()
                 && wanted.contains(&node)
             {
-                ports.insert(node, b.padding_rect().translate(origin));
+                ports.insert(node, matrix.map_rect(&rect.inset(&b.border)));
             }
         });
         ports
@@ -406,7 +461,20 @@ mod tests {
         <span style='display:block'><div id=badge2 style='position:absolute;width:5px;\
         height:5px'></div></span>\
         <div style='float:left;width:5px;height:5px'><div id=badge3 style='position:absolute;\
-        width:5px;height:5px'></div></div></span></div></div>";
+        width:5px;height:5px'></div></div></span>\
+        <div id=tr style='transform:translateX(1px);height:10px'>\
+        <div id=abs4 style='position:absolute;width:5px;height:5px'></div>\
+        <div id=fix2 style='position:fixed;width:5px;height:5px'></div></div>\
+        <div id=s4 style='overflow:auto;height:20px;transform:translateX(1px)'>\
+        <div style='height:100px'></div>\
+        <div id=fix3 style='position:fixed;width:5px;height:5px'></div></div>\
+        <div style='position:relative'><div id=s5 style='overflow:auto;height:20px'>\
+        <div id=abs5 style='position:absolute;width:20px'>\
+        <div id=s6 style='overflow:auto;height:10px'><div style='height:50px'></div>\
+        <div id=fix5 style='position:fixed;width:5px;height:5px'></div></div></div>\
+        <div style='height:50px'></div></div></div>\
+        <button style='display:inline;transform:translateX(5px)'>\
+        <span id=fix6 style='position:fixed;width:5px;height:5px'></span></button></div></div>";
 
     #[test]
     fn the_scroll_chain_follows_the_containing_blocks() {
@@ -430,6 +498,20 @@ mod tests {
         assert_eq!(chain(id("badge"), false), vec![s1]);
         assert_eq!(chain(id("badge2"), false), vec![s1]);
         assert_eq!(chain(id("badge3"), false), vec![s1]);
+        // A transformed box contains absolutely positioned and fixed boxes;
+        // a transformed scroll container moves its fixed children.
+        assert_eq!(chain(id("abs4"), false), vec![s1]);
+        assert_eq!(chain(id("fix2"), false), vec![s1]);
+        assert_eq!(chain(id("fix3"), false), vec![id("s4"), s1]);
+        // An absolutely positioned ancestor does not end what a fixed
+        // element skips.
+        assert_eq!(chain(id("abs5"), false), vec![s1]);
+        assert_eq!(chain(id("fix5"), false), Vec::<NodeId>::new());
+        // Without form controls, the inline button is an inline box: a
+        // transform does not apply to it, so it contains nothing (as layout
+        // decides; with controls, see the engine test
+        // `a_fixed_box_in_an_inline_transformed_control_scrolls_with_its_scroll_container`).
+        assert_eq!(chain(id("fix6"), false), Vec::<NodeId>::new());
         // A text node starts at its parent element, which moves it.
         let text = doc
             .children(s2)
@@ -444,7 +526,7 @@ mod tests {
         let plain = tree.element_boxes();
         for &scroller in scrollers.boxes.keys() {
             let offsets = HashMap::from([(scroller, Point::new(0.0, 1.0))]);
-            let scrolled = tree.element_boxes_scrolled(&offsets);
+            let scrolled = tree.element_boxes_scrolled(&offsets, Point::default());
             for (node, rect) in &plain {
                 let moved = scrolled[node].y != rect.y;
                 let in_chain = scrollers

@@ -103,10 +103,10 @@ for about 70 cases). It is the union of:
    its trailing spaces and tabs (Chromium counts them). An absolutely
    positioned box inside a nested scroll container (or another box that
    clips both axes) whose containing block is outside it does not count
-   in the outer scroll container or in the viewport's scroll size
-   (Chromium counts it): the walks stop at boxes that clip both axes, so
-   that each fragment is visited once per layout of its nearest scroll
-   container. Zero-size inline content nested in a block inside a scroll
+   in the outer scroll container (Chromium counts it): the walk stops at
+   boxes that clip both axes, so that each fragment is visited once per
+   layout of its nearest scroll container. The viewport's scroll size
+   counts it (ADR 0016). Zero-size inline content nested in a block inside a scroll
    container does not count (Chromium counts its line box); trailing
    `pre-wrap` white space that fits in a relatively positioned inline box
    does not count (Chromium counts it).
@@ -121,9 +121,9 @@ positioned boxes there); the scrollable overflow, the scroll offsets
 (`ScrollState`), paint's clips and the selection clip treat such a block
 as inside its containing block. For an absolutely positioned box deeper
 inside such a block, paint and the selection keep the clips outside that
-block (a containing-block clip marker). The positioning work will
-replace the mark when it gives inline boxes their place as containing
-blocks.
+block (a containing-block clip marker). Positioned layout uses the
+mark too (ADR 0016): the inline box is the containing block of the
+absolutely positioned boxes in such a block.
 
 The parts above and left of the padding box are the unreachable
 scrollable overflow region (swb has only left-to-right, top-to-bottom
@@ -146,9 +146,8 @@ must provide its in-flow extent in one of these ways.
   every layout (restyle, resize); after each layout the engine clamps
   them to the new ranges and drops the offsets of elements that are no
   longer scroll containers. A new document starts with none. Session
-  history keeps only the viewport position. A full-page screenshot lays
-  the page out for a temporary viewport; the engine keeps the offsets
-  from before it and restores them afterwards.
+  history keeps only the viewport position. A full-page screenshot keeps
+  the layout of the viewport (ADR 0016), so the offsets stay.
 - Scroll offsets of elements and of the viewport are whole CSS px
   (halves round up), as in Chromium 148, also at higher device pixel
   ratios. The largest offset is a whole number too: the rounded content
@@ -161,12 +160,16 @@ must provide its in-flow extent in one of these ways.
   scroll container moves by minus its offset; its own background and
   border stay. An absolutely positioned box does not move with the scroll
   containers between it and its containing block (the nearest positioned
-  ancestor); a fixed box does not move with any element. The scroll
+  or transformed ancestor); a fixed box moves only with the scroll
+  containers above its nearest transformed ancestor (with none without
+  one; ADR 0016). The scroll
   chain of a node (`Scrollers::chain`) follows the same rule on the DOM
   ancestors.
 - Element boxes (`dom.box`, `dom.boxes`, `--dump-boxes`) have the
-  offsets applied, as Chromium's `getClientRects`. `--dump-layout` prints
-  the positions of the layout, without scroll offsets.
+  offsets applied, as Chromium's `getClientRects`, with transforms and
+  fixed and sticky positioning (ADR 0016). Scroll into view uses the same
+  boxes and scrollports. `--dump-layout` prints the positions of the
+  layout, without scroll offsets.
 - The element whose scroll position is the viewport's
   (`document.scrollingElement`, CSSOM View) is the root element; in quirks
   mode, the body if it is not a scroll container (the root element then
@@ -289,23 +292,12 @@ leaves a scroller; scrolling text areas and list boxes with the wheel
 - Every layout walks the fragment tree once more (to update the scroll
   ranges); every scroll offset change rebuilds the display list.
 - Boxes that a layout algorithm adds to a fragment after
-  `block::layout_sized` (for example absolutely positioned boxes laid out
-  at their containing block) are not in its scrollable overflow; such an
-  algorithm must compute it again (`scroll::scrollable_overflow`).
+  `block::layout_sized` are not in its scrollable overflow; such an
+  algorithm must add them (the out-of-flow pass of ADR 0016 does, with
+  `scroll::with_out_of_flow`).
 - The containing block rule for scrolling is in `ScrollState` and
-  `Scrollers::chain` (absolutely positioned: the nearest positioned
-  ancestor; fixed: the viewport). When transforms establish containing
-  blocks, both must include them. Paint's clip rule for positioned boxes
-  is separate: inside the enclosing stacking context it keeps all clips
-  for relatively positioned boxes and for absolutely positioned boxes
-  directly in a positioned inline box, the clips outside the nearest
-  block in a positioned inline box for other absolutely positioned boxes
-  in such a block, and none for the remaining absolutely positioned boxes
-  and for fixed boxes (they are painted in the stacking context of their
-  containing block, inside its clips). The two rules differ in these cases: an
-  absolutely positioned box inside an opacity group inside a scroll
-  container (clipped by it, but does not move with it); a fixed box
-  inside a positioned scroll container or inside a stacking context
-  inside a scroll container (clipped by the scroll container, but does
-  not move with it). The positioning work (fixed positioning against the
-  viewport) decides the clip rule.
+  `Scrollers::chain` (absolutely positioned: the nearest positioned or
+  transformed ancestor; fixed: the nearest transformed ancestor, or the
+  viewport; ADR 0016). Paint's clip rule for positioned boxes is
+  separate (ADR 0016: the clips of the containing block chain; a fixed
+  box is not clipped by scroll containers).

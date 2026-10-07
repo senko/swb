@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's search field (`.cdx-text-input`): the icon is
+     absolutely positioned at `top: 50%` and moved up by half its height
+     with `transform: translateY(-50%)`; the visually hidden label uses
+     `clip: rect(1px, 1px, 1px, 1px)`. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wikipedia search field</title>
+<style>
+  body { margin: 8px; font: 14px/22px sans-serif; }
+  .wrapper { position: relative; display: flex; }
+  .text-input { position: relative; box-sizing: border-box; min-width: 256px; border-radius: 2px; overflow: hidden; flex-grow: 1; }
+  .text-input input { box-sizing: border-box; width: 100%; min-height: 32px; padding: 5px 8px 5px 36px; border: 1px solid #a2a9b1; font: inherit; }
+  .start-icon { position: absolute; top: 50%; min-width: 18px; min-height: 18px; width: 20px; height: 20px; left: 9px; transform: translateY(-50%); background: #72777d; }
+  .end-icon { position: absolute; top: 50%; width: 16px; height: 16px; right: 9px; transform: translateY(-50%); background: #ccc; }
+  .hidden { display: block; clip: rect(1px, 1px, 1px, 1px); position: absolute !important; width: 1px; height: 1px; margin: -1px; border: 0; padding: 0; overflow: hidden; }
+  button { min-height: 32px; padding: 5px 12px; }
+</style>
+</head>
+<body>
+  <form id="f">
+    <div class="wrapper" id="w">
+      <span class="hidden" id="label">Search</span>
+      <div class="text-input" id="ti">
+        <input type="search" id="q" placeholder="Search Wikipedia">
+        <span class="start-icon" id="si"></span>
+        <span class="end-icon" id="ei"></span>
+      </div>
+      <button id="b">Search</button>
+    </div>
+  </form>
+  <a class="hidden" id="jump" href="#f">Jump to content</a>
+</body>
+</html>

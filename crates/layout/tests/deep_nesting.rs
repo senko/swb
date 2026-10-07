@@ -79,6 +79,15 @@ fn layout_on_small_stack(names: &'static [&'static str], style: &'static str) ->
             });
             assert!(text_found, "the innermost text is laid out");
             assert!(tree.scroll_size.height.is_finite());
+            // The painted walk (paint, element boxes) keeps the ancestry of
+            // transforms, sticky and scroll containers per level.
+            let offsets = std::collections::HashMap::new();
+            let boxes = tree.element_boxes_scrolled(&offsets, swb_layout::Point::new(0.0, 100.0));
+            assert!(
+                boxes
+                    .values()
+                    .all(|r| r.y.is_finite() && r.height.is_finite())
+            );
             count
         })
         .expect("thread starts")
@@ -150,4 +159,24 @@ fn nested_misparented_table_cells() {
 #[test]
 fn nested_display_contents() {
     assert!(layout_on_small_stack(&["div", "span"], "div { display: contents }") > 1);
+}
+
+#[test]
+fn nested_positioned_boxes() {
+    // Every level is the containing block of the next; the out-of-flow
+    // pass visits them all.
+    let style = "div { position: absolute; left: 1px; top: 1px } \
+                 span { position: relative; display: block; transform: rotate(1deg) }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+    let style = "div { position: sticky; top: 1px } span { position: fixed; display: block }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+    let style = "div { position: sticky; top: 1px; overflow: auto; height: 50px } \
+                 span { display: block; transform: rotate(1deg); position: sticky; top: 2px }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
+}
+
+#[test]
+fn nested_absolute_inline_boxes() {
+    let style = "span { position: absolute } div { position: relative; display: inline }";
+    assert!(layout_on_small_stack(&["div", "span"], style) > 100);
 }

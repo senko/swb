@@ -14,6 +14,7 @@ use super::specified::{
     SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign,
     SpecifiedVerticalAlign,
 };
+use super::transform::{SpecifiedClip, SpecifiedTransform, SpecifiedTransformOrigin};
 use crate::ComputedStyle;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
@@ -138,6 +139,9 @@ longhands! {
     Bottom "bottom" reset bottom: Option<Lp>;
     Left "left" reset left: Option<Lp>;
     ZIndex "z-index" reset z_index: ZIndex;
+    Transform "transform" reset transform: SpecifiedTransform;
+    TransformOrigin "transform-origin" reset transform_origin: SpecifiedTransformOrigin;
+    Clip "clip" reset clip: SpecifiedClip;
     Width "width" reset width: SpecifiedSize;
     Height "height" reset height: SpecifiedSize;
     MinWidth "min-width" reset min_width: SpecifiedSize;

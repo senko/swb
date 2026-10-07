@@ -20,10 +20,24 @@
 //!   [`blit_mask`].
 //! - Vector (SVG) images are rendered at the device pixel size of one tile
 //!   and then drawn like raster images.
+//! - Transform groups that only translate (fixed and sticky boxes,
+//!   `translate()`) move the coordinates of their items, so they are
+//!   exact. A group with another transform (rotation, scale, skew) is
+//!   drawn into a layer in its own coordinates, at the device resolution
+//!   times the largest scale factor of the transform, and the layer is
+//!   then drawn with the transform and bilinear filtering (ADR 0016). The
+//!   layer covers only the part of the group that can be visible in the
+//!   strip, has at most [`MAX_TRANSFORM_LAYER_PIXELS`] pixels and sides of
+//!   at most [`MAX_TRANSFORM_LAYER_SIDE`] pixels (a larger layer gets a
+//!   lower resolution). Such layers nest at most [`MAX_TRANSFORM_DEPTH`]
+//!   deep. A transform layer is an open layer for the memory budget of
+//!   group layers while it is drawn, and the layers of one strip have a
+//!   work budget ([`MAX_TRANSFORM_PIXELS`]); groups beyond these limits
+//!   are not drawn.
 
 use std::sync::Arc;
 
-use swb_layout::{Point, Rect};
+use swb_layout::{Matrix, Point, Rect, StickyCache};
 use swb_style::{BorderStyle, Rgba};
 use swb_text::FontContext;
 use tiny_skia::{
@@ -32,9 +46,28 @@ use tiny_skia::{
 };
 
 use crate::display_list::{DisplayItem, DisplayList, ImageRef, Radii};
+use crate::group_bounds::transform_ends;
 use crate::image::{DecodedImage, ImageKind, MAX_DIMENSION};
 use crate::mask::{self, MaskLayer, MaskLayerImage};
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
+
+/// The most pixels of a layer for a transform group (a larger layer gets
+/// a lower resolution).
+const MAX_TRANSFORM_LAYER_PIXELS: f32 = 4096.0 * 1024.0;
+
+/// The longest side of a layer for a transform group, in pixels.
+const MAX_TRANSFORM_LAYER_SIDE: f32 = 16_384.0;
+
+/// The work of the layers of transform groups in one strip (see
+/// [`rasterize_in_strips`]), in pixels: 64 Mpx, or eight times the strip's
+/// pixels if that is more. A layer costs its pixels (drawing its content)
+/// and the device pixels that it covers (drawing it with filtering). A
+/// group whose layer does not fit into the rest of the budget is not
+/// drawn.
+const MAX_TRANSFORM_PIXELS: u64 = 64 * 1024 * 1024;
+
+/// The deepest nesting of layers for transform groups.
+const MAX_TRANSFORM_DEPTH: usize = 8;
 
 /// Supplies decoded images to the rasterizer.
 pub trait ImageSource {
@@ -52,19 +85,25 @@ pub struct RasterParams {
     /// The scroll offset in CSS px: this document point maps to the target's
     /// top-left corner.
     pub scroll: Point,
+    /// The scroll offset of the viewport that fixed and sticky boxes are
+    /// placed for: `scroll` for a viewport; a full-page screenshot draws
+    /// the page from its top (`scroll` 0) with them where they are at the
+    /// page's scroll offset (as Chromium).
+    pub viewport_scroll: Point,
     /// Device pixels per CSS px.
     pub scale: f32,
 }
 
-/// The most pixels that the layers of open opacity and mask groups may
-/// hold together in one strip (see [`rasterize_in_strips`]): 64 Mpx (256
-/// MiB), or four times the strip if that is more, so that a mask group,
-/// the temporary layer of its mask and two enclosing groups always fit. A
-/// layer is at most as large as the strip. When a layer does not fit, an
-/// opacity group draws its content directly (without the opacity) and a
-/// mask group draws nothing, so that deeply nested groups cannot exhaust
-/// memory. While a mask is applied, its coverage buffers take 2 more bytes
-/// per pixel of the group.
+/// The most pixels that the layers of open opacity, mask and transform
+/// groups may hold together in one strip (see [`rasterize_in_strips`]): 64
+/// Mpx (256 MiB), or four times the strip if that is more, so that a mask
+/// group, the temporary layer of its mask and two enclosing groups always
+/// fit. An opacity or mask layer is at most as large as the strip, a
+/// transform layer at most [`MAX_TRANSFORM_LAYER_PIXELS`]. When a layer
+/// does not fit, an opacity group draws its content directly (without the
+/// opacity) and a mask or transform group draws nothing, so that deeply
+/// nested groups cannot exhaust memory. While a mask is applied, its
+/// coverage buffers take 2 more bytes per pixel of the group.
 const MAX_GROUP_LAYER_PIXELS: u64 = 64 * 1024 * 1024;
 
 /// The mask work of one strip, in pixels: 64 Mpx, about 0.4 s (measured:
@@ -97,9 +136,9 @@ const MAX_GRADIENT_TILES: i64 = 16;
 /// used up, later SVG images are drawn from a cached rendering of another
 /// size, or not at all; a later call (a repaint) renders them if its budget
 /// allows. Normal pages stay far below the budget. The layers of nested
-/// opacity and mask groups share a memory budget
-/// ([`MAX_GROUP_LAYER_PIXELS`]), and masks a work budget
-/// ([`MAX_MASK_PIXELS`]).
+/// opacity, mask and transform groups share a memory budget
+/// ([`MAX_GROUP_LAYER_PIXELS`]); masks ([`MAX_MASK_PIXELS`]) and transform
+/// layers ([`MAX_TRANSFORM_PIXELS`]) have work budgets.
 pub fn rasterize(
     list: &DisplayList,
     target: &mut Pixmap,
@@ -113,8 +152,9 @@ pub fn rasterize(
 
 /// [`rasterize`] in strips of at most `strip_rows` device rows (at least
 /// 1), as if each strip were a viewport of its own: the budgets of group
-/// layers and masks apply to each strip, and group layers are at most a
-/// strip high. The strips have equal heights (the last one can be lower
+/// layers, masks and transform layers apply to each strip, and opacity and
+/// mask layers are at most a strip high. Fixed and sticky boxes are placed
+/// for `params.scroll` in every strip. The strips have equal heights (the last one can be lower
 /// by fewer rows than there are strips), and all get the budgets of that
 /// height. Each strip is drawn in
 /// place in the target's rows. The SVG rendering budget is shared by all
@@ -139,6 +179,7 @@ pub fn rasterize_in_strips(
     let rows = equal_strip_rows(height, strip_rows);
     let row_bytes = width as usize * 4;
     let mut skipped = Skipped::default();
+    let ends = transform_ends(&list.items);
     for (k, data) in target
         .data_mut()
         .chunks_mut(rows as usize * row_bytes)
@@ -151,9 +192,10 @@ pub fn rasterize_in_strips(
             top: k as u32 * rows,
             budget_rows: rows,
         };
-        let s = rasterize_strip(list, strip, params, &mut vectors, fonts, images);
+        let s = rasterize_strip(list, &ends, strip, params, &mut vectors, fonts, images);
         skipped.layers |= s.layers;
         skipped.masks |= s.masks;
+        skipped.transforms |= s.transforms;
     }
     if vectors.skipped() {
         log::warn!(
@@ -163,12 +205,18 @@ pub fn rasterize_in_strips(
     }
     if skipped.layers {
         log::warn!(
-            "opacity and mask groups: the layer memory budget ran out; some groups are \
-             drawn without their opacity, or not at all"
+            "opacity, mask and transform groups: the layer memory budget ran out; some \
+             opacity groups are drawn without their opacity, some groups are not drawn"
         );
     }
     if skipped.masks {
         log::warn!("masks: the work budget of this frame ran out; some masked boxes are not drawn");
+    }
+    if skipped.transforms {
+        log::warn!(
+            "transforms: the nesting depth or the work budget of layers ran out; some \
+             transformed boxes are not drawn"
+        );
     }
 }
 
@@ -206,11 +254,38 @@ struct Skipped {
     layers: bool,
     /// A mask group did not fit into [`MAX_MASK_PIXELS`].
     masks: bool,
+    /// A transform group was nested deeper than [`MAX_TRANSFORM_DEPTH`] or
+    /// did not fit into [`MAX_TRANSFORM_PIXELS`].
+    transforms: bool,
 }
 
-/// Rasterizes one strip of the target.
+/// The budgets of one strip. The rasterizer of a transform layer takes
+/// them over while it draws, so that the groups inside the layer count
+/// too.
+#[derive(Default)]
+struct Budget {
+    /// The pixels of the open layers' pixmaps, together: group layers,
+    /// transform layers and temporary mask layers.
+    layer_pixels: u64,
+    /// The budget of `layer_pixels` (see [`MAX_GROUP_LAYER_PIXELS`]).
+    max_layer_pixels: u64,
+    /// The mask work so far (see [`MAX_MASK_PIXELS`]).
+    mask_pixels: u64,
+    /// The budget of `mask_pixels`.
+    max_mask_pixels: u64,
+    /// The pixels of the transform layers so far (see
+    /// [`MAX_TRANSFORM_PIXELS`]).
+    transform_pixels: u64,
+    /// The budget of `transform_pixels`.
+    max_transform_pixels: u64,
+    /// What the budgets left out.
+    skipped: Skipped,
+}
+
+/// Rasterizes one strip of the target. `ends` comes from [`transform_ends`].
 fn rasterize_strip(
     list: &DisplayList,
+    ends: &[usize],
     Strip {
         data,
         width,
@@ -233,7 +308,7 @@ fn rasterize_strip(
         (height as f32 + 2.0) / s,
     );
     let rows = u64::from(budget_rows);
-    let layer_budget = rows.saturating_mul(u64::from(width)).saturating_mul(4);
+    let pixels = rows.saturating_mul(u64::from(width));
     let mask_budget = rows
         .saturating_mul(u64::from(width) + 2 * ROW_COST_PIXELS)
         .saturating_mul(4);
@@ -243,29 +318,27 @@ fn rasterize_strip(
         offset_y: top as f32,
         params,
         layers: Vec::new(),
-        layer_pixels: 0,
-        max_layer_pixels: MAX_GROUP_LAYER_PIXELS.max(layer_budget),
-        mask_pixels: 0,
-        max_mask_pixels: MAX_MASK_PIXELS.max(mask_budget),
-        skipped: Skipped::default(),
+        budget: Budget {
+            max_layer_pixels: MAX_GROUP_LAYER_PIXELS.max(pixels.saturating_mul(4)),
+            max_mask_pixels: MAX_MASK_PIXELS.max(mask_budget),
+            max_transform_pixels: MAX_TRANSFORM_PIXELS.max(pixels.saturating_mul(8)),
+            ..Budget::default()
+        },
         clips: Vec::new(),
         mask: None,
         vectors,
+        translation: Point::default(),
+        visible: viewport,
+        viewport_scroll: params.viewport_scroll,
+        depth: 0,
+        sticky: StickyCache::default(),
     };
-    for item in &list.items {
-        if item
-            .bounds()
-            .is_some_and(|b| b.intersection(&viewport).is_none())
-        {
-            continue;
-        }
-        r.item(item, fonts, images);
-    }
+    r.run(&list.items, 0..list.items.len(), ends, fonts, images);
     // Close unbalanced groups.
     while !r.layers.is_empty() {
         r.pop_layer(images);
     }
-    r.skipped
+    r.budget.skipped
 }
 
 /// The layer of an open opacity or mask group.
@@ -295,16 +368,8 @@ struct Rasterizer<'a> {
     params: RasterParams,
     /// Open opacity and mask groups, innermost last.
     layers: Vec<Layer>,
-    /// The pixels of the layers' pixmaps, together.
-    layer_pixels: u64,
-    /// The budget of `layer_pixels` (see [`MAX_GROUP_LAYER_PIXELS`]).
-    max_layer_pixels: u64,
-    /// The mask work of this strip (see [`MAX_MASK_PIXELS`]).
-    mask_pixels: u64,
-    /// The budget of `mask_pixels`.
-    max_mask_pixels: u64,
-    /// What the budgets left out.
-    skipped: Skipped,
+    /// The budgets of the strip.
+    budget: Budget,
     /// Clip rectangles in target device px, snapped to pixels; each entry
     /// is already intersected with the previous one.
     clips: Vec<Rect>,
@@ -313,9 +378,292 @@ struct Rasterizer<'a> {
     mask: Option<Mask>,
     /// The rendering budget of this frame for SVG images.
     vectors: &'a mut FrameBudget,
+    /// The translation of the enclosing transform groups, in CSS px.
+    translation: Point,
+    /// The area that can be visible, in CSS px, in the coordinates that
+    /// `params` maps to device px (before `translation`).
+    visible: Rect,
+    /// The scroll offset of the viewport (the offset of fixed and sticky
+    /// boxes depends on it); inside a layer, `params.scroll` is the origin
+    /// of the layer instead.
+    viewport_scroll: Point,
+    /// The number of enclosing layers of transform groups.
+    depth: usize,
+    /// The offsets of sticky boxes at `viewport_scroll`, shared by the
+    /// groups of the strip (the rasterizer of a transform layer takes it
+    /// over while it draws).
+    sticky: StickyCache,
+}
+
+/// `area` (a part of `bounds`, in a group's coordinates) grown by two
+/// layer pixels on every side for the scale `k` (layer px per CSS px),
+/// inside `bounds`, with its top-left corner on the grid of layer pixels
+/// that starts at the top-left corner of `bounds`. The layers of a group in
+/// different strips then have pixels at the same positions, and the
+/// filtering at the layer's edges reads pixels of the group's content.
+fn grid_area(area: Rect, bounds: Rect, k: f32) -> Rect {
+    let k64 = f64::from(k);
+    let snap = |v: f32, origin: f32| {
+        let origin = f64::from(origin);
+        let steps = (((f64::from(v) - origin) * k64).floor() - 2.0).max(0.0);
+        (origin + steps / k64) as f32
+    };
+    let x = snap(area.x, bounds.x);
+    let y = snap(area.y, bounds.y);
+    let right = (area.right() + 2.0 / k).min(bounds.right());
+    let bottom = (area.bottom() + 2.0 / k).min(bounds.bottom());
+    Rect::new(x, y, (right - x).max(0.0), (bottom - y).max(0.0))
+}
+
+/// The scale (layer px per CSS px of the group) of the layer of a
+/// transform group that covers `area` (the group's coordinates), for the
+/// scale `k` of the device resolution: limited so that the layer has sides
+/// of at most [`MAX_TRANSFORM_LAYER_SIDE`] and at most
+/// [`MAX_TRANSFORM_LAYER_PIXELS`] pixels. `None` for a scale that is not
+/// finite and positive.
+fn layer_scale(area: Rect, mut k: f32) -> Option<f32> {
+    if !(k.is_finite() && k > 0.0) {
+        return None;
+    }
+    let side = area.width.max(area.height) * k;
+    if side > MAX_TRANSFORM_LAYER_SIDE {
+        k *= MAX_TRANSFORM_LAYER_SIDE / side;
+    }
+    let pixels = (area.width * k).max(1.0) * (area.height * k).max(1.0);
+    if pixels > MAX_TRANSFORM_LAYER_PIXELS {
+        k *= (MAX_TRANSFORM_LAYER_PIXELS / pixels).sqrt();
+    }
+    k.is_normal().then_some(k)
+}
+
+/// The size in pixels of a layer that covers `area` at the scale `k`, if
+/// it is within the limits of [`layer_scale`] (with room for rounding).
+fn layer_size(area: Rect, k: f32) -> Option<(u32, u32)> {
+    let width = (area.width * k).ceil().max(1.0);
+    let height = (area.height * k).ceil().max(1.0);
+    let fits = width <= MAX_TRANSFORM_LAYER_SIDE + 4.0
+        && height <= MAX_TRANSFORM_LAYER_SIDE + 4.0
+        && width * height <= MAX_TRANSFORM_LAYER_PIXELS * 2.0;
+    fits.then_some((width as u32, height as u32))
+}
+
+/// Where and how large the layer of a transform group is.
+struct LayerPlan {
+    /// From the group's coordinates to target device px.
+    to_device: Matrix,
+    /// The part of the group that the layer covers (the group's
+    /// coordinates).
+    area: Rect,
+    /// Layer px per CSS px of the group.
+    scale: f32,
+    width: u32,
+    height: u32,
+    /// The cost for [`MAX_TRANSFORM_PIXELS`].
+    work: u64,
 }
 
 impl Rasterizer<'_> {
+    /// Draws `items[range]`. `ends` comes from [`transform_ends`].
+    fn run(
+        &mut self,
+        items: &[DisplayItem],
+        range: std::ops::Range<usize>,
+        ends: &[usize],
+        fonts: &mut FontContext,
+        images: &dyn ImageSource,
+    ) {
+        let mut i = range.start;
+        while i < range.end {
+            let Some(item) = items.get(i) else {
+                break;
+            };
+            if let DisplayItem::PushTransform {
+                transform,
+                bounds,
+                fixed_bounds,
+                ..
+            } = item
+            {
+                let end = ends.get(i).copied().unwrap_or(range.end).min(range.end);
+                let outer = Matrix::translate(self.translation.x, self.translation.y);
+                let m = transform.resolve_with(&outer, self.viewport_scroll, &mut self.sticky);
+                // Content fixed to the viewport in the group moves with the
+                // viewport scroll offset.
+                let fixed_visible = fixed_bounds.is_some_and(|f| {
+                    f.translate(self.viewport_scroll)
+                        .intersection(&self.visible)
+                        .is_some()
+                });
+                let visible = m.is_finite()
+                    && (m.map_rect(bounds).intersection(&self.visible).is_some() || fixed_visible);
+                if visible && m.is_translation() {
+                    let saved = self.translation;
+                    self.translation = Point::new(m.e, m.f);
+                    self.run(items, i + 1..end, ends, fonts, images);
+                    self.translation = saved;
+                } else if visible {
+                    self.transform_layer(items, i + 1..end, ends, &m, *bounds, fonts, images);
+                }
+                i = end + 1;
+                continue;
+            }
+            let culled = item.bounds().is_some_and(|b| {
+                b.translate(self.translation)
+                    .intersection(&self.visible)
+                    .is_none()
+            });
+            if !culled {
+                self.item(item, fonts, images);
+            }
+            i += 1;
+        }
+    }
+
+    /// Draws `items[range]`, a transform group whose items `m` maps to the
+    /// coordinates of `params` and that draws in `bounds` (its own
+    /// coordinates), through a layer (see the module documentation).
+    #[allow(clippy::too_many_arguments)]
+    fn transform_layer(
+        &mut self,
+        items: &[DisplayItem],
+        range: std::ops::Range<usize>,
+        ends: &[usize],
+        m: &Matrix,
+        bounds: Rect,
+        fonts: &mut FontContext,
+        images: &dyn ImageSource,
+    ) {
+        if self.depth >= MAX_TRANSFORM_DEPTH {
+            self.budget.skipped.transforms = true;
+            return;
+        }
+        let Some(plan) = self.plan_layer(m, bounds) else {
+            return;
+        };
+        if self.budget.transform_pixels.saturating_add(plan.work) > self.budget.max_transform_pixels
+        {
+            self.budget.skipped.transforms = true;
+            return;
+        }
+        let LayerPlan {
+            to_device,
+            area,
+            scale: k,
+            width: layer_width,
+            height: layer_height,
+            work,
+        } = plan;
+        let Some(mut layer) = self.layer_pixmap(layer_width, layer_height) else {
+            return;
+        };
+        self.budget.transform_pixels += work;
+        // The groups inside the layer share the budgets of the strip. Fixed
+        // and sticky groups inside it still move with the viewport.
+        let budget = std::mem::take(&mut self.budget);
+        self.budget = {
+            let mut nested = Rasterizer {
+                target: layer.data_mut(),
+                target_size: (layer_width, layer_height),
+                offset_y: 0.0,
+                params: RasterParams {
+                    scroll: area.origin(),
+                    viewport_scroll: self.viewport_scroll,
+                    scale: k,
+                },
+                layers: Vec::new(),
+                budget,
+                clips: Vec::new(),
+                mask: None,
+                vectors: &mut *self.vectors,
+                translation: Point::default(),
+                visible: area,
+                viewport_scroll: self.viewport_scroll,
+                depth: self.depth + 1,
+                sticky: std::mem::take(&mut self.sticky),
+            };
+            nested.run(items, range, ends, fonts, images);
+            while !nested.layers.is_empty() {
+                nested.pop_layer(images);
+            }
+            self.sticky = std::mem::take(&mut nested.sticky);
+            nested.budget
+        };
+        // Layer px to target device px.
+        let to_target =
+            to_device.multiply(&Matrix::new(1.0 / k, 0.0, 0.0, 1.0 / k, area.x, area.y));
+        self.draw_transformed(&layer, &to_target);
+        self.release(&layer);
+    }
+
+    /// The layer of a transform group whose items `m` maps to the
+    /// coordinates of `params` and that draws in `bounds` (its own
+    /// coordinates): the part that can be visible, on the grid of layer
+    /// pixels of `bounds` (see [`grid_area`]). `None` if nothing is
+    /// visible or the transform cannot be inverted.
+    fn plan_layer(&self, m: &Matrix, bounds: Rect) -> Option<LayerPlan> {
+        let s = self.params.scale;
+        let scroll = self.params.scroll;
+        let to_device =
+            Matrix::new(s, 0.0, 0.0, s, -scroll.x * s, -scroll.y * s - self.offset_y).multiply(m);
+        let visible = self.visible_area()?;
+        let visible_part = to_device
+            .invert()?
+            .map_rect(&visible)
+            .intersection(&bounds)?;
+        // The scale for the visible part; the margin of the grid can lower
+        // it a little, and the area is snapped with the final scale.
+        let k = layer_scale(visible_part, s * m.max_scale())?;
+        let k = layer_scale(grid_area(visible_part, bounds, k), k)?;
+        let area = grid_area(visible_part, bounds, k);
+        let (width, height) = layer_size(area, k)?;
+        let covered = to_device
+            .map_rect(&area)
+            .intersection(&visible)
+            .map_or(0, |r| (r.width as u64).saturating_mul(r.height as u64));
+        let work = (u64::from(width) * u64::from(height)).saturating_add(covered);
+        Some(LayerPlan {
+            to_device,
+            area,
+            scale: k,
+            width,
+            height,
+            work,
+        })
+    }
+
+    /// Draws `layer` with the transform `to_target` (layer px to target
+    /// device px), bilinear filtering and anti-aliased edges
+    /// (`draw_pixmap` does not anti-alias them).
+    fn draw_transformed(&mut self, layer: &Pixmap, to_target: &Matrix) {
+        let (width, height) = (layer.width() as f32, layer.height() as f32);
+        let Some(rect) = tiny_skia::Rect::from_xywh(0.0, 0.0, width, height) else {
+            return;
+        };
+        let device_bounds = to_target.map_rect(&Rect::new(0.0, 0.0, width, height));
+        let paint = Paint {
+            shader: Pattern::new(
+                layer.as_ref(),
+                SpreadMode::Pad,
+                FilterQuality::Bilinear,
+                1.0,
+                Transform::identity(),
+            ),
+            anti_alias: true,
+            ..Paint::default()
+        };
+        let layer_transform = Transform::from_row(
+            to_target.a,
+            to_target.b,
+            to_target.c,
+            to_target.d,
+            to_target.e,
+            to_target.f,
+        );
+        self.draw(device_bounds, |p, t, mask| {
+            p.fill_rect(rect, &paint, t.pre_concat(layer_transform), mask);
+        });
+    }
+
     fn item(&mut self, item: &DisplayItem, fonts: &mut FontContext, images: &dyn ImageSource) {
         match item {
             DisplayItem::Rect { rect, radii, color } => self.fill_rect(*rect, radii, *color),
@@ -358,15 +706,28 @@ impl Rasterizer<'_> {
                 self.clips.push(clip);
                 self.mask = None;
             }
+            // The target is the viewport (or a strip of it): the clip
+            // hides nothing there.
+            DisplayItem::PushViewportClip => {
+                let (width, height) = self.target_size;
+                self.clips
+                    .push(Rect::new(0.0, 0.0, width as f32, height as f32));
+                self.mask = None;
+            }
             DisplayItem::PopClip => {
                 self.clips.pop();
                 self.mask = None;
             }
-            DisplayItem::PushOpacity { opacity, bounds } => {
-                self.push_layer(*opacity, *bounds, None);
-            }
+            DisplayItem::PushOpacity {
+                opacity,
+                bounds,
+                fixed_bounds,
+                escapes_clips,
+            } => self.push_layer(*opacity, (*bounds, *fixed_bounds), None, *escapes_clips),
+            // The mask is drawn inside the enclosing clips, so content
+            // fixed to the viewport in the group cannot escape them.
             DisplayItem::PushMask { bounds, layers } => {
-                self.push_layer(1.0, *bounds, Some(Arc::clone(layers)));
+                self.push_layer(1.0, (*bounds, None), Some(Arc::clone(layers)), false);
             }
             DisplayItem::PopOpacity | DisplayItem::PopMask => self.pop_layer(images),
             DisplayItem::Polyline {
@@ -374,7 +735,10 @@ impl Rasterizer<'_> {
                 width,
                 color,
             } => self.polyline(points, *width, *color),
-            DisplayItem::HitRegion { .. } => {}
+            // `run` handles transform groups.
+            DisplayItem::HitRegion { .. }
+            | DisplayItem::PushTransform { .. }
+            | DisplayItem::PopTransform => {}
         }
     }
 
@@ -424,8 +788,8 @@ impl Rasterizer<'_> {
     fn to_device_point(&self, p: Point) -> Point {
         let s = self.params.scale;
         Point::new(
-            (p.x - self.params.scroll.x) * s,
-            (p.y - self.params.scroll.y) * s - self.offset_y,
+            (p.x + self.translation.x - self.params.scroll.x) * s,
+            (p.y + self.translation.y - self.params.scroll.y) * s - self.offset_y,
         )
     }
 
@@ -516,11 +880,36 @@ impl Rasterizer<'_> {
 
     // ----- Opacity and mask groups -----
 
-    fn push_layer(&mut self, opacity: f32, bounds: Rect, mask: Option<Arc<[MaskLayer]>>) {
+    /// Starts an opacity or mask group that draws in `bounds`. If
+    /// `escapes_clips`, the group contains content fixed to the viewport,
+    /// which the enclosing clips do not clip.
+    fn push_layer(
+        &mut self,
+        opacity: f32,
+        (bounds, fixed): (Rect, Option<Rect>),
+        mask: Option<Arc<[MaskLayer]>>,
+        escapes_clips: bool,
+    ) {
         self.mask = None;
-        let area = self
-            .visible_area()
-            .and_then(|v| snap_out(self.to_device(bounds)).intersection(&v));
+        let visible = if escapes_clips {
+            self.surface_rect()
+        } else {
+            self.visible_area()
+        };
+        // The group's content, and its content fixed to the viewport where
+        // it is at the viewport scroll offset (not moved by the enclosing
+        // translations). Empty areas do not count.
+        let non_empty = |r: &Rect| r.width > 0.0 && r.height > 0.0;
+        let mut device = Some(bounds).filter(non_empty).map(|b| self.to_device(b));
+        if let Some(fixed) = fixed.filter(non_empty) {
+            let saved = std::mem::take(&mut self.translation);
+            let at = self.to_device(fixed.translate(self.viewport_scroll));
+            self.translation = saved;
+            device = Some(device.map_or(at, |d| d.union(&at)));
+        }
+        let area = visible
+            .zip(device)
+            .and_then(|(v, d)| snap_out(d).intersection(&v));
         // A mask group starts only if its work fits into the budget.
         let work = match (&mask, area) {
             (Some(layers), Some(a)) => self.mask_work(a, layers),
@@ -597,8 +986,8 @@ impl Rasterizer<'_> {
         };
         let pixels = u64::from(size.width()) * u64::from(size.height());
         // The temporary layer of each mask layer.
-        if self.layer_pixels + pixels > self.max_layer_pixels {
-            self.skipped.layers = true;
+        if self.budget.layer_pixels + pixels > self.budget.max_layer_pixels {
+            self.budget.skipped.layers = true;
             return false;
         }
         let mut result: Option<Vec<u8>> = None;
@@ -679,7 +1068,7 @@ impl Rasterizer<'_> {
     /// Adds `pixels` to the mask work of this strip (see
     /// [`MAX_MASK_PIXELS`]).
     fn add_mask_work(&mut self, pixels: u64) {
-        self.mask_pixels = self.mask_pixels.saturating_add(pixels);
+        self.budget.mask_pixels = self.budget.mask_pixels.saturating_add(pixels);
     }
 
     /// The work of a mask group whose layer is `area` (device px), for the
@@ -712,9 +1101,9 @@ impl Rasterizer<'_> {
     /// True if `work` fits into the rest of the mask budget. A mask group
     /// whose work does not fit draws nothing.
     fn mask_work_fits(&mut self, work: u64) -> bool {
-        let fits = self.mask_pixels.saturating_add(work) <= self.max_mask_pixels;
+        let fits = self.budget.mask_pixels.saturating_add(work) <= self.budget.max_mask_pixels;
         if !fits {
-            self.skipped.masks = true;
+            self.budget.skipped.masks = true;
         }
         fits
     }
@@ -723,19 +1112,19 @@ impl Rasterizer<'_> {
     /// layer pixels.
     fn layer_pixmap(&mut self, width: u32, height: u32) -> Option<Pixmap> {
         let pixels = u64::from(width) * u64::from(height);
-        if self.layer_pixels + pixels > self.max_layer_pixels {
-            self.skipped.layers = true;
+        if self.budget.layer_pixels + pixels > self.budget.max_layer_pixels {
+            self.budget.skipped.layers = true;
             return None;
         }
         let pixmap = Pixmap::new(width, height)?;
-        self.layer_pixels += pixels;
+        self.budget.layer_pixels += pixels;
         Some(pixmap)
     }
 
     /// Returns the pixels of a layer's pixmap to the budget.
     fn release(&mut self, pixmap: &Pixmap) {
         let pixels = u64::from(pixmap.width()) * u64::from(pixmap.height());
-        self.layer_pixels = self.layer_pixels.saturating_sub(pixels);
+        self.budget.layer_pixels = self.budget.layer_pixels.saturating_sub(pixels);
     }
 
     // ----- Rectangles and borders -----
@@ -1915,6 +2304,7 @@ mod tests {
         target.fill(tiny_skia::Color::WHITE);
         let params = RasterParams {
             scroll: Point::default(),
+            viewport_scroll: Point::default(),
             scale,
         };
         let mut fonts = FontContext::for_tests();
@@ -2142,6 +2532,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.5,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
             DisplayItem::Rect {
                 rect,
@@ -2163,6 +2555,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.0,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
             DisplayItem::Rect {
                 rect,
@@ -2182,6 +2576,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.5,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
             DisplayItem::Rect {
                 rect,
@@ -2407,17 +2803,24 @@ mod tests {
             offset_y: 0.0,
             params: RasterParams {
                 scroll: Point::default(),
+                viewport_scroll: Point::default(),
                 scale: 1.0,
             },
             layers: Vec::new(),
-            layer_pixels: 0,
-            max_layer_pixels,
-            mask_pixels: 0,
-            max_mask_pixels,
-            skipped: Skipped::default(),
+            budget: Budget {
+                max_layer_pixels,
+                max_mask_pixels,
+                max_transform_pixels: MAX_TRANSFORM_PIXELS,
+                ..Budget::default()
+            },
             clips: Vec::new(),
             mask: None,
             vectors,
+            translation: Point::default(),
+            visible: Rect::new(0.0, 0.0, target_size.0 as f32, target_size.1 as f32),
+            viewport_scroll: Point::default(),
+            depth: 0,
+            sticky: StickyCache::default(),
         }
     }
 
@@ -2514,6 +2917,7 @@ mod tests {
             target.fill(tiny_skia::Color::WHITE);
             let params = RasterParams {
                 scroll: Point::new(0.0, 0.3),
+                viewport_scroll: Point::new(0.0, 0.3),
                 scale: 2.6,
             };
             let mut fonts = FontContext::for_tests();
@@ -2533,6 +2937,270 @@ mod tests {
         }
     }
 
+    /// A list with a rotated group (with an opacity group and a mask group
+    /// inside) and a fixed group, for strips.
+    fn transformed_and_fixed_groups() -> DisplayList {
+        use swb_layout::GroupTransform;
+        let (sin, cos) = 25f32.to_radians().sin_cos();
+        let (cx, cy) = (45.0, 60.0);
+        let rotate = Matrix::new(
+            cos,
+            sin,
+            -sin,
+            cos,
+            cx - cos * cx + sin * cy,
+            cy - sin * cx - cos * cy,
+        );
+        let rect = |x, y, w, h, color| DisplayItem::Rect {
+            rect: Rect::new(x, y, w, h),
+            radii: [(0.0, 0.0); 4],
+            color,
+        };
+        let mut items = vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(rotate),
+                bounds: Rect::new(20.0, 20.0, 50.0, 100.0),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            rect(30.0, 40.0, 30.0, 80.0, BLUE),
+            DisplayItem::PushOpacity {
+                opacity: 0.5,
+                bounds: Rect::new(25.0, 90.0, 40.0, 20.0),
+                fixed_bounds: None,
+                escapes_clips: false,
+            },
+            rect(25.0, 90.0, 40.0, 20.0, RED),
+            DisplayItem::PopOpacity,
+        ];
+        let opaque = mask_layer(MaskLayerImage::Opaque(Rect::new(20.0, 20.0, 20.0, 40.0)));
+        items.extend(masked_square(vec![opaque]));
+        items.extend([
+            DisplayItem::PopTransform,
+            DisplayItem::PushViewportClip,
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Fixed,
+                bounds: Rect::new(10.0, 70.0, 20.0, 40.0),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            rect(10.0, 70.0, 20.0, 40.0, Rgba::rgb(0, 128, 0)),
+            DisplayItem::PopTransform,
+            DisplayItem::PopClip,
+        ]);
+        DisplayList { items }
+    }
+
+    /// Strips give the pixels of one pass (within rounding) for transform
+    /// layers, and fixed groups are at the same place in every strip.
+    #[test]
+    fn transform_and_fixed_groups_in_strips() {
+        let list = transformed_and_fixed_groups();
+        let render = |strip_rows: u32| {
+            let mut target = Pixmap::new(90, 210).unwrap();
+            target.fill(tiny_skia::Color::WHITE);
+            let params = RasterParams {
+                scroll: Point::new(0.0, 10.0),
+                viewport_scroll: Point::new(0.0, 10.0),
+                scale: 1.5,
+            };
+            let mut fonts = FontContext::for_tests();
+            rasterize_in_strips(
+                &list,
+                &mut target,
+                params,
+                strip_rows,
+                &mut fonts,
+                &NoImages,
+            );
+            target
+        };
+        let whole = render(210);
+        // The fixed group moves with the scroll offset in every strip.
+        let green = (0, 128, 0);
+        assert_eq!(rgb(&whole, 30, 106), green);
+        assert_eq!(rgb(&whole, 30, 164), green);
+        assert_ne!(rgb(&whole, 30, 103), green);
+        assert_ne!(rgb(&whole, 30, 166), green);
+        for rows in [7, 13, 100] {
+            let strips = render(rows);
+            let diff: Vec<u8> = whole
+                .data()
+                .iter()
+                .zip(strips.data())
+                .map(|(a, b)| a.abs_diff(*b))
+                .collect();
+            let max = diff.iter().copied().max().unwrap_or(0);
+            let count = diff.chunks(4).filter(|p| p.iter().any(|&d| d > 0)).count();
+            // Transform layers have their pixels at the same positions in
+            // every strip; rounding differs in a few pixels.
+            assert!(max <= 16 && count <= 10, "strips of {rows} rows");
+            if rows == 100 {
+                assert_eq!(count, 0, "strips of {rows} rows");
+            }
+        }
+    }
+
+    /// Runs `items` on a white 100x100 target with the given budgets of
+    /// group layers and transform layers, and returns the target and the
+    /// rasterizer's budget afterwards.
+    fn run_with_budgets(
+        items: &[DisplayItem],
+        max_layer_pixels: u64,
+        max_transform_pixels: u64,
+    ) -> (Pixmap, Budget) {
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let budget = {
+            let mut r = rasterizer(&mut target, &mut vectors, max_layer_pixels, MAX_MASK_PIXELS);
+            r.budget.max_transform_pixels = max_transform_pixels;
+            let ends = transform_ends(items);
+            let mut fonts = FontContext::for_tests();
+            r.run(items, 0..items.len(), &ends, &mut fonts, &NoImages);
+            assert!(r.layers.is_empty());
+            r.budget
+        };
+        (target, budget)
+    }
+
+    /// A 40x40 red square at (30, 30) rotated by 45 degrees about its
+    /// center, with an opacity group and a mask group inside.
+    fn rotated_square() -> Vec<DisplayItem> {
+        use swb_layout::GroupTransform;
+        let (sin, cos) = 45f32.to_radians().sin_cos();
+        let rotate = Matrix::new(
+            cos,
+            sin,
+            -sin,
+            cos,
+            50.0 - cos * 50.0 + sin * 50.0,
+            50.0 - sin * 50.0 - cos * 50.0,
+        );
+        let rect = Rect::new(30.0, 30.0, 40.0, 40.0);
+        let mut items = vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(rotate),
+                bounds: rect,
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            DisplayItem::PushOpacity {
+                opacity: 1.0,
+                bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
+            },
+        ];
+        items.extend(masked_square(vec![mask_layer(MaskLayerImage::Opaque(
+            Rect::new(0.0, 0.0, 100.0, 100.0),
+        ))]));
+        items.extend([
+            DisplayItem::Rect {
+                rect,
+                radii: [(0.0, 0.0); 4],
+                color: RED,
+            },
+            DisplayItem::PopOpacity,
+            DisplayItem::PopTransform,
+        ]);
+        items
+    }
+
+    #[test]
+    fn transform_layers_use_the_budgets_of_the_strip() {
+        let items = rotated_square();
+        // The layer, the opacity layer and the mask layers are released;
+        // the work is the layer's pixels and the device pixels it covers.
+        let (p, budget) = run_with_budgets(&items, MAX_GROUP_LAYER_PIXELS, MAX_TRANSFORM_PIXELS);
+        assert_eq!(rgb(&p, 50, 50), (255, 0, 0));
+        assert_eq!(budget.layer_pixels, 0);
+        assert!(
+            (3200..10_000).contains(&budget.transform_pixels),
+            "{}",
+            budget.transform_pixels
+        );
+        assert!(!budget.skipped.transforms && !budget.skipped.layers);
+        let work = budget.transform_pixels;
+        // Not enough work budget: not drawn.
+        let (p, budget) = run_with_budgets(&items, MAX_GROUP_LAYER_PIXELS, work - 1);
+        assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
+        assert_eq!(budget.transform_pixels, 0);
+        assert!(budget.skipped.transforms);
+        // Not enough layer memory for the transform layer: not drawn.
+        let (p, budget) = run_with_budgets(&items, 100, MAX_TRANSFORM_PIXELS);
+        assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
+        assert_eq!(budget.layer_pixels, 0);
+        assert!(budget.skipped.layers);
+    }
+
+    #[test]
+    fn transform_layers_nest_up_to_a_depth() {
+        use swb_layout::GroupTransform;
+        let rotate = GroupTransform::Matrix(Matrix::new(0.0, 1.0, -1.0, 0.0, 100.0, 0.0));
+        let rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let nested = |depth: usize| {
+            let mut items: Vec<DisplayItem> = (0..depth)
+                .map(|_| DisplayItem::PushTransform {
+                    transform: rotate.clone(),
+                    bounds: rect,
+                    hit_bounds: Rect::default(),
+                    fixed_bounds: None,
+                })
+                .collect();
+            items.push(DisplayItem::Rect {
+                rect,
+                radii: [(0.0, 0.0); 4],
+                color: RED,
+            });
+            items.extend((0..depth).map(|_| DisplayItem::PopTransform));
+            items
+        };
+        let (p, budget) = run_with_budgets(
+            &nested(MAX_TRANSFORM_DEPTH),
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_TRANSFORM_PIXELS,
+        );
+        assert_eq!(rgb(&p, 50, 50), (255, 0, 0));
+        assert!(!budget.skipped.transforms);
+        assert_eq!(budget.layer_pixels, 0);
+        let (p, budget) = run_with_budgets(
+            &nested(MAX_TRANSFORM_DEPTH + 1),
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_TRANSFORM_PIXELS,
+        );
+        assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
+        assert!(budget.skipped.transforms);
+        assert_eq!(budget.layer_pixels, 0);
+    }
+
+    #[test]
+    fn transform_layer_geometry_is_bounded() {
+        let area = Rect::new(0.0, 0.0, 100.0, 50.0);
+        assert_eq!(layer_scale(area, f32::NAN), None);
+        assert_eq!(layer_scale(area, 0.0), None);
+        assert_eq!(layer_scale(area, f32::INFINITY), None);
+        // Sides and pixels are limited.
+        let k = layer_scale(Rect::new(0.0, 0.0, 1e6, 1.0), 1.0).unwrap();
+        assert!(1e6 * k <= MAX_TRANSFORM_LAYER_SIDE * 1.001);
+        let k = layer_scale(Rect::new(0.0, 0.0, 1e4, 1e4), 1.0).unwrap();
+        assert!(1e8 * k * k <= MAX_TRANSFORM_LAYER_PIXELS * 1.001);
+        assert_eq!(
+            layer_size(Rect::new(0.0, 0.0, f32::NAN, 1.0), 1.0),
+            Some((1, 1))
+        );
+        assert_eq!(layer_size(Rect::new(0.0, 0.0, 1e9, 1.0), 1.0), None);
+        // The grid starts at the corner of the bounds; two pixels of
+        // margin, inside the bounds.
+        let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
+        let grid = grid_area(Rect::new(30.3, 40.7, 10.0, 10.0), bounds, 2.0);
+        assert_eq!((grid.x, grid.y), (29.0, 39.5));
+        assert!((grid.right() - 41.3).abs() < 1e-4 && (grid.bottom() - 51.7).abs() < 1e-4);
+        assert_eq!(grid_area(bounds, bounds, 2.0), bounds);
+        let nan = grid_area(Rect::new(f32::NAN, 0.0, 1.0, 1.0), bounds, 2.0);
+        assert!(nan.width >= 0.0 || nan.width.is_nan());
+    }
+
     #[test]
     fn strips_have_equal_heights() {
         assert_eq!(equal_strip_rows(30_000, 20_972), 15_000);
@@ -2549,11 +3217,11 @@ mod tests {
         let mut target = Pixmap::new(1, 1).unwrap();
         let mut vectors = FrameBudget::new();
         let mut r = rasterizer(&mut target, &mut vectors, 100, MAX_MASK_PIXELS);
-        r.layer_pixels = 90;
+        r.budget.layer_pixels = 90;
         let small = r.layer_pixmap(2, 5).unwrap();
-        assert_eq!(r.layer_pixels, 100);
+        assert_eq!(r.budget.layer_pixels, 100);
         assert!(r.layer_pixmap(1, 1).is_none());
-        assert!(r.skipped.layers);
+        assert!(r.budget.skipped.layers);
         r.release(&small);
         assert!(r.layer_pixmap(1, 1).is_some());
     }
@@ -2570,14 +3238,14 @@ mod tests {
         target.fill(tiny_skia::Color::WHITE);
         let mut vectors = FrameBudget::new();
         let mut r = rasterizer(&mut target, &mut vectors, max_layer_pixels, max_mask_pixels);
-        r.mask_pixels = mask_work;
+        r.budget.mask_pixels = mask_work;
         let mut fonts = FontContext::for_tests();
         for item in items {
             r.item(item, &mut fonts, &NoImages);
         }
         assert!(r.layers.is_empty());
-        assert_eq!(r.layer_pixels, 0, "all layers are released");
-        let masks_skipped = r.skipped.masks;
+        assert_eq!(r.budget.layer_pixels, 0, "all layers are released");
+        let masks_skipped = r.budget.skipped.masks;
         (target, masks_skipped)
     }
 
@@ -2637,6 +3305,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.5,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
             DisplayItem::PushMask {
                 bounds: rect,
@@ -2653,6 +3323,7 @@ mod tests {
         let render = |strip_rows: u32| {
             let params = RasterParams {
                 scroll: Point::default(),
+                viewport_scroll: Point::default(),
                 scale: 2.0,
             };
             let mut target = Pixmap::new(200, 200).unwrap();
@@ -2708,6 +3379,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.5,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
             square.clone(),
             DisplayItem::PopOpacity,
@@ -2732,6 +3405,8 @@ mod tests {
             DisplayItem::PushOpacity {
                 opacity: 0.5,
                 bounds: rect,
+                fixed_bounds: None,
+                escapes_clips: false,
             },
         );
         masked.push(DisplayItem::PopOpacity);

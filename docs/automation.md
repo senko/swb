@@ -73,9 +73,12 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 
 - Coordinates are CSS px. Points for input are in viewport coordinates (0,
   0 is the top left corner of the visible area). Boxes are in document
-  coordinates (independent of the scroll position of the page, but with
-  the scroll offsets of scroll containers applied, as Chromium's
-  `getClientRects` gives them).
+  coordinates, as painted: with the scroll offsets of scroll containers
+  applied (as Chromium's `getClientRects` gives them); a transformed
+  element gives the bounding box of its transformed border box, and fixed
+  and sticky elements move with the scroll position of the page (as
+  `getBoundingClientRect()` plus the scroll offset in browsers). Other
+  boxes do not depend on the scroll position of the page.
 - A rectangle is `[x, y, width, height]`.
 - A node ID is an integer (the index of the node in swb's DOM arena). It is
   valid until the next navigation.
@@ -92,14 +95,14 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 
 | Method | Parameters | Result |
 |--------|------------|--------|
-| `page.navigate` | `url` (absolute URL) | `{}`. The load continues after the response; use `page.waitForLoad`. |
+| `page.navigate` | `url` (absolute URL) | `{}`. The load continues after the response; use `page.waitForLoad`. A URL with a fragment that equals the URL of the shown document apart from the fragment does not load (unless a load is in progress or the page shows an error): the page scrolls to the fragment, and `page.waitForLoad` returns at once. |
 | `page.reload` | — | `{}` |
 | `page.back`, `page.forward` | — | `{"navigated": bool}` |
 | `page.stop` | — | `{}` |
 | `page.waitForLoad` | `timeoutMs` (default 30000, at most 3600000) | `{"loaded": bool}`: false on timeout. Loaded means the document and all its resources (stylesheets, images, background images) are loaded. A failed navigation counts as loaded: then `page.info` has `loadState` `failed`. |
 | `page.info` | — | see below |
 | `page.setViewport` | `width`, `height` (1 to 16384), `scale` (above 0, at most 8; default 1) | `{}`. For headless mode: with a window, the next resize of the window sets the viewport again. |
-| `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx. |
+| `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx; as in Chromium, it shows the page from its top with the layout of the viewport; fixed and sticky boxes are where they are at the page's scroll offset, and scroll containers keep their offsets. |
 | `page.scrollTo` | `x`, `y` | `{"scroll": {"x", "y"}}` (whole CSS px, clamped to the content, also on an axis with `overflow: hidden`) |
 | `page.scrollBy` | `dx`, `dy` | `{"scroll": {"x", "y"}}` |
 

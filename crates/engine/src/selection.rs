@@ -11,7 +11,8 @@ use std::collections::HashMap;
 use swb_dom::{Document, NodeData, NodeId, is_html_whitespace, local_name};
 use swb_layout::{
     BoxContent, BoxFragment, Fragment, FragmentTree, NoScroll, Point, Rect, ScrollOffsets,
-    ScrollState, TextFragment,
+    ScrollState, TextFragment, clip_property_area, forms_stacking_context,
+    is_absolute_containing_block, is_fixed_containing_block,
 };
 use swb_style::{ComputedStyle, Display, StyleMap, UserSelect, Visibility, WhiteSpace};
 
@@ -207,6 +208,15 @@ enum Clip {
 }
 
 impl Clip {
+    /// This clip and the clip `other`.
+    fn and_clip(self, other: Clip) -> Clip {
+        match other {
+            Clip::None => self,
+            Clip::Area(area) => self.and(area),
+            Clip::Empty => Clip::Empty,
+        }
+    }
+
     /// This clip and `area`. An area without width or height leaves
     /// nothing visible.
     fn and(self, area: Rect) -> Clip {
@@ -271,10 +281,16 @@ struct Place {
     scroll: ScrollState,
     clip: Clip,
     /// The clip of the absolutely positioned boxes here: inside the nearest
-    /// positioned box (their containing block), or outside the nearest
-    /// block in a positioned inline box below it (the inline box is their
-    /// containing block). `None` without either.
+    /// positioned or transformed box (their containing block), or outside
+    /// the nearest block in a positioned inline box below it (the inline
+    /// box is their containing block). `None` without either.
     cb_clip: Option<Clip>,
+    /// The clip of the fixed boxes here: inside the nearest transformed
+    /// box (their containing block); `None` without one.
+    fixed_clip: Option<Clip>,
+    /// The `clip` rectangles of the ancestors (CSS 2.2 §11.1.2): they also
+    /// clip fixed boxes.
+    property_clip: Clip,
 }
 
 impl Place {
@@ -284,35 +300,56 @@ impl Place {
         scroll: ScrollState::DEFAULT,
         clip: Clip::None,
         cb_clip: None,
+        fixed_clip: None,
+        property_clip: Clip::None,
     };
 
     /// The absolute border box of `b` at this place, the clip that applies
     /// to `b`, and the place of its children: moved by the scroll offset of
     /// `b` and clipped by it. As paint's clips, an absolutely positioned box
-    /// is clipped by its containing block (a positioned box) and the boxes
-    /// above it, or, inside a positioned inline box, by the boxes above
-    /// the nearest block in it; without a positioned ancestor it is not
-    /// clipped. A fixed box is not clipped.
+    /// is clipped by its containing block (a positioned or transformed box)
+    /// and the boxes above it, or, inside a positioned inline box, by the
+    /// boxes above the nearest block in it; without such an ancestor it is
+    /// not clipped. A fixed box is clipped only by a transformed containing
+    /// block and the boxes above it. Inside a stacking context below their
+    /// containing block, both are clipped by the clips around that stacking
+    /// context (paint draws them in it). `clip` rectangles clip all
+    /// descendants, also fixed ones.
     fn enter(self, b: &BoxFragment, offsets: &dyn ScrollOffsets) -> (Rect, Clip, Place) {
         let origin = self.scroll.origin_of(b, self.origin);
         let rect = b.border_rect.translate(origin);
         let own = match b.style.position {
-            swb_style::Position::Fixed => Clip::None,
-            swb_style::Position::Absolute if !b.in_positioned_inline => {
-                self.cb_clip.unwrap_or(Clip::None)
-            }
+            swb_style::Position::Fixed => self
+                .fixed_clip
+                .unwrap_or(Clip::None)
+                .and_clip(self.property_clip),
+            swb_style::Position::Absolute => self.cb_clip.unwrap_or(Clip::None),
             _ => self.clip,
         };
+        let property = clip_property_area(b, rect);
+        let own = property.map_or(own, |area| own.and(area));
+        let property_clip =
+            property.map_or(self.property_clip, |area| self.property_clip.and(area));
         let clip = clip_area(b, origin).map_or(own, |area| own.and(area));
-        let cb_clip = if b.style.position != swb_style::Position::Static {
+        let context = forms_stacking_context(b);
+        let cb_clip = if is_absolute_containing_block(b) {
             // The containing block of the absolutely positioned boxes
             // inside: they are clipped by it (paint draws them in its
             // stacking context, inside its clip).
             Some(clip)
-        } else if b.in_positioned_inline {
+        } else if b.in_positioned_inline || context {
             Some(own)
         } else {
             self.cb_clip
+        };
+        let fixed_clip = if is_fixed_containing_block(b) {
+            Some(clip)
+        } else if context {
+            // Only for fixed boxes with a transformed containing block:
+            // boxes fixed to the viewport are not clipped.
+            self.fixed_clip.map(|_| own)
+        } else {
+            self.fixed_clip
         };
         let (child_origin, scroll) = self.scroll.enter(b, rect.origin(), offsets);
         let place = Place {
@@ -320,6 +357,8 @@ impl Place {
             scroll,
             clip,
             cb_clip,
+            fixed_clip,
+            property_clip,
         };
         (rect, own, place)
     }

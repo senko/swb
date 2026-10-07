@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Reduction of Wikipedia's sidebar table of contents: a sticky scroll
+     container (`.vector-sticky-pinned-container`: `position: sticky;
+     top: 24px; overflow: hidden auto`) with a sticky shadow at its bottom
+     (`::after`, here a div with `position: sticky; bottom: 0`). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wikipedia sticky table of contents</title>
+<style>
+  body { margin: 0; font: 14px/22px sans-serif; }
+  .page { display: flex; }
+  .column-start { width: 200px; flex-shrink: 0; }
+  .pinned { overflow: hidden auto; position: sticky; top: 24px; box-sizing: border-box; max-height: calc(100vh - 48px); }
+  .shadow { display: block; position: sticky; bottom: 0; left: 0; right: 0; height: 16px; background: #eee; }
+  .main { flex-grow: 1; }
+  .toc a { display: block; padding: 3px 0; }
+</style>
+</head>
+<body>
+  <div style="height: 10px"></div>
+  <div class="page">
+    <div class="column-start" id="col">
+      <div class="pinned" id="pinned">
+        <nav class="toc" id="toc">
+          <a href="#">(Top)</a><a href="#">History</a><a href="#">Function</a><a href="#">Features</a>
+          <a href="#">User interface</a><a href="#">Privacy</a><a href="#">Security</a><a href="#">Standards support</a>
+          <a href="#">See also</a><a href="#">References</a><a href="#">External links</a><a href="#">One</a>
+          <a href="#">Two</a><a href="#">Three</a><a href="#">Four</a><a href="#">Five</a><a href="#">Six</a>
+          <a href="#">Seven</a><a href="#">Eight</a><a href="#">Nine</a><a href="#">Ten</a><a href="#">Eleven</a>
+        </nav>
+        <div class="shadow" id="shadow"></div>
+      </div>
+    </div>
+    <div class="main" id="main" style="height: 3000px">Article text</div>
+  </div>
+</body>
+</html>

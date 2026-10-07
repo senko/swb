@@ -11,9 +11,11 @@
 mod background;
 mod control;
 mod display_list;
+mod group_bounds;
 mod image;
 mod mask;
 mod raster;
+mod rope;
 mod scroll_indicator;
 mod svg;
 
