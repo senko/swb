@@ -8,6 +8,12 @@
 //!
 //! A column is *mergeable* if no cell starts in it (in automatic layout):
 //! it gets no width and no border spacing, as if it did not exist.
+//!
+//! Parts of this file are derived from Chromium's `LayoutNG` table code
+//! (`third_party/blink/renderer/core/layout/table/`:
+//! `table_layout_utils.cc`, `table_layout_algorithm_types.cc` and `.h`,
+//! `table_layout_algorithm.cc`; Copyright The Chromium Authors,
+//! BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 
 use swb_style::{BoxSizing, ComputedStyle, LengthPercentage, MaxSize, Size};
 

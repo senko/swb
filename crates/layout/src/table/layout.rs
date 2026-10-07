@@ -16,6 +16,12 @@
 //! 5. Fragments (`fragments.rs`). The table's border box contains its
 //!    captions (as in Chromium); its border and background are painted
 //!    around the grid.
+//!
+//! Parts of this file are derived from Chromium's `LayoutNG` table code
+//! (`third_party/blink/renderer/core/layout/table/`:
+//! `table_layout_algorithm.cc`, `table_layout_utils.cc`,
+//! `table_layout_algorithm_types.cc` and `.h`; Copyright The Chromium
+//! Authors, BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 
 use std::collections::HashMap;
 use std::rc::Rc;

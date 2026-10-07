@@ -8,9 +8,10 @@
 //!
 //! - The exclusion space is the set of float margin boxes of one block
 //!   formatting context (BFC), in the coordinates of the BFC root's content
-//!   box. It is stored as two step functions over the block axis: the
-//!   rightmost right edge of the left floats and the leftmost left edge of
-//!   the right floats (Chromium's "shelves" without shape exclusions).
+//!   box. It is stored as two step functions over the block axis (one
+//!   sorted list of segments): the rightmost right edge of the left floats
+//!   and the leftmost left edge of the right floats. This model is swb's
+//!   own; it is not Chromium's data structure.
 //! - A float is placed at the first block position at or below its origin,
 //!   the top of the last float (rule 5) and its clearance where its margin
 //!   box fits beside the floats. Because no float starts below the top of

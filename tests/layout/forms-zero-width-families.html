@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Text fields measured with the width of "0": only when the first family
+     of font-family is one of the families that Chromium treats so
+     (`swbtools measure text-field-families`), matched case-sensitively;
+     generic families and names that start with "." use the average
+     character width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Zero-width families</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  div { margin-bottom: 4px; }
+  input { font-size: 16px; }
+</style>
+</head>
+<body>
+  <div><input style="font-family: Helvetica"><input style="font-family: helvetica"></div>
+  <div><input style="font-family: Times, serif"><input style="font-family: serif, Times"></div>
+  <div><input style="font-family: 'Lucida Grande'"><input style="font-family: Kai"></div>
+  <div><input style="font-family: '#PilGi'"><input style="font-family: '.SF NS Text'"></div>
+  <div><input style="font-family: Courier"><input style="font-family: COURIER"></div>
+  <div><textarea cols=10 style="font-family: Geneva"></textarea><textarea cols=10 style="font-family: geneva"></textarea></div>
+</body>
+</html>

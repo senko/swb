@@ -17,6 +17,7 @@
 
 mod block;
 mod box_tree;
+mod collapsed_margin;
 mod control;
 mod flex;
 mod floats;

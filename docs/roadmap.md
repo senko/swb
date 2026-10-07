@@ -77,6 +77,17 @@ Five parallel workstreams; each will record its design in a new ADR:
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
 uses neither; they moved to "Later".
 
+## Pending decisions
+
+- The owner wants to discuss why Chromium source code was read during
+  development (ADR 0021, "Follow-up"). Until then, agents read no source
+  code of other engines.
+- Clean-room rewrites of the code derived from Chromium (table layout
+  column constraints, width distribution, row heights; grid track
+  sizing; sticky offsets; two float helpers), Skia data and Servo
+  (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
+  (ADR 0021).
+
 ## Backlog from M3
 
 - Masks: SVG `<mask>` references (they hide the box, as a missing target

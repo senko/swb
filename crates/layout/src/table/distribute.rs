@@ -3,6 +3,12 @@
 //! <https://www.w3.org/TR/css-tables-3/#width-distribution-algorithm>) and
 //! the column widths of fixed table layout, as Chromium's `LayoutNG`
 //! implements them (`table_layout_utils.cc`).
+//!
+//! Parts of this file are derived from Chromium's `LayoutNG` table code
+//! (`third_party/blink/renderer/core/layout/table/`:
+//! `table_layout_utils.cc`, `table_layout_algorithm_types.cc` and `.h`,
+//! `table_layout_algorithm.cc`; Copyright The Chromium Authors,
+//! BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 
 use super::columns::Column;
 

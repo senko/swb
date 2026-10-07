@@ -1,0 +1,30 @@
+{
+  "url": "tests/layout/forms-zero-width-families.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 199.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 183.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 784.0, 24.0], "parent": 5},
+    {"tag": "input", "rect": [8.0, 8.0, 186.0, 24.0], "parent": 6},
+    {"tag": "input", "rect": [194.0, 8.0, 215.0, 24.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 36.0, 784.0, 24.0], "parent": 5},
+    {"tag": "input", "rect": [8.0, 36.0, 168.0, 24.0], "parent": 9},
+    {"tag": "input", "rect": [176.0, 36.0, 208.0, 24.0], "parent": 9},
+    {"tag": "div", "rect": [8.0, 64.0, 784.0, 24.0], "parent": 5},
+    {"tag": "input", "rect": [8.0, 64.0, 168.0, 24.0], "parent": 12},
+    {"tag": "input", "rect": [176.0, 64.0, 168.0, 24.0], "parent": 12},
+    {"tag": "div", "rect": [8.0, 92.0, 784.0, 24.0], "parent": 5},
+    {"tag": "input", "rect": [8.0, 92.0, 168.0, 24.0], "parent": 15},
+    {"tag": "input", "rect": [176.0, 92.0, 208.0, 24.0], "parent": 15},
+    {"tag": "div", "rect": [8.0, 120.0, 784.0, 24.0], "parent": 5},
+    {"tag": "input", "rect": [8.0, 120.0, 201.0, 24.0], "parent": 18},
+    {"tag": "input", "rect": [209.0, 120.0, 218.0, 24.0], "parent": 18},
+    {"tag": "div", "rect": [8.0, 148.0, 784.0, 43.0], "parent": 5},
+    {"tag": "textarea", "rect": [8.0, 148.0, 88.0, 38.0], "parent": 21},
+    {"tag": "textarea", "rect": [96.0, 148.0, 95.0, 38.0], "parent": 21}
+  ]
+}

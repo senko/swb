@@ -23,11 +23,11 @@
 //!   character width `a` of the primary font and its maximum character
 //!   width `m` (the bounding box width, rounded), `ceil(a * size + m - a)`.
 //!   `a` is OS/2 `xAvgCharWidth`, rounded up when its fraction is 0.5 or
-//!   more (Blink rounds it, and a value that rounds down is not used),
-//!   both at the font size in 26.6 fixed point. For the families whose
-//!   average width Blink does not trust (`Courier`, `Times`, `Helvetica`
-//!   and others), `a` is the width of `0` and `m` is not added. The height
-//!   is the line height.
+//!   more (a value that would round down is used as it is), both at the
+//!   font size in 26.6 fixed point. When the first family of
+//!   `font-family` is one of `ZERO_WIDTH_FAMILIES` (`Courier`, `Times`,
+//!   `Helvetica` and others), `a` is the width of `0` and `m` is not
+//!   added. The height is the line height.
 //! - A text area is `ceil(a * cols)` plus a scroll bar (15 px) wide and
 //!   `rows` lines high.
 //! - Buttons and `<button>` elements are as wide as their content; their
@@ -186,10 +186,28 @@ const SELECT_PADDING: (f32, f32, f32, f32) = (4.0, 16.0, 1.0, 1.0);
 /// sends at most this many labels).
 pub const MAX_SELECT_OPTIONS: usize = 10_000;
 
-/// Families whose average character width Blink ignores
-/// (`HasValidAvgCharWidth` in `layout_text_control.cc`).
-const INVALID_AVG_CHAR_WIDTH_FAMILIES: [&str; 31] = [
+/// The families whose text fields and text areas Chromium measures with
+/// the width of `0` instead of the average character width, when the
+/// family is the first one of `font-family`. Names match case-sensitively.
+/// In byte order, for binary search.
+///
+/// Measured with Chromium 148 (`swbtools measure text-field-families`,
+/// docs/testing.md): of about 450 candidate families (generic families
+/// and common Windows, macOS and Linux family names), these are the ones
+/// whose text field has the width of `size` zeros. A family that the
+/// measurement did not try can be missing.
+const ZERO_WIDTH_FAMILIES: [&str; 34] = [
+    "#GungSeo",
+    "#HeadLineA",
+    "#PCMyungjo",
+    "#PilGi",
     "American Typewriter",
+    "Apple Braille",
+    "Apple LiGothic",
+    "Apple LiSung",
+    "Apple Symbols",
+    "AppleGothic",
+    "AppleMyungjo",
     "Arial Hebrew",
     "Chalkboard",
     "Cochin",
@@ -202,6 +220,8 @@ const INVALID_AVG_CHAR_WIDTH_FAMILIES: [&str; 31] = [
     "Helvetica",
     "Hoefler Text",
     "InaiMathi",
+    "Kai",
+    "Lucida Grande",
     "Marker Felt",
     "Monaco",
     "Mshtakan",
@@ -211,15 +231,6 @@ const INVALID_AVG_CHAR_WIDTH_FAMILIES: [&str; 31] = [
     "STHeiti",
     "Symbol",
     "Times",
-    "Apple Braille",
-    "Apple LiGothic",
-    "Apple LiSung",
-    "Apple Symbols",
-    "AppleGothic",
-    "AppleMyungjo",
-    "#GungSeo",
-    "#HeadLineA",
-    "#PCMyungjo",
 ];
 
 /// Builds the contents of the box of control element `node`, if it is a
@@ -681,16 +692,13 @@ fn char_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle) -> CharWidth {
     let font = fonts::primary_font(ctx.fonts, style);
     let size = style.font_size;
     let metrics = ctx.fonts.metrics(font, size);
-    let family_valid = match style.font_family.first() {
+    let zero_width_family = match style.font_family.first() {
         Some(swb_style::FontFamily::Named(name)) => {
-            !name.starts_with('.')
-                && !INVALID_AVG_CHAR_WIDTH_FAMILIES
-                    .iter()
-                    .any(|f| f.eq_ignore_ascii_case(name.as_ref()))
+            ZERO_WIDTH_FAMILIES.binary_search(&name.as_ref()).is_ok()
         }
-        _ => true,
+        _ => false,
     };
-    if let Some(average) = metrics.avg_char_width.filter(|_| family_valid) {
+    if let Some(average) = metrics.avg_char_width.filter(|_| !zero_width_family) {
         // FreeType sizes are 26.6 fixed-point numbers.
         let scale = if size > 0.0 {
             (size * 64.0).round() / 64.0 / size
@@ -827,6 +835,30 @@ mod tests {
         assert_eq!(content("e"), 90.0);
         assert_eq!(content("f"), 67.0);
         assert_eq!(l.rect("a").height, 21.0);
+    }
+
+    #[test]
+    fn zero_width_families_match_the_first_family_case_sensitively() {
+        // Measured in Chromium 148 with the test fonts (`swbtools measure
+        // text-field-families`): content widths at 16px, size 20.
+        let l = layout_html(&body(
+            "<input id=a style='font: 16px Helvetica'><input id=b style='font: 16px helvetica'>\
+             <input id=c style='font: 16px \"Lucida Grande\"'>\
+             <input id=d style='font: 16px \".SF NS Text\"'>\
+             <input id=e style='font: 16px Times, serif'><input id=f style='font: 16px serif, Times'>",
+        ));
+        let content = |id: &str| l.rect(id).width - 8.0;
+        assert_eq!(content("a"), 178.0);
+        assert_eq!(content("b"), 207.0);
+        assert_eq!(content("c"), 160.0);
+        assert_eq!(content("d"), 200.0);
+        assert_eq!(content("e"), 160.0);
+        assert_eq!(content("f"), 200.0);
+    }
+
+    #[test]
+    fn zero_width_families_are_in_byte_order() {
+        assert!(super::ZERO_WIDTH_FAMILIES.windows(2).all(|w| w[0] < w[1]));
     }
 
     #[test]

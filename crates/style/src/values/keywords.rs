@@ -703,10 +703,11 @@ keyword_enum! {
 
 /// Font sizes in px for the absolute-size keywords, `xx-small` to
 /// `xxx-large`, for a medium size of 16px (proportional fonts) and 13px
-/// (monospace), in standards mode and in quirks mode. These are Blink's
-/// tables (`font_size_functions.cc`); they round differently from the
-/// scale factors in CSS Fonts 4 (Blink computes `small` as 13px, not
-/// 14.2px).
+/// (monospace), in standards mode and in quirks mode. The values are the
+/// computed font sizes in Chromium 148 (`swbtools measure
+/// font-size-keywords`, docs/testing.md). With 16px, quirks mode has the
+/// same sizes as standards mode. They differ from the scale factors in
+/// CSS Fonts 4 (Chromium computes `small` as 13px, not 14.2px).
 const KEYWORD_SIZES_16: [f32; 8] = [9.0, 10.0, 13.0, 16.0, 18.0, 24.0, 32.0, 48.0];
 const KEYWORD_SIZES_13_STRICT: [f32; 8] = [9.0, 10.0, 12.0, 13.0, 16.0, 20.0, 26.0, 39.0];
 const KEYWORD_SIZES_13_QUIRKS: [f32; 8] = [9.0, 9.0, 10.0, 13.0, 16.0, 20.0, 26.0, 40.0];

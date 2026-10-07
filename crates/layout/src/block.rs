@@ -44,45 +44,7 @@ pub(crate) struct ContainingBlock {
     pub(crate) height: Option<f32>,
 }
 
-/// Collapsing margins: the largest positive and the most negative margin
-/// (CSS 2.2 §8.3.1).
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct CollapsedMargin {
-    max_positive: f32,
-    min_negative: f32,
-}
-
-impl CollapsedMargin {
-    pub(crate) fn new(margin: f32) -> Self {
-        CollapsedMargin {
-            max_positive: margin.max(0.0),
-            min_negative: margin.min(0.0),
-        }
-    }
-
-    pub(crate) fn adjoin(self, other: CollapsedMargin) -> Self {
-        CollapsedMargin {
-            max_positive: self.max_positive.max(other.max_positive),
-            min_negative: self.min_negative.min(other.min_negative),
-        }
-    }
-
-    pub(crate) fn solve(self) -> f32 {
-        self.max_positive + self.min_negative
-    }
-}
-
-/// The margins a laid-out block-level box exposes to its parent for
-/// collapsing.
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct BlockMargins {
-    /// The top margin, collapsed with any child margins it adjoins.
-    pub(crate) start: CollapsedMargin,
-    /// The bottom margin, collapsed with any child margins it adjoins.
-    pub(crate) end: CollapsedMargin,
-    /// True if the top and bottom margins adjoin (an empty box).
-    pub(crate) collapsed_through: bool,
-}
+pub(crate) use crate::collapsed_margin::{BlockMargins, CollapsedMargin};
 
 /// A laid-out block-level box, before its parent positions it.
 pub(crate) struct LaidOutBlock {
@@ -1665,6 +1627,11 @@ fn fit_independent(
 /// the layouts that did work (were not cached); each one after the first
 /// is charged to the work budget, so that nested boxes and boxes with much
 /// content do not take unbounded time and memory.
+///
+/// Parts of this function are derived from Chromium's
+/// `third_party/blink/renderer/core/layout/block_layout_algorithm.cc`
+/// (`HandleNewFormattingContext`; Copyright The Chromium Authors,
+/// BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 fn try_opportunity(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,

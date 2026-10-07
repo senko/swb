@@ -20,11 +20,16 @@ both browsers pick the same font files and get the same metrics and
 advances. So the text crate copies Chromium's rules where they are known,
 not only the CSS specification.
 
-Sources read for the rules (ideas only, no code copied): Blink
+Sources read for the rules: Blink
 `font_cache_skia.cc`, `font_cache_linux.cc`, `alternate_font_family.h`,
 `font_platform_data.cc`; Chromium `ui/gfx/font_fallback_linux.cc`,
 `ui/gfx/linux/fontconfig_util.cc`; Skia `SkFontConfigInterface_direct.cpp`,
 `SkFontHost_FreeType.cpp`, `SkScalerContext.cpp`, `SkTextFormatParams.h`.
+Two pieces of data are derived from Skia (BSD-3-Clause; see
+`THIRD_PARTY_NOTICES.md`): the metric-compatible family classes
+(`GetFontEquivClass`) and the synthetic bold stroke widths
+(`SkTextFormatParams.h`). No other code was copied. (Corrected
+2026-10-07; this sentence said "no code copied".)
 
 ## Decision
 

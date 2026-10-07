@@ -152,7 +152,10 @@ impl<'a> PictureScan<'a> {
 }
 
 /// The candidate of the `<source>` element `node`, if it takes part.
-/// The checks are in Chromium's order; the result does not depend on it.
+/// The checks follow the order of "update the source set": `srcset`,
+/// `media`, `type`. swb parses `srcset` last (in `choose_from_srcset`);
+/// the checks have no side effects, so the result is the same.
+/// <https://html.spec.whatwg.org/multipage/images.html#update-the-source-set>
 fn source_candidate<'a>(
     doc: &'a Document,
     node: NodeId,
@@ -163,13 +166,13 @@ fn source_candidate<'a>(
     }
     let source = doc.element(node)?;
     let srcset = source.attr("srcset").filter(|s| !s.is_empty())?;
-    if source.attr("type").is_some_and(|t| !is_supported_type(t)) {
-        return None;
-    }
     if source
         .attr("media")
         .is_some_and(|m| !MediaQueryList::parse_str(m).matches(env))
     {
+        return None;
+    }
+    if source.attr("type").is_some_and(|t| !is_supported_type(t)) {
         return None;
     }
     choose_from_srcset(source, srcset, None, env)

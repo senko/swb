@@ -2,7 +2,10 @@
 
 This file lists every source that influenced the design or code of swb:
 specifications, articles, books, and other projects whose code was read for
-ideas. No code was copied from these projects.
+ideas. Some parts of swb's code are derived from Chromium, Skia and Servo
+code; the entries below say which, and
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) lists them with their
+licenses. No other code was copied from these projects.
 
 Format: source, license (for code), what it influenced.
 
@@ -67,7 +70,7 @@ Format: source, license (for code), what it influenced.
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).
 
-## Projects (read for ideas only)
+## Projects
 
 - Chromium / Blink (BSD-3-Clause, parts LGPL) — font selection and
   fallback rules, so that swb picks the same fonts as Chromium on Linux
@@ -92,7 +95,10 @@ Format: source, license (for code), what it influenced.
   `inline/inline_item.cc`, `inline/inline_node.cc/.h`,
   `inline/line_breaker.cc` (line height quirks); `core/paint/
   table_painters.cc` (collapsed borders). Read for the algorithms
-  (`layout/src/table/`, ADR 0010); no code copied.
+  (`layout/src/table/`, ADR 0010). Parts of `layout/src/table/columns.rs`,
+  `distribute.rs`, `rows.rs`, `cells.rs` and `layout.rs` are derived from
+  `table_layout_utils.cc`, `table_layout_algorithm_types.cc/.h` and
+  `table_layout_algorithm.cc`; see `THIRD_PARTY_NOTICES.md`.
 - Chromium / Blink LayoutNG grid layout (BSD-3-Clause): in
   `third_party/blink/renderer/core/layout/grid/`:
   `grid_layout_algorithm.cc`, `grid_track_sizing_algorithm.cc`,
@@ -103,16 +109,24 @@ Format: source, license (for code), what it influenced.
   repetitions, the minimum contribution, item alignment, the
   auto-placement cursors, grid baselines, grid value parsing and limits
   (`kGridMaxTracks`), and `TableNode::AllowColumnPercentages`
-  (`layout/src/grid/`, `style/src/parse/grid.rs`, ADR 0017). No code
-  copied.
+  (`layout/src/grid/`, `style/src/parse/grid.rs`, ADR 0017). Parts of
+  `layout/src/grid/sizing.rs` and of `auto_repetitions` in
+  `layout/src/grid/mod.rs` are derived from
+  `grid_track_sizing_algorithm.cc/.h` and `grid_layout_utils.cc`; see
+  `THIRD_PARTY_NOTICES.md`.
 - Chromium / Blink, style: `html.css` and `quirks.css` (user-agent
-  defaults, compared with the HTML spec), `font_size_functions.cc` (font
-  size keyword tables), `font_builder.cc` (`CheckForGenericFamilyChange`,
-  the monospace size rule), `style_builder_converter.cc` (font size
-  absoluteness), and LayoutNG's `CalculateLeadingSpace` (half-leading
-  rounding). Chrome's default font settings
-  (`locale_settings_linux.grd`), checked against Chromium 148. No code
-  copied.
+  defaults, compared with the HTML spec; LGPL-2), `font_size_functions.cc`
+  (font size keyword tables; LGPL-2), `font_builder.cc`
+  (`CheckForGenericFamilyChange`, the monospace size rule),
+  `style_builder_converter.cc` (font size absoluteness), and LayoutNG's
+  `CalculateLeadingSpace` (half-leading rounding). Chrome's default font
+  settings (`locale_settings_linux.grd`), checked against Chromium 148.
+  Until 2026-10-07, the font size keyword tables
+  (`style/src/values/keywords.rs`) and the form control, ruby and
+  frameset rules of `style/src/ua.css` restated data from `html.css` and
+  `font_size_functions.cc`. Data derived from LGPL files is not allowed
+  (ADR 0003), so they now use the HTML Standard and values measured in
+  Chromium 148 (`swbtools measure`). No code copied.
 - Chromium 148, measured with Playwright (behavior, no code read): the
   focus ring of `outline-style: auto` (two rings, offsets, radii), the
   selection colors, `a:any-link:focus-visible { outline-offset: 1px }` in
@@ -122,19 +136,29 @@ Format: source, license (for code), what it influenced.
   scroll into view of nested containers, whole-pixel scroll offsets;
   responsive image selection (candidate order and choice for the device
   pixel ratio, `w` densities, `sizes` with `auto` and negative `calc()`,
-  `<source type>` matching, the dimensions of a selected `<source>`,
-  density-corrected sizes).
+  `<source type>` matching, a `<source>` with both a `media` that does
+  not match and an unsupported `type`, the dimensions of a selected
+  `<source>`, density-corrected sizes); with `swbtools measure`
+  (docs/testing.md): the font families whose text fields use the width
+  of `0`, the font size keyword tables, the computed styles of form
+  controls, ruby and frameset elements, and the `<source>` checks.
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.
-- Chromium / Blink (BSD-3-Clause), forms, from recollection and
-  confirmed by measurements with Chromium 148: text field widths
-  (`layout_text_control.cc`: `GetAvgCharWidth`, `HasValidAvgCharWidth`
-  and its family list, `PreferredContentLogicalWidth`), select option
+- Chromium / Blink, forms (`layout_text_control.cc` and `LayoutMenuList`
+  and its successors are LGPL-2; `ui/native_theme/` is BSD-3-Clause),
+  from recollection and confirmed by measurements with Chromium 148: text
+  field widths (`layout_text_control.cc`: `GetAvgCharWidth`,
+  `HasValidAvgCharWidth`, `PreferredContentLogicalWidth`), select option
   widths and optgroup indentation (`LayoutMenuList::UpdateOptionsWidth`),
   the check mark of `NativeThemeBase::PaintCheckbox`, label activation
   (`HTMLLabelElement::DefaultEventHandler`) and line breaks in pasted
-  text (`TextFieldInputType`). No code copied.
+  text (`TextFieldInputType`). The list of families whose text fields use
+  the width of `0` (`layout/src/control.rs`) comes from a measurement
+  (`swbtools measure text-field-families`, 2026-10-07), not from
+  `layout_text_control.cc`. The check mark in `paint/src/control.rs` is
+  derived from `ui/native_theme/native_theme_base.cc`; see
+  `THIRD_PARTY_NOTICES.md`. No other code copied.
 - Chromium (BSD-3-Clause), cookies: `net/cookies/cookie_monster.cc`
   (limits of 180/150 cookies per domain and 3300/3000 in total, LRU
   eviction), `net/cookies/cookie_util.cc` (`GetCookieDomainWithString`:
@@ -148,15 +172,20 @@ Format: source, license (for code), what it influenced.
   matching; roxmltree's entity limits; kurbo's arc subdivision count.
   No code copied.
 - Chromium / Blink LayoutNG floats (BSD-3-Clause), from recollection and
-  confirmed by measurements with Chromium 148: the exclusion space with
-  shelves and layout opportunities, `BlockLayoutAlgorithm::HandleFloat`,
+  confirmed by measurements with Chromium 148: the exclusion space and
+  layout opportunities, `BlockLayoutAlgorithm::HandleFloat`,
   `NextBorderEdge`, `HandleNewFormattingContext` (margins next to
   floats, `abort_if_cleared`), `HasClearancePastAdjoiningFloats` and the
   forced BFC block offset, `InlineLayoutAlgorithm::Layout`,
   `LineBreaker::HandleFloat`, `ShouldWrapLine`,
-  `IsEqualToAvailableFloatInlineSize`, `ComputeMinMaxSizes` with floats.
-  No code read for the implementation, no code copied
-  (`layout/src/floats.rs`, ADR 0015).
+  `IsEqualToAvailableFloatInlineSize`, `ComputeMinMaxSizes` with floats
+  (`layout/src/floats.rs`, ADR 0015). swb's exclusion space is its own
+  model (two step functions in a sorted list of segments), not Chromium's
+  shelves. `try_opportunity` in `layout/src/block.rs` is derived from
+  `HandleNewFormattingContext`, and `blocks_content_sizes` in
+  `layout/src/intrinsic.rs` from `ComputeMinMaxSizes`
+  (`core/layout/block_layout_algorithm.cc`); see
+  `THIRD_PARTY_NOTICES.md`.
 - Chromium / Blink (BSD-3-Clause), counters:
   `core/css/counters_attachment_context.cc/.h` and
   `core/html/list_item_ordinal.cc/.h`, read for the counter scope,
@@ -169,11 +198,17 @@ Format: source, license (for code), what it influenced.
   `IsOriginalDisplayInlineType`), inline containing blocks, sticky
   offsets with shifting sticky ancestors
   (`StickyPositionScrollingConstraints`), `clip` on fixed descendants
-  (`CssClipFixedPosition`). No code copied (`layout/src/positioned.rs`,
-  ADR 0016).
+  (`CssClipFixedPosition`) (`layout/src/positioned.rs`, ADR 0016). The
+  sticky offsets in `layout/src/positioned.rs` are derived from
+  `core/page/scrolling/sticky_position_scrolling_constraints.cc`; see
+  `THIRD_PARTY_NOTICES.md`.
 - Servo (layout 2020, MPL-2.0) — the idea of keeping a fragment at the
   static position of a hoisted absolutely positioned box; swb replaces
-  it with the laid-out fragment. No code copied.
+  it with the laid-out fragment. No code copied for it.
+- Servo (MPL-2.0) — `layout/src/collapsed_margin.rs` (`CollapsedMargin`,
+  `BlockMargins`) is derived from Servo's `CollapsedMargin` and
+  `CollapsedBlockMargins` (`components/layout/fragment_tree/fragment.rs`).
+  This file is under the MPL-2.0; see `THIRD_PARTY_NOTICES.md`.
 - Servo and Blink — the idea of an ancestor Bloom filter for selector
   matching (`SelectorFilter`), and right-to-left selector matching with
   limited backtracking, which all browser engines use. No code read for
@@ -184,7 +219,11 @@ Format: source, license (for code), what it influenced.
 - Skia (BSD-3-Clause) — metric selection and synthetic bold/oblique
   parameters (`text` crate). Files read: `SkFontConfigInterface_direct.cpp`,
   `SkFontHost_FreeType.cpp`, `SkScalerContext.cpp`, `SkTextFormatParams.h`.
-  No code copied.
+  The metric-compatible family classes (`METRIC_COMPATIBLE` in
+  `text/src/source/fontconfig.rs`) are derived from `GetFontEquivClass`
+  in `SkFontConfigInterface_direct.cpp`, and the synthetic bold stroke
+  widths (`fake_bold_scale` in `text/src/raster.rs`) from
+  `SkTextFormatParams.h`; see `THIRD_PARTY_NOTICES.md`.
 
 ## Bundled data
 

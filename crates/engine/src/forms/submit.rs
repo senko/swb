@@ -155,12 +155,12 @@ fn encode_body(entries: &[Entry], enctype: Option<&str>, encoding: &'static Enco
 }
 
 /// The encoding of a form: the first label in `accept-charset` that names
-/// an encoding, else the document's encoding. Deviations, both as in
-/// Chromium (measured, `FormDataEncoder::EncodingFromAcceptCharset`): the
-/// labels are separated by commas as well as by whitespace (the
-/// specification splits on whitespace only), and with an `accept-charset`
-/// that names no encoding, the document's encoding is used (the
-/// specification says UTF-8).
+/// an encoding, else the document's encoding (HTML Standard, "picking an
+/// encoding for the form"). Two deviations from the specification, both as
+/// in Chromium (measured): the labels are separated by commas as well as
+/// by whitespace (the specification splits on whitespace only), and with
+/// an `accept-charset` that names no encoding, the document's encoding is
+/// used (the specification says UTF-8).
 /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#picking-an-encoding-for-the-form>
 fn pick_encoding(accept_charset: Option<&str>, document: &'static Encoding) -> &'static Encoding {
     accept_charset

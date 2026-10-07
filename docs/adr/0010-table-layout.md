@@ -6,6 +6,8 @@
   end. The decision did not change.
 - Updated: 2026-10-04 (M3 floats): see "Update (2026-10-04, floats)" at
   the end.
+- Updated: 2026-10-07 (provenance): see "Update (2026-10-07):
+  provenance" at the end.
 
 ## Context
 
@@ -25,7 +27,8 @@ with its own choices where the draft is open.
 
 Follow Chromium's LayoutNG table layout. The code is in
 `crates/layout/src/table/`. Chromium's source was read for the algorithms;
-no code was copied (see `credits.md`).
+parts of the code are derived from it (see "Update (2026-10-07):
+provenance" and `credits.md`).
 
 ### Box tree
 
@@ -255,3 +258,16 @@ percentage widths still resolve against the containing block, so a
 `width: 100%` table next to a float moves below it, as in Chromium.
 Table cells and captions establish their own block formatting context:
 their floats stay inside them and count for their auto height.
+
+## Update (2026-10-07): provenance
+
+A provenance audit compared the table code with the Chromium sources that
+`credits.md` lists. Parts of `crates/layout/src/table/columns.rs`,
+`distribute.rs`, `rows.rs`, `cells.rs` and `layout.rs` are derived from
+Chromium code, not only from its algorithms:
+`third_party/blink/renderer/core/layout/table/table_layout_utils.cc`,
+`table_layout_algorithm_types.cc` and `.h`, and
+`table_layout_algorithm.cc` (BSD-3-Clause). The project owner decided to
+keep this code with attribution: a comment in each file and an entry in
+`THIRD_PARTY_NOTICES.md` with the Chromium license. A clean-room rewrite
+may follow.

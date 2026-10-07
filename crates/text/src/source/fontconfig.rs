@@ -50,8 +50,12 @@ use crate::source::FontSource;
 /// later). Skia asks for "SFNT" to prefer TrueType and OpenType files.
 const FC_FONT_WRAPPER: &CStr = c"fontwrapper";
 
-/// Metric-compatible families, from Skia's `GetFontEquivClass`. A match
-/// from the same class as the requested family is accepted.
+/// Metric-compatible families. A match from the same class as the
+/// requested family is accepted.
+///
+/// The classes are derived from Skia's `SkFontConfigInterface_direct.cpp`
+/// (`GetFontEquivClass`; Copyright Google Inc., BSD-3-Clause); see
+/// `THIRD_PARTY_NOTICES.md`.
 const METRIC_COMPATIBLE: &[&[&str]] = &[
     &["Arial", "Arimo", "Liberation Sans"],
     &["Times New Roman", "Tinos", "Liberation Serif"],

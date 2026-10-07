@@ -161,6 +161,11 @@ pub(crate) fn container_content_sizes(
 /// establishes a BFC after them share a "line", so their max-content
 /// widths add up; a float or BFC root with `clear` starts a new line on the
 /// cleared sides, and any other in-flow box ends the line.
+///
+/// Parts of this function are derived from Chromium's
+/// `third_party/blink/renderer/core/layout/block_layout_algorithm.cc`
+/// (`ComputeMinMaxSizes`; Copyright The Chromium Authors, BSD-3-Clause);
+/// see `THIRD_PARTY_NOTICES.md`.
 fn blocks_content_sizes(ctx: &mut LayoutContext<'_>, children: &[BlockLevelBox]) -> ContentSizes {
     let mut sizes = ContentSizes::default();
     let mut left = 0.0_f32;

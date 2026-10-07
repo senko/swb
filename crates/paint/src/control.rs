@@ -127,7 +127,10 @@ fn checkbox(items: &mut Vec<DisplayItem>, control: &ControlContent, r: Rect) {
                 (ACCENT, Rgba::WHITE)
             };
             items.push(rect(r, fill, CHECKED_RADIUS));
-            // Chromium's check mark (`NativeThemeBase::PaintCheckbox`).
+            // The check mark is derived from Chromium's
+            // `ui/native_theme/native_theme_base.cc` (`PaintCheckbox`;
+            // Copyright The Chromium Authors, BSD-3-Clause); see
+            // `THIRD_PARTY_NOTICES.md`.
             let at = |fx: f32, fy: f32| Point::new(r.x + r.width * fx, r.y + r.height * fy);
             items.push(DisplayItem::Polyline {
                 points: Arc::from([at(0.2, 0.5), at(0.4, 0.7), at(0.8, 0.2)]),

@@ -10,6 +10,7 @@ from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import compare_fixture, update_scores
 from swbtools.layout_refs import layout_refs
 from swbtools.manifest import FILES_DIR, read_manifest
+from swbtools.measure import MEASUREMENTS, measure
 from swbtools.pages import list_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
@@ -73,6 +74,16 @@ def cmd_perf(args: argparse.Namespace) -> int:
 
 def cmd_layout_refs(args: argparse.Namespace) -> int:
     return layout_refs(args.names, args.system_fonts)
+
+
+def cmd_measure(args: argparse.Namespace) -> int:
+    unknown = [name for name in args.names if name not in MEASUREMENTS]
+    if unknown:
+        log.error(
+            "unknown measurement: %s (known: %s)", ", ".join(unknown), ", ".join(MEASUREMENTS)
+        )
+        return 2
+    return measure(args.names)
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -163,6 +174,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--runs", type=int, default=20, help="runs per stage (default: 20)")
     p.add_argument("--swb", type=Path, help="path of the swb binary")
     p.set_defaults(func=cmd_perf)
+
+    p = commands.add_parser(
+        "measure", help="measure the Chromium behaviour that swb's data comes from"
+    )
+    p.add_argument(
+        "names", nargs="*", metavar="NAME", help=f"{', '.join(MEASUREMENTS)} (default: all)"
+    )
+    p.set_defaults(func=cmd_measure)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

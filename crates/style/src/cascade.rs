@@ -1078,9 +1078,33 @@ mod tests {
             .pseudo(node(&doc, "b"), PseudoKind::Placeholder)
             .expect("textarea::placeholder");
         assert_eq!(b.color, RED);
+        // Chromium 148 (measured): an input's placeholder does not wrap; a
+        // text area's inherits `white-space` from the text area.
+        assert_eq!(a.white_space, WhiteSpace::Pre);
+        assert_eq!(b.white_space, WhiteSpace::PreWrap);
         assert!(
             map.pseudo(node(&doc, "c"), PseudoKind::Placeholder)
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn disabled_inputs() {
+        // Chromium 148 (`swbtools measure ua-styles`): a disabled image input
+        // has the default cursor; disabled image inputs and checkboxes keep
+        // a transparent background; disabled text fields get a gray one.
+        let (doc, map) = render(
+            "<input id=i type=image disabled><input id=c type=checkbox disabled>\
+             <input id=t disabled>",
+            "",
+        );
+        let image = get(&doc, &map, "i");
+        assert_eq!(image.cursor, Cursor::Default);
+        assert_eq!(image.background_color, Color::TRANSPARENT);
+        assert_eq!(get(&doc, &map, "c").background_color, Color::TRANSPARENT);
+        assert_eq!(
+            get(&doc, &map, "t").background_color,
+            Color::Rgba(Rgba::new(239, 239, 239, 77))
         );
     }
 

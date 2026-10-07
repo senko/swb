@@ -15,6 +15,12 @@
 //! - The flex fraction is not recomputed for the container's `min-width`
 //!   or `max-width` (§12.7 "If using this flex fraction would cause...").
 //! - Maximizing tracks does not redo the step for `max-width` (§12.6).
+//!
+//! Parts of this file are derived from Chromium's `LayoutNG` grid code
+//! (`third_party/blink/renderer/core/layout/grid/`:
+//! `grid_track_sizing_algorithm.cc` and `.h`, `grid_layout_utils.cc`;
+//! Copyright The Chromium Authors, BSD-3-Clause); see
+//! `THIRD_PARTY_NOTICES.md`.
 
 use super::tracks::{MaxSizing, MinSizing, Set, Tracks};
 

@@ -55,6 +55,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
+| `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
@@ -437,6 +438,30 @@ test. The output is deterministic.
 The layout dump rounds to 2 decimals; the screenshots catch smaller
 differences that reach the pixels. Interaction, forms and history are not
 covered: their tests must pass.
+
+### Measure Chromium behaviour
+
+Some data in swb comes from black-box measurements of Chromium, not from
+its source code (Chromium's source is read for ideas, and data from its
+LGPL files is not allowed: ADR 0003, [credits.md](credits.md)).
+`swbtools measure` (`tools/swbtools/measure.py`) repeats these
+measurements. Each one loads generated pages in Chromium with the
+settings above (bundled fonts, JavaScript disabled) and prints the
+result. The swb code next to the data names the measurement.
+
+| Measurement           | What it measures | Data in swb |
+|-----------------------|------------------|-------------|
+| `text-field-families` | For about 450 `font-family` values (the generic families, common Windows, macOS and Linux family names, names that start with `#` or `.`, other spellings): the content width of `<input size=20>` at 16px, compared with the same field with an unknown family first (the average character width rule) and with 20 times the width of `0`. Prints the families whose fields use the width of `0`. | `ZERO_WIDTH_FAMILIES` in `crates/layout/src/control.rs` |
+| `font-size-keywords`  | The computed `font-size` of `xx-small` to `xxx-large` with `serif` (medium: 16px) and `monospace` (medium: 13px), in standards mode and in quirks mode. | `KEYWORD_SIZES_*` in `crates/style/src/values/keywords.rs` |
+| `ua-styles`           | The computed styles of form controls, `option`, `label`, `fieldset`, `marquee`, `meter`, `progress`, `output`, `ruby`, `rt` and `map` (the properties whose values differ from a `<span>` next to the element, in a parent with unusual inherited values), their `::placeholder`, the `frameset` and `frame` of a frameset document, and the system colors. | The rules of `crates/style/src/ua.css` that say "measured" (form controls, widgets, ruby, framesets) |
+| `picture-sources`     | The image that a `<picture>` shows when its `<source>` has a `media` that does not match, an unsupported `type`, or both. | `source_candidate` in `crates/engine/src/image_source.rs` |
+
+The pages are files in a temporary directory, loaded by navigation: a
+quirks mode page from Playwright's `set_content` after a standards mode
+page in the same tab can keep the standards mode font size table. `tools/tests/test_measure.py` runs the measurements and compares
+the family list and the keyword tables with swb's source code, so `just
+tools-check` fails when they no longer match Chromium (for example after a
+Playwright upgrade).
 
 ## Scores
 

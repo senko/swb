@@ -24,14 +24,68 @@ Before you start work, read:
 
 ## Workflow
 
-1. Plan the work. Update `docs/roadmap.md` if the plan changes.
-2. Implement with tests.
-3. Run `just check`.
-4. Review: start a sub-agent with a clean context to review the staged diff
-   (correctness, code quality, tests, docs). Fix what it finds.
-5. Commit.
+Work on one feature at a time:
 
-Commits:
+1. Plan the milestone as an ordered list of features in `docs/roadmap.md`.
+   For each feature, state its scope: the cases that the target pages need.
+2. Implement the feature on top of `main`, with tests. Run `just check`.
+3. Review: one sub-agent with a clean context (type `reviewer`) reviews the
+   final diff with the checklist below. Fix what it finds. Review the fixes
+   again only if they are large or concern security or performance, and
+   then only the fix delta.
+4. Commit. Then start the next feature.
+
+Do not run implementation work in parallel: parallel work on the central
+files (`block.rs`, `box_tree.rs`, `inline/`, `display_list.rs`,
+`raster.rs`, the style property tables) costs more in rebases and merges
+than it saves. Parallel sub-agents are allowed only for read-only work
+(measurements, research) or for changes in crates that the plan names as
+separate.
+
+Findings outside the feature's scope go to the backlog in
+`docs/roadmap.md`. Do not fix them in the same task.
+
+### Agents
+
+The main agent (the orchestrator) runs on Opus. It plans, writes small
+changes, docs, merges and commits itself, and starts sub-agents only for
+work that needs a clean context or much reading.
+
+Sub-agent types (`.claude/agents/`). Always pass a type:
+
+| Type               | Model, effort  | Use |
+|--------------------|----------------|-----|
+| `implementer-hard` | Opus, high     | Algorithmically hard features; the plan names them. |
+| `implementer`      | Sonnet, medium | Other features, fix rounds. |
+| `reviewer`         | Sonnet, medium | The review of each feature. |
+| `measurer`         | Haiku, low     | Chromium probes, snapshots, `compare`, performance runs. |
+
+Rules for sub-agents:
+
+- A task must be small enough to finish in one session. If a sub-agent
+  stops (for example at a usage limit) and its transcript is long, a new
+  sub-agent continues from the patch and the notes file.
+- Report in at most 30 lines: what changed, scores, open issues. Details go
+  to a notes file in the scratchpad, which the orchestrator reads only when
+  needed.
+- Use the shared tools (docs/testing.md): the Chromium probe tool (add
+  cases; do not write new probe scripts), the hostile-page set, and the
+  persistent review worktree with its own target directory. Never build a
+  tree with another tree's target directory.
+- Do not read the source code of other browsers or rendering engines
+  (Chromium, Blink, WebKit, Gecko, Servo, Skia). Derive behaviour from the
+  specifications and from black-box measurements in Chromium (ADR 0021).
+
+Review checklist:
+
+- Correctness on the cases of the feature's scope, compared with Chromium.
+- Robustness: the hostile-page set passes; no new panics.
+- Provenance: no code or data copied from other projects.
+- Code quality, tests, docs.
+
+No open-ended fuzzing, no timing hunts beyond the hostile-page set.
+
+### Commits and docs
 
 - The owner approves each commit manually. Make coarse commits: one commit
   for a substantial body of work (what would otherwise be one branch).
@@ -47,10 +101,13 @@ Documentation, in the same commit as the code:
 - A new ADR for each significant decision (see ADR 0001).
 - An entry in `docs/devlog.md`.
 - `docs/roadmap.md` and `docs/targets.md` when status changes.
-- `docs/credits.md` when ideas come from another project's code or a document.
+- `docs/credits.md` when ideas come from a document or another project.
 
 Maintenance: at the end of each milestone, review the whole codebase for
-duplication, dead code, unclear names and outdated docs, and clean up.
+duplication, dead code, unclear names and outdated docs, and clean up. Use
+at most two `reviewer` sub-agents (read-only, each with a part of the
+crates), make the changes yourself or with one `implementer`, and show
+with `just snapshot` that behaviour is unchanged.
 
 ## Code conventions
 

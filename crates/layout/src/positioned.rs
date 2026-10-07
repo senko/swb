@@ -1061,6 +1061,12 @@ fn place(mut fragment: BoxFragment, cb: Rect, x: Solved, y: Solved) -> BoxFragme
 }
 
 // ----- Sticky positioning and paint ancestry -----
+//
+// Parts of the sticky offset code below (`StickyConstraints`, its offsets
+// and offset ranges, and `sticky_offset`) are derived from Chromium's
+// `third_party/blink/renderer/core/page/scrolling/
+// sticky_position_scrolling_constraints.cc` (Copyright The Chromium
+// Authors, BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 
 /// What a sticky box needs to find its offset for a scroll position (CSS
 /// Positioned Layout 3 §3.4,

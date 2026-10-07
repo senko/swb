@@ -9,9 +9,13 @@
  *
  * Changes from the specification:
  * - Only properties that swb supports are used.
- * - Where Chromium's default stylesheet (html.css) differs from the
- *   specification, this sheet follows Chromium, because swb compares its
- *   rendering with Chromium. These rules are marked "Chromium".
+ * - Where Chromium differs from the specification, this sheet follows
+ *   Chromium, because swb compares its rendering with Chromium. These
+ *   rules are marked "Chromium". For form controls and other widgets
+ *   (section 15.5), ruby and framesets, the values that the specification
+ *   does not give are Chromium 148's computed values (measured with
+ *   `swbtools measure ua-styles`).
+ * - Rules marked "swb" differ from Chromium on purpose.
  * - Quirks mode rules are in ua-quirks.css. Presentational hints that the
  *   specification writes as CSS are in hints.css.
  */
@@ -114,6 +118,11 @@ sup { vertical-align: super; font-size: smaller; }
 
 ruby { display: ruby; }
 rt { display: ruby-text; }
+
+/* Chromium 148 (measured with `swbtools measure ua-styles`). */
+ruby { text-indent: 0; }
+rt { text-indent: 0; line-height: normal; }
+ruby > rt { font-size: 50%; text-align: start; }
 
 /* Chromium: only `a` elements get the link style. */
 a:any-link { color: LinkText; text-decoration: underline; cursor: pointer; }
@@ -238,63 +247,108 @@ thead, tbody, tfoot, tr { border-color: inherit; }
 
 :is(table, thead, tbody, tfoot, tr) > form { display: none !important; }
 
-/* 15.3.10 Form controls (Chromium's defaults) */
+/* 15.3.10 Form controls
+ *
+ * First the specification's rules, without the properties that swb does
+ * not support (`appearance`, `text-shadow`, `overflow-clip-margin`,
+ * `field-sizing`) and without `align-content`: Chromium 148 does not set
+ * it on form controls (the computed value is `normal`).
+ */
 
-input, textarea, select, button {
-  margin: 0;
+input, button, textarea {
+  letter-spacing: initial;
+  word-spacing: initial;
+  line-height: initial;
+}
+
+input, select, button, textarea {
+  text-transform: initial;
+  text-indent: initial;
+}
+
+input:not([type=range i], [type=checkbox i], [type=radio i]) {
+  overflow: clip !important;
+}
+
+input, select, textarea {
+  text-align: initial;
+}
+
+input:is([type=reset i], [type=button i], [type=submit i]), button {
+  text-align: center;
+}
+
+input, button {
+  display: inline-block;
+}
+
+input:is([type=radio i], [type=checkbox i], [type=reset i], [type=button i],
+[type=submit i], [type=color i], [type=search i]), select, button {
+  box-sizing: border-box;
+}
+
+textarea { white-space: pre-wrap; }
+
+/*
+ * Then the values that the specification leaves to the user agent:
+ * Chromium 148's computed values, measured with `swbtools measure
+ * ua-styles` (docs/testing.md). A system color is used where the measured
+ * value is Chromium's value of that system color. Properties that swb
+ * does not use for these elements are left out.
+ */
+
+input, select, button, textarea {
   font: 13.333333px Arial;
   color: FieldText;
-  letter-spacing: normal;
-  word-spacing: normal;
-  line-height: normal;
-  text-transform: none;
-  text-indent: 0;
-  display: inline-block;
-  text-align: start;
 }
 
 input {
-  cursor: text;
   padding: 1px 2px;
   border: 2px inset #767676;
   background-color: Field;
+  cursor: text;
+}
+
+input[type=range i] {
+  margin: 2px;
+  padding: initial;
+  border: initial;
+  color: #9d968e;
+  cursor: default;
 }
 
 input:is([type=radio i], [type=checkbox i]) {
-  box-sizing: border-box;
-  cursor: default;
   padding: initial;
-  background-color: initial;
   border: initial;
+  background-color: initial;
+  cursor: default;
 }
 input[type=checkbox i] { margin: 3px 3px 3px 4px; }
 input[type=radio i] { margin: 3px 3px 0 5px; }
 
 input:is([type=hidden i], [type=image i], [type=file i]) {
   padding: initial;
-  background-color: initial;
   border: initial;
+  background-color: initial;
   cursor: default;
 }
 input[type=image i] { cursor: pointer; }
-input[type=search i] { box-sizing: border-box; }
-input[type=range i] { padding: initial; border: initial; margin: 2px; cursor: default; }
 
+/* swb: Chromium's `ButtonBorder` is black, but its native look draws the
+   border gray. swb draws the native look with the computed border color,
+   so swb's `ButtonBorder` is that gray (#767676). */
 input:is([type=button i], [type=submit i], [type=reset i]), button {
-  box-sizing: border-box;
-  cursor: default;
-  text-align: center;
   padding-block: 1px;
   padding-inline: 6px;
   border: 2px outset ButtonBorder;
   background-color: ButtonFace;
   color: ButtonText;
+  cursor: default;
 }
 input:is([type=button i], [type=submit i], [type=reset i]) {
-  user-select: none;
   white-space: pre;
+  user-select: none;
 }
-
 input:is([type=button i], [type=submit i], [type=reset i]):disabled, button:disabled {
   background-color: rgba(239, 239, 239, 0.3);
   border-color: rgba(118, 118, 118, 0.3);
@@ -302,78 +356,32 @@ input:is([type=button i], [type=submit i], [type=reset i]):disabled, button:disa
 }
 
 input:disabled, textarea:disabled {
-  cursor: default;
   background-color: rgba(239, 239, 239, 0.3);
-  color: #545454;
   border-color: rgba(118, 118, 118, 0.3);
+  color: #545454;
+  cursor: default;
+}
+input:is([type=radio i], [type=checkbox i], [type=hidden i], [type=image i],
+[type=file i]):disabled {
+  background-color: transparent;
 }
 
 textarea {
-  cursor: text;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  font-family: monospace;
-  border: 1px solid #767676;
-  background-color: Field;
+  display: inline-block;
   padding: 2px;
-  overflow: auto;
-}
-
-/* Chromium: the placeholder text (measured: rgb(117, 117, 117)). */
-::placeholder { color: #757575; white-space: pre; }
-
-select {
-  box-sizing: border-box;
-  white-space: pre;
-  color: FieldText;
-  background-color: Field;
   border: 1px solid #767676;
-  border-radius: 0;
-  cursor: default;
+  background-color: Field;
+  font-family: monospace;
+  overflow-wrap: break-word;
+  overflow: auto;
+  cursor: text;
 }
 
-/* Chromium clips the label of a select (in an inner box; the select's own
-   computed overflow stays visible). */
-select { overflow: clip; }
-
-optgroup { display: block; font-weight: bolder; }
-option { display: block; white-space: nowrap; }
+/* A text area's placeholder inherits its `white-space`. */
+::placeholder { color: #757575; }
+input::placeholder { white-space: pre; }
 
 label { cursor: default; }
-
-fieldset {
-  display: block;
-  margin-inline: 2px;
-  border: groove 2px ThreeDFace;
-  padding-block: 0.35em 0.625em;
-  padding-inline: 0.75em;
-  min-inline-size: min-content;
-}
-
-legend { padding-inline: 2px; }
-
-meter {
-  display: inline-block;
-  box-sizing: border-box;
-  block-size: 1em;
-  inline-size: 5em;
-  vertical-align: -0.2em;
-}
-
-progress {
-  display: inline-block;
-  box-sizing: border-box;
-  block-size: 1em;
-  inline-size: 10em;
-  vertical-align: -0.2em;
-}
-
-output { display: inline; }
-
-marquee {
-  display: inline-block;
-  overflow: hidden !important;
-}
 
 /* 15.3.11 The hr element */
 
@@ -386,12 +394,26 @@ hr {
   overflow: hidden;
 }
 
+/* 15.3.12 The fieldset and legend elements */
+
+fieldset {
+  display: block;
+  margin-inline: 2px;
+  border: groove 2px ThreeDFace;
+  padding-block: 0.35em 0.625em;
+  padding-inline: 0.75em;
+  min-inline-size: min-content;
+}
+
+legend {
+  padding-inline: 2px;
+}
+
 /* 15.4 Replaced elements */
 
 /* Chromium: replaced content is clipped. */
 video, canvas, img { overflow: clip; }
 iframe, embed, object { overflow: clip !important; }
-input:not([type=range i], [type=checkbox i], [type=radio i]) { overflow: clip !important; }
 
 iframe { border: 2px inset; }
 video { object-fit: contain; }
@@ -399,7 +421,7 @@ video { object-fit: contain; }
 audio:not([controls]) { display: none !important; }
 audio { width: 300px; height: 54px; }
 
-/* 15.5.4 The details and summary elements */
+/* 15.5.5 The details and summary elements */
 
 details, summary {
   display: block;
@@ -417,14 +439,77 @@ details:not([open]) > :not(summary:first-of-type) {
   display: none;
 }
 
-/* Ruby (Chromium) */
+/* 15.5.13 The marquee element */
 
-ruby, rt { text-indent: 0; }
-rt { line-height: normal; }
-ruby > rt { font-size: 50%; text-align: start; }
+marquee {
+  display: inline-block;
+  text-align: initial;
+  overflow: hidden !important;
+}
 
-/* Other elements (Chromium) */
+/* Chromium 148 (measured with `swbtools measure ua-styles`). */
+marquee { white-space: nowrap; }
+
+/* 15.5.14 The meter element, 15.5.15 The progress element: the sizes are
+   from the specification's text; `box-sizing` is Chromium 148's (measured
+   with `swbtools measure ua-styles`). */
+
+meter {
+  display: inline-block;
+  box-sizing: border-box;
+  block-size: 1em;
+  inline-size: 5em;
+  vertical-align: -0.2em;
+}
+
+progress {
+  display: inline-block;
+  box-sizing: border-box;
+  block-size: 1em;
+  inline-size: 10em;
+  vertical-align: -0.2em;
+}
+
+/* 15.5.16 The select element (drop-down boxes with the native appearance) */
+
+option {
+  display: block;
+}
+
+optgroup {
+  display: block;
+  font-weight: bolder;
+}
+
+select {
+  letter-spacing: initial;
+  word-spacing: initial;
+  line-height: initial;
+}
+
+select {
+  display: inline-block;
+}
+
+/* Chromium 148 (measured with `swbtools measure ua-styles`). */
+select {
+  border: 1px solid #767676;
+  white-space: pre;
+  cursor: default;
+}
+option { white-space: nowrap; }
+
+/* swb: Chromium computes the background of a drop-down select as
+   rgb(239, 239, 239) but its native look draws it white. swb draws the
+   native look with the computed background, so it uses Field. */
+select { background-color: Field; }
+
+/* swb: Chromium clips the label of a select (in an inner box; the
+   select's own computed overflow stays visible). */
+select { overflow: clip; }
+
+/* 15.6 Frames and framesets (no CSS in the specification; Chromium 148,
+   measured) */
 
 frameset, frame { display: block; }
 frameset { border-color: inherit; }
-map { display: inline; }

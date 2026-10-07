@@ -2,6 +2,9 @@
 
 - Status: accepted
 - Date: 2026-10-04
+- Updated: 2026-10-07 (provenance): the exclusion space is swb's own
+  segment model; an earlier version of this ADR called it "Chromium's
+  shelves", which was wrong. The decision did not change.
 
 ## Context
 
@@ -28,8 +31,8 @@ layout tests `float-*` record the results.
 Each block formatting context (BFC) has an exclusion space in the
 coordinates of its root's content box: two step functions over the block
 axis, the rightmost right margin edge of the left floats and the
-leftmost left margin edge of the right floats (Chromium's shelves
-without shape exclusions). A sorted vector of segments holds them. It
+leftmost left margin edge of the right floats. A sorted vector of
+segments holds them (swb's own model, not Chromium's data structure). It
 also records the top of the last float (rule 5) and the bottom of the
 lowest left and right float (clearance). The free range at a block
 position, clipped to a containing block, is one interval.

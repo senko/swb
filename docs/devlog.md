@@ -4,6 +4,62 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-07: Provenance and attribution
+
+- A provenance audit compared swb with the Chromium, Skia and Servo
+  sources that `credits.md` lists. The owner decided to keep the code
+  ported from BSD-3 and MPL-2.0 sources with attribution (a clean-room
+  rewrite may follow) and to replace data derived from LGPL files with
+  measurements.
+- New: `swbtools measure` (`tools/swbtools/measure.py`, docs/testing.md)
+  measures Chromium 148 black-box. `tools/tests/test_measure.py` compares
+  the results with swb's data.
+- Text field families (`layout/src/control.rs`): of about 450 candidate
+  families, 34 make Chromium size text fields with the width of `0`: the
+  31 of the old list and `Kai`, `Lucida Grande` and `#PilGi`. The match is
+  on the first family of `font-family` and case-sensitive (`helvetica`
+  uses the average width); names that start with `.` are not special.
+  swb matched case-insensitively and treated `.` names as special; it
+  now does what Chromium does (new layout test
+  `forms-zero-width-families`).
+- Font size keywords: the measurement confirms the old tables (the 16px
+  row is the same in quirks mode). A quirks mode page from
+  `page.set_content` after a standards mode page in the same tab kept the
+  standards table; the tool loads files instead.
+- `ua.css`: the form control rules are rewritten from the HTML Standard
+  (spec order, unsupported properties left out) and from measured
+  computed values; ruby, frameset, `meter` and `progress` rules cite the
+  spec text or the measurement; the `map` and `output` rules (the initial
+  value) are gone. Changes where the old rules differed from Chromium:
+  disabled checkboxes, radio buttons and image and file inputs keep a
+  transparent background; color inputs are `border-box`; range inputs
+  have `color: #9d968e`; a text area's placeholder inherits `white-space`
+  (it wraps); `marquee` has `text-align: start` (the spec's `initial`)
+  and `white-space: nowrap`. `just snapshot` is unchanged. Kept on
+  purpose, with comments: the select background (`Field`; Chromium
+  computes rgb(239, 239, 239) but draws white) and
+  `ButtonBorder` (#767676 in swb, black in Chromium, whose native look
+  draws gray).
+- Attribution: comments at the derived Chromium code (table layout, grid
+  track sizing, sticky offsets, `try_opportunity`, `blocks_content_sizes`,
+  the check mark), the Skia data (metric-compatible classes, fake bold
+  widths); the Servo-derived `CollapsedMargin` and `BlockMargins` moved
+  into their own file with the MPL-2.0 header
+  (`layout/src/collapsed_margin.rs`, because the MPL-2.0 applies per
+  file); new sections in `THIRD_PARTY_NOTICES.md` with the license
+  texts. ADR 0021 records the findings and the decision. Corrected `credits.md`, ADRs 0006, 0010, 0015 and 0017,
+  and comments in `floats.rs`, `image_source.rs` (spec order of the
+  `<source>` checks, same result as measured), `submit.rs` and
+  `raster.rs`.
+- Workflow change (owner decision): the M3 workflow (five parallel
+  workstreams, stacked reviews, many rebases, everything on the largest
+  model) cost far more than the code needed. New rules in CLAUDE.md
+  ("Workflow", "Agents"): one feature at a time on `main`, one review per
+  feature, typed sub-agents with an explicit model and reasoning effort
+  (`.claude/agents/`: `implementer-hard`, `implementer`, `reviewer`,
+  `measurer`), short reports, shared measurement tools, and no reading of
+  other engines' source code (ADR 0021).
+
 ## 2026-10-04: M3 Wikipedia
 
 - M3 runs as five parallel workstreams (floats, positioning, grid, masks,

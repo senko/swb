@@ -2,6 +2,8 @@
 
 - Status: accepted
 - Date: 2026-10-04
+- Updated: 2026-10-07 (provenance): see "Update (2026-10-07):
+  provenance" at the end.
 
 ## Context
 
@@ -18,7 +20,8 @@ The specification is CSS Grid Layout 2
 it in a few others. swb compares its geometry with Chromium, so where they
 differ, Chromium's LayoutNG grid (`third_party/blink/renderer/core/
 layout/grid/`) is the reference. Its source was read for the algorithms;
-no code was copied.
+parts of the track sizing code are derived from it (see "Update
+(2026-10-07): provenance").
 
 ## Decision
 
@@ -274,3 +277,16 @@ repetitions than the layout.
 - `IndependentContents` has a `Grid` variant; code that matches on it
   must handle grids (block layout calls `grid::layout` from
   `layout_sized`, intrinsic sizes call `grid::content_sizes`).
+
+## Update (2026-10-07): provenance
+
+A provenance audit compared the grid code with the Chromium sources that
+`credits.md` lists. Parts of `crates/layout/src/grid/sizing.rs` (the track
+sizing algorithm) and of `auto_repetitions` in
+`crates/layout/src/grid/mod.rs` are derived from Chromium code, not only
+from its algorithms:
+`third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.cc`
+and `.h`, and `grid_layout_utils.cc` (BSD-3-Clause). The project owner
+decided to keep this code with attribution: a comment at each item and an
+entry in `THIRD_PARTY_NOTICES.md` with the Chromium license. A clean-room
+rewrite may follow.

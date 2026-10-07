@@ -95,8 +95,10 @@ colors, dimensions, `cellpadding`, table `border`, `<font>`) are computed in
 
 ### Chromium compatibility
 
-- Absolute font size keywords use Blink's tables (`small` is 13px), not the
-  CSS Fonts 4 scale factors.
+- Absolute font size keywords use Chromium's sizes (`small` is 13px), not
+  the CSS Fonts 4 scale factors. (Corrected 2026-10-07: the sizes are
+  measured with `swbtools measure font-size-keywords`, not taken from
+  Blink's tables.)
 - The monospace font size quirk: `ComputedStyle::font_size_origin` records
   whether a font size came from a keyword, is relative to one, or is
   absolute. When the family changes to or from the single generic

@@ -130,6 +130,11 @@ fn repeat_track_size(size: &TrackSize, available: f32, repeated: bool) -> f32 {
 /// as fit into the available size (or the maximum size), at least one.
 /// With an indefinite size, as many as are needed to reach the minimum
 /// size. 0 if the list has no automatic repetition.
+///
+/// Parts of this function are derived from Chromium's `LayoutNG` grid code
+/// (`third_party/blink/renderer/core/layout/grid/grid_layout_utils.cc`,
+/// `grid_track_sizing_algorithm.cc`; Copyright The Chromium Authors,
+/// BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 fn auto_repetitions(
     list: &TrackList,
     gap: f32,

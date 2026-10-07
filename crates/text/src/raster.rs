@@ -6,7 +6,8 @@
 //!   in `SkScalerContext.cpp`). The stroke width is the font size times
 //!   1/24 at 9 px and below, 1/32 at 36 px and above, linear in between.
 //! - Synthetic oblique shears the outline by -0.25 in Skia's y-down space
-//!   (Blink `FontPlatformData::SetupSkFont`: `setSkewX(-1/4)`).
+//!   (a horizontal skew of a quarter of the height, as Chromium draws
+//!   synthetic oblique text).
 
 use skrifa::instance::{LocationRef, NormalizedCoord, Size};
 use skrifa::outline::{DrawSettings, OutlinePen};
@@ -137,6 +138,9 @@ fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<Gly
 }
 
 /// Skia's fake bold stroke width as a fraction of the font size.
+///
+/// The constants are derived from Skia's `SkTextFormatParams.h`
+/// (Copyright Google Inc., BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 fn fake_bold_scale(size: f32) -> f32 {
     const SMALL: (f32, f32) = (9.0, 1.0 / 24.0);
     const LARGE: (f32, f32) = (36.0, 1.0 / 32.0);
