@@ -250,3 +250,18 @@ things:
 - New longhand `object-position` (`<position>`, initial `50% 50%`).
   Paint uses it and `object-fit` for the images of `<img>` and the
   posters of `<video>`.
+
+## Update (2026-10-07, responsive images)
+
+- `ElementStates::dimension_sources` maps an `<img>` in a `<picture>`
+  to the selected `<source>` that has a `width` or `height` attribute
+  (HTML's "dimension attribute source"). The page computes it when it
+  selects image sources (`engine/src/image_source.rs`). `hints.rs` then
+  takes both dimension attributes of the image from that source (a
+  missing one gives no hint), and `hspace`, `vspace` and `border` from
+  the image, as Chromium does. A change needs a full restyle;
+  `ElementStates::changes` does not report it.
+- The css crate evaluates the `sizes` attribute (`source_size`) with
+  media conditions and a length evaluator whose relative units, also in
+  math functions, resolve against the `MediaEnvironment` (media queries
+  in stylesheets still accept only absolute units in math functions).

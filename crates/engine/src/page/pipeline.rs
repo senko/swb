@@ -55,7 +55,7 @@ impl Page {
         }
     }
 
-    fn media_environment(&self) -> MediaEnvironment {
+    pub(super) fn media_environment(&self) -> MediaEnvironment {
         MediaEnvironment {
             viewport_width: self.viewport.width,
             viewport_height: self.viewport.height,
@@ -162,6 +162,9 @@ impl Page {
     }
 
     fn compute_styles(&mut self) {
+        if self.images.sources_outdated {
+            self.select_image_sources();
+        }
         let Some(doc) = &self.document else {
             return;
         };
@@ -331,7 +334,9 @@ impl Page {
         }
         self.viewport = viewport;
         self.scale = scale;
-        // Media queries may change, so styles are recomputed.
+        // Image sources (selected at the next style computation) and media
+        // queries may change, so styles are recomputed.
+        self.images.sources_outdated = true;
         self.invalidate_style();
     }
 }

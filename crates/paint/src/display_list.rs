@@ -357,7 +357,9 @@ pub const SELECTION_BACKGROUND: Rgba = Rgba::rgb(51, 103, 209);
 /// The color of selected text.
 const SELECTION_TEXT: Rgba = Rgba::WHITE;
 
-/// Natural sizes of images by reference, for background positioning.
+/// Natural sizes of images by reference, for background positioning and
+/// for `object-fit`. For [`ImageRef::Node`], the size is the natural size
+/// of the element's image (for `<img>`, density-corrected).
 pub trait ImageSizes {
     /// The natural dimensions of an image, if it is loaded.
     fn size(&self, image: &ImageRef) -> Option<NaturalSize>;

@@ -36,7 +36,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 |--------------|--------------------------------------------------------------------------------|-------------------------------|
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
-| `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions. | — |
+| `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
@@ -78,9 +78,10 @@ Rules:
   (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
   each item a bounded number of times, and computes the bounds of all
-  groups in one pass at the end (`paint/src/group_bounds.rs`). Form controls with the native
-  look are drawn by `paint/src/control.rs`. The rasterizer consumes it. The
-  rasterizer can be replaced without changes to layout. The list also
+  groups in one pass at the end (`paint/src/group_bounds.rs`). Form
+  controls with the native look are drawn by `paint/src/control.rs`. The
+  rasterizer consumes it. The rasterizer can be replaced without changes
+  to layout. The list also
   contains hit regions, so hit testing finds what is painted on top.
 - **Text fragments** (`layout`): a glyph run on one line, with caret
   stops: the offset in the DOM text node and the x position of each glyph
@@ -113,9 +114,10 @@ Rules:
   from one tree walk (`DisabledElements`, linear time).
 - **Natural sizes** (`layout`): `NaturalSize` has an optional width,
   height and aspect ratio (SVG images, videos without a loaded poster and
-  audio can lack any of them). Replaced
-  elements and backgrounds use the CSS default sizing rules; the default
-  object size is 300×150.
+  audio can lack any of them). Replaced elements and backgrounds use the
+  CSS default sizing rules; the default object size is 300×150. The
+  natural size of an `<img>` is divided by the pixel density of its
+  chosen `srcset` candidate.
 - **SVG images** (`paint/src/svg/`, ADR 0011): usvg and resvg behind
   limits that are checked before conversion: source size, XML entities,
   XML nodes and depth, style sheets (`css.rs`), the size of the render
@@ -243,8 +245,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   CSS 2.2 Appendix E), then its positioned and transformed descendants
   in z-index order and, for equal values, tree order (a pre-order index
   of the fragment tree; negative z-index before the content). Floats,
-  atomic inline-level boxes and flex and grid items paint as a unit. Relative and absolute boxes with
-  `z-index: auto` paint in that order but form no stacking context. A
+  atomic inline-level boxes and flex and grid items paint as a unit.
+  Relative and absolute boxes with `z-index: auto` paint in that order
+  but form no stacking context. A
   positioned box repeats the clips between its stacking context and
   itself that belong to its containing block chain; a box fixed to the
   viewport replaces all clips (`PushViewportClip`) except `clip`
@@ -295,6 +298,10 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   entry list and submission, encodings); `edit.rs` (`TextEdit`, the
   editing model, also used by the GUI address bar).
 - `focus.rs`: focusable elements and the sequential focus order.
+- `image_source.rs`: image source selection for `<img>` (`srcset`,
+  `sizes`, `<picture>` and `<source>`, the source of the dimension
+  attributes); `resources.rs` keeps each image's URL and pixel density
+  and selects sources again after viewport or scale changes.
 - `selection.rs`: text positions, the position at a point, words and
   blocks, the highlight for paint, and the selected text (`innerText`
   rules).

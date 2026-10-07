@@ -12,6 +12,33 @@ use crate::svg::SvgImage;
 /// its response has this type; it does not sniff SVG.
 pub const SVG_MIME_TYPE: &str = "image/svg+xml";
 
+/// The MIME types of the formats that swb decodes: the names from
+/// Chromium's list of supported image types for the raster formats of
+/// [`decode`], and SVG.
+const SUPPORTED_TYPES: &[&str] = &[
+    "image/png",
+    "image/x-png",
+    "image/apng",
+    "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
+    "image/gif",
+    "image/webp",
+    "image/bmp",
+    "image/vnd.microsoft.icon",
+    "image/x-icon",
+    SVG_MIME_TYPE,
+];
+
+/// True if swb decodes images of the MIME type `essence` (type and
+/// subtype, without parameters; ASCII case-insensitive). For the `type`
+/// attribute of `<source>` elements.
+pub fn is_supported_image_type(essence: &str) -> bool {
+    SUPPORTED_TYPES
+        .iter()
+        .any(|t| t.eq_ignore_ascii_case(essence))
+}
+
 /// A decoded image.
 #[derive(Debug)]
 pub struct DecodedImage {
@@ -214,6 +241,28 @@ pub(crate) mod tests {
             Err(ImageError::TooLarge(16_000, 16_000))
         ));
         assert!(check_raster(&bmp_header(20_000, 20_000)).is_err());
+    }
+
+    #[test]
+    fn supported_types() {
+        for t in [
+            "image/png",
+            "IMAGE/PNG",
+            "image/webp",
+            "image/svg+xml",
+            "image/x-icon",
+        ] {
+            assert!(is_supported_image_type(t), "{t}");
+        }
+        for t in [
+            "image/avif",
+            "image/jxl",
+            "video/webm",
+            "image/png; a=b",
+            "",
+        ] {
+            assert!(!is_supported_image_type(t), "{t}");
+        }
     }
 
     #[test]

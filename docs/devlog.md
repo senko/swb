@@ -181,6 +181,21 @@ in commit messages, ADRs and other docs.
   boxes. Wikipedia: the video thumbnail now has its size, so the page
   below it is no longer 80 px too high; with floats and the flex fixes,
   geometry 0.2073 → 0.5136, pixels 0.9378 → 0.9766, no extra boxes.
+- Responsive images: `<img srcset>` with `x` and `w` descriptors,
+  `sizes`, and `<picture>`/`<source>` (`media`, `type`, `sizes`,
+  `width`/`height`) (`engine/src/image_source.rs`, `css/src/sizes.rs`;
+  ADR 0011 and 0007 updates). Measured in Chromium 148: candidates are
+  sorted by density, and the first with density ≥ the device pixel
+  ratio wins, else the densest. Natural sizes are divided by the density
+  (also for SVG and `object-fit`). A selected `<source>` with `width` or
+  `height` replaces both dimension attributes of the image. Sources are
+  selected again after viewport or scale changes; an image keeps its
+  source until the new one has loaded. Wikipedia's footer icons now have
+  Chromium's sizes (size 0.9669 → 0.9694, relative 0.9476 → 0.9501).
+  Two reviews found a negative-zero density bug, cancelled loads that
+  never retried, and unbounded waiting lists; all fixed. The Wikipedia
+  fixture gained the six 2x thumbnails that swb now requests at scale 2,
+  and one icon of the 700 px layout (recorded with `--record-missing`).
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

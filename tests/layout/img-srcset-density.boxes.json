@@ -1,0 +1,31 @@
+{
+  "url": "tests/layout/img-srcset-density.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 1023.66], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 999.66], "parent": 0},
+    {"tag": "img", "rect": [8.0, 8.0, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 60.0, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 112.0, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 164.0, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 216.0, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 268.0, 50.0, 25.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 295.0, 0.5, 0.5], "parent": 5},
+    {"tag": "img", "rect": [8.0, 297.5, 200.0, 100.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 399.5, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 451.5, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 503.5, 30.0, 15.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 520.5, 83.31, 41.66], "parent": 5},
+    {"tag": "img", "rect": [8.0, 564.16, 100.0, 50.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 616.16, 150.0, 75.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 693.16, 375.0, 187.5], "parent": 5},
+    {"tag": "img", "rect": [8.0, 882.66, 60.0, 30.0], "parent": 5},
+    {"tag": "img", "rect": [8.0, 914.66, 40.0, 20.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 950.66, 784.0, 57.0], "parent": 5},
+    {"tag": "img", "rect": [38.23, 950.66, 100.0, 50.0], "parent": 23}
+  ]
+}

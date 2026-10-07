@@ -20,6 +20,11 @@
 //! are evaluated when the query is parsed if all their lengths have
 //! absolute units (`calc(640px - 1px)`); with relative units the feature
 //! evaluates to "unknown".
+//!
+//! `MediaCondition` is a condition without a media type, for the `sizes`
+//! attribute of images (`crate::sizes`). The source size values of that
+//! attribute (`length_px`) resolve relative units against the environment,
+//! also inside math functions.
 
 use std::fmt::{self, Write as _};
 
@@ -120,6 +125,29 @@ impl MediaQueryList {
     /// True if the list is empty or any query in it matches `env`.
     pub fn matches(&self, env: &MediaEnvironment) -> bool {
         self.queries.is_empty() || self.queries.iter().any(|q| q.evaluate(env))
+    }
+}
+
+/// A `<media-condition>`: a media query without a media type, as in the
+/// `sizes` attribute of images.
+///
+/// <https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition>
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct MediaCondition(Condition);
+
+impl MediaCondition {
+    /// Parses a media condition. Returns `None` if `input` is not one
+    /// (an empty input is not one either).
+    pub(crate) fn parse(input: &[ComponentValue]) -> Option<Self> {
+        Parser::new(input)
+            .parse_entirely(|p| parse_condition(p, true))
+            .ok()
+            .map(MediaCondition)
+    }
+
+    /// True if the condition is true in `env`. "Unknown" counts as false.
+    pub(crate) fn matches(&self, env: &MediaEnvironment) -> bool {
+        self.0.evaluate(env) == Kleene::True
     }
 }
 
@@ -271,6 +299,20 @@ impl LengthUnit {
             .iter()
             .find(|&&(_, u)| u == self)
             .map_or("px", |&(name, _)| name)
+    }
+
+    /// True for units that do not depend on the environment.
+    fn is_absolute(self) -> bool {
+        matches!(
+            self,
+            LengthUnit::Px
+                | LengthUnit::Cm
+                | LengthUnit::Mm
+                | LengthUnit::Q
+                | LengthUnit::In
+                | LengthUnit::Pt
+                | LengthUnit::Pc
+        )
     }
 
     fn to_px(self, value: f32, env: &MediaEnvironment) -> f32 {
@@ -624,7 +666,7 @@ fn parse_value(ty: ValueType, input: &[ComponentValue]) -> Option<Value> {
                 Value::Length(number.value, LengthUnit::from_name(unit)?)
             }
             ComponentValue::Number(n) if n.value == 0.0 => Value::Length(0.0, LengthUnit::Px),
-            ComponentValue::Function(f) => match math_function(&f.name, &f.arguments)? {
+            ComponentValue::Function(f) => match math_function(&f.name, &f.arguments, None)? {
                 MathValue::Px(px) => Value::Length(px, LengthUnit::Px),
                 MathValue::Number(_) => return None,
             },
@@ -676,22 +718,45 @@ enum MathValue {
     Px(f32),
 }
 
+/// The value in px of a length in a `sizes` attribute: a dimension with a
+/// length unit, a unitless zero, or a math function. Relative units use
+/// `env`, as in media queries. Returns `None` for anything else. The value
+/// can be negative; callers decide what that means.
+pub(crate) fn length_px(value: &ComponentValue, env: &MediaEnvironment) -> Option<f32> {
+    match value {
+        ComponentValue::Dimension { number, unit } => {
+            Some(LengthUnit::from_name(unit)?.to_px(number.value, env))
+        }
+        ComponentValue::Number(n) if n.value == 0.0 => Some(0.0),
+        ComponentValue::Function(f) => match math_function(&f.name, &f.arguments, Some(env))? {
+            MathValue::Px(px) => Some(px),
+            MathValue::Number(_) => None,
+        },
+        _ => None,
+    }
+}
+
 /// Evaluates a math function (`calc()`, `min()`, `max()`, `clamp()`) in a
-/// length feature value, as CSS Values 4 allows. Only absolute length units
-/// are supported, so the value can be computed at parse time; relative
-/// units (`em`, `vw`, ...) make the feature evaluate to "unknown".
+/// length value, as CSS Values 4 allows. Without `env` (media features,
+/// evaluated when the query is parsed), only absolute length units are
+/// supported; relative units (`em`, `vw`, ...) make the feature evaluate to
+/// "unknown". With `env`, relative units resolve against it.
 /// <https://www.w3.org/TR/css-values-4/#math>
-fn math_function(name: &str, args: &[ComponentValue]) -> Option<MathValue> {
+fn math_function(
+    name: &str,
+    args: &[ComponentValue],
+    env: Option<&MediaEnvironment>,
+) -> Option<MathValue> {
     let name = name.to_ascii_lowercase();
     if name == "calc" {
         let mut p = Parser::new(args);
-        let value = math_sum(&mut p)?;
+        let value = math_sum(&mut p, env)?;
         return p.is_exhausted().then_some(value);
     }
     let items: Vec<MathValue> = split_on_commas(args)
         .map(|item| {
             let mut p = Parser::new(item);
-            let v = math_sum(&mut p)?;
+            let v = math_sum(&mut p, env)?;
             p.is_exhausted().then_some(v)
         })
         .collect::<Option<_>>()?;
@@ -710,8 +775,8 @@ fn math_function(name: &str, args: &[ComponentValue]) -> Option<MathValue> {
 }
 
 /// `<calc-sum>`; the operators need whitespace on both sides.
-fn math_sum(p: &mut Parser<'_>) -> Option<MathValue> {
-    let mut acc = math_product(p)?;
+fn math_sum(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<MathValue> {
+    let mut acc = math_product(p, env)?;
     loop {
         let start = p.position();
         if !p.skip_whitespace() {
@@ -728,7 +793,7 @@ fn math_sum(p: &mut Parser<'_>) -> Option<MathValue> {
         if !p.skip_whitespace() {
             return None;
         }
-        let rhs = math_product(p)?;
+        let rhs = math_product(p, env)?;
         acc = match (acc, rhs) {
             (MathValue::Px(a), MathValue::Px(b)) => {
                 MathValue::Px(if negate { a - b } else { a + b })
@@ -743,14 +808,14 @@ fn math_sum(p: &mut Parser<'_>) -> Option<MathValue> {
 }
 
 /// `<calc-product>`.
-fn math_product(p: &mut Parser<'_>) -> Option<MathValue> {
-    let mut acc = math_operand(p)?;
+fn math_product(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<MathValue> {
+    let mut acc = math_operand(p, env)?;
     while let Ok(op) = p.try_parse(|p| match p.next() {
         Some(v) if v.is_delim('*') => Ok('*'),
         Some(v) if v.is_delim('/') => Ok('/'),
         _ => Err(ParseError::Unexpected),
     }) {
-        let rhs = math_operand(p)?;
+        let rhs = math_operand(p, env)?;
         acc = match (op, acc, rhs) {
             ('*', MathValue::Number(a), MathValue::Number(b)) => MathValue::Number(a * b),
             ('*', MathValue::Px(a), MathValue::Number(b))
@@ -765,29 +830,24 @@ fn math_product(p: &mut Parser<'_>) -> Option<MathValue> {
     Some(acc)
 }
 
-/// A number, an absolute length, a nested math function or a parenthesized
-/// sum.
-fn math_operand(p: &mut Parser<'_>) -> Option<MathValue> {
+/// A number, a length (only an absolute one without `env`), a nested math
+/// function or a parenthesized sum.
+fn math_operand(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<MathValue> {
     match p.next()? {
         ComponentValue::Number(n) => Some(MathValue::Number(n.value)),
         ComponentValue::Dimension { number, unit } => {
             let unit = LengthUnit::from_name(unit)?;
-            let absolute = matches!(
-                unit,
-                LengthUnit::Px
-                    | LengthUnit::Cm
-                    | LengthUnit::Mm
-                    | LengthUnit::Q
-                    | LengthUnit::In
-                    | LengthUnit::Pt
-                    | LengthUnit::Pc
-            );
-            absolute.then(|| MathValue::Px(unit.to_px(number.value, &MediaEnvironment::default())))
+            match env {
+                Some(env) => Some(MathValue::Px(unit.to_px(number.value, env))),
+                None => unit
+                    .is_absolute()
+                    .then(|| MathValue::Px(unit.to_px(number.value, &MediaEnvironment::default()))),
+            }
         }
-        ComponentValue::Function(f) => math_function(&f.name, &f.arguments),
+        ComponentValue::Function(f) => math_function(&f.name, &f.arguments, env),
         ComponentValue::Block(b) if b.kind == BlockKind::Paren => {
             let mut inner = Parser::new(&b.contents);
-            let v = math_sum(&mut inner)?;
+            let v = math_sum(&mut inner, env)?;
             inner.is_exhausted().then_some(v)
         }
         _ => None,
@@ -1322,6 +1382,44 @@ mod tests {
                 "{query}"
             );
         }
+    }
+
+    #[test]
+    fn media_conditions() {
+        let cases = [
+            ("(min-width: 900px)", Some(true)),
+            ("(min-width: 900px) and (hover)", Some(true)),
+            ("(max-width: 900px) or (hover)", Some(true)),
+            ("not (hover)", Some(false)),
+            ("(foo)", Some(false)),
+            ("screen", None),
+            ("screen and (hover)", None),
+            ("", None),
+            ("(hover) (color)", None),
+        ];
+        for (condition, expected) in cases {
+            let parsed = MediaCondition::parse(&crate::parse_component_values(condition));
+            assert_eq!(parsed.map(|c| c.matches(&env())), expected, "{condition}");
+        }
+    }
+
+    #[test]
+    fn lengths_resolve_relative_units() {
+        let px = |s: &str| {
+            let values = crate::parse_component_values(s);
+            length_px(&values[0], &env())
+        };
+        assert_eq!(px("10vw"), Some(100.0));
+        assert_eq!(px("2em"), Some(32.0));
+        assert_eq!(px("calc(10vw - 2em)"), Some(68.0));
+        assert_eq!(px("min(50vh, 30rem)"), Some(400.0));
+        assert_eq!(px("calc(10px - 20px)"), Some(-10.0));
+        assert_eq!(px("0"), Some(0.0));
+        assert_eq!(px("5"), None);
+        assert_eq!(px("10%"), None);
+        assert_eq!(px("calc(10%)"), None);
+        assert_eq!(px("calc(5)"), None);
+        assert_eq!(px("10foo"), None);
     }
 
     #[test]

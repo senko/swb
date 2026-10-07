@@ -245,3 +245,45 @@ the source of an `<img>`: the same request rules, detection by MIME
 type, limits and rendering at the device pixel size. An SVG poster with
 only an aspect ratio sizes the video as it sizes an `<img>`. The limits
 did not change.
+
+## Update (2026-10-07, responsive images)
+
+`<img srcset>`, `sizes` and `<picture>` select the image source
+(`engine/src/image_source.rs`, `css/src/sizes.rs`). The parts that affect
+this ADR:
+
+- Natural sizes are density-corrected: `ReplacedSizes::natural_size`
+  divides the natural width and height of the decoded image (raster or
+  SVG) by the pixel density of the chosen candidate; the ratio does not
+  change. An SVG image without natural dimensions keeps none. Chromium 148
+  does the same, also for SVG images and without a minimum of 1 px.
+  Results are clamped to the layout length limit (density 0 gives the
+  largest length, as in Chromium). `ImageSizes` gives the same corrected
+  size for the image of an element, so `object-fit` and
+  `object-position` draw a 2x image at half its pixel size (measured in
+  Chromium 148); background and mask images are not affected.
+- The `type` attribute of `<source>` accepts the MIME types that swb
+  decodes (`swb_paint::is_supported_image_type`: Chromium's names for
+  PNG, JPEG, GIF, WebP, BMP, ICO, and `image/svg+xml`). Chromium also
+  accepts AVIF, so a page that offers AVIF first gets another source in
+  swb.
+- The choice among candidates follows Chromium 148 (measured): the
+  first candidate, sorted by density, whose density is at least the
+  device pixel ratio, else the densest. Chromium also prefers a denser
+  candidate that is already in its memory cache; swb does not.
+- The engine selects the sources when the subresources of a document
+  start to load, and again at the next style computation after a viewport
+  or scale change (on Wayland, the GUI can learn the real scale after the
+  first navigation). An image keeps its current source until the newly
+  selected one has loaded, so that it is not empty in between; if that
+  load fails, the image keeps its source. The dimension source changes at
+  once. Deviation: the specification ignores a change while a load is
+  pending; swb replaces the pending selection, so that a change and its
+  reversal (1x, 2x, 1x) end at the right image. Image loads that `stop`
+  or a navigation cancelled are requested again at the next selection.
+- `sizes="auto"` (lazy images) is not supported: it gives `100vw`, which
+  Chromium also uses when it selects. Chromium then uses the laid-out
+  width for the density, and its user-agent sheet gives these images
+  `contain: size` with an intrinsic size of 300×150; swb has neither.
+- Video posters are not affected: they have density 1 and are not
+  selected again.

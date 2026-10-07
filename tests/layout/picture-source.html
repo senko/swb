@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!-- <picture>: the first <source> before the <img> whose srcset has a valid
+     candidate, whose media matches and whose type is supported (parameters,
+     case and surrounding spaces do not matter; an empty type is supported)
+     gives the image; otherwise the img's own srcset and src. A selected
+     source with width or height replaces both dimension attributes of the
+     img. The last case is the Wikipedia footer. Each URL has its own query,
+     so that Chromium's memory cache cannot change its choice. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>picture and source</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  img { display: block; margin-bottom: 2px; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; }
+  li { margin: 0 4px; }
+  li a { display: block; padding: 6px 9px; }
+</style>
+</head>
+<body>
+<picture><source media="(min-width: 500px)" srcset="srcset/r200.png?a1"><img src="srcset/r100.png?a2"></picture>
+<picture><source media="(max-width: 500px)" srcset="srcset/r200.png?b1"><img src="srcset/r100.png?b2"></picture>
+<picture><source type="image/jxl" srcset="srcset/r200.png?c1"><source type="image/webp" srcset="srcset/r300.png?c2"><img src="srcset/r100.png?c3"></picture>
+<picture><source type="image/png; foo=bar" srcset="srcset/r200.png?d1"><img src="srcset/r100.png?d2"></picture>
+<picture><source type="IMAGE/PNG" srcset="srcset/r200.png?e1"><img src="srcset/r100.png?e2"></picture>
+<picture><source type="" srcset="srcset/r200.png?f1"><img src="srcset/r100.png?f2"></picture>
+<picture><source type="image/svg+xml" srcset="srcset/s.svg?g1 2x"><img src="srcset/r100.png?g2"></picture>
+<picture><source srcset=""><source src="srcset/r300.png?h1"><source srcset="srcset/r150.png?h2"><img src="srcset/r100.png?h3"></picture>
+<picture><source media="(min-width: 500px)" srcset="srcset/r200.png?i1" width="84" height="29"><img src="srcset/r100.png?i2" width="25" height="25"></picture>
+<picture><source media="(min-width: 500px)" srcset="srcset/r200.png?j1" width="84"><img src="srcset/r100.png?j2" width="25" height="25"></picture>
+<picture><source media="(max-width: 500px)" srcset="srcset/r200.png?k1" width="84" height="29"><img src="srcset/r100.png?k2" width="25" height="25"></picture>
+<picture><source srcset="srcset/r200.png?l1 100w, srcset/r400.png?l2 400w" sizes="50px"><img src="srcset/r100.png?l3"></picture>
+<picture><img src="srcset/r100.png?m1"><source srcset="srcset/r200.png?m2"></picture>
+<div><source srcset="srcset/r200.png?n1"><img src="srcset/r100.png?n2"></div>
+<picture><source srcset="srcset/r200.png?o1 2x 3x"><source srcset="srcset/r300.png?o2 3x"><img src="srcset/r100.png?o3"></picture>
+<picture><source media="screen and (min-resolution: 2dppx)" srcset="srcset/r400.png?p1"><source srcset="srcset/r200.png?p2"><img src="srcset/r100.png?p3" srcset="srcset/r60.png?p4"></picture>
+<picture><source media="bogus" srcset="srcset/r400.png?q1"><source media="" srcset="srcset/r300.png?q2"><img src="srcset/r100.png?q3"></picture>
+<picture><source type="video/webm" srcset="srcset/r400.png?r1"><img src="srcset/r100.png?r2"></picture>
+<picture><source type="  image/gif  " srcset="srcset/r300.png?s1"><img src="srcset/r100.png?s2"></picture>
+<picture><source srcset="srcset/r200.png?t1" height="10"><img src="srcset/r100.png?t2" width="25" height="25" style="width: 40px"></picture>
+<picture><source media="(max-width: 1px)" srcset="srcset/r400.png?u1"><img src="srcset/r60.png?u2" srcset="srcset/r200.png?u3 2x"></picture>
+<ul>
+  <li><a href="#"><picture><source media="(min-width: 500px)" srcset="srcset/s.svg?v1" width="84" height="29"><img src="srcset/r60.png?v2" width="25" height="25" alt="Wikimedia Foundation" loading="lazy"></picture></a></li>
+  <li><a href="#"><picture><source media="(min-width: 500px)" srcset="srcset/s.svg?w1" width="88" height="31"><img src="srcset/r60.png?w2" alt="Powered by MediaWiki" width="25" height="25" loading="lazy"></picture></a></li>
+</ul>
+</body>
+</html>

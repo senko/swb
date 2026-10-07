@@ -123,6 +123,18 @@
     },
     {
       "method": "GET",
+      "url": "https://en.wikipedia.org/w/load.php?modules=skins.vector.icons&image=search&format=original&lang=en&skin=vector-2022&version=2i5by",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/e3c3f409daed8b35.svg"
+    },
+    {
+      "method": "GET",
       "url": "https://en.wikipedia.org/w/load.php?modules=skins.vector.icons&image=verticalEllipsis&format=original&lang=en&skin=vector-2022&version=2i5by",
       "status": 200,
       "headers": [
@@ -223,6 +235,18 @@
     },
     {
       "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Wikiversity_logo_2017.svg/120px-Wikiversity_logo_2017.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/ddca0bbd7c2bc926.webp"
+    },
+    {
+      "method": "GET",
       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Wikiversity_logo_2017.svg/40px-Wikiversity_logo_2017.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
       "status": 200,
       "headers": [
@@ -247,6 +271,18 @@
     },
     {
       "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Chromium_%28web_browser%29.png/500px-Chromium_%28web_browser%29.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/0d3f370e61ea0f29.png"
+    },
+    {
+      "method": "GET",
       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Safari_15.png/250px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
       "status": 200,
       "headers": [
@@ -256,6 +292,18 @@
         ]
       ],
       "body": "files/58d9457b4d2e38e0.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Safari_15.png/500px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/ec77d3c4cb60f545.png"
     },
     {
       "method": "GET",
@@ -283,6 +331,18 @@
     },
     {
       "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Crystal_Clear_app_linneighborhood.svg/60px-Crystal_Clear_app_linneighborhood.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/60d36d7bccf0e792.webp"
+    },
+    {
+      "method": "GET",
       "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/1/1b/Semi-protection-shackle.svg/20px-Semi-protection-shackle.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
       "status": 200,
       "headers": [
@@ -295,6 +355,18 @@
     },
     {
       "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/1/1b/Semi-protection-shackle.svg/40px-Semi-protection-shackle.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/4e98c06d5cad6d52.webp"
+    },
+    {
+      "method": "GET",
       "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/4/4a/Commons-logo.svg/20px-Commons-logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
       "status": 200,
       "headers": [
@@ -304,6 +376,18 @@
         ]
       ],
       "body": "files/4fe97a6c6b6f3e78.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://thumb.wikimedia.org/wikipedia/en/thumb/4/4a/Commons-logo.svg/40px-Commons-logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/24621adeac58dfe4.webp"
     },
     {
       "method": "GET",

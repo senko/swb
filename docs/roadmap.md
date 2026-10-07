@@ -70,6 +70,8 @@ Five parallel workstreams; each will record its design in a new ADR:
 - Grid layout: done (ADR 0017).
 - `mask-image` and the other mask properties (icons): done (ADR 0018).
 - Scroll containers: `overflow` scrolling inside elements: done (ADR 0019).
+- Responsive images (`srcset`, `sizes`, `<picture>`): done (ADR 0011
+  update).
 - Target 3 (Wikipedia "Web browser") done.
 
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
@@ -86,8 +88,8 @@ uses neither; they moved to "Later".
 - Grid: baseline shims in track sizing, `last baseline`, excluding items
   whose size depends on intrinsic tracks from baseline alignment; §12.1
   steps 3 and 4 (a second column pass for items whose width depends on
-  their height); `fit-content(<length>)` item sizes; inheritance of `justify-items:
-  legacy`; `safe` and `unsafe` (parsed, ignored); absolutely positioned
+  their height); `fit-content(<length>)` item sizes; inheritance of
+  `justify-items: legacy`; `safe` and `unsafe` (parsed, ignored); absolutely positioned
   items placed by grid lines; fragmentation; `display: grid` on
   `<button>`; subgrid; masonry. The intrinsic pass resolves a
   percentage `height` against an indefinite size, so `repeat(auto-fill)`
@@ -124,6 +126,12 @@ uses neither; they moved to "Later".
 - Paint: non-positioned opacity groups paint in the inline content
   phase; outlines paint after each box, not in a last phase; the image
   of a block-level replaced element paints with its background.
+- Responsive images: `sizes="auto"` gives 100vw (Chromium then uses the
+  laid-out width and a `contain: size` user-agent rule); Chromium's
+  preference for a denser candidate in its memory cache; AVIF sources
+  are skipped (no decoder); `ex` and `ch` in `sizes` are 0.5em;
+  superseded image loads are not cancelled, and each selection walks the
+  whole document.
 - Media: the `aspect-ratio` hint of `width`/`height` on `<img>` and
   image buttons; controls: the overlay play button, the loading spinner,
   interaction, hover and focus states; the first video frame for

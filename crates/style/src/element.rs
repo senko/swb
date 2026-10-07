@@ -21,8 +21,10 @@ pub const CONTROL_STATES: ElementState = ElementState::CHECKED
     .union(ElementState::VALID)
     .union(ElementState::INVALID);
 
-/// The interaction state of a document: which elements are hovered,
-/// active, focused, or the target of the URL fragment.
+/// The state of a document that styles depend on and that is not in its
+/// DOM: which elements are hovered, active, focused, or the target of the
+/// URL fragment; the current state of form controls; the selected sources
+/// of images.
 ///
 /// `:hover` and `:active` also match the ancestors of the node. Links
 /// never match `:visited` (swb keeps no history for styling).
@@ -43,6 +45,12 @@ pub struct ElementStates {
     /// from their current state. Elements without an entry get these
     /// states from their attributes. Shared, so that a copy is cheap.
     pub controls: Arc<HashMap<NodeId, ElementState>>,
+    /// For `<img>` elements in a `<picture>`: the selected `<source>`
+    /// element whose `width` and `height` attributes replace the image's
+    /// own as presentational hints (HTML's "dimension attribute source").
+    /// A change needs a full restyle: [`ElementStates::changes`] does not
+    /// report it. Shared, so that a copy is cheap.
+    pub dimension_sources: Arc<HashMap<NodeId, NodeId>>,
 }
 
 impl ElementStates {
@@ -254,6 +262,7 @@ pub(crate) struct StateSet<'a> {
     focus_visible: bool,
     target: Option<NodeId>,
     controls: Arc<HashMap<NodeId, ElementState>>,
+    dimension_sources: Arc<HashMap<NodeId, NodeId>>,
     disabled: DisabledElements,
     /// The class names of all elements, concatenated.
     classes: Vec<&'a str>,
@@ -291,10 +300,17 @@ impl<'a> StateSet<'a> {
             focus_visible: states.focus_visible,
             target: states.target,
             controls: Arc::clone(&states.controls),
+            dimension_sources: Arc::clone(&states.dimension_sources),
             disabled: DisabledElements::new(doc),
             classes,
             class_ranges,
         }
+    }
+
+    /// The element whose dimension attributes apply to the image `id`, if
+    /// it is not the image itself (see [`ElementStates::dimension_sources`]).
+    pub(crate) fn dimension_source(&self, id: NodeId) -> Option<NodeId> {
+        self.dimension_sources.get(&id).copied()
     }
 
     /// The class names of an element, if precomputed.

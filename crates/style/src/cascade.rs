@@ -233,7 +233,18 @@ impl Styler<'_> {
             &mut matched,
         );
         let mut hints = Vec::new();
-        collect_hints(self.doc, el.node_id(), data, &self.hints, &mut hints);
+        let dimension_source = self
+            .states
+            .dimension_source(el.node_id())
+            .and_then(|source| self.doc.element(source));
+        collect_hints(
+            self.doc,
+            el.node_id(),
+            data,
+            dimension_source,
+            &self.hints,
+            &mut hints,
+        );
         let style_attribute = data
             .attr("style")
             .map(|css| DeclarationBlock::parse(&parse_style_attribute(css), &self.author));

@@ -117,7 +117,11 @@ Format: source, license (for code), what it influenced.
   `html.css`, the 4 px drag threshold, 40 px arrow-key scrolling and the
   87.5% page step; the scrollable overflow of scroll containers
   (`scrollWidth`, `scrollHeight`), scroll chaining of the wheel and keys,
-  scroll into view of nested containers, whole-pixel scroll offsets.
+  scroll into view of nested containers, whole-pixel scroll offsets;
+  responsive image selection (candidate order and choice for the device
+  pixel ratio, `w` densities, `sizes` with `auto` and negative `calc()`,
+  `<source type>` matching, the dimensions of a selected `<source>`,
+  density-corrected sizes).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.

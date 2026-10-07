@@ -1,6 +1,7 @@
 //! Loading: network completions, the document of a navigation (or an
 //! error page), and its subresources (stylesheets and images).
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -12,6 +13,7 @@ use swb_net::{Destination, Request, Response, Url};
 use super::scroll::indicated;
 use super::{LoadState, Page, about_blank, is_loadable};
 use crate::forms::Forms;
+use crate::image_source::{self, SelectedImage};
 use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
 use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
@@ -96,7 +98,8 @@ impl Page {
             }
             Pending::Image { url } => {
                 let state = ImageState::from_fetch(&url, completion.result);
-                self.images.by_url.insert(url, state);
+                self.images.by_url.insert(url.clone(), state);
+                self.images.load_ended(&url);
                 self.invalidate_layout();
             }
         }
@@ -219,7 +222,8 @@ impl Page {
         self.update_load_state();
     }
 
-    /// Finds stylesheets and images in the document and starts loading them.
+    /// Finds stylesheets, video posters and images in the document and
+    /// starts loading them.
     fn start_subresources(&mut self) {
         let (Some(doc), Some(base)) = (&self.document, self.base_url.clone()) else {
             return;
@@ -268,20 +272,18 @@ impl Page {
                 }
                 // The poster of a video loads like an image. The media
                 // resource itself is never fetched (swb plays no media).
-                local_name!("img") | local_name!("video") => {
-                    let attr = if *element.local_name() == local_name!("img") {
-                        "src"
-                    } else {
-                        "poster"
-                    };
+                // The sources of images are selected after this walk.
+                local_name!("video") => {
                     if let Some(url) = element
-                        .attr(attr)
+                        .attr("poster")
                         .map(|s| s.trim_matches(is_html_whitespace))
                         .filter(|s| !s.is_empty())
                         .and_then(|src| base.join(src).ok())
                     {
-                        self.images.by_node.insert(node, url.clone());
-                        image_loads.push(url);
+                        image_loads.push(url.clone());
+                        self.images
+                            .by_node
+                            .insert(node, SelectedImage { url, density: 1.0 });
                     }
                 }
                 _ => {}
@@ -305,6 +307,54 @@ impl Page {
         for url in image_loads {
             self.start_image(url);
         }
+        self.select_image_sources();
+    }
+
+    /// Selects the source of each image for the current viewport and scale
+    /// (`crate::image_source`) and starts loading the new ones: when the
+    /// subresources of a document start to load, and at the next style
+    /// computation after a viewport or scale change
+    /// (`Images::sources_outdated`), so that a series of resize events
+    /// selects once. An image whose source changes keeps its current image
+    /// until the new one has loaded (`Images::reselect`); the dimension
+    /// sources change at once.
+    pub(super) fn select_image_sources(&mut self) {
+        self.images.sources_outdated = false;
+        let (Some(doc), Some(base)) = (&self.document, self.base_url.clone()) else {
+            return;
+        };
+        // `stop` and navigations cancel requests but leave their images
+        // `Loading`: forget those, so that a new selection requests them.
+        let in_flight: HashSet<&Url> = self
+            .requests
+            .pending
+            .values()
+            .filter_map(|p| match p {
+                Pending::Image { url } => Some(url),
+                _ => None,
+            })
+            .collect();
+        self.images.forget_cancelled(&in_flight);
+        let env = self.media_environment();
+        let mut dimension_sources = HashMap::new();
+        let mut loads = Vec::new();
+        for (node, selection) in image_source::select_images(doc, &base, &env) {
+            if let Some(source) = selection.dimension_source {
+                dimension_sources.insert(node, source);
+            }
+            // Without a candidate, the image stays as it is (the
+            // specification returns early).
+            if let Some(image) = selection.image {
+                let url = image.url.clone();
+                if self.images.reselect(node, image) {
+                    loads.push(url);
+                }
+            }
+        }
+        self.input.states.dimension_sources = Arc::new(dimension_sources);
+        for url in loads {
+            self.start_image(url);
+        }
     }
 
     /// Starts loading the image at `url`, unless it is known already or
@@ -314,7 +364,8 @@ impl Page {
             return;
         }
         if !self.may_load_subresource(&url) {
-            self.images.by_url.insert(url, ImageState::Failed);
+            self.images.by_url.insert(url.clone(), ImageState::Failed);
+            self.images.load_ended(&url);
             return;
         }
         self.images.by_url.insert(url.clone(), ImageState::Loading);

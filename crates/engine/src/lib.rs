@@ -10,6 +10,7 @@ mod focus;
 mod forms;
 mod history;
 mod hit_test;
+mod image_source;
 mod input;
 mod page;
 mod resources;

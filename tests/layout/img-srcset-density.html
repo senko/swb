@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- srcset with pixel density (x) descriptors at device pixel ratio 1: the
+     candidate with the smallest density that is at least 1 wins (else the
+     densest one), src counts as 1x, and the natural size is divided by the
+     density of the chosen candidate. Invalid candidates are dropped. Each
+     URL has its own query, so that Chromium's memory cache cannot change
+     its choice. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>srcset density descriptors</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  img { display: block; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<img src="srcset/r100.png?a1" srcset="srcset/r200.png?a2 2x">
+<img srcset="srcset/r100.png?b1 1x, srcset/r200.png?b2 2x, srcset/r300.png?b3 3x">
+<img srcset="srcset/r200.png?c1 2x">
+<img srcset="srcset/r150.png?d1 1.5x, srcset/r300.png?d2 3x">
+<img src="srcset/r60.png?e1" srcset="srcset/r100.png?e2, srcset/r200.png?e3 2x">
+<img srcset="srcset/s.svg?f1 2x">
+<img srcset="srcset/r1.png?g1 2x">
+<img srcset="srcset/r100.png?h1 0.5x">
+<img src="srcset/r100.png?i1" srcset="">
+<img srcset="srcset/r100.png?j1 1x, srcset/r200.png?j2 1x">
+<img src="srcset/r60.png?k1" srcset="srcset/r200.png?k2 2x" width="30">
+<img srcset="srcset/r100.png?l1 1.2x, srcset/r200.png?l2 1.8x">
+<img srcset="srcset/r100.png?m1 2x 3x, srcset/r200.png?m2 2x">
+<img srcset="srcset/r200.png?n1 4x, srcset/r300.png?n2 2x">
+<img srcset="srcset/r100.png?o1 0.5x, srcset/r300.png?o2 0.8x">
+<img src="srcset/r60.png?p1" srcset="srcset/r200.png?p2 2x 3x">
+<img srcset="srcset/r100.png?q1 1x,srcset/r300.png?q2 3x" style="height: 20px">
+<p>text <img srcset="srcset/r200.png?r1 2x" style="display: inline"> after</p>
+</body>
+</html>

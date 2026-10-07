@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- srcset with width (w) descriptors and sizes at device pixel ratio 1:
+     the density of a candidate is its width divided by the source size
+     (the first entry of sizes whose media condition matches, else 100vw),
+     and the natural width is the source size. Invalid sizes entries are
+     skipped; a negative calc() result is 0. Each URL has its own query, so
+     that Chromium's memory cache cannot change its choice. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>srcset width descriptors and sizes</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  img { display: block; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<img srcset="srcset/r100.png?a1 100w, srcset/r200.png?a2 200w, srcset/r400.png?a3 400w" sizes="150px">
+<img srcset="srcset/r100.png?b1 100w, srcset/r200.png?b2 200w, srcset/r400.png?b3 400w">
+<img srcset="srcset/r100.png?c1 100w, srcset/r200.png?c2 200w, srcset/r400.png?c3 400w" sizes="(min-width: 700px) 100px, 300px">
+<img srcset="srcset/r100.png?d1 100w, srcset/r200.png?d2 200w, srcset/r400.png?d3 400w" sizes="(max-width: 700px) 100px, 300px">
+<img srcset="srcset/r100.png?e1 100w, srcset/r200.png?e2 200w, srcset/r400.png?e3 400w" sizes="calc(10vw + 2em)">
+<img src="srcset/r60.png?f1" srcset="srcset/r100.png?f2 100w, srcset/r200.png?f3 200w" sizes="50px">
+<img srcset="srcset/r100.png?g1 100w, srcset/r200.png?g2 200w" sizes="(min-width: 100px) 75px">
+<img srcset="srcset/r100.png?h1 100w, srcset/r200.png?h2 200w" sizes="bogus, 60px">
+<img srcset="srcset/r100.png?i1 100w, srcset/r200.png?i2 200w" sizes="(min-width: 100px) -5px, 120px">
+<img srcset="srcset/r100.png?j1 100w, srcset/r200.png?j2 200w" sizes="50%, 130px">
+<img srcset="srcset/r100.png?k1 100w, srcset/r200.png?k2 200w" sizes="0">
+<img srcset="srcset/r100.png?l1 100w 50h, srcset/r200.png?l2 200w" sizes="80px">
+<img srcset="srcset/r100.png?m1 100w, srcset/r200.png?m2 2x" sizes="80px">
+<img srcset="srcset/r200.png?n1 200w" sizes="calc(50px - 100px), 70px">
+<img srcset="srcset/r200.png?o1 200w" sizes="max(10px, 3em)">
+<img srcset="srcset/r200.png?p1 200w" sizes="(width >= 500px) 40px">
+<img srcset="srcset/r200.png?r1 200w" sizes="(min-width: 100px) 75px 10px, 110px">
+<img srcset="srcset/r200.png?s1 200w" sizes="10vh">
+<img srcset="srcset/r200.png?t1 200w" sizes="1em">
+<img srcset="srcset/r200.png?u1 0w, srcset/r100.png?u2 50w" sizes="25px">
+<img srcset="srcset/r200.png?v1 +200w, srcset/r100.png?v2 100w" sizes="100px">
+<img srcset="srcset/r200.png?w1 200W, srcset/r100.png?w2 100w" sizes="100px">
+<img srcset="srcset/r100.png?x1 100w" sizes="not (min-width: 10px) 40px, (orientation: landscape) or (hover) 75px">
+<img srcset="srcset/r100.png?y1 100w" sizes="(unknown: 1) 40px, screen 50px, foo(40px), calc(40px + 10%), 66px">
+<img srcset="srcset/r100.png?z1 100w" sizes="40px 50px">
+<img srcset="srcset/r100.png?z2 100w" sizes="calc(100vw / 8)" width="20">
+</body>
+</html>

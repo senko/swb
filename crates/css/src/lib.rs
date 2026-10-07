@@ -14,6 +14,9 @@
 //!   ([`SelectorList`], [`matches()`]).
 //! - Media Queries Level 4: <https://www.w3.org/TR/mediaqueries-4/>
 //!   ([`MediaQueryList`]).
+//! - The `sizes` attribute of HTML images, which uses media conditions:
+//!   <https://html.spec.whatwg.org/multipage/images.html#sizes-attributes>
+//!   ([`source_size`]).
 //! - CSS Conditional Rules Level 3 and 4:
 //!   <https://www.w3.org/TR/css-conditional-3/> ([`SupportsCondition`]).
 //!
@@ -26,6 +29,7 @@ mod media;
 mod parser;
 mod selector;
 mod serialize;
+mod sizes;
 mod stylesheet;
 mod supports;
 mod tokenizer;
@@ -40,6 +44,7 @@ pub use selector::{
     matches_with_scope,
 };
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
+pub use sizes::source_size;
 pub use stylesheet::{
     CssRule, Declaration, FontFaceRule, ImportRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };

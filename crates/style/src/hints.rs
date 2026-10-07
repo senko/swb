@@ -145,11 +145,14 @@ fn px(v: f32) -> Lp {
     Lp::Length(Length::px(Length::clamp_px(v)))
 }
 
-/// Appends the presentational hints of an HTML element to `out`.
+/// Appends the presentational hints of an HTML element to `out`. For an
+/// `<img>`, `dimension_source` is the `<source>` element whose `width` and
+/// `height` attributes replace the image's own, if any.
 pub(crate) fn collect_hints(
     doc: &Document,
     node: NodeId,
     e: &ElementData,
+    dimension_source: Option<&ElementData>,
     cx: &HintContext,
     out: &mut Vec<PropertyDeclaration>,
 ) {
@@ -192,7 +195,11 @@ pub(crate) fn collect_hints(
             {
                 return;
             }
-            replaced_hints(e, name, &mut push);
+            let dimensions = match dimension_source {
+                Some(source) if name == "img" => source,
+                _ => e,
+            };
+            replaced_hints(e, dimensions, name, &mut push);
         }
         "hr" => hr_hints(e, &mut push),
         "font" => font_hints(e, &mut push),
@@ -374,10 +381,18 @@ fn cell_hints_from_table(doc: &Document, cell: NodeId, push: &mut impl FnMut(Lon
     }
 }
 
-/// Dimension, spacing and border attributes of replaced elements.
-fn replaced_hints(e: &ElementData, name: &str, push: &mut impl FnMut(LonghandValue)) {
-    let width = size_hint(e, "width", false, LonghandValue::Width, push);
-    let height = size_hint(e, "height", false, LonghandValue::Height, push);
+/// Dimension, spacing and border attributes of replaced elements. The
+/// `width` and `height` attributes come from `dimensions`: the element
+/// itself, or the selected `<source>` of an image in a `<picture>`
+/// (<https://html.spec.whatwg.org/multipage/rendering.html#dimRendering>).
+fn replaced_hints(
+    e: &ElementData,
+    dimensions: &ElementData,
+    name: &str,
+    push: &mut impl FnMut(LonghandValue),
+) {
+    let width = size_hint(dimensions, "width", false, LonghandValue::Width, push);
+    let height = size_hint(dimensions, "height", false, LonghandValue::Height, push);
     // "Map to the aspect-ratio property (using dimension rules)": `auto
     // w / h` if both are lengths. Only for `video`: HTML also maps it on
     // `img` and image buttons, which do not need it yet (their images
