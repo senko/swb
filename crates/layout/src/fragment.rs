@@ -284,6 +284,9 @@ pub enum BoxContent {
     GeometryOnly,
     /// A form control. Its text (value, label) is in its children.
     Control(ControlContent),
+    /// A media element (`<video>`, `<audio>`): its poster and controls,
+    /// painted into the content box.
+    Media(Arc<MediaContent>),
     /// The static position of an absolutely positioned box while layout
     /// runs (see `positioned.rs`). A finished fragment tree has none.
     Placeholder(crate::Placeholder),
@@ -337,6 +340,69 @@ pub struct PartBackground {
     pub area: Rect,
     /// The area to paint, relative to the cell's border box.
     pub clip: Rect,
+}
+
+/// What a media element paints in its content box (see `media.rs`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaContent {
+    /// The element. A video shows the image of this node (its poster),
+    /// placed with `object-fit` and `object-position`.
+    pub node: NodeId,
+    /// True for a video without a `poster` attribute: Chromium fills it
+    /// with a dark gray ("default poster").
+    pub default_poster: bool,
+    /// True for audio controls (their look differs from video controls).
+    pub audio: bool,
+    /// The parts of the controls in paint order, relative to the content
+    /// box.
+    pub parts: Vec<MediaPart>,
+}
+
+/// One part of the controls of a media element.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaPart {
+    /// What the part is.
+    pub kind: MediaPartKind,
+    /// Its area, relative to the content box. Buttons are 48 × 48 px and
+    /// paint draws their icons centered in them.
+    pub rect: Rect,
+    /// False if the part is dimmed (the control is not available).
+    pub enabled: bool,
+}
+
+/// The kinds of parts of media controls.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MediaPartKind {
+    /// The background of the controls: a gradient at the bottom of a
+    /// video, a rounded panel behind audio controls.
+    Panel,
+    /// The play button.
+    Play,
+    /// The current time (and the duration of audio): the glyphs of the
+    /// text. The part's area is the text's content area (ascent to
+    /// descent) and starts at the pen position.
+    Time(MediaText),
+    /// The timeline (the seek bar).
+    Timeline,
+    /// The mute button.
+    Mute,
+    /// The fullscreen button.
+    Fullscreen,
+    /// The overflow menu button.
+    Menu,
+}
+
+/// Shaped text of media controls.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaText {
+    /// The font.
+    pub font: FontId,
+    /// The font size in px.
+    pub size: f32,
+    /// The glyphs, relative to the pen position on the baseline.
+    pub glyphs: Arc<[PositionedGlyph]>,
+    /// The baseline, relative to the top of the part's area.
+    pub baseline: f32,
 }
 
 /// What paint needs to know about a form control.

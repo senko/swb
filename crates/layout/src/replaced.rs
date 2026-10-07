@@ -1,14 +1,18 @@
-//! Sizing of replaced elements (images).
+//! Sizing of replaced elements (images, video, audio).
 //!
 //! CSS 2.2 §10.3.2 and §10.6.2, with the min/max rules of §10.4:
 //! <https://www.w3.org/TR/CSS22/visudet.html#inline-replaced-width>.
 //!
 //! An image can lack a natural width, height or aspect ratio (SVG images,
-//! CSS Images 3 §5.1: <https://www.w3.org/TR/css-images-3/#natural-dimensions>).
-//! A missing dimension comes from the aspect ratio, or else from the
-//! default object size (300×150). An image with only an aspect ratio fills
-//! the available width, as in Chromium (CSS 2.2 leaves this case
-//! undefined and suggests the same).
+//! CSS Images 3 §5.1: <https://www.w3.org/TR/css-images-3/#natural-dimensions>;
+//! a video without a loaded poster and audio lack all three, see
+//! `media.rs`). A missing dimension comes from the aspect ratio, or else
+//! from the default object size (300×150). An image with only an aspect
+//! ratio fills the available width, as in Chromium (CSS 2.2 leaves this
+//! case undefined and suggests the same).
+//!
+//! The aspect ratio is the `aspect-ratio` property, or the natural ratio;
+//! with `auto && <ratio>` the natural ratio wins (CSS Sizing 4 §7.1).
 
 use swb_style::ComputedStyle;
 
@@ -337,13 +341,14 @@ fn has_only_ratio(style: &ComputedStyle, natural: &NaturalSize) -> bool {
     natural.width.is_none() && natural.height.is_none() && aspect_ratio(style, natural).is_some()
 }
 
-/// The `aspect-ratio` property, or else the natural ratio, limited so that
-/// a length divided or multiplied by it stays finite.
+/// The preferred aspect ratio: the `aspect-ratio` property or the natural
+/// ratio (`auto && <ratio>` prefers the natural one), limited so that a
+/// length divided or multiplied by it stays finite.
 fn aspect_ratio(style: &ComputedStyle, natural: &NaturalSize) -> Option<f32> {
     let max = swb_style::Length::MAX_PX;
     style
         .aspect_ratio
-        .or(natural.ratio)
+        .preferred(natural.ratio)
         .filter(|r| r.is_finite() && *r > 0.0)
         .map(|r| r.max(1.0 / max).min(max))
 }

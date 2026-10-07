@@ -124,6 +124,11 @@ uses neither; they moved to "Later".
 - Paint: non-positioned opacity groups paint in the inline content
   phase; outlines paint after each box, not in a last phase; the image
   of a block-level replaced element paints with its background.
+- Media: the `aspect-ratio` hint of `width`/`height` on `<img>` and
+  image buttons; controls: the overlay play button, the loading spinner,
+  interaction, hover and focus states; the first video frame for
+  `preload` (swb shows only posters); audio controls measured only at
+  300×54; the poster clip ignores `overflow: visible`.
 - Positioning: an abspos box directly before inline content is
   block-level in the box tree (aligned as in block flow); abspos
   children of table rows get the static position of an anonymous cell;
@@ -220,9 +225,6 @@ change behaviour, so they are not fixed yet.
   roxmltree, svgtypes and simplecss as pinned in `Cargo.toml` (kurbo
   through `Cargo.lock`): an update of any of them needs the same
   adversarial review.
-- Style: `aspect-ratio` is stored as one optional ratio, so
-  `auto && <ratio>` loses `auto` (the natural ratio of an image should win
-  over the given one).
 
 ## Backlog from M1
 

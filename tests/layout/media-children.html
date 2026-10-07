@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- The children of <video> and <audio> (<source>, <track>, fallback
+     content) have no boxes: the elements are replaced. <source> and
+     <track> elsewhere are empty inline boxes. <audio controls> is a
+     300x54 replaced box (user-agent style sheet); <audio> without
+     controls is display: none. <canvas> shows its fallback content
+     (scripting is disabled), so it is an inline box with that content. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Media element children</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .row { width: 700px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="row">a<video id="video" controls>fallback <b id="fallback">text</b><source id="source" src="v.webm" type="video/webm"><track id="track" kind="captions"></video>b</div>
+<div class="row">c<audio id="audio" controls><source id="audio-source" src="a.mp3"><p id="audio-fallback">no audio</p></audio>d<audio id="hidden"><source src="a.mp3"></audio>e</div>
+<div class="row"><audio id="audio-block" controls style="display: block; width: 200px"></audio></div>
+<div class="row">f<source id="loose-source"><track id="loose-track">g</div>
+<div class="row"><canvas id="canvas" width="100" height="40">fallback <b id="canvas-fallback">x</b></canvas><canvas id="empty-canvas"></canvas></div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- The width and height attributes of <video> map to aspect-ratio:
+     auto w / h (HTML "map to the aspect-ratio property (using dimension
+     rules)"). Without a loaded poster the hint ratio is used; a poster's
+     natural ratio wins over it (auto). Also the aspect-ratio property on
+     a video without a poster (it has no natural size, so with both sizes
+     auto it fills the line, like an SVG image with only a ratio). The PNG
+     is 100x50. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Video aspect ratio</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .row { width: 600px; margin-bottom: 4px; }
+  .flex { display: flex; width: 600px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="row"><video id="hint" width="250" height="159" style="height: auto; max-width: 100%"></video><video id="poster-wins" width="250" height="100" style="height: auto" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video></div>
+<div class="row"><video id="hint-width" width="250" height="159" style="width: 100px; height: auto"></video><video id="hint-percent" width="50%" height="100" style="height: auto"></video></div>
+<div class="row"><video id="hint-fill" width="250" height="159" style="width: auto; height: auto"></video></div>
+<div class="row"><video id="square" style="aspect-ratio: 1; width: 100px"></video><video id="wide" style="aspect-ratio: 4"></video></div>
+<div class="row"><video id="auto-ratio" style="aspect-ratio: auto 4; height: 50px" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video><video id="ratio" style="aspect-ratio: 4; height: 50px" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video></div>
+<div class="flex"><video id="flex-hint" width="250" height="159" style="height: auto"></video></div>
+</body>
+</html>

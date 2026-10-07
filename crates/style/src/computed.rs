@@ -7,11 +7,11 @@ use std::sync::{Arc, LazyLock};
 use swb_css::ComponentValue;
 
 use crate::values::{
-    Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BackgroundSize,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Content,
-    CornerRadius, Cursor, Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap,
-    Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily,
-    GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage,
+    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
+    BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
+    CompositeOperator, Content, CornerRadius, Cursor, Direction, Display, EmptyCells, FlexBasis,
+    FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap,
+    GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage,
     LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage,
     MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
     PositionComponent, Rgba, Size, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
@@ -101,7 +101,7 @@ pub struct ComputedStyle {
     pub max_width: MaxSize,
     pub max_height: MaxSize,
     pub box_sizing: BoxSizing,
-    pub aspect_ratio: Option<f32>,
+    pub aspect_ratio: AspectRatio,
     pub margin_top: LengthPercentageOrAuto,
     pub margin_right: LengthPercentageOrAuto,
     pub margin_bottom: LengthPercentageOrAuto,
@@ -189,6 +189,8 @@ pub struct ComputedStyle {
     pub table_layout: TableLayout,
     pub content: Content,
     pub object_fit: ObjectFit,
+    /// `object-position`: x and y.
+    pub object_position: [PositionComponent; 2],
     pub user_select: UserSelect,
     pub unicode_bidi: UnicodeBidi,
 }
@@ -259,7 +261,7 @@ impl ComputedStyle {
             max_width: MaxSize::None,
             max_height: MaxSize::None,
             box_sizing: BoxSizing::ContentBox,
-            aspect_ratio: None,
+            aspect_ratio: AspectRatio::AUTO,
             margin_top: LengthPercentageOrAuto::ZERO,
             margin_right: LengthPercentageOrAuto::ZERO,
             margin_bottom: LengthPercentageOrAuto::ZERO,
@@ -347,6 +349,7 @@ impl ComputedStyle {
             table_layout: TableLayout::Auto,
             content: Content::Normal,
             object_fit: ObjectFit::Fill,
+            object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,
             unicode_bidi: UnicodeBidi::Normal,
         }

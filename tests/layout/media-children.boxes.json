@@ -1,0 +1,32 @@
+{
+  "url": "tests/layout/media-children.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 340.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 324.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 700.0, 155.0], "parent": 5},
+    {"tag": "video", "rect": [16.91, 8.0, 300.0, 150.0], "parent": 6},
+    {"tag": "b", "rect": null, "parent": 7},
+    {"tag": "source", "rect": null, "parent": 7},
+    {"tag": "track", "rect": null, "parent": 7},
+    {"tag": "div", "rect": [8.0, 167.0, 700.0, 59.0], "parent": 5},
+    {"tag": "audio", "rect": [16.0, 167.0, 300.0, 54.0], "parent": 11},
+    {"tag": "source", "rect": null, "parent": 12},
+    {"tag": "p", "rect": null, "parent": 12},
+    {"tag": "audio", "rect": null, "parent": 11},
+    {"tag": "source", "rect": null, "parent": 15},
+    {"tag": "div", "rect": [8.0, 230.0, 700.0, 54.0], "parent": 5},
+    {"tag": "audio", "rect": [8.0, 230.0, 200.0, 54.0], "parent": 17},
+    {"tag": "div", "rect": [8.0, 288.0, 700.0, 20.0], "parent": 5},
+    {"tag": "source", "rect": [12.45, 289.0, 0.0, 17.0], "parent": 19},
+    {"tag": "track", "rect": [12.45, 289.0, 0.0, 17.0], "parent": 19},
+    {"tag": "div", "rect": [8.0, 312.0, 700.0, 20.0], "parent": 5},
+    {"tag": "canvas", "rect": [8.0, 313.0, 67.61, 17.0], "parent": 22},
+    {"tag": "b", "rect": [66.7, 313.0, 8.91, 17.0], "parent": 23},
+    {"tag": "canvas", "rect": [75.61, 313.0, 0.0, 17.0], "parent": 22}
+  ]
+}

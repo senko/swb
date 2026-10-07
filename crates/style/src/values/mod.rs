@@ -158,6 +158,14 @@ pub struct PositionComponent {
     pub from_end: bool,
 }
 
+impl PositionComponent {
+    /// `center` (50%).
+    pub const CENTER: PositionComponent = PositionComponent {
+        offset: LengthPercentage::Percent(0.5),
+        from_end: false,
+    };
+}
+
 impl Default for PositionComponent {
     fn default() -> Self {
         PositionComponent {
@@ -188,6 +196,42 @@ pub struct CornerRadius {
     pub horizontal: LengthPercentage,
     /// Vertical radius (percentages refer to the border box height).
     pub vertical: LengthPercentage,
+}
+
+/// The computed `aspect-ratio`: `auto || <ratio>`
+/// (<https://www.w3.org/TR/css-sizing-4/#aspect-ratio>).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AspectRatio {
+    /// True if the value contains `auto`: a replaced element with a
+    /// natural aspect ratio uses that ratio instead of `ratio`.
+    pub auto: bool,
+    /// The ratio (width / height); `None` if the value has none or it is
+    /// degenerate (then the property behaves as `auto`).
+    pub ratio: Option<f32>,
+}
+
+impl AspectRatio {
+    /// `auto`, the initial value.
+    pub const AUTO: AspectRatio = AspectRatio {
+        auto: true,
+        ratio: None,
+    };
+
+    /// The preferred aspect ratio of a box whose natural aspect ratio is
+    /// `natural` (`None` for boxes without one, like non-replaced boxes).
+    pub fn preferred(&self, natural: Option<f32>) -> Option<f32> {
+        if self.auto {
+            natural.or(self.ratio)
+        } else {
+            self.ratio.or(natural)
+        }
+    }
+}
+
+impl Default for AspectRatio {
+    fn default() -> Self {
+        AspectRatio::AUTO
+    }
 }
 
 /// The computed `z-index`.

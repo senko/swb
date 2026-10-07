@@ -18,7 +18,7 @@ use swb_style::ListStyleType;
 use crate::LayoutContext;
 use crate::box_tree::Marker;
 use crate::fonts;
-use crate::fragment::{Fragment, PositionedGlyph, TextFragment};
+use crate::fragment::{Fragment, TextFragment};
 use crate::geom::Rect;
 
 /// A marker that waits for the first line box of its list item.
@@ -96,20 +96,7 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
         let (above, below) = crate::inline::text_extent(style, metrics);
         shaped.above = shaped.above.max(above);
         shaped.below = shaped.below.max(below);
-        let mut pen = 0.0;
-        let glyphs: Vec<PositionedGlyph> = glyph_run
-            .glyphs
-            .iter()
-            .map(|g| {
-                let p = PositionedGlyph {
-                    id: g.glyph,
-                    x: pen + g.x_offset,
-                    y: -g.y_offset,
-                };
-                pen += g.x_advance;
-                p
-            })
-            .collect();
+        let glyphs = fonts::positioned_glyphs(&glyph_run);
         shaped.fragments.push(TextFragment {
             node: marker.base.node.unwrap_or(swb_dom::NodeId::DOCUMENT),
             style: Arc::clone(style),

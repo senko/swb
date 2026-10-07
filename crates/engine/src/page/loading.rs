@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use encoding_rs::Encoding;
-use swb_dom::{Document, NodeId, local_name};
+use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
 use swb_layout::Point;
 use swb_net::{Destination, Request, Response, Url};
 
@@ -266,11 +266,19 @@ impl Page {
                     });
                     sheet_loads.push((slot, url));
                 }
-                local_name!("img") => {
+                // The poster of a video loads like an image. The media
+                // resource itself is never fetched (swb plays no media).
+                local_name!("img") | local_name!("video") => {
+                    let attr = if *element.local_name() == local_name!("img") {
+                        "src"
+                    } else {
+                        "poster"
+                    };
                     if let Some(url) = element
-                        .attr("src")
-                        .filter(|s| !s.trim().is_empty())
-                        .and_then(|src| base.join(src.trim()).ok())
+                        .attr(attr)
+                        .map(|s| s.trim_matches(is_html_whitespace))
+                        .filter(|s| !s.is_empty())
+                        .and_then(|src| base.join(src).ok())
                     {
                         self.images.by_node.insert(node, url.clone());
                         image_loads.push(url);

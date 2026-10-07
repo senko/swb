@@ -26,13 +26,13 @@ use crate::parse::{
     parse_number,
 };
 use crate::values::{
-    Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
-    BorderStyle, BoxSizing, CaptionSide, Clear, Cursor, Direction, Display, EmptyCells,
-    FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle, FontVariantCaps,
-    GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit, OutlineStyle,
-    Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, TableLayout,
-    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi,
-    UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Cursor, Direction, Display,
+    EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle,
+    FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit,
+    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp,
+    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
+    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -232,6 +232,10 @@ pub(crate) fn parse_longhand(
             L::TableLayout => V::TableLayout(keyword(p, TableLayout::from_ident)?),
             L::Content => V::Content(parse_content(p, cx)?),
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
+            L::ObjectPosition => {
+                let (x, y) = parse_position(p)?;
+                V::ObjectPosition([x, y])
+            }
             L::UserSelect => V::UserSelect(parse_user_select(p)?),
             L::UnicodeBidi => V::UnicodeBidi(parse_unicode_bidi(p)?),
         })
@@ -843,9 +847,9 @@ fn parse_size(p: &mut Parser<'_>, quirky: bool, max: bool) -> ParseResult<Specif
     })
 }
 
-/// `aspect-ratio`: `auto || <ratio>`. Returns the ratio (width / height),
-/// or `None` for `auto` or a degenerate ratio.
-fn parse_aspect_ratio(p: &mut Parser<'_>) -> ParseResult<Option<f32>> {
+/// `aspect-ratio`: `auto || <ratio>`. A degenerate ratio (with a zero) is
+/// kept as no ratio, so the value behaves as `auto`.
+fn parse_aspect_ratio(p: &mut Parser<'_>) -> ParseResult<AspectRatio> {
     let auto = p.expect_ident_matching("auto").is_ok();
     let ratio = p.try_parse(|p| {
         let w = parse_non_negative_number(p)?;
@@ -857,12 +861,13 @@ fn parse_aspect_ratio(p: &mut Parser<'_>) -> ParseResult<Option<f32>> {
         Ok::<_, ParseError>((w, h))
     });
     let auto = auto || p.expect_ident_matching("auto").is_ok();
-    match ratio {
-        Ok((w, h)) if w > 0.0 && h > 0.0 => Ok(Some(w / h)),
-        Ok(_) => Ok(None),
-        Err(_) if auto => Ok(None),
-        Err(e) => Err(e),
-    }
+    let ratio = match ratio {
+        Ok((w, h)) if w > 0.0 && h > 0.0 => Some(w / h),
+        Ok(_) => None,
+        Err(_) if auto => None,
+        Err(e) => return Err(e),
+    };
+    Ok(AspectRatio { auto, ratio })
 }
 
 /// `z-index`: `auto | <integer>`.

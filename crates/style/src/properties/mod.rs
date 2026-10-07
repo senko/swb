@@ -576,9 +576,63 @@ mod tests {
         assert!(!valid("min-width", "none"));
         let s = style("box-sizing: border-box; aspect-ratio: 16 / 9");
         assert_eq!(s.box_sizing, BoxSizing::BorderBox);
-        assert!((s.aspect_ratio.unwrap_or(0.0) - 16.0 / 9.0).abs() < 1e-6);
-        assert_eq!(style("aspect-ratio: auto 2").aspect_ratio, Some(2.0));
-        assert_eq!(style("aspect-ratio: auto").aspect_ratio, None);
+        assert!(!s.aspect_ratio.auto);
+        assert!((s.aspect_ratio.ratio.unwrap_or(0.0) - 16.0 / 9.0).abs() < 1e-6);
+        let ratio = |auto, ratio| AspectRatio { auto, ratio };
+        assert_eq!(
+            style("aspect-ratio: auto 2").aspect_ratio,
+            ratio(true, Some(2.0))
+        );
+        assert_eq!(
+            style("aspect-ratio: 2 auto").aspect_ratio,
+            ratio(true, Some(2.0))
+        );
+        assert_eq!(style("aspect-ratio: auto").aspect_ratio, AspectRatio::AUTO);
+        // A degenerate ratio behaves as `auto`.
+        assert_eq!(
+            style("aspect-ratio: 0 / 1").aspect_ratio,
+            ratio(false, None)
+        );
+        assert!(!valid("aspect-ratio", "auto auto"));
+        assert!(!valid("aspect-ratio", "-1"));
+    }
+
+    /// CSS Sizing 4 §7.1: `auto && <ratio>` uses the natural aspect ratio
+    /// of a replaced element if it has one.
+    #[test]
+    fn preferred_aspect_ratio() {
+        let ratio = |auto, ratio| AspectRatio { auto, ratio };
+        assert_eq!(ratio(true, Some(2.0)).preferred(Some(1.5)), Some(1.5));
+        assert_eq!(ratio(true, Some(2.0)).preferred(None), Some(2.0));
+        assert_eq!(ratio(false, Some(2.0)).preferred(Some(1.5)), Some(2.0));
+        assert_eq!(ratio(false, None).preferred(Some(1.5)), Some(1.5));
+        assert_eq!(AspectRatio::AUTO.preferred(None), None);
+    }
+
+    #[test]
+    fn object_position() {
+        let s = style("object-position: right 10px bottom 20%");
+        let [x, y] = &s.object_position;
+        assert_eq!(
+            (x.offset.clone(), x.from_end),
+            (LengthPercentage::Px(10.0), true)
+        );
+        assert_eq!(
+            (y.offset.clone(), y.from_end),
+            (LengthPercentage::Percent(0.2), true)
+        );
+        let initial = ComputedStyle::initial();
+        assert_eq!(
+            initial.object_position,
+            [PositionComponent::CENTER, PositionComponent::CENTER]
+        );
+        assert_eq!(
+            style("object-position: 25%").object_position[1],
+            PositionComponent::CENTER
+        );
+        // `<position>` has no three-value form.
+        assert!(!valid("object-position", "right 10px top"));
+        assert!(!valid("object-position", "top 10px"));
     }
 
     #[test]

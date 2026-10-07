@@ -1,9 +1,12 @@
 //! Background image positioning and tiling (CSS Backgrounds 3 §2.6–2.9):
 //! <https://www.w3.org/TR/css-backgrounds-3/#background-position> to
-//! <https://www.w3.org/TR/css-backgrounds-3/#background-size>.
+//! <https://www.w3.org/TR/css-backgrounds-3/#background-size>; and the
+//! same sizing and positioning for the image of a replaced element
+//! (`object-fit` and `object-position`, CSS Images 3 §5.5–5.6:
+//! <https://www.w3.org/TR/css-images-3/#the-object-fit>).
 
 use swb_layout::{NaturalSize, Rect};
-use swb_style::{BackgroundRepeatKeyword, BackgroundSize, Length, PositionComponent};
+use swb_style::{BackgroundRepeatKeyword, BackgroundSize, Length, ObjectFit, PositionComponent};
 
 /// The properties of one background layer that affect tiling.
 pub(crate) struct Layer<'a> {
@@ -39,6 +42,41 @@ pub(crate) fn tile(
         if repeat_y { clip.height } else { h },
     );
     (tile, area.intersection(&clip).unwrap_or_default())
+}
+
+/// The area of the image of a replaced element whose content box is
+/// `content`: the concrete object size from `fit` (with the content box as
+/// the default object size) at `position` (x and y).
+pub(crate) fn object_rect(
+    fit: ObjectFit,
+    position: &[PositionComponent; 2],
+    content: Rect,
+    natural: &NaturalSize,
+) -> Rect {
+    let sized = |size: BackgroundSize| tile_size(&size, content, natural);
+    let (w, h) = match fit {
+        ObjectFit::Fill => (content.width, content.height),
+        ObjectFit::Contain => sized(BackgroundSize::Contain),
+        ObjectFit::Cover => sized(BackgroundSize::Cover),
+        ObjectFit::None => sized(BackgroundSize::Auto),
+        // The smaller of `none` and `contain`.
+        ObjectFit::ScaleDown => {
+            let none = sized(BackgroundSize::Auto);
+            let contain = sized(BackgroundSize::Contain);
+            if none.0 <= contain.0 && none.1 <= contain.1 {
+                none
+            } else {
+                contain
+            }
+        }
+    };
+    let [x, y] = position;
+    Rect::new(
+        content.x + offset(x, content.width - w),
+        content.y + offset(y, content.height - h),
+        w,
+        h,
+    )
 }
 
 fn offset(p: &PositionComponent, free: f32) -> f32 {
@@ -248,6 +286,65 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A 100×50 and a 400×100 image in a 200×120 content box at (10, 20),
+    /// measured with Chromium 148 (`<img>` and video posters).
+    #[test]
+    fn object_fit_and_position_follow_chromium() {
+        let content = Rect::new(10.0, 20.0, 200.0, 120.0);
+        let small = NaturalSize::fixed(100.0, 50.0);
+        let wide = NaturalSize::fixed(400.0, 100.0);
+        let center = [PositionComponent::CENTER, PositionComponent::CENTER];
+        let at = |fit, natural: &NaturalSize, position: &[PositionComponent; 2]| {
+            let r = object_rect(fit, position, content, natural);
+            (r.x - 10.0, r.y - 20.0, r.width, r.height)
+        };
+        assert_eq!(
+            at(ObjectFit::Fill, &small, &center),
+            (0.0, 0.0, 200.0, 120.0)
+        );
+        assert_eq!(
+            at(ObjectFit::Contain, &small, &center),
+            (0.0, 10.0, 200.0, 100.0)
+        );
+        assert_eq!(
+            at(ObjectFit::Cover, &small, &center),
+            (-20.0, 0.0, 240.0, 120.0)
+        );
+        assert_eq!(
+            at(ObjectFit::None, &small, &center),
+            (50.0, 35.0, 100.0, 50.0)
+        );
+        assert_eq!(
+            at(ObjectFit::ScaleDown, &small, &center),
+            (50.0, 35.0, 100.0, 50.0)
+        );
+        assert_eq!(
+            at(ObjectFit::ScaleDown, &wide, &center),
+            (0.0, 35.0, 200.0, 50.0)
+        );
+        let percent = |v: f32| PositionComponent {
+            offset: LengthPercentage::Percent(v),
+            from_end: false,
+        };
+        assert_eq!(
+            at(ObjectFit::None, &small, &[percent(0.25), percent(0.75)]),
+            (25.0, 52.5, 100.0, 50.0)
+        );
+        let right_10px = PositionComponent {
+            offset: LengthPercentage::Px(10.0),
+            from_end: true,
+        };
+        assert_eq!(
+            at(ObjectFit::None, &small, &[right_10px, percent(0.0)]),
+            (90.0, 0.0, 100.0, 50.0)
+        );
+        // Without natural dimensions, `none` uses the content box.
+        assert_eq!(
+            at(ObjectFit::None, &NaturalSize::default(), &center),
+            (0.0, 0.0, 200.0, 120.0)
+        );
     }
 
     #[test]

@@ -2,8 +2,9 @@
 
 - Status: accepted
 - Date: 2026-10-03
-- Updated: 2026-10-04 (M3): see "Update (2026-10-04, masks)" at the end.
-  The decision did not change.
+- Updated: 2026-10-04 (M3): see "Update (2026-10-04, masks)" at the end;
+  2026-10-07: "Update (2026-10-07, video posters)". The decision did not
+  change.
 
 ## Context
 
@@ -236,3 +237,11 @@ Mask images (`mask-image`, ADR 0018) use the same path as background
 images: detection by MIME type, the limits above, rendering at the device
 pixel size of each tile, the per-document `VectorCache` and the per-frame
 rendering budget. The limits did not change.
+
+## Update (2026-10-07, video posters)
+
+The poster of a `<video>` (ADR 0020) is an image of the element, like
+the source of an `<img>`: the same request rules, detection by MIME
+type, limits and rendering at the device pixel size. An SVG poster with
+only an aspect ratio sizes the video as it sizes an `<img>`. The limits
+did not change.

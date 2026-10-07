@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Sizes of <video> elements (replaced elements): the natural size is
+     the poster's (the PNG is 100x50; viewbox.svg has only a 2:1 ratio;
+     width-height.svg is 60x30); without a loaded poster there is no
+     natural size, so the default object size 300x150 applies, without an
+     aspect ratio (width=100 gives 100x150). The width and height
+     attributes are presentational hints. Also as a block, a flex item
+     (stretched), an absolutely positioned box, inside an inline-block,
+     with min/max sizes, and inline next to text (baseline at the bottom
+     margin edge). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Video sizing</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .row { width: 600px; margin-bottom: 4px; }
+  .flex { display: flex; width: 600px; margin-bottom: 4px; }
+  .start { align-items: start; }
+  .abs { position: relative; height: 160px; width: 600px; }
+  .abs video { position: absolute; left: 10px; right: 10px; top: 0; }
+  .ib { display: inline-block; }
+  video { margin: 1px 2px 3px 4px; }
+</style>
+</head>
+<body>
+<div class="row"><video id="poster" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video>a<video id="poster-width" width="200" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video><video id="poster-both" width="200" height="60" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video></div>
+<div class="row">x<video id="none"></video>y<video id="none-width" width="100"></video><video id="none-height" height="60"></video></div>
+<div class="row"><video id="broken" poster="svg/nonexistent.png"></video><video id="svg-ratio" poster="svg/viewbox.svg" style="width: 200px"></video><video id="svg-size" poster="svg/width-height.svg"></video></div>
+<div class="row"><video id="block" style="display: block" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video><video id="svg-fill" poster="svg/viewbox.svg"></video></div>
+<div class="flex"><video id="flex-poster" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video><video id="flex-none"></video><video id="flex-width" width="50"></video></div>
+<div class="flex start"><video id="start-poster" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAX0lEQVR42u3QAQ0AAAgDoHeyk51sa4UHYCMBmT1KUSBLlixZsmQpkCVLlixZshTIkiVLlixZCmTJkiVLliwFsmTJkiVLlgJZsmTJkiVLgSxZsmTJkqVAlixZsmTJUtB76uxZ6sv62JcAAAAASUVORK5CYII="></video><video id="start-none"></video></div>
+<div class="abs"><video id="abs"></video></div>
+<div class="row"><span class="ib"><video id="in-ib"></video></span></div>
+<div class="row"><video id="min" style="min-width: 400px"></video><video id="max" style="max-width: 100px; height: 50px"></video><video id="percent" width="50%"></video></div>
+<div class="row"><video id="zero" width="0" height="0"></video><span id="after">text</span></div>
+</body>
+</html>

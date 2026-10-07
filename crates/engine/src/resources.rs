@@ -1,5 +1,5 @@
-//! Subresources of a page: stylesheets and images, and the requests that
-//! load them.
+//! Subresources of a page: stylesheets and images (also video posters),
+//! and the requests that load them.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -88,7 +88,8 @@ impl ImageState {
 pub(crate) struct Images {
     /// The state of each image URL that the page uses.
     pub(crate) by_url: HashMap<Url, ImageState>,
-    /// The image URL of each `<img>` element.
+    /// The image URL of each `<img>` element and the poster URL of each
+    /// `<video>` element.
     pub(crate) by_node: HashMap<NodeId, Url>,
     /// Renderings of the page's SVG images.
     vector_cache: VectorCache,

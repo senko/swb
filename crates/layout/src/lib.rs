@@ -5,10 +5,11 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images), form controls, flex layout, grid layout, table layout, floats
-//! and clearance (`floats.rs`), relative, absolute, fixed and sticky
-//! positioning (`positioned.rs`), transforms (paint applies them), the
-//! scrollable overflow of scroll containers (see `scroll.rs`).
+//! (images, video and audio with their controls, see `media.rs`), form
+//! controls, flex layout, grid layout, table layout, floats and clearance
+//! (`floats.rs`), relative, absolute, fixed and sticky positioning
+//! (`positioned.rs`), transforms (paint applies them), the scrollable
+//! overflow of scroll containers (see `scroll.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
@@ -26,6 +27,7 @@ mod grid;
 mod inline;
 mod intrinsic;
 mod list_marker;
+mod media;
 mod positioned;
 mod replaced;
 mod scroll;
@@ -44,7 +46,8 @@ use swb_text::FontContext;
 pub use control::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, NoFormControls};
 pub use fragment::{
     BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, ControlContent,
-    Fragment, FragmentRef, FragmentTree, PartBackground, PositionedGlyph, TablePaint, TextFragment,
+    Fragment, FragmentRef, FragmentTree, MediaContent, MediaPart, MediaPartKind, MediaText,
+    PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
 pub use geom::{Edges, Matrix, Point, Rect, Size};
 pub use positioned::{
@@ -58,10 +61,12 @@ pub use scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scro
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};
 
-/// Natural sizes of replaced elements (images), supplied by the engine.
+/// Natural sizes of replaced elements (images, video posters), supplied by
+/// the engine.
 pub trait ReplacedSizes {
-    /// The natural dimensions of the replaced element `node`, or `None` if
-    /// its image is not loaded or broken.
+    /// The natural dimensions of the image of replaced element `node` (the
+    /// source of an `<img>`, the poster of a `<video>`), or `None` if it is
+    /// not loaded or broken.
     fn natural_size(&self, node: NodeId) -> Option<NaturalSize>;
 }
 
@@ -82,7 +87,7 @@ pub struct LayoutInput<'a> {
     pub styles: &'a StyleMap,
     /// The viewport (initial containing block) size in CSS px.
     pub viewport: Size,
-    /// Natural sizes of images.
+    /// Natural sizes of images and video posters.
     pub replaced: &'a dyn ReplacedSizes,
     /// The states of form controls.
     pub controls: &'a dyn FormControls,

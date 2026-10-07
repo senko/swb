@@ -1176,6 +1176,44 @@ mod tests {
         assert_eq!(get(&doc, &map, "ns").display, Display::Inline);
     }
 
+    /// `width` and `height` of `video` map to `width`, `height` and, if
+    /// both are lengths, to `aspect-ratio: auto w / h` (Chromium 148:
+    /// computed `auto 250 / 159`).
+    #[test]
+    fn video_dimension_hints() {
+        let (doc, map) = render(
+            "<video id=v width=250 height=159></video>\
+             <video id=p width=50% height=100></video>\
+             <video id=w width=250></video>\
+             <video id=z width=0 height=0></video>\
+             <img id=img width=250 height=159>",
+            "",
+        );
+        let v = get(&doc, &map, "v");
+        assert_eq!(v.width, Size::LengthPercentage(LengthPercentage::Px(250.0)));
+        assert_eq!(
+            v.height,
+            Size::LengthPercentage(LengthPercentage::Px(159.0))
+        );
+        assert_eq!(
+            v.aspect_ratio,
+            AspectRatio {
+                auto: true,
+                ratio: Some(250.0 / 159.0)
+            }
+        );
+        assert_eq!(get(&doc, &map, "p").aspect_ratio, AspectRatio::AUTO);
+        assert_eq!(get(&doc, &map, "w").aspect_ratio, AspectRatio::AUTO);
+        assert_eq!(
+            get(&doc, &map, "z").aspect_ratio,
+            AspectRatio {
+                auto: true,
+                ratio: None
+            }
+        );
+        assert_eq!(get(&doc, &map, "img").aspect_ratio, AspectRatio::AUTO);
+    }
+
     #[test]
     fn presentational_hints() {
         let (doc, map) = render(

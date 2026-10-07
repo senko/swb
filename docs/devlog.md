@@ -168,6 +168,19 @@ in commit messages, ADRs and other docs.
   instead of 33; the header and toolbar now match. Known failures
   `flex-container-min-size`, `inline-flex-baseline` and
   `flex-align-content-stretch` pass.
+- Media elements (ADR 0020): `<video>` and `<audio>` are replaced
+  elements. A video's natural size is its poster's; without a loaded
+  poster it has none (300×150 without a ratio, as in Chromium). `width`
+  and `height` on `<video>` map to `aspect-ratio: auto w/h`, and the
+  computed `aspect-ratio` keeps `auto` (fixes an M2 backlog item). New
+  `object-position`; `<img>` and posters use `object-fit` and
+  `object-position`. Posters load like `<img>` sources; media resources
+  are never fetched. The controls approximate Chromium's with scripting
+  disabled (always shown); their parts drop out at sizes measured in
+  Chromium. Children (`<source>`, `<track>`, fallback content) get no
+  boxes. Wikipedia: the video thumbnail now has its size, so the page
+  below it is no longer 80 px too high; with floats and the flex fixes,
+  geometry 0.2073 → 0.5136, pixels 0.9378 → 0.9766, no extra boxes.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

@@ -38,6 +38,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::control::FormControls;
 use crate::list_marker::marker_text;
+use crate::media::Media;
 use crate::source_map::{CharSource, SourceMap};
 use crate::{NaturalSize, ReplacedSizes};
 
@@ -135,7 +136,7 @@ pub(crate) enum IndependentContents {
     /// A grid container with its children: the grid items (built as flex
     /// items are) and the absolutely positioned children.
     Grid(Vec<IndependentBox>),
-    /// A replaced element (an image).
+    /// A replaced element (an image, a video or audio controls).
     Replaced(Replaced),
     /// A table (CSS 2.2 §17): its captions, columns and row groups.
     Table(crate::table::TableBox),
@@ -147,8 +148,11 @@ pub(crate) enum IndependentContents {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Replaced {
     pub(crate) node: NodeId,
-    /// The natural dimensions, if the image is loaded.
+    /// The natural dimensions; `None` for an image that is not loaded or
+    /// is broken.
     pub(crate) natural_size: Option<NaturalSize>,
+    /// The media element, or `None` for an image.
+    pub(crate) media: Option<Media>,
 }
 
 /// A list item marker.
@@ -472,14 +476,9 @@ pub(crate) fn build_independent(
     state: &mut BuildState,
 ) -> IndependentBox {
     let element = base.element();
-    if let Some(node) = element
-        && is_replaced(ctx, node)
-    {
+    if let Some(replaced) = element.and_then(|node| replaced(ctx, node)) {
         return IndependentBox {
-            contents: IndependentContents::Replaced(Replaced {
-                node,
-                natural_size: ctx.replaced.natural_size(node),
-            }),
+            contents: IndependentContents::Replaced(replaced),
             base,
             marker: None,
         };
@@ -513,17 +512,42 @@ pub(crate) fn build_independent(
     }
 }
 
-/// True for a replaced element (an image).
-fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
-    ctx.doc
-        .element(node)
-        .is_some_and(|e| e.is_html_named(&local_name!("img")))
+/// The replaced element `node` (an image, a video or audio), or `None` if
+/// it is not one. `<canvas>` is not: without scripts, it shows its
+/// fallback content (as in Chromium with JavaScript disabled).
+fn replaced(ctx: &BuildContext<'_>, node: NodeId) -> Option<Replaced> {
+    let media = if ctx.doc.element(node)?.is_html_named(&local_name!("img")) {
+        None
+    } else {
+        Some(Media::of(ctx.doc, node)?)
+    };
+    let natural_size = ctx.replaced.natural_size(node);
+    Some(Replaced {
+        node,
+        // A video without a loaded poster, and audio, have no natural
+        // size.
+        natural_size: if media.is_some() {
+            Some(natural_size.unwrap_or_default())
+        } else {
+            natural_size
+        },
+        media,
+    })
 }
 
-/// True for elements whose box is atomic like a replaced element: images
-/// and form controls.
+/// True for elements whose box is atomic like a replaced element: images,
+/// media elements and form controls.
 pub(crate) fn is_atomic(ctx: &BuildContext<'_>, node: NodeId) -> bool {
     is_replaced(ctx, node) || ctx.controls.is_control(node)
+}
+
+/// True for a replaced element (see [`replaced`]).
+fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
+    ctx.doc.element(node).is_some_and(|e| {
+        e.is_html_named(&local_name!("img"))
+            || e.is_html_named(&local_name!("video"))
+            || e.is_html_named(&local_name!("audio"))
+    })
 }
 
 /// The marker of list item `node` (an element, not a pseudo-element).

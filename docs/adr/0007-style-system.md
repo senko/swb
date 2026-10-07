@@ -231,3 +231,22 @@ Grid layout ([ADR 0017](0017-grid-layout.md)) added the grid properties
   them for grid items); `legacy` is not inherited.
 - `subgrid` and `masonry` are invalid values, so `@supports` with them is
   false.
+
+## Update (2026-10-07, media elements)
+
+Media elements ([ADR 0020](0020-media-elements.md)) changed three
+things:
+
+- `aspect-ratio` keeps `auto`: the computed value is `AspectRatio {
+  auto, ratio }` (it was one optional ratio, which lost `auto`).
+  `AspectRatio::preferred` gives the ratio that layout uses: with
+  `auto`, the natural ratio of a replaced element wins (CSS Sizing 4
+  §7.1). A degenerate ratio is kept as no ratio, so the value behaves as
+  `auto`.
+- The `width` and `height` attributes of `<video>` also map to
+  `aspect-ratio: auto w / h` when both are lengths (HTML "map to the
+  aspect-ratio property (using dimension rules)"). `<img>` and image
+  buttons do not get this hint yet.
+- New longhand `object-position` (`<position>`, initial `50% 50%`).
+  Paint uses it and `object-fit` for the images of `<img>` and the
+  posters of `<video>`.

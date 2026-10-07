@@ -71,9 +71,10 @@ Rules:
   boxes, line boxes and glyph runs in CSS pixels. It is immutable. The engine
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
-  borders, glyph runs, images, linear gradients, polylines, clips, opacity,
-  mask and transform groups with their bounds) in paint order. A mask group carries
-  its mask layers: images or gradients positioned like background layers
+  borders, glyph runs, images, linear gradients, polylines, polygons,
+  clips, opacity, mask and transform groups with their bounds) in paint
+  order. A mask group carries its mask layers: images or gradients
+  positioned like background layers
   (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
   each item a bounded number of times, and computes the bounds of all
@@ -111,7 +112,8 @@ Rules:
   `ElementStates::controls`. The disabled state of all elements comes
   from one tree walk (`DisabledElements`, linear time).
 - **Natural sizes** (`layout`): `NaturalSize` has an optional width,
-  height and aspect ratio (SVG images can lack any of them). Replaced
+  height and aspect ratio (SVG images, videos without a loaded poster and
+  audio can lack any of them). Replaced
   elements and backgrounds use the CSS default sizing rules; the default
   object size is 300×150.
 - **SVG images** (`paint/src/svg/`, ADR 0011): usvg and resvg behind
@@ -207,6 +209,11 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   without `auto` margins (`<center>`).
 - Quirks mode: the line height quirks and the table cell quirks are in
   layout (`LayoutContext::quirks`, `line_height_quirks`).
+- Media elements (`layout/src/media.rs`, ADR 0020): `<video>` and
+  `<audio>` are replaced boxes; layout chooses the visible parts of
+  their controls (Chromium's size thresholds) and shapes the time text;
+  `BoxContent::Media` carries them to paint (`paint/src/media.rs`).
+  Posters load like `<img>` sources; media resources are never fetched.
 - Form controls are atomic boxes with generated content
   (`layout/src/control.rs`); their sizes follow Chromium.
 - `<br>` elements and inline boxes around block-level children get boxes

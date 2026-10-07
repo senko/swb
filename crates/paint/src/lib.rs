@@ -6,7 +6,8 @@
 //! does not depend on tiny-skia, so another backend can replace the
 //! rasterizer. Images are raster images or SVG images (`svg`), which are
 //! rendered at the size they are drawn at. Masks (`mask`) multiply a
-//! group of drawing commands by images or gradients.
+//! group of drawing commands by images or gradients. Form controls
+//! (`control`) and media controls (`media`) have their own look.
 
 mod background;
 mod control;
@@ -14,6 +15,7 @@ mod display_list;
 mod group_bounds;
 mod image;
 mod mask;
+mod media;
 mod raster;
 mod rope;
 mod scroll_indicator;

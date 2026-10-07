@@ -4,6 +4,8 @@
 use swb_style::{ComputedStyle, FontFamily, GenericFamily};
 use swb_text::{FamilyName, FontContext, FontId, FontQuery, FontStyle as TextFontStyle};
 
+use crate::fragment::PositionedGlyph;
+
 /// Font metrics as line layout uses them, in px.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct LineMetrics {
@@ -68,6 +70,24 @@ pub(crate) fn query<'a>(style: &ComputedStyle, families: &'a [FamilyName<'a>]) -
 pub(crate) fn primary_font(fonts: &mut FontContext, style: &ComputedStyle) -> FontId {
     let families = family_names(&style.font_family);
     fonts.select(&query(style, &families))
+}
+
+/// The glyphs of a shaped run, positioned relative to the pen position at
+/// the start of the run on the baseline.
+pub(crate) fn positioned_glyphs(run: &swb_text::ShapedRun) -> Vec<PositionedGlyph> {
+    let mut pen = 0.0;
+    run.glyphs
+        .iter()
+        .map(|g| {
+            let p = PositionedGlyph {
+                id: g.glyph,
+                x: pen + g.x_offset,
+                y: -g.y_offset,
+            };
+            pen += g.x_advance;
+            p
+        })
+        .collect()
 }
 
 /// Metrics of `font` at `size`, rounded the way Blink rounds them on Linux

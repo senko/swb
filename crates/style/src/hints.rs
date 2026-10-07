@@ -27,7 +27,7 @@ use crate::properties::ids::LonghandValue;
 use crate::properties::longhand::parse_font_family;
 use crate::properties::specified::{SpecifiedFontSize, SpecifiedSize};
 use crate::values::{
-    BorderStyle, CaptionSide, Color, FontFamily, FontSizeKeyword, Length, Rgba,
+    AspectRatio, BorderStyle, CaptionSide, Color, FontFamily, FontSizeKeyword, Length, Rgba,
     SpecifiedLengthPercentage as Lp, TextAlign, WhiteSpace,
 };
 
@@ -376,8 +376,20 @@ fn cell_hints_from_table(doc: &Document, cell: NodeId, push: &mut impl FnMut(Lon
 
 /// Dimension, spacing and border attributes of replaced elements.
 fn replaced_hints(e: &ElementData, name: &str, push: &mut impl FnMut(LonghandValue)) {
-    size_hint(e, "width", false, LonghandValue::Width, push);
-    size_hint(e, "height", false, LonghandValue::Height, push);
+    let width = size_hint(e, "width", false, LonghandValue::Width, push);
+    let height = size_hint(e, "height", false, LonghandValue::Height, push);
+    // "Map to the aspect-ratio property (using dimension rules)": `auto
+    // w / h` if both are lengths. Only for `video`: HTML also maps it on
+    // `img` and image buttons, which do not need it yet (their images
+    // have a natural ratio once loaded).
+    if name == "video"
+        && let (Some(Dimension::Length(w)), Some(Dimension::Length(h))) = (width, height)
+    {
+        push(LonghandValue::AspectRatio(AspectRatio {
+            auto: true,
+            ratio: (w > 0.0 && h > 0.0).then(|| w / h),
+        }));
+    }
     if matches!(name, "img" | "object" | "embed" | "input") {
         if let Some(d) = e.attr("hspace").and_then(parse_dimension) {
             push(LonghandValue::MarginLeft(Some(d.to_lp())));

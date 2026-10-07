@@ -225,6 +225,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::TableLayout(v) => s.table_layout = *v,
         V::Content(v) => s.content = v.compute(cx),
         V::ObjectFit(v) => s.object_fit = *v,
+        V::ObjectPosition([x, y]) => s.object_position = [x.compute(cx), y.compute(cx)],
         V::UserSelect(v) => s.user_select = *v,
         V::UnicodeBidi(v) => s.unicode_bidi = *v,
     }

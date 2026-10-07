@@ -18,14 +18,14 @@ use super::transform::{SpecifiedClip, SpecifiedTransform, SpecifiedTransformOrig
 use crate::ComputedStyle;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
-    Alignment, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderCollapse,
-    BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Cursor, Direction,
-    Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps,
-    GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip,
-    MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, TableLayout,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
-    Visibility, WhiteSpace, WordBreak, ZIndex,
+    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Cursor,
+    Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
+    FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition,
+    ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
+    PointerEvents, Position, SpecifiedLengthPercentage as Lp, SpecifiedTrackList,
+    SpecifiedTrackSize, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -149,7 +149,7 @@ longhands! {
     MaxWidth "max-width" reset max_width: SpecifiedSize;
     MaxHeight "max-height" reset max_height: SpecifiedSize;
     BoxSizing "box-sizing" reset box_sizing: BoxSizing;
-    AspectRatio "aspect-ratio" reset aspect_ratio: Option<f32>;
+    AspectRatio "aspect-ratio" reset aspect_ratio: AspectRatio;
     MarginTop "margin-top" reset margin_top: Option<Lp>;
     MarginRight "margin-right" reset margin_right: Option<Lp>;
     MarginBottom "margin-bottom" reset margin_bottom: Option<Lp>;
@@ -231,6 +231,7 @@ longhands! {
     TableLayout "table-layout" reset table_layout: TableLayout;
     Content "content" reset content: SpecifiedContent;
     ObjectFit "object-fit" reset object_fit: ObjectFit;
+    ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
 }

@@ -74,7 +74,7 @@ use crate::group_bounds::{finish_groups, transform_ends};
 use crate::mask::{self, MaskBoxes, MaskLayer};
 use crate::rope::ItemRope;
 use crate::scroll_indicator::element_scroll_indicators;
-use crate::{background, control};
+use crate::{background, control, media};
 
 /// Corner radii (horizontal, vertical) in px: top-left, top-right,
 /// bottom-right, bottom-left.
@@ -209,6 +209,13 @@ pub enum DisplayItem {
         /// The color.
         color: Rgba,
     },
+    /// Fill the polygon through `points` (non-zero winding rule).
+    Polygon {
+        /// The corners.
+        points: Arc<[Point]>,
+        /// The color.
+        color: Rgba,
+    },
     /// An area that hit testing finds. Not drawn.
     HitRegion {
         /// The area.
@@ -234,6 +241,8 @@ impl DisplayItem {
                 ..
             } => text_bounds(*origin, *size, glyphs),
             DisplayItem::Polyline { points, width, .. } => polyline_bounds(points, *width),
+            // One pixel of margin for the anti-aliased edges.
+            DisplayItem::Polygon { points, .. } => polyline_bounds(points, 0.5),
             DisplayItem::PushClip(_)
             | DisplayItem::PushViewportClip
             | DisplayItem::PopClip
@@ -1197,6 +1206,7 @@ impl Builder<'_> {
             | BoxContent::Image(_)
             | BoxContent::GeometryOnly
             | BoxContent::Control(_)
+            | BoxContent::Media(_)
             | BoxContent::Placeholder(_) => {}
         }
         let radii = resolve_radii(style, border_rect);
@@ -1216,15 +1226,38 @@ impl Builder<'_> {
         if let BoxContent::Control(c) = &b.content {
             self.list.extend(control::native_look(c, style, rect));
         }
-        if let BoxContent::Image(node) = b.content {
-            let content = b.content_rect().translate(origin);
-            self.list.push(DisplayItem::Image {
-                image: ImageRef::Node(node),
-                rect: content,
-                tile: content,
-                clip: content,
-            });
+        let content = b.content_rect().translate(origin);
+        match &b.content {
+            BoxContent::Image(node) => self.replaced_image(*node, style, content),
+            BoxContent::Media(m) => {
+                if let Some(fill) = media::default_poster(m, content) {
+                    self.list.push(fill);
+                } else if !m.audio {
+                    self.replaced_image(m.node, style, content);
+                }
+                self.list.extend(media::controls(m, content));
+            }
+            _ => {}
         }
+    }
+
+    /// The image of replaced element `node` (an `<img>`, the poster of a
+    /// video) in its content box `content`, placed with `object-fit` and
+    /// `object-position`, and clipped to the content box. Deliberate
+    /// deviation: the clip ignores `overflow` (the user-agent style sheet
+    /// sets `overflow: clip` on images and videos; with an author's
+    /// `overflow: visible`, Chromium paints the overflowing part too).
+    fn replaced_image(&mut self, node: NodeId, style: &ComputedStyle, content: Rect) {
+        let image = ImageRef::Node(node);
+        let rect = self.images.size(&image).map_or(content, |natural| {
+            background::object_rect(style.object_fit, &style.object_position, content, &natural)
+        });
+        self.list.push(DisplayItem::Image {
+            image,
+            rect,
+            tile: rect,
+            clip: content,
+        });
     }
 
     /// Starts the overflow clip of a box, if it has one. Returns true if it

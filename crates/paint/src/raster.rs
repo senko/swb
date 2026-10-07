@@ -735,6 +735,7 @@ impl Rasterizer<'_> {
                 width,
                 color,
             } => self.polyline(points, *width, *color),
+            DisplayItem::Polygon { points, color } => self.polygon(points, *color),
             // `run` handles transform groups.
             DisplayItem::HitRegion { .. }
             | DisplayItem::PushTransform { .. }
@@ -747,16 +748,7 @@ impl Rasterizer<'_> {
         if color.is_transparent() || width <= 0.0 || points.len() < 2 {
             return;
         }
-        let mut pb = PathBuilder::new();
-        for (i, p) in points.iter().enumerate() {
-            let d = self.to_device_point(*p);
-            if i == 0 {
-                pb.move_to(d.x, d.y);
-            } else {
-                pb.line_to(d.x, d.y);
-            }
-        }
-        let Some(path) = pb.finish() else {
+        let Some(path) = self.device_path(points, false) else {
             return;
         };
         let stroke = Stroke {
@@ -775,6 +767,45 @@ impl Rasterizer<'_> {
         self.draw(device, |p, t, m| {
             p.stroke_path(&path, &paint, &stroke, t, m);
         });
+    }
+
+    /// Fills the polygon through `points` (non-zero winding rule).
+    fn polygon(&mut self, points: &[Point], color: Rgba) {
+        if color.is_transparent() || points.len() < 3 {
+            return;
+        }
+        let Some(path) = self.device_path(points, true) else {
+            return;
+        };
+        let bounds = path.bounds();
+        let device = Rect::new(
+            bounds.x() - 1.0,
+            bounds.y() - 1.0,
+            bounds.width() + 2.0,
+            bounds.height() + 2.0,
+        );
+        let paint = solid_paint(color, true);
+        self.draw(device, |p, t, m| {
+            p.fill_path(&path, &paint, FillRule::Winding, t, m);
+        });
+    }
+
+    /// The path through `points` in device coordinates, closed if
+    /// `close`. `None` if it is empty or not finite.
+    fn device_path(&self, points: &[Point], close: bool) -> Option<Path> {
+        let mut pb = PathBuilder::new();
+        for (i, p) in points.iter().enumerate() {
+            let d = self.to_device_point(*p);
+            if i == 0 {
+                pb.move_to(d.x, d.y);
+            } else {
+                pb.line_to(d.x, d.y);
+            }
+        }
+        if close {
+            pb.close();
+        }
+        pb.finish()
     }
 
     // ----- Coordinates and surfaces -----
@@ -2334,6 +2365,33 @@ mod tests {
             colors,
             styles: [style; 4],
             radii: [(radius, radius); 4],
+        }
+    }
+
+    #[test]
+    fn polygons_fill_and_skip_degenerate_input() {
+        let polygon = |points: &[(f32, f32)], color| DisplayItem::Polygon {
+            points: points.iter().map(|&(x, y)| Point::new(x, y)).collect(),
+            color,
+        };
+        let triangle = [(10.0, 10.0), (10.0, 90.0), (90.0, 50.0)];
+        let p = render(vec![polygon(&triangle, BLUE)]);
+        assert_eq!(rgb(&p, 30, 50), (0, 0, 255), "inside");
+        assert_eq!(rgb(&p, 80, 20), (255, 255, 255), "outside");
+        // At scale 2 the same triangle covers twice the device pixels.
+        let p = render_with(vec![polygon(&triangle, BLUE)], 2.0, &NoImages);
+        assert_eq!(rgb(&p, 60, 100), (0, 0, 255));
+        // Fewer than three points, non-finite points and transparent
+        // colors draw nothing (and do not panic).
+        let nothing = [
+            polygon(&[(10.0, 10.0), (90.0, 90.0)], BLUE),
+            polygon(&[(10.0, 10.0), (f32::NAN, 90.0), (90.0, 10.0)], BLUE),
+            polygon(&[(10.0, 10.0), (f32::INFINITY, 90.0), (90.0, 10.0)], BLUE),
+            polygon(&triangle, Rgba::new(0, 0, 255, 0)),
+        ];
+        for item in nothing {
+            let p = render(vec![item]);
+            assert_eq!(rgb(&p, 30, 30), (255, 255, 255));
         }
     }
 
