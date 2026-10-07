@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!-- Margins of boxes that establish a block formatting context next to
+     floats: the border box stays beside the floats on both sides, auto
+     margins and -webkit-center work in the layout opportunity, relative
+     positioning, tables and block-level images avoid floats, and a box
+     pushed down by floats ends the margin collapsing. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Margins of BFC roots next to floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .f { float: left; width: 100px; height: 30px; background: #c00; }
+  .r { float: right; width: 100px; height: 60px; background: #00c; }
+  .o { overflow: hidden; background: #ccc; }
+  .h { overflow: hidden; background: #ccc; height: 10px; }
+  .c { width: 400px; clear: both; border-top: 1px solid; }
+</style>
+</head>
+<body>
+  <div class="c" id="c1">
+    <div class="f" id="f1"></div>
+    <div class="o" id="o1" style="margin-left: 150px">x</div>
+    <div class="o" id="o1b" style="margin-left: -20px; margin-right: 30px">x</div>
+  </div>
+  <div class="c" id="c2">
+    <div class="f" id="f2"></div><div class="r" id="r2"></div>
+    <div class="o" id="o2" style="width: 100px; margin: 0 auto">x</div>
+    <div class="o" id="o2b" style="width: 50%">x</div>
+  </div>
+  <div class="c" id="c3">
+    <div id="m3" style="margin-top: 20px"><div class="f" id="f3"></div><div class="o" id="o3" style="margin-top: 30px; width: 350px">x</div></div>
+  </div>
+  <div class="c" id="c4">
+    <div class="f" id="f4"></div>
+    <table id="t4" style="margin-top: 5px"><tr><td id="d4">cell text here and more</td></tr></table>
+    <img id="i4" style="display: block; width: 320px; height: 10px" alt="">
+  </div>
+  <div class="c" id="c5">
+    <div class="f" id="f5"></div>
+    <div class="o" id="o5" style="position: relative; top: 5px; left: 5px; margin-top: 10px">x</div>
+    <div class="o" id="o5b" style="clear: left; margin-top: 10px">x</div>
+  </div>
+  <div class="c" id="c6">
+    <div class="f" id="f6" style="height: 10px"></div><div class="f" id="f6b" style="width: 200px; height: 40px"></div>
+    <div class="o" id="o6" style="width: 250px">x</div>
+  </div>
+  <div class="c" id="c7" style="text-align: -webkit-center">
+    <div class="f" id="f7"></div>
+    <div class="o" id="o7" style="width: 100px">x</div>
+  </div>
+  <div class="c" id="c8"><div class="f" id="f8"></div><div class="h" id="o8" style="margin-left: 150px; width: 280px"></div></div>
+  <div class="c" id="c9"><div class="f" id="f9"></div><div class="h" id="o9" style="margin-right: 50px; width: 280px"></div></div>
+  <div class="c" id="c10"><div class="f" id="f10" style="float: right"></div><div class="h" id="o10" style="margin-left: 50px; width: 280px"></div></div>
+  <div class="c" id="c11"><div class="f" id="f11"></div><div class="h" id="o11" style="margin-left: -50px; width: 320px"></div></div>
+  <div class="c" id="c12"><div class="f" id="f12"></div><div class="h" id="o12" style="margin-left: auto; width: 200px"></div></div>
+  <div class="c" id="c13"><div class="f" id="f13"></div><div class="h" id="o13" style="margin-right: auto; margin-left: 120px; width: 200px"></div></div>
+</body>
+</html>

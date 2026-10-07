@@ -5,9 +5,19 @@
 //!
 //! The context's content is shaped once (see [`shaping`]). Pieces are
 //! grouped into unbreakable groups that start at soft wrap opportunities.
-//! Lines are filled greedily. Then each line is built: inline boxes get
-//! their vertical position from `vertical-align`, the line box height is
-//! the extent of all boxes, and fragments are produced.
+//! Lines are filled greedily, one at a time, in the layout opportunity
+//! next to the floats of the block formatting context (CSS 2.2 §9.5:
+//! line boxes are shortened by floats). Then each line is built: inline
+//! boxes get their vertical position from `vertical-align`, the line box
+//! height is the extent of all boxes, and fragments are produced.
+//!
+//! Floats next to and inside lines follow Chromium's `LayoutNG`: a line is
+//! tried in each layout opportunity in order (`floats.rs`) and moves down
+//! when its content or its height does not fit. A float that starts a line
+//! is placed before the line. A float after content on a line is placed on
+//! that line if it fits beside the content before it (the line becomes
+//! shorter), otherwise below the line. A `<br>` with `clear` moves the
+//! next line below the cleared floats.
 //!
 //! A line without text, atomic inlines, forced breaks and inline box edges
 //! is empty (CSS 2.2 §9.4.2): it has zero height, its inline boxes get
@@ -29,12 +39,13 @@ use swb_style::{ComputedStyle, Display, TextAlign, VerticalAlign, VerticalAlignK
 
 use crate::LayoutContext;
 use crate::block::{
-    BoxEdges, ContainingBlock, LaidOutBlock, apply_relative_position,
+    BoxEdges, ContainingBlock, Flow, FlowY, LaidOutBlock, apply_relative_position, layout_float,
     layout_independent_shrink_to_fit, relative_offset,
 };
 use crate::box_tree::{
     InlineFormattingContext, InlineItem, has_inline_end_edge, has_inline_start_edge,
 };
+use crate::floats::{EPSILON, FloatBox, Opportunity, PendingFloat};
 use crate::fonts::{self, LineMetrics};
 use crate::fragment::{BoxContent, BoxFragment, Caret, Fragment, PositionedGlyph, TextFragment};
 use crate::geom::{Point, Rect, clamp_length};
@@ -58,27 +69,33 @@ pub(crate) struct InlineLayout {
     /// relative to the content box: the inline extent of the line boxes
     /// in the scrollable overflow of a scroll container.
     pub(crate) content_right: f32,
+    /// The right and bottom margin edges of the floats as in-flow content
+    /// in the scrollable overflow of a scroll container (as measured in
+    /// Chromium 148): in a context without line boxes, the floats count
+    /// like floats among blocks; next to line boxes, only the floats before
+    /// the content of a line count, and only with their right margin edge.
+    /// The other floats count only as descendants.
+    pub(crate) in_flow_floats: crate::geom::Size,
 }
 
-/// Lays out an inline formatting context in a container of `width`. The
-/// pending list markers are placed on the first line box that is not
-/// empty; if there is none, they stay in `markers`.
+/// Lays out an inline formatting context in a container of `width` whose
+/// content box is at `flow` in the block formatting context. The pending
+/// list markers are placed on the first line box that is not empty; if
+/// there is none, they stay in `markers`.
 pub(crate) fn layout_inline(
     ctx: &mut LayoutContext<'_>,
     ifc: &InlineFormattingContext,
     container_style: &Arc<ComputedStyle>,
-    width: f32,
+    cb: ContainingBlock,
     markers: &mut Vec<PendingMarker<'_>>,
+    flow: Flow,
 ) -> InlineLayout {
     let shaped = ctx.shaped(ifc);
-    let cb = ContainingBlock {
-        width,
-        height: None,
-    };
+    let width = cb.width;
     let atomics = layout_atomics(ctx, ifc, cb);
+    let floats = layout_floats(ctx, ifc, cb, flow.x);
     let groups = build_groups(ifc, &shaped, &shaped.break_before, &atomics, width);
     let indent = clamp_length(container_style.text_indent.resolve(width));
-    let lines = break_lines(&groups, width, indent);
 
     let root_metrics = strut_metrics(ctx, container_style);
     let mut builder = LineBuilder {
@@ -86,8 +103,11 @@ pub(crate) fn layout_inline(
         ifc,
         shaped: &shaped,
         atomics,
+        floats,
         container_style,
         width,
+        cb,
+        flow_x: flow.x,
         root_metrics,
         open: Vec::new(),
         fragments: Vec::new(),
@@ -96,16 +116,17 @@ pub(crate) fn layout_inline(
         first_baseline: None,
         last_baseline: None,
         content_right: 0.0,
+        in_flow_floats: crate::geom::Size::default(),
     };
-    for (index, line) in lines.iter().enumerate() {
-        let empty = !builder.has_content(&groups, line);
-        let line_markers = if empty {
-            Vec::new()
-        } else {
-            std::mem::take(markers)
+    if ifc.is_empty() {
+        builder.layout_empty(&groups, indent, flow);
+    } else {
+        // The first line box resolves the position of the container.
+        let content_y = match flow.y {
+            FlowY::Resolved(y) => y,
+            FlowY::Pending { strut, .. } => builder.ctx.bfc().resolve(strut),
         };
-        let line_indent = if index == 0 { indent } else { 0.0 };
-        builder.build_line(&groups, line, line_indent, &line_markers, empty);
+        builder.layout_lines(&groups, indent, content_y, markers);
     }
     InlineLayout {
         fragments: builder.fragments,
@@ -114,7 +135,26 @@ pub(crate) fn layout_inline(
         first_baseline: builder.first_baseline,
         last_baseline: builder.last_baseline,
         content_right: builder.content_right,
+        in_flow_floats: builder.in_flow_floats,
     }
+}
+
+/// [`layout_inline`] for a container that establishes a new block
+/// formatting context (the text of a form control).
+pub(crate) fn layout_inline_root(
+    ctx: &mut LayoutContext<'_>,
+    ifc: &InlineFormattingContext,
+    container_style: &Arc<ComputedStyle>,
+    width: f32,
+) -> InlineLayout {
+    ctx.push_bfc();
+    let cb = ContainingBlock {
+        width,
+        height: None,
+    };
+    let layout = layout_inline(ctx, ifc, container_style, cb, &mut Vec::new(), Flow::ROOT);
+    ctx.pop_bfc();
+    layout
 }
 
 /// A line box that holds only list markers.
@@ -175,22 +215,158 @@ pub(crate) fn content_sizes(
         shaped.break_before.clone()
     };
     let indent = clamp_length(container_style.text_indent.resolve(0.0));
+    let floats = float_content_sizes(ctx, ifc);
     let mut sizes = ContentSizes::default();
     // Min-content: the widest unbreakable group, with the atomic inlines at
-    // their min-content widths.
+    // their min-content widths, or the widest float.
     for group in &build_groups(ifc, &shaped, &break_before, &min_atomics, 0.0) {
         sizes.min = sizes.min.max(group.width - group.trailing_space);
     }
-    // Max-content: the longest line between forced breaks.
+    for float in floats.iter().flatten() {
+        sizes.min = sizes.min.max(float.min);
+    }
+    // Max-content: the longest line between forced breaks; the floats on a
+    // line add their widths, and a float that clears an earlier float on
+    // the line starts a new line (Chromium).
     let mut line = indent;
+    let mut line_floats = LineFloats::default();
     for group in &build_groups(ifc, &shaped, &break_before, &max_atomics, 0.0) {
         line += group.width;
-        sizes.max = sizes.max.max(line - group.trailing_space);
+        if !floats.is_empty() {
+            for piece in group.pieces.clone() {
+                if let Some(Piece::OutOfFlow(item)) = shaped.pieces.get(piece)
+                    && let Some(ended) = line_floats.add(ifc, &floats, *item)
+                {
+                    sizes.max = sizes.max.max(line + ended);
+                }
+            }
+        }
+        sizes.max = sizes
+            .max
+            .max(line - group.trailing_space + line_floats.width());
         if group.forced_break_after {
             line = 0.0;
+            line_floats = LineFloats::default();
         }
     }
     sizes
+}
+
+/// The max-content widths of the left and right floats on a line, for
+/// [`content_sizes`].
+#[derive(Default)]
+struct LineFloats {
+    left: f32,
+    right: f32,
+}
+
+impl LineFloats {
+    fn width(&self) -> f32 {
+        self.left + self.right
+    }
+
+    /// Adds item `item` to the line if it is a float (`floats` holds the
+    /// sizes of the floats by item). A float that clears an earlier float
+    /// of the line starts a new line (Chromium): then returns the width of
+    /// the floats of the line it ends.
+    fn add(
+        &mut self,
+        ifc: &InlineFormattingContext,
+        floats: &[Option<ContentSizes>],
+        item: usize,
+    ) -> Option<f32> {
+        let (Some(Some(float)), Some(InlineItem::Float(inner))) =
+            (floats.get(item), ifc.items.get(item))
+        else {
+            return None;
+        };
+        let style = &inner.base.style;
+        let clears = match style.clear {
+            swb_style::Clear::None => false,
+            swb_style::Clear::Left => self.left > 0.0,
+            swb_style::Clear::Right => self.right > 0.0,
+            swb_style::Clear::Both => self.width() > 0.0,
+        };
+        let ended = clears.then(|| self.width());
+        if clears {
+            *self = LineFloats::default();
+        }
+        if style.float == swb_style::Float::Right {
+            self.right += float.max;
+        } else {
+            self.left += float.max;
+        }
+        ended
+    }
+}
+
+/// The margin-box content sizes of the floats of an inline formatting
+/// context, indexed by item.
+fn float_content_sizes(
+    ctx: &mut LayoutContext<'_>,
+    ifc: &InlineFormattingContext,
+) -> Vec<Option<ContentSizes>> {
+    if !has_floats(ifc) {
+        return Vec::new();
+    }
+    ifc.items
+        .iter()
+        .map(|item| match item {
+            InlineItem::Float(inner) => Some(crate::intrinsic::independent_outer_sizes(ctx, inner)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// True if an inline formatting context has floats.
+fn has_floats(ifc: &InlineFormattingContext) -> bool {
+    ifc.items
+        .iter()
+        .any(|item| matches!(item, InlineItem::Float(_)))
+}
+
+/// Lays out every float of an inline formatting context once, with its
+/// shrink-to-fit width in `cb` (whose content box starts at BFC x `cb_x`).
+/// A float moves with the relatively positioned inline boxes around it
+/// (its exclusion does not).
+fn layout_floats(
+    ctx: &mut LayoutContext<'_>,
+    ifc: &InlineFormattingContext,
+    cb: ContainingBlock,
+    cb_x: f32,
+) -> Vec<Option<Box<(BoxFragment, FloatBox)>>> {
+    if !has_floats(ifc) {
+        return Vec::new();
+    }
+    // The relative offsets of the open inline boxes, and whether they are
+    // positioned.
+    let mut open: Vec<((f32, f32), bool)> = Vec::new();
+    ifc.items
+        .iter()
+        .map(|item| match item {
+            InlineItem::StartBox { base, .. } => {
+                let positioned = base.style.position != swb_style::Position::Static;
+                open.push((relative_offset(&base.style, cb), positioned));
+                None
+            }
+            InlineItem::EndBox { .. } => {
+                open.pop();
+                None
+            }
+            InlineItem::Float(inner) => {
+                let (mut fragment, mut float) = layout_float(ctx, inner, cb, cb_x);
+                for ((dx, dy), _) in &open {
+                    float.relative.x += dx;
+                    float.relative.y += dy;
+                }
+                // Inside a positioned inline box, that box is the containing
+                // block of the absolutely positioned boxes in the float.
+                fragment.in_positioned_inline = open.iter().any(|&(_, positioned)| positioned);
+                Some(Box::new((fragment, float)))
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 /// Lays out every atomic inline once, for the available width.
@@ -198,13 +374,17 @@ fn layout_atomics(
     ctx: &mut LayoutContext<'_>,
     ifc: &InlineFormattingContext,
     cb: ContainingBlock,
-) -> Vec<Option<AtomicLayout>> {
+) -> Atomics {
     ifc.items
         .iter()
         .map(|item| match item {
             InlineItem::Atomic { inner, .. } => {
                 let laid_out = layout_independent_shrink_to_fit(ctx, inner, cb);
-                Some(AtomicLayout::new(laid_out, &inner.base.style, cb.width))
+                Some(Box::new(AtomicLayout::new(
+                    laid_out,
+                    &inner.base.style,
+                    cb.width,
+                )))
             }
             _ => None,
         })
@@ -217,7 +397,7 @@ fn layout_atomics(
 fn atomic_content_sizes(
     ctx: &mut LayoutContext<'_>,
     ifc: &InlineFormattingContext,
-) -> (Vec<Option<AtomicLayout>>, Vec<Option<AtomicLayout>>) {
+) -> (Atomics, Atomics) {
     let sized = |width: f32| AtomicLayout {
         fragment: None,
         margin_width: width,
@@ -230,8 +410,8 @@ fn atomic_content_sizes(
     for item in &ifc.items {
         if let InlineItem::Atomic { inner, .. } = item {
             let sizes = crate::intrinsic::independent_outer_sizes(ctx, inner);
-            min.push(Some(sized(sizes.min)));
-            max.push(Some(sized(sizes.max)));
+            min.push(Some(Box::new(sized(sizes.min))));
+            max.push(Some(Box::new(sized(sizes.max))));
         } else {
             min.push(None);
             max.push(None);
@@ -240,7 +420,12 @@ fn atomic_content_sizes(
     (min, max)
 }
 
+/// The laid-out atomic inlines of a context, indexed by item (boxed: most
+/// items are not atomic inlines).
+type Atomics = Vec<Option<Box<AtomicLayout>>>;
+
 /// A laid-out atomic inline.
+#[derive(Clone)]
 struct AtomicLayout {
     fragment: Option<BoxFragment>,
     /// Width of the margin box.
@@ -387,7 +572,7 @@ fn build_groups(
     ifc: &InlineFormattingContext,
     shaped: &ShapedText,
     break_before: &[bool],
-    atomics: &[Option<AtomicLayout>],
+    atomics: &[Option<Box<AtomicLayout>>],
     cb_width: f32,
 ) -> Vec<Group> {
     // Every piece belongs to exactly one group, in order. Start-box pieces
@@ -490,13 +675,15 @@ struct Line {
     groups: std::ops::Range<usize>,
 }
 
+/// Breaks the groups into lines of `width` (for contexts without line
+/// boxes, which do not avoid floats).
 fn break_lines(groups: &[Group], width: f32, indent: f32) -> Vec<Line> {
     let mut lines = Vec::new();
     let mut start = 0;
     let mut used = indent;
     let mut has_content = false;
     for (i, group) in groups.iter().enumerate() {
-        let fits = used + group.width - group.trailing_space <= width + 0.01;
+        let fits = used + group.width - group.trailing_space <= width + FIT_TOLERANCE;
         if has_content && !fits {
             lines.push(Line { groups: start..i });
             start = i;
@@ -593,9 +780,17 @@ struct LineBuilder<'a, 'b> {
     ctx: &'a mut LayoutContext<'b>,
     ifc: &'a InlineFormattingContext,
     shaped: &'a ShapedText,
-    atomics: Vec<Option<AtomicLayout>>,
+    atomics: Atomics,
+    /// The laid-out floats, indexed by item.
+    floats: Vec<Option<Box<(BoxFragment, FloatBox)>>>,
     container_style: &'a Arc<ComputedStyle>,
+    /// The width of the container's content box.
     width: f32,
+    /// The containing block of the inline-level boxes: the container's
+    /// content box.
+    cb: ContainingBlock,
+    /// The BFC x of the container's content box.
+    flow_x: f32,
     root_metrics: Strut,
     /// Inline boxes open at the end of the previous line.
     open: Vec<(usize, Arc<ComputedStyle>)>,
@@ -606,6 +801,8 @@ struct LineBuilder<'a, 'b> {
     last_baseline: Option<f32>,
     /// See [`InlineLayout::content_right`].
     content_right: f32,
+    /// See [`InlineLayout::in_flow_floats`].
+    in_flow_floats: crate::geom::Size,
 }
 
 /// Vertical extent of the line content relative to the root baseline.
@@ -666,9 +863,122 @@ struct LineState {
     /// The static position rules of the placeholders on the line, in
     /// tree order.
     placeholders: Vec<StaticRule>,
+    /// The piece being placed.
+    piece: usize,
+    /// The piece at which each fragment of `top_level` was added: the
+    /// floats of the line go among them in tree order (see
+    /// `LineBuilder::insert_line_floats`).
+    top_level_pieces: Vec<usize>,
+}
+
+/// The result of filling one line (see `LineBuilder::fill_line`).
+struct Fill {
+    /// The end of the line's groups.
+    end: usize,
+    /// The free range of the line in BFC x, after the floats on it.
+    left: f32,
+    right: f32,
+    /// True if the content is wider than the free range.
+    overflow: bool,
+    placed: Vec<LineFloat>,
+    /// Floats to place below the line.
+    queued: Vec<FloatAt>,
+    /// The state before the first float placed on the line.
+    checkpoint: Option<crate::floats::Checkpoint>,
+    /// The state before the first float placed in the current group.
+    group_checkpoint: Option<crate::floats::Checkpoint>,
+}
+
+/// A float placed on a line that is being tried.
+struct LineFloat {
+    item: usize,
+    /// Its piece (for its place among the line's fragments).
+    piece: usize,
+    /// The position of its border box in the container's content box.
+    position: Point,
+}
+
+/// A float of a line and its piece, which decides its place among the
+/// line's fragments (see `LineBuilder::insert_line_floats`).
+#[derive(Clone, Copy)]
+struct FloatAt {
+    item: usize,
+    piece: usize,
+}
+
+/// Where a line starts.
+struct LineStart {
+    /// The first group of the line.
+    group: usize,
+    /// The first piece after the floats placed before the line (see
+    /// `LineBuilder::place_leading_floats`).
+    leading_end: usize,
+    /// The text indent of the line.
+    indent: f32,
+    /// The BFC y of the container's content box.
+    content_y: f32,
+}
+
+/// Where a float is found on a line that is being filled.
+#[derive(Clone, Copy)]
+struct FloatSite {
+    /// The float's piece.
+    piece: usize,
+    /// The width of the content before it on the line.
+    position: f32,
+    /// The width of the hanging white space at the end of that content.
+    trailing_space: f32,
+    /// True if content (see `LineBuilder::piece_has_content`) is on the
+    /// line before its group.
+    content_before: bool,
+}
+
+/// Why a line does not fit in a layout opportunity.
+enum Reject {
+    /// Its content is wider than the opportunity; `need` is the width that
+    /// the line needs at least (see `LineBuilder::min_line_width`).
+    TooWide { need: f32 },
+    /// It is taller than the opportunity: the float segment with this
+    /// index narrows the free space within its height (see
+    /// [`crate::floats::Bfc::narrowing_below`]).
+    TooTall(usize),
+}
+
+/// Content fits on a line if it is at most this much wider than the line
+/// (text widths are sums of rounded advances).
+const FIT_TOLERANCE: f32 = 0.01;
+
+/// The most layout opportunities that one line is tried in; then it goes
+/// below all floats of the BFC. Opportunities narrower than the line's
+/// first word are skipped without a try and do not count.
+const MAX_LINE_ATTEMPTS: usize = 64;
+
+/// The work budget units that a line attempt that does not fit costs, per
+/// piece of the line (see [`crate::floats::WORK_BUDGET`]).
+const LINE_RETRY_COST: u64 = 50;
+
+/// A line that fits in a layout opportunity, built but not yet added.
+struct TriedLine {
+    state: LineState,
+    /// The inline boxes that continue on the next line.
+    open: Vec<(usize, Arc<ComputedStyle>)>,
+    line: Line,
+    empty: bool,
+    /// The BFC y of the line's top.
+    top: f32,
+    /// The free range of the line in BFC x.
+    left: f32,
+    right: f32,
+    placed: Vec<LineFloat>,
+    queued: Vec<FloatAt>,
 }
 
 impl LineState {
+    /// The height of the line box.
+    fn height(&self) -> f32 {
+        let extent = self.extent.or_zero();
+        extent.bottom - extent.top
+    }
     fn new(root: Strut, indent: f32, quirky: bool) -> Self {
         LineState {
             root,
@@ -690,6 +1000,8 @@ impl LineState {
             trailing_space: 0.0,
             has_content: false,
             placeholders: Vec::new(),
+            piece: 0,
+            top_level_pieces: Vec::new(),
         }
     }
 
@@ -755,9 +1067,11 @@ impl LineState {
     }
 
     fn push_child(&mut self, fragment: Fragment) {
-        match self.stack.last_mut() {
-            Some(open) => open.children.push(fragment),
-            None => self.top_level.push(fragment),
+        if let Some(open) = self.stack.last_mut() {
+            open.children.push(fragment);
+        } else {
+            self.top_level.push(fragment);
+            self.top_level_pieces.push(self.piece);
         }
     }
 }
@@ -776,8 +1090,14 @@ impl LineBuilder<'_, '_> {
     /// than collapsible spaces, an atomic inline, a forced break, or an
     /// inline box edge with a non-zero margin, border or padding.
     fn has_content(&self, groups: &[Group], line: &Line) -> bool {
-        Self::piece_range(groups, line).any(|i| match &self.shaped.pieces[i] {
-            Piece::Text { run, text, .. } => {
+        Self::piece_range(groups, line).any(|i| self.piece_has_content(i))
+    }
+
+    /// True if piece `i` makes a line not empty (see `has_content`). In
+    /// quirks mode, margins do not make a line non-empty.
+    fn piece_has_content(&self, i: usize) -> bool {
+        match self.shaped.pieces.get(i) {
+            Some(Piece::Text { run, text, .. }) => {
                 let collapses = self
                     .text_style(&self.shaped.runs[*run])
                     .white_space
@@ -785,39 +1105,587 @@ impl LineBuilder<'_, '_> {
                 let text = self.ifc.text.get(text.clone()).unwrap_or("");
                 !text.is_empty() && (!collapses || text.chars().any(|c| c != ' '))
             }
-            Piece::Atomic(_) | Piece::LineBreak(_) => true,
-            // In quirks mode, margins do not make a line non-empty.
-            Piece::StartBox(item) => {
+            Some(Piece::Atomic(_) | Piece::LineBreak(_)) => true,
+            Some(Piece::StartBox(item)) => {
                 !is_continued(self.ifc, *item)
                     && inline_box_style(self.ifc, *item).is_some_and(|s| {
                         has_quirky_start_edge(s)
                             || (!self.ctx.line_height_quirks && has_inline_start_edge(s))
                     })
             }
-            Piece::EndBox { start, split } => {
+            Some(Piece::EndBox { start, split }) => {
                 !split
                     && inline_box_style(self.ifc, *start).is_some_and(|s| {
                         has_quirky_end_edge(s)
                             || (!self.ctx.line_height_quirks && has_inline_end_edge(s))
                     })
             }
-            Piece::OutOfFlow(_) => false,
+            Some(Piece::OutOfFlow(_)) | None => false,
+        }
+    }
+
+    /// The width that piece `i` takes on a line.
+    fn piece_width(&self, i: usize) -> f32 {
+        match self.shaped.pieces.get(i) {
+            Some(Piece::Text { width, .. }) => *width,
+            Some(Piece::Atomic(item)) => self
+                .atomics
+                .get(*item)
+                .and_then(Option::as_ref)
+                .map_or(0.0, |a| a.margin_width),
+            Some(Piece::StartBox(item)) if !is_continued(self.ifc, *item) => {
+                inline_box_edges(self.ifc, *item, self.width).map_or(0.0, |e| e.start())
+            }
+            Some(Piece::EndBox {
+                start,
+                split: false,
+            }) => inline_box_edges(self.ifc, *start, self.width).map_or(0.0, |e| e.end()),
+            _ => 0.0,
+        }
+    }
+
+    /// The float at piece `i`, if it is one.
+    fn float_at(&self, i: usize) -> Option<usize> {
+        match self.shaped.pieces.get(i) {
+            Some(Piece::OutOfFlow(item)) if self.floats.get(*item).is_some_and(Option::is_some) => {
+                Some(*item)
+            }
+            _ => None,
+        }
+    }
+
+    /// Lays out a context without line boxes (no content, maybe floats): its
+    /// lines are empty, and its floats are placed at the top of the
+    /// container, or wait for the container's position.
+    fn layout_empty(&mut self, groups: &[Group], indent: f32, flow: Flow) {
+        // The floats are placed first: the empty lines start after them, if
+        // the position is known (then the static positions of the
+        // placeholders on the lines follow from there).
+        if let FlowY::Resolved(y) = flow.y {
+            for slot in self.floats.iter_mut().flatten() {
+                let (fragment, float) = &mut **slot;
+                let parent = Point::new(self.flow_x, y);
+                let position = self.ctx.bfc().place_in(float, y, parent);
+                fragment.border_rect.x = position.x;
+                fragment.border_rect.y = position.y;
+                let end = margin_box_end(fragment, self.cb);
+                self.in_flow_floats.width = self.in_flow_floats.width.max(end.width);
+                self.in_flow_floats.height = self.in_flow_floats.height.max(end.height);
+            }
+        }
+        let left = match flow.y {
+            FlowY::Resolved(y) => {
+                let cx1 = self.flow_x + self.width;
+                self.ctx.bfc().exclusions.range_at(y, self.flow_x, cx1).0 - self.flow_x
+            }
+            FlowY::Pending { .. } => 0.0,
+        };
+        // The floats go among the fragments of the lines in tree order.
+        let floats: Vec<FloatAt> = self
+            .shaped
+            .pieces
+            .iter()
+            .enumerate()
+            .filter_map(|(piece, p)| match p {
+                Piece::OutOfFlow(item) if self.floats.get(*item).is_some_and(Option::is_some) => {
+                    Some(FloatAt { item: *item, piece })
+                }
+                _ => None,
+            })
+            .collect();
+        let line_start = self.fragments.len();
+        let mut pieces = Vec::new();
+        for line in break_lines(groups, self.width, indent) {
+            let (state, open) = self.build_line(groups, &line, 0.0, &[], self.open.clone());
+            self.open = open;
+            pieces.extend(self.finish_empty_line(state, left));
+        }
+        let waiting = matches!(flow.y, FlowY::Pending { .. });
+        self.insert_line_floats(line_start, &pieces, floats, waiting);
+    }
+
+    /// Lays out the lines of a context with line boxes, in a container
+    /// whose content box is at BFC y `content_y`.
+    fn layout_lines(
+        &mut self,
+        groups: &[Group],
+        indent: f32,
+        content_y: f32,
+        markers: &mut Vec<PendingMarker<'_>>,
+    ) {
+        let mut next = 0;
+        let mut first = true;
+        while next < groups.len() {
+            let line_top = content_y + self.y;
+            let start = LineStart {
+                group: next,
+                leading_end: self.place_leading_floats(groups, next, line_top, content_y),
+                indent: if first { indent } else { 0.0 },
+                content_y,
+            };
+            let Some(line) = self.fit_line(groups, &start, line_top, markers) else {
+                return;
+            };
+            next = self.commit_line(groups, line, content_y, markers);
+            first = false;
+        }
+    }
+
+    /// Finds the first layout opportunity at or below `line_top` where the
+    /// line from `start` fits, and builds the line there (Chromium's
+    /// `InlineLayoutAlgorithm::Layout`). The opportunities are produced one
+    /// at a time ([`crate::floats::Bfc`]): at each position, the widest
+    /// first; if the line is too tall for it, the next narrower one that
+    /// reaches lower; if the line is too wide, the next position where the
+    /// free space changes. Once the line was too wide, opportunities
+    /// narrower than its first word are skipped. After
+    /// [`MAX_LINE_ATTEMPTS`] attempts, the line goes below all floats.
+    fn fit_line(
+        &mut self,
+        groups: &[Group],
+        start: &LineStart,
+        line_top: f32,
+        markers: &[PendingMarker<'_>],
+    ) -> Option<TriedLine> {
+        let (cx0, cx1) = (self.flow_x, self.flow_x + self.width);
+        if !self.ctx.bfc().exclusions.is_empty() {
+            let mut attempts = 0;
+            // The width the line needs, once it was too wide somewhere.
+            let mut need = 0.0;
+            let mut top = line_top;
+            'positions: loop {
+                let mut candidate = self.ctx.bfc().opportunity_at(top, cx0, cx1);
+                while let Some(o) = candidate {
+                    if !o.full_width && o.width() + FIT_TOLERANCE < need {
+                        // Too wide here too, and in the narrower ones.
+                        break;
+                    }
+                    candidate = match self.try_line(groups, start, &o, markers) {
+                        Ok(line) => return Some(line),
+                        Err(Reject::TooTall(at)) => self.ctx.bfc().narrower(&o, at, cx0, cx1),
+                        Err(Reject::TooWide { need: n }) => {
+                            need = n;
+                            None
+                        }
+                    };
+                    attempts += 1;
+                    if attempts >= MAX_LINE_ATTEMPTS {
+                        break 'positions;
+                    }
+                }
+                match self.ctx.bfc().next_top(top) {
+                    Some(next) => top = next,
+                    None => break,
+                }
+            }
+        }
+        // The last opportunity always takes the line.
+        let last = self.ctx.bfc().exclusions.below_all(line_top, cx0, cx1);
+        self.try_line(groups, start, &last, markers).ok()
+    }
+
+    /// Places the floats at the start of the line that starts with group
+    /// `start` (before its first content), at the line's top. Returns the
+    /// index of the first piece after them.
+    fn place_leading_floats(
+        &mut self,
+        groups: &[Group],
+        start: usize,
+        line_top: f32,
+        content_y: f32,
+    ) -> usize {
+        let Some(group) = groups.get(start) else {
+            return 0;
+        };
+        if self.floats.is_empty() {
+            return group.pieces.start;
+        }
+        let mut end = group.pieces.start;
+        for i in group.pieces.clone() {
+            if self.piece_has_content(i) {
+                break;
+            }
+            if let Some(item) = self.float_at(i) {
+                self.place_float_now(item, line_top, content_y);
+                if let Some(Fragment::Box(b)) = self.fragments.last() {
+                    let right = margin_box_end(b, self.cb).width;
+                    self.in_flow_floats.width = self.in_flow_floats.width.max(right);
+                }
+            }
+            end = i + 1;
+        }
+        end
+    }
+
+    /// Places float `item` at or below `origin` and adds its fragment.
+    fn place_float_now(&mut self, item: usize, origin: f32, content_y: f32) {
+        self.place_float(item, origin, content_y);
+        self.push_float(item, false);
+    }
+
+    /// Places float `item` at or below `origin` (its fragment stays in
+    /// `floats` until [`LineBuilder::push_float`]).
+    fn place_float(&mut self, item: usize, origin: f32, content_y: f32) {
+        let Some(Some(slot)) = self.floats.get_mut(item) else {
+            return;
+        };
+        let (fragment, float) = &mut **slot;
+        let parent = Point::new(self.flow_x, content_y);
+        let position = self.ctx.bfc().place_in(float, origin, parent);
+        fragment.border_rect.x = position.x;
+        fragment.border_rect.y = position.y;
+    }
+
+    /// Adds the fragment of float `item`; with `waiting`, the float waits
+    /// for the container's position (as the child with its index).
+    fn push_float(&mut self, item: usize, waiting: bool) {
+        let Some((fragment, float)) = self.floats.get_mut(item).and_then(Option::take).map(|b| *b)
+        else {
+            return;
+        };
+        if waiting {
+            self.ctx.bfc().add_pending(PendingFloat {
+                path: vec![u32::try_from(self.fragments.len()).unwrap_or(u32::MAX)],
+                float,
+                origin_x: self.flow_x,
+            });
+        }
+        self.fragments.push(Fragment::Box(fragment));
+    }
+
+    /// Puts the floats of a line among its fragments (from `line_start`,
+    /// added at the pieces `pieces`) in tree order: before the first
+    /// fragment added at a later piece. The paint order of positioned boxes
+    /// with equal z-index follows the fragment order. A float inside an
+    /// inline box goes before that box's fragment (which is added at the
+    /// box's end).
+    fn insert_line_floats(
+        &mut self,
+        line_start: usize,
+        pieces: &[usize],
+        mut floats: Vec<FloatAt>,
+        waiting: bool,
+    ) {
+        if floats.is_empty() {
+            return;
+        }
+        floats.sort_by_key(|f| f.piece);
+        let line = self
+            .fragments
+            .split_off(line_start.min(self.fragments.len()));
+        let mut floats = floats.into_iter().peekable();
+        for (k, fragment) in line.into_iter().enumerate() {
+            let piece = pieces.get(k).copied().unwrap_or(usize::MAX);
+            while let Some(float) = floats.next_if(|f| f.piece < piece) {
+                self.push_float(float.item, waiting);
+            }
+            self.fragments.push(fragment);
+        }
+        for float in floats {
+            self.push_float(float.item, waiting);
+        }
+    }
+
+    /// Fills and builds the line from `start` in opportunity `o`. If it
+    /// does not fit there, returns why; then nothing changed, and the
+    /// attempt is charged to the work budget.
+    fn try_line(
+        &mut self,
+        groups: &[Group],
+        start: &LineStart,
+        o: &Opportunity,
+        markers: &[PendingMarker<'_>],
+    ) -> Result<TriedLine, Reject> {
+        let fill = self.fill_line(groups, start, o);
+        let line = Line {
+            groups: start.group..fill.end,
+        };
+        let empty = !self.has_content(groups, &line);
+        // A line that is too wide moves down, unless no float narrows the
+        // containing block here (Chromium's
+        // `IsEqualToAvailableFloatInlineSize`) or the container does not
+        // wrap lines (`ShouldWrapLine`).
+        if fill.overflow && !empty && !o.full_width && self.container_style.white_space.wraps() {
+            let need = self.min_line_width(groups, start);
+            return Err(self.reject(groups, &line, fill, Reject::TooWide { need }));
+        }
+        let line_markers: &[PendingMarker<'_>] = if empty { &[] } else { markers };
+        let (state, open) =
+            self.build_line(groups, &line, start.indent, line_markers, self.open.clone());
+        // The line's own floats do not count (they are beside it).
+        let (cx0, cx1) = (self.flow_x, self.flow_x + self.width);
+        let before = fill.checkpoint.as_ref();
+        if !empty
+            && let Some(at) = self
+                .ctx
+                .bfc()
+                .narrowing_below(o, state.height(), cx0, cx1, before)
+        {
+            return Err(self.reject(groups, &line, fill, Reject::TooTall(at)));
+        }
+        Ok(TriedLine {
+            state,
+            open,
+            line,
+            empty,
+            top: o.top,
+            left: fill.left,
+            right: fill.right,
+            placed: fill.placed,
+            queued: fill.queued,
         })
     }
 
+    /// The width that the line from `start` needs at least: its text indent
+    /// and its first group, which it always takes; 0 if that group has no
+    /// content (the line may then be empty, and an empty line does not
+    /// overflow).
+    fn min_line_width(&self, groups: &[Group], start: &LineStart) -> f32 {
+        groups
+            .get(start.group)
+            .filter(|g| g.pieces.clone().any(|i| self.piece_has_content(i)))
+            .map_or(0.0, |g| start.indent + g.width - g.trailing_space)
+    }
+
+    /// Undoes the floats of a line attempt that does not fit, and charges
+    /// the attempt to the work budget. Returns `reason`.
+    fn reject(&mut self, groups: &[Group], line: &Line, fill: Fill, reason: Reject) -> Reject {
+        if let Some(checkpoint) = fill.checkpoint {
+            self.ctx.bfc().restore(checkpoint);
+        }
+        let pieces = u64::try_from(Self::piece_range(groups, line).len()).unwrap_or(u64::MAX);
+        self.ctx
+            .bfc()
+            .charge(LINE_RETRY_COST.saturating_mul(pieces.saturating_add(1)));
+        reason
+    }
+
+    /// Fills a line greedily from `start` in opportunity `o`, and places
+    /// the floats on it that fit beside the content before them (Chromium's
+    /// `LineBreaker::HandleFloat`); the others are queued for below the
+    /// line.
+    fn fill_line(&mut self, groups: &[Group], start: &LineStart, o: &Opportunity) -> Fill {
+        let mut fill = Fill {
+            end: start.group,
+            left: o.left,
+            right: o.right,
+            overflow: false,
+            placed: Vec::new(),
+            queued: Vec::new(),
+            checkpoint: None,
+            group_checkpoint: None,
+        };
+        let mut used = start.indent;
+        // True once a group with content (see `piece_has_content`) is on
+        // the line.
+        let mut content_before = false;
+        let mut trailing = 0.0;
+        for (index, group) in groups.iter().enumerate().skip(start.group) {
+            let width = used + group.width - group.trailing_space;
+            if fill.end > start.group && width > fill.right - fill.left + FIT_TOLERANCE {
+                break;
+            }
+            if !self.floats.is_empty() {
+                let site = FloatSite {
+                    piece: 0,
+                    position: used,
+                    trailing_space: 0.0,
+                    content_before,
+                };
+                if !self.group_floats(group, site, start, o, &mut fill) {
+                    break;
+                }
+                content_before =
+                    content_before || group.pieces.clone().any(|i| self.piece_has_content(i));
+            }
+            used += group.width;
+            trailing = group.trailing_space;
+            fill.end = index + 1;
+            if group.forced_break_after {
+                break;
+            }
+        }
+        fill.overflow = used - trailing > fill.right - fill.left + FIT_TOLERANCE;
+        fill
+    }
+
+    /// Handles the floats in `group`, which starts at `site.position` on
+    /// the line. Returns false if a float inside the group (no break
+    /// opportunity around it) leaves no room for the rest of the group:
+    /// then the group's floats are undone, the line ends before the group,
+    /// and the floats are placed again on the next line (Chromium rewinds
+    /// the line breaker).
+    fn group_floats(
+        &mut self,
+        group: &Group,
+        mut site: FloatSite,
+        start: &LineStart,
+        o: &Opportunity,
+        fill: &mut Fill,
+    ) -> bool {
+        let used = site.position;
+        let (left, right) = (fill.left, fill.right);
+        let (placed, queued) = (fill.placed.len(), fill.queued.len());
+        let (cx0, cx1) = (self.flow_x, self.flow_x + self.width);
+        for i in group.pieces.clone() {
+            if let Some(item) = self.float_at(i) {
+                if i >= start.leading_end {
+                    self.handle_float(item, FloatSite { piece: i, ..site }, start, o, fill);
+                    let (l, r) = self.ctx.bfc().exclusions.range_at(o.top, cx0, cx1);
+                    fill.left = fill.left.max(l);
+                    fill.right = fill.right.min(r).max(fill.left);
+                }
+                continue;
+            }
+            site.position += self.piece_width(i);
+            site.trailing_space = match self.shaped.pieces.get(i) {
+                Some(Piece::Text { trailing_space, .. }) => *trailing_space,
+                _ => 0.0,
+            };
+        }
+        if let Some(checkpoint) = fill.group_checkpoint.take()
+            && used + group.width - group.trailing_space > fill.right - fill.left + FIT_TOLERANCE
+        {
+            self.ctx.bfc().restore(checkpoint);
+            (fill.left, fill.right) = (left, right);
+            fill.placed.truncate(placed);
+            fill.queued.truncate(queued);
+            return false;
+        }
+        true
+    }
+
+    /// Places float `item`, found at `site` on a line at the top of `o`, on
+    /// the line if it fits, else queues it for below the line. The state
+    /// before the first float placed on the line is saved, for a retry in
+    /// another opportunity; if the line already has content, also the
+    /// state before the first float of the group.
+    fn handle_float(
+        &mut self,
+        item: usize,
+        site: FloatSite,
+        start: &LineStart,
+        o: &Opportunity,
+        fill: &mut Fill,
+    ) {
+        let line_top = o.top;
+        let Some((_, float)) = self.floats.get(item).and_then(Option::as_deref) else {
+            return;
+        };
+        let width = float.width.max(0.0);
+        let available = fill.right - fill.left;
+        let fits = site.position + width <= available + FIT_TOLERANCE
+            || site.position - site.trailing_space + width <= available + FIT_TOLERANCE;
+        let exclusions = &self.ctx.bfc().exclusions;
+        let below = !fits
+            || exclusions.last_float_top() > line_top + EPSILON
+            || exclusions
+                .clearance(float.clear)
+                .is_some_and(|c| c > line_top + EPSILON)
+            || !fill.queued.is_empty();
+        if below {
+            fill.queued.push(FloatAt {
+                item,
+                piece: site.piece,
+            });
+            return;
+        }
+        let float = *float;
+        // The last opportunity always takes the line, so nothing to undo
+        // there; once the work budget is spent, every opportunity is the
+        // last and nothing is copied. The rewind of a word is skipped then
+        // too.
+        if fill.checkpoint.is_none() && !o.last {
+            fill.checkpoint = Some(self.ctx.bfc().checkpoint());
+        }
+        if site.content_before && fill.group_checkpoint.is_none() && self.ctx.bfc().budget > 0 {
+            fill.group_checkpoint = Some(self.ctx.bfc().checkpoint());
+        }
+        let parent = Point::new(self.flow_x, start.content_y);
+        let position = self.ctx.bfc().place_in(&float, line_top, parent);
+        fill.placed.push(LineFloat {
+            item,
+            piece: site.piece,
+            position,
+        });
+    }
+
+    /// Adds a tried line to the layout; places the floats queued for below
+    /// it. Returns the first group of the next line.
+    fn commit_line(
+        &mut self,
+        groups: &[Group],
+        line: TriedLine,
+        content_y: f32,
+        markers: &mut Vec<PendingMarker<'_>>,
+    ) -> usize {
+        let TriedLine {
+            state,
+            open,
+            line,
+            empty,
+            top,
+            left,
+            right,
+            placed,
+            queued,
+        } = line;
+        self.open = open;
+        let mut floats = Vec::with_capacity(placed.len() + queued.len());
+        for LineFloat {
+            item,
+            piece,
+            position,
+        } in placed
+        {
+            if let Some(Some(slot)) = self.floats.get_mut(item) {
+                slot.0.border_rect.x = position.x;
+                slot.0.border_rect.y = position.y;
+            }
+            floats.push(FloatAt { item, piece });
+        }
+        let line_start = self.fragments.len();
+        let pieces = if empty {
+            self.finish_empty_line(state, left - self.flow_x)
+        } else {
+            markers.clear();
+            self.y = top - content_y;
+            let soft_wrap = self.ends_at_soft_wrap(Self::piece_range(groups, &line));
+            self.finish_line(state, left - self.flow_x, right - left, soft_wrap)
+        };
+        let bottom = content_y + self.y;
+        for float in queued {
+            self.place_float(float.item, bottom, content_y);
+            floats.push(float);
+        }
+        self.insert_line_floats(line_start, &pieces, floats, false);
+        // A `<br>` with `clear` moves the next line below the floats.
+        let groups_end = line.groups.end;
+        if let Some(clear) = self.line_break_clear(groups, &line)
+            && let Some(c) = self.ctx.bfc().exclusions.clearance(clear)
+        {
+            self.y = self.y.max(c - content_y);
+        }
+        groups_end
+    }
+
+    /// Builds a line; `open` are the inline boxes that continue from the
+    /// previous line. Returns the line and the boxes that continue on the
+    /// next line.
     fn build_line(
         &mut self,
         groups: &[Group],
         line: &Line,
         indent: f32,
         markers: &[PendingMarker<'_>],
-        empty: bool,
-    ) {
+        open: Vec<(usize, Arc<ComputedStyle>)>,
+    ) -> (LineState, Vec<(usize, Arc<ComputedStyle>)>) {
+        self.ctx.layout_units += 1;
         let quirky =
             self.ctx.line_height_quirks && self.container_style.display != Display::ListItem;
         let mut state = LineState::new(self.root_metrics, indent, quirky);
         // Re-open boxes that continue from the previous line.
-        for (item, style) in std::mem::take(&mut self.open) {
+        for (item, style) in open {
             let (baseline, strut) = state.parent();
             let open = self.open_box(item, &style, state.x, baseline, &strut, true);
             state.push_open(open, false);
@@ -825,8 +1693,9 @@ impl LineBuilder<'_, '_> {
 
         let piece_range = Self::piece_range(groups, line);
         let trim = self.trailing_space_to_remove(piece_range.clone());
-        let soft_wrap = self.ends_at_soft_wrap(piece_range.clone());
+        let end = piece_range.end;
         for i in piece_range {
+            state.piece = i;
             match &self.shaped.pieces[i] {
                 Piece::StartBox(item) => self.start_box(&mut state, *item),
                 Piece::EndBox { split, .. } => {
@@ -852,18 +1721,32 @@ impl LineBuilder<'_, '_> {
         }
 
         // Close boxes that continue on the next line.
+        state.piece = end;
+        let mut continuing = Vec::new();
         while let Some(open) = state.stack.pop() {
-            self.open.insert(0, (open.item, Arc::clone(&open.style)));
+            continuing.insert(0, (open.item, Arc::clone(&open.style)));
             let fragment = self.close_box(open, &mut state.x, true);
             state.push_child(Fragment::Box(fragment));
         }
         for pending in markers {
             self.place_marker(*pending, &mut state);
         }
-        if empty {
-            self.finish_empty_line(state);
-        } else {
-            self.finish_line(state, soft_wrap);
+        (state, continuing)
+    }
+
+    /// The `clear` of the `<br>` that ends a line, if any.
+    fn line_break_clear(&self, groups: &[Group], line: &Line) -> Option<swb_style::Clear> {
+        let last = Self::piece_range(groups, line).last()?;
+        match self.shaped.pieces.get(last) {
+            Some(Piece::LineBreak(item)) => match self.ifc.items.get(*item) {
+                Some(InlineItem::LineBreak(Some(base)))
+                    if base.style.clear != swb_style::Clear::None =>
+                {
+                    Some(base.style.clear)
+                }
+                _ => None,
+            },
+            _ => None,
         }
     }
 
@@ -979,7 +1862,7 @@ impl LineBuilder<'_, '_> {
     fn place_atomic(&mut self, state: &mut LineState, item: usize) {
         state.trailing_space = 0.0;
         state.has_content = true;
-        let Some(atomic) = self.atomics.get_mut(item).and_then(Option::take) else {
+        let Some(atomic) = self.atomics.get(item).and_then(|a| a.as_deref()).cloned() else {
             return;
         };
         let InlineItem::Atomic { inner, .. } = &self.ifc.items[item] else {
@@ -1039,19 +1922,24 @@ impl LineBuilder<'_, '_> {
 
     /// The containing block of the inline-level boxes of the line.
     fn containing_block(&self) -> ContainingBlock {
-        ContainingBlock {
-            width: self.width,
-            height: None,
-        }
+        self.cb
     }
 
-    /// Aligns the line horizontally, positions it below the previous line
-    /// and appends its fragments. `soft_wrap` is true if the line ends at a
-    /// soft wrap opportunity.
-    fn finish_line(&mut self, mut state: LineState, soft_wrap: bool) {
+    /// Aligns the line horizontally in its free range (`left` px from the
+    /// content box's left edge, `width` px wide), positions it at `self.y`
+    /// and appends its fragments. Outside list markers go to the left of
+    /// the free range, as in Chromium. `soft_wrap` is true if the line ends
+    /// at a soft wrap opportunity.
+    fn finish_line(
+        &mut self,
+        mut state: LineState,
+        left: f32,
+        width: f32,
+        soft_wrap: bool,
+    ) -> Vec<usize> {
         state.extent = state.extent.or_zero();
         let line_width = state.x - state.trailing_space;
-        let offset = self.align_offset(line_width);
+        let offset = left + self.align_offset(line_width, width);
         self.content_right = self.content_right.max(offset + line_width);
         let line_top = self.y;
         let baseline_y = line_top - state.extent.top;
@@ -1059,14 +1947,14 @@ impl LineBuilder<'_, '_> {
             fragment.move_by(offset, baseline_y);
         }
         for fragment in &mut state.outside_markers {
-            fragment.move_by(0.0, baseline_y);
+            fragment.move_by(left, baseline_y);
         }
         let line_height = state.extent.bottom - state.extent.top;
         let cb = self.containing_block();
         // The white space at the end hangs at a soft wrap, and at a forced
         // break or the end of the content only if it does not fit (CSS
         // Text 3 §4.1.3, as Chromium 148).
-        let hangs = state.trailing_space > 0.0 && (soft_wrap || state.x > self.width);
+        let hangs = state.trailing_space > 0.0 && (soft_wrap || state.x > width);
         for fragment in &mut state.top_level {
             set_line_box(fragment, 0.0, line_top, line_height, cb);
             if hangs {
@@ -1082,23 +1970,28 @@ impl LineBuilder<'_, '_> {
             let line = (line_top, line_top + line_height);
             move_placeholders(&mut state.top_level, &state.placeholders, line);
         }
+        let mut pieces = std::mem::take(&mut state.top_level_pieces);
+        pieces.resize(pieces.len() + state.outside_markers.len(), usize::MAX);
         self.fragments.append(&mut state.top_level);
         self.fragments.append(&mut state.outside_markers);
         self.y = line_top + line_height;
+        pieces
     }
 
     /// Appends the fragments of an empty line: zero height at the current
-    /// position (Chromium gives its inline boxes zero-height fragments).
-    fn finish_empty_line(&mut self, mut state: LineState) {
+    /// position, `left` px from the content box's left edge (Chromium gives
+    /// its inline boxes zero-height fragments).
+    fn finish_empty_line(&mut self, mut state: LineState, left: f32) -> Vec<usize> {
         for fragment in &mut state.top_level {
             collapse_to_line_top(fragment);
-            fragment.move_by(0.0, self.y);
+            fragment.move_by(left, self.y);
         }
         if !state.placeholders.is_empty() {
             let line = (self.y, self.y);
             move_placeholders(&mut state.top_level, &state.placeholders, line);
         }
         self.fragments.append(&mut state.top_level);
+        state.top_level_pieces
     }
 
     /// The last text piece of a line and the end of its glyphs without the
@@ -1238,14 +2131,19 @@ impl LineBuilder<'_, '_> {
                 fragment.move_by(shaped.width, 0.0);
             }
             state.x += shaped.width;
+            let start = state.top_level.len();
             state.top_level.extend(shaped.place(0.0, 0.0));
+            let added = state.top_level.len() - start;
+            state
+                .top_level_pieces
+                .extend(std::iter::repeat_n(state.piece, added));
         }
     }
 
     /// The horizontal offset of a line for `text-align`. `justify` is not
     /// supported and aligns to the start.
-    fn align_offset(&self, line_width: f32) -> f32 {
-        let free = self.width - line_width;
+    fn align_offset(&self, line_width: f32, width: f32) -> f32 {
+        let free = width - line_width;
         if free <= 0.0 {
             return 0.0;
         }
@@ -1267,6 +2165,14 @@ fn has_quirky_start_edge(style: &ComputedStyle) -> bool {
 /// The end-side version of [`has_quirky_start_edge`].
 fn has_quirky_end_edge(style: &ComputedStyle) -> bool {
     style.border_right_width > 0.0 || !style.padding_right.is_zero()
+}
+
+/// The right and bottom margin edges of a float in the content box (see
+/// [`crate::scroll::InflowExtent`]).
+fn margin_box_end(b: &BoxFragment, cb: ContainingBlock) -> crate::geom::Size {
+    let mut extent = crate::scroll::InflowExtent::default();
+    extent.add(b, cb, false);
+    extent.finish(0.0)
 }
 
 /// How the static position of an absolutely positioned box in inline

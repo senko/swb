@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Lines next to floats in containers that do not wrap lines
+     (white-space: nowrap or pre): a line that is too wide stays next to
+     the floats and overflows; only a line that is too tall moves to
+     another layout opportunity (Chromium's ShouldWrapLine). With
+     white-space: pre-wrap the line moves below the float. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lines next to floats without wrapping</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .case { display: flow-root; width: 600px; margin-bottom: 10px; background: #eee; }
+  .f { float: left; width: 100px; height: 50px; background: #c00; }
+  .ib { display: inline-block; width: 550px; height: 10px; background: #00c; }
+</style>
+</head>
+<body>
+  <div class="case">
+    <div id="f1" class="f"></div>
+    <div id="b1" style="white-space: nowrap"><span id="ib1" class="ib"></span></div>
+  </div>
+  <div class="case">
+    <div id="f2" class="f"></div>
+    <pre id="b2" style="margin: 0; font: inherit"><span id="ib2" class="ib"></span>
+<span id="s2">second line</span></pre>
+  </div>
+  <div class="case">
+    <div id="f3" class="f" style="width: 250px"></div>
+    <div id="r3" class="f" style="float: right; width: 250px; height: 30px"></div>
+    <div id="b3" style="white-space: nowrap"><span id="s3">some text that is longer than the gap</span></div>
+  </div>
+  <!-- The first opportunity is too short for the line: the line goes
+       into the narrower one beside it, which is tall enough. -->
+  <div class="case">
+    <div id="f4" class="f" style="height: 10px"></div>
+    <div id="g4" class="f" style="clear: left; width: 200px"></div>
+    <div id="b4" style="white-space: nowrap"><span id="ib4" class="ib"></span><br><span id="s4">second</span></div>
+  </div>
+  <div class="case">
+    <div id="f5" class="f"></div>
+    <div id="b5" style="white-space: pre-wrap"><span id="ib5" class="ib"></span></div>
+  </div>
+</body>
+</html>

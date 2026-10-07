@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- The auto height of a box that establishes a block formatting context
+     includes its floats (CSS 2.2 §10.6.7); other blocks do not, and their
+     floats affect the following content. Floats inside inline-blocks, table
+     cells and flex items stay inside them. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Heights of block formatting context roots</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .f { float: left; width: 50px; height: 60px; background: #c00; }
+  .g { float: right; width: 50px; height: 40px; margin-bottom: 15px; background: #00c; }
+</style>
+</head>
+<body>
+  <div id="a" style="overflow: hidden; border: 1px solid"><div class="f" id="fa"></div>short</div>
+  <div id="b" style="display: flow-root; border: 1px solid"><div class="g" id="gb"></div></div>
+  <div id="c" style="border: 1px solid"><div class="f" id="fc"></div>short</div>
+  <div id="d" style="border: 1px solid; width: 300px">after the float of the previous block, with enough words to wrap twice</div>
+  <div style="clear: both"></div>
+  <div><span id="e" style="display: inline-block; border: 1px solid"><span class="f" id="fe"></span>x</span></div>
+  <div><table id="t" style="border-spacing: 0; display: inline-table"><tr><td id="td" style="padding: 0"><div class="f" id="ft"></div></td></tr></table></div>
+  <div id="fx" style="display: flex; border: 1px solid"><div id="fi"><div class="f" id="ff"></div></div><div id="fj">item</div></div>
+  <div id="h" style="border: 1px solid; height: 20px; overflow: hidden"><div class="f" id="fh"></div></div>
+</body>
+</html>

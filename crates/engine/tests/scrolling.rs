@@ -199,6 +199,39 @@ fn scrolled_content_is_hit_tested_and_painted_at_its_offset() {
 }
 
 #[test]
+fn floats_and_their_positioned_boxes_scroll_in_a_container() {
+    let site = Site::new("scroll-floats");
+    // The container is not positioned, so it paints its content phase by
+    // phase. The float and the relatively positioned box in it move with
+    // the scroll offset; the absolutely positioned box in it, whose
+    // containing block is the viewport, does not.
+    let html = "<!DOCTYPE html><style>body { margin: 0 }</style>\
+        <div id=s style='overflow:auto;width:200px;height:100px'>\
+        <div id=f style='float:left;width:100px;height:300px;background:rgb(255,0,0)'>\
+        <div id=rel style='position:relative;left:120px;margin-top:60px;width:20px;\
+        height:20px;background:rgb(0,255,0)'></div>\
+        <div id=abs style='position:absolute;left:150px;top:150px;width:20px;height:20px;\
+        background:rgb(255,0,255)'></div></div>text</div>\
+        <div style='height:2000px'></div>";
+    let (mut page, _) = open(&site, html);
+    let before = pixels(&mut page);
+    assert_eq!(pixel(&before, 50, 50), [255, 0, 0]);
+    assert_eq!(pixel(&before, 125, 65), [0, 255, 0]);
+    assert_eq!(pixel(&before, 155, 155), [255, 0, 255]);
+    let s = node(&page, "s");
+    page.scroll_element_to(s, Point::new(0.0, 50.0));
+    assert_eq!(rect(&mut page, "f").y, -50.0);
+    assert_eq!(rect(&mut page, "rel").y, 10.0);
+    assert_eq!(rect(&mut page, "abs").y, 150.0);
+    let after = pixels(&mut page);
+    assert_eq!(pixel(&after, 125, 15), [0, 255, 0]);
+    assert_ne!(pixel(&after, 125, 65), [0, 255, 0]);
+    assert_eq!(pixel(&after, 155, 155), [255, 0, 255]);
+    let hit = page.hit_test(125.0, 15.0).unwrap();
+    assert_eq!(hit.node, node(&page, "rel"));
+}
+
+#[test]
 fn absolutely_positioned_boxes_with_an_outer_containing_block_do_not_scroll() {
     let site = Site::new("scroll-abspos");
     // The box sits at its static position below the rows (y 300); the

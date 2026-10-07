@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Intrinsic widths with floats (shrink-to-fit containers), as Chromium
+     computes them: floats on one line add up until a clear, a box that
+     establishes a BFC adds to the floats before it, other blocks start a
+     new line, and floats in inline content add to their line. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Intrinsic widths with floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .w { float: left; clear: left; background: #eee; margin-bottom: 5px; }
+  .a { float: left; width: 100px; height: 10px; }
+  .b { float: right; width: 70px; height: 10px; }
+  .blk { width: 200px; height: 10px; }
+  .o { overflow: hidden; width: 150px; height: 10px; }
+</style>
+</head>
+<body>
+  <div class="w" id="w1"><div class="a"></div><div class="a"></div><div class="b"></div></div>
+  <div class="w" id="w2"><div class="a"></div><div class="blk"></div><div class="a"></div></div>
+  <div class="w" id="w3"><div class="a"></div><div class="o"></div></div>
+  <div class="w" id="w4"><div class="a"></div><div class="a" style="clear: left"></div><div class="b"></div></div>
+  <div class="w" id="w5"><div class="a"></div><div class="b"></div><div class="o" style="clear: left"></div></div>
+  <div class="w" id="w6">text <span class="a"></span> more words</div>
+  <div class="w" id="w7">text<br><span class="a"></span><span class="a"></span>x</div>
+  <div class="w" id="w8"><span class="a"></span>longword<span class="b"></span></div>
+  <div class="w" id="w9"><div class="a"></div><div class="blk" style="width: 20px"></div><div class="a" style="width: 50px"></div><div class="a" style="width: 50px"></div></div>
+  <div class="w" id="w10" style="width: 10px">aa bb <span class="a" style="width: 120px"></span></div>
+</body>
+</html>

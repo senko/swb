@@ -65,7 +65,7 @@ Open a URL in a window and read the page.
 
 Five parallel workstreams; each will record its design in a new ADR:
 
-- Floats, clearance and block formatting contexts.
+- Floats, clearance and block formatting contexts: done (ADR 0015).
 - Absolute, fixed and sticky positioning; 2D `transform`: done (ADR 0016).
 - Grid layout: done (ADR 0017).
 - `mask-image` and the other mask properties (icons): done (ADR 0018).
@@ -112,6 +112,18 @@ uses neither; they moved to "Later".
 - Text: `white-space: break-spaces` does not wrap; with `text-align:
   right | center`, trailing `pre-wrap` spaces that fit are left out of
   the line width.
+- Floats: `shape-outside`; right-to-left; fragmentation. Collapsed
+  spaces lose their soft wrap opportunity before a float (only an empty
+  span's 0×0 box differs). A float inside an inline box paints its
+  positioned descendants before that box (Chromium: after). An abspos
+  box after a float, on an empty line of a block whose position is not
+  known yet, ignores the float. Floats inside a positioned inline box
+  with `z-index` paint in the container's float phase. Limits: more
+  than 10,000 floats in one BFC, or a spent float work budget, put
+  floats and boxes below all floats.
+- Paint: non-positioned opacity groups paint in the inline content
+  phase; outlines paint after each box, not in a last phase; the image
+  of a block-level replaced element paints with its background.
 - Positioning: an abspos box directly before inline content is
   block-level in the box tree (aligned as in block flow); abspos
   children of table rows get the static position of an anonymous cell;
@@ -241,8 +253,6 @@ change behaviour, so they are not fixed yet.
   `text-indent` accepts repeated keywords and `aspect-ratio` accepts
   `auto auto`; image URLs of pseudo-elements are requested in hash-map
   order, not in document order.
-- Layout: a float that follows inline content in a flex container is
-  dropped; it should be a flex item.
 - Engine: a click on a visible child of a `visibility: hidden` focusable
   element focuses the hidden element; after a navigation
   starts and the user stops it, the old page's cancelled images stay
@@ -263,8 +273,7 @@ change behaviour, so they are not fixed yet.
 Found by the reviews before the first commit and not fixed yet. Layout
 issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
-- Layout: floats inside inline content are not placed; flex container
-  min/max sizes; `align-content: stretch` order;
+- Layout: flex container min/max sizes; `align-content: stretch` order;
   `vertical-align: top/bottom`; min-content of nowrap row flex
   containers; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
@@ -275,8 +284,7 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 - Paint: `border-radius` does not clip background images, gradients,
   replaced images or overflow;
   `content-box` background clip/origin; gradients ignore background size
-  and position, repeating gradients and implicit stop positions; block
-  backgrounds should paint before inline content (Appendix E steps 4/7).
+  and position, repeating gradients and implicit stop positions.
 - Engine: `<meta charset>` after the first 1024 bytes and charset for
   `text/*` documents; keep parsed stylesheets across resizes (only
   re-evaluate media queries); decode images off the UI thread; a total

@@ -647,6 +647,236 @@ fn grid_items_paint_and_hit_in_order_modified_document_order() {
 }
 
 #[test]
+fn floats_paint_between_block_backgrounds_and_inline_content() {
+    // CSS 2.2 Appendix E: block backgrounds, then floats, then inline
+    // content. The float comes first in tree order; the paragraph's
+    // background must not cover it, and the paragraph's text is on top.
+    let site = Site::new("dl-floats");
+    let mut page = local_page();
+    load(
+        &mut page,
+        site.page(
+            "page.html",
+            "<!DOCTYPE html><body style='margin:0;font:16px sans-serif'>\
+             <div style='overflow:hidden;height:200px'>\
+               <div id=f style='float:left;width:50px;height:50px;background:rgb(1,2,3)'>\
+                 <div style='width:10px;height:10px;background:rgb(10,11,12)'></div></div>\
+               <p id=p style='background:rgb(4,5,6);margin:0'>\
+                 <span style='background:rgb(7,8,9)'>text</span><br>more</p>\
+               <div style='height:10px;background:rgb(13,14,15)'></div>\
+             </div>",
+        ),
+    );
+    let list = common::display_list(&mut page);
+    let float = rects_of(&list, MARK)[0];
+    let in_float = rects_of(&list, Rgba::rgb(10, 11, 12))[0];
+    let block = rects_of(&list, MARK2)[0];
+    let later_block = rects_of(&list, Rgba::rgb(13, 14, 15))[0];
+    let inline = rects_of(&list, Rgba::rgb(7, 8, 9))[0];
+    assert!(block < float && later_block < float, "blocks before floats");
+    assert!(float < in_float, "a float paints its own content");
+    assert!(in_float < inline, "floats before inline content");
+    // The float keeps the clip of its ancestor.
+    assert!(clips_at(&list, float).iter().any(|c| c.height == 200.0));
+    // Hit testing finds the float over the paragraph's background (two
+    // lines next to the float).
+    let p = common::node(&page, "p");
+    assert_eq!(
+        list.hit_test(Point::new(100.0, 30.0), Point::default()),
+        Some(p)
+    );
+    assert_eq!(
+        list.hit_test(Point::new(20.0, 30.0), Point::default()),
+        Some(common::node(&page, "f"))
+    );
+}
+
+#[test]
+fn flex_items_paint_as_a_unit() {
+    // CSS Flexbox 1 §5.4: flex items paint like inline-blocks, so the
+    // second item's background covers the first item's overflowing text.
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0;font:16px sans-serif'><div style='display:flex'>\
+         <div style='width:20px;color:rgb(1,2,3)'>overflowing</div>\
+         <div style='width:50px;height:20px;background:rgb(4,5,6)'></div></div>",
+        "dl-flex-items",
+    );
+    let text = list
+        .items
+        .iter()
+        .position(|item| matches!(item, DisplayItem::Text { color, .. } if *color == MARK))
+        .expect("the first item's text is painted");
+    let background = rects_of(&list, MARK2)[0];
+    assert!(text < background);
+}
+
+#[test]
+fn flex_items_paint_over_later_block_backgrounds() {
+    // CSS Flexbox 1 §5.4: an item paints in the inline content phase, so
+    // it covers the background of a later block that overlaps it.
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'>\
+         <div style='display:flex;height:40px'>\
+         <div style='width:100px;height:80px;background:rgb(1,2,3)'></div></div>\
+         <div style='height:60px;background:rgb(4,5,6)'></div>",
+        "dl-flex-later-block",
+    );
+    assert!(rects_of(&list, MARK2)[0] < rects_of(&list, MARK)[0]);
+}
+
+#[test]
+fn inline_boxes_with_opacity_or_a_mask_paint_in_a_group() {
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0;font:16px sans-serif'>\
+         <p>A<span style='opacity:0.5;background:rgb(1,2,3)'>B</span>C</p>\
+         <p>A<span style='-webkit-mask-image:linear-gradient(black,black);\
+         background:rgb(4,5,6)'>M</span>C</p>",
+        "dl-inline-groups",
+    );
+    // The number of groups open at item `index`.
+    let depth = |index: usize, push: fn(&DisplayItem) -> bool, pop: fn(&DisplayItem) -> bool| {
+        list.items[..index]
+            .iter()
+            .map(|item| i32::from(push(item)) - i32::from(pop(item)))
+            .sum::<i32>()
+    };
+    let opacity = rects_of(&list, MARK)[0];
+    let masked = rects_of(&list, MARK2)[0];
+    assert_eq!(
+        depth(
+            opacity,
+            |i| matches!(i, DisplayItem::PushOpacity { .. }),
+            |i| matches!(i, DisplayItem::PopOpacity)
+        ),
+        1
+    );
+    assert_eq!(
+        depth(
+            masked,
+            |i| matches!(i, DisplayItem::PushMask { .. }),
+            |i| matches!(i, DisplayItem::PopMask)
+        ),
+        1
+    );
+}
+
+#[test]
+fn positioned_boxes_in_floats_and_inline_boxes_keep_tree_order() {
+    // Positioned descendants of a float, an inline-block and an inline box
+    // belong to the enclosing stacking context: with equal z-index they
+    // paint in tree order, and the later box (MARK2) is on top, also for
+    // hit testing.
+    let site = Site::new("dl-positioned-order");
+    let mut page = local_page();
+    load(
+        &mut page,
+        site.page(
+            "page.html",
+            "<!DOCTYPE html><style>.b{width:100px;height:60px;position:relative}</style>\
+             <body style='margin:0;font:16px/20px sans-serif'>\
+             <div style='height:80px'><div style='float:left'>\
+               <div class=b style='background:rgb(1,2,3)'></div></div>\
+               <div><div id=b1 class=b style='background:rgb(4,5,6)'></div></div></div>\
+             <div style='height:80px'><span style='display:inline-block;vertical-align:top'>\
+               <span class=b style='display:block;background:rgb(1,2,3)'></span></span>\
+               <div id=b2 class=b style='top:-20px;background:rgb(4,5,6)'></div></div>\
+             <div style='height:80px'><p style='margin:0'><a><span class=b \
+               style='display:inline-block;height:20px;background:rgb(1,2,3)'></span></a></p>\
+               <div id=b3 class=b style='top:-20px;background:rgb(4,5,6)'></div></div>",
+        ),
+    );
+    let list = common::display_list(&mut page);
+    let earlier = rects_of(&list, MARK);
+    let later = rects_of(&list, MARK2);
+    assert_eq!((earlier.len(), later.len()), (3, 3));
+    for (&a, (&b, id)) in earlier.iter().zip(later.iter().zip(["b1", "b2", "b3"])) {
+        assert!(a < b, "#{id} paints after the earlier box");
+        let (ra, rb) = (rect_at(&list, a), rect_at(&list, b));
+        let top = ra.y.max(rb.y);
+        let bottom = (ra.y + ra.height).min(rb.y + rb.height);
+        assert!(top < bottom, "#{id} overlaps the earlier box");
+        let hit = list.hit_test(
+            Point::new(50.0, f32::midpoint(top, bottom)),
+            Point::default(),
+        );
+        assert_eq!(hit, Some(common::node(&page, id)));
+    }
+}
+
+#[test]
+fn an_absolutely_positioned_box_after_a_float_paints_after_the_float() {
+    // Tree order: the positioned child of the float comes first, the
+    // absolutely positioned box after the float second; with equal
+    // z-index the second is on top, also for hit testing.
+    let site = Site::new("dl-abspos-after-float");
+    let mut page = local_page();
+    load(
+        &mut page,
+        site.page(
+            "page.html",
+            "<!DOCTYPE html><body style='margin:0'><div style='position:relative'>\
+             <div style='float:left;width:50px;height:50px'><div id=r style='position:relative;\
+             width:40px;height:40px;background:rgb(1,2,3)'></div></div>\
+             <div id=a style='position:absolute;top:0;left:0;width:40px;height:40px;\
+             background:rgb(4,5,6)'></div></div>",
+        ),
+    );
+    let list = common::display_list(&mut page);
+    assert!(rects_of(&list, MARK)[0] < rects_of(&list, MARK2)[0]);
+    assert_eq!(
+        list.hit_test(Point::new(10.0, 10.0), Point::default()),
+        Some(common::node(&page, "a"))
+    );
+}
+
+#[test]
+fn floats_on_a_line_keep_tree_order_with_positioned_inline_boxes() {
+    // Measured in Chromium 148: a positioned box in a float after a
+    // positioned span on the same line paints over the span; a positioned
+    // span after a float paints over the float's positioned box.
+    let cases = [
+        (
+            "<span id=s style='position:relative;background:rgb(1,2,3)'>AAAA</span>\
+             <div style='float:left'><div id=p style='position:relative;left:60px;\
+             width:40px;height:20px;background:rgb(4,5,6)'></div></div>",
+            "p",
+        ),
+        (
+            "<div style='float:left'><div id=p style='position:relative;left:60px;\
+             width:40px;height:20px;background:rgb(1,2,3)'></div></div>\
+             <span id=s style='position:relative;background:rgb(4,5,6)'>AAAAAAAA</span>",
+            "s",
+        ),
+    ];
+    for (i, (body, top)) in cases.into_iter().enumerate() {
+        let site = Site::new(&format!("dl-float-line-order-{i}"));
+        let mut page = local_page();
+        load(
+            &mut page,
+            site.page(
+                "page.html",
+                &format!(
+                    "<!DOCTYPE html><body style='margin:0;font:16px/20px sans-serif'>\
+                     <div style='width:400px'>{body}</div>"
+                ),
+            ),
+        );
+        let list = common::display_list(&mut page);
+        assert!(
+            rects_of(&list, MARK)[0] < rects_of(&list, MARK2)[0],
+            "case {i}"
+        );
+        // The box or its text.
+        let hit = list
+            .hit_test(Point::new(70.0, 10.0), Point::default())
+            .expect("a hit");
+        let element = page.document().and_then(|d| d.parent_element(hit));
+        let top = common::node(&page, top);
+        assert!(hit == top || element == Some(top), "case {i}");
+    }
+}
+
+#[test]
 fn opacity_groups_record_their_bounds() {
     let list = display_list(
         "<!DOCTYPE html><body style='margin:0'>\

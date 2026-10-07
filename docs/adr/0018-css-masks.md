@@ -99,11 +99,12 @@ layers }` ... `PopMask`), inside its opacity group, and is a stacking
 context, as with `opacity` below 1 (§7.1). The group contains the box's
 background, border, content, descendants (positioned ones included) and
 outline. Like opacity stacking contexts in swb, a masked box that is not
-positioned paints in tree order, not in the z-index 0 layer of its
-stacking context (CSS 2.2 Appendix E; a simplification of
-`display_list.rs`). The mask and the opacity of the root element also
-apply to the canvas background, which the root's groups then paint first
-(as in Chromium; a mask of the body does not mask the canvas).
+positioned paints as a unit in the inline content phase of its stacking
+context (a float in the float phase, ADR 0015), not in the z-index 0
+layer (CSS 2.2 Appendix E; a simplification of `display_list.rs`). The
+mask and the opacity of the root element also apply to the canvas
+background, which the root's groups then paint first (as in Chromium; a
+mask of the body does not mask the canvas).
 
 The layers are computed when the group closes (`paint/src/mask.rs`):
 each layer is positioned, sized, tiled and clipped like a background

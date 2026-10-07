@@ -17,6 +17,9 @@ pub(crate) struct TestLayout {
     pub(crate) tree: FragmentTree,
     /// [`LayoutContext::uncached_layouts`] after the layout.
     pub(crate) uncached_layouts: usize,
+    /// True if the float work budget ran out
+    /// ([`LayoutContext::float_budget_spent`]).
+    pub(crate) float_budget_spent: bool,
 }
 
 impl TestLayout {
@@ -75,11 +78,11 @@ fn layout_document(doc: Document) -> TestLayout {
         controls: &TestControls(&doc),
     };
     let tree = layout_with(&input, &mut ctx);
-    let uncached_layouts = ctx.uncached_layouts;
     TestLayout {
+        uncached_layouts: ctx.uncached_layouts,
+        float_budget_spent: ctx.float_budget_spent,
         doc,
         tree,
-        uncached_layouts,
     }
 }
 

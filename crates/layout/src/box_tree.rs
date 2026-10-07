@@ -11,6 +11,10 @@
 //!   blocks, and the inline box is continued in both.
 //! - Inline content is stored as a flat list of items with start/end
 //!   markers for inline boxes, which makes line breaking straightforward.
+//! - A float belongs to the inline content around it (also at its start,
+//!   as in Chromium); it becomes a block-level box only if that inline
+//!   content is empty. Inline content that is empty but has a whole inline
+//!   box keeps its anonymous block, so that the inline box gets a box.
 //!
 //! White-space processing (CSS Text 3 §4.1.1) happens when an inline
 //! formatting context is finished, because spaces collapse across inline
@@ -200,6 +204,21 @@ impl InlineFormattingContext {
         true
     }
 
+    /// True if an absolutely positioned box comes after a float (its static
+    /// position is next to the float, so the content stays inline even if
+    /// it makes no line box).
+    pub(crate) fn has_absolute_after_float(&self) -> bool {
+        let mut float = false;
+        for item in &self.items {
+            match item {
+                InlineItem::Float(_) => float = true,
+                InlineItem::AbsolutelyPositioned(_) if float => return true,
+                _ => {}
+            }
+        }
+        false
+    }
+
     /// True if an absolutely positioned box is inside an inline box (which
     /// can be its containing block, so the content stays inline even if it
     /// makes no line box).
@@ -210,6 +229,28 @@ impl InlineFormattingContext {
                 InlineItem::StartBox { .. } => depth += 1,
                 InlineItem::EndBox { .. } => depth = depth.saturating_sub(1),
                 InlineItem::AbsolutelyPositioned(_) if depth > 0 => return true,
+                _ => {}
+            }
+        }
+        false
+    }
+}
+
+impl InlineFormattingContext {
+    /// True if the context has an inline box that a block-level child does
+    /// not split (the parts of a split box get their box from the wrapper
+    /// around the block, see `BlockInInline`).
+    pub(crate) fn has_whole_inline_box(&self) -> bool {
+        let mut open: Vec<bool> = Vec::new();
+        for item in &self.items {
+            match item {
+                InlineItem::StartBox { continued, .. } => open.push(*continued),
+                InlineItem::EndBox { split } => {
+                    let whole = open.pop() == Some(false) && !split;
+                    if whole {
+                        return true;
+                    }
+                }
                 _ => {}
             }
         }
@@ -840,8 +881,13 @@ impl ContainerBuilder {
             let inner = build_independent(ctx, base, state);
             // Inside an inline box, the box stays inline: the inline box
             // can be its containing block, and the box is then in its
-            // fragments (it needs no `in_positioned_inline` mark).
-            if self.inline.has_content() || !self.open_inline_boxes.is_empty() {
+            // fragments (it needs no `in_positioned_inline` mark). After a
+            // float it stays inline too: it keeps its place in tree order,
+            // and its static position is next to the float.
+            if self.inline.has_content()
+                || self.inline.has_float()
+                || !self.open_inline_boxes.is_empty()
+            {
                 self.inline.push(RawItem::AbsolutelyPositioned(inner));
             } else {
                 self.blocks.push(BlockLevelBox::AbsolutelyPositioned(inner));
@@ -849,16 +895,12 @@ impl ContainerBuilder {
             return;
         }
         if style.is_floating() {
+            // A float belongs to the inline content around it; it becomes
+            // block-level only if that content turns out empty (see
+            // `flush_inline`). As in Chromium, a float before text is a
+            // float of that text's inline formatting context.
             let inner = build_independent(ctx, base, state);
-            if self.inline.has_content() {
-                self.inline.push(RawItem::Float(inner));
-            } else {
-                // The pending inline content (collapsible white space and
-                // the starts of open inline boxes) stays pending, as for
-                // absolutely positioned boxes: the inline boxes continue
-                // after the float.
-                self.push_out_of_flow(BlockLevelBox::Float(inner));
-            }
+            self.inline.push(RawItem::Float(inner));
             return;
         }
         if style.display == Display::Inline && !atomic {
@@ -896,11 +938,11 @@ impl ContainerBuilder {
             .any(|b| b.style.position != swb_style::Position::Static)
     }
 
-    /// Adds a float at block level. Inside a positioned inline box, it gets
-    /// the mark of that box (it needs no inline box wrappers: out-of-flow
-    /// boxes do not split inline boxes).
-    fn push_out_of_flow(&mut self, block: BlockLevelBox) {
-        if self.in_positioned_inline() {
+    /// Adds a float at block level. Inside a positioned inline box
+    /// (`in_positioned_inline`), it gets the mark of that box (it needs no
+    /// inline box wrappers: out-of-flow boxes do not split inline boxes).
+    fn push_float_block(&mut self, block: BlockLevelBox, in_positioned_inline: bool) {
+        if in_positioned_inline {
             self.blocks
                 .push(BlockLevelBox::InInline(Box::new(BlockInInline {
                     inline_boxes: Vec::new(),
@@ -942,16 +984,33 @@ impl ContainerBuilder {
     }
 
     /// Wraps the pending inline content in an anonymous block, if it has
-    /// any content.
+    /// any content or inline boxes (an empty inline box gets an empty line
+    /// box, as in Chromium).
     fn flush_inline(&mut self, state: &mut BuildState) {
         let inline = std::mem::take(&mut self.inline);
         let ifc = inline.finish(state);
-        if ifc.is_empty() && !ifc.has_absolute_in_inline_box() {
+        if ifc.is_empty()
+            && !ifc.has_whole_inline_box()
+            && !ifc.has_absolute_in_inline_box()
+            && !ifc.has_absolute_after_float()
+        {
             // Out-of-flow boxes inside whitespace-only inline content still
-            // need a place in the tree.
+            // need a place in the tree. A float inside a positioned inline
+            // box (whose start is among the items, also when it continues
+            // from an earlier part) gets that box's mark.
+            let mut open: Vec<bool> = Vec::new();
             for item in ifc.items {
                 match item {
-                    InlineItem::Float(b) => self.blocks.push(BlockLevelBox::Float(b)),
+                    InlineItem::StartBox { base, .. } => {
+                        open.push(base.style.position != swb_style::Position::Static);
+                    }
+                    InlineItem::EndBox { .. } => {
+                        open.pop();
+                    }
+                    InlineItem::Float(b) => {
+                        let marked = open.contains(&true);
+                        self.push_float_block(BlockLevelBox::Float(b), marked);
+                    }
                     InlineItem::AbsolutelyPositioned(b) => {
                         self.blocks.push(BlockLevelBox::AbsolutelyPositioned(b));
                     }
@@ -1085,6 +1144,8 @@ struct InlineBuilder {
     /// True once an item other than collapsible white space or an inline
     /// box marker was pushed (kept up to date so the check is O(1)).
     has_content: bool,
+    /// True once a float was pushed.
+    has_float: bool,
 }
 
 enum RawItem {
@@ -1151,16 +1212,22 @@ impl InlineBuilder {
     fn push(&mut self, item: RawItem) {
         let content = match &item {
             RawItem::Text { style, text, .. } => !is_collapsible_white_space(style, text),
-            RawItem::StartBox { .. } | RawItem::EndBox { .. } => false,
+            RawItem::StartBox { .. } | RawItem::EndBox { .. } | RawItem::Float(_) => false,
             _ => true,
         };
         self.has_content |= content;
+        self.has_float |= matches!(item, RawItem::Float(_));
         self.items.push(item);
     }
 
     /// True if there is anything other than collapsible white space.
     fn has_content(&self) -> bool {
         self.has_content
+    }
+
+    /// True if a float was pushed.
+    fn has_float(&self) -> bool {
+        self.has_float
     }
 
     /// Performs white-space processing and produces the final context.

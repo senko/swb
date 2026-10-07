@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Floats in inline content resolve percentage heights and percentage
+     top offsets against the height of their containing block. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Percentages of floats in inline content</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+</style>
+</head>
+<body>
+  <div id="c1" style="height: 200px; width: 400px">
+    <div id="f1" style="float: left; width: 50px; height: 50%; background: #c00"></div>text
+  </div>
+  <div id="c2" style="height: 200px; width: 400px">
+    text <div id="f2" style="float: right; width: 50px; height: 25%; background: #c00"></div>
+  </div>
+  <div id="c3" style="height: 100px; width: 400px; position: relative">
+    <div id="f3" style="float: left; width: 50px; height: 20px; position: relative; top: 50%; background: #c00"></div>text
+  </div>
+  <div id="c4" style="height: 100px; width: 400px">
+    <span id="s4" style="display: inline-block; width: 50px; height: 40%; background: #ccc"></span>
+  </div>
+</body>
+</html>

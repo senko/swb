@@ -674,6 +674,21 @@ mod tests {
     const S: &str = "id=s style='overflow:auto;width:100px;height:100px;padding:10px";
 
     #[test]
+    fn floats_count_with_margins_and_end_padding() {
+        let html = format!(
+            "<div {S}'><div style='float:left;width:50px;height:300px;\
+             margin-bottom:20px'></div></div>"
+        );
+        assert_eq!(overflow_size(&html), (120.0, 340.0));
+        // Next to line boxes, a float counts as a descendant.
+        let html = format!(
+            "<div {S}'>text <span style='float:right;width:50px;height:250px;\
+             margin-bottom:15px'></span> more text</div>"
+        );
+        assert_eq!(overflow_size(&html), (120.0, 260.0));
+    }
+
+    #[test]
     fn in_flow_children_count_with_margins_and_end_padding() {
         let html = format!("<div {S}'><div style='height:200px;margin-bottom:30px'></div></div>");
         assert_eq!(overflow_size(&html), (120.0, 250.0));

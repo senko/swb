@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- How a line finds its place next to floats. (1) The float that a line
+     places itself does not make the line too tall for its layout
+     opportunity, also where the opportunity ends inside the line's
+     height. (2) A column of 70 floats of two widths leaves too little room
+     for a wide inline-block at every position: the line goes to the first
+     position below them where it fits, after more positions than a line
+     is tried at. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Line search next to floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .case { display: flow-root; width: 400px; margin-bottom: 10px; background: #eee; }
+  .c { float: left; clear: left; height: 10px; background: #c00; }
+</style>
+</head>
+<body>
+  <div class="case">
+    <div id="side1" style="float: left; width: 100px; height: 300px; background: #00c"></div>
+    <div id="col1" style="margin-left: 120px"><p id="p1" style="margin: 0">x<br><span id="a1">aaaa</span><span id="f1" style="float: right; width: 10px; height: 5px; background: #c00"></span><span id="b1">bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</span></p></div>
+  </div>
+  <div class="case">
+    <div id="s2" style="float: left; width: 50px; height: 10px; background: #00c"></div>
+    <div id="t2" style="float: left; clear: left; width: 60px; height: 100px; background: #00c"></div>
+    <p id="p2" style="margin: 0">word <span id="f2" style="float: right; width: 30px; height: 30px; background: #c00"></span>more words here</p>
+  </div>
+  <div class="case">
+    <div id="r3" style="float: right; width: 100px; height: 1000px; background: #00c"></div>
+    <div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div><div class="c" style="width:150px"></div><div class="c" style="width:151px"></div>
+    <div id="d3"><span id="ib3" style="display: inline-block; width: 200px; height: 10px; background: #0a0"></span></div>
+  </div>
+</body>
+</html>

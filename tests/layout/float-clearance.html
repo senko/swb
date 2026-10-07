@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Clearance (CSS 2.2 §9.5.2) as Chromium computes it: with and without
+     margins, in a parent whose margin collapses with the cleared child,
+     empty cleared boxes (their margins collapse with the next ones, not
+     with the parent's), clearfix, clear on floats, and <br clear>. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Clearance</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  p { margin: 0; }
+  .r { border: 1px solid; margin-top: 10px; width: 400px; }
+  .f { float: left; width: 50px; height: 30px; background: #c00; }
+  .g { float: right; width: 50px; height: 40px; background: #00c; }
+  .cf::after { content: ""; display: block; clear: both; }
+</style>
+</head>
+<body>
+  <div class="r" id="r1">
+    <div class="f" id="f1"></div><div id="c1" style="margin-top: 10px"><div id="d1" style="clear: left; margin-top: 5px">x</div></div>
+  </div>
+  <div class="r" id="r2">
+    <div class="f" id="f2"></div><div id="c2" style="margin-top: 10px"><div id="d2" style="clear: left; margin-top: 5px"></div></div><p id="p2">x</p>
+  </div>
+  <div class="r" id="r3">
+    <div id="c3" style="margin-top: 10px"><div class="f" id="f3"></div><div id="d3" style="clear: left; margin-top: 5px">x</div></div>
+  </div>
+  <div class="r" id="r4">
+    <div class="f" id="f4"></div><div id="c4" style="margin-top: 10px"><div id="d4" style="clear: left; margin-top: 50px">x</div></div>
+  </div>
+  <div class="r" id="r5">
+    <div class="f" id="f5"></div><div id="c5" style="margin-top: 10px"><div id="d5" style="clear: left; margin-top: 5px; margin-bottom: 7px"></div></div>
+  </div>
+  <div class="r" id="r6">
+    <div class="f" id="f6"></div><div id="d6" style="clear: left; margin-bottom: 7px"></div><p id="p6" style="margin-top: 3px">x</p>
+  </div>
+  <div class="r" id="r7">
+    <div class="f" id="f7"></div><div class="g" id="g7"></div><div id="d7" style="clear: right">right</div><div id="e7" style="clear: both; margin-top: 20px">both</div>
+  </div>
+  <div class="r cf" id="r8">
+    <div class="f" id="f8"></div><div class="g" id="g8"></div>text
+  </div>
+  <div class="r" id="r9">
+    <div class="g" id="a9" style="height: 20px"></div><div class="g" id="b9" style="clear: right; height: 20px"></div><div class="f" id="c9" style="clear: right"></div>
+  </div>
+  <div class="r" id="r10">
+    aaa<br clear="all"><span class="f" id="f10"></span>x<br id="br10" clear="left">after
+  </div>
+</body>
+</html>

@@ -81,19 +81,22 @@ impl TableCache {
     }
 }
 
-/// Lays out a block-level table in normal flow: its width from its
-/// content, its horizontal position from its margins. The fragment's x is
-/// its left margin.
+/// Lays out a block-level table in normal flow, in a space `available` px
+/// wide (the containing block's width, or a layout opportunity next to
+/// floats with the table's margins): its width from its content, its
+/// horizontal position from its margins. The fragment's x is its left
+/// margin.
 pub(crate) fn layout_block_level(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
     table: &TableBox,
     cb: ContainingBlock,
+    available: f32,
 ) -> LaidOutBlock {
-    let mut laid_out = layout_shrink_to_fit(ctx, ib, table, cb);
+    let mut laid_out = layout_in(ctx, ib, table, cb, available);
     let style = &ib.base.style;
     let width = laid_out.fragment.border_rect.width;
-    let remaining = cb.width - width;
+    let remaining = available - width;
     let margin_left = match (
         style.margin_left.resolve(cb.width),
         style.margin_right.resolve(cb.width),
@@ -115,9 +118,21 @@ pub(crate) fn layout_shrink_to_fit(
     table: &TableBox,
     cb: ContainingBlock,
 ) -> LaidOutBlock {
+    layout_in(ctx, ib, table, cb, cb.width)
+}
+
+/// [`layout_shrink_to_fit`] in a space `available` px wide; percentages
+/// still resolve against `cb`.
+fn layout_in(
+    ctx: &mut LayoutContext<'_>,
+    ib: &IndependentBox,
+    table: &TableBox,
+    cb: ContainingBlock,
+    available: f32,
+) -> LaidOutBlock {
     let style = &ib.base.style;
     let margin_left = margin_or_zero(&style.margin_left, cb.width);
-    let available = cb.width - margin_left - margin_or_zero(&style.margin_right, cb.width);
+    let available = available - margin_left - margin_or_zero(&style.margin_right, cb.width);
     let mut fragment = layout_table(ctx, ib, table, TableWidth::Available(available), None, cb);
     fragment.border_rect.x = margin_left;
     LaidOutBlock {

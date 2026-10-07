@@ -141,6 +141,16 @@ Format: source, license (for code), what it influenced.
   id and href resolution, caching and recursion; simplecss's selector
   matching; roxmltree's entity limits; kurbo's arc subdivision count.
   No code copied.
+- Chromium / Blink LayoutNG floats (BSD-3-Clause), from recollection and
+  confirmed by measurements with Chromium 148: the exclusion space with
+  shelves and layout opportunities, `BlockLayoutAlgorithm::HandleFloat`,
+  `NextBorderEdge`, `HandleNewFormattingContext` (margins next to
+  floats, `abort_if_cleared`), `HasClearancePastAdjoiningFloats` and the
+  forced BFC block offset, `InlineLayoutAlgorithm::Layout`,
+  `LineBreaker::HandleFloat`, `ShouldWrapLine`,
+  `IsEqualToAvailableFloatInlineSize`, `ComputeMinMaxSizes` with floats.
+  No code read for the implementation, no code copied
+  (`layout/src/floats.rs`, ADR 0015).
 - Chromium / Blink (BSD-3-Clause), positioning, from recollection and
   confirmed by measurements with Chromium 148: static positions in
   inline content (`InlineLayoutAlgorithm::PlaceOutOfFlowObjects`,

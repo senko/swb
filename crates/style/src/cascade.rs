@@ -704,6 +704,11 @@ fn apply_fixups(style: &mut ComputedStyle, is_root: bool, layout_parent: Option<
         Some(Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid)
     );
     style.original_display = style.display;
+    // `float` does not apply to flex and grid items (CSS Flexbox 1 §4,
+    // CSS Grid 2 §6.1); they stay in flow.
+    if in_flex_or_grid {
+        style.float = Float::None;
+    }
     let blockify =
         is_root || absolutely_positioned || style.float != Float::None || in_flex_or_grid;
     if blockify && !matches!(style.display, Display::None | Display::Contents) {

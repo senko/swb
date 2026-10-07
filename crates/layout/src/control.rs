@@ -52,8 +52,8 @@ use swb_style::{
 
 use crate::LayoutContext;
 use crate::block::{
-    Baselines, BoxEdges, ChildOptions, ContainingBlock, clamp_height, finish_fragment,
-    layout_block_container, resolve_size,
+    Baselines, BoxEdges, ContainingBlock, clamp_height, finish_fragment, layout_flow_root,
+    resolve_size,
 };
 use crate::box_tree::{
     BlockContainer, BoxBase, BuildContext, BuildState, IndependentBox, IndependentContents,
@@ -465,12 +465,7 @@ fn layout_inner(
             )
         }
         ControlContents::Flow(container) => {
-            let options = ChildOptions {
-                collapse_with_parent_start: false,
-                collapse_with_parent_end: false,
-            };
-            let children =
-                layout_block_container(ctx, container, style, cb, options, &mut Vec::new());
+            let children = layout_flow_root(ctx, container, style, cb, &mut Vec::new());
             Inner::boxes(
                 children.fragments,
                 width,
@@ -494,7 +489,7 @@ fn layout_text(
     style: &Arc<ComputedStyle>,
     width: f32,
 ) -> Inner {
-    let lines = inline::layout_inline(ctx, ifc, style, width, &mut Vec::new());
+    let lines = inline::layout_inline_root(ctx, ifc, style, width);
     let (above, below, ascent, descent) = strut(ctx, style);
     let text_width = lines
         .fragments

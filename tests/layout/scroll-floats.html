@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Floats in scroll containers scrolled to the end of their range
+     (data-scroll): floats are in-flow content of the scroll container for
+     its scrollable overflow, with their margin boxes, also in a nested
+     block. Next to line boxes, a float at the start of a line counts only
+     with its right margin edge, and a float after content only with its
+     border box, as a descendant (Chromium 148); clearance and the
+     lines next to floats change the content height and width; a scroll
+     container that establishes a BFC sits next to a float. -->
+<style>
+body { margin: 0; font: 16px/20px sans-serif; }
+.s { overflow: auto; width: 100px; height: 100px; padding: 10px; margin: 0 0 10px; }
+.b { background: #ccc; }
+</style>
+<div class=s data-scroll="9999 9999"><div class=b style="float:left; width:50px; height:300px; margin-bottom:20px"></div></div>
+<div class=s data-scroll="9999 9999"><div class=b style="float:left; width:200px; height:50px; margin-right:30px"></div></div>
+<div class=s data-scroll="9999 9999"><div class=b style="float:left; width:50px; height:150px"></div><div class=b style="clear:left; height:20px; margin-bottom:10px"></div></div>
+<div class=s data-scroll="9999 9999"><div><div class=b style="float:right; width:50px; height:250px; margin-bottom:15px"></div></div></div>
+<div class=s data-scroll="9999 9999">text <span class=b style="float:right; width:50px; height:250px; margin-bottom:15px"></span> more text</div>
+<div class=s data-scroll="9999 9999"><span class=b style="float:left; width:200px; height:250px; margin:0 20px 15px 0"></span>text</div>
+<div class=s data-scroll="9999 9999">aaaa aaaa aaaa<span class=b style="float:left; width:150px; height:150px; margin:0 25px 15px 0"></span> bbb</div>
+<div class=s data-scroll="9999 9999"><span class=b style="float:left; width:50px; height:250px; margin-bottom:15px"></span>text</div>
+<div style="width:200px; margin-bottom:10px"><div class=b style="float:left; width:80px; height:60px"></div><div class=s data-scroll="9999 9999" style="width:auto; height:50px">long text that wraps in the narrower scroller beside the float</div></div>
+<div class=s data-scroll="9999 9999"><div class=b style="float:left; position:relative; top:150px; width:50px; height:50px"></div></div>
+<div class=s data-scroll="9999 9999" style="white-space:nowrap"><div class=b style="float:left; width:50px; height:30px"></div>aaaaaaaaaaaaaa bbb</div>
+<div class=s data-scroll="9999 9999"><div class=b style="float:left; width:50px; height:200px; margin-bottom:-100px"></div><div class=b style="height:10px"></div></div>

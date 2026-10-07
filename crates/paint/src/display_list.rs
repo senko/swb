@@ -2,14 +2,25 @@
 //!
 //! Built from the fragment tree by [`build_display_list`]. Paint order
 //! follows a simplified form of CSS 2.2 Appendix E
-//! (<https://www.w3.org/TR/CSS22/zindex.html>): normal-flow content in tree
-//! order, then positioned and transformed boxes in z-index order (stable
-//! for equal values; `auto` counts as 0). A box with `z-index: auto` and
-//! `position: relative` or `absolute` (without a transform or opacity) does
-//! not form a stacking context: its positioned descendants take part in
-//! the enclosing one. Deliberate simplification: a box paints its
-//! background, border and content before the next box in tree order (no
-//! separate phases for block backgrounds, floats and inline content).
+//! (<https://www.w3.org/TR/CSS22/zindex.html>): a stacking context paints
+//! its normal-flow content in three phases (backgrounds and borders of
+//! in-flow block boxes, then floats, then inline content, each in tree
+//! order), then positioned and transformed boxes in z-index order (`auto`
+//! counts as 0), and in tree order for equal values. Floats, atomic
+//! inline-level boxes and flex and grid items (CSS Flexbox 1 §5.4) paint
+//! all their phases as a unit, as if they established a stacking context;
+//! their positioned descendants belong to the enclosing stacking context.
+//! A box with `z-index: auto` and `position: relative` or `absolute`
+//! (without a transform or opacity) does not form a stacking context: its
+//! positioned descendants take part in the enclosing one.
+//! Deliberate simplifications: a box with opacity < 1 or a mask that is
+//! not positioned paints as a unit in the inline content phase (Appendix E
+//! paints it with the positioned boxes); outlines are painted after each
+//! box's content, not in a last phase; the image of a block-level replaced
+//! element is painted with its background; a float inside a positioned
+//! inline box paints in the float phase of the inline box's container, not
+//! with the inline box's stacking context; an inline box split over lines
+//! has an opacity or mask group per line fragment, not one per element.
 //!
 //! Transforms, fixed boxes and sticky boxes are transform groups
 //! ([`DisplayItem::PushTransform`]). The offsets of fixed and sticky boxes
@@ -43,6 +54,7 @@
 //! boxes move (not the absolutely positioned boxes whose containing block
 //! is outside the scroll container).
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -53,7 +65,7 @@ use swb_layout::{
     is_absolute_containing_block, is_fixed_containing_block,
 };
 use swb_style::{
-    BackgroundBox, BorderStyle, ComputedStyle, Image, Position, Rgba, TextDecorationLine,
+    BackgroundBox, BorderStyle, ComputedStyle, Display, Image, Position, Rgba, TextDecorationLine,
     Visibility, ZIndex,
 };
 use swb_text::FontId;
@@ -453,6 +465,11 @@ pub fn build_display_list(
         images,
         highlights,
         contexts: Vec::new(),
+        tree_order: tree
+            .root
+            .as_ref()
+            .map(positioned_tree_order)
+            .unwrap_or_default(),
         clips: Vec::new(),
         absolute_clips: 0,
         fixed_clips: 0,
@@ -500,15 +517,88 @@ pub fn build_display_list(
     DisplayList { items }
 }
 
+/// The phases in which a stacking context (or a box that paints like one)
+/// paints its normal-flow descendants (CSS 2.2 Appendix E, steps 4, 5 and
+/// 7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    /// Backgrounds and borders of in-flow block-level boxes.
+    Backgrounds,
+    /// Floats, each painted as a unit.
+    Floats,
+    /// Inline content: text, inline boxes, atomic inline-level boxes.
+    Foreground,
+}
+
+/// How a box takes part in the paint phases of its stacking context.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PaintKind {
+    /// Painted after the normal flow, in z-index order.
+    Positioned,
+    /// Painted as a unit in the float phase, as if it established a
+    /// stacking context.
+    Float,
+    /// Painted as a unit in the foreground phase: atomic inline-level
+    /// boxes, flex and grid items, and other non-positioned stacking
+    /// contexts (opacity < 1, masks).
+    Atomic,
+    /// An inline box: painted in the foreground phase.
+    Inline,
+    /// An in-flow block-level box: each phase paints its part.
+    Block,
+}
+
+fn paint_kind(b: &BoxFragment) -> PaintKind {
+    let style = &b.style;
+    // A transformed box counts as positioned (CSS Transforms 1 §3).
+    if style.position != Position::Static || has_transform(b) {
+        PaintKind::Positioned
+    } else if style.is_floating() {
+        PaintKind::Float
+    } else if b.is_inline {
+        PaintKind::Inline
+    } else if style.display.is_inline_level() || style.opacity < 1.0 || style.has_mask() {
+        PaintKind::Atomic
+    } else {
+        PaintKind::Block
+    }
+}
+
 /// A positioned box painted after the normal flow of its stacking context.
 struct Deferred {
     z: i32,
+    /// The box's index in tree order (see [`positioned_tree_order`]):
+    /// boxes with equal z-index paint in tree order, also when the paint
+    /// phases find them in another order.
+    order: u32,
     items: ItemRope,
     /// The number of clips that the items repeat around the box: they
     /// start with a `PushViewportClip` (for a box fixed to the viewport)
     /// and the `PushClip`s of the clips that apply to the box, and end with
     /// as many `PopClip`s.
     clips: usize,
+}
+
+/// The index in tree order (pre-order) of each positioned or transformed
+/// box of a fragment tree, by address. The paint phases find positioned
+/// boxes in another order (those in floats and inline content later);
+/// with equal z-index they paint in tree order. The recursion depth is
+/// bounded by the box tree depth (see `swb_layout`'s `box_tree.rs`).
+fn positioned_tree_order(root: &BoxFragment) -> HashMap<*const BoxFragment, u32> {
+    fn visit(b: &BoxFragment, next: &mut u32, order: &mut HashMap<*const BoxFragment, u32>) {
+        for child in b.children.iter() {
+            if let Fragment::Box(cb) = child {
+                *next = next.saturating_add(1);
+                if paint_kind(cb) == PaintKind::Positioned {
+                    order.insert(std::ptr::from_ref(cb), *next);
+                }
+                visit(cb, next, order);
+            }
+        }
+    }
+    let mut order = HashMap::new();
+    visit(root, &mut 0, &mut order);
+    order
 }
 
 /// An open clip (overflow or `clip` property).
@@ -531,8 +621,11 @@ struct Builder<'a> {
     images: &'a dyn ImageSizes,
     highlights: &'a dyn Highlights,
     /// One entry per open stacking context: its positioned descendants, in
-    /// tree order.
+    /// the order the paint phases find them.
     contexts: Vec<Vec<Deferred>>,
+    /// The tree order of the positioned boxes (see
+    /// [`positioned_tree_order`]).
+    tree_order: HashMap<*const BoxFragment, u32>,
     /// The clips (overflow and `clip` property) of the boxes that are being
     /// painted, outermost first.
     clips: Vec<OpenClip>,
@@ -636,11 +729,8 @@ impl Builder<'_> {
         let origin = self.scroll.origin_of(b, origin);
         let style = &b.style;
         let positioned = style.position != Position::Static;
-        let transformed = has_transform(b);
-        if !positioned && !transformed {
-            self.box_contents(b, origin, decorations, ancestry, false);
-            return;
-        }
+        // Only positioned and transformed boxes come here (`walk`).
+        debug_assert!(positioned || has_transform(b));
         // A positioned or transformed box is painted after the normal-flow
         // content of the enclosing stacking context, in z-index order
         // (`auto` as 0; a transformed box counts as positioned, CSS
@@ -674,9 +764,15 @@ impl Builder<'_> {
         // The box's place in the stacking context comes before its
         // positioned descendants, which it does not contain if it forms no
         // stacking context.
+        let order = self
+            .tree_order
+            .get(&std::ptr::from_ref(b))
+            .copied()
+            .unwrap_or(u32::MAX);
         let slot = self.contexts.last_mut().map(|c| {
             c.push(Deferred {
                 z,
+                order,
                 items: ItemRope::default(),
                 // The viewport clip and the repeated clips.
                 clips: clips.len() + usize::from(viewport_fixed),
@@ -748,23 +844,11 @@ impl Builder<'_> {
         let outer_scroll = std::mem::replace(&mut self.scroll, child_scroll);
         let shift = Point::new(child_origin.x - rect.x, child_origin.y - rect.y);
         let inner = ancestry.enter(b, rect, &groups, shift);
-        for child in b.children.iter() {
-            match child {
-                Fragment::Box(cb) => self.box_fragment(cb, child_origin, &own, &inner),
-                Fragment::Text(t) => self.text(t, child_origin, &own),
-            }
+        for phase in [Phase::Backgrounds, Phase::Floats, Phase::Foreground] {
+            self.walk(b, child_origin, &own, phase, false, &inner);
         }
         self.scroll = outer_scroll;
-        if let BoxContent::Table(table) = &b.content
-            && let Some(collapsed) = &table.collapsed
-        {
-            self.collapsed_borders(collapsed, rect.origin());
-        }
-        if let BoxContent::Control(c) = &b.content
-            && b.style.visibility == Visibility::Visible
-        {
-            self.list.extend(control::caret(c, &b.style, rect.origin()));
-        }
+        self.box_foreground_end(b, rect.origin());
         if clipped {
             self.list.push(DisplayItem::PopClip);
             self.clips.pop();
@@ -828,6 +912,153 @@ impl Builder<'_> {
             property: true,
         });
         true
+    }
+
+    /// Paints one phase of the descendants of `b` (whose border box is at
+    /// `origin`): the children of in-flow block boxes, recursively, and the
+    /// boxes that the phase paints as a unit. Positioned boxes are deferred
+    /// to their stacking context in the first phase that reaches them
+    /// (`in_inline`: the children of inline boxes, which only the
+    /// foreground phase walks).
+    fn walk(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        decorations: &[Decoration],
+        phase: Phase,
+        in_inline: bool,
+        ancestry: &Ancestry,
+    ) {
+        let registers = if in_inline {
+            Phase::Foreground
+        } else {
+            Phase::Backgrounds
+        };
+        // Flex and grid items paint as a unit (CSS Flexbox 1 §5.4, CSS Grid
+        // 2 §9).
+        let items = matches!(
+            b.style.display,
+            Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid
+        );
+        for child in b.children.iter() {
+            let cb = match child {
+                Fragment::Text(t) => {
+                    if phase == Phase::Foreground {
+                        self.text(t, origin, decorations);
+                    }
+                    continue;
+                }
+                Fragment::Box(cb) => cb,
+            };
+            let kind = match paint_kind(cb) {
+                PaintKind::Block if items => PaintKind::Atomic,
+                kind => kind,
+            };
+            match (kind, phase) {
+                (PaintKind::Positioned, p) if p == registers => {
+                    self.box_fragment(cb, origin, decorations, ancestry);
+                }
+                (PaintKind::Float, Phase::Floats) | (PaintKind::Atomic, Phase::Foreground) => {
+                    self.box_contents(cb, origin, decorations, ancestry, false);
+                }
+                (PaintKind::Inline, Phase::Foreground) => {
+                    self.inline_box(cb, origin, decorations, ancestry);
+                }
+                (PaintKind::Block, phase) => {
+                    self.block_phase(cb, origin, decorations, ancestry, phase);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Paints an inline box (in the foreground phase): its background,
+    /// border and content, inside its opacity and mask groups.
+    fn inline_box(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        decorations: &[Decoration],
+        ancestry: &Ancestry,
+    ) {
+        let group = self.open_group(b, false);
+        self.paint_box(b, origin, false);
+        let negative_z_at = self.list.len();
+        let own = child_decorations(b, decorations);
+        let rect = b.border_rect.translate(origin);
+        let inner = ancestry.enter(b, rect, &[], Point::default());
+        self.walk(b, rect.origin(), &own, Phase::Foreground, true, &inner);
+        let positioned = if group.context {
+            self.paint_deferred(negative_z_at, mask::needs_positioned_area(&b.style))
+        } else {
+            None
+        };
+        self.outline(b, origin);
+        self.close_group(&group, b, origin, positioned);
+    }
+
+    /// One phase of an in-flow block-level box that is neither positioned
+    /// nor transformed: its background and border in the background phase,
+    /// then the same phase of its children inside its overflow clip (moved
+    /// by its scroll offset); in the foreground phase also what it paints
+    /// after its children, its scroll indicators and its outline.
+    fn block_phase(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        decorations: &[Decoration],
+        ancestry: &Ancestry,
+        phase: Phase,
+    ) {
+        if phase == Phase::Backgrounds {
+            self.paint_box(b, origin, false);
+        }
+        let rect = b.border_rect.translate(origin);
+        let own = child_decorations(b, decorations);
+        let outer_clips = (self.absolute_clips, self.fixed_clips);
+        let clips_outside = self.clips.len();
+        let clipped = self.push_overflow_clip(b, origin, self.contexts.len());
+        if b.in_positioned_inline {
+            // See `box_contents`.
+            self.absolute_clips = clips_outside;
+        }
+        let (child_origin, child_scroll) = self.scroll.enter(b, rect.origin(), self.offsets);
+        let outer_scroll = std::mem::replace(&mut self.scroll, child_scroll);
+        let shift = Point::new(child_origin.x - rect.x, child_origin.y - rect.y);
+        let inner = ancestry.enter(b, rect, &[], shift);
+        self.walk(b, child_origin, &own, phase, false, &inner);
+        self.scroll = outer_scroll;
+        if phase == Phase::Foreground {
+            self.box_foreground_end(b, rect.origin());
+        }
+        if clipped {
+            self.list.push(DisplayItem::PopClip);
+            self.clips.pop();
+        }
+        (self.absolute_clips, self.fixed_clips) = outer_clips;
+        if phase == Phase::Foreground {
+            if self.indicators && b.style.visibility == Visibility::Visible {
+                self.list
+                    .extend(element_scroll_indicators(b, rect, self.offsets));
+            }
+            self.outline(b, origin);
+        }
+    }
+
+    /// What a box paints after its content: the collapsed borders of a
+    /// table and the caret of a form control. `origin` is its border-box
+    /// origin.
+    fn box_foreground_end(&mut self, b: &BoxFragment, origin: Point) {
+        if let BoxContent::Table(table) = &b.content
+            && let Some(collapsed) = &table.collapsed
+        {
+            self.collapsed_borders(collapsed, origin);
+        }
+        if let BoxContent::Control(c) = &b.content
+            && b.style.visibility == Visibility::Visible
+        {
+            self.list.extend(control::caret(c, &b.style, origin));
+        }
     }
 
     /// Starts the opacity group, the mask group and the stacking context
@@ -1032,8 +1263,7 @@ impl Builder<'_> {
                     .reduce(|a, b| a.union(&b))
             })
             .flatten();
-        // Stable sort: equal z-index keeps tree order.
-        deferred.sort_by_key(|d| d.z);
+        deferred.sort_by_key(|d| (d.z, d.order));
         let split = deferred.partition_point(|d| d.z < 0);
         let positive = deferred.split_off(split);
         let mut negative = ItemRope::default();

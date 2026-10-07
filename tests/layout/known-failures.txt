@@ -1,11 +1,9 @@
 # Layout tests that are expected to fail until the feature is implemented.
 # Format: test name, two spaces, then "# reason".
-float-in-inline-content  # floats after inline content are not laid out
-intrinsic-percentage-image  # clear is not implemented (the float is not cleared)
 flex-container-min-size  # the flex container's min/max size is ignored by the flex algorithm
 flex-align-content-stretch  # align-content: stretch grows lines after the items are stretched
 vertical-align-top-bottom  # vertical-align: top and bottom align as baseline
-intrinsic-sizes  # clear is not implemented; the min-content width of a nowrap flex container is wrong
+intrinsic-sizes  # the min-content width of a nowrap flex container is wrong
 pre-tabs  # tabs do not advance to tab stops
 nowrap-atomic-inlines  # white-space: nowrap does not prevent breaks between atomic inlines
 list-marker-inside-breaking  # inside markers are added after line breaking, and are narrower than in Chromium

@@ -137,6 +137,27 @@ in commit messages, ADRs and other docs.
   Typed URLs that differ only in the fragment scroll without a reload;
   selection honours `clip: rect()`; `html { position: absolute }`
   works.
+- Floats (ADR 0015): an exclusion space per block formatting context
+  (`layout/src/floats.rs`), the float placement rules of CSS 2.2
+  §9.5.1, lines shortened by floats that move down when they do not fit,
+  floats in inline content on the line if they fit, clearance with
+  Chromium's margin rules (a block that clears floats waiting for its
+  container's position goes exactly to the clearance offset), boxes that
+  establish a BFC beside floats, auto heights that include floats, and
+  intrinsic sizes with floats. Block layout knows positions in the BFC:
+  containers whose top margin can still collapse wait in a chain, and
+  their floats are placed when the chain resolves, without a second
+  layout. Paint phases (CSS 2.2 Appendix E): block backgrounds, floats,
+  inline content; positioned boxes keep tree order. Floats count in the
+  scrollable overflow of scroll containers, and abspos boxes next to
+  floats get Chromium's static positions. Limits: 10,000 floats per
+  BFC, a work budget per layout pass, at most 64 attempts per line.
+  Wikipedia: size 0.9592 → 0.9631, relative 0.9217 → 0.9377, pixels
+  0.8730 → 0.8903. The author's two reviews found 2 resource risks and
+  11 layout differences; the integration review found opacity and masks
+  on inline boxes ignored, positioned boxes out of tree order, the
+  forced clearance offset, lines in `nowrap` containers, and hostile
+  pages that took up to 130 s (now under 1 s); all fixed with tests.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

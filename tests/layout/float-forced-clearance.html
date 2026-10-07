@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- Clearance past adjoining floats: a block with clear clears floats
+     whose position waits for the position of its container (its margins
+     could collapse with the container's). Chromium then places the
+     container before the block's margins, and the block exactly at its
+     clearance offset: the block's margins, and the margins that collapse
+     with them, have no effect. Each case is in a BFC root, inside a
+     wrapper whose top margin can collapse with its children's. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Forced clearance</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .case { display: flow-root; margin-bottom: 10px; background: #eee; }
+  .f { float: left; width: 100px; height: 50px; background: #c00; }
+  .r { float: right; width: 100px; height: 30px; background: #00c; }
+  .b { background: #ccc; }
+</style>
+</head>
+<body>
+  <!-- A margin before the float: the block is at the float's bottom. -->
+  <div class="case"><div id="w1" style="margin-top: 8px">
+    <div id="f1" class="f"></div><div id="b1" class="b" style="clear: both; margin-top: 80px">b</div>
+  </div></div>
+  <!-- The block establishes a BFC. -->
+  <div class="case"><div id="w2">
+    <div id="f2" class="f"></div><div id="b2" class="b" style="clear: left; margin-top: 80px; overflow: hidden">b</div>
+  </div></div>
+  <!-- The child's margin collapses with the block's: no effect either. -->
+  <div class="case"><div id="w3">
+    <div id="f3" class="f"></div><div id="b3" class="b" style="clear: left; margin-top: 10px"><div id="i3" style="margin-top: 70px">x</div></div>
+  </div></div>
+  <!-- The float is in an empty wrapper with a margin. -->
+  <div class="case"><div id="w4">
+    <div id="e4" style="margin-top: 20px"><div id="f4" class="f"></div></div><div id="b4" class="b" style="clear: left; margin-top: 80px">b</div>
+  </div></div>
+  <!-- The block with clear is inside a block with a margin: that block
+       is placed first, then the float, then the block at the float's
+       bottom. -->
+  <div class="case"><div id="w5">
+    <div id="f5" class="f"></div><div id="o5" style="margin-top: 10px"><div id="b5" class="b" style="clear: left; margin-top: 70px">x</div></div>
+  </div></div>
+  <!-- An empty block with clear; the next block's margin collapses with
+       its margins. -->
+  <div class="case"><div id="w6">
+    <div id="f6" class="f"></div><div id="b6" style="clear: both; margin-top: 80px; margin-bottom: 5px"></div><div id="n6" class="b" style="margin-top: 10px">n</div>
+  </div></div>
+  <!-- The float's bottom margin edge is above its top: the block is not
+       above the position before its margins. -->
+  <div class="case"><div id="w7">
+    <div id="f7" class="f" style="margin-bottom: -60px"></div><div id="b7" class="b" style="clear: left; margin-top: 20px">b</div>
+  </div></div>
+  <!-- Margins of an empty block before the block count. -->
+  <div class="case"><div id="w8">
+    <div id="f8" class="f"></div><div id="e8" style="margin-top: 30px"></div><div id="b8" class="b" style="clear: left; margin-top: 80px">b</div>
+  </div></div>
+  <!-- The block's bottom margin counts; only clear: right floats are
+       cleared. -->
+  <div class="case"><div id="w9">
+    <div id="f9" class="f"></div><div id="r9" class="r"></div><div id="b9" class="b" style="clear: right; margin-top: 80px; margin-bottom: 30px">b</div><div id="n9" class="b" style="margin-top: 10px">n</div>
+  </div></div>
+</body>
+</html>

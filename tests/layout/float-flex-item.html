@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- float does not apply to flex items (CSS Flexbox 1 §4): a float child of
+     a flex container is a flex item, also after inline content. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Floats in flex containers</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .f { float: left; width: 50px; height: 30px; background: #c00; }
+</style>
+</head>
+<body>
+  <div id="a" style="display: flex"><span id="s">a</span><div class="f" id="fa">f</div></div>
+  <div id="b" style="display: flex">text<div class="f" id="fb">f</div>more</div>
+  <div id="c" style="display: flex; flex-direction: column; width: 200px"><div class="f" id="fc" style="float: right">f</div><div id="d">d</div></div>
+</body>
+</html>

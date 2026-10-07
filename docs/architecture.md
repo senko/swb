@@ -222,11 +222,21 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   transforms do not change layout: paint applies them (`Ancestry`,
   `GroupTransform`), and `FragmentTree::element_boxes_scrolled` gives
   the painted boxes.
+- Floats (`layout/src/floats.rs`, ADR 0015): each block formatting
+  context has an exclusion space; `LayoutContext` keeps a stack of BFCs.
+  Block layout knows the BFC position of its boxes; boxes whose top
+  margin can still collapse wait in a chain of frames, and the floats in
+  them wait for its position. Lines and BFC roots take layout
+  opportunities produced one at a time; all float work of a layout pass
+  shares a work budget.
 - Paint order: each stacking context (root; positioned boxes with an
   integer z-index; fixed, sticky and transformed boxes; opacity < 1;
-  masked boxes) paints its normal-flow content in tree order, then its
-  positioned and transformed descendants in z-index order (negative
-  z-index before the content). Relative and absolute boxes with
+  masked boxes) paints its normal-flow content in three phases
+  (backgrounds and borders of in-flow blocks, floats, inline content;
+  CSS 2.2 Appendix E), then its positioned and transformed descendants
+  in z-index order and, for equal values, tree order (a pre-order index
+  of the fragment tree; negative z-index before the content). Floats,
+  atomic inline-level boxes and flex and grid items paint as a unit. Relative and absolute boxes with
   `z-index: auto` paint in that order but form no stacking context. A
   positioned box repeats the clips between its stacking context and
   itself that belong to its containing block chain; a box fixed to the

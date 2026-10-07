@@ -4,7 +4,7 @@
 //! shrink-to-fit widths (floats, inline-blocks, absolutely positioned
 //! boxes), for flex base sizes and for grid track sizes.
 
-use swb_style::{BoxSizing, ComputedStyle, Size};
+use swb_style::{BoxSizing, Clear, ComputedStyle, Size};
 
 use crate::LayoutContext;
 use crate::block::BoxEdges;
@@ -152,13 +152,68 @@ pub(crate) fn container_content_sizes(
 ) -> ContentSizes {
     match container {
         BlockContainer::Inline(ifc) => inline::content_sizes(ctx, ifc, style),
-        BlockContainer::Blocks(children) => {
-            let mut sizes = ContentSizes::default();
-            for child in children {
-                sizes = sizes.max_with(block_level_outer_sizes(ctx, child));
-            }
-            sizes
+        BlockContainer::Blocks(children) => blocks_content_sizes(ctx, children),
+    }
+}
+
+/// The content sizes of block-level children, with floats as in Chromium's
+/// `BlockLayoutAlgorithm::ComputeMinMaxSizes`: floats and a box that
+/// establishes a BFC after them share a "line", so their max-content
+/// widths add up; a float or BFC root with `clear` starts a new line on the
+/// cleared sides, and any other in-flow box ends the line.
+fn blocks_content_sizes(ctx: &mut LayoutContext<'_>, children: &[BlockLevelBox]) -> ContentSizes {
+    let mut sizes = ContentSizes::default();
+    let mut left = 0.0_f32;
+    let mut right = 0.0_f32;
+    for child in children {
+        let child = match child {
+            BlockLevelBox::InInline(b) => &b.block,
+            other => other,
+        };
+        if matches!(child, BlockLevelBox::AbsolutelyPositioned(_)) {
+            continue;
         }
+        let floating = matches!(child, BlockLevelBox::Float(_));
+        let new_fc = matches!(child, BlockLevelBox::Independent(_));
+        let child_sizes = block_level_outer_sizes(ctx, child);
+        sizes.min = sizes.min.max(child_sizes.min);
+        if floating || new_fc {
+            let clear = child_style(child).map_or(Clear::None, |s| s.clear);
+            if clear != Clear::None {
+                sizes.max = sizes.max.max(left + right);
+            }
+            if matches!(clear, Clear::Left | Clear::Both) {
+                left = 0.0;
+            }
+            if matches!(clear, Clear::Right | Clear::Both) {
+                right = 0.0;
+            }
+        }
+        if floating {
+            if child_style(child).is_some_and(|s| s.float == swb_style::Float::Right) {
+                right += child_sizes.max;
+            } else {
+                left += child_sizes.max;
+            }
+            sizes.max = sizes.max.max(left + right);
+        } else {
+            let line = if new_fc { left + right } else { 0.0 };
+            sizes.max = sizes.max.max(line + child_sizes.max);
+            left = 0.0;
+            right = 0.0;
+        }
+    }
+    sizes
+}
+
+/// The style of a block-level box.
+fn child_style(b: &BlockLevelBox) -> Option<&ComputedStyle> {
+    match b {
+        BlockLevelBox::Block { base, .. } => Some(&base.style),
+        BlockLevelBox::Independent(ib)
+        | BlockLevelBox::Float(ib)
+        | BlockLevelBox::AbsolutelyPositioned(ib) => Some(&ib.base.style),
+        BlockLevelBox::InInline(b) => child_style(&b.block),
     }
 }
 

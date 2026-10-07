@@ -5,10 +5,10 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images), form controls, flex layout, grid layout, table layout,
-//! relative, absolute, fixed and sticky positioning (`positioned.rs`),
-//! transforms (paint applies them), the scrollable overflow of scroll
-//! containers (see `scroll.rs`). Floats are approximated (see `block.rs`).
+//! (images), form controls, flex layout, grid layout, table layout, floats
+//! and clearance (`floats.rs`), relative, absolute, fixed and sticky
+//! positioning (`positioned.rs`), transforms (paint applies them), the
+//! scrollable overflow of scroll containers (see `scroll.rs`).
 //!
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
@@ -18,6 +18,7 @@ mod block;
 mod box_tree;
 mod control;
 mod flex;
+mod floats;
 mod fonts;
 mod fragment;
 mod geom;
@@ -34,6 +35,7 @@ mod table;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use swb_dom::{Document, NodeId, local_name};
 use swb_style::{ComputedStyle, Overflow, StyleMap};
@@ -105,11 +107,27 @@ pub(crate) struct LayoutContext<'a> {
     /// The number of placeholders of absolutely positioned boxes created
     /// (see `positioned.rs`).
     pub(crate) placeholders: usize,
+    /// The number of block boxes, independent boxes and line boxes laid
+    /// out: a measure of layout work (see `block::fit_independent`).
+    pub(crate) layout_units: u64,
     /// Data of the tables of this layout pass.
     pub(crate) tables: table::TableCache,
     /// Data of the grid containers of this layout pass.
     pub(crate) grids: grid::GridCache,
+    /// The block formatting contexts being laid out (the first
+    /// `bfc_depth`), innermost last; the others are kept for reuse.
+    bfcs: Vec<floats::Bfc>,
+    bfc_depth: usize,
+    /// The work budget of float layout (see [`floats::WORK_BUDGET`]) that
+    /// no BFC on the stack holds.
+    float_budget: u64,
+    /// True once the float work budget of this layout pass ran out.
+    pub(crate) float_budget_spent: bool,
 }
+
+/// True once a spent float work budget was logged: the warning appears
+/// once per process, not once per layout pass.
+static FLOAT_BUDGET_WARNED: AtomicBool = AtomicBool::new(false);
 
 impl<'a> LayoutContext<'a> {
     pub(crate) fn new(fonts: &'a mut FontContext) -> Self {
@@ -121,9 +139,62 @@ impl<'a> LayoutContext<'a> {
             layouts: LayoutCache::default(),
             uncached_layouts: 0,
             placeholders: 0,
+            layout_units: 0,
             tables: table::TableCache::default(),
             grids: grid::GridCache::default(),
+            bfcs: Vec::new(),
+            bfc_depth: 0,
+            float_budget: floats::WORK_BUDGET,
+            float_budget_spent: false,
         }
+    }
+
+    /// The innermost block formatting context.
+    pub(crate) fn bfc(&mut self) -> &mut floats::Bfc {
+        if self.bfc_depth == 0 {
+            self.push_bfc();
+        }
+        &mut self.bfcs[self.bfc_depth - 1]
+    }
+
+    /// Starts a new block formatting context; it takes over the work
+    /// budget.
+    pub(crate) fn push_bfc(&mut self) {
+        let budget = match self.bfc_depth.checked_sub(1) {
+            Some(outer) => std::mem::take(&mut self.bfcs[outer].budget),
+            None => std::mem::take(&mut self.float_budget),
+        };
+        match self.bfcs.get_mut(self.bfc_depth) {
+            Some(spare) => spare.reset(budget),
+            None => self.bfcs.push(floats::Bfc::new(budget)),
+        }
+        self.bfc_depth += 1;
+    }
+
+    /// Ends the innermost block formatting context; returns the bottom of
+    /// its lowest float. The remaining work budget goes back to the outer
+    /// context.
+    pub(crate) fn pop_bfc(&mut self) -> Option<f32> {
+        let depth = self.bfc_depth.checked_sub(1)?;
+        self.bfc_depth = depth;
+        let bfc = &mut self.bfcs[depth];
+        let budget = std::mem::take(&mut bfc.budget);
+        let bottom = bfc.exclusions.bottom();
+        if budget == 0 && !self.float_budget_spent {
+            self.float_budget_spent = true;
+            if FLOAT_BUDGET_WARNED.swap(true, Ordering::Relaxed) {
+                log::debug!("float layout work budget spent");
+            } else {
+                log::warn!(
+                    "float layout work budget spent; later floats and boxes go below all floats"
+                );
+            }
+        }
+        match depth.checked_sub(1) {
+            Some(outer) => self.bfcs[outer].budget = budget,
+            None => self.float_budget = budget,
+        }
+        bottom
     }
 
     /// The shaped text of an inline formatting context (cached).

@@ -59,8 +59,9 @@ for about 70 cases). It is the union of:
 
 1. the padding box;
 2. the in-flow content with the padding around it (the "end padding" of
-   §2.2): the margin boxes of the in-flow children and floats before
-   relative positioning (the right margin of an over-constrained block
+   §2.2): the margin boxes of the in-flow children and floats (for
+   floats in inline content, see ADR 0015) before relative positioning
+   (the right margin of an over-constrained block
    with its specified value), the line boxes up to the end of their
    content (with `text-align`; the end margins of inline boxes count),
    and the auto content height (so the collapsed end margins of the last

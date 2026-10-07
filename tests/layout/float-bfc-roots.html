@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Boxes that establish a block formatting context do not overlap floats
+     (CSS 2.2 §9.5): they shrink to fit beside them or move below them,
+     with Chromium's rules for margins (they overlap floats unless they
+     reach past them), auto margins and percentages. A box pushed down by
+     floats does not collapse its top margin with its parent's. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Block formatting context roots next to floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  p { margin: 0; }
+  .r { border: 1px solid; margin-top: 10px; width: 600px; display: flow-root; }
+  .f { float: left; width: 100px; height: 50px; background: #c00; }
+  .g { float: right; width: 100px; height: 50px; background: #00c; }
+  .o { overflow: hidden; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="r" id="r1"><div class="f" id="f1"></div><div class="o" id="b1">text</div></div>
+  <div class="r" id="r2"><div class="f" id="f2"></div><div class="o" id="b2" style="width: 550px">text</div></div>
+  <div class="r" id="r3"><div class="f" id="f3"></div><div class="o" id="b3" style="margin-left: 20px">text</div></div>
+  <div class="r" id="r4"><div class="f" id="f4"></div><div class="o" id="b4" style="margin-left: 120px">text</div></div>
+  <div class="r" id="r5"><div class="f" id="f5"></div><div class="o" id="b5" style="width: 200px; margin: 0 auto">text</div></div>
+  <div class="r" id="r6"><div class="f" id="f6"></div><div class="g" id="g6"></div><div class="o" id="b6" style="width: 50%">text</div></div>
+  <div class="r" id="r7"><div class="f" id="f7"></div><div class="o" id="b7" style="margin-right: 20px; margin-left: -30px">text</div></div>
+  <div class="r" id="r8"><div class="f" id="f8"></div><div class="o" id="b8" style="margin-top: 20px">text</div></div>
+  <div class="r" id="r9"><div class="f" id="f9" style="width: 300px"></div><div class="o" id="b9" style="min-width: 350px">text</div></div>
+  <div class="r" id="r10"><div class="f" id="f10"></div><div id="b10" style="display: flow-root; margin-left: auto; width: 100px; background: #ccc">text</div></div>
+  <div class="r" id="r11"><div id="p11" style="margin-top: 10px"><div class="f" id="f11"></div><div class="o" id="b11" style="width: 550px; margin-top: 30px">text</div></div></div>
+  <div class="r" id="r12"><div class="f" id="f12"></div><div id="p12" style="margin-top: 10px"><div class="o" id="b12" style="width: 550px; margin-top: 30px">text</div></div></div>
+  <div class="r" id="r13"><div id="p13" style="margin-top: 10px"><div class="f" id="f13"></div><div class="o" id="b13" style="margin-top: 25px">text</div></div></div>
+  <div class="r" id="r14"><div class="f" id="f14"></div><table id="t14" style="width: 100%; border-spacing: 0"><tr><td id="d14">cell</td></tr></table></div>
+  <div class="r" id="r15"><div class="f" id="f15"></div><table id="t15" style="border-spacing: 0"><tr><td id="d15">cell</td></tr></table></div>
+  <div class="r" id="r16"><div class="f" id="f16" style="height: 20px"></div><div class="g" id="g16" style="width: 300px; margin-top: 30px"></div><div class="o" id="b16" style="width: 300px">text<br>text</div></div>
+</body>
+</html>

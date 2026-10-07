@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Static positions of absolutely positioned boxes next to floats: an
+     inline-level box goes where it is on the line, after a float at the
+     start of the line, also on an empty line; a block-level box goes to
+     the start of the containing block, also inside an inline box on an
+     empty line after a float; among blocks, floats do not move it.
+     Measured in Chromium. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolutely positioned boxes next to floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .case { display: flow-root; position: relative; width: 400px; margin-bottom: 10px; background: #eee; }
+  .f { float: left; width: 50px; height: 50px; background: #c00; }
+  .a { position: absolute; background: #0a0; }
+</style>
+</head>
+<body>
+  <div class="case"><div id="f1" class="f"></div><span id="s1"><div id="a1" class="a" style="width:10px; height:10px">W</div></span></div>
+  <div class="case"><div id="f2" class="f"></div><span id="a2" class="a">T</span>text</div>
+  <div class="case"><div id="f3" class="f"></div><span id="a3" class="a">S</span></div>
+  <div class="case"><div id="f4" class="f"></div><div id="a4" class="a">B</div></div>
+  <div class="case"><div id="f5" class="f"></div><div id="a5" class="a">B</div>text</div>
+  <div class="case"><div id="f6" class="f" style="float:right"></div><span id="a6" class="a">S</span>text</div>
+  <div class="case"><div id="f7" class="f"></div>text <div id="a7" class="a" style="width:10px; height:10px"></div>more</div>
+  <div class="case"><div id="f8" class="f"></div><div id="a8" class="a" style="width:10px; height:10px"></div><p id="p8" style="margin:0">text</p></div>
+  <div class="case"><div id="f9" class="f"></div><div id="a9" class="a" style="width:10px; height:10px; clear:left"></div><div id="b9" style="clear:left">b</div></div>
+</body>
+</html>

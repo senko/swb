@@ -4,6 +4,8 @@
 - Date: 2026-10-03
 - Updated: 2026-10-04 (M2 maintenance): see "Update (2026-10-04)" at the
   end. The decision did not change.
+- Updated: 2026-10-04 (M3 floats): see "Update (2026-10-04, floats)" at
+  the end.
 
 ## Context
 
@@ -241,3 +243,15 @@ Corrections from the M2 maintenance review:
   layout. Fixed layout scales them down in proportion when their total is
   more than 100%.
 - With forms (ADR 0013), the Hacker News geometry score is 1.0.
+
+## Update (2026-10-04, floats)
+
+With floats (ADR 0015), a block-level table is a box that establishes a
+block formatting context and does not overlap floats.
+`layout_block_level` takes the available width: the containing block's
+width, or a layout opportunity next to floats with the table's margins.
+The table's width (fit-content) and its `auto` margins use that width;
+percentage widths still resolve against the containing block, so a
+`width: 100%` table next to a float moves below it, as in Chromium.
+Table cells and captions establish their own block formatting context:
+their floats stay inside them and count for their auto height.

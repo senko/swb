@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Floats in blocks whose top margins collapse: a float waits for the
+     position of its container and is placed where the container ends up
+     (after margins that collapse through it), or at the position of an
+     empty block (as if it had a bottom border), as in Chromium. A
+     block-level float is not above the margins before it. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Floats and margin collapsing</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  p { margin: 0; }
+  .r { border: 1px solid; margin-top: 10px; }
+  .f { float: left; width: 50px; height: 30px; background: #c00; }
+</style>
+</head>
+<body>
+  <div class="r" id="r1">
+    <div id="a1" style="margin-bottom: 50px"><div class="f" id="f1"></div></div>
+    <div id="b1" style="margin-top: 100px">text</div>
+  </div>
+  <div class="r" id="r2">
+    <div id="c2"><div class="f" id="f2"></div><p id="p2" style="margin-top: 50px">text</p></div>
+  </div>
+  <div class="r" id="r3">
+    <div id="d3" style="margin-top: 10px"><div class="f" id="f3"></div><div id="e3" style="margin-top: 40px"></div></div><div id="g3" style="margin-top: 30px">x</div>
+  </div>
+  <div class="r" id="r4">
+    <div id="c4"><div id="a4"><div class="f" id="f4"></div></div><p id="p4" style="margin-top: 50px">text</p></div>
+  </div>
+  <div class="r" id="r5">
+    <div id="c5" style="margin-top: 5px"><div class="f" id="f5"></div></div><div id="n5" style="margin-top: 40px; padding-top: 1px">x</div>
+  </div>
+  <div class="r" id="r6">
+    <p id="a6" style="margin-bottom: 30px">a</p><div class="f" id="f6"></div><p id="b6" style="margin-top: 50px">b</p>
+  </div>
+  <div class="r" id="r7">
+    <p id="a7" style="margin-bottom: -30px">a</p><div class="f" id="f7"></div><p id="b7" style="margin-top: 10px">b</p>
+  </div>
+  <div class="r" id="r8">
+    <div id="c8" style="margin-top: 20px"><div id="d8" style="margin-top: 30px"><div class="f" id="f8"></div>text</div></div>
+  </div>
+</body>
+</html>

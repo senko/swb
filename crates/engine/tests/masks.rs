@@ -659,3 +659,80 @@ fn thin_rectangles_at_strip_boundaries() {
     assert_eq!(rgb(&p, 200, 30_000), (0, 0, 0));
     assert_eq!(rgb(&p, 200, 29_999), WHITE);
 }
+
+/// Masks and floats (measured with Chromium 148): a masked float still
+/// excludes the line; floats inside a masked block are masked with it; a
+/// masked block paints over a float beside it (it is a stacking context,
+/// painted after the floats); with `no-clip`, a float that overflows the
+/// box stays clipped unless a positioned descendant widens the area.
+#[test]
+fn masks_and_floats() {
+    let site = Site::new("mask-floats");
+    let half = data_url(LEFT_HALF);
+    let square = data_url(SQUARE);
+    let cases = [
+        (
+            format!(
+                "<div class=b style=\"float:left; -webkit-mask: url('{half}') 0 0 / 50px no-repeat\">\
+                 </div><span style='display:inline-block;width:20px;height:20px;background:red'></span>"
+            ),
+            vec![
+                ((24, 25), BLUE),
+                ((26, 25), WHITE),
+                ((55, 10), RED),
+                ((75, 10), WHITE),
+            ],
+        ),
+        (
+            format!(
+                "<div style=\"width:100px; height:50px; \
+                 -webkit-mask: url('{half}') 0 0 / 100px 50px no-repeat\">\
+                 <div style='float:right;width:50px;height:50px;background:red'></div>\
+                 <div style='float:left;width:50px;height:50px;background:blue'></div></div>"
+            ),
+            vec![((45, 25), BLUE), ((55, 10), WHITE), ((95, 25), WHITE)],
+        ),
+        (
+            format!(
+                "<div class=b style='float:left;background:red'></div><div style=\"height:50px; \
+                 background:blue; -webkit-mask: url('{half}') 0 0 / 100px 50px no-repeat\">x</div>"
+            ),
+            vec![((5, 5), BLUE), ((45, 25), BLUE), ((75, 10), WHITE)],
+        ),
+        (
+            format!(
+                "<div style=\"width:50px; height:50px; mask: url('{square}') repeat; \
+                 mask-clip: no-clip\"><div style='float:left;width:150px;height:30px;\
+                 background:blue'></div></div>"
+            ),
+            vec![((45, 25), BLUE), ((55, 10), WHITE), ((95, 25), WHITE)],
+        ),
+        (
+            format!(
+                "<div style=\"width:50px; height:50px; mask: url('{square}') repeat; \
+                 mask-clip: no-clip\"><div style='float:left;width:150px;height:30px;\
+                 background:blue'></div><div style='position:relative;width:150px;height:20px;\
+                 background:red'></div></div>"
+            ),
+            vec![
+                ((5, 5), RED),
+                ((24, 25), BLUE),
+                ((95, 25), BLUE),
+                ((140, 10), RED),
+            ],
+        ),
+    ];
+    for (i, (body, points)) in cases.iter().enumerate() {
+        let url = site.page(
+            &format!("page{i}.html"),
+            &format!(
+                "<!DOCTYPE html><style>body {{ margin: 0; font: 16px/20px sans-serif }} \
+                 .b {{ width: 50px; height: 50px; background: blue }}</style>{body}"
+            ),
+        );
+        let (_, p) = screenshot(url, 1.0);
+        for &((x, y), color) in points {
+            assert_eq!(rgb(&p, x, y), color, "case {i} at ({x}, {y})");
+        }
+    }
+}

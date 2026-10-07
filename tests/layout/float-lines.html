@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Line boxes next to floats: text-align in the free range, list items
+     next to a float, a wide float after text, <br clear>, a tall line
+     that moves below a lower float, a float with clear inside nested
+     inline boxes, and text-indent next to a float. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lines next to floats</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .f { float: left; width: 100px; height: 30px; background: #c00; }
+  .r { float: right; width: 100px; height: 50px; background: #00c; }
+  span { background: #ccc; }
+  .c { width: 400px; clear: both; }
+</style>
+</head>
+<body>
+  <div class="c" id="c1"><div class="f" id="f1"></div><span id="s1">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp</span></div>
+  <div class="c" id="c2" style="text-align: center"><div class="f" id="f2"></div><div class="r" id="r2" style="margin-top: 25px"></div><span id="s2">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt</span></div>
+  <ul class="c" id="c3">
+    <li id="l3"><div class="f" id="f3"></div><span id="s3">item text</span></li>
+    <li id="l3b"><span id="s3b">second item</span></li>
+  </ul>
+  <div class="c" id="c4"><span id="s4a">aaa bbb ccc</span><div class="f" id="f4" style="width: 300px"></div><span id="s4b">ddd eee fff ggg hhh iii jjj kkk lll</span></div>
+  <div class="c" id="c5"><span id="s5a">aaa</span><br clear="left"><span id="s5b">bbb</span><div class="f" id="f5"></div><span id="s5c">ccc</span><br clear="all"><span id="s5d">ddd</span></div>
+  <div class="c" id="c6"><div class="f" id="f6" style="height: 10px"></div><div class="r" id="r6" style="width: 250px; height: 10px; margin-top: 15px"></div><span id="s6" style="font-size: 30px; line-height: 40px">Big</span></div>
+  <div class="c" id="c7"><span id="s7a">aaa <span id="s7b" style="padding-left: 5px">bbb <div class="f" id="f7" style="clear: left"></div>ccc</span> ddd</span></div>
+  <div class="c" id="c8" style="text-indent: 30px"><div class="f" id="f8"></div><span id="s8">aaa</span></div>
+</body>
+</html>

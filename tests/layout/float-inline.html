@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Line boxes next to floats and floats inside inline content, as in
+     Chromium's LayoutNG: lines are shortened, a line moves down when its
+     first word or its height does not fit, a float after content goes on
+     the line if it fits and below it otherwise, a float at the start of a
+     line is placed before the line, and inline boxes around floats keep
+     their boxes. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Floats and inline content</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .r { width: 300px; display: flow-root; margin-bottom: 10px; border: 1px solid; }
+  .a { float: left; width: 100px; height: 30px; background: #c00; }
+  .b { float: right; width: 100px; height: 30px; background: #00c; }
+</style>
+</head>
+<body>
+  <div class="r" id="r1"><div class="a" id="a1"></div><span id="t1">one two three four five six seven eight nine ten eleven twelve thirteen</span></div>
+  <div class="r" id="r2"><span id="t2">aaa bbb ccc</span> <span class="b" id="b2"></span><span id="u2">ddd eee fff ggg hhh</span></div>
+  <div class="r" id="r3"><span id="t3">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span> <span class="b" id="b3"></span><span id="u3">ddd</span></div>
+  <div class="r" id="r4"><span id="t4">aaa</span> <span class="a" id="a4"></span><span class="b" id="b4" style="width: 150px"></span><span class="a" id="c4"></span><span id="u4">bbb</span></div>
+  <div class="r" id="r5"><span class="a" id="a5" style="height: 50px"></span><span id="s5" style="font-size: 40px; line-height: 40px">big</span> <span id="t5">x x x x x x x x x x x x x x x x x x x</span></div>
+  <div class="r" id="r6"><div class="a" id="a6" style="height: 15px"></div><div class="b" id="b6" style="height: 25px; width: 150px"></div><span id="t6">wordwordwordword</span></div>
+  <div class="r" id="r7"><div class="a" id="a7" style="height: 10px"></div><div class="b" id="b7" style="width: 150px; height: 30px; margin-top: 15px"></div><span id="t7" style="font-size: 30px; line-height: 30px">Tall</span></div>
+  <div class="r" id="r8"><span id="s8"><div class="a" id="a8"></div></span><span id="t8">text</span></div>
+  <div class="r" id="r9" style="text-align: center"><div class="a" id="a9"></div><span id="t9">centered</span></div>
+  <div class="r" id="r10" style="text-indent: 20px"><div class="a" id="a10"></div><span id="t10">indented first line and more words here</span></div>
+  <div class="r" id="r11"><div class="a" id="a11"></div><span id="t11" style="display: inline-block; width: 150px; height: 20px; background: #ccc"></span><span id="u11" style="display: inline-block; width: 100px; height: 20px; background: #999"></span></div>
+</body>
+</html>

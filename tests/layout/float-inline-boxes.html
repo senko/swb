@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Floats inside inline content: a float inside a relatively positioned
+     inline box moves with it, atomic inlines next to floats, relatively
+     positioned floats, floats in a padded container, and a float inside a
+     word (no break opportunity around it), which ends the line before the
+     word if the rest of the word does not fit beside it. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Floats inside inline boxes</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .f { float: left; width: 100px; height: 30px; background: #c00; }
+  span { background: #ccc; }
+  .c { width: 400px; clear: both; }
+</style>
+</head>
+<body>
+  <div class="c" id="c1">
+    <span id="s1" style="position: relative; top: 10px; left: 20px">aaa <div class="f" id="f1"></div>bbb</span>
+  </div>
+  <div class="c" id="c2">
+    <div class="f" id="f2"></div><span id="s2" style="display: inline-block; width: 250px; height: 10px"></span><span id="s2b" style="display: inline-block; width: 250px; height: 10px"></span>
+  </div>
+  <div class="c" id="c3">
+    <div class="f" id="f3" style="height: 15px"></div>
+    <div id="r3" style="float: right; width: 200px; height: 20px; margin-top: 20px; background: #00c"></div>
+    <span id="s3" style="display: inline-block; width: 250px; height: 30px"></span>
+  </div>
+  <div class="c" id="c4">
+    <div class="f" id="f4" style="float: right; position: relative; left: -10px; top: 5px; margin: 3px 7px"></div>text
+  </div>
+  <div class="c" id="c5" style="padding-left: 20px; border-left: 5px solid">
+    <div id="m5" style="margin-left: 30px"><div class="f" id="f5" style="margin-left: 5px"></div><p id="p5" style="margin-top: 20px">text</p></div>
+  </div>
+  <div class="c" id="c6">
+    <span id="a6">aaa bbb ccc</span><img id="f6" style="float: right; width: 300px; height: 30px" alt=""><span id="b6">ddd eee fff</span>
+  </div>
+  <div class="c" id="c7">
+    <span id="a7">aaa bbb ccc</span><div class="f" id="f7" style="width: 300px"></div><span id="b7">ddd eee fff ggg hhh iii jjj kkk lll</span>
+  </div>
+</body>
+</html>
