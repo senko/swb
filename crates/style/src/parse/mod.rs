@@ -98,7 +98,8 @@ pub(crate) fn parse_non_negative_number(p: &mut Parser<'_>) -> ParseResult<f32> 
 }
 
 /// Consumes an `<integer>`, including `calc()` that evaluates to a number
-/// (rounded to the nearest integer).
+/// (rounded to the nearest integer, halves toward positive infinity, as
+/// CSS Values 4 says: <https://www.w3.org/TR/css-values-4/#calc-range>).
 pub(crate) fn parse_integer(p: &mut Parser<'_>) -> ParseResult<i32> {
     if let Ok(n) = p.expect_integer() {
         return Ok(n);
@@ -106,7 +107,13 @@ pub(crate) fn parse_integer(p: &mut Parser<'_>) -> ParseResult<i32> {
     p.try_parse(|p| {
         let node = length::parse_math_function(p)?;
         let n = node.as_number().ok_or(ParseError::Invalid)?;
-        Ok(n.round().clamp(i32::MIN as f32, i32::MAX as f32) as i32)
+        // `round` takes halves away from zero; a negative half goes up.
+        let n = if n.fract() == -0.5 {
+            n.ceil()
+        } else {
+            n.round()
+        };
+        Ok(n.clamp(i32::MIN as f32, i32::MAX as f32) as i32)
     })
 }
 
@@ -181,6 +188,14 @@ mod tests {
         assert!(parse_all("-1", parse_non_negative_number).is_err());
         assert_eq!(parse_all("7", parse_integer), Ok(7));
         assert!(parse_all("7.5", parse_integer).is_err());
+        assert_eq!(parse_all("calc(1.5)", parse_integer), Ok(2));
+        assert_eq!(parse_all("calc(-1.5)", parse_integer), Ok(-1));
+        assert_eq!(parse_all("calc(1e10)", parse_integer), Ok(i32::MAX));
+        assert_eq!(parse_all("calc(9999999)", parse_integer), Ok(9_999_999));
+        assert_eq!(parse_all("calc(-9999999)", parse_integer), Ok(-9_999_999));
+        assert_eq!(parse_all("calc(2.5)", parse_integer), Ok(3));
+        assert_eq!(parse_all("calc(-2.5)", parse_integer), Ok(-2));
+        assert_eq!(parse_all("calc(-2.6)", parse_integer), Ok(-3));
         assert_eq!(parse_all("90deg", |p| parse_angle(p, false)), Ok(90.0));
         assert_eq!(parse_all("0.5turn", |p| parse_angle(p, false)), Ok(180.0));
         assert_eq!(parse_all("100grad", |p| parse_angle(p, false)), Ok(90.0));

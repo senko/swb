@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- CSS counters: reset, increment and set on one element; counters of
+     previous siblings; a reset inside the scope of an ancestor's counter
+     (Chromium ends its scope with the element: B.3, not B.1);
+     display: none and display: contents; the order of ::marker, ::before
+     and ::after; overflow. Each counter is shown in upper-roman or
+     lower-alpha in an inline-block, so its width depends on the value. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Counter scopes</title>
+<style>
+  body { margin: 8px; font: 16px/20px serif; }
+  p { margin: 0; }
+  i, b { display: inline-block; font-style: normal; font-weight: normal; }
+  .v::before { content: counter(c, upper-roman) "."; }
+  .vs::before { content: counters(c, ".", upper-roman) "."; }
+  .r1 { counter-reset: c 1; }
+  .r2 { counter-reset: c 2; }
+  .inc { counter-increment: c; }
+  #one { counter-reset: c 5; counter-increment: c 20; counter-set: c 3; }
+  #two { counter-reset: c 1 c 8; counter-increment: c 2 c 3; }
+  .hd { counter-reset: h1 h2; }
+  .hd h1 { counter-increment: h1; counter-reset: h2; }
+  .hd h2 { counter-increment: h2; }
+  .hd h1, .hd h2 { display: inline-block; margin: 0 4px 0 0; font: inherit; }
+  .hd h1::before { content: counter(h1, upper-alpha); }
+  .hd h2::before { content: counter(h1, upper-alpha) "." counter(h2, upper-roman); }
+  .hid { counter-increment: c 3; display: none; }
+  .cont { counter-increment: c 3; display: contents; }
+  .cont::before { content: "[" counter(c, upper-roman) "]"; counter-increment: c; }
+  #po { counter-reset: q; display: list-item; list-style-position: inside; }
+  #po::marker { content: counter(q, upper-roman) " "; counter-increment: q 1; }
+  #po::before { content: counter(q, upper-roman) " "; counter-increment: q 10; }
+  #po::after { content: counter(q, upper-roman); counter-increment: q 100; }
+  .ov { counter-reset: c 2147483000; }
+  .ov > i { counter-increment: c 1000; }
+  .ov > i::before { content: counter(c); }
+</style>
+</head>
+<body>
+  <p><i id="one" class="v"></i> <i id="two" class="v"></i></p>
+  <p><i class="r2"></i><i class="vs"></i> <i class="inc"></i><i class="vs"></i></p>
+  <p class="r1"><i class="r2 vs"><b class="vs"></b></i><i class="vs"></i><i class="r2"></i><i class="vs"></i></p>
+  <p class="r1"><b><i class="r2"></i><i class="vs"></i></b><i class="vs"></i></p>
+  <div class="hd"><h1></h1><h2></h2><h2></h2><h1></h1><h2></h2></div>
+  <p class="r1"><i class="hid"></i><i class="vs"></i><span class="cont"><i class="inc"></i></span><i class="vs"></i></p>
+  <p id="po">x</p>
+  <p class="ov"><i></i> <i></i> <i></i></p>
+</body>
+</html>

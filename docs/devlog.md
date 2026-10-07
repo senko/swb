@@ -196,6 +196,19 @@ in commit messages, ADRs and other docs.
   never retried, and unbounded waiting lists; all fixed. The Wikipedia
   fixture gained the six 2x thumbnails that swb now requests at scale 2,
   and one icon of the 700 px layout (recorded with `--record-missing`).
+- CSS counters: `counter-reset`, `counter-increment`, `counter-set`,
+  `counter()` and `counters()` in `::before`, `::after` and `::marker`,
+  and the `list-item` counter. A pass at the end of style computation
+  (`style/src/counters.rs`) resolves counters to text and computes the
+  ordinal values of list items; layout no longer numbers list items
+  (ADR 0007 update). Where Chromium 148 differs from CSS Lists 3, swb
+  follows Chromium (measured with DOM snapshots): the scope of a nested
+  reset, `display: contents`, markers that use HTML ordinal values,
+  `list-item` without presentational hints. The unit tests are generated
+  from Chromium output; a review fuzzed about 13,000 values against
+  Chromium. Wikipedia: the backlink letters of the references (geometry
+  0.5136 → 0.5382, size 0.9694 → 0.9862). A provenance check against
+  the Blink files that were read found no copied code.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

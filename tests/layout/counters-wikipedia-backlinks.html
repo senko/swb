@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!-- CSS counters: the references list of the Wikipedia fixture. The backlinks
+     of a reference show the letters a, b, c, ... from counter-reset on the
+     span and counter-increment on the ::before of each link (the rules of
+     the Cite extension's sheet, then of the site sheet, in page order). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wikipedia backlinks</title>
+<style>
+  body { margin: 8px; font: 14px/22.4px sans-serif; }
+  ol.references { margin: 0 0 0 3.2em; padding: 0; }
+  a { color: #36c; text-decoration: none; }
+  span[rel='mw:referencedBy'] > a::before { content: counter(mw-references, var(--cite-counter-style)) var(--cite-backlink-separator) counter(mw-ref-linkback, var(--cite-counter-style)); }
+  :root { --cite-backlink-separator: '.'; --cite-counter-style: decimal; }
+  ol.mw-references { counter-reset: mw-ref-details-parent mw-references list-item; }
+  ol.mw-references > li { counter-increment: mw-ref-details-parent mw-references; }
+  [rel~='mw:referencedBy']::before { content: '↑ '; }
+  span[rel~='mw:referencedBy'] { counter-reset: mw-ref-linkback -1; }
+  span[rel~='mw:referencedBy'] a::before { counter-increment: mw-ref-linkback; line-height: 1; vertical-align: super; font-size: smaller; }
+  span[rel~='mw:referencedBy'] a::after { content: ' '; line-height: 1; }
+  span[rel~='mw:referencedBy'] a:last-child::after { content: ''; }
+  span.mw-linkback-text { display: none; }
+  ol.references { counter-reset: mw-ref-details-parent mw-references list-item; }
+  ol.references > li { counter-increment: mw-ref-details-parent mw-references; counter-reset: mw-ref-details-child; }
+  ol.references .mw-subreference-list > li { counter-increment: mw-ref-details-child; }
+  ol.references .mw-subreference-list > li::marker { content: counter(mw-ref-details-parent, decimal) '.' counter(mw-ref-details-child, decimal) '. '; }
+  span[rel="mw:referencedBy"] { counter-reset: mw-ref-linkback 0; }
+  span[rel='mw:referencedBy'] > a::before { content: counter(mw-ref-linkback, lower-alpha); font-size: 80%; font-weight: bold; font-style: italic; }
+  a[rel="mw:referencedBy"]::before { font-weight: bold; content: "^"; }
+  span[rel="mw:referencedBy"]::before { content: "^ "; }
+  .mw-subreference-list { list-style-position: inside; padding: 0; }
+</style>
+</head>
+<body>
+  <ol class="mw-references references">
+    <li><a href="#r1" rel="mw:referencedBy"><span class="mw-linkback-text">↑ </span></a> <span class="mw-reference-text">One.</span></li>
+    <li><span rel="mw:referencedBy" class="mw-cite-backlink"><a href="#r2a"><span class="mw-linkback-text">1</span></a> <a href="#r2b"><span class="mw-linkback-text">2</span></a> <a href="#r2c"><span class="mw-linkback-text">3</span></a> <a href="#r2d"><span class="mw-linkback-text">4</span></a> <a href="#r2e"><span class="mw-linkback-text">5</span></a> <a href="#r2f"><span class="mw-linkback-text">6</span></a> <a href="#r2g"><span class="mw-linkback-text">7</span></a> <a href="#r2h"><span class="mw-linkback-text">8</span></a></span> <span class="mw-reference-text">Two.</span></li>
+    <li><span rel="mw:referencedBy" class="mw-cite-backlink"><a href="#r3a"><span class="mw-linkback-text">1</span></a> <a href="#r3b"><span class="mw-linkback-text">2</span></a></span> <span class="mw-reference-text">Three.</span>
+      <ol class="mw-subreference-list"><li><span>Sub one.</span></li><li><span>Sub two.</span></li></ol>
+    </li>
+  </ol>
+</body>
+</html>

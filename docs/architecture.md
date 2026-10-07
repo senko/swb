@@ -37,7 +37,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
-| `style`      | Property definitions, value parsing, cascade, inheritance, computed values.    | `css`, `dom`                  |
+| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers. | `css`, `dom`                  |
 | `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
@@ -63,7 +63,9 @@ Rules:
   The parser limits the tree depth to 512 (as Blink does), because later
   stages recurse over the tree.
 - **Computed style** (`style`): one `Arc<ComputedStyle>` per element. Elements
-  that share a style share the `Arc`.
+  that share a style share the `Arc`. `StyleMap` also holds each list
+  item's ordinal value; after the cascade, `counters.rs` replaces the
+  counters in pseudo-element `content` with text (ADR 0007).
 - **Box tree** (`layout`): built from the DOM and computed styles. It contains
   anonymous boxes (for example, anonymous block wrappers around inline
   content).

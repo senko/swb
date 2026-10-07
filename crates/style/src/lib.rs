@@ -17,8 +17,12 @@
 //! - `cascade`: the cascade, inheritance and computed-value fixups.
 //! - `hints`: presentational hints from HTML attributes.
 //! - `element`: the DOM element adapter for selector matching, element
-//!   states, disabled form controls and `querySelectorAll`.
+//!   states, disabled form controls and `querySelectorAll`;
+//!   `element_kinds`: the kinds of boxes of HTML elements that style and
+//!   layout share (replaced elements, possible list items).
 //! - `values`, `computed`: computed value types.
+//! - `counters`: CSS counters and list item ordinal values, resolved
+//!   after the cascade; `counter_style`: the text of a counter value.
 //! - `style_map`: the result for a document; `content`: the text of
 //!   generated content.
 //!
@@ -28,8 +32,11 @@ mod bloom;
 mod cascade;
 mod computed;
 mod content;
+mod counter_style;
+mod counters;
 mod custom;
 mod element;
+mod element_kinds;
 mod hints;
 mod parse;
 mod properties;
@@ -43,6 +50,7 @@ pub use content::content_text;
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };
+pub use element_kinds::is_replaced_element;
 pub use style_map::{PseudoKind, StyleMap};
 pub use stylist::Stylist;
 pub use values::*;

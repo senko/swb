@@ -1062,16 +1062,120 @@ mod tests {
         assert_eq!(items[1], ContentItem::String("".into()));
         assert_eq!(
             items[2],
-            ContentItem::Counter("item".into(), ListStyleType::UpperRoman)
+            ContentItem::Counter {
+                name: "item".into(),
+                separator: None,
+                style: ListStyleType::UpperRoman
+            }
         );
         assert_eq!(items[3], ContentItem::OpenQuote);
         assert_eq!(style("content: none").content, Content::None);
         assert_eq!(style("content: normal").content, Content::Normal);
-        assert!(valid("content", "counters(a, '.')"));
+        assert_eq!(
+            style("content: counters(a, '.', lower-alpha)").content,
+            Content::Items(Arc::from([ContentItem::Counter {
+                name: "a".into(),
+                separator: Some(".".into()),
+                style: ListStyleType::LowerAlpha
+            }]))
+        );
         assert!(valid("content", "no-open-quote"));
         assert!(valid("content", "no-close-quote 'x'"));
         assert!(!valid("content", "bogus"));
         assert!(!valid("content", "'a' /"));
+    }
+
+    /// `counter()` and `counters()` as Chromium 148 accepts them
+    /// (`CSS.supports`).
+    #[test]
+    fn counter_functions() {
+        for value in [
+            "counter(c)",
+            "counter(c, none)",
+            "counter(none)",
+            "counter(c, foo)",
+            "counters(c, '.')",
+            "counters(c, \".\", decimal)",
+            "counters( c , '.' )",
+        ] {
+            assert!(valid("content", value), "{value}");
+        }
+        for value in [
+            "counter(c, default)",
+            "counter(c, inherit)",
+            "counter(inherit)",
+            "counter(c,)",
+            "counters(c)",
+            "counters(c, '.',)",
+            "counter(c, symbols(cyclic '*'))",
+            "counter(c, 'x')",
+            "counter(1)",
+            "counter(c, decimal, x)",
+        ] {
+            assert!(!valid("content", value), "{value}");
+        }
+    }
+
+    /// `counter-reset`, `counter-increment` and `counter-set` as Chromium
+    /// 148 accepts them (`CSS.supports`), and their computed values.
+    #[test]
+    fn counter_properties() {
+        for value in [
+            "c",
+            "C",
+            "c calc(1.5)",
+            "c calc(1 + 2)",
+            "c 1 c 2",
+            "c +3",
+            "auto",
+            "none",
+            "a 1 b -2 c",
+        ] {
+            assert!(valid("counter-reset", value), "{value}");
+            assert!(valid("counter-increment", value), "{value}");
+            assert!(valid("counter-set", value), "{value}");
+        }
+        for value in [
+            "reversed(x)",
+            "reversed(x) 3",
+            "3 c",
+            "c, d",
+            "none none",
+            "c none",
+            "none 3",
+            "Initial 2",
+            "revert 2",
+            "revert-layer 2",
+            "default",
+            "c 1.5",
+            "c 1e3",
+            "c 2px",
+        ] {
+            assert!(!valid("counter-reset", value), "{value}");
+            assert!(!valid("counter-set", value), "{value}");
+        }
+        let entries = |list: &CounterList| -> Vec<(String, i32)> {
+            list.iter().map(|(n, v)| (n.to_string(), v)).collect()
+        };
+        let s = style(
+            "counter-reset: a b 3 a 99999999999; counter-increment: a b -2; \
+             counter-set: x calc(-1.5)",
+        );
+        assert_eq!(
+            entries(&s.counter_reset),
+            [("a".into(), 0), ("b".into(), 3), ("a".into(), i32::MAX)]
+        );
+        assert_eq!(
+            entries(&s.counter_increment),
+            [("a".into(), 1), ("b".into(), -2)]
+        );
+        assert_eq!(entries(&s.counter_set), [("x".into(), -1)]);
+        assert!(style("counter-reset: none").counter_reset.is_empty());
+        assert!(ComputedStyle::initial().counter_increment.is_empty());
+        // At most 256 counters per value.
+        let names: Vec<String> = (0..300).map(|i| format!("c{i}")).collect();
+        let s = style(&format!("counter-reset: {}", names.join(" ")));
+        assert_eq!(s.counter_reset.iter().count(), 256);
     }
 
     #[test]

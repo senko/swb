@@ -19,11 +19,11 @@ use crate::ComputedStyle;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Cursor,
-    Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
-    FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition,
-    ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
-    PointerEvents, Position, SpecifiedLengthPercentage as Lp, SpecifiedTrackList,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator,
+    CounterList, Cursor, Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float,
+    FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
+    ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
+    OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, SpecifiedTrackList,
     SpecifiedTrackSize, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
     TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
@@ -230,6 +230,9 @@ longhands! {
     GridColumnEnd "grid-column-end" reset grid_column_end: GridLine;
     TableLayout "table-layout" reset table_layout: TableLayout;
     Content "content" reset content: SpecifiedContent;
+    CounterReset "counter-reset" reset counter_reset: CounterList;
+    CounterIncrement "counter-increment" reset counter_increment: CounterList;
+    CounterSet "counter-set" reset counter_set: CounterList;
     ObjectFit "object-fit" reset object_fit: ObjectFit;
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;

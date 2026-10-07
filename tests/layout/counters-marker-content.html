@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- ::marker content: counter() of list-item and of an author counter,
+     content: none (no marker), a string marker with list-style-type: none,
+     and the list-item counter of a reversed list (which differs from the
+     marker number in Chromium). The x of each span shows the marker
+     width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marker content</title>
+<style>
+  body { margin: 8px; font: 16px/20px serif; }
+  ol, ul { margin: 0 0 4px; padding-left: 10px; list-style-position: inside; }
+  .a { counter-reset: n 4; }
+  .a > li { counter-increment: n 3; }
+  .a > li::marker { content: counter(n, upper-roman) "/" counter(list-item, upper-roman) " "; }
+  .none > li::marker { content: none; }
+  .str { list-style-type: none; }
+  .str > li::marker { content: "item: "; }
+  .rev > li::marker { content: "(" counter(list-item, lower-alpha) ") "; }
+</style>
+</head>
+<body>
+  <ol class="a"><li><span>a</span></li><li><span>b</span></li><li><span>c</span></li></ol>
+  <ol class="none"><li><span>a</span></li></ol>
+  <ul class="str"><li><span>a</span></li></ul>
+  <ol class="rev" reversed start="6"><li><span>a</span></li><li><span>b</span></li><li><span>c</span></li></ol>
+</body>
+</html>

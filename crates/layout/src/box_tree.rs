@@ -31,13 +31,12 @@ use std::sync::Arc;
 
 use swb_dom::{Document, NodeData, NodeId, local_name};
 use swb_style::{
-    ComputedStyle, Display, LengthPercentageOrAuto, ListStyleType, Overflow, PseudoKind, StyleMap,
-    TextTransform, WhiteSpace, content_text,
+    ComputedStyle, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap, TextTransform,
+    WhiteSpace, content_text,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::control::FormControls;
-use crate::list_marker::marker_text;
 use crate::media::Media;
 use crate::source_map::{CharSource, SourceMap};
 use crate::{NaturalSize, ReplacedSizes};
@@ -349,7 +348,6 @@ impl BuildContext<'_> {
 /// The state of box construction.
 #[derive(Default)]
 pub(crate) struct BuildState {
-    counters: ListCounters,
     /// The nesting depth of the box being built.
     pub(crate) depth: usize,
     /// The last number given out by [`BuildState::next_id`].
@@ -393,81 +391,6 @@ pub(crate) fn build_root(ctx: &BuildContext<'_>) -> Option<IndependentBox> {
     let mut state = BuildState::default();
     let base = state.numbered(ctx.element_base(root, style));
     Some(build_independent(ctx, base, &mut state))
-}
-
-/// Counters for list item numbering. A stack of scopes; `ol`, `ul`,
-/// `menu` and `dir` open a new scope.
-#[derive(Default)]
-struct ListCounters {
-    scopes: Vec<ListScope>,
-}
-
-struct ListScope {
-    next: i64,
-    step: i64,
-}
-
-/// Parses an integer attribute (`start`, `value`), clamped to the `i32`
-/// range as in Chromium.
-fn integer_attribute(value: &str) -> Option<i64> {
-    let v = value.trim().parse::<i64>().ok()?;
-    Some(v.clamp(i64::from(i32::MIN), i64::from(i32::MAX)))
-}
-
-impl ListCounters {
-    fn enter_list(&mut self, ctx: &BuildContext<'_>, list: NodeId) {
-        let element = ctx.doc.element(list);
-        let reversed = element.is_some_and(|e| e.has_attr("reversed"));
-        let start = element
-            .and_then(|e| e.attr("start"))
-            .and_then(integer_attribute);
-        let (next, step) = if reversed {
-            let count = ctx
-                .doc
-                .element_children(list)
-                .filter(|&c| {
-                    ctx.styles
-                        .get(c)
-                        .is_some_and(|s| s.display == Display::ListItem)
-                })
-                .count();
-            (
-                start.unwrap_or(i64::try_from(count).unwrap_or(i64::MAX)),
-                -1,
-            )
-        } else {
-            (start.unwrap_or(1), 1)
-        };
-        self.scopes.push(ListScope { next, step });
-    }
-
-    fn leave_list(&mut self) {
-        self.scopes.pop();
-    }
-
-    /// The number for the next list item; `value` overrides it.
-    fn next_value(&mut self, value: Option<i64>) -> i64 {
-        if self.scopes.is_empty() {
-            self.scopes.push(ListScope { next: 1, step: 1 });
-        }
-        let scope = self.scopes.last_mut().expect("a scope exists");
-        let v = value.unwrap_or(scope.next);
-        scope.next = v.saturating_add(scope.step);
-        v
-    }
-}
-
-fn is_list_container(ctx: &BuildContext<'_>, node: NodeId) -> bool {
-    ctx.doc.element(node).is_some_and(|e| {
-        e.is_html()
-            && matches!(
-                e.local_name(),
-                &local_name!("ol")
-                    | &local_name!("ul")
-                    | &local_name!("menu")
-                    | &local_name!("dir")
-            )
-    })
 }
 
 pub(crate) fn build_independent(
@@ -543,14 +466,13 @@ pub(crate) fn is_atomic(ctx: &BuildContext<'_>, node: NodeId) -> bool {
 
 /// True for a replaced element (see [`replaced`]).
 fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
-    ctx.doc.element(node).is_some_and(|e| {
-        e.is_html_named(&local_name!("img"))
-            || e.is_html_named(&local_name!("video"))
-            || e.is_html_named(&local_name!("audio"))
-    })
+    ctx.doc
+        .element(node)
+        .is_some_and(swb_style::is_replaced_element)
 }
 
-/// The marker of list item `node` (an element, not a pseudo-element).
+/// The marker of list item `node` (an element, not a pseudo-element). Its
+/// text comes from style (`StyleMap::list_marker_text`).
 fn build_marker(
     ctx: &BuildContext<'_>,
     node: NodeId,
@@ -560,19 +482,8 @@ fn build_marker(
     if style.display != Display::ListItem {
         return None;
     }
-    let value = ctx
-        .doc
-        .element(node)
-        .filter(|e| e.is_html_named(&local_name!("li")))
-        .and_then(|e| e.attr("value"))
-        .and_then(integer_attribute);
-    let number = state.counters.next_value(value);
-    if style.list_style_type == ListStyleType::None && style.list_style_image.is_none() {
-        return None;
-    }
     let marker_style = ctx.styles.pseudo(node, PseudoKind::Marker)?;
-    let text =
-        content_text(marker_style).unwrap_or_else(|| marker_text(style.list_style_type, number));
+    let text = ctx.styles.list_marker_text(node, style)?;
     if text.is_empty() {
         return None;
     }
@@ -596,14 +507,7 @@ pub(crate) fn build_block_container(
 ) -> BlockContainer {
     let mut builder = ContainerBuilder::new(Arc::clone(&base.style));
     if let Some(node) = base.element() {
-        let is_list = is_list_container(ctx, node);
-        if is_list {
-            state.counters.enter_list(ctx, node);
-        }
         builder.push_children(ctx, node, state);
-        if is_list {
-            state.counters.leave_list();
-        }
     } else if let Some(text) = content_text(&base.style)
         && let Some(node) = base.node
     {
@@ -1631,17 +1535,5 @@ mod tests {
             "<p style='text-transform:capitalize'>foo<b>bar</b> (hello) <i>x</i>y<br>z</p>",
         );
         assert_eq!(text, "Foobar (Hello) XyZ");
-    }
-
-    #[test]
-    fn list_counter_saturates() {
-        let mut counters = ListCounters::default();
-        assert_eq!(counters.next_value(Some(i64::MAX)), i64::MAX);
-        assert_eq!(counters.next_value(None), i64::MAX);
-        assert_eq!(
-            integer_attribute(" 99999999999 "),
-            Some(i64::from(i32::MAX))
-        );
-        assert_eq!(integer_attribute("x"), None);
     }
 }

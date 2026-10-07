@@ -1,0 +1,32 @@
+{
+  "url": "tests/layout/counters-marker-content.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 188.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 172.0], "parent": 0},
+    {"tag": "ol", "rect": [8.0, 8.0, 784.0, 60.0], "parent": 5},
+    {"tag": "li", "rect": [18.0, 8.0, 774.0, 20.0], "parent": 6},
+    {"tag": "span", "rect": [54.0, 9.0, 7.11, 17.0], "parent": 7},
+    {"tag": "li", "rect": [18.0, 28.0, 774.0, 20.0], "parent": 6},
+    {"tag": "span", "rect": [48.67, 29.0, 8.0, 17.0], "parent": 9},
+    {"tag": "li", "rect": [18.0, 48.0, 774.0, 20.0], "parent": 6},
+    {"tag": "span", "rect": [69.98, 49.0, 7.11, 17.0], "parent": 11},
+    {"tag": "ol", "rect": [8.0, 72.0, 784.0, 20.0], "parent": 5},
+    {"tag": "li", "rect": [18.0, 72.0, 774.0, 20.0], "parent": 13},
+    {"tag": "span", "rect": [18.0, 73.0, 7.11, 17.0], "parent": 14},
+    {"tag": "ul", "rect": [8.0, 96.0, 784.0, 20.0], "parent": 5},
+    {"tag": "li", "rect": [18.0, 96.0, 774.0, 20.0], "parent": 16},
+    {"tag": "span", "rect": [54.89, 97.0, 7.11, 17.0], "parent": 17},
+    {"tag": "ol", "rect": [8.0, 120.0, 784.0, 60.0], "parent": 5},
+    {"tag": "li", "rect": [18.0, 120.0, 774.0, 20.0], "parent": 19},
+    {"tag": "span", "rect": [37.98, 121.0, 7.11, 17.0], "parent": 20},
+    {"tag": "li", "rect": [18.0, 140.0, 774.0, 20.0], "parent": 19},
+    {"tag": "span", "rect": [39.77, 141.0, 8.0, 17.0], "parent": 22},
+    {"tag": "li", "rect": [18.0, 160.0, 774.0, 20.0], "parent": 19},
+    {"tag": "span", "rect": [40.66, 161.0, 7.11, 17.0], "parent": 24}
+  ]
+}

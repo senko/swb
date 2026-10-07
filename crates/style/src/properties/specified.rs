@@ -328,8 +328,12 @@ pub(crate) enum SpecifiedContentItem {
     Attr(Arc<str>),
     /// An image (`None` if swb cannot render it).
     Image(Option<SpecifiedImage>),
-    /// `counter()` or `counters()`.
-    Counter(Arc<str>, ListStyleType),
+    /// `counter()` (no separator) or `counters()`.
+    Counter {
+        name: Arc<str>,
+        separator: Option<Arc<str>>,
+        style: ListStyleType,
+    },
     /// `open-quote`.
     OpenQuote,
     /// `close-quote`.
@@ -369,9 +373,15 @@ impl SpecifiedContent {
                             SpecifiedContentItem::Image(image) => {
                                 ContentItem::Image(image.as_ref()?.compute(&cx.lengths))
                             }
-                            SpecifiedContentItem::Counter(name, style) => {
-                                ContentItem::Counter(Arc::clone(name), *style)
-                            }
+                            SpecifiedContentItem::Counter {
+                                name,
+                                separator,
+                                style,
+                            } => ContentItem::Counter {
+                                name: Arc::clone(name),
+                                separator: separator.clone(),
+                                style: *style,
+                            },
                             SpecifiedContentItem::OpenQuote => ContentItem::OpenQuote,
                             SpecifiedContentItem::CloseQuote => ContentItem::CloseQuote,
                         })

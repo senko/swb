@@ -160,7 +160,7 @@ Measured on the Wikipedia fixture (release build, 1280x800): 8 ms for
   the computed style; layout resolves them.
 - Not supported yet: `@font-face`, `@import` (the engine loads imports),
   cascade layers order, `@container`, `@keyframes`/animations/transitions,
-  transforms, filters, masks, shadows, grid templates, `counter-*`,
+  transforms, filters, masks, shadows, grid templates,
   `quotes`, `::first-line`/`::first-letter`/`::placeholder`, `:visited`
   styles, `white-space-collapse`/`text-wrap-mode` as separate longhands,
   `tab-size` lengths, string `list-style-type` values, relative color
@@ -265,3 +265,112 @@ things:
   media conditions and a length evaluator whose relative units, also in
   math functions, resolve against the `MediaEnvironment` (media queries
   in stylesheets still accept only absolute units in math functions).
+
+## Update (2026-10-07, counters)
+
+CSS counters (CSS Lists 3 §4,
+<https://www.w3.org/TR/css-lists-3/#auto-numbering>) are supported.
+For the validation difference "counters in `content`": the computed `content` of
+a pseudo-element now holds the text of its counters, where Chromium's
+`getComputedStyle` reports `counter(...)`; the text matches Chromium's.
+
+- Longhands `counter-reset`, `counter-increment` and `counter-set`
+  (`CounterList`: names with integers, at most 256 per value).
+  `reversed()` is invalid and `counter()`/`counters()` accept only a
+  counter style name (no strings, no `symbols()`), as in Chromium 148.
+- **Where counters are computed.** `counters::resolve` runs at the end of
+  `compute_styles`, as a second walk over the elements with the finished
+  `StyleMap`. It replaces `counter()` and `counters()` in the computed
+  `content` of `::marker`, `::before` and `::after` with strings, and it
+  stores the ordinal value of each list item
+  (`StyleMap::list_item_ordinal`), which layout shows in markers with
+  `content: normal`. Style, not box construction, because:
+  - the order that counters need (an element, its `::marker`, its
+    `::before`, its children, its `::after`, without elements that
+    generate no box) follows from the computed styles and the element
+    names (lists, replaced elements and form controls); Chromium computes
+    counters at the same point (layout tree attachment) from the same
+    information;
+  - style already resolves the rest of `content` (`attr()`), so layout
+    keeps one source of generated text (`content_text`);
+  - box construction is split over several builders (blocks, inline
+    content, tables, flex and grid items, form controls) and runs for
+    every layout; counters change only when styles change, and a change
+    of a counter value changes a pseudo-element style or an ordinal, which
+    `StyleMap::same_styles` detects.
+  The cascade walk is pre-order only and `::after` comes after the
+  children, so the counter pass is a separate iterative walk with enter
+  and leave steps. It costs about 0.3 ms on the Wikipedia fixture.
+- **Cost.** Each counter name has a stack of the counters in scope, and
+  each tree depth a list of the counters whose scope ends with the
+  element at that depth: linear in elements plus counter operations. The
+  nesting of one name is bounded by the tree depth (512), and the text of
+  all `counter()` and `counters()` items of a document by 4 MiB (a long
+  `counters()` separator in deep nesting could otherwise produce
+  gigabytes; each value counts at least one byte; after the limit,
+  counters are removed without text). Each run of counters and short strings in
+  a `content` value becomes one string; longer strings stay shared. The
+  counter properties of an element are combined once per distinct set of
+  counter lists (computed values share their lists; at most 1024 cached
+  sets). The item counts of reversed lists come from one more walk over
+  the document, made only when a reversed list without `start` has an
+  item.
+- **Chromium compatibility.** Where Chromium 148 differs from CSS Lists
+  3, swb follows Chromium (measured with Chromium's DOM snapshots, CDP
+  `DOMSnapshot`; Blink's `CountersAttachmentContext` and
+  `ListItemOrdinal`, BSD-3, were read for ideas to explain the
+  measurements). The module documentation of `counters.rs` lists all
+  differences. The main ones:
+  - a `counter-reset` on an element that inherits a counter of the same
+    name from an ancestor's scope has a scope that ends with the element
+    (the specification's heading example gives "B.3", not "B.1");
+  - elements and pseudo-elements with `display: contents` do not change
+    counters; `::marker` ignores the counter properties; `counter()` of
+    a missing counter is 0 and creates no counter; an increment that
+    would overflow is ignored;
+  - the `list-item` counter comes from HTML elements, not from
+    presentational hints: `ol`, `ul`, `menu` and `dir` reset it (`ol`
+    from `start`), HTML `li` list items increment it, `value` does not
+    change it, and the computed counter properties stay `none`. That a
+    reversed `ol` without `start` resets it to 1 and that `value` is
+    ignored is what Chromium shows after the first layout of a page (a
+    timing artefact): after a later change that makes Chromium update
+    counters (measured: inserting an element whose `::before` uses
+    `counter()`, setting `counter-increment` on an element, or toggling
+    `display` on `body`; inserting a plain `li` is not enough), all lists
+    of the page change: a reversed list resets it to its number
+    of items plus 1 (the first item shows the number of items), and
+    `li value=20` gives 20 (in a nested counter; the next item gives 1).
+    swb runs no scripts and keeps the first-layout values;
+  - markers do not use the `list-item` counter but the ordinal value of
+    the HTML specification, which `value`, `start`, `reversed` (item
+    count) and `counter-set`/`counter-increment` of `list-item` on the
+    item change. Layout no longer numbers list items. Elements with an
+    atomic box are not list items, also with `display: list-item`:
+    replaced elements, form controls (also `button`), `iframe`, `embed`,
+    `svg`, `fieldset`, `progress`, `meter`, `br` and `wbr` (measured;
+    `element_kinds.rs`, whose `is_replaced_element` layout uses too, and
+    which also holds the cascade's list of elements without `::before`
+    and `::after`). The content of `progress`, `meter` and drop-down
+    `select` and the child elements of `option` do not take part in
+    counters; the options of a list-box `select` do, and Chromium decides
+    "list box" from `size` alone (`multiple size=1` is a drop-down);
+    `wbr` ignores its counter properties (measured).
+    `::before` and `::after` with `display: list-item` are list items,
+    but layout does not draw their markers.
+- Not supported: style containment (`contain: style`, also in `content`
+  and `strict`), which in Chromium limits the scope of counters and makes
+  the element a list owner.
+- `start` and `value` follow the HTML rules for parsing integers
+  (`start="3x"` is 3); values outside the `i32` range are ignored, as in
+  Chromium. The parser (`hints::parse_integer`) now ignores leading
+  zeros when it limits the number of digits.
+- `details > summary` has `counter-increment: list-item 0` (HTML
+  rendering section; Chromium's computed value), so it does not change
+  the numbers of the list items after it.
+- The `square` symbol is U+25A0 in markers and in `counter()`, as in
+  Chromium (CSS Counter Styles 3 has U+25AA).
+- `calc()` in an `<integer>` rounds to the nearest integer, halves
+  toward positive infinity (CSS Values 4, "Range Checking",
+  <https://www.w3.org/TR/css-values-4/#calc-range>; Chromium:
+  `calc(-1.5)` is -1).

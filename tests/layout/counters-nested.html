@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- CSS counters: counters() of the list-item counter in ::marker and of an
+     author counter in ::before, in nested lists, with counter styles whose
+     text width depends on the value. The x of each span shows the width of
+     the generated text before it. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nested counters</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  ol { margin: 0; padding-left: 20px; list-style-position: inside; }
+  .a li::marker { content: counters(list-item, ".", upper-roman) ") "; }
+  .b { counter-reset: s; }
+  .b li { display: block; counter-increment: s; }
+  .b li::before { content: counters(s, "-", lower-alpha) " "; }
+  .c li::marker { content: counter(list-item, lower-greek) " " counters(list-item, "/") " "; }
+</style>
+</head>
+<body>
+  <ol class="a">
+    <li><span>one</span></li>
+    <li><span>two</span>
+      <ol>
+        <li><span>three</span></li>
+        <li><span>four</span>
+          <ol start="7"><li><span>five</span></li><li><span>six</span></li></ol>
+        </li>
+      </ol>
+    </li>
+    <li><span>seven</span></li>
+  </ol>
+  <ol class="b">
+    <li><span>a</span></li>
+    <li><span>b</span>
+      <ol class="b"><li><span>c</span></li><li><span>d</span></li></ol>
+    </li>
+    <li><span>e</span></li>
+  </ol>
+  <ol class="c" reversed>
+    <li><span>x</span></li>
+    <li><span>y</span>
+      <ol reversed start="12"><li><span>z</span></li><li><span>w</span></li></ol>
+    </li>
+  </ol>
+</body>
+</html>

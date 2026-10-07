@@ -262,16 +262,63 @@ impl Default for FlexBasis {
 /// One item of the `content` property.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContentItem {
-    /// A string (also the computed value of `attr()`).
+    /// A string (also the computed value of `attr()`, and of `counter()`
+    /// and `counters()` after the counters of the document are resolved).
     String(Arc<str>),
     /// An image.
     Image(Image),
-    /// `counter(name, style)`.
-    Counter(Arc<str>, ListStyleType),
+    /// `counter(name, style)` (no separator) or
+    /// `counters(name, separator, style)`.
+    Counter {
+        /// The counter name.
+        name: Arc<str>,
+        /// The separator of `counters()`; `None` for `counter()`.
+        separator: Option<Arc<str>>,
+        /// The counter style.
+        style: ListStyleType,
+    },
     /// `open-quote`.
     OpenQuote,
     /// `close-quote`.
     CloseQuote,
+}
+
+/// The computed `counter-reset`, `counter-increment` or `counter-set`:
+/// counter names with their integers, in source order. `none` is empty.
+/// <https://www.w3.org/TR/css-lists-3/#auto-numbering>
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct CounterList(Option<CounterEntries>);
+
+/// The `(name, integer)` pairs of a [`CounterList`].
+type CounterEntries = Arc<[(Arc<str>, i32)]>;
+
+impl CounterList {
+    /// A list of `(name, integer)` pairs.
+    pub(crate) fn new(entries: Vec<(Arc<str>, i32)>) -> Self {
+        if entries.is_empty() {
+            CounterList(None)
+        } else {
+            CounterList(Some(Arc::from(entries)))
+        }
+    }
+
+    /// True for `none`.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// The address of the shared list (0 for `none`): the copies of one
+    /// computed value have the same address.
+    pub(crate) fn address(&self) -> usize {
+        self.0
+            .as_ref()
+            .map_or(0, |list| Arc::as_ptr(list).cast::<()>().addr())
+    }
+
+    /// The `(name, integer)` pairs in source order.
+    pub fn iter(&self) -> impl Iterator<Item = (&Arc<str>, i32)> {
+        self.0.iter().flat_map(|e| e.iter().map(|(n, v)| (n, *v)))
+    }
 }
 
 /// The computed `content` property.

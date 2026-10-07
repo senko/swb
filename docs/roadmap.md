@@ -126,6 +126,20 @@ uses neither; they moved to "Later".
 - Paint: non-positioned opacity groups paint in the inline content
   phase; outlines paint after each box, not in a last phase; the image
   of a block-level replaced element paints with its background.
+- Robustness (high priority): generated content has no size limit in
+  layout: 100 KB of `content` text on 3,000 elements (300 MB of text)
+  takes about 10 s of layout and 13 GB of memory. Limit the generated
+  text per document, as counters do (4 MiB).
+- Counters: `contain: style` (counter scopes and list owners); markers
+  of `::before`/`::after` with `display: list-item` (they take numbers
+  but are not drawn); `@counter-style` and the other predefined styles
+  (`armenian` and others fall back to decimal); inside symbol markers are
+  narrower than in Chromium; layout renders the children of `progress`,
+  `meter` and of `option` outside a `select` (Chromium does not; their
+  counters already have no text); Chromium generates `::before`/`::after`
+  for `canvas`, `object` and list-box `select`, and not for `svg` and
+  `math`; Chromium numbers a failed `img` with `alt` and `input
+  type=image` with `display: list-item` (an empty marker).
 - Responsive images: `sizes="auto"` gives 100vw (Chromium then uses the
   laid-out width and a `contain: size` user-agent rule); Chromium's
   preference for a denser candidate in its memory cache; AVIF sources
@@ -180,8 +194,7 @@ change behaviour, so they are not fixed yet.
   (`style/src/hints.rs`, `layout/src/table/build.rs`,
   `engine/src/forms/values.rs`, `engine/src/focus.rs`); move one into
   `dom`. `maxlength="-0"` and `rowspan="-0"` are ignored (HTML parses
-  `-0` as 0). List `start` and `value` use `str::parse` instead
-  (`<ol start="3x">` starts at 1, not 3).
+  `-0` as 0).
 - Style: `:required` and `:optional` match `range` and `color` inputs
   (the `required` attribute does not apply to them); `background: ...
   text` sets `background-origin` to `border-box` (`text` sets only

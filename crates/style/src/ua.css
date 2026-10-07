@@ -406,6 +406,7 @@ details, summary {
 }
 details > summary:first-of-type {
   display: list-item;
+  counter-increment: list-item 0;
   list-style: disclosure-closed inside;
 }
 details[open] > summary:first-of-type {

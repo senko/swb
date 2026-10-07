@@ -12,9 +12,9 @@
     "size": 1.0
   },
   "wikipedia-web-browser": {
-    "geometry": 0.5136,
+    "geometry": 0.5381,
     "pixels": 0.9766,
-    "relative": 0.95,
-    "size": 0.9693
+    "relative": 0.9735,
+    "size": 0.9862
   }
 }

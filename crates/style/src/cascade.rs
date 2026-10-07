@@ -28,6 +28,10 @@
 //!    (Chromium).
 //!
 //! Elements inside a `display: none` subtree get no style.
+//!
+//! At the end, `counters::resolve` replaces `counter()` and `counters()`
+//! in the `content` of pseudo-elements with their text and computes the
+//! ordinal values of list items.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -210,6 +214,7 @@ impl Styler<'_> {
             }
             map.set(node, style);
         }
+        crate::counters::resolve(self.doc, &mut map);
         map
     }
 
@@ -306,7 +311,7 @@ impl Styler<'_> {
     ) {
         let data = el.data();
         let mut kinds = Vec::with_capacity(3);
-        if generates_content_pseudos(data) {
+        if crate::element_kinds::generates_content_pseudos(data) {
             kinds.extend([PseudoKind::Before, PseudoKind::After]);
         }
         if style.display == Display::ListItem {
@@ -389,27 +394,6 @@ fn has_placeholder(data: &ElementData) -> bool {
     data.is_html()
         && matches!(&**data.local_name(), "input" | "textarea")
         && data.has_attr("placeholder")
-}
-
-/// True if `::before` and `::after` apply: not for replaced elements and
-/// form controls (as in Chromium).
-fn generates_content_pseudos(data: &ElementData) -> bool {
-    !(data.is_html()
-        && matches!(
-            &**data.local_name(),
-            "img"
-                | "input"
-                | "select"
-                | "textarea"
-                | "iframe"
-                | "video"
-                | "audio"
-                | "canvas"
-                | "embed"
-                | "object"
-                | "br"
-                | "wbr"
-        ))
 }
 
 /// The cascade origin of a group of declarations, for `revert`.

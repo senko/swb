@@ -9,14 +9,14 @@ use swb_css::ComponentValue;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
-    CompositeOperator, Content, CornerRadius, Cursor, Direction, Display, EmptyCells, FlexBasis,
-    FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap,
-    GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage,
-    LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage,
-    MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    PositionComponent, Rgba, Size, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
-    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
+    CompositeOperator, Content, CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells,
+    FlexBasis, FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle,
+    FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image,
+    LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType,
+    MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
+    PointerEvents, Position, PositionComponent, Rgba, Size, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TrackBreadth, TrackList,
+    TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -188,6 +188,9 @@ pub struct ComputedStyle {
     pub grid_column_end: GridLine,
     pub table_layout: TableLayout,
     pub content: Content,
+    pub counter_reset: CounterList,
+    pub counter_increment: CounterList,
+    pub counter_set: CounterList,
     pub object_fit: ObjectFit,
     /// `object-position`: x and y.
     pub object_position: [PositionComponent; 2],
@@ -348,6 +351,9 @@ impl ComputedStyle {
             grid_column_end: GridLine::Auto,
             table_layout: TableLayout::Auto,
             content: Content::Normal,
+            counter_reset: CounterList::default(),
+            counter_increment: CounterList::default(),
+            counter_set: CounterList::default(),
             object_fit: ObjectFit::Fill,
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,

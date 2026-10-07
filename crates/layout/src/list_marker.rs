@@ -1,7 +1,5 @@
-//! List item markers: their text and their placement.
-//!
-//! Text: <https://www.w3.org/TR/css-lists-3/#text-markers>. Like Chromium,
-//! a symbol marker is followed by a space and a counter marker by ". ".
+//! List item markers: their shaping and their placement. Their text
+//! comes from style (`StyleMap::list_marker_text`).
 //!
 //! Placement (as in Chromium): a marker sits on the first line box in its
 //! list item's subtree. If the list item's first in-flow child before any
@@ -12,8 +10,6 @@
 //! marker is placed to the left of its list item's content box.
 
 use std::sync::Arc;
-
-use swb_style::ListStyleType;
 
 use crate::LayoutContext;
 use crate::box_tree::Marker;
@@ -135,111 +131,4 @@ pub(crate) fn markers_at_baseline(
         out.extend(shaped.place(x, baseline));
     }
     out
-}
-
-/// The marker text for a list item with this style and number.
-pub(crate) fn marker_text(style: ListStyleType, number: i64) -> String {
-    match style {
-        ListStyleType::None => String::new(),
-        ListStyleType::Disc => "\u{2022} ".to_owned(),
-        ListStyleType::Circle => "\u{25E6} ".to_owned(),
-        ListStyleType::Square => "\u{25AA} ".to_owned(),
-        ListStyleType::DisclosureOpen => "\u{25BE} ".to_owned(),
-        ListStyleType::DisclosureClosed => "\u{25B8} ".to_owned(),
-        ListStyleType::Decimal => format!("{number}. "),
-        ListStyleType::DecimalLeadingZero => {
-            if (0..10).contains(&number) {
-                format!("0{number}. ")
-            } else {
-                format!("{number}. ")
-            }
-        }
-        ListStyleType::LowerRoman => format!("{}. ", roman(number).to_lowercase()),
-        ListStyleType::UpperRoman => format!("{}. ", roman(number)),
-        ListStyleType::LowerAlpha => format!("{}. ", alphabetic(number, b'a')),
-        ListStyleType::UpperAlpha => format!("{}. ", alphabetic(number, b'A')),
-        ListStyleType::LowerGreek => format!("{}. ", greek(number)),
-    }
-}
-
-/// Roman numerals for 1..=3999; other values fall back to decimal.
-fn roman(n: i64) -> String {
-    const TABLE: [(i64, &str); 13] = [
-        (1000, "M"),
-        (900, "CM"),
-        (500, "D"),
-        (400, "CD"),
-        (100, "C"),
-        (90, "XC"),
-        (50, "L"),
-        (40, "XL"),
-        (10, "X"),
-        (9, "IX"),
-        (5, "V"),
-        (4, "IV"),
-        (1, "I"),
-    ];
-    if !(1..=3999).contains(&n) {
-        return n.to_string();
-    }
-    let mut n = n;
-    let mut out = String::new();
-    for (value, symbol) in TABLE {
-        while n >= value {
-            out.push_str(symbol);
-            n -= value;
-        }
-    }
-    out
-}
-
-/// Alphabetic numbering: a, b, ..., z, aa, ab, ...; non-positive values
-/// fall back to decimal.
-fn alphabetic(n: i64, first: u8) -> String {
-    if n < 1 {
-        return n.to_string();
-    }
-    let mut n = n;
-    let mut letters = Vec::new();
-    while n > 0 {
-        n -= 1;
-        letters.push(first + (n % 26) as u8);
-        n /= 26;
-    }
-    letters.reverse();
-    String::from_utf8(letters).unwrap_or_default()
-}
-
-/// Lower Greek numbering (alphabetic over α..ω without final sigma).
-fn greek(n: i64) -> String {
-    const LETTERS: [char; 24] = [
-        'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ',
-        'τ', 'υ', 'φ', 'χ', 'ψ', 'ω',
-    ];
-    if n < 1 {
-        return n.to_string();
-    }
-    let mut n = n;
-    let mut out = Vec::new();
-    while n > 0 {
-        n -= 1;
-        out.push(LETTERS[(n % 24) as usize]);
-        n /= 24;
-    }
-    out.iter().rev().collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn markers() {
-        assert_eq!(marker_text(ListStyleType::Decimal, 3), "3. ");
-        assert_eq!(marker_text(ListStyleType::Disc, 1), "\u{2022} ");
-        assert_eq!(marker_text(ListStyleType::UpperRoman, 1994), "MCMXCIV. ");
-        assert_eq!(marker_text(ListStyleType::LowerAlpha, 28), "ab. ");
-        assert_eq!(marker_text(ListStyleType::LowerGreek, 2), "β. ");
-        assert_eq!(marker_text(ListStyleType::DecimalLeadingZero, 7), "07. ");
-    }
 }

@@ -27,8 +27,8 @@ use crate::parse::{
 };
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Cursor, Direction, Display,
-    EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, CounterList, Cursor, Direction,
+    Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle,
     FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit,
     OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp,
     TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
@@ -231,6 +231,9 @@ pub(crate) fn parse_longhand(
             L::GridColumnEnd => V::GridColumnEnd(grid::parse_grid_line(p)?),
             L::TableLayout => V::TableLayout(keyword(p, TableLayout::from_ident)?),
             L::Content => V::Content(parse_content(p, cx)?),
+            L::CounterReset => V::CounterReset(parse_counter_list(p, 0)?),
+            L::CounterIncrement => V::CounterIncrement(parse_counter_list(p, 1)?),
+            L::CounterSet => V::CounterSet(parse_counter_list(p, 0)?),
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
             L::ObjectPosition => {
                 let (x, y) = parse_position(p)?;
@@ -683,6 +686,11 @@ pub(crate) fn parse_list_style_type(p: &mut Parser<'_>) -> ParseResult<ListStyle
     if p.expect_string().is_ok() || p.expect_function_matching("symbols").is_ok() {
         return Ok(ListStyleType::None);
     }
+    parse_counter_style_name(p)
+}
+
+/// A `<counter-style-name>`: unknown names compute to `decimal`.
+fn parse_counter_style_name(p: &mut Parser<'_>) -> ParseResult<ListStyleType> {
     let ident = p.expect_ident()?;
     if let Some(t) = ListStyleType::from_ident(ident) {
         return Ok(t);
@@ -691,6 +699,48 @@ pub(crate) fn parse_list_style_type(p: &mut Parser<'_>) -> ParseResult<ListStyle
         return Err(ParseError::Invalid);
     }
     Ok(ListStyleType::Decimal)
+}
+
+/// The maximum number of counters in one `counter-reset`,
+/// `counter-increment` or `counter-set` value. Later ones are dropped, so
+/// that a long value on many elements cannot make the counter pass slow.
+const MAX_COUNTERS_PER_VALUE: usize = 256;
+
+/// `counter-reset`, `counter-increment` and `counter-set`:
+/// `none | [<counter-name> <integer>?]+`, where the integer defaults to
+/// `default`. `reversed()` is not supported (as in Chromium 148, where
+/// `@supports` rejects it).
+/// <https://www.w3.org/TR/css-lists-3/#counter-properties>
+fn parse_counter_list(p: &mut Parser<'_>, default: i32) -> ParseResult<CounterList> {
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok(CounterList::default());
+    }
+    let mut entries = Vec::new();
+    while let Ok(name) = p.try_parse(parse_counter_name) {
+        let value = p.try_parse(parse_integer).unwrap_or(default);
+        entries.push((name, value));
+    }
+    if entries.is_empty() {
+        return Err(ParseError::Unexpected);
+    }
+    if entries.len() > MAX_COUNTERS_PER_VALUE {
+        log::warn!(
+            "a counter property names {} counters; only the first {MAX_COUNTERS_PER_VALUE} are used",
+            entries.len()
+        );
+        entries.truncate(MAX_COUNTERS_PER_VALUE);
+    }
+    Ok(CounterList::new(entries))
+}
+
+/// A `<counter-name>` in the counter properties: a `<custom-ident>` other
+/// than `none`. Names are case-sensitive.
+fn parse_counter_name(p: &mut Parser<'_>) -> ParseResult<Arc<str>> {
+    let ident = p.expect_ident()?;
+    if is_reserved_ident(ident) || ident.eq_ignore_ascii_case("none") {
+        return Err(ParseError::Invalid);
+    }
+    Ok(Arc::from(ident))
 }
 
 /// `content`. <https://www.w3.org/TR/css-content-3/#content-property>
@@ -756,20 +806,32 @@ fn parse_content_function(p: &mut Parser<'_>) -> ParseResult<SpecifiedContentIte
                 attr.to_ascii_lowercase(),
             )))
         }
+        // https://www.w3.org/TR/css-lists-3/#counter-functions. The name is
+        // a `<custom-ident>` (Chromium also accepts `none` here). The style
+        // is a counter style name: strings and `symbols()` are invalid, as
+        // in Chromium 148.
         "counter" | "counters" => {
             let counter = args.expect_ident()?;
-            args.expect_comma().ok();
-            if name.eq_ignore_ascii_case("counters") {
-                args.expect_string()?;
-                args.expect_comma().ok();
+            if is_reserved_ident(counter) {
+                return Err(ParseError::Invalid);
             }
-            let style = if args.is_exhausted() {
-                ListStyleType::Decimal
+            let separator = if name.eq_ignore_ascii_case("counters") {
+                args.expect_comma()?;
+                Some(Arc::from(args.expect_string()?))
             } else {
-                parse_list_style_type(&mut args)?
+                None
+            };
+            let style = if args.expect_comma().is_ok() {
+                parse_counter_style_name(&mut args)?
+            } else {
+                ListStyleType::Decimal
             };
             args.expect_exhausted()?;
-            Ok(SpecifiedContentItem::Counter(Arc::from(counter), style))
+            Ok(SpecifiedContentItem::Counter {
+                name: Arc::from(counter),
+                separator,
+                style,
+            })
         }
         _ => Err(ParseError::Unexpected),
     }

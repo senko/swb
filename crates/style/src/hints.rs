@@ -116,9 +116,10 @@ fn parse_nonzero_dimension(input: &str) -> Option<Dimension> {
 }
 
 /// The rules for parsing integers (leading whitespace, optional sign,
-/// digits; trailing text is ignored).
+/// digits; trailing text is ignored). Values with more than 18 digits
+/// (after leading zeros) saturate to `±i64::MAX`.
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers>
-fn parse_integer(input: &str) -> Option<i64> {
+pub(crate) fn parse_integer(input: &str) -> Option<i64> {
     let input = input.trim_start_matches(is_html_whitespace);
     let (negative, rest) = match input.as_bytes().first() {
         Some(b'-') => (true, &input[1..]),
@@ -129,7 +130,14 @@ fn parse_integer(input: &str) -> Option<i64> {
     if digits == 0 {
         return None;
     }
-    let value: i64 = rest[..digits.min(18)].parse().ok()?;
+    let significant = rest[..digits].trim_start_matches('0');
+    let value: i64 = if significant.is_empty() {
+        0
+    } else if significant.len() > 18 {
+        i64::MAX
+    } else {
+        significant.parse().ok()?
+    };
     Some(if negative { -value } else { value })
 }
 
@@ -524,6 +532,10 @@ mod tests {
         assert_eq!(parse_integer("-3"), Some(-3));
         assert_eq!(parse_integer("+3"), Some(3));
         assert_eq!(parse_integer("x"), None);
+        assert_eq!(parse_integer("0000000000000000000005"), Some(5));
+        assert_eq!(parse_integer("-000"), Some(0));
+        assert_eq!(parse_integer("1234567890123456789012"), Some(i64::MAX));
+        assert_eq!(parse_integer("-1234567890123456789012"), Some(-i64::MAX));
         assert_eq!(parse_non_negative_integer("-1"), None);
         assert_eq!(parse_legacy_font_size("2"), Some(2));
         assert_eq!(parse_legacy_font_size("+1"), Some(4));

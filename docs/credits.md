@@ -19,6 +19,8 @@ Format: source, license (for code), what it influenced.
   - CSS Values and Units Level 4
   - CSS Flexible Box Layout Level 1
   - CSS Grid Layout Level 2
+  - CSS Lists 3 and CSS Counter Styles 3 (counters, list item numbers,
+    the predefined counter styles in `style/src/counter_style.rs`)
   - CSS Cascade 4/5, Values 4/5, Color 4/5, Variables 1, Display 3,
     Backgrounds 3/4, Fonts 4, Text 3/4, UI 4, Align 3, Images 4, Lists 3,
     Content 3, Overflow 3, Sizing 3, Conditional 3/4 (`selector()`),
@@ -155,6 +157,12 @@ Format: source, license (for code), what it influenced.
   `IsEqualToAvailableFloatInlineSize`, `ComputeMinMaxSizes` with floats.
   No code read for the implementation, no code copied
   (`layout/src/floats.rs`, ADR 0015).
+- Chromium / Blink (BSD-3-Clause), counters:
+  `core/css/counters_attachment_context.cc/.h` and
+  `core/html/list_item_ordinal.cc/.h`, read for the counter scope,
+  `list-item` counter and ordinal value rules (`style/src/counters.rs`);
+  the rules were measured in Chromium 148 (the unit tests are generated
+  from its output). No code copied.
 - Chromium / Blink (BSD-3-Clause), positioning, from recollection and
   confirmed by measurements with Chromium 148: static positions in
   inline content (`InlineLayoutAlgorithm::PlaceOutOfFlowObjects`,

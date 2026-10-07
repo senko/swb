@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- List item numbers (ordinal values) in inside markers: ol start,
+     reversed and li value; counter-set and counter-increment of list-item
+     on items; a reversed list counts only its own items; non-li list
+     items. Roman and alphabetic styles make the marker width depend on
+     the number; the x of each span shows the marker width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>List item numbers</title>
+<style>
+  body { margin: 8px; font: 16px/20px serif; }
+  ol, ul { margin: 0 0 4px; padding-left: 10px; list-style-position: inside; list-style-type: upper-roman; }
+  .alpha { list-style-type: lower-alpha; }
+  .two > li { counter-increment: list-item 2; }
+  .set > li:nth-child(2) { counter-set: list-item 7; }
+  .dli { display: list-item; }
+  .reset { counter-reset: list-item 20; }
+</style>
+</head>
+<body>
+  <ol start="3"><li><span>a</span></li><li><span>b</span></li><li value="9"><span>c</span></li><li><span>d</span></li></ol>
+  <ol reversed><li><span>a</span></li><li value="12"><span>b</span></li><li><span>c</span></li><li style="display: none">x</li><li><span>d</span></li></ol>
+  <ol reversed start="4" class="alpha"><li><span>a</span></li><li><span>b</span>
+    <ol reversed><li><span>c</span></li><li><span>d</span></li><li><span>e</span></li></ol></li><li><span>f</span></li></ol>
+  <ol class="two"><li><span>a</span></li><li><span>b</span></li><li><span>c</span></li></ol>
+  <ol class="set alpha" reversed><li><span>a</span></li><li><span>b</span></li><li><span>c</span></li></ol>
+  <ol><li><span>a</span></li><div class="dli"><span>b</span></div><li><span>c</span></li></ol>
+  <ol class="reset"><li><span>a</span></li><li><span>b</span></li></ol>
+  <ol start="2147483646"><li><span>a</span></li><li><span>b</span></li><li><span>c</span></li></ol>
+  <ul style="list-style-type: none"><li><span>a</span></li></ul>
+</body>
+</html>

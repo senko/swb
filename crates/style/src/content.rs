@@ -8,9 +8,11 @@ use crate::values::{Content, ContentItem};
 /// concatenated, `None` for `normal` and `none`.
 ///
 /// `attr()` is already replaced by the attribute value in the computed
-/// style. `open-quote` and `close-quote` produce English double quotes
-/// (the `quotes` property and quote nesting are not supported). Counters
-/// and images produce no text.
+/// style, and `counter()` and `counters()` by their text in the styles of
+/// a [`crate::StyleMap`] (see `counters.rs`). `open-quote` and
+/// `close-quote` produce English double quotes (the `quotes` property and
+/// quote nesting are not supported). Images, and counters in a style that
+/// is not part of a style map, produce no text.
 pub fn content_text(style: &ComputedStyle) -> Option<String> {
     let Content::Items(items) = &style.content else {
         return None;
@@ -21,7 +23,7 @@ pub fn content_text(style: &ComputedStyle) -> Option<String> {
             ContentItem::String(s) => text.push_str(s),
             ContentItem::OpenQuote => text.push('\u{201C}'),
             ContentItem::CloseQuote => text.push('\u{201D}'),
-            ContentItem::Counter(..) | ContentItem::Image(_) => {}
+            ContentItem::Counter { .. } | ContentItem::Image(_) => {}
         }
     }
     Some(text)
@@ -42,7 +44,11 @@ mod tests {
         style.content = Content::Items(Arc::from([
             ContentItem::OpenQuote,
             ContentItem::String("a".into()),
-            ContentItem::Counter("x".into(), crate::values::ListStyleType::Decimal),
+            ContentItem::Counter {
+                name: "x".into(),
+                separator: None,
+                style: crate::values::ListStyleType::Decimal,
+            },
             ContentItem::String("b".into()),
             ContentItem::CloseQuote,
         ]));

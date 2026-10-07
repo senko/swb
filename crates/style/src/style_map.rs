@@ -7,7 +7,9 @@ use std::sync::Arc;
 use swb_dom::NodeId;
 
 use crate::ComputedStyle;
-use crate::values::{Image, MaskImage};
+use crate::content::content_text;
+use crate::counter_style::marker_text;
+use crate::values::{Content, Image, ListStyleType, MaskImage};
 
 /// A pseudo-element that generates a box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -31,6 +33,8 @@ pub struct StyleMap {
     /// elements in `display: none` subtrees (which have no style).
     elements: Vec<Option<Arc<ComputedStyle>>>,
     pseudos: HashMap<(NodeId, PseudoKind), Arc<ComputedStyle>>,
+    /// The ordinal value of each list item (see `counters.rs`).
+    ordinals: HashMap<NodeId, i32>,
 }
 
 impl StyleMap {
@@ -39,6 +43,7 @@ impl StyleMap {
         StyleMap {
             elements: vec![None; node_count],
             pseudos: HashMap::new(),
+            ordinals: HashMap::new(),
         }
     }
 
@@ -52,6 +57,51 @@ impl StyleMap {
         self.pseudos.get(&(id, kind))
     }
 
+    /// The style of a pseudo-element of `id`, for changes.
+    pub(crate) fn pseudo_mut(
+        &mut self,
+        id: NodeId,
+        kind: PseudoKind,
+    ) -> Option<&mut Arc<ComputedStyle>> {
+        self.pseudos.get_mut(&(id, kind))
+    }
+
+    /// The ordinal value of list item `id` (an element with
+    /// `display: list-item`): the number that its marker shows with
+    /// `content: normal`.
+    /// <https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value>
+    pub fn list_item_ordinal(&self, id: NodeId) -> Option<i32> {
+        self.ordinals.get(&id).copied()
+    }
+
+    /// The text of the marker of list item `id`, whose style is `style`:
+    /// the `content` of its `::marker` (with counters resolved), or for
+    /// `content: normal` its ordinal value in its `list-style-type`. `None`
+    /// if `id` is not a list item (also a replaced element or form control
+    /// with `display: list-item`) or if the marker has no box:
+    /// `content: none`, or `content: normal` with `list-style-type: none`
+    /// and no `list-style-image`.
+    pub fn list_marker_text(&self, id: NodeId, style: &ComputedStyle) -> Option<String> {
+        let ordinal = self.list_item_ordinal(id)?;
+        let marker = self.pseudo(id, PseudoKind::Marker)?;
+        match &marker.content {
+            Content::None => None,
+            Content::Items(_) => content_text(marker),
+            Content::Normal => {
+                if style.list_style_type == ListStyleType::None && style.list_style_image.is_none()
+                {
+                    return None;
+                }
+                Some(marker_text(style.list_style_type, ordinal))
+            }
+        }
+    }
+
+    /// Stores the ordinal value of a list item.
+    pub(crate) fn set_list_item_ordinal(&mut self, id: NodeId, value: i32) {
+        self.ordinals.insert(id, value);
+    }
+
     /// Stores the style of an element.
     pub(crate) fn set(&mut self, id: NodeId, style: Arc<ComputedStyle>) {
         let index = id.index();
@@ -62,7 +112,7 @@ impl StyleMap {
     }
 
     /// True if both maps have equal styles for all elements and
-    /// pseudo-elements.
+    /// pseudo-elements, and equal list item ordinals.
     pub fn same_styles(&self, other: &StyleMap) -> bool {
         let same = |a: &Arc<ComputedStyle>, b: &Arc<ComputedStyle>| Arc::ptr_eq(a, b) || a == b;
         self.elements.len() == other.elements.len()
@@ -80,6 +130,7 @@ impl StyleMap {
                 .pseudos
                 .iter()
                 .all(|(key, a)| other.pseudos.get(key).is_some_and(|b| same(a, b)))
+            && self.ordinals == other.ordinals
     }
 
     /// Stores the style of a pseudo-element.
