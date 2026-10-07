@@ -144,9 +144,15 @@ uses neither; they moved to "Later".
   `perspective`, the `translate`/`rotate`/`scale` properties,
   `transform-box`; `will-change`, `filter` and `contain` as containing
   blocks for fixed boxes; `clip-path`.
-- Flexbox: the baseline of a flex container comes from the first item
-  that has a baseline, not from the startmost item (known failure
-  `inline-flex-baseline`; Wikipedia's icon buttons are 6 px taller).
+- Flexbox: baseline alignment (`align-self: baseline` aligns at the
+  cross start); `flex-wrap: wrap-reverse` is laid out as `wrap`; auto
+  margins on the cross axis; `justify-content: normal` packs
+  `row-reverse`/`column-reverse` items at the main end (Chromium: main
+  start); in wrapping column containers, items with auto width get the
+  container width instead of fit-content (§9.4 step 7).
+- Block layout: percentage heights resolve against the unclamped
+  specified height (`height: 300px; max-height: 100px`: a `50%` child is
+  150 px, Chromium 50 px).
 - Style: `background-position-x/-y` accept `x-start`, `x-end`,
   `y-start` and `y-end` (Chromium rejects them; affects `@supports`
   only); `background` with thousands of layers computes every layer on
@@ -203,10 +209,6 @@ change behaviour, so they are not fixed yet.
   the page again, and select option labels are measured again on every
   layout (cache their widths); the native look is decided from computed
   values (an author value equal to the default keeps the native look).
-- Layout: an `inline-flex` column container whose items have no text
-  makes its line 5 px taller than in Chromium (baseline of the
-  container; `<div style="display:inline-flex; flex-direction:column">`
-  with two empty 20 px items).
 - SVG images: `<text>` is not drawn (no fonts in resvg); non-UTF-8
   sources are rejected; `list-style-image` is not drawn (also for raster
   images); percentages inside an SVG without `viewBox` and absolute size
@@ -273,8 +275,7 @@ change behaviour, so they are not fixed yet.
 Found by the reviews before the first commit and not fixed yet. Layout
 issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
-- Layout: flex container min/max sizes; `align-content: stretch` order;
-  `vertical-align: top/bottom`; min-content of nowrap row flex
+- Layout: `vertical-align: top/bottom`; min-content of nowrap row flex
   containers; tab stops;
   `white-space: nowrap` around atomic inlines; inside markers in line
   breaking (and `text-indent`); column flex items with a definite height

@@ -52,8 +52,8 @@ use swb_style::{
 
 use crate::LayoutContext;
 use crate::block::{
-    Baselines, BoxEdges, ContainingBlock, clamp_height, finish_fragment, layout_flow_root,
-    resolve_size,
+    Baselines, BoxEdges, ContainingBlock, HeightLimits, clamp_height, finish_fragment,
+    layout_flow_root, resolve_size,
 };
 use crate::box_tree::{
     BlockContainer, BoxBase, BuildContext, BuildState, IndependentBox, IndependentContents,
@@ -456,7 +456,9 @@ fn layout_inner(
     match &control.contents {
         ControlContents::None => Inner::boxes(Vec::new(), 0.0, 0.0, None),
         ControlContents::Flex(items) => {
-            let flex = crate::flex::layout_flex(ctx, style, items, cb);
+            // The control's min-height and max-height apply to the control
+            // box, which centers this content (`content_position`).
+            let flex = crate::flex::layout_flex(ctx, style, items, cb, HeightLimits::NONE);
             Inner::boxes(
                 flex.fragments,
                 width,

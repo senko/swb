@@ -158,6 +158,16 @@ in commit messages, ADRs and other docs.
   on inline boxes ignored, positioned boxes out of tree order, the
   forced clearance offset, lines in `nowrap` containers, and hostile
   pages that took up to 130 s (now under 1 s); all fixed with tests.
+- Flexbox: the flex container's own `min-height` and `max-height` take
+  part in the flex algorithm (single-line cross size, column main size
+  and line breaking, multi-line cross size); `align-content: stretch`
+  grows lines before items stretch; the container's baseline comes from
+  the visually first item of the first line, synthesized from its
+  border box (CSS Flexbox 1 §8.5, measured in Chromium). Wikipedia's
+  icon buttons were 36 px lines instead of 32 and the page toolbar 36 px
+  instead of 33; the header and toolbar now match. Known failures
+  `flex-container-min-size`, `inline-flex-baseline` and
+  `flex-align-content-stretch` pass.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

@@ -251,10 +251,52 @@ pub(crate) fn clamp_height(
     cb_height: Option<f32>,
     edges: f32,
 ) -> f32 {
-    let max = resolve_max_size(&style.max_height, cb_height, style.box_sizing, edges);
-    let min = resolve_size(&style.min_height, cb_height, style.box_sizing, edges).unwrap_or(0.0);
-    let h = max.map_or(height, |m| height.min(m));
-    h.max(min)
+    HeightLimits::of(style, cb_height, edges).clamp(height)
+}
+
+/// The used `min-height` and `max-height` of a box, as content-box
+/// heights. `max` is at least `min`: the minimum wins (CSS 2.2 §10.7).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct HeightLimits {
+    min: f32,
+    max: f32,
+}
+
+impl HeightLimits {
+    /// No limits: `min-height: 0` and `max-height: none`.
+    pub(crate) const NONE: HeightLimits = HeightLimits {
+        min: 0.0,
+        max: f32::INFINITY,
+    };
+
+    /// Limits from a minimum and a maximum; the minimum wins.
+    pub(crate) fn new(min: f32, max: f32) -> Self {
+        HeightLimits {
+            min,
+            max: max.max(min),
+        }
+    }
+
+    /// The limits of a box with `style` in a containing block of height
+    /// `cb_height` (percentages of an indefinite height are ignored).
+    /// `edges` is the vertical padding and border.
+    pub(crate) fn of(style: &ComputedStyle, cb_height: Option<f32>, edges: f32) -> Self {
+        HeightLimits::new(
+            resolve_size(&style.min_height, cb_height, style.box_sizing, edges).unwrap_or(0.0),
+            resolve_max_size(&style.max_height, cb_height, style.box_sizing, edges)
+                .unwrap_or(f32::INFINITY),
+        )
+    }
+
+    /// The used max-height (infinite for `none`).
+    pub(crate) fn max(self) -> f32 {
+        self.max
+    }
+
+    /// Clamps `height` (NaN becomes the minimum).
+    pub(crate) fn clamp(self, height: f32) -> f32 {
+        height.max(self.min).min(self.max)
+    }
 }
 
 /// A margin; `auto` is 0.
@@ -1297,9 +1339,10 @@ pub(crate) fn relative_offset(style: &ComputedStyle, cb: ContainingBlock) -> (f3
 }
 
 /// Lays out a box that establishes an independent formatting context,
-/// with a known content-box width. The height is `content_height` if given,
-/// else the specified height, else the content height; then clamped. The
-/// returned fragment is at (0, 0).
+/// with a known content-box width. The height is `content_height` if given
+/// (final, not clamped); else the specified height, else the content
+/// height, clamped by `min-height` and `max-height`. The returned fragment
+/// is at (0, 0).
 pub(crate) fn layout_sized(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
@@ -1335,24 +1378,22 @@ pub(crate) fn layout_sized(
         width: content_width,
         height: specified_height,
     };
+    // A given content height is final; otherwise min-height and max-height
+    // apply (flex layout uses them too).
+    let limits = match content_height {
+        Some(_) => HeightLimits::NONE,
+        None => HeightLimits::of(style, cb.height, edge_sum.vertical()),
+    };
     // The list item's own marker waits for a line box in its content.
     let mut markers: Vec<PendingMarker<'_>> = ib
         .marker
         .iter()
         .map(|marker| PendingMarker { marker, inset: 0.0 })
         .collect();
-    let mut children = layout_contents(ctx, ib, child_cb, &mut markers);
+    let mut children = layout_contents(ctx, ib, child_cb, limits, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let inflow = children.inflow;
-    let height = match content_height {
-        Some(h) => h,
-        None => clamp_height(
-            style,
-            specified_height.unwrap_or(children.content_height),
-            cb.height,
-            edge_sum.vertical(),
-        ),
-    };
+    let height = limits.clamp(specified_height.unwrap_or(children.content_height));
     let mut fragment = finish_fragment(
         base,
         Rect::new(
@@ -1374,11 +1415,14 @@ pub(crate) fn layout_sized(
 }
 
 /// Lays out the contents of an independent box in its content box `cb`,
-/// with the formatting context that the box establishes.
+/// with the formatting context that the box establishes. `limits` are the
+/// box's min-height and max-height; only flex layout uses them (`cb.height`
+/// is the box's height before they apply).
 pub(crate) fn layout_contents<'a>(
     ctx: &mut LayoutContext<'_>,
     ib: &'a IndependentBox,
     cb: ContainingBlock,
+    limits: HeightLimits,
     markers: &mut Vec<PendingMarker<'a>>,
 ) -> ChildrenLayout {
     let style = &ib.base.style;
@@ -1387,7 +1431,13 @@ pub(crate) fn layout_contents<'a>(
             layout_flow_root(ctx, container, style, cb, markers)
         }
         IndependentContents::Flex(items) => {
-            let layout = crate::flex::layout_flex(ctx, style, items, cb);
+            // §9.2 step 2: a definite height is clamped by the container's
+            // min-height and max-height.
+            let cb = ContainingBlock {
+                width: cb.width,
+                height: cb.height.map(|h| limits.clamp(h)),
+            };
+            let layout = crate::flex::layout_flex(ctx, style, items, cb, limits);
             let mut inflow = crate::scroll::margin_box_extent(&layout.fragments, cb);
             inflow.height = inflow.height.max(layout.content_height);
             ChildrenLayout {
@@ -1780,6 +1830,17 @@ pub(crate) fn layout_flex_item(
 mod tests {
     use super::*;
     use crate::test_support::{body, layout_html, rects_of_text};
+
+    #[test]
+    fn height_limits_let_the_minimum_win() {
+        let limits = HeightLimits::new(50.0, 30.0);
+        assert_eq!(limits.clamp(10.0), 50.0);
+        assert_eq!(limits.clamp(100.0), 50.0);
+        assert_eq!(limits.max(), 50.0);
+        assert_eq!(limits.clamp(f32::NAN), 50.0);
+        assert_eq!(HeightLimits::NONE.clamp(1e6), 1e6);
+        assert_eq!(HeightLimits::NONE.clamp(f32::NAN), 0.0);
+    }
 
     #[test]
     fn auto_margin_is_zero_when_the_box_does_not_fit() {

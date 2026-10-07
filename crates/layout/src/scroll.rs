@@ -876,6 +876,16 @@ mod tests {
     }
 
     #[test]
+    fn relative_flex_items_use_the_clamped_container_height() {
+        // `top: 10%` is 10 px of the height that max-height clamps; the
+        // in-flow extent does not include it.
+        let html = "<div id=s style='display:flex; overflow:auto; width:100px; height:300px; \
+                    max-height:100px'><div style='flex:none; width:50px; height:200px; \
+                    margin-bottom:50px; position:relative; top:10%'></div></div>";
+        assert_eq!(overflow_size(html), (100.0, 250.0));
+    }
+
+    #[test]
     fn a_block_in_an_inline_box_counts_without_its_margins() {
         let html = format!(
             "<div {S}'><span><div style='width:300px;height:10px;margin-right:30px'></div>\

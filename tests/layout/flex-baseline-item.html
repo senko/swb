@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Flexbox: which item gives the baseline of an inline flex container
+     (CSS Flexbox 1 §8.5). Without baseline-aligned items, it is the item
+     of the first line that comes first on the page: the first item in
+     order-modified document order, or the last one in row-reverse and
+     column-reverse. An item without a baseline (an empty box, an image)
+     gets one synthesized from its bottom border edge. A baseline-aligned
+     item without auto cross margins in a row container comes first. A
+     column container uses its first item. Relative offsets do not move
+     the baseline. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flex baseline item</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  p { margin: 0 0 4px; }
+  .f { display: inline-flex; background: #ddd; }
+  .e { width: 10px; height: 30px; background: #444; }
+  .t { font-size: 24px; line-height: 28px; }
+  img { width: 12px; height: 40px; }
+</style>
+</head>
+<body>
+  <p><span>a</span> <span class="f"><span class="e"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: row-reverse"><span class="e"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: row-reverse"><span class="t">Ab</span><span class="e"></span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: column"><span class="e"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: column-reverse"><span class="e"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: column; align-items: baseline"><span class="e"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f"><span class="e"></span><span class="t" style="order: -1">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-wrap: wrap; width: 40px"><span class="e" style="width: 30px"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="align-items: center; height: 50px"><span class="e"></span><span class="t" style="align-self: baseline">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f"><span class="e"></span><span class="t" style="align-self: baseline; margin-top: auto; height: 30px">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="padding: 3px 0 5px; border-bottom: 4px solid"><span class="e" style="margin: 2px 0 6px; border-bottom: 3px solid red"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f"><span class="e" style="position: absolute"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f"><span class="e" style="position: relative; top: 7px"></span><span class="t">Ab</span></span> b</p>
+  <p><span>a</span> <span class="f" style="flex-direction: column; height: 60px"></span> b</p>
+</body>
+</html>

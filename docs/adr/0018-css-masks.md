@@ -277,6 +277,9 @@ strips of the viewport's height and a floor per strip).
   ellipsis); their positions depend on layout work of other workstreams
   and on two flexbox bugs (the min-height of flex containers, and the
   baseline of an inline-flex button that starts with an empty icon).
+  Update 2026-10-07: both bugs are fixed (`layout/src/flex.rs`); the menu,
+  language and tools icons in Wikipedia's header and page toolbar are at
+  Chromium's positions.
 - Not supported: SVG `<mask>` references (they hide the box), radial and
   conic gradients as masks (the box shows unmasked), `mask-clip: text`
   (border box), `-webkit-mask-box-image` and `mask-border`, `mask-repeat:

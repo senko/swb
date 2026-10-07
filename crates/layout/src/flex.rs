@@ -2,22 +2,24 @@
 //! <https://www.w3.org/TR/css-flexbox-1/#layout-algorithm>.
 //!
 //! Supported: row and column directions (and reverse), wrapping, `order`,
-//! flex-grow/shrink/basis, automatic minimum sizes, `justify-content`,
-//! `align-items`/`align-self` (start, end, center, stretch, baseline as
-//! start), `align-content` (start, end, center, space-*, stretch), `gap`,
-//! and auto margins on the main axis.
+//! flex-grow/shrink/basis, automatic minimum sizes, the container's own
+//! min-height and max-height, `justify-content`, `align-items`/`align-self`
+//! (start, end, center, stretch), `align-content` (start, end, center,
+//! space-*, stretch), `gap`, auto margins on the main axis, and the
+//! container's first baseline (§8.5).
 //!
 //! Absolutely positioned children get a placeholder (see
-//! `positioned.rs`). Not supported yet: the container's min/max size in
-//! the flex algorithm, auto margins on the cross axis. `align-content:
-//! stretch` grows the lines after the items were stretched, so the items
-//! do not grow with their lines.
+//! `positioned.rs`). Not supported yet: auto margins on the cross axis,
+//! baseline alignment (items with `align-self: baseline` are aligned at
+//! the cross start), `flex-wrap: wrap-reverse` (laid out as `wrap`).
+//! Known bug: `justify-content: normal` packs `row-reverse` and
+//! `column-reverse` items at the main end instead of the main start.
 
 use swb_style::{Alignment, ComputedStyle, FlexBasis, FlexWrap, Gap, LengthPercentageOrAuto};
 
 use crate::LayoutContext;
 use crate::block::{
-    BoxEdges, ContainingBlock, apply_relative_position, clamp_height, clamp_width,
+    BoxEdges, ContainingBlock, HeightLimits, apply_relative_position, clamp_height, clamp_width,
     layout_flex_item, resolve_max_size, resolve_size,
 };
 use crate::box_tree::IndependentBox;
@@ -29,7 +31,10 @@ use crate::positioned::{StaticParent, add_placeholders};
 pub(crate) struct FlexLayout {
     /// Item fragments relative to the container's content box.
     pub(crate) fragments: Vec<Fragment>,
+    /// The container's content height, with its min-height and max-height
+    /// applied.
     pub(crate) content_height: f32,
+    /// The first baseline, from the top of the content box (§8.5).
     pub(crate) first_baseline: Option<f32>,
 }
 
@@ -37,7 +42,9 @@ pub(crate) struct FlexLayout {
 struct Axes {
     row: bool,
     reverse: bool,
+    /// The container's inner main size, if definite.
     main_available: Option<f32>,
+    /// The container's inner cross size, if definite.
     cross_available: Option<f32>,
     main_gap: f32,
     cross_gap: f32,
@@ -139,16 +146,19 @@ impl Item<'_> {
 }
 
 /// Lays out flex items inside a container whose content box is `cb`.
-/// Tables inside do not use column percentages for their intrinsic widths
-/// (see [`crate::table::TableCache::percent_free`]).
+/// `cb.height` is the container's definite height, if any, already clamped
+/// by its min-height and max-height (`limits`). Tables inside do not use
+/// column percentages for their intrinsic widths (see
+/// [`crate::table::TableCache::percent_free`]).
 pub(crate) fn layout_flex(
     ctx: &mut LayoutContext<'_>,
     container: &ComputedStyle,
     children: &[IndependentBox],
     cb: ContainingBlock,
+    limits: HeightLimits,
 ) -> FlexLayout {
     crate::table::TableCache::percent_free(ctx, |ctx| {
-        layout_flex_items(ctx, container, children, cb)
+        layout_flex_items(ctx, container, children, cb, limits)
     })
 }
 
@@ -158,30 +168,37 @@ fn layout_flex_items(
     container: &ComputedStyle,
     children: &[IndependentBox],
     cb: ContainingBlock,
+    limits: HeightLimits,
 ) -> FlexLayout {
     let axes = Axes::new(container, cb);
     let mut items = collect_items(ctx, container, children, &axes, cb);
-    let lines = collect_lines(container, &items, &axes);
+    // §9.3 step 5: a column container with an indefinite height breaks
+    // lines at its max-height (at least its min-height).
+    let line_limit = axes.main_available.unwrap_or(limits.max());
+    let lines = collect_lines(container, &items, &axes, line_limit);
 
     // §9.7: resolve flexible lengths, per line.
     let container_main = axes.main_available.unwrap_or_else(|| {
-        // Indefinite main size (column without height): the largest sum of
-        // the hypothetical sizes of a line.
-        lines
-            .iter()
-            .map(|l| line_main_size(&items[l.clone()], axes.main_gap, Item::outer_hypothetical))
-            .fold(0.0, f32::max)
+        // §9.2 step 4, indefinite main size (a column container without a
+        // height): the largest sum of the hypothetical sizes of a line,
+        // clamped by the container's min-height and max-height.
+        limits.clamp(
+            lines
+                .iter()
+                .map(|l| line_main_size(&items[l.clone()], axes.main_gap, Item::outer_hypothetical))
+                .fold(0.0, f32::max),
+        )
     });
     for line in &lines {
         resolve_flexible_lengths(&mut items[line.clone()], container_main, axes.main_gap);
     }
 
-    let line_cross = determine_cross_sizes(ctx, container, &mut items, &lines, &axes, cb);
+    let cross = determine_cross_sizes(ctx, container, &mut items, &lines, &axes, cb, limits);
     let mut layout = place_items(
         container,
         &mut items,
         &lines,
-        line_cross,
+        &cross,
         container_main,
         &axes,
         cb,
@@ -362,16 +379,18 @@ fn column_cross_is_definite(
         || (axes.cross_available.is_some() && item.stretches(container, false))
 }
 
-/// §9.3: collects the items into flex lines.
+/// §9.3: collects the items into flex lines of at most `line_limit` (the
+/// outer hypothetical main sizes and the gaps; a line has at least one
+/// item).
 fn collect_lines(
     container: &ComputedStyle,
     items: &[Item<'_>],
     axes: &Axes,
+    line_limit: f32,
 ) -> Vec<std::ops::Range<usize>> {
-    if container.flex_wrap == FlexWrap::Nowrap {
+    if is_single_line(container) {
         return std::iter::once(0..items.len()).collect();
     }
-    let line_limit = axes.main_available.unwrap_or(f32::INFINITY);
     let mut lines = Vec::new();
     let mut start = 0;
     let mut used = 0.0;
@@ -396,11 +415,28 @@ fn collect_lines(
 
 /// The outer main size of a line: `size` of each item plus the gaps.
 fn line_main_size<'a>(items: &[Item<'a>], gap: f32, size: impl Fn(&Item<'a>) -> f32) -> f32 {
-    items.iter().map(size).sum::<f32>() + gap * (items.len().saturating_sub(1)) as f32
+    items.iter().map(size).sum::<f32>() + gap * gap_count(items.len())
+}
+
+/// True if the container is single-line (`flex-wrap: nowrap`). A
+/// multi-line container that has only one line is not single-line.
+fn is_single_line(container: &ComputedStyle) -> bool {
+    container.flex_wrap == FlexWrap::Nowrap
+}
+
+/// The cross sizes of a container's lines and of the container.
+struct CrossSizes {
+    lines: Vec<f32>,
+    /// The container's inner cross size.
+    container: f32,
+    /// The container's cross size minus the lines and the gaps between
+    /// them (negative if they overflow).
+    free: f32,
 }
 
 /// §9.4: lays out every item at its main size, determines the cross size
-/// of every line, and stretches items. Returns the line cross sizes.
+/// of every line and of the container, grows the lines for
+/// `align-content: stretch`, and stretches items.
 fn determine_cross_sizes(
     ctx: &mut LayoutContext<'_>,
     container: &ComputedStyle,
@@ -408,8 +444,23 @@ fn determine_cross_sizes(
     lines: &[std::ops::Range<usize>],
     axes: &Axes,
     cb: ContainingBlock,
-) -> Vec<f32> {
-    // Hypothetical cross sizes: lay out each item with its main size.
+    limits: HeightLimits,
+) -> CrossSizes {
+    measure_cross_sizes(ctx, container, items, axes, cb);
+    let cross = line_cross_sizes(container, items, lines, axes, limits);
+    stretch_items(ctx, container, items, lines, &cross.lines, axes, cb);
+    cross
+}
+
+/// §9.4 step 7: the hypothetical cross size of every item, from a layout at
+/// its main size.
+fn measure_cross_sizes(
+    ctx: &mut LayoutContext<'_>,
+    container: &ComputedStyle,
+    items: &mut [Item<'_>],
+    axes: &Axes,
+    cb: ContainingBlock,
+) {
     for item in items.iter_mut() {
         let (w, h) = if axes.row {
             (item.target, None)
@@ -432,9 +483,21 @@ fn determine_cross_sizes(
         };
         item.fragment = Some(fragment);
     }
+}
 
-    // The cross size of each line. A single-line container with a definite
-    // cross size uses that size.
+/// §9.4 steps 8, 15 and 9: the cross size of every line and of the
+/// container, then `align-content: stretch`.
+fn line_cross_sizes(
+    container: &ComputedStyle,
+    items: &[Item<'_>],
+    lines: &[std::ops::Range<usize>],
+    axes: &Axes,
+    limits: HeightLimits,
+) -> CrossSizes {
+    // Step 8: the largest outer cross size of the line's items. A
+    // single-line container uses its definite cross size, or else clamps
+    // the line by its min and max cross size. (Only a row container's cross
+    // size, its height, can be indefinite.)
     let mut line_cross: Vec<f32> = lines
         .iter()
         .map(|l| {
@@ -444,17 +507,52 @@ fn determine_cross_sizes(
                 .fold(0.0, f32::max)
         })
         .collect();
-    let single_line_definite = container.flex_wrap == FlexWrap::Nowrap
-        && axes.cross_available.is_some()
-        && (!axes.row || cb.height.is_some());
-    if single_line_definite
-        && let (Some(c), Some(first)) = (axes.cross_available, line_cross.first_mut())
-    {
-        *first = c;
+    let single_line = is_single_line(container);
+    if single_line && let Some(first) = line_cross.first_mut() {
+        *first = axes.cross_available.unwrap_or_else(|| limits.clamp(*first));
     }
 
-    // Stretch: items with auto cross size and align-self stretch take the
-    // line's cross size.
+    // Step 15, needed by step 9: the container's inner cross size.
+    let gaps = axes.cross_gap * gap_count(lines.len());
+    let total = line_cross.iter().sum::<f32>() + gaps;
+    let container_cross = axes.cross_available.unwrap_or_else(|| limits.clamp(total));
+
+    // Step 9: `align-content: stretch` (and `normal`) grows the lines of a
+    // multi-line container equally to fill the container, before the items
+    // stretch. The specification says this only for a definite cross size;
+    // Chromium also does it for an indefinite one that min-height makes
+    // larger than the lines.
+    if !single_line
+        && matches!(
+            container.align_content,
+            Alignment::Stretch | Alignment::Normal
+        )
+        && container_cross > total
+    {
+        let extra = (container_cross - total) / line_cross.len().max(1) as f32;
+        for c in &mut line_cross {
+            *c += extra;
+        }
+    }
+    let free = container_cross - (line_cross.iter().sum::<f32>() + gaps);
+    CrossSizes {
+        lines: line_cross,
+        container: container_cross,
+        free,
+    }
+}
+
+/// §9.4 step 11: items with an auto cross size and `align-self: stretch`
+/// take the cross size of their line (`line_cross`).
+fn stretch_items(
+    ctx: &mut LayoutContext<'_>,
+    container: &ComputedStyle,
+    items: &mut [Item<'_>],
+    lines: &[std::ops::Range<usize>],
+    line_cross: &[f32],
+    axes: &Axes,
+    cb: ContainingBlock,
+) {
     for (li, line) in lines.iter().enumerate() {
         for item in &mut items[line.clone()] {
             if !item.stretches(container, axes.row) {
@@ -477,48 +575,35 @@ fn determine_cross_sizes(
             }
         }
     }
-    line_cross
 }
 
-/// §9.5 and §9.6: the container's cross size and `align-content`, then
-/// main-axis and cross-axis alignment of the items in each line.
+/// The number of gaps between `count` items or lines.
+fn gap_count(count: usize) -> f32 {
+    count.saturating_sub(1) as f32
+}
+
+/// §9.5 and §9.6: `align-content`, then main-axis and cross-axis
+/// alignment of the items in each line.
 fn place_items(
     container: &ComputedStyle,
     items: &mut [Item<'_>],
     lines: &[std::ops::Range<usize>],
-    mut line_cross: Vec<f32>,
+    cross: &CrossSizes,
     container_main: f32,
     axes: &Axes,
     cb: ContainingBlock,
 ) -> FlexLayout {
-    let total_cross: f32 =
-        line_cross.iter().sum::<f32>() + axes.cross_gap * (lines.len().saturating_sub(1)) as f32;
-    let container_cross = if axes.row {
-        cb.height.unwrap_or(total_cross)
+    let line_cross = &cross.lines;
+    // `align-content` applies only to multi-line containers. Stretched lines
+    // already fill the container (see `line_cross_sizes`).
+    let (mut cross_pos, cross_between) = if is_single_line(container) {
+        (0.0, 0.0)
     } else {
-        cb.width
+        distribute(container.align_content, cross.free, lines.len())
     };
-    let free_cross = container_cross - total_cross;
-    let (mut cross_pos, cross_between) =
-        if lines.len() > 1 || container.flex_wrap != FlexWrap::Nowrap {
-            distribute(container.align_content, free_cross, lines.len())
-        } else {
-            (0.0, 0.0)
-        };
-    if container.align_content == Alignment::Stretch
-        || (container.align_content == Alignment::Normal && lines.len() > 1)
-    {
-        if free_cross > 0.0 && !lines.is_empty() {
-            let extra = free_cross / lines.len() as f32;
-            for c in &mut line_cross {
-                *c += extra;
-            }
-        }
-        cross_pos = 0.0;
-    }
 
     let mut fragments = Vec::with_capacity(items.len());
-    let mut first_baseline = None;
+    let mut baseline = BaselineChoice::default();
     for (li, line) in lines.iter().enumerate() {
         let line_items = &mut items[line.clone()];
         let mut free =
@@ -569,10 +654,10 @@ fn place_items(
                 };
                 fragment.border_rect.x = x;
                 fragment.border_rect.y = y;
-                apply_relative_position(&mut fragment, cb);
-                if first_baseline.is_none() {
-                    first_baseline = fragment.first_baseline.map(|b| b + fragment.border_rect.y);
+                if li == 0 {
+                    baseline.add(item, &fragment, container, axes.row);
                 }
+                apply_relative_position(&mut fragment, cb);
                 fragments.push(Fragment::Box(fragment));
             }
             main_pos += item.target + item.main_edges + item.margin_main_end.unwrap_or(auto_margin);
@@ -580,15 +665,62 @@ fn place_items(
         cross_pos += line_cross[li] + axes.cross_gap + cross_between;
     }
 
-    let content_height = if axes.row {
-        total_cross.max(line_cross.iter().sum::<f32>())
-    } else {
-        container_main
-    };
     FlexLayout {
         fragments,
-        content_height,
-        first_baseline,
+        content_height: if axes.row {
+            cross.container
+        } else {
+            container_main
+        },
+        first_baseline: baseline.get(),
+    }
+}
+
+/// Chooses the first baseline of a flex container (§8.5,
+/// <https://www.w3.org/TR/css-flexbox-1/#flex-baselines>) from the items of
+/// its first line, in visual order (as Chromium: in `row-reverse` and
+/// `column-reverse` the last item in order-modified document order comes
+/// first).
+#[derive(Default)]
+struct BaselineChoice {
+    /// The baseline of the first item.
+    first_item: Option<f32>,
+    /// The baseline of the first item that participates in baseline
+    /// alignment.
+    aligned: Option<f32>,
+}
+
+impl BaselineChoice {
+    /// Adds an item of the first line, placed at its final position before
+    /// relative positioning (relative offsets do not move the baseline).
+    /// An item without a baseline gets one from its bottom border edge.
+    fn add(
+        &mut self,
+        item: &Item<'_>,
+        fragment: &BoxFragment,
+        container: &ComputedStyle,
+        row: bool,
+    ) {
+        let baseline = fragment.border_rect.y
+            + fragment
+                .first_baseline
+                .unwrap_or(fragment.border_rect.height);
+        self.first_item.get_or_insert(baseline);
+        // Only items of a row container with no `auto` cross margin
+        // participate in baseline alignment.
+        let participates = row
+            && item.align_self(container) == Alignment::Baseline
+            && item.margin_cross_start.is_some()
+            && item.margin_cross_end.is_some();
+        if participates {
+            self.aligned.get_or_insert(baseline);
+        }
+    }
+
+    /// The container's first baseline: a baseline-aligned item's, else the
+    /// first item's; `None` without items.
+    fn get(&self) -> Option<f32> {
+        self.aligned.or(self.first_item)
     }
 }
 
@@ -618,7 +750,7 @@ fn distribute(align: Alignment, free: f32, count: usize) -> (f32, f32) {
 /// §9.7 "Resolving Flexible Lengths" for one line. Flex factors are summed
 /// and divided in `f64`, so that huge factors do not overflow to infinity.
 fn resolve_flexible_lengths(items: &mut [Item<'_>], container_main: f32, gap: f32) {
-    let gaps = gap * (items.len().saturating_sub(1)) as f32;
+    let gaps = gap * gap_count(items.len());
     let sum_hypothetical: f32 = items.iter().map(Item::outer_hypothetical).sum::<f32>() + gaps;
     let grow = sum_hypothetical < container_main;
     let factor = |i: &Item<'_>| {
@@ -703,7 +835,123 @@ fn resolve_flexible_lengths(items: &mut [Item<'_>], container_main: f32, gap: f3
 
 #[cfg(test)]
 mod tests {
-    use crate::test_support::layout_html;
+    use crate::FragmentRef;
+    use crate::test_support::{TestLayout, body, layout_html};
+
+    /// The first baseline of the element `id`, from its border box top.
+    fn first_baseline(l: &TestLayout, id: &str) -> Option<f32> {
+        let node = l.node(id);
+        let mut baseline = None;
+        l.tree.walk(|f, _| {
+            if let FragmentRef::Box(b) = f
+                && b.node == Some(node)
+            {
+                baseline = b.first_baseline;
+            }
+        });
+        baseline
+    }
+
+    #[test]
+    fn single_line_is_clamped_by_the_container_min_and_max_height() {
+        let l = layout_html(&body(
+            "<div id=min style='display:flex; min-height:60px; align-items:center'>\
+             <div id=a style='width:10px; height:20px'></div></div>\
+             <div id=max style='display:flex; max-height:30px; align-items:flex-end'>\
+             <div id=b style='width:10px; height:50px'></div></div>\
+             <div id=s style='display:flex; min-height:40px'><div id=c>x</div></div>",
+        ));
+        assert_eq!(l.rect("min").height, 60.0);
+        assert_eq!(l.rect("a").y, 20.0);
+        let max = l.rect("max");
+        assert_eq!(max.height, 30.0);
+        assert_eq!(l.rect("b").y, max.y - 20.0);
+        assert_eq!(l.rect("c").height, 40.0);
+    }
+
+    #[test]
+    fn definite_height_is_clamped_before_flexing() {
+        let l = layout_html(&body(
+            "<div style='display:flex; flex-direction:column; height:300px; max-height:100px'>\
+             <div id=g style='flex:1'></div><div style='height:20px'></div></div>\
+             <div id=r style='display:flex; height:10px; min-height:40px'><div id=s>x</div></div>",
+        ));
+        assert_eq!(l.rect("g").height, 80.0);
+        assert_eq!(l.rect("r").height, 40.0);
+        assert_eq!(l.rect("s").height, 40.0);
+    }
+
+    #[test]
+    fn column_main_size_is_clamped_by_the_container_min_height() {
+        let l = layout_html(&body(
+            "<div style='display:flex; flex-direction:column; min-height:100px'>\
+             <div id=g style='flex:1'></div><div style='height:20px'></div></div>",
+        ));
+        assert_eq!(l.rect("g").height, 80.0);
+    }
+
+    #[test]
+    fn column_lines_break_at_the_container_max_height() {
+        let l = layout_html(&body(
+            "<div id=c style='display:flex; flex-direction:column; flex-wrap:wrap; \
+             max-height:60px; width:200px; align-content:flex-start'>\
+             <div style='width:40px; height:25px'></div><div style='width:40px; height:25px'></div>\
+             <div id=third style='width:40px; height:25px'></div></div>",
+        ));
+        // The container is as high as its longest line.
+        assert_eq!(l.rect("c").height, 50.0);
+        let third = l.rect("third");
+        assert_eq!((third.x, third.y), (40.0, 0.0));
+
+        // A min-height above the max-height wins, also for line breaking.
+        let l = layout_html(&body(
+            "<div id=c style='display:flex; flex-direction:column; flex-wrap:wrap; \
+             min-height:100px; max-height:50px; width:200px; align-content:flex-start'>\
+             <div style='width:40px; height:25px'></div><div style='width:40px; height:25px'></div>\
+             <div id=third style='width:40px; height:25px'></div></div>",
+        ));
+        assert_eq!(l.rect("c").height, 100.0);
+        let third = l.rect("third");
+        assert_eq!((third.x, third.y), (0.0, 50.0));
+    }
+
+    #[test]
+    fn lines_grow_for_align_content_before_items_stretch() {
+        let l = layout_html(&body(
+            "<div style='display:flex; flex-wrap:wrap; width:100px; min-height:100px'>\
+             <div id=a style='width:100px'>a</div><div id=b style='width:100px'>b</div></div>\
+             <div style='display:flex; flex-wrap:wrap; height:60px'><div id=c>c</div></div>",
+        ));
+        assert_eq!(l.rect("a").height, 50.0);
+        assert_eq!((l.rect("b").y, l.rect("b").height), (50.0, 50.0));
+        // A multi-line container with one line stretches it too.
+        assert_eq!(l.rect("c").height, 60.0);
+    }
+
+    #[test]
+    fn baseline_comes_from_the_first_item_of_the_first_line() {
+        let l = layout_html(&body(
+            "<div id=empty style='display:flex'><div style='width:10px; height:30px'></div>\
+             <div style='margin-top:4px'>text</div></div>\
+             <div id=reverse style='display:flex; flex-direction:row-reverse'>\
+             <div style='width:10px; height:30px'></div><div style='margin-top:4px'>text</div></div>\
+             <div id=column style='display:flex; flex-direction:column'>\
+             <div style='height:12px; margin-top:3px; border-bottom:2px solid'></div><div>text</div></div>\
+             <div id=aligned style='display:flex'><div style='width:10px; height:30px'></div>\
+             <div style='margin-top:4px; align-self:baseline'>text</div></div>\
+             <div id=relative style='display:flex'>\
+             <div style='width:10px; height:30px; position:relative; top:5px'></div></div>\
+             <div id=none style='display:flex'></div>",
+        ));
+        // An item without a baseline gets one at its bottom border edge.
+        assert_eq!(first_baseline(&l, "empty"), Some(30.0));
+        let text = first_baseline(&l, "reverse").expect("the text item has a baseline");
+        assert!(text > 4.0 && text < 24.0, "{text}");
+        assert_eq!(first_baseline(&l, "column"), Some(17.0));
+        assert_eq!(first_baseline(&l, "aligned"), Some(text));
+        assert_eq!(first_baseline(&l, "relative"), Some(30.0));
+        assert_eq!(first_baseline(&l, "none"), None);
+    }
 
     #[test]
     fn column_items_use_their_width() {
