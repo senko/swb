@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- A multi-column container (column-width or column-count not auto)
+     establishes a new block formatting context: margins stay inside, and it
+     avoids floats. Its content fits in one column here. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Multi-column containers</title>
+<style>
+  body { margin: 8px; font: 16px sans-serif; }
+  .c { width: 300px; }
+  p { margin: 10px 0 7px; }
+  .f { float: left; width: 50px; height: 100px; }
+</style>
+</head>
+<body>
+  <div class="c" style="column-width: 200px"><p>One column, its margins stay inside.</p></div>
+  <div class="c"><p>No columns: the margins collapse through.</p></div>
+  <div class="c" style="columns: auto 1"><p>columns: auto 1</p></div>
+  <div class="c" style="columns: 400px"><p>columns: 400px</p></div>
+  <div class="c"><div class="f"></div><div style="column-count: 1">Beside the float</div></div>
+  <div class="c" style="column-count: 0"><p>An invalid count</p></div>
+</body>
+</html>

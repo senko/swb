@@ -18,6 +18,11 @@ measurement:
   "measured").
 - `picture-sources`: which `<source>` elements an `<img>` in a `<picture>`
   skips (`crates/engine/src/image_source.rs`).
+- `font-size-sweep`: the font sizes that Chromium shapes text with, for
+  every CSS size from 9.000 to 24.000 px in steps of 0.001 px
+  (`chromium_sizes` in `crates/text/src/shape.rs`). It takes about 4
+  minutes, so it runs only when named, and it writes
+  `crates/text/tests/chromium-font-sizes.txt` (see `font_sizes.py`).
 
 The pages are files in a temporary directory, loaded by navigation. A
 quirks mode page from `page.set_content` after a standards mode page in
@@ -37,6 +42,7 @@ from PIL import Image
 from playwright.async_api import Page, async_playwright
 
 from swbtools import browser
+from swbtools.font_sizes import font_size_sweep
 
 # --- Text field families ---------------------------------------------------
 
@@ -989,7 +995,12 @@ MEASUREMENTS = {
     "font-size-keywords": _measure_font_size_keywords,
     "ua-styles": _measure_ua_styles,
     "picture-sources": _measure_picture_sources,
+    "font-size-sweep": font_size_sweep,
 }
+
+SLOW_MEASUREMENTS = ("font-size-sweep",)
+"""The measurements that run only when named: they take minutes or write
+files."""
 
 
 async def _load(page: Page, directory: Path, name: str, content: str) -> None:
@@ -1014,8 +1025,9 @@ async def in_chromium[T](run: Callable[[Page, Path], Awaitable[T]]) -> T:
 
 
 def measure(names: list[str]) -> int:
-    """Runs the named measurements (all if empty) and prints the results."""
-    for name in names or list(MEASUREMENTS):
+    """Runs the named measurements (all but `SLOW_MEASUREMENTS` if empty) and
+    prints the results."""
+    for name in names or [n for n in MEASUREMENTS if n not in SLOW_MEASUREMENTS]:
         print(f"== {name}")
         asyncio.run(in_chromium(MEASUREMENTS[name]))
         print()

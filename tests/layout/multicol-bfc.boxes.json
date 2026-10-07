@@ -1,0 +1,25 @@
+{
+  "url": "tests/layout/multicol-bfc.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 266.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 8.0, 784.0, 204.0], "parent": 0},
+    {"tag": "div", "rect": [8.0, 8.0, 300.0, 35.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 18.0, 300.0, 18.0], "parent": 6},
+    {"tag": "div", "rect": [8.0, 53.0, 300.0, 36.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 53.0, 300.0, 36.0], "parent": 8},
+    {"tag": "div", "rect": [8.0, 96.0, 300.0, 35.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 106.0, 300.0, 18.0], "parent": 10},
+    {"tag": "div", "rect": [8.0, 131.0, 300.0, 35.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 141.0, 300.0, 18.0], "parent": 12},
+    {"tag": "div", "rect": [8.0, 166.0, 300.0, 18.0], "parent": 5},
+    {"tag": "div", "rect": [8.0, 166.0, 50.0, 100.0], "parent": 14},
+    {"tag": "div", "rect": [58.0, 166.0, 250.0, 18.0], "parent": 14},
+    {"tag": "div", "rect": [8.0, 194.0, 300.0, 18.0], "parent": 5},
+    {"tag": "p", "rect": [8.0, 194.0, 300.0, 18.0], "parent": 17}
+  ]
+}

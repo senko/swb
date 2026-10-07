@@ -217,6 +217,8 @@ pub(crate) fn parse_longhand(
             L::AlignContent => V::AlignContent(parse_alignment(p, AlignKind::AlignContent)?),
             L::RowGap => V::RowGap(parse_gap(p)?),
             L::ColumnGap => V::ColumnGap(parse_gap(p)?),
+            L::ColumnWidth => V::ColumnWidth(parse_column_width(p)?),
+            L::ColumnCount => V::ColumnCount(parse_column_count(p)?),
             L::JustifyItems => V::JustifyItems(parse_alignment(p, AlignKind::JustifyItems)?),
             L::JustifySelf => V::JustifySelf(parse_alignment(p, AlignKind::JustifySelf)?),
             L::GridTemplateColumns => V::GridTemplateColumns(grid::parse_track_list(p)?),
@@ -1391,6 +1393,27 @@ pub(crate) fn parse_alignment(p: &mut Parser<'_>, kind: AlignKind) -> ParseResul
         }
         Ok(value)
     })
+}
+
+/// `column-width`: `auto | <length [0,∞]>`.
+pub(crate) fn parse_column_width(p: &mut Parser<'_>) -> ParseResult<Option<Lp>> {
+    if p.expect_ident_matching("auto").is_ok() {
+        return Ok(None);
+    }
+    parse_length_percentage(p, LengthOptions::NON_NEGATIVE_LENGTH).map(Some)
+}
+
+/// `column-count`: `auto | <integer [1,∞]>`.
+pub(crate) fn parse_column_count(p: &mut Parser<'_>) -> ParseResult<Option<u32>> {
+    if p.expect_ident_matching("auto").is_ok() {
+        return Ok(None);
+    }
+    let n = parse_integer(p)?;
+    u32::try_from(n)
+        .ok()
+        .filter(|n| *n >= 1)
+        .map(Some)
+        .ok_or(ParseError::Invalid)
 }
 
 /// `row-gap` / `column-gap`: `normal | <length-percentage [0,∞]>`.

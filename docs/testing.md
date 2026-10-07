@@ -9,6 +9,8 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 |------------------------|-----------------------------------------|-----------------------------------|
 | Unit tests             | each crate, `#[cfg(test)]`              | no                                |
 | Layout tests           | `tests/layout/*.html` + `*.boxes.json`  | only to regenerate `*.boxes.json` |
+| Line break tests       | `crates/text/tests/linebreak.rs` + `crates/text/tests/linebreak/` | only to measure again |
+| Font size and width tests | `font_size_rule_matches_chromium` in `crates/text/src/shape.rs` + `crates/text/tests/chromium-font-sizes.txt`; `crates/text/tests/font_widths.rs` + `chromium-font-widths.txt` | only to measure again |
 | Page fixtures          | `fixtures/pages/<name>/`                | only to capture and to regenerate `reference/` |
 | Scores (ratchet)       | `fixtures/scores.json`                  | no                                |
 | Engine tests           | `crates/engine/tests/page.rs` (navigation, history, fragments, cancellation, hit testing, display list) | no |
@@ -55,8 +57,10 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
-| `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). |
+| `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
+| `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
+| `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
 | `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
@@ -424,6 +428,34 @@ down. Scores only go up unless the commit message explains why.
    browser and compare a few rectangles).
 4. Commit both files.
 
+### Measure line break opportunities
+
+swb's line breaking (`crates/text/src/linebreak.rs`) follows UAX #14 with
+the tailorings that Chromium has. The rules come from measurements:
+
+1. `uv run --project tools swbtools linebreaks` (about one minute) renders
+   strings in Chromium, each as the text of a `<div>` with `width: 0`,
+   `white-space: pre-wrap`, 10 px font and 100 px line height. The line
+   breaks at every opportunity. The line of each code point is the
+   vertical center of its last rectangle (`Range.getClientRects()`), so the
+   tool finds the positions where a new line starts. The same text with
+   `width: 100000px` gives the forced breaks and the width of each code
+   point: positions inside text of zero width are unknown, because
+   Chromium does not need to break there. A text whose number of lines
+   does not match is unknown too.
+2. It writes the matrices of character pairs and the list of strings to
+   `crates/text/tests/linebreak/` (format: `README.md` there). The case
+   sets are in `tools/swbtools/linebreaks.py`; add strings there.
+3. `uv run --project tools swbtools linebreak-tables` writes
+   `crates/text/src/linebreak/tables.rs`: Unicode 17.0 data (downloaded
+   into `out/ucd/`) and the Latin-1 pair tables from `latin1.txt`.
+4. `cargo test -p swb-text --test linebreak` compares swb with every
+   measured position. A difference must be listed with its reason in
+   `known-differences.txt`.
+
+After a Chromium upgrade, measure again, generate the tables, and check the
+differences.
+
 ### Check that a refactoring does not change rendering
 
 `just snapshot DIR` writes the layout dump (`--dump-layout`), the DOM dump
@@ -455,13 +487,16 @@ result. The swb code next to the data names the measurement.
 | `font-size-keywords`  | The computed `font-size` of `xx-small` to `xxx-large` with `serif` (medium: 16px) and `monospace` (medium: 13px), in standards mode and in quirks mode. | `KEYWORD_SIZES_*` in `crates/style/src/values/keywords.rs` |
 | `ua-styles`           | The computed styles of form controls, `option`, `label`, `fieldset`, `marquee`, `meter`, `progress`, `output`, `ruby`, `rt` and `map` (the properties whose values differ from a `<span>` next to the element, in a parent with unusual inherited values), their `::placeholder`, the `frameset` and `frame` of a frameset document, and the system colors. | The rules of `crates/style/src/ua.css` that say "measured" (form controls, widgets, ruby, framesets) |
 | `picture-sources`     | The image that a `<picture>` shows when its `<source>` has a `media` that does not match, an unsupported `type`, or both. | `source_candidate` in `crates/engine/src/image_source.rs` |
+| `font-size-sweep`     | The sizes that Chromium shapes text with, for every CSS font size from 9.000 to 24.000 px in steps of 0.001 px (15,001 sizes, about 2 minutes): each size alone on a new page in a new browser context, with 20 times `0` in three families and 100 times `AV` in Liberation Sans. From the widths it derives the kerning size and the advance size. Then one page with all sizes shows the shared font cache (see ADR 0006). Writes the two data files, and prints how many sizes differ from swb's rule. Runs only when named. | `chromium_sizes` and `font_scale` in `crates/text/src/shape.rs`; the files `crates/text/tests/chromium-font-sizes.txt` (ranges of CSS sizes with the same sizes) and `chromium-font-widths.txt` (the widths of every 13th size) |
 
 The pages are files in a temporary directory, loaded by navigation: a
 quirks mode page from Playwright's `set_content` after a standards mode
 page in the same tab can keep the standards mode font size table. `tools/tests/test_measure.py` runs the measurements and compares
 the family list and the keyword tables with swb's source code, so `just
 tools-check` fails when they no longer match Chromium (for example after a
-Playwright upgrade).
+Playwright upgrade). It also measures samples of the font sizes and
+compares them with the two data files, which the Rust tests
+(`font_size_rule_matches_chromium`, `font_widths.rs`) compare with swb.
 
 ## Scores
 

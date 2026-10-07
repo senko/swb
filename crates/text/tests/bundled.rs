@@ -412,12 +412,17 @@ fn rtl_runs_are_in_visual_order() {
     let options = ShapeOptions {
         direction: Direction::Rtl,
         language: Some("he"),
-        features: &[],
+        ..ShapeOptions::default()
     };
     // Four Hebrew letters, two bytes each.
     let run = ctx.shape(font, 16.0, "שלום", &options);
     let clusters: Vec<u32> = run.glyphs.iter().map(|g| g.cluster).collect();
     assert_eq!(clusters, vec![6, 4, 2, 0]);
+    // Without a direction, the run is shaped right to left and returned in
+    // logical order.
+    let run = ctx.shape(font, 16.0, "שלום", &ShapeOptions::default());
+    let clusters: Vec<u32> = run.glyphs.iter().map(|g| g.cluster).collect();
+    assert_eq!(clusters, vec![0, 2, 4, 6]);
 }
 
 #[test]
@@ -490,4 +495,139 @@ fn directory_errors() {
         FontContext::from_directory(&empty, GenericFamilyMap::bundled()),
         Err(TextError::NoFonts(_))
     ));
+}
+
+#[test]
+fn advances_and_kerning_use_truncated_sizes() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(
+        &mut ctx,
+        &[Named("Liberation Sans")],
+        400.0,
+        FontStyle::Normal,
+    );
+    // "A" is 1366 units of 2048; at 14.4 px Chromium uses 14.390625 px.
+    let run = ctx.shape(font, 14.4, "A", &ShapeOptions::default());
+    let expected = 1366.0 * (921.0 / 64.0) / 2048.0;
+    assert!((run.advance - expected).abs() < 1e-4, "{}", run.advance);
+    // Kerning uses the font size: "AV" is kerned by -152 units at 14.4 px.
+    let run = ctx.shape(font, 14.4, "AV", &ShapeOptions::default());
+    let expected = 2.0 * 1366.0 * (921.0 / 64.0) / 2048.0 - 152.0 * 14.4 / 2048.0;
+    assert!((run.advance - expected).abs() < 1e-4, "{}", run.advance);
+    // The font size is first truncated to 1/100 px in f32: 16.21 becomes
+    // 16.2 (advances of 1036/64 px), 18.72 becomes 18.71 (1197/64 px).
+    let run = ctx.shape(font, 16.21, "AV", &ShapeOptions::default());
+    let expected = 2.0 * 1366.0 * (1036.0 / 64.0) / 2048.0 - 152.0 * 16.2 / 2048.0;
+    assert!((run.advance - expected).abs() < 1e-4, "{}", run.advance);
+    let run = ctx.shape(font, 18.72, "A", &ShapeOptions::default());
+    let expected = 1366.0 * (1197.0 / 64.0) / 2048.0;
+    assert!((run.advance - expected).abs() < 1e-4, "{}", run.advance);
+}
+
+#[test]
+fn context_joins_arabic_across_runs() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(&mut ctx, &[Named("DejaVu Sans")], 400.0, FontStyle::Normal);
+    let alone = ctx.shape(font, 14.0, "\u{0643}", &ShapeOptions::default());
+    // With a joining letter after it, the letter takes its initial form.
+    let options = ShapeOptions {
+        post_context: "\u{0645}",
+        ..ShapeOptions::default()
+    };
+    let initial = ctx.shape(font, 14.0, "\u{0643}", &options);
+    assert_eq!(initial.glyphs.len(), 1);
+    assert_ne!(alone.glyphs[0].glyph, initial.glyphs[0].glyph);
+}
+
+#[test]
+fn bidi_override_shapes_arabic_left_to_right() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(&mut ctx, &[Named("DejaVu Sans")], 400.0, FontStyle::Normal);
+    let word = "\u{628}\u{627}\u{644}";
+    let (before, after) = (
+        "\u{645}\u{631}\u{62d}\u{628}\u{627}",
+        "\u{639}\u{627}\u{644}\u{645}",
+    );
+    let width = |ctx: &mut FontContext, bidi_override, pre_context, post_context| {
+        let options = ShapeOptions {
+            bidi_override,
+            pre_context,
+            post_context,
+            ..ShapeOptions::default()
+        };
+        // Rounded to 0.01 px, as in the Chromium measurements.
+        (ctx.shape(font, 16.0, word, &options).advance * 100.0).round() / 100.0
+    };
+    // Measured in Chromium 148 (`tests/layout/text-arabic-bidi.html`): the
+    // word alone and between Arabic words, right to left and with an
+    // override.
+    assert_eq!(width(&mut ctx, false, "", ""), 20.95);
+    assert_eq!(width(&mut ctx, false, before, after), 14.2);
+    assert_eq!(width(&mut ctx, true, "", ""), 24.19);
+    assert_eq!(width(&mut ctx, true, before, after), 13.58);
+}
+
+#[test]
+fn gsub_features() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(
+        &mut ctx,
+        &[Named("Liberation Sans")],
+        400.0,
+        FontStyle::Normal,
+    );
+    assert!(!ctx.has_feature(font, *b"smcp"));
+    let font = select(&mut ctx, &[Named("DejaVu Sans")], 400.0, FontStyle::Normal);
+    assert!(ctx.has_feature(font, *b"init"));
+}
+
+#[test]
+fn brackets_around_rtl_text_are_not_mirrored() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(&mut ctx, &[Named("DejaVu Sans")], 400.0, FontStyle::Normal);
+    let options = ShapeOptions::default();
+    let open = ctx.shape(font, 16.0, "(", &options).glyphs[0].glyph;
+    let close = ctx.shape(font, 16.0, ")", &options).glyphs[0].glyph;
+    // Hebrew letters are two bytes each; the clusters are in logical order.
+    let run = ctx.shape(font, 16.0, "(\u{5E9}\u{5DC})", &options);
+    let clusters: Vec<u32> = run.glyphs.iter().map(|g| g.cluster).collect();
+    assert_eq!(clusters, vec![0, 1, 3, 5]);
+    assert_eq!(run.glyphs[0].glyph, open);
+    assert_eq!(run.glyphs[3].glyph, close);
+}
+
+#[test]
+fn rtl_clusters_keep_their_marks() {
+    let mut ctx = FontContext::for_tests();
+    let font = select(&mut ctx, &[Named("DejaVu Sans")], 400.0, FontStyle::Normal);
+    // Shin with qamats, then lamed: the clusters are in logical order, and
+    // the glyphs of a cluster keep their order (the mark is positioned
+    // relative to its base there).
+    let run = ctx.shape(
+        font,
+        16.0,
+        "\u{5E9}\u{5B8}\u{5DC}",
+        &ShapeOptions::default(),
+    );
+    let clusters: Vec<u32> = run.glyphs.iter().map(|g| g.cluster).collect();
+    assert_eq!(clusters, vec![0, 0, 4]);
+    let rtl = ShapeOptions {
+        direction: Direction::Rtl,
+        ..ShapeOptions::default()
+    };
+    let visual = ctx.shape(font, 16.0, "\u{5E9}\u{5B8}\u{5DC}", &rtl);
+    assert_eq!(run.glyphs[..2], visual.glyphs[1..]);
+}
+
+#[test]
+fn shaping_context_has_up_to_five_characters() {
+    let text = "\u{E9}abcdefg\u{E9}h\u{E9}";
+    assert_eq!(
+        swb_text::context_around(text, 8..9),
+        ("bcdef", "\u{E9}h\u{E9}")
+    );
+    assert_eq!(swb_text::context_around(text, 0..2), ("", "abcde"));
+    assert_eq!(swb_text::context_around(text, 2..2), ("\u{E9}", "abcde"));
+    // Not at a character boundary: no context.
+    assert_eq!(swb_text::context_around(text, 1..1), ("", ""));
 }

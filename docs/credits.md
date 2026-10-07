@@ -45,7 +45,12 @@ Format: source, license (for code), what it influenced.
   error codes of the automation protocol
 - UI Events KeyboardEvent key values — https://www.w3.org/TR/uievents-key/ —
   key names of the engine and the automation protocol
-- Unicode Standard Annex #14 (line breaking), #9 (bidi)
+- Unicode Standard Annex #14 (line breaking; revisions 51 to 57, for
+  Unicode 15.1 to 18.0) and the Unicode Character Database 17.0
+  (`LineBreak.txt`, `EastAsianWidth.txt`, `DerivedGeneralCategory.txt`,
+  `emoji-data.txt`) — `text/src/linebreak.rs` and its generated
+  `linebreak/tables.rs`; CSS Text 3 §5 (`word-break`, `hyphens`); UAX #9
+  (bidi)
 - RFC 4647 (language tag matching) — `:lang()`
 - SVG 2 (coordinate systems; natural dimensions and the `viewBox`
   transform of SVG images) and CSS Images 3 (natural dimensions, the
@@ -141,7 +146,10 @@ Format: source, license (for code), what it influenced.
   `<source>`, density-corrected sizes); with `swbtools measure`
   (docs/testing.md): the font families whose text fields use the width
   of `0`, the font size keyword tables, the computed styles of form
-  controls, ruby and frameset elements, and the `<source>` checks.
+  controls, ruby and frameset elements, and the `<source>` checks; line
+  break opportunities for `word-break: normal | break-all | keep-all`
+  and `hyphens: none` (`text/src/linebreak.rs`, written from these
+  measurements and UAX #14 only; `swbtools linebreaks`).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.
@@ -171,6 +179,21 @@ Format: source, license (for code), what it influenced.
   id and href resolution, caching and recursion; simplecss's selector
   matching; roxmltree's entity limits; kurbo's arc subdivision count.
   No code copied.
+- Chromium / Blink (BSD-3-Clause), text layout and shaping (M3), read at
+  `main` before the owner's rule of 2026-10-07 (ADR 0021):
+  `core/layout/inline/line_breaker.cc/.h` (break rules at element
+  boundaries, the `overflow-wrap` retry, the fit tolerance),
+  `core/layout/inline/inline_node.cc` (where shaping stops at inline box
+  edges, the shaping context),
+  `platform/fonts/shaping/shaping_line_breaker.cc` and `shape_result.cc`
+  (snapped widths); the synthesis of small capitals and the font size
+  rules from recollection. Each rule was then measured in Chromium 148,
+  and the code cites the measurements (`layout/src/inline/breaks.rs`,
+  `overflow.rs`, `caps.rs`, `shaping.rs`; `text/src/shape.rs`). A first
+  line breaker, written after reading Blink's `text_break_iterator.cc`
+  (LGPL) and `character_property_data_generator.cc`, was discarded before
+  it was committed; `text/src/linebreak.rs` was written in a clean room
+  from UAX #14 and measurements (ADR 0021).
 - Chromium / Blink LayoutNG floats (BSD-3-Clause), from recollection and
   confirmed by measurements with Chromium 148: the exclusion space and
   layout opportunities, `BlockLayoutAlgorithm::HandleFloat`,

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- Line breaks and shaping at element boundaries, from Wikipedia's references:
+     no break at the start of a box with unicode-bidi: isolate (the reference
+     links), the parent decides at the end of a nowrap box, and text is shaped
+     across a box start without start padding (kerning of " A"). Also: a break
+     before preserved spaces at the start of text that does not wrap, and
+     content up to 1/64 px wider than the line fits (also with an
+     overflow-wrap cut). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Breaks at element boundaries</title>
+<style>
+  body { margin: 8px; font: 16px sans-serif; }
+  div { width: 120px; margin-bottom: 10px; }
+  .n { width: 1px; }
+  sup { font-size: 80%; line-height: 1; }
+  .nw { white-space: nowrap; }
+  .iso { unicode-bidi: isolate; }
+  .ext { padding-right: 13px; }
+  .w { width: 900px; font-size: 14.4px; }
+  .pre { white-space: pre; }
+</style>
+</head>
+<body>
+  <div>dumb <a>terminals</a>.<sup class="nw iso"><a>[18]</a></sup> x</div>
+  <div>dumb <a>terminals</a>.<sup class="nw"><a>[18]</a></sup> x</div>
+  <div>dumb terminals.<span style="unicode-bidi: embed">[18]</span> x</div>
+  <div>dumb <span class="nw">terminals-</span>abc x</div>
+  <div>dumb terminals-<span class="nw">abc</span> x</div>
+  <div class="n">a-<span class="iso">b</span>c</div>
+  <div class="n">a <span class="iso">b</span> c</div>
+  <div class="n">a<bdi>b</bdi>c</div>
+  <div class="n">a<span dir="ltr">b</span>c</div>
+  <div class="w"><a class="ext">"Chrome keyboard shortcuts"</a>. Google Inc. <a class="ext">Archived</a> from the original</div>
+  <div class="w">Inc. <a style="padding-left: 13px">Archived</a> Inc. <a class="iso">Archived</a> Inc. <a style="vertical-align: 1px">Archived</a></div>
+  <div style="width: 50px; white-space: nowrap"><span style="display: inline-block; width: 30px; height: 10px"></span><span style="display: inline-block; width: 30px; height: 10px"></span></div>
+  <div style="width: 80px">aa <span class="pre">bb cc-dd</span> ee<span class="pre">ff gg </span>hh <span class="pre"> ii</span>jj</div>
+  <div style="width: 30px">hh <span class="pre">  ii</span>jj</div>
+  <div style="width: 30px">hh<span class="pre"> ii</span>jj</div>
+  <div style="width: 39.125px">ab cd</div>
+  <div style="width: 39.109375px">ab cd</div>
+  <div style="width: 39.140625px"><span>ab</span> <span>cd</span></div>
+  <div style="width: 13.328125px; overflow-wrap: anywhere">ht</div>
+  <div style="width: 13.3125px; overflow-wrap: anywhere">ht</div>
+</body>
+</html>

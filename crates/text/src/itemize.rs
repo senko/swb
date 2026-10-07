@@ -127,9 +127,9 @@ impl FontContext {
         base_fallback.unwrap_or(primary)
     }
 
-    /// True if `font` has glyphs for all characters of `cluster` that need
-    /// one, as written or after normalization.
-    fn covers_cluster(&self, font: FontId, cluster: &str) -> bool {
+    /// True if `font` has glyphs for all characters of the grapheme cluster
+    /// `cluster` that need one, as written or after normalization.
+    pub fn covers_cluster(&self, font: FontId, cluster: &str) -> bool {
         cluster_covered(cluster, |c| self.has_glyph(font, c))
     }
 }

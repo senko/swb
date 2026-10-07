@@ -216,6 +216,8 @@ longhands! {
     AlignContent "align-content" reset align_content: Alignment;
     RowGap "row-gap" reset row_gap: Option<Lp>;
     ColumnGap "column-gap" reset column_gap: Option<Lp>;
+    ColumnWidth "column-width" reset column_width: Option<Lp>;
+    ColumnCount "column-count" reset column_count: Option<u32>;
     JustifyItems "justify-items" reset justify_items: Alignment;
     JustifySelf "justify-self" reset justify_self: Alignment;
     GridTemplateColumns "grid-template-columns" reset grid_template_columns: SpecifiedTrackList;

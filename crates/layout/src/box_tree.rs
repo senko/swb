@@ -970,9 +970,15 @@ fn build_block_level(
     state: &mut BuildState,
 ) -> BlockLevelBox {
     let style = &base.style;
+    // A multi-column container establishes a new block formatting context
+    // (CSS Multicol 1 §2); its content is laid out in one column (no
+    // multi-column layout yet), which is what Chromium shows when only one
+    // column fits.
+    let multicol = style.column_width.is_some() || style.column_count.is_some();
     let establishes_bfc = !matches!(style.display, Display::Block | Display::ListItem)
         || style.overflow_x.is_scroll_container()
         || style.overflow_y.is_scroll_container()
+        || multicol
         || base.element().is_some_and(|n| is_atomic(ctx, n));
     if establishes_bfc {
         return BlockLevelBox::Independent(build_independent(ctx, base, state));

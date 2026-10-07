@@ -46,8 +46,10 @@ why we do not use Servo's crates.
   glyph advances should match.
 - Glyph outlines and font metrics: `skrifa` (from the same project as
   harfrust; both use `read-fonts`).
-- Break opportunities: `unicode-linebreak` (UAX #14). Line layout itself is
-  ours.
+- Break opportunities: our own implementation of UAX #14 with Chromium's
+  tailorings (`linebreak.rs` in the `text` crate; see [ADR 0006](0006-text-stack.md),
+  update of 2026-10-07). The `unicode-linebreak` crate only gives the
+  Line_Break classes of Unicode 15.0. Line layout itself is ours.
 
 Update (2026-10-04): [ADR 0006](0006-text-stack.md) chose the fontconfig
 binding: the `fontconfig` crate with its `dlopen` feature, behind the

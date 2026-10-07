@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- overflow-wrap: break-word | anywhere and word-break: break-word (CSS Text 3
+     §5.5): a word that does not fit on its own line breaks at grapheme
+     clusters of the text with the property, also across elements, before
+     inline box starts, next to floats, and with padding at the end. Between
+     two elements, the one before decides (aaab / bb). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>overflow-wrap</title>
+<style>
+  body { margin: 8px; font: 16px sans-serif; }
+  div { width: 100px; margin-bottom: 10px; }
+  .bw { overflow-wrap: break-word; }
+  .an { overflow-wrap: anywhere; }
+  .wbw { word-break: break-word; }
+  .f { float: left; width: 60px; height: 30px; }
+</style>
+</head>
+<body>
+  <div class="bw">abc <span>verylongwordthatoverflows</span> end</div>
+  <div class="an">abc <span>verylongwordthatoverflows</span> end</div>
+  <div class="wbw">abc <span>verylongwordthatoverflows</span> end</div>
+  <div>abc <span>verylongwordthatoverflows</span> end</div>
+  <div class="bw">ab<span style="overflow-wrap: normal">cdefghijklmnopq</span>rstuvwxyz</div>
+  <div class="bw"><span>verylong</span><b>wordthat</b>overflows</div>
+  <div class="bw"><a style="padding-right: 13px">verylongwordthatoverflows</a></div>
+  <div class="bw"><span class="f"></span><span>verylongwordthatoverflows</span> x</div>
+  <div style="width: 0"><span class="bw">abc</span><span class="an">abc</span></div>
+  <div class="bw" style="width: 50px"><span>abcdefghij,klmnop</span></div>
+  <div class="bw" style="white-space: nowrap"><span>verylongwordthatoverflows</span></div>
+  <div class="bw" style="white-space: pre-wrap"><span>verylongwordthatoverflows  </span>x</div>
+  <div class="bw">abc<span>defghijklmnopqrstuvw</span></div>
+  <div style="width: 20px">aaa<span class="an">bbb</span></div>
+  <div style="width: 30px">aaa<span class="bw">bbbbbb</span></div>
+</body>
+</html>

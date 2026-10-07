@@ -11,7 +11,7 @@ the owner as ready for review), `accepted` (the owner verified it).
 |---|----------------------------------------------|----------------------------------|---------|-------|
 | 1 | https://senko.net/                           | `fixtures/pages/senko-net`       | accepted | Layout matches Chromium (all 65 element boxes within 0.1 px at 1280×800); the narrow layout (`max-width: 480px`) looks the same in a side-by-side screenshot. Hover underline, cursor, Tab focus rings, text selection and copy work. |
 | 2 | https://news.ycombinator.com/                | `fixtures/pages/hacker-news`     | accepted | Layout matches Chromium (all 818 element boxes within 2 px at 1280×800; quirks mode, nested tables); logo and vote arrows (SVG) match. Links, the search form (GET to hn.algolia.com) and back/forward work. Login (POST and the session cookie) is implemented and tested with local servers; it was not tried against the live site. |
-| 3 | https://en.wikipedia.org/wiki/Web_browser    | `fixtures/pages/wikipedia-web-browser` | in progress | Readable. Needs grid (sidebar), floats (images), SVG, `mask-image` icons (M3). |
+| 3 | https://en.wikipedia.org/wiki/Web_browser    | `fixtures/pages/wikipedia-web-browser` | done | Layout matches Chromium (geometry 0.9978: all but 9 of 4,052 element boxes within 2 px at 1280×800; pixels 0.9936): grid page layout, floats, positioning and the sticky table of contents, mask icons, the video thumbnail, counters in the references, line breaking. The main menu and other dropdowns open (checkbox, no JavaScript), table of contents links scroll, the search form submits (GET), links and history work. |
 
 Scores per fixture are in `fixtures/scores.json` (see
 [testing.md](testing.md)). `just compare` writes a report per fixture to

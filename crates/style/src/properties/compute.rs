@@ -210,6 +210,8 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::AlignContent(v) => s.align_content = *v,
         V::RowGap(v) => s.row_gap = gap(cx, v.as_ref()),
         V::ColumnGap(v) => s.column_gap = gap(cx, v.as_ref()),
+        V::ColumnWidth(v) => s.column_width = v.as_ref().map(|v| cx.px(v).max(0.0)),
+        V::ColumnCount(v) => s.column_count = *v,
         V::JustifyItems(v) => s.justify_items = *v,
         V::JustifySelf(v) => s.justify_self = *v,
         V::GridTemplateColumns(v) => s.grid_template_columns = v.map(&|l| cx.non_negative(l)),

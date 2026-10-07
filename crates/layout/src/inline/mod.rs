@@ -3,8 +3,11 @@
 //! CSS 2.2 §9.4.2 (inline formatting contexts) and §10.8 (line height
 //! calculations): <https://www.w3.org/TR/CSS22/visudet.html#line-height>.
 //!
-//! The context's content is shaped once (see [`shaping`]). Pieces are
-//! grouped into unbreakable groups that start at soft wrap opportunities.
+//! The context's content is shaped once (see [`shaping`]) and split at soft
+//! wrap opportunities (see [`breaks`]). Pieces are grouped into unbreakable
+//! groups that start at soft wrap opportunities. A group that does not fit
+//! on a line by itself is cut if `overflow-wrap` or `word-break` allow it
+//! (see [`overflow`]).
 //! Lines are filled greedily, one at a time, in the layout opportunity
 //! next to the floats of the block formatting context (CSS 2.2 §9.5:
 //! line boxes are shortened by floats). Then each line is built: inline
@@ -31,6 +34,9 @@
 //! inline box) has a border or padding on its start or end side (margins
 //! do not count). Lines of list items always have the root strut.
 
+mod breaks;
+mod caps;
+mod overflow;
 mod shaping;
 
 use std::sync::Arc;
@@ -53,7 +59,8 @@ use crate::intrinsic::ContentSizes;
 use crate::list_marker::{PendingMarker, shape_marker};
 use crate::positioned::{StaticParent, placeholder};
 
-use shaping::{Piece, Run};
+use overflow::{Cut, GroupText, Purpose};
+use shaping::{Piece, Run, snapped_width};
 pub(crate) use shaping::{ShapedText, shape as shape_ifc};
 
 /// The result of laying out an inline formatting context.
@@ -94,7 +101,7 @@ pub(crate) fn layout_inline(
     let width = cb.width;
     let atomics = layout_atomics(ctx, ifc, cb);
     let floats = layout_floats(ctx, ifc, cb, flow.x);
-    let groups = build_groups(ifc, &shaped, &shaped.break_before, &atomics, width);
+    let mut groups = build_groups(ifc, &shaped, &shaped.break_before, &atomics, width);
     let indent = clamp_length(container_style.text_indent.resolve(width));
 
     let root_metrics = strut_metrics(ctx, container_style);
@@ -126,7 +133,7 @@ pub(crate) fn layout_inline(
             FlowY::Resolved(y) => y,
             FlowY::Pending { strut, .. } => builder.ctx.bfc().resolve(strut),
         };
-        builder.layout_lines(&groups, indent, content_y, markers);
+        builder.layout_lines(&mut groups, indent, content_y, markers);
     }
     InlineLayout {
         fragments: builder.fragments,
@@ -218,9 +225,24 @@ pub(crate) fn content_sizes(
     let floats = float_content_sizes(ctx, ifc);
     let mut sizes = ContentSizes::default();
     // Min-content: the widest unbreakable group, with the atomic inlines at
-    // their min-content widths, or the widest float.
+    // their min-content widths, or the widest float. Groups with text that
+    // breaks anywhere count with their widest grapheme cluster.
     for group in &build_groups(ifc, &shaped, &break_before, &min_atomics, 0.0) {
-        sizes.min = sizes.min.max(group.width - group.trailing_space);
+        let whole = group.width - group.trailing_space;
+        let min = if group.cuttable {
+            let text = GroupText {
+                ifc,
+                shaped: &shaped,
+                pieces: group.pieces.clone(),
+                head: None,
+            };
+            let width_of = |i| piece_extent(ifc, &shaped, &min_atomics, 0.0, i);
+            text.min_content(group.width, group.trailing_space, width_of)
+                .unwrap_or(whole)
+        } else {
+            whole
+        };
+        sizes.min = sizes.min.max(min);
     }
     for float in floats.iter().flatten() {
         sizes.min = sizes.min.max(float.min);
@@ -524,13 +546,49 @@ fn inline_box_edges(
     inline_box_style(ifc, item).map(|s| InlineBoxEdges::resolve(s, cb_width))
 }
 
+/// The width that piece `i` takes on a line; `atomics` hold the sizes of
+/// the atomic inlines, and percentages of box edges resolve against
+/// `cb_width`.
+fn piece_extent(
+    ifc: &InlineFormattingContext,
+    shaped: &ShapedText,
+    atomics: &[Option<Box<AtomicLayout>>],
+    cb_width: f32,
+    i: usize,
+) -> f32 {
+    match shaped.pieces.get(i) {
+        Some(Piece::Text { width, .. }) => *width,
+        Some(Piece::Atomic(item)) => atomics
+            .get(*item)
+            .and_then(Option::as_ref)
+            .map_or(0.0, |a| a.margin_width),
+        Some(Piece::StartBox(item)) if !is_continued(ifc, *item) => {
+            inline_box_edges(ifc, *item, cb_width).map_or(0.0, |e| e.start())
+        }
+        Some(Piece::EndBox {
+            start,
+            split: false,
+        }) => inline_box_edges(ifc, *start, cb_width).map_or(0.0, |e| e.end()),
+        _ => 0.0,
+    }
+}
+
 /// An unbreakable sequence of pieces.
 #[derive(Debug, Default)]
 struct Group {
     pieces: std::ops::Range<usize>,
+    /// Where the group starts inside its first piece: the rest of a group
+    /// that was cut because it did not fit on a line (see `overflow.rs`).
+    head: Option<Cut>,
     width: f32,
     trailing_space: f32,
     forced_break_after: bool,
+    /// The last out-of-flow piece (float or absolutely positioned box): a
+    /// group without one needs no float handling.
+    last_out_of_flow: Option<usize>,
+    /// True if text in the group may be cut when it does not fit (see
+    /// `overflow.rs`).
+    cuttable: bool,
 }
 
 /// The soft wrap opportunities of `shaped` with the sticky images quirk:
@@ -611,12 +669,17 @@ fn build_groups(
         pending_width = 0.0;
         match piece {
             Piece::Text {
+                run,
                 width,
                 trailing_space,
                 ..
             } => {
                 group.width += width;
                 group.trailing_space = *trailing_space;
+                group.cuttable |= shaped.runs.get(*run).is_some_and(|run| {
+                    matches!(ifc.items.get(run.item), Some(InlineItem::Text { style, .. })
+                        if overflow::breaks_anywhere(style, Purpose::Layout))
+                });
             }
             Piece::Atomic(item) => {
                 group.width += atomics[*item].as_ref().map_or(0.0, |a| a.margin_width);
@@ -628,7 +691,8 @@ fn build_groups(
                 }
             }
             Piece::LineBreak(_) => group.forced_break_after = true,
-            Piece::StartBox(_) | Piece::OutOfFlow(_) => {}
+            Piece::OutOfFlow(_) => group.last_out_of_flow = Some(i),
+            Piece::StartBox(_) => {}
         }
         group.pieces.end = i + 1;
         if group.forced_break_after
@@ -673,6 +737,9 @@ fn is_continued(ifc: &InlineFormattingContext, item: usize) -> bool {
 #[derive(Debug, Default, Clone)]
 struct Line {
     groups: std::ops::Range<usize>,
+    /// Where the line ends inside its last group, which was cut because it
+    /// does not fit (see `overflow.rs`), and the width before the cut.
+    tail: Option<(Cut, f32)>,
 }
 
 /// Breaks the groups into lines of `width` (for contexts without line
@@ -685,7 +752,10 @@ fn break_lines(groups: &[Group], width: f32, indent: f32) -> Vec<Line> {
     for (i, group) in groups.iter().enumerate() {
         let fits = used + group.width - group.trailing_space <= width + FIT_TOLERANCE;
         if has_content && !fits {
-            lines.push(Line { groups: start..i });
+            lines.push(Line {
+                groups: start..i,
+                tail: None,
+            });
             start = i;
             used = 0.0;
         }
@@ -694,6 +764,7 @@ fn break_lines(groups: &[Group], width: f32, indent: f32) -> Vec<Line> {
         if group.forced_break_after {
             lines.push(Line {
                 groups: start..i + 1,
+                tail: None,
             });
             start = i + 1;
             used = 0.0;
@@ -703,6 +774,7 @@ fn break_lines(groups: &[Group], width: f32, indent: f32) -> Vec<Line> {
     if start < groups.len() {
         lines.push(Line {
             groups: start..groups.len(),
+            tail: None,
         });
     }
     lines
@@ -880,6 +952,8 @@ struct Fill {
     right: f32,
     /// True if the content is wider than the free range.
     overflow: bool,
+    /// The cut of the line's only group, if it does not fit and can be cut.
+    tail: Option<(Cut, f32)>,
     placed: Vec<LineFloat>,
     /// Floats to place below the line.
     queued: Vec<FloatAt>,
@@ -944,9 +1018,11 @@ enum Reject {
     TooTall(usize),
 }
 
-/// Content fits on a line if it is at most this much wider than the line
-/// (text widths are sums of rounded advances).
-const FIT_TOLERANCE: f32 = 0.01;
+/// Content (and a float beside it) fits on a line if it is at most this
+/// much wider than the line: 1/64 px (measured in Chromium 148: `ab cd` in
+/// a block 1/64 px narrower than its width stays on one line, 2/64 px
+/// narrower it wraps).
+const FIT_TOLERANCE: f32 = 1.0 / 64.0;
 
 /// The most layout opportunities that one line is tried in; then it goes
 /// below all floats of the BFC. Opportunities narrower than the line's
@@ -1077,12 +1153,17 @@ impl LineState {
 }
 
 impl LineBuilder<'_, '_> {
-    /// The pieces of a line.
+    /// The pieces of a line. A line that ends at a cut ends with the piece
+    /// of the cut.
     fn piece_range(groups: &[Group], line: &Line) -> std::ops::Range<usize> {
         if line.groups.is_empty() {
-            0..0
-        } else {
-            groups[line.groups.start].pieces.start..groups[line.groups.end - 1].pieces.end
+            return 0..0;
+        }
+        let start = groups[line.groups.start].pieces.start;
+        match line.tail {
+            Some((cut, _)) if cut.glyph.is_some() => start..cut.piece + 1,
+            Some((cut, _)) => start..cut.piece,
+            None => start..groups[line.groups.end - 1].pieces.end,
         }
     }
 
@@ -1126,22 +1207,22 @@ impl LineBuilder<'_, '_> {
 
     /// The width that piece `i` takes on a line.
     fn piece_width(&self, i: usize) -> f32 {
-        match self.shaped.pieces.get(i) {
-            Some(Piece::Text { width, .. }) => *width,
-            Some(Piece::Atomic(item)) => self
-                .atomics
-                .get(*item)
-                .and_then(Option::as_ref)
-                .map_or(0.0, |a| a.margin_width),
-            Some(Piece::StartBox(item)) if !is_continued(self.ifc, *item) => {
-                inline_box_edges(self.ifc, *item, self.width).map_or(0.0, |e| e.start())
-            }
-            Some(Piece::EndBox {
-                start,
-                split: false,
-            }) => inline_box_edges(self.ifc, *start, self.width).map_or(0.0, |e| e.end()),
-            _ => 0.0,
+        piece_extent(self.ifc, self.shaped, &self.atomics, self.width, i)
+    }
+
+    /// The cuts of `group` where it may break if it does not fit, with the
+    /// width before each, up to the first one after `limit`.
+    fn cuts(&self, group: &Group, limit: f32) -> Vec<(Cut, f32)> {
+        if !group.cuttable {
+            return Vec::new();
         }
+        GroupText {
+            ifc: self.ifc,
+            shaped: self.shaped,
+            pieces: group.pieces.clone(),
+            head: group.head,
+        }
+        .cuts(Purpose::Layout, limit, |i| self.piece_width(i))
     }
 
     /// The float at piece `i`, if it is one.
@@ -1208,7 +1289,7 @@ impl LineBuilder<'_, '_> {
     /// whose content box is at BFC y `content_y`.
     fn layout_lines(
         &mut self,
-        groups: &[Group],
+        groups: &mut [Group],
         indent: f32,
         content_y: f32,
         markers: &mut Vec<PendingMarker<'_>>,
@@ -1399,6 +1480,7 @@ impl LineBuilder<'_, '_> {
         let fill = self.fill_line(groups, start, o);
         let line = Line {
             groups: start.group..fill.end,
+            tail: fill.tail,
         };
         let empty = !self.has_content(groups, &line);
         // A line that is too wide moves down, unless no float narrows the
@@ -1444,7 +1526,11 @@ impl LineBuilder<'_, '_> {
         groups
             .get(start.group)
             .filter(|g| g.pieces.clone().any(|i| self.piece_has_content(i)))
-            .map_or(0.0, |g| start.indent + g.width - g.trailing_space)
+            .map_or(0.0, |g| {
+                // A group that can be cut needs room for its first part.
+                let first = self.cuts(g, 0.0).first().map(|&(_, before)| before);
+                start.indent + first.unwrap_or(g.width - g.trailing_space)
+            })
     }
 
     /// Undoes the floats of a line attempt that does not fit, and charges
@@ -1470,6 +1556,7 @@ impl LineBuilder<'_, '_> {
             left: o.left,
             right: o.right,
             overflow: false,
+            tail: None,
             placed: Vec::new(),
             queued: Vec::new(),
             checkpoint: None,
@@ -1485,7 +1572,7 @@ impl LineBuilder<'_, '_> {
             if fill.end > start.group && width > fill.right - fill.left + FIT_TOLERANCE {
                 break;
             }
-            if !self.floats.is_empty() {
+            if !self.floats.is_empty() && group.last_out_of_flow.is_some() {
                 let site = FloatSite {
                     piece: 0,
                     position: used,
@@ -1495,6 +1582,8 @@ impl LineBuilder<'_, '_> {
                 if !self.group_floats(group, site, start, o, &mut fill) {
                     break;
                 }
+            }
+            if !self.floats.is_empty() {
                 content_before =
                     content_before || group.pieces.clone().any(|i| self.piece_has_content(i));
             }
@@ -1505,7 +1594,22 @@ impl LineBuilder<'_, '_> {
                 break;
             }
         }
-        fill.overflow = used - trailing > fill.right - fill.left + FIT_TOLERANCE;
+        let available = fill.right - fill.left;
+        fill.overflow = used - trailing > available + FIT_TOLERANCE;
+        // A first group that does not fit is cut if it can be: at the last
+        // cut where its start fits, or else at the first one.
+        if fill.overflow
+            && fill.end == start.group + 1
+            && let Some(group) = groups.get(start.group)
+        {
+            let room = available - start.indent + FIT_TOLERANCE;
+            let cuts = self.cuts(group, room);
+            let cut = cuts.iter().rev().find(|(_, before)| *before <= room);
+            if let Some(&(cut, before)) = cut.or(cuts.first()) {
+                fill.tail = Some((cut, before));
+                fill.overflow = before > room;
+            }
+        }
         fill
     }
 
@@ -1614,7 +1718,7 @@ impl LineBuilder<'_, '_> {
     /// it. Returns the first group of the next line.
     fn commit_line(
         &mut self,
-        groups: &[Group],
+        groups: &mut [Group],
         line: TriedLine,
         content_y: f32,
         markers: &mut Vec<PendingMarker<'_>>,
@@ -1660,13 +1764,28 @@ impl LineBuilder<'_, '_> {
         }
         self.insert_line_floats(line_start, &pieces, floats, false);
         // A `<br>` with `clear` moves the next line below the floats.
-        let groups_end = line.groups.end;
         if let Some(clear) = self.line_break_clear(groups, &line)
             && let Some(c) = self.ctx.bfc().exclusions.clearance(clear)
         {
             self.y = self.y.max(c - content_y);
         }
-        groups_end
+        // The rest of a cut group starts the next line.
+        if let Some((cut, before)) = line.tail
+            && let Some(index) = line.groups.end.checked_sub(1)
+            && let Some(group) = groups.get_mut(index)
+        {
+            *group = Group {
+                pieces: cut.piece..group.pieces.end,
+                head: cut.glyph.is_some().then_some(cut),
+                width: group.width - before,
+                trailing_space: group.trailing_space,
+                forced_break_after: group.forced_break_after,
+                last_out_of_flow: group.last_out_of_flow.filter(|&p| p >= cut.piece),
+                cuttable: group.cuttable,
+            };
+            return index;
+        }
+        line.groups.end
     }
 
     /// Builds a line; `open` are the inline boxes that continue from the
@@ -1692,7 +1811,13 @@ impl LineBuilder<'_, '_> {
         }
 
         let piece_range = Self::piece_range(groups, line);
-        let trim = self.trailing_space_to_remove(piece_range.clone());
+        // A line that ends at a cut has no trailing spaces.
+        let trim = match line.tail {
+            Some(_) => None,
+            None => self.trailing_space_to_remove(piece_range.clone()),
+        };
+        let head = groups.get(line.groups.start).and_then(|g| g.head);
+        let tail = line.tail.map(|(cut, _)| cut);
         let end = piece_range.end;
         for i in piece_range {
             state.piece = i;
@@ -1710,9 +1835,13 @@ impl LineBuilder<'_, '_> {
                         state.push_child(Fragment::Box(fragment));
                     }
                 }
-                Piece::Text { .. } => {
-                    let trim_end = trim.filter(|(piece, _)| *piece == i).map(|(_, end)| end);
-                    self.place_text(&mut state, i, trim_end);
+                Piece::Text { glyphs, offset, .. } => {
+                    let (first, base) = Cut::glyph_in(head, i).unwrap_or((glyphs.start, *offset));
+                    let last = Cut::glyph_in(tail, i).map_or(glyphs.end, |(g, _)| g);
+                    if first < last {
+                        let trim_end = trim.filter(|(piece, _)| *piece == i).map(|(_, end)| end);
+                        self.place_text(&mut state, i, (first..last, base), trim_end);
+                    }
                 }
                 Piece::Atomic(item) => self.place_atomic(&mut state, *item),
                 Piece::LineBreak(item) => self.place_line_break(&mut state, *item),
@@ -1781,26 +1910,37 @@ impl LineBuilder<'_, '_> {
         state.trailing_space = 0.0;
     }
 
-    /// Places a text piece. `trim_end` is the end of its glyphs without
-    /// trailing spaces, if they are removed at the end of the line.
-    fn place_text(&mut self, state: &mut LineState, piece: usize, trim_end: Option<usize>) {
-        let Piece::Text {
-            run,
-            glyphs,
-            text,
-            width,
-            trailing_space,
-        } = &self.shaped.pieces[piece]
-        else {
+    /// Places glyphs `part.0` of a text piece (all of them, unless the
+    /// piece is cut); `part.1` is the advance of the item before them.
+    /// `trim_end` is the end of its glyphs without trailing spaces, if they
+    /// are removed at the end of the line.
+    fn place_text(
+        &mut self,
+        state: &mut LineState,
+        piece: usize,
+        part: (std::ops::Range<usize>, f64),
+        trim_end: Option<usize>,
+    ) {
+        let (part, base) = part;
+        let Some(Piece::Text { run, .. }) = self.shaped.pieces.get(piece) else {
             return;
         };
         let run = &self.shaped.runs[*run];
+        let Some(placed) = placed_text(
+            &self.shaped.pieces[piece],
+            run,
+            part.clone(),
+            base,
+            trim_end,
+        ) else {
+            return;
+        };
         let (baseline, _) = state.parent();
         let style = self.text_style(run);
         // Text whose glyphs are all removed at the end of the line (only
         // collapsible spaces) does not count for the line height (Chromium
         // skips text items of length 0).
-        if trim_end != Some(glyphs.start) {
+        if trim_end != Some(part.start) {
             let strut = strut_for(&style, run.metrics);
             state
                 .extent
@@ -1808,25 +1948,17 @@ impl LineBuilder<'_, '_> {
             state.include_parent_strut(false);
             state.has_content = true;
         }
-        let (glyphs, width, trailing_space) = match trim_end {
-            Some(end) => {
-                let kept = glyphs.start..end;
-                let w: f32 = run.glyphs[kept.clone()].iter().map(|g| g.advance).sum();
-                (kept, w, 0.0)
-            }
-            None => (glyphs.clone(), *width, *trailing_space),
-        };
         let fragment = text_fragment(
             self.ifc,
             run,
-            glyphs,
-            text.clone(),
+            placed.glyphs,
+            placed.text,
             &style,
-            state.x,
-            baseline,
+            Point::new(state.x, baseline),
+            placed.width,
         );
-        state.x += width;
-        state.trailing_space = trailing_space;
+        state.x += placed.width;
+        state.trailing_space = placed.trailing_space;
         state.push_child(Fragment::Text(fragment));
     }
 
@@ -2329,17 +2461,84 @@ fn baseline_shift(
     clamp_length(shift)
 }
 
+/// The part of a text piece that goes on a line.
+struct PlacedText {
+    glyphs: std::ops::Range<usize>,
+    text: std::ops::Range<usize>,
+    width: f32,
+    /// The width of the white space at its end that hangs.
+    trailing_space: f32,
+}
+
+/// The part of text `piece` (of `run`) on a line: glyphs `part` (all its
+/// glyphs unless the piece is cut; its text item has advance `base` before
+/// them), up to `trim_end` if trailing spaces are removed.
+fn placed_text(
+    piece: &Piece,
+    run: &Run,
+    part: std::ops::Range<usize>,
+    base: f64,
+    trim_end: Option<usize>,
+) -> Option<PlacedText> {
+    let Piece::Text {
+        glyphs,
+        text,
+        width,
+        trailing_space,
+        ..
+    } = piece
+    else {
+        return None;
+    };
+    if part == *glyphs && trim_end.is_none() {
+        return Some(PlacedText {
+            glyphs: glyphs.clone(),
+            text: text.clone(),
+            width: *width,
+            trailing_space: *trailing_space,
+        });
+    }
+    let kept = part.start..trim_end.unwrap_or(part.end).max(part.start);
+    let advance = shaping::advance_of(run.glyphs.get(kept.clone()).unwrap_or_default());
+    // The trailing spaces of the piece hang where the piece ends.
+    let hanging = if trim_end.is_none() && part.end == glyphs.end {
+        *trailing_space
+    } else {
+        0.0
+    };
+    // A cut piece covers the text of its glyphs.
+    let cluster = |i: usize, whole: usize| {
+        (i != whole)
+            .then(|| run.glyphs.get(i).map(|g| g.cluster))
+            .flatten()
+    };
+    let text = cluster(part.start, glyphs.start).unwrap_or(text.start)
+        ..cluster(part.end, glyphs.end).unwrap_or(text.end);
+    Some(PlacedText {
+        glyphs: kept,
+        text,
+        width: snapped_width(base, advance),
+        trailing_space: hanging,
+    })
+}
+
+/// The text fragment of glyphs `glyphs` of `run` (`width` wide), with its
+/// left end on the baseline at `origin`.
 fn text_fragment(
     ifc: &InlineFormattingContext,
     run: &Run,
     glyphs: std::ops::Range<usize>,
     text: std::ops::Range<usize>,
     style: &Arc<ComputedStyle>,
-    x: f32,
-    baseline: f32,
+    origin: Point,
+    width: f32,
 ) -> TextFragment {
+    let (x, baseline) = (origin.x, origin.y);
     let mut pen = 0.0;
-    let positioned: Vec<PositionedGlyph> = run.glyphs[glyphs.clone()]
+    let positioned: Vec<PositionedGlyph> = run
+        .glyphs
+        .get(glyphs.clone())
+        .unwrap_or_default()
         .iter()
         .map(|g| {
             let p = PositionedGlyph {
@@ -2373,7 +2572,7 @@ fn text_fragment(
         rect: Rect::new(
             x,
             baseline - run.metrics.ascent,
-            pen,
+            width,
             run.metrics.ascent + run.metrics.descent,
         ),
         baseline: run.metrics.ascent,
@@ -2536,7 +2735,11 @@ mod tests {
                 xs = t.carets.iter().map(|c| c.x).collect();
                 assert_eq!(t.offset_at(-5.0), Some(0));
                 assert_eq!(t.offset_at(t.rect.width + 5.0), Some(2));
-                assert_eq!(t.x_range(0, 2), Some((0.0, t.rect.width)));
+                // The fragment's width is rounded up to 1/64 px; the carets
+                // are not.
+                let (start, end) = t.x_range(0, 2).unwrap();
+                assert_eq!(start, 0.0);
+                assert!(end <= t.rect.width && t.rect.width - end < 1.0 / 64.0);
                 assert_eq!(t.x_range(1, 1), None);
             }
         });
@@ -2594,5 +2797,171 @@ mod tests {
             }
         });
         assert_eq!(tops, vec![p.y, p.y + 25.0]);
+    }
+
+    /// The height of `#p`, laid out 1px wide with 20px lines.
+    fn narrow_height(content: &str, style: &str) -> f32 {
+        let html = format!(
+            "<!DOCTYPE html><p id=p style='margin:0;width:1px;line-height:20px;{style}'>{content}</p>"
+        );
+        layout_html(&html).rect("p").height
+    }
+
+    #[test]
+    fn breaks_at_nowrap_and_isolate_boundaries() {
+        // The parent decides where a nowrap box ends.
+        let nowrap = "<span style='white-space:nowrap'>a-</span>b";
+        assert_eq!(narrow_height(nowrap, ""), 40.0);
+        assert_eq!(
+            narrow_height("a-<span style='white-space:nowrap'>b</span>", ""),
+            40.0
+        );
+        // No break before a wrapping box inside text that does not wrap.
+        let inner = "a-<span style='white-space:normal'>b</span>";
+        assert_eq!(narrow_height(inner, "white-space:nowrap"), 20.0);
+        // No break at the start of an isolated box, except after a space.
+        let isolated = "a-<span style='unicode-bidi:isolate'>b</span>";
+        assert_eq!(narrow_height(isolated, ""), 20.0);
+        let after_space = "a <span style='unicode-bidi:isolate'>b</span>";
+        assert_eq!(narrow_height(after_space, ""), 40.0);
+        // Atomic inlines in nowrap text do not break.
+        let atomics = "<img style='width:5px;height:5px'><img style='width:5px;height:5px'>";
+        assert_eq!(narrow_height(atomics, "white-space:nowrap"), 20.0);
+    }
+
+    #[test]
+    fn long_words_are_cut_one_grapheme_per_line() {
+        // A line holds at least one grapheme cluster; each line looks only
+        // at its own part of the word.
+        let word = "a".repeat(20_000);
+        let l = layout_html(&format!(
+            "<p style='width:1px;overflow-wrap:anywhere'>{word}</p>"
+        ));
+        let texts = l.texts();
+        assert_eq!(texts.len(), 20_000);
+        assert!(texts.iter().all(|(_, t)| t == "a"));
+    }
+
+    #[test]
+    fn cut_words_keep_their_inline_boxes() {
+        let l = layout_html(
+            "<p style='width:40px;overflow-wrap:break-word;font:16px sans-serif'>\
+             <span id=s>abcdefghijkl</span></p>",
+        );
+        let texts: Vec<String> = l.texts().into_iter().map(|(_, t)| t).collect();
+        assert_eq!(texts, vec!["abcd", "efghij", "kl"]);
+        // The span has a fragment on each line.
+        let rects: Vec<Rect> = l.texts().into_iter().map(|(r, _)| r).collect();
+        let span = l.rect("s");
+        assert_eq!(span.y, rects[0].y);
+        assert_eq!(span.y + span.height, rects[2].y + rects[2].height);
+    }
+
+    #[test]
+    fn arabic_joins_across_boxes_as_in_chromium() {
+        // Measured in Chromium 148 (the width of the middle word at 16 px
+        // between Arabic words): 20.95 px when it is isolated (no joining
+        // with the words around it), 14.2 px when it joins, also in a box
+        // with `unicode-bidi: embed`. The text of a `bidi-override` box
+        // with `direction: ltr` is shaped left to right: 13.58 px with the
+        // words around it, 24.19 px when it is isolated too. With
+        // `direction: rtl` it is shaped right to left, as the others.
+        let word = |style: &str| {
+            format!(
+                "<div style='font:16px sans-serif'>\u{645}\u{631}\u{62d}\u{628}\u{627}\
+                 <span id=s style='{style}'>\u{628}\u{627}\u{644}</span>\
+                 \u{639}\u{627}\u{644}\u{645}</div>"
+            )
+        };
+        let width_of = |style: &str| {
+            let l = layout_html(&word(style));
+            (l.rect("s").width * 100.0).round() / 100.0
+        };
+        let cases = [
+            ("", 14.2),
+            ("unicode-bidi:embed", 14.2),
+            ("unicode-bidi:embed;direction:rtl", 14.2),
+            ("direction:rtl", 14.2),
+            ("unicode-bidi:isolate", 20.95),
+            ("unicode-bidi:plaintext", 20.95),
+            ("unicode-bidi:bidi-override", 13.58),
+            ("unicode-bidi:isolate-override", 24.19),
+            ("unicode-bidi:bidi-override;direction:rtl", 14.2),
+            ("unicode-bidi:isolate-override;direction:rtl", 20.95),
+        ];
+        for (style, expected) in cases {
+            assert_eq!(width_of(style), expected, "{style}");
+        }
+        let bdi = layout_html(
+            "<div style='font:16px sans-serif'>\u{645}\u{631}\u{62d}\u{628}\u{627}\
+             <bdi id=i>\u{628}\u{627}\u{644}</bdi>\u{639}\u{627}\u{644}\u{645}</div>",
+        );
+        assert_eq!((bdi.rect("i").width * 100.0).round() / 100.0, 20.95);
+    }
+
+    #[test]
+    fn bidi_override_of_a_block_and_of_the_innermost_box() {
+        // Measured in Chromium 148 (the width of the box at 16 px between
+        // Arabic words): an inline block with the override shapes its own
+        // text left to right, and the innermost box with a `unicode-bidi`
+        // other than `normal` decides. (Not done: Chromium also applies the
+        // override of a block to the inline boxes inside it, 24.19 px for
+        // `<b>` in the first case.)
+        let width_of = |style: &str, content: &str| {
+            let l = layout_html(&format!(
+                "<div style='font:16px sans-serif'>\u{645}\u{631}\u{62d}\u{628}\u{627}\
+                 <span id=s style='{style}'>{content}</span>\u{639}\u{627}\u{644}\u{645}</div>"
+            ));
+            (l.rect("s").width * 100.0).round() / 100.0
+        };
+        let word = "\u{628}\u{627}\u{644}";
+        let block = "display:inline-block;";
+        let cases = [
+            (
+                format!("{block}unicode-bidi:bidi-override"),
+                word.to_owned(),
+                24.19,
+            ),
+            (
+                format!("{block}unicode-bidi:isolate-override"),
+                word.to_owned(),
+                24.19,
+            ),
+            (
+                format!("{block}unicode-bidi:bidi-override;direction:rtl"),
+                word.to_owned(),
+                20.95,
+            ),
+            (
+                "unicode-bidi:bidi-override".to_owned(),
+                format!("<i style='unicode-bidi:embed'>{word}</i>"),
+                14.2,
+            ),
+        ];
+        for (style, content, expected) in cases {
+            assert_eq!(width_of(&style, &content), expected, "{style} {content}");
+        }
+    }
+
+    #[test]
+    fn arabic_joins_across_floats_but_not_line_breaks() {
+        // Measured in Chromium 148 (two beh letters each): joined across a
+        // float (9.28 and 20.55 px), not across a `<br>` (20.17 px), and
+        // across the start of a box with padding through the context
+        // (15.2 px).
+        let l = layout_html(
+            "<div style='font:16px sans-serif'><span id=a>\u{628}\u{628}</span>\
+             <span style='float:left;width:5px;height:5px'></span>\
+             <span id=b>\u{628}\u{628}</span></div>\
+             <div style='font:16px sans-serif'><span id=c>\u{628}\u{628}</span><br>\
+             <span id=d>\u{628}\u{628}</span></div>\
+             <div style='font:16px sans-serif'>\u{645}\u{631}\u{62d}\u{628}\u{627}\
+             <span id=e style='padding-left:1px'>\u{628}\u{627}\u{644}</span>\
+             \u{639}\u{627}\u{644}\u{645}</div>",
+        );
+        let width = |id: &str| (l.rect(id).width * 100.0).round() / 100.0;
+        assert_eq!((width("a"), width("b")), (9.28, 20.55));
+        assert_eq!((width("c"), width("d")), (20.17, 20.17));
+        assert_eq!(width("e"), 15.2);
     }
 }

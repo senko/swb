@@ -227,6 +227,27 @@ impl FontContext {
         })
     }
 
+    /// True if the `GSUB` table of `font` has the OpenType feature `tag`
+    /// (for any script).
+    pub fn has_feature(&self, font: FontId, tag: [u8; 4]) -> bool {
+        use skrifa::raw::TableProvider;
+        let Some(font) = self
+            .instance(font)
+            .and_then(|i| i.face.as_ref())
+            .and_then(|face| face.font())
+        else {
+            return false;
+        };
+        font.gsub()
+            .ok()
+            .and_then(|gsub| gsub.feature_list().ok())
+            .is_some_and(|list| {
+                list.feature_records()
+                    .iter()
+                    .any(|r| r.feature_tag() == Tag::new(&tag))
+            })
+    }
+
     /// True if `font` has a glyph for `c`.
     pub(crate) fn has_glyph(&self, font: FontId, c: char) -> bool {
         self.instance(font)

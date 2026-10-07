@@ -12,10 +12,10 @@ use super::ids::{LonghandId, LonghandValue};
 use super::longhand::{
     AlignKind, keyword, lp_or_auto, non_negative_length, padding, parse_alignment,
     parse_background_repeat, parse_background_size, parse_bg_position, parse_border_style,
-    parse_box, parse_flex_basis, parse_font_family, parse_font_size, parse_font_stretch,
-    parse_font_style, parse_font_weight, parse_gap, parse_image_or_none, parse_line_height,
-    parse_line_width, parse_list_style_type, parse_outline_color, parse_outline_style,
-    parse_text_decoration_line,
+    parse_box, parse_column_count, parse_column_width, parse_flex_basis, parse_font_family,
+    parse_font_size, parse_font_stretch, parse_font_style, parse_font_weight, parse_gap,
+    parse_image_or_none, parse_line_height, parse_line_width, parse_list_style_type,
+    parse_outline_color, parse_outline_style, parse_text_decoration_line,
 };
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight,
@@ -128,6 +128,7 @@ shorthands! {
     Flex "flex" [FlexGrow, FlexShrink, FlexBasis];
     FlexFlow "flex-flow" [FlexDirection, FlexWrap];
     Gap "gap" [RowGap, ColumnGap];
+    Columns "columns" [ColumnWidth, ColumnCount];
     Overflow "overflow" [OverflowX, OverflowY];
     PlaceContent "place-content" [AlignContent, JustifyContent];
     PlaceItems "place-items" [AlignItems, JustifyItems];
@@ -353,6 +354,7 @@ impl ShorthandId {
                     out.push(LonghandValue::ColumnGap(column));
                     Ok(())
                 }
+                S::Columns => parse_columns(p, out),
                 S::Overflow => {
                     let x = keyword(p, Overflow::from_ident)?;
                     let y = keyword(p, Overflow::from_ident).unwrap_or(x);
@@ -1085,5 +1087,36 @@ fn parse_flex_flow(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseRes
         direction.unwrap_or(FlexDirection::Row),
     ));
     out.push(LonghandValue::FlexWrap(wrap.unwrap_or(FlexWrap::Nowrap)));
+    Ok(())
+}
+
+/// `columns`: `<'column-width'> || <'column-count'>` (CSS Multicol 1
+/// §3.3). `auto` sets whichever value is not given.
+fn parse_columns(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    let mut width = None;
+    let mut count = None;
+    for _ in 0..2 {
+        if p.is_exhausted() {
+            break;
+        }
+        if p.try_parse(|p| p.expect_ident_matching("auto")).is_ok() {
+            continue;
+        }
+        if count.is_none()
+            && let Ok(value) = p.try_parse(parse_column_count)
+        {
+            count = Some(value);
+            continue;
+        }
+        if width.is_none()
+            && let Ok(value) = p.try_parse(parse_column_width)
+        {
+            width = Some(value);
+            continue;
+        }
+        return Err(ParseError::Invalid);
+    }
+    out.push(LonghandValue::ColumnWidth(width.flatten()));
+    out.push(LonghandValue::ColumnCount(count.flatten()));
     Ok(())
 }

@@ -61,9 +61,9 @@ Open a URL in a window and read the page.
 - Target 2 (news.ycombinator.com) done: geometry 1.0 (all 818 element
   boxes within 2 px of Chromium), logo and vote arrows, search form.
 
-## M3: Wikipedia
+## M3: Wikipedia — done
 
-Five parallel workstreams; each will record its design in a new ADR:
+Five workstreams (ADRs 0015–0019), then a final pass on the page:
 
 - Floats, clearance and block formatting contexts: done (ADR 0015).
 - Absolute, fixed and sticky positioning; 2D `transform`: done (ADR 0016).
@@ -72,7 +72,11 @@ Five parallel workstreams; each will record its design in a new ADR:
 - Scroll containers: `overflow` scrolling inside elements: done (ADR 0019).
 - Responsive images (`srcset`, `sizes`, `<picture>`): done (ADR 0011
   update).
-- Target 3 (Wikipedia "Web browser") done.
+- Final pass: flex container min/max sizes and baselines, `<video>` and
+  `<audio>` (ADR 0020), CSS counters, line breaking and text measurement:
+  done.
+- Target 3 (Wikipedia "Web browser") done: geometry 0.9978 (4,052
+  element boxes), pixels 0.9936.
 
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
 uses neither; they moved to "Later".
@@ -141,6 +145,28 @@ uses neither; they moved to "Later".
   layout: 100 KB of `content` text on 3,000 elements (300 MB of text)
   takes about 10 s of layout and 13 GB of memory. Limit the generated
   text per document, as counters do (4 MiB).
+- Text: the hyphen glyph at a break after U+00AD; a break before a space
+  that follows a wrapping box inside nowrap text; `break-all` after a
+  hyphen at the start of a line; Thai and Lao dictionary breaks; no bidi
+  reordering and no `direction: rtl` alignment; no reshaping at line
+  edges inside a text item (a kerning pair or Arabic joining across a
+  `break-all` or `overflow-wrap` break stays); the space in a
+  fallback-font run takes the fallback font (0.64 px too wide); clusters
+  that no font covers fully; floats inside a word cut by
+  `overflow-wrap`; letter-spacing is applied to cursive scripts, and
+  optional ligatures stay on with letter-spacing; `break-spaces` breaks
+  after the space run, not after every space; multi-column layout (only
+  the block formatting context of multicol containers exists).
+- Text: with a fixed `line-height`, a fallback font adds its own
+  half-leading (Chromium: the line keeps the fixed height); item widths
+  are rounded from the exact sum (Chromium converts the sum to `f32`
+  first; 41 of 15,001 sizes differ for a 200-glyph text); Chromium shares
+  one font between nearby sizes on a page (font cache key truncated to
+  1/100 px twice; not modelled); a block's `bidi-override` does not reach
+  the inline boxes inside it.
+- Layout box dump: an inline element without decorations reports its
+  own line box, Chromium the union of its children (culled inlines;
+  Wikipedia navbox lists, 8 boxes).
 - Counters: `contain: style` (counter scopes and list owners); markers
   of `::before`/`::after` with `display: list-item` (they take numbers
   but are not drawn); `@counter-style` and the other predefined styles
@@ -310,8 +336,7 @@ Found by the reviews before the first commit and not fixed yet. Layout
 issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
 - Layout: `vertical-align: top/bottom`; min-content of nowrap row flex
-  containers; tab stops;
-  `white-space: nowrap` around atomic inlines; inside markers in line
+  containers; tab stops; inside markers in line
   breaking (and `text-indent`); column flex items with a definite height
   cannot shrink; empty lines ignore `text-align` and relative offsets;
   percentage `top`/`bottom` on inline boxes; `capitalize` across element

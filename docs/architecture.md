@@ -171,8 +171,17 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   opportunities, groups pieces into unbreakable groups, fills lines
   greedily, and then builds each line: vertical alignment, line box height,
   fragments. Font metrics and leading are rounded as Blink does, so line
-  heights match Chromium. Text is shaped across inline element boundaries
-  when the font does not change, as Blink does.
+  heights match Chromium. Text is shaped across inline element
+  boundaries when the font does not change; shaping breaks at box edges
+  as measured in Chromium. Break opportunities come from
+  `text/src/linebreak.rs` (UAX #14 with tailorings measured in Chromium,
+  tables generated from the measurements) and from
+  `layout/src/inline/breaks.rs` at element boundaries (`white-space` at
+  box ends, isolating boxes). A group that does not fit on a line by
+  itself is cut at grapheme boundaries when `overflow-wrap` or
+  `word-break` allow it (`inline/overflow.rs`). Text item widths are
+  rounded up to 1/64 px; small capitals are synthesized in
+  `inline/caps.rs`.
 - Depth limits: the HTML parser nests at most 512 elements deep (deeper
   elements are appended to the ancestor at the limit, as in Blink); box
   construction nests at most 256 boxes deep (deeper content keeps its

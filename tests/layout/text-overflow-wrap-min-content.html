@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- The min-content size with overflow-wrap: anywhere, word-break: break-word
+     and break-all (every grapheme cluster), but not with overflow-wrap:
+     break-word. Floats in a block of width 0 and table cells get their
+     min-content widths; so does a table caption. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>overflow-wrap and min-content</title>
+<style>
+  body { margin: 8px; font: 16px sans-serif; }
+  .z { width: 0; }
+  .m { float: left; clear: left; margin-bottom: 4px; }
+  .bw { overflow-wrap: break-word; }
+  .an { overflow-wrap: anywhere; }
+  .wbw { word-break: break-word; }
+  .ba { word-break: break-all; }
+  table { border-collapse: collapse; width: 1px; margin-bottom: 4px; }
+  td { padding: 0; }
+</style>
+</head>
+<body>
+  <div class="z"><div class="m bw">verylongword ab</div></div>
+  <div class="z"><div class="m an">verylongword ab</div></div>
+  <div class="z"><div class="m wbw">verylongword ab</div></div>
+  <div class="z"><div class="m ba">verylongword ab</div></div>
+  <div class="z"><div class="m an">ab<span style="overflow-wrap: normal">cdefgh</span>ij</div></div>
+  <div class="z"><div class="m an"><a style="padding-left: 10px; padding-right: 10px">Wiki</a>pedia</div></div>
+  <div class="z"><div class="m an">a&nbsp;b&nbsp;c</div></div>
+  <div class="z"><div class="m"><span class="an">aaaa</span>bbbb</div></div>
+  <div class="z"><div class="m ba">C++/C# https://example.com/a-b</div></div>
+  <div class="z"><div class="m an" style="white-space: pre-wrap">ab  cd</div></div>
+  <table><tr><td class="an">verylongword</td><td class="bw">verylongword</td><td class="wbw">verylongword</td><td>verylongword</td></tr></table>
+  <table style="width: auto"><caption class="wbw">Supercalifragilistic caption</caption><tr><td style="width: 60px; height: 20px"></td></tr></table>
+</body>
+</html>

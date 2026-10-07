@@ -1526,4 +1526,20 @@ mod tests {
         assert!(check("(-webkit-mask-image: none) or (mask-image: none)"));
         assert!(check("not (backdrop-filter: blur(1px))"));
     }
+
+    #[test]
+    fn column_width_and_count() {
+        let s = style("column-width: 2em; column-count: 3; font-size: 10px");
+        assert_eq!((s.column_width, s.column_count), (Some(20.0), Some(3)));
+        let s = style("columns: 3 200px");
+        assert_eq!((s.column_width, s.column_count), (Some(200.0), Some(3)));
+        let s = style("columns: 200px; columns: auto 2");
+        assert_eq!((s.column_width, s.column_count), (None, Some(2)));
+        assert_eq!(style("columns: auto").column_count, None);
+        assert!(!valid("column-count", "0"));
+        assert!(!valid("column-width", "-1px"));
+        assert!(!valid("column-width", "10%"));
+        assert!(!valid("columns", "1 2"));
+        assert!(!valid("columns", "auto auto auto"));
+    }
 }

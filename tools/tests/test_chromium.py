@@ -15,6 +15,7 @@ from PIL import Image
 from swbtools.boxes import read_dump
 from swbtools.capture import chromium_pass
 from swbtools.layout_refs import boxes_path, dump_layout_tests
+from swbtools.linebreaks import BREAK_ALL, Session, format_case
 from swbtools.manifest import Fixture, read_manifest
 from swbtools.reference import render_fixture
 
@@ -166,3 +167,21 @@ def test_layout_dump_scrolls_elements_with_data_scroll(tmp_path):
     dump = read_dump(boxes_path(html))
     # The inner box moves by the offset, clamped to the range (20, 200).
     assert dump.elements[5].rect == (-5.0, -200.0, 120.0, 300.0)
+
+
+def test_linebreaks_measures_break_opportunities():
+    async def measure() -> list[str]:
+        async with Session() as session:
+            texts = ["a b", "978-1", "x?-\u00e9", "a\u2028b", "a\u00adb"]
+            normal = await session.measure(texts)
+            break_all = await session.measure(["abc"], BREAK_ALL)
+        return [format_case(t, b) for t, b in zip([*texts, "abc"], normal + break_all, strict=True)]
+
+    assert asyncio.run(measure()) == [
+        "0061 × 0020 ÷ 0062",
+        "0039 × 0037 × 0038 × 002D ÷ 0031",
+        "0078 × 003F ÷ 002D × 00E9",
+        "0061 × 2028 ÷ 0062",
+        "0061 × 00AD ÷ 0062",
+        "0061 ÷ 0062 ÷ 0063",
+    ]

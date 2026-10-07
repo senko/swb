@@ -265,6 +265,28 @@ in commit messages, ADRs and other docs.
   Chromium. Wikipedia: the backlink letters of the references (geometry
   0.5136 → 0.5382, size 0.9694 → 0.9862). A provenance check against
   the Blink files that were read found no copied code.
+- Line breaking and text measurement: break opportunities follow
+  Chromium (URLs break only after `-` and `?`, a break after every run of
+  spaces, UAX #14 for Unicode 17 with measured tailorings), with
+  `word-break: break-all | keep-all`, `hyphens: none`, `overflow-wrap:
+  break-word | anywhere` and `word-break: break-word` (in layout and
+  min-content); rules at element boundaries (isolating boxes, `nowrap`
+  box ends, atomic inlines in nowrap text); text widths as Chromium
+  computes them (the font size truncated before shaping, item widths
+  rounded up to 1/64 px, a 1/64 px fit tolerance); synthesized small
+  capitals; right-to-left scripts shaped right to left with context;
+  multicol containers are block formatting contexts. The first line
+  breaker was a port of Blink's LGPL `text_break_iterator.cc`; a review
+  found it before the commit, and a clean-room agent rewrote
+  `text/src/linebreak.rs` from UAX #14, the Unicode data and about
+  360,000 measured strings (`swbtools linebreaks`; tables generated from
+  the measurements; 27 known differences listed). Wikipedia geometry
+  0.5382 → 0.9733, pixels 0.9766 → 0.9936; Hacker News pixels 0.9909 →
+  0.9981. The known failure `nowrap-atomic-inlines` passes. A review of
+  the combined change found the kerning scale (now the 16.16 scale of the
+  size), small-caps line metrics in fallback fonts, `bidi-override`
+  shaping and smaller items; all fixed. With the counters, Wikipedia
+  geometry is 0.9978 (pixels 0.9936): target 3 is done.
 - Text: a variable font with a malformed `wght` axis (min > max) no
   longer panics; the axis range includes the default value, as in
   HarfBuzz.

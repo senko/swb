@@ -171,6 +171,11 @@ pub struct ComputedStyle {
     pub align_content: Alignment,
     pub row_gap: Gap,
     pub column_gap: Gap,
+    /// `column-width` in px; `None` for `auto`. Layout uses it only to find
+    /// multi-column containers (no multi-column layout yet).
+    pub column_width: Option<f32>,
+    /// `column-count`; `None` for `auto`.
+    pub column_count: Option<u32>,
     /// `justify-items`. `legacy` computes to `normal` and `legacy center`
     /// to `center` (the inheritance of `legacy` is not supported).
     pub justify_items: Alignment,
@@ -337,6 +342,8 @@ impl ComputedStyle {
             align_content: Alignment::Normal,
             row_gap: Gap::Normal,
             column_gap: Gap::Normal,
+            column_width: None,
+            column_count: None,
             justify_items: Alignment::Normal,
             justify_self: Alignment::Auto,
             grid_template_columns: TrackList::default(),

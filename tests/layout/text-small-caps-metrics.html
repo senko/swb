@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- Line height of synthesized small capitals (font-variant-caps) with
+     glyphs from a fallback font. Measured in Chromium 148: the line
+     includes the metrics of the fallback font at the shaped size, which is
+     70 % of the font size (whole pixels) for the lowercase letters that
+     became small capitals, and the font size for other characters. The
+     bundled sans-serif fonts have no Armenian letters, so DejaVu Sans
+     draws them. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Small capitals: line height with a fallback font</title>
+<style>
+  body { margin: 8px; }
+  div { margin-bottom: 4px; }
+  .sans { font: 16px sans-serif; }
+  .big { font: 40px sans-serif; }
+  .mono { font: 100px 'Liberation Mono'; }
+  .sc { font-variant: small-caps; }
+  .asc { font-variant: all-small-caps; }
+</style>
+</head>
+<body>
+  <!-- Armenian lowercase letter: fallback font metrics at 11 px, so the
+       line is that of the primary font only. -->
+  <div class="sans sc"><span>xաy</span></div>
+  <div class="sans"><span>xաy</span></div>
+  <div class="big sc"><span>xաy</span></div>
+  <div class="big"><span>xաy</span></div>
+  <div class="mono sc"><span>xaաy</span></div>
+  <div class="mono"><span>xaաy</span></div>
+  <!-- An Armenian capital stays at the font size, in a fallback font at the
+       font size. -->
+  <div class="mono sc"><span>xԱy</span></div>
+  <div class="mono sc"><span>xaՔ</span></div>
+  <!-- all-small-caps: every character gets the small size. -->
+  <div class="mono asc"><span>xԱy</span></div>
+  <div class="mono asc"><span>ԱX9</span></div>
+</body>
+</html>

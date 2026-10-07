@@ -9,8 +9,10 @@ from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import compare_fixture, update_scores
 from swbtools.layout_refs import layout_refs
+from swbtools.linebreak_tables import write_tables
+from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
-from swbtools.measure import MEASUREMENTS, measure
+from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
 from swbtools.pages import list_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
@@ -84,6 +86,14 @@ def cmd_measure(args: argparse.Namespace) -> int:
         )
         return 2
     return measure(args.names)
+
+
+def cmd_linebreaks(args: argparse.Namespace) -> int:
+    return linebreaks(args.out)
+
+
+def cmd_linebreak_tables(args: argparse.Namespace) -> int:
+    return write_tables()
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -179,9 +189,28 @@ def build_parser() -> argparse.ArgumentParser:
         "measure", help="measure the Chromium behaviour that swb's data comes from"
     )
     p.add_argument(
-        "names", nargs="*", metavar="NAME", help=f"{', '.join(MEASUREMENTS)} (default: all)"
+        "names",
+        nargs="*",
+        metavar="NAME",
+        help=(
+            f"{', '.join(MEASUREMENTS)} "
+            f"(default: all but {', '.join(SLOW_MEASUREMENTS)}, which takes minutes)"
+        ),
     )
     p.set_defaults(func=cmd_measure)
+
+    p = commands.add_parser(
+        "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"
+    )
+    p.add_argument(
+        "--out", type=Path, help="output directory (default: crates/text/tests/linebreak)"
+    )
+    p.set_defaults(func=cmd_linebreaks)
+
+    p = commands.add_parser(
+        "linebreak-tables", help="write crates/text/src/linebreak/tables.rs (UCD, measurements)"
+    )
+    p.set_defaults(func=cmd_linebreak_tables)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

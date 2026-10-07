@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- word-break: break-all and keep-all (CSS Text 3 §5.2) as in Chromium 148:
+     break-all also breaks before BA characters, but not around the
+     unambiguous hyphens (en dash); keep-all keeps letters together. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>word-break</title>
+<style>
+  body { margin: 8px; font: 16px/18px sans-serif; }
+  .t { width: 1px; margin-bottom: 6px; word-break: break-all; }
+  .k { width: 1px; margin-bottom: 6px; word-break: keep-all; }
+</style>
+</head>
+<body>
+  <div class="t"><span>v</span><span>e</span><span>r</span><span>y</span><span>l</span><span>o</span><span>n</span><span>g</span></div>
+  <div class="t"><span>a</span><span>-</span><span>b</span></div>
+  <div class="t"><span>a</span><span>|</span><span>b</span></div>
+  <div class="t"><span>x</span><span>–</span><span>y</span></div>
+  <div class="t"><span>1</span><span>–</span><span>-</span><span>2</span></div>
+  <div class="t"><span>a</span><span>)</span><span>b</span></div>
+  <div class="t"><span>x</span><span>+</span><span>y</span></div>
+  <div class="t"><span>C</span><span>+</span><span>+</span><span>/</span><span>C</span><span>#</span></div>
+  <div class="t"><span>h</span><span>t</span><span>t</span><span>p</span><span>s</span><span>:</span><span>/</span><span>/</span><span>a</span><span>.</span><span>b</span><span>/</span><span>c</span><span>-</span><span>d</span><span>?</span><span>e</span><span>=</span><span>f</span></div>
+  <div class="k"><span>漢</span><span>字</span><span>で</span><span>す</span><span> </span><span>漢</span><span>字</span></div>
+  <div class="k"><span>字</span><span>、</span><span>字</span></div>
+  <div class="k"><span>a</span><span>b</span><span>c</span><span> </span><span>d</span><span>e</span><span>f</span></div>
+</body>
+</html>

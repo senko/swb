@@ -1,0 +1,48 @@
+# Measured cases where swb's line breaks differ from Chromium's. The test
+# crates/text/tests/linebreak.rs prints the key of each difference; every key
+# here must still differ. The comment above each group gives the reason.
+
+# Chromium breaks Thai and Lao text at word boundaries (dictionary); swb has no
+# dictionary and breaks SA text only at spaces.
+cases word-break=keep-all hyphens=manual | 0E01 × 0E32 × 0E23 × 0E1A × 0E49 × 0E32 × 0E19 × 0020 ÷ 0E20 × 0E32 × 0E29 × 0E32 ÷ 0E44 × 0E17 × 0E22
+cases word-break=keep-all hyphens=manual | 0E9E × 0EB2 × 0EAA × 0EB2 ÷ 0EA5 × 0EB2 × 0EA7
+cases word-break=normal hyphens=manual | 0E01 × 0E32 × 0E23 × 0E1A × 0E49 × 0E32 × 0E19 × 0020 ÷ 0E20 × 0E32 × 0E29 × 0E32 ÷ 0E44 × 0E17 × 0E22
+cases word-break=normal hyphens=manual | 0E9E × 0EB2 × 0EAA × 0EB2 ÷ 0EA5 × 0EB2 × 0EA7
+
+# break-all: Chromium does not break after a combining mark before a letter of
+# another script (shaping continues across the position).
+classes.txt left=0030 right=0030 word-break=break-all hyphens=manual | 0301 05D0
+classes.txt left=0030 right=0030 word-break=break-all hyphens=manual | 093F 05D0
+classes.txt left=0030 right=0030 word-break=break-all hyphens=manual | 20DD 05D0
+classes.txt left=0061 right=0061 word-break=break-all hyphens=manual | 0301 05D0
+classes.txt left=0061 right=0061 word-break=break-all hyphens=manual | 093F 05D0
+classes.txt left=0061 right=0061 word-break=break-all hyphens=manual | 20DD 05D0
+
+# break-all: Chromium does not break where the shaping of combining marks
+# continues across the position (two marks, an enclosing mark before a Thai
+# mark, a Khmer subscript consonant).
+cases word-break=break-all hyphens=manual | 0061 × 0301 × 0301 × 0062
+cases word-break=break-all hyphens=manual | 1797 ÷ 17B6 ÷ 179F ÷ 17B6 ÷ 1781 × 17D2 × 1798 ÷ 17C2 ÷ 179A ÷ 17D4
+classes.txt left=0030 right=0030 word-break=break-all hyphens=manual | 20DD 0E31
+
+# break-all: after a Thai mark attached to an ideograph, Chromium breaks before
+# BA, HY and Thai marks (the mark counts as a letter); swb uses the ideograph.
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 002D
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 007C
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 00AD
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 0964
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 0E31
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 1680
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 2002
+classes.txt left=4E00 right=4E00 word-break=break-all hyphens=manual | 0E31 2027
+
+# Control characters (they do not occur in real text): with break-all, a C0
+# control after an ideograph does not break before a letter or `(` in
+# Chromium; after a space and two C0 controls, Chromium does not break before
+# U+00B4 (the pair table, measured after `a`, breaks there).
+cases word-break=break-all hyphens=manual | 4E00 × 0001 × 0028
+cases word-break=break-all hyphens=manual | 4E00 × 0001 × 0061
+cases word-break=keep-all hyphens=manual | 0020 ÷ 0001 × 0001 × 00B4
+cases word-break=keep-all hyphens=manual | 0020 ÷ 0001 × 0002 × 00B4
+cases word-break=normal hyphens=manual | 0020 ÷ 0001 × 0001 × 00B4
+cases word-break=normal hyphens=manual | 0020 ÷ 0001 × 0002 × 00B4

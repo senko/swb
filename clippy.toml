@@ -1,3 +1,6 @@
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-dbg-in-tests = true
+# Unicode property names and the rule names of UAX #14 (line breaking), used in
+# doc comments.
+doc-valid-idents = ["..", "Line_Break", "General_Category", "East_Asian_Width", "Extended_Pictographic", "LB8a", "LB12a", "LB15a", "LB15b", "LB15c", "LB15d", "LB19a", "LB20a", "LB21a", "LB21b", "LB23a", "LB28a", "LB30a", "LB30b"]
