@@ -262,6 +262,9 @@ enum LengthUnit {
     Pc,
 }
 
+/// The length units of media queries and `sizes`. `LengthUnit::from_name`
+/// in `swb-style` (`values/length.rs`) has the units of property values;
+/// keep the two lists in step (the roadmap lists the units missing here).
 const LENGTH_UNITS: &[(&str, LengthUnit)] = &[
     ("px", LengthUnit::Px),
     ("em", LengthUnit::Em),

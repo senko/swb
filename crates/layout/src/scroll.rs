@@ -170,7 +170,7 @@ impl ScrollState {
             // The box itself did not move with the scroll containers below
             // its containing block.
             Position::Absolute => {
-                state.since_fixed = sub(state.since_fixed, state.since_positioned);
+                state.since_fixed = state.since_fixed - state.since_positioned;
             }
             _ => {}
         }
@@ -192,12 +192,8 @@ impl ScrollState {
         if !is_absolute_containing_block(b) {
             state.since_positioned = state.since_positioned + offset;
         }
-        (sub(border_origin, offset), state)
+        (border_origin - offset, state)
     }
-}
-
-fn sub(a: Point, b: Point) -> Point {
-    Point::new(a.x - b.x, a.y - b.y)
 }
 
 /// The size of the scrollable area: the union of the viewport and all

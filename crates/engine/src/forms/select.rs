@@ -1,10 +1,12 @@
 //! The options of a `<select>`: the list of options, their text, label
 //! and value, the default selectedness, and the placeholder label option.
 
-use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
+use swb_dom::{
+    Document, ElementData, NodeId, is_html_whitespace, local_name, parse_non_negative_u32,
+};
 use swb_style::DisabledElements;
 
-use super::{ControlState, OptionState, parse_non_negative};
+use super::{ControlState, OptionState};
 
 /// True if the first option of a required select is its placeholder label
 /// option: a child of the select with an empty value, in a select without
@@ -31,7 +33,7 @@ pub(super) fn has_placeholder_label_option(
 /// `multiple`, else 1.
 fn display_size(e: &ElementData) -> u32 {
     e.attr("size")
-        .and_then(parse_non_negative)
+        .and_then(parse_non_negative_u32)
         .filter(|&s| s > 0)
         .unwrap_or(if e.has_attr("multiple") { 4 } else { 1 })
 }

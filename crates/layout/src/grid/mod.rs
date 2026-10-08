@@ -34,8 +34,10 @@
 //! column pass for items whose min-content contribution depends on the
 //! row sizes (§12.1 steps 3 and 4), the inheritance of `justify-items:
 //! legacy` (see ADR 0017).
-//! Absolutely positioned children are placed at their static position
-//! (the start of the padding box) with a shrink-to-fit width.
+//!
+//! Absolutely positioned children are laid out by `positioned.rs`: their
+//! static position is aligned by `justify-self` and `align-self` in the
+//! grid area (ADR 0016).
 
 mod placement;
 mod sizing;
@@ -46,14 +48,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use swb_style::{
-    Alignment, BoxSizing, ComputedStyle, Gap, LengthPercentage, RepeatCount, Size, TrackBreadth,
-    TrackList, TrackListValue, TrackSize,
+    Alignment, BoxSizing, ComputedStyle, Gap, LengthPercentage, MaxSize, RepeatCount, Size,
+    TrackBreadth, TrackList, TrackListValue, TrackSize,
 };
 
 use crate::LayoutContext;
+use crate::align::{Edge, resolve_self_alignment};
 use crate::block::{
     Baselines, BoxEdges, ContainingBlock, apply_relative_position, clamp_height, clamp_width,
-    finish_fragment, layout_flex_item, resolve_max_size, resolve_size,
+    finish_fragment, layout_flex_item, margin_or_zero, outer_size, resolve_max_size, resolve_size,
 };
 use crate::box_tree::{IndependentBox, IndependentContents};
 use crate::fragment::{BoxFragment, Fragment};
@@ -292,18 +295,12 @@ impl Item<'_> {
 
     /// `justify-self`, with `auto` resolved.
     fn justify(&self, container: &ComputedStyle) -> Alignment {
-        match self.style.justify_self {
-            Alignment::Auto => container.justify_items,
-            a => a,
-        }
+        resolve_self_alignment(self.style.justify_self, container.justify_items)
     }
 
     /// `align-self`, with `auto` resolved.
     fn align(&self, container: &ComputedStyle) -> Alignment {
-        match self.style.align_self {
-            Alignment::Auto => container.align_items,
-            a => a,
-        }
+        resolve_self_alignment(self.style.align_self, container.align_items)
     }
 }
 
@@ -383,10 +380,7 @@ fn minimum_contribution(p: &AxisProperties<'_>, content: ContentSizes, rule: Min
         let border_box = match min_size {
             Size::LengthPercentage(lp) => {
                 let v = lp.resolve_opt(None).unwrap_or(0.0).max(0.0);
-                match box_sizing {
-                    BoxSizing::ContentBox => v + edges,
-                    BoxSizing::BorderBox => v.max(edges),
-                }
+                outer_size(box_sizing, v, edges)
             }
             Size::MinContent => return content.min,
             Size::MaxContent => return content.max,
@@ -567,11 +561,15 @@ fn block_contribution(
     };
     let fragment = layout_flex_item(ctx, item.box_, width, None, cb);
     let style = item.style;
-    let margins = style.margin_top.resolve(area_width).unwrap_or(0.0)
-        + style.margin_bottom.resolve(area_width).unwrap_or(0.0);
+    let margins = vertical_margins(style, area_width);
     let h = fragment.border_rect.height + margins;
     item.block = Some((area_width, h));
     h
+}
+
+/// The sum of the top and bottom margins of `style` (`auto` is 0).
+fn vertical_margins(style: &ComputedStyle, width: f32) -> f32 {
+    margin_or_zero(&style.margin_top, width) + margin_or_zero(&style.margin_bottom, width)
 }
 
 /// The minimum block-axis contribution of an item in an area
@@ -579,8 +577,7 @@ fn block_contribution(
 fn block_minimum(item: &Item<'_>, area_width: f32, contribution: f32, rule: MinimumRule) -> f32 {
     let style = item.style;
     let edges = BoxEdges::resolve(style, area_width).sum().vertical();
-    let margins = style.margin_top.resolve(area_width).unwrap_or(0.0)
-        + style.margin_bottom.resolve(area_width).unwrap_or(0.0);
+    let margins = vertical_margins(style, area_width);
     let content = ContentSizes {
         min: contribution,
         max: contribution,
@@ -594,15 +591,6 @@ fn block_minimum(item: &Item<'_>, area_width: f32, contribution: f32, rule: Mini
         margins,
     };
     minimum_contribution(&properties, content, rule)
-}
-
-/// The edge of the grid area that an item aligns to in one axis.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Edge {
-    Start,
-    Center,
-    End,
-    Baseline,
 }
 
 /// The alignment of an item in one axis (Chromium's
@@ -638,11 +626,7 @@ fn align_offset(
     if safe && free < 0.0 {
         return margin_start;
     }
-    match edge {
-        Edge::Start | Edge::Baseline => margin_start,
-        Edge::Center => margin_start + free / 2.0,
-        Edge::End => margin_start + free,
-    }
+    margin_start + edge.along(0.0, free)
 }
 
 /// The offset of the first track and the space added to every gap for
@@ -743,9 +727,12 @@ fn compute_content_sizes(
     let style = ib.base.style.as_ref();
     let boxes = in_flow_items(children);
     let edges = BoxEdges::resolve(style, 0.0).sum();
-    let min_width =
-        resolve_size(&style.min_width, None, style.box_sizing, edges.horizontal()).unwrap_or(0.0);
-    let max_width = resolve_max_size(&style.max_width, None, style.box_sizing, edges.horizontal());
+    let (min_width, max_width) = axis_limits(
+        (&style.min_width, &style.max_width),
+        None,
+        style.box_sizing,
+        edges.horizontal(),
+    );
     let column_gap = gap(&style.column_gap, None);
     let column_repeat = auto_repetitions(
         &style.grid_template_columns,
@@ -757,9 +744,12 @@ fn compute_content_sizes(
     // The available block size, as in `size_grid`.
     let height = resolve_size(&style.height, None, style.box_sizing, edges.vertical())
         .map(|h| clamp_height(style, h, None, edges.vertical()));
-    let min_height =
-        resolve_size(&style.min_height, None, style.box_sizing, edges.vertical()).unwrap_or(0.0);
-    let max_height = resolve_max_size(&style.max_height, None, style.box_sizing, edges.vertical());
+    let (min_height, max_height) = axis_limits(
+        (&style.min_height, &style.max_height),
+        None,
+        style.box_sizing,
+        edges.vertical(),
+    );
     let row_gap = gap(&style.row_gap, height);
     let row_repeat = auto_repetitions(
         &style.grid_template_rows,
@@ -948,6 +938,20 @@ fn layout_columns(
     (positions, area_widths)
 }
 
+/// The content-box `min-*` (0 if unresolved) and `max-*` (`None` if
+/// unresolved) of one axis, against `basis` with padding and border `edges`.
+fn axis_limits(
+    (min, max): (&Size, &MaxSize),
+    basis: Option<f32>,
+    box_sizing: BoxSizing,
+    edges: f32,
+) -> (f32, Option<f32>) {
+    (
+        resolve_size(min, basis, box_sizing, edges).unwrap_or(0.0),
+        resolve_max_size(max, basis, box_sizing, edges),
+    )
+}
+
 /// Places the items `boxes` of grid container `ib` and sizes its tracks
 /// (§12.1 steps 1, 2 and 5) for a content-box width of `width` (and a
 /// height of `given_height`, if given).
@@ -968,9 +972,12 @@ fn size_grid<'a>(
         resolve_size(&style.height, cb.height, style.box_sizing, v_edges)
             .map(|h| clamp_height(style, h, cb.height, v_edges))
     });
-    let min_height =
-        resolve_size(&style.min_height, cb.height, style.box_sizing, v_edges).unwrap_or(0.0);
-    let max_height = resolve_max_size(&style.max_height, cb.height, style.box_sizing, v_edges);
+    let (min_height, max_height) = axis_limits(
+        (&style.min_height, &style.max_height),
+        cb.height,
+        style.box_sizing,
+        v_edges,
+    );
     let column_gap = gap(&style.column_gap, Some(width));
     let column_repeat = auto_repetitions(
         &style.grid_template_columns,
@@ -1203,10 +1210,7 @@ fn definite_height_is_neutral(item: &Item<'_>) -> bool {
     let percent_gap = matches!(&style.row_gap, Gap::LengthPercentage(lp) if lp.has_percentage());
     let auto_rows = matches!(item.box_.contents, IndependentContents::Grid(_))
         && style.grid_template_rows.auto_repeat().is_some();
-    min_neutral
-        && matches!(style.max_height, swb_style::MaxSize::None)
-        && !percent_gap
-        && !auto_rows
+    min_neutral && matches!(style.max_height, MaxSize::None) && !percent_gap && !auto_rows
 }
 
 /// True if a box has a percentage `height`, `min-height` or `max-height`,

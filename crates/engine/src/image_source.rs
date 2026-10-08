@@ -44,7 +44,10 @@
 use std::collections::HashMap;
 
 use swb_css::{MediaEnvironment, MediaQueryList, source_size};
-use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
+use swb_dom::{
+    Document, ElementData, NodeId, is_html_whitespace, is_valid_float,
+    is_valid_non_negative_integer, local_name,
+};
 use swb_net::Url;
 
 /// The image chosen for an `<img>` element.
@@ -449,49 +452,10 @@ fn parse_descriptors(descriptors: &[&str]) -> Option<Descriptor> {
     })
 }
 
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-non-negative-integer>
-fn is_valid_non_negative_integer(s: &str) -> bool {
-    !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
-}
-
 /// The value of a valid non-negative integer, if it is at least 1. Values
 /// that do not fit in 32 bits are invalid, as in Chromium.
 fn parse_positive_integer(digits: &str) -> Option<u32> {
     digits.parse().ok().filter(|&v| v > 0)
-}
-
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number>:
-/// an optional `-`, digits with an optional fraction or only a fraction,
-/// and an optional exponent.
-fn is_valid_float(s: &str) -> bool {
-    let b = s.as_bytes();
-    let mut i = usize::from(b.first() == Some(&b'-'));
-    let digits = |i: &mut usize| {
-        let start = *i;
-        while b.get(*i).is_some_and(u8::is_ascii_digit) {
-            *i += 1;
-        }
-        *i > start
-    };
-    let integer = digits(&mut i);
-    if b.get(i) == Some(&b'.') {
-        i += 1;
-        if !digits(&mut i) {
-            return false;
-        }
-    } else if !integer {
-        return false;
-    }
-    if matches!(b.get(i), Some(b'e' | b'E')) {
-        i += 1;
-        if matches!(b.get(i), Some(b'+' | b'-')) {
-            i += 1;
-        }
-        if !digits(&mut i) {
-            return false;
-        }
-    }
-    i == b.len()
 }
 
 #[cfg(test)]

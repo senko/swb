@@ -8,8 +8,6 @@ import asyncio
 import logging
 from pathlib import Path
 
-from playwright.async_api import async_playwright
-
 from swbtools import browser, paths
 from swbtools.boxes import write_dump
 from swbtools.manifest import Fixture
@@ -36,10 +34,7 @@ async def render_fixture(
     screenshot into `output`. Returns the URLs that were not in the fixture."""
     fixture = Fixture(fixture_path)
     replayer = Replayer(fixture)
-    async with async_playwright() as playwright:
-        chromium = await browser.launch(playwright, system_fonts)
-        context = await browser.new_context(chromium, viewport)
-        page = await context.new_page()
+    async with browser.session(viewport, system_fonts) as (_, context, page):
         await replayer.attach(context, page)
         await page.goto(url, wait_until="load", timeout=60_000)
         # Load lazy images everywhere on the page, then measure at the top.
@@ -50,7 +45,6 @@ async def render_fixture(
         dump = await browser.collect_boxes(page, url)
         write_dump(output / REFERENCE_BOXES, dump)
         await browser.screenshot(page, output / REFERENCE_SCREENSHOT)
-        await chromium.close()
     return sorted(set(replayer.missing))
 
 

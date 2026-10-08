@@ -18,8 +18,9 @@
 use swb_style::{Alignment, ComputedStyle, FlexBasis, FlexWrap, Gap, LengthPercentageOrAuto};
 
 use crate::LayoutContext;
+use crate::align::resolve_self_alignment;
 use crate::block::{
-    BoxEdges, ContainingBlock, HeightLimits, apply_relative_position, clamp_height, clamp_width,
+    BoxEdges, ContainingBlock, SizeLimits, apply_relative_position, clamp_height, clamp_width,
     layout_flex_item, resolve_max_size, resolve_size,
 };
 use crate::box_tree::IndependentBox;
@@ -121,10 +122,7 @@ impl Item<'_> {
     }
 
     fn align_self(&self, container: &ComputedStyle) -> Alignment {
-        match self.style.align_self {
-            Alignment::Auto => container.align_items,
-            a => a,
-        }
+        resolve_self_alignment(self.style.align_self, container.align_items)
     }
 
     /// True if the item is stretched in the cross axis: `align-self:
@@ -155,7 +153,7 @@ pub(crate) fn layout_flex(
     container: &ComputedStyle,
     children: &[IndependentBox],
     cb: ContainingBlock,
-    limits: HeightLimits,
+    limits: SizeLimits,
 ) -> FlexLayout {
     crate::table::TableCache::percent_free(ctx, |ctx| {
         layout_flex_items(ctx, container, children, cb, limits)
@@ -168,7 +166,7 @@ fn layout_flex_items(
     container: &ComputedStyle,
     children: &[IndependentBox],
     cb: ContainingBlock,
-    limits: HeightLimits,
+    limits: SizeLimits,
 ) -> FlexLayout {
     let axes = Axes::new(container, cb);
     let mut items = collect_items(ctx, container, children, &axes, cb);
@@ -444,7 +442,7 @@ fn determine_cross_sizes(
     lines: &[std::ops::Range<usize>],
     axes: &Axes,
     cb: ContainingBlock,
-    limits: HeightLimits,
+    limits: SizeLimits,
 ) -> CrossSizes {
     measure_cross_sizes(ctx, container, items, axes, cb);
     let cross = line_cross_sizes(container, items, lines, axes, limits);
@@ -492,7 +490,7 @@ fn line_cross_sizes(
     items: &[Item<'_>],
     lines: &[std::ops::Range<usize>],
     axes: &Axes,
-    limits: HeightLimits,
+    limits: SizeLimits,
 ) -> CrossSizes {
     // Step 8: the largest outer cross size of the line's items. A
     // single-line container uses its definite cross size, or else clamps

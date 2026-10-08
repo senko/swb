@@ -98,18 +98,6 @@ fn drops_invalid_candidates() {
     );
 }
 
-#[test]
-fn floating_point_numbers() {
-    for s in ["0", "1", "-1", "1.5", ".5", "-.5", "1e5", "1E+5", "1.5e-3"] {
-        assert!(is_valid_float(s), "{s}");
-    }
-    for s in [
-        "", "-", ".", "1.", "+1", "1e", "1e+", "1.5.5", "1x", " 1", "inf", "NaN",
-    ] {
-        assert!(!is_valid_float(s), "{s}");
-    }
-}
-
 /// The URL that [`choose`] picks from `srcset` (and `src`) at `dpr`, with
 /// a source size of 150px.
 fn pick(srcset: &str, src: Option<&str>, dpr: f32) -> Option<(String, f32)> {

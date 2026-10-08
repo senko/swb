@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M3 maintenance
+
+- Two read-only reviewers (layout; the other crates, tools and docs)
+  listed duplication, dead code, names and outdated docs; two
+  implementers applied the selected items in separate crates. `just
+  snapshot` is byte-identical before and after.
+- Layout: shared helpers for width/height limits, `auto` self-alignment
+  and the alignment edge (new `align.rs`, one `Edge` for grid and
+  positioned layout), box-sizing conversion, margins and point/rect
+  arithmetic; module docs and a module map in `lib.rs`.
+- Other crates: the HTML integer and float microsyntaxes are in
+  `dom/src/microsyntax.rs` (five copies removed). As the spec says, `-0`
+  now parses as 0 (`maxlength`, `rowspan`, `colspan`, `span`); this is
+  the only behaviour change. `escape_html` is in `net`; `mul_255` in
+  paint; the shorthand parser is split by property group.
+- Tools: `browser.session` and `browser.load_html` replace five copies of
+  the Chromium start-up and page loading; Chromium now closes also when
+  a page load fails.
+- Docs: README status, architecture (flex, replaced and intrinsic
+  sizing, the two `calc()` implementations, microsyntaxes), roadmap
+  backlog (parsed but unused properties, missing media query units).
+
 ## 2026-10-08: Shared tools for the agent workflow
 
 - The owner accepted target 3 (Wikipedia) and closed the question of why

@@ -149,7 +149,7 @@ impl FragmentTree {
             });
             visit(FragmentRef::Box(b), rect, &matrix);
             let (child_origin, state) = above.state.enter(b, rect.origin(), above.offsets);
-            let shift = Point::new(child_origin.x - rect.x, child_origin.y - rect.y);
+            let shift = child_origin - rect.origin();
             let inner = ancestry.enter(b, rect, &groups, shift);
             let below = Above {
                 origin: child_origin,

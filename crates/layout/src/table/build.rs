@@ -545,12 +545,12 @@ fn build_cell(ctx: &BuildContext<'_>, base: BoxBase, state: &mut BuildState) -> 
     let (colspan, rowspan, nowrap) = element.map_or((1, 1, false), |e| {
         let colspan = e
             .attr("colspan")
-            .and_then(parse_non_negative_integer)
+            .and_then(parse_span)
             .filter(|&v| v > 0)
             .map_or(1, |v| v.min(MAX_COLSPAN));
         let rowspan = e
             .attr("rowspan")
-            .and_then(parse_non_negative_integer)
+            .and_then(parse_span)
             .map_or(1, |v| v.min(MAX_ROWSPAN));
         (colspan, rowspan, e.has_attr("nowrap"))
     });
@@ -572,7 +572,7 @@ fn build_column(ctx: &BuildContext<'_>, base: BoxBase, state: &mut BuildState) -
             e.is_html_named(&local_name!("col")) || e.is_html_named(&local_name!("colgroup"))
         })
         .and_then(|e| e.attr("span"))
-        .and_then(parse_non_negative_integer)
+        .and_then(parse_span)
         .filter(|&v| v > 0)
         .map_or(1, |v| v.min(MAX_COLSPAN));
     let mut children = Vec::new();
@@ -598,19 +598,10 @@ fn build_column(ctx: &BuildContext<'_>, base: BoxBase, state: &mut BuildState) -
     }
 }
 
-/// The HTML rules for parsing non-negative integers (leading white space,
-/// an optional `+`, digits; the rest is ignored), saturating.
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers>
-fn parse_non_negative_integer(input: &str) -> Option<usize> {
-    let input = input.trim_start_matches(swb_dom::is_html_whitespace);
-    let input = input.strip_prefix('+').unwrap_or(input);
-    let digits = input.bytes().take_while(u8::is_ascii_digit).count();
-    if digits == 0 {
-        return None;
-    }
-    Some(input[..digits].bytes().fold(0usize, |v, d| {
-        v.saturating_mul(10).saturating_add(usize::from(d - b'0'))
-    }))
+/// A span attribute (`colspan`, `rowspan`, `span`) as a non-negative
+/// integer (HTML rules), saturating.
+fn parse_span(input: &str) -> Option<usize> {
+    swb_dom::parse_non_negative_integer(input).map(|v| usize::try_from(v).unwrap_or(usize::MAX))
 }
 
 #[cfg(test)]
@@ -618,14 +609,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn non_negative_integers() {
-        assert_eq!(parse_non_negative_integer(" 12abc"), Some(12));
-        assert_eq!(parse_non_negative_integer("+3"), Some(3));
-        assert_eq!(parse_non_negative_integer("-3"), None);
-        assert_eq!(parse_non_negative_integer(""), None);
-        assert_eq!(
-            parse_non_negative_integer("99999999999999999999999999"),
-            Some(usize::MAX)
-        );
+    fn spans() {
+        assert_eq!(parse_span(" 12abc"), Some(12));
+        assert_eq!(parse_span("-0"), Some(0));
+        assert_eq!(parse_span("-3"), None);
+        // Saturates far above `MAX_COLSPAN` and `MAX_ROWSPAN`.
+        assert!(parse_span("99999999999999999999999999").is_some_and(|v| v >= 1 << 62));
     }
 }

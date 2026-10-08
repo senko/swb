@@ -56,7 +56,6 @@ from playwright.async_api import Page
 
 from swbtools import browser, swb
 from swbtools.boxes import BoxDump, Rect, read_dump, round2, union
-from swbtools.measure import in_chromium
 
 log = logging.getLogger(__name__)
 
@@ -452,10 +451,9 @@ async def probe_case(
 ) -> tuple[CaseResult, Path]:
     """Loads the case in Chromium and runs its queries. Returns the result
     and the path of the page file."""
-    path = directory / f"case-{number}.html"
-    path.write_text(case.html, encoding="utf-8")
     await page.set_viewport_size({"width": case.viewport[0], "height": case.viewport[1]})
-    await page.goto(path.as_uri(), wait_until="load")
+    path = directory / f"case-{number}.html"
+    await browser.load_html(page, path, case.html)
     await browser.stop_animations(page)
     result = CaseResult(case.name, case.viewport)
     for query in case.queries:
@@ -515,7 +513,7 @@ def probe(
         log.error("no cases to run")
         return 2
     results = asyncio.run(
-        in_chromium(
+        browser.in_chromium(
             lambda page, directory: _probe_all(cases, swb_binary, tolerance, page, directory)
         )
     )

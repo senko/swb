@@ -1,6 +1,6 @@
 //! Geometry types in CSS pixels.
 
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 /// Clamps a length or coordinate in px to the range that layout produces
 /// (see [`swb_style::Length::MAX_PX`]); NaN becomes 0. Lengths from styles
@@ -30,6 +30,13 @@ impl Add for Point {
     type Output = Point;
     fn add(self, o: Point) -> Point {
         Point::new(self.x + o.x, self.y + o.y)
+    }
+}
+
+impl Sub for Point {
+    type Output = Point;
+    fn sub(self, o: Point) -> Point {
+        Point::new(self.x - o.x, self.y - o.y)
     }
 }
 
@@ -86,6 +93,18 @@ impl Rect {
     /// The bottom edge.
     pub fn bottom(&self) -> f32 {
         self.y + self.height
+    }
+
+    /// This rectangle in the coordinates of a box whose top-left corner is
+    /// at `origin`.
+    #[must_use]
+    pub fn relative_to(&self, origin: Point) -> Rect {
+        Rect::new(
+            self.x - origin.x,
+            self.y - origin.y,
+            self.width,
+            self.height,
+        )
     }
 
     /// This rectangle moved by `offset`.

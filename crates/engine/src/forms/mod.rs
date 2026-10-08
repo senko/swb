@@ -25,7 +25,7 @@ mod view;
 use std::collections::{HashMap, HashSet};
 
 use swb_css::ElementState;
-use swb_dom::{Document, ElementData, NodeId, local_name};
+use swb_dom::{Document, ElementData, NodeId, local_name, parse_non_negative_u32};
 use swb_layout::Point;
 use swb_style::DisabledElements;
 
@@ -36,7 +36,7 @@ pub(crate) use submit::{FormContext, Submitter, blocking_fields, default_button,
 pub(crate) use view::{LayoutControls, display_offset, value_offset};
 
 use select::{has_placeholder_label_option, select_options};
-use values::{parse_non_negative, sanitize};
+use values::sanitize;
 
 /// The `type` of an `input` element.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -677,7 +677,7 @@ fn default_state(
     if has_max_len {
         let max_len = e
             .and_then(|e| e.attr("maxlength"))
-            .and_then(parse_non_negative)
+            .and_then(parse_non_negative_u32)
             .map(|v| v as usize);
         edit.set_max_len(max_len);
     }

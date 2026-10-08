@@ -180,14 +180,19 @@ fn decode_error(e: &image::ImageError) -> ImageError {
 fn premultiply(data: &mut [u8]) {
     let (pixels, _) = data.as_chunks_mut::<4>();
     for px in pixels {
-        let a = u16::from(px[3]);
+        let a = u32::from(px[3]);
         if a == 255 {
             continue;
         }
         for c in &mut px[..3] {
-            *c = ((u16::from(*c) * a + 127) / 255) as u8;
+            *c = mul_255(u32::from(*c), a) as u8;
         }
     }
+}
+
+/// `a * b / 255`, rounded to nearest, for `a` and `b` in 0 to 255.
+pub(crate) fn mul_255(a: u32, b: u32) -> u32 {
+    (a * b + 127) / 255
 }
 
 #[cfg(test)]
@@ -201,6 +206,16 @@ pub(crate) mod tests {
         img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
             .unwrap();
         out
+    }
+
+    #[test]
+    fn mul_255_matches_the_16_bit_formula() {
+        for a in 0..=255u16 {
+            for b in 0..=255u16 {
+                let expected = (a * b + 127) / 255;
+                assert_eq!(mul_255(u32::from(a), u32::from(b)), u32::from(expected));
+            }
+        }
     }
 
     #[test]

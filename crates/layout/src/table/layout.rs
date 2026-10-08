@@ -33,7 +33,7 @@ use super::cells::{cell_edges, cell_widths, fixed_or_percent, layout_cell, row_d
 use super::collapsed::{self, CollapsedBorders, EdgeBudget};
 use super::columns::{
     Column, ColumnLocation, TABLE_MAX_WIDTH, column_constraints, column_locations, grid_min_max,
-    outer_size, sizes_from_style, undistributable_space,
+    sizes_from_style, undistributable_space,
 };
 use super::distribute::{distribute_auto, distribute_fixed};
 use super::fragments::{Assembly, assemble};
@@ -44,8 +44,8 @@ use super::rows::{
 };
 use crate::LayoutContext;
 use crate::block::{
-    BoxEdges, ContainingBlock, LaidOutBlock, margin_or_zero, own_margins, resolve_max_size,
-    resolve_size,
+    BoxEdges, ContainingBlock, LaidOutBlock, margin_or_zero, outer_size, own_margins,
+    resolve_max_size, resolve_size,
 };
 use crate::box_tree::IndependentBox;
 use crate::fragment::BoxFragment;
@@ -347,7 +347,7 @@ fn used_width(
     cb: ContainingBlock,
 ) -> f32 {
     let border_padding = edges.sum().horizontal();
-    let outer = |v: f32| outer_size(style, v, border_padding);
+    let outer = |v: f32| outer_size(style.box_sizing, v, border_padding);
     let fit_content = grid.max.min(available.max(grid.min));
     let width = match &style.width {
         Size::LengthPercentage(lp) => outer(lp.resolve(cb.width)),
@@ -615,7 +615,7 @@ fn table_height(
         return forced;
     }
     let border_padding = prepared.edges.sum().vertical();
-    let outer = |v: f32| outer_size(style, v, border_padding);
+    let outer = |v: f32| outer_size(style.box_sizing, v, border_padding);
     let min = resolve_size(&style.min_height, cb.height, BoxSizing::ContentBox, 0.0).map(outer);
     let height = style
         .height

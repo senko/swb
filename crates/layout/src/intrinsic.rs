@@ -4,10 +4,10 @@
 //! shrink-to-fit widths (floats, inline-blocks, absolutely positioned
 //! boxes), for flex base sizes and for grid track sizes.
 
-use swb_style::{BoxSizing, Clear, ComputedStyle, Size};
+use swb_style::{Clear, ComputedStyle, Size};
 
 use crate::LayoutContext;
-use crate::block::BoxEdges;
+use crate::block::{BoxEdges, content_size};
 use crate::box_tree::{BlockContainer, BlockLevelBox, IndependentBox, IndependentContents};
 use crate::inline;
 
@@ -228,10 +228,7 @@ fn outer_sizes(style: &ComputedStyle, content: impl FnOnce() -> ContentSizes) ->
     let edges = BoxEdges::resolve(style, 0.0);
     let edge_sum = edges.sum().horizontal();
     // A fixed size property as a content-box width.
-    let content_box = |w: f32| match style.box_sizing {
-        BoxSizing::ContentBox => w,
-        BoxSizing::BorderBox => (w - edge_sum).max(0.0),
-    };
+    let content_box = |w: f32| content_size(w, style.box_sizing, edge_sum);
     let inner = match &style.width {
         Size::LengthPercentage(lp) if !lp.has_percentage() => {
             let w = content_box(lp.resolve(0.0));

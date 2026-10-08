@@ -35,16 +35,16 @@ struct Areas {
 
 impl Areas {
     fn add(&mut self, other: Areas) {
-        self.paint = union(self.paint, other.paint);
-        self.hit = union(self.hit, other.hit);
-        self.fixed_paint = union(self.fixed_paint, other.fixed_paint);
-        self.fixed_hit = union(self.fixed_hit, other.fixed_hit);
+        self.paint = union_areas(self.paint, other.paint);
+        self.hit = union_areas(self.hit, other.hit);
+        self.fixed_paint = union_areas(self.fixed_paint, other.fixed_paint);
+        self.fixed_hit = union_areas(self.fixed_hit, other.fixed_hit);
         self.escapes |= other.escapes;
     }
 }
 
 /// The union of two optional areas.
-pub(crate) fn union(a: Option<Rect>, b: Option<Rect>) -> Option<Rect> {
+pub(crate) fn union_areas(a: Option<Rect>, b: Option<Rect>) -> Option<Rect> {
     match (a, b) {
         (Some(a), Some(b)) => Some(a.union(&b)),
         (a, b) => a.or(b),
@@ -77,7 +77,7 @@ pub(crate) fn finish_groups(items: &mut [DisplayItem]) {
             }
             DisplayItem::HitRegion { rect, .. } => {
                 if let Some((_, top)) = stack.last_mut() {
-                    top.hit = union(top.hit, Some(*rect));
+                    top.hit = union_areas(top.hit, Some(*rect));
                 }
             }
             other => {
@@ -85,8 +85,8 @@ pub(crate) fn finish_groups(items: &mut [DisplayItem]) {
                 if let Some((_, top)) = stack.last_mut()
                     && let Some(b) = other.bounds()
                 {
-                    top.paint = union(top.paint, Some(b));
-                    top.hit = union(top.hit, Some(b));
+                    top.paint = union_areas(top.paint, Some(b));
+                    top.hit = union_areas(top.hit, Some(b));
                 }
             }
         }
@@ -130,8 +130,8 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
                 // Content fixed to the viewport is in viewport coordinates
                 // in the group, and so is the group's own content.
                 GroupTransform::Fixed => {
-                    let paint = union(areas.paint, areas.fixed_paint);
-                    let hit = union(areas.hit, areas.fixed_hit);
+                    let paint = union_areas(areas.paint, areas.fixed_paint);
+                    let hit = union_areas(areas.hit, areas.fixed_hit);
                     *bounds = paint.unwrap_or_default();
                     *hit_bounds = hit.unwrap_or_default();
                     *fixed_bounds = None;

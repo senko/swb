@@ -297,7 +297,7 @@ impl Columns {
         let mut kids = Vec::new();
         for (child, child_start, span, r) in children {
             self.add_background(child, child_start, span, r);
-            let local = Rect::new(r.x - group_rect.x, r.y - group_rect.y, r.width, r.height);
+            let local = r.relative_to(group_rect.origin());
             kids.push(Fragment::Box(column_fragment(child, local, Vec::new())));
         }
         self.fragments
@@ -533,7 +533,7 @@ fn cell_content(
     parts: Backgrounds<'_>,
 ) -> BoxContent {
     let mut backgrounds = Vec::new();
-    let local = |r: Rect| Rect::new(r.x - cell.x, r.y - cell.y, r.width, r.height);
+    let local = |r: Rect| r.relative_to(cell.origin());
     for (style, area) in parts.columns {
         if let Some(clip) = area.intersection(&cell) {
             backgrounds.push(PartBackground {

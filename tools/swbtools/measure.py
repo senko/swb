@@ -33,13 +33,12 @@ import asyncio
 import html
 import io
 import math
-import tempfile
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import Page
 
 from swbtools import browser
 from swbtools.font_sizes import font_size_sweep
@@ -612,7 +611,7 @@ async def text_field_widths(
     The control field has an unknown family first and then the measured
     value, so it uses the same font. A family that changes the rule makes
     the field differ from the control field."""
-    await _load(page, directory, "text-field-families.html", _field_page(families))
+    await browser.load_html(page, directory / "text-field-families.html", _field_page(families))
     rows = await page.evaluate(_FIELD_JS)
     return [
         FieldWidth(family, row["field"], row["average"], math.ceil(row["zeros"] - 0.001))
@@ -681,7 +680,7 @@ async def font_size_keywords(page: Page, directory: Path) -> dict[str, list[floa
     `16px standards`, `16px quirks`, `13px standards`, `13px quirks`."""
     by_mode: dict[str, list[float]] = {}
     for doctype, mode in ((True, "standards"), (False, "quirks")):
-        await _load(page, directory, f"font-size-{mode}.html", _keyword_page(doctype))
+        await browser.load_html(page, directory / f"font-size-{mode}.html", _keyword_page(doctype))
         compat = await page.evaluate("document.compatMode")
         expected = "CSS1Compat" if doctype else "BackCompat"
         if compat != expected:
@@ -880,7 +879,7 @@ async def ua_styles(page: Page, directory: Path) -> tuple[list[UaStyle], dict[st
     """Measures the computed styles of `UA_ELEMENTS`, the system colors and
     the frameset elements. Returns the styles, the system colors and a
     report line for the frameset document."""
-    await _load(page, directory, "ua-styles.html", _ua_page(UA_ELEMENTS))
+    await browser.load_html(page, directory / "ua-styles.html", _ua_page(UA_ELEMENTS))
     rows = await page.evaluate(_UA_JS, list(UA_PROPERTIES))
     styles = []
     for element, row in zip(UA_ELEMENTS, rows, strict=True):
@@ -890,7 +889,7 @@ async def ua_styles(page: Page, directory: Path) -> tuple[list[UaStyle], dict[st
             placeholder = {p: v for p, v in placeholder.items() if v != own[p]}
         styles.append(UaStyle(element, set_values, placeholder))
     colors = await page.evaluate(_SYSTEM_COLORS_JS, list(SYSTEM_COLORS))
-    await _load(page, directory, "frameset.html", _FRAMESET_PAGE)
+    await browser.load_html(page, directory / "frameset.html", _FRAMESET_PAGE)
     frameset = await page.evaluate(
         """() => ['frameset', 'frame'].map(tag => {
           const s = getComputedStyle(document.querySelector(tag));
@@ -975,7 +974,7 @@ async def picture_sources(page: Page, directory: Path) -> dict[str, str]:
         f"<picture><source {attrs} srcset=source.png><img src=fallback.png></picture>"
         for attrs in PICTURE_CASES.values()
     )
-    await _load(page, directory, "picture.html", f"<!DOCTYPE html><body>{pictures}")
+    await browser.load_html(page, directory / "picture.html", f"<!DOCTYPE html><body>{pictures}")
     sources = await page.evaluate(
         "[...document.images].map(img => img.currentSrc.split('/').pop())"
     )
@@ -1003,32 +1002,11 @@ SLOW_MEASUREMENTS = ("font-size-sweep",)
 files."""
 
 
-async def _load(page: Page, directory: Path, name: str, content: str) -> None:
-    """Writes `content` to `directory/name` and loads it."""
-    path = directory / name
-    path.write_text(content, encoding="utf-8")
-    await page.goto(path.as_uri(), wait_until="load")
-
-
-async def in_chromium[T](run: Callable[[Page, Path], Awaitable[T]]) -> T:
-    """Calls `run` with a Chromium page (the layout test settings) and a
-    temporary directory for the pages."""
-    async with async_playwright() as playwright:
-        chromium = await browser.launch(playwright)
-        try:
-            context = await browser.new_context(chromium, browser.LAYOUT_VIEWPORT)
-            page = await context.new_page()
-            with tempfile.TemporaryDirectory(prefix="swb-measure-") as directory:
-                return await run(page, Path(directory))
-        finally:
-            await chromium.close()
-
-
 def measure(names: list[str]) -> int:
     """Runs the named measurements (all but `SLOW_MEASUREMENTS` if empty) and
     prints the results."""
     for name in names or [n for n in MEASUREMENTS if n not in SLOW_MEASUREMENTS]:
         print(f"== {name}")
-        asyncio.run(in_chromium(MEASUREMENTS[name]))
+        asyncio.run(browser.in_chromium(MEASUREMENTS[name]))
         print()
     return 0

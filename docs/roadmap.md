@@ -103,7 +103,7 @@ One feature at a time, in this order:
 2. Generated content size limit (the high-priority robustness bug in
    "Backlog from M3"): done, 1 MiB per box tree.
 3. M3 maintenance: review the whole codebase for duplication, dead code,
-   unclear names and outdated docs; `just snapshot` shows no change.
+   unclear names and outdated docs; `just snapshot` shows no change: done.
 
 ## Pending decisions
 
@@ -240,18 +240,21 @@ One feature at a time, in this order:
 - Style: `background-position-x/-y` accept `x-start`, `x-end`,
   `y-start` and `y-end` (Chromium rejects them; affects `@supports`
   only); `background` with thousands of layers computes every layer on
-  every element (masks keep only 32).
+  every element (masks keep only 32). `tab-size`, `pointer-events`,
+  `background-attachment`, `text-overflow` and `text-decoration-style`
+  are parsed and computed, but layout, paint and hit testing do not use
+  them.
+- CSS: media query and `sizes` lengths do not accept the units `svmin`,
+  `lvmin`, `dvmin`, `svmax`, `lvmax`, `dvmax`, `vi`, `vb`, `lh`, `rlh`,
+  `cap` and `ic` (style accepts them), so `@media (min-width: 10dvmin)`
+  does not parse (found by the M3 maintenance review; not compared with
+  Chromium).
 
 ## Backlog from the M2 maintenance review
 
 Bugs found by the end-of-milestone review. The maintenance commit did not
 change behaviour, so they are not fixed yet.
 
-- HTML integers: four separate parsers of the HTML integer microsyntax
-  (`style/src/hints.rs`, `layout/src/table/build.rs`,
-  `engine/src/forms/values.rs`, `engine/src/focus.rs`); move one into
-  `dom`. `maxlength="-0"` and `rowspan="-0"` are ignored (HTML parses
-  `-0` as 0).
 - Style: `:required` and `:optional` match `range` and `color` inputs
   (the `required` attribute does not apply to them); `background: ...
   text` sets `background-origin` to `border-box` (`text` sets only
@@ -271,8 +274,9 @@ change behaviour, so they are not fixed yet.
   quirky margins of the first and last children of cells and of the body;
   the body and html fill-viewport quirks; collapsed-border joints
   (horizontal edges always cover the joint; Chromium decides per joint);
-  column percentages are ignored only inside cells and flex containers
-  (grid does not exist yet); inset/outset border shading; `width:
+  column percentages are ignored only inside cells and flex containers,
+  not inside grid items (not compared with Chromium); inset/outset
+  border shading; `width:
   min-content` keywords on inline-blocks. Limits: 10,000 columns;
   collapsed grids over 2,000,000 edges (`MAX_EDGES`, all tables of a
   layout pass together) use each box's own borders and paint none;

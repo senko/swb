@@ -38,7 +38,8 @@ use crate::background;
 use crate::display_list::{
     DisplayItem, ImageRef, ImageSizes, UNBOUNDED, layer_value, outset, with_descendants,
 };
-use crate::group_bounds::union;
+use crate::group_bounds::union_areas;
+use crate::image::mul_255;
 
 /// One layer of a mask, in document coordinates (CSS px).
 #[derive(Clone, Debug)]
@@ -235,7 +236,7 @@ impl ClippedInk {
                         Some(clip) => clip.and_then(|c| b.intersection(&c)),
                     }
                 });
-                self.area = union(self.area, ink);
+                self.area = union_areas(self.area, ink);
             }
         }
     }
@@ -270,11 +271,11 @@ pub(crate) fn group_area<'a>(items: impl IntoIterator<Item = &'a DisplayItem>) -
             ink.feed(item);
         }
         if depth == 0 {
-            area = union(area, open.take().and_then(group_ink));
+            area = union_areas(area, open.take().and_then(group_ink));
         }
     }
     // A group without its end (at the end of the items).
-    union(area, open.and_then(group_ink))
+    union_areas(area, open.and_then(group_ink))
 }
 
 /// The ink of a group that [`group_area`] has read, inside the bounds of a
@@ -416,16 +417,15 @@ pub(crate) fn composite(op: CompositeOperator, source: Option<&[u8]>, destinatio
 fn composite_value(op: CompositeOperator, source: u8, destination: u8) -> u8 {
     use CompositeOperator as C;
     let (s, d) = (u32::from(source), u32::from(destination));
-    let mul = |a: u32, b: u32| (a * b + 127) / 255;
     let value = match op {
-        C::SourceOver | C::DestinationOver => s + mul(d, 255 - s),
-        C::SourceOut => mul(s, 255 - d),
-        C::SourceIn | C::DestinationIn => mul(s, d),
-        C::Xor => mul(s, 255 - d) + mul(d, 255 - s),
+        C::SourceOver | C::DestinationOver => s + mul_255(d, 255 - s),
+        C::SourceOut => mul_255(s, 255 - d),
+        C::SourceIn | C::DestinationIn => mul_255(s, d),
+        C::Xor => mul_255(s, 255 - d) + mul_255(d, 255 - s),
         C::Clear => 0,
         C::Copy | C::DestinationAtop => s,
         C::SourceAtop => d,
-        C::DestinationOut => mul(d, 255 - s),
+        C::DestinationOut => mul_255(d, 255 - s),
         C::PlusLighter => s + d,
     };
     value.min(255) as u8

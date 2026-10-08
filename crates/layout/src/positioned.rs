@@ -60,9 +60,10 @@ use swb_style::{
 };
 
 use crate::LayoutContext;
+use crate::align::{Edge, resolve_self_alignment};
 use crate::block::{
     BoxEdges, ContainingBlock, clamp_height, clamp_width, finish_fragment, layout_sized,
-    resolve_size,
+    margin_or_zero, resolve_size,
 };
 use crate::box_tree::{
     BlockContainer, BlockLevelBox, BoxBase, IndependentBox, IndependentContents, InlineItem,
@@ -369,6 +370,7 @@ pub(crate) fn place_out_of_flow(
         fixed: icb,
         inline: None,
     };
+    // No scroll container is above the root, so "placed" is not needed.
     let _ = pass.visit(ctx, root, scope);
 }
 
@@ -598,15 +600,13 @@ impl OutOfFlow<'_> {
                 } else {
                     parent.content
                 };
-                let align = match style.align_self {
-                    Alignment::Auto => parent.style.align_items,
-                    a => a,
-                };
+                let align = resolve_self_alignment(style.align_self, parent.style.align_items);
                 StaticPosition::aligned(rect, justify, align)
             }
         };
         let mut fragment = layout_absolute(ctx, ib, cb, position);
         let origin = fragment.border_rect.origin();
+        // The caller reports this box as placed, whatever the result.
         let _ = self.visit(ctx, &mut fragment, scope.translated(origin));
         Some(fragment)
     }
@@ -626,14 +626,6 @@ struct StaticContext<'s> {
 
 // ----- Static positions -----
 
-/// Which edge of a box's margin box the static position is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Edge {
-    Start,
-    Center,
-    End,
-}
-
 /// The static position of an absolutely positioned box: a point and the
 /// edges of its margin box that are there.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -650,13 +642,8 @@ impl StaticPosition {
     fn aligned(rect: Rect, justify: Alignment, align: Alignment) -> Self {
         let x = edge_of(justify, true);
         let y = edge_of(align, false);
-        let along = |edge: Edge, start: f32, size: f32| match edge {
-            Edge::Start => start,
-            Edge::Center => start + size / 2.0,
-            Edge::End => start + size,
-        };
         StaticPosition {
-            point: Point::new(along(x, rect.x, rect.width), along(y, rect.y, rect.height)),
+            point: Point::new(x.along(rect.x, rect.width), y.along(rect.y, rect.height)),
             x,
             y,
         }
@@ -717,10 +704,7 @@ fn flex_static_position(
         // `normal`, `stretch`, `flex-start`, `space-between`.
         _ => flex_start,
     };
-    let align = match child.align_self {
-        Alignment::Auto => container.align_items,
-        a => a,
-    };
+    let align = resolve_self_alignment(child.align_self, container.align_items);
     let (cross_start, cross_end) = if wrap_reverse {
         (Edge::End, Edge::Start)
     } else {
@@ -737,16 +721,11 @@ fn flex_static_position(
         // stretch here), `flex-start`.
         _ => cross_start,
     };
-    let along = |edge: Edge, start: f32, size: f32| match edge {
-        Edge::Start => start,
-        Edge::Center => start + size / 2.0,
-        Edge::End => start + size,
-    };
     let (x, y) = if row { (main, cross) } else { (cross, main) };
     StaticPosition {
         point: Point::new(
-            along(x, content.x, content.width),
-            along(y, content.y, content.height),
+            x.along(content.x, content.width),
+            y.along(content.y, content.height),
         ),
         x,
         y,
@@ -803,7 +782,7 @@ impl Axis {
         let margins = self.margin_start.unwrap_or(0.0) + self.margin_end.unwrap_or(0.0);
         let space = match (self.start, self.end) {
             (None, None) => match self.static_edge {
-                Edge::Start => self.cb - self.static_position,
+                Edge::Start | Edge::Baseline => self.cb - self.static_position,
                 Edge::End => self.static_position,
                 Edge::Center => 2.0 * self.static_position.min(self.cb - self.static_position),
             },
@@ -833,11 +812,11 @@ impl Axis {
                     // an overflowing box stays at the start (safe, as
                     // Chromium does without `unsafe`).
                     (Some(ms), Some(me)) => {
-                        let shift = match edge_of(self.align, self.horizontal) {
-                            _ if free <= 0.0 => 0.0,
-                            Edge::Start => 0.0,
-                            Edge::Center => free / 2.0,
-                            Edge::End => free,
+                        let edge = edge_of(self.align, self.horizontal);
+                        let shift = if free <= 0.0 {
+                            0.0
+                        } else {
+                            edge.along(0.0, free)
                         };
                         (ms + shift, me)
                     }
@@ -856,11 +835,7 @@ impl Axis {
                 let offset = match (start, end) {
                     (Some(start), _) => start,
                     (None, Some(end)) => self.cb - end - width,
-                    (None, None) => match self.static_edge {
-                        Edge::Start => self.static_position,
-                        Edge::Center => self.static_position - width / 2.0,
-                        Edge::End => self.static_position - width,
-                    },
+                    (None, None) => self.static_position - self.static_edge.along(0.0, width),
                 };
                 Solved {
                     size,
@@ -1340,7 +1315,7 @@ impl Ancestry {
     fn sticky(&self, b: &BoxFragment, rect: Rect) -> StickyConstraints {
         let cb = self.block_content;
         let style = &b.style;
-        let margin = |m: &LengthPercentageOrAuto| clamp_length(m.resolve(cb.width).unwrap_or(0.0));
+        let margin = |m: &LengthPercentageOrAuto| clamp_length(margin_or_zero(m, cb.width));
         let limit = cb.inset(&Edges::new(
             margin(&style.margin_top),
             margin(&style.margin_right),

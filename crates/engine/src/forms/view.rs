@@ -2,13 +2,10 @@
 //! text it shows (a password as bullets, the placeholder, a label, the
 //! selected option), the caret and the scroll offset of its text.
 
-use swb_dom::{Document, ElementData, NodeId, local_name};
+use swb_dom::{Document, ElementData, NodeId, local_name, parse_non_negative_u32};
 use swb_layout::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, Point};
 
-use super::{
-    ControlState, ControlType, Forms, InputType, normalize_newlines, option_label,
-    parse_non_negative,
-};
+use super::{ControlState, ControlType, Forms, InputType, normalize_newlines, option_label};
 
 /// The bullet that shows one character of a password.
 const BULLET: char = '\u{2022}';
@@ -169,7 +166,7 @@ fn select_view(doc: &Document, state: &ControlState, control: &mut Control) {
 /// A positive integer attribute (`size`, `cols`, `rows`), or `default`.
 fn positive_attr(e: &ElementData, name: &str, default: u32) -> u32 {
     e.attr(name)
-        .and_then(parse_non_negative)
+        .and_then(parse_non_negative_u32)
         .filter(|&v| v > 0)
         .unwrap_or(default)
 }

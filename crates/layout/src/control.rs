@@ -52,7 +52,7 @@ use swb_style::{
 
 use crate::LayoutContext;
 use crate::block::{
-    Baselines, BoxEdges, ContainingBlock, HeightLimits, clamp_height, finish_fragment,
+    Baselines, BoxEdges, ContainingBlock, SizeLimits, clamp_height, finish_fragment,
     layout_flow_root, resolve_size,
 };
 use crate::box_tree::{
@@ -469,7 +469,7 @@ fn layout_inner(
         ControlContents::Flex(items) => {
             // The control's min-height and max-height apply to the control
             // box, which centers this content (`content_position`).
-            let flex = crate::flex::layout_flex(ctx, style, items, cb, HeightLimits::NONE);
+            let flex = crate::flex::layout_flex(ctx, style, items, cb, SizeLimits::NONE);
             Inner::boxes(
                 flex.fragments,
                 width,
@@ -724,7 +724,7 @@ fn text_field_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, size: u3
         CharWidth::Average { average, max } => average * n + max - average,
         CharWidth::Zero(zero) => zero * n,
     };
-    ceil(width)
+    ceil_px(width)
 }
 
 /// The content width of a text area `cols` characters wide, with room
@@ -735,11 +735,11 @@ fn text_area_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, cols: u32
         CharWidth::Average { average, .. } => average * n,
         CharWidth::Zero(zero) => zero * n,
     };
-    ceil(width) + SCROLLBAR_WIDTH
+    ceil_px(width) + SCROLLBAR_WIDTH
 }
 
 /// Rounds up, ignoring float noise below 1/1000 px.
-fn ceil(v: f32) -> f32 {
+fn ceil_px(v: f32) -> f32 {
     clamp_length((v - 0.001).ceil().max(0.0))
 }
 
@@ -762,7 +762,7 @@ fn options_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, options: &[
         }
         widest = widest.max(width);
     }
-    ceil(widest)
+    ceil_px(widest)
 }
 
 /// True if the control has Chromium's native look: always for checkboxes

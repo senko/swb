@@ -9,9 +9,7 @@
 //! replaced boxes; the cascade uses [`generates_content_pseudos`]; the
 //! counter pass (`counters.rs`) uses the others.
 
-use swb_dom::{ElementData, local_name, ns};
-
-use crate::hints::parse_integer;
+use swb_dom::{ElementData, local_name, ns, parse_integer};
 
 /// True for the replaced elements that swb lays out as replaced boxes:
 /// `img`, `video` and `audio`.

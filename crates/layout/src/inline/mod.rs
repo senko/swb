@@ -46,7 +46,7 @@ use swb_style::{ComputedStyle, Display, TextAlign, VerticalAlign, VerticalAlignK
 use crate::LayoutContext;
 use crate::block::{
     BoxEdges, ContainingBlock, Flow, FlowY, LaidOutBlock, apply_relative_position, layout_float,
-    layout_independent_shrink_to_fit, relative_offset,
+    layout_independent_shrink_to_fit, margin_or_zero, relative_offset,
 };
 use crate::box_tree::{
     InlineFormattingContext, InlineItem, has_inline_end_edge, has_inline_start_edge,
@@ -463,7 +463,7 @@ impl AtomicLayout {
     fn new(laid_out: LaidOutBlock, style: &ComputedStyle, cb_width: f32) -> Self {
         let fragment = laid_out.fragment;
         let margin_left = fragment.border_rect.x;
-        let margin_right = clamp_length(style.margin_right.resolve(cb_width).unwrap_or(0.0));
+        let margin_right = clamp_length(margin_or_zero(&style.margin_right, cb_width));
         let margin_top = laid_out.margins.start.solve();
         let margin_bottom = laid_out.margins.end.solve();
         let border_height = fragment.border_rect.height;
@@ -520,8 +520,8 @@ struct InlineBoxEdges {
 impl InlineBoxEdges {
     fn resolve(style: &ComputedStyle, cb_width: f32) -> Self {
         InlineBoxEdges {
-            margin_left: clamp_length(style.margin_left.resolve(cb_width).unwrap_or(0.0)),
-            margin_right: clamp_length(style.margin_right.resolve(cb_width).unwrap_or(0.0)),
+            margin_left: clamp_length(margin_or_zero(&style.margin_left, cb_width)),
+            margin_right: clamp_length(margin_or_zero(&style.margin_right, cb_width)),
             edges: BoxEdges::resolve(style, cb_width),
         }
     }
@@ -1249,7 +1249,7 @@ impl LineBuilder<'_, '_> {
                 let position = self.ctx.bfc().place_in(float, y, parent);
                 fragment.border_rect.x = position.x;
                 fragment.border_rect.y = position.y;
-                let end = margin_box_end(fragment, self.cb);
+                let end = float_margin_box_end(fragment, self.cb);
                 self.in_flow_floats.width = self.in_flow_floats.width.max(end.width);
                 self.in_flow_floats.height = self.in_flow_floats.height.max(end.height);
             }
@@ -1389,7 +1389,7 @@ impl LineBuilder<'_, '_> {
             if let Some(item) = self.float_at(i) {
                 self.place_float_now(item, line_top, content_y);
                 if let Some(Fragment::Box(b)) = self.fragments.last() {
-                    let right = margin_box_end(b, self.cb).width;
+                    let right = float_margin_box_end(b, self.cb).width;
                     self.in_flow_floats.width = self.in_flow_floats.width.max(right);
                 }
             }
@@ -2022,7 +2022,7 @@ impl LineBuilder<'_, '_> {
         if let Some(mut fragment) = atomic.fragment {
             fragment.border_rect.x += state.x;
             fragment.border_rect.y = top + atomic.margin_top;
-            apply_relative_position(&mut fragment, self.containing_block());
+            apply_relative_position(&mut fragment, self.cb);
             state.push_child(Fragment::Box(fragment));
         }
         state.x += atomic.margin_width;
@@ -2052,11 +2052,6 @@ impl LineBuilder<'_, '_> {
         });
     }
 
-    /// The containing block of the inline-level boxes of the line.
-    fn containing_block(&self) -> ContainingBlock {
-        self.cb
-    }
-
     /// Aligns the line horizontally in its free range (`left` px from the
     /// content box's left edge, `width` px wide), positions it at `self.y`
     /// and appends its fragments. Outside list markers go to the left of
@@ -2082,7 +2077,7 @@ impl LineBuilder<'_, '_> {
             fragment.move_by(left, baseline_y);
         }
         let line_height = state.extent.bottom - state.extent.top;
-        let cb = self.containing_block();
+        let cb = self.cb;
         // The white space at the end hangs at a soft wrap, and at a forced
         // break or the end of the content only if it does not fit (CSS
         // Text 3 §4.1.3, as Chromium 148).
@@ -2243,7 +2238,7 @@ impl LineBuilder<'_, '_> {
             in_positioned_inline: false,
             hanging_from: None,
         };
-        apply_relative_position(&mut fragment, self.containing_block());
+        apply_relative_position(&mut fragment, self.cb);
         fragment
     }
 
@@ -2301,7 +2296,7 @@ fn has_quirky_end_edge(style: &ComputedStyle) -> bool {
 
 /// The right and bottom margin edges of a float in the content box (see
 /// [`crate::scroll::InflowExtent`]).
-fn margin_box_end(b: &BoxFragment, cb: ContainingBlock) -> crate::geom::Size {
+fn float_margin_box_end(b: &BoxFragment, cb: ContainingBlock) -> crate::geom::Size {
     let mut extent = crate::scroll::InflowExtent::default();
     extent.add(b, cb, false);
     extent.finish(0.0)

@@ -161,280 +161,396 @@ impl ShorthandId {
     }
 
     /// Parses the whole value and appends the longhand values to `out`.
-    #[allow(clippy::too_many_lines)] // One arm per shorthand.
     pub(crate) fn parse(
         self,
         p: &mut Parser<'_>,
         cx: &ParserContext,
         out: &mut Vec<LonghandValue>,
     ) -> ParseResult<()> {
-        let quirks = cx.quirks;
         p.parse_entirely(|p| {
             use ShorthandId as S;
             match self {
-                S::Margin => four_sides(p, out, |p| lp_or_auto(p, quirks), margin_values),
-                S::MarginBlock => two_sides(
-                    p,
-                    out,
-                    |p| lp_or_auto(p, false),
-                    |[a, b]| vec![LonghandValue::MarginTop(a), LonghandValue::MarginBottom(b)],
-                ),
-                S::MarginInline => two_sides(
-                    p,
-                    out,
-                    |p| lp_or_auto(p, false),
-                    |[a, b]| vec![LonghandValue::MarginLeft(a), LonghandValue::MarginRight(b)],
-                ),
-                S::Padding => four_sides(
-                    p,
-                    out,
-                    |p| padding(p, quirks),
-                    |[t, r, b, l]| {
-                        vec![
-                            LonghandValue::PaddingTop(t),
-                            LonghandValue::PaddingRight(r),
-                            LonghandValue::PaddingBottom(b),
-                            LonghandValue::PaddingLeft(l),
-                        ]
-                    },
-                ),
-                S::PaddingBlock => two_sides(
-                    p,
-                    out,
-                    |p| padding(p, false),
-                    |[a, b]| {
-                        vec![
-                            LonghandValue::PaddingTop(a),
-                            LonghandValue::PaddingBottom(b),
-                        ]
-                    },
-                ),
-                S::PaddingInline => two_sides(
-                    p,
-                    out,
-                    |p| padding(p, false),
-                    |[a, b]| {
-                        vec![
-                            LonghandValue::PaddingLeft(a),
-                            LonghandValue::PaddingRight(b),
-                        ]
-                    },
-                ),
-                S::Inset => four_sides(
-                    p,
-                    out,
-                    |p| lp_or_auto(p, false),
-                    |[t, r, b, l]| {
-                        vec![
-                            LonghandValue::Top(t),
-                            LonghandValue::Right(r),
-                            LonghandValue::Bottom(b),
-                            LonghandValue::Left(l),
-                        ]
-                    },
-                ),
-                S::InsetBlock => two_sides(
-                    p,
-                    out,
-                    |p| lp_or_auto(p, false),
-                    |[a, b]| vec![LonghandValue::Top(a), LonghandValue::Bottom(b)],
-                ),
-                S::InsetInline => two_sides(
-                    p,
-                    out,
-                    |p| lp_or_auto(p, false),
-                    |[a, b]| vec![LonghandValue::Left(a), LonghandValue::Right(b)],
-                ),
-                S::Border => {
-                    let (w, s, c) = parse_border_side(p)?;
-                    for side in Side::ALL {
-                        out.extend(side.border(w.clone(), s, c));
-                    }
-                    Ok(())
+                S::Margin
+                | S::MarginBlock
+                | S::MarginInline
+                | S::Padding
+                | S::PaddingBlock
+                | S::PaddingInline
+                | S::Inset
+                | S::InsetBlock
+                | S::InsetInline => parse_box_shorthand(self, p, cx, out),
+                S::Border
+                | S::BorderTop
+                | S::BorderRight
+                | S::BorderBottom
+                | S::BorderLeft
+                | S::BorderBlock
+                | S::BorderInline
+                | S::BorderWidth
+                | S::BorderStyle
+                | S::BorderColor
+                | S::BorderBlockWidth
+                | S::BorderBlockStyle
+                | S::BorderBlockColor
+                | S::BorderInlineWidth
+                | S::BorderInlineStyle
+                | S::BorderInlineColor => parse_border_shorthand(self, p, cx, out),
+                S::GridRow | S::GridColumn | S::GridArea | S::GridTemplate | S::Grid => {
+                    parse_grid_shorthand(self, p, out)
                 }
-                S::BorderTop | S::BorderRight | S::BorderBottom | S::BorderLeft => {
-                    let side = match self {
-                        S::BorderTop => Side::Top,
-                        S::BorderRight => Side::Right,
-                        S::BorderBottom => Side::Bottom,
-                        _ => Side::Left,
-                    };
-                    let (w, s, c) = parse_border_side(p)?;
-                    out.extend(side.border(w, s, c));
-                    Ok(())
-                }
-                S::BorderBlock | S::BorderInline => {
-                    let sides = if self == S::BorderBlock {
-                        [Side::Top, Side::Bottom]
-                    } else {
-                        [Side::Left, Side::Right]
-                    };
-                    let (w, s, c) = parse_border_side(p)?;
-                    for side in sides {
-                        out.extend(side.border(w.clone(), s, c));
-                    }
-                    Ok(())
-                }
-                S::BorderWidth => four_sides(
-                    p,
-                    out,
-                    |p| parse_line_width(p, quirks),
-                    |v| Side::zip(v, Side::width),
-                ),
-                S::BorderStyle => {
-                    four_sides(p, out, parse_border_style, |v| Side::zip(v, Side::style))
-                }
-                S::BorderColor => four_sides(p, out, parse_color, |v| Side::zip(v, Side::color)),
-                S::BorderBlockWidth => two_sides(
-                    p,
-                    out,
-                    |p| parse_line_width(p, false),
-                    |[a, b]| vec![Side::Top.width(a), Side::Bottom.width(b)],
-                ),
-                S::BorderBlockStyle => two_sides(p, out, parse_border_style, |[a, b]| {
-                    vec![Side::Top.style(a), Side::Bottom.style(b)]
-                }),
-                S::BorderBlockColor => two_sides(p, out, parse_color, |[a, b]| {
-                    vec![Side::Top.color(a), Side::Bottom.color(b)]
-                }),
-                S::BorderInlineWidth => two_sides(
-                    p,
-                    out,
-                    |p| parse_line_width(p, false),
-                    |[a, b]| vec![Side::Left.width(a), Side::Right.width(b)],
-                ),
-                S::BorderInlineStyle => two_sides(p, out, parse_border_style, |[a, b]| {
-                    vec![Side::Left.style(a), Side::Right.style(b)]
-                }),
-                S::BorderInlineColor => two_sides(p, out, parse_color, |[a, b]| {
-                    vec![Side::Left.color(a), Side::Right.color(b)]
-                }),
-                S::BorderRadius => parse_border_radius(p, out),
-                S::BorderSpacing => {
-                    let h = non_negative_length(p, quirks)?;
-                    let v = non_negative_length(p, quirks).unwrap_or_else(|_| h.clone());
-                    out.push(LonghandValue::BorderSpacingHorizontal(h));
-                    out.push(LonghandValue::BorderSpacingVertical(v));
-                    Ok(())
-                }
-                S::Outline => parse_outline(p, out),
-                S::Background => parse_background(p, cx, out),
-                S::BackgroundPosition => {
-                    let positions: Vec<(SpecifiedPosition, SpecifiedPosition)> =
-                        p.parse_comma_separated(|p| parse_bg_position(p, quirks))?;
-                    let (x, y): (Vec<_>, Vec<_>) = positions.into_iter().unzip();
-                    out.push(LonghandValue::BackgroundPositionX(Arc::from(x)));
-                    out.push(LonghandValue::BackgroundPositionY(Arc::from(y)));
-                    Ok(())
-                }
-                S::Mask
+                S::Flex
+                | S::FlexFlow
+                | S::Gap
+                | S::Columns
+                | S::Overflow
+                | S::PlaceContent
+                | S::PlaceItems
+                | S::PlaceSelf => parse_layout_shorthand(self, p, out),
+                // No `_` arm: a new shorthand must be added to a group.
+                S::BorderRadius
+                | S::BorderSpacing
+                | S::Outline
+                | S::Background
+                | S::BackgroundPosition
+                | S::Mask
                 | S::WebkitMask
                 | S::MaskPosition
                 | S::WebkitMaskPosition
                 | S::WebkitMaskOrigin
                 | S::WebkitMaskClip
-                | S::WebkitMaskComposite => super::mask::parse_shorthand(self, p, cx, out),
-                S::Font => parse_font(p, out),
-                S::FontVariant => {
-                    out.push(LonghandValue::FontVariantCaps(parse_font_variant(p)?));
-                    Ok(())
-                }
-                S::ListStyle => parse_list_style(p, cx, out),
-                S::TextDecoration => parse_text_decoration(p, out),
-                S::Flex => parse_flex(p, out),
-                S::FlexFlow => parse_flex_flow(p, out),
-                S::Gap => {
-                    let row = parse_gap(p)?;
-                    let column = if p.is_exhausted() {
-                        row.clone()
-                    } else {
-                        parse_gap(p)?
-                    };
-                    out.push(LonghandValue::RowGap(row));
-                    out.push(LonghandValue::ColumnGap(column));
-                    Ok(())
-                }
-                S::Columns => parse_columns(p, out),
-                S::Overflow => {
-                    let x = keyword(p, Overflow::from_ident)?;
-                    let y = keyword(p, Overflow::from_ident).unwrap_or(x);
-                    out.push(LonghandValue::OverflowX(x));
-                    out.push(LonghandValue::OverflowY(y));
-                    Ok(())
-                }
-                S::PlaceContent => {
-                    let align = parse_alignment(p, AlignKind::AlignContent)?;
-                    let justify = if p.is_exhausted() {
-                        if align == crate::values::Alignment::Baseline {
-                            crate::values::Alignment::Start
-                        } else {
-                            align
-                        }
-                    } else {
-                        parse_alignment(p, AlignKind::JustifyContent)?
-                    };
-                    out.push(LonghandValue::AlignContent(align));
-                    out.push(LonghandValue::JustifyContent(justify));
-                    Ok(())
-                }
-                // An omitted second value copies the first (CSS Align 3
-                // §6.3, §6.1).
-                S::PlaceItems => {
-                    let align = parse_alignment(p, AlignKind::AlignItems)?;
-                    let justify = if p.is_exhausted() {
-                        align
-                    } else {
-                        parse_alignment(p, AlignKind::JustifyItems)?
-                    };
-                    out.push(LonghandValue::AlignItems(align));
-                    out.push(LonghandValue::JustifyItems(justify));
-                    Ok(())
-                }
-                S::PlaceSelf => {
-                    let align = parse_alignment(p, AlignKind::AlignSelf)?;
-                    let justify = if p.is_exhausted() {
-                        align
-                    } else {
-                        parse_alignment(p, AlignKind::JustifySelf)?
-                    };
-                    out.push(LonghandValue::AlignSelf(align));
-                    out.push(LonghandValue::JustifySelf(justify));
-                    Ok(())
-                }
-                S::GridRow => {
-                    let (start, end) = grid::parse_grid_line_pair(p)?;
-                    out.push(LonghandValue::GridRowStart(start));
-                    out.push(LonghandValue::GridRowEnd(end));
-                    Ok(())
-                }
-                S::GridColumn => {
-                    let (start, end) = grid::parse_grid_line_pair(p)?;
-                    out.push(LonghandValue::GridColumnStart(start));
-                    out.push(LonghandValue::GridColumnEnd(end));
-                    Ok(())
-                }
-                S::GridArea => {
-                    let [row_start, column_start, row_end, column_end] = grid::parse_grid_area(p)?;
-                    out.push(LonghandValue::GridRowStart(row_start));
-                    out.push(LonghandValue::GridColumnStart(column_start));
-                    out.push(LonghandValue::GridRowEnd(row_end));
-                    out.push(LonghandValue::GridColumnEnd(column_end));
-                    Ok(())
-                }
-                S::GridTemplate => {
-                    push_grid_template(grid::parse_grid_template(p)?, out);
-                    Ok(())
-                }
-                S::Grid => {
-                    let g = grid::parse_grid(p)?;
-                    push_grid_template(g.template, out);
-                    out.push(LonghandValue::GridAutoRows(g.auto_rows));
-                    out.push(LonghandValue::GridAutoColumns(g.auto_columns));
-                    out.push(LonghandValue::GridAutoFlow(g.auto_flow));
-                    Ok(())
-                }
+                | S::WebkitMaskComposite
+                | S::Font
+                | S::FontVariant
+                | S::ListStyle
+                | S::TextDecoration => parse_paint_shorthand(self, p, cx, out),
             }
         })
+    }
+}
+
+/// Parses the margin, padding and inset shorthands.
+fn parse_box_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    cx: &ParserContext,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    let quirks = cx.quirks;
+    match id {
+        S::Margin => four_sides(p, out, |p| lp_or_auto(p, quirks), margin_values),
+        S::MarginBlock => two_sides(
+            p,
+            out,
+            |p| lp_or_auto(p, false),
+            |[a, b]| vec![LonghandValue::MarginTop(a), LonghandValue::MarginBottom(b)],
+        ),
+        S::MarginInline => two_sides(
+            p,
+            out,
+            |p| lp_or_auto(p, false),
+            |[a, b]| vec![LonghandValue::MarginLeft(a), LonghandValue::MarginRight(b)],
+        ),
+        S::Padding => four_sides(
+            p,
+            out,
+            |p| padding(p, quirks),
+            |[t, r, b, l]| {
+                vec![
+                    LonghandValue::PaddingTop(t),
+                    LonghandValue::PaddingRight(r),
+                    LonghandValue::PaddingBottom(b),
+                    LonghandValue::PaddingLeft(l),
+                ]
+            },
+        ),
+        S::PaddingBlock => two_sides(
+            p,
+            out,
+            |p| padding(p, false),
+            |[a, b]| {
+                vec![
+                    LonghandValue::PaddingTop(a),
+                    LonghandValue::PaddingBottom(b),
+                ]
+            },
+        ),
+        S::PaddingInline => two_sides(
+            p,
+            out,
+            |p| padding(p, false),
+            |[a, b]| {
+                vec![
+                    LonghandValue::PaddingLeft(a),
+                    LonghandValue::PaddingRight(b),
+                ]
+            },
+        ),
+        S::Inset => four_sides(
+            p,
+            out,
+            |p| lp_or_auto(p, false),
+            |[t, r, b, l]| {
+                vec![
+                    LonghandValue::Top(t),
+                    LonghandValue::Right(r),
+                    LonghandValue::Bottom(b),
+                    LonghandValue::Left(l),
+                ]
+            },
+        ),
+        S::InsetBlock => two_sides(
+            p,
+            out,
+            |p| lp_or_auto(p, false),
+            |[a, b]| vec![LonghandValue::Top(a), LonghandValue::Bottom(b)],
+        ),
+        S::InsetInline => two_sides(
+            p,
+            out,
+            |p| lp_or_auto(p, false),
+            |[a, b]| vec![LonghandValue::Left(a), LonghandValue::Right(b)],
+        ),
+        _ => Err(ParseError::Invalid),
+    }
+}
+
+/// Parses the border shorthands.
+fn parse_border_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    cx: &ParserContext,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    let quirks = cx.quirks;
+    match id {
+        S::Border => {
+            let (w, s, c) = parse_border_side(p)?;
+            for side in Side::ALL {
+                out.extend(side.border(w.clone(), s, c));
+            }
+            Ok(())
+        }
+        S::BorderTop | S::BorderRight | S::BorderBottom | S::BorderLeft => {
+            let side = match id {
+                S::BorderTop => Side::Top,
+                S::BorderRight => Side::Right,
+                S::BorderBottom => Side::Bottom,
+                _ => Side::Left,
+            };
+            let (w, s, c) = parse_border_side(p)?;
+            out.extend(side.border(w, s, c));
+            Ok(())
+        }
+        S::BorderBlock | S::BorderInline => {
+            let sides = if id == S::BorderBlock {
+                [Side::Top, Side::Bottom]
+            } else {
+                [Side::Left, Side::Right]
+            };
+            let (w, s, c) = parse_border_side(p)?;
+            for side in sides {
+                out.extend(side.border(w.clone(), s, c));
+            }
+            Ok(())
+        }
+        S::BorderWidth => four_sides(
+            p,
+            out,
+            |p| parse_line_width(p, quirks),
+            |v| Side::zip(v, Side::width),
+        ),
+        S::BorderStyle => four_sides(p, out, parse_border_style, |v| Side::zip(v, Side::style)),
+        S::BorderColor => four_sides(p, out, parse_color, |v| Side::zip(v, Side::color)),
+        S::BorderBlockWidth => two_sides(
+            p,
+            out,
+            |p| parse_line_width(p, false),
+            |[a, b]| vec![Side::Top.width(a), Side::Bottom.width(b)],
+        ),
+        S::BorderBlockStyle => two_sides(p, out, parse_border_style, |[a, b]| {
+            vec![Side::Top.style(a), Side::Bottom.style(b)]
+        }),
+        S::BorderBlockColor => two_sides(p, out, parse_color, |[a, b]| {
+            vec![Side::Top.color(a), Side::Bottom.color(b)]
+        }),
+        S::BorderInlineWidth => two_sides(
+            p,
+            out,
+            |p| parse_line_width(p, false),
+            |[a, b]| vec![Side::Left.width(a), Side::Right.width(b)],
+        ),
+        S::BorderInlineStyle => two_sides(p, out, parse_border_style, |[a, b]| {
+            vec![Side::Left.style(a), Side::Right.style(b)]
+        }),
+        S::BorderInlineColor => two_sides(p, out, parse_color, |[a, b]| {
+            vec![Side::Left.color(a), Side::Right.color(b)]
+        }),
+        _ => Err(ParseError::Invalid),
+    }
+}
+
+/// Parses the border radius and spacing, outline, background, mask, font,
+/// list style and text decoration shorthands.
+fn parse_paint_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    cx: &ParserContext,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    let quirks = cx.quirks;
+    match id {
+        S::BorderRadius => parse_border_radius(p, out),
+        S::BorderSpacing => {
+            let h = non_negative_length(p, quirks)?;
+            let v = non_negative_length(p, quirks).unwrap_or_else(|_| h.clone());
+            out.push(LonghandValue::BorderSpacingHorizontal(h));
+            out.push(LonghandValue::BorderSpacingVertical(v));
+            Ok(())
+        }
+        S::Outline => parse_outline(p, out),
+        S::Background => parse_background(p, cx, out),
+        S::BackgroundPosition => {
+            let positions: Vec<(SpecifiedPosition, SpecifiedPosition)> =
+                p.parse_comma_separated(|p| parse_bg_position(p, quirks))?;
+            let (x, y): (Vec<_>, Vec<_>) = positions.into_iter().unzip();
+            out.push(LonghandValue::BackgroundPositionX(Arc::from(x)));
+            out.push(LonghandValue::BackgroundPositionY(Arc::from(y)));
+            Ok(())
+        }
+        S::Mask
+        | S::WebkitMask
+        | S::MaskPosition
+        | S::WebkitMaskPosition
+        | S::WebkitMaskOrigin
+        | S::WebkitMaskClip
+        | S::WebkitMaskComposite => super::mask::parse_shorthand(id, p, cx, out),
+        S::Font => parse_font(p, out),
+        S::FontVariant => {
+            out.push(LonghandValue::FontVariantCaps(parse_font_variant(p)?));
+            Ok(())
+        }
+        S::ListStyle => parse_list_style(p, cx, out),
+        S::TextDecoration => parse_text_decoration(p, out),
+        _ => Err(ParseError::Invalid),
+    }
+}
+
+/// Parses the flex, gap, columns, overflow and alignment shorthands.
+fn parse_layout_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    match id {
+        S::Flex => parse_flex(p, out),
+        S::FlexFlow => parse_flex_flow(p, out),
+        S::Gap => {
+            let row = parse_gap(p)?;
+            let column = if p.is_exhausted() {
+                row.clone()
+            } else {
+                parse_gap(p)?
+            };
+            out.push(LonghandValue::RowGap(row));
+            out.push(LonghandValue::ColumnGap(column));
+            Ok(())
+        }
+        S::Columns => parse_columns(p, out),
+        S::Overflow => {
+            let x = keyword(p, Overflow::from_ident)?;
+            let y = keyword(p, Overflow::from_ident).unwrap_or(x);
+            out.push(LonghandValue::OverflowX(x));
+            out.push(LonghandValue::OverflowY(y));
+            Ok(())
+        }
+        S::PlaceContent => {
+            let align = parse_alignment(p, AlignKind::AlignContent)?;
+            let justify = if p.is_exhausted() {
+                if align == crate::values::Alignment::Baseline {
+                    crate::values::Alignment::Start
+                } else {
+                    align
+                }
+            } else {
+                parse_alignment(p, AlignKind::JustifyContent)?
+            };
+            out.push(LonghandValue::AlignContent(align));
+            out.push(LonghandValue::JustifyContent(justify));
+            Ok(())
+        }
+        // An omitted second value copies the first (CSS Align 3
+        // §6.3, §6.1).
+        S::PlaceItems => {
+            let align = parse_alignment(p, AlignKind::AlignItems)?;
+            let justify = if p.is_exhausted() {
+                align
+            } else {
+                parse_alignment(p, AlignKind::JustifyItems)?
+            };
+            out.push(LonghandValue::AlignItems(align));
+            out.push(LonghandValue::JustifyItems(justify));
+            Ok(())
+        }
+        S::PlaceSelf => {
+            let align = parse_alignment(p, AlignKind::AlignSelf)?;
+            let justify = if p.is_exhausted() {
+                align
+            } else {
+                parse_alignment(p, AlignKind::JustifySelf)?
+            };
+            out.push(LonghandValue::AlignSelf(align));
+            out.push(LonghandValue::JustifySelf(justify));
+            Ok(())
+        }
+        _ => Err(ParseError::Invalid),
+    }
+}
+
+/// Parses the grid shorthands.
+fn parse_grid_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    match id {
+        S::GridRow => {
+            let (start, end) = grid::parse_grid_line_pair(p)?;
+            out.push(LonghandValue::GridRowStart(start));
+            out.push(LonghandValue::GridRowEnd(end));
+            Ok(())
+        }
+        S::GridColumn => {
+            let (start, end) = grid::parse_grid_line_pair(p)?;
+            out.push(LonghandValue::GridColumnStart(start));
+            out.push(LonghandValue::GridColumnEnd(end));
+            Ok(())
+        }
+        S::GridArea => {
+            let [row_start, column_start, row_end, column_end] = grid::parse_grid_area(p)?;
+            out.push(LonghandValue::GridRowStart(row_start));
+            out.push(LonghandValue::GridColumnStart(column_start));
+            out.push(LonghandValue::GridRowEnd(row_end));
+            out.push(LonghandValue::GridColumnEnd(column_end));
+            Ok(())
+        }
+        S::GridTemplate => {
+            push_grid_template(grid::parse_grid_template(p)?, out);
+            Ok(())
+        }
+        S::Grid => {
+            let g = grid::parse_grid(p)?;
+            push_grid_template(g.template, out);
+            out.push(LonghandValue::GridAutoRows(g.auto_rows));
+            out.push(LonghandValue::GridAutoColumns(g.auto_columns));
+            out.push(LonghandValue::GridAutoFlow(g.auto_flow));
+            Ok(())
+        }
+        _ => Err(ParseError::Invalid),
     }
 }
 

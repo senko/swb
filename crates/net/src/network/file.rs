@@ -10,6 +10,7 @@ use url::Url;
 
 use super::MAX_BODY_SIZE;
 use crate::error::NetError;
+use crate::escape::escape_html;
 use crate::file_types::mime_type_for_extension;
 use crate::headers::Headers;
 use crate::response::Response;
@@ -143,20 +144,6 @@ fn push_link(html: &mut String, href: &Url, label: &str) {
         escape_html(href.as_str()),
         escape_html(label)
     );
-}
-
-fn escape_html(text: &str) -> String {
-    let mut escaped = String::with_capacity(text.len());
-    for c in text.chars() {
-        match c {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            '"' => escaped.push_str("&quot;"),
-            _ => escaped.push(c),
-        }
-    }
-    escaped
 }
 
 #[cfg(test)]

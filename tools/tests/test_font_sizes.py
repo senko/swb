@@ -11,7 +11,7 @@ import pytest
 
 from swbtools import font_sizes as fs
 from swbtools import paths
-from swbtools.measure import in_chromium
+from swbtools.browser import in_chromium
 
 # The bundled fonts, as `read_units` reads them from Chromium.
 UNITS = fs.Units(zero=(1229, 1024, 1303), a=1366, v=1366, kern_av=-152, kern_va=-152)

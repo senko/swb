@@ -1,7 +1,7 @@
 //! Values of `input` elements: value sanitization and the HTML
 //! microsyntaxes of numbers, dates and times.
 
-use swb_dom::{ElementData, is_html_whitespace};
+use swb_dom::{ElementData, is_html_whitespace, is_valid_float};
 
 use super::{DateType, InputType};
 
@@ -204,56 +204,9 @@ fn shortest_time(time: &str) -> String {
     }
 }
 
-/// True for a valid floating-point number
-/// (<https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number>).
-fn is_valid_float(s: &str) -> bool {
-    let s = s.strip_prefix('-').unwrap_or(s);
-    let (mantissa, exponent) = match s.split_once(['e', 'E']) {
-        Some((m, e)) => (m, Some(e)),
-        None => (s, None),
-    };
-    let (int, frac) = match mantissa.split_once('.') {
-        Some((int, frac)) => (int, Some(frac)),
-        None => (mantissa, None),
-    };
-    let digits = |d: &str| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit());
-    let mantissa_ok = match frac {
-        Some(frac) => (int.is_empty() || digits(int)) && digits(frac),
-        None => digits(int),
-    };
-    let exponent_ok = exponent.is_none_or(|e| digits(e.strip_prefix(['+', '-']).unwrap_or(e)));
-    mantissa_ok && exponent_ok
-}
-
-/// Parses an attribute with the rules for parsing non-negative integers;
-/// values above `u32::MAX` saturate.
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers>
-pub(crate) fn parse_non_negative(value: &str) -> Option<u32> {
-    let value = value.trim_start_matches(is_html_whitespace);
-    let value = value.strip_prefix('+').unwrap_or(value);
-    let end = value
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(value.len());
-    let digits = value.get(..end).filter(|d| !d.is_empty())?;
-    Some(digits.parse::<u32>().unwrap_or(u32::MAX))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn number_syntax() {
-        for valid in ["0", "-1", "1.5", ".5", "1e5", "1E-5", "-0.5e+2"] {
-            assert!(is_valid_float(valid), "{valid}");
-        }
-        for invalid in ["", "-", "1.", "+1", "1e", "e5", "1.2.3", " 1", "0x1"] {
-            assert!(!is_valid_float(invalid), "{invalid}");
-        }
-        assert_eq!(parse_non_negative(" 17px"), Some(17));
-        assert_eq!(parse_non_negative("99999999999"), Some(u32::MAX));
-        assert_eq!(parse_non_negative("-1"), None);
-    }
 
     #[test]
     fn dates_and_times() {

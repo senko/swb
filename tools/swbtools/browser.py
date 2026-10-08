@@ -6,10 +6,19 @@ reasons for each one are in docs/testing.md ("Chromium settings").
 
 import logging
 import os
+import tempfile
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from html import escape
 from pathlib import Path
 
-from playwright.async_api import Browser, BrowserContext, Page, Playwright
+from playwright.async_api import (
+    Browser,
+    BrowserContext,
+    Page,
+    Playwright,
+    async_playwright,
+)
 
 from swbtools import paths
 from swbtools.boxes import COLLECT_JS, BoxDump, from_page_data
@@ -98,6 +107,36 @@ async def new_context(browser: Browser, viewport: tuple[int, int]) -> BrowserCon
         reduced_motion="no-preference",
         service_workers="block",
     )
+
+
+@asynccontextmanager
+async def session(
+    viewport: tuple[int, int], system_fonts: bool = False
+) -> AsyncIterator[tuple[Browser, BrowserContext, Page]]:
+    """Starts Chromium with the test settings and yields the browser, a
+    context with `viewport` and a new page. Closes Chromium on exit, also
+    when the body fails."""
+    async with async_playwright() as playwright:
+        chromium = await launch(playwright, system_fonts)
+        try:
+            context = await new_context(chromium, viewport)
+            yield chromium, context, await context.new_page()
+        finally:
+            await chromium.close()
+
+
+async def in_chromium[T](run: Callable[[Page, Path], Awaitable[T]]) -> T:
+    """Calls `run` with a Chromium page (the layout test settings) and a
+    temporary directory for the pages."""
+    async with session(LAYOUT_VIEWPORT) as (_, _, page):
+        with tempfile.TemporaryDirectory(prefix="swb-measure-") as directory:
+            return await run(page, Path(directory))
+
+
+async def load_html(page: Page, path: Path, html: str) -> None:
+    """Writes `html` to `path` and loads that file in `page`."""
+    path.write_text(html, encoding="utf-8")
+    await page.goto(path.as_uri(), wait_until="load")
 
 
 async def scroll_through(page: Page, pause_ms: int = 250) -> None:

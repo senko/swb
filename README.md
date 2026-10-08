@@ -13,11 +13,14 @@ this repository. There is no JavaScript support yet.
 
 ## Status
 
-Early development. Static pages render, with tables, SVG images and
-quirks mode; links, scrolling, back/forward, the address bar, hover
-effects, keyboard focus (Tab), text selection with copy, forms (GET and
-POST) and cookies work. No JavaScript, floats, absolute or fixed
-positioning, or grid yet.
+Early development. Static pages render, with tables, floats, flexbox,
+grid, absolute, fixed and sticky positioning, 2D transforms, masks,
+scroll containers, SVG images, responsive images, video posters, CSS
+counters and quirks mode; links, scrolling, back/forward, the address
+bar, hover effects, keyboard focus (Tab), text selection with copy, forms
+(GET and POST) and cookies work. No JavaScript yet. The three target
+pages (senko.net, Hacker News, a Wikipedia article) match Chromium's
+layout.
 See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 
 ## Build and run

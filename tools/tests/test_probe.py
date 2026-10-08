@@ -10,8 +10,8 @@ import pytest
 
 from swbtools import paths, swb
 from swbtools.boxes import BoxDump, Element
+from swbtools.browser import in_chromium
 from swbtools.cli import build_parser
-from swbtools.measure import in_chromium
 from swbtools.probe import (
     Case,
     CaseResult,

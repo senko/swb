@@ -1,5 +1,5 @@
-//! Table layout: the table box tree and the entry points that block,
-//! inline and intrinsic layout call.
+//! Tables: the table box tree and the module overview. The entry points
+//! that block, inline and intrinsic layout call are in `layout.rs`.
 //!
 //! The algorithms follow Chromium's `LayoutNG` table layout, which
 //! implements CSS Tables 3 (<https://www.w3.org/TR/css-tables-3/>) where

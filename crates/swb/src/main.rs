@@ -1,4 +1,10 @@
-//! The swb web browser.
+//! The swb web browser: command-line parsing and the choice of mode.
+//!
+//! - Window (default): the GUI in `gui`.
+//! - `--headless`: render one page to a screenshot or a dump, or time the
+//!   pipeline stages with `--bench` (`headless`, `bench`).
+//! - `--remote-port`: serve the automation protocol, with or without a
+//!   window.
 
 mod bench;
 mod gui;

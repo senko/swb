@@ -97,12 +97,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use log::warn;
-use swb_dom::{Document, ElementData, NodeId, local_name};
+use swb_dom::{Document, ElementData, NodeId, local_name, parse_integer};
 
 use crate::ComputedStyle;
 use crate::counter_style::counter_text;
 use crate::element_kinds;
-use crate::hints::parse_integer;
 use crate::style_map::{PseudoKind, StyleMap};
 use crate::values::{Content, ContentItem, CounterList, Display, ListStyleType};
 

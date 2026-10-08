@@ -553,7 +553,7 @@ fn hwb_to_srgb(hue: f32, white: f32, black: f32) -> [f32; 3] {
 /// `text` and similar attributes).
 /// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value>
 pub(crate) fn parse_legacy_color(input: &str) -> Option<Rgba> {
-    let input = input.trim_matches(|c| matches!(c, ' ' | '\t' | '\n' | '\x0C' | '\r'));
+    let input = input.trim_matches(swb_dom::is_html_whitespace);
     if input.is_empty() || input.eq_ignore_ascii_case("transparent") {
         return None;
     }

@@ -413,9 +413,7 @@ async def _fresh_widths(chromium: Browser, directory: Path, name: str, html: str
     context = await browser.new_context(chromium, browser.LAYOUT_VIEWPORT)
     try:
         page = await context.new_page()
-        path = directory / f"{name}.html"
-        path.write_text(html, encoding="utf-8")
-        await page.goto(path.as_uri(), wait_until="load")
+        await browser.load_html(page, directory / f"{name}.html", html)
         return await page.evaluate(_WIDTHS_JS)
     finally:
         await context.close()
@@ -463,9 +461,7 @@ async def measure_scan(
 ) -> dict[int, list[float]]:
     """The widths of the CSS sizes `milli_sizes` in one page, in this
     order."""
-    path = directory / "scan.html"
-    path.write_text(scan_page(milli_sizes), encoding="utf-8")
-    await page.goto(path.as_uri(), wait_until="load")
+    await browser.load_html(page, directory / "scan.html", scan_page(milli_sizes))
     flat = await page.evaluate(_WIDTHS_JS)
     per_row = len(ZERO_FAMILIES) + 1
     return {m: flat[i * per_row : (i + 1) * per_row] for i, m in enumerate(milli_sizes)}

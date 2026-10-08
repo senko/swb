@@ -38,13 +38,14 @@ The data format is described in `crates/text/tests/linebreak/README.md`.
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
 
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import Page
 
 from swbtools import browser, paths
 
@@ -228,29 +229,28 @@ class Session:
 
     def __init__(self, system_fonts: bool = False) -> None:
         self._system_fonts = system_fonts
-        self._playwright = None
-        self._browser = None
+        self._chromium = None
+        self._open = contextlib.AsyncExitStack()
         self.page: Page | None = None
 
     async def __aenter__(self) -> "Session":
-        self._playwright = await async_playwright().start()
-        self._browser = await browser.launch(self._playwright, self._system_fonts)
-        context = await browser.new_context(self._browser, browser.LAYOUT_VIEWPORT)
-        self.page = await context.new_page()
-        await self.page.set_content("<!DOCTYPE html><html><body></body></html>")
+        session = browser.session(browser.LAYOUT_VIEWPORT, self._system_fonts)
+        try:
+            self._chromium, _, self.page = await self._open.enter_async_context(session)
+            await self.page.set_content("<!DOCTYPE html><html><body></body></html>")
+        except BaseException:
+            await self._open.aclose()
+            raise
         return self
 
     async def __aexit__(self, *_: object) -> None:
-        if self._browser is not None:
-            await self._browser.close()
-        if self._playwright is not None:
-            await self._playwright.stop()
+        await self._open.aclose()
 
     @property
     def version(self) -> str:
         """The Chromium version."""
-        assert self._browser is not None, "the session is open"
-        return self._browser.version
+        assert self._chromium is not None, "the session is open"
+        return self._chromium.version
 
     async def measure(self, texts: Sequence[str], mode: Mode = NORMAL) -> list[Breaks]:
         """See `measure`."""

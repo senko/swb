@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use encoding_rs::Encoding;
 use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
 use swb_layout::Point;
-use swb_net::{Destination, Request, Response, Url};
+use swb_net::{Destination, Request, Response, Url, escape_html};
 
 use super::scroll::indicated;
 use super::{LoadState, Page, about_blank, is_loadable};
@@ -247,14 +247,7 @@ impl Page {
                     });
                 }
                 local_name!("link") => {
-                    let is_stylesheet = element.attr("rel").is_some_and(|rel| {
-                        rel.split_ascii_whitespace()
-                            .any(|r| r.eq_ignore_ascii_case("stylesheet"))
-                            && !rel
-                                .split_ascii_whitespace()
-                                .any(|r| r.eq_ignore_ascii_case("alternate"))
-                    });
-                    if !is_stylesheet {
+                    if !element.attr("rel").is_some_and(is_stylesheet_rel) {
                         continue;
                     }
                     let Some(url) = element.attr("href").and_then(|h| base.join(h.trim()).ok())
@@ -289,7 +282,17 @@ impl Page {
                 _ => {}
             }
         }
-        for (slot, url) in sheet_loads {
+        self.start_stylesheets(sheet_loads);
+        for url in image_loads {
+            self.start_image(url);
+        }
+        self.select_image_sources();
+    }
+
+    /// Starts the requests of the external stylesheets `loads` (slot,
+    /// URL); a stylesheet that the document may not load fails.
+    fn start_stylesheets(&mut self, loads: Vec<(usize, Url)>) {
+        for (slot, url) in loads {
             if !self.may_load_subresource(&url) {
                 if let Some(sheet) = self.sheets.get_mut(slot) {
                     sheet.failed = true;
@@ -304,10 +307,6 @@ impl Page {
                 .pending
                 .insert(id, Pending::Stylesheet { slot });
         }
-        for url in image_loads {
-            self.start_image(url);
-        }
-        self.select_image_sources();
     }
 
     /// Selects the source of each image for the current viewport and scale
@@ -443,10 +442,13 @@ fn document_title(doc: &Document) -> String {
     })
 }
 
-/// Escapes text for inclusion in generated HTML.
-fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+/// True for a `rel` value that makes a `link` a primary stylesheet:
+/// `stylesheet` without `alternate`.
+/// <https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet>
+fn is_stylesheet_rel(rel: &str) -> bool {
+    let has = |word: &str| {
+        rel.split_ascii_whitespace()
+            .any(|r| r.eq_ignore_ascii_case(word))
+    };
+    has("stylesheet") && !has("alternate")
 }

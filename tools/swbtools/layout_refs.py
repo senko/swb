@@ -14,8 +14,6 @@ import asyncio
 import logging
 from pathlib import Path
 
-from playwright.async_api import async_playwright
-
 from swbtools import browser, paths
 from swbtools.boxes import BoxDump, write_dump
 
@@ -59,10 +57,7 @@ def _dump_url(file: Path) -> str:
 
 async def dump_layout_tests(files: list[Path], system_fonts: bool) -> None:
     """Writes the box dump of each file next to it."""
-    async with async_playwright() as playwright:
-        chromium = await browser.launch(playwright, system_fonts)
-        context = await browser.new_context(chromium, browser.LAYOUT_VIEWPORT)
-        page = await context.new_page()
+    async with browser.session(browser.LAYOUT_VIEWPORT, system_fonts) as (_, _, page):
         for file in (file.resolve() for file in files):
             await page.goto(file.as_uri(), wait_until="load")
             await browser.stop_animations(page)
@@ -70,7 +65,6 @@ async def dump_layout_tests(files: list[Path], system_fonts: bool) -> None:
             dump = await browser.collect_boxes(page, _dump_url(file))
             write_dump(boxes_path(file), dump)
             print(f"{_dump_url(boxes_path(file))}: {_count_boxes(dump)} boxes")
-        await chromium.close()
 
 
 def _count_boxes(dump: BoxDump) -> int:

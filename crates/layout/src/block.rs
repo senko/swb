@@ -190,10 +190,22 @@ pub(crate) fn resolve_max_size(
     Some(content_size(v, box_sizing, edges))
 }
 
-fn content_size(v: f32, box_sizing: BoxSizing, edges: f32) -> f32 {
+/// The content-box size of a specified size `v` of a box with padding and
+/// border `edges` (`v` is a border-box size with `box-sizing: border-box`).
+pub(crate) fn content_size(v: f32, box_sizing: BoxSizing, edges: f32) -> f32 {
     match box_sizing {
         BoxSizing::ContentBox => v.max(0.0),
         BoxSizing::BorderBox => (v - edges).max(0.0),
+    }
+}
+
+/// The outer (border-box) size of a specified size `v` of a box with
+/// `border_padding`: with `box-sizing: border-box`, at least the border and
+/// padding.
+pub(crate) fn outer_size(box_sizing: BoxSizing, v: f32, border_padding: f32) -> f32 {
+    match box_sizing {
+        BoxSizing::ContentBox => v + border_padding,
+        BoxSizing::BorderBox => v.max(border_padding),
     }
 }
 
@@ -213,41 +225,59 @@ pub(crate) fn clamp_height(
     cb_height: Option<f32>,
     edges: f32,
 ) -> f32 {
-    HeightLimits::of(style, cb_height, edges).clamp(height)
+    SizeLimits::of_height(style, cb_height, edges).clamp(height)
 }
 
-/// The used `min-height` and `max-height` of a box, as content-box
-/// heights. `max` is at least `min`: the minimum wins (CSS 2.2 §10.7).
+/// The used minimum and maximum size of a box on one axis (`min-height`
+/// and `max-height`, or `min-width` and `max-width`), as content-box
+/// sizes. `max` is at least `min`: the minimum wins (CSS 2.2 §10.4 and
+/// §10.7).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct HeightLimits {
+pub(crate) struct SizeLimits {
     min: f32,
     max: f32,
 }
 
-impl HeightLimits {
+impl SizeLimits {
     /// No limits: `min-height: 0` and `max-height: none`.
-    pub(crate) const NONE: HeightLimits = HeightLimits {
+    pub(crate) const NONE: SizeLimits = SizeLimits {
         min: 0.0,
         max: f32::INFINITY,
     };
 
     /// Limits from a minimum and a maximum; the minimum wins.
     pub(crate) fn new(min: f32, max: f32) -> Self {
-        HeightLimits {
+        SizeLimits {
             min,
             max: max.max(min),
         }
     }
 
-    /// The limits of a box with `style` in a containing block of height
-    /// `cb_height` (percentages of an indefinite height are ignored).
-    /// `edges` is the vertical padding and border.
-    pub(crate) fn of(style: &ComputedStyle, cb_height: Option<f32>, edges: f32) -> Self {
-        HeightLimits::new(
+    /// The height limits of a box with `style` in a containing block of
+    /// height `cb_height` (percentages of an indefinite height are
+    /// ignored). `edges` is the vertical padding and border.
+    pub(crate) fn of_height(style: &ComputedStyle, cb_height: Option<f32>, edges: f32) -> Self {
+        SizeLimits::new(
             resolve_size(&style.min_height, cb_height, style.box_sizing, edges).unwrap_or(0.0),
             resolve_max_size(&style.max_height, cb_height, style.box_sizing, edges)
                 .unwrap_or(f32::INFINITY),
         )
+    }
+
+    /// The same limits for `min-width` and `max-width` against the
+    /// containing block width `cb_width`. `edges` is the horizontal
+    /// padding and border.
+    pub(crate) fn of_width(style: &ComputedStyle, cb_width: Option<f32>, edges: f32) -> Self {
+        SizeLimits::new(
+            resolve_size(&style.min_width, cb_width, style.box_sizing, edges).unwrap_or(0.0),
+            resolve_max_size(&style.max_width, cb_width, style.box_sizing, edges)
+                .unwrap_or(f32::INFINITY),
+        )
+    }
+
+    /// The used min size.
+    pub(crate) fn min(self) -> f32 {
+        self.min
     }
 
     /// The used max-height (infinite for `none`).
@@ -1343,8 +1373,8 @@ pub(crate) fn layout_sized(
     // A given content height is final; otherwise min-height and max-height
     // apply (flex layout uses them too).
     let limits = match content_height {
-        Some(_) => HeightLimits::NONE,
-        None => HeightLimits::of(style, cb.height, edge_sum.vertical()),
+        Some(_) => SizeLimits::NONE,
+        None => SizeLimits::of_height(style, cb.height, edge_sum.vertical()),
     };
     // The list item's own marker waits for a line box in its content.
     let mut markers: Vec<PendingMarker<'_>> = ib
@@ -1392,7 +1422,7 @@ pub(crate) fn layout_contents<'a>(
     ctx: &mut LayoutContext<'_>,
     ib: &'a IndependentBox,
     cb: ContainingBlock,
-    limits: HeightLimits,
+    limits: SizeLimits,
     markers: &mut Vec<PendingMarker<'a>>,
 ) -> ChildrenLayout {
     let style = &ib.base.style;
@@ -1808,13 +1838,13 @@ mod tests {
 
     #[test]
     fn height_limits_let_the_minimum_win() {
-        let limits = HeightLimits::new(50.0, 30.0);
+        let limits = SizeLimits::new(50.0, 30.0);
         assert_eq!(limits.clamp(10.0), 50.0);
         assert_eq!(limits.clamp(100.0), 50.0);
         assert_eq!(limits.max(), 50.0);
         assert_eq!(limits.clamp(f32::NAN), 50.0);
-        assert_eq!(HeightLimits::NONE.clamp(1e6), 1e6);
-        assert_eq!(HeightLimits::NONE.clamp(f32::NAN), 0.0);
+        assert_eq!(SizeLimits::NONE.clamp(1e6), 1e6);
+        assert_eq!(SizeLimits::NONE.clamp(f32::NAN), 0.0);
     }
 
     #[test]

@@ -8,7 +8,7 @@
 //! iframes), and `contenteditable` elements are not focusable (swb edits
 //! only form controls).
 
-use swb_dom::{Document, ElementData, NodeId, is_html_whitespace, local_name};
+use swb_dom::{Document, ElementData, NodeId, local_name, parse_integer};
 use swb_style::{DisabledElements, is_actually_disabled};
 
 /// The `tabindex` of an element: the attribute if it is a valid integer,
@@ -26,29 +26,10 @@ fn tab_index(doc: &Document, node: NodeId, disabled: impl FnOnce() -> bool) -> O
     focusable_by_default(doc, node, element).then_some(0)
 }
 
-/// Parses a `tabindex` value with the rules for parsing integers.
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers>
+/// Parses a `tabindex` value with the rules for parsing integers; values
+/// outside the range of an `i32` saturate.
 fn parse_tab_index(value: &str) -> Option<i32> {
-    let value = value.trim_start_matches(is_html_whitespace);
-    let (negative, digits) = match value.as_bytes().first() {
-        Some(b'-') => (true, &value[1..]),
-        Some(b'+') => (false, &value[1..]),
-        _ => (false, value),
-    };
-    let end = digits
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(digits.len());
-    if end == 0 {
-        return None;
-    }
-    // More digits than an i32 has saturate.
-    let significant = digits.get(..end)?.trim_start_matches('0');
-    let number: i64 = match significant.len() {
-        0 => 0,
-        len if len > 10 => i64::MAX,
-        _ => significant.parse().ok()?,
-    };
-    let number = if negative { -number } else { number };
+    let number = parse_integer(value)?;
     Some(number.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32)
 }
 

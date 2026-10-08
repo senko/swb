@@ -25,7 +25,7 @@ use super::TableCache;
 use super::columns::{CellWidths, cell_border_padding, sizes_from_style};
 use super::grid::GridCell;
 use super::rows::{RowData, RowspanCell};
-use crate::block::{BoxEdges, ContainingBlock, HeightLimits, finish_fragment, layout_contents};
+use crate::block::{BoxEdges, ContainingBlock, SizeLimits, finish_fragment, layout_contents};
 use crate::fragment::{BoxFragment, Fragment};
 use crate::geom::{Edges, Rect, clamp_length};
 use crate::{LayoutContext, LayoutKey};
@@ -127,7 +127,7 @@ pub(crate) fn layout_cell(
     };
     let mut markers = Vec::new();
     let children = TableCache::percent_free(ctx, |ctx| {
-        layout_contents(ctx, ib, content_cb, HeightLimits::NONE, &mut markers)
+        layout_contents(ctx, ib, content_cb, SizeLimits::NONE, &mut markers)
     });
     let height = children.content_height + sum.vertical();
     let fragment = finish_fragment(

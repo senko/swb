@@ -17,7 +17,9 @@
 use std::sync::Arc;
 
 use swb_css::Parser;
-use swb_dom::{Document, ElementData, NodeId, is_html_whitespace};
+use swb_dom::{
+    Document, ElementData, NodeId, is_html_whitespace, parse_integer, parse_non_negative_integer,
+};
 
 use crate::parse::ParserContext;
 use crate::parse::color::parse_legacy_color;
@@ -113,38 +115,6 @@ fn parse_nonzero_dimension(input: &str) -> Option<Dimension> {
     parse_dimension(input).filter(|d| match d {
         Dimension::Length(v) | Dimension::Percentage(v) => *v != 0.0,
     })
-}
-
-/// The rules for parsing integers (leading whitespace, optional sign,
-/// digits; trailing text is ignored). Values with more than 18 digits
-/// (after leading zeros) saturate to `±i64::MAX`.
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers>
-pub(crate) fn parse_integer(input: &str) -> Option<i64> {
-    let input = input.trim_start_matches(is_html_whitespace);
-    let (negative, rest) = match input.as_bytes().first() {
-        Some(b'-') => (true, &input[1..]),
-        Some(b'+') => (false, &input[1..]),
-        _ => (false, input),
-    };
-    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
-    if digits == 0 {
-        return None;
-    }
-    let significant = rest[..digits].trim_start_matches('0');
-    let value: i64 = if significant.is_empty() {
-        0
-    } else if significant.len() > 18 {
-        i64::MAX
-    } else {
-        significant.parse().ok()?
-    };
-    Some(if negative { -value } else { value })
-}
-
-/// The rules for parsing non-negative integers.
-/// <https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers>
-fn parse_non_negative_integer(input: &str) -> Option<i64> {
-    parse_integer(input).filter(|v| *v >= 0)
 }
 
 /// A length in px, clamped to [`Length::MAX_PX`] so that huge attribute
@@ -527,16 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn integers_and_font_sizes() {
-        assert_eq!(parse_integer(" 42abc"), Some(42));
-        assert_eq!(parse_integer("-3"), Some(-3));
-        assert_eq!(parse_integer("+3"), Some(3));
-        assert_eq!(parse_integer("x"), None);
-        assert_eq!(parse_integer("0000000000000000000005"), Some(5));
-        assert_eq!(parse_integer("-000"), Some(0));
-        assert_eq!(parse_integer("1234567890123456789012"), Some(i64::MAX));
-        assert_eq!(parse_integer("-1234567890123456789012"), Some(-i64::MAX));
-        assert_eq!(parse_non_negative_integer("-1"), None);
+    fn legacy_font_sizes() {
         assert_eq!(parse_legacy_font_size("2"), Some(2));
         assert_eq!(parse_legacy_font_size("+1"), Some(4));
         assert_eq!(parse_legacy_font_size("-2"), Some(1));

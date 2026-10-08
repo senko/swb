@@ -15,11 +15,12 @@
 //! `table_layout_algorithm.cc`; Copyright The Chromium Authors,
 //! BSD-3-Clause); see `THIRD_PARTY_NOTICES.md`.
 
-use swb_style::{BoxSizing, ComputedStyle, LengthPercentage, MaxSize, Size};
+use swb_style::{ComputedStyle, LengthPercentage, MaxSize, Size};
 
 use super::distribute::distribute_auto;
 use super::grid::Grid;
 use super::{ColumnBox, MAX_COLUMNS};
+use crate::block::outer_size;
 use crate::geom::{Edges, clamp_length};
 use crate::intrinsic::ContentSizes;
 
@@ -135,16 +136,6 @@ impl CellWidths {
     }
 }
 
-/// The outer (border-box) size of a specified size `v` of a box with
-/// `border_padding`: with `box-sizing: border-box`, at least the border and
-/// padding.
-pub(crate) fn outer_size(style: &ComputedStyle, v: f32, border_padding: f32) -> f32 {
-    match style.box_sizing {
-        BoxSizing::ContentBox => v + border_padding,
-        BoxSizing::BorderBox => v.max(border_padding),
-    }
-}
-
 /// Specified inline sizes of a box: (width, min-width, max-width,
 /// percentage width). Lengths include `border_padding` (with
 /// `box-sizing: content-box`; with `border-box` they are at least it).
@@ -152,7 +143,7 @@ pub(crate) fn sizes_from_style(
     style: &ComputedStyle,
     border_padding: f32,
 ) -> (Option<f32>, Option<f32>, Option<f32>, Option<f32>) {
-    let outer = |v: f32| outer_size(style, v, border_padding);
+    let outer = |v: f32| outer_size(style.box_sizing, v, border_padding);
     let fixed = |lp: Option<&LengthPercentage>| match lp {
         Some(LengthPercentage::Px(v)) => Some(outer(*v)),
         _ => None,

@@ -49,6 +49,9 @@ impl LengthUnit {
     /// viewport units: swb has no query containers, and without a container
     /// the units use the small viewport size.
     /// <https://www.w3.org/TR/css-contain-3/#container-lengths>
+    ///
+    /// Media queries and `sizes` have their own unit list (`LENGTH_UNITS`
+    /// in `swb-css`, `media.rs`); keep the two in step.
     pub fn from_name(unit: &str) -> Option<Self> {
         let u = match unit.to_ascii_lowercase().as_str() {
             "px" => Self::Px,

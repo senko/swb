@@ -17,8 +17,6 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
-from playwright.async_api import async_playwright
-
 from swbtools import browser, paths, swb
 from swbtools.manifest import FILES_DIR, MANIFEST_FILE, Fixture
 from swbtools.pages import META_FILE, REFERENCE_DIR, FixtureMeta, read_meta, write_meta
@@ -32,10 +30,7 @@ async def chromium_pass(
 ) -> tuple[str, str]:
     """Loads `url` in Chromium and records what it fetches. Returns the
     serialized URL of the first request and the Chromium version."""
-    async with async_playwright() as playwright:
-        chromium = await browser.launch(playwright, system_fonts)
-        context = await browser.new_context(chromium, browser.PAGE_VIEWPORT)
-        page = await context.new_page()
+    async with browser.session(browser.PAGE_VIEWPORT, system_fonts) as (chromium, context, page):
         recorder = Recorder(fixture, context, replay_known=replay_known)
         await recorder.attach(context, page)
         response = await page.goto(url, wait_until="load", timeout=120_000)
@@ -48,7 +43,6 @@ async def chromium_pass(
                 request = request.redirected_from
             first_url = request.url
         version = chromium.version
-        await chromium.close()
     fixture.save()
     log.info("Chromium recorded %d responses", len(recorder.recorded))
     if recorder.failed:

@@ -16,7 +16,7 @@
 
 use swb_style::ComputedStyle;
 
-use crate::block::{BoxEdges, ContainingBlock, resolve_max_size, resolve_size};
+use crate::block::{BoxEdges, ContainingBlock, SizeLimits, margin_or_zero, resolve_size};
 use crate::box_tree::{IndependentBox, IndependentContents, Replaced};
 use crate::geom::clamp_length;
 
@@ -93,8 +93,7 @@ pub(crate) fn natural_content_width(
         ratio,
         resolve_size(&style.height, None, style.box_sizing, v_edges),
     ) {
-        let (min_h, max_h) = height_limits(style, None, v_edges);
-        return clamp_length(height.min(max_h).max(min_h) * r);
+        return clamp_length(SizeLimits::of_height(style, None, v_edges).clamp(height) * r);
     }
     clamp_length(auto_size(&natural, ratio, 0.0).0)
 }
@@ -143,8 +142,8 @@ fn sized_with_height(
             // An image with only an aspect ratio fills the available width;
             // without a containing block (intrinsic sizing) it is 0 wide.
             let available = cb_width.map_or(0.0, |cb| {
-                let margins = style.margin_left.resolve(cb).unwrap_or(0.0)
-                    + style.margin_right.resolve(cb).unwrap_or(0.0);
+                let margins = margin_or_zero(&style.margin_left, cb)
+                    + margin_or_zero(&style.margin_right, cb);
                 (cb - margins - h_edges).max(0.0)
             });
             auto_size(&natural, ratio, available)
@@ -153,11 +152,10 @@ fn sized_with_height(
 
     // Min/max constraints (CSS 2.2 §10.4); a maximum below the minimum
     // counts as the minimum.
-    let min_w = resolve_size(&style.min_width, cb_width, style.box_sizing, h_edges).unwrap_or(0.0);
-    let max_w = resolve_max_size(&style.max_width, cb_width, style.box_sizing, h_edges)
-        .unwrap_or(f32::INFINITY)
-        .max(min_w);
-    let (min_h, max_h) = height_limits(style, cb_height, v_edges);
+    let w_limits = SizeLimits::of_width(style, cb_width, h_edges);
+    let (min_w, max_w) = (w_limits.min(), w_limits.max());
+    let h_limits = SizeLimits::of_height(style, cb_height, v_edges);
+    let (min_h, max_h) = (h_limits.min(), h_limits.max());
     let limit = |v: f32, min: f32, max: f32| v.min(max).max(min);
 
     let (w, h) = match (width.is_none(), height.is_none(), ratio) {
@@ -240,8 +238,7 @@ pub(crate) fn flex_item_height(
     let Some(ratio) = aspect_ratio(style, &replaced.natural_size.unwrap_or(NO_IMAGE)) else {
         return used;
     };
-    let (min_h, max_h) = height_limits(style, cb.height, v_edges);
-    clamp_length((width / ratio).min(max_h).max(min_h))
+    clamp_length(SizeLimits::of_height(style, cb.height, v_edges).clamp(width / ratio))
 }
 
 /// The content height of an item of a column flex container that is an
@@ -302,21 +299,8 @@ pub(crate) fn width_from_height(
     }
     let ratio = aspect_ratio(style, &replaced.natural_size.unwrap_or(NO_IMAGE))?;
     let h_edges = edges.sum().horizontal();
-    let min_w = resolve_size(&style.min_width, cb_width, style.box_sizing, h_edges).unwrap_or(0.0);
-    let max_w = resolve_max_size(&style.max_width, cb_width, style.box_sizing, h_edges)
-        .unwrap_or(f32::INFINITY)
-        .max(min_w);
-    Some(clamp_length((height * ratio).min(max_w).max(min_w)))
-}
-
-/// `min-height` and the used `max-height` (at least `min-height`).
-fn height_limits(style: &ComputedStyle, cb_height: Option<f32>, v_edges: f32) -> (f32, f32) {
-    let min_h =
-        resolve_size(&style.min_height, cb_height, style.box_sizing, v_edges).unwrap_or(0.0);
-    let max_h = resolve_max_size(&style.max_height, cb_height, style.box_sizing, v_edges)
-        .unwrap_or(f32::INFINITY)
-        .max(min_h);
-    (min_h, max_h)
+    let limits = SizeLimits::of_width(style, cb_width, h_edges);
+    Some(clamp_length(limits.clamp(height * ratio)))
 }
 
 /// The max-content width of a row flex item that is an image with only an

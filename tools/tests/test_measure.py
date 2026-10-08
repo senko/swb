@@ -11,6 +11,7 @@ import re
 import pytest
 
 from swbtools import paths
+from swbtools.browser import in_chromium
 from swbtools.measure import (
     FAMILY_NAMES,
     GENERIC_FAMILIES,
@@ -19,7 +20,6 @@ from swbtools.measure import (
     _collapse,
     family_candidates,
     font_size_keywords,
-    in_chromium,
     picture_sources,
     text_field_widths,
     ua_styles,

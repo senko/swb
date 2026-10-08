@@ -53,6 +53,13 @@ Rules:
 - Only `swb` depends on windowing and clipboard libraries.
 - Only `net` does network I/O to load pages. `automation` listens on a
   local socket for the remote-control protocol.
+- Lengths and `calc()` exist twice, on purpose: `css` (`media.rs`)
+  resolves media query and `sizes` lengths when it parses them, with the
+  media environment; `style` (`values/length.rs`, `parse/length.rs`)
+  keeps property lengths and `calc()` expressions until computed values.
+  Each has its own unit list; keep them in step.
+- HTML attribute microsyntaxes (integers, non-negative integers, floats)
+  are in `dom` (`microsyntax.rs`), for all crates.
 
 ## Key data structures
 
@@ -165,7 +172,19 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   Inline content is a flat list of items (text, inline box start/end,
   atomic inlines, line breaks); white space is collapsed when the inline
   formatting context is finished, because spaces collapse across inline
-  box boundaries.
+  box boundaries. Generated text (`content`, list markers) is limited to
+  1 MiB per box tree (`MAX_GENERATED_TEXT`, ADR 0007).
+- Flex layout (`flex.rs`) follows CSS Flexbox 1 §9: lines, flexible
+  lengths, cross sizes, `align-content`, first baselines and automatic
+  minimum sizes. Item layouts are cached in `LayoutContext::layouts`.
+  `align.rs` resolves `auto` self-alignment and the edge an item aligns
+  to, for flex, grid and positioned layout.
+- `replaced.rs` sizes replaced elements (CSS 2.2 §10.3.2, §10.6.2, with
+  the min/max rules of §10.4); `intrinsic.rs` computes min-content and
+  max-content widths for shrink-to-fit boxes, flex base sizes, grid
+  tracks and tables. Margin collapsing (CSS 2.2 §8.3.1) uses the
+  `CollapsedMargin` type in `collapsed_margin.rs` (derived from Servo,
+  MPL-2.0, ADR 0021).
 - Inline layout shapes the text of an inline formatting context once
   (cached per layout pass), splits it into pieces at soft wrap
   opportunities, groups pieces into unbreakable groups, fills lines

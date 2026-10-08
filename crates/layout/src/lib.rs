@@ -14,7 +14,17 @@
 //! All lengths and coordinates stay within ±[`swb_style::Length::MAX_PX`],
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
 //! cannot produce infinite values or unbounded recursion.
+//!
+//! Modules: `align` (self-alignment helpers), `block` (block layout, sizes
+//! and margins), `box_tree` (the box tree), `collapsed_margin` (margin
+//! collapsing), `control` (form controls), `flex`, `floats`, `fonts`,
+//! `fragment` (the fragment tree), `geom` (points, sizes, rectangles),
+//! `grid`, `inline` (line layout), `intrinsic` (min- and max-content
+//! sizes), `list_marker`, `media` (video and audio controls),
+//! `positioned` (out-of-flow, sticky and transforms), `replaced`, `scroll`
+//! (scrollable overflow), `source_map` (text offsets) and `table`.
 
+mod align;
 mod block;
 mod box_tree;
 mod collapsed_margin;
