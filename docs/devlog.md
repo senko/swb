@@ -28,6 +28,13 @@ in commit messages, ADRs and other docs.
 - CI: `cargo deny --offline` failed on GitHub because the build downloads
   only the crates of the host platform; the workflow now runs
   `cargo fetch --locked` first.
+- Generated content limit (the high-priority robustness bug of M3): box
+  construction keeps at most 1 MiB of generated text per box tree
+  (`MAX_GENERATED_TEXT`; `::before`, `::after`, `::marker` and marker
+  numbers) and drops the rest with one warning. 100 KB of `content` on
+  3,000 elements took 10 s and 13 GB; now 0.16 s and 84 MiB. At 4 MiB the
+  block variant still took 940 MB (inline layout of short words is
+  memory-heavy; backlog), so the limit is 1 MiB.
 
 ## 2026-10-07: Provenance and attribution
 

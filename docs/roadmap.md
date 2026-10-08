@@ -85,7 +85,7 @@ uses neither; they moved to "Later".
 
 One feature at a time, in this order:
 
-1. Shared tools for the agent workflow (CLAUDE.md, "Agents"):
+1. Shared tools for the agent workflow (CLAUDE.md, "Agents"): done.
    - Review worktree: `tools/review-tree.sh` (`just review-tree`), a
      persistent worktree with its own target directory.
    - Chromium probe: `swbtools probe` runs case files (HTML documents and
@@ -101,7 +101,7 @@ One feature at a time, in this order:
    Separate files: the probe and the hostile set are separate modules of
    `tools/swbtools/` and can be built in parallel.
 2. Generated content size limit (the high-priority robustness bug in
-   "Backlog from M3").
+   "Backlog from M3"): done, 1 MiB per box tree.
 3. M3 maintenance: review the whole codebase for duplication, dead code,
    unclear names and outdated docs; `just snapshot` shows no change.
 
@@ -162,10 +162,9 @@ One feature at a time, in this order:
 - Paint: non-positioned opacity groups paint in the inline content
   phase; outlines paint after each box, not in a last phase; the image
   of a block-level replaced element paints with its background.
-- Robustness (high priority): generated content has no size limit in
-  layout: 100 KB of `content` text on 3,000 elements (300 MB of text)
-  takes about 10 s of layout and 13 GB of memory. Limit the generated
-  text per document, as counters do (4 MiB).
+- Memory: inline layout of short words takes about 230 bytes per byte
+  of text (1 MiB of `y z y z ...` in one block: about 250 MB, 4 MiB:
+  940 MB; hostile case `content-text-bomb-block`).
 - Text: the hyphen glyph at a break after U+00AD; a break before a space
   that follows a wrapping box inside nowrap text; `break-all` after a
   hyphen at the start of a line; Thai and Lao dictionary breaks; no bidi

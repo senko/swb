@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use swb_dom::{NodeData, NodeId, local_name};
-use swb_style::{ComputedStyle, Display, PseudoKind, content_text};
+use swb_style::{ComputedStyle, Display, PseudoKind};
 
 use super::{CellBox, ColumnBox, MAX_COLSPAN, MAX_ROWSPAN, RowBox, SectionBox, TableBox};
 use crate::box_tree::{
@@ -156,7 +156,9 @@ fn for_each_item(
     match base.element() {
         Some(node) => for_each_child(ctx, node, state, f),
         None => {
-            if let (Some(text), Some(node)) = (content_text(&base.style), base.node) {
+            if let Some(node) = base.node
+                && let Some(text) = state.generated_content(&base.style)
+            {
                 f(Item::Generated(node, &base.style, &text), state);
             }
         }

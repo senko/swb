@@ -55,7 +55,7 @@ def test_every_case_generates_a_bounded_page():
 
 def test_the_known_failures_of_the_backlog_are_in_the_set():
     known = {case.name for case in CASES if case.known_failure}
-    assert "content-text-bomb" in known
+    assert "nest-div-100000" in known
 
 
 def test_select_finds_cases_by_name():

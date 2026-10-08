@@ -341,14 +341,43 @@ def many_list_items() -> Page:
 
 
 @case(
-    "generated content: 100 KB of content text on 3,000 elements (roadmap, M3 backlog)",
-    time_limit_s=5,
-    known_failure="generated content has no size limit: 300 MB of text, 13 GB, 10 s",
+    "100 KB of ::before content text on 3,000 elements (MAX_GENERATED_TEXT 1 MiB)",
+    expect_log="bytes of generated content text",
 )
 def content_text_bomb() -> Page:
     text = "x" * 100_000
     css = f".g::before{{content:'{text}'}}"
     return Page(doc("<div class=g></div>" * 3000, css))
+
+
+@case(
+    "100 KB of block ::after content text on 3,000 elements (MAX_GENERATED_TEXT 1 MiB)",
+    expect_log="bytes of generated content text",
+)
+def content_text_bomb_block() -> Page:
+    text = "y z" * 33_000
+    css = f".g::after{{display:block;content:'{text}' attr(class)}}"
+    return Page(doc("<div class=g></div>" * 3000, css))
+
+
+@case(
+    "100 KB of content text in table-row pseudos of 3,000 tables (MAX_GENERATED_TEXT 1 MiB)",
+    expect_log="bytes of generated content text",
+)
+def content_text_bomb_table() -> Page:
+    text = "x" * 100_000
+    css = f".g{{display:table}}.g::before{{display:table-row;content:'{text}'}}"
+    return Page(doc("<div class=g></div>" * 3000, css))
+
+
+@case(
+    "100 KB of ::marker content text on 3,000 list items (MAX_GENERATED_TEXT 1 MiB)",
+    expect_log="bytes of generated content text",
+)
+def content_text_bomb_marker() -> Page:
+    text = "\\e9" * 50_000
+    css = f"li::marker{{content:'{text}'}}"
+    return Page(doc("<ul>" + "<li>x" * 3000 + "</ul>", css))
 
 
 # --- Tables (ADR 0010) -----------------------------------------------------

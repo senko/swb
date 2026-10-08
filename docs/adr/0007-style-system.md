@@ -310,8 +310,14 @@ a pseudo-element now holds the text of its counters, where Chromium's
   all `counter()` and `counters()` items of a document by 4 MiB (a long
   `counters()` separator in deep nesting could otherwise produce
   gigabytes; each value counts at least one byte; after the limit,
-  counters are removed without text). Each run of counters and short strings in
-  a `content` value becomes one string; longer strings stay shared. The
+  counters are removed without text). In layout, all generated text of
+  a box tree (the `content` of `::before`, `::after` and `::marker`,
+  counters included, and list marker numbers) is limited to 1 MiB
+  (`MAX_GENERATED_TEXT` in `layout/src/box_tree.rs`; added 2026-10-08):
+  one `content` string can apply to every element, and 100 KB on 3,000
+  elements took 13 GB in layout before the limit. Each run of counters
+  and short strings in a `content` value becomes one string; longer
+  strings stay shared. The
   counter properties of an element are combined once per distinct set of
   counter lists (computed values share their lists; at most 1024 cached
   sets). The item counts of reversed lists come from one more walk over

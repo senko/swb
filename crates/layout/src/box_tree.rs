@@ -25,6 +25,10 @@
 //! text and line breaks are kept). This bounds the recursion of box
 //! construction, layout and paint, also for documents that were not built
 //! by the HTML parser (which has its own depth limit).
+//!
+//! Generated text (the `content` of `::before`, `::after` and `::marker`,
+//! and list marker numbers) is limited to [`MAX_GENERATED_TEXT`] bytes per
+//! box tree.
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -32,7 +36,7 @@ use std::sync::Arc;
 use swb_dom::{Document, NodeData, NodeId, local_name};
 use swb_style::{
     ComputedStyle, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap, TextTransform,
-    WhiteSpace, content_text,
+    WhiteSpace,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -47,6 +51,15 @@ use crate::{NaturalSize, ReplacedSizes};
 /// threads); see `tests/deep_nesting.rs`. Chromium's HTML parser limits the
 /// DOM depth to 512 for the same reason.
 pub(crate) const MAX_BOX_DEPTH: usize = 256;
+
+/// The maximum length in bytes of all generated text of one box tree. One
+/// `content` string in a style sheet can apply to every element, so a
+/// small page could otherwise produce hundreds of megabytes of text (100 KB
+/// on 3,000 elements took 13 GB in layout). Real pages generate a few
+/// kilobytes. 1 MiB of short words still takes about 250 MB in layout.
+/// The text after the limit is dropped. Counter text also has a limit of
+/// its own (4 MiB, ADR 0007). Chromium has no such limit.
+pub(crate) const MAX_GENERATED_TEXT: usize = 1 << 20;
 
 /// The style and origin of a box.
 #[derive(Clone, Debug)]
@@ -354,12 +367,44 @@ pub(crate) struct BuildState {
     last_id: usize,
     /// True once content was flattened because of [`MAX_BOX_DEPTH`].
     flattened: bool,
+    /// The bytes of generated text so far, at most [`MAX_GENERATED_TEXT`].
+    generated_text: usize,
+    /// True once generated text was cut because of [`MAX_GENERATED_TEXT`].
+    generated_cut: bool,
 }
 
 impl BuildState {
     pub(crate) fn next_id(&mut self) -> usize {
         self.last_id += 1;
         self.last_id
+    }
+
+    /// The text of the `content` of a pseudo-element with style `style`,
+    /// limited by [`MAX_GENERATED_TEXT`]. All generated text of a box tree
+    /// goes through this method or [`BuildState::generated`].
+    pub(crate) fn generated_content(&mut self, style: &ComputedStyle) -> Option<String> {
+        swb_style::content_text(style).map(|text| self.generated(text))
+    }
+
+    /// `text` of a pseudo-element or marker, cut at a character boundary
+    /// to the part that fits into [`MAX_GENERATED_TEXT`].
+    fn generated(&mut self, mut text: String) -> String {
+        let left = MAX_GENERATED_TEXT.saturating_sub(self.generated_text);
+        if text.len() > left {
+            if !self.generated_cut {
+                self.generated_cut = true;
+                log::warn!(
+                    "more than {MAX_GENERATED_TEXT} bytes of generated content text; the rest is dropped"
+                );
+            }
+            let mut end = left;
+            while !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            text.truncate(end);
+        }
+        self.generated_text += text.len();
+        text
     }
 
     /// `base` with a new box number.
@@ -483,7 +528,7 @@ fn build_marker(
         return None;
     }
     let marker_style = ctx.styles.pseudo(node, PseudoKind::Marker)?;
-    let text = ctx.styles.list_marker_text(node, style)?;
+    let text = state.generated(ctx.styles.list_marker_text(node, style)?);
     if text.is_empty() {
         return None;
     }
@@ -508,8 +553,8 @@ pub(crate) fn build_block_container(
     let mut builder = ContainerBuilder::new(Arc::clone(&base.style));
     if let Some(node) = base.element() {
         builder.push_children(ctx, node, state);
-    } else if let Some(text) = content_text(&base.style)
-        && let Some(node) = base.node
+    } else if let Some(node) = base.node
+        && let Some(text) = state.generated_content(&base.style)
     {
         builder.inline.push_generated(node, &base.style, &text);
     }
@@ -838,7 +883,9 @@ impl ContainerBuilder {
             });
             self.open_inline_boxes.push(base.clone());
             if base.pseudo.is_some() {
-                if let (Some(text), Some(node)) = (content_text(&style), base.node) {
+                if let Some(node) = base.node
+                    && let Some(text) = state.generated_content(&style)
+                {
                     self.inline.push_generated(node, &style, &text);
                 }
             } else if let Some(node) = base.node {
@@ -1449,6 +1496,28 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn generated_text_is_cut_at_the_limit() {
+        let mut state = BuildState::default();
+        assert_eq!(state.generated("ab".to_owned()), "ab");
+        // Fill the budget up to 1 byte before a 2-byte character.
+        let filler = "x".repeat(MAX_GENERATED_TEXT - 3);
+        assert_eq!(state.generated(filler.clone()).len(), filler.len());
+        assert_eq!(state.generated("éé".to_owned()), "");
+        assert_eq!(state.generated("y".to_owned()), "y");
+        assert_eq!(state.generated("z".to_owned()), "");
+        assert_eq!(state.generated_text, MAX_GENERATED_TEXT);
+        assert!(state.generated_cut);
+    }
+
+    #[test]
+    fn generated_text_cut_inside_a_character_keeps_the_whole_characters() {
+        let mut state = BuildState::default();
+        state.generated("x".repeat(MAX_GENERATED_TEXT - 3));
+        assert_eq!(state.generated("éé".to_owned()), "é");
+        assert_eq!(state.generated_text, MAX_GENERATED_TEXT - 1);
     }
 
     #[test]
