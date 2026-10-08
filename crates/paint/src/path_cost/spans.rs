@@ -46,10 +46,12 @@
 //! charged and nothing is counted. The count's own work is charged before
 //! it runs.
 
-use super::edges::{Edges, PathEdge, Point, Rows, Segment, Window, monotone_parts, walk_path};
+use swb_layout::bezier::{at_f64, derivative_f64};
+
+use super::edges::{Edges, PathEdge, Rows, Segment, Window, Xy, monotone_parts, walk_path};
 
 /// The work of one pair of an inside span and a pixel of its group in a
-/// row, in the units of `cost.rs` (0.3 ns each; measured: up to 5.3 ns).
+/// row, in the units of `path_cost` (0.3 ns each; measured: up to 5.3 ns).
 pub(crate) const SPAN: f64 = 20.0;
 /// A bound on the work of the spans below which the spans are not counted:
 /// the bound is charged instead (0.6 ms).
@@ -91,6 +93,24 @@ pub(crate) fn scale(largest: f64, i: usize) -> f64 {
 pub(crate) enum Rule {
     NonZero,
     EvenOdd,
+}
+
+impl From<swb_style::FillRule> for Rule {
+    fn from(rule: swb_style::FillRule) -> Rule {
+        match rule {
+            swb_style::FillRule::NonZero => Rule::NonZero,
+            swb_style::FillRule::EvenOdd => Rule::EvenOdd,
+        }
+    }
+}
+
+impl From<usvg::FillRule> for Rule {
+    fn from(rule: usvg::FillRule) -> Rule {
+        match rule {
+            usvg::FillRule::NonZero => Rule::NonZero,
+            usvg::FillRule::EvenOdd => Rule::EvenOdd,
+        }
+    }
 }
 
 /// Where the pixel grid lies.
@@ -312,7 +332,7 @@ impl SpanCount {
     }
 
     /// A straight edge between two points.
-    fn line(&mut self, a: Point, b: Point) {
+    fn line(&mut self, a: Xy, b: Xy) {
         let (a, b) = (to64(a), to64(b));
         if self.overflow || !(a.1 != b.1 && a.0.is_finite() && b.0.is_finite()) {
             return;
@@ -334,7 +354,7 @@ impl SpanCount {
 
     /// A quadratic or cubic curve with these control points: its monotone
     /// parts.
-    fn curve(&mut self, points: &[Point]) {
+    fn curve(&mut self, points: &[Xy]) {
         if self.overflow || !points.iter().all(|p| p.0.is_finite() && p.1.is_finite()) {
             return;
         }
@@ -557,7 +577,7 @@ impl Group {
     }
 }
 
-fn to64(p: Point) -> (f64, f64) {
+fn to64(p: Xy) -> (f64, f64) {
     (f64::from(p.0), f64::from(p.1))
 }
 
@@ -569,7 +589,7 @@ struct Curve {
 }
 
 impl Curve {
-    fn new(points: &[Point]) -> Curve {
+    fn new(points: &[Xy]) -> Curve {
         let (mut xs, mut ys) = ([0.0; 4], [0.0; 4]);
         let n = points.len().min(4);
         for (i, p) in points.iter().take(4).enumerate() {
@@ -579,49 +599,26 @@ impl Curve {
     }
 
     fn x(&self, t: f64) -> f64 {
-        bezier(&self.xs[..self.n], t)
+        at_f64(&self.xs[..self.n], t)
     }
 
     fn y(&self, t: f64) -> f64 {
-        bezier(&self.ys[..self.n], t)
+        at_f64(&self.ys[..self.n], t)
     }
 
     /// `(dx/dt, dy/dt)` at `t`.
     fn derivative(&self, t: f64) -> (f64, f64) {
         (
-            bezier_derivative(&self.xs[..self.n], t),
-            bezier_derivative(&self.ys[..self.n], t),
+            derivative_f64(&self.xs[..self.n], t),
+            derivative_f64(&self.ys[..self.n], t),
         )
-    }
-}
-
-/// The value at `t` of a quadratic (3 values) or cubic (4 values) Bézier
-/// curve.
-#[allow(clippy::many_single_char_names)] // The names of the polynomial.
-fn bezier(v: &[f64], t: f64) -> f64 {
-    let u = 1.0 - t;
-    match *v {
-        [a, b, c] => u * u * a + 2.0 * u * t * b + t * t * c,
-        [a, b, c, d] => u * u * u * a + 3.0 * u * u * t * b + 3.0 * u * t * t * c + t * t * t * d,
-        _ => 0.0,
-    }
-}
-
-/// The derivative at `t` of [`bezier`].
-#[allow(clippy::many_single_char_names)] // The names of the polynomial.
-fn bezier_derivative(v: &[f64], t: f64) -> f64 {
-    let u = 1.0 - t;
-    match *v {
-        [a, b, c] => 2.0 * (u * (b - a) + t * (c - b)),
-        [a, b, c, d] => 3.0 * (u * u * (b - a) + 2.0 * u * t * (c - b) + t * t * (d - c)),
-        _ => 0.0,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::svg::edges::EdgeSweep;
+    use crate::path_cost::edges::EdgeSweep;
 
     /// Rectangles `(x, y, width, height)` as the segments of one path.
     fn rects(rects: &[(f32, f32, f32, f32)]) -> Vec<Segment> {

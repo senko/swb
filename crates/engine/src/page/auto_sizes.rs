@@ -26,7 +26,7 @@ impl Page {
     /// box, after a layout, and starts loading the new ones. An image that
     /// has no box uses the width of its last selection, else `100vw`.
     pub(super) fn select_auto_sized_images(&mut self) {
-        if self.images.auto_nodes.is_empty() {
+        if self.images.auto.is_empty() {
             return;
         }
         let (Some(doc), Some(base), Some(tree)) =
@@ -40,11 +40,11 @@ impl Page {
             env.viewport_height.to_bits(),
             env.device_pixel_ratio.to_bits(),
         ];
-        let nodes = self.images.auto_nodes.clone();
+        let nodes: Vec<NodeId> = self.images.auto.iter().map(|(node, _)| *node).collect();
         let widths = content_widths(tree, &nodes);
         let mut loads: Vec<Url> = Vec::new();
-        for node in nodes {
-            let state = self.images.auto.entry(node).or_default();
+        for (index, node) in nodes.into_iter().enumerate() {
+            let state = &mut self.images.auto[index].1;
             if !state.update(widths.get(&node).copied(), env_key) {
                 continue;
             }

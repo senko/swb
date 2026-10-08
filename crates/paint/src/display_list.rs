@@ -73,6 +73,7 @@ use swb_text::FontId;
 
 use crate::group_bounds::{finish_groups, transform_ends};
 use crate::mask::{self, MaskBoxes, MaskLayer};
+use crate::path_cost::stroke_reach;
 use crate::rope::ItemRope;
 use crate::scroll_indicator::element_scroll_indicators;
 use crate::{background, control, media};
@@ -399,11 +400,8 @@ pub(crate) fn path_bounds(path: &SvgPath, transform: &Matrix, grow: f32) -> Rect
 /// times the miter limit for miter joins (and at least √2 for square
 /// caps).
 pub(crate) fn stroke_extent(stroke: &StrokeStyle) -> f32 {
-    let factor = match stroke.join {
-        StrokeLinejoin::Miter => stroke.miter_limit.max(std::f32::consts::SQRT_2),
-        StrokeLinejoin::Round | StrokeLinejoin::Bevel => std::f32::consts::SQRT_2,
-    };
-    stroke.width / 2.0 * factor
+    let miter = (stroke.join == StrokeLinejoin::Miter).then_some(stroke.miter_limit);
+    stroke_reach(stroke.width, miter)
 }
 
 /// The smallest and largest coordinates of `points`, as
@@ -1886,8 +1884,7 @@ fn unclip_item(radii: Option<Radii>) -> DisplayItem {
 /// (CSS Backgrounds 3 §4.5).
 fn rounded_clip(rect: Rect, radii: &Radii) -> Option<DisplayItem> {
     use swb_layout::svg::{ClipShape, PathSegment};
-    // Control point factor for a quarter ellipse with cubic Béziers.
-    const K: f32 = 0.552_284_8;
+    const K: f32 = swb_layout::KAPPA;
     if !(rect.width > 0.0 && rect.height > 0.0) {
         return None;
     }

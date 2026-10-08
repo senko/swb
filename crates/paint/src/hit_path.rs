@@ -15,6 +15,7 @@
 
 use std::cell::Cell;
 
+use swb_layout::bezier::at_f32;
 use swb_layout::svg::{ClipPath, ClipRegion, PathSegment, SvgPath};
 use swb_layout::{Matrix, Point};
 use swb_style::FillRule;
@@ -219,18 +220,16 @@ fn flatten(from: Point, at: impl Fn(f32) -> Point, edge: &mut impl FnMut(Point, 
 }
 
 fn quad_at(from: Point, c: Point, p: Point, t: f32) -> Point {
-    let u = 1.0 - t;
     Point::new(
-        u * u * from.x + 2.0 * u * t * c.x + t * t * p.x,
-        u * u * from.y + 2.0 * u * t * c.y + t * t * p.y,
+        at_f32(&[from.x, c.x, p.x], t),
+        at_f32(&[from.y, c.y, p.y], t),
     )
 }
 
 fn cubic_at(from: Point, c1: Point, c2: Point, p: Point, t: f32) -> Point {
-    let u = 1.0 - t;
     Point::new(
-        u * u * u * from.x + 3.0 * u * u * t * c1.x + 3.0 * u * t * t * c2.x + t * t * t * p.x,
-        u * u * u * from.y + 3.0 * u * u * t * c1.y + 3.0 * u * t * t * c2.y + t * t * t * p.y,
+        at_f32(&[from.x, c1.x, c2.x, p.x], t),
+        at_f32(&[from.y, c1.y, c2.y, p.y], t),
     )
 }
 

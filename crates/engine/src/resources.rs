@@ -165,10 +165,9 @@ pub(crate) struct Images {
     /// selection of image sources.
     pub(crate) sources_outdated: bool,
     /// The `img` elements that allow auto-sizes and whose source depends on
-    /// their width. They are selected after layout (`Page::select_auto_sized_images`).
-    pub(crate) auto_nodes: Vec<NodeId>,
-    /// The state of each element of `auto_nodes`.
-    pub(crate) auto: HashMap<NodeId, AutoSizes>,
+    /// their width, each with its state. They are selected after layout
+    /// (`Page::select_auto_sized_images`).
+    pub(crate) auto: Vec<(NodeId, AutoSizes)>,
     /// Renderings of the page's SVG images.
     vector_cache: VectorCache,
     /// What counting spans may still take for the page's SVG images.

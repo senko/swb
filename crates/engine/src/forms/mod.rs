@@ -295,7 +295,7 @@ pub(crate) struct Forms {
 impl Forms {
     /// The controls of `doc` with their default state.
     pub(crate) fn new(doc: &Document) -> Forms {
-        let ids = element_ids(doc);
+        let ids = doc.element_ids();
         let disabled_elements = DisabledElements::new(doc);
         let mut forms = Forms::default();
         let mut radios = Vec::new();
@@ -711,17 +711,6 @@ fn is_listed(e: &ElementData) -> bool {
             &**e.local_name(),
             "button" | "fieldset" | "input" | "object" | "output" | "select" | "textarea"
         )
-}
-
-/// The first element with each ID, in tree order (as `getElementById`).
-fn element_ids(doc: &Document) -> HashMap<&str, NodeId> {
-    let mut ids = HashMap::new();
-    for node in doc.descendants(NodeId::DOCUMENT) {
-        if let Some(id) = doc.element(node).and_then(ElementData::id) {
-            ids.entry(id).or_insert(node);
-        }
-    }
-    ids
 }
 
 /// The form owner of a form-associated element: the form that its `form`

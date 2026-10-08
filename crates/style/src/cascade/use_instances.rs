@@ -31,11 +31,11 @@ use crate::style_map::{InstanceId, StyleMap, UseInstance};
 use crate::values::Display;
 
 /// The most elements that the instance trees of one document hold.
-pub const MAX_INSTANCE_ELEMENTS: usize = 20_000;
+pub(crate) const MAX_INSTANCE_ELEMENTS: usize = 20_000;
 
 /// The deepest nesting of `use` instances (a `use` inside the copy made by
 /// another `use`, ...).
-pub const MAX_USE_DEPTH: usize = 16;
+pub(crate) const MAX_USE_DEPTH: usize = 16;
 
 /// Whether the element is an SVG `use` element.
 fn is_svg_use(e: &swb_dom::ElementData) -> bool {

@@ -905,8 +905,7 @@ fn layout_absolute(
     // its height, if that is definite: specified, or stretched between
     // `top` and `bottom`. Otherwise the width is as usual and the height
     // follows from it (Chromium; even between `top` and `bottom`).
-    let has_ratio =
-        crate::aspect::applies_to(ib) && crate::aspect::Ratio::of(style, &box_edges).is_some();
+    let has_ratio = crate::aspect::has_ratio(ib);
     let v_edges = edges.vertical();
     let table = matches!(ib.contents, IndependentContents::Table(_));
     let keyword = matches!(

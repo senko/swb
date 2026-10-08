@@ -618,13 +618,7 @@ pub(super) fn shape_geometry(geometry: &Geometry, viewport: Viewport) -> ShapeGe
             }
             // SVG 2 §10.2: `auto` takes the other radius; both are
             // clamped to half the size.
-            let rx = rx.as_ref().map(|v| v.resolve(viewport.width));
-            let ry = ry.as_ref().map(|v| v.resolve(viewport.height));
-            let (rx, ry) = match (rx, ry) {
-                (Some(rx), Some(ry)) => (rx, ry),
-                (Some(r), None) | (None, Some(r)) => (r, r),
-                (None, None) => (0.0, 0.0),
-            };
+            let (rx, ry) = radii(rx.as_ref(), ry.as_ref(), viewport);
             let (rx, ry) = (rx.min(w / 2.0), ry.min(h / 2.0));
             ShapeGeometry {
                 path: path::rect_path(bbox, rx, ry, &mut budget).map(Arc::new),
@@ -639,13 +633,7 @@ pub(super) fn shape_geometry(geometry: &Geometry, viewport: Viewport) -> ShapeGe
         }
         Geometry::Ellipse { cx, cy, rx, ry } => {
             let c = resolve_point(cx, cy, size);
-            let rx = rx.as_ref().map(|v| v.resolve(viewport.width));
-            let ry = ry.as_ref().map(|v| v.resolve(viewport.height));
-            let (rx, ry) = match (rx, ry) {
-                (Some(rx), Some(ry)) => (rx, ry),
-                (Some(r), None) | (None, Some(r)) => (r, r),
-                (None, None) => (0.0, 0.0),
-            };
+            let (rx, ry) = radii(rx.as_ref(), ry.as_ref(), viewport);
             ellipse(c, finite(rx), finite(ry), &mut budget)
         }
         Geometry::Line { x1, y1, x2, y2 } => {
@@ -663,6 +651,22 @@ pub(super) fn shape_geometry(geometry: &Geometry, viewport: Viewport) -> ShapeGe
                 contributes: true,
             }
         }
+    }
+}
+
+/// The resolved radii `rx`, `ry` of a `rect` or `ellipse`: `auto` takes
+/// the other radius, both `auto` give 0 (SVG 2 §10.2).
+fn radii(
+    rx: Option<&LengthPercentage>,
+    ry: Option<&LengthPercentage>,
+    viewport: Viewport,
+) -> (f32, f32) {
+    let rx = rx.map(|v| v.resolve(viewport.width));
+    let ry = ry.map(|v| v.resolve(viewport.height));
+    match (rx, ry) {
+        (Some(rx), Some(ry)) => (rx, ry),
+        (Some(r), None) | (None, Some(r)) => (r, r),
+        (None, None) => (0.0, 0.0),
     }
 }
 

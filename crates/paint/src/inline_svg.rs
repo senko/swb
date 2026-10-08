@@ -77,7 +77,7 @@ pub(crate) fn paint(
             // that the content box clip does not (the usual icon: a
             // `clipPath` of the size of the `viewBox`).
             SvgDrawItem::PushClip(ClipRegion::Rect(rect))
-                if clips_overflow && contains(&rect, &viewport) =>
+                if clips_overflow && rect.contains_rect(&viewport, 1e-3) =>
             {
                 clips.push(ClipKind::Redundant);
                 continue;
@@ -149,15 +149,6 @@ enum ClipKind {
     Path,
     /// Nothing.
     Redundant,
-}
-
-/// True if `outer` contains `inner` (with a margin for rounding).
-fn contains(outer: &Rect, inner: &Rect) -> bool {
-    const EPSILON: f32 = 1e-3;
-    outer.x <= inner.x + EPSILON
-        && outer.y <= inner.y + EPSILON
-        && outer.right() >= inner.right() - EPSILON
-        && outer.bottom() >= inner.bottom() - EPSILON
 }
 
 /// An area (list coordinates, `origin` from the content box) that contains

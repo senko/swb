@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M4 maintenance
+
+- Two read-only reviewers (paint and layout; the other crates, tools and
+  docs) listed duplication, dead code, names and outdated docs; one
+  implementer applied the selected items. `just snapshot` is
+  byte-identical before and after (338 files).
+- Paint: the path cost model moved from `svg/` to `paint/src/path_cost/`
+  (it serves inline SVG and SVG images). One helper makes the dash
+  outline for both. Layer pushes take named structs (`NewLayer`,
+  `LayerKind`, `SvgClipLayer`). The inline SVG raster tests moved out
+  of `raster.rs` (4,257 → 3,662 lines). Module docs list path items,
+  SVG clip groups, rounded clips and image reduction.
+- Layout: Bezier evaluation is in `layout/src/bezier.rs` (six copies;
+  the derivative-root solvers stay apart, because their thresholds
+  differ and the cost numbers would change). One circle constant
+  (`KAPPA`), one SVG length table, one warn-once counter for the SVG
+  limits.
+- Other crates: the engine's copy of `element_ids` and a second opacity
+  parser are gone; constants that two crates share say so.
+- Tools: `reference` and `layout-refs` wait for web fonts like `probe`;
+  `substitute` uses the shared MIME parser.
+- Docs: README status, roadmap (M4 done), testing.md (`substitute`, font
+  waits), ADR 0021 (`wuff` is a library, not an engine port),
+  architecture.md (`CountBudget`, module list).
+- Backlog: the `font-variation-settings` table is not cleared per
+  document; typed web font sources; the performance baseline.
+
 ## 2026-10-08: M4 item 9, final pass on Ars Technica
 
 - Four causes behind the last 4,964 differing pixels:

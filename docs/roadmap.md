@@ -105,7 +105,7 @@ One feature at a time, in this order:
 3. M3 maintenance: review the whole codebase for duplication, dead code,
    unclear names and outdated docs; `just snapshot` shows no change: done.
 
-## M4: Ars Technica — in progress
+## M4: Ars Technica — done
 
 Target 4, `https://arstechnica.com/` (fixture `ars-technica`), JavaScript
 off. Baseline on 2026-10-08: geometry 0.0531, pixels 0.7841 (1,943
@@ -217,7 +217,7 @@ Features, in this order. Each one ends with a review and a commit.
    times. Done (ADR 0023, part 3): the cost of a path is a model fitted
    to measurements of tiny-skia: the rows that the edges cross, the
    pairs of edges whose bounding boxes overlap (counted in O(n log n),
-   `paint/src/svg/edges.rs`) and the length of hairline strokes. Inline
+   `paint/src/path_cost/edges.rs`) and the length of hairline strokes. Inline
    fills and strokes, clip coverage and SVG images (an exact term at the
    rendered size) are charged. Hit tests have a work budget;
    `fill_bounds` is cached. The repro pages take 0.1–0.6 s (before: 22 s
@@ -237,7 +237,7 @@ Features, in this order. Each one ends with a review and a commit.
    the work of the count bounded for 1,000,000 segments, and add
    hostile-page cases for the comb, the stacked combs and the area. The
    paths of item 7 (charts, bars, walks, images) must still draw. Done
-   (ADR 0023, part 3): `paint/src/svg/spans.rs` counts the spans inside
+   (ADR 0023, part 3): `paint/src/path_cost/spans.rs` counts the spans inside
    one pixel at sample rows and charges their measured cost, after an
    O(n) bound and only when the count fits the budget. The combs,
    stacked combs and the area are rejected in 0.05 s (before: 5–6 s,
@@ -279,6 +279,12 @@ used): `box-shadow`, `filter`, `text-shadow`, `-webkit-line-clamp`,
 `backdrop-filter`. Style takes 27 ms on this page (Wikipedia: 10 ms for
 twice the elements); look at it in the final pass only if it grows.
 
+Target 4 is done (geometry 1.0000, pixels 0.9992) and waits for the
+owner's check. End-of-milestone maintenance: two read-only reviews
+(paint and layout; the other crates, tools and docs) listed
+duplication, dead code, names and outdated docs; one implementer applied
+the selected items; `just snapshot` shows no change: done.
+
 ## M5: BBC — planned
 
 Target 5, `https://www.bbc.com/` (fixture `bbc`), JavaScript off.
@@ -311,7 +317,17 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   `ex` units, as Chromium does.
 - Web font face entries and their font instances accumulate across
   navigations in one tab: `FontContext` frees the font data of a face
-  that goes away, but keeps its entry. Reuse or remove the entries.
+  that goes away, but keeps its entry. Reuse or remove the entries. The
+  table of `font-variation-settings` lists (`MAX_VARIATION_SETS`, 4,096,
+  `text/src/context.rs`) is not cleared by `reset_web_fonts` either, so
+  after many navigations in one tab later pages lose their variation
+  settings (a warning, then no variations), although ADR 0022 calls the
+  limit per document (M4 maintenance review).
+- docs/performance.md has the M1 baseline (three fixtures); measure
+  Ars Technica and BBC with `just perf` and replace the table.
+- Web font sources cross from the engine to `text` as strings
+  (`"local(NAME)"` is encoded and parsed back in `text/src/web.rs`);
+  give the text API a typed source (M4 maintenance review).
 - `ch` units: swb uses 0.5em; Chromium measures the `0` of the first
   available font (`tools/probes/web-fonts.json`,
   `ch-unit-first-available`; not specific to web fonts). The same holds

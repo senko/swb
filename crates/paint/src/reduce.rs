@@ -19,17 +19,14 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use tiny_skia::Pixmap;
 
-/// The largest number of source pixels that one image reduction averages;
-/// larger images are sampled as they are. It equals [`FRAME_PIXELS`], so
-/// that the first halving of any image that is reduced fits into the
-/// budget of an empty frame; such an image can use most of that budget.
-const MAX_IMAGE_PIXELS: usize = FRAME_PIXELS as usize;
-
 /// The source pixels that the reductions of one frame may average in
 /// total: 64 Mpx, about 90 ms. Measured (release build): the three halvings
 /// of a 4000 x 3000 image average 16 Mpx of source pixels in 22 ms, about
-/// 1.4 ns per pixel.
-pub(crate) const FRAME_PIXELS: u64 = 64 << 20;
+/// 1.4 ns per pixel. It is also the largest image that a reduction
+/// averages (larger images are sampled as they are), so that the first
+/// halving of any image that is reduced fits into the budget of an empty
+/// frame; such an image can use most of that budget.
+const FRAME_PIXELS: u64 = 64 << 20;
 
 /// The reduced levels of one raster image. A level is named by the number
 /// of halvings in each axis.
@@ -99,7 +96,7 @@ impl Reductions {
         budget: &mut ReduceBudget,
     ) -> Option<Arc<Pixmap>> {
         if !(sx < 0.5 || sy < 0.5)
-            || source.width() as usize * source.height() as usize > MAX_IMAGE_PIXELS
+            || source.width() as usize * source.height() as usize > FRAME_PIXELS as usize
         {
             return None;
         }

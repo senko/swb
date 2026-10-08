@@ -1,22 +1,24 @@
 //! Rasterization of the path items of inline SVG (ADR 0023) with tiny-skia,
 //! within a work budget per strip.
 //!
-//! The estimate uses the weights of `crate::svg::cost` (the estimate for SVG
-//! images, measured with tiny-skia): a fixed cost per path and per segment,
+//! The estimate uses the weights of `crate::path_cost` (the cost model that
+//! the estimate for SVG images shares, measured with tiny-skia): a fixed
+//! cost per path and per segment,
 //! the device pixels that the path's bounds cover inside the visible area, a
-//! cost per dash, and the cost of the edges (`crate::svg::edges`: the rows
+//! cost per dash, and the cost of the edges (`crate::path_cost::edges`: the rows
 //! that they cross and the pairs of edges whose boxes overlap, so a dense
 //! path takes time in proportion to the square of its segments; a stroke of
 //! one pixel or less takes time in proportion to its length), and for an
 //! anti-aliased fill the groups of spans narrower than a pixel
-//! (`crate::svg::spans`).
+//! (`crate::path_cost::spans`).
 //!
 //! Opaque and translucent pixels cost the same: tiny-skia's anti-aliased
 //! path fill takes 2.6 ns per pixel of either, measured on the hostile-page
 //! machine (release build, 100 and 200 viewport-size rects, circles, rotated
 //! rects and wide strokes: 1.5 to 2.7 ms per 1280 x 800 viewport). The
-//! weight for opaque pixels in `crate::svg::cost` (0.125 ns) is for resvg's
-//! cached rendering of images and is too low here.
+//! weight for opaque pixels in `crate::path_cost` (1 unit, about 0.3 ns,
+//! rounded up from 0.125 ns measured) is for resvg's cached rendering of
+//! images and is too low here.
 //!
 //! SVG images are rendered once into a cache at a resolution that their
 //! estimate allows. Inline paths are drawn directly for every frame, so a
@@ -26,25 +28,22 @@
 
 use std::sync::Arc;
 
+use swb_layout::bezier::at_f32;
 use swb_layout::svg::{StrokeStyle, SvgPath};
 use swb_layout::{Matrix, Point, Rect};
 use swb_style::{FillRule, Rgba, StrokeLinecap, StrokeLinejoin};
 use tiny_skia::{LineCap, LineJoin, Path, PathBuilder, Stroke, StrokeDash, Transform};
 
-use super::{Rasterizer, solid_paint};
+use super::{LayerKind, NewLayer, Rasterizer, SvgClipLayer, solid_paint};
 use crate::display_list::{DisplayItem, path_bounds, stroke_extent};
-use crate::svg::cost::{BLEND, DASH, PATH, SEGMENT};
-use crate::svg::edges::{Draw, EdgeSweep, SWEEP_SEGMENT, Segment, flat_steps};
-use crate::svg::spans::{self, Rule};
+use crate::path_cost::edges::{Draw, EdgeSweep, Segment, flat_steps};
+use crate::path_cost::spans::{self, Rule};
+use crate::path_cost::{BLEND, DASH, MAX_DASHES, PATH, SEGMENT, dash_outline, outline_charge};
 
 /// The path work of one strip (the default of `Budget::max_path_work`),
-/// in the units of `crate::svg::cost` (about 0.3 ns each): about 0.6 s.
+/// in the units of `crate::path_cost` (about 0.3 ns each): about 0.6 s.
 /// The 459 icon paths of Ars Technica need about 0.1 % of it.
 pub(super) const MAX_PATH_WORK: f64 = 2.0e9;
-
-/// The most dashes of one stroke (an estimate from the length of the
-/// path's control polygon). tiny-skia refuses more than a million.
-pub(super) const MAX_DASHES: f32 = 100_000.0;
 
 /// The segments of the outline of a stroke per segment of its path.
 const STROKE_SEGMENTS: f64 = 4.0;
@@ -56,7 +55,7 @@ pub(super) struct Scan {
     /// Whether the edges are anti-aliased.
     pub(super) anti_alias: bool,
     /// The fill rule of a fill (the spans of an anti-aliased fill have a
-    /// cost of their own, `crate::svg::spans`).
+    /// cost of their own, `crate::path_cost::spans`).
     rule: Option<Rule>,
     /// The width of the stroke, in path units, if the path is stroked (its
     /// outline has more edges).
@@ -71,10 +70,7 @@ impl Scan {
     pub(super) fn fill(anti_alias: bool, rule: FillRule) -> Scan {
         Scan {
             anti_alias,
-            rule: Some(match rule {
-                FillRule::NonZero => Rule::NonZero,
-                FillRule::EvenOdd => Rule::EvenOdd,
-            }),
+            rule: Some(rule.into()),
             stroke_width: None,
             grow: 0.0,
         }
@@ -116,8 +112,12 @@ impl Rasterizer<'_> {
                 bounds,
                 rect_fallback,
             } => {
-                let svg_clip = (Arc::clone(clip), *transform, *rect_fallback);
-                self.push_layer(1.0, (*bounds, None), None, Some(svg_clip), false);
+                let kind = LayerKind::SvgClip(SvgClipLayer {
+                    clip: Arc::clone(clip),
+                    transform: *transform,
+                    rect_fallback: *rect_fallback,
+                });
+                self.push_layer(NewLayer::new(*bounds, kind));
             }
             _ => {}
         }
@@ -144,10 +144,7 @@ impl Rasterizer<'_> {
         if !self.path_work_fits(work) {
             return;
         }
-        let rule = match rule {
-            FillRule::NonZero => tiny_skia::FillRule::Winding,
-            FillRule::EvenOdd => tiny_skia::FillRule::EvenOdd,
-        };
+        let rule = skia_rule(rule);
         let paint = solid_paint(color, anti_alias);
         if !anti_alias {
             // Without anti-aliasing, a pixel is in if its center is
@@ -249,17 +246,35 @@ impl Rasterizer<'_> {
             return None;
         }
         let visible = self.visible_area()?.intersection(&bounds)?;
-        let pixels = f64::from(visible.width) * f64::from(visible.height);
-        if !self.path_work_fits((SEGMENT + SWEEP_SEGMENT) * path.segments().len() as f64) {
-            return None;
-        }
         let rows = (visible.y, visible.y + visible.height);
         let columns = (visible.x, visible.x + visible.width);
+        let work = self.fill_work(path, &device, visible, (rows, columns), scan)?;
+        Some((device, bounds, work))
+    }
+
+    /// The work of a path with `visible` device px of area (its bounds
+    /// inside the visible area), whose edges are counted inside the `rows`
+    /// and `columns` of the target: the path, its pixels and the edges. The
+    /// cost of looking at the segments is charged at once, also for a path
+    /// that does not fit, so that many references to a path that is too
+    /// expensive cannot repeat the estimate for free; `None` if even that
+    /// does not fit. The rest is returned, not charged.
+    pub(super) fn fill_work(
+        &mut self,
+        path: &SvgPath,
+        device: &Matrix,
+        visible: Rect,
+        window: ((f32, f32), (f32, f32)),
+        scan: Scan,
+    ) -> Option<f64> {
+        let pixels = f64::from(visible.width) * f64::from(visible.height);
+        if !self.path_work_fits(outline_charge(path.segments().len())) {
+            return None;
+        }
         let base = PATH + BLEND * pixels;
         let room = self.budget.max_path_work - self.budget.path_work - base;
-        let edges = edge_work(path, &device, (rows, columns), scan, room);
-        let work = base + edges;
-        Some((device, bounds, work))
+        let edges = edge_work(path, device, window, scan, room);
+        Some(base + edges)
     }
 
     /// The matrix from list coordinates through `m` to target device px.
@@ -291,9 +306,9 @@ impl Rasterizer<'_> {
 
 /// The work of tiny-skia's scan conversion of `path` drawn with `device`,
 /// inside the `rows` and `columns` of the target: the edges' rows and the
-/// pairs of edges whose boxes overlap (see [`crate::svg::edges`]), and for
+/// pairs of edges whose boxes overlap (see [`crate::path_cost::edges`]), and for
 /// an anti-aliased fill the spans narrower than a pixel
-/// ([`crate::svg::spans`]). Linear in the number of segments. The spans are
+/// ([`crate::path_cost::spans`]). Linear in the number of segments. The spans are
 /// counted only if the count fits into `room` (the rest of the budget).
 pub(super) fn edge_work(
     path: &SvgPath,
@@ -383,20 +398,16 @@ fn dashed_span_work(
     window: Rect,
     room: f64,
 ) -> f64 {
-    use tiny_skia::PathSegment as K;
     let scale = matrix_scale(device);
     if stroke.width * scale <= 1.0 {
         return 0.0;
     }
     // The curves of the outline do not need more detail than this.
-    let res = scale.clamp(1.0, 16.0);
-    let outline = path
-        .dash(dash, res)
-        .and_then(|dashed| dashed.stroke(&skia_stroke(stroke, None), res));
+    let outline = dash_outline(path, dash, &skia_stroke(stroke, None), scale);
     let Some(outline) = outline else {
         return 0.0;
     };
-    let made = (SEGMENT + SWEEP_SEGMENT) * outline.len() as f64;
+    let made = outline_charge(outline.len());
     if made > room {
         return f64::INFINITY;
     }
@@ -405,13 +416,9 @@ fn dashed_span_work(
         (q.x, q.y)
     };
     let segments = || {
-        outline.segments().map(move |segment| match segment {
-            K::MoveTo(p) => Segment::Move(point(p)),
-            K::LineTo(p) => Segment::Line(point(p)),
-            K::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
-            K::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
-            K::Close => Segment::Close,
-        })
+        outline
+            .segments()
+            .map(move |segment| Segment::from_skia(segment, point))
     };
     let rows = (window.y, window.y + window.height);
     let columns = (window.x, window.x + window.width);
@@ -445,7 +452,6 @@ pub(super) fn skia_path(path: &SvgPath) -> Option<Path> {
 
 /// The path in device px (`device` maps its coordinates there), with each
 /// curve cut into lines a pixel or less long (see [`flat_steps`]).
-#[allow(clippy::many_single_char_names)]
 fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
     use swb_layout::svg::PathSegment as S;
     let mut pb = PathBuilder::with_capacity(path.segments().len() * 4, path.segments().len() * 8);
@@ -472,10 +478,9 @@ fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
                 let n = steps(&[current, c, p]);
                 for i in 1..=n {
                     let t = i as f32 / n as f32;
-                    let u = 1.0 - t;
                     pb.line_to(
-                        u * u * current.x + 2.0 * u * t * c.x + t * t * p.x,
-                        u * u * current.y + 2.0 * u * t * c.y + t * t * p.y,
+                        at_f32(&[current.x, c.x, p.x], t),
+                        at_f32(&[current.y, c.y, p.y], t),
                     );
                 }
                 current = p;
@@ -485,11 +490,9 @@ fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
                 let n = steps(&[current, c1, c2, p]);
                 for i in 1..=n {
                     let t = i as f32 / n as f32;
-                    let u = 1.0 - t;
-                    let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
                     pb.line_to(
-                        a * current.x + b * c1.x + c * c2.x + d * p.x,
-                        a * current.y + b * c1.y + c * c2.y + d * p.y,
+                        at_f32(&[current.x, c1.x, c2.x, p.x], t),
+                        at_f32(&[current.y, c1.y, c2.y, p.y], t),
                     );
                 }
                 current = p;
@@ -498,6 +501,14 @@ fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
         }
     }
     pb.finish()
+}
+
+/// The tiny-skia fill rule.
+pub(super) fn skia_rule(rule: FillRule) -> tiny_skia::FillRule {
+    match rule {
+        FillRule::NonZero => tiny_skia::FillRule::Winding,
+        FillRule::EvenOdd => tiny_skia::FillRule::EvenOdd,
+    }
 }
 
 pub(super) fn skia_transform(m: &Matrix) -> Transform {

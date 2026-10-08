@@ -36,14 +36,16 @@
 //! take 6 s. `spans.rs` charges it, from the bound [`Edges::span_bound`]
 //! and a count of the spans at sample rows.
 
-/// A point (x, y).
-pub(crate) type Point = (f32, f32);
+use swb_layout::bezier::at_f32;
+
+/// A point (x, y), named `Xy` so that it does not clash with `swb_layout::Point`.
+pub(crate) type Xy = (f32, f32);
 
 /// A window of rows (top, bottom) and columns (left, right).
 pub(crate) type Window = ((f32, f32), (f32, f32));
 
 /// The weights of the model for filling or stroking a path in one way, in
-/// the units of `cost.rs` (0.3 ns each). The values are from the
+/// the units of `path_cost` (0.3 ns each). The values are from the
 /// measurements in ADR 0023, rounded up to cover the slowest case of each
 /// kind.
 struct Weights {
@@ -139,11 +141,28 @@ pub(crate) const FLAT_STEPS: u32 = 64;
 /// One segment of a path.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Segment {
-    Move(Point),
-    Line(Point),
-    Quad(Point, Point),
-    Cubic(Point, Point, Point),
+    Move(Xy),
+    Line(Xy),
+    Quad(Xy, Xy),
+    Cubic(Xy, Xy, Xy),
     Close,
+}
+
+impl Segment {
+    /// The segment of a tiny-skia path with each point mapped by `point`.
+    pub(crate) fn from_skia(
+        segment: tiny_skia::PathSegment,
+        point: impl Fn(tiny_skia::Point) -> Xy,
+    ) -> Segment {
+        use tiny_skia::PathSegment as S;
+        match segment {
+            S::MoveTo(p) => Segment::Move(point(p)),
+            S::LineTo(p) => Segment::Line(point(p)),
+            S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
+            S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
+            S::Close => Segment::Close,
+        }
+    }
 }
 
 /// The edges of one kind (straight or curved).
@@ -179,7 +198,7 @@ pub(crate) struct Edges {
     pub(crate) span_bound: f64,
 }
 
-/// The work of a scan conversion, in the units of `cost.rs`.
+/// The work of a scan conversion, in the units of `path_cost`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Work {
     /// The part that grows with the rows that the edges cross (and so with
@@ -280,7 +299,11 @@ impl Extent {
         let ts = &ts[..=n];
         let (mut lo, mut hi, mut travel, mut previous) = (v[0], v[0], 0.0, v[0]);
         for t in &ts[1..] {
-            let value = if *t >= 1.0 { v[v.len() - 1] } else { at(v, *t) };
+            let value = if *t >= 1.0 {
+                v[v.len() - 1]
+            } else {
+                at_f32(v, *t)
+            };
             lo = lo.min(value);
             hi = hi.max(value);
             travel += (value - previous).abs();
@@ -347,23 +370,12 @@ pub(crate) fn monotone_parts(v: &[f32]) -> impl Iterator<Item = (f32, f32)> {
 /// The number of lines that a curve with these control points (device px)
 /// is cut into: one per pixel of the control polygon, between 4 and
 /// [`FLAT_STEPS`].
-pub(crate) fn flat_steps(points: &[Point]) -> u32 {
+pub(crate) fn flat_steps(points: &[Xy]) -> u32 {
     let length: f32 = points
         .windows(2)
         .map(|w| (w[1].0 - w[0].0).hypot(w[1].1 - w[0].1))
         .sum();
     (length.ceil().max(0.0) as u32).clamp(4, FLAT_STEPS)
-}
-
-/// The value at `t` of the Bézier curve with these control values.
-#[allow(clippy::many_single_char_names)] // The names of the polynomial.
-fn at(v: &[f32], t: f32) -> f32 {
-    let u = 1.0 - t;
-    match *v {
-        [a, b, c] => u * u * a + 2.0 * u * t * b + t * t * c,
-        [a, b, c, d] => u * u * u * a + 3.0 * u * u * t * b + 3.0 * u * t * t * c + t * t * t * d,
-        _ => 0.0,
-    }
 }
 
 /// The part of an edge that lies in the window, in bins.
@@ -490,13 +502,13 @@ impl EdgeSweep {
     }
 
     /// A straight edge between two points.
-    pub(crate) fn line(&mut self, a: Point, b: Point) {
+    pub(crate) fn line(&mut self, a: Xy, b: Xy) {
         self.add(Extent::line(a.1, b.1), Extent::line(a.0, b.0), false);
     }
 
     /// A curve with these control points: monotone parts, like the edges
     /// that tiny-skia makes of it.
-    fn curve(&mut self, points: &[Point]) {
+    fn curve(&mut self, points: &[Xy]) {
         let (mut xs, mut ys) = ([0.0f32; 4], [0.0f32; 4]);
         for (i, p) in points.iter().take(4).enumerate() {
             (xs[i], ys[i]) = *p;
@@ -593,9 +605,9 @@ impl EdgeSweep {
 /// An edge of a path, for [`walk_path`].
 pub(crate) enum PathEdge<'a> {
     /// A straight edge between two points.
-    Line(Point, Point),
+    Line(Xy, Xy),
     /// A quadratic (3 points) or cubic (4 points) curve.
-    Curve(&'a [Point]),
+    Curve(&'a [Xy]),
 }
 
 /// Calls `edge` for each edge of a path. A fill (`close`) closes each open

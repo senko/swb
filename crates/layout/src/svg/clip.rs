@@ -237,11 +237,11 @@ impl Builder<'_> {
     /// The geometry of a shape in a clip path, counted against the shape
     /// and segment limits of the document.
     fn clip_geometry(&mut self, e: &ElementData, style: &ComputedStyle) -> Option<Geometry> {
-        if self.budget.shapes == 0 {
+        if self.budget.shapes.left == 0 {
             return None;
         }
         let geometry = self.geometry(e, style.font_size)?;
-        self.budget.shapes -= 1;
+        self.budget.shapes.left -= 1;
         Some(geometry)
     }
 }
@@ -285,7 +285,7 @@ pub(super) struct ClipEnv<'a> {
 
 /// True if `m` keeps axes parallel (no rotation or skew).
 fn axis_aligned(m: &Matrix) -> bool {
-    m.is_finite() && m.b.abs() < 1e-6 && m.c.abs() < 1e-6
+    m.is_finite() && m.keeps_axes()
 }
 
 /// The visible region of clip path `def` for an element whose user space

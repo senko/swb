@@ -41,7 +41,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. | `css`, `dom`                  |
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree, the geometry of inline SVG (ADR 0023). | `dom`, `style`, `text`        |
-| `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
+| `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011), inline SVG drawing commands, hit testing of SVG shapes, group bounds, image reduction, and the cost model of path rasterization (`path_cost`). | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
@@ -133,13 +133,15 @@ Rules:
   XML nodes and depth, style sheets (`css.rs`), the size of the render
   tree with copies, reference depth and cycles (`expansion.rs`). An
   estimate of the rendering time and memory (`cost.rs`, with the cost of
-  dense paths from `edges.rs` and of spans narrower than a pixel from
-  `spans.rs`) sets the resolution. SVG images load only
+  dense paths and of spans narrower than a pixel from `path_cost/`, see
+  below) sets the resolution. SVG images load only
   `data:` URLs. They are rendered at the device pixel size of each tile
   and cached per document (`VectorCache` in the engine's `Images`,
   128 MiB). One frame renders new renderings up to a work budget; after
   that, images use the closest cached rendering or are not drawn until a
-  later repaint.
+  later repaint. Counting the spans of a decoded SVG image draws on a
+  budget per document (`CountBudget` in `Images`, 2 billion units, ADR
+  0023 part 3); past it, images use the bound without counting.
 - **Rounded overflow clips and image reduction** (ADR 0024): a box with
   `overflow` clipping and `border-radius` clips to the rounded padding
   edge. The display list emits it as an SVG clip group (`PushSvgClip` with
@@ -181,8 +183,10 @@ Rules:
   `a` works as a link. The rasterizer draws paths with tiny-skia within a
   work budget per strip (`paint/src/raster/path.rs`; the cost of a path
   includes the rows that its edges cross and the pairs of edges whose
-  boxes overlap, `paint/src/svg/edges.rs`, and for anti-aliased fills the
-  spans narrower than a pixel, `paint/src/svg/spans.rs`, ADR 0023 part 3). Limits per
+  boxes overlap, `paint/src/path_cost/edges.rs`, and for anti-aliased
+  fills the spans narrower than a pixel, `paint/src/path_cost/spans.rs`,
+  ADR 0023 part 3; the weights are in `paint/src/path_cost/mod.rs` and
+  the estimate for SVG images uses the same model). Limits per
   document: 50,000 shapes and 50,000 groups, 1,000,000 path segments,
   groups 64 deep, 256 opacity layers and 256 clip layers, 20,000
   elements in the copies of `use` elements.

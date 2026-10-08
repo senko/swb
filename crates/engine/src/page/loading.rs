@@ -15,7 +15,7 @@ use super::scroll::indicated;
 use super::{LoadState, Page, about_blank, is_loadable};
 use crate::forms::Forms;
 use crate::image_source::{self, SelectedImage};
-use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
+use crate::resources::{AutoSizes, ImageState, Images, Pending, Requests, SheetSlot};
 use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
 use crate::web_fonts::WebFonts;
@@ -370,9 +370,12 @@ impl Page {
             }
         }
         self.input.states.dimension_sources = Arc::new(dimension_sources);
-        let kept: HashSet<NodeId> = auto_nodes.iter().copied().collect();
-        self.images.auto.retain(|node, _| kept.contains(node));
-        self.images.auto_nodes = auto_nodes;
+        let mut old: HashMap<NodeId, AutoSizes> =
+            std::mem::take(&mut self.images.auto).into_iter().collect();
+        self.images.auto = auto_nodes
+            .into_iter()
+            .map(|node| (node, old.remove(&node).unwrap_or_default()))
+            .collect();
         for url in loads {
             self.start_image(url);
         }

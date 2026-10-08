@@ -18,7 +18,7 @@
 //! - `fixed` does not depend on the size: every path and its segments,
 //!   dashes (tiny-skia makes every dash a path segment), the decoding of
 //!   embedded raster images, and the edges of paths that do not depend on
-//!   the rows they cross (`edges.rs`: the pairs of edges that can cross make
+//!   the rows they cross (`path_cost/edges.rs`: the pairs of edges that can cross make
 //!   the time of a dense path grow with the square of its segments, and a
 //!   lower resolution does not remove them).
 //! - `rows` is the cost of the rows that the edges of paths cross. The
@@ -36,16 +36,20 @@
 //! the same time. `layers` is the largest sum of nested layer sizes, in
 //! canvases.
 //!
-//! The weights were measured with resvg 0.48 in release builds. The
-//! rasterizer uses the path weights for inline SVG too (`raster/path.rs`).
+//! The weights of images and filters were measured with resvg 0.48 in
+//! release builds. The weights of paths are in `crate::path_cost`, which the
+//! rasterizer of inline SVG uses too (`raster/path.rs`).
 
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 
 use usvg::{self, Group, Node, NonZeroRect, Paint, filter};
 
-use super::edges::{Draw, EdgeSweep, Edges, SWEEP_SEGMENT, Segment, Window, Work};
-use super::spans::{self, Grid, Rule, SCALES, SPAN, SPAN_SKIP, SpanCount};
+use crate::path_cost::edges::{Draw, EdgeSweep, Edges, SWEEP_SEGMENT, Segment, Window, Work};
+use crate::path_cost::spans::{self, Grid, SCALES, SPAN, SPAN_SKIP, SpanCount};
+use crate::path_cost::{
+    BLEND, DASH, MAX_DASHES, PATH, SEGMENT, dash_outline, outline_charge, stroke_reach,
+};
 
 /// The cost of one neighbor of a morphology filter.
 const MORPHOLOGY: f64 = 32.0;
@@ -59,34 +63,20 @@ const BLUR: f64 = 300.0;
 const LIGHTING: f64 = 120.0;
 /// The cost of other filter primitives per pixel.
 const OTHER_FILTER: f64 = 30.0;
-/// The cost of one dash.
-pub(crate) const DASH: f64 = 200.0;
 /// The cost of decoding one pixel of an embedded raster image.
 const RASTER_DECODE: f64 = 10.0;
 /// tiny-skia makes at most this many dashes per path.
 const MAX_CHARGED_DASHES: f64 = 1_000_000.0;
-/// The most dash array entries (dashes and gaps) along a stroke whose
-/// outline is made to count its spans, as `MAX_DASHES` in `raster/path.rs`
-/// counts them; a path with more is too expensive (`MAX_REJECT`).
-const MAX_OUTLINE_DASHES: f64 = 100_000.0;
 /// Added to the fixed cost of what is too expensive to look at: more than
 /// the render budget of `svg/mod.rs`.
 const MAX_REJECT: f64 = 4.0e9;
 /// resvg clips layers to 5 × 5 canvases (`max_filter_bbox`).
 const MAX_LAYER: f64 = 25.0;
-/// The cost of rendering a path, apart from its pixels and segments.
-pub(crate) const PATH: f64 = 1500.0;
-/// The cost of one segment of a path.
-pub(crate) const SEGMENT: f64 = 30.0;
 /// The cost of a group, apart from its layer.
 const GROUP: f64 = 100.0;
-/// The cost of blending one pixel: translucent paint, gradients, patterns,
-/// images, layers, masks. (Measured: 1.9 ns per pixel for half-transparent
-/// fills, 0.125 ns for opaque ones.)
-pub(crate) const BLEND: f64 = 8.0;
 
 /// The most work of counting the spans of the paths of one image
-/// (`spans.rs`), in units: about 0.3 s, once per image. Paths beyond it are
+/// (`path_cost/spans.rs`), in units: about 0.3 s, once per image. Paths beyond it are
 /// charged the bound on their spans.
 const MAX_COUNT_WORK: f64 = 1.0e9;
 
@@ -95,7 +85,7 @@ const MAX_COUNT_WORK: f64 = 1.0e9;
 /// images of 250,000 segments, without this limit.
 const MAX_DOCUMENT_COUNT_WORK: f64 = 2.0e9;
 
-/// What counting spans (`spans.rs`) may still take in one document, shared
+/// What counting spans (`path_cost/spans.rs`) may still take in one document, shared
 /// by its SVG images. Past it, images are charged the bound on their spans
 /// without counting (so they render at a lower resolution, or not at all).
 #[derive(Debug)]
@@ -140,7 +130,7 @@ pub(super) struct Cost {
     /// not counted).
     layers: f64,
     /// The work of the spans of anti-aliased fills that are narrower than a
-    /// pixel (`spans.rs`), per row of the canvas, for a rendering at
+    /// pixel (`path_cost/spans.rs`), per row of the canvas, for a rendering at
     /// `spans::scale(i)` pixels per user unit: at a scale `s` from that one
     /// to the next, the work is `s` times `spans[i]` (spans only get wider
     /// at a larger scale).
@@ -311,7 +301,8 @@ fn estimate_counting(tree: &usvg::Tree, count_left: &mut f64) -> Cost {
     let mut estimator = Estimator {
         canvas,
         referenced: HashMap::new(),
-        edges: true,
+        #[cfg(test)]
+        no_edges: false,
         count_left: *count_left,
     };
     let cost = estimator.subtree(tree.root(), CANVAS);
@@ -342,9 +333,10 @@ struct Estimator {
     /// `feImage`s, by root group. resvg renders them for every use; usvg
     /// shares one root between uses when it can.
     referenced: HashMap<*const Group, Cost>,
-    /// Whether to count the edges of paths (`edges.rs`); a test switches it
-    /// off to see the other terms alone.
-    edges: bool,
+    /// Test only: leaves out the edges of paths (`path_cost/edges.rs`), to
+    /// see the other terms alone.
+    #[cfg(test)]
+    no_edges: bool,
     /// The work that counting spans may still take (`MAX_COUNT_WORK`).
     count_left: f64,
 }
@@ -502,7 +494,7 @@ impl Estimator {
         }
     }
 
-    /// Adds the scan conversion of the edges of a path (see `edges.rs`). A
+    /// Adds the scan conversion of the edges of a path (see `path_cost/edges.rs`). A
     /// stroke counts as an outline, also if it is thin enough for a
     /// hairline at some sizes: whether it is depends on the size of the
     /// rendering, and the outline costs more.
@@ -526,11 +518,11 @@ impl Estimator {
         cost.rows += work.rows / self.canvas.sqrt();
     }
 
-    /// Adds the spans of the dashes of `stroke` (`spans.rs`): the outline
+    /// Adds the spans of the dashes of `stroke` (`path_cost/spans.rs`): the outline
     /// of the dashed stroke is made with tiny-skia as in `raster/path.rs`
     /// (`dashed_span_work`), charged for its segments, and counted as a
-    /// non-zero fill. A path with more than [`MAX_OUTLINE_DASHES`] dash
-    /// array entries along it is too expensive.
+    /// non-zero fill. A path with more than [`MAX_DASHES`] dash array
+    /// entries along it is too expensive.
     fn add_dash_spans(
         &mut self,
         cost: &mut Cost,
@@ -545,19 +537,17 @@ impl Estimator {
         let interval: f32 = dashes.iter().sum();
         let count = f64::from(control_polygon_length(path.data())) * dashes.len() as f64
             / f64::from(interval);
-        if count > MAX_OUTLINE_DASHES {
+        if count > f64::from(MAX_DASHES) {
             cost.fixed += MAX_REJECT;
             return;
         }
         let (sx, sy) = path.abs_transform().get_scale();
-        let res = sx.max(sy).clamp(1.0, 16.0);
         let outline = sk::StrokeDash::new(dashes.to_vec(), stroke.dashoffset())
-            .and_then(|dash| path.data().dash(&dash, res))
-            .and_then(|dashed| dashed.stroke(&skia_stroke(stroke), res));
+            .and_then(|dash| dash_outline(path.data(), &dash, &skia_stroke(stroke), sx.max(sy)));
         let Some(outline) = outline else {
             return;
         };
-        cost.fixed += (SEGMENT + SWEEP_SEGMENT) * outline.len() as f64;
+        cost.fixed += outline_charge(outline.len());
         let transform = path.abs_transform();
         let mut sweep = EdgeSweep::new(window.0, window.1, 0.0, outline.len() + 1);
         sweep.path(transformed(&outline, transform), true);
@@ -570,7 +560,7 @@ impl Estimator {
         );
     }
 
-    /// Adds the spans of the fill of `path` (`spans.rs`): the bound, and the
+    /// Adds the spans of the fill of `path` (`path_cost/spans.rs`): the bound, and the
     /// count at each of the scales if the bound is not small at the largest
     /// rendering and the count fits into what is left of
     /// `MAX_COUNT_WORK`. Fills count as anti-aliased.
@@ -585,12 +575,8 @@ impl Estimator {
         let bound = SPAN * edges.span_bound;
         cost.span_bound += bound;
         let largest = largest_scale(self.canvas);
-        let rule = match rule {
-            usvg::FillRule::NonZero => Rule::NonZero,
-            usvg::FillRule::EvenOdd => Rule::EvenOdd,
-        };
         let grid = Grid::Scaled(largest_scale(self.canvas));
-        let mut count = SpanCount::new(rows, columns, edges, rule, grid);
+        let mut count = SpanCount::new(rows, columns, edges, rule.into(), grid);
         let small = bound * largest <= SPAN_SKIP;
         let groups = if small || count.work() > self.count_left {
             None
@@ -607,7 +593,11 @@ impl Estimator {
     /// Adds a path: its outline, its area, its dashes and its pattern tiles.
     fn add_path(&mut self, cost: &mut Cost, path: &usvg::Path, surface: Surface) {
         cost.fixed += PATH + SEGMENT * path.data().verbs().len() as f64;
-        if self.edges {
+        #[cfg(test)]
+        let counts_edges = !self.no_edges;
+        #[cfg(not(test))]
+        let counts_edges = true;
+        if counts_edges {
             self.add_edges(cost, path);
         }
         let area = path.abs_stroke_bounding_box().to_non_zero_rect();
@@ -656,16 +646,16 @@ fn largest_scale(canvas: f64) -> f64 {
 }
 
 /// The edges of `path` in the units of the tree's canvas (see
-/// `edges.rs`), and the window of rows and columns of the sweep.
+/// `path_cost/edges.rs`), and the window of rows and columns of the sweep.
 fn path_edges(path: &usvg::Path) -> (Edges, Window) {
     let transform = path.abs_transform();
     let (sx, sy) = transform.get_scale();
     let grow = path.stroke().map_or(0.0, |s| {
         let miter = match s.linejoin() {
-            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => s.miterlimit().get(),
-            usvg::LineJoin::Round | usvg::LineJoin::Bevel => 1.0,
+            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => Some(s.miterlimit().get()),
+            usvg::LineJoin::Round | usvg::LineJoin::Bevel => None,
         };
-        s.width().get() / 2.0 * miter.max(std::f32::consts::SQRT_2) * sx.max(sy)
+        stroke_reach(s.width().get(), miter) * sx.max(sy)
     });
     let bounds = path.abs_bounding_box();
     let rows = (bounds.top() - grow, bounds.bottom() + grow);
@@ -706,20 +696,14 @@ fn transformed(
     data: &usvg::tiny_skia_path::Path,
     transform: usvg::Transform,
 ) -> impl Iterator<Item = Segment> + '_ {
-    use usvg::tiny_skia_path::PathSegment as S;
     let point = move |p: usvg::tiny_skia_path::Point| {
         (
             p.x * transform.sx + p.y * transform.kx + transform.tx,
             p.x * transform.ky + p.y * transform.sy + transform.ty,
         )
     };
-    data.segments().map(move |segment| match segment {
-        S::MoveTo(p) => Segment::Move(point(p)),
-        S::LineTo(p) => Segment::Line(point(p)),
-        S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
-        S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
-        S::Close => Segment::Close,
-    })
+    data.segments()
+        .map(move |segment| Segment::from_skia(segment, point))
 }
 
 /// The cost per pixel of painting a path: 1 for opaque colors (tiny-skia
@@ -773,7 +757,7 @@ mod tests {
         let mut estimator = Estimator {
             canvas,
             referenced: HashMap::new(),
-            edges: false,
+            no_edges: true,
             count_left: MAX_COUNT_WORK,
         };
         estimator.subtree(tree.root(), CANVAS)

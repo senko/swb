@@ -281,12 +281,12 @@ fn shapes(content: &SvgContent) -> usize {
 #[test]
 fn shapes_are_limited_per_document() {
     let mut budget = SvgBudget {
-        shapes: 3,
+        shapes: Counter::new(3),
         ..SvgBudget::default()
     };
     let html = format!("<svg>{}</svg>", "<rect width=1 height=1 />".repeat(5));
     assert_eq!(shapes(&build_with(&html, &mut budget)), 3);
-    assert!(budget.warned_shapes);
+    assert!(budget.shapes.warned);
     // The budget is shared by the next `<svg>` of the same box tree.
     assert_eq!(shapes(&build_with(&html, &mut budget)), 0);
 }
@@ -294,7 +294,7 @@ fn shapes_are_limited_per_document() {
 #[test]
 fn segments_are_limited_per_document() {
     let mut budget = SvgBudget {
-        segments: 12,
+        segments: Counter::new(12),
         ..SvgBudget::default()
     };
     let html = "<svg><path d='M0 0 L1 1 L2 2 L3 3 L4 4' /><rect width=1 height=1 />\
@@ -310,8 +310,8 @@ fn segments_are_limited_per_document() {
         .count();
     assert_eq!(drawn, 1);
     assert_eq!(shapes(&content), 2);
-    assert!(budget.warned_segments);
-    assert_eq!(budget.segments, 0);
+    assert!(budget.segments.warned);
+    assert_eq!(budget.segments.left, 0);
 }
 
 #[test]
@@ -325,15 +325,15 @@ fn groups_are_limited_in_depth() {
         )
     };
     assert_eq!(shapes(&build_with(&deep(MAX_DEPTH), &mut budget)), 1);
-    assert!(!budget.warned_depth);
+    assert!(!budget.depth.warned);
     assert_eq!(shapes(&build_with(&deep(MAX_DEPTH + 1), &mut budget)), 0);
-    assert!(budget.warned_depth);
+    assert!(budget.depth.warned);
 }
 
 #[test]
 fn opacity_layers_are_limited_per_document() {
     let mut budget = SvgBudget {
-        layers: 2,
+        layers: Counter::new(2),
         ..SvgBudget::default()
     };
     // Three groups with two shapes, then a shape with a fill and a stroke.
@@ -343,8 +343,8 @@ fn opacity_layers_are_limited_per_document() {
         group.repeat(3)
     );
     let content = build_with(&html, &mut budget);
-    assert!(budget.warned_layers);
-    assert_eq!(budget.layers, 0);
+    assert!(budget.layers.warned);
+    assert_eq!(budget.layers.left, 0);
     let layers: Vec<bool> = content
         .nodes
         .iter()
@@ -567,7 +567,7 @@ fn clip_rule_is_inherited_from_the_clip_path() {
 #[test]
 fn clip_paths_that_need_a_layer_are_limited_per_document() {
     let mut budget = SvgBudget {
-        clip_layers: 2,
+        clip_layers: Counter::new(2),
         ..SvgBudget::default()
     };
     let circles = "<rect width=9 height=9 clip-path='url(#c)' />".repeat(4);
@@ -578,7 +578,7 @@ fn clip_paths_that_need_a_layer_are_limited_per_document() {
          <rect width=9 height=9 clip-path='url(#r)' /></svg>"
     );
     let content = build_with(&html, &mut budget);
-    assert!(budget.warned_clip_layers);
+    assert!(budget.clip_layers.warned);
     let clips: Vec<bool> = content
         .nodes
         .iter()
@@ -799,19 +799,19 @@ fn a_use_in_a_clip_path_keeps_the_clip_of_its_target() {
 #[test]
 fn use_takes_both_groups_or_none() {
     let mut budget = SvgBudget {
-        groups: 1,
+        groups: Counter::new(1),
         ..SvgBudget::default()
     };
     let html = "<svg><rect id=r width=1 height=1 /><use href='#r' /></svg>";
     let _ = build_with(html, &mut budget);
-    assert_eq!(budget.groups, 1);
-    assert!(budget.warned_groups);
+    assert_eq!(budget.groups.left, 1);
+    assert!(budget.groups.warned);
 }
 
 #[test]
 fn groups_are_limited_per_document() {
     let mut budget = SvgBudget {
-        groups: 3,
+        groups: Counter::new(3),
         ..SvgBudget::default()
     };
     let html = format!(
@@ -820,5 +820,5 @@ fn groups_are_limited_per_document() {
     );
     let content = build_with(&html, &mut budget);
     assert_eq!(shapes(&content), 3);
-    assert!(budget.warned_groups);
+    assert!(budget.groups.warned);
 }

@@ -51,15 +51,14 @@ mod svg_attributes;
 mod values;
 
 pub use cascade::compute_styles;
-pub use cascade::use_instances::{MAX_INSTANCE_ELEMENTS, MAX_USE_DEPTH};
 pub use computed::{ComputedStyle, CustomProperties};
 pub use content::content_text;
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };
 pub use element_kinds::is_replaced_element;
-pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle, MAX_RATIO};
+pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle};
 pub use font_settings::{FontFeatureSettings, FontTag, FontVariationSettings, MAX_SETTINGS};
 pub use style_map::{InstanceId, PseudoKind, StyleMap};
-pub use stylist::{MAX_FONT_FACES, Stylist};
+pub use stylist::Stylist;
 pub use values::*;

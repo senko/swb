@@ -41,6 +41,7 @@ async def render_fixture(
         await browser.scroll_through(page, pause_ms=100)
         await browser.wait_for_network_idle(page)
         await page.evaluate("window.scrollTo(0, 0)")
+        await browser.wait_for_fonts(page)
         await browser.stop_animations(page)
         dump = await browser.collect_boxes(page, url)
         write_dump(output / REFERENCE_BOXES, dump)

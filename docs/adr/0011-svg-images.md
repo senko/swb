@@ -184,7 +184,7 @@ Before usvg converts a document (`paint/src/svg`):
 Rendering (`cost.rs`): an estimate of the work per rendering (painted
 area, layers, filter primitives per pixel, morphology radius squared, a
 fixed cost per path and segment, the rows that the edges of a path cross
-and the pairs of edges whose boxes overlap (`edges.rs`, fitted to
+and the pairs of edges whose boxes overlap (`path_cost/edges.rs`, fitted to
 measurements of tiny-skia: a dense path takes time in proportion to the
 pairs, the square of the segments; 40,000 curves across the height of a
 100 px image take seconds at any resolution, so the pairs are in the fixed

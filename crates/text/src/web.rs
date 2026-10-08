@@ -49,7 +49,7 @@ pub(crate) const MAX_COMPOSITE_CHECKS: usize = 256;
 
 /// The most web font faces that a document loads (or tries to load);
 /// later requests fail at once.
-pub const MAX_WEB_FONT_LOADS: usize = 1_000;
+pub(crate) const MAX_WEB_FONT_LOADS: usize = 1_000;
 
 /// The `font-style` descriptor of a web font face.
 #[derive(Copy, Clone, Debug, PartialEq, Default)]
@@ -271,7 +271,7 @@ impl FontContext {
                 "a web font family has more than {MAX_FACES_PER_FAMILY} faces; ignoring the rest"
             );
         }
-        let kept: Vec<WebFaceId> = new_faces.iter().map(|f| f.id).collect();
+        let kept: HashSet<WebFaceId> = new_faces.iter().map(|f| f.id).collect();
         self.web.requests.retain(|id| kept.contains(id));
         self.web.faces = new_faces;
         self.web.families = families
@@ -707,6 +707,8 @@ fn apply_descriptors(loaded: &mut LoadedFace, desc: &WebFontFace) {
 /// The angle of `font-style: italic` and `oblique` for a `slnt` axis:
 /// the default oblique angle (CSS Fonts 4 §2.4). swb does not keep the
 /// angle of `oblique <angle>` yet.
+/// Must equal `DEFAULT_OBLIQUE_ANGLE` in `swb_style::font_face` (this crate
+/// does not depend on `swb_style`).
 const OBLIQUE_ANGLE: f32 = 14.0;
 
 fn oblique_range(style: WebFontStyle) -> Option<(f32, f32)> {

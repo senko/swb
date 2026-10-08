@@ -10,6 +10,11 @@ pub(crate) fn clamp_length(v: f32) -> f32 {
     swb_style::Length::clamp_px(v)
 }
 
+/// The cubic Bézier factor for a quarter of a circle: the control points
+/// are this fraction of the radius away from the end points along the
+/// tangents (4/3 · tan(π/8)).
+pub const KAPPA: f32 = 0.552_284_8;
+
 /// A point.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Point {
@@ -88,6 +93,14 @@ impl Rect {
     /// The right edge.
     pub fn right(&self) -> f32 {
         self.x + self.width
+    }
+
+    /// True if `self` contains all of `inner`, up to `epsilon` on each edge.
+    pub fn contains_rect(&self, inner: &Rect, epsilon: f32) -> bool {
+        self.x <= inner.x + epsilon
+            && self.y <= inner.y + epsilon
+            && self.right() >= inner.right() - epsilon
+            && self.bottom() >= inner.bottom() - epsilon
     }
 
     /// The bottom edge.
@@ -281,6 +294,11 @@ impl Matrix {
     /// True if the matrix only translates.
     pub fn is_translation(&self) -> bool {
         self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0
+    }
+
+    /// True if the matrix keeps axes parallel (no rotation or skew).
+    pub fn keeps_axes(&self) -> bool {
+        self.b.abs() < 1e-6 && self.c.abs() < 1e-6
     }
 
     /// True if all entries are finite.

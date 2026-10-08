@@ -16,12 +16,11 @@ use swb_layout::{Matrix, Rect};
 use swb_style::{FillRule, Rgba};
 use tiny_skia::{IntSize, Mask, Pixmap, PixmapPaint, Transform};
 
-use super::path::{Scan, edge_work, skia_path, skia_transform};
-use super::{Rasterizer, solid_paint};
+use super::path::{Scan, skia_path, skia_rule, skia_transform};
+use super::{Rasterizer, skia_rect, solid_paint};
 use crate::display_list::path_bounds;
 use crate::image::mul_255;
-use crate::svg::cost::{BLEND, PATH, SEGMENT};
-use crate::svg::edges::SWEEP_SEGMENT;
+use crate::path_cost::BLEND;
 
 /// The deepest nesting of clip paths inside clip paths that is rasterized.
 const MAX_NESTING: usize = 20;
@@ -94,13 +93,7 @@ impl Rasterizer<'_> {
                 break;
             }
         }
-        let mut values: Vec<u8> = union
-            .data()
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|p| p[3])
-            .collect();
+        let mut values = alpha_of(&union);
         self.release(&union);
         if !ok {
             return None;
@@ -125,7 +118,7 @@ impl Rasterizer<'_> {
         nesting: usize,
     ) -> bool {
         let matrix = to_layer.multiply(&shape.transform);
-        let layer = Rect::new(0.0, 0.0, union.width() as f32, union.height() as f32);
+        let layer = pixmap_rect(union);
         let Some(visible) = path_bounds(&shape.path, &matrix, 0.0).intersection(&layer) else {
             // The shape is outside the layer: it adds nothing.
             return true;
@@ -208,13 +201,7 @@ impl Rasterizer<'_> {
                         None,
                     );
                 }
-                let values = pixmap
-                    .data()
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|p| p[3])
-                    .collect();
+                let values = alpha_of(&pixmap);
                 self.release(&pixmap);
                 Some(values)
             }
@@ -232,35 +219,26 @@ impl Rasterizer<'_> {
         rule: FillRule,
     ) {
         let bounds = path_bounds(path, matrix, 0.0);
-        let layer = Rect::new(0.0, 0.0, pixmap.width() as f32, pixmap.height() as f32);
+        let layer = pixmap_rect(pixmap);
         let Some(visible) = bounds.intersection(&layer) else {
             return;
         };
-        let pixels = f64::from(visible.width) * f64::from(visible.height);
-        // The cost of looking at the segments is charged also for a path
-        // that does not fit (see `plan_path`).
-        if !self.path_work_fits((SEGMENT + SWEEP_SEGMENT) * path.segments().len() as f64) {
-            return;
-        }
         let rows = (0.0, pixmap.height() as f32);
         let columns = (0.0, pixmap.width() as f32);
-        let base = PATH + BLEND * pixels;
-        let room = self.budget.max_path_work - self.budget.path_work - base;
-        let edges = edge_work(path, matrix, (rows, columns), Scan::fill(true, rule), room);
-        if !self.path_work_fits(base + edges) {
+        let scan = Scan::fill(true, rule);
+        let Some(work) = self.fill_work(path, matrix, visible, (rows, columns), scan) else {
+            return;
+        };
+        if !self.path_work_fits(work) {
             return;
         }
         let Some(sk_path) = skia_path(path) else {
             return;
         };
-        let rule = match rule {
-            FillRule::NonZero => tiny_skia::FillRule::Winding,
-            FillRule::EvenOdd => tiny_skia::FillRule::EvenOdd,
-        };
         pixmap.fill_path(
             &sk_path,
             &solid_paint(Rgba::BLACK, true),
-            rule,
+            skia_rule(rule),
             skia_transform(matrix),
             None,
         );
@@ -269,6 +247,21 @@ impl Rasterizer<'_> {
 
 /// The rectangle as a tiny-skia path, or `None` if it is empty.
 fn rect_path(rect: &Rect) -> Option<tiny_skia::Path> {
-    let r = tiny_skia::Rect::from_xywh(rect.x, rect.y, rect.width, rect.height)?;
-    Some(tiny_skia::PathBuilder::from_rect(r))
+    skia_rect(*rect).map(tiny_skia::PathBuilder::from_rect)
+}
+
+/// The rectangle of the whole pixmap.
+fn pixmap_rect(pixmap: &Pixmap) -> Rect {
+    Rect::new(0.0, 0.0, pixmap.width() as f32, pixmap.height() as f32)
+}
+
+/// The alpha channel of `pixmap`, one byte per pixel.
+fn alpha_of(pixmap: &Pixmap) -> Vec<u8> {
+    pixmap
+        .data()
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|p| p[3])
+        .collect()
 }

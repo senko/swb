@@ -37,10 +37,8 @@
 mod cache;
 pub(crate) mod cost;
 mod css;
-pub(crate) mod edges;
 mod entities;
 mod expansion;
-pub(crate) mod spans;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicU64, Ordering};

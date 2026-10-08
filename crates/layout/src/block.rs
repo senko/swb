@@ -296,6 +296,19 @@ pub(crate) fn margin_or_zero(m: &LengthPercentageOrAuto, cb_width: f32) -> f32 {
     m.resolve(cb_width).unwrap_or(0.0)
 }
 
+/// The content width that a block-level box with `available` px for its
+/// margin box fills (CSS 2.2 §10.3.3).
+pub(crate) fn fill_width(
+    style: &ComputedStyle,
+    cb_width: f32,
+    available: f32,
+    edges: &BoxEdges,
+) -> f32 {
+    let margins = margin_or_zero(&style.margin_left, cb_width)
+        + margin_or_zero(&style.margin_right, cb_width);
+    (available - margins - edges.sum().horizontal()).max(0.0)
+}
+
 /// Used width and horizontal margins of a block-level box in normal flow
 /// (CSS 2.2 §10.3.3 and §10.4) in a space `available` px wide (the
 /// containing block's width, or a layout opportunity next to floats with
@@ -1032,7 +1045,7 @@ fn layout_block_box<'a>(
     let style = &base.style;
     let edges = BoxEdges::resolve(style, cb.width);
     let ratio_width = crate::aspect::auto_width(style, &edges, (cb.width, cb.height), || {
-        crate::aspect::fill_width(style, cb.width, cb.width, &edges)
+        fill_width(style, cb.width, cb.width, &edges)
     });
     let (width, margin_left, _) = block_width_and_margins(style, cb, cb.width, &edges, ratio_width);
     let border_width = width + edges.sum().horizontal();
@@ -1546,7 +1559,7 @@ fn layout_independent_in(
             let ratio_width = crate::aspect::applies_to(ib)
                 .then(|| {
                     crate::aspect::auto_width(style, &edges, (cb.width, cb.height), || {
-                        crate::aspect::fill_width(style, cb.width, available, &edges)
+                        fill_width(style, cb.width, available, &edges)
                     })
                 })
                 .flatten();

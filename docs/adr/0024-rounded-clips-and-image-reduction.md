@@ -33,7 +33,8 @@ Rounded overflow clip:
 - The display list emits `PushSvgClip` / `PopSvgClip` with a
   rounded-rectangle `ClipPath` and `rect_fallback: true`. The rasterizer
   reuses the SVG clip layer (`raster/svg_clip.rs`): the layer counts
-  against the layer budget, the coverage against the path work budget.
+  against the layer budget, the coverage against the path work budget
+  (the cost model of `paint/src/path_cost/`).
 - If the layer does not fit, the group draws directly with a rectangle
   clip (`Layer::rect_clip`). If the coverage does not fit, the layer is
   drawn without the coverage; it is already limited to the clip's bounds.

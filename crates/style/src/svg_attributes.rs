@@ -8,8 +8,10 @@
 //! works as for any property. The value is parsed with the property's CSS
 //! grammar; an invalid value is ignored.
 //!
-//! Supported: the fill and stroke properties, `opacity`, `display`,
-//! `visibility`, `color`, `overflow`, `transform` (in the SVG syntax of
+//! Supported: the fill and stroke properties (`fill`, `fill-opacity`,
+//! `fill-rule`, `stroke`, `stroke-*`), `clip-path`, `clip-rule`,
+//! `opacity`, `display`, `visibility`, `pointer-events`,
+//! `shape-rendering`, `color`, `overflow`, `transform` (in the SVG syntax of
 //! the attribute, parsed by `svgtypes`), and `width` and `height` of
 //! `svg` elements. The geometry attributes of shapes (`x`, `r`, `d`, ...)
 //! are read by layout, not mapped to properties.

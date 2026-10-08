@@ -5,9 +5,16 @@
 //! (a full-page screenshot) in strips ([`rasterize_in_strips`]). The display list
 //! does not depend on tiny-skia, so another backend can replace the
 //! rasterizer. Images are raster images or SVG images (`svg`), which are
-//! rendered at the size they are drawn at. Masks (`mask`) multiply a
-//! group of drawing commands by images or gradients. Form controls
-//! (`control`) and media controls (`media`) have their own look.
+//! rendered at the size they are drawn at. Large raster images are drawn
+//! from reduced levels (`reduce`). Masks (`mask`) multiply a group of
+//! drawing commands by images or gradients. Form controls (`control`) and
+//! media controls (`media`) have their own look. `group_bounds` finds the
+//! bounds of the transform, opacity and mask groups of a finished list.
+//!
+//! Inline SVG (ADR 0023): `inline_svg` turns the layout of an `<svg>`
+//! element into drawing commands, `hit_path` tests points against its
+//! shapes, and `path_cost` is the cost model that bounds the
+//! rasterization of paths (shared with the estimate for SVG images).
 
 mod background;
 mod control;
@@ -18,6 +25,7 @@ mod image;
 mod inline_svg;
 mod mask;
 mod media;
+mod path_cost;
 mod raster;
 mod reduce;
 mod rope;

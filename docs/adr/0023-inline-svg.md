@@ -178,9 +178,10 @@ Content from the network must not cause unbounded work or memory:
   pixels of its bounds inside the visible area (the same weight for
   opaque and translucent colors: tiny-skia's anti-aliased fill takes
   2.6 ns per pixel of either, measured; the estimate for SVG images
-  assumes 0.125 ns for opaque pixels, which holds for resvg's cached
-  rendering, not here) and its dashes, with the other weights of the SVG
-  image estimate (`paint/src/svg/cost.rs`, used as they are). A strip has a budget of about
+  weighs opaque pixels at 1 unit (0.3 ns, rounded up from 0.125 ns
+  measured), which holds for resvg's cached rendering, not here) and its
+  dashes, with the other weights of the SVG image estimate (now in
+  `paint/src/path_cost/mod.rs`, used as they are). A strip has a budget of about
   0.6 s; a path that does not fit is not drawn, and a warning is logged.
   This differs from SVG images, which are rendered once at a resolution
   that their estimate allows and then cached: inline paths are drawn
@@ -406,7 +407,7 @@ five clip references 20 s, and 40 shapes in 300 references more than 120 s.
 tiny-skia 0.12.0 (the version swb uses), release build, `Pixmap::fill_path`
 and `stroke_path` on a pixmap of the given size, best of five, in CPU time of
 the thread (the machine was busy, wall time varied by a factor of two). The
-measuring program included `edges.rs` and printed the counts and the work of
+measuring program included `path_cost/edges.rs` and printed the counts and the work of
 the model next to the time; it is not in the repository yet (roadmap
 backlog). The numbers below are the source of the model; the model does not
 describe how tiny-skia works.
@@ -470,7 +471,7 @@ and combs.
 
 ### The model
 
-`paint/src/svg/edges.rs` counts, in one sweep over the segments
+`paint/src/path_cost/edges.rs` counts, in one sweep over the segments
 (`EdgeSweep`), for edges that lie in a window of rows and columns:
 
 - the height of the edges (a curve counts with its exact range and the sum of
@@ -483,11 +484,11 @@ and combs.
   + 64` in each direction) only raise the counts: edges that share a bin
   count as overlapping.
 
-The work, in the units of `cost.rs` (0.3 ns each), is
+The work, in the units of `path_cost` (0.3 ns each), is
 
     height * ROW + parts * PART + row_pairs * ROW_PAIR + box_pairs * BOX_PAIR
 
-with the weights of one of six tables (`edges.rs`): fill, stroke, hairline,
+with the weights of one of six tables (`path_cost/edges.rs`): fill, stroke, hairline,
 each with and without anti-aliasing. For example, a fill with anti-aliasing
 has 190 per row of a line, 900 per line, 210 per row of a curve, 600 per
 curve part, 1 per pair that overlaps in y and 30 (9 ns, three times the worst
@@ -526,7 +527,7 @@ comb of separate full-height teeth on 1,200 x 780 px took 5 to 6 s with
 2,000 to 4,000 teeth (drawn), the filled area under a noisy chart of 40,000
 points 1.6 s (CPU time; 3.3 s wall time in the review), and the model
 charged 0.2 to 0.7 s. Neither the pairs of boxes nor the pairs that overlap
-in y see it. `paint/src/svg/spans.rs` charges it.
+in y see it. `paint/src/path_cost/spans.rs` charges it.
 
 Measured (same program and method, 230 further timings; `real` is the CPU
 time of `fill_path`):
@@ -633,7 +634,7 @@ horizontal span of at least `w`), so it ends a group, and only caps and
 joins make narrow spans. Images (`add_dash_spans` in `svg/cost.rs`) make the
 same outline in the units of the canvas (at the scale of the path's
 transform, 1 to 16) and count it at the 17 scales like a fill; a stroke with
-more than 100,000 dash array entries (`MAX_OUTLINE_DASHES`, the same
+more than 100,000 dash array entries (`MAX_DASHES` in `path_cost/mod.rs`, the same
 count as the inline limit) is too expensive to look at and the image is
 rejected; inline, such a stroke is drawn solid. Before item 8, an image
 was charged for at most 1,000,000 dashes and drawn. A

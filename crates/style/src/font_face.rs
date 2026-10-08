@@ -17,9 +17,9 @@ use crate::font_settings::{
     FontFeatureSettings, FontVariationSettings, parse_feature_settings, parse_variation_settings,
 };
 use crate::parse::length::{CalcKind, parse_math_function};
-use crate::parse::{ParserContext, parse_angle, parse_number};
+use crate::parse::{ParserContext, parse_angle};
 use crate::properties::CssWideKeyword;
-use crate::properties::longhand::parse_font_stretch;
+use crate::properties::longhand::{parse_font_stretch, parse_weight_number};
 use crate::values::{GenericFamily, LengthContext};
 
 /// An `@font-face` rule with valid `font-family` and `src` descriptors.
@@ -63,7 +63,7 @@ pub struct FontFace {
 /// The largest ratio of `size-adjust` and of the metric overrides (a
 /// million percent): larger values are clamped. The used font size is
 /// limited anyway, and finite ratios keep the metrics finite.
-pub const MAX_RATIO: f32 = 10_000.0;
+pub(crate) const MAX_RATIO: f32 = 10_000.0;
 
 /// One entry of the `src` descriptor.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -299,17 +299,7 @@ fn parse_weight(p: &mut Parser<'_>) -> Result<Option<(f32, f32)>, ParseError> {
     if let Ok(w) = p.expect_one_of(&[("normal", 400.0), ("bold", 700.0)]) {
         return Ok(Some((w, w)));
     }
-    let weight = |p: &mut Parser<'_>| {
-        p.try_parse(|p| {
-            parse_number(p).and_then(|w| {
-                if (1.0..=1000.0).contains(&w) {
-                    Ok(w)
-                } else {
-                    Err(ParseError::Invalid)
-                }
-            })
-        })
-    };
+    let weight = |p: &mut Parser<'_>| p.try_parse(parse_weight_number);
     let first = weight(p)?;
     let second = weight(p).unwrap_or(first);
     Ok(Some(ordered(first, second)))

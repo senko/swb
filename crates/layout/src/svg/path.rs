@@ -16,7 +16,8 @@ use std::sync::{Arc, OnceLock};
 
 use svgtypes::{PathParser, PathSegment as Token, PointsParser};
 
-use crate::geom::{Point, Rect};
+use crate::bezier;
+use crate::geom::{KAPPA, Point, Rect};
 
 /// One segment of a path, in absolute user units.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -207,10 +208,7 @@ impl Bounds {
     /// has its extremum.
     #[allow(clippy::many_single_char_names)]
     fn quad_extrema(&mut self, p0: Point, c: Point, p: Point) {
-        let at = |t: f64, a: f32, b: f32, e: f32| {
-            let (a, b, e) = (f64::from(a), f64::from(b), f64::from(e));
-            (1.0 - t) * (1.0 - t) * a + 2.0 * (1.0 - t) * t * b + t * t * e
-        };
+        let at = |t: f64, a: f32, b: f32, e: f32| bezier::at_f64(&[a, b, e].map(f64::from), t);
         for axis in 0..2 {
             let (a, b, e) = if axis == 0 {
                 (p0.x, c.x, p.x)
@@ -232,11 +230,7 @@ impl Bounds {
     /// has its extremum (the roots of the derivative, a quadratic).
     #[allow(clippy::many_single_char_names)]
     fn cubic_extrema(&mut self, p0: Point, c1: Point, c2: Point, p: Point) {
-        let at = |t: f64, v: [f32; 4]| {
-            let u = 1.0 - t;
-            let v = v.map(f64::from);
-            u * u * u * v[0] + 3.0 * u * u * t * v[1] + 3.0 * u * t * t * v[2] + t * t * t * v[3]
-        };
+        let at = |t: f64, v: [f32; 4]| bezier::at_f64(&v.map(f64::from), t);
         let xs = [p0.x, c1.x, c2.x, p.x];
         let ys = [p0.y, c1.y, c2.y, p.y];
         for values in [xs, ys] {
@@ -661,11 +655,6 @@ impl EllipticalArc {
         true
     }
 }
-
-/// The cubic Bézier factor for a quarter of a circle: the control points
-/// are this fraction of the radius away from the end points along the
-/// tangents (4/3 · tan(π/8)).
-const KAPPA: f32 = 0.552_284_8;
 
 /// The path of an ellipse with center `(cx, cy)` and radii `rx`, `ry`
 /// (both positive): four cubic quarters, clockwise from the right end

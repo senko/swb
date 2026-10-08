@@ -2,7 +2,9 @@
 //! <https://svgwg.org/svg2-draft/painting.html>): `fill`, `fill-rule`,
 //! `fill-opacity`, `stroke`, `stroke-width`, `stroke-linecap`,
 //! `stroke-linejoin`, `stroke-miterlimit`, `stroke-dasharray`,
-//! `stroke-dashoffset` and `stroke-opacity`. All are inherited.
+//! `stroke-dashoffset` and `stroke-opacity`. All are inherited. Also the
+//! `clip-path` value (`parse_clip_path`) and the shared opacity grammar
+//! (`parse_alpha`, used by `opacity` too).
 //!
 //! Lengths of these properties also accept plain numbers (user units,
 //! which are px in CSS).
@@ -58,8 +60,8 @@ pub(crate) fn parse_clip_path(p: &mut Parser<'_>) -> ParseResult<ClipPath> {
     Ok(ClipPath::Url(Arc::from(url.trim())))
 }
 
-/// `fill-opacity`, `stroke-opacity`: `<number> | <percentage>`, clamped to
-/// 0..1 when computed.
+/// `opacity`, `fill-opacity`, `stroke-opacity`: `<number> | <percentage>`,
+/// clamped to 0..1 when computed.
 pub(crate) fn parse_alpha(p: &mut Parser<'_>) -> ParseResult<f32> {
     if let Ok(v) = p.expect_percentage() {
         return Ok(v / 100.0);

@@ -12,11 +12,12 @@ use swb_style::Stylist;
 
 use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
 
+use crate::forms::LayoutControls;
+use crate::selection::Highlight;
+
 /// The most layout passes of one [`Page::update_layout`]: web fonts that
 /// are already loaded make layout run again.
 const MAX_LAYOUT_PASSES: usize = 4;
-use crate::forms::LayoutControls;
-use crate::selection::Highlight;
 
 /// What [`Page::render_in_strips`] draws.
 #[derive(Clone, Copy, PartialEq, Eq)]

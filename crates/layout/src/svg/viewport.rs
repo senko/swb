@@ -22,7 +22,7 @@ use crate::geom::{Matrix, Rect, Size, clamp_length};
 
 /// Alignment of the view box along one axis.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Align {
+pub(crate) enum Align {
     /// `xMin`, `YMin`.
     Min,
     /// `xMid`, `YMid`.
@@ -33,7 +33,7 @@ pub enum Align {
 
 /// A `preserveAspectRatio` value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PreserveAspectRatio {
+pub(crate) struct PreserveAspectRatio {
     /// The alignment on both axes; `None` for `none` (scale each axis on
     /// its own).
     pub align: Option<(Align, Align)>,
@@ -92,7 +92,7 @@ pub(crate) fn preserve_aspect_ratio(e: &ElementData) -> PreserveAspectRatio {
 
 /// The transform from the user space of a view box `view_box` to a
 /// viewport of `size` at the origin (SVG 2 §8.2).
-pub fn view_box_transform(view_box: Rect, par: PreserveAspectRatio, size: Size) -> Matrix {
+pub(crate) fn view_box_transform(view_box: Rect, par: PreserveAspectRatio, size: Size) -> Matrix {
     let mut sx = size.width / view_box.width;
     let mut sy = size.height / view_box.height;
     let Some((ax, ay)) = par.align else {
@@ -143,8 +143,14 @@ fn clamp_ratio(ratio: f32) -> f32 {
 /// `ex` (half an `em`, as elsewhere in swb), or no unit; `None` for a
 /// percentage or an invalid value.
 fn absolute_length(value: &str, font_size: f32) -> Option<f32> {
-    use svgtypes::LengthUnit as U;
     let length = svgtypes::Length::from_str(value.trim()).ok()?;
+    length_px(&length, font_size)
+}
+
+/// `length` in px (see [`absolute_length`]); `None` for a percentage or a
+/// value that is not finite.
+pub(super) fn length_px(length: &svgtypes::Length, font_size: f32) -> Option<f32> {
+    use svgtypes::LengthUnit as U;
     let n = length.number as f32;
     let px = match length.unit {
         U::None | U::Px => n,

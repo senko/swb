@@ -46,6 +46,7 @@ from PIL import Image
 
 from swbtools import paths
 from swbtools.manifest import FILES_DIR, Entry, Fixture, body_file_name
+from swbtools.mime import extract_essence
 
 log = logging.getLogger(__name__)
 
@@ -92,11 +93,10 @@ MAX_PIXELS = 100_000_000
 
 
 def content_type(entry: Entry) -> str:
-    """The essence of the entry's `Content-Type` (lowercase, no parameters)."""
-    for name, value in entry.headers:
-        if name == "content-type":
-            return value.split(";", 1)[0].strip().lower()
-    return ""
+    """The essence of the entry's `Content-Type` (lowercase, no parameters;
+    empty if there is none or it is invalid)."""
+    values = [value for name, value in entry.headers if name == "content-type"]
+    return extract_essence(values) or ""
 
 
 def sniff_image(body: bytes) -> str | None:

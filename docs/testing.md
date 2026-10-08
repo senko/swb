@@ -55,6 +55,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 |------------------------------|----------------------------------------|--------------|
 | `just capture URL NAME`      | `capture URL NAME`                     | Downloads a page into `fixtures/pages/NAME/`. |
 | `just capture-missing NAME`  | `capture-missing NAME`                 | Adds only the responses that the fixture does not have. |
+| `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
@@ -69,6 +70,9 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
 | `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
+
+`reference`, `layout-refs` and `probe` wait for `document.fonts.ready`
+before they read boxes or take screenshots, so that web fonts are loaded.
 
 Options:
 

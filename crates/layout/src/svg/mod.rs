@@ -62,48 +62,48 @@ pub use clip::{ClipPath, ClipRegion, ClipShape};
 pub use draw::{HitShape, StrokeStyle, SvgDrawItem};
 pub use path::{PathSegment, SvgPath};
 pub(crate) use viewport::natural_size;
-pub use viewport::{Align, PreserveAspectRatio, view_box_transform};
+pub(crate) use viewport::{PreserveAspectRatio, view_box_transform};
 
 use crate::geom::Point;
 
 /// The most shapes that the inline SVG of one document draws.
-pub const MAX_SHAPES: usize = 50_000;
+pub(crate) const MAX_SHAPES: usize = 50_000;
 
 /// The most groups (`g`, `a`, `use`) of the inline SVG of one document.
-pub const MAX_GROUPS: usize = 50_000;
+pub(crate) const MAX_GROUPS: usize = 50_000;
 
 /// The most path segments of all shapes of one document (a basic shape
 /// counts its segments too; an arc is up to four).
-pub const MAX_SEGMENTS: usize = 1_000_000;
+pub(crate) const MAX_SEGMENTS: usize = 1_000_000;
 
 /// The deepest nesting of groups below an `<svg>` element. Real files
 /// nest a few levels; the limit bounds the recursion of [`build`] and the
 /// opacity layers of paint.
-pub const MAX_DEPTH: usize = 64;
+pub(crate) const MAX_DEPTH: usize = 64;
 
 /// The most opacity layers (groups and shapes with a fill and a stroke
 /// that need a layer) of the inline SVG of one document.
-pub const MAX_LAYERS: usize = 256;
+pub(crate) const MAX_LAYERS: usize = 256;
 
 /// The most clip groups of one document that may need a layer: clips
 /// that are not one axis-aligned rectangle (a rectangle is a plain clip
 /// rectangle without a layer). A clip past the limit is ignored.
-pub const MAX_CLIP_LAYERS: usize = 256;
+pub(crate) const MAX_CLIP_LAYERS: usize = 256;
 
 /// The longest chain of `clip-path` references: an element's clip path,
 /// the clip path of that clip path, and so on; also the nesting of
 /// the `clip-path` of a shape inside a clip path. A cycle is cut where it
 /// closes.
-pub const MAX_CLIP_DEPTH: usize = 8;
+pub(crate) const MAX_CLIP_DEPTH: usize = 8;
 
 /// What the descendants of one outer `<svg>` element draw, in the
 /// element's user space.
 #[derive(Debug, PartialEq)]
 pub struct SvgContent {
     /// The `viewBox`, if valid.
-    pub view_box: Option<crate::geom::Rect>,
+    pub(crate) view_box: Option<crate::geom::Rect>,
     /// The `preserveAspectRatio`.
-    pub preserve_aspect_ratio: PreserveAspectRatio,
+    pub(crate) preserve_aspect_ratio: PreserveAspectRatio,
     /// The groups and shapes in paint order.
     nodes: Vec<Node>,
 }
@@ -196,20 +196,53 @@ pub(crate) enum Geometry {
     },
 }
 
+/// A limit that counts down and warns once when it acts.
+#[derive(Debug)]
+struct Counter {
+    /// What may still be taken.
+    left: usize,
+    /// True once the warning was logged.
+    warned: bool,
+}
+
+impl Counter {
+    fn new(left: usize) -> Counter {
+        Counter {
+            left,
+            warned: false,
+        }
+    }
+
+    /// Takes `n` or nothing; false (with a warning, once) if fewer are
+    /// left.
+    fn take(&mut self, n: usize, message: std::fmt::Arguments<'_>) -> bool {
+        if self.left >= n {
+            self.left -= n;
+            return true;
+        }
+        self.warn(message);
+        false
+    }
+
+    /// Logs `message`, only the first time.
+    fn warn(&mut self, message: std::fmt::Arguments<'_>) {
+        if !self.warned {
+            self.warned = true;
+            log::warn!("{message}");
+        }
+    }
+}
+
 /// The limits of the inline SVG of one box tree, and whether they acted.
 #[derive(Debug)]
 pub(crate) struct SvgBudget {
-    shapes: usize,
-    groups: usize,
-    segments: usize,
-    warned_shapes: bool,
-    warned_groups: bool,
-    warned_segments: bool,
-    warned_depth: bool,
-    layers: usize,
-    warned_layers: bool,
-    clip_layers: usize,
-    warned_clip_layers: bool,
+    shapes: Counter,
+    groups: Counter,
+    segments: Counter,
+    /// Only warns: the depth is a limit of one `<svg>`, not a budget.
+    depth: Counter,
+    layers: Counter,
+    clip_layers: Counter,
     /// The element for each `id` of the document, built when the first
     /// reference needs it.
     ids: Option<HashMap<Box<str>, NodeId>>,
@@ -223,17 +256,12 @@ pub(crate) struct SvgBudget {
 impl Default for SvgBudget {
     fn default() -> Self {
         SvgBudget {
-            shapes: MAX_SHAPES,
-            groups: MAX_GROUPS,
-            segments: MAX_SEGMENTS,
-            warned_shapes: false,
-            warned_groups: false,
-            warned_segments: false,
-            warned_depth: false,
-            layers: MAX_LAYERS,
-            warned_layers: false,
-            clip_layers: MAX_CLIP_LAYERS,
-            warned_clip_layers: false,
+            shapes: Counter::new(MAX_SHAPES),
+            groups: Counter::new(MAX_GROUPS),
+            segments: Counter::new(MAX_SEGMENTS),
+            depth: Counter::new(0),
+            layers: Counter::new(MAX_LAYERS),
+            clip_layers: Counter::new(MAX_CLIP_LAYERS),
             ids: None,
             clips: HashMap::new(),
             clip_stack: Vec::new(),
@@ -245,35 +273,25 @@ impl SvgBudget {
     /// Takes one opacity layer; false (with a warning, once) if there is
     /// none left.
     fn take_layer(&mut self) -> bool {
-        if self.layers > 0 {
-            self.layers -= 1;
-            return true;
-        }
-        if !self.warned_layers {
-            self.warned_layers = true;
-            log::warn!(
+        self.layers.take(
+            1,
+            format_args!(
                 "inline SVG: more than {MAX_LAYERS} opacity layers in the document; the \
                  opacity of the rest applies to each paint"
-            );
-        }
-        false
+            ),
+        )
     }
 
     /// Takes one clip layer; false (with a warning, once) if there is
     /// none left.
     fn take_clip_layer(&mut self) -> bool {
-        if self.clip_layers > 0 {
-            self.clip_layers -= 1;
-            return true;
-        }
-        if !self.warned_clip_layers {
-            self.warned_clip_layers = true;
-            log::warn!(
+        self.clip_layers.take(
+            1,
+            format_args!(
                 "inline SVG: more than {MAX_CLIP_LAYERS} clip paths that need a layer in the \
                  document; the rest are ignored"
-            );
-        }
-        false
+            ),
+        )
     }
 
     /// Takes one group; false (with a warning, once) if there is none
@@ -285,28 +303,20 @@ impl SvgBudget {
     /// Takes `n` groups or none; false (with a warning, once) if fewer
     /// are left.
     fn take_groups(&mut self, n: usize) -> bool {
-        if self.groups >= n {
-            self.groups -= n;
-            return true;
-        }
-        if !self.warned_groups {
-            self.warned_groups = true;
-            log::warn!(
+        self.groups.take(
+            n,
+            format_args!(
                 "inline SVG: more than {MAX_GROUPS} groups in the document; the rest are not \
                  drawn"
-            );
-        }
-        false
+            ),
+        )
     }
 
     fn segments_ran_out(&mut self) {
-        if !self.warned_segments {
-            self.warned_segments = true;
-            log::warn!(
-                "inline SVG: more than {MAX_SEGMENTS} path segments in the document; \
-                 the rest is not drawn"
-            );
-        }
+        self.segments.warn(format_args!(
+            "inline SVG: more than {MAX_SEGMENTS} path segments in the document; \
+             the rest is not drawn"
+        ));
     }
 
     /// The element with `id` in `doc`.
@@ -409,13 +419,10 @@ impl Builder<'_> {
         if depth < MAX_DEPTH {
             return false;
         }
-        if !self.budget.warned_depth {
-            self.budget.warned_depth = true;
-            log::warn!(
-                "inline SVG: groups nested more than {MAX_DEPTH} deep; their content is \
-                 not drawn"
-            );
-        }
+        self.budget.depth.warn(format_args!(
+            "inline SVG: groups nested more than {MAX_DEPTH} deep; their content is \
+             not drawn"
+        ));
         true
     }
 
@@ -520,20 +527,17 @@ impl Builder<'_> {
     }
 
     fn shape(&mut self, node: NodeId, e: &ElementData, style: &Arc<ComputedStyle>) {
-        if self.budget.shapes == 0 {
-            if !self.budget.warned_shapes {
-                self.budget.warned_shapes = true;
-                log::warn!(
-                    "inline SVG: more than {MAX_SHAPES} shapes in the document; the rest is \
-                     not drawn"
-                );
-            }
+        if self.budget.shapes.left == 0 {
+            self.budget.shapes.warn(format_args!(
+                "inline SVG: more than {MAX_SHAPES} shapes in the document; the rest is \
+                 not drawn"
+            ));
             return;
         }
         let Some(geometry) = self.geometry(e, style.font_size) else {
             return;
         };
-        self.budget.shapes -= 1;
+        self.budget.shapes.left -= 1;
         let layered = !(style.opacity < 1.0 && has_two_paints(style)) || self.budget.take_layer();
         let rotated = self.rotated;
         self.rotated |= rotates(style);
@@ -562,7 +566,7 @@ impl Builder<'_> {
         };
         Some(match &**e.local_name() {
             "path" => {
-                let mut b = path::PathBuilder::new(&mut self.budget.segments);
+                let mut b = path::PathBuilder::new(&mut self.budget.segments.left);
                 if let Some(d) = e.attr("d") {
                     path::parse_path_data(d, &mut b);
                 }
@@ -581,7 +585,7 @@ impl Builder<'_> {
                 let (path, point, exhausted) = path::points_path(
                     e.attr("points").unwrap_or(""),
                     name == "polygon",
-                    &mut self.budget.segments,
+                    &mut self.budget.segments.left,
                 );
                 if exhausted {
                     self.budget.segments_ran_out();
@@ -635,12 +639,12 @@ impl Builder<'_> {
     /// Takes `segments` from the segment budget, or returns `None` if they
     /// do not fit.
     fn charge(&mut self, segments: usize) -> Option<()> {
-        if self.budget.segments < segments {
-            self.budget.segments = 0;
+        if self.budget.segments.left < segments {
+            self.budget.segments.left = 0;
             self.budget.segments_ran_out();
             return None;
         }
-        self.budget.segments -= segments;
+        self.budget.segments.left -= segments;
         Some(())
     }
 }
@@ -652,7 +656,7 @@ fn rotates(style: &ComputedStyle) -> bool {
         return false;
     }
     let m = crate::positioned::style_transform(style, crate::geom::Rect::new(0.0, 0.0, 1.0, 1.0));
-    m.b.abs() > 1e-6 || m.c.abs() > 1e-6
+    !m.keeps_axes()
 }
 
 /// True if `style` may give a shape both a fill and a stroke (a
@@ -676,24 +680,13 @@ fn is_negative(v: &LengthPercentage) -> bool {
 /// percentage of the SVG viewport; `None` if it is missing or invalid.
 /// `em` refers to the element's font size, `ex` is half of it.
 fn attribute_length(e: &ElementData, name: &str, font_size: f32) -> Option<LengthPercentage> {
-    use svgtypes::LengthUnit as U;
     let length = svgtypes::Length::from_str(e.attr(name)?.trim()).ok()?;
-    let n = length.number as f32;
-    let px = |v: f32| {
-        v.is_finite()
-            .then(|| LengthPercentage::Px(crate::geom::clamp_length(v)))
-    };
-    match length.unit {
-        U::None | U::Px => px(n),
-        U::Em => px(n * font_size),
-        U::Ex => px(n * font_size / 2.0),
-        U::In => px(n * 96.0),
-        U::Cm => px(n * 96.0 / 2.54),
-        U::Mm => px(n * 96.0 / 25.4),
-        U::Pt => px(n * 4.0 / 3.0),
-        U::Pc => px(n * 16.0),
-        U::Percent => n.is_finite().then(|| LengthPercentage::Percent(n / 100.0)),
+    if length.unit == svgtypes::LengthUnit::Percent {
+        let n = length.number as f32;
+        return n.is_finite().then(|| LengthPercentage::Percent(n / 100.0));
     }
+    viewport::length_px(&length, font_size)
+        .map(|px| LengthPercentage::Px(crate::geom::clamp_length(px)))
 }
 
 /// A point from two lengths resolved against the viewport size.

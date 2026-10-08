@@ -216,7 +216,7 @@ pub(crate) fn parse_longhand(
             L::OverflowX => V::OverflowX(keyword(p, Overflow::from_ident)?),
             L::OverflowY => V::OverflowY(keyword(p, Overflow::from_ident)?),
             L::TextOverflow => V::TextOverflow(keyword(p, TextOverflow::from_ident)?),
-            L::Opacity => V::Opacity(parse_opacity(p)?),
+            L::Opacity => V::Opacity(svg::parse_alpha(p)?),
             L::VerticalAlign => V::VerticalAlign(parse_vertical_align(p, quirky)?),
             L::TextDecorationLine => V::TextDecorationLine(parse_text_decoration_line(p)?),
             L::TextDecorationColor => V::TextDecorationColor(parse_color(p)?),
@@ -376,14 +376,17 @@ pub(crate) fn parse_font_weight(p: &mut Parser<'_>) -> ParseResult<SpecifiedFont
     ]) {
         return Ok(v);
     }
-    p.try_parse(|p| {
-        let w = parse_number(p)?;
-        if (1.0..=1000.0).contains(&w) {
-            Ok(SpecifiedFontWeight::Absolute(w))
-        } else {
-            Err(ParseError::Invalid)
-        }
-    })
+    p.try_parse(|p| parse_weight_number(p).map(SpecifiedFontWeight::Absolute))
+}
+
+/// A font weight number: `<number [1,1000]>`.
+pub(crate) fn parse_weight_number(p: &mut Parser<'_>) -> ParseResult<f32> {
+    let w = parse_number(p)?;
+    if (1.0..=1000.0).contains(&w) {
+        Ok(w)
+    } else {
+        Err(ParseError::Invalid)
+    }
 }
 
 /// `font-style`: `normal | italic | oblique <angle>?`.
@@ -1005,14 +1008,6 @@ fn parse_z_index(p: &mut Parser<'_>) -> ParseResult<ZIndex> {
         return Ok(ZIndex::Auto);
     }
     parse_integer(p).map(ZIndex::Integer)
-}
-
-/// `opacity`: a number or a percentage (clamped when computed).
-fn parse_opacity(p: &mut Parser<'_>) -> ParseResult<f32> {
-    if let Ok(v) = p.expect_percentage() {
-        return Ok(v / 100.0);
-    }
-    parse_number(p)
 }
 
 /// `caption-side`: `top | bottom` and the logical `block-start |

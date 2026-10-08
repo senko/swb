@@ -72,6 +72,10 @@ The owner decided:
   agent was allowed to read tiny-skia's source before this update. No
   code was copied, and the model's constants come from measurements;
   the owner decided to keep the model.
+- The rule names engines and their ports. `wuff` (ADR 0022), a Rust port
+  of Google's woff2 decoder, is neither: swb uses it as a library, and
+  its source was read only to audit its robustness before it was
+  adopted. No code was copied (docs/credits.md).
 
 ## Consequences
 

@@ -60,6 +60,7 @@ async def dump_layout_tests(files: list[Path], system_fonts: bool) -> None:
     async with browser.session(browser.LAYOUT_VIEWPORT, system_fonts) as (_, _, page):
         for file in (file.resolve() for file in files):
             await page.goto(file.as_uri(), wait_until="load")
+            await browser.wait_for_fonts(page)
             await browser.stop_animations(page)
             await page.evaluate(_APPLY_DATA_SCROLL_JS)
             dump = await browser.collect_boxes(page, _dump_url(file))

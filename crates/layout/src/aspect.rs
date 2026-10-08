@@ -4,8 +4,9 @@
 //! <https://drafts.csswg.org/css-sizing-4/#aspect-ratio>. A block, flex or
 //! grid container with an `aspect-ratio` gets the size of an `auto` axis
 //! from the other axis, as a block-level box, a float, an inline-block, a
-//! flex or grid item, or an absolutely positioned box. The ratio applies to the content box, or to the border
-//! box with `box-sizing: border-box` (§5.1).
+//! flex or grid item, or an absolutely positioned box. The ratio applies to
+//! the content box, or to the border box with `box-sizing: border-box`
+//! (§5.1).
 //!
 //! Chromium 148 (measured with `tools/probes/aspect-ratio.json`):
 //!
@@ -23,7 +24,7 @@
 
 use swb_style::ComputedStyle;
 
-use crate::block::{BoxEdges, SizeLimits, margin_or_zero, resolve_size};
+use crate::block::{BoxEdges, SizeLimits, resolve_size};
 use crate::box_tree::{IndependentBox, IndependentContents};
 use crate::geom::clamp_length;
 use crate::replaced::constrain_both;
@@ -116,19 +117,6 @@ pub(crate) fn auto_width(
         (heights.min() + oh, heights.max() + oh),
     );
     Some(clamp_length((w - ow).max(0.0)))
-}
-
-/// The width that a block-level box with `available` px for its margin box
-/// fills (CSS 2.2 §10.3.3).
-pub(crate) fn fill_width(
-    style: &ComputedStyle,
-    cb_width: f32,
-    available: f32,
-    edges: &BoxEdges,
-) -> f32 {
-    let margins = margin_or_zero(&style.margin_left, cb_width)
-        + margin_or_zero(&style.margin_right, cb_width);
-    (available - margins - edges.sum().horizontal()).max(0.0)
 }
 
 /// The content height of a box with an `auto` height, a ratio and the

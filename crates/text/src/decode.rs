@@ -27,17 +27,17 @@ use std::sync::Arc;
 use crate::error::TextError;
 
 /// The largest web font file that swb decodes.
-pub const MAX_FONT_FILE_SIZE: usize = 32 << 20;
+pub(crate) const MAX_FONT_FILE_SIZE: usize = 32 << 20;
 
 /// The largest decompressed data of a WOFF file (the WOFF 2.0 Brotli
 /// stream, or all WOFF 1.0 tables). Larger files are rejected before
 /// decompression (a decompression bomb check).
-pub const MAX_DECOMPRESSED_SIZE: usize = 32 << 20;
+pub(crate) const MAX_DECOMPRESSED_SIZE: usize = 32 << 20;
 
 /// The largest decoded font. The WOFF 2.0 `glyf` transform can make the
 /// font larger than the decompressed stream (about 2.5 times in the worst
 /// case), so this is checked after decoding.
-pub const MAX_DECODED_SIZE: usize = 64 << 20;
+pub(crate) const MAX_DECODED_SIZE: usize = 64 << 20;
 
 /// The input buffer of the Brotli decoder.
 const BROTLI_BUFFER_SIZE: usize = 4096;

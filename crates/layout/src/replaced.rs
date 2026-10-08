@@ -16,7 +16,7 @@
 
 use swb_style::ComputedStyle;
 
-use crate::block::{BoxEdges, ContainingBlock, SizeLimits, margin_or_zero, resolve_size};
+use crate::block::{BoxEdges, ContainingBlock, SizeLimits, fill_width, resolve_size};
 use crate::box_tree::{IndependentBox, IndependentContents, Replaced};
 use crate::geom::clamp_length;
 
@@ -141,11 +141,7 @@ fn sized_with_height(
         (None, None) => {
             // An image with only an aspect ratio fills the available width;
             // without a containing block (intrinsic sizing) it is 0 wide.
-            let available = cb_width.map_or(0.0, |cb| {
-                let margins = margin_or_zero(&style.margin_left, cb)
-                    + margin_or_zero(&style.margin_right, cb);
-                (cb - margins - h_edges).max(0.0)
-            });
+            let available = cb_width.map_or(0.0, |cb| fill_width(style, cb, cb, edges));
             auto_size(&natural, ratio, available)
         }
     };

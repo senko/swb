@@ -7,7 +7,8 @@ of the code. The project owner sets the goals and checks the results. See
 [docs/ground-rules.md](docs/ground-rules.md).
 
 swb uses general-purpose libraries (HTTP, TLS, HTML tokenizing, image
-decoding, font shaping, 2D rasterization, windowing). The browser parts
+decoding, WOFF and WOFF2 decoding, font shaping, 2D rasterization,
+windowing). The browser parts
 (CSS, style, layout, painting, page loading, user interface) are written in
 this repository. There is no JavaScript support yet.
 
@@ -15,12 +16,13 @@ this repository. There is no JavaScript support yet.
 
 Early development. Static pages render, with tables, floats, flexbox,
 grid, absolute, fixed and sticky positioning, 2D transforms, masks,
-scroll containers, SVG images, responsive images, video posters, CSS
+scroll containers, `aspect-ratio`, web fonts (WOFF2, variable fonts),
+inline SVG and SVG images, responsive images, video posters, CSS
 counters and quirks mode; links, scrolling, back/forward, the address
 bar, hover effects, keyboard focus (Tab), text selection with copy, forms
-(GET and POST) and cookies work. No JavaScript yet. The three target
-pages (senko.net, Hacker News, a Wikipedia article) match Chromium's
-layout.
+(GET and POST) and cookies work. No JavaScript yet. Four target pages
+(senko.net, Hacker News, a Wikipedia article, the Ars Technica front
+page) match Chromium's layout; the BBC front page is next.
 See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 
 ## Build and run

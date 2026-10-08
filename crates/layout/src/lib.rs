@@ -29,6 +29,7 @@
 
 mod align;
 mod aspect;
+pub mod bezier;
 mod block;
 mod box_tree;
 mod collapsed_margin;
@@ -65,7 +66,7 @@ pub use fragment::{
     Fragment, FragmentRef, FragmentTree, MediaContent, MediaPart, MediaPartKind, MediaText,
     PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
-pub use geom::{Edges, Matrix, Point, Rect, Size};
+pub use geom::{Edges, KAPPA, Matrix, Point, Rect, Size};
 pub use positioned::{
     Ancestry, GroupTransform, Placeholder, StickyCache, StickyConstraints, clip_property_area,
     forms_stacking_context, has_transform, is_absolute_containing_block, is_fixed_containing_block,

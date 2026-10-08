@@ -197,7 +197,7 @@ pub struct Stylist {
 /// ignored. Real pages have up to a few thousand (families split into
 /// `unicode-range` subsets for many weights); the limit bounds the work of
 /// font matching on hostile pages (ADR 0022).
-pub const MAX_FONT_FACES: usize = 10_000;
+pub(crate) const MAX_FONT_FACES: usize = 10_000;
 
 impl Stylist {
     /// Creates a stylist with the user-agent stylesheet (and, in quirks
