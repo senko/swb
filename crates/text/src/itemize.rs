@@ -9,7 +9,10 @@
 //! has (`HarfBuzz` normalization), and Blink keeps a font when shaping finds
 //! glyphs. For each cluster the fonts are tried in this order:
 //!
-//! 1. the fonts of the query's families that cover the whole cluster;
+//! 1. the fonts of the query's families that cover the whole cluster (for
+//!    a family of web fonts, the faces of its composite font; a face
+//!    that is not loaded and whose `unicode-range` contains the base
+//!    character is requested, and the search goes on);
 //! 2. system fallback fonts (for each character the first family font
 //!    lacks) that cover the whole cluster;
 //! 3. the query's fonts, then the system fallback font, that cover the base
@@ -19,14 +22,16 @@
 //! Whitespace, control characters and default-ignorable characters stay in
 //! the current run if its font covers them.
 
+use std::collections::HashMap;
 use std::ops::Range;
 
-use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::{UnicodeNormalization, is_nfc, is_nfd};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::FontId;
 use crate::context::{FontContext, fallback_language};
 use crate::query::FontQuery;
+use crate::web::FamilySlot;
 
 /// A range of text with the font to render it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,13 +50,21 @@ impl FontContext {
         if text.is_empty() {
             return Vec::new();
         }
-        let fonts = self.family_fonts(query);
+        let slots = self.family_slots(query);
+        let fonts: Vec<FontId> = slots
+            .iter()
+            .filter_map(|slot| match slot {
+                FamilySlot::Font(font) => Some(*font),
+                FamilySlot::Pending(_) => None,
+            })
+            .collect();
         let primary = match fonts.first() {
             Some(font) => *font,
             None => self.default_font(query),
         };
-        // Common case: ASCII text in a font that covers it.
+        // Common case: ASCII text in the first font, which covers it.
         if text.is_ascii()
+            && slots.first() == Some(&FamilySlot::Font(primary))
             && self
                 .instance(primary)
                 .and_then(|i| i.face.as_ref())
@@ -70,11 +83,25 @@ impl FontContext {
         let language = fallback_language(query);
 
         let mut runs: Vec<FontRun> = Vec::new();
+        // The family fonts that cover a cluster, per distinct cluster: the
+        // result depends only on the cluster while `slots` is fixed, and a
+        // text with many faces and many equal clusters would repeat the
+        // walk over all faces. The cache lives for one call, so a face that
+        // loads later is seen by the next layout.
+        let mut slot_cache: HashMap<&str, Option<FontId>> = HashMap::new();
         for (start, cluster) in text.grapheme_indices(true) {
             let previous = runs.last().map(|run| run.font);
             let font = match previous {
                 Some(font) if is_neutral(cluster) && self.covers_cluster(font, cluster) => font,
-                _ => self.font_for_cluster(cluster, &fonts, &language, query),
+                _ => {
+                    let family_font = *slot_cache
+                        .entry(cluster)
+                        .or_insert_with(|| self.family_font_for_cluster(cluster, &slots));
+                    match family_font {
+                        Some(font) => font,
+                        None => self.fallback_for_cluster(cluster, &fonts, &language, query),
+                    }
+                }
             };
             let range = start..start + cluster.len();
             match runs.last_mut() {
@@ -85,7 +112,26 @@ impl FontContext {
         runs
     }
 
-    fn font_for_cluster(
+    /// Step 1: the first family font that covers the cluster. Requests the
+    /// pending web faces that it passes.
+    fn family_font_for_cluster(&mut self, cluster: &str, slots: &[FamilySlot]) -> Option<FontId> {
+        let base = cluster.chars().find(|c| !is_ignorable(*c));
+        for slot in slots {
+            match *slot {
+                FamilySlot::Font(font) if self.covers_cluster(font, cluster) => return Some(font),
+                FamilySlot::Pending(face) => {
+                    if let Some(base) = base {
+                        self.request_web_face_for(face, base);
+                    }
+                }
+                FamilySlot::Font(_) => {}
+            }
+        }
+        None
+    }
+
+    /// Steps 2 to 4: the font for a cluster that no family font covers.
+    fn fallback_for_cluster(
         &mut self,
         cluster: &str,
         fonts: &[FontId],
@@ -93,10 +139,8 @@ impl FontContext {
         query: &FontQuery<'_>,
     ) -> FontId {
         let primary = fonts[0];
-        if let Some(font) = fonts.iter().find(|f| self.covers_cluster(**f, cluster)) {
-            return *font;
-        }
-        let Some(base) = cluster.chars().find(|c| !is_ignorable(*c)) else {
+        let base = cluster.chars().find(|c| !is_ignorable(*c));
+        let Some(base) = base else {
             return primary;
         };
         // System fallback, asked for each character that the first font
@@ -147,7 +191,9 @@ fn cluster_covered(cluster: &str, has_glyph: impl Fn(char) -> bool) -> bool {
     cluster.chars().all(covers)
         || (!cluster.is_ascii()
             && cluster.len() <= MAX_NORMALIZED_LEN
-            && (cluster.nfc().all(covers) || cluster.nfd().all(covers)))
+            // A form equal to the written one was checked already.
+            && ((!is_nfc(cluster) && cluster.nfc().all(covers))
+                || (!is_nfd(cluster) && cluster.nfd().all(covers))))
 }
 
 /// True for clusters that can join any run: whitespace and characters that

@@ -15,8 +15,10 @@ A case file is JSON (committed ones are in `tools/probes/`):
       {"boxes": "#a, #a > p"},
       {"rects": "span.x"},
       {"style": "#a", "props": ["width", "line-height"]},
-      {"js": "document.scrollingElement.scrollHeight"}
-    ]}]}
+      {"js": "document.scrollingElement.scrollHeight"},
+      {"ink": "#a"}
+    ],
+    "files": {"x.ttf": "fixtures/fonts/DejaVuSans.ttf"}}]}
 ```
 
 - `viewport` (file and case, optional; default 800x600): the layout viewport.
@@ -29,6 +31,15 @@ A case file is JSON (committed ones are in `tools/probes/`):
   (the line fragments of an inline element), document coordinates.
 - `style`: `getComputedStyle` values of the properties in `props`.
 - `js`: the JSON value of an expression.
+- `ink`: for each matching element, what Chromium paints in its border box
+  (a screenshot of the area): `ink`, the sum of the darkness of all
+  pixels (0 for white, 1 for black, by luminance), and `bbox`, the
+  bounding box of the pixels that are not white, relative to the box. It
+  shows synthetic bold (more ink) and slanted glyphs (a wider box) where
+  the geometry does not change.
+- `files` (case, optional): files to put next to the page, as
+  `{"published name": "source path"}`; a relative source path is relative
+  to the repository root. Use it for fonts (`@font-face`) and images.
 
 Chromium has the settings of the other tools (`browser.py`: bundled fonts,
 JavaScript disabled, scale 1). The page is a file in a temporary directory,
@@ -45,16 +56,19 @@ line, with `!` when a delta is above the tolerance. `rects`, `style` and
 """
 
 import asyncio
+import io
 import json
 import logging
+import shutil
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
 from playwright.async_api import Page
 
-from swbtools import browser, swb
+from swbtools import browser, paths, swb
 from swbtools.boxes import BoxDump, Rect, read_dump, round2, union
 
 log = logging.getLogger(__name__)
@@ -63,7 +77,7 @@ DEFAULT_VIEWPORT = browser.LAYOUT_VIEWPORT
 DEFAULT_TOLERANCE = 1.0
 """Default maximum difference in px between swb and Chromium."""
 
-QUERY_KINDS = ("boxes", "rects", "style", "js")
+QUERY_KINDS = ("boxes", "rects", "style", "js", "ink")
 _SWB_LABEL = "swb"
 
 
@@ -81,7 +95,8 @@ class Query:
     kind: str
     """One of `QUERY_KINDS`."""
     target: str
-    """The CSS selector (`boxes`, `rects`, `style`) or the expression (`js`)."""
+    """The CSS selector (`boxes`, `rects`, `style`, `ink`) or the expression
+    (`js`)."""
     props: tuple[str, ...] = ()
     """The properties of a `style` query."""
 
@@ -94,6 +109,8 @@ class Case:
     html: str
     viewport: tuple[int, int]
     queries: tuple[Query, ...]
+    files: tuple[tuple[str, Path], ...] = ()
+    """Files to copy next to the page: (published name, source path)."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -149,7 +166,22 @@ def _parse_case(item: Any, number: int, default_viewport: tuple[int, int]) -> Ca
     if not isinstance(measure, list) or not measure:
         raise ProbeError(f"{where}: measure must be a non-empty list")
     queries = tuple(_parse_query(q, f"{where}, measure {i}") for i, q in enumerate(measure, 1))
-    return Case(name, html, viewport, queries)
+    return Case(name, html, viewport, queries, _parse_files(item.get("files", {}), where))
+
+
+def _parse_files(value: Any, where: str) -> tuple[tuple[str, Path], ...]:
+    """The `files` of a case. Published names are plain file names."""
+    if not isinstance(value, dict):
+        raise ProbeError(f"{where}: files must be an object of name to source path")
+    files = []
+    for name, source in value.items():
+        if not name or "/" in name or "\\" in name or name in (".", ".."):
+            raise ProbeError(f"{where}: file name {name!r} must be a plain file name")
+        if not isinstance(source, str) or not source:
+            raise ProbeError(f"{where}: the source of {name!r} must be a path")
+        path = Path(source)
+        files.append((name, path if path.is_absolute() else paths.repo_root() / path))
+    return tuple(files)
 
 
 def parse_cases(text: str, origin: str = "case file") -> list[Case]:
@@ -262,6 +294,12 @@ def _values(row: Row) -> str:
         return format_rect(data["rect"]) if data.get("matched", True) else "no match"
     if row.kind == "style":
         return " ".join(f"{prop}={value}" for prop, value in data["style"].items())
+    if row.kind == "ink":
+        if not data.get("matched", True):
+            return "no match"
+        bbox = data["bbox"]
+        shown = "none" if bbox is None else ",".join(str(v) for v in bbox)
+        return f"ink={data['ink']:g} bbox={shown}"
     return json.dumps(data["value"], ensure_ascii=False)
 
 
@@ -425,11 +463,64 @@ def _rect_rows(selector: str, elements: list[dict[str, Any]]) -> list[Row]:
     return rows
 
 
+def ink_of(png: bytes) -> tuple[float, tuple[int, int, int, int] | None]:
+    """The ink of a screenshot: the sum of the darkness of its pixels (by
+    luminance, 1 for black), rounded to 2 decimals, and the bounding box
+    (x, y, width, height) of the pixels that are not white."""
+    with Image.open(io.BytesIO(png)) as image:
+        gray = image.convert("L")
+    darkness = [255 - v for v in gray.tobytes()]
+    ink = round(sum(darkness) / 255, 2)
+    width = gray.width
+    inked = [i for i, d in enumerate(darkness) if d > 0]
+    if not inked:
+        return ink, None
+    xs = [i % width for i in inked]
+    ys = [i // width for i in inked]
+    return ink, (min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1)
+
+
+async def _screenshot(page: Page, clip: dict[str, float]) -> bytes:
+    """A screenshot of `clip` (document coordinates). The first screenshot
+    of a session can fail before the page has painted once; it is tried
+    again after a short wait."""
+    for attempt in range(2):
+        try:
+            return await page.screenshot(
+                clip=clip, full_page=True, animations="disabled", caret="hide"
+            )
+        except Exception:
+            if attempt == 1:
+                raise
+            await page.wait_for_timeout(100)
+    raise AssertionError("unreachable")
+
+
+async def _ink_rows(page: Page, selector: str) -> list[Row]:
+    elements = await page.evaluate(_ELEMENTS_JS, selector)
+    if not elements:
+        return [Row("ink", selector, {"matched": False})]
+    rows = []
+    for n, element in enumerate(elements, 1):
+        rect = union(element["rects"])
+        if rect is None or rect[2] <= 0 or rect[3] <= 0:
+            rows.append(Row("ink", _label(selector, n), {"ink": 0.0, "bbox": None}))
+            continue
+        x, y, w, h = rect
+        clip = {"x": x, "y": y, "width": w, "height": h}
+        png = await _screenshot(page, clip)
+        ink, bbox = ink_of(png)
+        rows.append(Row("ink", _label(selector, n), {"ink": ink, "bbox": bbox}))
+    return rows
+
+
 async def _run_query(page: Page, query: Query) -> list[Row]:
     """Runs one query. A failing selector or expression gives an error row."""
     try:
         if query.kind == "js":
             return [Row("js", query.target, {"value": await page.evaluate(query.target)})]
+        if query.kind == "ink":
+            return await _ink_rows(page, query.target)
         if query.kind == "style":
             styles = await page.evaluate(_STYLE_JS, [query.target, list(query.props)])
             if not styles:
@@ -453,7 +544,13 @@ async def probe_case(
     and the path of the page file."""
     await page.set_viewport_size({"width": case.viewport[0], "height": case.viewport[1]})
     path = directory / f"case-{number}.html"
+    for name, source in case.files:
+        try:
+            shutil.copyfile(source, directory / name)
+        except OSError as error:
+            raise ProbeError(f"case {case.name!r}: cannot copy {source}: {error}") from error
     await browser.load_html(page, path, case.html)
+    await browser.wait_for_fonts(page)
     await browser.stop_animations(page)
     result = CaseResult(case.name, case.viewport)
     for query in case.queries:
@@ -512,11 +609,15 @@ def probe(
     if not cases:
         log.error("no cases to run")
         return 2
-    results = asyncio.run(
-        browser.in_chromium(
-            lambda page, directory: _probe_all(cases, swb_binary, tolerance, page, directory)
+    try:
+        results = asyncio.run(
+            browser.in_chromium(
+                lambda page, directory: _probe_all(cases, swb_binary, tolerance, page, directory)
+            )
         )
-    )
+    except ProbeError as error:
+        log.error("%s", error)
+        return 2
     print(format_json(results) if as_json else format_text(results))
     if any_error(results):
         return 1

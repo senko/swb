@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 feature 3, web fonts part 1
+
+- `@font-face` works (ADR 0022). Style parses the descriptors
+  (`style/src/font_face.rs`) and keeps the rules with their `@media` and
+  `@supports` conditions. The text crate owns the face set
+  (`text/src/web.rs`): web families shadow system families of the same
+  name, CSS Fonts 4 §5 matching selects a composite font, and its faces
+  are checked per character, the last rule first.
+- A face loads only when text needs it, and for a line box only the face
+  that covers U+0020 (measured in Chromium). The engine loads the faces
+  after layout (each URL once, `src` entries in order) and lays out again
+  when a font arrives. Font loads count as pending requests, so headless
+  rendering waits for them. `local()` fails until part 2. All
+  `font-display` values act as `swap` with an infinite swap period.
+- WOFF and WOFF2 decoding: the `wuff` crate (MIT) with swb's own Brotli
+  and zlib decompressors. A read of its source for robustness found two
+  gaps, which swb closes: WOFF 1.0 tables that overlap or repeat, and
+  allocation of the declared size before decompression. Limits: 32 MiB
+  file, 32 MiB decompressed, 64 MiB decoded.
+- Variable fonts get `wght`, `wdth`, `slnt` and `ital` from the font
+  properties, clamped to the descriptors (moved from part 2: both Ars
+  families are variable). Synthetic bold and oblique follow rules
+  measured in Chromium 148 with the probe tool's new `ink` query. The
+  probe tool also got `files` (fonts next to the page); 32 cases in
+  `tools/probes/web-fonts.json`. Seven new hostile-page cases.
+- Review fixes: itemizing text with many loaded faces in one composite
+  font took time proportional to characters × faces (49 s for 1,000
+  faces and 300,000 characters that no face has). Now itemization keeps
+  the result per distinct cluster and checks at most the last 256 faces
+  of a composite (0.2 s). The probe tool now waits for
+  `document.fonts.ready`, because one Chromium measurement differed
+  between runs.
+- Scores: Ars geometry 0.1830 → 0.6908, BBC 0.0240 → 0.7775 (pixels
+  0.9587 → 0.9942). Ars pixels went down, 0.9595 → 0.9544: the
+  headings use `font-variation-settings: "wght" 660` (part 2), so swb
+  draws them at `wght` 700, wider, and the cards below move.
+
 ## 2026-10-08: M4 feature 2, `:host` and `sizes="auto"`
 
 - `:host`, `:host()` and `:host-context()` parse and match nothing (no

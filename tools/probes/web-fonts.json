@@ -1,0 +1,465 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "basic-and-shadowing",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:W;src:url(dv.ttf)}@font-face{font-family:'Liberation Serif';src:url(dv.ttf)}</style><div id=w style=\"font-family:W\">Hamburgefonstiv 0123</div><div id=dv style=\"font-family:'DejaVu Sans'\">Hamburgefonstiv 0123</div><div id=ls style=\"font-family:'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=ser style=\"font-family:'Liberation Serif'\">Hamburgefonstiv 0123</div><div id=gen style=\"font-family:serif\">Hamburgefonstiv 0123</div><div id=tnr style=\"font-family:'Times New Roman'\">Hamburgefonstiv 0123</div><div id=lc style=\"font-family:w\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#w, #dv, #ls, #ser, #gen, #tnr, #lc"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "src-lists",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:S-missing;src:url(missing.ttf), url(dv.ttf)}@font-face{font-family:S-garbage;src:url(garbage.ttf), url(dv.ttf)}@font-face{font-family:S-eot;src:url(dv.ttf) format('embedded-opentype'), url(lserif.ttf)}@font-face{font-family:S-svg;src:url(dv.ttf) format(svg), url(lserif.ttf)}@font-face{font-family:S-bogus;src:url(dv.ttf) format('bogus'), url(lserif.ttf)}@font-face{font-family:S-tt;src:url(dv.ttf) format(truetype), url(lserif.ttf)}@font-face{font-family:S-ttstr;src:url(dv.ttf) format('truetype'), url(lserif.ttf)}@font-face{font-family:S-otf;src:url(dv.ttf) format('opentype'), url(lserif.ttf)}@font-face{font-family:S-woff;src:url(dv.ttf) format('woff'), url(lserif.ttf)}@font-face{font-family:S-coll;src:url(dv.ttf) format(collection), url(lserif.ttf)}@font-face{font-family:S-var;src:url(dv.ttf) format('truetype-variations'), url(lserif.ttf)}@font-face{font-family:S-techvar;src:url(dv.ttf) format(truetype) tech(variations), url(lserif.ttf)}@font-face{font-family:S-colr1;src:url(dv.ttf) tech(color-COLRv1), url(lserif.ttf)}@font-face{font-family:S-colr0;src:url(dv.ttf) tech(color-COLRv0), url(lserif.ttf)}@font-face{font-family:S-svgtech;src:url(dv.ttf) tech(color-SVG), url(lserif.ttf)}@font-face{font-family:S-sbix;src:url(dv.ttf) tech(color-sbix), url(lserif.ttf)}@font-face{font-family:S-cbdt;src:url(dv.ttf) tech(color-CBDT), url(lserif.ttf)}@font-face{font-family:S-feat;src:url(dv.ttf) tech(features-opentype), url(lserif.ttf)}@font-face{font-family:S-aat;src:url(dv.ttf) tech(features-aat), url(lserif.ttf)}@font-face{font-family:S-graphite;src:url(dv.ttf) tech(features-graphite), url(lserif.ttf)}@font-face{font-family:S-incr;src:url(dv.ttf) tech(incremental), url(lserif.ttf)}@font-face{font-family:S-palettes;src:url(dv.ttf) tech(palettes), url(lserif.ttf)}@font-face{font-family:S-strtech;src:url(dv.ttf) tech('variations'), url(lserif.ttf)}@font-face{font-family:S-onlybad;src:url(dv.ttf) format(svg)}@font-face{font-family:S-localls;src:local('Liberation Sans')}@font-face{font-family:S-localfull;src:local('Liberation Sans Regular')}@font-face{font-family:S-localps;src:local(LiberationSans)}@font-face{font-family:S-localarial;src:local(Arial)}@font-face{font-family:S-localthen;src:local(Nothing), url(dv.ttf)}@font-face{font-family:S-badurl;src:url(dv.ttf) format(woff2) junk, url(lserif.ttf)}</style><div id=missing style=\"font-family:S-missing, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=garbage style=\"font-family:S-garbage, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=eot style=\"font-family:S-eot, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=svg style=\"font-family:S-svg, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=bogus style=\"font-family:S-bogus, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=tt style=\"font-family:S-tt, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=ttstr style=\"font-family:S-ttstr, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=otf style=\"font-family:S-otf, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=woff style=\"font-family:S-woff, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=coll style=\"font-family:S-coll, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=var style=\"font-family:S-var, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=techvar style=\"font-family:S-techvar, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=colr1 style=\"font-family:S-colr1, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=colr0 style=\"font-family:S-colr0, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=svgtech style=\"font-family:S-svgtech, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=sbix style=\"font-family:S-sbix, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=cbdt style=\"font-family:S-cbdt, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=feat style=\"font-family:S-feat, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=aat style=\"font-family:S-aat, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=graphite style=\"font-family:S-graphite, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=incr style=\"font-family:S-incr, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=palettes style=\"font-family:S-palettes, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=strtech style=\"font-family:S-strtech, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=onlybad style=\"font-family:S-onlybad, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=localls style=\"font-family:S-localls, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=localfull style=\"font-family:S-localfull, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=localps style=\"font-family:S-localps, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=localarial style=\"font-family:S-localarial, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=localthen style=\"font-family:S-localthen, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=badurl style=\"font-family:S-badurl, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=ref-dv style=\"font-family:'DejaVu Sans'\">Hamburgefonstiv 0123</div><div id=ref-serif style=\"font-family:'Liberation Serif'\">Hamburgefonstiv 0123</div><div id=ref-ls style=\"font-family:'Liberation Sans'\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#missing, #garbage, #eot, #svg, #bogus, #tt, #ttstr, #otf, #woff, #coll, #var, #techvar, #colr1, #colr0, #svgtech, #sbix, #cbdt, #feat, #aat, #graphite, #incr, #palettes, #strtech, #onlybad, #localls, #localfull, #localps, #localarial, #localthen, #badurl, #ref-dv, #ref-serif, #ref-ls"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf",
+    "garbage.ttf": "fixtures/fonts/fonts.conf"
+   }
+  },
+  {
+   "name": "family-descriptor",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:serif;src:url(dv.ttf)}@font-face{font-family:Two Words;src:url(dv.ttf)}@font-face{font-family:'A1', 'A2';src:url(dv.ttf)}@font-face{font-family:inherit;src:url(dv.ttf)}@font-face{font-family:default;src:url(dv.ttf)}@font-face{font-family:initial;src:url(dv.ttf)}@font-face{font-family:'serif';src:url(dv.ttf)}@font-face{font-family:a 1;src:url(dv.ttf)}</style><div id=generic style=\"font-family:serif\">Hamburgefonstiv 0123</div><div id=twoidents style=\"font-family:'Two Words'\">Hamburgefonstiv 0123</div><div id=twospaced style=\"font-family:Two   Words\">Hamburgefonstiv 0123</div><div id=quotedserif style=\"font-family:'serif'\">Hamburgefonstiv 0123</div><div id=list1 style=\"font-family:A1\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#generic, #twoidents, #twospaced, #quotedserif, #list1"
+    },
+    {
+     "js": "[...document.fonts].map(f => [f.family, f.weight, f.style, f.stretch, f.unicodeRange, f.display].join(' | '))"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "descriptor-values",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:D0;src:url(dv.ttf);font-weight:0}@font-face{font-family:D1;src:url(dv.ttf);font-weight:1001}@font-face{font-family:D2;src:url(dv.ttf);font-weight:700 300}@font-face{font-family:D3;src:url(dv.ttf);font-weight:bold}@font-face{font-family:D4;src:url(dv.ttf);font-weight:bolder}@font-face{font-family:D5;src:url(dv.ttf);font-weight:normal bold}@font-face{font-family:D6;src:url(dv.ttf);font-weight:100 200 300}@font-face{font-family:D7;src:url(dv.ttf);font-weight:auto}@font-face{font-family:D8;src:url(dv.ttf);font-weight:calc(100 + 50)}@font-face{font-family:D9;src:url(dv.ttf);font-style:oblique 30deg 10deg}@font-face{font-family:D10;src:url(dv.ttf);font-style:oblique}@font-face{font-family:D11;src:url(dv.ttf);font-style:oblique 100deg}@font-face{font-family:D12;src:url(dv.ttf);font-style:italic 10deg}@font-face{font-family:D13;src:url(dv.ttf);font-style:auto}@font-face{font-family:D14;src:url(dv.ttf);font-stretch:150% 50%}@font-face{font-family:D15;src:url(dv.ttf);font-stretch:condensed}@font-face{font-family:D16;src:url(dv.ttf);font-stretch:condensed expanded}@font-face{font-family:D17;src:url(dv.ttf);font-stretch:300%}@font-face{font-family:D18;src:url(dv.ttf);unicode-range:U+110000}@font-face{font-family:D19;src:url(dv.ttf);unicode-range:U+50-40}@font-face{font-family:D20;src:url(dv.ttf);unicode-range:U+0-7F, U+100000-10FFFF, u+4??}@font-face{font-family:D21;src:url(dv.ttf);unicode-range:U+0-7F, foo}@font-face{font-family:D22;src:url(dv.ttf);unicode-range:U+??????}@font-face{font-family:D23;src:url(dv.ttf);font-display:optional}@font-face{font-family:D24;src:url(dv.ttf);font-display:bogus}@font-face{font-family:D25;src:url(dv.ttf);font-weight:400; font-weight:junk}</style><div>x</div>",
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => [f.family, f.weight, f.style, f.stretch, f.unicodeRange, f.display].join(' | '))"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "range-load-latin",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:U;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:U;src:url(lserif.ttf);unicode-range:U+400-4FF}</style><div id=t style=\"font-family:U, 'Liberation Sans'\">abc def</div>",
+   "measure": [
+    {
+     "boxes": "#t"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "range-load-cyrillic",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:U;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:U;src:url(lserif.ttf);unicode-range:U+400-4FF}</style><div id=t style=\"font-family:U, 'Liberation Sans'\">абвгд</div>",
+   "measure": [
+    {
+     "boxes": "#t"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "range-load-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:U;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:U;src:url(lserif.ttf);unicode-range:U+400-4FF}</style><div id=t style=\"font-family:U, 'Liberation Sans'\">abc где</div>",
+   "measure": [
+    {
+     "boxes": "#t"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "range-no-space",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:C;src:url(dv.ttf);unicode-range:U+400-4FF}</style><div id=t style=\"font-family:C, 'Liberation Sans'\">abc</div><div id=u style=\"font-family:C, 'Liberation Sans'\">абв</div><div id=ref style=\"font-family:'Liberation Sans'\">abc</div><div id=ref2 style=\"font-family:'Liberation Sans'\">абв</div>",
+   "measure": [
+    {
+     "boxes": "#t, #u, #ref, #ref2"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "range-overlap-order",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:O;src:url(dv.ttf)}@font-face{font-family:O;src:url(lserif.ttf);unicode-range:U+41-5A}@font-face{font-family:P;src:url(lserif.ttf);unicode-range:U+41-5A}@font-face{font-family:P;src:url(dv.ttf)}@font-face{font-family:Q;src:url(dv.ttf)}@font-face{font-family:Q;src:url(lserif.ttf);unicode-range:U+2600-26FF}</style><div id=o style=\"font-family:O\">AAAA</div><div id=p style=\"font-family:P\">AAAA</div><div id=q style=\"font-family:Q\">☃☃</div><div id=rdv style=\"font-family:'DejaVu Sans'\">AAAA</div><div id=rser style=\"font-family:'Liberation Serif'\">AAAA</div><div id=rsnow style=\"font-family:'DejaVu Sans'\">☃☃</div>",
+   "measure": [
+    {
+     "boxes": "#o, #p, #q, #rdv, #rser, #rsnow"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "weight-matching-static",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:M;src:url(dv.ttf);font-weight:400}@font-face{font-family:M;src:url(dvb.ttf);font-weight:700}@font-face{font-family:N;src:url(dv.ttf);font-weight:300}@font-face{font-family:N;src:url(dvb.ttf);font-weight:600}</style><div id=m100 style=\"font-family:M;font-weight:100\">Hamburgefonstiv 0123</div><div id=m300 style=\"font-family:M;font-weight:300\">Hamburgefonstiv 0123</div><div id=m400 style=\"font-family:M;font-weight:400\">Hamburgefonstiv 0123</div><div id=m450 style=\"font-family:M;font-weight:450\">Hamburgefonstiv 0123</div><div id=m500 style=\"font-family:M;font-weight:500\">Hamburgefonstiv 0123</div><div id=m550 style=\"font-family:M;font-weight:550\">Hamburgefonstiv 0123</div><div id=m600 style=\"font-family:M;font-weight:600\">Hamburgefonstiv 0123</div><div id=m700 style=\"font-family:M;font-weight:700\">Hamburgefonstiv 0123</div><div id=m800 style=\"font-family:M;font-weight:800\">Hamburgefonstiv 0123</div><div id=m900 style=\"font-family:M;font-weight:900\">Hamburgefonstiv 0123</div><div id=n100 style=\"font-family:N;font-weight:100\">Hamburgefonstiv 0123</div><div id=n300 style=\"font-family:N;font-weight:300\">Hamburgefonstiv 0123</div><div id=n400 style=\"font-family:N;font-weight:400\">Hamburgefonstiv 0123</div><div id=n450 style=\"font-family:N;font-weight:450\">Hamburgefonstiv 0123</div><div id=n500 style=\"font-family:N;font-weight:500\">Hamburgefonstiv 0123</div><div id=n550 style=\"font-family:N;font-weight:550\">Hamburgefonstiv 0123</div><div id=n600 style=\"font-family:N;font-weight:600\">Hamburgefonstiv 0123</div><div id=n700 style=\"font-family:N;font-weight:700\">Hamburgefonstiv 0123</div><div id=n800 style=\"font-family:N;font-weight:800\">Hamburgefonstiv 0123</div><div id=n900 style=\"font-family:N;font-weight:900\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#m100, #m300, #m400, #m450, #m500, #m550, #m600, #m700, #m800, #m900, #n100, #n300, #n400, #n450, #n500, #n550, #n600, #n700, #n800, #n900"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf"
+   }
+  },
+  {
+   "name": "synthetic-bold-static",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:S400;src:url(dv.ttf);font-weight:400}@font-face{font-family:S300;src:url(dv.ttf);font-weight:300}@font-face{font-family:Sauto;src:url(dv.ttf)}@font-face{font-family:S100_400;src:url(dv.ttf);font-weight:100 400}</style><div id=S400-400 style=\"font-family:S400;font-weight:400\">HHHH</div><div id=S400-500 style=\"font-family:S400;font-weight:500\">HHHH</div><div id=S400-550 style=\"font-family:S400;font-weight:550\">HHHH</div><div id=S400-600 style=\"font-family:S400;font-weight:600\">HHHH</div><div id=S400-650 style=\"font-family:S400;font-weight:650\">HHHH</div><div id=S400-700 style=\"font-family:S400;font-weight:700\">HHHH</div><div id=S400-900 style=\"font-family:S400;font-weight:900\">HHHH</div><div id=S300-400 style=\"font-family:S300;font-weight:400\">HHHH</div><div id=S300-500 style=\"font-family:S300;font-weight:500\">HHHH</div><div id=S300-550 style=\"font-family:S300;font-weight:550\">HHHH</div><div id=S300-600 style=\"font-family:S300;font-weight:600\">HHHH</div><div id=S300-650 style=\"font-family:S300;font-weight:650\">HHHH</div><div id=S300-700 style=\"font-family:S300;font-weight:700\">HHHH</div><div id=S300-900 style=\"font-family:S300;font-weight:900\">HHHH</div><div id=Sauto-400 style=\"font-family:Sauto;font-weight:400\">HHHH</div><div id=Sauto-500 style=\"font-family:Sauto;font-weight:500\">HHHH</div><div id=Sauto-550 style=\"font-family:Sauto;font-weight:550\">HHHH</div><div id=Sauto-600 style=\"font-family:Sauto;font-weight:600\">HHHH</div><div id=Sauto-650 style=\"font-family:Sauto;font-weight:650\">HHHH</div><div id=Sauto-700 style=\"font-family:Sauto;font-weight:700\">HHHH</div><div id=Sauto-900 style=\"font-family:Sauto;font-weight:900\">HHHH</div><div id=S100_400-400 style=\"font-family:S100_400;font-weight:400\">HHHH</div><div id=S100_400-500 style=\"font-family:S100_400;font-weight:500\">HHHH</div><div id=S100_400-550 style=\"font-family:S100_400;font-weight:550\">HHHH</div><div id=S100_400-600 style=\"font-family:S100_400;font-weight:600\">HHHH</div><div id=S100_400-650 style=\"font-family:S100_400;font-weight:650\">HHHH</div><div id=S100_400-700 style=\"font-family:S100_400;font-weight:700\">HHHH</div><div id=S100_400-900 style=\"font-family:S100_400;font-weight:900\">HHHH</div><div id=sys700 style=\"font-family:'DejaVu Sans';font-weight:700\">HHHH</div><div id=sys400 style=\"font-family:'DejaVu Sans'\">HHHH</div>",
+   "measure": [
+    {
+     "ink": "#S400-400, #S400-500, #S400-550, #S400-600, #S400-650, #S400-700, #S400-900, #S300-400, #S300-500, #S300-550, #S300-600, #S300-650, #S300-700, #S300-900, #Sauto-400, #Sauto-500, #Sauto-550, #Sauto-600, #Sauto-650, #Sauto-700, #Sauto-900, #S100_400-400, #S100_400-500, #S100_400-550, #S100_400-600, #S100_400-650, #S100_400-700, #S100_400-900, #sys700, #sys400"
+    },
+    {
+     "boxes": "#S400-400, #S400-700"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "synthetic-italic-static",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:I;src:url(dv.ttf)}@font-face{font-family:J;src:url(dv.ttf);font-style:italic}@font-face{font-family:K;src:url(dv.ttf);font-style:oblique 20deg}@font-face{font-family:L;src:url(dv.ttf);font-style:oblique 0deg 30deg}</style><div id=i-n style=\"font-family:I\">llll</div><div id=i-i style=\"font-family:I;font-style:italic\">llll</div><div id=i-o style=\"font-family:I;font-style:oblique\">llll</div><div id=i-o40 style=\"font-family:I;font-style:oblique 40deg\">llll</div><div id=j-n style=\"font-family:J\">llll</div><div id=j-i style=\"font-family:J;font-style:italic\">llll</div><div id=k-i style=\"font-family:K;font-style:italic\">llll</div><div id=k-n style=\"font-family:K\">llll</div><div id=l-o style=\"font-family:L;font-style:oblique 10deg\">llll</div><div id=l-i style=\"font-family:L;font-style:italic\">llll</div>",
+   "measure": [
+    {
+     "ink": "#i-n, #i-i, #i-o, #i-o40, #j-n, #j-i, #k-i, #k-n, #l-o, #l-i"
+    },
+    {
+     "boxes": "#i-n, #i-i"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "variable-weight",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:Eauto;src:url(exo2.woff2);}@font-face{font-family:E400;src:url(exo2.woff2);font-weight:400}@font-face{font-family:E100_900;src:url(exo2.woff2);font-weight:100 900}@font-face{font-family:E500_600;src:url(exo2.woff2);font-weight:500 600}@font-face{font-family:E300;src:url(exo2.woff2);font-weight:300}@font-face{font-family:Fauto;src:url(faustina.woff2);}@font-face{font-family:F400;src:url(faustina.woff2);font-weight:400}@font-face{font-family:F300_800;src:url(faustina.woff2);font-weight:300 800}@font-face{font-family:F700;src:url(faustina.woff2);font-weight:700}</style><div id=Eauto-300 style=\"font-family:Eauto;font-weight:300\">Hamburgefonstiv</div><div id=Eauto-400 style=\"font-family:Eauto;font-weight:400\">Hamburgefonstiv</div><div id=Eauto-500 style=\"font-family:Eauto;font-weight:500\">Hamburgefonstiv</div><div id=Eauto-600 style=\"font-family:Eauto;font-weight:600\">Hamburgefonstiv</div><div id=Eauto-700 style=\"font-family:Eauto;font-weight:700\">Hamburgefonstiv</div><div id=Eauto-900 style=\"font-family:Eauto;font-weight:900\">Hamburgefonstiv</div><div id=E400-300 style=\"font-family:E400;font-weight:300\">Hamburgefonstiv</div><div id=E400-400 style=\"font-family:E400;font-weight:400\">Hamburgefonstiv</div><div id=E400-500 style=\"font-family:E400;font-weight:500\">Hamburgefonstiv</div><div id=E400-600 style=\"font-family:E400;font-weight:600\">Hamburgefonstiv</div><div id=E400-700 style=\"font-family:E400;font-weight:700\">Hamburgefonstiv</div><div id=E400-900 style=\"font-family:E400;font-weight:900\">Hamburgefonstiv</div><div id=E100_900-300 style=\"font-family:E100_900;font-weight:300\">Hamburgefonstiv</div><div id=E100_900-400 style=\"font-family:E100_900;font-weight:400\">Hamburgefonstiv</div><div id=E100_900-500 style=\"font-family:E100_900;font-weight:500\">Hamburgefonstiv</div><div id=E100_900-600 style=\"font-family:E100_900;font-weight:600\">Hamburgefonstiv</div><div id=E100_900-700 style=\"font-family:E100_900;font-weight:700\">Hamburgefonstiv</div><div id=E100_900-900 style=\"font-family:E100_900;font-weight:900\">Hamburgefonstiv</div><div id=E500_600-300 style=\"font-family:E500_600;font-weight:300\">Hamburgefonstiv</div><div id=E500_600-400 style=\"font-family:E500_600;font-weight:400\">Hamburgefonstiv</div><div id=E500_600-500 style=\"font-family:E500_600;font-weight:500\">Hamburgefonstiv</div><div id=E500_600-600 style=\"font-family:E500_600;font-weight:600\">Hamburgefonstiv</div><div id=E500_600-700 style=\"font-family:E500_600;font-weight:700\">Hamburgefonstiv</div><div id=E500_600-900 style=\"font-family:E500_600;font-weight:900\">Hamburgefonstiv</div><div id=E300-300 style=\"font-family:E300;font-weight:300\">Hamburgefonstiv</div><div id=E300-400 style=\"font-family:E300;font-weight:400\">Hamburgefonstiv</div><div id=E300-500 style=\"font-family:E300;font-weight:500\">Hamburgefonstiv</div><div id=E300-600 style=\"font-family:E300;font-weight:600\">Hamburgefonstiv</div><div id=E300-700 style=\"font-family:E300;font-weight:700\">Hamburgefonstiv</div><div id=E300-900 style=\"font-family:E300;font-weight:900\">Hamburgefonstiv</div><div id=Fauto-300 style=\"font-family:Fauto;font-weight:300\">Hamburgefonstiv</div><div id=Fauto-400 style=\"font-family:Fauto;font-weight:400\">Hamburgefonstiv</div><div id=Fauto-500 style=\"font-family:Fauto;font-weight:500\">Hamburgefonstiv</div><div id=Fauto-600 style=\"font-family:Fauto;font-weight:600\">Hamburgefonstiv</div><div id=Fauto-700 style=\"font-family:Fauto;font-weight:700\">Hamburgefonstiv</div><div id=Fauto-900 style=\"font-family:Fauto;font-weight:900\">Hamburgefonstiv</div><div id=F400-300 style=\"font-family:F400;font-weight:300\">Hamburgefonstiv</div><div id=F400-400 style=\"font-family:F400;font-weight:400\">Hamburgefonstiv</div><div id=F400-500 style=\"font-family:F400;font-weight:500\">Hamburgefonstiv</div><div id=F400-600 style=\"font-family:F400;font-weight:600\">Hamburgefonstiv</div><div id=F400-700 style=\"font-family:F400;font-weight:700\">Hamburgefonstiv</div><div id=F400-900 style=\"font-family:F400;font-weight:900\">Hamburgefonstiv</div><div id=F300_800-300 style=\"font-family:F300_800;font-weight:300\">Hamburgefonstiv</div><div id=F300_800-400 style=\"font-family:F300_800;font-weight:400\">Hamburgefonstiv</div><div id=F300_800-500 style=\"font-family:F300_800;font-weight:500\">Hamburgefonstiv</div><div id=F300_800-600 style=\"font-family:F300_800;font-weight:600\">Hamburgefonstiv</div><div id=F300_800-700 style=\"font-family:F300_800;font-weight:700\">Hamburgefonstiv</div><div id=F300_800-900 style=\"font-family:F300_800;font-weight:900\">Hamburgefonstiv</div><div id=F700-300 style=\"font-family:F700;font-weight:300\">Hamburgefonstiv</div><div id=F700-400 style=\"font-family:F700;font-weight:400\">Hamburgefonstiv</div><div id=F700-500 style=\"font-family:F700;font-weight:500\">Hamburgefonstiv</div><div id=F700-600 style=\"font-family:F700;font-weight:600\">Hamburgefonstiv</div><div id=F700-700 style=\"font-family:F700;font-weight:700\">Hamburgefonstiv</div><div id=F700-900 style=\"font-family:F700;font-weight:900\">Hamburgefonstiv</div>",
+   "measure": [
+    {
+     "boxes": "#Eauto-300, #Eauto-400, #Eauto-500, #Eauto-600, #Eauto-700, #Eauto-900, #E400-300, #E400-400, #E400-500, #E400-600, #E400-700, #E400-900, #E100_900-300, #E100_900-400, #E100_900-500, #E100_900-600, #E100_900-700, #E100_900-900, #E500_600-300, #E500_600-400, #E500_600-500, #E500_600-600, #E500_600-700, #E500_600-900, #E300-300, #E300-400, #E300-500, #E300-600, #E300-700, #E300-900, #Fauto-300, #Fauto-400, #Fauto-500, #Fauto-600, #Fauto-700, #Fauto-900, #F400-300, #F400-400, #F400-500, #F400-600, #F400-700, #F400-900, #F300_800-300, #F300_800-400, #F300_800-500, #F300_800-600, #F300_800-700, #F300_800-900, #F700-300, #F700-400, #F700-500, #F700-600, #F700-700, #F700-900"
+    },
+    {
+     "ink": "#Eauto-300, #Eauto-400, #Eauto-500, #Eauto-600, #Eauto-700, #Eauto-900, #E400-300, #E400-400, #E400-500, #E400-600, #E400-700, #E400-900, #E100_900-300, #E100_900-400, #E100_900-500, #E100_900-600, #E100_900-700, #E100_900-900, #E500_600-300, #E500_600-400, #E500_600-500, #E500_600-600, #E500_600-700, #E500_600-900, #E300-300, #E300-400, #E300-500, #E300-600, #E300-700, #E300-900, #Fauto-300, #Fauto-400, #Fauto-500, #Fauto-600, #Fauto-700, #Fauto-900, #F400-300, #F400-400, #F400-500, #F400-600, #F400-700, #F400-900, #F300_800-300, #F300_800-400, #F300_800-500, #F300_800-600, #F300_800-700, #F300_800-900, #F700-300, #F700-400, #F700-500, #F700-600, #F700-700, #F700-900"
+    }
+   ],
+   "files": {
+    "exo2.woff2": "fixtures/pages/ars-technica/files/d2f675f4572825d0.woff2",
+    "faustina.woff2": "fixtures/pages/ars-technica/files/6cf30bdff2b30f61.woff2"
+   }
+  },
+  {
+   "name": "conditional-rules",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@media (max-width:100px){@font-face{font-family:MQ;src:url(dv.ttf)}}@media (min-width:100px){@font-face{font-family:MQ2;src:url(dv.ttf)}}@supports (display:grid){@font-face{font-family:SU;src:url(dv.ttf)}}@supports (display:bogus){@font-face{font-family:SU2;src:url(dv.ttf)}}</style><div id=MQ style=\"font-family:MQ, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=MQ2 style=\"font-family:MQ2, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=SU style=\"font-family:SU, 'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=SU2 style=\"font-family:SU2, 'Liberation Sans'\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#MQ, #MQ2, #SU, #SU2"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "load-only-when-used",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:H1;src:url(dv.ttf)}@font-face{font-family:H2;src:url(dvb.ttf)}@font-face{font-family:H3;src:url(lserif.ttf)}@font-face{font-family:H4;src:url(ls.ttf)}@font-face{font-family:H5;src:url(exo2.woff2)}@font-face{font-family:H6;src:url(faustina.woff2)}</style><div style='display:none;font-family:H1'>x</div><div style='visibility:hidden;font-family:H2'>x</div><div style=\"font-family:'Liberation Sans', H3\">plain</div><div style=\"font-family:'Liberation Sans', H4\">☃</div><div style='font-family:H5'></div><div style='font-family:H6'> </div>",
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf",
+    "ls.ttf": "fixtures/fonts/LiberationSans-Regular.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf",
+    "exo2.woff2": "fixtures/pages/ars-technica/files/d2f675f4572825d0.woff2",
+    "faustina.woff2": "fixtures/pages/ars-technica/files/6cf30bdff2b30f61.woff2"
+   }
+  },
+  {
+   "name": "synthetic-bold-thresholds",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:B500;src:url(dv.ttf);font-weight:500}@font-face{font-family:B550;src:url(dv.ttf);font-weight:550}@font-face{font-family:B599;src:url(dv.ttf);font-weight:599}@font-face{font-family:B600;src:url(dv.ttf);font-weight:600}@font-face{font-family:B700;src:url(dv.ttf);font-weight:700}@font-face{font-family:Bauto;src:url(dvb.ttf)}@font-face{font-family:Bb400;src:url(dvb.ttf);font-weight:400}</style><div id=b500-400 style=\"font-family:B500;font-weight:400\">HHHH</div><div id=b500-600 style=\"font-family:B500;font-weight:600\">HHHH</div><div id=b500-700 style=\"font-family:B500;font-weight:700\">HHHH</div><div id=b500-900 style=\"font-family:B500;font-weight:900\">HHHH</div><div id=b550-400 style=\"font-family:B550;font-weight:400\">HHHH</div><div id=b550-600 style=\"font-family:B550;font-weight:600\">HHHH</div><div id=b550-700 style=\"font-family:B550;font-weight:700\">HHHH</div><div id=b550-900 style=\"font-family:B550;font-weight:900\">HHHH</div><div id=b599-400 style=\"font-family:B599;font-weight:400\">HHHH</div><div id=b599-600 style=\"font-family:B599;font-weight:600\">HHHH</div><div id=b599-700 style=\"font-family:B599;font-weight:700\">HHHH</div><div id=b599-900 style=\"font-family:B599;font-weight:900\">HHHH</div><div id=b600-400 style=\"font-family:B600;font-weight:400\">HHHH</div><div id=b600-600 style=\"font-family:B600;font-weight:600\">HHHH</div><div id=b600-700 style=\"font-family:B600;font-weight:700\">HHHH</div><div id=b600-900 style=\"font-family:B600;font-weight:900\">HHHH</div><div id=b700-400 style=\"font-family:B700;font-weight:400\">HHHH</div><div id=b700-600 style=\"font-family:B700;font-weight:600\">HHHH</div><div id=b700-700 style=\"font-family:B700;font-weight:700\">HHHH</div><div id=b700-900 style=\"font-family:B700;font-weight:900\">HHHH</div><div id=Bauto-400 style=\"font-family:Bauto;font-weight:400\">HHHH</div><div id=Bauto-700 style=\"font-family:Bauto;font-weight:700\">HHHH</div><div id=Bb400-400 style=\"font-family:Bb400;font-weight:400\">HHHH</div><div id=Bb400-700 style=\"font-family:Bb400;font-weight:700\">HHHH</div>",
+   "measure": [
+    {
+     "ink": "#b500-400, #b500-600, #b500-700, #b500-900, #b550-400, #b550-600, #b550-700, #b550-900, #b599-400, #b599-600, #b599-700, #b599-900, #b600-400, #b600-600, #b600-700, #b600-900, #b700-400, #b700-600, #b700-700, #b700-900, #Bauto-400, #Bauto-700, #Bb400-400, #Bb400-700"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf"
+   }
+  },
+  {
+   "name": "primary-font-unloaded",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:U2;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:U2;src:url(lserif.ttf);unicode-range:U+400-4FF}div{font-size:50px}</style><div id=comp style=\"font-family:U2, 'Liberation Mono'\">абв</div><div id=rdv style=\"font-family:'DejaVu Sans'\">абв</div><div id=rser style=\"font-family:'Liberation Serif'\">абв</div><div id=rmono style=\"font-family:'Liberation Mono'\">абв</div>",
+   "measure": [
+    {
+     "boxes": "#comp, #rdv, #rser, #rmono"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "ch-unit-first-available",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:C2;src:url(dv.ttf);unicode-range:U+400-4FF}@font-face{font-family:C3;src:url(dv.ttf)}@font-face{font-family:C4;src:url(dv.ttf)}</style><div id=a style=\"font-family:C2,'Liberation Mono';width:10ch;height:1px\"></div><div id=b style=\"font-family:C3,'Liberation Mono';width:10ch;height:1px\"></div><div id=c style=\"font-family:C4,'Liberation Mono';width:10ch;height:1px\">x</div><div id=d style=\"font-family:'Liberation Mono';width:10ch;height:1px\"></div><div id=e style=\"font-family:'DejaVu Sans';width:10ch;height:1px\"></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "strut-and-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:E1;src:url(dv.ttf)}@font-face{font-family:E2;src:url(dvb.ttf)}@font-face{font-family:E3;src:url(lserif.ttf)}div{font-size:50px}</style><div id=a style='font-family:E1'><span style=\"font-family:'Liberation Mono'\">x</span></div><div id=b style='font-family:E2'>   </div><div id=c style='font-family:E3'><img style='width:10px;height:10px'></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "stretch-and-style-matching",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:T;src:url(dv.ttf);font-stretch:100%}@font-face{font-family:T;src:url(lserif.ttf);font-stretch:75%}@font-face{font-family:T;src:url(dvb.ttf);font-stretch:125%}@font-face{font-family:Y;src:url(dv.ttf)}@font-face{font-family:Y;src:url(lserif.ttf);font-style:italic}@font-face{font-family:Y;src:url(dvb.ttf);font-style:oblique 20deg}</style><div id=t50 style=\"font-family:T;font-stretch:50%\">AAAA</div><div id=t80 style=\"font-family:T;font-stretch:80%\">AAAA</div><div id=t100 style=\"font-family:T;font-stretch:100%\">AAAA</div><div id=t110 style=\"font-family:T;font-stretch:110%\">AAAA</div><div id=t200 style=\"font-family:T;font-stretch:200%\">AAAA</div><div id=yn style=\"font-family:Y\">AAAA</div><div id=yi style=\"font-family:Y;font-style:italic\">AAAA</div><div id=yo style=\"font-family:Y;font-style:oblique\">AAAA</div><div id=yo5 style=\"font-family:Y;font-style:oblique 5deg\">AAAA</div><div id=rdv style=\"font-family:'DejaVu Sans'\">AAAA</div><div id=rser style=\"font-family:'Liberation Serif'\">AAAA</div><div id=rbold style=\"font-family:'DejaVu Sans';font-weight:bold\">AAAA</div>",
+   "measure": [
+    {
+     "boxes": "#t50, #t80, #t100, #t110, #t200, #yn, #yi, #yo, #yo5, #rdv, #rser, #rbold"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf",
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf"
+   }
+  },
+  {
+   "name": "same-url-many-faces",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:R;src:url(exo2.woff2);font-weight:100}@font-face{font-family:R;src:url(exo2.woff2);font-weight:200}@font-face{font-family:R;src:url(exo2.woff2);font-weight:300}@font-face{font-family:R;src:url(exo2.woff2);font-weight:400}@font-face{font-family:R;src:url(exo2.woff2);font-weight:500}@font-face{font-family:R;src:url(exo2.woff2);font-weight:600}@font-face{font-family:R;src:url(exo2.woff2);font-weight:700}@font-face{font-family:R;src:url(exo2.woff2);font-weight:800}@font-face{font-family:R;src:url(exo2.woff2);font-weight:900}</style><div id=r300 style=\"font-family:R;font-weight:300\">Hamburgefonstiv</div><div id=r650 style=\"font-family:R;font-weight:650\">Hamburgefonstiv</div><div id=r800 style=\"font-family:R;font-weight:800\">Hamburgefonstiv</div>",
+   "measure": [
+    {
+     "boxes": "#r300, #r650, #r800"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ],
+   "files": {
+    "exo2.woff2": "fixtures/pages/ars-technica/files/d2f675f4572825d0.woff2"
+   }
+  },
+  {
+   "name": "primary-unloaded-metrics",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:200px serif} div{float:left;clear:left} @font-face{font-family:U3;src:url(lserif.ttf);unicode-range:U+0-FF} @font-face{font-family:U3;src:url(lmono.ttf);unicode-range:U+400-4FF}</style><div id=a style=\"font-family:U3,'DejaVu Sans'\">абв</div><div id=b style=\"font-family:'DejaVu Sans'\">абв</div><div id=c style=\"font-family:'Liberation Mono'\">абв</div><div id=d style=\"font-family:'Liberation Serif'\">абв</div>",
+   "files": {
+    "lserif.ttf": "fixtures/fonts/LiberationSerif-Regular.ttf",
+    "lmono.ttf": "fixtures/fonts/LiberationMono-Regular.ttf"
+   },
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d"
+    },
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-a",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf)}</style><div style='font-family:G'><img style='width:5px;height:5px'></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-b",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf);unicode-range:U+0-FF}</style><div style='font-family:G'><img style='width:5px;height:5px'></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-c",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:G;src:url(dvb.ttf);unicode-range:U+400-4FF}</style><div style='font-family:G'><img style='width:5px;height:5px'></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-d",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf);unicode-range:U+400-4FF}</style><div style='font-family:G'><img style='width:5px;height:5px'></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-e",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf);unicode-range:U+0-FF}@font-face{font-family:G;src:url(dvb.ttf);unicode-range:U+400-4FF}</style><div style='font-family:G'>абв</div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "dvb.ttf": "fixtures/fonts/DejaVuSans-Bold.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-f",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf);unicode-range:U+0-FF}</style><div style='font-family:G'>абв</div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-g",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf)}</style><div style='font-family:G'><span style='font-family:serif'>x</span></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-h",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf)}</style><div style='font-family:G'><div style='font-family:serif'>x</div></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "strut-load-i",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf)}</style><div style='font-family:G;width:100px;height:100px'></div>",
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   },
+   "measure": [
+    {
+     "js": "[...document.fonts].map(f => f.family + ':' + f.status)"
+    }
+   ]
+  },
+  {
+   "name": "italic-file-synthesis",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{float:left;clear:left} @font-face{font-family:IA;src:url(lsi.ttf)} @font-face{font-family:IN;src:url(lsi.ttf);font-style:normal} @font-face{font-family:IO;src:url(lsi.ttf);font-style:oblique 10deg}</style><div id=a style='font-family:IA'>llll</div><div id=b style='font-family:IA;font-style:italic'>llll</div><div id=c style='font-family:IN;font-style:italic'>llll</div><div id=d style='font-family:IN'>llll</div><div id=e style='font-family:IO;font-style:italic'>llll</div>",
+   "files": {
+    "lsi.ttf": "fixtures/fonts/LiberationSans-Italic.ttf"
+   },
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e"
+    }
+   ]
+  }
+ ]
+}

@@ -26,6 +26,8 @@ pub(crate) enum Pending {
     Stylesheet { slot: usize },
     /// An image.
     Image { url: Url },
+    /// A web font file.
+    Font { url: Url },
 }
 
 /// An author stylesheet slot: inline `<style>` text or a `<link>` load.

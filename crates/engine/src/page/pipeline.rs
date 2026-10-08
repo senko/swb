@@ -11,6 +11,10 @@ use swb_paint::{DisplayList, NoHighlights, Pixmap, RasterParams, Scrolling};
 use swb_style::Stylist;
 
 use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
+
+/// The most layout passes of one [`Page::update_layout`]: web fonts that
+/// are already loaded make layout run again.
+const MAX_LAYOUT_PASSES: usize = 4;
 use crate::forms::LayoutControls;
 use crate::selection::Highlight;
 
@@ -29,6 +33,7 @@ impl Page {
     /// Drops the parsed stylesheets, the styles and everything after them.
     pub(super) fn invalidate_style(&mut self) {
         self.stylist = None;
+        self.web_fonts.env = None;
         self.styles = None;
         self.invalidate_layout();
     }
@@ -68,6 +73,10 @@ impl Page {
     /// stylesheets: until they are loaded, there is no layout. After the
     /// first layout of a document, scrolls to the fragment or to the
     /// restored position.
+    ///
+    /// Layout can request web fonts. A font whose file is already loaded
+    /// (another face of the same file) is used at once and invalidates the
+    /// layout; layout then runs again, up to [`MAX_LAYOUT_PASSES`] times.
     pub fn update_layout(&mut self) {
         if self.document.is_none() || !self.stylesheets_settled() {
             return;
@@ -75,32 +84,23 @@ impl Page {
         if self.styles.is_none() {
             self.compute_styles();
         }
-        if self.fragments.is_none()
-            && let (Some(doc), Some(styles)) = (&self.document, &self.styles)
-        {
-            let controls = LayoutControls {
-                doc,
-                forms: &self.forms,
-                focus: self.input.states.focus,
-            };
-            let input = LayoutInput {
-                document: doc,
-                styles,
-                viewport: self.viewport,
-                replaced: &self.images,
-                controls: &controls,
-            };
-            let started = Instant::now();
-            let fragments = swb_layout::layout(&input, &mut self.fonts);
-            self.timings.layout = started.elapsed();
-            log::debug!("layout: {:?}", self.timings.layout);
-            self.scrollers.update(&fragments);
-            self.fragments = Some(fragments);
-            self.keep_control_scroll();
-            self.select_auto_sized_images();
-            if !self.requests.is_empty() && self.state == LoadState::Complete {
-                self.state = LoadState::LoadingResources;
+        let mut laid_out = false;
+        // After the last pass, `fragments` can be `None` again: a font that
+        // loaded at once invalidated the layout. This is correct: every
+        // caller (paint, scroll, hit testing) calls `update_layout` before
+        // it uses the fragments, so the next call lays out again. The pass
+        // limit only bounds the work of one call.
+        for _ in 0..MAX_LAYOUT_PASSES {
+            if self.fragments.is_some() || !self.run_layout() {
+                break;
             }
+            laid_out = true;
+            self.start_font_loads();
+        }
+        if laid_out && !self.requests.is_empty() && self.state == LoadState::Complete {
+            self.state = LoadState::LoadingResources;
+        }
+        if laid_out && self.fragments.is_some() {
             // The scroll target is applied after every layout until the
             // page is loaded, because images that arrive later move it.
             // Scrolling by the user cancels it.
@@ -116,6 +116,34 @@ impl Page {
                 self.pending_scroll = None;
             }
         }
+    }
+
+    /// Lays out the document, if it has styles. Returns false if not.
+    fn run_layout(&mut self) -> bool {
+        let (Some(doc), Some(styles)) = (&self.document, &self.styles) else {
+            return false;
+        };
+        let controls = LayoutControls {
+            doc,
+            forms: &self.forms,
+            focus: self.input.states.focus,
+        };
+        let input = LayoutInput {
+            document: doc,
+            styles,
+            viewport: self.viewport,
+            replaced: &self.images,
+            controls: &controls,
+        };
+        let started = Instant::now();
+        let fragments = swb_layout::layout(&input, &mut self.fonts);
+        self.timings.layout = started.elapsed();
+        log::debug!("layout: {:?}", self.timings.layout);
+        self.scrollers.update(&fragments);
+        self.fragments = Some(fragments);
+        self.keep_control_scroll();
+        self.select_auto_sized_images();
+        true
     }
 
     /// Stores the scroll offsets of the text in form controls that layout
@@ -200,6 +228,7 @@ impl Page {
         log::debug!("style: {:?}", self.timings.style);
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
+        self.update_web_font_faces();
         for url in image_urls {
             if let Ok(url) = Url::parse(&url) {
                 self.start_image(url);

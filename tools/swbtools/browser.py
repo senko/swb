@@ -173,6 +173,26 @@ async def stop_animations(page: Page) -> None:
     await page.evaluate(_STOP_ANIMATIONS_JS)
 
 
+_WAIT_FOR_FONTS_JS = """
+async () => {
+  // Layout starts the loads of the fonts that the text uses; a load that
+  // starts after the `load` event is not part of it. Force layout, wait,
+  // and repeat for loads that the first fonts' text triggers.
+  for (let i = 0; i < 3; i++) {
+    document.documentElement.offsetHeight;
+    await document.fonts.ready;
+  }
+}
+"""
+
+
+async def wait_for_fonts(page: Page) -> None:
+    """Waits until the web fonts that the page uses have loaded (or
+    failed), so that measurements do not depend on the timing of the font
+    loads."""
+    await page.evaluate(_WAIT_FOR_FONTS_JS)
+
+
 async def collect_boxes(page: Page, url: str) -> BoxDump:
     """Returns the box dump of the page. Call it with the page scrolled to
     the top, so that fixed elements are at their initial position."""

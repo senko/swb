@@ -10,6 +10,10 @@
 - Updated: 2026-10-07 (M3, Wikipedia): see "Update (2026-10-07)" at the
   end: line break rules, glyph advances, small capitals and
   right-to-left shaping as in Chromium. The libraries did not change.
+- Updated: 2026-10-08 (M4): web fonts (`@font-face`) are in
+  [ADR 0022](0022-web-fonts.md); a font's identity now includes all its
+  variation axis values (`wght`, `wdth`, `slnt`, `ital`). System fonts
+  still get only `wght`.
 
 ## Context
 
@@ -184,7 +188,7 @@ ascent and descent for line layout, which is the layout crate's decision.
   masks are cached up to 64 MiB in total (at most 32K entries); when a new
   mask does not fit, the cache is cleared. Masks larger than 256×256
   pixels are not cached; they are rasterized for every use.
-- Not done yet: web fonts (`@font-face`), color glyphs, vertical text,
+- Not done yet: color glyphs, vertical text,
   `font-synthesis`, Blink's "first family at normal style" fallback step
   for bold or italic text, emoji presentation selection.
 

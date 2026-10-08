@@ -11,7 +11,8 @@
 //!
 //! `@media` conditions are evaluated when styles are computed (the
 //! environment can change); `@supports` conditions are evaluated when a
-//! sheet is added. `@import` and `@font-face` are ignored here.
+//! sheet is added. `@import` is ignored here. `@font-face` rules are kept
+//! with their `@media` conditions ([`Stylist::font_faces`]).
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
@@ -27,6 +28,7 @@ use smallvec::SmallVec;
 
 use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
 use crate::element::DomElement;
+use crate::font_face::FontFace;
 use crate::parse::ParserContext;
 use crate::properties::{DeclarationBlock, is_supported};
 use crate::style_map::PseudoKind;
@@ -184,7 +186,18 @@ pub struct Stylist {
     next_order: u32,
     /// The element states that any selector depends on.
     state_dependencies: ElementState,
+    /// The valid `@font-face` rules in document order, with their media
+    /// chain.
+    font_faces: Vec<(FontFace, Option<u32>)>,
+    /// True if `@font-face` rules beyond [`MAX_FONT_FACES`] were ignored.
+    font_faces_truncated: bool,
 }
+
+/// The most `@font-face` rules that a document can have; later rules are
+/// ignored. Real pages have up to a few thousand (families split into
+/// `unicode-range` subsets for many weights); the limit bounds the work of
+/// font matching on hostile pages (ADR 0022).
+pub const MAX_FONT_FACES: usize = 10_000;
 
 impl Stylist {
     /// Creates a stylist with the user-agent stylesheet (and, in quirks
@@ -203,6 +216,8 @@ impl Stylist {
             media_chains: Vec::new(),
             next_order: 0,
             state_dependencies: ElementState::empty(),
+            font_faces: Vec::new(),
+            font_faces_truncated: false,
         };
         let ua = ParserContext::user_agent();
         stylist.add_rules(&UA_SHEET.rules, &ua, CascadeOrigin::UserAgent, None);
@@ -273,7 +288,20 @@ impl Stylist {
                         self.add_rules(&s.rules, cx, origin, media);
                     }
                 }
-                CssRule::Import(_) | CssRule::FontFace(_) => {}
+                CssRule::FontFace(rule) => {
+                    let Some(face) = FontFace::parse(rule, cx) else {
+                        continue;
+                    };
+                    if self.font_faces.len() < MAX_FONT_FACES {
+                        self.font_faces.push((face, media));
+                    } else if !self.font_faces_truncated {
+                        log::warn!(
+                            "more than {MAX_FONT_FACES} @font-face rules; ignoring the rest"
+                        );
+                        self.font_faces_truncated = true;
+                    }
+                }
+                CssRule::Import(_) => {}
             }
         }
     }
@@ -341,6 +369,19 @@ impl Stylist {
             .collect()
     }
 
+    /// The `@font-face` rules whose `@media` conditions match `env`, in
+    /// document order.
+    pub fn font_faces(&self, env: &MediaEnvironment) -> Vec<&FontFace> {
+        let media = self.evaluate_media(env);
+        self.font_faces
+            .iter()
+            .filter(|(_, chain)| {
+                chain.is_none_or(|c| media.get(c as usize).copied().unwrap_or(false))
+            })
+            .map(|(face, _)| face)
+            .collect()
+    }
+
     /// True if any rule targets the pseudo-element.
     pub(crate) fn has_pseudo_rules(&self, kind: PseudoKind) -> bool {
         !self.map(RuleTarget::Pseudo(kind)).is_empty()
@@ -402,6 +443,41 @@ impl Stylist {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn font_faces_follow_media_and_supports() {
+        let mut stylist = Stylist::new(swb_dom::QuirksMode::NoQuirks);
+        let css = "@font-face{font-family:A;src:url(a.woff2)}\
+                   @media (max-width:100px){@font-face{font-family:B;src:url(b.woff2)}}\
+                   @media (min-width:100px){@font-face{font-family:C;src:url(c.woff2)}}\
+                   @supports (display:grid){@font-face{font-family:D;src:url(d.woff2)}}\
+                   @supports (display:bogus){@font-face{font-family:E;src:url(e.woff2)}}\
+                   @font-face{font-family:F}";
+        let base = Url::parse("https://example.com/s/x.css").unwrap();
+        stylist.add_author_sheet(&parse_stylesheet(css), &base);
+        let env = MediaEnvironment {
+            viewport_width: 800.0,
+            ..MediaEnvironment::default()
+        };
+        let families: Vec<&str> = stylist
+            .font_faces(&env)
+            .iter()
+            .map(|f| &*f.family)
+            .collect();
+        assert_eq!(families, ["A", "C", "D"]);
+    }
+
+    #[test]
+    fn font_faces_are_limited() {
+        let mut stylist = Stylist::new(swb_dom::QuirksMode::NoQuirks);
+        let css = "@font-face{font-family:A;src:url(a)}".repeat(MAX_FONT_FACES + 5);
+        let base = Url::parse("https://example.com/").unwrap();
+        stylist.add_author_sheet(&parse_stylesheet(&css), &base);
+        assert_eq!(
+            stylist.font_faces(&MediaEnvironment::default()).len(),
+            MAX_FONT_FACES
+        );
+    }
 
     #[test]
     fn ua_sheets_parse_and_are_all_used() {

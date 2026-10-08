@@ -21,6 +21,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Media tests            | `crates/engine/tests/media.rs` (video posters and their requests, `object-fit`, controls and the default poster in pixels, hit testing) | no |
 | Responsive image tests | `crates/engine/tests/responsive_images.rs` (`srcset`, `sizes` and `<picture>` at other scales and viewports, selection again after a viewport or scale change, `object-fit` with density; by the color of the drawn image) | no |
+| Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -582,6 +583,15 @@ temporary directory, loaded by navigation.
   fragments of an inline element).
 - `style`: the `getComputedStyle` values of `props`.
 - `js`: the JSON value of an expression.
+- `ink`: what Chromium paints in each matching element's border box (a
+  screenshot of the area): `ink`, the sum of the darkness of its pixels
+  (by luminance, 1 for black), and `bbox`, the box of the pixels that are
+  not white, relative to the element. It shows synthetic bold (more ink)
+  and slanted glyphs where the geometry does not change.
+- `files` (case, optional): files to copy next to the page, as
+  `{"published name": "source path"}`; a relative source path is relative
+  to the repository root (for example the fonts of `@font-face` rules:
+  `tools/probes/web-fonts.json`).
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -615,7 +625,7 @@ Case files that other people should reuse go in `tools/probes/`
 swb must never panic, hang or exhaust memory on content from the network.
 The set in `tools/swbtools/hostile_cases.py` has one page for each limit
 that an ADR documents (floats, tables, grid, masks, transforms, scroll
-containers, SVG images, counters, custom properties, box depth), each sized
+containers, SVG images, counters, custom properties, box depth, web fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
 `var()` chains, huge lists).
@@ -720,8 +730,10 @@ reach 1. `geometry` is the main metric.
 - Record fixtures logged out: a fixture stores the page as the recording
   session saw it, and a page recorded after a login contains session data
   (on Hacker News, the `auth=` tokens of the `logout` and `vote` links).
-- Chromium loads web fonts from the fixture. swb does not support
-  `@font-face` yet, so text with web fonts differs.
+- Chromium loads web fonts from the fixture, and so does swb (ADR 0022).
+  `local()` sources and the metric descriptors (`size-adjust` and the
+  overrides) are not supported yet, so fallback faces that use them
+  differ.
 - Alignment works on tags only. When swb builds a different DOM (for
   example template contents in the tree, or different parser recovery),
   elements in the differing blocks count as missing or extra.

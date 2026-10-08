@@ -17,6 +17,7 @@ use crate::query::{FamilyName, FontQuery, FontStyle, GenericFamily, GenericFamil
 use crate::raster::{self, GlyphMask};
 use crate::source::directory::DirectorySource;
 use crate::source::{EmptySource, FontSource};
+use crate::web::WebFonts;
 use crate::{FontId, GlyphId};
 
 /// Language for system fallback when the query has none. Chromium uses the
@@ -53,29 +54,56 @@ pub struct FontInfo<'a> {
 }
 
 /// The state of a known face.
-enum FaceState {
+pub(crate) enum FaceState {
     Unloaded,
     Loaded(Arc<LoadedFace>),
     Failed,
 }
 
-struct Face {
-    desc: FaceDesc,
-    state: FaceState,
+/// A face that the context knows: from a font source, or a loaded web
+/// font face.
+pub(crate) struct Face {
+    pub(crate) desc: FaceDesc,
+    pub(crate) state: FaceState,
 }
 
 struct Family {
     faces: Vec<usize>,
 }
 
+/// The variation axis values of a font, as `f32` bits (user units), for
+/// the axes that the font has and that font matching sets.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Default)]
+pub(crate) struct Variations {
+    pub(crate) wght: Option<u32>,
+    pub(crate) wdth: Option<u32>,
+    pub(crate) slnt: Option<u32>,
+    pub(crate) ital: Option<u32>,
+}
+
+impl Variations {
+    /// The axis settings as (tag, value) pairs.
+    fn settings(&self) -> Vec<(Tag, f32)> {
+        [
+            (b"wght", self.wght),
+            (b"wdth", self.wdth),
+            (b"slnt", self.slnt),
+            (b"ital", self.ital),
+        ]
+        .into_iter()
+        .filter_map(|(tag, value)| value.map(|v| (Tag::new(tag), f32::from_bits(v))))
+        .collect()
+    }
+}
+
 /// What a [`FontId`] stands for. `face` is `None` for the placeholder font
-/// that is used when no fonts exist at all.
+/// that is used when no fonts exist at all. Caches that key on the
+/// [`FontId`] (shape plans, glyph masks) so key on the variation values.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 struct InstanceKey {
     face: Option<usize>,
     synthesis: Synthesis,
-    /// The `wght` variation value as `f32` bits.
-    wght: Option<u32>,
+    variations: Variations,
 }
 
 /// A concrete font: a face with synthesis flags and variations.
@@ -109,7 +137,7 @@ struct SelectionKey {
 /// Use one context per thread; it is `Send` but not `Sync`.
 pub struct FontContext {
     source: Box<dyn FontSource>,
-    faces: Vec<Face>,
+    pub(crate) faces: Vec<Face>,
     face_ids: HashMap<(PathBuf, u32), usize>,
     families: Vec<Family>,
     /// Lowercase family name (as the source returned it) to family index.
@@ -127,6 +155,8 @@ pub struct FontContext {
     masks: MaskCache,
     /// Faces for which "color glyphs are not supported" was logged.
     color_warned: HashSet<usize>,
+    /// The web font faces of the document.
+    pub(crate) web: WebFonts,
 }
 
 impl FontContext {
@@ -147,6 +177,7 @@ impl FontContext {
             fallback: HashMap::new(),
             masks: MaskCache::new(MASK_CACHE_BUDGET),
             color_warned: HashSet::new(),
+            web: WebFonts::default(),
         }
     }
 
@@ -181,9 +212,18 @@ impl FontContext {
     /// algorithm (<https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm>).
     /// If no family exists, uses the default family. Never fails: without
     /// any fonts it returns a placeholder font that has no glyphs.
+    ///
+    /// A family of web fonts (`@font-face`, see
+    /// [`FontContext::set_web_fonts`]) gives the face of its composite font
+    /// that covers U+0020 (CSS Fonts 4 §5.2, "first available font"), if it
+    /// is loaded.
     pub fn select(&mut self, query: &FontQuery<'_>) -> FontId {
-        for family in query.families {
-            if let Some(font) = self.family_font(*family, query) {
+        for &family in query.families {
+            let font = match (family, self.web_family(family)) {
+                (FamilyName::Named(name), Some(faces)) => self.web_primary(name, &faces, query),
+                _ => self.family_font(family, query),
+            };
+            if let Some(font) = font {
                 return font;
             }
         }
@@ -215,6 +255,7 @@ impl FontContext {
         let face = &self.faces[instance.key.face?];
         let weight = instance
             .key
+            .variations
             .wght
             .map_or_else(|| face.desc.weight.map_or(400.0, |w| w.0), f32::from_bits);
         Some(FontInfo {
@@ -315,22 +356,13 @@ impl FontContext {
         self.instances.get(font.0 as usize)
     }
 
-    /// Fonts of the families of `query` that exist, in order, without
-    /// duplicates.
-    pub(crate) fn family_fonts(&mut self, query: &FontQuery<'_>) -> Vec<FontId> {
-        let mut fonts = Vec::with_capacity(query.families.len());
-        for family in query.families {
-            if let Some(font) = self.family_font(*family, query)
-                && !fonts.contains(&font)
-            {
-                fonts.push(font);
-            }
-        }
-        fonts
-    }
-
-    /// The font of `family` for `query`, if the family exists.
-    fn family_font(&mut self, family: FamilyName<'_>, query: &FontQuery<'_>) -> Option<FontId> {
+    /// The font of the system family `family` for `query`, if the family
+    /// exists.
+    pub(crate) fn family_font(
+        &mut self,
+        family: FamilyName<'_>,
+        query: &FontQuery<'_>,
+    ) -> Option<FontId> {
         let family = self.resolve_family(family)?;
         self.select_in_family(family, query)
     }
@@ -346,11 +378,55 @@ impl FontContext {
         {
             return font;
         }
+        self.placeholder_font()
+    }
+
+    /// The placeholder font: no glyphs, made-up metrics.
+    pub(crate) fn placeholder_font(&mut self) -> FontId {
         self.intern(InstanceKey {
             face: None,
             synthesis: Synthesis::default(),
-            wght: None,
+            variations: Variations::default(),
         })
+    }
+
+    /// The font for face `face` with `synthesis` and `variations`.
+    pub(crate) fn intern_face(
+        &mut self,
+        face: usize,
+        synthesis: Synthesis,
+        variations: Variations,
+    ) -> FontId {
+        self.intern(InstanceKey {
+            face: Some(face),
+            synthesis,
+            variations,
+        })
+    }
+
+    /// Adds a face that no font source knows (a web font face) and returns
+    /// its index.
+    pub(crate) fn push_face(&mut self, face: Face) -> usize {
+        self.faces.push(face);
+        self.faces.len() - 1
+    }
+
+    /// Drops the data of a face that is no longer used (a web font face
+    /// of a previous document). Its fonts become placeholder fonts, so
+    /// that their [`FontId`]s stay valid.
+    pub(crate) fn unload_face(&mut self, face: usize) {
+        if let Some(entry) = self.faces.get_mut(face) {
+            entry.state = FaceState::Failed;
+            entry.desc.data = None;
+        }
+        for instance in &mut self.instances {
+            if instance.key.face == Some(face) {
+                instance.face = None;
+                instance.coords.clear();
+                instance.variation = None;
+                instance.plans.clear();
+            }
+        }
     }
 
     /// A font for `c` from system fallback, with Chromium's synthesis rules
@@ -383,7 +459,10 @@ impl FontContext {
         Some(self.intern(InstanceKey {
             face: Some(face),
             synthesis,
-            wght,
+            variations: Variations {
+                wght,
+                ..Variations::default()
+            },
         }))
     }
 
@@ -553,7 +632,10 @@ impl FontContext {
             let font = self.intern(InstanceKey {
                 face: Some(face),
                 synthesis,
-                wght,
+                variations: Variations {
+                    wght,
+                    ..Variations::default()
+                },
             });
             self.selections.insert(key, font);
             return Some(font);
@@ -591,12 +673,12 @@ impl FontContext {
             variation: None,
             plans: Vec::new(),
         };
-        if let (Some(face), Some(wght)) = (&instance.face, key.wght)
+        let settings = key.variations.settings();
+        if let Some(face) = &instance.face
+            && !settings.is_empty()
             && let Some(font) = face.font()
         {
-            let location = font
-                .axes()
-                .location([(Tag::new(b"wght"), f32::from_bits(wght))]);
+            let location = font.axes().location(settings);
             instance.coords = location.coords().to_vec();
             instance.variation = Some(ShaperInstance::from_coords(
                 &font,

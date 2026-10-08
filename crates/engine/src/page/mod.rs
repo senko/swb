@@ -23,6 +23,7 @@
 //! activation, submission).
 
 mod auto_sizes;
+mod fonts;
 mod forms;
 mod input;
 mod loading;
@@ -45,6 +46,7 @@ use crate::history::{Commit, Entry, History, PostData};
 use crate::resources::{Images, Pending, Requests, SheetSlot};
 use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
+use crate::web_fonts::WebFonts;
 
 pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
@@ -164,6 +166,8 @@ pub struct Page {
     title: String,
     sheets: Vec<SheetSlot>,
     images: Images,
+    /// The web fonts of the document (`@font-face`) and their files.
+    web_fonts: WebFonts,
 
     viewport: Size,
     scale: f32,
@@ -205,6 +209,7 @@ impl Page {
             title: String::new(),
             sheets: Vec::new(),
             images: Images::default(),
+            web_fonts: WebFonts::default(),
             viewport,
             scale,
             scroll: Point::default(),
@@ -353,6 +358,8 @@ impl Page {
         if sheets_dropped {
             self.invalidate_style();
         }
+        self.cancel_font_loads();
+        self.invalidate_layout();
         self.state = if self.document.is_some() {
             LoadState::Complete
         } else {

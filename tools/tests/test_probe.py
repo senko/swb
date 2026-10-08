@@ -3,10 +3,12 @@ comparison with swb (synthetic dumps), and the example file in Chromium (and
 swb, if its release binary exists)."""
 
 import asyncio
+import io
 import json
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from swbtools import paths, swb
 from swbtools.boxes import BoxDump, Element
@@ -27,6 +29,7 @@ from swbtools.probe import (
     format_json,
     format_row,
     format_text,
+    ink_of,
     parse_cases,
     probe,
     read_cases,
@@ -96,11 +99,36 @@ def test_default_viewport():
         (case_json(measure=[{"boxes": ""}]), "non-empty string"),
         (case_json(viewport=[0, 5]), "viewport must be"),
         (case_json(viewport="800x600"), "viewport must be"),
+        (case_json(files=["a.ttf"]), "files must be an object"),
+        (case_json(files={"sub/a.ttf": "x"}), "plain file name"),
+        (case_json(files={"a.ttf": 3}), "must be a path"),
     ],
 )
 def test_bad_case_files(text, message):
     with pytest.raises(ProbeError, match=message):
         parse_cases(text, "f.json")
+
+
+def test_files_resolve_against_the_repository():
+    (case,) = parse_cases(case_json(files={"a.ttf": "fixtures/fonts/DejaVuSans.ttf", "b": "/x/b"}))
+    assert case.files == (
+        ("a.ttf", paths.repo_root() / "fixtures/fonts/DejaVuSans.ttf"),
+        ("b", Path("/x/b")),
+    )
+    assert parse_cases(case_json())[0].files == ()
+
+
+def test_ink_of_a_screenshot():
+    image = Image.new("RGB", (6, 4), "white")
+    image.putpixel((1, 2), (0, 0, 0))
+    image.putpixel((4, 1), (255, 255, 255))
+    image.putpixel((3, 3), (128, 128, 128))
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    assert ink_of(buffer.getvalue()) == (1.5, (1, 2, 3, 2))
+    blank = io.BytesIO()
+    Image.new("RGB", (2, 2), "white").save(blank, "PNG")
+    assert ink_of(blank.getvalue()) == (0.0, None)
 
 
 def test_error_names_the_file_and_the_case():
@@ -276,6 +304,25 @@ def test_example_in_chromium():
     style = by_name["computed-line-height"].rows
     assert [row.data["style"]["line-height"] for row in style[:3]] == ["normal", "30px", "30px"]
     assert style[3].data == {"value": 600}
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_waits_for_web_fonts():
+    # The font is used by a paragraph only, so layout starts its load; the
+    # probe must wait for it before it runs the queries.
+    html = (
+        "<style>@font-face{font-family:W;src:url(x.ttf)}p{font-family:W}</style><body><p>text</p>"
+    )
+    font = paths.repo_root() / "fixtures/fonts/DejaVuSans.ttf"
+    queries = (
+        Query("js", "document.fonts.status"),
+        Query("js", "[...document.fonts].every(f => f.status === 'loaded')"),
+    )
+    case = Case("w", html, (400, 300), queries, (("x.ttf", font),))
+    (result,) = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all([case], None, 1.0, page, directory))
+    )
+    assert [row.data["value"] for row in result.rows] == ["loaded", True]
 
 
 @pytest.mark.usefixtures("chromium")

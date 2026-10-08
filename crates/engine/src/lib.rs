@@ -16,6 +16,7 @@ mod page;
 mod resources;
 mod scrollers;
 mod selection;
+mod web_fonts;
 
 pub use boxes::{ElementBox, element_boxes};
 pub use edit::TextEdit;

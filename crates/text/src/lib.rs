@@ -17,6 +17,7 @@
 //! down.
 
 mod context;
+mod decode;
 mod error;
 mod face;
 mod itemize;
@@ -28,8 +29,10 @@ mod query;
 mod raster;
 mod shape;
 mod source;
+mod web;
 
 pub use context::{FontContext, FontInfo, Synthesis};
+pub use decode::{MAX_DECODED_SIZE, MAX_DECOMPRESSED_SIZE, MAX_FONT_FILE_SIZE, decode_web_font};
 pub use error::TextError;
 pub use itemize::FontRun;
 pub use linebreak::{BreakKind, BreakRules, WordBreak, line_breaks};
@@ -37,6 +40,7 @@ pub use metrics::FontMetrics;
 pub use query::{FamilyName, FontQuery, FontStyle, GenericFamily, GenericFamilyMap};
 pub use raster::GlyphMask;
 pub use shape::{Direction, Feature, ShapeOptions, ShapedGlyph, ShapedRun, context_around};
+pub use web::{MAX_FACES_PER_FAMILY, MAX_WEB_FONT_LOADS, WebFaceId, WebFontFace, WebFontStyle};
 
 /// A concrete font: one face of a font file with its synthetic styles and
 /// variation settings. Valid only for the [`FontContext`] that returned it.

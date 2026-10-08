@@ -2791,6 +2791,8 @@ dependencies = [
 name = "swb-text"
 version = "0.1.0"
 dependencies = [
+ "brotli-decompressor",
+ "flate2",
  "fontconfig",
  "harfrust",
  "log",
@@ -2800,6 +2802,7 @@ dependencies = [
  "unicode-linebreak",
  "unicode-normalization",
  "unicode-segmentation",
+ "wuff",
 ]
 
 [[package]]
@@ -3597,6 +3600,15 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
+
+[[package]]
+name = "wuff"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "200a7b806377b65f1ff9a985874332f15357c87e5dd7855f35f06dade95b8b3d"
+dependencies = [
+ "bytes",
+]
 
 [[package]]
 name = "x11-dl"

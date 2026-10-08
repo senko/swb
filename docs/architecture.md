@@ -22,7 +22,8 @@ keyboard, focus, text selection), scrolling, navigation and history.
 `engine` has no windowing code, so it runs the same way in headless mode,
 in the GUI and under the automation server.
 
-Design records per stage: text in [ADR 0006](adr/0006-text-stack.md),
+Design records per stage: text in [ADR 0006](adr/0006-text-stack.md)
+and web fonts in [ADR 0022](adr/0022-web-fonts.md),
 style in [ADR 0007](adr/0007-style-system.md), interaction in
 [ADR 0009](adr/0009-interaction.md), automation in
 [ADR 0008](adr/0008-automation-protocol.md) and
@@ -37,8 +38,8 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
-| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers. | `css`, `dom`                  |
-| `text`       | Font discovery and matching, fallback, shaping, glyph outlines and masks.      | —                             |
+| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors. | `css`, `dom`                  |
+| `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
@@ -137,6 +138,17 @@ Rules:
   in the engine's `Images`, 128 MiB). One frame renders new renderings up
   to a work budget; after that, images use the closest cached rendering
   or are not drawn until a later repaint.
+- **Web fonts** (ADR 0022): the stylist keeps the `@font-face` rules
+  (`swb_style::FontFace`) with their `@media` chain. The engine gives the
+  applicable faces to the `FontContext` (`set_web_fonts`), which owns the
+  face set: families, composite fonts by `unicode-range`, the load state
+  of each face and the requests that layout makes
+  (`text/src/web.rs`). After layout the engine takes the requests and
+  loads the sources (`engine/src/page/fonts.rs`; each URL once,
+  `engine/src/web_fonts.rs`); `text/src/decode.rs` decodes WOFF and
+  WOFF2 (`wuff`) within size limits. A font that arrives invalidates the
+  layout. A font is a face with synthesis flags and variation axis
+  values (`FontId`); caches key on it.
 - **Cookie jar** (`net`): one `CookieJar` per `NetworkFetcher` (so one per
   swb process), inside the HTTP client. It adds `Cookie` to every HTTP
   request and stores `Set-Cookie` on every redirect hop. Cookies are
@@ -325,6 +337,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `page/mod.rs`: page state, navigation, history, links, accessors.
 - `page/loading.rs`: network completions, documents (HTML, text, image,
   error pages), stylesheets and images.
+- `page/fonts.rs`, `web_fonts.rs`: web fonts: the face set of the
+  document, loading the faces that layout requested, font files by URL.
 - `page/pipeline.rs`: style, layout, display list and raster with
   per-stage timings; restyles after state changes; viewport and
   screenshots.

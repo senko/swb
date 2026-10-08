@@ -64,6 +64,10 @@ skrifa = "0.46"
 unicode-linebreak = "0.1"
 unicode-normalization = "0.1"
 unicode-segmentation = "1"
+# WOFF and WOFF2 decoding (ADR 0022). Without its default features: swb
+# passes its own Brotli (brotli-decompressor 6) and zlib (flate2)
+# decompressors, which enforce swb's size limits.
+wuff = { version = "0.2.9", default-features = false }
 
 # paint
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }

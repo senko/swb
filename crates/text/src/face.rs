@@ -58,11 +58,16 @@ impl AxisRange {
     }
 }
 
+/// The range of the axis `tag` of a variable font.
+fn axis_range(font: &FontRef<'_>, tag: [u8; 4]) -> Option<AxisRange> {
+    font.axes()
+        .get_by_tag(Tag::new(&tag))
+        .map(|axis| AxisRange::new(axis.min_value(), axis.default_value(), axis.max_value()))
+}
+
 /// The range of the `wght` axis of a variable font.
 fn wght_range(font: &FontRef<'_>) -> Option<AxisRange> {
-    font.axes()
-        .get_by_tag(Tag::new(b"wght"))
-        .map(|axis| AxisRange::new(axis.min_value(), axis.default_value(), axis.max_value()))
+    axis_range(font, *b"wght")
 }
 
 /// A parsed face. The font data is shared; `FontRef`s are created on demand
@@ -79,8 +84,19 @@ pub(crate) struct LoadedFace {
     /// characters count as mapped.
     ascii: u128,
     pub(crate) wght: Option<AxisRange>,
+    /// The range of the `wdth` axis.
+    pub(crate) wdth: Option<AxisRange>,
+    /// The range of the `slnt` axis.
+    pub(crate) slnt: Option<AxisRange>,
+    /// The range of the `ital` axis.
+    pub(crate) ital: Option<AxisRange>,
+    /// The font data says that the face is italic or oblique.
+    pub(crate) slanted: bool,
     /// The face has color glyph tables (COLR, CBDT or sbix).
     pub(crate) has_color: bool,
+    /// For a web font face: the code points of its `unicode-range`, as
+    /// sorted, disjoint inclusive ranges. The face covers only these.
+    range: Option<Arc<[(u32, u32)]>>,
 }
 
 impl LoadedFace {
@@ -111,6 +127,7 @@ impl LoadedFace {
             }
         }
         let wght = wght_range(&font);
+        let attributes = font.attributes();
         let has_color = [b"COLR", b"CBDT", b"sbix"]
             .iter()
             .any(|tag| font.table_data(Tag::new(tag)).is_some());
@@ -121,11 +138,34 @@ impl LoadedFace {
             mapping,
             shaper,
             units_per_em,
-            weight: font.attributes().weight.value(),
+            weight: attributes.weight.value(),
             ascii,
             wght,
+            wdth: axis_range(&font, *b"wdth"),
+            slnt: axis_range(&font, *b"slnt"),
+            ital: axis_range(&font, *b"ital"),
+            slanted: attributes.style != skrifa::attribute::Style::Normal,
             has_color,
+            range: None,
         })
+    }
+
+    /// Restricts the face to the code points of `range` (sorted, disjoint
+    /// inclusive ranges): a web font face with a `unicode-range`.
+    pub(crate) fn set_unicode_range(&mut self, range: Arc<[(u32, u32)]>) {
+        for c in 0u32..128 {
+            if !ranges_contain(&range, c) {
+                self.ascii &= !(1 << c);
+            }
+        }
+        self.range = Some(range);
+    }
+
+    /// True if the face's `unicode-range` (if any) contains `c`.
+    pub(crate) fn in_range(&self, c: char) -> bool {
+        self.range
+            .as_ref()
+            .is_none_or(|range| ranges_contain(range, u32::from(c)))
     }
 
     /// A reference to the parsed font. `new` already checked that the data
@@ -147,7 +187,7 @@ impl LoadedFace {
         if code < 128 {
             return self.ascii & (1 << code) != 0;
         }
-        self.glyph(c).is_some()
+        self.in_range(c) && self.glyph(c).is_some()
     }
 
     /// True if the face has glyphs for all non-control ASCII characters of
@@ -155,6 +195,26 @@ impl LoadedFace {
     pub(crate) fn covers_ascii(&self, text: &str) -> bool {
         text.bytes().all(|b| b < 128 && self.ascii & (1 << b) != 0)
     }
+}
+
+/// True if the sorted, disjoint inclusive ranges contain `c`.
+pub(crate) fn ranges_contain(ranges: &[(u32, u32)], c: u32) -> bool {
+    let i = ranges.partition_point(|&(_, end)| end < c);
+    ranges.get(i).is_some_and(|&(start, _)| start <= c)
+}
+
+/// Sorts and merges inclusive ranges (overlapping or adjacent ones).
+pub(crate) fn normalize_ranges(mut ranges: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
+    ranges.retain(|&(start, end)| start <= end);
+    ranges.sort_unstable();
+    let mut out: Vec<(u32, u32)> = Vec::with_capacity(ranges.len());
+    for (start, end) in ranges {
+        match out.last_mut() {
+            Some(last) if start <= last.1.saturating_add(1) => last.1 = last.1.max(end),
+            _ => out.push((start, end)),
+        }
+    }
+    out
 }
 
 /// Largest `cmap` table that [`read_cmap_table`] accepts.
@@ -379,6 +439,25 @@ mod tests {
                 max: 900.0
             }
         );
+    }
+
+    #[test]
+    fn unicode_ranges() {
+        let ranges = normalize_ranges(vec![(0x400, 0x4FF), (0, 0x7F), (0x50, 0x90), (0x91, 0x91)]);
+        assert_eq!(ranges, vec![(0, 0x91), (0x400, 0x4FF)]);
+        assert!(ranges_contain(&ranges, 0));
+        assert!(ranges_contain(&ranges, 0x91));
+        assert!(!ranges_contain(&ranges, 0x92));
+        assert!(ranges_contain(&ranges, 0x4FF));
+        assert!(!ranges_contain(&ranges, 0x500));
+        assert!(!ranges_contain(&[], 0));
+        let path = fixture("DejaVuSans.ttf");
+        let data = read_font_file(&path).unwrap();
+        let mut face = LoadedFace::new(&path, &data, 0).unwrap();
+        face.set_unicode_range(Arc::from(vec![(0x41, 0x5A), (0x2600, 0x26FF)]));
+        assert!(face.covers('A') && face.covers('\u{2603}'));
+        assert!(!face.covers('a') && !face.covers('\u{416}'));
+        assert!(face.covers_ascii("AB") && !face.covers_ascii("Ab"));
     }
 
     #[test]

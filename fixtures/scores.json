@@ -1,15 +1,15 @@
 {
   "ars-technica": {
-    "geometry": 0.1829,
-    "pixels": 0.9595,
-    "relative": 0.4995,
-    "size": 0.58
+    "geometry": 0.6907,
+    "pixels": 0.9544,
+    "relative": 0.7246,
+    "size": 0.7447
   },
   "bbc": {
-    "geometry": 0.024,
-    "pixels": 0.9586,
-    "relative": 0.4003,
-    "size": 0.4564
+    "geometry": 0.7774,
+    "pixels": 0.9941,
+    "relative": 0.7812,
+    "size": 0.7866
   },
   "hacker-news": {
     "geometry": 1.0,

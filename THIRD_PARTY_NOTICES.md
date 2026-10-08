@@ -237,3 +237,7 @@ Fonts in the fixtures:
   the Bitstream Vera license with the DejaVu changes in the public
   domain, text in `fixtures/fonts/LICENSE-DejaVu.txt`.
 - `fixtures/fonts/`: the bundled test fonts, see `fixtures/fonts/README.md`.
+- `crates/text/tests/webfonts/`: a subset of DejaVu Sans as TrueType,
+  WOFF and WOFF2 (glyphs removed, the `name` table kept), see the
+  `README.md` there. License: the Bitstream Vera license with the DejaVu
+  changes in the public domain, text in `fixtures/fonts/LICENSE-DejaVu.txt`.

@@ -1,5 +1,6 @@
 //! Loading: network completions, the document of a navigation (or an
-//! error page), and its subresources (stylesheets and images).
+//! error page), and its subresources (stylesheets and images; web fonts
+//! are in `fonts.rs`).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -17,6 +18,7 @@ use crate::image_source::{self, SelectedImage};
 use crate::resources::{ImageState, Images, Pending, Requests, SheetSlot};
 use crate::scrollers::Scrollers;
 use crate::selection::TreeOrder;
+use crate::web_fonts::WebFonts;
 
 impl Page {
     /// Processes completed network requests without blocking. Returns true
@@ -96,6 +98,7 @@ impl Page {
                 }
                 self.invalidate_style();
             }
+            Pending::Font { url } => self.font_file_arrived(&url, completion.result),
             Pending::Image { url } => {
                 let state = ImageState::from_fetch(&url, completion.result);
                 self.images.by_url.insert(url.clone(), state);
@@ -202,6 +205,8 @@ impl Page {
         self.document = Some(document);
         self.sheets.clear();
         self.images = images;
+        self.web_fonts = WebFonts::default();
+        self.fonts.reset_web_fonts();
         self.scroll = Point::default();
         self.scrollers = Scrollers::default();
         // The pointer stays where it is; the next mouse movement updates the

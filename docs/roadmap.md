@@ -155,15 +155,22 @@ Features, in this order. Each one ends with a review and a commit.
    again when a font arrives; headless mode waits for fonts as it waits
    for images; the CSS Fonts 4 §5 font matching algorithm across the
    faces of a family, then the existing fallback; synthetic bold and
-   italic. WOFF2 decoding with a library (candidate: `wuff`, MIT). Limits
-   for hostile fonts (file and decoded size, faces per page, time) and
-   cases for the hostile-page set.
-4. Web fonts, part 2 (`implementer`). Scope: variable fonts (the `wght`,
-   `wdth`, `slnt` and `ital` axes from `font-weight`, `font-stretch` and
-   `font-style`), `font-variation-settings` (Ars headings use `"wght"
-   660`), `font-feature-settings`, the metric descriptors `size-adjust`,
-   `ascent-override`, `descent-override` and `line-gap-override`, and
-   `src: local()` (measure what Chromium matches with the test fonts).
+   italic; variable fonts with the `wght`, `wdth`, `slnt` and `ital`
+   axes set from `font-weight`, `font-stretch` and `font-style` (both
+   Ars families are variable; the default instance of Faustina is
+   Light). WOFF2 decoding with a library (candidate: `wuff`, MIT) or own
+   code from the W3C specification. Limits for hostile fonts (file and
+   decoded size, faces per page, time) and cases for the hostile-page
+   set. Done (ADR 0022, `wuff` with swb's own decompressors and
+   limits): geometry Ars 0.1830 → 0.6908, BBC 0.0240 → 0.7775. Ars
+   pixels went down (0.9595 → 0.9544): the headings use
+   `font-variation-settings: "wght" 660` (part 2), so swb draws them at
+   `wght` 700, wider, and they wrap differently.
+4. Web fonts, part 2 (`implementer`). Scope: `font-variation-settings`
+   (Ars headings use `"wght" 660`), `font-feature-settings`, the metric
+   descriptors `size-adjust`, `ascent-override`, `descent-override` and
+   `line-gap-override`, and `src: local()` (measure what Chromium
+   matches with the test fonts).
 5. Inline SVG, part 1 (`implementer-hard`, new ADR). swb draws inline
    SVG itself; ADR 0003 allows resvg only for SVG as an image format.
    Scope: `<svg>` in HTML as a replaced box (CSS sizing, `width` and
@@ -212,6 +219,21 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
 
 ## Backlog from M4
 
+- Web fonts (ADR 0022), beyond part 2: `font-display` block and swap
+  timers (all values act as `swap` with an infinite swap period); the
+  angle of `oblique <angle>` in font matching and for the `slnt` axis
+  (Chromium 148 picks an italic face over an `oblique 20deg` face for
+  `font-style: oblique`); collections with a `#PostScriptName` fragment
+  (face 0 is used); loading the first available font for the `ch` and
+  `ex` units, as Chromium does.
+- Web font face entries and their font instances accumulate across
+  navigations in one tab: `FontContext` frees the font data of a face
+  that goes away, but keeps its entry. Reuse or remove the entries.
+- `ch` units: swb uses 0.5em; Chromium measures the `0` of the first
+  available font (`tools/probes/web-fonts.json`,
+  `ch-unit-first-available`; not specific to web fonts).
+- `width: max-content` on block boxes is not supported (the probe cases
+  use floats instead).
 - Fixtures: the wikipedia-web-browser fixture (pushed before the
   substitution rule) holds Wikimedia images under several free licenses
   without a list of their authors and licenses; list them in

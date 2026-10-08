@@ -52,6 +52,10 @@ Format: source, license (for code), what it influenced.
   `linebreak/tables.rs`; CSS Text 3 §5 (`word-break`, `hyphens`); UAX #9
   (bidi)
 - RFC 4647 (language tag matching) — `:lang()`
+- CSS Fonts 4 §4, §5 and §7 (`@font-face`, font matching, variation
+  resolution) — `style/src/font_face.rs`, `text/src/web.rs`; WOFF 1.0 and
+  WOFF 2.0 (W3C) — the container formats and the limits of
+  `text/src/decode.rs` (ADR 0022)
 - SVG 2 (coordinate systems; natural dimensions and the `viewBox`
   transform of SVG images) and CSS Images 3 (natural dimensions, the
   default sizing algorithm, the default object size) — `paint/src/svg/`,
@@ -76,6 +80,10 @@ Format: source, license (for code), what it influenced.
   (`net/src/cookies/date.rs`).
 
 ## Projects
+
+- `wuff` (MIT, Nico Burns; a port of Google's woff2 decoder, MIT) — a
+  dependency for WOFF and WOFF2 decoding; its source was read for the
+  robustness audit of ADR 0022. No code copied.
 
 - Chromium / Blink (BSD-3-Clause, parts LGPL) — font selection and
   fallback rules, so that swb picks the same fonts as Chromium on Linux
@@ -149,7 +157,11 @@ Format: source, license (for code), what it influenced.
   controls, ruby and frameset elements, and the `<source>` checks; line
   break opportunities for `word-break: normal | break-all | keep-all`
   and `hyphens: none` (`text/src/linebreak.rs`, written from these
-  measurements and UAX #14 only; `swbtools linebreaks`).
+  measurements and UAX #14 only; `swbtools linebreaks`); web fonts:
+  supported `format()` and `tech()` values, descriptor validity, which
+  faces load for text and line boxes, composite font order, variation
+  axis values and the rules for synthetic bold and oblique
+  (`tools/probes/web-fonts.json`, ADR 0022).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.
