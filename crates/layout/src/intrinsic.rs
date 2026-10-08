@@ -39,6 +39,13 @@ pub(crate) fn independent_content_sizes(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
 ) -> ContentSizes {
+    // A block, flex or grid container with an aspect ratio and a definite
+    // height is as wide as the ratio makes it (CSS Sizing 4 §5.1; Chromium).
+    if crate::aspect::applies_to(ib)
+        && let Some(w) = crate::aspect::width_of_definite_height(&ib.base.style)
+    {
+        return ContentSizes { min: w, max: w };
+    }
     match &ib.contents {
         IndependentContents::Flow(container) => {
             container_content_sizes(ctx, container, &ib.base.style)
@@ -134,9 +141,15 @@ pub(crate) fn independent_outer_sizes(
 
 fn block_level_outer_sizes(ctx: &mut LayoutContext<'_>, b: &BlockLevelBox) -> ContentSizes {
     match b {
-        BlockLevelBox::Block { base, contents, .. } => outer_sizes(&base.style, || {
-            container_content_sizes(ctx, contents, &base.style)
-        }),
+        BlockLevelBox::Block { base, contents, .. } => {
+            outer_sizes(
+                &base.style,
+                || match crate::aspect::width_of_definite_height(&base.style) {
+                    Some(w) => ContentSizes { min: w, max: w },
+                    None => container_content_sizes(ctx, contents, &base.style),
+                },
+            )
+        }
         BlockLevelBox::Independent(ib) | BlockLevelBox::Float(ib) => {
             independent_outer_sizes(ctx, ib)
         }

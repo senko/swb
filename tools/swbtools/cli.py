@@ -21,6 +21,7 @@ from swbtools.probe import DEFAULT_TOLERANCE as PROBE_TOLERANCE
 from swbtools.probe import probe
 from swbtools.reference import reference
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
+from swbtools.substitute import substitute
 
 log = logging.getLogger("swbtools")
 
@@ -111,6 +112,10 @@ def cmd_linebreaks(args: argparse.Namespace) -> int:
 
 def cmd_linebreak_tables(args: argparse.Namespace) -> int:
     return write_tables()
+
+
+def cmd_substitute(args: argparse.Namespace) -> int:
+    return substitute(args.names, args.check)
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -264,6 +269,16 @@ def build_parser() -> argparse.ArgumentParser:
         "linebreak-tables", help="write crates/text/src/linebreak/tables.rs (UCD, measurements)"
     )
     p.set_defaults(func=cmd_linebreak_tables)
+
+    p = commands.add_parser(
+        "substitute",
+        help="replace images and non-free fonts of fixtures/pages/NAME (public repository)",
+    )
+    p.add_argument("names", nargs="+", metavar="NAME")
+    p.add_argument(
+        "--check", action="store_true", help="only report content that may not be published"
+    )
+    p.set_defaults(func=cmd_substitute)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

@@ -15,7 +15,8 @@
 //! and box nesting is limited (see `box_tree.rs`), so that hostile content
 //! cannot produce infinite values or unbounded recursion.
 //!
-//! Modules: `align` (self-alignment helpers), `block` (block layout, sizes
+//! Modules: `align` (self-alignment helpers), `aspect` (`aspect-ratio` of
+//! boxes that are not replaced), `block` (block layout, sizes
 //! and margins), `box_tree` (the box tree), `collapsed_margin` (margin
 //! collapsing), `control` (form controls), `flex`, `floats`, `fonts`,
 //! `fragment` (the fragment tree), `geom` (points, sizes, rectangles),
@@ -25,6 +26,7 @@
 //! (scrollable overflow), `source_map` (text offsets) and `table`.
 
 mod align;
+mod aspect;
 mod block;
 mod box_tree;
 mod collapsed_margin;

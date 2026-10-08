@@ -185,6 +185,17 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   tracks and tables. Margin collapsing (CSS 2.2 §8.3.1) uses the
   `CollapsedMargin` type in `collapsed_margin.rs` (derived from Servo,
   MPL-2.0, ADR 0021).
+- `aspect.rs`: the `aspect-ratio` of blocks, flex containers and grid
+  containers (CSS Sizing 4 §5; replaced elements stay in `replaced.rs`).
+  An `auto` axis takes its size from the other axis through the ratio,
+  which applies to the content box or, with `box-sizing: border-box`, to
+  the border box. Min and max sizes transfer with the table of CSS 2.2
+  §10.4. A box whose height came from the ratio grows to its content
+  unless it is a scroll container or has an explicit `min-height`; the
+  ratio-derived height is definite for percentage heights of children.
+  Block, shrink-to-fit, flex, grid and absolutely positioned layout each
+  call into it where they resolve a width or a height; `intrinsic.rs` uses
+  the width from a definite height as the content size.
 - Inline layout shapes the text of an inline formatting context once
   (cached per layout pass), splits it into pieces at soft wrap
   opportunities, groups pieces into unbreakable groups, fills lines

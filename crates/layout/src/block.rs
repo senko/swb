@@ -1031,7 +1031,10 @@ fn layout_block_box<'a>(
     ctx.layout_units += 1;
     let style = &base.style;
     let edges = BoxEdges::resolve(style, cb.width);
-    let (width, margin_left, _) = block_width_and_margins(style, cb, cb.width, &edges, None);
+    let ratio_width = crate::aspect::auto_width(style, &edges, (cb.width, cb.height), || {
+        crate::aspect::fill_width(style, cb.width, cb.width, &edges)
+    });
+    let (width, margin_left, _) = block_width_and_margins(style, cb, cb.width, &edges, ratio_width);
     let border_width = width + edges.sum().horizontal();
     let margin_left =
         margin_left + webkit_align_offset_in(parent_style, style, border_width, cb, cb.width);
@@ -1041,6 +1044,11 @@ fn layout_block_box<'a>(
         style.box_sizing,
         edges.sum().vertical(),
     );
+    // A height from the aspect ratio is definite (percentage heights of the
+    // children resolve against it), but the box can still grow.
+    let ratio_height = crate::aspect::auto_height(style, &edges, width, cb.height);
+    let grows = ratio_height.is_some() && crate::aspect::grows_to_content(style);
+    let specified_height = specified_height.or(ratio_height);
     let options = collapse_options(style, &edges, cb, specified_height);
     let clearance = ctx.bfc().exclusions.clearance(style.clear);
     let margin_top = margin_or_zero(&style.margin_top, cb.width);
@@ -1052,6 +1060,7 @@ fn layout_block_box<'a>(
         margin_top,
         border_width,
         specified_height,
+        grows,
         options,
     };
 
@@ -1146,8 +1155,12 @@ struct EndPlace {
     margin_left: f32,
     margin_top: f32,
     border_width: f32,
-    /// The used `height` of the content box, unless `auto`.
+    /// The used `height` of the content box, unless `auto` (a height from
+    /// the aspect ratio counts as specified).
     specified_height: Option<f32>,
+    /// True if the height came from the aspect ratio and grows to the
+    /// height of the content (CSS Sizing 4 §5.1.1).
+    grows: bool,
     options: ChildOptions,
 }
 
@@ -1164,7 +1177,11 @@ fn end_block_box(
 ) -> BlockResult {
     let style = &base.style;
     let vertical_edges = edges.sum().vertical();
-    let content_height = end.specified_height.unwrap_or(children.content_height);
+    let content_height = match end.specified_height {
+        Some(h) if end.grows => h.max(children.content_height),
+        Some(h) => h,
+        None => children.content_height,
+    };
     let height = clamp_height(style, content_height, cb.height, vertical_edges);
     let mut start = CollapsedMargin::new(end.margin_top);
     if end.options.collapse_with_parent_start {
@@ -1355,17 +1372,27 @@ pub(crate) fn layout_sized(
         let height = content_height.map(|h| h + edge_sum.vertical());
         return crate::table::layout_with_width(ctx, ib, table, width, height, cb);
     }
+    // The height from the aspect ratio of a block, flex or grid container.
+    let ratio_height = match content_height {
+        None if crate::aspect::applies_to(ib) => {
+            crate::aspect::auto_height(style, &edges, content_width, cb.height)
+        }
+        _ => None,
+    };
     if let IndependentContents::Grid(children) = &ib.contents {
+        let content_height = content_height.or(ratio_height);
         return crate::grid::layout(ctx, ib, children, content_width, content_height, cb);
     }
-    let specified_height = content_height.or_else(|| {
-        resolve_size(
-            &style.height,
-            cb.height,
-            style.box_sizing,
-            edge_sum.vertical(),
-        )
-    });
+    let specified_height = content_height
+        .or_else(|| {
+            resolve_size(
+                &style.height,
+                cb.height,
+                style.box_sizing,
+                edge_sum.vertical(),
+            )
+        })
+        .or(ratio_height);
     let child_cb = ContainingBlock {
         width: content_width,
         height: specified_height,
@@ -1385,7 +1412,11 @@ pub(crate) fn layout_sized(
     let mut children = layout_contents(ctx, ib, child_cb, limits, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let inflow = children.inflow;
-    let height = limits.clamp(specified_height.unwrap_or(children.content_height));
+    let mut content = specified_height.unwrap_or(children.content_height);
+    if ratio_height.is_some() && crate::aspect::grows_to_content(style) {
+        content = content.max(children.content_height);
+    }
+    let height = limits.clamp(content);
     let mut fragment = finish_fragment(
         base,
         Rect::new(
@@ -1511,7 +1542,14 @@ fn layout_independent_in(
             let (_, ml, _) = block_width_and_margins(style, cb, available, &edges, Some(w));
             (w, ml, None)
         } else {
-            let (w, ml, _) = block_width_and_margins(style, cb, available, &edges, None);
+            let ratio_width = crate::aspect::applies_to(ib)
+                .then(|| {
+                    crate::aspect::auto_width(style, &edges, (cb.width, cb.height), || {
+                        crate::aspect::fill_width(style, cb.width, available, &edges)
+                    })
+                })
+                .flatten();
+            let (w, ml, _) = block_width_and_margins(style, cb, available, &edges, ratio_width);
             (w, ml, None)
         };
     let mut fragment = if cache {
@@ -1783,14 +1821,21 @@ fn shrink_to_fit_width(
 ) -> f32 {
     let style = &ib.base.style;
     let edge_sum = edges.sum().horizontal();
+    let fit = |ctx: &mut LayoutContext<'_>| {
+        let sizes = crate::intrinsic::independent_content_sizes(ctx, ib);
+        let margin_left = margin_or_zero(&style.margin_left, cb.width);
+        let margin_right = margin_or_zero(&style.margin_right, cb.width);
+        let available = (available - margin_left - margin_right - edge_sum).max(0.0);
+        sizes.max.min(available).max(sizes.min)
+    };
+    if crate::aspect::applies_to(ib)
+        && let Some(width) =
+            crate::aspect::auto_width(style, edges, (cb.width, cb.height), || fit(ctx))
+    {
+        return clamp_width(style, width, cb.width, edge_sum);
+    }
     let width = resolve_size(&style.width, Some(cb.width), style.box_sizing, edge_sum)
-        .unwrap_or_else(|| {
-            let sizes = crate::intrinsic::independent_content_sizes(ctx, ib);
-            let margin_left = margin_or_zero(&style.margin_left, cb.width);
-            let margin_right = margin_or_zero(&style.margin_right, cb.width);
-            let available = (available - margin_left - margin_right - edge_sum).max(0.0);
-            sizes.max.min(available).max(sizes.min)
-        });
+        .unwrap_or_else(|| fit(ctx));
     clamp_width(style, width, cb.width, edge_sum)
 }
 

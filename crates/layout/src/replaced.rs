@@ -181,7 +181,7 @@ fn sized_with_height(
 /// uses `w / h`; this uses `ratio`, which is the same when both are
 /// positive and stays defined when the size is 0 (an image with only a
 /// ratio and no available width; Chromium keeps the ratio there too).
-fn constrain_both(
+pub(crate) fn constrain_both(
     w: f32,
     h: f32,
     ratio: f32,
@@ -283,17 +283,21 @@ pub(crate) fn column_flex_width(
 /// width whose content height is `height`: the height through the ratio,
 /// within `min-width` and `max-width` (percentages of `cb_width`; without
 /// it, a percentage `min-width` is 0 and a percentage `max-width` is
-/// `none`). `None` for other boxes.
+/// `none`). Also for a block, flex or grid container with an
+/// `aspect-ratio`. `None` for other boxes.
 pub(crate) fn width_from_height(
     ib: &IndependentBox,
     height: f32,
     cb_width: Option<f32>,
     edges: &BoxEdges,
 ) -> Option<f32> {
-    let IndependentContents::Replaced(replaced) = &ib.contents else {
-        return None;
-    };
     let style = &ib.base.style;
+    let IndependentContents::Replaced(replaced) = &ib.contents else {
+        // A block, flex or grid container with an `aspect-ratio`.
+        return crate::aspect::applies_to(ib)
+            .then(|| crate::aspect::width_from_height(style, height, cb_width, edges))
+            .flatten();
+    };
     if !style.width.is_auto() {
         return None;
     }

@@ -900,39 +900,60 @@ fn layout_absolute(
         }
         _ => None,
     };
-    let x = match replaced {
-        Some((w, _)) => horizontal.solve(w, false),
-        None => solve_width(ctx, ib, &horizontal, cb.width, edges),
+    // A block, flex or grid container with an `aspect-ratio` and an `auto`
+    // width that does not stretch between the insets takes its width from
+    // its height, if that is definite: specified, or stretched between
+    // `top` and `bottom`. Otherwise the width is as usual and the height
+    // follows from it (Chromium; even between `top` and `bottom`).
+    let has_ratio =
+        crate::aspect::applies_to(ib) && crate::aspect::Ratio::of(style, &box_edges).is_some();
+    let v_edges = edges.vertical();
+    let table = matches!(ib.contents, IndependentContents::Table(_));
+    let keyword = matches!(
+        style.height,
+        StyleSize::MinContent | StyleSize::MaxContent | StyleSize::FitContent(_)
+    );
+    let specified_h = resolve_size(&style.height, Some(cb.height), style.box_sizing, v_edges);
+    let stretched_h = (!table
+        && !keyword
+        && specified_h.is_none()
+        && vertical.start.is_some()
+        && vertical.end.is_some()
+        && stretches(vertical.align))
+    .then(|| vertical.available());
+    let stretch_w =
+        horizontal.start.is_some() && horizontal.end.is_some() && stretches(horizontal.align);
+    let ratio_width = (has_ratio && !stretch_w)
+        .then(|| specified_h.or(stretched_h))
+        .flatten()
+        .and_then(|h| {
+            let h = clamp_height(style, h, Some(cb.height), v_edges);
+            crate::aspect::width_from_height(style, h, Some(cb.width), &box_edges)
+        })
+        .map(|w| clamp_width(style, w, cb.width, edges.horizontal()));
+    let x = match (replaced, ratio_width) {
+        (Some((w, _)), _) | (None, Some(w)) => horizontal.solve(w, false),
+        (None, None) => solve_width(ctx, ib, &horizontal, cb.width, edges),
     };
     // Tables size as fit-content in both axes (Chromium): they do not
     // stretch between the insets, and their `auto` margins can center
     // them.
-    let table = matches!(ib.contents, IndependentContents::Table(_));
     // The content height and whether it fills the inset-modified
     // containing block, if the height does not depend on the content:
     // replaced, specified, or stretched between `top` and `bottom` (then
     // clamped, CSS 2.2 §10.7). The intrinsic size keywords and a
     // self-alignment other than `normal` and `stretch` take the height of
-    // the content (as `solve_width` does for widths).
-    let v_edges = edges.vertical();
+    // the content (as `solve_width` does for widths). With a ratio and a
+    // width that is not from the height, `layout_sized` takes the height
+    // from the width.
     let height = if let Some((_, h)) = replaced {
         Some((h, false))
+    } else if has_ratio && ratio_width.is_none() && specified_h.is_none() {
+        None
     } else {
-        let specified = resolve_size(&style.height, Some(cb.height), style.box_sizing, v_edges);
-        let keyword = matches!(
-            style.height,
-            StyleSize::MinContent | StyleSize::MaxContent | StyleSize::FitContent(_)
-        );
-        let stretched = (!table
-            && !keyword
-            && specified.is_none()
-            && vertical.start.is_some()
-            && vertical.end.is_some()
-            && stretches(vertical.align))
-        .then(|| vertical.available());
-        specified.or(stretched).map(|h| {
+        specified_h.or(stretched_h).map(|h| {
             let clamped = clamp_height(style, h, Some(cb.height), v_edges);
-            (clamped, specified.is_none() && clamped == h)
+            (clamped, specified_h.is_none() && clamped == h)
         })
     };
     let fragment = layout_sized(ctx, ib, x.size, height.map(|(h, _)| h), containing);

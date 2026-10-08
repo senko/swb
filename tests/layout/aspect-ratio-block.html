@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!-- aspect-ratio on blocks (CSS Sizing 4 §5): a block with an auto height
+     takes it from the width; with a definite height and an auto width it
+     takes the width from the height; box-sizing; the automatic minimum
+     height (the box grows to its content unless it is a scroll container
+     or has an explicit min-height); min and max sizes through the ratio;
+     percentage heights of children; floats and BFC roots; the intrinsic
+     size keywords for the height (they use the ratio). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>aspect-ratio: blocks</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .w { width: 400px; margin-bottom: 10px; }
+  .r { aspect-ratio: 2 / 1; }
+  .t { height: 150px; }
+  .p { padding: 10px; border: 5px solid; }
+  .clear { clear: both; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="r" style="width: 200px"></div>
+  <div class="r"></div>
+  <div class="r" style="height: 30px"></div>
+  <div class="r" style="width: 100px; height: 30px"></div>
+  <div class="r" style="height: 0"></div>
+  <div class="r" style="width: 0"></div>
+  <div class="r" style="aspect-ratio: auto 2 / 1; width: 200px"></div>
+  <div class="r" style="aspect-ratio: auto; width: 200px"></div>
+  <div class="r" style="width: 200px; margin: 10px auto"></div>
+  <div class="r" style="width: 200px; margin: 0 5%"></div>
+</div>
+<div class="w">
+  <div class="r p" style="width: 200px"></div>
+  <div class="r p"></div>
+  <div class="r p" style="box-sizing: border-box; width: 200px"></div>
+  <div class="r p" style="box-sizing: border-box"></div>
+  <div class="r p" style="box-sizing: border-box; height: 40px"></div>
+</div>
+<div class="w">
+  <div class="r" style="width: 200px"><div class="t"></div></div>
+  <div class="r" style="width: 200px; overflow: hidden"><div class="t"></div></div>
+  <div class="r" style="width: 200px; overflow: clip"><div class="t"></div></div>
+  <div class="r" style="width: 200px; overflow: auto"><div class="t"></div></div>
+  <div class="r" style="width: 200px; min-height: 0"><div class="t"></div></div>
+  <div class="r" style="width: 200px; min-height: 120px"><div class="t"></div></div>
+  <div class="r" style="width: 200px; max-height: 120px"><div class="t"></div></div>
+  <div class="r" style="width: 200px; display: flow-root"><div class="t"></div></div>
+  <div class="r" style="width: 200px; height: auto"><div style="height: 50px"></div></div>
+  <div class="r p" style="width: 200px"><div style="height: 50px"></div></div>
+  <div class="r p" style="box-sizing: border-box; width: 200px"><div style="height: 95px"></div></div>
+  <div class="r" style="width: 200px; aspect-ratio: auto 2 / 1"><div class="t"></div></div>
+</div>
+<div class="w">
+  <div class="r" style="max-width: 200px"></div>
+  <div class="r" style="min-width: 500px"></div>
+  <div class="r" style="max-height: 50px"></div>
+  <div class="r" style="min-height: 300px"></div>
+  <div class="r" style="width: 100px; min-height: 80px"></div>
+  <div class="r" style="width: 100px; max-height: 30px"></div>
+  <div class="r" style="height: 100px; max-width: 150px"></div>
+  <div class="r" style="height: 100px; min-width: 300px"></div>
+</div>
+<div class="w">
+  <div class="r" style="width: 200px"><div style="height: 50%"></div></div>
+  <div class="r" style="width: 200px; position: relative"><div style="position: absolute; top: 0; width: 10px; height: 50%"></div></div>
+  <div style="height: 100px"><div class="r" style="width: 100px; height: 50%"></div></div>
+  <div style="height: 100px"><div class="r" style="height: 50%"></div></div>
+</div>
+<div class="w">
+  <div class="r" style="float: left; width: 90px"></div>
+  <div class="r" style="float: left; height: 60px"></div>
+  <div class="clear"></div>
+  <div class="r" style="display: flow-root; margin-left: 100px"></div>
+  <div style="float: left; width: 100px; height: 40px"></div>
+  <div class="r" style="display: flow-root"></div>
+</div>
+<div class="w">
+  <div style="float: left"><div class="r" style="height: 60px"></div></div>
+  <div class="clear"></div>
+  <div style="float: left"><div class="r" style="height: 60px; min-width: 10px"></div><div style="width: 50px; height: 5px"></div></div>
+  <div class="clear"></div>
+  <div style="float: left; display: flex"><div class="r" style="height: 60px"></div></div>
+</div>
+<div class="w" style="position: relative">
+  <div class="r" style="height: fit-content"><div style="height: 40px"></div></div>
+  <div class="r" style="height: min-content"><div style="height: 40px"></div></div>
+  <div class="r" style="width: 200px; height: max-content"><div class="t"></div></div>
+  <div class="r" style="position: absolute; top: 0; left: 0; width: 100px; height: fit-content"></div>
+</div>
+<div class="w">
+  <div class="r" style="width: 200px; display: flex"><div style="width: 30px; height: 20px"></div></div>
+  <div class="r" style="width: 200px; display: grid"><div style="height: 50px"></div></div>
+  <span class="r" style="width: 200px">inline: no ratio</span>
+</div>
+</body>
+</html>

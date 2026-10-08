@@ -1,4 +1,10 @@
 {
+  "bbc": {
+    "geometry": 0.024,
+    "pixels": 0.9586,
+    "relative": 0.4003,
+    "size": 0.4564
+  },
   "hacker-news": {
     "geometry": 1.0,
     "pixels": 0.998,

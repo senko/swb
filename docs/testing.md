@@ -329,12 +329,15 @@ tool logs the URL.
    that swb requests. Without the binary, only Chromium's requests are
    recorded.
 3. `just capture https://example.com/page example-page`
-4. `just reference example-page`
-5. Check the fixture size (`just tools list`). Keep fixtures small: only
+4. `just substitute example-page` (see "Substitute copyrighted content"
+   below). The repository is public: do not commit a fixture before this
+   step.
+5. `just reference example-page`
+6. Check the fixture size (`just tools list`). Keep fixtures small: only
    the target page and its direct resources.
-6. Look at `fixtures/pages/example-page/reference/screenshot.png`.
-7. `just compare example-page`, then `just update-scores`.
-8. Commit the fixture, the reference and `fixtures/scores.json`.
+7. Look at `fixtures/pages/example-page/reference/screenshot.png`.
+8. `just compare example-page`, then `just update-scores`.
+9. Commit the fixture, the reference and `fixtures/scores.json`.
 
 What `capture` does:
 
@@ -350,6 +353,43 @@ What `capture` does:
    has everything that Chromium needs for the final HTML.
 4. Body files that no entry uses are deleted.
 
+### Substitute copyrighted content
+
+`just substitute NAME...` (`tools/swbtools/substitute.py`) changes a
+fixture so that the public repository does not publish photos or
+commercial fonts:
+
+- Every raster image (JPEG, PNG, WebP, GIF, BMP, ICO) becomes a
+  placeholder of the same pixel size and format: a gradient with a 32 px
+  grid, colored by a hash of the URL. Layout does not depend on the
+  pixels; the grid shows scaling and position errors in the pixel score.
+- Every font whose `name` table does not name a free license (SIL Open
+  Font License, Apache License, Bitstream Vera license) becomes DejaVu
+  Sans (Bold for weight 600 or more) in the same format. Not Liberation:
+  the test fonts map the generic families and Arial, Helvetica and Times
+  to Liberation, so a browser that ignored the web font would still
+  match the reference.
+
+Images are found by content type and by their first bytes. Animated
+images become one frame, ICO files one image of the largest size. HTML,
+CSS and SVG files do not change. The command is idempotent. Run it again
+after `capture-missing`, then `just reference`. Free fonts that stay in a
+fixture are listed in `THIRD_PARTY_NOTICES.md`.
+
+After the replacement the command checks every body again and fails if
+something may still not be published: an image that is not a
+placeholder (Pillow cannot read it, or it has more than 100 million
+pixels), an image format that the tool cannot write (AVIF, TIFF, JPEG
+XL), a font without a free license, or a raster `data:` URL in a text
+body. Replace such content by hand. `just substitute --check NAME` only
+checks. The license check trusts the font's own `name` table.
+
+`tools/tests/test_fixture_content.py` (part of `just check`) runs the
+check on every fixture, so a fixture with photos or commercial fonts
+cannot be committed by mistake. senko-net, hacker-news and
+wikipedia-web-browser are exempt (the owner's site, a spacer GIF,
+Wikimedia media under free licenses).
+
 ### Add missing resources to a fixture
 
 When swb starts to load resources that it did not load at capture time
@@ -364,8 +404,9 @@ the page again, and a dynamic page (Hacker News) would change.
 2. Chromium loads the page from the fixture and fetches only what is
    missing (normally nothing: the reference was made from the fixture).
 
-If entries were added, check whether Chromium uses them and run
-`just reference NAME` if the rendering can change.
+If entries were added, run `just substitute NAME`, check whether
+Chromium uses them and run `just reference NAME` if the rendering can
+change.
 
 ### Regenerate references
 

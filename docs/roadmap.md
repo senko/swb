@@ -105,6 +105,100 @@ One feature at a time, in this order:
 3. M3 maintenance: review the whole codebase for duplication, dead code,
    unclear names and outdated docs; `just snapshot` shows no change: done.
 
+## M4: Ars Technica — in progress
+
+Target 4, `https://arstechnica.com/` (fixture `ars-technica`), JavaScript
+off. Baseline on 2026-10-08: geometry 0.0531, pixels 0.7841 (1,943
+elements). The page is 2,206 px shorter than in Chromium. Causes, by
+effect on the page:
+
+- 61 boxes with `aspect-ratio` (`aspect-video`, `aspect-square`) get no
+  height, so the card images are not visible.
+- All text uses web fonts (`@font-face`: WOFF2, variable fonts,
+  `unicode-range` subsets, `size-adjust` fallback faces).
+- 129 inline `<svg>` elements (logo, icons) are not drawn; their
+  children get empty boxes.
+- The rule `:host,html{...}` (Tailwind's base rule: root font family and
+  line height) is dropped, because swb rejects `:host`.
+- `sizes="auto"` gives `100vw`, so swb loads 1536w candidates where
+  Chromium loads 384w ones (most of the 9.25 MB fixture).
+
+Features, in this order. Each one ends with a review and a commit.
+
+1. `aspect-ratio` for non-replaced boxes (`implementer`). Scope: CSS
+   Sizing 4 §5 for block-level boxes, inline-blocks, flex and grid items
+   and absolutely positioned boxes: the ratio gives the size of the
+   axis that is `auto` from the other axis, automatic minimum size
+   (`min-height: auto` for overflowing content), the `box-sizing` rule
+   of the ratio, `auto && <ratio>`. The Ars cases: `aspect-video` and
+   `aspect-square` blocks with an absolutely positioned `object-fit:
+   cover` image inside, in grid and flex layouts. Done: all 61 boxes
+   match; geometry 0.1491, pixels 0.9592.
+2. `:host` and `sizes="auto"` (`implementer`). Scope: `:host`,
+   `:host()` and `:host-context()` parse and match nothing (there are no
+   shadow trees), so a selector list that contains them stays valid.
+   `sizes="auto"` on lazy images selects the candidate by the laid-out
+   width (HTML "sizes auto"), with the user-agent rule for such images
+   (`contain: size` and `contain-intrinsic-size: 300px 150px`, as far as
+   replaced elements need them). Then capture the Ars fixture again, so
+   that it contains only the candidates that both browsers load, and
+   commit it.
+3. Web fonts, part 1 (`implementer-hard`, new ADR). Scope: `@font-face`
+   with `font-family`, `src` (`url()` with `format()`; WOFF, WOFF2,
+   TrueType and OpenType), `font-weight`, `font-style` and
+   `font-stretch` (also ranges), `unicode-range` and `font-display`;
+   loading from the style sheet's base URL; a face loads only when text
+   needs it (family match and `unicode-range`), as in Chromium; layout
+   again when a font arrives; headless mode waits for fonts as it waits
+   for images; the CSS Fonts 4 §5 font matching algorithm across the
+   faces of a family, then the existing fallback; synthetic bold and
+   italic. WOFF2 decoding with a library (candidate: `wuff`, MIT). Limits
+   for hostile fonts (file and decoded size, faces per page, time) and
+   cases for the hostile-page set.
+4. Web fonts, part 2 (`implementer`). Scope: variable fonts (the `wght`,
+   `wdth`, `slnt` and `ital` axes from `font-weight`, `font-stretch` and
+   `font-style`), `font-variation-settings` (Ars headings use `"wght"
+   660`), `font-feature-settings`, the metric descriptors `size-adjust`,
+   `ascent-override`, `descent-override` and `line-gap-override`, and
+   `src: local()` (measure what Chromium matches with the test fonts).
+5. Inline SVG, part 1 (`implementer-hard`, new ADR). swb draws inline
+   SVG itself; ADR 0003 allows resvg only for SVG as an image format.
+   Scope: `<svg>` in HTML as a replaced box (CSS sizing, `width` and
+   `height` attributes, `viewBox`, `preserveAspectRatio`); `g`, `path`,
+   `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`; the
+   properties and presentation attributes `fill`, `fill-rule`,
+   `fill-opacity`, `stroke` and its longhands, `opacity`, `transform`,
+   `display`, `visibility`, `color` (`currentColor`); styling by the
+   page's style sheets through the cascade; paint into the display list
+   (paths with fill and stroke, rasterized with tiny-skia). `svgtypes`
+   parses path data and transforms.
+6. Inline SVG, part 2 (`implementer`). Scope: `clipPath` (all Ars icons
+   use it), `defs`, `use` with local references, the box dump of SVG
+   descendants as Chromium reports them (bounding boxes of shapes and
+   groups; none for `defs` and `clipPath`), hit testing (an SVG inside
+   a link follows the link), limits and hostile-page cases.
+7. Final pass on the page (`implementer`, scope from a new comparison):
+   the largest remaining differences, links, hover states and the search
+   form; then report target 4 as done.
+
+Not in scope (not visible on the page with JavaScript off, or not
+used): `box-shadow`, `filter`, `text-shadow`, `-webkit-line-clamp`,
+`backdrop-filter`. Style takes 27 ms on this page (Wikipedia: 10 ms for
+twice the elements); look at it in the final pass only if it grows.
+
+## M5: BBC — planned
+
+Target 5, `https://www.bbc.com/` (fixture `bbc`), JavaScript off.
+Baseline on 2026-10-08: geometry 0.0290, pixels 0.9583 (2,745
+elements). Most differences are web fonts (BBC Reith) and inline SVG
+(logo, icons), which M4 adds. Known items for M5, to plan after M4:
+
+- Closed `<details>`: Chromium reports boxes for the content
+  (`::details-content` with `content-visibility: hidden`); swb has none
+  (229 missing elements in the no-JavaScript menu).
+- `:not()` with complex selectors (`a:not(.x a)::before`), `quotes`,
+  `::-webkit-scrollbar` (Chromium accepts it, so the rule stays valid).
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -133,8 +227,14 @@ One feature at a time, in this order:
 - Paint: `z-index` on non-positioned flex and grid items does not create
   a stacking context.
 - Layout: block layout ignores `width: min-content | max-content |
-  fit-content` outside flex and grid items; `aspect-ratio` works only
-  for images.
+  fit-content` outside flex and grid items.
+- Layout, `aspect-ratio` on boxes that are not replaced: flex and grid
+  containers do not grow to the height of their content (`min-height:
+  auto`, CSS Sizing 4 §5.1.1); `display: table` ignores the ratio; grid
+  items that stretch in the block axis do not pass the stretched height as
+  a transferred width contribution to the column sizing (Chromium sizes
+  `1fr 2fr` columns with ratio items differently). `vertical-align: top` and `bottom` on atomic inlines
+  act as `baseline` (known failure `vertical-align-top-bottom`).
 - Scrolling: wheel-gesture latching; `overscroll-behavior`, smooth
   scrolling, snapping, `scroll-padding` and `scroll-margin`; classic
   scrollbars that take space, `scrollbar-gutter`, dragging the
@@ -382,8 +482,8 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 
 ## Later
 
-- `@font-face` (web fonts) and `@import` (the parser supports both rules;
-  nothing loads them).
+- `@import` (the parser supports the rule; nothing loads it).
+  `@font-face` is in M4.
 - Find in page, tabs, bookmarks.
 - Bidirectional text.
 - Incremental style and layout; GPU rasterization if needed.

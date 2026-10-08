@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 Ars Technica, `aspect-ratio`
+
+- The owner added two targets, in this order: Ars Technica (target 4,
+  M4) and BBC (target 5, M5), both with JavaScript off. Both fixtures
+  were captured. Baselines: Ars geometry 0.0531, pixels 0.7841; BBC
+  geometry 0.0290, pixels 0.9583. Both pages are close in structure;
+  most differences come from web fonts, inline SVG and, on Ars, boxes
+  with `aspect-ratio`. The M4 plan is in the roadmap (seven features).
+  The BBC fixture is in this commit; the Ars fixture follows after
+  `sizes="auto"` (feature 2), because swb now loads 1536w image
+  candidates where Chromium loads 384w ones.
+- Owner decision: the repository is public, so fixtures must not publish
+  photos or commercial fonts. New `swbtools substitute`
+  (`just substitute`, docs/testing.md): every raster image becomes a
+  generated placeholder of the same size and format; every font without
+  a free license becomes DejaVu Sans in the same format (not Liberation,
+  the fallback of the test fonts, so the fixture still shows whether a
+  browser uses the web font). The BBC fixture is substituted (67
+  images, 6 BBC Reith fonts); new baseline geometry 0.0240, pixels
+  0.9586.
+- Decision: swb draws inline SVG with its own code. ADR 0003 allows
+  resvg only for SVG as an image format (`<img>`, CSS images).
+- Feature 1, `aspect-ratio` for non-replaced boxes
+  (`layout/src/aspect.rs`): blocks, floats, inline-blocks, flex items,
+  grid items and absolutely positioned boxes take an `auto` axis from
+  the other axis; min and max sizes transfer as for images; a height
+  from the ratio is definite for percentage children and grows to the
+  content (`min-height: auto`) unless the box is a scroll container.
+  Rules measured in Chromium (`tools/probes/aspect-ratio.json`, 22
+  cases). On Ars, all 61 `aspect-video` and `aspect-square` boxes now
+  match Chromium: geometry 0.0531 → 0.1491, pixels 0.7841 → 0.9592,
+  page height 7,420 → 9,505 px (Chromium 9,626).
+
 ## 2026-10-08: M3 maintenance
 
 - Two read-only reviewers (layout; the other crates, tools and docs)

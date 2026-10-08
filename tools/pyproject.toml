@@ -13,6 +13,7 @@ dependencies = [
     # The client of swb's automation protocol (WebSocket). 17.1 added the
     # `legacy` argument of `connect`.
     "websockets>=17.1",
+    "fonttools[woff]>=4.60",
 ]
 
 [project.scripts]

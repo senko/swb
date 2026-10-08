@@ -56,6 +56,10 @@ capture URL NAME *ARGS:
 capture-missing NAME *ARGS: build
     uv run --project tools swbtools capture-missing {{NAME}} {{ARGS}}
 
+# Replace the images and non-free fonts of fixtures with placeholders and free fonts. Example: just substitute bbc
+substitute +NAMES:
+    uv run --project tools swbtools substitute {{NAMES}}
+
 # Write Chromium's boxes and screenshot for fixtures (default: all).
 reference *NAMES:
     uv run --project tools swbtools reference {{ if NAMES == "" { "--all" } else { NAMES } }}

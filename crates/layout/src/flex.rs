@@ -288,7 +288,12 @@ fn new_item<'a>(
     let (min_content, max_content) = if axes.row {
         let sizes = intrinsic::independent_content_sizes(ctx, b);
         let max = crate::replaced::flex_width(b, cb, &edges).unwrap_or(sizes.max);
-        (sizes.min, max)
+        (
+            sizes
+                .min
+                .max(stretched_ratio_width(&item, container, axes, cb)),
+            max,
+        )
     } else {
         // The content height at the item's cross size.
         let width = column_cross_size(ctx, &item, container, axes, cb);
@@ -326,6 +331,33 @@ fn new_item<'a>(
     item.hypothetical = item.base_size.min(item.max_main).max(item.min_main);
     item.target = item.hypothetical;
     item
+}
+
+/// The transferred size suggestion of a row item with an `aspect-ratio`
+/// that stretches in a container with a definite height (§4.5): the
+/// stretched height through the ratio. It is the item's automatic minimum
+/// width, as in Chromium, even if the content is narrower. 0 for other
+/// items.
+fn stretched_ratio_width(
+    item: &Item<'_>,
+    container: &ComputedStyle,
+    axes: &Axes,
+    cb: ContainingBlock,
+) -> f32 {
+    let Some(cross) = axes.cross_available else {
+        return 0.0;
+    };
+    if !crate::aspect::applies_to(item.box_) || !item.stretches(container, true) {
+        return 0.0;
+    }
+    let height = clamp_height(
+        item.style,
+        (cross - item.cross_edges - item.cross_margins()).max(0.0),
+        cb.height,
+        item.cross_edges,
+    );
+    let edges = BoxEdges::resolve(item.style, cb.width);
+    crate::aspect::transferred_width(item.style, height, Some(cb.width), &edges).unwrap_or(0.0)
 }
 
 /// The content-box width of an item of a column container: its `width` if

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- aspect-ratio on grid items with a definite or stretched width: the
+     height comes from the width, not from the row. A width from the
+     stretched height of a justify-self: start item. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>aspect-ratio: grid items</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .g { display: grid; width: 600px; gap: 10px; margin-bottom: 10px; }
+  .r { aspect-ratio: 2 / 1; }
+</style>
+</head>
+<body>
+<div class="g" style="grid-template-columns: 200px 300px">
+  <div class="r"></div>
+  <div class="r"></div>
+  <div class="r" style="width: 50px"></div>
+  <div class="r" style="justify-self: start; height: 40px"></div>
+  <div class="r" style="align-self: start"></div>
+  <div class="r" style="height: 25px; width: auto; justify-self: end"></div>
+</div>
+<div class="g" style="grid-template-columns: repeat(3, 100px); grid-auto-rows: 80px">
+  <div class="r" style="width: 100px; overflow: hidden"></div>
+  <div class="r" style="width: 100px"><div style="height: 150px"></div></div>
+  <div class="r" style="justify-self: start"></div>
+</div>
+</body>
+</html>

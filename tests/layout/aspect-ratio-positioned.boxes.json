@@ -1,0 +1,29 @@
+{
+  "url": "tests/layout/aspect-ratio-positioned.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 620.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "meta", "rect": null, "parent": 1},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [0.0, 0.0, 800.0, 610.0], "parent": 0},
+    {"tag": "div", "rect": [0.0, 0.0, 400.0, 300.0], "parent": 5},
+    {"tag": "div", "rect": [0.0, 0.0, 100.0, 50.0], "parent": 6},
+    {"tag": "div", "rect": [10.0, 0.0, 340.0, 170.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 0.0, 80.0, 40.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 0.0, 0.0, 0.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 20.0, 360.0, 180.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 20.0, 400.0, 200.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 0.0, 400.0, 200.0], "parent": 6},
+    {"tag": "div", "rect": [0.0, 310.0, 400.0, 300.0], "parent": 5},
+    {"tag": "div", "rect": [0.0, 310.0, 80.0, 40.0], "parent": 14},
+    {"tag": "div", "rect": [0.0, 310.0, 80.0, 10.0], "parent": 15},
+    {"tag": "div", "rect": [0.0, 410.0, 80.0, 40.0], "parent": 14},
+    {"tag": "div", "rect": [0.0, 410.0, 80.0, 100.0], "parent": 17},
+    {"tag": "div", "rect": [200.0, 410.0, 80.0, 100.0], "parent": 14},
+    {"tag": "div", "rect": [200.0, 410.0, 80.0, 100.0], "parent": 19},
+    {"tag": "div", "rect": [200.0, 310.0, 100.0, 50.0], "parent": 14},
+    {"tag": "div", "rect": [200.0, 310.0, 50.0, 20.0], "parent": 21}
+  ]
+}

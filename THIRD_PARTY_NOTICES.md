@@ -15,7 +15,8 @@ This file lists:
 - parts of swb's source code that are derived from the source code of
   other projects: from Chromium and Skia (BSD-3-Clause; copies of swb's
   source code and binaries must include their license texts below) and
-  from Servo (MPL-2.0).
+  from Servo (MPL-2.0);
+- third-party content in the test fixtures (not in binaries).
 
 It does not reproduce the notices of the permissive dependencies (MIT,
 Apache-2.0, BSD and others; `cargo deny list` shows them). A binary
@@ -210,3 +211,23 @@ swb's MIT License. The file carries the notice of the MPL-2.0:
   this file come from the MPL-2.0.
 - The project owner decided on 2026-10-07 to keep this code for now,
   with this notice; a rewrite may follow.
+
+## Test fixtures
+
+`fixtures/pages/` holds copies of the target pages and their resources
+(HTML, CSS, SVG, fonts, images), for offline tests only. The content
+belongs to the owners of those sites. swb binaries do not contain it.
+
+Before a fixture is committed, `swbtools substitute`
+(docs/testing.md) replaces every raster image with a generated
+placeholder and every font without a free license with DejaVu Sans, so
+the repository does not publish photos or commercial fonts.
+
+Fonts in the fixtures:
+
+- `bbc`: the site's fonts are replaced with DejaVu Sans and DejaVu Sans
+  Bold, converted to WOFF2 (a format change; the glyph data and the
+  `name` table with the copyright and license are not changed). License:
+  the Bitstream Vera license with the DejaVu changes in the public
+  domain, text in `fixtures/fonts/LICENSE-DejaVu.txt`.
+- `fixtures/fonts/`: the bundled test fonts, see `fixtures/fonts/README.md`.

@@ -471,10 +471,7 @@ fn inline_size(
     let margin_right = style.margin_right.resolve(area_width);
     let available =
         (area_width - margin_left.unwrap_or(0.0) - margin_right.unwrap_or(0.0) - h_edges).max(0.0);
-    let stretch = style.width.is_auto()
-        && stretches(item.justify(container), item.is_replaced())
-        && margin_left.is_some()
-        && margin_right.is_some();
+    let stretch = stretches_inline(item, container, area_width);
     if let IndependentContents::Replaced(r) = &item.box_.contents {
         if stretch {
             return clamp_width(style, available, area_width, h_edges);
@@ -496,6 +493,23 @@ fn inline_size(
     if let Some(w) = resolve_size(&style.width, Some(area_width), style.box_sizing, h_edges) {
         return clamp_width(style, w, area_width, h_edges);
     }
+    // A container with an aspect ratio that stretches only in the block
+    // axis takes its width from the stretched height (Chromium).
+    if !stretch
+        && let Some(height) =
+            area_height.and_then(|h| stretched_height(item, (area_width, h), container))
+        && let Some(width) = crate::replaced::column_flex_width(
+            item.box_,
+            height,
+            ContainingBlock {
+                width: area_width,
+                height: area_height,
+            },
+            &edges,
+        )
+    {
+        return width;
+    }
     let width = if stretch {
         available
     } else {
@@ -507,6 +521,16 @@ fn inline_size(
         }
     };
     clamp_width(style, width, area_width, h_edges)
+}
+
+/// True if an item stretches in the inline axis: an `auto` width, no
+/// `auto` horizontal margins and a stretching `justify-self`.
+fn stretches_inline(item: &Item<'_>, container: &ComputedStyle, area_width: f32) -> bool {
+    let style = item.style;
+    style.width.is_auto()
+        && stretches(item.justify(container), item.is_replaced())
+        && style.margin_left.resolve(area_width).is_some()
+        && style.margin_right.resolve(area_width).is_some()
 }
 
 /// True if an item with `alignment` (resolved `justify-self` or
@@ -1117,7 +1141,15 @@ fn layout_item(
     let margin_bottom = style.margin_bottom.resolve(area_width);
     let margin_left = style.margin_left.resolve(area_width);
     let margin_right = style.margin_right.resolve(area_width);
-    let height = stretched_height(item, (area_width, area_height), container);
+    // A container with an aspect ratio and a width that is definite or
+    // stretched takes its height from its width, not from the area.
+    let height = if crate::aspect::has_ratio(item.box_)
+        && (!item.style.width.is_auto() || stretches_inline(item, container, area_width))
+    {
+        None
+    } else {
+        stretched_height(item, (area_width, area_height), container)
+    };
     let mut fragment = final_layout(ctx, item, width, height, (area_width, area_height));
     let x_edge = item_edge(
         item.justify(container),

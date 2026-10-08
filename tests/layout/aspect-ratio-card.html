@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- The card structure of arstechnica.com (Tailwind): `aspect-video` and
+     `aspect-square` blocks with `overflow: hidden` in flex columns and in
+     grid cells, with an absolutely positioned cover image inside. Images
+     have width and height attributes (the SVG has no natural size). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>aspect-ratio: card images</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  .v { position: relative; display: block; width: 100%; overflow: hidden; aspect-ratio: 16 / 9; }
+  .v.s { flex-shrink: 0; }
+  .sq { position: relative; display: block; width: 75px; height: 75px; aspect-ratio: 1 / 1; flex-shrink: 0; overflow: hidden; border: 4px solid; border-radius: 50%; }
+  .big { position: relative; margin: 0 auto; width: auto; min-width: 250px; aspect-ratio: 1 / 1; overflow: hidden; }
+  .v img, .sq img, .big img { object-fit: cover; height: auto; min-width: 100%; min-height: 100%; position: absolute; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 780px; padding: 0 10px; }
+  .card { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .row { display: flex; width: 700px; margin-top: 10px; }
+  .half { width: 50%; }
+</style>
+</head>
+<body>
+<div class="cols">
+  <article class="card"><div class="v s"><a href="#"><img width="384" height="216" src="svg/width-height.svg"></a></div><h2>Title of a card</h2></article>
+  <article class="card"><div class="v s"><a href="#"><img width="768" height="432" src="svg/width-height.svg"></a></div><h2>Another card</h2><p>Text</p></article>
+  <article class="card"><div class="v s"><a href="#"><img width="300" height="300" src="svg/width-height.svg"></a></div></article>
+</div>
+<div class="row">
+  <div class="half"><div class="v"><a href="#"><img width="768" height="432" src="svg/width-height.svg"></a></div></div>
+  <div style="flex: 1; padding-left: 10px"><h2>Heading</h2><span class="sq"><img width="300" height="300" src="svg/width-height.svg"></span></div>
+</div>
+<div class="row" style="width: 500px">
+  <div style="flex: 1">Text next to the image</div>
+  <div class="big"><a href="#"><img width="300" height="300" src="svg/width-height.svg"></a></div>
+</div>
+<div class="row" style="width: 300px">
+  <div class="big" style="width: 30%"><a href="#"><img width="300" height="300" src="svg/width-height.svg"></a></div>
+</div>
+</body>
+</html>
