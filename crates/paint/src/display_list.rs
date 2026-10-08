@@ -58,6 +58,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
+use swb_layout::svg::{StrokeStyle, SvgPath};
 use swb_layout::{
     Ancestry, BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, GroupTransform,
     Matrix, NaturalSize, NoScroll, Point, PositionedGlyph, Rect, ScrollOffsets, ScrollState,
@@ -65,8 +66,8 @@ use swb_layout::{
     is_absolute_containing_block, is_fixed_containing_block,
 };
 use swb_style::{
-    BackgroundBox, BorderStyle, ComputedStyle, Display, Image, Position, Rgba, TextDecorationLine,
-    Visibility, ZIndex,
+    BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, Position, Rgba,
+    StrokeLinejoin, TextDecorationLine, Visibility, ZIndex,
 };
 use swb_text::FontId;
 
@@ -216,6 +217,29 @@ pub enum DisplayItem {
         /// The color.
         color: Rgba,
     },
+    /// Fill a path of inline SVG content (anti-aliased).
+    FillPath {
+        /// The path.
+        path: Arc<SvgPath>,
+        /// From the path's coordinates to the list's coordinates.
+        transform: Matrix,
+        /// The color.
+        color: Rgba,
+        /// The fill rule.
+        rule: FillRule,
+    },
+    /// Stroke a path of inline SVG content (anti-aliased).
+    StrokePath {
+        /// The path.
+        path: Arc<SvgPath>,
+        /// From the path's coordinates to the list's coordinates; it also
+        /// applies to the stroke.
+        transform: Matrix,
+        /// The color.
+        color: Rgba,
+        /// The stroke, in the path's coordinates.
+        stroke: Arc<StrokeStyle>,
+    },
     /// An area that hit testing finds. Not drawn.
     HitRegion {
         /// The area.
@@ -243,6 +267,15 @@ impl DisplayItem {
             DisplayItem::Polyline { points, width, .. } => polyline_bounds(points, *width),
             // One pixel of margin for the anti-aliased edges.
             DisplayItem::Polygon { points, .. } => polyline_bounds(points, 0.5),
+            DisplayItem::FillPath {
+                path, transform, ..
+            } => Some(path_bounds(path, transform, 0.0)),
+            DisplayItem::StrokePath {
+                path,
+                transform,
+                stroke,
+                ..
+            } => Some(path_bounds(path, transform, stroke_extent(stroke))),
             DisplayItem::PushClip(_)
             | DisplayItem::PushViewportClip
             | DisplayItem::PopClip
@@ -305,6 +338,31 @@ fn polyline_bounds(points: &[Point], width: f32) -> Option<Rect> {
         x1 - x0 + 2.0 * grow,
         y1 - y0 + 2.0 * grow,
     ))
+}
+
+/// The area of a path drawn with `transform`, with `grow` (in the path's
+/// coordinates) around its points and one px for anti-aliasing.
+pub(crate) fn path_bounds(path: &SvgPath, transform: &Matrix, grow: f32) -> Rect {
+    let b = path.bounds();
+    let grown = Rect::new(
+        b.x - grow,
+        b.y - grow,
+        b.width + 2.0 * grow,
+        b.height + 2.0 * grow,
+    );
+    let r = transform.map_rect(&grown);
+    Rect::new(r.x - 1.0, r.y - 1.0, r.width + 2.0, r.height + 2.0)
+}
+
+/// How far a stroke reaches beyond the points of its path: half its width,
+/// times the miter limit for miter joins (and at least √2 for square
+/// caps).
+pub(crate) fn stroke_extent(stroke: &StrokeStyle) -> f32 {
+    let factor = match stroke.join {
+        StrokeLinejoin::Miter => stroke.miter_limit.max(std::f32::consts::SQRT_2),
+        StrokeLinejoin::Round | StrokeLinejoin::Bevel => std::f32::consts::SQRT_2,
+    };
+    stroke.width / 2.0 * factor
 }
 
 /// The smallest and largest coordinates of `points`, as
@@ -1163,6 +1221,12 @@ impl Builder<'_> {
     fn paint_box(&mut self, b: &BoxFragment, origin: Point, is_root: bool) {
         let style = &b.style;
         if style.visibility != Visibility::Visible || b.content == BoxContent::GeometryOnly {
+            // SVG shapes have their own `visibility` (inherited, so a
+            // shape can be visible in a hidden `<svg>`).
+            if let BoxContent::Svg(svg) = &b.content {
+                let content = b.content_rect().translate(origin);
+                crate::inline_svg::paint(&mut self.list, svg, style, content);
+            }
             return;
         }
         let rect = b.border_rect.translate(origin);
@@ -1209,6 +1273,7 @@ impl Builder<'_> {
             | BoxContent::GeometryOnly
             | BoxContent::Control(_)
             | BoxContent::Media(_)
+            | BoxContent::Svg(_)
             | BoxContent::Placeholder(_) => {}
         }
         let radii = resolve_radii(style, border_rect);
@@ -1239,6 +1304,7 @@ impl Builder<'_> {
                 }
                 self.list.extend(media::controls(m, content));
             }
+            BoxContent::Svg(svg) => crate::inline_svg::paint(&mut self.list, svg, style, content),
             _ => {}
         }
     }

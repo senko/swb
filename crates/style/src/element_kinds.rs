@@ -12,13 +12,21 @@
 use swb_dom::{ElementData, local_name, ns, parse_integer};
 
 /// True for the replaced elements that swb lays out as replaced boxes:
-/// `img`, `video` and `audio`.
+/// `img`, `video`, `audio` and `svg` in the SVG namespace (an `svg`
+/// element that layout reaches is always the outermost one: the content
+/// of a replaced box gets no boxes).
 pub fn is_replaced_element(element: &ElementData) -> bool {
     element.is_html()
         && matches!(
             element.local_name(),
             &local_name!("img") | &local_name!("video") | &local_name!("audio")
         )
+        || is_svg_element(element)
+}
+
+/// True for an `svg` element in the SVG namespace.
+pub(crate) fn is_svg_element(element: &ElementData) -> bool {
+    element.name.ns == ns!(svg) && *element.local_name() == local_name!("svg")
 }
 
 /// False for elements whose element children generate no boxes: the
@@ -84,7 +92,6 @@ pub(crate) fn cannot_be_list_item(element: &ElementData) -> bool {
                     | &local_name!("br")
                     | &local_name!("wbr")
             )
-        || element.name.ns == ns!(svg) && *element.local_name() == local_name!("svg")
 }
 
 /// True for elements whose own counter properties have no effect: `wbr`
@@ -93,27 +100,28 @@ pub(crate) fn ignores_counter_properties(element: &ElementData) -> bool {
     element.is_html_named(&local_name!("wbr"))
 }
 
-/// True if `::before` and `::after` apply: not for replaced elements and
-/// form controls. (Measured differences from Chromium 148, not changed
-/// here: Chromium generates them for `canvas`, `object` and list-box
-/// `select` elements, and not for `svg` and `math`.)
+/// True if `::before` and `::after` apply: not for replaced elements, form
+/// controls and SVG elements. (Measured differences from Chromium 148,
+/// not changed here: Chromium generates them for `canvas`, `object` and
+/// list-box `select` elements, and not for `math`.)
 pub(crate) fn generates_content_pseudos(element: &ElementData) -> bool {
-    !(element.is_html()
-        && matches!(
-            &**element.local_name(),
-            "img"
-                | "input"
-                | "select"
-                | "textarea"
-                | "iframe"
-                | "video"
-                | "audio"
-                | "canvas"
-                | "embed"
-                | "object"
-                | "br"
-                | "wbr"
-        ))
+    element.name.ns != ns!(svg)
+        && !(element.is_html()
+            && matches!(
+                &**element.local_name(),
+                "img"
+                    | "input"
+                    | "select"
+                    | "textarea"
+                    | "iframe"
+                    | "video"
+                    | "audio"
+                    | "canvas"
+                    | "embed"
+                    | "object"
+                    | "br"
+                    | "wbr"
+            ))
 }
 
 #[cfg(test)]
@@ -157,7 +165,7 @@ mod tests {
             ("button", false, true, true),
             ("iframe", false, true, true),
             ("embed", false, true, true),
-            ("svg", false, true, true),
+            ("svg", true, true, true),
             ("fieldset", false, true, true),
             ("br", false, true, true),
             ("object", false, true, false),

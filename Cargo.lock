@@ -2730,6 +2730,7 @@ name = "swb-layout"
 version = "0.1.0"
 dependencies = [
  "log",
+ "svgtypes",
  "swb-css",
  "swb-dom",
  "swb-style",
@@ -2782,6 +2783,7 @@ dependencies = [
  "bitflags 2.13.2",
  "log",
  "smallvec",
+ "svgtypes",
  "swb-css",
  "swb-dom",
  "url",

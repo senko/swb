@@ -117,6 +117,19 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::CaptionSide(v) => s.caption_side = *v,
         V::EmptyCells(v) => s.empty_cells = *v,
         V::PointerEvents(v) => s.pointer_events = *v,
+        V::Fill(v) => s.fill = v.clone(),
+        V::FillRule(v) => s.fill_rule = *v,
+        V::FillOpacity(v) => s.fill_opacity = v.clamp(0.0, 1.0),
+        V::Stroke(v) => s.stroke = v.clone(),
+        V::StrokeWidth(v) => s.stroke_width = cx.non_negative(v),
+        V::StrokeLinecap(v) => s.stroke_linecap = *v,
+        V::StrokeLinejoin(v) => s.stroke_linejoin = *v,
+        V::StrokeMiterlimit(v) => s.stroke_miterlimit = *v,
+        V::StrokeDasharray(v) => {
+            s.stroke_dasharray = v.iter().map(|lp| cx.non_negative(lp)).collect();
+        }
+        V::StrokeDashoffset(v) => s.stroke_dashoffset = cx.lp(v),
+        V::StrokeOpacity(v) => s.stroke_opacity = v.clamp(0.0, 1.0),
         V::Display(v) => s.display = *v,
         V::Position(v) => s.position = *v,
         V::Float(v) => s.float = *v,

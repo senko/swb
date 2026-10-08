@@ -1108,3 +1108,116 @@ def font_local_many_and_long() -> Page:
     spans = "".join(f"<span style='font-family:M{i}'>x{i} </span>" for i in range(5_000))
     spans += "".join(f"<span style='font-family:L{i}'>y{i} </span>" for i in range(1_000))
     return Page(doc(spans, long_rules + many_rules))
+
+
+# --- Inline SVG (ADR 0023) ---------------------------------------------------
+
+
+@case(
+    "inline SVG: 60,000 shapes in 600 <svg> elements, past the limit of 50,000 per document "
+    "(ADR 0023)",
+    expect_log="shapes in the document",
+)
+def inline_svg_many_shapes() -> Page:
+    svg = "<svg width=20 height=20>" + "<rect width=9 height=9 fill=red />" * 100 + "</svg>"
+    return Page(doc(svg * 600))
+
+
+@case(
+    "inline SVG: a path with 1,200,000 segments, past the limit of 1,000,000 per document "
+    "(ADR 0023)",
+    expect_log="path segments in the document",
+)
+def inline_svg_many_segments() -> Page:
+    d = "M0 0" + "l1 1" * 1_200_000
+    return Page(doc(f"<svg width=200 height=200><path d='{d}' stroke=black /></svg>"))
+
+
+@case(
+    "inline SVG: groups nested 500 deep, past the limit of 64 (ADR 0023)",
+    expect_log="groups nested more than",
+)
+def inline_svg_deep_groups() -> Page:
+    inner = nest("<g opacity=0.9>", "</g>", 500, "<rect width=100 height=100 />")
+    return Page(doc(f"<svg width=200 height=200>{inner}</svg>"))
+
+
+@case(
+    "inline SVG: 2,000 strokes with dash arrays of 256 entries (the limit) and 2,000 with 300 "
+    "(invalid) (ADR 0023)"
+)
+def inline_svg_long_dash_arrays() -> Page:
+    ok = " ".join(["0.5"] * 256)
+    long = " ".join(["0.5"] * 300)
+    shapes = f"<path d='M0 0L1000 1000' stroke=black stroke-dasharray='{ok}' />" * 2_000
+    shapes += f"<path d='M0 0L1000 9' stroke=black stroke-dasharray='{long}' />" * 2_000
+    return Page(doc(f"<svg width=1000 height=800>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: strokes with dashes of 1e-6 px on long paths, past the limit of 100,000 "
+    "dashes per stroke (ADR 0023)",
+    expect_log="too many dashes",
+)
+def inline_svg_tiny_dashes() -> Page:
+    shapes = (
+        "<path d='M0 10H1000V700H0Z' stroke=black stroke-width=3 "
+        "stroke-dasharray='0.000001 0.000001' fill=none />"
+    ) * 200
+    return Page(doc(f"<svg width=1000 height=800>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: 3,000 translucent shapes that cover the viewport, past the path work budget "
+    "(ADR 0023)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_paint_budget() -> Page:
+    shapes = "<rect width=1280 height=800 fill=red fill-opacity=0.01 />" * 3_000
+    return Page(doc(f"<svg width=1280 height=800>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: 3,000 opaque shapes that cover the viewport, each in a group, past the path "
+    "work budget (ADR 0023)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_opaque_fills() -> Page:
+    shapes = "<g><rect width=1200 height=800 fill=red /></g>" * 3_000
+    return Page(doc(f"<svg width=1280 height=800>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: 20,000 groups with opacity, each with a viewport-size shape, past the limit "
+    "of 256 opacity layers per document (ADR 0023)",
+    expect_log="opacity layers in the document",
+)
+def inline_svg_opacity_layers() -> Page:
+    group = (
+        "<g opacity=.5><rect width=1200 height=800 fill=red />"
+        "<rect width=3 height=3 stroke=blue /></g>"
+    )
+    return Page(doc(f"<svg width=1280 height=800>{group * 20_000}</svg>"))
+
+
+@case("inline SVG: huge transforms, stroke widths, radii, view boxes and coordinates (ADR 0023)")
+def inline_svg_huge_geometry() -> Page:
+    shapes = [
+        "<rect width=10 height=10 transform='scale(1e30)' />",
+        "<rect width=10 height=10 transform='matrix(1e38 0 0 1e38 -1e38 -1e38)' />",
+        "<rect width=1e38 height=1e38 x=-1e38 y=-1e38 stroke=red stroke-width=1e38 />",
+        "<path d='M0 0A1e30 1e30 0 1 1 1 1A1e-30 1e30 45 0 0 2 2Z' stroke=blue />",
+        "<circle r=1e38 cx=-1e38 stroke=red stroke-width=1e-38 />",
+        "<ellipse rx=1e20 ry=1e-20 stroke-dasharray='1e38 1' stroke=black />",
+        "<polyline points='0,0 1e38,1e38 -1e38,1e38 0,0' stroke=black stroke-width=1e9 "
+        "stroke-linejoin=miter stroke-miterlimit=1e9 />",
+        "<g style='transform: rotate(1e30deg) scale(1e-30)'><rect width=1e30 height=1 /></g>",
+        "<line x2=1e38 y2=1e38 stroke=black stroke-dashoffset=1e38 stroke-dasharray=1 />",
+        "<rect width='1e30%' height='1e30%' rx='1e30%' />",
+    ]
+    svgs = "".join(
+        f"<svg width=300 height=200 viewBox='{vb}'>{''.join(shapes)}</svg>"
+        for vb in ("0 0 300 200", "0 0 1e-30 1e-30", "-1e38 -1e38 1e38 1e38", "0 0 1e38 1")
+    )
+    svgs += "<svg width=1e9 height=1e9 viewBox='0 0 1 1'><rect width=1 height=1 /></svg>"
+    return Page(doc(svgs))

@@ -422,6 +422,15 @@ img:is([sizes="auto" i], [sizes^="auto," i]) {
 }
 iframe, embed, object { overflow: clip !important; }
 
+/* SVG 2, "User agent style sheet"
+   (https://svgwg.org/svg2-draft/styling.html#UAStyleSheet): an inline
+   svg clips its content to its viewport, and SVG content transforms
+   around the origin of its user space. swb has no @namespace, so the
+   second rule also matches the HTML content of a foreignObject (which
+   swb does not render). */
+svg:not(:root) { overflow: hidden; }
+svg * { transform-origin: 0 0; }
+
 iframe { border: 2px inset; }
 video { object-fit: contain; }
 

@@ -16,6 +16,7 @@ pub(crate) mod longhand;
 pub(crate) mod mask;
 pub(crate) mod shorthand;
 pub(crate) mod specified;
+pub(crate) mod svg;
 pub(crate) mod transform;
 
 use std::borrow::Cow;

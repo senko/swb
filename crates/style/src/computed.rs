@@ -12,14 +12,14 @@ use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
     CompositeOperator, Contain, ContainIntrinsic, Content, CornerRadius, CounterList, Cursor,
-    Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
-    FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine,
-    GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto, LineHeight,
-    ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent, Rgba, Size,
-    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
-    TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility,
-    WhiteSpace, WordBreak, ZIndex,
+    Direction, Display, EmptyCells, FillRule, FlexBasis, FlexDirection, FlexWrap, Float,
+    FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
+    GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
+    LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
+    ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent,
+    Rgba, Size, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TrackBreadth, TrackList,
+    TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -79,6 +79,25 @@ pub struct ComputedStyle {
     pub caption_side: CaptionSide,
     pub empty_cells: EmptyCells,
     pub pointer_events: PointerEvents,
+    /// `fill` (SVG). `currentColor` stays a keyword, as CSS Color 4 says,
+    /// and is resolved by the element that paints.
+    pub fill: SvgPaint,
+    pub fill_rule: FillRule,
+    /// `fill-opacity`, 0 to 1.
+    pub fill_opacity: f32,
+    /// `stroke` (SVG).
+    pub stroke: SvgPaint,
+    /// `stroke-width`; percentages refer to the normalized diagonal of the
+    /// SVG viewport.
+    pub stroke_width: LengthPercentage,
+    pub stroke_linecap: StrokeLinecap,
+    pub stroke_linejoin: StrokeLinejoin,
+    pub stroke_miterlimit: f32,
+    /// `stroke-dasharray`; empty for `none`.
+    pub stroke_dasharray: Arc<[LengthPercentage]>,
+    pub stroke_dashoffset: LengthPercentage,
+    /// `stroke-opacity`, 0 to 1.
+    pub stroke_opacity: f32,
     /// The custom properties (`--*`), `None` if there are none.
     pub custom_properties: Option<Arc<CustomProperties>>,
 
@@ -261,6 +280,17 @@ impl ComputedStyle {
             caption_side: CaptionSide::Top,
             empty_cells: EmptyCells::Show,
             pointer_events: PointerEvents::Auto,
+            fill: SvgPaint::BLACK,
+            fill_rule: FillRule::NonZero,
+            fill_opacity: 1.0,
+            stroke: SvgPaint::None,
+            stroke_width: LengthPercentage::Px(1.0),
+            stroke_linecap: StrokeLinecap::Butt,
+            stroke_linejoin: StrokeLinejoin::Miter,
+            stroke_miterlimit: 4.0,
+            stroke_dasharray: Arc::from([]),
+            stroke_dashoffset: LengthPercentage::ZERO,
+            stroke_opacity: 1.0,
             custom_properties: None,
 
             display: Display::Inline,

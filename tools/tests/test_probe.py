@@ -26,6 +26,7 @@ from swbtools.probe import (
     any_outside,
     attach_swb,
     compare_box,
+    compare_ink,
     format_json,
     format_row,
     format_text,
@@ -274,6 +275,36 @@ def test_attach_swb_uses_the_document_index_and_skips_other_rows():
     result.rows[0].swb = SwbBox("tag-mismatch", outside=True)
     assert any_outside([result])
     assert any_outside([CaseResult("c", (1, 1), swb_error="swb failed")])
+
+
+def test_compare_ink_and_attach_it_from_a_screenshot():
+    assert not compare_ink(100.0, (0, 0, 10, 10), 104.0, (0, 0, 10, 10), 1.0).outside
+    assert compare_ink(100.0, (0, 0, 10, 10), 106.0, (0, 0, 10, 10), 1.0).outside
+    assert not compare_ink(10.0, (0, 0, 2, 2), 12.0, (1, 0, 2, 2), 1.0).outside
+    assert compare_ink(10.0, (0, 0, 2, 2), 10.0, (2, 0, 2, 2), 1.0).outside
+    assert compare_ink(0.0, None, 1.0, (0, 0, 1, 1), 1.0).outside
+    # A black 2x2 square at (11, 12) of a white screenshot; the row's area
+    # is (10, 10, 5, 5).
+    shot = Image.new("RGB", (20, 20), "white")
+    for x in (11, 12):
+        for y in (12, 13):
+            shot.putpixel((x, y), (0, 0, 0))
+    row = Row("ink", "#a[1]", {"ink": 4.0, "bbox": (1, 2, 2, 2), "area": (10.0, 10.0, 5.0, 5.0)})
+    result = CaseResult("c", (20, 20), [row])
+    attach_swb(result, dump(("html", None)), 1.0, shot)
+    assert row.swb_ink is not None
+    assert (row.swb_ink.ink, row.swb_ink.bbox, row.swb_ink.outside) == (4.0, (1, 2, 2, 2), False)
+    assert format_row("c", row)[1] == "c  swb    #a[1]  ink=4 bbox=1,2,2,2  dink=0"
+    assert not any_outside([result])
+
+
+def test_probe_command_with_a_screenshot():
+    command = swb.probe_command(Path("swb"), "file:///p.html", (800, 600), Path("b.json"))
+    assert "--screenshot" not in command
+    command = swb.probe_command(
+        Path("swb"), "file:///p.html", (800, 600), Path("b.json"), Path("s.png")
+    )
+    assert command[-4:] == ["--full-page", "--screenshot", "s.png", "file:///p.html"]
 
 
 def test_any_error_finds_failed_queries():

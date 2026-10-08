@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 feature 5, inline SVG part 1
+
+- swb draws inline `<svg>` with its own code (ADR 0023). resvg stays
+  for SVG images only. The outer `<svg>` is a replaced box. Its
+  `width`/`height` attributes follow Chromium 148 (measured): they act
+  as presentation attributes and as the natural size, an invalid value
+  is `100%`, and the ratio of the attributes wins over the `viewBox`.
+  SVG descendants get no CSS boxes and no text runs.
+- Style: the fill and stroke properties, presentation attributes as
+  author-level hints with specificity 0 (the `transform` attribute
+  through `svgtypes`), two SVG 2 user-agent rules.
+- Layout (`layout/src/svg/`): `g`, `a`, `path`, `rect`, `circle`,
+  `ellipse`, `line`, `polyline` and `polygon`; path data with swb's own
+  arc conversion (SVG 2 implementation notes); `viewBox` and
+  `preserveAspectRatio`. Paint: new `FillPath` and `StrokePath` items,
+  rasterized with tiny-skia; group opacity as layers; a clip at the
+  content box.
+- Limits: 50,000 shapes and 1,000,000 path segments per document,
+  groups 64 deep, dash arrays of 256 entries, strokes with more than
+  100,000 dashes drawn solid, a work budget for paths per strip. Seven
+  hostile-page cases.
+- The probe tool compares `ink` with swb (`--with-swb`).
+  `tools/probes/inline-svg.json` has 16 cases; all sizes match.
+- Scores: Ars geometry 0.7740 → 0.7978, pixels 0.9898 → 0.9952; BBC
+  geometry 0.7775 → 0.8053, pixels 0.9942 → 0.9985. The count of
+  missing boxes went up (Ars 217, BBC 202): Chromium reports boxes for
+  `g` and the shapes, which part 2 adds.
+- Review fixes: each `<g>` with `opacity` below 1 took a layer, and
+  20,000 such groups took 80 s. Now at most 256 layers per document;
+  past the limit the group opacity multiplies the alpha of each child
+  paint, and the same page takes 1.9 s. A group with one shape and one
+  paint needs no layer. Path fills cost about 2.6 ns per pixel, opaque or not,
+  so the work budget now counts every pixel as blended. `<style>` in
+  SVG is now a document style sheet; as in Chromium, a `type` other
+  than empty or `text/css` turns off a `<style>` element, also in HTML.
+
 ## 2026-10-08: M4 feature 4, web fonts part 2
 
 - New properties `font-variation-settings` and `font-feature-settings`

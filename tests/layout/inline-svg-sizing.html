@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- Inline <svg> elements as replaced boxes: the width and height
+     attributes (presentation attributes, which CSS overrides, and the
+     natural size), the viewBox ratio, the default object size, invalid
+     attribute values (100%), and the contexts of the target pages: block,
+     inline on the baseline with vertical-align, flex items (the user-agent
+     overflow: hidden removes their automatic minimum size), floats. The
+     elements have no content: SVG descendants get boxes in part 2. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline SVG sizing</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .c { width: 400px; }
+  .b { display: block; margin-bottom: 4px; }
+  .x { width: 200px; }
+  .auto { width: auto; height: auto; }
+  .h4 { width: 1rem; height: 1rem; }
+  .t { font: 20px/40px sans-serif; }
+</style>
+</head>
+<body>
+<div class="c">
+  <svg class="b"></svg>
+  <svg class="b" viewBox="0 0 100 50"></svg>
+  <svg class="b" width="100"></svg>
+  <svg class="b" height="40"></svg>
+  <svg class="b" width="100" height="50" viewBox="0 0 10 40"></svg>
+  <svg class="b" width="100" viewBox="0 0 20 10"></svg>
+  <svg class="b x" width="100" height="50"></svg>
+  <svg class="b auto" width="100" height="50"></svg>
+  <svg class="b" style="width: 200px; height: auto" width="100" height="50" viewBox="0 0 10 40"></svg>
+  <svg class="b" style="height: 30px" width="100" height="50" viewBox="0 0 20 10"></svg>
+  <svg class="b" width="50%" height="10"></svg>
+  <svg class="b" width="abc" height="10"></svg>
+  <svg class="b auto" width="abc" height="10"></svg>
+  <svg class="b" width="-10" height="10"></svg>
+  <svg class="b" width="2em" height=" 12 "></svg>
+  <svg class="b" width="5mm" height="auto"></svg>
+  <svg class="b" viewBox="0 0 -100 50"></svg>
+  <svg class="b" style="max-width: 100%; height: auto" width="800" height="400" viewBox="0 0 800 400"></svg>
+  <svg class="b" style="padding: 5px; border: 2px solid" width="40" height="20"></svg>
+</div>
+<div class="c t">x<svg width="20" height="20"></svg><svg width="20" height="20" style="vertical-align: middle"></svg><svg width="20" height="20" style="vertical-align: text-top"></svg><svg width="20" height="60"></svg>y</div>
+<div class="c"><span>a<svg viewBox="0 0 100 50"></svg>b</span></div>
+<div class="c" style="display: flex"><svg viewBox="0 0 100 50"></svg><svg width="30" height="20"></svg><svg class="h4" style="flex-shrink: 0" viewBox="0 0 40 40"></svg></div>
+<div class="c" style="display: flex; flex-direction: column; align-items: flex-start"><svg viewBox="0 0 100 50"></svg><svg width="40" viewBox="0 0 100 50"></svg></div>
+<div class="c"><div style="float: left"><svg viewBox="0 0 100 50"></svg></div><div style="float: left"><svg width="30" height="10"></svg></div></div>
+<div class="c" style="clear: both"><svg style="display: none" width="40" height="40"></svg><svg style="display: inline-block; margin: 5px" width="20" height="20"></svg></div>
+</body>
+</html>

@@ -15,7 +15,8 @@
 //! - `stylist`: rule storage and lookup.
 //! - `bloom`: the ancestor Bloom filter that rejects rules early.
 //! - `cascade`: the cascade, inheritance and computed-value fixups.
-//! - `hints`: presentational hints from HTML attributes.
+//! - `hints`: presentational hints from HTML attributes;
+//!   `svg_attributes`: SVG presentation attributes.
 //! - `element`: the DOM element adapter for selector matching, element
 //!   states, disabled form controls and `querySelectorAll`;
 //!   `element_kinds`: the kinds of boxes of HTML elements that style and
@@ -46,6 +47,7 @@ mod parse;
 mod properties;
 mod style_map;
 mod stylist;
+mod svg_attributes;
 mod values;
 
 pub use cascade::compute_styles;

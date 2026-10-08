@@ -5,7 +5,8 @@
 //!
 //! Supported: block layout with margin collapsing, inline layout with line
 //! breaking and vertical alignment, list markers, replaced elements
-//! (images, video and audio with their controls, see `media.rs`), form
+//! (images, video and audio with their controls, see `media.rs`; inline
+//! SVG, see `svg/`), form
 //! controls, flex layout, grid layout, table layout, floats and clearance
 //! (`floats.rs`), relative, absolute, fixed and sticky positioning
 //! (`positioned.rs`), transforms (paint applies them), the scrollable
@@ -23,7 +24,8 @@
 //! `grid`, `inline` (line layout), `intrinsic` (min- and max-content
 //! sizes), `list_marker`, `media` (video and audio controls),
 //! `positioned` (out-of-flow, sticky and transforms), `replaced`, `scroll`
-//! (scrollable overflow), `source_map` (text offsets) and `table`.
+//! (scrollable overflow), `source_map` (text offsets), `svg` (inline SVG)
+//! and `table`.
 
 mod align;
 mod aspect;
@@ -45,6 +47,7 @@ mod positioned;
 mod replaced;
 mod scroll;
 mod source_map;
+pub mod svg;
 mod table;
 
 use std::collections::HashMap;

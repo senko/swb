@@ -187,7 +187,12 @@ Features, in this order. Each one ends with a review and a commit.
    and `style` inside SVG draw nothing (the BBC logo has a `title`);
    styling by the page's style sheets through the cascade; paint into
    the display list (paths with fill and stroke, rasterized with
-   tiny-skia). `svgtypes` parses path data and transforms.
+   tiny-skia). `svgtypes` parses path data and transforms. Done (ADR
+   0023): limits and seven hostile-page cases; nested `svg` is left for
+   later. Ars geometry 0.7740 → 0.7978, pixels 0.9898 → 0.9952; BBC
+   geometry 0.7775 → 0.8053, pixels 0.9942 → 0.9985. Chromium reports
+   boxes for `g` and the shapes; swb does not yet (part 2), so these
+   boxes count as missing (Ars 217, BBC 202).
 6. Inline SVG, part 2 (`implementer`). Scope: `clipPath` (all Ars icons
    use it), `defs`, `use` with local references, the box dump of SVG
    descendants as Chromium reports them (bounding boxes of shapes and
@@ -257,6 +262,30 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   value that `font-variation-settings` sets.
 - `width: max-content` on block boxes is not supported (the probe cases
   use floats instead).
+- Inline SVG beyond parts 1 and 2 (ADR 0023): the geometry properties
+  in CSS (`r`, `cx`, `cy`, `x`, `y`, `width`, `height`, `rx`, `ry`, `d`;
+  Chromium lets `r: 40px` override the attribute), `shape-rendering`
+  (BBC sets `crispEdges` on 120 icon paths; swb anti-aliases them),
+  nested `svg` and `symbol`, gradients and patterns (`url()` paints use
+  their fallback), `text`, `image`, markers, `paint-order`,
+  `vector-effect`, `context-fill`, the `miter-clip` and `arcs` joins.
+- Inline SVG anti-aliasing: tiny-skia's coverage differs from
+  Chromium's on thin curved shapes (the Ars ring icon has 7 % more ink in
+  `tools/probes/inline-svg.json`, case `ars-icon`), and a group opacity
+  of 0.5 composites at 128/255 where Chromium uses 129/255 (also for CSS
+  `opacity`).
+- Paths (inline SVG, polygons) whose device bounds exceed the 32-bit
+  range are not drawn: tiny-skia rejects them. Clip such paths to the
+  visible area before rasterizing, if a page needs it.
+- Opacity layers in HTML: each `opacity` below 1 makes a layer of the
+  size of the box's paint bounds, with no limit on their number or total
+  area (2,000 absolutely positioned 1200x800 divs with `opacity: .5`
+  take 7.6 s). Inline SVG limits its layers (256 per document, ADR 0023);
+  HTML needs a limit on the layer area per frame, with a fallback (no
+  layer, or the opacity on each child) for the rest.
+- Counters: `renders_children` (`style/src/element_kinds.rs`) is still
+  true for `svg`, so counter properties of SVG descendants count,
+  although the descendants have no boxes; not measured in Chromium.
 - Fixtures: the wikipedia-web-browser fixture (pushed before the
   substitution rule) holds Wikimedia images under several free licenses
   without a list of their authors and licenses; list them in

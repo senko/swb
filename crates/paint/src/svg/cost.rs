@@ -28,7 +28,8 @@
 //! the same time. `layers` is the largest sum of nested layer sizes, in
 //! canvases.
 //!
-//! The weights were measured with resvg 0.48 in release builds.
+//! The weights were measured with resvg 0.48 in release builds. The
+//! rasterizer uses the path weights for inline SVG too (`raster/path.rs`).
 
 use std::collections::HashMap;
 
@@ -47,7 +48,7 @@ const LIGHTING: f64 = 120.0;
 /// The cost of other filter primitives per pixel.
 const OTHER_FILTER: f64 = 30.0;
 /// The cost of one dash.
-const DASH: f64 = 200.0;
+pub(crate) const DASH: f64 = 200.0;
 /// The cost of decoding one pixel of an embedded raster image.
 const RASTER_DECODE: f64 = 10.0;
 /// tiny-skia makes at most this many dashes per path.
@@ -55,15 +56,15 @@ const MAX_DASHES: f64 = 1_000_000.0;
 /// resvg clips layers to 5 × 5 canvases (`max_filter_bbox`).
 const MAX_LAYER: f64 = 25.0;
 /// The cost of rendering a path, apart from its pixels and segments.
-const PATH: f64 = 1500.0;
+pub(crate) const PATH: f64 = 1500.0;
 /// The cost of one segment of a path.
-const SEGMENT: f64 = 30.0;
+pub(crate) const SEGMENT: f64 = 30.0;
 /// The cost of a group, apart from its layer.
 const GROUP: f64 = 100.0;
 /// The cost of blending one pixel: translucent paint, gradients, patterns,
 /// images, layers, masks. (Measured: 1.9 ns per pixel for half-transparent
 /// fills, 0.125 ns for opaque ones.)
-const BLEND: f64 = 8.0;
+pub(crate) const BLEND: f64 = 8.0;
 
 /// The estimate for a render tree.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

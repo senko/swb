@@ -366,25 +366,26 @@ impl Styler<'_> {
 /// list in CSS Display 3 Appendix B).
 /// <https://www.w3.org/TR/css-display-3/#unbox-html>
 fn contents_is_none(data: &ElementData) -> bool {
-    data.is_html()
-        && matches!(
-            &**data.local_name(),
-            "br" | "wbr"
-                | "meter"
-                | "progress"
-                | "canvas"
-                | "embed"
-                | "object"
-                | "audio"
-                | "iframe"
-                | "img"
-                | "video"
-                | "input"
-                | "textarea"
-                | "select"
-                | "frame"
-                | "frameset"
-        )
+    crate::element_kinds::is_svg_element(data)
+        || data.is_html()
+            && matches!(
+                &**data.local_name(),
+                "br" | "wbr"
+                    | "meter"
+                    | "progress"
+                    | "canvas"
+                    | "embed"
+                    | "object"
+                    | "audio"
+                    | "iframe"
+                    | "img"
+                    | "video"
+                    | "input"
+                    | "textarea"
+                    | "select"
+                    | "frame"
+                    | "frameset"
+            )
 }
 
 /// True if `::placeholder` applies: an `input` or `textarea` with a

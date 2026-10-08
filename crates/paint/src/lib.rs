@@ -14,6 +14,7 @@ mod control;
 mod display_list;
 mod group_bounds;
 mod image;
+mod inline_svg;
 mod mask;
 mod media;
 mod raster;

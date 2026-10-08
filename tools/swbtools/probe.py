@@ -51,8 +51,13 @@ list goes in parentheses: `(#a, #b)[2]`); `rects` adds `#N`, the
 fragment. With `--with-swb`, swb renders the same page; each `boxes` element is
 looked up by its index in `document.querySelectorAll('*')`, and a line
 `CASE  swb  LABEL  VALUES  dx=.. dy=.. dw=.. dh=..` follows the Chromium
-line, with `!` when a delta is above the tolerance. `rects`, `style` and
-`js` are Chromium only.
+line, with `!` when a delta is above the tolerance. For `ink`, swb also
+writes a full-page screenshot, and the same area of it (Chromium's border
+box of the element) gives swb's ink and bounding box: a line
+`CASE  swb  LABEL  ink=.. bbox=..  dink=..` with `!` when the ink differs
+by more than `INK_TOLERANCE` (relative, at least 2) or an edge of the
+bounding box by more than the tolerance. `rects`, `style` and `js` are
+Chromium only.
 """
 
 import asyncio
@@ -76,6 +81,9 @@ log = logging.getLogger(__name__)
 DEFAULT_VIEWPORT = browser.LAYOUT_VIEWPORT
 DEFAULT_TOLERANCE = 1.0
 """Default maximum difference in px between swb and Chromium."""
+INK_TOLERANCE = 0.05
+"""The largest relative difference of swb's ink from Chromium's (at least 2
+units), for anti-aliasing differences."""
 
 QUERY_KINDS = ("boxes", "rects", "style", "js", "ink")
 _SWB_LABEL = "swb"
@@ -248,6 +256,15 @@ class SwbBox:
 
 
 @dataclass
+class SwbInk:
+    """swb's ink in the area of an `ink` row, and whether it differs."""
+
+    ink: float
+    bbox: tuple[int, int, int, int] | None
+    outside: bool
+
+
+@dataclass
 class Row:
     """One value of a case."""
 
@@ -256,6 +273,7 @@ class Row:
     """Selector with index, or the expression."""
     data: dict[str, Any] = field(default_factory=dict)
     swb: SwbBox | None = None
+    swb_ink: SwbInk | None = None
 
 
 @dataclass
@@ -297,10 +315,14 @@ def _values(row: Row) -> str:
     if row.kind == "ink":
         if not data.get("matched", True):
             return "no match"
-        bbox = data["bbox"]
-        shown = "none" if bbox is None else ",".join(str(v) for v in bbox)
-        return f"ink={data['ink']:g} bbox={shown}"
+        return format_ink(data["ink"], data["bbox"])
     return json.dumps(data["value"], ensure_ascii=False)
+
+
+def format_ink(ink: float, bbox: tuple[int, int, int, int] | None) -> str:
+    """`ink=12.5 bbox=0,0,10,10`."""
+    shown = "none" if bbox is None else ",".join(str(v) for v in bbox)
+    return f"ink={ink:g} bbox={shown}"
 
 
 def format_row(case: str, row: Row) -> list[str]:
@@ -321,6 +343,13 @@ def format_row(case: str, row: Row) -> list[str]:
             if swb_box.delta is not None:
                 text += "  " + format_delta(swb_box.delta)
             lines.append(prefix + text + ("  !" if swb_box.outside else ""))
+    swb_ink = row.swb_ink
+    if swb_ink is not None:
+        delta = round2(swb_ink.ink - row.data["ink"])
+        text = f"{format_ink(swb_ink.ink, swb_ink.bbox)}  dink={delta:g}"
+        lines.append(
+            f"{case}  {_SWB_LABEL:<5}  {row.label}  {text}" + ("  !" if swb_ink.outside else "")
+        )
     return lines
 
 
@@ -350,6 +379,12 @@ def format_json(results: Sequence[CaseResult]) -> str:
                     "rect": s.rect,
                     "delta": s.delta,
                     "outside": s.outside,
+                }
+            if row.swb_ink is not None:
+                item["swb_ink"] = {
+                    "ink": row.swb_ink.ink,
+                    "bbox": row.swb_ink.bbox,
+                    "outside": row.swb_ink.outside,
                 }
             rows.append(item)
         entry: dict[str, Any] = {
@@ -383,19 +418,60 @@ def compare_box(tag: str, index: int, rect: Rect | None, dump: BoxDump, toleranc
     return SwbBox("ok", rect=element.rect, delta=delta, outside=outside)  # type: ignore[arg-type]
 
 
-def attach_swb(result: CaseResult, dump: BoxDump, tolerance: float) -> None:
-    """Sets the swb comparison on each `boxes` row of the result."""
+def compare_ink(
+    ink: float,
+    bbox: tuple[int, int, int, int] | None,
+    swb_ink: float,
+    swb_bbox: tuple[int, int, int, int] | None,
+    tolerance: float,
+) -> SwbInk:
+    """Compares swb's ink in an area with Chromium's (see the module
+    documentation)."""
+    outside = abs(swb_ink - ink) > max(2.0, INK_TOLERANCE * ink)
+    if (bbox is None) != (swb_bbox is None):
+        outside = True
+    elif bbox is not None and swb_bbox is not None:
+        edges = (bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])
+        swb_edges = (
+            swb_bbox[0],
+            swb_bbox[1],
+            swb_bbox[0] + swb_bbox[2],
+            swb_bbox[1] + swb_bbox[3],
+        )
+        outside |= any(abs(a - b) > tolerance for a, b in zip(edges, swb_edges, strict=True))
+    return SwbInk(swb_ink, swb_bbox, outside)
+
+
+def ink_in(screenshot: Image.Image, rect: Rect) -> tuple[float, tuple[int, int, int, int] | None]:
+    """The ink of the area `rect` (CSS px at scale 1) of a screenshot."""
+    x, y, w, h = rect
+    box = (round(x), round(y), round(x + w), round(y + h))
+    return ink_of_image(screenshot.crop(box))
+
+
+def attach_swb(
+    result: CaseResult, dump: BoxDump, tolerance: float, screenshot: Image.Image | None = None
+) -> None:
+    """Sets the swb comparison on each `boxes` row of the result, and on
+    each `ink` row if there is a screenshot."""
     for row in result.rows:
         if row.kind == "boxes" and "index" in row.data:
             row.swb = compare_box(
                 row.data["tag"], row.data["index"], row.data["rect"], dump, tolerance
             )
+        elif row.kind == "ink" and screenshot is not None and row.data.get("area"):
+            ink, bbox = ink_in(screenshot, row.data["area"])
+            row.swb_ink = compare_ink(row.data["ink"], row.data["bbox"], ink, bbox, tolerance)
 
 
 def any_outside(results: Sequence[CaseResult]) -> bool:
-    """True if a compared box is outside the tolerance (or swb failed)."""
+    """True if a compared box or ink is outside the tolerance (or swb
+    failed)."""
     return any(r.swb_error for r in results) or any(
-        row.swb is not None and row.swb.outside for r in results for row in r.rows
+        (row.swb is not None and row.swb.outside)
+        or (row.swb_ink is not None and row.swb_ink.outside)
+        for r in results
+        for row in r.rows
     )
 
 
@@ -468,7 +544,12 @@ def ink_of(png: bytes) -> tuple[float, tuple[int, int, int, int] | None]:
     luminance, 1 for black), rounded to 2 decimals, and the bounding box
     (x, y, width, height) of the pixels that are not white."""
     with Image.open(io.BytesIO(png)) as image:
-        gray = image.convert("L")
+        return ink_of_image(image)
+
+
+def ink_of_image(image: Image.Image) -> tuple[float, tuple[int, int, int, int] | None]:
+    """`ink_of` for a decoded image."""
+    gray = image.convert("L")
     darkness = [255 - v for v in gray.tobytes()]
     ink = round(sum(darkness) / 255, 2)
     width = gray.width
@@ -510,7 +591,7 @@ async def _ink_rows(page: Page, selector: str) -> list[Row]:
         clip = {"x": x, "y": y, "width": w, "height": h}
         png = await _screenshot(page, clip)
         ink, bbox = ink_of(png)
-        rows.append(Row("ink", _label(selector, n), {"ink": ink, "bbox": bbox}))
+        rows.append(Row("ink", _label(selector, n), {"ink": ink, "bbox": bbox, "area": rect}))
     return rows
 
 
@@ -561,16 +642,25 @@ async def probe_case(
 # --- swb -------------------------------------------------------------------
 
 
-def run_swb(binary: Path, page: Path, viewport: tuple[int, int], directory: Path) -> BoxDump:
-    """Renders the page in swb and returns its box dump. Raises `ProbeError`
-    if swb fails."""
+def run_swb(
+    binary: Path, page: Path, viewport: tuple[int, int], directory: Path, screenshot: bool = False
+) -> tuple[BoxDump, Image.Image | None]:
+    """Renders the page in swb and returns its box dump and, with
+    `screenshot`, its full-page screenshot. Raises `ProbeError` if swb
+    fails."""
     dump_path = directory / f"{page.stem}.swb-boxes.json"
     log_path = directory / f"{page.stem}.swb.log"
-    status = swb.run(swb.probe_command(binary, page.as_uri(), viewport, dump_path), log_path)
+    shot_path = directory / f"{page.stem}.swb.png" if screenshot else None
+    command = swb.probe_command(binary, page.as_uri(), viewport, dump_path, shot_path)
+    status = swb.run(command, log_path)
     if status != 0 or not dump_path.is_file():
         tail = log_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-3:]
         raise ProbeError(f"swb failed (exit {status}): {' | '.join(tail)}")
-    return read_dump(dump_path)
+    image = None
+    if shot_path is not None:
+        with Image.open(shot_path) as shot:
+            image = shot.convert("RGB")
+    return read_dump(dump_path), image
 
 
 # --- Running ---------------------------------------------------------------
@@ -583,8 +673,10 @@ async def _probe_all(
     for number, case in enumerate(cases, 1):
         result, path = await probe_case(page, directory, number, case)
         if binary is not None:
+            wants_ink = any(query.kind == "ink" for query in case.queries)
             try:
-                attach_swb(result, run_swb(binary, path, case.viewport, directory), tolerance)
+                dump, shot = run_swb(binary, path, case.viewport, directory, wants_ink)
+                attach_swb(result, dump, tolerance, shot)
             except ProbeError as error:
                 result.swb_error = str(error)
         results.append(result)

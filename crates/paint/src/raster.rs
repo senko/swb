@@ -51,6 +51,8 @@ use crate::image::{DecodedImage, ImageKind, MAX_DIMENSION};
 use crate::mask::{self, MaskLayer, MaskLayerImage};
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
+mod path;
+
 /// The most pixels of a layer for a transform group (a larger layer gets
 /// a lower resolution).
 const MAX_TRANSFORM_LAYER_PIXELS: f32 = 4096.0 * 1024.0;
@@ -196,6 +198,8 @@ pub fn rasterize_in_strips(
         skipped.layers |= s.layers;
         skipped.masks |= s.masks;
         skipped.transforms |= s.transforms;
+        skipped.paths |= s.paths;
+        skipped.dashes |= s.dashes;
     }
     if vectors.skipped() {
         log::warn!(
@@ -217,6 +221,12 @@ pub fn rasterize_in_strips(
             "transforms: the nesting depth or the work budget of layers ran out; some \
              transformed boxes are not drawn"
         );
+    }
+    if skipped.paths {
+        log::warn!("inline SVG: the path work budget ran out; some shapes are not drawn");
+    }
+    if skipped.dashes {
+        log::warn!("inline SVG: a stroke has too many dashes; it is drawn solid");
     }
 }
 
@@ -257,6 +267,10 @@ struct Skipped {
     /// A transform group was nested deeper than [`MAX_TRANSFORM_DEPTH`] or
     /// did not fit into [`MAX_TRANSFORM_PIXELS`].
     transforms: bool,
+    /// An SVG path did not fit into [`path::MAX_PATH_WORK`].
+    paths: bool,
+    /// An SVG stroke had more than [`path::MAX_DASHES`] dashes.
+    dashes: bool,
 }
 
 /// The budgets of one strip. The rasterizer of a transform layer takes
@@ -278,6 +292,10 @@ struct Budget {
     transform_pixels: u64,
     /// The budget of `transform_pixels`.
     max_transform_pixels: u64,
+    /// The work of SVG paths so far (see [`path::MAX_PATH_WORK`]).
+    path_work: f64,
+    /// The budget of `path_work`.
+    max_path_work: f64,
     /// What the budgets left out.
     skipped: Skipped,
 }
@@ -322,6 +340,7 @@ fn rasterize_strip(
             max_layer_pixels: MAX_GROUP_LAYER_PIXELS.max(pixels.saturating_mul(4)),
             max_mask_pixels: MAX_MASK_PIXELS.max(mask_budget),
             max_transform_pixels: MAX_TRANSFORM_PIXELS.max(pixels.saturating_mul(8)),
+            max_path_work: path::MAX_PATH_WORK,
             ..Budget::default()
         },
         clips: Vec::new(),
@@ -736,6 +755,18 @@ impl Rasterizer<'_> {
                 color,
             } => self.polyline(points, *width, *color),
             DisplayItem::Polygon { points, color } => self.polygon(points, *color),
+            DisplayItem::FillPath {
+                path,
+                transform,
+                color,
+                rule,
+            } => self.fill_svg_path(path, transform, *color, *rule),
+            DisplayItem::StrokePath {
+                path,
+                transform,
+                color,
+                stroke,
+            } => self.stroke_svg_path(path, transform, *color, stroke),
             // `run` handles transform groups.
             DisplayItem::HitRegion { .. }
             | DisplayItem::PushTransform { .. }
@@ -2869,6 +2900,7 @@ mod tests {
                 max_layer_pixels,
                 max_mask_pixels,
                 max_transform_pixels: MAX_TRANSFORM_PIXELS,
+                max_path_work: path::MAX_PATH_WORK,
                 ..Budget::default()
             },
             clips: Vec::new(),
@@ -3485,5 +3517,166 @@ mod tests {
         layer.luminance = true;
         let p = render(masked_square(vec![layer]));
         assert_eq!(rgb(&p, 40, 40), (255, 0, 0));
+    }
+
+    fn svg_path(points: &[(f32, f32)]) -> Arc<swb_layout::svg::SvgPath> {
+        use swb_layout::svg::{PathSegment, SvgPath};
+        let mut segments: Vec<PathSegment> = points
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y))| {
+                let p = Point::new(x, y);
+                if i == 0 {
+                    PathSegment::MoveTo(p)
+                } else {
+                    PathSegment::LineTo(p)
+                }
+            })
+            .collect();
+        segments.push(PathSegment::Close);
+        Arc::new(SvgPath::from_segments(&segments).expect("a path"))
+    }
+
+    fn fill_path(
+        path: Arc<swb_layout::svg::SvgPath>,
+        transform: Matrix,
+        color: Rgba,
+    ) -> DisplayItem {
+        DisplayItem::FillPath {
+            path,
+            transform,
+            color,
+            rule: swb_style::FillRule::NonZero,
+        }
+    }
+
+    fn stroke(width: f32, dashes: Option<&[f32]>) -> Arc<swb_layout::svg::StrokeStyle> {
+        Arc::new(swb_layout::svg::StrokeStyle {
+            width,
+            cap: swb_style::StrokeLinecap::Butt,
+            join: swb_style::StrokeLinejoin::Miter,
+            miter_limit: 4.0,
+            dashes: dashes.map(Arc::from),
+            dash_offset: 0.0,
+        })
+    }
+
+    #[test]
+    fn svg_paths_fill_and_stroke_with_their_transform() {
+        // A 10x10 square scaled by 4 and moved to (10, 10).
+        let square = svg_path(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        let m = Matrix::new(4.0, 0.0, 0.0, 4.0, 10.0, 10.0);
+        let p = render(vec![fill_path(Arc::clone(&square), m, RED)]);
+        assert_eq!(rgb(&p, 12, 12), (255, 0, 0));
+        assert_eq!(rgb(&p, 48, 48), (255, 0, 0));
+        assert_eq!(rgb(&p, 52, 30), (255, 255, 255));
+        // The stroke scales with the transform: 2 units are 8 px.
+        let p = render(vec![DisplayItem::StrokePath {
+            path: square,
+            transform: m,
+            color: BLUE,
+            stroke: stroke(2.0, None),
+        }]);
+        assert_eq!(rgb(&p, 7, 30), (0, 0, 255));
+        assert_eq!(rgb(&p, 13, 30), (0, 0, 255));
+        assert_eq!(rgb(&p, 30, 30), (255, 255, 255));
+        // At scale 2 the same items cover twice the device pixels.
+        let p = render_with(
+            vec![fill_path(
+                svg_path(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0)]),
+                Matrix::IDENTITY,
+                RED,
+            )],
+            2.0,
+            &NoImages,
+        );
+        assert_eq!(rgb(&p, 18, 2), (255, 0, 0));
+        assert_eq!(rgb(&p, 2, 18), (255, 255, 255));
+    }
+
+    #[test]
+    fn svg_paths_with_hostile_geometry_draw_nothing() {
+        let square = svg_path(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        for m in [
+            Matrix::new(1e30, 0.0, 0.0, 1e30, 0.0, 0.0),
+            Matrix::new(f32::INFINITY, 0.0, 0.0, 1.0, 0.0, 0.0),
+            Matrix::new(0.0, 0.0, 0.0, 0.0, 10.0, 10.0),
+            Matrix::new(1e12, 0.0, 0.0, 1e12, -1e13, -1e13),
+        ] {
+            let p = render(vec![
+                fill_path(Arc::clone(&square), m, RED),
+                DisplayItem::StrokePath {
+                    path: Arc::clone(&square),
+                    transform: m,
+                    color: RED,
+                    stroke: stroke(1e30, Some(&[1e-30, 1e-30])),
+                },
+            ]);
+            // Nothing or a fill of the whole target; no panic.
+            let _ = rgb(&p, 50, 50);
+        }
+    }
+
+    #[test]
+    fn svg_strokes_with_too_many_dashes_are_solid() {
+        use swb_layout::svg::{PathSegment, SvgPath};
+        let line = Arc::new(
+            SvgPath::from_segments(&[
+                PathSegment::MoveTo(Point::new(0.0, 50.0)),
+                PathSegment::LineTo(Point::new(100.0, 50.0)),
+            ])
+            .expect("a path"),
+        );
+        let item = |dashes: &[f32]| DisplayItem::StrokePath {
+            path: Arc::clone(&line),
+            transform: Matrix::IDENTITY,
+            color: RED,
+            stroke: stroke(10.0, Some(dashes)),
+        };
+        // 10 on, 10 off: the gap at x = 15 is white.
+        let p = render(vec![item(&[10.0, 10.0])]);
+        assert_eq!(rgb(&p, 5, 50), (255, 0, 0));
+        assert_eq!(rgb(&p, 15, 50), (255, 255, 255));
+        // 100 / 0.001 * 2 dashes, more than the limit.
+        let tiny = 0.0005;
+        assert!(100.0 / (2.0 * tiny) * 2.0 > path::MAX_DASHES);
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let mut r = rasterizer(
+            &mut target,
+            &mut vectors,
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_MASK_PIXELS,
+        );
+        let items = [item(&[tiny, tiny])];
+        let mut fonts = FontContext::for_tests();
+        r.run(&items, 0..1, &transform_ends(&items), &mut fonts, &NoImages);
+        assert!(r.budget.skipped.dashes);
+        assert_eq!(rgb(&target, 15, 50), (255, 0, 0));
+    }
+
+    #[test]
+    fn svg_paths_beyond_the_work_budget_are_not_drawn() {
+        let square = svg_path(&[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)]);
+        let items = [
+            fill_path(Arc::clone(&square), Matrix::IDENTITY, RED),
+            fill_path(square, Matrix::translate(0.0, 50.0), BLUE),
+        ];
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let mut r = rasterizer(
+            &mut target,
+            &mut vectors,
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_MASK_PIXELS,
+        );
+        // The first fill costs its fixed part and about 100 x 100 pixels at 8 units.
+        r.budget.max_path_work = 100_000.0;
+        let mut fonts = FontContext::for_tests();
+        r.run(&items, 0..2, &transform_ends(&items), &mut fonts, &NoImages);
+        assert!(r.budget.skipped.paths);
+        assert_eq!(rgb(&target, 50, 75), (255, 0, 0));
     }
 }

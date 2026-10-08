@@ -21,12 +21,13 @@ use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
-    CounterList, Cursor, Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float,
+    CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float,
     FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
     ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
     OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp, SpecifiedTrackList,
-    SpecifiedTrackSize, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
+    SpecifiedTrackSize, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine,
+    TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility,
+    WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -131,6 +132,17 @@ longhands! {
     CaptionSide "caption-side" inherited caption_side: CaptionSide;
     EmptyCells "empty-cells" inherited empty_cells: EmptyCells;
     PointerEvents "pointer-events" inherited pointer_events: PointerEvents;
+    Fill "fill" inherited fill: SvgPaint;
+    FillRule "fill-rule" inherited fill_rule: FillRule;
+    FillOpacity "fill-opacity" inherited fill_opacity: f32;
+    Stroke "stroke" inherited stroke: SvgPaint;
+    StrokeWidth "stroke-width" inherited stroke_width: Lp;
+    StrokeLinecap "stroke-linecap" inherited stroke_linecap: StrokeLinecap;
+    StrokeLinejoin "stroke-linejoin" inherited stroke_linejoin: StrokeLinejoin;
+    StrokeMiterlimit "stroke-miterlimit" inherited stroke_miterlimit: f32;
+    StrokeDasharray "stroke-dasharray" inherited stroke_dasharray: Arc<[Lp]>;
+    StrokeDashoffset "stroke-dashoffset" inherited stroke_dashoffset: Lp;
+    StrokeOpacity "stroke-opacity" inherited stroke_opacity: f32;
 
     // Not inherited.
     Display "display" reset display: Display;

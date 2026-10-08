@@ -81,10 +81,14 @@ def replay_command(
     ]
 
 
-def probe_command(swb: Path, url: str, viewport: tuple[int, int], boxes: Path) -> list[str]:
+def probe_command(
+    swb: Path, url: str, viewport: tuple[int, int], boxes: Path, screenshot: Path | None = None
+) -> list[str]:
     """Command line that loads `url` (a local file) with the test fonts and
-    writes a box dump. `probe` uses it."""
+    writes a box dump and, if `screenshot` is given, a full-page
+    screenshot. `probe` uses it."""
     width, height = viewport
+    shot = ["--full-page", "--screenshot", str(screenshot)] if screenshot is not None else []
     return [
         str(swb),
         "--headless",
@@ -93,6 +97,7 @@ def probe_command(swb: Path, url: str, viewport: tuple[int, int], boxes: Path) -
         f"{width}x{height}",
         "--dump-boxes",
         str(boxes),
+        *shot,
         url,
     ]
 

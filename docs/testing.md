@@ -17,6 +17,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
+| Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Media tests            | `crates/engine/tests/media.rs` (video posters and their requests, `object-fit`, controls and the default poster in pixels, hit testing) | no |
@@ -612,7 +613,12 @@ other queries still run, and the exit status is 1.
 reads the same index of `document.querySelectorAll('*')` from swb's dump
 and prints swb's box and the deltas below the Chromium line, with `!` if a delta is above
 `--tolerance` (default 1 px). If the tag at that index differs, or only one
-side has a box, it says so. `rects`, `style` and `js` are Chromium only.
+side has a box, it says so. For `ink` queries swb also writes a
+full-page screenshot, and the probe computes swb's ink and bounding box
+in Chromium's border box of the element: a line `swb ink=.. bbox=..
+dink=..` follows, with `!` if the ink differs by more than 5 % (at
+least 2) or an edge of the bounding box by more than the tolerance.
+`rects`, `style` and `js` are Chromium only.
 Exit status 1 if a compared box is outside the tolerance, a tag differs, or
 swb fails; so `just probe --with-swb FILE` works as a quick check.
 
@@ -625,7 +631,8 @@ Case files that other people should reuse go in `tools/probes/`
 swb must never panic, hang or exhaust memory on content from the network.
 The set in `tools/swbtools/hostile_cases.py` has one page for each limit
 that an ADR documents (floats, tables, grid, masks, transforms, scroll
-containers, SVG images, counters, custom properties, box depth, web fonts), each sized
+containers, SVG images, inline SVG, counters, custom properties, box depth, web
+fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
 `var()` chains, huge lists).

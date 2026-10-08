@@ -290,6 +290,9 @@ pub enum BoxContent {
     /// The static position of an absolutely positioned box while layout
     /// runs (see `positioned.rs`). A finished fragment tree has none.
     Placeholder(crate::Placeholder),
+    /// An inline `<svg>` element: its content, painted into the content
+    /// box.
+    Svg(Arc<crate::svg::SvgContent>),
 }
 
 /// What a table paints besides its children.

@@ -1430,14 +1430,15 @@ pub(crate) fn layout_sized(
         children.baselines.offset(edge_sum.top),
     );
     if let IndependentContents::Replaced(r) = &ib.contents {
-        fragment.content = match r.media {
-            Some(media) => BoxContent::Media(Arc::new(crate::media::content(
+        fragment.content = match (r.media, &r.svg) {
+            (Some(media), _) => BoxContent::Media(Arc::new(crate::media::content(
                 ctx,
                 r.node,
                 media,
                 crate::geom::Size::new(content_width, height),
             ))),
-            None => BoxContent::Image(r.node),
+            (None, Some(svg)) => BoxContent::Svg(Arc::clone(svg)),
+            (None, None) => BoxContent::Image(r.node),
         };
     } else if crate::scroll::is_scroll_container(style) {
         fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(&fragment, inflow));

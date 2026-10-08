@@ -134,6 +134,10 @@ pub(crate) fn collect_hints(
     cx: &HintContext,
     out: &mut Vec<PropertyDeclaration>,
 ) {
+    if e.name.ns == swb_dom::ns!(svg) {
+        crate::svg_attributes::collect_svg_hints(e, &cx.parser, out);
+        return;
+    }
     if !e.is_html() {
         return;
     }

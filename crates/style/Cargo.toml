@@ -15,6 +15,7 @@ workspace = true
 bitflags.workspace = true
 log.workspace = true
 smallvec.workspace = true
+svgtypes.workspace = true
 swb-css.workspace = true
 swb-dom.workspace = true
 url.workspace = true

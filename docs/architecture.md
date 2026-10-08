@@ -40,8 +40,8 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. | `css`, `dom`                  |
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
-| `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
-| `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
+| `layout`     | Box tree construction, layout algorithms, fragment tree, the geometry of inline SVG (ADR 0023). | `dom`, `style`, `text`        |
+| `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
@@ -82,8 +82,8 @@ Rules:
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
   borders, glyph runs, images, linear gradients, polylines, polygons,
-  clips, opacity, mask and transform groups with their bounds) in paint
-  order. A mask group carries its mask layers: images or gradients
+  the filled and stroked paths of inline SVG, clips, opacity, mask and
+  transform groups with their bounds) in paint order. A mask group carries its mask layers: images or gradients
   positioned like background layers
   (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
@@ -138,6 +138,23 @@ Rules:
   in the engine's `Images`, 128 MiB). One frame renders new renderings up
   to a work budget; after that, images use the closest cached rendering
   or are not drawn until a later repaint.
+- **Inline SVG** (ADR 0023): an `svg` element in HTML is a replaced box
+  (`style::is_replaced_element`); its natural size comes from its
+  `width`, `height` and `viewBox` attributes, which are also
+  presentation attributes for `width` and `height`. Style computes the
+  fill and stroke properties for all SVG elements and maps their
+  presentation attributes as author-level hints
+  (`style/src/svg_attributes.rs`). When the box tree is built,
+  `layout/src/svg/` walks the descendants once into an `SvgContent`
+  (groups and shapes with their computed styles; `path`, `polyline` and
+  `polygon` data parsed into user units with `svgtypes`); descendants get
+  no boxes. `BoxContent::Svg` carries it to paint, which asks it for its
+  drawing commands for the content box size (percentages and the
+  `viewBox` transform depend on it) and emits `FillPath` and
+  `StrokePath` items with a matrix from user units
+  (`paint/src/inline_svg.rs`). The rasterizer draws them with tiny-skia
+  within a work budget per strip (`paint/src/raster/path.rs`). Limits
+  per document: 50,000 shapes, 1,000,000 path segments, groups 64 deep.
 - **Web fonts** (ADR 0022): the stylist keeps the `@font-face` rules
   (`swb_style::FontFace`) with their `@media` chain. The engine gives the
   applicable faces to the `FontContext` (`set_web_fonts`), which owns the
@@ -334,7 +351,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   (max(64 Mpx, 4 × strip pixels); beyond it, opacity groups draw directly
   and mask groups draw nothing), and mask groups share a work budget: a
   group starts only if all its work fits (layer pixels, a cost per row,
-  gradient tiles). The SVG rendering budget is shared by all strips.
+  gradient tiles). SVG paths share a work budget per strip; a path
+  that does not fit is not drawn. The SVG rendering budget is shared by
+  all strips.
   Full-page screenshots keep the layout of the viewport and draw at
   scroll offset 0, as Chromium does. The root
   element's opacity and mask also apply to the canvas background.

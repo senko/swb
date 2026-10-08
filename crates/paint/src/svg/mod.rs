@@ -35,7 +35,7 @@
 //! not against the concrete size; `ex` is half an `em`.
 
 mod cache;
-mod cost;
+pub(crate) mod cost;
 mod css;
 mod entities;
 mod expansion;

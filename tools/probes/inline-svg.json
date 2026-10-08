@@ -1,0 +1,223 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "size-default",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c><svg id=a></svg></div><div class=c><svg id=b viewBox='0 0 100 50'></svg></div><div class=c><svg id=c width=100></svg></div><div class=c><svg id=d height=40></svg></div><div class=c><svg id=e width=100 height=50></svg></div><div class=c><svg id=f width=100 viewBox='0 0 20 10'></svg></div><div class=c><svg id=g height=50 viewBox='0 0 20 10'></svg></div><div class=c><svg id=h width=100 height=50 viewBox='0 0 10 40'></svg></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g, #h"
+    }
+   ]
+  },
+  {
+   "name": "size-css-overrides-attributes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><style>.x{width:200px}.y{width:auto;height:auto}.z{height:30px}</style><div class=c><svg id=a class=x width=100 height=50></svg></div><div class=c><svg id=b class=y width=100 height=50></svg></div><div class=c><svg id=c class=y width=100 height=50 viewBox='0 0 20 10'></svg></div><div class=c><svg id=d class=z width=100 height=50 viewBox='0 0 20 10'></svg></div><div class=c><svg id=e style='width:auto' width=100 height=50 viewBox='0 0 20 10'></svg></div><div class=c><svg id=f class=x viewBox='0 0 20 10'></svg></div><div class=c><svg id=g class=z viewBox='0 0 20 10'></svg></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g"
+    }
+   ]
+  },
+  {
+   "name": "size-natural-from-attributes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c><svg id=a style='width:200px;height:auto' width=100 height=50></svg></div><div class=c><svg id=b style='width:200px;height:auto' width=100 height=50 viewBox='0 0 10 40'></svg></div><div class=c><svg id=c style='width:auto;height:auto' width=100 viewBox='0 0 10 40'></svg></div><div class=c><svg id=d style='width:auto;height:auto' width=50%></svg></div><div class=c><svg id=e style='width:auto;height:auto' width=abc height=20></svg></div><div class=c><svg id=f style='width:auto;height:auto' width=1em height=20></svg></div><div class=c style='display:flex'><svg id=g width=abc height=20></svg></div><div class=c><svg id=h style='height:auto' width=100 height=50></svg></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g, #h"
+    }
+   ]
+  },
+  {
+   "name": "size-attribute-values",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c style='font-size:20px'><div><svg id=a width='50%' height=10></svg></div><div><svg id=b width='1em' height='2em'></svg></div><div><svg id=c width='abc' height=10></svg></div><div><svg id=d width='-10' height=10></svg></div><div><svg id=e width='10px' height=' 12 '></svg></div><div><svg id=f width='0' height=10></svg></div><div><svg id=g width='15.5' height='1e1'></svg></div><div><svg id=h width='10 px' height=10></svg></div><div><svg id=i width='5mm' height='auto'></svg></div><div><svg id=j width='calc(10px + 5px)' height='10'></svg></div></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j"
+    }
+   ]
+  },
+  {
+   "name": "size-viewbox-values",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c><div><svg id=a viewBox='0,0,100,50'></svg></div><div><svg id=b viewBox='0 0 -100 50'></svg></div><div><svg id=c viewBox='0 0 0 50'></svg></div><div><svg id=d viewBox='0 0 100'></svg></div><div><svg id=e viewBox='10 10 100 25' width=40></svg></div><div><svg id=f viewBox='0 0 100 50' preserveAspectRatio='none'></svg></div></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f"
+    }
+   ]
+  },
+  {
+   "name": "size-contexts",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c><div id=fl style='float:left'><svg id=a viewBox='0 0 100 50'></svg></div></div><div class=c style='clear:both'><div id=fl2 style='float:left'><svg id=b></svg></div></div><div class=c style='clear:both;display:flex'><svg id=c viewBox='0 0 100 50'></svg><svg id=d width=30 height=20></svg><svg id=e style='width:1rem;height:1rem;flex-shrink:0' viewBox='0 0 40 40'></svg></div><div class=c style='display:flex;flex-direction:column;align-items:flex-start'><svg id=f viewBox='0 0 100 50'></svg><svg id=g width=40 viewBox='0 0 100 50'></svg></div><div class=c><svg id=h style='display:block' viewBox='0 0 100 50'></svg></div><div class=c><svg id=i style='display:block;max-width:100%;height:auto' width=800 height=400 viewBox='0 0 800 400'></svg></div><div class=c><span>a<svg id=j viewBox='0 0 100 50'></svg>b</span></div><div class=c style='width:200px'><svg id=k style='display:block;width:auto' height=40 viewBox='0 0 100 50'></svg></div>",
+   "measure": [
+    {
+     "boxes": "#fl, #a, #fl2, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k"
+    }
+   ]
+  },
+  {
+   "name": "inline-baseline-and-vertical-align",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c style='font:20px/40px Arial'>x<svg id=a width=20 height=20></svg><svg id=b width=20 height=20 style='vertical-align:middle'></svg><svg id=c width=20 height=20 style='vertical-align:text-top'></svg><svg id=d width=20 height=20 style='vertical-align:-5px'></svg><svg id=e width=20 height=60></svg>y</div><div class=c style='font:20px/40px Arial'><svg id=f width=20 height=20 style='display:inline-block;margin:5px'></svg></div><div class=c id=g style='font:20px/40px Arial'><svg width=20 height=20></svg></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g"
+    }
+   ]
+  },
+  {
+   "name": "display-and-descendants",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=c><svg id=a width=40 height=40 viewBox='0 0 40 40'><title id=t>Title text</title><desc>Desc</desc><g id=g><path id=p d='M10 10h20v20h-20z'/></g><defs><clipPath id=cp><path id=cpp d='M0 0h40v40H0z'/></clipPath></defs><text id=tx x=0 y=20>Hi</text>loose text<foo id=u><rect id=r2 width=5 height=5 /></foo></svg>after</div><div class=c><svg id=b style='display:none' width=40 height=40></svg>x</div><div class=c><svg id=c width=40 height=40 style='display:inline-block;padding:5px;border:2px solid'></svg></div><div class=c id=d><svg width=40 height=40 style='visibility:hidden'></svg></div>",
+   "measure": [
+    {
+     "boxes": "#a, #t, #g, #p, #cp, #cpp, #tx, #u, #r2, #b, #c, #d"
+    }
+   ]
+  },
+  {
+   "name": "paint-fill-defaults",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><path d='M0 0h50v50h-50z'/></svg></div><div class=w id=b ><svg width=100 height=100><path d='M0 0h50v50h-50z' fill=none /></svg></div><div class=w id=c ><svg width=100 height=100><polyline points='0,0 50,0 50,50'/></svg></div><div class=w id=d ><svg width=100 height=100><line x1=0 y1=0 x2=50 y2=50 /></svg></div><div class=w id=e ><svg width=100 height=100><line x1=0 y1=10 x2=50 y2=10 stroke=black /></svg></div><div class=w id=f ><svg width=100 height=100><rect x=10 y=10 width=40 height=20 /></svg></div><div class=w id=g ><svg width=100 height=100><circle cx=50 cy=50 r=20 /></svg></div><div class=w id=h ><svg width=100 height=100><ellipse cx=50 cy=50 rx=40 ry=10 /></svg></div><div class=w id=i ><svg width=100 height=100><polygon points='0,0 100,0 0,100'/></svg></div><div class=w id=j ><svg width=100 height=100><rect x=10 y=10 width=80 height=80 rx=20 /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j"
+    }
+   ]
+  },
+  {
+   "name": "paint-fill-rule-and-opacity",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><path d='M0 0h80v80h-80z M20 20h40v40h-40z'/></svg></div><div class=w id=b ><svg width=100 height=100><path fill-rule=evenodd d='M0 0h80v80h-80z M20 20h40v40h-40z'/></svg></div><div class=w id=c ><svg width=100 height=100><path style='fill-rule:evenodd' d='M0 0h80v80h-80z M20 20h40v40h-40z'/></svg></div><div class=w id=d ><svg width=100 height=100><rect width=50 height=50 fill-opacity=0.5 /></svg></div><div class=w id=e ><svg width=100 height=100><rect width=50 height=50 opacity=0.5 /></svg></div><div class=w id=f ><svg width=100 height=100><g opacity=0.5><rect width=50 height=50 /><rect x=25 width=50 height=50 /></g></svg></div><div class=w id=g ><svg width=100 height=100><g fill-opacity=0.5><rect width=50 height=50 /><rect x=25 width=50 height=50 /></g></svg></div><div class=w id=h ><svg width=100 height=100><rect x=10 y=10 width=50 height=50 stroke=black stroke-width=10 opacity=0.5 /></svg></div><div class=w id=i ><svg width=100 height=100><rect x=10 y=10 width=50 height=50 stroke=black stroke-width=10 fill-opacity=0.5 stroke-opacity=0.5 /></svg></div><div class=w id=j ><svg width=100 height=100><rect width=50 height=50 fill='rgba(0,0,0,0.5)' fill-opacity=0.5 /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j"
+    }
+   ]
+  },
+  {
+   "name": "paint-strokes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><path d='M20 50h60' stroke=black stroke-width=10 /></svg></div><div class=w id=b ><svg width=100 height=100><path d='M20 50h60' stroke=black stroke-width=10 stroke-linecap=square /></svg></div><div class=w id=c ><svg width=100 height=100><path d='M20 50h60' stroke=black stroke-width=10 stroke-linecap=round /></svg></div><div class=w id=d ><svg width=100 height=100><path d='M20 80L50 20L80 80' fill=none stroke=black stroke-width=10 /></svg></div><div class=w id=e ><svg width=100 height=100><path d='M20 80L50 20L80 80' fill=none stroke=black stroke-width=10 stroke-linejoin=bevel /></svg></div><div class=w id=f ><svg width=100 height=100><path d='M20 80L50 20L80 80' fill=none stroke=black stroke-width=10 stroke-linejoin=round /></svg></div><div class=w id=g ><svg width=100 height=100><path d='M20 80L50 20L80 80' fill=none stroke=black stroke-width=10 stroke-miterlimit=1 /></svg></div><div class=w id=h ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='10 10' /></svg></div><div class=w id=i ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='10 10' stroke-dashoffset=5 /></svg></div><div class=w id=j ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='10' /></svg></div><div class=w id=k ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='10 5 5' /></svg></div><div class=w id=l ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='10 -5' /></svg></div><div class=w id=m ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=0 /></svg></div><div class=w id=n ><svg width=100 height=100><path d='M10 50h80' stroke=black /></svg></div><div class=w id=o ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width='10%' /></svg></div><div class=w id=p ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-opacity=0.5 /></svg></div><div class=w id=q ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='0 0' /></svg></div><div class=w id=r ><svg width=100 height=100><path d='M10 50h80' stroke=black stroke-width=10 stroke-dasharray='20,10' stroke-dashoffset=-5 /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l, #m, #n, #o, #p, #q, #r"
+    }
+   ]
+  },
+  {
+   "name": "paint-colors-and-cascade",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><style>.blue{fill:blue} .cp path{fill:blue} svg.s{fill:blue} .st{stroke:blue;stroke-width:10}</style><div class=w id=a ><svg width=100 height=100><rect width=50 height=50 fill=red /></svg></div><div class=w id=b ><svg width=100 height=100><rect class=blue width=50 height=50 fill=red /></svg></div><div class=w id=c ><svg width=100 height=100 class=s><rect width=50 height=50 fill=red /></svg></div><div class=w id=d ><svg width=100 height=100 class=s><rect width=50 height=50 /></svg></div><div class=w id=e ><svg width=100 height=100 style='color:red' fill=currentColor><rect width=50 height=50 style='color:blue' /></svg></div><div class=w id=f ><svg width=100 height=100 style='color:red'><g fill=currentColor style='color:blue'><rect width=50 height=50 style='color:red' /></g></svg></div><div class=w id=g ><svg width=100 height=100 style='color:blue'><rect width=50 height=50 fill=currentcolor /></svg></div><div class=w id=h ><svg width=100 height=100><rect width=50 height=50 fill='#ff4e00' /></svg></div><div class=w id=i ><svg width=100 height=100><rect width=50 height=50 fill='bogus' /></svg></div><div class=w id=j ><svg width=100 height=100><rect width=50 height=50 fill='url(#none)' /></svg></div><div class=w id=k ><svg width=100 height=100><rect width=50 height=50 fill='url(#none) red' /></svg></div><div class=w id=l ><svg width=100 height=100><rect width=50 height=50 style='fill:red' fill=blue /></svg></div><div class=w id=m ><svg width=100 height=100 class=st><rect x=20 y=20 width=50 height=50 fill=none /></svg></div><div class=w id=n ><svg width=100 height=100 fill=red><g fill=inherit><rect width=50 height=50 /></g></svg></div><div class=w id=o ><svg width=100 height=100><rect width=50 height=50 fill=' red ' /></svg></div><div class=w id=p ><svg width=100 height=100><rect width=50 height=50 FILL=red /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l, #m, #n, #o, #p"
+    },
+    {
+     "style": "#a rect, #b rect, #e rect, #f rect, #i rect, #j rect",
+     "props": [
+      "fill",
+      "stroke",
+      "stroke-width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "paint-visibility-display",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><g visibility=hidden><rect width=50 height=50 /><rect x=50 y=50 width=50 height=50 visibility=visible /></g></svg></div><div class=w id=b ><svg width=100 height=100><g display=none><rect width=50 height=50 /></g><rect x=50 y=50 width=50 height=50 /></svg></div><div class=w id=c ><svg width=100 height=100><g style='display:none'><rect width=50 height=50 /></g><rect x=50 y=50 width=50 height=50 style='display:block' /></svg></div><div class=w id=d ><svg width=100 height=100><defs><rect width=50 height=50 /></defs><clipPath><rect width=50 height=50 /></clipPath><title>Title</title><desc>Text</desc><foo><rect width=50 height=50 /></foo><rect x=50 y=50 width=50 height=50 /></svg></div><div class=w id=e ><svg width=100 height=100><g style='display:inline-block'><rect width=50 height=50 /></g></svg></div><div class=w id=f ><svg width=100 height=100><a href='#'><rect width=50 height=50 /></a></svg></div><div class=w id=g ><svg width=100 height=100><g style='display:flex'><rect width=50 height=50 style='display:table' /></g></svg></div><div class=w id=h ><svg width=100 height=100 style='visibility:hidden'><rect width=50 height=50 /><rect x=50 y=50 width=50 height=50 style='visibility:visible' /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h"
+    }
+   ]
+  },
+  {
+   "name": "paint-transforms",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><rect width=20 height=20 transform='translate(10 30)' /></svg></div><div class=w id=b ><svg width=100 height=100><rect width=20 height=20 transform='translate(10,30) scale(2)' /></svg></div><div class=w id=c ><svg width=100 height=100><rect x=40 y=40 width=20 height=20 transform='rotate(45 50 50)' /></svg></div><div class=w id=d ><svg width=100 height=100><g transform='matrix(1 0 0 1 30 30)'><rect width=20 height=20 transform='scale(0.5)' /></g></svg></div><div class=w id=e ><svg width=100 height=100><rect width=20 height=20 style='transform:translate(30px, 10px)' /></svg></div><div class=w id=f ><svg width=100 height=100><rect x=40 y=40 width=20 height=20 style='transform:rotate(45deg)' /></svg></div><div class=w id=g ><svg width=100 height=100><rect x=40 y=40 width=20 height=20 style='transform:rotate(45deg);transform-origin:50% 50%' /></svg></div><div class=w id=h ><svg width=100 height=100><rect width=20 height=20 transform='translate(30 30)' style='transform:translate(60px,60px)' /></svg></div><div class=w id=i ><svg width=100 height=100><rect width=20 height=20 transform='translate(30 30) bogus' /></svg></div><div class=w id=j ><svg width=100 height=100><rect width=20 height=20 transform='skewX(45)' /></svg></div><div class=w id=k ><svg width=100 height=100 viewBox='0 0 200 200'><rect width=20 height=20 style='transform:translate(50%, 0)' /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k"
+    }
+   ]
+  },
+  {
+   "name": "paint-viewbox-mapping",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=50 viewBox='0 0 10 10'><rect width=10 height=10 /></svg></div><div class=w id=b ><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='none'><rect width=10 height=10 /></svg></div><div class=w id=c ><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='xMinYMin'><rect width=10 height=10 /></svg></div><div class=w id=d ><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='xMaxYMax meet'><rect width=10 height=10 /></svg></div><div class=w id=e ><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='xMidYMin slice'><rect width=10 height=10 /></svg></div><div class=w id=f ><svg width=50 height=50 viewBox='10 10 20 20'><rect x=10 y=10 width=10 height=10 /></svg></div><div class=w id=g style='padding:25px;width:50px;height:50px'><svg width=50 height=50><rect x=-25 y=-25 width=100 height=100 /></svg></div><div class=w id=h style='padding:25px;width:50px;height:50px'><svg width=50 height=50 style='overflow:visible'><rect x=-25 y=-25 width=100 height=100 /></svg></div><div class=w id=i ><svg width=50 height=50 style='padding:10px;border:5px solid transparent' viewBox='0 0 10 10'><rect x=-5 y=-5 width=20 height=20 /></svg></div><div class=w id=j ><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='bogus'><rect width=10 height=10 /></svg></div><div class=w id=k ><svg style='width:100px;height:50px'><rect width=200 height=200 /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k"
+    }
+   ]
+  },
+  {
+   "name": "paint-shapes-attributes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a ><svg width=100 height=100><rect width=50 height=50 rx=10 ry=0 /></svg></div><div class=w id=b ><svg width=100 height=100><rect width=50 height=50 ry=10 /></svg></div><div class=w id=c ><svg width=100 height=100><rect width=50 height=50 rx=100 /></svg></div><div class=w id=d ><svg width=100 height=100><rect width='50%' height='20%' /></svg></div><div class=w id=e ><svg width=100 height=100><circle cx='50%' cy='50%' r='10%' /></svg></div><div class=w id=f ><svg width=100 height=100><rect width=-50 height=50 /></svg></div><div class=w id=g ><svg width=100 height=100><polygon points='0,0 100,0 0' /></svg></div><div class=w id=h ><svg width=100 height=100><path d='M0 0 L50 0 L50 50 Z garbage L0 50' /></svg></div><div class=w id=i ><svg width=100 height=100><path d='M10 10 A40 40 0 0 1 90 90 Z' /></svg></div><div class=w id=j ><svg width=100 height=100><path d='M10 50 Q50 0 90 50 T90 90 C80 90 20 90 10 50' /></svg></div><div class=w id=k ><svg width=100 height=100><path d='m10 10 h30 v30 h-30 z m40 40 l30 0 0 30 -30 0z' /></svg></div><div class=w id=l ><svg width=100 height=100><rect x='1em' width='2em' height='2em' style='font-size:10px' /></svg></div><div class=w id=m ><svg width=100 height=100><circle cx=50 cy=50 r=20 style='r:40px' /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l, #m"
+    }
+   ]
+  },
+  {
+   "name": "ars-icon",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><style>.h-5{height:1.25rem}.w-5{width:1.25rem}.text-green{color:#ff4e00}svg{display:block;vertical-align:middle}</style><div class=w id=a ><svg class='h-5 w-5 text-green' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><defs><clipPath id='x_a'><path fill='none' d='M0 0h40v40H0z'/></clipPath></defs><g fill='currentColor' clip-path='url(#x_a)'><path d='M20 0a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm0 36a16 16 0 1 1 0-32 16 16 0 0 1 0 32z' stroke-width='0'/></g></svg></div>",
+   "measure": [
+    {
+     "ink": "#a"
+    },
+    {
+     "boxes": "#a, #a svg"
+    }
+   ]
+  },
+  {
+   "name": "bbc-icon",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .c{width:400px} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><style>.i{display:block;fill:currentcolor}</style><div class=w id=a ><svg class=i width=30 height=30 viewBox='0 0 32 32'><path fill-rule=evenodd clip-rule=evenodd d='M0 0h32v32H0z M8 8h16v16H8z' shape-rendering=crispEdges fill=currentColor /></svg></div><div class=w id=b ><svg class=i width='1em' height='1em' viewBox='0 0 32 32' style='font-size:40px'><path d='M0 0h32v32z'/></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b"
+    },
+    {
+     "boxes": "#a svg, #b svg"
+    }
+   ]
+  },
+  {
+   "name": "style-element",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a><svg width=100 height=100><style>#a rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=b><svg width=100 height=100><rect width=50 height=50 /><style>#b rect{fill:red}</style></svg></div><div class=w id=c><svg width=100 height=100><style type='text/foo'>#c rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=d><svg width=100 height=100><style type='TEXT/CSS'>#d rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=e><svg width=100 height=100><style media='print'>#e rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=f><svg width=100 height=100><style media='screen'>#f rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=g><svg width=100 height=100><style>.h{background:red;width:30px;height:30px}</style><rect width=50 height=50 fill=blue /></svg></div><div class=w id=i><svg width=100 height=100><g><style>#i g > rect{fill:red}</style><rect width=50 height=50 /></g></svg></div><div class=w id=j><svg width=100 height=100><style type=''>#j rect{fill:red}</style><rect width=50 height=50 /></svg></div><div class=w id=k><svg width=100 height=100><style>#k rect{fill:red}</style><style>#k rect{fill:blue}</style><rect width=50 height=50 /></svg></div><p class=h id=h></p><style type='text/foo'>#m{width:30px;height:30px;background:red}</style><p id=m></p>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #i, #j, #k"
+    },
+    {
+     "style": "#a rect, #b rect, #c rect, #d rect, #e rect, #f rect, #g rect, #i rect, #j rect, #k rect",
+     "props": [
+      "fill"
+     ]
+    },
+    {
+     "boxes": "#h, #m"
+    },
+    {
+     "style": "#h",
+     "props": [
+      "background-color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "paint-miterlimit-invalid",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px Arial} .w{width:100px;height:100px;float:left;margin:0 10px 10px 0;position:relative}</style><div class=w id=a><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=0.5 /></svg></div><div class=w id=b><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=0 /></svg></div><div class=w id=c><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=-1 /></svg></div><div class=w id=d><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=1 /></svg></div><div class=w id=e><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=1.5 /></svg></div><div class=w id=f><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=2 /></svg></div><div class=w id=g><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter style='stroke-miterlimit:0.5' /></svg></div><div class=w id=h><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter style='stroke-miterlimit:0' /></svg></div><div class=w id=i><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter style='stroke-miterlimit:-1' /></svg></div><div class=w id=j><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter style='stroke-miterlimit:1' /></svg></div><div class=w id=k><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=abc /></svg></div><div class=w id=l><svg width=100 height=100><path d='M10 80L50 10L90 80' fill=none stroke=black stroke-width=12 stroke-linejoin=miter stroke-miterlimit=100 /></svg></div>",
+   "measure": [
+    {
+     "ink": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l"
+    },
+    {
+     "style": "#a path, #b path, #c path, #d path, #e path, #f path, #g path, #h path, #i path, #j path, #k path, #l path",
+     "props": [
+      "stroke-miterlimit"
+     ]
+    }
+   ]
+  }
+ ]
+}

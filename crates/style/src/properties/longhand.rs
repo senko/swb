@@ -16,7 +16,7 @@ use super::specified::{
     SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight,
     SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
-use super::transform;
+use super::{svg, transform};
 use crate::font_settings::{parse_feature_settings, parse_variation_settings};
 use crate::parse::color::parse_color;
 use crate::parse::grid;
@@ -29,11 +29,11 @@ use crate::parse::{
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain, CounterList, Cursor,
-    Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
-    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType,
-    ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    SpecifiedLengthPercentage as Lp, TableLayout, TextAlign, TextDecorationLine,
-    TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
+    FontSizeKeyword, FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition,
+    ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
+    SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
     VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
@@ -125,6 +125,17 @@ pub(crate) fn parse_longhand(
             L::CaptionSide => V::CaptionSide(parse_caption_side(p)?),
             L::EmptyCells => V::EmptyCells(keyword(p, EmptyCells::from_ident)?),
             L::PointerEvents => V::PointerEvents(parse_pointer_events(p)?),
+            L::Fill => V::Fill(svg::parse_paint(p)?),
+            L::FillRule => V::FillRule(keyword(p, FillRule::from_ident)?),
+            L::FillOpacity => V::FillOpacity(svg::parse_alpha(p)?),
+            L::Stroke => V::Stroke(svg::parse_paint(p)?),
+            L::StrokeWidth => V::StrokeWidth(svg::parse_stroke_width(p)?),
+            L::StrokeLinecap => V::StrokeLinecap(keyword(p, StrokeLinecap::from_ident)?),
+            L::StrokeLinejoin => V::StrokeLinejoin(keyword(p, StrokeLinejoin::from_ident)?),
+            L::StrokeMiterlimit => V::StrokeMiterlimit(svg::parse_miter_limit(p)?),
+            L::StrokeDasharray => V::StrokeDasharray(svg::parse_dash_array(p)?),
+            L::StrokeDashoffset => V::StrokeDashoffset(svg::parse_dash_offset(p)?),
+            L::StrokeOpacity => V::StrokeOpacity(svg::parse_alpha(p)?),
             L::Display => V::Display(parse_display(p)?),
             L::Position => V::Position(keyword(p, Position::from_ident)?),
             L::Float => V::Float(keyword(p, Float::from_ident)?),

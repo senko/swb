@@ -64,6 +64,17 @@ Format: source, license (for code), what it influenced.
   transform of SVG images) and CSS Images 3 (natural dimensions, the
   default sizing algorithm, the default object size) — `paint/src/svg/`,
   `layout/src/replaced.rs`
+- SVG 2 for inline SVG (ADR 0023): §6.6 presentation attributes and the
+  user-agent style sheet (`style/src/svg_attributes.rs`, `ua.css`); §8.2
+  the `viewBox` transform and §8.9 units (`layout/src/svg/viewport.rs`,
+  `draw.rs`); §9 path data and its error handling, §10 the equivalent
+  paths of the basic shapes, Appendix B.2.4 and B.2.5 (elliptical arc
+  conversion to the center parameterization, out-of-range radii)
+  (`layout/src/svg/path.rs`); §13 fill and stroke properties
+  (`style/src/properties/svg.rs`). CSS Transforms 1 (`transform-box`,
+  the initial `view-box` reference box) and CSS Color 4 (`currentColor`
+  as a computed keyword). The cubic Bézier approximation of circular arcs
+  (control points at 4/3 · tan(θ/4) of the radius) is standard geometry.
 - HTML Living Standard, forms: form submission, constructing the entry
   list, implicit submission, value sanitization, radio button groups,
   selectedness, labels, constraint validation (`engine/src/forms/`);
@@ -172,7 +183,13 @@ Format: source, license (for code), what it influenced.
   values (matching, `@font-face` descriptor, property), the serialization
   and the validity of the two settings properties, which of them the
   `font` shorthand resets, and that synthetic bold ignores
-  `font-variation-settings` (`tools/probes/web-fonts-2.json`, ADR 0022).
+  `font-variation-settings` (`tools/probes/web-fonts-2.json`, ADR 0022);
+  inline SVG: the sizes of the outer `<svg>` from its `width`, `height`
+  and `viewBox` (presentation attributes, natural size, invalid values),
+  its baseline and flex behaviour, the content-box clip, presentation
+  attribute precedence, `currentColor` inheritance, `url()` paints
+  without fallback, fill, stroke, dash, opacity and transform results by
+  their ink (`tools/probes/inline-svg.json`, ADR 0023).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.

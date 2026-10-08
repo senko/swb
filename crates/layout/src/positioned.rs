@@ -1530,17 +1530,25 @@ pub fn transform_matrix(fragment: &BoxFragment, border_rect: Rect) -> Option<Mat
     if !has_transform(fragment) {
         return None;
     }
-    let style = &fragment.style;
+    Some(style_transform(&fragment.style, border_rect))
+}
+
+/// The matrix of the `transform` and `transform-origin` of `style` for the
+/// reference box `reference` (in any coordinates; percentages refer to it):
+/// translate to the origin, apply the transform functions from left to
+/// right, translate back. A transform with infinite or NaN entries maps
+/// everything to the origin.
+pub(crate) fn style_transform(style: &ComputedStyle, reference: Rect) -> Matrix {
     let origin = Point::new(
-        border_rect.x + style.transform_origin.x.resolve(border_rect.width),
-        border_rect.y + style.transform_origin.y.resolve(border_rect.height),
+        reference.x + style.transform_origin.x.resolve(reference.width),
+        reference.y + style.transform_origin.y.resolve(reference.height),
     );
     let mut m = Matrix::translate(origin.x, origin.y);
     for function in style.transform.iter() {
         let f = match function {
             TransformFunction::Matrix(m) => Matrix::new(m[0], m[1], m[2], m[3], m[4], m[5]),
             TransformFunction::Translate(x, y) => {
-                Matrix::translate(x.resolve(border_rect.width), y.resolve(border_rect.height))
+                Matrix::translate(x.resolve(reference.width), y.resolve(reference.height))
             }
             TransformFunction::Scale(x, y) => Matrix::new(*x, 0.0, 0.0, *y, 0.0, 0.0),
             TransformFunction::Rotate(degrees) => {
@@ -1560,9 +1568,9 @@ pub fn transform_matrix(fragment: &BoxFragment, border_rect: Rect) -> Option<Mat
     }
     m = m.multiply(&Matrix::translate(-origin.x, -origin.y));
     if m.is_finite() {
-        Some(m)
+        m
     } else {
-        Some(Matrix::new(0.0, 0.0, 0.0, 0.0, origin.x, origin.y))
+        Matrix::new(0.0, 0.0, 0.0, 0.0, origin.x, origin.y)
     }
 }
 

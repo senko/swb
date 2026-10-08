@@ -761,6 +761,36 @@ impl Default for FontSizeOrigin {
     }
 }
 
+keyword_enum! {
+    /// The `fill-rule` property (SVG 2 §13.4.2).
+    FillRule {
+        NonZero = "nonzero",
+        EvenOdd = "evenodd",
+    }
+    default NonZero
+}
+
+keyword_enum! {
+    /// The `stroke-linecap` property (SVG 2 §13.5.4).
+    StrokeLinecap {
+        Butt = "butt",
+        Round = "round",
+        Square = "square",
+    }
+    default Butt
+}
+
+keyword_enum! {
+    /// The `stroke-linejoin` property (SVG 2 §13.5.5). `miter-clip` and
+    /// `arcs` are not supported (invalid), as in Chromium 148.
+    StrokeLinejoin {
+        Miter = "miter",
+        Round = "round",
+        Bevel = "bevel",
+    }
+    default Miter
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

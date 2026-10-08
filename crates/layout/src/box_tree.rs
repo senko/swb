@@ -33,7 +33,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use swb_dom::{Document, NodeData, NodeId, local_name};
+use swb_dom::{Document, NodeData, NodeId, local_name, ns};
 use swb_style::{
     ComputedStyle, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap, TextTransform,
     WhiteSpace,
@@ -43,6 +43,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::control::FormControls;
 use crate::media::Media;
 use crate::source_map::{CharSource, SourceMap};
+use crate::svg::{SvgBudget, SvgContent};
 use crate::{NaturalSize, ReplacedSizes};
 
 /// The maximum nesting depth of boxes (elements, pseudo-elements and
@@ -157,7 +158,7 @@ pub(crate) enum IndependentContents {
 }
 
 /// A replaced element.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Replaced {
     pub(crate) node: NodeId,
     /// The natural dimensions; `None` for an image that is not loaded or
@@ -165,6 +166,8 @@ pub(crate) struct Replaced {
     pub(crate) natural_size: Option<NaturalSize>,
     /// The media element, or `None` for an image.
     pub(crate) media: Option<Media>,
+    /// The content of an inline `<svg>` element.
+    pub(crate) svg: Option<Arc<SvgContent>>,
 }
 
 /// A list item marker.
@@ -371,6 +374,8 @@ pub(crate) struct BuildState {
     generated_text: usize,
     /// True once generated text was cut because of [`MAX_GENERATED_TEXT`].
     generated_cut: bool,
+    /// The limits of inline SVG content.
+    svg: SvgBudget,
 }
 
 impl BuildState {
@@ -444,7 +449,7 @@ pub(crate) fn build_independent(
     state: &mut BuildState,
 ) -> IndependentBox {
     let element = base.element();
-    if let Some(replaced) = element.and_then(|node| replaced(ctx, node, &base.style)) {
+    if let Some(replaced) = element.and_then(|node| replaced(ctx, node, &base.style, state)) {
         return IndependentBox {
             contents: IndependentContents::Replaced(replaced),
             base,
@@ -480,11 +485,32 @@ pub(crate) fn build_independent(
     }
 }
 
-/// The replaced element `node` (an image, a video or audio), or `None` if
-/// it is not one. `<canvas>` is not: without scripts, it shows its
-/// fallback content (as in Chromium with JavaScript disabled).
-fn replaced(ctx: &BuildContext<'_>, node: NodeId, style: &ComputedStyle) -> Option<Replaced> {
-    let media = if ctx.doc.element(node)?.is_html_named(&local_name!("img")) {
+/// The replaced element `node` (an image, a video or audio, an inline
+/// `<svg>`), or `None` if it is not one. `<canvas>` is not: without
+/// scripts, it shows its fallback content (as in Chromium with JavaScript
+/// disabled).
+fn replaced(
+    ctx: &BuildContext<'_>,
+    node: NodeId,
+    style: &ComputedStyle,
+    state: &mut BuildState,
+) -> Option<Replaced> {
+    let element = ctx.doc.element(node)?;
+    if element.name.ns == ns!(svg) && *element.local_name() == local_name!("svg") {
+        let natural_size = if style.contain.size {
+            contained_natural_size(style)
+        } else {
+            crate::svg::natural_size(element, style)
+        };
+        let content = crate::svg::build(ctx.doc, ctx.styles, node, &mut state.svg);
+        return Some(Replaced {
+            node,
+            natural_size: Some(natural_size),
+            media: None,
+            svg: Some(Arc::new(content)),
+        });
+    }
+    let media = if element.is_html_named(&local_name!("img")) {
         None
     } else {
         Some(Media::of(ctx.doc, node)?)
@@ -505,6 +531,7 @@ fn replaced(ctx: &BuildContext<'_>, node: NodeId, style: &ComputedStyle) -> Opti
             natural_size
         },
         media,
+        svg: None,
     })
 }
 

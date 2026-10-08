@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use encoding_rs::Encoding;
-use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
+use swb_dom::{Document, NodeId, is_html_whitespace, local_name, ns};
 use swb_layout::Point;
 use swb_net::{Destination, Request, Response, Url, escape_html};
 
@@ -239,11 +239,21 @@ impl Page {
             let Some(element) = doc.element(node) else {
                 continue;
             };
-            if !element.is_html() {
+            // `<style>` elements of the SVG namespace are document style
+            // sheets like the HTML ones (SVG 2 §6.4: they apply to the whole
+            // document, also to HTML elements). Chromium (measured,
+            // `tools/probes/inline-svg.json`, case `style-element`) loads
+            // only those whose `type` is empty or `text/css`, in both.
+            let svg_style =
+                element.name.ns == ns!(svg) && *element.local_name() == local_name!("style");
+            if !element.is_html() && !svg_style {
                 continue;
             }
             match *element.local_name() {
                 local_name!("style") => {
+                    if !element.attr("type").is_none_or(is_css_type) {
+                        continue;
+                    }
                     self.sheets.push(SheetSlot {
                         css: Some(doc.text_content(node)),
                         base_url: base.clone(),
@@ -455,6 +465,12 @@ fn document_title(doc: &Document) -> String {
             .collect::<Vec<_>>()
             .join(" ")
     })
+}
+
+/// True for a `type` of a `<style>` element that Chromium loads: empty or
+/// `text/css`, ASCII case-insensitive (HTML Standard §4.2.6).
+fn is_css_type(value: &str) -> bool {
+    value.is_empty() || value.eq_ignore_ascii_case("text/css")
 }
 
 /// True for a `rel` value that makes a `link` a primary stylesheet:
