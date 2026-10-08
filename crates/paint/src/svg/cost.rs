@@ -2,8 +2,9 @@
 //! to bound both for one rendering.
 //!
 //! Time: the work for a rendering of `p` pixels is
-//! `fixed + linear * p + quadratic * p²` units; one unit is about the time
-//! to fill one pixel of a path (0.3 ns on a 2025 desktop CPU).
+//! `fixed + rows * sqrt(p) + linear * p + quadratic * p²` units; one unit is
+//! about the time to fill one pixel of a path (0.3 ns on a 2025 desktop
+//! CPU).
 //!
 //! - `linear` counts how often the content covers the canvas: every path,
 //!   image and layer adds the fraction of the canvas that its bounding box
@@ -15,8 +16,15 @@
 //!   pixels per pixel, and the radius in pixels grows with the rendering
 //!   size.
 //! - `fixed` does not depend on the size: every path and its segments,
-//!   dashes (tiny-skia makes every dash a path segment) and the decoding of
-//!   embedded raster images.
+//!   dashes (tiny-skia makes every dash a path segment), the decoding of
+//!   embedded raster images, and the edges of paths that do not depend on
+//!   the rows they cross (`edges.rs`: the pairs of edges that can cross make
+//!   the time of a dense path grow with the square of its segments, and a
+//!   lower resolution does not remove them).
+//! - `rows` is the cost of the rows that the edges of paths cross. The
+//!   heights of the edges are in canvas units; a rendering of `p` pixels
+//!   makes them `sqrt(p / canvas)` times as tall, so the term is
+//!   `rows * sqrt(p)`.
 //!
 //! resvg renders clip paths, masks, pattern tiles and `feImage` content
 //! for every element that uses them, also when usvg shares one tree
@@ -34,6 +42,8 @@
 use std::collections::HashMap;
 
 use usvg::{self, Group, Node, NonZeroRect, Paint, filter};
+
+use super::edges::{Draw, EdgeSweep, Edges, SWEEP_SEGMENT, Segment, Work};
 
 /// The cost of one neighbor of a morphology filter.
 const MORPHOLOGY: f64 = 32.0;
@@ -70,6 +80,9 @@ pub(crate) const BLEND: f64 = 8.0;
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(super) struct Cost {
     pub(super) fixed: f64,
+    /// The coefficient of the square root of the pixels: the rows that the
+    /// edges cross.
+    rows: f64,
     linear: f64,
     quadratic: f64,
     /// The largest sum of nested layers, in canvases (the canvas itself is
@@ -84,7 +97,13 @@ impl Cost {
     /// A cost that is not finite (an overflow, or NaN from one) admits
     /// nothing.
     pub(super) fn max_pixels(&self, work: f64, layer_pixels: f64) -> Option<f64> {
-        let terms = [self.fixed, self.linear, self.quadratic, self.layers];
+        let terms = [
+            self.fixed,
+            self.rows,
+            self.linear,
+            self.quadratic,
+            self.layers,
+        ];
         if !terms.iter().all(|t| t.is_finite()) {
             return None;
         }
@@ -93,7 +112,9 @@ impl Cost {
             return None;
         }
         let (a, b) = (self.quadratic, self.linear);
-        let by_work = if a > 0.0 {
+        let by_work = if self.rows > 0.0 {
+            self.pixels_for(work)
+        } else if a > 0.0 {
             // The positive root of a p² + b p = work, in the form that
             // does not cancel; an overflow in the root gives 0, not
             // infinity.
@@ -117,7 +138,37 @@ impl Cost {
 
     /// The work of a rendering of `pixels` canvas pixels.
     pub(super) fn work(&self, pixels: f64) -> f64 {
-        self.fixed + self.linear * pixels + self.quadratic * pixels * pixels
+        self.fixed
+            + self.rows * pixels.sqrt()
+            + self.linear * pixels
+            + self.quadratic * pixels * pixels
+    }
+
+    /// The number of pixels whose work, without the fixed part, is `work`
+    /// (positive): a bisection on the square root of the pixels, since the
+    /// work is monotone in it. Infinite if the work does not grow.
+    fn pixels_for(&self, work: f64) -> f64 {
+        let beyond = |side: f64| {
+            side * (self.rows + side * (self.linear + side * side * self.quadratic)) >= work
+        };
+        let (mut low, mut high) = (0.0, 1.0f64);
+        while !beyond(high) {
+            low = high;
+            high *= 2.0;
+            if high > 1e150 {
+                return f64::INFINITY;
+            }
+        }
+        for _ in 0..80 {
+            let middle = f64::midpoint(low, high);
+            if beyond(middle) {
+                high = middle;
+            } else {
+                low = middle;
+            }
+        }
+        // Rounded down, so that the work fits.
+        low * low
     }
 }
 
@@ -127,6 +178,7 @@ pub(super) fn estimate(tree: &usvg::Tree) -> Cost {
     let mut estimator = Estimator {
         canvas,
         referenced: HashMap::new(),
+        edges: true,
     };
     estimator.subtree(tree.root(), CANVAS)
 }
@@ -154,6 +206,9 @@ struct Estimator {
     /// `feImage`s, by root group. resvg renders them for every use; usvg
     /// shares one root between uses when it can.
     referenced: HashMap<*const Group, Cost>,
+    /// Whether to count the edges of paths (`edges.rs`); a test switches it
+    /// off to see the other terms alone.
+    edges: bool,
 }
 
 impl Estimator {
@@ -234,6 +289,7 @@ impl Estimator {
         // The content was estimated on one canvas; the pixmap can be larger.
         let scale = size.max(1.0);
         cost.fixed += inner.fixed;
+        cost.rows += inner.rows * scale.sqrt();
         cost.linear += BLEND * size + inner.linear * scale;
         cost.quadratic += inner.quadratic * scale;
         cost.layers = cost.layers.max(above + size + inner.layers);
@@ -249,6 +305,7 @@ impl Estimator {
             // canvas.
             let inner = estimate(nested);
             cost.fixed += inner.fixed;
+            cost.rows += inner.rows;
             cost.linear += BLEND + inner.linear;
             cost.quadratic += inner.quadratic;
             cost.layers = cost.layers.max(surface.above + 1.0 + inner.layers);
@@ -296,9 +353,32 @@ impl Estimator {
         }
     }
 
+    /// Adds the scan conversion of the edges of a path (see `edges.rs`). A
+    /// stroke counts as an outline, also if it is thin enough for a
+    /// hairline at some sizes: whether it is depends on the size of the
+    /// rendering, and the outline costs more.
+    fn add_edges(&self, cost: &mut Cost, path: &usvg::Path) {
+        let edges = path_edges(path);
+        // A fill and a stroke scan-convert the path separately.
+        let mut work = Work::default();
+        if path.fill().is_some() {
+            work = work + edges.work(true, Draw::Fill);
+        }
+        if path.stroke().is_some() {
+            work = work + edges.work(true, Draw::Stroke);
+        }
+        cost.fixed += SWEEP_SEGMENT * path.data().verbs().len() as f64 + work.fixed;
+        // The heights are in canvas units: `rows` pixel rows for a canvas
+        // of `canvas` pixels is `sqrt(pixels / canvas)` per unit.
+        cost.rows += work.rows / self.canvas.sqrt();
+    }
+
     /// Adds a path: its outline, its area, its dashes and its pattern tiles.
     fn add_path(&mut self, cost: &mut Cost, path: &usvg::Path, surface: Surface) {
         cost.fixed += PATH + SEGMENT * path.data().verbs().len() as f64;
+        if self.edges {
+            self.add_edges(cost, path);
+        }
         let area = path.abs_stroke_bounding_box().to_non_zero_rect();
         cost.linear += paint_weight(path) * self.fraction(area, surface.size);
         if let Some(dashes) = path.stroke().and_then(usvg::Stroke::dasharray) {
@@ -337,6 +417,40 @@ impl Estimator {
     }
 }
 
+/// The edges of `path` in the units of the tree's canvas (see
+/// `edges.rs`).
+fn path_edges(path: &usvg::Path) -> Edges {
+    use usvg::tiny_skia_path::PathSegment as S;
+    let transform = path.abs_transform();
+    let (sx, sy) = transform.get_scale();
+    let grow = path.stroke().map_or(0.0, |s| {
+        let miter = match s.linejoin() {
+            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => s.miterlimit().get(),
+            usvg::LineJoin::Round | usvg::LineJoin::Bevel => 1.0,
+        };
+        s.width().get() / 2.0 * miter.max(std::f32::consts::SQRT_2) * sx.max(sy)
+    });
+    let bounds = path.abs_bounding_box();
+    let rows = (bounds.top() - grow, bounds.bottom() + grow);
+    let columns = (bounds.left() - grow, bounds.right() + grow);
+    let mut sweep = EdgeSweep::new(rows, columns, grow, path.data().verbs().len() + 1);
+    let point = |p: usvg::tiny_skia_path::Point| {
+        (
+            p.x * transform.sx + p.y * transform.kx + transform.tx,
+            p.x * transform.ky + p.y * transform.sy + transform.ty,
+        )
+    };
+    let segments = path.data().segments().map(|segment| match segment {
+        S::MoveTo(p) => Segment::Move(point(p)),
+        S::LineTo(p) => Segment::Line(point(p)),
+        S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
+        S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
+        S::Close => Segment::Close,
+    });
+    sweep.path(segments, path.fill().is_some());
+    sweep.finish()
+}
+
 /// The cost per pixel of painting a path: 1 for opaque colors (tiny-skia
 /// fills them without blending), [`BLEND`] otherwise.
 fn paint_weight(path: &usvg::Path) -> f64 {
@@ -365,25 +479,46 @@ fn control_polygon_length(path: &usvg::tiny_skia_path::Path) -> f32 {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write;
+
     use super::*;
 
-    fn cost(content: &str) -> Cost {
+    fn tree(content: &str) -> usvg::Tree {
         let source = format!(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">{content}</svg>"#
         );
-        estimate(&usvg::Tree::from_str(&source, &usvg::Options::default()).unwrap())
+        usvg::Tree::from_str(&source, &usvg::Options::default()).unwrap()
+    }
+
+    fn cost(content: &str) -> Cost {
+        estimate(&tree(content))
+    }
+
+    /// The estimate without the edges of paths: the area, layers and the
+    /// fixed costs.
+    fn cost_without_edges(content: &str) -> Cost {
+        let tree = tree(content);
+        let canvas = f64::from(tree.size().width()) * f64::from(tree.size().height());
+        let mut estimator = Estimator {
+            canvas,
+            referenced: HashMap::new(),
+            edges: false,
+        };
+        estimator.subtree(tree.root(), CANVAS)
     }
 
     const WORK: f64 = 1e9;
+    /// The render budget of `svg/mod.rs`.
+    const MAX_WORK: f64 = 2e9;
     const LAYERS: f64 = 1e8;
 
     #[test]
     fn paths_count_by_area() {
-        let full = cost("<rect width='10' height='10'/>");
+        let full = cost_without_edges("<rect width='10' height='10'/>");
         assert!((full.linear - 1.0).abs() < 0.01, "{full:?}");
-        let quarter = cost("<rect width='5' height='5'/>");
+        let quarter = cost_without_edges("<rect width='5' height='5'/>");
         assert!((quarter.linear - 0.25).abs() < 0.01, "{quarter:?}");
-        let many = cost(&"<rect width='10' height='10'/>".repeat(100));
+        let many = cost_without_edges(&"<rect width='10' height='10'/>".repeat(100));
         assert!((many.linear - 100.0).abs() < 0.5, "{many:?}");
         assert_eq!(
             many.max_pixels(WORK, LAYERS),
@@ -391,6 +526,101 @@ mod tests {
         );
         // Every path costs a fixed amount too.
         assert!(many.fixed >= 100.0 * PATH, "{many:?}");
+    }
+
+    /// A path of `curves` overlapping cubic curves that reach across the
+    /// whole height of the 10 x 10 canvas.
+    fn dense(curves: usize) -> String {
+        let mut d = String::from("M0 0");
+        for i in 0..curves {
+            let k = (i % 5) as f32 * 0.1;
+            write!(d, "C{k} 0 {} 10 {} 5", 10.0 - k, (7 * i) % 9).unwrap();
+        }
+        format!("<path d='{d}'/>")
+    }
+
+    #[test]
+    fn overlapping_edges_make_the_cost_quadratic() {
+        let (one, two) = (cost(&dense(2000)), cost(&dense(4000)));
+        // Twice the curves, four times the pairs of edges (the rest of the
+        // fixed cost grows only with the curves).
+        assert!(two.fixed > 3.0 * one.fixed, "{one:?} {two:?}");
+        assert!(one.fixed < 1e8, "{one:?}");
+        // 40,000 curves take seconds to render at any resolution: the
+        // image is too expensive.
+        let many = cost(&dense(40_000));
+        assert!(many.fixed > 2e9, "{many:?}");
+        // The same curves apart from each other are cheap: each curve
+        // spans a tenth of the height.
+        let mut apart = String::new();
+        for i in 0..1000 {
+            let y = (i % 10) as f32;
+            write!(
+                apart,
+                "<path d='M0 {y}C2 {y} 8 {} 9 {}'/>",
+                y + 1.0,
+                y + 0.5
+            )
+            .unwrap();
+        }
+        let apart = cost(&apart);
+        assert!(apart.fixed < two.fixed / 3.0, "{apart:?} {two:?}");
+    }
+
+    /// A generator of numbers in 0 to 10 for tests (a linear congruential
+    /// generator).
+    fn numbers(seed: u32) -> impl FnMut() -> f32 {
+        let mut state = seed;
+        move || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 8) as f32 / (1u32 << 24) as f32 * 10.0
+        }
+    }
+
+    #[test]
+    fn moderately_dense_images_are_affordable() {
+        // 100 paths of 400 random curves each across the canvas took 0.15 s
+        // inline (ADR 0023): affordable, and at a large size they get a
+        // lower resolution instead of being rejected.
+        let mut random = numbers(5);
+        for (paths, curves) in [(100, 400), (30, 1000), (10, 2000), (3, 5000)] {
+            let mut body = String::new();
+            for _ in 0..paths {
+                let mut d = format!("M{} {}", random(), random());
+                for _ in 0..curves {
+                    let c = [(); 6].map(|()| random());
+                    write!(d, "C{} {} {} {} {} {}", c[0], c[1], c[2], c[3], c[4], c[5]).unwrap();
+                }
+                write!(body, "<path d='{d}'/>").unwrap();
+            }
+            let cost = cost(&body);
+            assert!(cost.fixed < MAX_WORK / 2.0, "{paths}x{curves}: {cost:?}");
+            // The canvas has 100 pixels.
+            let at_100px = cost.max_pixels(MAX_WORK, LAYERS).unwrap() / 100.0;
+            assert!(at_100px > 1000.0, "{paths}x{curves}: {at_100px}");
+            // The work at the largest size is the budget.
+            let pixels = cost.max_pixels(MAX_WORK, LAYERS).unwrap();
+            assert!((cost.work(pixels) - MAX_WORK).abs() / MAX_WORK < 1e-6);
+        }
+    }
+
+    #[test]
+    fn a_stroked_random_walk_is_affordable() {
+        let mut random = numbers(9);
+        let (mut x, mut y) = (5.0f32, 5.0f32);
+        let mut d = format!("M{x} {y}");
+        for _ in 0..40_000 {
+            x = (x + random() / 10.0 - 0.5).clamp(0.0, 10.0);
+            y = (y + random() / 10.0 - 0.5).clamp(0.0, 10.0);
+            write!(d, "L{x} {y}").unwrap();
+        }
+        let walk = cost(&format!(
+            "<path d='{d}' fill='none' stroke='black' stroke-width='0.1'/>"
+        ));
+        assert!(
+            walk.max_pixels(MAX_WORK, LAYERS).is_some_and(|p| p > 1e5),
+            "{walk:?}"
+        );
     }
 
     #[test]
@@ -453,6 +683,7 @@ mod tests {
     fn costs_that_are_not_finite_admit_nothing() {
         let base = Cost {
             fixed: 0.0,
+            rows: 0.0,
             linear: 1.0,
             quadratic: 0.0,
             layers: 0.0,

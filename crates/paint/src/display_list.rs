@@ -485,6 +485,8 @@ impl DisplayList {
         let mut local = Some(point);
         let mut hit = None;
         let mut sticky = StickyCache::default();
+        // The path work of the whole test (see `hit_path`).
+        let work = crate::hit_path::HitWork::new();
         // The ends of the transform groups, once a group is skipped.
         let mut ends: Option<Vec<usize>> = None;
         let inside = |rect: &Rect, local: Option<Point>| local.is_some_and(|p| rect.contains(p));
@@ -501,11 +503,13 @@ impl DisplayList {
                     transform,
                     bounds,
                 } => {
-                    let in_clip = inside(bounds, local)
+                    // The clip path is only tested inside an enclosing clip.
+                    let in_clip = clips.last().is_none_or(|&c| c)
+                        && inside(bounds, local)
                         && local.zip(transform.invert()).is_some_and(|(p, inverse)| {
-                            crate::hit_path::clip_contains(clip, inverse.apply(p))
+                            crate::hit_path::clip_contains(clip, inverse.apply(p), &work)
                         });
-                    clips.push(clips.last().is_none_or(|&c| c) && in_clip);
+                    clips.push(in_clip);
                 }
                 DisplayItem::PushViewportClip => clips.push(true),
                 DisplayItem::PopClip | DisplayItem::PopSvgClip => {
@@ -551,7 +555,7 @@ impl DisplayList {
                     stroke_width,
                 } if clips.last().is_none_or(|&c| c)
                     && local.is_some_and(|p| {
-                        crate::hit_path::contains(path, transform, *fill, *stroke_width, p)
+                        crate::hit_path::contains(path, transform, *fill, *stroke_width, p, &work)
                     }) =>
                 {
                     hit = Some(*node);
@@ -1927,6 +1931,55 @@ mod tests {
             skipped.hit_test(Point::new(55.0, 5.0), Point::default()),
             None
         );
+    }
+
+    /// 300 groups that use one clip path of 40 shapes with 40,000 curves
+    /// each, and a point inside the bounds that no shape contains: the
+    /// work budget ends the test (unbounded, it takes 20 s in a release
+    /// build).
+    #[test]
+    fn hit_testing_dense_clip_paths_is_bounded() {
+        use swb_layout::svg::{ClipShape, PathSegment};
+        let p = Point::new;
+        let mut segments = vec![PathSegment::MoveTo(p(0.0, 0.0))];
+        for i in 0..40_000 {
+            let k = (i % 50) as f32;
+            segments.push(PathSegment::CubicTo(
+                p(k, 0.0),
+                p(100.0 - k, 100.0),
+                p(((7 * i) % 98) as f32, 50.0),
+            ));
+        }
+        let path = Arc::new(SvgPath::from_segments(&segments).expect("a path"));
+        let shape = || ClipShape {
+            path: Arc::clone(&path),
+            transform: Matrix::IDENTITY,
+            rule: FillRule::EvenOdd,
+            clip: None,
+        };
+        let clip = Arc::new(ClipPath {
+            shapes: (0..40).map(|_| shape()).collect(),
+            outer: None,
+        });
+        let mut items = Vec::new();
+        for _ in 0..300 {
+            items.push(DisplayItem::PushSvgClip {
+                clip: Arc::clone(&clip),
+                transform: Matrix::IDENTITY,
+                bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
+            });
+            items.push(DisplayItem::HitRegion {
+                rect: Rect::new(0.0, 0.0, 100.0, 100.0),
+                node: NodeId::DOCUMENT,
+            });
+            items.push(DisplayItem::PopSvgClip);
+        }
+        let list = DisplayList { items };
+        let start = std::time::Instant::now();
+        // Whether the point is in the clip does not matter: the test ends.
+        let _ = list.hit_test(Point::new(99.5, 99.5), Point::default());
+        let elapsed = start.elapsed();
+        assert!(elapsed < std::time::Duration::from_secs(5), "{elapsed:?}");
     }
 
     #[test]

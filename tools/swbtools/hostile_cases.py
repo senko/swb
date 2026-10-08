@@ -1315,3 +1315,78 @@ def inline_svg_clip_nested_shapes() -> Page:
     group = "<g clip-path='url(#k)'><rect width=1280 height=800 fill=red /></g>"
     defs = f"<defs>{inner}<clipPath id=k>{circles}</clipPath></defs>"
     return Page(doc(f"<svg width=1280 height=800>{defs}{group * 200}</svg>"))
+
+
+def dense_path(curves: int = 40_000) -> str:
+    """The `d` of a path of overlapping cubic curves in a 100 x 100 box: each curve
+    reaches across the whole height, so tiny-skia's scan converter has `curves` active
+    edges that cross each other (about 4 s for 40,000, the square of the segments)."""
+    parts = ["M0 0"]
+    for i in range(curves):
+        k = i % 50
+        parts.append(f"C{k} 0 {100 - k} 100 {(7 * i) % 98} 50")
+    return "".join(parts)
+
+
+@case(
+    "inline SVG: four paths of 40,000 overlapping curves in a 100 x 100 <svg>, filled with and "
+    "without anti-aliasing, stroked, and filled and stroked: the time of a scan conversion "
+    "grows with the square of the segments, so the pairs of edges count against the path work "
+    "budget (ADR 0023)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_dense_paths() -> Page:
+    d = dense_path()
+    paths = (
+        f"<path d='{d}' fill=red />"
+        f"<path d='{d}' fill=red shape-rendering=crispEdges />"
+        f"<path d='{d}' fill=none stroke=blue stroke-width=2 />"
+        f"<path d='{d}' fill=green stroke=blue />"
+    )
+    return Page(doc(f"<svg width=100 height=100>{paths}</svg>"))
+
+
+@case(
+    "inline SVG: a clip path of one path of 40,000 overlapping curves, used by five elements: "
+    "the coverage fill counts the pairs of edges (ADR 0023)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_dense_clip() -> Page:
+    clip = f"<clipPath id=k><path d='{dense_path()}' /></clipPath>"
+    uses = "<rect width=100 height=100 clip-path='url(#k)' />" * 5
+    return Page(doc(f"<svg width=100 height=100><defs>{clip}</defs>{uses}</svg>"))
+
+
+@case(
+    "inline SVG: a clip path of 40 paths of 3,000 overlapping curves, used by 300 elements "
+    "(12,000 fills, and 12,000 point tests per hit test): the cost of counting the segments is "
+    "charged also for fills that do not fit (ADR 0023)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_dense_clip_references() -> Page:
+    d = dense_path(3_000)
+    clip = "<clipPath id=k>" + f"<path d='{d}' />" * 40 + "</clipPath>"
+    uses = "<rect width=100 height=100 clip-path='url(#k)' />" * 300
+    return Page(doc(f"<svg width=100 height=100><defs>{clip}</defs>{uses}</svg>"))
+
+
+@case(
+    "SVG image with a path of 40,000 overlapping curves: its estimate exceeds the render budget "
+    "at any resolution (ADR 0011)",
+    expect_log="too expensive",
+)
+def svg_dense_path() -> Page:
+    svg = f"<svg {SVG_NS} width='100' height='100'><path d='{dense_path()}' fill='red'/></svg>"
+    return img_page(svg, "width=100 height=100")
+
+
+@case(
+    "SVG image with 100 paths of 400 overlapping curves each, shown at 1000 x 1000: the paths "
+    "are cheap alone but add up, and the image is drawn at a lower resolution (about 120,000 "
+    "pixels, 'in at most' in the debug log; ADR 0011)"
+)
+def svg_many_dense_paths() -> Page:
+    d = dense_path(400)
+    paths = f"<path d='{d}' fill='red'/>" * 100
+    svg = f"<svg {SVG_NS} width='100' height='100'>{paths}</svg>"
+    return img_page(svg, "width=1000 height=1000")

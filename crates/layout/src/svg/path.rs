@@ -12,7 +12,7 @@
 //! Basic shapes: <https://svgwg.org/svg2-draft/shapes.html>. Ellipses and
 //! rounded corners are drawn with one cubic Bézier per quarter.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use svgtypes::{PathParser, PathSegment as Token, PointsParser};
 
@@ -39,6 +39,9 @@ pub enum PathSegment {
 pub struct SvgPath {
     segments: Vec<PathSegment>,
     bounds: Rect,
+    /// [`SvgPath::fill_bounds`], computed on first use: it walks all
+    /// segments, and every element that refers to a clip path asks for it.
+    fill_bounds: OnceLock<Option<Rect>>,
 }
 
 impl SvgPath {
@@ -72,6 +75,10 @@ impl SvgPath {
     /// 50 50 M 80 80` is `10 10 40 40`). `None` for a path without a
     /// point.
     pub fn fill_bounds(&self) -> Option<Rect> {
+        *self.fill_bounds.get_or_init(|| self.compute_fill_bounds())
+    }
+
+    fn compute_fill_bounds(&self) -> Option<Rect> {
         let mut bounds = Bounds::default();
         let mut pending: Option<Point> = None;
         let mut current = Point::default();
@@ -369,6 +376,7 @@ impl<'a> PathBuilder<'a> {
         }
         let (x0, y0, x1, y1) = bounds?;
         Some(SvgPath {
+            fill_bounds: OnceLock::new(),
             segments: self.segments,
             bounds: Rect::new(x0, y0, x1 - x0, y1 - y0),
         })

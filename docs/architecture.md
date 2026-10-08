@@ -132,12 +132,13 @@ Rules:
   limits that are checked before conversion: source size, XML entities,
   XML nodes and depth, style sheets (`css.rs`), the size of the render
   tree with copies, reference depth and cycles (`expansion.rs`). An
-  estimate of the rendering time and memory (`cost.rs`) sets the
-  resolution. SVG images load only `data:` URLs. They are rendered at the
-  device pixel size of each tile and cached per document (`VectorCache`
-  in the engine's `Images`, 128 MiB). One frame renders new renderings up
-  to a work budget; after that, images use the closest cached rendering
-  or are not drawn until a later repaint.
+  estimate of the rendering time and memory (`cost.rs`, with the cost of
+  dense paths from `edges.rs`) sets the resolution. SVG images load only
+  `data:` URLs. They are rendered at the device pixel size of each tile
+  and cached per document (`VectorCache` in the engine's `Images`,
+  128 MiB). One frame renders new renderings up to a work budget; after
+  that, images use the closest cached rendering or are not drawn until a
+  later repaint.
 - **Inline SVG** (ADR 0023): an `svg` element in HTML is a replaced box
   (`style::is_replaced_element`); its natural size comes from its
   `width`, `height` and `viewBox` attributes, which are also
@@ -161,12 +162,14 @@ Rules:
   rectangle becomes a `PushSvgClip` group, which the rasterizer multiplies
   by the coverage of the clip shapes (`paint/src/raster/svg_clip.rs`).
   `DisplayList::hit_test` finds shapes by their geometry
-  (`paint/src/hit_path.rs`), so an SVG `a` works as a link. The rasterizer
-  draws paths with tiny-skia within a work budget per strip
-  (`paint/src/raster/path.rs`). Limits per document: 50,000 shapes and
-  50,000 groups, 1,000,000 path segments, groups 64 deep, 256 opacity
-  layers and 256 clip layers, 20,000 elements in the copies of `use`
-  elements.
+  (`paint/src/hit_path.rs`, within a work budget per hit test), so an SVG
+  `a` works as a link. The rasterizer draws paths with tiny-skia within a
+  work budget per strip (`paint/src/raster/path.rs`; the cost of a path
+  includes the rows that its edges cross and the pairs of edges whose
+  boxes overlap, `paint/src/svg/edges.rs`, ADR 0023 part 3). Limits per
+  document: 50,000 shapes and 50,000 groups, 1,000,000 path segments,
+  groups 64 deep, 256 opacity layers and 256 clip layers, 20,000
+  elements in the copies of `use` elements.
 - **Web fonts** (ADR 0022): the stylist keeps the `@font-face` rules
   (`swb_style::FontFace`) with their `@media` chain. The engine gives the
   applicable faces to the `FontContext` (`set_web_fonts`), which owns the

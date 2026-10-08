@@ -186,7 +186,8 @@ Content from the network must not cause unbounded work or memory:
   that their estimate allows and then cached: inline paths are drawn
   directly for every frame, so the budget decides which paths draw, not
   the resolution. A stroke with more than 100,000 dashes (estimated
-  from the length of its control polygon) is drawn solid.
+  from the length of its control polygon) is drawn solid. The edges of a
+  dense path cost more than its segments and pixels (part 3).
 - Non-finite coordinates end a path; matrices and bounds that are not
   finite draw nothing. tiny-skia does not draw a path whose device
   bounds exceed the 32-bit range.
@@ -390,8 +391,229 @@ Hostile-page cases: `inline-svg-use-bomb`, `-many-uses`, `-use-cycles`,
 `-use-hidden-subtree`, `-clip-chain`, `-clip-layers`, `-clip-shapes`,
 `-clip-nested-shapes`.
 
+## Part 3: the raster cost of dense paths
+
+The review of part 2 found that the cost estimate (`SEGMENT`, 30 units, 9 ns)
+is wrong for dense paths. One path of 40,000 cubic curves that each reach
+across the height of a 100 x 100 px `<svg>` took 2.6 s (anti-aliased) or
+1.9 s (not anti-aliased) in tiny-skia on the measuring machine (about 4 s on
+the review machine), while the estimate charged 1 ms. Five fills took 22 s,
+five clip references 20 s, and 40 shapes in 300 references more than 120 s.
+
+### Measurements
+
+tiny-skia 0.12.0 (the version swb uses), release build, `Pixmap::fill_path`
+and `stroke_path` on a pixmap of the given size, best of five, in CPU time of
+the thread (the machine was busy, wall time varied by a factor of two). The
+measuring program included `edges.rs` and printed the counts and the work of
+the model next to the time; it is not in the repository yet (roadmap
+backlog). The numbers below are the source of the model; the model does not
+describe how tiny-skia works.
+
+| Case (fill, AA; 100 px wide, edges 100 rows tall unless noted) | n edges | Time |
+|---|---|---|
+| Lines in a zigzag (all overlap in y, none cross) | 25,600 | 54 ms |
+| Random lines (cross) | 25,600 | 1,107 ms |
+| Random cubic curves | 25,600 | 2,154 ms |
+| Cubics of the repro (E 61 rows) | 40,000 | 2,818 ms |
+| Random lines 4 rows tall on 100 x 1,000 | 200,000 | 906 ms |
+| Histogram: bars 0.5 px wide on 1,200 x 780, one path | 5,000 / 10,000 bars | 303 / 885 ms |
+| Random walks of 200 segments of 3 px, 1,280 x 800, filled | 200,000 | 96 ms |
+
+| Case (stroke, AA, 1,200 x 780) | Time |
+|---|---|
+| Noisy line chart, 40,000 points, 1 px | 236 ms |
+| The same, 2 px / 10 px | 1,344 / 1,476 ms |
+| Random walk of 200,000 segments, 1 px / 2 px | 32 / 244 ms |
+| 20,000 vertical lines of 780 px, 1 px / 2 px | 816 / 504 ms |
+| 20,000 horizontal lines of 1,200 px, 1 px | 428 ms |
+| Random cubics, 100 px pixmap, 6,400 curves, 1 px / 2 px | 32 / 360 ms |
+
+What the numbers show:
+
+- A fill takes time in proportion to the *edge rows*, the sum over edges of
+  the rows that they cross: 20 ns (zigzag) to 45 ns (histogram) per row of a
+  straight edge, 60 to 300 ns per row of a curve, and up to 300 ns for each
+  edge (random walks of short edges). Edge height hardly matters for curves that
+  cross: 6,400 random cubics take 78 ms at 3 rows and 101 ms at 100 rows.
+- Edges that cross cost more. A pair of random curves that cross costs
+  2.6 ns, a pair that overlaps in y without crossing almost nothing: the
+  zigzag of 25,600 lines has 328 million pairs that overlap in y and takes
+  54 ms, the 25,600 random lines have the same number and take 20 times
+  longer. Two edges can cross only if their boxes overlap in x and y, and
+  that count separates the cases: 51,000 pairs of boxes for the zigzag, 217
+  million for the random lines. The histogram has 163 million pairs that
+  overlap in y and 77,000 pairs of boxes.
+- A stroke wider than one device pixel has an outline with more edges: about
+  1.6 times the cost per row of a line and 5 times the cost per row of a
+  curve, and about the same cost per pair of boxes.
+- A stroke of one device pixel or less (the SVG default width is 1) costs
+  18 ns (horizontal lines) to 60 ns (vertical lines and curves) per pixel of
+  length along the longer axis, and nothing that grows with pairs: the chart
+  above takes 236 ms as a 1 px stroke and 1,344 ms as a 2 px stroke. The
+  width 1.0 is in the cheap class, 1.01 is not. A hairline curve costs up to
+  3 us per curve.
+- Without anti-aliasing a fill costs 2 to 20 ns per row of a line, and a
+  pair of random curves that cross costs as much as with anti-aliasing. A
+  curve cut into lines costs 110 to 200 ns per line before any row work. A
+  hairline without anti-aliasing costs up to 180 ns per pixel of a slanted
+  line, 400 ns per pixel of a curve, and up to 40 us per curve.
+- Small paths: a circle of 4 cubics takes 3.9 us at radius 6, 8 us at 12,
+  33 us at 50 (anti-aliased).
+
+The fits use 315 timings of 0.5 ms or more (fills and strokes of 0.25 to 10
+px, with and without anti-aliasing) in 18 families: zigzags, random lines and
+curves, translated and jittered S curves, curves with control points far
+outside the box, short edges at many heights, bars, charts, walks, hatches
+and combs.
+
+### The model
+
+`paint/src/svg/edges.rs` counts, in one sweep over the segments
+(`EdgeSweep`), for edges that lie in a window of rows and columns:
+
+- the height of the edges (a curve counts with its exact range and the sum of
+  the heights of its monotone parts, which the roots of the derivative give),
+  the number of edges (parts), and the length along the longer axis inside
+  the window, separately for lines and curves;
+- the pairs of edges that overlap in y, and the pairs whose bounding boxes
+  overlap in x and y. A sweep over y with two Fenwick trees over x counts
+  them in O(n log n), without listing the pairs. Bins (at most `2 * segments
+  + 64` in each direction) only raise the counts: edges that share a bin
+  count as overlapping.
+
+The work, in the units of `cost.rs` (0.3 ns each), is
+
+    height * ROW + parts * PART + row_pairs * ROW_PAIR + box_pairs * BOX_PAIR
+
+with the weights of one of six tables (`edges.rs`): fill, stroke, hairline,
+each with and without anti-aliasing. For example, a fill with anti-aliasing
+has 190 per row of a line, 900 per line, 210 per row of a curve, 600 per
+curve part, 1 per pair that overlaps in y and 30 (9 ns, three times the worst
+measurement) per pair of boxes. A hairline has 200 per pixel of length, 300
+per line and 3,500 per curve part. A fill without anti-aliasing adds
+`FLAT_LINE` (500) for each line that a curve is cut into. A stroke is a
+hairline if its width times the largest scale of the transform is at most one
+pixel, otherwise an outline. The sweep costs up to 270 ns per segment
+(`SWEEP_SEGMENT`, 1,000 units): this is charged to the budget at once, also
+for a path that does not fit, so that 300 references to a path that is too
+expensive cannot repeat the sweep for free (40 shapes in 300 references took
+1.7 s of display list and sweeps before this charge, and more than 120 s of
+fills).
+
+The weights are rounded up so that the charged time is at least the measured
+time for every case of the fits except the known gap below: `real / charged`
+is at most 1.0 for fills and strokes with and without anti-aliasing, and at
+most 1.02 for hairlines (20,000 exactly vertical lines); the median is 0.1 to
+0.7.
+
+The first version of the model counted the pairs that overlap in y instead
+of the pairs of boxes, with a weight of 4.5 ns per pair, and treated every
+stroke as an outline. It charged 5 to 30 times the real time of the
+following paths, which draw in 0.06 to 0.44 s, and rejected them: a noisy
+line chart of 10,000 to 40,000 points stroked 1 px wide in one path (1,200 x
+780), a histogram of 5,000 bars in one path, and a random walk of 60,000
+segments in one stroked path. With the model above they are charged 0.5,
+0.9, 1.8, 1.0 and 0.06 billion units (budget: 2) and draw (unit tests: `realistic_dense_paths_are_drawn`). The repro pages
+(five fills or clip references of 40,000 curves) are still not drawn.
+
+Known gap: a fill with anti-aliasing whose edges do not merge into long
+spans takes time that grows with the square of the number of edges in a
+row, and neither the pairs of boxes nor the pairs that overlap in y see
+it. A comb of separate full-height teeth on 1,200 x 780 px takes 2.8 s
+(CPU time of the raster call) to 5 s (wall time of swb, review) with 2,000
+teeth, about 6 s with 3,000 to 4,000 teeth (all drawn; 6,000 are rejected)
+and 6.4 s with 10,000; the filled area under a noisy chart of 40,000 points
+takes 3.3 s. The model charges 0.2 to 0.4 s for the combs and 0.7 s for the
+area. Ten stacked combs of 78 px each behave the same; combs of 40 px or
+less merge and are cheap. Overlapping shapes (the histogram) merge and are
+cheap. Strokes of 1 px are cheap in the same families. Counting the spans
+needs the winding at sample rows (roadmap M4 item 8). The old model had the
+same gap.
+
+Where it applies:
+
+- Inline fills and strokes (`raster/path.rs`, `edge_work`): the rows and
+  columns are the visible area of the path's device bounds. A stroke reaches
+  half its width (times the miter limit) beyond the points; a hairline does
+  not.
+- Clip path coverage (`raster/svg_clip.rs`): the same function with the
+  layer's rows, for every shape of every clip reference.
+- SVG images (`svg/cost.rs`, `add_edges`): the cost is
+  `fixed + rows * sqrt(p) + linear * p + quadratic * p^2` for `p` pixels.
+  The heights are in canvas units, so the rows that the edges cross at the
+  size of the rendering are exactly `height * sqrt(p / canvas)`: the term
+  `rows` has its own coefficient, and `max_pixels` finds the size by
+  bisection on `sqrt(p)` (80 steps, no iteration limit to tune). Pairs and
+  parts are in `fixed`. The pairs are counted in the units of the canvas with
+  bins finer than a pixel, and boxes that overlap do so at any resolution, so
+  a lower resolution does not change them. A stroke counts as an outline, not
+  as a hairline: whether it is a hairline depends on the size of the
+  rendering, and the outline costs more. The 40,000-curve path has `fixed`
+  above the render budget, and `decode` rejects the image ("too expensive to
+  render"). An image of 100 paths of 400 random cubics (inline 0.15 s) is
+  charged `fixed` 0.29 billion units: it renders at 100 px in 0.25 s and, at
+  1,000 px, at a lower resolution (0.49 s); the same holds for 30 x 1,000, 10
+  x 2,000 and 3 x 5,000 curves, and a stroked walk of 40,000 segments draws
+  at 1,000 px in full (0.18 s). The hostile case `svg-many-dense-paths` (100
+  paths of 400 curves of the repro kind at 1,000 px) renders at 120,000 of
+  1,000,000 pixels.
+- Target pages: the largest path work of a strip is below 0.1 % of the budget
+  (2 * 10^9) on Ars Technica and BBC. `just snapshot` before and after is
+  identical.
+
+### Hit testing
+
+`hit_path::contains` flattens each curve into 16 lines and tests every line:
+1.8 ms for a path of 40,000 curves (fill and stroke), about 1 ms for a clip
+shape (fill only). `DisplayList::hit_test` evaluates the clip of every group
+whose bounds contain the point, and each clip tests its shapes until one
+contains the point: 40 shapes in 300 references would take about 20 s per hit
+test.
+
+Each hit test now has a work budget (`HitWork`, 30 million lines, about 40 ms).
+A segment costs 1, a curve that is cut into lines 16 more. A curve whose
+control points lie wholly above or below the ray (for a fill) or farther than
+the pen (for a stroke) is not flattened. A test that runs out of work finds
+no hit, and so do all later tests of the same call. A clip is only evaluated
+inside an enclosing clip that contains the point. The worst case above now
+takes 40 ms (`hit_testing_dense_clip_paths_is_bounded`).
+
+### Layout cost of references
+
+`SvgPath::fill_bounds` walks all segments and every element that refers to a
+clip path asked for it again: 250 references to a clip path of 900,000
+segments cost 0.58 s of display list, 20,000 would take 46 s. The result is
+now cached in the path (`OnceLock`): 3 ms.
+
+### Limits (part 3)
+
+- A path whose edges cost more than the rest of the strip's budget is not
+  drawn (a warning is logged once per frame). Clip coverage of such a path
+  is empty, which hides the clipped group, as for other over-budget clips.
+- An SVG image with a path that is too expensive at any resolution is
+  rejected when it is decoded.
+- A hit test has at most 30 million lines of work. There is no bound per
+  frame or per second: a page that moves the pointer over a dense clip can
+  spend 40 ms per event (backlog).
+
+Hostile-page cases: `inline-svg-dense-paths` (four dense paths: fill, fill
+without AA, stroke, fill and stroke; 22 s before), `inline-svg-dense-clip` (a
+dense clip path, five references; 20 s before),
+`inline-svg-dense-clip-references` (40 shapes in 300 references; more than
+10 s before), `svg-dense-path` (an `<img>` with the 40,000-curve path) and
+`svg-many-dense-paths` (100 paths of 400 curves in an image).
+
 ## Consequences
 
+- The raster cost of a path is a model of the rows that its edges cross,
+  the pairs of edges whose boxes overlap, and the length of hairlines (part
+  3). It is an upper bound on all measured families except fills whose
+  edges do not merge into long spans (a comb of separate teeth, the area
+  under a noisy chart), which it charges 5 to 15 times too little (item 8
+  of M4 bounds them). The
+  constants are from one machine and tiny-skia 0.12.0; a new tiny-skia needs
+  the measurements again.
 - Ars Technica and BBC show their logos and icons. Part 1: Ars geometry
   0.7740 → 0.7978 and pixels 0.9898 → 0.9952; BBC geometry 0.7775 → 0.8053
   and pixels 0.9942 → 0.9985; the `missing` counts grew (Ars 0 → 217, BBC

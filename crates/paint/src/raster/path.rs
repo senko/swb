@@ -1,31 +1,38 @@
 //! Rasterization of the path items of inline SVG (ADR 0023) with tiny-skia,
 //! within a work budget per strip.
 //!
-//! The estimate uses the weights of `crate::svg::cost` (the estimate for
-//! SVG images, measured with tiny-skia): a fixed cost per path and per
-//! segment, the device pixels that the path's bounds cover inside the
-//! visible area, and a cost per dash. Opaque and translucent pixels cost
-//! the same: tiny-skia's anti-aliased path fill takes 2.6 ns per pixel of
-//! either, measured on the hostile-page machine (release build, 100 and
-//! 200 viewport-size rects, circles, rotated rects and wide strokes: 1.5
-//! to 2.7 ms per 1280 x 800 viewport). The weight for opaque pixels in
-//! `crate::svg::cost` (0.125 ns) is for resvg's cached rendering of
-//! images and is too low here. SVG images are rendered once into a cache at a
-//! resolution that their estimate allows; inline paths are drawn
-//! directly for every frame, so a path whose work does not fit into the
-//! rest of the strip's budget is not drawn instead. A stroke with more
-//! than [`MAX_DASHES`] dashes is drawn solid.
+//! The estimate uses the weights of `crate::svg::cost` (the estimate for SVG
+//! images, measured with tiny-skia): a fixed cost per path and per segment,
+//! the device pixels that the path's bounds cover inside the visible area, a
+//! cost per dash, and the cost of the edges (`crate::svg::edges`: the rows
+//! that they cross and the pairs of edges whose boxes overlap, so a dense
+//! path takes time in proportion to the square of its segments; a stroke of
+//! one pixel or less takes time in proportion to its length).
+//!
+//! Opaque and translucent pixels cost the same: tiny-skia's anti-aliased
+//! path fill takes 2.6 ns per pixel of either, measured on the hostile-page
+//! machine (release build, 100 and 200 viewport-size rects, circles, rotated
+//! rects and wide strokes: 1.5 to 2.7 ms per 1280 x 800 viewport). The
+//! weight for opaque pixels in `crate::svg::cost` (0.125 ns) is for resvg's
+//! cached rendering of images and is too low here.
+//!
+//! SVG images are rendered once into a cache at a resolution that their
+//! estimate allows. Inline paths are drawn directly for every frame, so a
+//! path whose work does not fit into the rest of the strip's budget is not
+//! drawn instead. A stroke with more than [`MAX_DASHES`] dashes is drawn
+//! solid.
 
 use std::sync::Arc;
 
 use swb_layout::svg::{StrokeStyle, SvgPath};
-use swb_layout::{Matrix, Rect};
+use swb_layout::{Matrix, Point, Rect};
 use swb_style::{FillRule, Rgba, StrokeLinecap, StrokeLinejoin};
 use tiny_skia::{LineCap, LineJoin, Path, PathBuilder, Stroke, StrokeDash, Transform};
 
 use super::{Rasterizer, solid_paint};
 use crate::display_list::{DisplayItem, path_bounds, stroke_extent};
 use crate::svg::cost::{BLEND, DASH, PATH, SEGMENT};
+use crate::svg::edges::{Draw, EdgeSweep, SWEEP_SEGMENT, Segment, flat_steps};
 
 /// The path work of one strip (the default of `Budget::max_path_work`),
 /// in the units of `crate::svg::cost` (about 0.3 ns each): about 0.6 s.
@@ -36,11 +43,42 @@ pub(super) const MAX_PATH_WORK: f64 = 2.0e9;
 /// path's control polygon). tiny-skia refuses more than a million.
 pub(super) const MAX_DASHES: f32 = 100_000.0;
 
-/// The most lines that [`flat_device_path`] cuts a curve into.
-const FLAT_STEPS: u32 = 64;
-
 /// The segments of the outline of a stroke per segment of its path.
 const STROKE_SEGMENTS: f64 = 4.0;
+
+/// How tiny-skia scan-converts a path: what the work of the edges depends
+/// on.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Scan {
+    /// Whether the edges are anti-aliased.
+    pub(super) anti_alias: bool,
+    /// The width of the stroke, in path units, if the path is stroked (its
+    /// outline has more edges).
+    stroke_width: Option<f32>,
+    /// How far the outline reaches beyond the points of the path, in path
+    /// units.
+    pub(super) grow: f32,
+}
+
+impl Scan {
+    /// A fill.
+    pub(super) fn fill(anti_alias: bool) -> Scan {
+        Scan {
+            anti_alias,
+            stroke_width: None,
+            grow: 0.0,
+        }
+    }
+
+    /// A stroke of `width` whose outline reaches `grow` beyond the path.
+    fn stroke(anti_alias: bool, width: f32, grow: f32) -> Scan {
+        Scan {
+            anti_alias,
+            stroke_width: Some(width),
+            grow,
+        }
+    }
+}
 
 impl Rasterizer<'_> {
     /// Draws an item of inline SVG content: a fill, a stroke, or the start
@@ -81,7 +119,9 @@ impl Rasterizer<'_> {
         (color, anti_alias): (Rgba, bool),
         rule: FillRule,
     ) {
-        let Some((device, bounds, work)) = self.plan_path(path, transform, color, 0.0) else {
+        let Some((device, bounds, work)) =
+            self.plan_path(path, transform, color, Scan::fill(anti_alias))
+        else {
             return;
         };
         // A fill without area draws nothing (and tiny-skia logs a warning).
@@ -128,9 +168,8 @@ impl Rasterizer<'_> {
         (color, anti_alias): (Rgba, bool),
         stroke: &StrokeStyle,
     ) {
-        let Some((device, bounds, mut work)) =
-            self.plan_path(path, transform, color, stroke_extent(stroke))
-        else {
+        let scan = Scan::stroke(anti_alias, stroke.width, stroke_extent(stroke));
+        let Some((device, bounds, mut work)) = self.plan_path(path, transform, color, scan) else {
             return;
         };
         work += SEGMENT * (STROKE_SEGMENTS - 1.0) * path.segments().len() as f64;
@@ -173,15 +212,18 @@ impl Rasterizer<'_> {
     }
 
     /// The transform from the path to target device px, the device bounds
-    /// of what the path draws (with `grow` around its points, in path
-    /// units), and the work of a fill; `None` if nothing is visible or the
-    /// geometry is not finite.
+    /// of what the path draws (with `scan.grow` around its points, in path
+    /// units), and the work of a fill; `None` if nothing is visible, the
+    /// geometry is not finite or the work does not fit. The cost of looking
+    /// at the segments is charged at once, also for a path that does not
+    /// fit, so that many references to a path that is too expensive cannot
+    /// repeat the estimate for free.
     fn plan_path(
-        &self,
+        &mut self,
         path: &SvgPath,
         transform: &Matrix,
         color: Rgba,
-        grow: f32,
+        scan: Scan,
     ) -> Option<(Matrix, Rect, f64)> {
         if color.is_transparent() {
             return None;
@@ -190,7 +232,7 @@ impl Rasterizer<'_> {
         if !device.is_finite() {
             return None;
         }
-        let bounds = path_bounds(path, &device, grow);
+        let bounds = path_bounds(path, &device, scan.grow);
         if ![bounds.x, bounds.y, bounds.width, bounds.height]
             .iter()
             .all(|v| v.is_finite())
@@ -199,7 +241,13 @@ impl Rasterizer<'_> {
         }
         let visible = self.visible_area()?.intersection(&bounds)?;
         let pixels = f64::from(visible.width) * f64::from(visible.height);
-        let work = PATH + SEGMENT * path.segments().len() as f64 + BLEND * pixels;
+        if !self.path_work_fits((SEGMENT + SWEEP_SEGMENT) * path.segments().len() as f64) {
+            return None;
+        }
+        let rows = (visible.y, visible.y + visible.height);
+        let columns = (visible.x, visible.x + visible.width);
+        let edges = edge_work(path, &device, (rows, columns), scan);
+        let work = PATH + BLEND * pixels + edges;
         Some((device, bounds, work))
     }
 
@@ -230,6 +278,46 @@ impl Rasterizer<'_> {
     }
 }
 
+/// The work of tiny-skia's scan conversion of `path` drawn with `device`,
+/// inside the `rows` and `columns` of the target: the edges' rows and the
+/// pairs of edges whose boxes overlap (see [`crate::svg::edges`]). Linear
+/// in the number of segments.
+pub(super) fn edge_work(
+    path: &SvgPath,
+    device: &Matrix,
+    (rows, columns): ((f32, f32), (f32, f32)),
+    scan: Scan,
+) -> f64 {
+    use swb_layout::svg::PathSegment as S;
+    // The largest scale of the matrix, to turn path units into device px.
+    let scale = (device.a.hypot(device.b)).max(device.c.hypot(device.d));
+    // A stroke of one device pixel or less is a hairline: it has no outline.
+    let draw = match scan.stroke_width {
+        None => Draw::Fill,
+        Some(width) if width * scale <= 1.0 => Draw::Hairline,
+        Some(_) => Draw::Stroke,
+    };
+    let grow = if draw == Draw::Hairline {
+        0.0
+    } else {
+        scan.grow * scale
+    };
+    let mut sweep = EdgeSweep::new(rows, columns, grow, path.segments().len() + 1);
+    let point = |p: Point| {
+        let q = device.apply(p);
+        (q.x, q.y)
+    };
+    let segments = path.segments().iter().map(|segment| match *segment {
+        S::MoveTo(p) => Segment::Move(point(p)),
+        S::LineTo(p) => Segment::Line(point(p)),
+        S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
+        S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
+        S::Close => Segment::Close,
+    });
+    sweep.path(segments, draw == Draw::Fill);
+    sweep.finish().work(scan.anti_alias, draw).total()
+}
+
 /// The path as a tiny-skia path, or `None` if tiny-skia rejects it.
 pub(super) fn skia_path(path: &SvgPath) -> Option<Path> {
     use swb_layout::svg::PathSegment as S;
@@ -247,20 +335,18 @@ pub(super) fn skia_path(path: &SvgPath) -> Option<Path> {
 }
 
 /// The path in device px (`device` maps its coordinates there), with each
-/// curve cut into lines a pixel or less long (at most [`FLAT_STEPS`]
-/// lines).
+/// curve cut into lines a pixel or less long (see [`flat_steps`]).
 #[allow(clippy::many_single_char_names)]
 fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
-    use swb_layout::Point;
     use swb_layout::svg::PathSegment as S;
     let mut pb = PathBuilder::with_capacity(path.segments().len() * 4, path.segments().len() * 8);
     let mut current = Point::default();
     let steps = |points: &[Point]| {
-        let length: f32 = points
-            .windows(2)
-            .map(|w| (w[1].x - w[0].x).hypot(w[1].y - w[0].y))
-            .sum();
-        (length.ceil().max(0.0) as u32).clamp(4, FLAT_STEPS)
+        let mut xy = [(0.0, 0.0); 4];
+        for (slot, p) in xy.iter_mut().zip(points) {
+            *slot = (p.x, p.y);
+        }
+        flat_steps(&xy[..points.len().min(4)])
     };
     for segment in path.segments() {
         match *segment {

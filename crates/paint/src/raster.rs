@@ -3691,8 +3691,9 @@ mod tests {
             MAX_GROUP_LAYER_PIXELS,
             MAX_MASK_PIXELS,
         );
-        // The first fill costs its fixed part and about 100 x 100 pixels at 8 units.
-        r.budget.max_path_work = 100_000.0;
+        // The first fill costs its fixed part, about 100 x 100 pixels at 8
+        // units and its edges (two of 100 rows at 200 units): about 123,000.
+        r.budget.max_path_work = 150_000.0;
         let mut fonts = FontContext::for_tests();
         r.run(&items, 0..2, &transform_ends(&items), &mut fonts, &NoImages);
         assert!(r.budget.skipped.paths);
@@ -3729,6 +3730,175 @@ mod tests {
     fn full_square() -> DisplayItem {
         let square = svg_path(&[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)]);
         fill_path(square, Matrix::IDENTITY, RED)
+    }
+
+    /// A path of `curves` cubic curves that all reach across the height
+    /// of a 100 x 100 box and overlap, as in the repro of ADR 0023.
+    fn dense_path(curves: usize) -> Arc<swb_layout::svg::SvgPath> {
+        use swb_layout::svg::{PathSegment, SvgPath};
+        let p = Point::new;
+        let mut segments = vec![PathSegment::MoveTo(p(0.0, 0.0))];
+        for i in 0..curves {
+            let k = (i % 50) as f32;
+            segments.push(PathSegment::CubicTo(
+                p(k, 0.0),
+                p(100.0 - k, 100.0),
+                p(((7 * i) % 98) as f32, 50.0),
+            ));
+        }
+        Arc::new(SvgPath::from_segments(&segments).expect("a path"))
+    }
+
+    /// Runs `items` on a white 100 x 100 target with the default path
+    /// budget; returns the target and whether paths were skipped.
+    fn run_with_path_budget(items: &[DisplayItem]) -> (Pixmap, bool) {
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let mut r = rasterizer(
+            &mut target,
+            &mut vectors,
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_MASK_PIXELS,
+        );
+        let mut fonts = FontContext::for_tests();
+        r.run(
+            items,
+            0..items.len(),
+            &transform_ends(items),
+            &mut fonts,
+            &NoImages,
+        );
+        let skipped = r.budget.skipped.paths;
+        (target, skipped)
+    }
+
+    #[test]
+    fn dense_svg_paths_cost_by_their_overlapping_edges() {
+        // 40,000 curves take seconds to fill (the pairs of edges that
+        // overlap in y grow with the square of the curves); 300 are cheap.
+        let anti_aliased = |curves| fill_path(dense_path(curves), Matrix::IDENTITY, RED);
+        let (_, skipped) = run_with_path_budget(&[anti_aliased(300)]);
+        assert!(!skipped);
+        let (target, skipped) = run_with_path_budget(&[anti_aliased(40_000)]);
+        assert!(skipped);
+        assert_eq!(rgb(&target, 50, 50), (255, 255, 255));
+        // The same without anti-aliasing (the curves are cut into lines),
+        // and as a stroke.
+        let crisp = DisplayItem::FillPath {
+            path: dense_path(40_000),
+            transform: Matrix::IDENTITY,
+            color: RED,
+            rule: swb_style::FillRule::NonZero,
+            anti_alias: false,
+        };
+        assert!(run_with_path_budget(&[crisp]).1);
+        let stroked = DisplayItem::StrokePath {
+            path: dense_path(40_000),
+            transform: Matrix::IDENTITY,
+            color: RED,
+            stroke: stroke(2.0, None),
+            anti_alias: true,
+        };
+        assert!(run_with_path_budget(&[stroked]).1);
+    }
+
+    /// A path from `segments` of the page-size tests of dense charts.
+    fn path_of(segments: &[swb_layout::svg::PathSegment]) -> Arc<swb_layout::svg::SvgPath> {
+        Arc::new(swb_layout::svg::SvgPath::from_segments(segments).expect("a path"))
+    }
+
+    /// Runs `item` on a white 1200 x 780 target with the default path
+    /// budget; true if the path was skipped.
+    fn skipped_on_page(item: DisplayItem) -> bool {
+        let mut target = Pixmap::new(1200, 780).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let mut r = rasterizer(
+            &mut target,
+            &mut vectors,
+            MAX_GROUP_LAYER_PIXELS,
+            MAX_MASK_PIXELS,
+        );
+        let mut fonts = FontContext::for_tests();
+        let items = [item];
+        r.run(&items, 0..1, &transform_ends(&items), &mut fonts, &NoImages);
+        r.budget.skipped.paths
+    }
+
+    #[test]
+    fn realistic_dense_paths_are_drawn() {
+        use swb_layout::svg::PathSegment as S;
+        // Pairs of edges that overlap in y without crossing are cheap
+        // (ADR 0023, part 3): a noisy line chart of 40,000 points with a
+        // thin stroke, a histogram of 5,000 bars in one path (10,000
+        // edges the height of the page), and a random walk of 60,000
+        // segments all draw.
+        let mut state = 3u32;
+        let mut random = move || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 8) as f32 / (1u32 << 24) as f32
+        };
+        let p = Point::new;
+        let mut chart = vec![S::MoveTo(p(0.0, 400.0))];
+        for i in 0..40_000 {
+            chart.push(S::LineTo(p(i as f32 * 0.03, 50.0 + random() * 680.0)));
+        }
+        let stroked = |path, width| DisplayItem::StrokePath {
+            path,
+            transform: Matrix::IDENTITY,
+            color: RED,
+            stroke: stroke(width, None),
+            anti_alias: true,
+        };
+        assert!(!skipped_on_page(stroked(path_of(&chart), 1.0)));
+        // A wider stroke has an outline with edges to cross: it costs
+        // five times as much.
+        assert!(skipped_on_page(stroked(path_of(&chart), 10.0)));
+        let mut bars = vec![];
+        for i in 0..5_000 {
+            let x = i as f32 * 0.24;
+            bars.push(S::MoveTo(p(x, 780.0)));
+            bars.push(S::LineTo(p(x, 20.0 + random() * 680.0)));
+            bars.push(S::LineTo(p(x + 0.5, 100.0)));
+            bars.push(S::LineTo(p(x + 0.5, 780.0)));
+            bars.push(S::Close);
+        }
+        let fill = |path| DisplayItem::FillPath {
+            path,
+            transform: Matrix::IDENTITY,
+            color: RED,
+            rule: swb_style::FillRule::NonZero,
+            anti_alias: true,
+        };
+        assert!(!skipped_on_page(fill(path_of(&bars))));
+        let (mut x, mut y) = (600.0f32, 400.0f32);
+        let mut walk = vec![S::MoveTo(p(x, y))];
+        for _ in 0..60_000 {
+            x = (x + random() * 6.0 - 3.0).clamp(0.0, 1200.0);
+            y = (y + random() * 6.0 - 3.0).clamp(0.0, 780.0);
+            walk.push(S::LineTo(p(x, y)));
+        }
+        assert!(!skipped_on_page(stroked(path_of(&walk), 1.0)));
+    }
+
+    #[test]
+    fn dense_svg_clip_paths_hide_the_group() {
+        use swb_layout::svg::{ClipPath, ClipShape};
+        let clip = |curves| ClipPath {
+            shapes: vec![ClipShape {
+                path: dense_path(curves),
+                transform: Matrix::IDENTITY,
+                rule: swb_style::FillRule::NonZero,
+                clip: None,
+            }],
+            outer: None,
+        };
+        let (_, skipped) = run_with_path_budget(&clipped(clip(300), 0.0, full_square()));
+        assert!(!skipped);
+        let (target, skipped) = run_with_path_budget(&clipped(clip(40_000), 0.0, full_square()));
+        assert!(skipped);
+        assert_eq!(rgb(&target, 50, 50), (255, 255, 255));
     }
 
     #[test]

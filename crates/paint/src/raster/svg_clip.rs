@@ -16,11 +16,12 @@ use swb_layout::{Matrix, Rect};
 use swb_style::{FillRule, Rgba};
 use tiny_skia::{IntSize, Mask, Pixmap, PixmapPaint, Transform};
 
-use super::path::{skia_path, skia_transform};
+use super::path::{Scan, edge_work, skia_path, skia_transform};
 use super::{Rasterizer, solid_paint};
 use crate::display_list::path_bounds;
 use crate::image::mul_255;
 use crate::svg::cost::{BLEND, PATH, SEGMENT};
+use crate::svg::edges::SWEEP_SEGMENT;
 
 /// The deepest nesting of clip paths inside clip paths that is rasterized.
 const MAX_NESTING: usize = 20;
@@ -227,8 +228,15 @@ impl Rasterizer<'_> {
             return;
         };
         let pixels = f64::from(visible.width) * f64::from(visible.height);
-        let work = PATH + SEGMENT * path.segments().len() as f64 + BLEND * pixels;
-        if !self.path_work_fits(work) {
+        // The cost of looking at the segments is charged also for a path
+        // that does not fit (see `plan_path`).
+        if !self.path_work_fits((SEGMENT + SWEEP_SEGMENT) * path.segments().len() as f64) {
+            return;
+        }
+        let rows = (0.0, pixmap.height() as f32);
+        let columns = (0.0, pixmap.width() as f32);
+        let edges = edge_work(path, matrix, (rows, columns), Scan::fill(true));
+        if !self.path_work_fits(PATH + BLEND * pixels + edges) {
             return;
         }
         let Some(sk_path) = skia_path(path) else {

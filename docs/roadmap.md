@@ -214,10 +214,50 @@ Features, in this order. Each one ends with a review and a commit.
    path), measured, with hostile-page cases. Repro: one `<path>` of
    40,000 cubic curves, each across the full height of a 100×100 px
    `<svg>`, used as five fills or as a clip path referenced five
-   times.
-8. Final pass on the page (`implementer`, scope from a new comparison):
-   the largest remaining differences, links, hover states and the search
-   form; then report target 4 as done.
+   times. Done (ADR 0023, part 3): the cost of a path is a model fitted
+   to measurements of tiny-skia: the rows that the edges cross, the
+   pairs of edges whose bounding boxes overlap (counted in O(n log n),
+   `paint/src/svg/edges.rs`) and the length of hairline strokes. Inline
+   fills and strokes, clip coverage and SVG images (an exact term at the
+   rendered size) are charged. Hit tests have a work budget;
+   `fill_bounds` is cached. The repro pages take 0.1–0.6 s (before: 22 s
+   to more than 120 s); a noisy chart of 40,000 points, 5,000 bars and a
+   walk of 60,000 segments draw. The target pages do not change. Known
+   gaps are in item 8 and the backlog.
+8. Raster cost of anti-aliased fills of separate spans
+   (`implementer-hard`). The review of item 7 found that the model
+   charges a fill whose edges do not merge into long spans 5 to 15
+   times too little. A comb of 2,000 to 4,000 separate full-height
+   teeth, 0.25 px wide, in one path on 1,200 × 780 px (about 130 KB of
+   HTML) takes 5 to 6 s per frame and is drawn; ten stacked combs of
+   3,000 teeth, 78 px each, behave the same; the filled area under a
+   noisy chart of 40,000 points takes 3.3 s. Scope: count the spans at
+   sample rows (the crossings in x order and the winding under the fill
+   rule) when many edges overlap in y, charge their measured cost, keep
+   the work of the count bounded for 1,000,000 segments, and add
+   hostile-page cases for the comb, the stacked combs and the area. The
+   paths of item 7 (charts, bars, walks, images) must still draw.
+9. Final pass on the page (`implementer`). A comparison after item 7
+   (geometry 0.9963, pixels 0.9952; 4,964 differing pixels) found:
+   - The four underline bars of the view selector (`div.absolute` in
+     the buttons at y = 412) are 14 px too far right: swb puts the
+     static position of an absolutely positioned flex child after the
+     icon and the gap; CSS Flexbox 1 §4.1 places it as if it were the
+     sole flex item.
+   - The 12 round article thumbnails (67 × 67 px): Chromium clips the
+     image to a circle, swb draws a square over the ring (3,145 px).
+     Find the cause (`border-radius` with `overflow: hidden`,
+     `clip-path: circle()` or a mask) and implement the clip that the
+     page uses. The image inside also has a different scale (the
+     placeholder grid is coarser in swb): check the `srcset` candidate
+     and `object-fit`.
+   - The header logo (about 700 px) and the "GRID SETTINGS" side of the
+     view row (about 240 px) differ with matching boxes: find the
+     cause; fix it only if it is not anti-aliasing (backlog otherwise).
+   - Links and hover states: check that the `:hover` rules of the
+     navigation and article links apply (probe), and that the link
+     colors match. The page has no search form with JavaScript off.
+   Then report target 4 as done.
 
 Not in scope (not visible on the page with JavaScript off, or not
 used): `box-shadow`, `filter`, `text-shadow`, `-webkit-line-clamp`,
@@ -303,9 +343,28 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
 - SVG links are not in the tab order (an `a` with `href` in SVG is
   focusable in Chromium); the HTML `pointer-events: none` is not applied
   to HTML boxes (swb parses it for shapes only).
-- Ars Technica after part 2 (geometry 0.9963): four `div` elements in the
-  row at y = 412 are 14 px too far left (the divider bars below the
-  header?); look at them in item 7.
+- Raster cost of dense paths (ADR 0023, part 3), beyond items 7 and 8.
+  The model charges at least the measured time for all measured families
+  except anti-aliased fills of separate spans (item 8), and it can reject
+  a path that draws within the budget:
+  - Charged too much (false positives): the weights are rounded up to the
+    slowest case of each kind, so a path is typically charged 1.5 to 3
+    times its time, and up to 10 times for some kinds: 20,000 horizontal
+    hairlines of 1,200 px (428 ms real, charged 4.8 billion units, budget
+    2 billion) are rejected, because vertical and curved hairlines cost 60 ns per
+    pixel and a horizontal one 18 ns.
+  - An SVG image counts every stroke as an outline, because the hairline
+    case depends on the rendering size: a noisy chart of 40,000 points with
+    a thin stroke in an `<img>` is rejected (20,000 points get a lower
+    resolution), while inline it draws in 0.4 s.
+  - Constants come from one machine and tiny-skia 0.12.0; measure again
+    after an update. The measuring program of the item 7 fix round is not
+    in the repository: add it to `tools/` (CPU time of the thread, counts
+    and work of `edges.rs` next to the time). `just hostile` still has
+    `inline-svg-opacity-layers` at 2 s (limit 5 s).
+  - Hit testing has a work budget per call (40 ms), but no bound per frame:
+    cache the last result per (point, display list) if pointer events over a
+    dense clip path become a problem.
 - Inline SVG anti-aliasing: tiny-skia's coverage differs from
   Chromium's on thin curved shapes (the Ars ring icon has 7 % more ink in
   `tools/probes/inline-svg.json`, case `ars-icon`), and a group opacity

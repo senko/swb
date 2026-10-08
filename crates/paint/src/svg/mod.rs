@@ -37,6 +37,7 @@
 mod cache;
 pub(crate) mod cost;
 mod css;
+pub(crate) mod edges;
 mod entities;
 mod expansion;
 

@@ -8,6 +8,12 @@
 //! within half the stroke width of the path; caps and joins are
 //! approximated by round ones (a hit test does not need the pixel exact
 //! outline).
+//!
+//! A hit test has a work budget ([`HitWork`]): a clip path with many dense
+//! shapes, used by many elements, would otherwise take seconds for one
+//! point. A test that runs out of work finds no hit.
+
+use std::cell::Cell;
 
 use swb_layout::svg::{ClipPath, ClipRegion, PathSegment, SvgPath};
 use swb_layout::{Matrix, Point};
@@ -15,6 +21,47 @@ use swb_style::FillRule;
 
 /// The lines that a curve is cut into.
 const CURVE_STEPS: u32 = 16;
+
+/// The work of one hit test, in lines of flattened paths (a segment that a
+/// quick test rejects counts one): about 1.4 ns each, so about 40 ms. A
+/// path of 40,000 curves costs 640,000 per test of its fill; 12,000 of
+/// them (40 shapes in each of 300 references) took 20 s before the limit.
+const MAX_HIT_WORK: u64 = 30_000_000;
+
+/// The work that is left for one hit test.
+#[derive(Debug)]
+pub(crate) struct HitWork {
+    left: Cell<u64>,
+    out: Cell<bool>,
+}
+
+impl HitWork {
+    /// The budget of one hit test.
+    pub(crate) fn new() -> HitWork {
+        HitWork {
+            left: Cell::new(MAX_HIT_WORK),
+            out: Cell::new(false),
+        }
+    }
+
+    /// Takes `n` from the budget; false (for good) if it does not hold
+    /// that much.
+    fn spend(&self, n: u64) -> bool {
+        let left = self.left.get();
+        if self.out.get() || left < n {
+            self.out.set(true);
+            self.left.set(0);
+            return false;
+        }
+        self.left.set(left - n);
+        true
+    }
+
+    /// True if a test ran out of work: results after that are not valid.
+    fn exhausted(&self) -> bool {
+        self.out.get()
+    }
+}
 
 /// True if `point` (in the coordinates after `transform`) is in the fill
 /// of `path` (with rule `fill`, if the fill takes part) or on its stroke
@@ -26,7 +73,11 @@ pub(crate) fn contains(
     fill: Option<FillRule>,
     stroke_width: Option<f32>,
     point: Point,
+    work: &HitWork,
 ) -> bool {
+    if work.exhausted() {
+        return false;
+    }
     let Some(inverse) = transform.invert() else {
         return false;
     };
@@ -43,12 +94,9 @@ pub(crate) fn contains(
     {
         return false;
     }
-    if let Some(rule) = fill
-        && inside_fill(path, p, rule)
-    {
-        return true;
-    }
-    stroke_width.is_some_and(|w| near_stroke(path, p, w / 2.0))
+    let hit = fill.is_some_and(|rule| inside_fill(path, p, rule, work))
+        || stroke_width.is_some_and(|w| near_stroke(path, p, w / 2.0, work));
+    hit && !work.exhausted()
 }
 
 /// True if `point` (in the clip path's coordinates) is in the visible
@@ -56,34 +104,53 @@ pub(crate) fn contains(
 /// own clip, and inside the clip path's own `outer` region. The outline is
 /// the flattened path, not the anti-aliased coverage that the painting
 /// uses.
-pub(crate) fn clip_contains(clip: &ClipPath, point: Point) -> bool {
+pub(crate) fn clip_contains(clip: &ClipPath, point: Point, work: &HitWork) -> bool {
     clip.shapes.iter().any(|shape| {
-        contains(&shape.path, &shape.transform, Some(shape.rule), None, point)
-            && shape
-                .clip
-                .as_ref()
-                .is_none_or(|region| region_contains(region, point))
+        contains(
+            &shape.path,
+            &shape.transform,
+            Some(shape.rule),
+            None,
+            point,
+            work,
+        ) && shape
+            .clip
+            .as_ref()
+            .is_none_or(|region| region_contains(region, point, work))
     }) && clip
         .outer
         .as_ref()
-        .is_none_or(|region| region_contains(region, point))
+        .is_none_or(|region| region_contains(region, point, work))
+        && !work.exhausted()
 }
 
-fn region_contains(region: &ClipRegion, point: Point) -> bool {
+fn region_contains(region: &ClipRegion, point: Point, work: &HitWork) -> bool {
     match region {
         ClipRegion::Rect(rect) => rect.contains(point),
-        ClipRegion::Path(clip) => clip_contains(clip, point),
+        ClipRegion::Path(clip) => clip_contains(clip, point, work),
     }
 }
 
 /// Calls `edge` for each line of the flattened path. `close_all` adds the
 /// line that closes every subpath (a fill closes them all; a stroke only
-/// the ones with a `Close`).
-fn edges(path: &SvgPath, close_all: bool, edge: &mut impl FnMut(Point, Point)) {
+/// the ones with a `Close`). A curve whose control points' y range
+/// `skip(min, max)` rejects is not cut into lines (it cannot matter to the
+/// test). Stops when the work is used up.
+fn edges(
+    path: &SvgPath,
+    close_all: bool,
+    work: &HitWork,
+    skip: &impl Fn(f32, f32) -> bool,
+    edge: &mut impl FnMut(Point, Point),
+) {
     let mut start = Point::default();
     let mut current = Point::default();
     let mut open = false;
     for segment in path.segments() {
+        // A segment costs one, a curve that is cut into lines more.
+        if !work.spend(1) {
+            return;
+        }
         match *segment {
             PathSegment::MoveTo(p) => {
                 if close_all && open {
@@ -99,39 +166,23 @@ fn edges(path: &SvgPath, close_all: bool, edge: &mut impl FnMut(Point, Point)) {
                 open = true;
             }
             PathSegment::QuadTo(c, p) => {
-                let from = current;
-                let mut previous = from;
-                for i in 1..=CURVE_STEPS {
-                    let t = i as f32 / CURVE_STEPS as f32;
-                    let u = 1.0 - t;
-                    let at = Point::new(
-                        u * u * from.x + 2.0 * u * t * c.x + t * t * p.x,
-                        u * u * from.y + 2.0 * u * t * c.y + t * t * p.y,
-                    );
-                    edge(previous, at);
-                    previous = at;
+                let ys = [current.y, c.y, p.y];
+                if !skip(min_of(&ys), max_of(&ys)) {
+                    if !work.spend(u64::from(CURVE_STEPS)) {
+                        return;
+                    }
+                    flatten(current, |t| quad_at(current, c, p, t), edge);
                 }
                 current = p;
                 open = true;
             }
             PathSegment::CubicTo(c1, c2, p) => {
-                let from = current;
-                let mut previous = from;
-                for i in 1..=CURVE_STEPS {
-                    let t = i as f32 / CURVE_STEPS as f32;
-                    let u = 1.0 - t;
-                    let at = Point::new(
-                        u * u * u * from.x
-                            + 3.0 * u * u * t * c1.x
-                            + 3.0 * u * t * t * c2.x
-                            + t * t * t * p.x,
-                        u * u * u * from.y
-                            + 3.0 * u * u * t * c1.y
-                            + 3.0 * u * t * t * c2.y
-                            + t * t * t * p.y,
-                    );
-                    edge(previous, at);
-                    previous = at;
+                let ys = [current.y, c1.y, c2.y, p.y];
+                if !skip(min_of(&ys), max_of(&ys)) {
+                    if !work.spend(u64::from(CURVE_STEPS)) {
+                        return;
+                    }
+                    flatten(current, |t| cubic_at(current, c1, c2, p, t), edge);
                 }
                 current = p;
                 open = true;
@@ -148,11 +199,48 @@ fn edges(path: &SvgPath, close_all: bool, edge: &mut impl FnMut(Point, Point)) {
     }
 }
 
+fn min_of(values: &[f32]) -> f32 {
+    values.iter().copied().fold(f32::INFINITY, f32::min)
+}
+
+fn max_of(values: &[f32]) -> f32 {
+    values.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+}
+
+/// Calls `edge` for the [`CURVE_STEPS`] lines of the curve `at` from
+/// `from`.
+fn flatten(from: Point, at: impl Fn(f32) -> Point, edge: &mut impl FnMut(Point, Point)) {
+    let mut previous = from;
+    for i in 1..=CURVE_STEPS {
+        let point = at(i as f32 / CURVE_STEPS as f32);
+        edge(previous, point);
+        previous = point;
+    }
+}
+
+fn quad_at(from: Point, c: Point, p: Point, t: f32) -> Point {
+    let u = 1.0 - t;
+    Point::new(
+        u * u * from.x + 2.0 * u * t * c.x + t * t * p.x,
+        u * u * from.y + 2.0 * u * t * c.y + t * t * p.y,
+    )
+}
+
+fn cubic_at(from: Point, c1: Point, c2: Point, p: Point, t: f32) -> Point {
+    let u = 1.0 - t;
+    Point::new(
+        u * u * u * from.x + 3.0 * u * u * t * c1.x + 3.0 * u * t * t * c2.x + t * t * t * p.x,
+        u * u * u * from.y + 3.0 * u * u * t * c1.y + 3.0 * u * t * t * c2.y + t * t * t * p.y,
+    )
+}
+
 /// True if `p` is inside the filled path (SVG 2 §13.4.2).
-fn inside_fill(path: &SvgPath, p: Point, rule: FillRule) -> bool {
+fn inside_fill(path: &SvgPath, p: Point, rule: FillRule, work: &HitWork) -> bool {
     let mut winding = 0_i32;
     let mut crossings = 0_u32;
-    edges(path, true, &mut |a, b| {
+    // A curve that lies above or below the ray has no crossing.
+    let skip = |min: f32, max: f32| min > p.y || max <= p.y;
+    edges(path, true, work, &skip, &mut |a, b| {
         // A crossing of the ray from `p` to the right with the edge.
         if (a.y <= p.y) != (b.y <= p.y) {
             let x = a.x + (p.y - a.y) / (b.y - a.y) * (b.x - a.x);
@@ -169,10 +257,11 @@ fn inside_fill(path: &SvgPath, p: Point, rule: FillRule) -> bool {
 }
 
 /// True if `p` is within `distance` of a line of the path.
-fn near_stroke(path: &SvgPath, p: Point, distance: f32) -> bool {
+fn near_stroke(path: &SvgPath, p: Point, distance: f32, work: &HitWork) -> bool {
     let limit = distance * distance;
     let mut near = false;
-    edges(path, false, &mut |a, b| {
+    let skip = |min: f32, max: f32| min - distance > p.y || max + distance < p.y;
+    edges(path, false, work, &skip, &mut |a, b| {
         if near {
             return;
         }
@@ -193,6 +282,17 @@ fn near_stroke(path: &SvgPath, p: Point, distance: f32) -> bool {
 mod tests {
     use super::*;
 
+    /// `super::contains` with a fresh budget.
+    fn contains(
+        path: &SvgPath,
+        transform: &Matrix,
+        fill: Option<FillRule>,
+        stroke_width: Option<f32>,
+        point: Point,
+    ) -> bool {
+        super::contains(path, transform, fill, stroke_width, point, &HitWork::new())
+    }
+
     fn path(segments: &[PathSegment]) -> SvgPath {
         SvgPath::from_segments(segments).expect("a path")
     }
@@ -206,6 +306,65 @@ mod tests {
             PathSegment::LineTo(p(10.0, 30.0)),
             PathSegment::Close,
         ])
+    }
+
+    /// A path of `n` curves that each cross the whole height of the box
+    /// (0, 0, 100, 100) and overlap each other.
+    fn dense(n: usize) -> SvgPath {
+        let p = Point::new;
+        let mut segments = vec![PathSegment::MoveTo(p(0.0, 0.0))];
+        for i in 0..n {
+            let k = (i % 50) as f32;
+            segments.push(PathSegment::CubicTo(
+                p(k, 0.0),
+                p(100.0 - k, 100.0),
+                p(((7 * i) % 98) as f32, 50.0),
+            ));
+        }
+        path(&segments)
+    }
+
+    #[test]
+    fn a_hit_test_has_a_work_budget() {
+        let dense = dense(4_000);
+        let id = Matrix::IDENTITY;
+        // Near many curves.
+        let inside = Point::new(50.0, 50.0);
+        let hit = |work: &HitWork| super::contains(&dense, &id, None, Some(20.0), inside, work);
+        assert!(hit(&HitWork::new()));
+        // The same test with too little work finds nothing, and the budget
+        // stays used up for the next test.
+        let work = HitWork {
+            left: Cell::new(1_000),
+            out: Cell::new(false),
+        };
+        assert!(!hit(&work));
+        assert!(work.exhausted());
+        let fill = Some(FillRule::NonZero);
+        let near = Point::new(20.0, 20.0);
+        assert!(!super::contains(&square(), &id, fill, None, near, &work));
+    }
+
+    #[test]
+    fn curves_beyond_the_ray_are_skipped() {
+        // The answer is the same with the quick rejection of curves that
+        // lie above or below the point.
+        let p = Point::new;
+        let bump = path(&[
+            PathSegment::MoveTo(p(0.0, 100.0)),
+            PathSegment::CubicTo(p(0.0, 40.0), p(40.0, 40.0), p(40.0, 100.0)),
+            PathSegment::Close,
+            PathSegment::MoveTo(p(50.0, 0.0)),
+            PathSegment::QuadTo(p(70.0, 20.0), p(90.0, 0.0)),
+            PathSegment::Close,
+        ]);
+        let id = Matrix::IDENTITY;
+        let fill = Some(FillRule::NonZero);
+        assert!(contains(&bump, &id, fill, None, p(20.0, 90.0)));
+        assert!(!contains(&bump, &id, fill, None, p(20.0, 30.0)));
+        assert!(contains(&bump, &id, fill, None, p(70.0, 5.0)));
+        assert!(contains(&bump, &id, None, Some(2.0), p(70.0, 10.0)));
+        assert!(!contains(&bump, &id, None, Some(2.0), p(70.0, 60.0)));
     }
 
     #[test]

@@ -183,7 +183,17 @@ Before usvg converts a document (`paint/src/svg`):
 
 Rendering (`cost.rs`): an estimate of the work per rendering (painted
 area, layers, filter primitives per pixel, morphology radius squared, a
-fixed cost per path and segment, dashes, embedded raster decoding; clip
+fixed cost per path and segment, the rows that the edges of a path cross
+and the pairs of edges whose boxes overlap (`edges.rs`, fitted to
+measurements of tiny-skia: a dense path takes time in proportion to the
+pairs, the square of the segments; 40,000 curves across the height of a
+100 px image take seconds at any resolution, so the pairs are in the fixed
+cost and an image whose fixed cost exceeds the budget is rejected. The rows
+grow with the square root of the pixels of the rendering; the estimate has
+a term `rows * sqrt(p)`, and the size that fits the budget comes from a
+bisection, so that a path with many rows gets a lower resolution instead of
+a rejection; the measurements are in ADR 0023, part 3), dashes, embedded
+raster decoding; clip
 paths, masks, pattern tiles and `feImage` content per use, as resvg
 renders them) and of the layer memory (nested layers, up to 5 × 5
 canvases each; pattern tiles) decides the resolution. Blended pixels

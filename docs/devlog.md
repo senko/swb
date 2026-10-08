@@ -4,6 +4,48 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 item 7, raster cost of dense paths
+
+- The review of item 6 found pages that take minutes to draw: the path
+  cost estimate charged a segment about 9 ns, but one path of 40,000
+  curves across 100 rows takes 2.6 s in tiny-skia (the old estimate:
+  1 ms).
+- Measured (tiny-skia 0.12.0, release build, CPU time of the thread,
+  315 timings; tables in ADR 0023 part 3): the fill time fits the edge
+  rows (rows that each edge crosses) and the pairs of edges that cross.
+  Pairs that overlap in y but do not cross cost almost nothing. Two
+  edges can cross only if their bounding boxes overlap, so the model
+  counts those pairs.
+- New `paint/src/svg/edges.rs` counts rows and box pairs in O(n log n)
+  (Fenwick trees over x). A stroke of at most 1 device pixel is a
+  hairline: its time follows its length (18–60 ns per pixel), with no
+  pair term. Inline fills and strokes, clip coverage and the SVG image
+  estimate (ADR 0011; an exact term at the rendered size) use it. Over
+  the measurements the real time is at most 1.02 of the charged time,
+  except for the known gap below. Hit tests have a work budget (about
+  40 ms). `SvgPath::fill_bounds` is cached: each clip reference walked
+  all segments.
+- A first version counted all pairs that overlap in y. Its review found
+  that it rejected realistic paths: noisy line charts of 10,000–40,000
+  points, a histogram of 5,000 bars, a random walk of 60,000 segments,
+  SVG images of 100 paths of 400 curves. These now draw in 0.06–0.38 s
+  (images at 1,000 px at a lower resolution).
+- The repro pages take 0.1–0.6 s (before: 22 s to more than 120 s).
+  Five hostile-page cases. The target pages do not change; their paths
+  use at most 0.1 % of the budget.
+- Open: an anti-aliased fill whose edges do not merge into long spans
+  is charged 5 to 15 times too little. A comb of 2,000–4,000 separate
+  teeth takes 5–6 s per frame and is drawn; the area under a noisy
+  chart takes 3.3 s. This is item 8, next. The review of the fix also
+  found that one edge far outside the window merged the x columns of
+  the pair count, so a chart with a long baseline was rejected; the x
+  columns are now cut to the window.
+- Backlog: the weights follow the slowest case of each kind, so some
+  paths that draw in time are rejected.
+- ADR 0021 now also covers ports of the engines it names, such as
+  tiny-skia. An agent read tiny-skia's source for the first version of
+  this model; no code was copied, and the owner kept the model.
+
 ## 2026-10-08: M4 feature 6, inline SVG part 2
 
 - `clip-path: url(#id)` on `g`, `a`, `use` and shapes, as a property or

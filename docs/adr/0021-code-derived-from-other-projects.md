@@ -65,6 +65,13 @@ The owner decided:
   source code when they implement a feature, unless the owner allows it
   for a specific case. Behaviour that the specifications leave open is
   measured in Chromium. Integration reviews check provenance.
+- Update (2026-10-08): the rule also covers ports of these projects,
+  such as tiny-skia (a Rust port of Skia, a dependency of swb). The
+  behaviour and cost of such a dependency are measured through its
+  public API. For M4 item 7 (the raster cost model, ADR 0023 part 3) an
+  agent was allowed to read tiny-skia's source before this update. No
+  code was copied, and the model's constants come from measurements;
+  the owner decided to keep the model.
 
 ## Consequences
 
