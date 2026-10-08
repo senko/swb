@@ -9,14 +9,15 @@ use swb_css::ComponentValue;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
-    CompositeOperator, Content, CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells,
-    FlexBasis, FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle,
-    FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image,
-    LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType,
-    MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap,
-    PointerEvents, Position, PositionComponent, Rgba, Size, TableLayout, TextAlign,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TrackBreadth, TrackList,
-    TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
+    CompositeOperator, Contain, ContainIntrinsic, Content, CornerRadius, CounterList, Cursor,
+    Direction, Display, EmptyCells, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
+    FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine,
+    GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto, LineHeight,
+    ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit,
+    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent, Rgba, Size,
+    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
+    TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility,
+    WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -196,6 +197,11 @@ pub struct ComputedStyle {
     pub counter_reset: CounterList,
     pub counter_increment: CounterList,
     pub counter_set: CounterList,
+    pub contain: Contain,
+    /// `contain-intrinsic-width`.
+    pub contain_intrinsic_width: ContainIntrinsic,
+    /// `contain-intrinsic-height`.
+    pub contain_intrinsic_height: ContainIntrinsic,
     pub object_fit: ObjectFit,
     /// `object-position`: x and y.
     pub object_position: [PositionComponent; 2],
@@ -361,6 +367,9 @@ impl ComputedStyle {
             counter_reset: CounterList::default(),
             counter_increment: CounterList::default(),
             counter_set: CounterList::default(),
+            contain: Contain::NONE,
+            contain_intrinsic_width: ContainIntrinsic::NONE,
+            contain_intrinsic_height: ContainIntrinsic::NONE,
             object_fit: ObjectFit::Fill,
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,

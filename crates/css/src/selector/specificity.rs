@@ -90,6 +90,10 @@ fn pseudo_class(pc: &PseudoClass) -> Specificity {
             .max()
             .unwrap_or_default(),
         PseudoClass::Where(_) => Specificity::default(),
+        // The pseudo-class plus its argument.
+        PseudoClass::Host(Some(arg)) | PseudoClass::HostContext(arg) => {
+            CLASS.add(arg.specificity())
+        }
         PseudoClass::NthChild(nth) | PseudoClass::NthLastChild(nth) => {
             CLASS.add(nth.of.as_ref().map(max_of).unwrap_or_default())
         }

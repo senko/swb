@@ -10,8 +10,8 @@ use std::sync::Arc;
 use super::compute::ComputeContext;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
-    BackgroundSize, Content, ContentItem, FlexBasis, FontSizeKeyword, FontSizeOrigin,
-    LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStyleType, MaxSize,
+    BackgroundSize, ContainIntrinsic, Content, ContentItem, FlexBasis, FontSizeKeyword,
+    FontSizeOrigin, LengthPercentage, LengthPercentageOrAuto, LineHeight, ListStyleType, MaxSize,
     PositionComponent, Size, SpecifiedLengthPercentage as Lp, TextAlign, VerticalAlign,
     VerticalAlignKeyword,
 };
@@ -19,6 +19,24 @@ use crate::values::{
 /// The ratio between adjacent font sizes for `larger` and `smaller`.
 /// <https://www.w3.org/TR/css-fonts-4/#relative-size-value>
 const FONT_SIZE_RATIO: f32 = 1.2;
+
+/// A specified `contain-intrinsic-width` or `-height`.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SpecifiedContainIntrinsic {
+    /// True if the value starts with `auto`.
+    pub(crate) auto: bool,
+    /// The length; `None` for `none`.
+    pub(crate) length: Option<Lp>,
+}
+
+impl SpecifiedContainIntrinsic {
+    pub(crate) fn compute(&self, cx: &ComputeContext<'_>) -> ContainIntrinsic {
+        ContainIntrinsic {
+            auto: self.auto,
+            length: self.length.as_ref().map(|l| cx.px(l).max(0.0)),
+        }
+    }
+}
 
 /// A specified `font-size`.
 #[derive(Clone, Debug, PartialEq)]

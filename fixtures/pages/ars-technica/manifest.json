@@ -1,0 +1,1241 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://arstechnica.com/",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/6daf151d10f58a10.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/mu-plugins/_composer_elasticpress/dist/css/general-styles.css?ver=66295efe92a630617c00",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/1b67ebf0e85fc157.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/mu-plugins/_composer_elasticpress/dist/css/highlighting-styles.css?ver=252562c4ed9241547293",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/772dbcb7cbff1887.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/css/ads.01e938.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/c30229bd1e9e0d25.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/css/app.111084.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/e237082db4b100c8.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/fonts/7cHmv4okm5zmbtYoK-4.a71c5e.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/d2f675f4572825d0.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/fonts/XLYjIZPxYpJfTbZAFV-6Lc5iow.25c9df.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/7a9aca0fde608e43.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/fonts/XLYlIZPxYpJfTbZAFV-_Hcw.6df07f.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/6cf30bdff2b30f61.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/fonts/nwpStKy2OAdR1K-IwhWudF-R3w8aZQ.bf9a29.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/684ec8fb1229016b.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2018/11/71I6oj6ZFBL._SL1000_-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/6fc0c4614fa892b4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2018/11/71I6oj6ZFBL._SL1000_-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/81724e9aa232eb1a.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2018/11/71I6oj6ZFBL._SL1000_.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/37932739384056b7.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2020/05/misinfoTOP-1152x648.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/0cdd7b70e9da196b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2020/05/misinfoTOP-150x150.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/23fd829c96145047.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2024/10/GettyImages-2176630363-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/f0bc22f5ea620132.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2024/10/GettyImages-2176630363-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/fcb1705182485fb0.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2025/12/mistral_header_2-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/1363ee84dc96d9cb.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2025/12/mistral_header_2.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/9d2c68089d08cde3.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/02/brendan-carr-fcc-crest-1000x1000-1771622582.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/71a15301b3b0c638.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/02/brendan-carr-fcc-crest-1536x864-1771622570.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/c7756ec49e7648a1.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/02/brendan-carr-fcc-crest-300x300-1771622583.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/433e579cbd060af8.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/03/Screenshot-2026-03-03-at-10.30.27-AM-1536x864.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/d5137ce82b29e8b1.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/03/Screenshot-2026-03-03-at-10.30.27-AM-300x300.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/8812d24df0db7a0b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/03/Screenshot-2026-03-03-at-10.30.27-AM-500x500.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/2db7258277be5bbc.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/04/GettyImages-1934095718-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/5d9d20c212d01b29.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/04/GettyImages-1934095718-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/a4dfb99f829afcf8.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/04/GettyImages-1934095718-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/61c5370cb1c35bd4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/07/synthid-fingerprint-1440x810.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/ca85b46450716d3a.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/07/synthid-fingerprint-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/e4f9b402a2ff77ec.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/08/Varmilo-EC-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/f76f8981534a23db.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/08/Varmilo-EC-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/c62acec15bae04a4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/Continue-On-Image-1-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4788f499d26b50c4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/Continue-On-Image-1-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/29d8ee5134c3571e.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/Continue-On-Image-1-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/440ab2cf49d247f5.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/chatgpt-icon-1000x1000-1789154136.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b5e81a21e8bbcdbe.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/chatgpt-icon-1536x864-1789154125.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/d55c63f4d11ac7d9.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/09/chatgpt-icon-300x300-1789154137.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/93341e58116e57f6.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Drone-strikes-on-grain-cargo-ships-near-Odesa-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/dfca966f2957d093.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Drone-strikes-on-grain-cargo-ships-near-Odesa-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/a1efb09faef4cdb9.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Ext_Macro_Headlight_Blue-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b5d74992567367a9.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Ext_Macro_Headlight_Blue-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/0aaced1c8a4d747e.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-1030875166-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b1e1c9132d895e05.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-1030875166-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/26b97ecb824c09a7.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-1337028378-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/f1e1bc827f15af13.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-1337028378-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b086aeefb26179ec.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2212760356-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/e9f31b00681e63e2.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2212760356-1440x810.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/c1f3afcd6182c760.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2212760356-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/f5ec63f6f6e7aa41.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2288945998-1000x1000-1791229677.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/de5eac39f9c0b170.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2288945998-300x300-1791229678.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/f63cc3bac43a7541.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2288945998-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/ebbcf73ca9e70fbb.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2297466143-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4184d30c74ac8042.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2297466143-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/75386386740baa3f.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2298278370-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/d5b6c8fa9c85476e.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2298278370-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/237e07e367081ed1.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/GettyImages-2298278370-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b8d458693479dc63.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/NASA-AMes-1000x1000.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/c8f63eb6d36eb9ba.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/NASA-AMes-1536x864.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/75d121a14890c7cc.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/NASA-AMes-300x300.jpeg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/a6d089dd43ffb62d.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Pebble-Flow-01-a-l1022800-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/74fd1b139c8a8bc0.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Pebble-Flow-01-a-l1022800-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/07cd9005bb1d9e53.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Pebble-Flow-01-a-l1022800-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/a946ea00828b4d4c.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Surface-Laptop-Ultra-Opened-1440x810.png",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/4eb90809f071ad4f.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Surface-Laptop-Ultra-Opened-300x300.png",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/png"
+        ]
+      ],
+      "body": "files/ae4d786b759e0d90.png"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Ukraine-data-center-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/47b487353244825c.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Ukraine-data-center-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/436a4bf04468bec9.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/Ukraine-data-center-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/6092e35f8043258d.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ZSH01597-1545-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/e50db8400ece1271.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ZSH01597-1545-384x216.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/56e241a5ce09035b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agentic-hacking-1152x648.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/80740f742eac3624.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agentic-hacking-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/59a5d9f5fc71b3b2.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agentic-hacking-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/556a28912fea8e21.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agents-1152x648.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/3995721d2667681b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agents-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/bcbe95b2d89b82cf.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ai-agents-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/cccfa8b5dccef3b5.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ars-subscriber-reading-modes-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/5588324eeb01e1c8.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ars-subscriber-reading-modes-1440x810.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/2960e4a852bc35bb.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/ars-subscriber-reading-modes-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4add6af84a42c91b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/broken-https-tls-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b30ffbf49d69a980.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/broken-https-tls-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/feb2246340001839.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/broken-https-tls.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/821b5849351716c8.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/david-ellison-1000x1000-1791303842.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/9a2131d2189f2c6b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/david-ellison-1536x864-1791303833.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/37680e2afe242fdb.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/david-ellison-300x300-1791303842.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/727dd0e4ecffb109.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/digger4-1536x864-1791232015.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/046bdbecb5c487ea.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/digger4-384x216-1791232013.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/faf8dbb686184745.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/google-deepmind-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/97b08187a89e10c7.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/google-deepmind-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/37fa33cdbe52f426.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/google-deepmind-768x432.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/2dd89b5e528690cc.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/greatwave-1536x864.webp",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/90a5f0c838bab314.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/greatwave-300x300-1791408831.webp",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/04f6f3892e290d7e.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/greatwave-500x500-1791408830.webp",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/1fa279406db35d3b.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/icecube1-1152x648.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/e219283673998b78.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/icecube1-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/d01472e0abe8f8e3.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/icecube1-500x500.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/84b3069eb5ead13b.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/lisa-2arms-gws-red2-768x432.webp",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/29bddf836e6ad26a.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/oilprotest-1000x1000.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/ae342c530a8bbde9.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/oilprotest-1536x864.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/5f482adf64395db4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/oilprotest-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4224470b9ff99239.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/tp-link-routers-1440x810.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/b508df6d5e4f3a94.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2026/10/tp-link-routers-300x300.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/17808a6156e5bec4.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.googletagmanager.com/ns.html?id=GTM-NLXNPCQ",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/7d9f8d8f64837aa7.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.googletagmanager.com/ns.html?id=GTM-PVBXQMCR&ancestors=GTM-NLXNPCQ&restrictions=&gtm.url=https%3A%2F%2Farstechnica.com%2F",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/1508490e2a7f3949.html"
+    }
+  ]
+}

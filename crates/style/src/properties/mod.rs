@@ -265,6 +265,8 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-mask-image" => L::MaskImage,
         "-webkit-mask-size" => L::MaskSize,
         "-webkit-mask-repeat" => L::MaskRepeat,
+        "contain-intrinsic-inline-size" => L::ContainIntrinsicWidth,
+        "contain-intrinsic-block-size" => L::ContainIntrinsicHeight,
         "overflow-inline" => L::OverflowX,
         "overflow-block" => L::OverflowY,
         "-webkit-transform" => L::Transform,
@@ -595,6 +597,59 @@ mod tests {
         );
         assert!(!valid("aspect-ratio", "auto auto"));
         assert!(!valid("aspect-ratio", "-1"));
+    }
+
+    /// Measured in Chromium 148 (`tools/probes/host-sizes-auto.json`).
+    #[test]
+    fn contain_and_intrinsic_size() {
+        let contain = |v: &str| style(&format!("contain: {v}")).contain;
+        assert_eq!(contain("none"), Contain::NONE);
+        assert_eq!(contain("strict"), Contain::STRICT);
+        assert_eq!(contain("CONTENT"), Contain::CONTENT);
+        assert_eq!(
+            contain("paint size"),
+            Contain {
+                size: true,
+                paint: true,
+                ..Contain::NONE
+            }
+        );
+        assert_eq!(contain("size layout paint style"), Contain::STRICT);
+        assert!(contain("inline-size layout").inline_size);
+        for bad in [
+            "size size",
+            "none size",
+            "size foo",
+            "",
+            "size inline-size",
+            "strict size",
+            "layout,",
+        ] {
+            assert!(!valid("contain", bad), "{bad}");
+        }
+        let cis = |v: &str| {
+            let s = style(&format!("contain-intrinsic-size: {v}"));
+            (s.contain_intrinsic_width, s.contain_intrinsic_height)
+        };
+        let len = |auto, px| ContainIntrinsic {
+            auto,
+            length: Some(px),
+        };
+        assert_eq!(cis("10px"), (len(false, 10.0), len(false, 10.0)));
+        assert_eq!(cis("10px 20px"), (len(false, 10.0), len(false, 20.0)));
+        assert_eq!(cis("auto 10px"), (len(true, 10.0), len(true, 10.0)));
+        assert_eq!(cis("10px auto 20px"), (len(false, 10.0), len(true, 20.0)));
+        assert_eq!(cis("10px none"), (len(false, 10.0), ContainIntrinsic::NONE));
+        assert_eq!(cis("1em 2em"), (len(false, 16.0), len(false, 32.0)));
+        assert_eq!(cis("10px auto"), (len(false, 10.0), len(false, 10.0)));
+        for bad in ["auto", "10%", "-10px", "5px 6px 7px", "auto auto 5px"] {
+            assert!(!valid("contain-intrinsic-size", bad), "{bad}");
+        }
+        let s = style("contain-intrinsic-height: auto 5px; contain-intrinsic-inline-size: 7px");
+        assert_eq!(s.contain_intrinsic_height, len(true, 5.0));
+        assert_eq!(s.contain_intrinsic_width, len(false, 7.0));
+        assert!(!valid("contain-intrinsic-width", "10px 20px"));
+        assert!(!valid("contain-intrinsic-width", "5%"));
     }
 
     /// CSS Sizing 4 §7.1: `auto && <ratio>` uses the natural aspect ratio

@@ -439,6 +439,13 @@ pub(crate) enum PseudoClass {
     Has(Box<[RelativeSelector]>),
     Lang(Box<[Box<str>]>),
     Dir(Direction),
+    /// `:host` and `:host(<compound-selector>)`. There are no shadow trees,
+    /// so it never matches. It parses so that a selector list that
+    /// contains it stays valid.
+    /// <https://drafts.csswg.org/css-scoping/#host-selector>
+    Host(Option<Box<Selector>>),
+    /// `:host-context(<compound-selector>)`. Never matches (see `Host`).
+    HostContext(Box<Selector>),
 }
 
 /// The argument of `:nth-child()` and `:nth-last-child()`.

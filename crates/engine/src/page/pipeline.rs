@@ -97,6 +97,10 @@ impl Page {
             self.scrollers.update(&fragments);
             self.fragments = Some(fragments);
             self.keep_control_scroll();
+            self.select_auto_sized_images();
+            if !self.requests.is_empty() && self.state == LoadState::Complete {
+                self.state = LoadState::LoadingResources;
+            }
             // The scroll target is applied after every layout until the
             // page is loaded, because images that arrive later move it.
             // Scrolling by the user cancels it.

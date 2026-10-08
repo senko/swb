@@ -225,6 +225,12 @@ the repository does not publish photos or commercial fonts.
 
 Fonts in the fixtures:
 
+- `ars-technica`: Source Sans 3 (© 2010–2021 Adobe, with Reserved Font
+  Name ‘Source’), Faustina (Copyright 2019 The Faustina Project
+  Authors), Exo 2 (Copyright 2013 The Exo 2 Project Authors), unchanged
+  copies of the WOFF2 subsets that the site serves under these names.
+  License: SIL Open Font License 1.1, text in
+  `fixtures/LICENSE-OFL-1.1.txt`.
 - `bbc`: the site's fonts are replaced with DejaVu Sans and DejaVu Sans
   Bold, converted to WOFF2 (a format change; the glyph data and the
   `name` table with the copyright and license are not changed). License:

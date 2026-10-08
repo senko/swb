@@ -311,13 +311,15 @@ fn new_item<'a>(
         swb_style::Size::Auto => {
             // Automatic minimum size (§4.5): the content size suggestion,
             // capped by the specified size suggestion. Scroll containers
-            // (but not `overflow: clip` boxes) have no automatic minimum.
+            // (but not `overflow: clip` boxes) have no automatic minimum;
+            // neither have items with size containment (measured in
+            // Chromium 148, also for `contain-intrinsic-size`).
             let overflow = if axes.row {
                 style.overflow_x
             } else {
                 style.overflow_y
             };
-            if overflow.is_scroll_container() {
+            if overflow.is_scroll_container() || style.contain.size {
                 0.0
             } else {
                 let content = min_content.min(item.max_main);

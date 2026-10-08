@@ -266,6 +266,29 @@ def huge_images() -> Page:
     return Page(doc(body), {"img.svg": svg})
 
 
+@case(
+    "13,000 lazy images with sizes=auto (selected after layout: 10,000 with 40 candidates, "
+    "1,000 with unique sources, 2,000 without containment) and 3,000 without a box"
+)
+def auto_sized_images() -> Page:
+    cand = ",".join(f"img.svg?{i} {i * 10}w" for i in range(1, 40))
+    svg = f"<svg {SVG_NS} width='10' height='10'/>"
+    body = f"<img srcset='{cand}' sizes='auto, 100vw' loading=lazy width=50 height=50>" * 10_000
+    for i in range(1_000):
+        body += (
+            f"<img srcset='img.svg?u{i} 100w, img.svg?v{i} 200w' sizes=auto loading=lazy "
+            "style='width:30%'>"
+        )
+    # No containment (white space before `auto`), and images without a box.
+    body += "<img srcset='img.svg?w1 100w, img.svg?w2 900w' sizes=' auto' loading=lazy>" * 2_000
+    body += (
+        "<div style='display:none'>"
+        + (f"<img srcset='{cand}' sizes=auto loading=lazy>" * 3_000)
+        + "</div>"
+    )
+    return Page(doc(body), {"img.svg": svg})
+
+
 @case("text decorations: 5,000 text shadows, 10,000 box shadows with huge blur, 10,000 backgrounds")
 def many_shadows() -> Page:
     shadows = ",".join(f"{i % 7}px {i % 5}px {i % 50}px red" for i in range(5000))

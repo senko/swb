@@ -15,12 +15,14 @@
 //!
 //! This file has the page state, navigation and the accessors. The other
 //! parts of `Page` are in `loading.rs` (network completions, documents and
-//! subresources), `pipeline.rs` (style, layout, display list, raster),
+//! subresources), `auto_sizes.rs` (image sources that depend on the laid-out
+//! width), `pipeline.rs` (style, layout, display list, raster),
 //! `scroll.rs` (scrolling of the viewport and of scroll containers, and
 //! fragment targets), `input.rs` (pointer,
 //! keyboard, focus, selection) and `forms.rs` (form controls: editing,
 //! activation, submission).
 
+mod auto_sizes;
 mod forms;
 mod input;
 mod loading;

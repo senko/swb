@@ -382,6 +382,20 @@ fn combinators() {
 }
 
 #[test]
+fn shadow_host_pseudo_classes_match_nothing() {
+    let d = doc();
+    for id in [d.html, d.body, d.p1, d.inner] {
+        assert!(!d.matches(id, ":host"));
+        assert!(!d.matches(id, ":host(*)"));
+        assert!(!d.matches(id, ":host-context(body)"));
+        assert!(!d.matches(id, ":is(:host)"));
+        assert!(d.matches(id, ":not(:host)"));
+        assert!(d.matches(id, ":host, *"));
+    }
+    assert!(!d.matches(d.p1, ":host > p"));
+}
+
+#[test]
 fn structural_pseudo_classes() {
     let d = doc();
     assert!(d.matches(d.html, ":root"));

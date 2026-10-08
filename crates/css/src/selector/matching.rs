@@ -501,6 +501,8 @@ impl<E: Element> Matcher<'_, '_, E> {
             PseudoClass::Has(relative) => relative.iter().any(|r| self.match_relative(r, element)),
             PseudoClass::Lang(ranges) => match_lang(element, ranges),
             PseudoClass::Dir(dir) => match_dir(element, *dir),
+            // No shadow trees: no element is a shadow host.
+            PseudoClass::Host(_) | PseudoClass::HostContext(_) => false,
         }
     }
 

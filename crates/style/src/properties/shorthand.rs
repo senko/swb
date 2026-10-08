@@ -12,9 +12,9 @@ use super::ids::{LonghandId, LonghandValue};
 use super::longhand::{
     AlignKind, keyword, lp_or_auto, non_negative_length, padding, parse_alignment,
     parse_background_repeat, parse_background_size, parse_bg_position, parse_border_style,
-    parse_box, parse_column_count, parse_column_width, parse_flex_basis, parse_font_family,
-    parse_font_size, parse_font_stretch, parse_font_style, parse_font_weight, parse_gap,
-    parse_image_or_none, parse_line_height, parse_line_width, parse_list_style_type,
+    parse_box, parse_column_count, parse_column_width, parse_contain_intrinsic, parse_flex_basis,
+    parse_font_family, parse_font_size, parse_font_stretch, parse_font_style, parse_font_weight,
+    parse_gap, parse_image_or_none, parse_line_height, parse_line_width, parse_list_style_type,
     parse_outline_color, parse_outline_style, parse_text_decoration_line,
 };
 use super::specified::{
@@ -130,6 +130,7 @@ shorthands! {
     Gap "gap" [RowGap, ColumnGap];
     Columns "columns" [ColumnWidth, ColumnCount];
     Overflow "overflow" [OverflowX, OverflowY];
+    ContainIntrinsicSize "contain-intrinsic-size" [ContainIntrinsicWidth, ContainIntrinsicHeight];
     PlaceContent "place-content" [AlignContent, JustifyContent];
     PlaceItems "place-items" [AlignItems, JustifyItems];
     PlaceSelf "place-self" [AlignSelf, JustifySelf];
@@ -203,6 +204,7 @@ impl ShorthandId {
                 | S::Gap
                 | S::Columns
                 | S::Overflow
+                | S::ContainIntrinsicSize
                 | S::PlaceContent
                 | S::PlaceItems
                 | S::PlaceSelf => parse_layout_shorthand(self, p, out),
@@ -460,6 +462,24 @@ fn parse_layout_shorthand(
             Ok(())
         }
         S::Columns => parse_columns(p, out),
+        S::ContainIntrinsicSize => {
+            let quirky = false;
+            let width = parse_contain_intrinsic(p, quirky)?;
+            // A lone `auto` after the first value is accepted and ignored,
+            // as in Chromium 148 (`10px auto` is `10px 10px`).
+            let height = if p.is_exhausted() {
+                width.clone()
+            } else if let Ok(height) = p.try_parse(|p| parse_contain_intrinsic(p, quirky)) {
+                height
+            } else if p.expect_ident_matching("auto").is_ok() {
+                width.clone()
+            } else {
+                return Err(ParseError::Invalid);
+            };
+            out.push(LonghandValue::ContainIntrinsicWidth(width));
+            out.push(LonghandValue::ContainIntrinsicHeight(height));
+            Ok(())
+        }
         S::Overflow => {
             let x = keyword(p, Overflow::from_ident)?;
             let y = keyword(p, Overflow::from_ident).unwrap_or(x);

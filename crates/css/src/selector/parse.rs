@@ -383,6 +383,7 @@ fn pseudo_class(name: &str) -> Result<PseudoClass, ParseError> {
         "root" => PseudoClass::Root,
         "empty" => PseudoClass::Empty,
         "scope" => PseudoClass::Scope,
+        "host" => PseudoClass::Host(None),
         "first-child" => PseudoClass::FirstChild,
         "last-child" => PseudoClass::LastChild,
         "only-child" => PseudoClass::OnlyChild,
@@ -436,9 +437,28 @@ fn functional_pseudo_class(f: &Function, options: Options) -> Result<PseudoClass
                 return Err(ParseError::Invalid);
             }
         }
+        "host" => PseudoClass::Host(Some(parse_compound_argument(args, nested)?)),
+        "host-context" => PseudoClass::HostContext(parse_compound_argument(args, nested)?),
         _ => return Err(ParseError::Invalid),
     };
     Ok(pc)
+}
+
+/// Parses the argument of `:host()` and `:host-context()`: one compound
+/// selector, without combinators or pseudo-elements.
+fn parse_compound_argument(
+    args: &[ComponentValue],
+    options: Options,
+) -> Result<Box<Selector>, ParseError> {
+    let selector = parse_complex(args, options)?;
+    if selector
+        .components
+        .iter()
+        .any(|c| matches!(c, Component::Combinator(_)))
+    {
+        return Err(ParseError::Invalid);
+    }
+    Ok(Box::new(selector))
 }
 
 /// Parses `An+B [of S]?`.
@@ -676,6 +696,26 @@ mod tests {
         }
     }
 
+    /// `:host`, `:host()` and `:host-context()` parse, as in Chromium 148
+    /// (`tools/probes/host-sizes-auto.json`); they never match.
+    #[test]
+    fn shadow_host_selectors() {
+        for (css, expected) in [
+            (":host", ":host"),
+            (":HOST, html", ":host, html"),
+            (":host(.x)", ":host(.x)"),
+            (":host( div.x:hover )", ":host(div.x:hover)"),
+            (":host-context(.x)", ":host-context(.x)"),
+            (":host > p", ":host > p"),
+            (":host.x, :host:not(.y)", ":host.x, :host:not(.y)"),
+            ("p:host::before", "p:host::before"),
+            (":is(:host, .a)", ":is(:host, .a)"),
+            (":not(:host(*))", ":not(:host(*))"),
+        ] {
+            assert_eq!(normalize(css), expected, "{css}");
+        }
+    }
+
     #[test]
     fn invalid_selectors() {
         let cases = [
@@ -737,6 +777,16 @@ mod tests {
             "a{}",
             "a b c >",
             "a::slotted(b)",
+            ":host()",
+            ":host(.a .b)",
+            ":host(.a > .b)",
+            ":host(.a, .b)",
+            ":host(> p)",
+            ":host(::before)",
+            ":host-context()",
+            ":host-context(.a .b)",
+            ":host-context(.a, .b)",
+            ":host-foo",
         ];
         for css in cases {
             assert!(parse(css).is_err(), "{css:?} should be invalid");
@@ -792,6 +842,9 @@ mod tests {
             (":is()", (0, 0, 0)),
             (":lang(en)", (0, 1, 0)),
             (":root", (0, 1, 0)),
+            (":host", (0, 1, 0)),
+            (":host(#a.b)", (1, 2, 0)),
+            (":host-context(p)", (0, 1, 1)),
         ];
         for (css, (a, b, c)) in cases {
             let list = parse(css).unwrap_or_else(|e| panic!("{css}: {e}"));

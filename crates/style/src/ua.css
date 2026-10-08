@@ -413,6 +413,13 @@ legend {
 
 /* Chromium: replaced content is clipped. */
 video, canvas, img { overflow: clip; }
+
+/* 15.4.2 Images: images whose `sizes` is `auto` do not depend on their
+   source for their size (HTML Standard, "allows auto-sizes"). */
+img:is([sizes="auto" i], [sizes^="auto," i]) {
+  contain: size !important;
+  contain-intrinsic-size: 300px 150px;
+}
 iframe, embed, object { overflow: clip !important; }
 
 iframe { border: 2px inset; }

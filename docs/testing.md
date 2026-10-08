@@ -21,6 +21,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Media tests            | `crates/engine/tests/media.rs` (video posters and their requests, `object-fit`, controls and the default poster in pixels, hit testing) | no |
 | Responsive image tests | `crates/engine/tests/responsive_images.rs` (`srcset`, `sizes` and `<picture>` at other scales and viewports, selection again after a viewport or scale change, `object-fit` with density; by the color of the drawn image) | no |
+| Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -453,6 +454,10 @@ The element path in the report has the form
 `html > body:nth-child(2) > div:nth-child(3)` (`:nth-child` only when the
 parent has more than one element child). Paste it into
 `document.querySelector()` in a browser to find the element.
+
+To see which images swb requests (for example to check image source
+selection), run swb with `RUST_LOG=swb_engine=debug` and look for the
+`image request:` lines.
 
 When a change improves the scores, run `just update-scores` and commit
 `fixtures/scores.json` with the change. The tool logs every score that goes

@@ -234,6 +234,75 @@ impl Default for AspectRatio {
     }
 }
 
+/// The computed `contain`: the containment types that apply to the box
+/// (`strict` and `content` are expanded).
+/// <https://www.w3.org/TR/css-contain-2/#contain-property>
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Contain {
+    /// Size containment: the box is sized as if it had no content.
+    pub size: bool,
+    /// Inline-size containment (only the inline axis).
+    pub inline_size: bool,
+    /// Layout containment.
+    pub layout: bool,
+    /// Style containment.
+    pub style: bool,
+    /// Paint containment.
+    pub paint: bool,
+}
+
+impl Contain {
+    /// `none`, the initial value.
+    pub const NONE: Contain = Contain {
+        size: false,
+        inline_size: false,
+        layout: false,
+        style: false,
+        paint: false,
+    };
+
+    /// `content`: `layout paint style`.
+    pub const CONTENT: Contain = Contain {
+        layout: true,
+        paint: true,
+        style: true,
+        ..Contain::NONE
+    };
+
+    /// `strict`: `size layout paint style`.
+    pub const STRICT: Contain = Contain {
+        size: true,
+        ..Contain::CONTENT
+    };
+}
+
+/// The computed `contain-intrinsic-width` or `-height`:
+/// `auto? [none | <length>]`
+/// (<https://www.w3.org/TR/css-sizing-4/#intrinsic-size-override>).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ContainIntrinsic {
+    /// True if the value starts with `auto`: a box that skips its content
+    /// (`content-visibility: auto`) remembers its last size. swb has no
+    /// such boxes, so the flag changes nothing.
+    pub auto: bool,
+    /// The length in px; `None` for `none`.
+    pub length: Option<f32>,
+}
+
+impl ContainIntrinsic {
+    /// `none`, the initial value.
+    pub const NONE: ContainIntrinsic = ContainIntrinsic {
+        auto: false,
+        length: None,
+    };
+
+    /// The size that a box with size containment has in this axis:
+    /// the length, or 0 for `none`.
+    pub fn size(&self) -> f32 {
+        self.length.unwrap_or(0.0)
+    }
+}
+
 /// The computed `z-index`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ZIndex {

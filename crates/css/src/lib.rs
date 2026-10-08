@@ -44,7 +44,7 @@ pub use selector::{
     matches_with_scope,
 };
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
-pub use sizes::source_size;
+pub use sizes::{allows_auto, source_size};
 pub use stylesheet::{
     CssRule, Declaration, FontFaceRule, ImportRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };

@@ -10,16 +10,16 @@ use std::sync::Arc;
 
 use super::mask::SpecifiedMaskImage;
 use super::specified::{
-    SpecifiedBackgroundSize, SpecifiedContent, SpecifiedFlexBasis, SpecifiedFontSize,
-    SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign,
-    SpecifiedVerticalAlign,
+    SpecifiedBackgroundSize, SpecifiedContainIntrinsic, SpecifiedContent, SpecifiedFlexBasis,
+    SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize,
+    SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
 use super::transform::{SpecifiedClip, SpecifiedTransform, SpecifiedTransformOrigin};
 use crate::ComputedStyle;
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
     CounterList, Cursor, Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float,
     FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
     ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
@@ -235,6 +235,9 @@ longhands! {
     CounterReset "counter-reset" reset counter_reset: CounterList;
     CounterIncrement "counter-increment" reset counter_increment: CounterList;
     CounterSet "counter-set" reset counter_set: CounterList;
+    Contain "contain" reset contain: Contain;
+    ContainIntrinsicWidth "contain-intrinsic-width" reset contain_intrinsic_width: SpecifiedContainIntrinsic;
+    ContainIntrinsicHeight "contain-intrinsic-height" reset contain_intrinsic_height: SpecifiedContainIntrinsic;
     ObjectFit "object-fit" reset object_fit: ObjectFit;
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;

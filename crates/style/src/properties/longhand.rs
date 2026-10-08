@@ -12,9 +12,9 @@ use swb_css::{ParseError, Parser};
 use super::CssWideKeyword;
 use super::ids::{LonghandId, LonghandValue};
 use super::specified::{
-    SpecifiedBackgroundSize, SpecifiedContent, SpecifiedContentItem, SpecifiedFlexBasis,
-    SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight, SpecifiedPosition, SpecifiedSize,
-    SpecifiedTextAlign, SpecifiedVerticalAlign,
+    SpecifiedBackgroundSize, SpecifiedContainIntrinsic, SpecifiedContent, SpecifiedContentItem,
+    SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight,
+    SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
 use super::transform;
 use crate::parse::color::parse_color;
@@ -27,12 +27,13 @@ use crate::parse::{
 };
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, CounterList, Cursor, Direction,
-    Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle,
-    FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, SpecifiedLengthPercentage as Lp,
-    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
-    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain, CounterList, Cursor,
+    Direction, Display, EmptyCells, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
+    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType,
+    ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
+    SpecifiedLengthPercentage as Lp, TableLayout, TextAlign, TextDecorationLine,
+    TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -236,6 +237,13 @@ pub(crate) fn parse_longhand(
             L::CounterReset => V::CounterReset(parse_counter_list(p, 0)?),
             L::CounterIncrement => V::CounterIncrement(parse_counter_list(p, 1)?),
             L::CounterSet => V::CounterSet(parse_counter_list(p, 0)?),
+            L::Contain => V::Contain(parse_contain(p)?),
+            L::ContainIntrinsicWidth => {
+                V::ContainIntrinsicWidth(parse_contain_intrinsic(p, quirky)?)
+            }
+            L::ContainIntrinsicHeight => {
+                V::ContainIntrinsicHeight(parse_contain_intrinsic(p, quirky)?)
+            }
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
             L::ObjectPosition => {
                 let (x, y) = parse_position(p)?;
@@ -932,6 +940,57 @@ fn parse_aspect_ratio(p: &mut Parser<'_>) -> ParseResult<AspectRatio> {
         Err(e) => return Err(e),
     };
     Ok(AspectRatio { auto, ratio })
+}
+
+/// `contain`: `none | strict | content | [size || layout || style || paint
+/// || inline-size]`. `size` and `inline-size` exclude each other, and a
+/// type cannot repeat.
+/// <https://www.w3.org/TR/css-contain-2/#contain-property>
+fn parse_contain(p: &mut Parser<'_>) -> ParseResult<Contain> {
+    let first = p.expect_ident()?.to_ascii_lowercase();
+    match first.as_str() {
+        "none" => return Ok(Contain::NONE),
+        "strict" => return Ok(Contain::STRICT),
+        "content" => return Ok(Contain::CONTENT),
+        _ => {}
+    }
+    let mut contain = Contain::NONE;
+    let mut word = Some(first);
+    while let Some(name) = word {
+        let flag = match name.as_str() {
+            "size" => &mut contain.size,
+            "inline-size" => &mut contain.inline_size,
+            "layout" => &mut contain.layout,
+            "style" => &mut contain.style,
+            "paint" => &mut contain.paint,
+            _ => return Err(ParseError::Unexpected),
+        };
+        if std::mem::replace(flag, true) {
+            return Err(ParseError::Invalid);
+        }
+        word = p.expect_ident().ok().map(str::to_ascii_lowercase);
+    }
+    if contain.size && contain.inline_size {
+        return Err(ParseError::Invalid);
+    }
+    Ok(contain)
+}
+
+/// `contain-intrinsic-width` and `-height`: `auto? [none | <length>]`.
+/// <https://www.w3.org/TR/css-sizing-4/#intrinsic-size-override>
+pub(crate) fn parse_contain_intrinsic(
+    p: &mut Parser<'_>,
+    quirky: bool,
+) -> ParseResult<SpecifiedContainIntrinsic> {
+    let auto = p.expect_ident_matching("auto").is_ok();
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok(SpecifiedContainIntrinsic { auto, length: None });
+    }
+    let length = non_negative_length(p, quirky)?;
+    Ok(SpecifiedContainIntrinsic {
+        auto,
+        length: Some(length),
+    })
 }
 
 /// `z-index`: `auto | <integer>`.

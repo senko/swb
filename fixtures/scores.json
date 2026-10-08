@@ -1,4 +1,10 @@
 {
+  "ars-technica": {
+    "geometry": 0.1829,
+    "pixels": 0.9595,
+    "relative": 0.4995,
+    "size": 0.58
+  },
   "bbc": {
     "geometry": 0.024,
     "pixels": 0.9586,

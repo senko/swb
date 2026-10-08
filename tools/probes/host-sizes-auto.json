@@ -1,0 +1,1910 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "host-tailwind-base",
+   "html": "<!DOCTYPE html><style>:host,html{line-height:30px}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-alone",
+   "html": "<!DOCTYPE html><style>:host{line-height:30px}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-is-host",
+   "html": "<!DOCTYPE html><style>:is(:host),html{line-height:30px}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-is-host-only",
+   "html": "<!DOCTYPE html><style>:is(:host){line-height:30px}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-child",
+   "html": "<!DOCTYPE html><style>:host > p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn",
+   "html": "<!DOCTYPE html><style>:host(.x){color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-list",
+   "html": "<!DOCTYPE html><style>:host(.x),p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-complex",
+   "html": "<!DOCTYPE html><style>:host(.a .b),p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-selector-list",
+   "html": "<!DOCTYPE html><style>:host(.a,.b),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-empty",
+   "html": "<!DOCTYPE html><style>:host(),p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-combinator",
+   "html": "<!DOCTYPE html><style>:host(> p),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-pseudo-class",
+   "html": "<!DOCTYPE html><style>:host(:hover),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-whitespace",
+   "html": "<!DOCTYPE html><style>:host( .x ),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-fn-then-combinator",
+   "html": "<!DOCTYPE html><style>:host(.a) > p,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-context",
+   "html": "<!DOCTYPE html><style>:host-context(.x),p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-context-complex",
+   "html": "<!DOCTYPE html><style>:host-context(.a .b),p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-context-list",
+   "html": "<!DOCTYPE html><style>:host-context(.a,.b),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-context-empty",
+   "html": "<!DOCTYPE html><style>:host-context(),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-not-host",
+   "html": "<!DOCTYPE html><style>:not(:host){color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-not-host-fn",
+   "html": "<!DOCTYPE html><style>:not(:host(.x)){color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-type-host",
+   "html": "<!DOCTYPE html><style>p:host,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-uppercase",
+   "html": "<!DOCTYPE html><style>:HOST,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-class-after",
+   "html": "<!DOCTYPE html><style>:host.x,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-not-after",
+   "html": "<!DOCTYPE html><style>:host:not(.x),div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-where-host-descendant",
+   "html": "<!DOCTYPE html><style>:where(:host) p{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-pseudo-element",
+   "html": "<!DOCTYPE html><style>:host::before,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-unknown",
+   "html": "<!DOCTYPE html><style>:host-foo,div{color:red}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "host-nested",
+   "html": "<!DOCTYPE html><style>div{:host{color:red} color:blue}</style><p id=p>x</p><div class=x id=d><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "html",
+     "props": [
+      "line-height"
+     ]
+    },
+    {
+     "style": "#p, #d, #q",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "auto-box-plain",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-eager",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-eager-list",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto, 80px\" >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-not-auto-eager",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"80px\" >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-width-height",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-width-height-square",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=100>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-width-only",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-height-only",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy height=100>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-css-width",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{width:100px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-css-height",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{height:100px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-attr-css-width",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{width:200px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-attr-css-height",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{height:200px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-attr-height-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{height:auto}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-attr-width-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{width:auto}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-block",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{display:block}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-block-width-100pct",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{display:block;width:100%}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-min-max",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{min-width:400px;max-height:60px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-padding-border",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{padding:10px;border:3px solid}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-padding-border-attrs",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{padding:10px;border:3px solid}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-object-fit",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{object-fit:contain}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-aspect-ratio-width",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{aspect-ratio:2/1;width:200px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-aspect-ratio-only",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{aspect-ratio:2/1}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-aspect-ratio-auto-and-cis",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{aspect-ratio:auto 4/1;contain-intrinsic-size:80px 80px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-contain-none",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{contain:none}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100 height=50>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-cis-override",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{contain-intrinsic-size:50px 25px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-cis-and-width-attr",
+   "html": "<!DOCTYPE html><style>body{margin:0}#i{contain-intrinsic-size:50px 25px}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto\" loading=lazy width=100>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-uppercase",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"AUTO\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-comma",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"auto, 80px\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "auto-box-second-entry",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><img id=i srcset=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAIAAABwJOjsAAAAJElEQVR4nGNwaDgwIIhh1OJRi0ctHrV41OJRi0ctHrV45FgMAKW9sD1yH2fSAAAAAElFTkSuQmCC 400w\" sizes=\"80px, auto\" loading=lazy >",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "contain-flex-grow",
+   "html": "<!DOCTYPE html><style>body{margin:0}img{display:block;contain:size;contain-intrinsic-size:300px 150px;margin:0}</style><div style='display:flex;width:500px;align-items:flex-start'><img src=x.png><img src=y.png style='flex:1'></div>",
+   "measure": [
+    {
+     "boxes": "img"
+    }
+   ]
+  },
+  {
+   "name": "contain-flex-shrink",
+   "html": "<!DOCTYPE html><style>body{margin:0}img{display:block;contain:size;contain-intrinsic-size:300px 150px;margin:0}</style><div style='display:flex;width:400px;align-items:flex-start'><img src=x.png><img src=y.png></div>",
+   "measure": [
+    {
+     "boxes": "img"
+    }
+   ]
+  },
+  {
+   "name": "contain-flex-column",
+   "html": "<!DOCTYPE html><style>body{margin:0}img{display:block;contain:size;contain-intrinsic-size:300px 150px;margin:0}</style><div style='display:flex;flex-direction:column;width:200px;height:500px;align-items:flex-start'><img src=x.png><img src=y.png style='flex:1'></div>",
+   "measure": [
+    {
+     "boxes": "img"
+    }
+   ]
+  },
+  {
+   "name": "contain-flex-min-width",
+   "html": "<!DOCTYPE html><style>body{margin:0}img{display:block;contain:size;contain-intrinsic-size:300px 150px;margin:0}</style><div style='display:flex;width:500px;align-items:flex-start'><img src=x.png><img src=y.png style='flex:1;min-width:auto'><img src=z.png style='flex:1;min-width:0'></div>",
+   "measure": [
+    {
+     "boxes": "img"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-auto",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"auto\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-auto-list",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"auto, 150px\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-auto-width-attr",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"auto\" width=384 height=216>",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-not-auto",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"150px\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-second-entry",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"150px, auto\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-condition-auto",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"(min-width: 100px) auto, 150px\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "auto-src-eager-uppercase",
+   "html": "<!DOCTYPE html><body style='margin:0'><img id=i srcset=\"w100.png 100w, w200.png 200w, w300.png 300w, w400.png 400w, w500.png 500w, w600.png 600w, w700.png 700w, w800.png 800w, w900.png 900w, w1000.png 1000w, w1100.png 1100w, w1200.png 1200w, w1300.png 1300w, w1400.png 1400w, w1500.png 1500w, w1600.png 1600w\" sizes=\"AUTO, 150px\" >",
+   "measure": [
+    {
+     "js": "(()=>{const m=/w(\\d+)\\.png/.exec(document.getElementById('i').currentSrc);return m?+m[1]:null})()"
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-0",
+   "html": "<!DOCTYPE html><style>#a{contain:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-1",
+   "html": "<!DOCTYPE html><style>#a{contain:size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-2",
+   "html": "<!DOCTYPE html><style>#a{contain:layout}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-3",
+   "html": "<!DOCTYPE html><style>#a{contain:paint}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-4",
+   "html": "<!DOCTYPE html><style>#a{contain:style}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-5",
+   "html": "<!DOCTYPE html><style>#a{contain:strict}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-6",
+   "html": "<!DOCTYPE html><style>#a{contain:content}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-7",
+   "html": "<!DOCTYPE html><style>#a{contain:inline-size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-8",
+   "html": "<!DOCTYPE html><style>#a{contain:size layout}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-9",
+   "html": "<!DOCTYPE html><style>#a{contain:layout size paint}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-10",
+   "html": "<!DOCTYPE html><style>#a{contain:size size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-11",
+   "html": "<!DOCTYPE html><style>#a{contain:none size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-12",
+   "html": "<!DOCTYPE html><style>#a{contain:size foo}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-13",
+   "html": "<!DOCTYPE html><style>#a{contain:}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-14",
+   "html": "<!DOCTYPE html><style>#a{contain:inline-size layout}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-15",
+   "html": "<!DOCTYPE html><style>#a{contain:size inline-size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-16",
+   "html": "<!DOCTYPE html><style>#a{contain:STRICT}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-17",
+   "html": "<!DOCTYPE html><style>#a{contain:style layout paint size}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-18",
+   "html": "<!DOCTYPE html><style>#a{contain:layout style}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-computed-19",
+   "html": "<!DOCTYPE html><style>#a{contain:paint style layout}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-0",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-1",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-2",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-3",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto 10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-4",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto 10px auto 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-5",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10px auto 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-6",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-7",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-8",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:none auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-9",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10px none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-10",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto 10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-11",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:1em 2em}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-12",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10%}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-13",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:-10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-14",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:0 0}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-15",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:calc(1px + 2px) 3px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-16",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto 5px 6px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-17",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto 100px auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-18",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:auto auto 5px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-19",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:10px auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-size-20",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-size:5px 6px 7px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-auto_10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:auto 10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-auto",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-auto_none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:auto none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-5pct",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:5%}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width--1px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:-1px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-10px_20px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-width-1em",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-width:1em}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-auto_10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:auto 10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-auto",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-auto_none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:auto none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-5pct",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:5%}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height--1px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:-1px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-10px_20px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-height-1em",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-height:1em}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-height",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-auto_10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:auto 10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-auto",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-auto_none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:auto none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-5pct",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:5%}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size--1px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:-1px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-10px_20px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-inline-size-1em",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-inline-size:1em}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-inline-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-auto_10px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:auto 10px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-auto",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:auto}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-auto_none",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:auto none}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-5pct",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:5%}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size--1px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:-1px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-10px_20px",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:10px 20px}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "contain-intrinsic-block-size-1em",
+   "html": "<!DOCTYPE html><style>#a{contain-intrinsic-block-size:1em}</style><div id=a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "contain-intrinsic-block-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+     ]
+    }
+   ]
+  }
+ ]
+}

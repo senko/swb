@@ -342,7 +342,9 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `image_source.rs`: image source selection for `<img>` (`srcset`,
   `sizes`, `<picture>` and `<source>`, the source of the dimension
   attributes); `resources.rs` keeps each image's URL and pixel density
-  and selects sources again after viewport or scale changes.
+  and selects sources again after viewport or scale changes;
+  `page/auto_sizes.rs` selects the sources of lazy images with
+  `sizes="auto"` after each layout, by the width of their boxes.
 - `selection.rs`: text positions, the position at a point, words and
   blocks, the highlight for paint, and the selected text (`innerText`
   rules).

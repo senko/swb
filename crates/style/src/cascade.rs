@@ -828,6 +828,37 @@ mod tests {
         assert_eq!(get(&doc, &map, "a").color, BLUE);
     }
 
+    /// The HTML Standard rule for images with `sizes="auto"`: `contain:
+    /// size` is `!important`, the intrinsic size is not.
+    #[test]
+    fn auto_sized_images_have_size_containment() {
+        let (doc, map) = render(
+            "<img id=a sizes=auto><img id=b sizes='AUTO, 10px'><img id=c sizes=' auto'>\
+             <img id=d sizes='auto 10px'><img id=e sizes=auto><img id=f>",
+            "#e { contain: none; contain-intrinsic-size: 50px 25px }",
+        );
+        let cis = |id| {
+            let s = get(&doc, &map, id);
+            (
+                s.contain,
+                s.contain_intrinsic_width.size(),
+                s.contain_intrinsic_height.size(),
+            )
+        };
+        let size = Contain {
+            size: true,
+            ..Contain::NONE
+        };
+        assert_eq!(cis("a"), (size, 300.0, 150.0));
+        assert_eq!(cis("b"), (size, 300.0, 150.0));
+        // The attribute selector does not trim white space.
+        assert_eq!(cis("c"), (Contain::NONE, 0.0, 0.0));
+        assert_eq!(cis("d"), (Contain::NONE, 0.0, 0.0));
+        // Author `contain` loses to the `!important`; the size does not.
+        assert_eq!(cis("e"), (size, 50.0, 25.0));
+        assert_eq!(cis("f"), (Contain::NONE, 0.0, 0.0));
+    }
+
     #[test]
     fn origins() {
         // Author rules beat the UA sheet regardless of specificity, and
@@ -1230,7 +1261,15 @@ mod tests {
                 ratio: None
             }
         );
-        assert_eq!(get(&doc, &map, "img").aspect_ratio, AspectRatio::AUTO);
+        // An `img` has the hint too (a broken or contained image has no
+        // natural ratio).
+        assert_eq!(
+            get(&doc, &map, "img").aspect_ratio,
+            AspectRatio {
+                auto: true,
+                ratio: Some(250.0 / 159.0)
+            }
+        );
     }
 
     #[test]

@@ -139,6 +139,9 @@ fn write_pseudo_class(pc: &PseudoClass, out: &mut String) {
         PseudoClass::NthLastOfType(_) => "nth-last-of-type(",
         PseudoClass::Lang(_) => "lang(",
         PseudoClass::Dir(_) => "dir(",
+        PseudoClass::Host(None) => "host",
+        PseudoClass::Host(Some(_)) => "host(",
+        PseudoClass::HostContext(_) => "host-context(",
     };
     out.push_str(name);
     match pc {
@@ -177,6 +180,9 @@ fn write_pseudo_class(pc: &PseudoClass, out: &mut String) {
         }
         PseudoClass::Dir(Direction::Ltr) => out.push_str("ltr"),
         PseudoClass::Dir(Direction::Rtl) => out.push_str("rtl"),
+        PseudoClass::Host(Some(arg)) | PseudoClass::HostContext(arg) => {
+            write_selector(arg, out);
+        }
         _ => return,
     }
     out.push(')');

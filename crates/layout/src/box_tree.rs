@@ -444,7 +444,7 @@ pub(crate) fn build_independent(
     state: &mut BuildState,
 ) -> IndependentBox {
     let element = base.element();
-    if let Some(replaced) = element.and_then(|node| replaced(ctx, node)) {
+    if let Some(replaced) = element.and_then(|node| replaced(ctx, node, &base.style)) {
         return IndependentBox {
             contents: IndependentContents::Replaced(replaced),
             base,
@@ -483,13 +483,18 @@ pub(crate) fn build_independent(
 /// The replaced element `node` (an image, a video or audio), or `None` if
 /// it is not one. `<canvas>` is not: without scripts, it shows its
 /// fallback content (as in Chromium with JavaScript disabled).
-fn replaced(ctx: &BuildContext<'_>, node: NodeId) -> Option<Replaced> {
+fn replaced(ctx: &BuildContext<'_>, node: NodeId, style: &ComputedStyle) -> Option<Replaced> {
     let media = if ctx.doc.element(node)?.is_html_named(&local_name!("img")) {
         None
     } else {
         Some(Media::of(ctx.doc, node)?)
     };
     let natural_size = ctx.replaced.natural_size(node);
+    let natural_size = if style.contain.size {
+        Some(contained_natural_size(style))
+    } else {
+        natural_size
+    };
     Some(Replaced {
         node,
         // A video without a loaded poster, and audio, have no natural
@@ -501,6 +506,25 @@ fn replaced(ctx: &BuildContext<'_>, node: NodeId) -> Option<Replaced> {
         },
         media,
     })
+}
+
+/// The natural size of a replaced element with size containment: no
+/// natural aspect ratio, and the `contain-intrinsic-size` lengths (0 for
+/// `none`) in place of the natural width and height, whether or not the
+/// content is loaded. An `aspect-ratio` hint still applies.
+/// <https://www.w3.org/TR/css-sizing-4/#intrinsic-size-override>
+fn contained_natural_size(style: &ComputedStyle) -> NaturalSize {
+    NaturalSize {
+        width: Some(style.contain_intrinsic_width.size()),
+        // With an `aspect-ratio`, the height follows the width (measured in
+        // Chromium 148).
+        height: if style.aspect_ratio.ratio.is_some() {
+            None
+        } else {
+            Some(style.contain_intrinsic_height.size())
+        },
+        ratio: None,
+    }
 }
 
 /// True for elements whose box is atomic like a replaced element: images,

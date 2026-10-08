@@ -321,7 +321,7 @@ fn width_descriptors_follow_chromium() {
         <img id="g" srcset="r100.png 100w 50h, r200.png 200w" sizes="80px">
         <img id="h" srcset="r100.png 100w, r200.png 2x" sizes="80px">
         <img id="i" srcset="r200.png 0w, r100.png 50w" sizes="25px">
-        <img id="j" {set} sizes="auto, 90px" loading="lazy">
+        <img id="j" {set} sizes="auto, 90px">
         "#
     );
     let natural = |dpr: f32| -> Vec<(String, String, f32)> {
@@ -350,8 +350,7 @@ fn width_descriptors_follow_chromium() {
             n("g", "r100.png", 80.0),
             n("h", "r100.png", 80.0),
             n("i", "r100.png", 50.0),
-            // Chromium uses 100vw when it selects, then the laid-out width
-            // (300px from `contain-intrinsic-size`) for the density.
+            // `auto` without lazy loading is 100vw.
             n("j", "r400.png", 800.0),
         ]
     );
@@ -359,6 +358,79 @@ fn width_descriptors_follow_chromium() {
     assert_eq!(at_2[0], n("a", "r400.png", 150.0));
     assert_eq!(at_2[2], n("c", "r200.png", 100.0));
     assert_eq!(at_2[7], n("h", "r200.png", 100.0));
+}
+
+/// `sizes="auto"` on lazy images: no selection without a width, then the
+/// width of the box.
+#[test]
+fn lazy_auto_sizes_wait_for_the_width() {
+    let set = r#"srcset="r100.png 100w, r200.png 200w, r400.png 400w""#;
+    let html = format!(
+        r#"
+        <img id="a" {set} sizes="auto, 90px" loading="lazy">
+        <img id="b" {set} sizes="AUTO" loading="LAZY">
+        <img id="b2" {set} sizes=" auto, 90px" loading="lazy">
+        <img id="c" {set} sizes="auto, 90px" loading="eager">
+        <img id="d" {set} sizes="auto ,90px" loading="lazy">
+        <img id="e" srcset="r100.png 1x, r200.png 2x" sizes="auto" loading="lazy">
+        <img id="f" src="r100.png" sizes="auto" loading="lazy">
+        <img id="g" {set} sizes="90px, auto" loading="lazy">
+        <picture><source srcset="r300.png"><img id="h" {set} sizes="auto" loading="lazy"></picture>
+        <picture><source srcset="r300.png" media="(max-width: 1px)"><img id="i" {set} sizes="auto" loading="lazy"></picture>
+        "#
+    );
+    let doc = swb_dom::parse_html(&html);
+    let base = Url::parse("https://example.com/dir/page.html").unwrap();
+    let env = env(1.0);
+    let selected = select_images(&doc, &base, &env);
+    let waiting: Vec<_> = selected
+        .iter()
+        .map(|(node, s)| (doc.element(*node).unwrap().attr("id").unwrap(), s.auto))
+        .collect();
+    assert_eq!(
+        waiting,
+        [
+            ("a", true),
+            ("b", true),
+            ("b2", false),
+            ("c", false),
+            ("d", false),
+            ("e", false),
+            ("f", false),
+            ("g", false),
+            ("h", false),
+            ("i", true),
+        ]
+    );
+    assert!(selected.iter().all(|(_, s)| s.auto == s.image.is_none()));
+    let by_id = |id: &str| doc.element_by_id(id).unwrap();
+    let file = |id: &str, width: Option<f32>| {
+        let image = select_auto_image(&doc, &base, by_id(id), &env, width).unwrap();
+        let name = image.url.path().rsplit('/').next().unwrap().to_owned();
+        (name, image.density)
+    };
+    // The width gives the density of each candidate: the first one with a
+    // density of at least 1.
+    assert_eq!(
+        file("a", Some(150.0)),
+        ("r200.png".to_owned(), 200.0 / 150.0)
+    );
+    assert_eq!(file("a", Some(400.0)), ("r400.png".to_owned(), 1.0));
+    assert_eq!(file("a", Some(50.0)), ("r100.png".to_owned(), 2.0));
+    assert_eq!(
+        file("b", Some(300.0)),
+        ("r400.png".to_owned(), 400.0 / 300.0)
+    );
+    // With white space before `auto` (no user-agent rule, no containment),
+    // the width is not used (100vw).
+    assert_eq!(file("b2", Some(300.0)), ("r400.png".to_owned(), 0.5));
+    // Without a width (no box, not rendered before): 100vw = 800px, so the
+    // densest candidate.
+    assert_eq!(file("a", None), ("r400.png".to_owned(), 0.5));
+    // A width of 0 gives infinite densities: the first candidate.
+    assert_eq!(file("a", Some(0.0)).0, "r100.png");
+    // The width does not change a list that does not allow auto-sizes.
+    assert_eq!(file("g", Some(300.0)).0, "r100.png");
 }
 
 #[test]

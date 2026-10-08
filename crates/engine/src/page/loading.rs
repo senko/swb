@@ -337,9 +337,15 @@ impl Page {
         let env = self.media_environment();
         let mut dimension_sources = HashMap::new();
         let mut loads = Vec::new();
+        let mut auto_nodes = Vec::new();
         for (node, selection) in image_source::select_images(doc, &base, &env) {
             if let Some(source) = selection.dimension_source {
                 dimension_sources.insert(node, source);
+            }
+            // The width of the box decides: selected after layout.
+            if selection.auto {
+                auto_nodes.push(node);
+                continue;
             }
             // Without a candidate, the image stays as it is (the
             // specification returns early).
@@ -351,6 +357,9 @@ impl Page {
             }
         }
         self.input.states.dimension_sources = Arc::new(dimension_sources);
+        let kept: HashSet<NodeId> = auto_nodes.iter().copied().collect();
+        self.images.auto.retain(|node, _| kept.contains(node));
+        self.images.auto_nodes = auto_nodes;
         for url in loads {
             self.start_image(url);
         }
@@ -367,6 +376,7 @@ impl Page {
             self.images.load_ended(&url);
             return;
         }
+        log::debug!("image request: {url}");
         self.images.by_url.insert(url.clone(), ImageState::Loading);
         let request = Request::get(url.clone(), Destination::Image);
         let id = self

@@ -281,9 +281,69 @@ this ADR:
   pending; swb replaces the pending selection, so that a change and its
   reversal (1x, 2x, 1x) end at the right image. Image loads that `stop`
   or a navigation cancelled are requested again at the next selection.
-- `sizes="auto"` (lazy images) is not supported: it gives `100vw`, which
-  Chromium also uses when it selects. Chromium then uses the laid-out
-  width for the density, and its user-agent sheet gives these images
-  `contain: size` with an intrinsic size of 300×150; swb has neither.
+- `sizes="auto"` (see "Update 2026-10-08" below): lazy images with `w`
+  descriptors select their source after layout, by the width of their
+  box.
 - Video posters are not affected: they have density 1 and are not
   selected again.
+
+## Update (2026-10-08, `sizes="auto"`)
+
+An `img` allows auto-sizes if `loading` is `lazy` and `sizes` is `auto` or
+starts with `auto,` (ASCII case-insensitive; no white space). Then `auto`
+in `sizes` is the content width of the image's box
+(<https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute>).
+swb follows the specification and Chromium 148 (measured with
+`tools/probes/host-sizes-auto.json`) as follows:
+
+- There is no box when the sources are selected. An image that allows
+  auto-sizes and has a `w` descriptor in its own `srcset` is not selected
+  then (`Selection::auto`), so that its `100vw` candidates are not
+  requested. After each layout the page (`engine/src/page/auto_sizes.rs`)
+  reads the content width of each such box and selects again if the width,
+  the viewport or the scale changed since the last selection
+  (`resources::AutoSizes`). An image without a box (`display: none`) uses
+  its last width, else `100vw`, as Chromium does. An image keeps its
+  current source until the new one has loaded (`Images::reselect`).
+- The selection after layout cannot loop for images that match the
+  user-agent rule below: their size does not depend on the source. For
+  the other forms (`sizes=" auto"`) an image selects at most 8 times
+  (`MAX_AUTO_SELECTIONS`). The pass walks the fragment tree once per
+  layout and each image once; a hostile page set case covers 16,000 such
+  images.
+- Deviation, as in Chromium 148: for an image that is not lazy-loaded
+  (or has no width), an `auto` entry without a media condition gives
+  `100vw` and ends the list (`auto, 90px` is 100vw); the specification
+  skips it and uses the next entry. With white space before `auto`
+  (`" auto, 90px"`), swb also reads `auto` as 100vw, but such an image
+  does not match the user-agent rule (no containment), so swb does not
+  wait for its width; with a space before the comma (`auto ,90px`) and
+  after another entry (`90px, auto`) it ignores `auto`. Chromium 148
+  gives timing-dependent results for the forms with white space, so they
+  are not in the probe file. `auto` in the `sizes` of a `<source>`
+  also gives `100vw`.
+- Chromium 148 selects the `100vw` candidate first, because there is no
+  layout yet, and the laid-out one after layout. In the probe, the final
+  `currentSrc` of a lazy image on a local file depended on timing (the
+  laid-out candidate won in some runs, `100vw` in others), so the probe
+  file keeps only the deterministic `currentSrc` cases. On the Ars page
+  (network, lazy images) Chromium loaded the laid-out candidates. swb
+  never requests the `100vw` candidate of a lazy image that has a box.
+  swb does not defer lazy images otherwise: `loading=lazy` images load at
+  once.
+- The user-agent rule from the HTML Standard rendering section,
+  `img:is([sizes="auto" i], [sizes^="auto," i]) { contain: size
+  !important; contain-intrinsic-size: 300px 150px }`, is in `ua.css`. The
+  attribute selector does not trim white space. `contain` (full syntax:
+  `none | strict | content | size || layout || style || paint ||
+  inline-size`) and `contain-intrinsic-size`, `-width`, `-height`,
+  `-inline-size`, `-block-size` (`auto? [none | <length>]`) are parsed;
+  Chromium also accepts a trailing lone `auto` in the shorthand (`10px
+  auto` is `10px 10px`). Layout uses only size containment of replaced
+  elements: the natural size is `contain-intrinsic-size` (0 for `none`),
+  there is no natural aspect ratio, and an `aspect-ratio` from the
+  `width` and `height` attributes still applies (it then also gives the
+  height from the width). A flex item with size containment has no
+  automatic minimum size (measured; a plain image of the same size has
+  one). Containment of other boxes (size, layout, paint, style) has no
+  effect yet.

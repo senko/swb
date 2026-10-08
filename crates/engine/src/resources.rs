@@ -90,6 +90,55 @@ impl ImageState {
     }
 }
 
+/// The most times that the source of one image with `sizes="auto"` is
+/// selected again after a layout. An image whose size depends on its source
+/// (no size containment: `sizes=" auto"`) could otherwise change its width
+/// with each source, and select again for ever.
+pub(crate) const MAX_AUTO_SELECTIONS: u8 = 8;
+
+/// The state of an `img` that allows auto-sizes: the width that its last
+/// source selection used, and the environment of that selection.
+/// <https://html.spec.whatwg.org/multipage/images.html#last-auto-sizes-width>
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct AutoSizes {
+    /// The "last auto-sizes width": the content width of the box at the
+    /// last selection.
+    width: Option<f32>,
+    /// The viewport width and height and the scale of the last selection,
+    /// as bits; `None` before the first selection.
+    env: Option<[u32; 3]>,
+    /// How many times a source was selected.
+    selections: u8,
+}
+
+impl AutoSizes {
+    /// Decides whether the source of the image is selected (again) after a
+    /// layout. `rendered` is the content width of its box, or `None` if
+    /// it has none; then the last width stands in for it (the
+    /// specification's "not being rendered" case). `env` is the viewport
+    /// and scale. Returns true if the source is to be selected for
+    /// [`AutoSizes::width`]; false if the selection stands: nothing
+    /// changed, or the limit [`MAX_AUTO_SELECTIONS`] is reached.
+    pub(crate) fn update(&mut self, rendered: Option<f32>, env: [u32; 3]) -> bool {
+        let width = rendered.or(self.width);
+        if self.env == Some(env) && self.width == width {
+            return false;
+        }
+        if self.selections >= MAX_AUTO_SELECTIONS {
+            return false;
+        }
+        self.selections += 1;
+        self.env = Some(env);
+        self.width = width;
+        true
+    }
+
+    /// The width of the last selection (`None`: the image never had a box).
+    pub(crate) fn width(&self) -> Option<f32> {
+        self.width
+    }
+}
+
 /// Images of a page, by URL, and which elements use them.
 #[derive(Default)]
 pub(crate) struct Images {
@@ -109,6 +158,11 @@ pub(crate) struct Images {
     /// True if a viewport or scale change happened after the last
     /// selection of image sources.
     pub(crate) sources_outdated: bool,
+    /// The `img` elements that allow auto-sizes and whose source depends on
+    /// their width. They are selected after layout (`Page::select_auto_sized_images`).
+    pub(crate) auto_nodes: Vec<NodeId>,
+    /// The state of each element of `auto_nodes`.
+    pub(crate) auto: HashMap<NodeId, AutoSizes>,
     /// Renderings of the page's SVG images.
     vector_cache: VectorCache,
 }
@@ -258,6 +312,39 @@ impl Requests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn auto_sizes_select_when_the_width_or_environment_changes() {
+        let env = [800.0f32.to_bits(), 600.0f32.to_bits(), 1.0f32.to_bits()];
+        let wide = [1000.0f32.to_bits(), 600.0f32.to_bits(), 1.0f32.to_bits()];
+        let mut auto = AutoSizes::default();
+        // The first selection happens also without a box.
+        assert!(auto.update(None, env));
+        assert_eq!(auto.width(), None);
+        assert!(!auto.update(None, env));
+        assert!(auto.update(Some(384.0), env));
+        assert_eq!(auto.width(), Some(384.0));
+        assert!(!auto.update(Some(384.0), env));
+        // Not rendered: the last width stands in.
+        assert!(!auto.update(None, env));
+        assert!(auto.update(None, wide));
+        assert_eq!(auto.width(), Some(384.0));
+        assert!(auto.update(Some(100.0), wide));
+        assert_eq!(auto.width(), Some(100.0));
+    }
+
+    #[test]
+    fn auto_sizes_stop_after_the_limit() {
+        let env = [0; 3];
+        let mut auto = AutoSizes::default();
+        let mut selections = 0;
+        for i in 0..100 {
+            if auto.update(Some(i as f32), env) {
+                selections += 1;
+            }
+        }
+        assert_eq!(selections, MAX_AUTO_SELECTIONS);
+    }
 
     #[test]
     fn density_correction() {

@@ -36,14 +36,25 @@
 //! ignores a change while a load is pending; swb replaces the pending
 //! selection, so that a change and its reversal end at the right image.
 //!
+//! `sizes="auto"` on a lazy-loaded `img` with `w` descriptors means the
+//! laid-out width of the image ("allows auto-sizes",
+//! <https://html.spec.whatwg.org/multipage/embedded-content.html#attr-img-sizes>).
+//! There is no layout when the sources are selected, so such an image is
+//! not selected then ([`Selection::auto`]). The page selects it after each
+//! layout, with the content width of its box ([`select_auto_image`],
+//! `crate::page`). The user-agent rule `img:is([sizes="auto" i],
+//! [sizes^="auto," i]) { contain: size !important }` makes the size of
+//! such an image independent of its source.
+//!
 //! Deviations: Chromium also takes a denser candidate if it is already in
-//! its memory cache; swb does not. `sizes="auto"` is not supported (see
-//! [`swb_css::source_size`]), and neither is the user-agent rule that gives
-//! such images `contain: size` with an intrinsic size of 300x150.
+//! its memory cache; swb does not. For an image that is not lazy-loaded,
+//! and for an image without a width, `auto` gives `100vw` as in Chromium
+//! 148 (the specification skips `auto`). `auto` in the `sizes` of a
+//! `<source>` is not supported: it gives `100vw`.
 
 use std::collections::HashMap;
 
-use swb_css::{MediaEnvironment, MediaQueryList, source_size};
+use swb_css::{MediaEnvironment, MediaQueryList, allows_auto, source_size};
 use swb_dom::{
     Document, ElementData, NodeId, is_html_whitespace, is_valid_float,
     is_valid_non_negative_integer, local_name,
@@ -69,6 +80,10 @@ pub(crate) struct Selection {
     /// The `<source>` element whose `width` and `height` attributes apply
     /// to the image instead of its own.
     pub(crate) dimension_source: Option<NodeId>,
+    /// True if the image allows auto-sizes and its own `srcset` has `w`
+    /// descriptors: `image` is `None` because the choice needs the width
+    /// of the image (see the module comment).
+    pub(crate) auto: bool,
 }
 
 /// Selects the image source of every HTML `<img>` element of `doc`, in
@@ -105,15 +120,55 @@ pub(crate) fn select_images(
                     .element(source)
                     .is_some_and(|s| s.has_attr("width") || s.has_attr("height"))
                     .then_some(source),
+                auto: false,
+            },
+            None if needs_width(doc, node) => Selection {
+                auto: true,
+                ..Selection::default()
             },
             None => Selection {
-                image: own_source(doc, node, env).and_then(|chosen| resolve(base, chosen)),
-                dimension_source: None,
+                image: own_source(doc, node, env, None).and_then(|chosen| resolve(base, chosen)),
+                ..Selection::default()
             },
         };
         out.push((node, selection));
     }
     out
+}
+
+/// True if `img` allows auto-sizes: it is lazy-loaded and its `sizes`
+/// attribute is `auto` or starts with `auto,`.
+/// <https://html.spec.whatwg.org/multipage/embedded-content.html#attr-img-sizes>
+fn allows_auto_sizes(img: &ElementData) -> bool {
+    img.attr("loading")
+        .is_some_and(|v| v.eq_ignore_ascii_case("lazy"))
+        && img.attr("sizes").is_some_and(allows_auto)
+}
+
+/// True if the choice of the image source of `img` needs its width: it
+/// allows auto-sizes and its `srcset` has a `w` descriptor.
+fn needs_width(doc: &Document, img: NodeId) -> bool {
+    let Some(e) = doc.element(img).filter(|e| allows_auto_sizes(e)) else {
+        return false;
+    };
+    e.attr("srcset").is_some_and(|srcset| {
+        parse_srcset(srcset)
+            .iter()
+            .any(|c| matches!(c.descriptor, Descriptor::Width(_)))
+    })
+}
+
+/// Selects the image source of the `<img>` element `img` for the width
+/// `width` (CSS px, the content width of its box; `None` if it has none
+/// yet). For an element with `Selection::auto`, after layout.
+pub(crate) fn select_auto_image(
+    doc: &Document,
+    base: &Url,
+    img: NodeId,
+    env: &MediaEnvironment,
+    width: Option<f32>,
+) -> Option<SelectedImage> {
+    own_source(doc, img, env, width).and_then(|chosen| resolve(base, chosen))
 }
 
 /// The progress through the children of a `<picture>`. Images are visited
@@ -178,11 +233,16 @@ fn source_candidate<'a>(
     if source.attr("type").is_some_and(|t| !is_supported_type(t)) {
         return None;
     }
-    choose_from_srcset(source, srcset, None, env)
+    choose_from_srcset(source, srcset, None, env, None)
 }
 
 /// The candidate from the image's own `srcset` and `src` attributes.
-fn own_source<'a>(doc: &'a Document, img: NodeId, env: &MediaEnvironment) -> Option<Chosen<'a>> {
+fn own_source<'a>(
+    doc: &'a Document,
+    img: NodeId,
+    env: &MediaEnvironment,
+    auto_width: Option<f32>,
+) -> Option<Chosen<'a>> {
     let e = doc.element(img)?;
     // URLs are stripped of ASCII white space only, as in Chromium.
     let src = e
@@ -191,7 +251,13 @@ fn own_source<'a>(doc: &'a Document, img: NodeId, env: &MediaEnvironment) -> Opt
         .filter(|s| !s.is_empty());
     match e.attr("srcset") {
         None => src.map(|url| Chosen { url, density: 1.0 }),
-        Some(srcset) => choose_from_srcset(e, srcset, src, env),
+        Some(srcset) => choose_from_srcset(
+            e,
+            srcset,
+            src,
+            env,
+            auto_width.filter(|_| allows_auto_sizes(e)),
+        ),
     }
 }
 
@@ -202,11 +268,12 @@ fn choose_from_srcset<'a>(
     srcset: &'a str,
     src: Option<&'a str>,
     env: &MediaEnvironment,
+    auto_width: Option<f32>,
 ) -> Option<Chosen<'a>> {
     choose(
         &parse_srcset(srcset),
         src,
-        || source_size(element.attr("sizes"), env),
+        || source_size(element.attr("sizes"), env, auto_width),
         env.device_pixel_ratio,
     )
 }

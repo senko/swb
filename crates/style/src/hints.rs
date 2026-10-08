@@ -372,10 +372,10 @@ fn replaced_hints(
     let width = size_hint(dimensions, "width", false, LonghandValue::Width, push);
     let height = size_hint(dimensions, "height", false, LonghandValue::Height, push);
     // "Map to the aspect-ratio property (using dimension rules)": `auto
-    // w / h` if both are lengths. Only for `video`: HTML also maps it on
-    // `img` and image buttons, which do not need it yet (their images
-    // have a natural ratio once loaded).
-    if name == "video"
+    // w / h` if both are lengths. For `video` and `img` (also with size
+    // containment, which removes the natural ratio); HTML also maps it on
+    // image buttons, which do not need it yet.
+    if matches!(name, "video" | "img")
         && let (Some(Dimension::Length(w)), Some(Dimension::Length(h))) = (width, height)
     {
         push(LonghandValue::AspectRatio(AspectRatio {

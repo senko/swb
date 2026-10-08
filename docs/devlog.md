@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 feature 2, `:host` and `sizes="auto"`
+
+- `:host`, `:host()` and `:host-context()` parse and match nothing (no
+  shadow trees), so Tailwind's base rule `:host,html{...}` now applies
+  to html. Chromium rejects `:host()` with a complex selector or a list.
+- `sizes="auto"` on lazy images: the candidate is selected after layout
+  from the content-box width (`engine/src/page/auto_sizes.rs`) and again
+  when the width, viewport or scale changes (at most 8 times per image);
+  the old image stays until the new one loads. New in style: `contain`
+  and `contain-intrinsic-size` (full syntax); the user-agent rule for
+  such images; size containment for replaced elements; the
+  `aspect-ratio: auto w/h` hint of `img` attributes (before: `video`
+  only).
+- Chromium 148, measured: for eager images `auto` is `100vw` and ends
+  the list (the spec skips it); swb does the same. With JavaScript off,
+  `loading=lazy` defers nothing. For lazy images on a fast local file,
+  the chosen source depends on timing (first request against layout);
+  the probe file keeps only the cases that do not.
+- Correction of the previous entry: the new Ars capture has the same
+  103 resources as the first one. Chromium loads the `100vw` candidates
+  too, for the hidden (`display: none`) copies of the card images. The
+  fixture is in this commit, substituted (86 images; its three font
+  families are under the OFL and stay): 4.17 MB instead of 9.25 MB. Ars
+  geometry 0.1491 → 0.1876 on the first capture; on the new, substituted
+  capture geometry 0.1830, pixels 0.9595.
+
 ## 2026-10-08: M4 Ars Technica, `aspect-ratio`
 
 - The owner added two targets, in this order: Ars Technica (target 4,

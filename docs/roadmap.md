@@ -121,7 +121,7 @@ effect on the page:
 - The rule `:host,html{...}` (Tailwind's base rule: root font family and
   line height) is dropped, because swb rejects `:host`.
 - `sizes="auto"` gives `100vw`, so swb loads 1536w candidates where
-  Chromium loads 384w ones (most of the 9.25 MB fixture).
+  Chromium loads 384w ones.
 
 Features, in this order. Each one ends with a review and a commit.
 
@@ -140,9 +140,12 @@ Features, in this order. Each one ends with a review and a commit.
    `sizes="auto"` on lazy images selects the candidate by the laid-out
    width (HTML "sizes auto"), with the user-agent rule for such images
    (`contain: size` and `contain-intrinsic-size: 300px 150px`, as far as
-   replaced elements need them). Then capture the Ars fixture again, so
-   that it contains only the candidates that both browsers load, and
-   commit it.
+   replaced elements need them). Then capture the Ars fixture again and
+   commit it. Done: geometry 0.1491 → 0.1876. The new capture has the
+   same 103 resources: Chromium also loads the `100vw` candidates, for
+   the hidden (`display: none`) copies of the card images. After
+   `just substitute` the fixture is 4.17 MB. On the new capture:
+   geometry 0.1830, pixels 0.9595.
 3. Web fonts, part 1 (`implementer-hard`, new ADR). Scope: `@font-face`
    with `font-family`, `src` (`url()` with `format()`; WOFF, WOFF2,
    TrueType and OpenType), `font-weight`, `font-style` and
@@ -206,6 +209,13 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M4
+
+- Fixtures: the wikipedia-web-browser fixture (pushed before the
+  substitution rule) holds Wikimedia images under several free licenses
+  without a list of their authors and licenses; list them in
+  `THIRD_PARTY_NOTICES.md` or run `just substitute` on the fixture.
 
 ## Backlog from M3
 
@@ -297,12 +307,26 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   for `canvas`, `object` and list-box `select`, and not for `svg` and
   `math`; Chromium numbers a failed `img` with `alt` and `input
   type=image` with `display: list-item` (an empty marker).
-- Responsive images: `sizes="auto"` gives 100vw (Chromium then uses the
-  laid-out width and a `contain: size` user-agent rule); Chromium's
+- Responsive images: `sizes="auto"` on a `<source>` gives 100vw, and for
+  images that are not lazy-loaded `auto` gives 100vw as in Chromium (the
+  specification skips it); Chromium's
   preference for a denser candidate in its memory cache; AVIF sources
   are skipped (no decoder); `ex` and `ch` in `sizes` are 0.5em;
   superseded image loads are not cancelled, and each selection walks the
   whole document.
+- Containment: only size containment of replaced elements has an effect
+  (`img` with `sizes="auto"`, `contain-intrinsic-size`; a flex item with
+  size containment has no automatic minimum size). Size containment of
+  non-replaced boxes (intrinsic size from `contain-intrinsic-size`, 0 for
+  `none`; the box ignores its content for `auto` sizes), `inline-size`
+  containment, layout, paint and style containment, and the `auto` form
+  of `contain-intrinsic-*` (the remembered size of `content-visibility:
+  auto`) are not implemented. Ars uses `contain: layout style size` only
+  on a hidden `.pswp`.
+- Lazy loading: `loading=lazy` images load at once (no deferral until near
+  the viewport).
+- Selectors: `::slotted()` is invalid in swb; Chromium accepts it. `:host`,
+  `:host()` and `:host-context()` parse and never match (no shadow trees).
 - Media: the `aspect-ratio` hint of `width`/`height` on `<img>` and
   image buttons; controls: the overlay play button, the loading spinner,
   interaction, hover and focus states; the first video frame for
