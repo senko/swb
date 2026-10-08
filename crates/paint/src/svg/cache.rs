@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use tiny_skia::{IntSize, Pixmap};
 
 use super::{MAX_FRAME_WORK, SvgImage};
+use crate::reduce::ReduceBudget;
 
 /// The memory budget of a cache: the bytes of all pixmaps.
 const BUDGET_BYTES: usize = 128 * 1024 * 1024;
@@ -78,6 +79,8 @@ struct Entry {
 /// (scaled), or not at all, until a later repaint has the budget for it.
 #[derive(Debug)]
 pub(crate) struct FrameBudget {
+    /// What the frame may still average for reduced image levels.
+    pub(crate) reduce: ReduceBudget,
     work: f64,
     frame: u64,
     skipped: bool,
@@ -87,6 +90,7 @@ impl FrameBudget {
     /// A budget for a frame without a cache.
     pub(crate) fn new() -> Self {
         FrameBudget {
+            reduce: ReduceBudget::new(),
             work: MAX_FRAME_WORK,
             frame: 0,
             skipped: false,

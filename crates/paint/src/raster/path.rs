@@ -114,8 +114,9 @@ impl Rasterizer<'_> {
                 clip,
                 transform,
                 bounds,
+                rect_fallback,
             } => {
-                let svg_clip = (Arc::clone(clip), *transform);
+                let svg_clip = (Arc::clone(clip), *transform, *rect_fallback);
                 self.push_layer(1.0, (*bounds, None), None, Some(svg_clip), false);
             }
             _ => {}

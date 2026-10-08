@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 item 9, final pass on Ars Technica
+
+- Four causes behind the last 4,964 differing pixels:
+  - The underline bars of the view selector were 14 px too far right.
+    The box tree put an absolutely positioned child that follows text
+    into the anonymous flex item around that text, so its static
+    position came after the icon and the gap. In a flex or grid
+    container the child now ends the anonymous item and is a child of
+    the container, as in Chromium (layout test `abspos-flex-text`).
+  - The round thumbnails use `overflow: hidden` with
+    `border-radius: 50%`. Overflow clips now follow the rounded padding
+    edge (radii reduced by the border widths), also for deferred
+    positioned descendants.
+  - The thumbnail grid looked coarser in swb because bilinear sampling
+    of a 5× reduction aliases. Raster images drawn at less than half
+    their size are now averaged 2×2 until the scale is at least 0.5,
+    then sampled bilinearly.
+  - Chromium paints inline SVG from the pixel-snapped origin of its
+    content box; swb now does too (scale-aware). The logo differs in
+    51 px instead of 820.
+- The `:hover` rule forms of the page's Tailwind sheet work without a
+  change (new engine test). The probe tool cannot hover, so this is not
+  compared with Chromium.
+- Review fixes (ADR 0024): the averaging first ran at every raster;
+  200 large images drawn at 50×50 cost 4.1 s per frame. The reduced
+  levels are now kept with the decoded image (at most its own size)
+  and made lazily, and one frame averages at most 64 Mpx; 2,000 small
+  draws of a 4000×3000 PNG take 0.10 s. A rounded clip is a layer
+  group; when the layer budget ran out, 150 nested rounded boxes drew
+  nothing. They now fall back to a rectangle clip. Four hostile-page
+  cases.
+- Ars geometry 0.9963 → 1.0000, pixels 0.9952 → 0.9992. Target 4 is
+  done. BBC images below the first viewport are smoother; its scores do
+  not change.
+- Backlog: the word "LIST" is 0.36 px narrower than in Chromium, which
+  shifts the next buttons by a fraction of a pixel.
+
 ## 2026-10-08: M4 item 8, raster cost of fills with thin separate spans
 
 - The review of item 7 found that an anti-aliased fill of separate thin

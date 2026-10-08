@@ -72,6 +72,56 @@ fn hover_restyles_links() {
     assert_eq!(decoration(&page), TextDecorationLine::empty());
 }
 
+/// The `:hover` rule forms of Tailwind style sheets (the Ars Technica
+/// navigation and article links): an escaped class, `a:hover` with
+/// `rgb()` and `var()` in the slash syntax, a group rule and `:is(.dark *)`.
+const TAILWIND_HOVER: &str = "<!DOCTYPE html><style>body { margin: 0; font: 20px sans-serif }\
+    a, a:hover { --tw-text-opacity: 1 }\
+    a { color: rgb(1 2 3 / var(--tw-text-opacity, 1)); text-decoration: none }\
+    a:hover { color: rgb(249 115 22 / var(--tw-text-opacity, 1)) }\
+    .hover\\:text-green:hover { color: rgb(4 204 116 / var(--tw-text-opacity, 1)) }\
+    .group:hover .group-hover\\:hidden { display: none }\
+    .nav:hover:is(.dark *) { color: rgb(9 8 7) }\
+    .hover\\:underline:hover { text-decoration-line: underline }</style>\
+    <p style='margin:0'><a id=a href='x.html'>one</a></p>\
+    <p style='margin:0'><a id=b class='hover:text-green hover:underline' href='y.html'>two</a></p>\
+    <div class=dark><a id=c class=nav href='z.html'>three</a></div>\
+    <a id=g class=group href='w.html'>group <span id=s class='group-hover:hidden'>icon</span></a>";
+
+#[test]
+fn hover_rules_of_tailwind_links() {
+    let site = Site::new("hover-tailwind");
+    let (mut page, _) = open(&site, TAILWIND_HOVER);
+    let color = |page: &Page, id: &str| {
+        let c = page.styles().unwrap().get(node(page, id)).unwrap().color;
+        (c.r, c.g, c.b)
+    };
+    let hover = |page: &mut Page, id: &str| {
+        let (x, y) = center(rect(page, id));
+        page.mouse_move(x, y);
+    };
+    assert_eq!(color(&page, "a"), (1, 2, 3));
+    hover(&mut page, "a");
+    assert_eq!(color(&page, "a"), (249, 115, 22));
+    hover(&mut page, "b");
+    assert_eq!(color(&page, "a"), (1, 2, 3));
+    // `a:hover` has less specificity than `.hover\:text-green:hover`.
+    assert_eq!(color(&page, "b"), (4, 204, 116));
+    let b = node(&page, "b");
+    let line = page.styles().unwrap().get(b).unwrap().text_decoration_line;
+    assert_eq!(line, TextDecorationLine::UNDERLINE);
+    hover(&mut page, "c");
+    assert_eq!(color(&page, "c"), (9, 8, 7));
+    let hidden = |page: &Page| {
+        page.styles().unwrap().get(node(page, "s")).unwrap().display == swb_style::Display::None
+    };
+    assert!(!hidden(&page));
+    hover(&mut page, "g");
+    assert!(hidden(&page));
+    page.mouse_leave();
+    assert!(!hidden(&page));
+}
+
 #[test]
 fn hover_without_style_changes_keeps_the_layout() {
     let site = Site::new("hover-layout");

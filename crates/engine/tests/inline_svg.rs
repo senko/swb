@@ -371,6 +371,25 @@ fn use_draws_a_copy_that_inherits_from_the_use_element() {
     assert_eq!(dump_box(&page, "use", 3), Some((0.0, 0.0, 0.0, 0.0)));
 }
 
+/// Chromium paints the content of an `<svg>` from the pixel-snapped origin
+/// of its content box (measured: the Ars Technica logo at y = 297.5 covers
+/// whole rows from 298). The size does not change.
+#[test]
+fn content_starts_at_a_whole_pixel() {
+    let site = Site::new("inline-svg-snap");
+    let (_, p) = render(
+        &site,
+        "<!DOCTYPE html><body style='margin:0'><div style='height:10.5px'></div>\
+         <svg width=20 height=20 style='display:block'><rect width=20 height=20 fill=red /></svg>",
+        40.0,
+        50.0,
+    );
+    assert_eq!(rgb(&p, 5, 10), WHITE);
+    assert_eq!(rgb(&p, 5, 11), RED);
+    assert_eq!(rgb(&p, 5, 30), RED);
+    assert_eq!(rgb(&p, 5, 31), WHITE);
+}
+
 /// `shape-rendering: crispEdges` and `optimizeSpeed` draw without
 /// anti-aliasing (measured in Chromium, case `shape-rendering`).
 #[test]

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Absolutely positioned children of flex and grid containers that come
+     after text (or other items): the text is wrapped in an anonymous item,
+     the positioned box is a child of the container, and its static position
+     is as if it were the only item (CSS Flexbox 1 §4.1), not after the
+     text, the icon or the gap. The view selector buttons of Ars Technica. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolute positioning: flex containers with text</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .c { position: relative; width: 300px; margin-bottom: 20px; }
+  .flex { display: flex; gap: 6px; align-items: center; }
+  .grid { display: grid; gap: 6px; }
+  .abs { position: absolute; width: 20px; height: 4px; background: #000; }
+  .i { width: 10px; height: 10px; background: #888; }
+  button { padding: 0; border: 0; background: none; font: inherit; }
+</style>
+</head>
+<body>
+  <div class="c flex"><div class="i"></div>text<div class="abs" id="a1" style="bottom: -2px"></div></div>
+  <div class="c flex" style="justify-content: center"><div class="i"></div>text<div class="abs" id="a2"></div></div>
+  <div class="c flex"><span id="s1">aa</span><div class="abs" id="a3"></div><span id="s2">bb</span></div>
+  <div class="c flex" style="justify-content: flex-end; align-items: flex-end">text<div class="abs" id="a4"></div></div>
+  <div class="c grid" style="justify-items: center">text<div class="abs" id="a5"></div></div>
+  <div class="c flex" style="flex-direction: column; align-items: flex-end">text<div class="abs" id="a6"></div></div>
+  <button class="c flex" style="width: auto"><div class="i"></div>List<div class="abs" id="a7" style="bottom: -2px; width: 100%"></div></button>
+</body>
+</html>

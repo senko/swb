@@ -903,6 +903,18 @@ impl ContainerBuilder {
         }
         if style.is_absolutely_positioned() {
             let inner = build_independent(ctx, base, state);
+            // A child of a flex or grid container is a child of the
+            // container, not of the anonymous item around the text before
+            // it: it ends that item, and its static position is not in
+            // the text (CSS Flexbox 1 §4.1; measured in Chromium 148).
+            if matches!(
+                self.style.display,
+                Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid
+            ) {
+                self.flush_inline(state);
+                self.blocks.push(BlockLevelBox::AbsolutelyPositioned(inner));
+                return;
+            }
             // Inside an inline box, the box stays inline: the inline box
             // can be its containing block, and the box is then in its
             // fragments (it needs no `in_positioned_inline` mark). After a

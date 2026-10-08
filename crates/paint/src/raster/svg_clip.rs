@@ -26,35 +26,44 @@ use crate::svg::edges::SWEEP_SEGMENT;
 /// The deepest nesting of clip paths inside clip paths that is rasterized.
 const MAX_NESTING: usize = 20;
 
+/// The result of [`Rasterizer::apply_svg_clip`].
+pub(super) enum ClipResult {
+    /// The layer is multiplied by the coverage.
+    Applied,
+    /// Nothing remains visible: the group draws nothing.
+    Hidden,
+    /// The coverage does not fit into the budgets. An SVG clip group then
+    /// draws nothing; a rounded overflow clip keeps its rectangle.
+    OverBudget,
+}
+
 impl Rasterizer<'_> {
     /// Multiplies the pixels of a clip group's layer (at `origin` on the
     /// target) by the coverage of `clip`, whose coordinates are mapped to
-    /// the display list's by `list`. Returns false if nothing remains
-    /// visible or the coverage does not fit into the budgets: the group
-    /// then draws nothing.
+    /// the display list's by `list`.
     pub(super) fn apply_svg_clip(
         &mut self,
         pixmap: &mut Pixmap,
         origin: (i32, i32),
         clip: &ClipPath,
         list: &Matrix,
-    ) -> bool {
+    ) -> ClipResult {
         let Some(size) = IntSize::from_wh(pixmap.width(), pixmap.height()) else {
-            return false;
+            return ClipResult::Hidden;
         };
         let device = self.device_matrix(list);
         let to_layer = Matrix::translate(-(origin.0 as f32), -(origin.1 as f32)).multiply(&device);
         let Some(values) = self.path_coverage(clip, &to_layer, size, 0) else {
-            return false;
+            return ClipResult::OverBudget;
         };
         if values.iter().all(|&a| a == 0) {
-            return false;
+            return ClipResult::Hidden;
         }
         let Some(coverage) = Mask::from_vec(values, size) else {
-            return false;
+            return ClipResult::Hidden;
         };
         pixmap.apply_mask(&coverage);
-        true
+        ClipResult::Applied
     }
 
     /// The coverage (one byte per layer pixel) of `clip` for a layer of

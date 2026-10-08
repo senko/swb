@@ -1518,3 +1518,61 @@ def svg_many_counted_images() -> Page:
     svg = f"<svg {SVG_NS} width='1200' height='780'><path d='{random_walk(250_000)}'/></svg>"
     images = "".join(f"<img src='walk.svg?{i}' width=40 height=26>" for i in range(30))
     return Page(doc(images), {"walk.svg": svg})
+
+
+def stripes_png(width: int, height: int) -> bytes:
+    """An RGB PNG of `width` x `height` with 8-pixel stripes (small as a file, `width * height`
+    pixels once decoded)."""
+    import struct
+    import zlib
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    stripe = [b"\xff\x00\x00" if (x // 8) % 2 else b"\x00\x00\xff" for x in range(width)]
+    row = b"\x00" + b"".join(stripe)
+    packer = zlib.compressobj(6)
+    packed = b"".join(packer.compress(row) for _ in range(height)) + packer.flush()
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    ihdr, idat, iend = chunk(b"IHDR", header), chunk(b"IDAT", packed), chunk(b"IEND", b"")
+    return b"\x89PNG\r\n\x1a\n" + ihdr + idat + iend
+
+
+@case(
+    "2,000 images of one 4000 x 3000 PNG drawn at 20 x 20: the reduced levels are made once "
+    "(ADR 0024)"
+)
+def images_many_reduced() -> Page:
+    body = "<img src=big.png width=20 height=20>" * 2_000
+    return Page(doc(body), {"big.png": stripes_png(4000, 3000)})
+
+
+@case(
+    "two 8000 x 8000 PNGs drawn at 20 x 20: the second reduction is past the work budget of "
+    "the frame (ADR 0024)",
+    expect_log="work budget for reduced copies",
+)
+def images_reduce_budget() -> Page:
+    png = stripes_png(8000, 8000)
+    body = "<img src=a.png width=20 height=20><img src=b.png width=20 height=20>"
+    return Page(doc(body), {"a.png": png, "b.png": png})
+
+
+@case(
+    "150 nested boxes with overflow: hidden and border-radius around a 3,000 px block: the "
+    "layers run out and the clips fall back to rectangles (ADR 0024)",
+    expect_log="layer memory budget ran out",
+    swb_args=("--full-page",),
+)
+def rounded_clips_nested() -> Page:
+    css = ".c{overflow:hidden;border-radius:12px}"
+    inner = "<div style='height:3000px;background:#0a0'></div>"
+    return Page(doc(nest("<div class=c>", "</div>", 150, inner), css))
+
+
+@case("2,000 cards of 300 x 300 with overflow: hidden and border-radius, nested 3 deep (ADR 0024)")
+def rounded_cards() -> Page:
+    css = ".c{width:300px;height:300px;overflow:hidden;border-radius:12px;display:inline-block}"
+    card = nest("<div class=c>", "</div>", 3, "<div style='height:300px;background:#f00'>x</div>")
+    return Page(doc(card * 2_000, css))

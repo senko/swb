@@ -194,6 +194,10 @@ pub enum DisplayItem {
         /// An area that contains everything the group shows: its content
         /// inside the extent of the clip path.
         bounds: Rect,
+        /// True for the rounded overflow clip of a box: if the layer or
+        /// the coverage does not fit into the budgets, the group is
+        /// clipped to `bounds` (a rectangle) instead of being hidden.
+        rect_fallback: bool,
     },
     /// End the most recent SVG clip group.
     PopSvgClip,
@@ -502,6 +506,7 @@ impl DisplayList {
                     clip,
                     transform,
                     bounds,
+                    ..
                 } => {
                     // The clip path is only tested inside an enclosing clip.
                     let in_clip = clips.last().is_none_or(|&c| c)
@@ -576,6 +581,9 @@ pub struct Scrolling<'a> {
     /// that the user can scroll (the GUI; screenshots for comparisons with
     /// Chromium have none, as Chromium's headless shell hides scrollbars).
     pub indicators: bool,
+    /// Device pixels per CSS px. Inline SVG content is placed at a whole
+    /// device pixel, as Chromium does.
+    pub scale: f32,
 }
 
 impl Scrolling<'_> {
@@ -583,6 +591,7 @@ impl Scrolling<'_> {
     pub const NONE: Scrolling<'static> = Scrolling {
         offsets: &NoScroll,
         indicators: false,
+        scale: 1.0,
     };
 }
 
@@ -612,6 +621,7 @@ pub fn build_display_list(
         offsets: scrolling.offsets,
         scroll: ScrollState::default(),
         indicators: scrolling.indicators,
+        scale: scrolling.scale,
     };
     if let Some(canvas_background) = &tree.canvas_background {
         let bg = &canvas_background.style;
@@ -746,6 +756,9 @@ struct OpenClip {
     /// True for the clip of the `clip` property, which also clips fixed
     /// descendants.
     property: bool,
+    /// The corner radii of the padding edge, if the clip is rounded
+    /// (`overflow` with `border-radius`, CSS Backgrounds 3 §4.2).
+    radii: Option<Radii>,
 }
 
 struct Builder<'a> {
@@ -784,6 +797,8 @@ struct Builder<'a> {
     scroll: ScrollState,
     /// True to draw overlay scroll indicators.
     indicators: bool,
+    /// Device pixels per CSS px.
+    scale: f32,
 }
 
 /// A text decoration propagated from an ancestor.
@@ -888,12 +903,12 @@ impl Builder<'_> {
             Position::Fixed => (i < self.fixed_clips || c.property) && c.context_depth == depth,
             _ => c.context_depth == depth,
         };
-        let clips: Vec<Rect> = self
+        let clips: Vec<(Rect, Option<Radii>)> = self
             .clips
             .iter()
             .enumerate()
             .filter(|&(i, c)| applies(i, c))
-            .map(|(_, c)| c.rect)
+            .map(|(_, c)| (c.rect, c.radii))
             .collect();
         // The box's place in the stacking context comes before its
         // positioned descendants, which it does not contain if it forms no
@@ -920,9 +935,10 @@ impl Builder<'_> {
             self.list.push(DisplayItem::PushViewportClip);
         }
         self.list
-            .extend(clips.iter().map(|&r| DisplayItem::PushClip(r)));
+            .extend(clips.iter().map(|&(r, radii)| clip_item(r, radii)));
         self.box_contents(b, origin, decorations, ancestry, context);
-        self.list.extend(clips.iter().map(|_| DisplayItem::PopClip));
+        self.list
+            .extend(clips.iter().map(|&(_, radii)| unclip_item(radii)));
         if viewport_fixed {
             self.list.push(DisplayItem::PopClip);
         }
@@ -984,8 +1000,7 @@ impl Builder<'_> {
         self.scroll = outer_scroll;
         self.box_foreground_end(b, rect.origin());
         if clipped {
-            self.list.push(DisplayItem::PopClip);
-            self.clips.pop();
+            self.pop_clip();
         }
         let positioned = if group.context {
             self.paint_deferred(negative_z_at, mask::needs_positioned_area(&b.style))
@@ -1001,8 +1016,7 @@ impl Builder<'_> {
         }
         self.outline(b, origin);
         if clip_property {
-            self.list.push(DisplayItem::PopClip);
-            self.clips.pop();
+            self.pop_clip();
         }
         self.close_group(&group, b, origin, positioned);
         self.close_transforms(transforms);
@@ -1044,6 +1058,7 @@ impl Builder<'_> {
             rect: area,
             context_depth,
             property: true,
+            radii: None,
         });
         true
     }
@@ -1166,8 +1181,7 @@ impl Builder<'_> {
             self.box_foreground_end(b, rect.origin());
         }
         if clipped {
-            self.list.push(DisplayItem::PopClip);
-            self.clips.pop();
+            self.pop_clip();
         }
         (self.absolute_clips, self.fixed_clips) = outer_clips;
         if phase == Phase::Foreground {
@@ -1290,7 +1304,7 @@ impl Builder<'_> {
             // shape can be visible in a hidden `<svg>`).
             if let BoxContent::Svg(svg) = &b.content {
                 let content = b.content_rect().translate(origin);
-                crate::inline_svg::paint(&mut self.list, svg, style, content);
+                crate::inline_svg::paint(&mut self.list, svg, style, content, self.scale);
             }
             return;
         }
@@ -1369,7 +1383,9 @@ impl Builder<'_> {
                 }
                 self.list.extend(media::controls(m, content));
             }
-            BoxContent::Svg(svg) => crate::inline_svg::paint(&mut self.list, svg, style, content),
+            BoxContent::Svg(svg) => {
+                crate::inline_svg::paint(&mut self.list, svg, style, content, self.scale);
+            }
             _ => {}
         }
     }
@@ -1401,13 +1417,22 @@ impl Builder<'_> {
             return false;
         }
         let rect = b.padding_rect().translate(origin);
-        self.list.push(DisplayItem::PushClip(rect));
+        let radii = padding_radii(b, origin).filter(|r| rounded_clip(rect, r).is_some());
+        self.list.push(clip_item(rect, radii));
         self.clips.push(OpenClip {
             rect,
             context_depth,
             property: false,
+            radii,
         });
         true
+    }
+
+    /// Ends the innermost open clip.
+    fn pop_clip(&mut self) {
+        if let Some(clip) = self.clips.pop() {
+            self.list.push(unclip_item(clip.radii));
+        }
     }
 
     /// Paints the positioned descendants of the stacking context that is
@@ -1801,6 +1826,135 @@ fn is_block_container_for_text(style: &ComputedStyle) -> bool {
     !style.display.is_inline_level() && !style.is_floating() && !style.is_absolutely_positioned()
 }
 
+/// The corner radii of the padding edge of `b` (at `origin`), or `None`
+/// if the corners are square or both axes do not clip: the border radius
+/// minus the border width on each side, at least 0 (CSS Backgrounds 3
+/// §4.2, <https://www.w3.org/TR/css-backgrounds-3/#corner-shaping>).
+fn padding_radii(b: &BoxFragment, origin: Point) -> Option<Radii> {
+    let style = &b.style;
+    if !(style.overflow_x.clips() && style.overflow_y.clips()) {
+        return None;
+    }
+    let outer = resolve_radii(style, b.border_rect.translate(origin));
+    let e = &b.border;
+    let inner = [
+        (
+            (outer[0].0 - e.left).max(0.0),
+            (outer[0].1 - e.top).max(0.0),
+        ),
+        (
+            (outer[1].0 - e.right).max(0.0),
+            (outer[1].1 - e.top).max(0.0),
+        ),
+        (
+            (outer[2].0 - e.right).max(0.0),
+            (outer[2].1 - e.bottom).max(0.0),
+        ),
+        (
+            (outer[3].0 - e.left).max(0.0),
+            (outer[3].1 - e.bottom).max(0.0),
+        ),
+    ];
+    inner
+        .iter()
+        .any(|&(h, v)| h > 0.0 && v > 0.0)
+        .then_some(inner)
+}
+
+/// The item that starts a clip to `rect`, rounded by `radii`: a plain
+/// clip rectangle, or a group that the rasterizer multiplies by the
+/// coverage of the rounded rectangle (like an SVG clip path).
+fn clip_item(rect: Rect, radii: Option<Radii>) -> DisplayItem {
+    radii
+        .and_then(|radii| rounded_clip(rect, &radii))
+        .unwrap_or(DisplayItem::PushClip(rect))
+}
+
+/// The item that ends the clip that [`clip_item`] started.
+fn unclip_item(radii: Option<Radii>) -> DisplayItem {
+    // `Builder::push_overflow_clip` keeps radii only if `rounded_clip`
+    // accepts them, so `clip_item` never falls back to a plain clip here.
+    if radii.is_some() {
+        DisplayItem::PopSvgClip
+    } else {
+        DisplayItem::PopClip
+    }
+}
+
+/// A group clipped to the rounded rectangle, or `None` for an empty
+/// rectangle or one that is not finite. The radii are scaled down to fit
+/// (CSS Backgrounds 3 §4.5).
+fn rounded_clip(rect: Rect, radii: &Radii) -> Option<DisplayItem> {
+    use swb_layout::svg::{ClipShape, PathSegment};
+    // Control point factor for a quarter ellipse with cubic Béziers.
+    const K: f32 = 0.552_284_8;
+    if !(rect.width > 0.0 && rect.height > 0.0) {
+        return None;
+    }
+    let mut radii = *radii;
+    let f = [
+        (radii[0].0 + radii[1].0, rect.width),
+        (radii[1].1 + radii[2].1, rect.height),
+        (radii[2].0 + radii[3].0, rect.width),
+        (radii[3].1 + radii[0].1, rect.height),
+    ]
+    .iter()
+    .filter(|(sum, _)| *sum > 0.0)
+    .map(|(sum, len)| len / sum)
+    .fold(1.0_f32, f32::min);
+    for (h, v) in &mut radii {
+        *h *= f;
+        *v *= f;
+    }
+    let [(tlx, tly), (trx, try_), (brx, bry), (blx, bly)] = radii;
+    let (x0, y0, x1, y1) = (rect.x, rect.y, rect.right(), rect.bottom());
+    let p = Point::new;
+    let segments = [
+        PathSegment::MoveTo(p(x0 + tlx, y0)),
+        PathSegment::LineTo(p(x1 - trx, y0)),
+        PathSegment::CubicTo(
+            p(x1 - trx + trx * K, y0),
+            p(x1, y0 + try_ - try_ * K),
+            p(x1, y0 + try_),
+        ),
+        PathSegment::LineTo(p(x1, y1 - bry)),
+        PathSegment::CubicTo(
+            p(x1, y1 - bry + bry * K),
+            p(x1 - brx + brx * K, y1),
+            p(x1 - brx, y1),
+        ),
+        PathSegment::LineTo(p(x0 + blx, y1)),
+        PathSegment::CubicTo(
+            p(x0 + blx - blx * K, y1),
+            p(x0, y1 - bly + bly * K),
+            p(x0, y1 - bly),
+        ),
+        PathSegment::LineTo(p(x0, y0 + tly)),
+        PathSegment::CubicTo(
+            p(x0, y0 + tly - tly * K),
+            p(x0 + tlx - tlx * K, y0),
+            p(x0 + tlx, y0),
+        ),
+        PathSegment::Close,
+    ];
+    let path = SvgPath::from_segments(&segments)?;
+    let clip = ClipPath {
+        shapes: vec![ClipShape {
+            path: Arc::new(path),
+            transform: Matrix::IDENTITY,
+            rule: FillRule::NonZero,
+            clip: None,
+        }],
+        outer: None,
+    };
+    Some(DisplayItem::PushSvgClip {
+        clip: Arc::new(clip),
+        transform: Matrix::IDENTITY,
+        bounds: rect,
+        rect_fallback: true,
+    })
+}
+
 /// Resolves `border-*-radius` against the border box, scaling down
 /// overlapping radii (CSS Backgrounds 3 §4.5,
 /// <https://www.w3.org/TR/css-backgrounds-3/#corner-overlap>).
@@ -1967,6 +2121,7 @@ mod tests {
                 clip: Arc::clone(&clip),
                 transform: Matrix::IDENTITY,
                 bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
+                rect_fallback: false,
             });
             items.push(DisplayItem::HitRegion {
                 rect: Rect::new(0.0, 0.0, 100.0, 100.0),

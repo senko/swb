@@ -49,10 +49,13 @@ use crate::display_list::{DisplayItem, DisplayList, ImageRef, Radii};
 use crate::group_bounds::transform_ends;
 use crate::image::{DecodedImage, ImageKind, MAX_DIMENSION};
 use crate::mask::{self, MaskLayer, MaskLayerImage};
+use crate::reduce::Reductions;
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
 mod path;
 mod svg_clip;
+
+use svg_clip::ClipResult;
 
 /// The most pixels of a layer for a transform group (a larger layer gets
 /// a lower resolution).
@@ -206,6 +209,12 @@ pub fn rasterize_in_strips(
         log::warn!(
             "SVG images: the rendering budget of this frame ran out; some images \
              use a rendering of another size or are not drawn"
+        );
+    }
+    if vectors.reduce.skipped() {
+        log::warn!(
+            "images: the work budget for reduced copies ran out in this frame; some images \
+             are drawn from a larger level (coarser), a later repaint continues"
         );
     }
     if skipped.layers {
@@ -378,10 +387,17 @@ struct Layer {
     /// The clip path of an SVG clip group, and the matrix from its
     /// coordinates to the display list's.
     svg_clip: Option<SvgClip>,
+    /// True if the layer did not fit into the budget and the group draws
+    /// directly with a rectangle clip on `clips` (the fallback of a
+    /// rounded overflow clip, see [`SvgClip`]).
+    rect_clip: bool,
 }
 
-/// An SVG clip path with the matrix from its coordinates to the list's.
-type SvgClip = (Arc<swb_layout::svg::ClipPath>, Matrix);
+/// An SVG clip path with the matrix from its coordinates to the list's,
+/// and whether the group falls back to a rectangle clip when its layer or
+/// coverage does not fit into the budgets (a rounded overflow clip),
+/// instead of hiding its content.
+type SvgClip = (Arc<swb_layout::svg::ClipPath>, Matrix, bool);
 
 struct Rasterizer<'a> {
     /// The pixels of the target (or of a strip of it), premultiplied RGBA.
@@ -723,15 +739,7 @@ impl Rasterizer<'_> {
                 gradient,
                 current_color,
             } => self.linear_gradient(*rect, *clip, gradient, *current_color),
-            DisplayItem::PushClip(rect) => {
-                let device = snap(self.to_device(*rect));
-                let clip = match self.clips.last() {
-                    Some(c) => c.intersection(&device).unwrap_or_default(),
-                    None => device,
-                };
-                self.clips.push(clip);
-                self.mask = None;
-            }
+            DisplayItem::PushClip(rect) => self.push_rect_clip(*rect),
             // The target is the viewport (or a strip of it): the clip
             // hides nothing there.
             DisplayItem::PushViewportClip => {
@@ -947,6 +955,17 @@ impl Rasterizer<'_> {
         paint(&mut pixmap, transform, mask);
     }
 
+    /// Starts a clip to `rect` (list coordinates), inside the open clip.
+    fn push_rect_clip(&mut self, rect: Rect) {
+        let device = snap(self.to_device(rect));
+        let clip = match self.clips.last() {
+            Some(c) => c.intersection(&device).unwrap_or_default(),
+            None => device,
+        };
+        self.clips.push(clip);
+        self.mask = None;
+    }
+
     // ----- Opacity and mask groups -----
 
     /// Starts an opacity or mask group that draws in `bounds`. If
@@ -987,19 +1006,27 @@ impl Rasterizer<'_> {
         };
         let area = area.filter(|_| mask.is_none() || self.mask_work_fits(work));
         let plain = mask.is_none() && svg_clip.is_none();
+        let fallback = svg_clip.as_ref().is_some_and(|c| c.2);
         let layer = match area {
             Some(a) if opacity > 0.0 => {
                 let pixmap = self.layer_pixmap(a.width as u32, a.height as u32);
                 if pixmap.is_some() {
                     self.add_mask_work(work);
                 }
+                // A rounded overflow clip without a layer draws its content
+                // directly, clipped to the rectangle.
+                let rect_clip = pixmap.is_none() && fallback;
+                if rect_clip {
+                    self.push_rect_clip(bounds);
+                }
                 Layer {
-                    direct: pixmap.is_none() && plain,
+                    direct: pixmap.is_none() && (plain || rect_clip),
                     pixmap,
                     origin: (a.x as i32, a.y as i32),
                     opacity,
                     mask,
                     svg_clip,
+                    rect_clip,
                 }
             }
             _ => Layer {
@@ -1009,6 +1036,7 @@ impl Rasterizer<'_> {
                 opacity,
                 mask,
                 svg_clip,
+                rect_clip: false,
             },
         };
         self.layers.push(layer);
@@ -1020,14 +1048,26 @@ impl Rasterizer<'_> {
             return;
         };
         let Some(mut pixmap) = layer.pixmap else {
+            if layer.rect_clip {
+                self.clips.pop();
+                self.mask = None;
+            }
             return;
         };
         let mut visible = match &layer.mask {
             Some(layers) => self.apply_mask(&mut pixmap, layer.origin, layers, images),
             None => true,
         };
-        if let Some((clip, transform)) = &layer.svg_clip {
-            visible = visible && self.apply_svg_clip(&mut pixmap, layer.origin, clip, transform);
+        if let Some((clip, transform, fallback)) = &layer.svg_clip
+            && visible
+        {
+            visible = match self.apply_svg_clip(&mut pixmap, layer.origin, clip, transform) {
+                ClipResult::Applied => true,
+                ClipResult::Hidden => false,
+                // The content stays inside the layer, which is the
+                // rectangle of the clip: only the corners stay square.
+                ClipResult::OverBudget => *fallback,
+            };
         }
         self.release(&pixmap);
         let Some(parent) = self.surface_rect().filter(|_| visible) else {
@@ -1114,6 +1154,7 @@ impl Rasterizer<'_> {
             opacity: 1.0,
             mask: None,
             svg_clip: None,
+            rect_clip: false,
         });
         self.mask = None;
         match &layer.image {
@@ -1522,7 +1563,9 @@ impl Rasterizer<'_> {
         clip: Rect,
     ) {
         let svg = match image.kind() {
-            ImageKind::Raster(pixmap) => return self.image(pixmap, area, tile, clip),
+            ImageKind::Raster(pixmap) => {
+                return self.image(pixmap, Some(image.reductions()), (area, tile, clip));
+            }
             ImageKind::Vector(svg) => svg,
         };
         let Some(size) = vector_render_size(self.to_device(tile)) else {
@@ -1537,11 +1580,18 @@ impl Rasterizer<'_> {
             None => None,
         };
         if let Some(pixmap) = pixmap {
-            self.image(&pixmap, area, tile, clip);
+            self.image(&pixmap, None, (area, tile, clip));
         }
     }
 
-    fn image(&mut self, pixmap: &Pixmap, area: Rect, tile: Rect, clip: Rect) {
+    /// Draws `pixmap` as `tile` inside `area` and `clip`. With `levels`, a
+    /// large reduction is drawn from a reduced level (see [`crate::reduce`]).
+    fn image(
+        &mut self,
+        pixmap: &Pixmap,
+        levels: Option<&Reductions>,
+        (area, tile, clip): (Rect, Rect, Rect),
+    ) {
         if tile.width <= 0.0 || tile.height <= 0.0 {
             return;
         }
@@ -1554,6 +1604,18 @@ impl Rasterizer<'_> {
         let Some(r) = skia_rect(area) else {
             return;
         };
+        // A large reduction is drawn from an averaged level: bilinear
+        // sampling of the original skips most source pixels and aliases
+        // (thin lines drop out).
+        let reduced = levels.and_then(|levels| {
+            levels.level(
+                pixmap,
+                tile.width / pixmap.width() as f32,
+                tile.height / pixmap.height() as f32,
+                &mut self.vectors.reduce,
+            )
+        });
+        let pixmap = reduced.as_deref().unwrap_or(pixmap);
         let sx = tile.width / pixmap.width() as f32;
         let sy = tile.height / pixmap.height() as f32;
         let quality = if (sx - 1.0).abs() < 0.01 && (sy - 1.0).abs() < 0.01 {
@@ -1664,7 +1726,7 @@ impl Rasterizer<'_> {
             }
             TilePlan::Rendered { size, .. } => {
                 if let Some(pixmap) = gradient_tile(gradient, current, tile, size) {
-                    self.image(&pixmap, area, tile, area);
+                    self.image(&pixmap, None, (area, tile, area));
                 }
             }
             TilePlan::Nothing => {}
@@ -3721,6 +3783,7 @@ mod tests {
                 clip: Arc::new(clip),
                 transform: Matrix::translate(dx, 0.0),
                 bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
+                rect_fallback: false,
             },
             content,
             DisplayItem::PopSvgClip,
@@ -4097,6 +4160,55 @@ mod tests {
         assert_eq!(r.budget.layer_pixels, 0);
         // The group draws nothing when its clip cannot be made.
         assert_eq!(rgb(&target, 50, 50), (255, 255, 255));
+    }
+
+    /// A clip group over a small triangle with the rectangle fallback of a
+    /// rounded overflow clip, run with the given layer budget.
+    fn fallback_group(max_layer_pixels: u64) -> (Pixmap, bool) {
+        use swb_layout::svg::ClipPath;
+        let clip = ClipPath {
+            shapes: vec![clip_shape(
+                &[(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)],
+                Matrix::IDENTITY,
+                None,
+            )],
+            outer: None,
+        };
+        let mut items = clipped(clip, 0.0, full_square());
+        if let Some(DisplayItem::PushSvgClip { rect_fallback, .. }) = items.first_mut() {
+            *rect_fallback = true;
+        }
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        let mut r = rasterizer(&mut target, &mut vectors, max_layer_pixels, MAX_MASK_PIXELS);
+        let mut fonts = FontContext::for_tests();
+        r.run(&items, 0..3, &transform_ends(&items), &mut fonts, &NoImages);
+        let skipped = r.budget.skipped.layers;
+        assert_eq!(r.budget.layer_pixels, 0);
+        assert_eq!(r.clips.len(), 0);
+        (target, skipped)
+    }
+
+    #[test]
+    fn a_rounded_overflow_clip_without_a_layer_keeps_its_rectangle() {
+        let (target, skipped) = fallback_group(100 * 100 - 1);
+        assert!(skipped);
+        // The content is drawn, clipped to the bounds (the whole target).
+        assert_eq!(rgb(&target, 50, 50), (255, 0, 0));
+    }
+
+    #[test]
+    fn a_rounded_overflow_clip_without_room_for_coverage_keeps_its_rectangle() {
+        // The layer fits, the temporary layer of the coverage does not.
+        let (target, skipped) = fallback_group(100 * 100);
+        assert!(skipped);
+        assert_eq!(rgb(&target, 50, 50), (255, 0, 0));
+        // With room for both, the clip applies.
+        let (target, skipped) = fallback_group(2 * 100 * 100);
+        assert!(!skipped);
+        assert_eq!(rgb(&target, 50, 50), (255, 255, 255));
+        assert_eq!(rgb(&target, 2, 2), (255, 0, 0));
     }
 
     #[test]

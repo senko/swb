@@ -6,6 +6,7 @@ use swb_layout::NaturalSize;
 use thiserror::Error;
 use tiny_skia::{IntSize, Pixmap};
 
+use crate::reduce::Reductions;
 use crate::svg::{CountBudget, SvgImage};
 
 /// The MIME type of SVG images. Chromium decodes an image as SVG only if
@@ -43,6 +44,8 @@ pub fn is_supported_image_type(essence: &str) -> bool {
 #[derive(Debug)]
 pub struct DecodedImage {
     kind: ImageKind,
+    /// The reduced levels of a raster image, made when it is drawn small.
+    reductions: Reductions,
 }
 
 /// The two kinds of images.
@@ -78,11 +81,21 @@ impl DecodedImage {
         &self.kind
     }
 
+    /// The reduced levels of a raster image.
+    pub(crate) fn reductions(&self) -> &Reductions {
+        &self.reductions
+    }
+
+    fn new(kind: ImageKind) -> Self {
+        DecodedImage {
+            kind,
+            reductions: Reductions::default(),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn from_pixmap(pixmap: Pixmap) -> Self {
-        DecodedImage {
-            kind: ImageKind::Raster(pixmap),
-        }
+        DecodedImage::new(ImageKind::Raster(pixmap))
     }
 }
 
@@ -129,9 +142,9 @@ pub fn decode_in_document(
     counting: &CountBudget,
 ) -> Result<DecodedImage, ImageError> {
     if mime_type == Some(SVG_MIME_TYPE) {
-        Ok(DecodedImage {
-            kind: ImageKind::Vector(Box::new(crate::svg::decode_counting(data, counting)?)),
-        })
+        Ok(DecodedImage::new(ImageKind::Vector(Box::new(
+            crate::svg::decode_counting(data, counting)?,
+        ))))
     } else {
         decode(data)
     }
@@ -154,9 +167,7 @@ pub fn decode(data: &[u8]) -> Result<DecodedImage, ImageError> {
         // A zero-size image: use one transparent pixel.
         None => Pixmap::new(1, 1).ok_or(ImageError::TooLarge(w, h))?,
     };
-    Ok(DecodedImage {
-        kind: ImageKind::Raster(pixmap),
-    })
+    Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
 }
 
 /// The format, width and height of raster image data whose header declares

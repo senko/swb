@@ -175,6 +175,7 @@ impl Page {
             let scrolling = Scrolling {
                 offsets: self.scrollers.offsets(),
                 indicators: self.scroll_indicators,
+                scale: self.scale,
             };
             let list = if page.is_some() || control.is_some() {
                 let highlight = Highlight {

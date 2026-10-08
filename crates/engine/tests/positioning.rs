@@ -801,3 +801,38 @@ fn scroll_into_view_in_sticky_and_fixed_scroll_containers() {
         assert!(visible(&mut page, far), "{far}");
     }
 }
+
+#[test]
+fn overflow_clips_at_the_rounded_padding_edge() {
+    // A circle (`border-radius: 50%`) with a 10 px border: the clip is the
+    // padding box with radius 40, also for the absolutely positioned child
+    // (a deferred box repeats the clip). The second box is in flow.
+    let (_site, mut page) = page(
+        "rounded-clip",
+        "<div style='position:relative; overflow:hidden; width:80px; height:80px; \
+           border:10px solid blue; border-radius:50%'>\
+           <div style='position:absolute; left:0; top:0; width:80px; height:80px; background:red'></div>\
+         </div>\
+         <div style='overflow:hidden; width:80px; height:80px; margin-top:10px; border-radius:40px'>\
+           <div style='width:80px; height:80px; background:red'></div>\
+         </div>",
+    );
+    assert_eq!(pixel(&mut page, 50, 50), RED);
+    assert_eq!(pixel(&mut page, 13, 13), (255, 255, 255));
+    assert_eq!(pixel(&mut page, 50, 5), (0, 0, 255));
+    assert_eq!(pixel(&mut page, 40, 150), RED);
+    assert_eq!(pixel(&mut page, 2, 112), WHITE);
+}
+
+#[test]
+fn overflow_clip_without_a_radius_stays_a_rectangle() {
+    let (_site, mut page) = page(
+        "square-clip",
+        "<div style='overflow:hidden; width:40px; height:40px'>\
+           <div style='width:80px; height:80px; background:red'></div>\
+         </div>",
+    );
+    assert_eq!(pixel(&mut page, 1, 1), RED);
+    assert_eq!(pixel(&mut page, 39, 39), RED);
+    assert_eq!(pixel(&mut page, 41, 41), WHITE);
+}

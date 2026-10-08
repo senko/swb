@@ -140,6 +140,20 @@ Rules:
   128 MiB). One frame renders new renderings up to a work budget; after
   that, images use the closest cached rendering or are not drawn until a
   later repaint.
+- **Rounded overflow clips and image reduction** (ADR 0024): a box with
+  `overflow` clipping and `border-radius` clips to the rounded padding
+  edge. The display list emits it as an SVG clip group (`PushSvgClip` with
+  a rounded-rectangle `ClipPath`, `rect_fallback` set), which the
+  rasterizer draws on a layer and multiplies by the coverage
+  (`paint/src/raster/svg_clip.rs`). The layer and the coverage count
+  against the layer budget and the path work budget. When they do not fit,
+  the group draws its content clipped to the rectangle (square corners)
+  instead of hiding it. A raster image drawn at a scale below 0.5 is drawn
+  from an averaged mip level (`paint/src/reduce.rs`): 2x2 averaging per
+  axis until the scale is at least 0.5, then bilinear. The levels are kept
+  with the decoded image (at most its own size) and made lazily. One frame
+  averages at most 64 Mpx of source pixels; past that, images use the
+  nearest level that exists, and a later repaint continues.
 - **Inline SVG** (ADR 0023): an `svg` element in HTML is a replaced box
   (`style::is_replaced_element`); its natural size comes from its
   `width`, `height` and `viewBox` attributes, which are also

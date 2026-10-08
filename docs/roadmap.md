@@ -264,7 +264,15 @@ Features, in this order. Each one ends with a review and a commit.
    - Links and hover states: check that the `:hover` rules of the
      navigation and article links apply (probe), and that the link
      colors match. The page has no search form with JavaScript off.
-   Then report target 4 as done.
+   Then report target 4 as done. Done: the box tree put an absolutely
+   positioned flex or grid child that follows text into the anonymous
+   item of that text; overflow clips follow the rounded padding edge
+   (also for deferred positioned descendants); raster images drawn at
+   less than half their size are averaged before bilinear sampling;
+   inline SVG is painted from the snapped origin of its content box; the
+   page's `:hover` rules are tested (ADR 0024 for the clips and the
+   reduction, with their budgets). Ars geometry 0.9963 → 1.0000,
+   pixels 0.9952 → 0.9992; target 4 done.
 
 Not in scope (not visible on the page with JavaScript off, or not
 used): `box-shadow`, `filter`, `text-shadow`, `-webkit-line-clamp`,
@@ -386,6 +394,15 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   - Hit testing has a work budget per call (40 ms), but no bound per frame:
     cache the last result per (point, display list) if pointer events over a
     dense clip path become a problem.
+- Ars Technica after item 9: the word "LIST" in the view selector is
+  0.36 px narrower than in Chromium (45.22 vs 45.58 px; check advance
+  rounding of uppercase text in the variable web font), so the next
+  buttons are drawn at another sub-pixel position. Inline SVG: Chromium
+  may also snap the size, not only the origin (not measured). The probe
+  tool has no hover step, so `:hover` is tested only in engine tests.
+  When a frame runs out of the image reduction budget (ADR 0024), some
+  images stay coarse until the next repaint; the engine does not
+  schedule one.
 - Inline SVG anti-aliasing: tiny-skia's coverage differs from
   Chromium's on thin curved shapes (the Ars ring icon has 7 % more ink in
   `tools/probes/inline-svg.json`, case `ars-icon`), and a group opacity
@@ -680,8 +697,8 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
   cannot shrink; empty lines ignore `text-align` and relative offsets;
   percentage `top`/`bottom` on inline boxes; `capitalize` across element
   boundaries inside words (`don<b>'t</b>`).
-- Paint: `border-radius` does not clip background images, gradients,
-  replaced images or overflow;
+- Paint: `border-radius` does not clip background images, gradients or
+  replaced images (overflow clips follow it since M4 item 9);
   `content-box` background clip/origin; gradients ignore background size
   and position, repeating gradients and implicit stop positions.
 - Engine: `<meta charset>` after the first 1024 bytes and charset for

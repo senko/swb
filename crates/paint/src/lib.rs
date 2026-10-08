@@ -19,6 +19,7 @@ mod inline_svg;
 mod mask;
 mod media;
 mod raster;
+mod reduce;
 mod rope;
 mod scroll_indicator;
 mod svg;

@@ -23,9 +23,34 @@ use swb_style::ComputedStyle;
 use crate::display_list::{DisplayItem, path_bounds};
 use crate::rope::ItemRope;
 
+/// `content` moved to a whole device pixel at `scale` device pixels per
+/// CSS px. Chromium paints the content of an `<svg>` from the pixel-snapped
+/// origin of its content box (measured on the Ars Technica logo at
+/// y = 297.5: the circle covers whole rows from 298), without changing
+/// its size.
+fn snap_origin(content: Rect, scale: f32) -> Rect {
+    if !(scale.is_finite() && scale > 0.0) {
+        return content;
+    }
+    let snap = |v: f32| (v * scale).round() / scale;
+    Rect::new(
+        snap(content.x),
+        snap(content.y),
+        content.width,
+        content.height,
+    )
+}
+
 /// Appends the items of `svg` drawn into the content box `content` (list
 /// coordinates) of an element with style `style`.
-pub(crate) fn paint(list: &mut ItemRope, svg: &SvgContent, style: &ComputedStyle, content: Rect) {
+pub(crate) fn paint(
+    list: &mut ItemRope,
+    svg: &SvgContent,
+    style: &ComputedStyle,
+    content: Rect,
+    scale: f32,
+) {
+    let content = snap_origin(content, scale);
     let mut items = Vec::new();
     svg.draw(Size::new(content.width, content.height), &mut items);
     if items.is_empty() {
@@ -67,6 +92,7 @@ pub(crate) fn paint(list: &mut ItemRope, svg: &SvgContent, style: &ComputedStyle
                     bounds: clip_extent(&clip, &origin),
                     clip,
                     transform: origin,
+                    rect_fallback: false,
                 }
             }
             SvgDrawItem::PopClip => match clips.pop() {
