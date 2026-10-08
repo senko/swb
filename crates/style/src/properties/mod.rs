@@ -856,6 +856,16 @@ mod tests {
                 FontFamily::Generic(GenericFamily::SansSerif)
             ]
         );
+        // The shorthand resets the two settings (measured in Chromium 148);
+        // `font-variant` does not.
+        let css = "font-variation-settings: 'wght' 9; font-feature-settings: 'liga' 0;";
+        let s = style(&format!("{css} font: 12px serif"));
+        assert!(s.font_variation_settings.is_empty() && s.font_feature_settings.is_empty());
+        let s = style(&format!("{css} font: menu"));
+        assert!(s.font_variation_settings.is_empty() && s.font_feature_settings.is_empty());
+        let s = style(&format!("{css} font-variant: small-caps"));
+        assert_eq!(s.font_variation_settings.len(), 1);
+        assert_eq!(s.font_feature_settings.len(), 1);
         let s = style("font: 13px Times New Roman");
         assert_eq!(
             &*s.font_family,
@@ -945,6 +955,16 @@ mod tests {
         );
         assert!(valid("font-variant", "common-ligatures oldstyle-nums"));
         assert!(!valid("font-variant", "bogus"));
+        let s = style("font-variation-settings: 'wght' 660, 'wdth' 80, 'wght' 700");
+        assert_eq!(
+            &*s.font_variation_settings,
+            &[(*b"wdth", 80.0), (*b"wght", 700.0)]
+        );
+        let s = style("font-feature-settings: 'liga' off, 'ss01'");
+        assert_eq!(&*s.font_feature_settings, &[(*b"liga", 0), (*b"ss01", 1)]);
+        assert!(!valid("font-variation-settings", "'wght'"));
+        assert!(!valid("font-feature-settings", "'liga' 1.5"));
+        assert!(valid("font-feature-settings", "normal"));
         let heights: &[(&str, LineHeight)] = &[
             ("normal", LineHeight::Normal),
             ("1.2", LineHeight::Number(1.2)),

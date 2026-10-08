@@ -227,8 +227,19 @@ fn same_font(a: &ComputedStyle, b: &ComputedStyle) -> bool {
             && a.font_style == b.font_style
             && a.font_stretch == b.font_stretch
             && a.font_variant_caps == b.font_variant_caps
+            && a.font_variation_settings == b.font_variation_settings
+            && a.font_feature_settings == b.font_feature_settings
             && a.letter_spacing == b.letter_spacing
             && a.word_spacing == b.word_spacing)
+}
+
+/// The OpenType features of `font-feature-settings`.
+fn style_features(style: &ComputedStyle) -> Vec<Feature> {
+    style
+        .font_feature_settings
+        .iter()
+        .map(|&(tag, value)| Feature::from_setting(tag, value))
+        .collect()
 }
 
 /// True if both ends of an inline box in `style` break shaping: a
@@ -354,6 +365,10 @@ impl GroupShaper<'_> {
                 shaped_len: source.len(),
                 map: &[],
             };
+            // The features of `font-variant-caps` come first: a later
+            // setting of a feature wins.
+            let mut features = plan.features;
+            features.extend(style_features(style));
             let part = Part {
                 range: 0..source.len(),
                 text: ifc.text.get(source).unwrap_or(""),
@@ -361,7 +376,7 @@ impl GroupShaper<'_> {
                 font: font_run.font,
                 font_size: style.font_size,
                 metrics_size: style.font_size,
-                features: &plan.features,
+                features: &features,
             };
             self.shape_part(items, style, &part);
         }
@@ -379,6 +394,7 @@ impl GroupShaper<'_> {
     ) {
         let ifc = self.ifc;
         let source_text = ifc.text.get(source.clone()).unwrap_or("");
+        let features = style_features(style);
         let cased = caps::case_text(source_text, synthesis);
         let source_map = SourceMap {
             source_start: source.start,
@@ -424,7 +440,7 @@ impl GroupShaper<'_> {
                     } else {
                         font_size
                     },
-                    features: &[],
+                    features: &features,
                 };
                 self.shape_part(items, style, &part);
             }

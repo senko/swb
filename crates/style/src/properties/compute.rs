@@ -90,6 +90,8 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::FontStyle(v) => s.font_style = *v,
         V::FontStretch(v) => s.font_stretch = *v,
         V::FontVariantCaps(v) => s.font_variant_caps = *v,
+        V::FontVariationSettings(v) => s.font_variation_settings = Arc::clone(v),
+        V::FontFeatureSettings(v) => s.font_feature_settings = Arc::clone(v),
         V::LineHeight(v) => s.line_height = v.compute(cx),
         V::TextAlign(v) => s.text_align = v.compute(cx),
         V::TextIndent(v) => s.text_indent = cx.lp(v),

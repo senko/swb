@@ -43,7 +43,9 @@ ensure() {
 
 reset() { # COMMIT
   ensure
-  git -C "$tree" checkout --quiet --detach "$1"
+  # --force: the tree can hold changes (an applied patch) to files that
+  # differ between the current commit and COMMIT.
+  git -C "$tree" checkout --quiet --force --detach "$1"
   git -C "$tree" reset --quiet --hard "$1"
   git -C "$tree" clean --quiet -fd
 }

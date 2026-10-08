@@ -41,6 +41,19 @@ pub struct Feature {
     pub value: u32,
 }
 
+impl Feature {
+    /// The feature for a `font-feature-settings` entry (property or
+    /// `@font-face` descriptor). A negative value becomes a large unsigned
+    /// one, as in `HarfBuzz`.
+    #[must_use]
+    pub fn from_setting(tag: [u8; 4], value: i32) -> Self {
+        Self {
+            tag,
+            value: value as u32,
+        }
+    }
+}
+
 /// Shaping parameters for one run.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ShapeOptions<'a> {
@@ -49,7 +62,9 @@ pub struct ShapeOptions<'a> {
     /// The content language (BCP 47), which selects language-specific
     /// glyph forms.
     pub language: Option<&'a str>,
-    /// Feature settings on top of the defaults.
+    /// Feature settings on top of the defaults. A later setting of a
+    /// feature wins over an earlier one; the `font-feature-settings` of a
+    /// web font's `@font-face` rule come before these.
     pub features: &'a [Feature],
     /// The text before the shaped text, for contextual shaping (Arabic
     /// joining across font fallback and element boundaries). It is not
@@ -106,10 +121,11 @@ impl FontContext {
         text: &str,
         options: &ShapeOptions<'_>,
     ) -> ShapedRun {
-        let size = sanitize_size(size);
         let Some(instance) = self.instances.get_mut(font.0 as usize) else {
             return ShapedRun::default();
         };
+        // `size-adjust` of a web font face scales the font size.
+        let size = sanitize_size(size * instance.size_adjust());
         if options.direction == Direction::Rtl || options.bidi_override || !text.chars().any(is_rtl)
         {
             return shape_with(instance, size, text, options)
@@ -198,6 +214,12 @@ fn joins_previous(c: char) -> bool {
 /// five).
 const CONTEXT_CHARS: usize = 5;
 
+/// The most shape plans kept per font instance. A plan depends on the
+/// script, direction, language and features, so real pages need a few.
+/// The lookup is linear: without the limit, a page with many distinct
+/// `font-feature-settings` lists makes shaping quadratic.
+const MAX_PLANS_PER_INSTANCE: usize = 32;
+
 /// Up to five characters of `text` before and after `range`: the context
 /// for shaping that part of the text (`ShapeOptions::pre_context` and
 /// `post_context`).
@@ -246,9 +268,12 @@ fn shape_with(
     buffer.guess_segment_properties();
     let script = Some(buffer.script()).filter(|s| *s != script::UNKNOWN);
 
-    let features: Vec<harfrust::Feature> = options
+    // The features of the `@font-face` rule come first: a later setting
+    // of the same feature wins.
+    let features: Vec<harfrust::Feature> = face
         .features
         .iter()
+        .chain(options.features)
         .map(|f| harfrust::Feature::new(harfrust::Tag::new(&f.tag), f.value, ..))
         .collect();
     let key = ShapePlanKey::new(script, direction)
@@ -258,6 +283,9 @@ fn shape_with(
     let plan_index = if let Some(index) = instance.plans.iter().position(|p| key.matches(p)) {
         index
     } else {
+        if instance.plans.len() >= MAX_PLANS_PER_INSTANCE {
+            instance.plans.clear();
+        }
         let plan = ShapePlan::new(&shaper, direction, script, language.as_ref(), &features);
         instance.plans.push(plan);
         instance.plans.len() - 1

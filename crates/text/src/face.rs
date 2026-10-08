@@ -12,6 +12,8 @@ use skrifa::{FontRef, GlyphId, MetadataProvider, Tag};
 
 use crate::error::TextError;
 use crate::matching::FaceStyle;
+use crate::metrics::FontMetrics;
+use crate::shape::Feature;
 
 /// A face as a font source describes it, before its file is parsed.
 #[derive(Clone, Debug)]
@@ -70,6 +72,27 @@ fn wght_range(font: &FontRef<'_>) -> Option<AxisRange> {
     axis_range(font, *b"wght")
 }
 
+/// Removes the spaces and lowercases ASCII letters: how `local()` compares
+/// names. Measured in Chromium 148 with fontconfig: `Liberation Sans`,
+/// `liberationsans` and `L i b e r a t i o n S a n s` are the same name.
+pub(crate) fn normalize_local_name(name: &str) -> String {
+    name.chars()
+        .filter(|&c| c != ' ')
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
+/// The names that `local()` can match for a face: its full name and its
+/// PostScript name, normalized by [`normalize_local_name`].
+pub(crate) fn local_names(font: &FontRef<'_>) -> Vec<String> {
+    [StringId::FULL_NAME, StringId::POSTSCRIPT_NAME]
+        .into_iter()
+        .filter_map(|id| font.localized_strings(id).english_or_first())
+        .map(|name| normalize_local_name(&name.to_string()))
+        .filter(|name| !name.is_empty())
+        .collect()
+}
+
 /// A parsed face. The font data is shared; `FontRef`s are created on demand
 /// because they borrow the data.
 pub(crate) struct LoadedFace {
@@ -97,6 +120,43 @@ pub(crate) struct LoadedFace {
     /// For a web font face: the code points of its `unicode-range`, as
     /// sorted, disjoint inclusive ranges. The face covers only these.
     range: Option<Arc<[(u32, u32)]>>,
+    /// For a web font face: `size-adjust` as a ratio. It scales the font
+    /// size for shaping, metrics and rasterization.
+    pub(crate) size_adjust: f32,
+    /// For a web font face: `ascent-override`, `descent-override` and
+    /// `line-gap-override` as ratios of the adjusted font size.
+    pub(crate) metric_overrides: MetricOverrides,
+    /// For a web font face: `font-variation-settings` of the `@font-face`
+    /// rule, applied before the property's.
+    pub(crate) variation_settings: Arc<[([u8; 4], f32)]>,
+    /// For a web font face: `font-feature-settings` of the `@font-face`
+    /// rule, applied before the property's.
+    pub(crate) features: Arc<[Feature]>,
+}
+
+/// The metric descriptors of a web font face, as ratios of the used font
+/// size; `None` keeps the font's own value.
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct MetricOverrides {
+    pub(crate) ascent: Option<f32>,
+    pub(crate) descent: Option<f32>,
+    pub(crate) line_gap: Option<f32>,
+}
+
+impl MetricOverrides {
+    /// Replaces the ascent, descent and line gap of `metrics` (for a font
+    /// size of `size` pixels, after `size-adjust`) with the overrides.
+    pub(crate) fn apply(&self, metrics: &mut FontMetrics, size: f32) {
+        if let Some(ratio) = self.ascent {
+            metrics.ascent = ratio * size;
+        }
+        if let Some(ratio) = self.descent {
+            metrics.descent = ratio * size;
+        }
+        if let Some(ratio) = self.line_gap {
+            metrics.line_gap = ratio * size;
+        }
+    }
 }
 
 impl LoadedFace {
@@ -147,6 +207,10 @@ impl LoadedFace {
             slanted: attributes.style != skrifa::attribute::Style::Normal,
             has_color,
             range: None,
+            size_adjust: 1.0,
+            metric_overrides: MetricOverrides::default(),
+            variation_settings: Arc::from([]),
+            features: Arc::from([]),
         })
     }
 

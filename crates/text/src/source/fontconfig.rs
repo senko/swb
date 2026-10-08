@@ -50,6 +50,10 @@ use crate::source::FontSource;
 /// later). Skia asks for "SFNT" to prefer TrueType and OpenType files.
 const FC_FONT_WRAPPER: &CStr = c"fontwrapper";
 
+/// fontconfig properties for the full name and the PostScript name.
+const FC_FULL_NAME: &CStr = c"fullname";
+const FC_POSTSCRIPT: &CStr = c"postscriptname";
+
 /// Metric-compatible families. A match from the same class as the
 /// requested family is accepted.
 ///
@@ -166,6 +170,9 @@ pub(crate) struct FontconfigSource {
     fallback_lists: HashMap<String, Vec<FaceDesc>>,
     /// `cmap` tables of fallback candidates. `None` if unreadable.
     cmaps: HashMap<(PathBuf, u32), Option<Vec<u8>>>,
+    /// The faces with their normalized full and PostScript names, for
+    /// `local()`. Read on first use.
+    local_faces: Option<Vec<(Vec<String>, FaceDesc)>>,
 }
 
 impl FontconfigSource {
@@ -176,6 +183,7 @@ impl FontconfigSource {
             fc: Fontconfig::new()?,
             fallback_lists: HashMap::new(),
             cmaps: HashMap::new(),
+            local_faces: None,
         })
     }
 
@@ -266,6 +274,47 @@ impl FontconfigSource {
         })
     }
 
+    /// All usable faces with their normalized full and PostScript names,
+    /// from the fontconfig font list, in its order.
+    fn list_local_faces(&self) -> Vec<(Vec<String>, FaceDesc)> {
+        let Ok(pattern) = Pattern::new(&self.fc) else {
+            return Vec::new();
+        };
+        let Ok(mut objects) = ObjectSet::new(&self.fc) else {
+            return Vec::new();
+        };
+        for object in [
+            FC_FAMILY,
+            FC_FILE,
+            FC_INDEX,
+            FC_WEIGHT,
+            FC_SLANT,
+            FC_WIDTH,
+            FC_FONTFORMAT,
+            FC_FULL_NAME,
+            FC_POSTSCRIPT,
+        ] {
+            if objects.add(object).is_err() {
+                return Vec::new();
+            }
+        }
+        let Ok(set) = fontconfig::list_fonts(&pattern, Some(&objects)) else {
+            return Vec::new();
+        };
+        set.iter()
+            .filter_map(|p| {
+                let face = face_from_pattern(&p)?;
+                let names: Vec<String> = [FC_FULL_NAME, FC_POSTSCRIPT]
+                    .into_iter()
+                    .filter_map(|name| p.get_string(name).ok())
+                    .map(face::normalize_local_name)
+                    .filter(|name| !name.is_empty())
+                    .collect();
+                Some((names, face))
+            })
+            .collect()
+    }
+
     /// Fallback candidates for a language: all usable fonts in the order of
     /// `FcFontSort` (Chromium's `CachedFontSet::CreateForLocale`).
     fn fallback_list(&self, language: &str) -> Vec<FaceDesc> {
@@ -308,6 +357,18 @@ fn chrome_default_family(generic: GenericFamily) -> Option<&'static str> {
 }
 
 impl FontSource for FontconfigSource {
+    fn local_face(&mut self, name: &str) -> Option<FaceDesc> {
+        let name = face::normalize_local_name(name);
+        if self.local_faces.is_none() {
+            self.local_faces = Some(self.list_local_faces());
+        }
+        self.local_faces
+            .iter()
+            .flatten()
+            .find(|(names, _)| names.contains(&name))
+            .map(|(_, face)| face.clone())
+    }
+
     fn named_family(&mut self, name: &str) -> Option<FamilyDesc> {
         let resolved = self.resolve(name, false).or_else(|| {
             ALTERNATE_NAMES

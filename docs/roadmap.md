@@ -170,7 +170,12 @@ Features, in this order. Each one ends with a review and a commit.
    (Ars headings use `"wght" 660`), `font-feature-settings`, the metric
    descriptors `size-adjust`, `ascent-override`, `descent-override` and
    `line-gap-override`, and `src: local()` (measure what Chromium
-   matches with the test fonts).
+   matches with the test fonts). Done (ADR 0022, part 2): both
+   properties and the same `@font-face` descriptors, the four metric
+   descriptors, `local()` by full name or PostScript name. Ars
+   geometry 0.6908 → 0.7740, pixels 0.9544 → 0.9898. BBC is
+   unchanged: its `local("Arial")` fallback faces do not match in
+   Chromium either.
 5. Inline SVG, part 1 (`implementer-hard`, new ADR). swb draws inline
    SVG itself; ADR 0003 allows resvg only for SVG as an image format.
    Scope: `<svg>` in HTML as a replaced box (CSS sizing, `width` and
@@ -178,10 +183,11 @@ Features, in this order. Each one ends with a review and a commit.
    `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`; the
    properties and presentation attributes `fill`, `fill-rule`,
    `fill-opacity`, `stroke` and its longhands, `opacity`, `transform`,
-   `display`, `visibility`, `color` (`currentColor`); styling by the
-   page's style sheets through the cascade; paint into the display list
-   (paths with fill and stroke, rasterized with tiny-skia). `svgtypes`
-   parses path data and transforms.
+   `display`, `visibility`, `color` (`currentColor`); `title`, `desc`
+   and `style` inside SVG draw nothing (the BBC logo has a `title`);
+   styling by the page's style sheets through the cascade; paint into
+   the display list (paths with fill and stroke, rasterized with
+   tiny-skia). `svgtypes` parses path data and transforms.
 6. Inline SVG, part 2 (`implementer`). Scope: `clipPath` (all Ars icons
    use it), `defs`, `use` with local references, the box dump of SVG
    descendants as Chromium reports them (bounding boxes of shapes and
@@ -231,7 +237,24 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   that goes away, but keeps its entry. Reuse or remove the entries.
 - `ch` units: swb uses 0.5em; Chromium measures the `0` of the first
   available font (`tools/probes/web-fonts.json`,
-  `ch-unit-first-available`; not specific to web fonts).
+  `ch-unit-first-available`; not specific to web fonts). The same holds
+  for `ex` (the x-height of the first available font; with
+  `size-adjust` the adjusted one: 10ex is 250 px for `size-adjust: 50%`
+  on a 100 px font with x-height 0.5em, swb gives 500 px).
+- `letter-spacing` other than 0 turns off optional ligatures in
+  Chromium (`liga` and the like; `'liga' 1` in `font-feature-settings`
+  turns them on again): `tools/probes/web-fonts-2.json` case
+  `ffs-shaping` measured 602.02 px against swb's 596.5 px (with
+  `letter-spacing: 1px` on DejaVu Sans, "fi fl ffi AV To" at 100 px).
+- `font-optical-sizing: auto`: Chromium sets the `opsz` axis from the
+  font size; swb does not set `opsz` (neither target page has a font
+  with that axis).
+- `local()`: named instances of variable fonts (`Source Sans 3 Bold`)
+  are not matched, only faces that fontconfig lists with index 0 of
+  their file; the matching reads the first full name that fontconfig
+  has, not the localized ones.
+- `FontContext::font_info` reports the `wght` of the matching, not the
+  value that `font-variation-settings` sets.
 - `width: max-content` on block boxes is not supported (the probe cases
   use floats instead).
 - Fixtures: the wikipedia-web-browser fixture (pushed before the

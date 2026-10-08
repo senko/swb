@@ -17,6 +17,9 @@ use crate::source::FontSource;
 struct DirFace {
     desc: FaceDesc,
     mapping: MappingIndex,
+    /// The full name and the PostScript name, for `local()` (see
+    /// [`face::normalize_local_name`]).
+    local_names: Vec<String>,
 }
 
 impl DirFace {
@@ -78,11 +81,11 @@ impl DirectorySource {
     }
 
     fn add_face(&mut self, names: Vec<String>, desc: FaceDesc) {
-        let Some(mapping) = desc
+        let Some((mapping, local_names)) = desc
             .data
             .as_ref()
             .and_then(|data| FontRef::from_index(data, desc.index).ok())
-            .map(|font| MappingIndex::new(&font))
+            .map(|font| (MappingIndex::new(&font), face::local_names(&font)))
         else {
             return;
         };
@@ -94,7 +97,11 @@ impl DirectorySource {
                 .1
                 .push(index);
         }
-        self.faces.push(DirFace { desc, mapping });
+        self.faces.push(DirFace {
+            desc,
+            mapping,
+            local_names,
+        });
     }
 
     /// The family with exactly this name (ignoring ASCII case).
@@ -139,6 +146,14 @@ impl DirectorySource {
 }
 
 impl FontSource for DirectorySource {
+    fn local_face(&mut self, name: &str) -> Option<FaceDesc> {
+        let name = face::normalize_local_name(name);
+        self.faces
+            .iter()
+            .find(|f| f.local_names.contains(&name))
+            .map(|f| f.desc.clone())
+    }
+
     fn named_family(&mut self, name: &str) -> Option<FamilyDesc> {
         self.family(name)
             .or_else(|| self.map.alias(name).and_then(|alias| self.family(alias)))

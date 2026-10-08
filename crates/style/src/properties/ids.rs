@@ -16,6 +16,7 @@ use super::specified::{
 };
 use super::transform::{SpecifiedClip, SpecifiedTransform, SpecifiedTransformOrigin};
 use crate::ComputedStyle;
+use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
@@ -105,6 +106,8 @@ longhands! {
     FontStyle "font-style" inherited font_style: FontStyle;
     FontStretch "font-stretch" inherited font_stretch: f32;
     FontVariantCaps "font-variant-caps" inherited font_variant_caps: FontVariantCaps;
+    FontVariationSettings "font-variation-settings" inherited font_variation_settings: FontVariationSettings;
+    FontFeatureSettings "font-feature-settings" inherited font_feature_settings: FontFeatureSettings;
     LineHeight "line-height" inherited line_height: SpecifiedLineHeight;
     TextAlign "text-align" inherited text_align: SpecifiedTextAlign;
     TextIndent "text-indent" inherited text_indent: Lp;
@@ -255,6 +258,8 @@ mod tests {
         }
         assert_eq!(LonghandId::from_name("color"), Some(LonghandId::Color));
         assert!(LonghandId::Color.is_inherited());
+        assert!(LonghandId::FontVariationSettings.is_inherited());
+        assert!(LonghandId::FontFeatureSettings.is_inherited());
         assert!(!LonghandId::Display.is_inherited());
     }
 }

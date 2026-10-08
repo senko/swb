@@ -91,3 +91,65 @@ fn fontconfig_with_bundled_config_matches_directory_mode() {
     };
     assert_eq!(describe(&mut system), describe(&mut bundled));
 }
+
+/// The file of the face that `local(name)` loads, if any.
+fn local_font_file(ctx: &mut FontContext, n: usize, name: &str) -> Option<String> {
+    // A new family name makes a new face, which a context requests again.
+    let family = format!("L{n}");
+    ctx.set_web_fonts(vec![swb_text::WebFontFace {
+        family: family.clone(),
+        sources: vec!["local".to_owned()],
+        ..swb_text::WebFontFace::default()
+    }]);
+    let families = [Named(family.as_str())];
+    let query = FontQuery::new(&families);
+    ctx.itemize("x", &query);
+    let id = *ctx.take_web_font_requests().first()?;
+    ctx.web_font_local(id, name).ok()?;
+    let font = ctx.itemize("x", &query).first()?.font;
+    Some(file(ctx, font))
+}
+
+/// `local()` finds the same faces through fontconfig and in directory
+/// mode, with the names that Chromium 148 accepts and rejects.
+#[test]
+fn local_names_match_in_fontconfig_mode() {
+    if std::env::var_os(CHILD_MARKER).is_none() {
+        let config = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/fonts/fonts.conf");
+        let status = Command::new(std::env::current_exe().expect("the test binary has a path"))
+            .args([
+                "--exact",
+                "local_names_match_in_fontconfig_mode",
+                "--nocapture",
+            ])
+            .env(CHILD_MARKER, "1")
+            .env("FONTCONFIG_FILE", config)
+            .status()
+            .expect("the test binary can run itself");
+        assert!(status.success());
+        return;
+    }
+    let mut system = FontContext::system();
+    let mut bundled = FontContext::for_tests();
+    let probe = [Generic(GenericFamily::SansSerif)];
+    let probe_font = system.select(&FontQuery::new(&probe));
+    if system.font_info(probe_font).is_none() {
+        eprintln!("skipping: fontconfig is not available");
+        return;
+    }
+    let names = [
+        ("Liberation Sans", Some("LiberationSans-Regular.ttf")),
+        ("liberationsans", Some("LiberationSans-Regular.ttf")),
+        ("Liberation Sans Bold", Some("LiberationSans-Bold.ttf")),
+        ("LiberationSans-Bold", Some("LiberationSans-Bold.ttf")),
+        ("DejaVu Sans", Some("DejaVuSans.ttf")),
+        ("Liberation Sans Regular", None),
+        ("Arial", None),
+        ("Times New Roman", None),
+    ];
+    for (n, (name, expected)) in names.into_iter().enumerate() {
+        let expected = expected.map(str::to_owned);
+        assert_eq!(local_font_file(&mut system, n, name), expected, "{name}");
+        assert_eq!(local_font_file(&mut bundled, n, name), expected, "{name}");
+    }
+}

@@ -3,7 +3,8 @@
 //!
 //! After each layout the page takes the faces that the text crate
 //! requested and loads their sources in order: a `url()` through the
-//! loader (each URL once), a `local()` source fails (not supported yet).
+//! loader (each URL once), a `local()` source loads at once from the
+//! installed fonts.
 //! A face whose sources all fail is marked as failed. Each arriving font
 //! invalidates the layout; the next layout uses it and can request more
 //! faces. Loading waits for fonts like for images, so headless rendering
@@ -57,7 +58,14 @@ impl Page {
             let url = match Source::parse(source) {
                 Source::Url(url) => url,
                 Source::Local(name) => {
-                    log::debug!("font source local({name}) is not supported yet");
+                    // An installed font loads at once.
+                    match self.fonts.web_font_local(id, &name) {
+                        Ok(()) => {
+                            self.invalidate_layout();
+                            return;
+                        }
+                        Err(e) => log::debug!("font source local({name}): {e}"),
+                    }
                     continue;
                 }
                 Source::Invalid => continue,

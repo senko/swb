@@ -23,6 +23,9 @@ pub enum TextError {
         /// What is wrong.
         reason: String,
     },
+    /// No installed font has the name of a `local()` source.
+    #[error("no installed font named {0:?}")]
+    NoLocalFont(String),
     /// A font directory contains no usable fonts.
     #[error("no usable fonts in {0}")]
     NoFonts(PathBuf),

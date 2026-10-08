@@ -5,8 +5,8 @@
 use std::path::Path;
 
 use swb_text::{
-    FamilyName, FontContext, FontId, FontQuery, FontStyle, GenericFamily, ShapeOptions, WebFaceId,
-    WebFontFace, WebFontStyle, decode_web_font,
+    FamilyName, Feature, FontContext, FontId, FontQuery, FontStyle, GenericFamily, ShapeOptions,
+    WebFaceId, WebFontFace, WebFontStyle, decode_web_font,
 };
 
 use FamilyName::{Generic, Named};
@@ -24,11 +24,8 @@ const MISSING: &str = "fixtures/fonts/missing.ttf";
 fn face(family: &str, source: &str) -> WebFontFace {
     WebFontFace {
         family: family.to_owned(),
-        weight: None,
-        stretch: None,
-        style: WebFontStyle::Auto,
-        unicode_range: vec![(0, 0x10_FFFF)],
         sources: vec![source.to_owned()],
+        ..WebFontFace::default()
     }
 }
 
@@ -434,4 +431,406 @@ fn composite_lookups_are_bounded() {
     ctx.itemize(&text, &q);
     assert!(ctx.take_web_font_requests().len() <= 256);
     assert!(started.elapsed().as_secs() < 5);
+}
+
+// ----- Part 2: variation and feature settings, metric descriptors,
+// `local()`. The expected values come from Chromium 148
+// (`tools/probes/web-fonts-2.json`). -----
+
+/// The variable test font (`crates/text/tests/webfonts/README.md`): the
+/// advance of `A` is 600 units at the defaults, 400 to 1000 over `wght`
+/// 100 to 900, and 400 to 800 over `wdth` 75 to 125; `SWBX` adds 0.5
+/// units per unit.
+const VAR: &str = "crates/text/tests/webfonts/swb-variable.ttf";
+
+fn var_face(family: &str) -> WebFontFace {
+    WebFontFace {
+        weight: Some((100.0, 900.0)),
+        stretch: Some((75.0, 125.0)),
+        ..face(family, VAR)
+    }
+}
+
+/// Loads the faces that `q` needs and shapes `text` at `size` px.
+fn advance_of(
+    ctx: &mut FontContext,
+    q: &FontQuery<'_>,
+    size: f32,
+    text: &str,
+    features: &[Feature],
+) -> f32 {
+    ctx.itemize(text, q);
+    load_requests(ctx);
+    let runs = ctx.itemize(text, q);
+    let options = ShapeOptions {
+        features,
+        ..ShapeOptions::default()
+    };
+    runs.iter()
+        .map(|run| {
+            ctx.shape(run.font, size, &text[run.range.clone()], &options)
+                .advance
+        })
+        .sum()
+}
+
+/// The advance of `A` at 100 px, for the CSS properties given.
+fn a_width(
+    ctx: &mut FontContext,
+    family: &str,
+    weight: f32,
+    stretch: f32,
+    variations: &[([u8; 4], f32)],
+) -> f32 {
+    let families = [Named(family)];
+    let mut q = query(&families, weight, FontStyle::Normal);
+    q.stretch = stretch;
+    q.variations = variations;
+    advance_of(ctx, &q, 100.0, "A", &[])
+}
+
+fn assert_close(actual: f32, expected: f32) {
+    assert!((actual - expected).abs() < 0.02, "{actual} != {expected}");
+}
+
+#[test]
+fn variation_settings_come_after_the_matched_axes() {
+    let mut ctx = FontContext::for_tests();
+    ctx.set_web_fonts(vec![var_face("V"), weighted("V4", VAR, (400.0, 400.0))]);
+    let mut w = |family: &str, weight: f32, stretch: f32, v: &[([u8; 4], f32)]| {
+        a_width(&mut ctx, family, weight, stretch, v)
+    };
+    assert_close(w("V", 400.0, 100.0, &[]), 60.0);
+    assert_close(w("V", 900.0, 100.0, &[]), 100.0);
+    assert_close(w("V", 700.0, 100.0, &[]), 84.0);
+    // Chromium: `font-weight: 700; font-variation-settings: "wght" 660`
+    // (the Ars Technica headings) is 80.81 px, not 84.
+    assert_close(w("V", 700.0, 100.0, &[(*b"wght", 660.0)]), 80.8);
+    assert_close(w("V", 400.0, 100.0, &[(*b"wght", 900.0)]), 100.0);
+    // Values outside the axis range are clamped.
+    assert_close(w("V", 400.0, 100.0, &[(*b"wght", 1000.0)]), 100.0);
+    assert_close(w("V", 400.0, 100.0, &[(*b"wght", 0.0)]), 40.0);
+    assert_close(w("V", 400.0, 100.0, &[(*b"wght", -50.0)]), 40.0);
+    assert_close(w("V", 400.0, 100.0, &[(*b"wght", 500.5)]), 68.0);
+    // The last setting of a tag wins.
+    assert_close(
+        w("V", 400.0, 100.0, &[(*b"wght", 900.0), (*b"wght", 100.0)]),
+        40.0,
+    );
+    // `wdth` from font-stretch, and from the property over it.
+    assert_close(w("V", 400.0, 75.0, &[]), 40.0);
+    assert_close(w("V", 400.0, 75.0, &[(*b"wdth", 125.0)]), 80.0);
+    assert_close(
+        w("V", 400.0, 100.0, &[(*b"wdth", 125.0), (*b"wght", 900.0)]),
+        120.0,
+    );
+    // A custom axis; tags are case-sensitive; axes that the font lacks are
+    // ignored.
+    assert_close(w("V", 400.0, 100.0, &[(*b"SWBX", 1000.0)]), 110.0);
+    assert_close(w("V", 400.0, 100.0, &[(*b"swbx", 1000.0)]), 60.0);
+    assert_close(
+        w("V", 400.0, 100.0, &[(*b"slnt", 5.0), (*b"XXXX", 5.0)]),
+        60.0,
+    );
+    // The descriptor range of the face clamps the weight before the
+    // property applies, which can go beyond it.
+    assert_close(w("V4", 900.0, 100.0, &[]), 60.0);
+    assert_close(w("V4", 900.0, 100.0, &[(*b"wght", 900.0)]), 100.0);
+}
+
+#[test]
+fn variation_settings_make_distinct_fonts() {
+    let mut ctx = FontContext::for_tests();
+    ctx.set_web_fonts(vec![var_face("V")]);
+    let families = [Named("V")];
+    let mut q = query(&families, 400.0, FontStyle::Normal);
+    let plain = font_of(&mut ctx, "V", 400.0, FontStyle::Normal);
+    let settings = [(*b"wght", 900.0)];
+    q.variations = &settings;
+    let heavy = ctx.itemize("A", &q)[0].font;
+    let again = ctx.itemize("A", &q)[0].font;
+    assert_ne!(plain, heavy);
+    assert_eq!(heavy, again);
+}
+
+#[test]
+fn synthetic_bold_ignores_variation_settings() {
+    // Measured in Chromium 148 with the ink of the glyphs: the decision
+    // uses the weight that matching sets, before `font-variation-settings`.
+    let mut ctx = FontContext::for_tests();
+    ctx.set_web_fonts(vec![weighted("V4", VAR, (400.0, 400.0)), var_face("V")]);
+    let bold = |ctx: &mut FontContext, family: &str, weight: f32, v: &[([u8; 4], f32)]| {
+        let families = [Named(family)];
+        let mut q = query(&families, weight, FontStyle::Normal);
+        q.variations = v;
+        ctx.itemize("A", &q);
+        load_requests(ctx);
+        let font = ctx.itemize("A", &q)[0].font;
+        ctx.synthesis(font).bold
+    };
+    let w900 = [(*b"wght", 900.0)];
+    let w400 = [(*b"wght", 400.0)];
+    assert!(bold(&mut ctx, "V4", 700.0, &[]));
+    assert!(bold(&mut ctx, "V4", 700.0, &w400));
+    assert!(bold(&mut ctx, "V4", 700.0, &w900));
+    assert!(!bold(&mut ctx, "V4", 400.0, &w900));
+    assert!(!bold(&mut ctx, "V", 700.0, &w400));
+}
+
+#[test]
+fn font_face_variation_settings_apply_before_the_property() {
+    let mut ctx = FontContext::for_tests();
+    let descriptor = |family: &str, settings: &[([u8; 4], f32)]| WebFontFace {
+        variations: settings.to_vec(),
+        ..var_face(family)
+    };
+    ctx.set_web_fonts(vec![
+        descriptor("D1", &[(*b"wght", 900.0)]),
+        descriptor("D2", &[(*b"wght", 900.0), (*b"wdth", 125.0)]),
+        descriptor("D3", &[(*b"wght", 900.0), (*b"wght", 100.0)]),
+    ]);
+    let mut w = |family: &str, weight: f32, v: &[([u8; 4], f32)]| {
+        a_width(&mut ctx, family, weight, 100.0, v)
+    };
+    // The descriptor wins over font-weight.
+    assert_close(w("D1", 400.0, &[]), 100.0);
+    assert_close(w("D1", 100.0, &[]), 100.0);
+    // The property sets other axes in addition, and wins for the same tag.
+    assert_close(w("D1", 400.0, &[(*b"wdth", 125.0)]), 120.0);
+    assert_close(w("D1", 400.0, &[(*b"wght", 200.0)]), 46.7);
+    assert_close(w("D2", 400.0, &[]), 120.0);
+    assert_close(w("D3", 400.0, &[]), 40.0);
+}
+
+#[test]
+fn variable_system_fonts_take_variation_settings() {
+    use swb_text::GenericFamilyMap;
+    let dir = std::env::temp_dir().join(format!("swb-text-variable-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(VAR),
+        dir.join("swb-variable.ttf"),
+    )
+    .unwrap();
+    let map = GenericFamilyMap {
+        generics: Vec::new(),
+        default_family: "SWB Variable".to_owned(),
+        fallback: Vec::new(),
+        aliases: Vec::new(),
+    };
+    let ctx = FontContext::from_directory(&dir, map);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let mut ctx = ctx.unwrap();
+    let mut w =
+        |weight: f32, v: &[([u8; 4], f32)]| a_width(&mut ctx, "SWB Variable", weight, 100.0, v);
+    assert_close(w(400.0, &[]), 60.0);
+    assert_close(w(900.0, &[]), 100.0);
+    assert_close(w(400.0, &[(*b"wght", 900.0)]), 100.0);
+    assert_close(w(900.0, &[(*b"wght", 100.0)]), 40.0);
+    // A static font ignores the settings.
+    let mut ctx = FontContext::for_tests();
+    let families = [Named("Liberation Sans")];
+    let mut q = query(&families, 400.0, FontStyle::Normal);
+    let plain = advance_of(&mut ctx, &q, 16.0, "Hamburgefonstiv", &[]);
+    let settings = [(*b"wght", 900.0)];
+    q.variations = &settings;
+    assert_close(
+        advance_of(&mut ctx, &q, 16.0, "Hamburgefonstiv", &[]),
+        plain,
+    );
+}
+
+#[test]
+fn font_feature_settings_reach_the_shaper() {
+    let mut ctx = FontContext::for_tests();
+    let descriptor = |family: &str, features: &[Feature]| WebFontFace {
+        features: features.to_vec(),
+        ..face(family, DV)
+    };
+    let f = |tag: &[u8; 4], value| Feature { tag: *tag, value };
+    ctx.set_web_fonts(vec![
+        face("P", DV),
+        descriptor("D", &[f(b"liga", 0)]),
+        descriptor("E", &[f(b"liga", 0), f(b"kern", 0)]),
+    ]);
+    let text = "fi fl ffi AV To";
+    let mut width = |family: &str, features: &[Feature]| {
+        let families = [Named(family)];
+        let q = query(&families, 400.0, FontStyle::Normal);
+        advance_of(&mut ctx, &q, 100.0, text, features)
+    };
+    assert_close(width("P", &[]), 585.5);
+    assert_close(width("P", &[f(b"liga", 0)]), 587.02);
+    assert_close(width("P", &[f(b"kern", 0)]), 608.89);
+    assert_close(width("P", &[f(b"kern", 0), f(b"liga", 0)]), 610.41);
+    // The last setting of a feature wins.
+    assert_close(width("P", &[f(b"liga", 0), f(b"liga", 1)]), 585.5);
+    assert_close(width("P", &[f(b"liga", 1), f(b"liga", 0)]), 587.02);
+    // The descriptor applies first; the property overrides it per tag.
+    assert_close(width("D", &[]), 587.02);
+    assert_close(width("D", &[f(b"liga", 1)]), 585.5);
+    assert_close(width("E", &[f(b"liga", 1)]), 608.89);
+    assert_close(width("E", &[]), 610.41);
+}
+
+#[test]
+fn size_adjust_scales_shaping_metrics_and_glyphs() {
+    let mut ctx = FontContext::for_tests();
+    let adjusted = |family: &str, size_adjust: f32| WebFontFace {
+        size_adjust,
+        ..face(family, VAR)
+    };
+    ctx.set_web_fonts(vec![
+        face("P", VAR),
+        adjusted("Half", 0.5),
+        adjusted("Zero", 0.0),
+        WebFontFace {
+            ascent_override: Some(0.5),
+            ..adjusted("Asc", 0.5)
+        },
+        WebFontFace {
+            descent_override: Some(0.0),
+            line_gap_override: Some(0.2),
+            ..adjusted("Gap", 0.5)
+        },
+    ]);
+    let mut metrics = |family: &str| {
+        let font = font_of(&mut ctx, family, 400.0, FontStyle::Normal);
+        let m = ctx.metrics(font, 100.0);
+        (m.ascent, m.descent, m.line_gap)
+    };
+    assert_eq!(metrics("P"), (80.0, 20.0, 0.0));
+    // The glyphs and all metrics scale.
+    assert_eq!(metrics("Half"), (40.0, 10.0, 0.0));
+    assert_eq!(metrics("Zero"), (0.0, 0.0, 0.0));
+    // Overrides are ratios of the adjusted size (measured in Chromium).
+    assert_eq!(metrics("Asc"), (25.0, 10.0, 0.0));
+    assert_eq!(metrics("Gap"), (40.0, 0.0, 10.0));
+    assert_close(a_width(&mut ctx, "P", 400.0, 100.0, &[]), 60.0);
+    assert_close(a_width(&mut ctx, "Half", 400.0, 100.0, &[]), 30.0);
+    assert_close(a_width(&mut ctx, "Zero", 400.0, 100.0, &[]), 0.0);
+    // The glyph masks scale too: `H` at 100 px with `size-adjust: 50%`
+    // looks like `H` at 50 px.
+    let mask = |ctx: &mut FontContext, family: &str, size: f32| {
+        let font = font_of(ctx, family, 400.0, FontStyle::Normal);
+        let glyph = ctx.shape(font, size, "H", &ShapeOptions::default()).glyphs[0].glyph;
+        let mask = ctx.glyph_mask(font, glyph, size, 0).expect("an outline");
+        (mask.width, mask.height)
+    };
+    assert_eq!(mask(&mut ctx, "Half", 100.0), mask(&mut ctx, "P", 50.0));
+}
+
+#[test]
+fn local_sources_match_full_and_postscript_names() {
+    // Measured in Chromium 148 with the test fonts: full names and
+    // PostScript names match, ignoring ASCII case and spaces; family
+    // names that differ from the full name, aliases and styles do not.
+    let matches = [
+        ("Liberation Sans", "LiberationSans-Regular.ttf"),
+        ("liberation sans", "LiberationSans-Regular.ttf"),
+        ("L i b e r a t i o n S a n s", "LiberationSans-Regular.ttf"),
+        ("LiberationSans", "LiberationSans-Regular.ttf"),
+        ("Liberation Sans Bold", "LiberationSans-Bold.ttf"),
+        ("LIBERATIONSANS-BOLD", "LiberationSans-Bold.ttf"),
+        ("Liberation Sans  Bold", "LiberationSans-Bold.ttf"),
+        ("LiberationSans Bold", "LiberationSans-Bold.ttf"),
+        (
+            "Liberation Sans Bold Italic",
+            "LiberationSans-BoldItalic.ttf",
+        ),
+        ("Liberation Serif Italic", "LiberationSerif-Italic.ttf"),
+        ("DejaVu Sans", "DejaVuSans.ttf"),
+        ("DejaVuSans-Bold", "DejaVuSans-Bold.ttf"),
+        ("DejaVuSansBold", "DejaVuSans-Bold.ttf"),
+        ("Liberation Mono Bold", "LiberationMono-Bold.ttf"),
+    ];
+    let no_match = [
+        "Arial",
+        "Arial Bold",
+        "Arimo",
+        "Helvetica",
+        "Times New Roman",
+        "Times New Roman Bold",
+        "Courier New",
+        "Liberation Sans Regular",
+        "LiberationSans-Regular",
+        "DejaVu Sans Book",
+        "DejaVu",
+        "Liberation",
+        "Liberation-Sans",
+        "Liberation\tSans",
+        "DejaVu Sans Bold Oblique",
+        "",
+        "   ",
+    ];
+    let families = [Named("L"), Generic(GenericFamily::Monospace)];
+    let q = query(&families, 400.0, FontStyle::Normal);
+    let requested = || {
+        let mut ctx = FontContext::for_tests();
+        ctx.set_web_fonts(vec![face("L", "local")]);
+        ctx.itemize("x", &q);
+        let id = ctx.take_web_font_requests()[0];
+        (ctx, id)
+    };
+    let (mut ctx, id) = requested();
+    for name in no_match {
+        assert!(ctx.web_font_local(id, name).is_err(), "{name:?}");
+    }
+    // A failed lookup leaves the face requested: the next source can still
+    // load it.
+    for (name, file) in matches {
+        let (mut ctx, id) = requested();
+        assert!(ctx.web_font_local(id, "Nope").is_err());
+        ctx.web_font_local(id, name).expect(name);
+        assert_eq!(run_sources(&mut ctx, "x", &q), [file], "{name}");
+    }
+}
+
+#[test]
+fn local_faces_follow_the_rules_of_url_faces() {
+    // Measured in Chromium 148: a local bold face with `font-weight: 400`
+    // is not emboldened again, and a local regular face is not slanted for
+    // an italic descriptor; the descriptors of the rule apply.
+    let mut ctx = FontContext::for_tests();
+    ctx.set_web_fonts(vec![
+        weighted("A", "local", (400.0, 400.0)),
+        WebFontFace {
+            style: WebFontStyle::Italic,
+            ..face("D", "local")
+        },
+        WebFontFace {
+            size_adjust: 0.5,
+            ..face("S", "local")
+        },
+    ]);
+    let local = |ctx: &mut FontContext, family: &str, name: &str, weight, style| {
+        let families = [Named(family)];
+        let q = query(&families, weight, style);
+        ctx.itemize("H", &q);
+        let id = ctx.take_web_font_requests()[0];
+        ctx.web_font_local(id, name).unwrap();
+        let font = ctx.itemize("H", &q)[0].font;
+        (ctx.synthesis(font), source(ctx, font), font)
+    };
+    let (synthesis, file, _) = local(
+        &mut ctx,
+        "A",
+        "Liberation Sans Bold",
+        700.0,
+        FontStyle::Normal,
+    );
+    assert_eq!(file, "LiberationSans-Bold.ttf");
+    assert!(!synthesis.bold);
+    let (synthesis, _, _) = local(&mut ctx, "D", "Liberation Sans", 400.0, FontStyle::Italic);
+    assert!(!synthesis.oblique);
+    let (_, _, font) = local(&mut ctx, "S", "Liberation Sans", 400.0, FontStyle::Normal);
+    let mut plain = FontContext::for_tests();
+    let families = [Named("Liberation Sans")];
+    let q = query(&families, 400.0, FontStyle::Normal);
+    let reference = plain.itemize("H", &q)[0].font;
+    let half = ctx.metrics(font, 100.0).ascent;
+    let full = plain.metrics(reference, 100.0).ascent;
+    assert_close(half, full / 2.0);
 }

@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use swb_net::Url;
 use swb_style::{FontFace, FontFaceSource, FontFaceStyle};
-use swb_text::{WebFaceId, WebFontFace, WebFontStyle};
+use swb_text::{Feature, WebFaceId, WebFontFace, WebFontStyle};
 
 /// The prefix of a `local()` source in the text crate's face set. A
 /// resolved URL always has a scheme, so it never starts with this.
@@ -23,7 +23,7 @@ const LOCAL_PREFIX: &str = "local(";
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Source {
     Url(Url),
-    /// `local()`: not supported yet, so it always fails.
+    /// `local()`: an installed font, by full name or PostScript name.
     Local(String),
     /// A URL that does not parse.
     Invalid,
@@ -53,6 +53,16 @@ pub(crate) fn web_font_face(face: &FontFace) -> WebFontFace {
             FontFaceStyle::Oblique(min, max) => WebFontStyle::Oblique(min, max),
         },
         unicode_range: face.unicode_range.clone(),
+        size_adjust: face.size_adjust,
+        ascent_override: face.ascent_override,
+        descent_override: face.descent_override,
+        line_gap_override: face.line_gap_override,
+        variations: face.variation_settings.to_vec(),
+        features: face
+            .feature_settings
+            .iter()
+            .map(|&(tag, value)| Feature::from_setting(tag, value))
+            .collect(),
         sources: face
             .sources
             .iter()
@@ -126,11 +136,35 @@ mod tests {
             style: FontFaceStyle::Oblique(10.0, 20.0),
             unicode_range: vec![(0, 0x7F)],
             display: swb_style::FontDisplay::Swap,
+            size_adjust: 0.9375,
+            ascent_override: Some(0.98),
+            descent_override: None,
+            line_gap_override: Some(0.0),
+            variation_settings: Arc::from([(*b"wght", 660.0)]),
+            feature_settings: Arc::from([(*b"liga", 0), (*b"salt", -1)]),
         };
         let web = web_font_face(&face);
         assert_eq!(web.family, "F");
         assert_eq!(web.weight, Some((400.0, 700.0)));
         assert_eq!(web.style, WebFontStyle::Oblique(10.0, 20.0));
+        assert_eq!(web.size_adjust, 0.9375);
+        assert_eq!(web.ascent_override, Some(0.98));
+        assert_eq!(web.descent_override, None);
+        assert_eq!(web.line_gap_override, Some(0.0));
+        assert_eq!(web.variations, vec![(*b"wght", 660.0)]);
+        assert_eq!(
+            web.features,
+            vec![
+                Feature {
+                    tag: *b"liga",
+                    value: 0
+                },
+                Feature {
+                    tag: *b"salt",
+                    value: u32::MAX
+                }
+            ]
+        );
         let sources: Vec<Source> = web.sources.iter().map(|s| Source::parse(s)).collect();
         assert_eq!(
             sources,

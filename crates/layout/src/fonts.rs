@@ -52,7 +52,7 @@ fn generic(g: GenericFamily) -> swb_text::GenericFamily {
 
 /// Builds a font query for a style. `families` must come from
 /// [`family_names`] for the same style.
-pub(crate) fn query<'a>(style: &ComputedStyle, families: &'a [FamilyName<'a>]) -> FontQuery<'a> {
+pub(crate) fn query<'a>(style: &'a ComputedStyle, families: &'a [FamilyName<'a>]) -> FontQuery<'a> {
     FontQuery {
         families,
         weight: style.font_weight,
@@ -62,6 +62,7 @@ pub(crate) fn query<'a>(style: &ComputedStyle, families: &'a [FamilyName<'a>]) -
             swb_style::FontStyle::Oblique => TextFontStyle::Oblique,
         },
         stretch: style.font_stretch,
+        variations: &style.font_variation_settings,
         language: None,
     }
 }

@@ -38,6 +38,12 @@ pub(crate) trait FontSource: Send {
     /// `c`, with its position. If the caller cannot use the face, it calls
     /// again with `from` set to that position plus one.
     fn fallback_face(&mut self, c: char, language: &str, from: usize) -> Option<(usize, FaceDesc)>;
+
+    /// The installed face for a `local()` source: the first face whose
+    /// full name or PostScript name equals `name` without regard to ASCII
+    /// case and spaces (see
+    /// [`FontContext::web_font_local`](crate::FontContext::web_font_local)).
+    fn local_face(&mut self, name: &str) -> Option<FaceDesc>;
 }
 
 /// A source without fonts.
@@ -62,6 +68,10 @@ impl FontSource for EmptySource {
         _language: &str,
         _from: usize,
     ) -> Option<(usize, FaceDesc)> {
+        None
+    }
+
+    fn local_face(&mut self, _name: &str) -> Option<FaceDesc> {
         None
     }
 }

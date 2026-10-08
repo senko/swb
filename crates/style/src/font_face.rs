@@ -13,10 +13,14 @@ use std::sync::Arc;
 
 use swb_css::{ComponentValue, Declaration, FontFaceRule, ParseError, Parser};
 
+use crate::font_settings::{
+    FontFeatureSettings, FontVariationSettings, parse_feature_settings, parse_variation_settings,
+};
+use crate::parse::length::{CalcKind, parse_math_function};
 use crate::parse::{ParserContext, parse_angle, parse_number};
 use crate::properties::CssWideKeyword;
 use crate::properties::longhand::parse_font_stretch;
-use crate::values::GenericFamily;
+use crate::values::{GenericFamily, LengthContext};
 
 /// An `@font-face` rule with valid `font-family` and `src` descriptors.
 #[derive(Clone, Debug, PartialEq)]
@@ -39,7 +43,27 @@ pub struct FontFace {
     pub unicode_range: Vec<(u32, u32)>,
     /// `font-display`.
     pub display: FontDisplay,
+    /// `size-adjust` as a ratio (1 is 100%, the initial value): it scales
+    /// the glyphs and all metrics of the face. At most [`MAX_RATIO`].
+    pub size_adjust: f32,
+    /// `ascent-override` as a ratio of the used font size (after
+    /// `size-adjust`); `None` is `normal`. At most [`MAX_RATIO`].
+    pub ascent_override: Option<f32>,
+    /// `descent-override`, like `ascent_override`.
+    pub descent_override: Option<f32>,
+    /// `line-gap-override`, like `ascent_override`.
+    pub line_gap_override: Option<f32>,
+    /// `font-variation-settings`: applied to the face before the
+    /// property of the same name (measured in Chromium 148).
+    pub variation_settings: FontVariationSettings,
+    /// `font-feature-settings`: applied before the property.
+    pub feature_settings: FontFeatureSettings,
 }
+
+/// The largest ratio of `size-adjust` and of the metric overrides (a
+/// million percent): larger values are clamped. The used font size is
+/// limited anyway, and finite ratios keep the metrics finite.
+pub const MAX_RATIO: f32 = 10_000.0;
 
 /// One entry of the `src` descriptor.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -99,6 +123,12 @@ impl FontFace {
             style: FontFaceStyle::Auto,
             unicode_range: vec![(0, 0x10_FFFF)],
             display: FontDisplay::Auto,
+            size_adjust: 1.0,
+            ascent_override: None,
+            descent_override: None,
+            line_gap_override: None,
+            variation_settings: Arc::from([]),
+            feature_settings: Arc::from([]),
         };
         for declaration in &rule.declarations {
             apply(declaration, cx, &mut face, &mut family, &mut sources);
@@ -129,6 +159,21 @@ fn apply(
         "font-style" => entirely(value, parse_style).map(|s| face.style = s),
         "unicode-range" => parse_unicode_range(value).map(|r| face.unicode_range = r),
         "font-display" => entirely(value, parse_display).map(|d| face.display = d),
+        "size-adjust" => entirely(value, parse_ratio).map(|r| face.size_adjust = r),
+        "ascent-override" => {
+            entirely(value, |p| parse_override(p).ok()).map(|r| face.ascent_override = r)
+        }
+        "descent-override" => {
+            entirely(value, |p| parse_override(p).ok()).map(|r| face.descent_override = r)
+        }
+        "line-gap-override" => {
+            entirely(value, |p| parse_override(p).ok()).map(|r| face.line_gap_override = r)
+        }
+        "font-variation-settings" => entirely(value, |p| parse_variation_settings(p).ok())
+            .map(|s| face.variation_settings = s),
+        "font-feature-settings" => {
+            entirely(value, |p| parse_feature_settings(p).ok()).map(|s| face.feature_settings = s)
+        }
         _ => Some(()),
     };
     if parsed.is_none() {
@@ -354,6 +399,30 @@ fn parse_display(p: &mut Parser<'_>) -> Option<FontDisplay> {
     .ok()
 }
 
+/// `<percentage [0,∞]>` (also `calc()`) as a ratio, clamped to
+/// [`MAX_RATIO`]. Measured in Chromium 148: `0%` is valid (the face then
+/// has size 0), a negative value or a number is not.
+fn parse_ratio(p: &mut Parser<'_>) -> Option<f32> {
+    let percent = if let Ok(v) = p.expect_percentage() {
+        v
+    } else {
+        let expr = parse_math_function(p).ok()?;
+        if expr.kind != CalcKind::Percentage {
+            return None;
+        }
+        expr.node.compute(&LengthContext::DEFAULT).resolve(100.0)
+    };
+    (percent >= 0.0).then(|| (percent / 100.0).min(MAX_RATIO))
+}
+
+/// `normal | <percentage [0,∞]>`: `normal` is `None`.
+fn parse_override(p: &mut Parser<'_>) -> Result<Option<f32>, ParseError> {
+    if p.expect_ident_matching("normal").is_ok() {
+        return Ok(None);
+    }
+    parse_ratio(p).map(Some).ok_or(ParseError::Invalid)
+}
+
 /// A range with its ends in increasing order: the specification swaps a
 /// decreasing range.
 fn ordered(a: f32, b: f32) -> (f32, f32) {
@@ -550,5 +619,63 @@ mod tests {
             face("font-display: bogus").unwrap().display,
             FontDisplay::Auto
         );
+    }
+
+    #[test]
+    fn metric_descriptors() {
+        let f = face("").unwrap();
+        assert_eq!(f.size_adjust, 1.0);
+        assert_eq!(
+            (f.ascent_override, f.descent_override, f.line_gap_override),
+            (None, None, None)
+        );
+        let f = face(
+            "size-adjust: 93.75%; ascent-override: 98%; descent-override: 0%; line-gap-override: normal",
+        )
+        .unwrap();
+        assert_eq!(f.size_adjust, 0.9375);
+        assert_eq!(f.ascent_override, Some(0.98));
+        assert_eq!(f.descent_override, Some(0.0));
+        assert_eq!(f.line_gap_override, None);
+        // Measured in Chromium 148: 0% is valid, calc() works, and the
+        // last valid declaration stays.
+        assert_eq!(face("size-adjust: 0%").unwrap().size_adjust, 0.0);
+        assert_eq!(
+            face("size-adjust: calc(25% + 25%)").unwrap().size_adjust,
+            0.5
+        );
+        assert_eq!(
+            face("size-adjust: 50%; size-adjust: bogus")
+                .unwrap()
+                .size_adjust,
+            0.5
+        );
+        // Ratios are clamped.
+        assert_eq!(face("size-adjust: 1e30%").unwrap().size_adjust, MAX_RATIO);
+        for invalid in ["-50%", "100", "50% 60%", "1px", "calc(1px)", "auto"] {
+            let f = face(&format!("size-adjust: {invalid}")).unwrap();
+            assert_eq!(f.size_adjust, 1.0, "{invalid}");
+        }
+        for invalid in ["-10%", "90% 80%", "10", "bogus"] {
+            let f = face(&format!("ascent-override: {invalid}")).unwrap();
+            assert_eq!(f.ascent_override, None, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn settings_descriptors() {
+        let f = face("font-variation-settings: 'wght' 900, 'wdth' 125; font-feature-settings: 'liga' 0, 'kern' off").unwrap();
+        assert_eq!(
+            &*f.variation_settings,
+            &[(*b"wdth", 125.0), (*b"wght", 900.0)]
+        );
+        assert_eq!(&*f.feature_settings, &[(*b"kern", 0), (*b"liga", 0)]);
+        // An invalid declaration is ignored; the earlier one stays.
+        let f =
+            face("font-variation-settings: 'wght' 900; font-variation-settings: bogus").unwrap();
+        assert_eq!(&*f.variation_settings, &[(*b"wght", 900.0)]);
+        let f =
+            face("font-variation-settings: 'wght' 900; font-variation-settings: normal").unwrap();
+        assert!(f.variation_settings.is_empty());
     }
 }

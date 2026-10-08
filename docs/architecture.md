@@ -38,7 +38,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
-| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors. | `css`, `dom`                  |
+| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. | `css`, `dom`                  |
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree.                       | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG with resvg, ADR 0011). | `dom`, `layout`, `style`, `text` |
@@ -148,7 +148,14 @@ Rules:
   `engine/src/web_fonts.rs`); `text/src/decode.rs` decodes WOFF and
   WOFF2 (`wuff`) within size limits. A font that arrives invalidates the
   layout. A font is a face with synthesis flags and variation axis
-  values (`FontId`); caches key on it.
+  values (`FontId`); caches key on it. The axis values are the ones that
+  matching sets, then the `@font-face` descriptor, then
+  `font-variation-settings` (the text crate interns the list). A
+  `local()` source asks the font source for a face by full name or
+  PostScript name and loads at once. `size-adjust` and the metric
+  overrides are properties of the loaded face: the text crate scales the
+  size for shaping, metrics and glyph masks, so layout is unchanged.
+  `font-feature-settings` go to the shaper (`ShapeOptions::features`).
 - **Cookie jar** (`net`): one `CookieJar` per `NetworkFetcher` (so one per
   swb process), inside the HTTP client. It adds `Cookie` to every HTTP
   request and stores `Set-Cookie` on every redirect hop. Cookies are
@@ -338,7 +345,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 - `page/loading.rs`: network completions, documents (HTML, text, image,
   error pages), stylesheets and images.
 - `page/fonts.rs`, `web_fonts.rs`: web fonts: the face set of the
-  document, loading the faces that layout requested, font files by URL.
+  document, loading the faces that layout requested (`url()` through the
+  loader, `local()` from the installed fonts), font files by URL.
 - `page/pipeline.rs`: style, layout, display list and raster with
   per-stage timings; restyles after state changes; viewport and
   screenshots.

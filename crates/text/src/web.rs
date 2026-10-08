@@ -32,9 +32,10 @@ use std::sync::Arc;
 use crate::FontId;
 use crate::context::{Face, FaceState, FontContext, Synthesis, Variations};
 use crate::error::TextError;
-use crate::face::{FaceDesc, LoadedFace, normalize_ranges, ranges_contain};
+use crate::face::{FaceDesc, LoadedFace, MetricOverrides, normalize_ranges, ranges_contain};
 use crate::matching::{self, Candidate, Desired, FaceStyle};
 use crate::query::{FamilyName, FontQuery, FontStyle};
+use crate::shape::Feature;
 
 /// The most faces of one web family that font matching considers; later
 /// faces are ignored.
@@ -80,6 +81,45 @@ pub struct WebFontFace {
     /// The sources, in priority order. The text crate does not read them;
     /// the engine gets them back with [`FontContext::web_font_sources`].
     pub sources: Vec<String>,
+    /// The `size-adjust` descriptor as a ratio (CSS Fonts 4 §4.9): it
+    /// scales the font size for shaping, metrics and rasterization of the
+    /// face. 1 is the initial value.
+    pub size_adjust: f32,
+    /// The `ascent-override` descriptor as a ratio of the adjusted font
+    /// size (measured in Chromium 148), `None` for `normal`.
+    pub ascent_override: Option<f32>,
+    /// The `descent-override` descriptor, like `ascent_override`.
+    pub descent_override: Option<f32>,
+    /// The `line-gap-override` descriptor, like `ascent_override`.
+    pub line_gap_override: Option<f32>,
+    /// The `font-variation-settings` descriptor: (axis tag, value). They
+    /// apply after the axes that the matching sets and before the
+    /// property of the same name.
+    pub variations: Vec<([u8; 4], f32)>,
+    /// The `font-feature-settings` descriptor. They come before the
+    /// features of the property.
+    pub features: Vec<Feature>,
+}
+
+impl Default for WebFontFace {
+    /// A face without family or sources, with the initial value of every
+    /// descriptor.
+    fn default() -> Self {
+        WebFontFace {
+            family: String::new(),
+            weight: None,
+            stretch: None,
+            style: WebFontStyle::Auto,
+            unicode_range: vec![(0, 0x10_FFFF)],
+            sources: Vec::new(),
+            size_adjust: 1.0,
+            ascent_override: None,
+            descent_override: None,
+            line_gap_override: None,
+            variations: Vec::new(),
+            features: Vec::new(),
+        }
+    }
 }
 
 /// A web font face, stable across [`FontContext::set_web_fonts`] calls
@@ -293,19 +333,51 @@ impl FontContext {
         label: &str,
         data: &Arc<[u8]>,
     ) -> Result<(), TextError> {
+        self.load_web_face(id, PathBuf::from(label), data, 0)
+    }
+
+    /// Uses the installed font named `name` for a requested face: the
+    /// `local()` source of `src`. A font matches if its full name or its
+    /// PostScript name equals `name` without regard to ASCII case and
+    /// spaces (measured in Chromium 148 with the test fonts: `Liberation
+    /// Sans`, `Liberation Sans Bold`, `LiberationSans-Bold` and
+    /// `liberationsans` match; `Liberation Sans Regular`, `Arial` and
+    /// `Times New Roman` do not, as family names and aliases do not
+    /// count). The font loads at once; on an error the face stays
+    /// requested, so that the caller can try its next source.
+    pub fn web_font_local(&mut self, id: WebFaceId, name: &str) -> Result<(), TextError> {
+        let Some(desc) = self.source.local_face(name) else {
+            return Err(TextError::NoLocalFont(name.to_owned()));
+        };
+        let data = match &desc.data {
+            Some(data) => data.clone(),
+            None => crate::face::read_font_file(&desc.path)?,
+        };
+        self.load_web_face(id, desc.path, &data, desc.index)
+    }
+
+    /// Parses face `font_index` of `data` as the font of a requested web
+    /// face.
+    fn load_web_face(
+        &mut self,
+        id: WebFaceId,
+        path: PathBuf,
+        data: &Arc<[u8]>,
+        font_index: u32,
+    ) -> Result<(), TextError> {
         let Some(index) = self.web.index_of(id) else {
             return Ok(());
         };
         if self.web.faces[index].state != WebState::Requested {
             return Ok(());
         }
-        let path = PathBuf::from(label);
-        let mut loaded = LoadedFace::new(&path, data, 0)?;
+        let mut loaded = LoadedFace::new(&path, data, font_index)?;
         let web = &self.web.faces[index];
         loaded.set_unicode_range(web.range.clone());
+        apply_descriptors(&mut loaded, &web.desc);
         let desc = FaceDesc {
             path,
-            index: 0,
+            index: font_index,
             family: web.desc.family.clone(),
             style: face_style(web.desc.style),
             weight: web.desc.weight,
@@ -550,7 +622,8 @@ impl FontContext {
         let FaceState::Loaded(loaded) = &self.faces[index].state else {
             return self.placeholder_font();
         };
-        let (variations, synthesis) = web_instance(desc, loaded, query);
+        let (mut variations, synthesis) = web_instance(desc, loaded, query);
+        variations.custom = self.intern_variation_set(query.variations);
         self.intern_face(index, synthesis, variations)
     }
 }
@@ -607,8 +680,28 @@ fn web_instance(
         wdth: wdth.map(f32::to_bits),
         slnt: slnt.map(f32::to_bits),
         ital: ital.map(f32::to_bits),
+        custom: 0,
     };
     (variations, synthesis)
+}
+
+/// Gives a loaded face the metric, variation and feature descriptors of
+/// its `@font-face` rule. Non-finite values are ignored.
+fn apply_descriptors(loaded: &mut LoadedFace, desc: &WebFontFace) {
+    let ratio = |value: f32| value.is_finite().then_some(value.max(0.0));
+    loaded.size_adjust = ratio(desc.size_adjust).unwrap_or(1.0);
+    loaded.metric_overrides = MetricOverrides {
+        ascent: desc.ascent_override.and_then(ratio),
+        descent: desc.descent_override.and_then(ratio),
+        line_gap: desc.line_gap_override.and_then(ratio),
+    };
+    loaded.variation_settings = desc
+        .variations
+        .iter()
+        .copied()
+        .filter(|(_, value)| value.is_finite())
+        .collect();
+    loaded.features = desc.features.iter().copied().collect();
 }
 
 /// The angle of `font-style: italic` and `oblique` for a `slnt` axis:

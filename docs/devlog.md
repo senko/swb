@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 feature 4, web fonts part 2
+
+- New properties `font-variation-settings` and `font-feature-settings`
+  (`style/src/font_settings.rs`), and the same two descriptors in
+  `@font-face`. As in Chromium, the computed value is sorted by tag and
+  keeps the last value of a repeated tag, and the `font` shorthand
+  resets both. At most 64 tags per declaration.
+- Axis values come in this order: font matching, the `@font-face`
+  descriptor, the property. This also applies to variable system fonts.
+  Synthetic bold ignores the property (measured in Chromium 148).
+- The metric descriptors `size-adjust`, `ascent-override`,
+  `descent-override` and `line-gap-override` apply in the text crate
+  (shaping, metrics, glyph masks), so layout code did not change. The
+  overrides are ratios of the size after `size-adjust` (measured).
+- `src: local()` matches the full name or the PostScript name of a
+  system font, ignoring ASCII case and spaces, and loads without a
+  request. `local("Arial")` does not match in Chromium either, so the
+  fallback faces of both target pages never load.
+- Ars geometry 0.6908 → 0.7740, pixels 0.9544 → 0.9898: the headings
+  now use `wght` 660. BBC is unchanged. New: probe file
+  `tools/probes/web-fonts-2.json` (16 cases), a variable test font made
+  for swb (`crates/text/tests/webfonts/swb-variable.ttf`, CC0, with its
+  build script), five hostile-page cases.
+- Review fix: each distinct `font-feature-settings` list needs its own
+  shape plan, and the plan lookup is linear, so 60,000 distinct lists
+  took 11.1 s. A font instance now keeps at most 32 plans (0.81 s).
+- Tools: `just review-tree reset` failed when the review worktree held
+  a patch that touched files changed by the new commit; it now checks
+  out with `--force`.
+- Backlog: in Chromium, `letter-spacing` other than 0 turns off optional
+  ligatures; `ex` uses 0.5em in swb; automatic `opsz`; named instances
+  of variable fonts in `local()`.
+
 ## 2026-10-08: M4 feature 3, web fonts part 1
 
 - `@font-face` works (ADR 0022). Style parses the descriptors

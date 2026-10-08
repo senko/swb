@@ -1005,3 +1005,106 @@ def font_composite_glyphs() -> Page:
     text = "AAAA BBBB " * 200
     rules = "@font-face{font-family:B;src:url(b.ttf)}"
     return Page(doc(f"<p style='font:60px B'>{text}</p>", rules), {"b.ttf": _composite_bomb_font()})
+
+
+# --- Font settings, metric descriptors, local() (ADR 0022, part 2) ----------
+
+VARIABLE_FONT_FILE = "crates/text/tests/webfonts/swb-variable.ttf"
+"""The variable test font of the web font tests (axes `wght`, `wdth`, `SWBX`)."""
+
+
+def _variable_font() -> bytes:
+    from swbtools import paths
+
+    return (paths.repo_root() / VARIABLE_FONT_FILE).read_bytes()
+
+
+@case(
+    "font-variation-settings and font-feature-settings with 200,000 distinct tags each, in"
+    " properties and @font-face descriptors, past the limit of 64 tags per declaration"
+    " (ADR 0022)",
+    expect_log="font-variation-settings: more than 64 tags",
+)
+def font_settings_long_lists() -> Page:
+    def tags(n: int) -> list[str]:
+        letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        return [
+            letters[i // 676 % 26] + letters[i // 26 % 26] + letters[i % 26] + "x" for i in range(n)
+        ]
+
+    variations = ",".join(f'"{tag}" {i}' for i, tag in enumerate(tags(200_000)))
+    features = ",".join(f'"{tag}" {i}' for i, tag in enumerate(tags(200_000)))
+    rules = (
+        "@font-face{font-family:V;src:url(v.ttf);font-weight:100 900;"
+        f"font-variation-settings:{variations};font-feature-settings:{features}}}"
+    )
+    style = f"font-family:V;font-variation-settings:{variations};font-feature-settings:{features}"
+    body = f"<p style='{style}'>AAAA BBBB " + "AB " * 2000 + "</p>"
+    return Page(doc(body, rules), {"v.ttf": _variable_font()})
+
+
+@case(
+    "extreme numbers in font-variation-settings, font-feature-settings, size-adjust and the"
+    " metric overrides: 1e308, 1e400, -1e999, 2^32, a million percent (ADR 0022)",
+)
+def font_settings_extreme_values() -> Page:
+    values = ["1e308", "1e400", "-1e999", "4294967295", "99999999999", "-99999999999", "0.0000001"]
+    rules = ""
+    body = ""
+    for i, value in enumerate(values):
+        rules += (
+            f"@font-face{{font-family:E{i};src:url(v.ttf);font-weight:100 900;"
+            f"size-adjust:{value}%;ascent-override:{value}%;descent-override:{value}%;"
+            f"line-gap-override:{value}%;font-variation-settings:'wght' {value},'SWBX' {value};"
+            f"font-feature-settings:'liga' {value}}}"
+        )
+        style = (
+            f"font:24px E{i};font-variation-settings:'wdth' {value},'wght' {value};"
+            f"font-feature-settings:'kern' {value},'liga' {value}"
+        )
+        body += f'<p style="{style}">AAAA BBBB fi fl ffi</p>'
+    return Page(doc(body, rules), {"v.ttf": _variable_font()})
+
+
+@case(
+    "20,000 elements with distinct font-variation-settings on a variable font, past the limit of"
+    " 4,096 remembered lists (ADR 0022)",
+    expect_log="font-variation-settings lists",
+)
+def font_variation_many_lists() -> Page:
+    rules = "@font-face{font-family:V;src:url(v.ttf);font-weight:100 900}"
+    spans = "".join(
+        '<span style="font-family:V;font-variation-settings:'
+        f"'wght' {100 + i % 800}.{i // 800:02d}\">A{i} </span>"
+        for i in range(20_000)
+    )
+    return Page(doc(spans, rules), {"v.ttf": _variable_font()})
+
+
+@case(
+    "60,000 elements with distinct font-feature-settings lists on one font: each list needs its"
+    " own shape plan, at most 32 are kept per font (ADR 0022)"
+)
+def font_feature_many_lists() -> Page:
+    spans = "".join(
+        f"<span style=\"font-feature-settings:'liga' {i}\">fi{i} </span>" for i in range(60_000)
+    )
+    return Page(doc(spans))
+
+
+@case(
+    "1,000 @font-face rules with local() names of 10 KB, and 5,000 local() faces in use, past"
+    " the limit of 1,000 face loads (ADR 0022)",
+    expect_log="web font faces; not loading more",
+)
+def font_local_many_and_long() -> Page:
+    long_rules = "".join(
+        f"@font-face{{font-family:L{i};src:local('{'x' * 10_000}{i}')}}" for i in range(1_000)
+    )
+    many_rules = "".join(
+        f"@font-face{{font-family:M{i};src:local('Nope {i}'),local('Liberation Sans')}}"
+        for i in range(5_000)
+    )
+    spans = "".join(f"<span style='font-family:M{i}'>x{i} </span>" for i in range(5_000))
+    spans += "".join(f"<span style='font-family:L{i}'>y{i} </span>" for i in range(1_000))
+    return Page(doc(spans, long_rules + many_rules))

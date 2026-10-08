@@ -21,7 +21,8 @@
 //!   `element_kinds`: the kinds of boxes of HTML elements that style and
 //!   layout share (replaced elements, possible list items).
 //! - `values`, `computed`: computed value types.
-//! - `font_face`: `@font-face` rules and their descriptors.
+//! - `font_face`: `@font-face` rules and their descriptors;
+//!   `font_settings`: `font-variation-settings` and `font-feature-settings`.
 //! - `counters`: CSS counters and list item ordinal values, resolved
 //!   after the cascade; `counter_style`: the text of a counter value.
 //! - `style_map`: the result for a document; `content`: the text of
@@ -39,6 +40,7 @@ mod custom;
 mod element;
 mod element_kinds;
 mod font_face;
+mod font_settings;
 mod hints;
 mod parse;
 mod properties;
@@ -53,7 +55,8 @@ pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };
 pub use element_kinds::is_replaced_element;
-pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle};
+pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle, MAX_RATIO};
+pub use font_settings::{FontFeatureSettings, FontTag, FontVariationSettings, MAX_SETTINGS};
 pub use style_map::{PseudoKind, StyleMap};
 pub use stylist::{MAX_FONT_FACES, Stylist};
 pub use values::*;

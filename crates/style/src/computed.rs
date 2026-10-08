@@ -6,6 +6,8 @@ use std::sync::{Arc, LazyLock};
 
 use swb_css::ComponentValue;
 
+use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
+
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
@@ -48,6 +50,10 @@ pub struct ComputedStyle {
     pub font_style: FontStyle,
     pub font_stretch: f32,
     pub font_variant_caps: FontVariantCaps,
+    /// `font-variation-settings`: sorted by tag (see `font_settings`).
+    pub font_variation_settings: FontVariationSettings,
+    /// `font-feature-settings`: sorted by tag.
+    pub font_feature_settings: FontFeatureSettings,
     pub line_height: LineHeight,
     pub text_align: TextAlign,
     pub text_indent: LengthPercentage,
@@ -230,6 +236,8 @@ impl ComputedStyle {
             font_style: FontStyle::Normal,
             font_stretch: 100.0,
             font_variant_caps: FontVariantCaps::Normal,
+            font_variation_settings: Arc::from([]),
+            font_feature_settings: Arc::from([]),
             line_height: LineHeight::Normal,
             text_align: TextAlign::Start,
             text_indent: LengthPercentage::ZERO,

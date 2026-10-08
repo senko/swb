@@ -21,10 +21,12 @@ matching) and §7 (feature and variation resolution)
 the reference, measured black-box with `just probe`
 (`tools/probes/web-fonts.json`; ADR 0021).
 
-This is part 1. Part 2 (roadmap, M4 item 4) adds `local()`,
+Part 1 (M4 item 3) is the loading model, matching, axes and synthesis.
+Part 2 (M4 item 4, the last section) adds `local()`,
 `font-variation-settings`, `font-feature-settings` and the metric
 descriptors (`size-adjust`, `ascent-override`, `descent-override`,
-`line-gap-override`).
+`line-gap-override`); its measurements are in
+`tools/probes/web-fonts-2.json`.
 
 ## Decision
 
@@ -138,7 +140,7 @@ the files (`engine/src/web_fonts.rs`, `engine/src/page/fonts.rs`).
 3. After layout the engine takes the requests
    (`take_web_font_requests`) and loads each face's sources in order: a
    `url()` through the loader (fixture replay and recording work; a debug
-   line `font request: URL` per fetch), `local()` fails for now. Each URL
+   line `font request: URL` per fetch), `local()` loads at once (part 2). Each URL
    is fetched and decoded once, also when many faces use it (Ars uses one
    variable file for nine weights). A source that fails to fetch, decode
    or parse moves on to the next; when none is left the face fails and is
@@ -217,11 +219,148 @@ The rendering of synthetic styles is unchanged (ADR 0006).
   scores). swb requests exactly the fonts that the fixtures hold.
 - Decoded font data stays in memory for the document; the faces of a
   previous document are dropped when the next one commits.
-- Not done (backlog): `local()`, the metric descriptors,
-  `font-variation-settings` and `font-feature-settings` (part 2);
-  `font-display` timers; the angle of `oblique <angle>` in matching
-  (Chromium picks an italic face over an `oblique 20deg` face for
-  `font-style: oblique`); collections with a fragment (`#PostScriptName`,
-  face 0 is used); loading fonts for the `ch` and `ex` units (Chromium
-  loads the first available font for them); `size-adjust` fallback faces
-  (BBC, Ars).
+- Not done (backlog): `font-display` timers; the angle of
+  `oblique <angle>` in matching (Chromium picks an italic face over an
+  `oblique 20deg` face for `font-style: oblique`); collections with a
+  fragment (`#PostScriptName`, face 0 is used); loading fonts for the
+  `ch` and `ex` units (Chromium loads the first available font for
+  them).
+
+## Part 2: font settings, metric descriptors and `local()`
+
+All values below were measured in Chromium 148 with the test fonts
+(`tools/probes/web-fonts-2.json`; `crates/text/tests/webfonts/` has a
+variable font made for these tests).
+
+### `font-variation-settings` (`style/src/font_settings.rs`)
+
+`normal | [ <string> <number> ]#`, inherited. A tag is a string of exactly
+four characters in U+0020..U+007E; tags are case-sensitive; any invalid
+entry makes the declaration invalid (`'wgh' 1`, `'wght'`, `wght 1`,
+`'wght' 1px`, `'wght' 90%`, a missing comma). The number can be a
+`calc()`. The computed value is sorted by tag, and a repeated tag keeps its
+last value. The `font` shorthand resets the property (and
+`font-feature-settings`); `font-variant` does not. Numbers beyond `f32`
+become `f32::MAX`.
+
+The axis values of a font are, in this order (CSS Fonts 4 §7): the axes
+that matching sets (part 1), the `font-variation-settings` descriptor of
+the `@font-face` rule, then the property. A later value for a tag
+replaces an earlier one; the property's `normal` does not cancel the
+descriptor. Values go to the axes that the font has, clamped to the axis
+range (a value outside the range, also below the `font-weight`
+descriptor range, is clamped to the axis only); tags the font lacks are
+ignored. This holds for system fonts with axes too. Measured:
+`font-weight: 700; font-variation-settings: "wght" 660` on a variable
+font with a 100..900 range is 660 (the Ars Technica headings).
+
+Synthetic bold does not look at the property: it uses the `wght` that
+matching sets (the ink of `font-weight: 700` on a face with descriptor
+400 and `"wght" 900` is bold-synthesized; `font-weight: 400` with
+`"wght" 900` is not). The variation list is part of the font instance:
+`FontQuery::variations` is interned in the font context (a list id in
+`Variations`, at most 4,096 distinct lists; later ones are ignored), and
+so keys the instance, the shape plans and the glyph masks.
+
+### `font-feature-settings`
+
+`normal | [ <string> [ <integer> | on | off ]? ]#`, inherited, sorted by
+tag with the last value of a repeated tag. Measured: a missing value is
+1, `on` is 1, `off` is 0, a negative integer is valid (kept; HarfBuzz sees
+it as a large unsigned value, which turns the feature on), a fractional
+number is invalid, an integer beyond `i32` is clamped. The features go to
+`ShapeOptions::features` after the features of `font-variant-caps`; the
+text crate puts the features of the `@font-face` descriptor first. Later
+settings win in HarfBuzz. They are part of the shape plan key already.
+`same_font` in layout also compares them, so that text with different
+settings is shaped apart.
+
+Limit: a declaration keeps at most 64 distinct tags (`MAX_SETTINGS`, the
+first ones in source order; a warning is logged). A font has few axes and
+features; the list is part of every font instance, shape plan key and
+glyph mask key, so long lists would multiply the cost of a hostile style
+sheet without any effect on the result. A font instance keeps at most
+32 shape plans (`MAX_PLANS_PER_INSTANCE`; the lookup is linear, and each
+distinct feature list needs its own plan); when the limit is reached,
+the instance drops its plans and starts again. The hostile cases
+`font-settings-long-lists`, `font-settings-extreme-values`,
+`font-variation-many-lists` and `font-feature-many-lists` cover it.
+
+### The descriptors `font-variation-settings` and `font-feature-settings`
+
+Chromium 148 supports both in `@font-face`, with the same syntax; the
+face applies them before the properties (measured: a descriptor
+`"wght" 900` gives wght 900 whatever `font-weight` is; the property adds
+other axes and replaces the same tag; `font-variation-settings: normal`
+on the element does not remove the descriptor). swb does the same.
+
+One Chromium result is not reproduced: after text with a face and an
+element `font-feature-settings: "liga" 1` (overriding the descriptor's
+`"liga" 0`), the next element that uses the face without that property
+got the shaping result of the first one (608.89 px instead of 610.41 px).
+It looks like a shaping cache that ignores the descriptor's features. The
+probe case orders the elements so that it does not occur.
+
+### Metric descriptors
+
+`size-adjust: <percentage [0,∞]>`, `ascent-override`, `descent-override`,
+`line-gap-override`: `normal | <percentage [0,∞]>`. Measured: `0%` is
+valid (the face is drawn at size 0), a negative value, a number without
+`%` and two values are not; `calc()` of percentages works; the last valid
+declaration stays. swb stores ratios, clamped to 10,000 (a million
+percent; the used font size is limited anyway and finite ratios keep the
+metrics finite).
+
+- `size-adjust` multiplies the font size for shaping, the metrics (ascent,
+  descent, line gap, x-height, underline) and the glyph masks of the
+  face, so line boxes and widths come out as for a font of that size.
+  `em`, `line-height` numbers, `letter-spacing` and `word-spacing` do not
+  change; fallback fonts in the same line keep the font size. The text
+  crate does it (`LoadedFace::size_adjust`, applied in `shape`, `metrics`
+  and `glyph_mask`), so layout is unchanged.
+- The overrides are ratios of the used font size after `size-adjust`
+  (`size-adjust: 50%; ascent-override: 50%` at 100 px gives an ascent of
+  25 px). They replace the font's own value; the line box still rounds
+  ascent, descent and line gap to whole pixels (`layout/src/fonts.rs`).
+  A value that the rule does not override keeps the font's own, scaled.
+  `line-gap-override` splits above and below the line as the font's own
+  gap does.
+
+### `src: local()` (`FontSource::local_face`)
+
+A `local()` source matches the full name or the PostScript name of an
+installed face, ignoring ASCII case and spaces. Family names, aliases
+and style names do not count: `local("Liberation Sans")`,
+`local(LiberationSans)`, `local('liberation sans')`, `local('Liberation
+Sans Bold')`, `local('LiberationSans-Bold')` and `local('L i b e r a t
+i o n S a n s')` match; `Liberation Sans Regular`, `LiberationSans-Regular`,
+`DejaVu Sans Book`, `Arial`, `Times New Roman`, `Helvetica`, `Courier New`
+and `Liberation-Sans` do not. So the `local("Arial")` and
+`local("Times New Roman")` fallback faces of both target pages do not load
+with the test fonts, as in Chromium; the page then uses the next family.
+
+A local face does not need a request. The engine calls
+`FontContext::web_font_local` when it handles the requested face, and the
+face is available at once (layout runs again as for any arriving face).
+The loaded face follows the rules of `url()` faces: the descriptors of the
+`@font-face` rule (weight, style, range, metric descriptors) apply, and
+synthesis is decided from the rule's descriptors and the font's own weight
+(a `local('Liberation Sans Bold')` face with `font-weight: 400` is not
+emboldened again). A name that does not match fails the source and the
+next one is tried.
+
+With fontconfig the source lists all faces once (full name and PostScript
+name from fontconfig) on the first `local()`; the directory source
+(`--test-fonts`) reads the names from its fonts. A test runs both with
+the bundled `fonts.conf`.
+
+### Consequences
+
+- Ars Technica headings now draw at `wght` 660, and their wrapping agrees
+  with Chromium's again (scores in the devlog).
+- `ex` and `ch` units still use 0.5em, so they ignore `size-adjust`
+  (backlog).
+- Other findings of the measurements, recorded in the backlog:
+  `letter-spacing` turns off optional ligatures in Chromium; `opsz` is not
+  set automatically; named instances of variable fonts do not match
+  `local()`.

@@ -120,7 +120,8 @@ shorthands! {
     WebkitMaskClip "-webkit-mask-clip" [MaskClip];
     WebkitMaskComposite "-webkit-mask-composite" [MaskComposite];
     Font "font" [
-        FontStyle, FontVariantCaps, FontWeight, FontStretch, FontSize, LineHeight, FontFamily
+        FontStyle, FontVariantCaps, FontWeight, FontStretch, FontSize, LineHeight, FontFamily,
+        FontVariationSettings, FontFeatureSettings
     ];
     FontVariant "font-variant" [FontVariantCaps];
     ListStyle "list-style" [ListStyleType, ListStylePosition, ListStyleImage];
@@ -938,6 +939,8 @@ fn parse_font(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<(
             LonghandValue::FontSize(SpecifiedFontSize::Length(Lp::Length(Length::px(13.0)))),
             LonghandValue::LineHeight(SpecifiedLineHeight::Normal),
             LonghandValue::FontFamily(Arc::from([FontFamily::Generic(GenericFamily::SystemUi)])),
+            LonghandValue::FontVariationSettings(Arc::from([])),
+            LonghandValue::FontFeatureSettings(Arc::from([])),
         ]);
         return Ok(());
     }
@@ -990,6 +993,9 @@ fn parse_font(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<(
         LonghandValue::FontSize(size),
         LonghandValue::LineHeight(line_height),
         LonghandValue::FontFamily(family),
+        // Measured in Chromium 148: `font` resets these too.
+        LonghandValue::FontVariationSettings(Arc::from([])),
+        LonghandValue::FontFeatureSettings(Arc::from([])),
     ]);
     Ok(())
 }

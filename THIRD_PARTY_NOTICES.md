@@ -241,3 +241,6 @@ Fonts in the fixtures:
   WOFF and WOFF2 (glyphs removed, the `name` table kept), see the
   `README.md` there. License: the Bitstream Vera license with the DejaVu
   changes in the public domain, text in `fixtures/fonts/LICENSE-DejaVu.txt`.
+  The directory also holds `swb-variable.ttf`, a variable test font that
+  was written for swb (boxes as glyphs, no third-party outlines; CC0 1.0),
+  with the script that makes it.

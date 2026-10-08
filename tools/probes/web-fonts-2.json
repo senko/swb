@@ -1,0 +1,1177 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "fvs-basic",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:V;src:url(v.ttf);font-weight:100 900;font-stretch:75% 125%}</style><div id=def style=\"font-family:V;\">A</div><div id=w900 style=\"font-family:V;font-weight:900\">A</div><div id=w700 style=\"font-family:V;font-weight:700\">A</div><div id=f900 style=\"font-family:V;font-variation-settings:'wght' 900\">A</div><div id=w700f660 style=\"font-family:V;font-weight:700;font-variation-settings:'wght' 660\">A</div><div id=f1000 style=\"font-family:V;font-variation-settings:'wght' 1000\">A</div><div id=f0 style=\"font-family:V;font-variation-settings:'wght' 0\">A</div><div id=fneg style=\"font-family:V;font-variation-settings:'wght' -50\">A</div><div id=rep style=\"font-family:V;font-variation-settings:'wght' 900, 'wght' 100\">A</div><div id=rep2 style=\"font-family:V;font-variation-settings:'wght' 100, 'wght' 900\">A</div><div id=s75 style=\"font-family:V;font-stretch:75%\">A</div><div id=s75f125 style=\"font-family:V;font-stretch:75%;font-variation-settings:'wdth' 125\">A</div><div id=fw125 style=\"font-family:V;font-variation-settings:'wdth' 125\">A</div><div id=swbx style=\"font-family:V;font-variation-settings:'SWBX' 1000\">A</div><div id=swbxl style=\"font-family:V;font-variation-settings:'swbx' 1000\">A</div><div id=unk style=\"font-family:V;font-variation-settings:'XXXX' 5\">A</div><div id=slnt style=\"font-family:V;font-variation-settings:'slnt' 5\">A</div><div id=frac style=\"font-family:V;font-variation-settings:'wght' 900.5\">A</div><div id=frac2 style=\"font-family:V;font-variation-settings:'wght' 500.5\">A</div><div id=exp style=\"font-family:V;font-variation-settings:'wght' 9e2\">A</div><div id=plus style=\"font-family:V;font-variation-settings:'wght' +900\">A</div><div id=calc style=\"font-family:V;font-variation-settings:'wght' calc(400 + 500)\">A</div><div id=dq style=\"font-family:V;font-variation-settings:&quot;wght&quot; 900\">A</div><div id=two style=\"font-family:V;font-variation-settings:'wdth' 125, 'wght' 900\">A</div><div id=multi style=\"font-family:V;font-variation-settings:'wght' 900 'wdth' 125\">A</div><div id=normal style=\"font-family:V;font-variation-settings:normal\">A</div><div id=trail style=\"font-family:V;font-variation-settings:'wght' 900,\">A</div><div id=novalue style=\"font-family:V;font-variation-settings:'wght'\">A</div><div id=unquoted style=\"font-family:V;font-variation-settings:wght 900\">A</div><div id=unit style=\"font-family:V;font-variation-settings:'wght' 900px\">A</div><div id=tag3 style=\"font-family:V;font-variation-settings:'wgh' 900\">A</div><div id=tag5 style=\"font-family:V;font-variation-settings:'wghtt' 900\">A</div><div id=tagsp style=\"font-family:V;font-variation-settings:'wg t' 900\">A</div><div id=tagnon style=\"font-family:V;font-variation-settings:'wgh\\e9' 900\">A</div><div id=tagctl style=\"font-family:V;font-variation-settings:'wgh\\7f' 900\">A</div><div id=tagempty style=\"font-family:V;font-variation-settings:'' 900\">A</div><div id=pct style=\"font-family:V;font-variation-settings:'wght' 90%\">A</div><div id=inh1 style=\"font-family:V;font-variation-settings:'wght' 900\">A</div><div id=inh2 style=\"font-family:V;font-variation-settings:inherit\">A</div><div id=order style=\"font-family:V;font-variation-settings:'wght' 900;font-variation-settings:'wght' 100;font-variation-settings:bogus\">A</div>",
+   "measure": [
+    {
+     "boxes": "#def"
+    },
+    {
+     "boxes": "#w900"
+    },
+    {
+     "boxes": "#w700"
+    },
+    {
+     "boxes": "#f900"
+    },
+    {
+     "boxes": "#w700f660"
+    },
+    {
+     "boxes": "#f1000"
+    },
+    {
+     "boxes": "#f0"
+    },
+    {
+     "boxes": "#fneg"
+    },
+    {
+     "boxes": "#rep"
+    },
+    {
+     "boxes": "#rep2"
+    },
+    {
+     "boxes": "#s75"
+    },
+    {
+     "boxes": "#s75f125"
+    },
+    {
+     "boxes": "#fw125"
+    },
+    {
+     "boxes": "#swbx"
+    },
+    {
+     "boxes": "#swbxl"
+    },
+    {
+     "boxes": "#unk"
+    },
+    {
+     "boxes": "#slnt"
+    },
+    {
+     "boxes": "#frac"
+    },
+    {
+     "boxes": "#frac2"
+    },
+    {
+     "boxes": "#exp"
+    },
+    {
+     "boxes": "#plus"
+    },
+    {
+     "boxes": "#calc"
+    },
+    {
+     "boxes": "#dq"
+    },
+    {
+     "boxes": "#two"
+    },
+    {
+     "boxes": "#multi"
+    },
+    {
+     "boxes": "#normal"
+    },
+    {
+     "boxes": "#trail"
+    },
+    {
+     "boxes": "#novalue"
+    },
+    {
+     "boxes": "#unquoted"
+    },
+    {
+     "boxes": "#unit"
+    },
+    {
+     "boxes": "#tag3"
+    },
+    {
+     "boxes": "#tag5"
+    },
+    {
+     "boxes": "#tagsp"
+    },
+    {
+     "boxes": "#tagnon"
+    },
+    {
+     "boxes": "#tagctl"
+    },
+    {
+     "boxes": "#tagempty"
+    },
+    {
+     "boxes": "#pct"
+    },
+    {
+     "boxes": "#inh1"
+    },
+    {
+     "boxes": "#inh2"
+    },
+    {
+     "boxes": "#order"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "settings-computed",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:V;src:url(v.ttf);font-weight:100 900;font-stretch:75% 125%}</style><div id=a style=\"font-variation-settings:'wght' 900\">A</div><div id=b style=\"font-variation-settings:'wght' 900, 'wdth' 125.50, 'wght' 100\">A</div><div id=c style=\"font-variation-settings:normal\">A</div><div id=d style=\"font-variation-settings:'wght' 900, 'ab', 'abcd' 1\">A</div><div id=e style=\"font-variation-settings:'wght' 9e2\">A</div><div id=f style=\"font-variation-settings:'wght' calc(400 + 500)\">A</div><div id=g style=\"font-variation-settings:'wght' 1e10\">A</div><div id=h style=\"font-variation-settings:'wght' -1e10\">A</div><div id=i style=\"font-variation-settings:'wght' 0.0000001\">A</div><div id=j style=\"font-variation-settings:'wg t' 1\">A</div><div id=k style=\"font-variation-settings:'wght' 1e400\">A</div><div id=l style=\"font-feature-settings:'liga' 0\">A</div><div id=m style=\"font-feature-settings:'liga'\">A</div><div id=n style=\"font-feature-settings:'liga' on, 'kern' off, 'salt' 3, 'liga' 0\">A</div><div id=o style=\"font-feature-settings:'liga' -1\">A</div><div id=p style=\"font-feature-settings:'liga' 1.5\">A</div><div id=q style=\"font-feature-settings:'liga' 99999999999\">A</div><div id=r style=\"font-feature-settings:'ligaa' 1\">A</div><div id=s style=\"font-feature-settings:'LIGA' 1\">A</div><div id=t style=\"font-feature-settings:liga 1\">A</div><div id=u style=\"font-feature-settings:'liga' 1 'kern' 0\">A</div><div id=v style=\"font-feature-settings:normal\">A</div><div id=w style=\"font-feature-settings:'liga' ON\">A</div><div id=x style=\"font-feature-settings:'liga' 1px\">A</div><div id=y style=\"font-feature-settings:'liga' calc(1 + 1)\">A</div><div id=z style=\"font-feature-settings:'liga' 2147483648\">A</div><div id=z2 style=\"font-feature-settings:'liga' 4294967295\">A</div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#b",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#c",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#d",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#e",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#f",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#g",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#h",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#i",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#j",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#k",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#l",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#m",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#n",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#o",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#p",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#q",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#r",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#s",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#t",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#u",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#v",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#w",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#x",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#y",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#z",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#z2",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "settings-inherit-shorthand",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:V;src:url(v.ttf);font-weight:100 900;font-stretch:75% 125%}</style><div id=p1 style=\"font-variation-settings:'wght' 900;font-feature-settings:'liga' 0\"><span id=c1>x</span></div><div id=p2 style=\"font-variation-settings:'wght' 900;font-feature-settings:'liga' 0;font:16px serif\">x</div><div id=p3 style=\"font-variation-settings:'wght' 900;font-feature-settings:'liga' 0;font-variant:small-caps\">x</div><div id=p4 style=\"font-variation-settings:'wght' 900;font-feature-settings:'liga' 0;font-weight:bold\">x</div><div id=p5 style=\"font-variation-settings:'wght' 900;font-feature-settings:'liga' 0;all:initial\">x</div>",
+   "measure": [
+    {
+     "style": "#p1",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#p2",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#p3",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#p4",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#p5",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    },
+    {
+     "style": "#c1",
+     "props": [
+      "font-variation-settings",
+      "font-feature-settings"
+     ]
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "fvs-synthetic-bold",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:V4;src:url(v.ttf);font-weight:400}@font-face{font-family:V19;src:url(v.ttf);font-weight:100 900}@font-face{font-family:V4b;src:url(v.ttf);font-weight:400;font-variation-settings:'wght' 900}</style><div id=a style=\"font-family:V4;font-weight:700\">H</div><div id=b style=\"font-family:V4;font-weight:700;font-variation-settings:'wght' 400\">H</div><div id=c style=\"font-family:V4;font-weight:400\">H</div><div id=d style=\"font-family:V19;font-weight:700;font-variation-settings:'wght' 400\">H</div><div id=e style=\"font-family:V4;font-weight:700;font-variation-settings:'wght' 900\">H</div><div id=f style=\"font-family:V19;font-weight:900\">H</div><div id=g style=\"font-family:V4;font-weight:400;font-variation-settings:'wght' 900\">H</div><div id=h style=\"font-family:V19;font-weight:400;font-variation-settings:'wght' 900\">H</div><div id=i style=\"font-family:V4;font-weight:700;font-variation-settings:'wght' 100\">H</div><div id=j style=\"font-family:V19;font-weight:100;font-variation-settings:'wght' 400\">H</div><div id=k style=\"font-family:V4;font-weight:400;font-variation-settings:'wght' 400\">H</div>",
+   "measure": [
+    {
+     "boxes": "#a"
+    },
+    {
+     "boxes": "#b"
+    },
+    {
+     "boxes": "#c"
+    },
+    {
+     "boxes": "#d"
+    },
+    {
+     "boxes": "#e"
+    },
+    {
+     "boxes": "#f"
+    },
+    {
+     "boxes": "#g"
+    },
+    {
+     "boxes": "#h"
+    },
+    {
+     "boxes": "#i"
+    },
+    {
+     "boxes": "#j"
+    },
+    {
+     "boxes": "#k"
+    },
+    {
+     "ink": "#a"
+    },
+    {
+     "ink": "#b"
+    },
+    {
+     "ink": "#c"
+    },
+    {
+     "ink": "#d"
+    },
+    {
+     "ink": "#e"
+    },
+    {
+     "ink": "#f"
+    },
+    {
+     "ink": "#g"
+    },
+    {
+     "ink": "#h"
+    },
+    {
+     "ink": "#i"
+    },
+    {
+     "ink": "#j"
+    },
+    {
+     "ink": "#k"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "fvs-ffs-descriptors",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:D1;src:url(v.ttf);font-weight:100 900;font-variation-settings:'wght' 900}@font-face{font-family:D2;src:url(v.ttf);font-weight:100 900;font-variation-settings:'wght' 900}@font-face{font-family:D3;src:url(dv.ttf);font-feature-settings:'liga' 0}@font-face{font-family:D4;src:url(dv.ttf)}</style><div id=d1 style=\"font-family:D1\">A</div><div id=d2 style=\"font-family:D2;font-variation-settings:'wght' 200\">A</div><div id=d3 style=\"font-family:D3\">fi fl ffi</div><div id=d4 style=\"font-family:D4\">fi fl ffi</div><div id=d5 style=\"font-family:D4;font-feature-settings:'liga' 0\">fi fl ffi</div>",
+   "measure": [
+    {
+     "boxes": "#d1"
+    },
+    {
+     "boxes": "#d2"
+    },
+    {
+     "boxes": "#d3"
+    },
+    {
+     "boxes": "#d4"
+    },
+    {
+     "boxes": "#d5"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf",
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "ffs-shaping",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}</style><div id=n style=\"font-family:'DejaVu Sans'\">fi fl ffi AV To</div><div id=l0 style=\"font-family:'DejaVu Sans';font-feature-settings:'liga' 0\">fi fl ffi AV To</div><div id=l1 style=\"font-family:'DejaVu Sans';font-feature-settings:'liga' 1\">fi fl ffi AV To</div><div id=k0 style=\"font-family:'DejaVu Sans';font-feature-settings:'kern' 0\">fi fl ffi AV To</div><div id=k0l0 style=\"font-family:'DejaVu Sans';font-feature-settings:'kern' 0, 'liga' 0\">fi fl ffi AV To</div><div id=rep style=\"font-family:'DejaVu Sans';font-feature-settings:'liga' 0, 'liga' 1\">fi fl ffi AV To</div><div id=rep2 style=\"font-family:'DejaVu Sans';font-feature-settings:'liga' 1, 'liga' 0\">fi fl ffi AV To</div><div id=sc style=\"font-family:'DejaVu Sans';font-variant-caps:small-caps;font-feature-settings:'smcp' 0\">fi AV to</div><div id=sc2 style=\"font-family:'DejaVu Sans';font-variant-caps:small-caps\">fi AV to</div><div id=invalid style=\"font-family:'DejaVu Sans';font-feature-settings:'liga' 0;font-feature-settings:'liga' -1\">fi fl ffi AV To</div>",
+   "measure": [
+    {
+     "boxes": "#n"
+    },
+    {
+     "boxes": "#l0"
+    },
+    {
+     "boxes": "#l1"
+    },
+    {
+     "boxes": "#k0"
+    },
+    {
+     "boxes": "#k0l0"
+    },
+    {
+     "boxes": "#rep"
+    },
+    {
+     "boxes": "#rep2"
+    },
+    {
+     "boxes": "#sc"
+    },
+    {
+     "boxes": "#sc2"
+    },
+    {
+     "boxes": "#invalid"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "metric-descriptors",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:M0;src:url(v.ttf);}@font-face{font-family:M0L;src:url(ls.ttf);}@font-face{font-family:M1;src:url(v.ttf);size-adjust:50%}@font-face{font-family:M1L;src:url(ls.ttf);size-adjust:50%}@font-face{font-family:M2;src:url(v.ttf);size-adjust:150%}@font-face{font-family:M2L;src:url(ls.ttf);size-adjust:150%}@font-face{font-family:M3;src:url(v.ttf);ascent-override:50%}@font-face{font-family:M3L;src:url(ls.ttf);ascent-override:50%}@font-face{font-family:M4;src:url(v.ttf);descent-override:0%}@font-face{font-family:M4L;src:url(ls.ttf);descent-override:0%}@font-face{font-family:M5;src:url(v.ttf);line-gap-override:30%}@font-face{font-family:M5L;src:url(ls.ttf);line-gap-override:30%}@font-face{font-family:M6;src:url(v.ttf);size-adjust:50%;ascent-override:50%}@font-face{font-family:M6L;src:url(ls.ttf);size-adjust:50%;ascent-override:50%}@font-face{font-family:M7;src:url(v.ttf);size-adjust:50%;descent-override:50%;line-gap-override:20%}@font-face{font-family:M7L;src:url(ls.ttf);size-adjust:50%;descent-override:50%;line-gap-override:20%}@font-face{font-family:M8;src:url(v.ttf);ascent-override:normal}@font-face{font-family:M8L;src:url(ls.ttf);ascent-override:normal}@font-face{font-family:M9;src:url(v.ttf);ascent-override:-10%}@font-face{font-family:M9L;src:url(ls.ttf);ascent-override:-10%}@font-face{font-family:M10;src:url(v.ttf);size-adjust:0%}@font-face{font-family:M10L;src:url(ls.ttf);size-adjust:0%}@font-face{font-family:M11;src:url(v.ttf);size-adjust:-50%}@font-face{font-family:M11L;src:url(ls.ttf);size-adjust:-50%}@font-face{font-family:M12;src:url(v.ttf);size-adjust:100}@font-face{font-family:M12L;src:url(ls.ttf);size-adjust:100}@font-face{font-family:M13;src:url(v.ttf);ascent-override:0%}@font-face{font-family:M13L;src:url(ls.ttf);ascent-override:0%}@font-face{font-family:M14;src:url(v.ttf);ascent-override:1000%}@font-face{font-family:M14L;src:url(ls.ttf);ascent-override:1000%}@font-face{font-family:M15;src:url(v.ttf);size-adjust:93.75%}@font-face{font-family:M15L;src:url(ls.ttf);size-adjust:93.75%}@font-face{font-family:M16;src:url(v.ttf);size-adjust:50% 60%}@font-face{font-family:M16L;src:url(ls.ttf);size-adjust:50% 60%}@font-face{font-family:M17;src:url(v.ttf);size-adjust:50%;size-adjust:bogus}@font-face{font-family:M17L;src:url(ls.ttf);size-adjust:50%;size-adjust:bogus}@font-face{font-family:M18;src:url(v.ttf);size-adjust:calc(25% + 25%)}@font-face{font-family:M18L;src:url(ls.ttf);size-adjust:calc(25% + 25%)}@font-face{font-family:M19;src:url(v.ttf);ascent-override:90% 80%}@font-face{font-family:M19L;src:url(ls.ttf);ascent-override:90% 80%}@font-face{font-family:M20;src:url(v.ttf);size-adjust:50%;line-gap-override:normal;descent-override:normal}@font-face{font-family:M20L;src:url(ls.ttf);size-adjust:50%;line-gap-override:normal;descent-override:normal}@font-face{font-family:M21;src:url(v.ttf);size-adjust:1e3%}@font-face{font-family:M21L;src:url(ls.ttf);size-adjust:1e3%}@font-face{font-family:M22;src:url(v.ttf);size-adjust:0.001%}@font-face{font-family:M22L;src:url(ls.ttf);size-adjust:0.001%}@font-face{font-family:M23;src:url(v.ttf);size-adjust:50%;ascent-override:50%;descent-override:50%;line-gap-override:50%}@font-face{font-family:M23L;src:url(ls.ttf);size-adjust:50%;ascent-override:50%;descent-override:50%;line-gap-override:50%}@font-face{font-family:M24;src:url(v.ttf);size-adjust:200%;line-gap-override:0%}@font-face{font-family:M24L;src:url(ls.ttf);size-adjust:200%;line-gap-override:0%}</style><div id=M0 style=\"font-family:M0\">A<i id=M0i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M1 style=\"font-family:M1\">A<i id=M1i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M2 style=\"font-family:M2\">A<i id=M2i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M3 style=\"font-family:M3\">A<i id=M3i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M4 style=\"font-family:M4\">A<i id=M4i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M5 style=\"font-family:M5\">A<i id=M5i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M6 style=\"font-family:M6\">A<i id=M6i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M7 style=\"font-family:M7\">A<i id=M7i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M8 style=\"font-family:M8\">A<i id=M8i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M9 style=\"font-family:M9\">A<i id=M9i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M10 style=\"font-family:M10\">A<i id=M10i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M11 style=\"font-family:M11\">A<i id=M11i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M12 style=\"font-family:M12\">A<i id=M12i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M13 style=\"font-family:M13\">A<i id=M13i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M14 style=\"font-family:M14\">A<i id=M14i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M15 style=\"font-family:M15\">A<i id=M15i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M16 style=\"font-family:M16\">A<i id=M16i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M17 style=\"font-family:M17\">A<i id=M17i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M18 style=\"font-family:M18\">A<i id=M18i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M19 style=\"font-family:M19\">A<i id=M19i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M20 style=\"font-family:M20\">A<i id=M20i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M21 style=\"font-family:M21\">A<i id=M21i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M22 style=\"font-family:M22\">A<i id=M22i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M23 style=\"font-family:M23\">A<i id=M23i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M24 style=\"font-family:M24\">A<i id=M24i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M0L style=\"font-family:M0L\">Hx<i id=M0Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M1L style=\"font-family:M1L\">Hx<i id=M1Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M2L style=\"font-family:M2L\">Hx<i id=M2Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M3L style=\"font-family:M3L\">Hx<i id=M3Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M4L style=\"font-family:M4L\">Hx<i id=M4Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M5L style=\"font-family:M5L\">Hx<i id=M5Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M6L style=\"font-family:M6L\">Hx<i id=M6Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M7L style=\"font-family:M7L\">Hx<i id=M7Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M15L style=\"font-family:M15L\">Hx<i id=M15Li style=\"display:inline-block;width:1px;height:0\"></i></div><div id=M23L style=\"font-family:M23L\">Hx<i id=M23Li style=\"display:inline-block;width:1px;height:0\"></i></div>",
+   "measure": [
+    {
+     "boxes": "#M0, #M0i"
+    },
+    {
+     "boxes": "#M1, #M1i"
+    },
+    {
+     "boxes": "#M2, #M2i"
+    },
+    {
+     "boxes": "#M3, #M3i"
+    },
+    {
+     "boxes": "#M4, #M4i"
+    },
+    {
+     "boxes": "#M5, #M5i"
+    },
+    {
+     "boxes": "#M6, #M6i"
+    },
+    {
+     "boxes": "#M7, #M7i"
+    },
+    {
+     "boxes": "#M8, #M8i"
+    },
+    {
+     "boxes": "#M9, #M9i"
+    },
+    {
+     "boxes": "#M10, #M10i"
+    },
+    {
+     "boxes": "#M11, #M11i"
+    },
+    {
+     "boxes": "#M12, #M12i"
+    },
+    {
+     "boxes": "#M13, #M13i"
+    },
+    {
+     "boxes": "#M14, #M14i"
+    },
+    {
+     "boxes": "#M15, #M15i"
+    },
+    {
+     "boxes": "#M16, #M16i"
+    },
+    {
+     "boxes": "#M17, #M17i"
+    },
+    {
+     "boxes": "#M18, #M18i"
+    },
+    {
+     "boxes": "#M19, #M19i"
+    },
+    {
+     "boxes": "#M20, #M20i"
+    },
+    {
+     "boxes": "#M21, #M21i"
+    },
+    {
+     "boxes": "#M22, #M22i"
+    },
+    {
+     "boxes": "#M23, #M23i"
+    },
+    {
+     "boxes": "#M24, #M24i"
+    },
+    {
+     "boxes": "#M0L, #M0Li"
+    },
+    {
+     "boxes": "#M1L, #M1Li"
+    },
+    {
+     "boxes": "#M2L, #M2Li"
+    },
+    {
+     "boxes": "#M3L, #M3Li"
+    },
+    {
+     "boxes": "#M4L, #M4Li"
+    },
+    {
+     "boxes": "#M5L, #M5Li"
+    },
+    {
+     "boxes": "#M6L, #M6Li"
+    },
+    {
+     "boxes": "#M7L, #M7Li"
+    },
+    {
+     "boxes": "#M15L, #M15Li"
+    },
+    {
+     "boxes": "#M23L, #M23Li"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf",
+    "ls.ttf": "fixtures/fonts/LiberationSans-Regular.ttf"
+   }
+  },
+  {
+   "name": "metric-descriptors-fractional",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:A1;src:url(ls.ttf);size-adjust:93.75%;ascent-override:98%}@font-face{font-family:A2;src:url(ls.ttf);size-adjust:93.75%}@font-face{font-family:A3;src:url(ls.ttf)}@font-face{font-family:A4;src:url(ls.ttf);size-adjust:93.75%;ascent-override:98%;descent-override:30%;line-gap-override:5%}</style><div id=A1_11 style=\"font-family:A1;font-size:11px\">Hamburgefonstiv <i id=A1_11i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A1_13 style=\"font-family:A1;font-size:13px\">Hamburgefonstiv <i id=A1_13i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A1_15 style=\"font-family:A1;font-size:15px\">Hamburgefonstiv <i id=A1_15i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A1_16 style=\"font-family:A1;font-size:16px\">Hamburgefonstiv <i id=A1_16i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A1_17_5 style=\"font-family:A1;font-size:17.5px\">Hamburgefonstiv <i id=A1_17_5i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A1_21_3 style=\"font-family:A1;font-size:21.3px\">Hamburgefonstiv <i id=A1_21_3i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_11 style=\"font-family:A2;font-size:11px\">Hamburgefonstiv <i id=A2_11i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_13 style=\"font-family:A2;font-size:13px\">Hamburgefonstiv <i id=A2_13i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_15 style=\"font-family:A2;font-size:15px\">Hamburgefonstiv <i id=A2_15i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_16 style=\"font-family:A2;font-size:16px\">Hamburgefonstiv <i id=A2_16i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_17_5 style=\"font-family:A2;font-size:17.5px\">Hamburgefonstiv <i id=A2_17_5i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A2_21_3 style=\"font-family:A2;font-size:21.3px\">Hamburgefonstiv <i id=A2_21_3i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_11 style=\"font-family:A3;font-size:11px\">Hamburgefonstiv <i id=A3_11i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_13 style=\"font-family:A3;font-size:13px\">Hamburgefonstiv <i id=A3_13i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_15 style=\"font-family:A3;font-size:15px\">Hamburgefonstiv <i id=A3_15i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_16 style=\"font-family:A3;font-size:16px\">Hamburgefonstiv <i id=A3_16i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_17_5 style=\"font-family:A3;font-size:17.5px\">Hamburgefonstiv <i id=A3_17_5i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A3_21_3 style=\"font-family:A3;font-size:21.3px\">Hamburgefonstiv <i id=A3_21_3i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_11 style=\"font-family:A4;font-size:11px\">Hamburgefonstiv <i id=A4_11i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_13 style=\"font-family:A4;font-size:13px\">Hamburgefonstiv <i id=A4_13i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_15 style=\"font-family:A4;font-size:15px\">Hamburgefonstiv <i id=A4_15i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_16 style=\"font-family:A4;font-size:16px\">Hamburgefonstiv <i id=A4_16i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_17_5 style=\"font-family:A4;font-size:17.5px\">Hamburgefonstiv <i id=A4_17_5i style=\"display:inline-block;width:1px;height:0\"></i></div><div id=A4_21_3 style=\"font-family:A4;font-size:21.3px\">Hamburgefonstiv <i id=A4_21_3i style=\"display:inline-block;width:1px;height:0\"></i></div>",
+   "measure": [
+    {
+     "boxes": "#A1_11, #A1_11i"
+    },
+    {
+     "boxes": "#A1_13, #A1_13i"
+    },
+    {
+     "boxes": "#A1_15, #A1_15i"
+    },
+    {
+     "boxes": "#A1_16, #A1_16i"
+    },
+    {
+     "boxes": "#A1_17_5, #A1_17_5i"
+    },
+    {
+     "boxes": "#A1_21_3, #A1_21_3i"
+    },
+    {
+     "boxes": "#A2_11, #A2_11i"
+    },
+    {
+     "boxes": "#A2_13, #A2_13i"
+    },
+    {
+     "boxes": "#A2_15, #A2_15i"
+    },
+    {
+     "boxes": "#A2_16, #A2_16i"
+    },
+    {
+     "boxes": "#A2_17_5, #A2_17_5i"
+    },
+    {
+     "boxes": "#A2_21_3, #A2_21_3i"
+    },
+    {
+     "boxes": "#A3_11, #A3_11i"
+    },
+    {
+     "boxes": "#A3_13, #A3_13i"
+    },
+    {
+     "boxes": "#A3_15, #A3_15i"
+    },
+    {
+     "boxes": "#A3_16, #A3_16i"
+    },
+    {
+     "boxes": "#A3_17_5, #A3_17_5i"
+    },
+    {
+     "boxes": "#A3_21_3, #A3_21_3i"
+    },
+    {
+     "boxes": "#A4_11, #A4_11i"
+    },
+    {
+     "boxes": "#A4_13, #A4_13i"
+    },
+    {
+     "boxes": "#A4_15, #A4_15i"
+    },
+    {
+     "boxes": "#A4_16, #A4_16i"
+    },
+    {
+     "boxes": "#A4_17_5, #A4_17_5i"
+    },
+    {
+     "boxes": "#A4_21_3, #A4_21_3i"
+    }
+   ],
+   "files": {
+    "ls.ttf": "fixtures/fonts/LiberationSans-Regular.ttf"
+   }
+  },
+  {
+   "name": "size-adjust-ink",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:H0;src:url(v.ttf)}@font-face{font-family:H1;src:url(v.ttf);size-adjust:50%}@font-face{font-family:H2;src:url(v.ttf);size-adjust:150%;ascent-override:50%}</style><div id=H0 style=\"font-family:H0\">H</div><div id=H1 style=\"font-family:H1\">H</div><div id=H2 style=\"font-family:H2\">H</div>",
+   "measure": [
+    {
+     "boxes": "#H0"
+    },
+    {
+     "ink": "#H0"
+    },
+    {
+     "boxes": "#H1"
+    },
+    {
+     "ink": "#H1"
+    },
+    {
+     "boxes": "#H2"
+    },
+    {
+     "ink": "#H2"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "size-adjust-misc",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:E1;src:url(v.ttf);size-adjust:50%}</style><div id=c style=\"font-family:E1,serif;width:10em;height:10px;background:red\"></div><div id=d style=\"font-family:E1,serif;line-height:1.5\">A</div><div id=e style=\"font-family:E1,serif\">Ab</div><div id=f style=\"font-family:E1,serif;font-size:50px;letter-spacing:10px\">AA</div><div id=g style=\"font-family:E1,serif;font-size:50px;word-spacing:10px\">A A</div>",
+   "measure": [
+    {
+     "boxes": "#c, #d, #e, #f, #g"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "fvs-descriptor-merge",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:D1;src:url(v.ttf);font-weight:100 900;font-stretch:75% 125%;font-variation-settings:'wght' 900}@font-face{font-family:D2;src:url(v.ttf);font-weight:100 900;font-stretch:75% 125%;font-variation-settings:'wght' 900,'wdth' 125}@font-face{font-family:D3;src:url(v.ttf);font-weight:400;font-variation-settings:'wght' 900}@font-face{font-family:D4;src:url(v.ttf);font-variation-settings:'wght' 900;font-variation-settings:bogus}@font-face{font-family:D5;src:url(v.ttf);font-variation-settings:normal}@font-face{font-family:D6;src:url(v.ttf);font-weight:100 900;font-variation-settings:'wght' 900, 'wght' 100}</style><div id=e1 style=\"font-family:D1\">A</div><div id=e2 style=\"font-family:D1;font-variation-settings:'wdth' 125\">A</div><div id=e3 style=\"font-family:D1;font-variation-settings:'wght' 200\">A</div><div id=e4 style=\"font-family:D1;font-variation-settings:normal\">A</div><div id=e5 style=\"font-family:D1;font-weight:100\">A</div><div id=e6 style=\"font-family:D2\">A</div><div id=e7 style=\"font-family:D3;font-weight:700\">A</div><div id=e8 style=\"font-family:D4\">A</div><div id=e9 style=\"font-family:D5\">A</div><div id=e10 style=\"font-family:D6\">A</div>",
+   "measure": [
+    {
+     "boxes": "#e1"
+    },
+    {
+     "boxes": "#e2"
+    },
+    {
+     "boxes": "#e3"
+    },
+    {
+     "boxes": "#e4"
+    },
+    {
+     "boxes": "#e5"
+    },
+    {
+     "boxes": "#e6"
+    },
+    {
+     "boxes": "#e7"
+    },
+    {
+     "boxes": "#e8"
+    },
+    {
+     "boxes": "#e9"
+    },
+    {
+     "boxes": "#e10"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "plain-sizes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:V;src:url(v.ttf)}</style><div id=s25 style=\"font-family:V;font-size:25px\">AAAA</div><div id=s50 style=\"font-family:V;font-size:50px\">AAAA</div><div id=s75 style=\"font-family:V;font-size:75px\">AAAA</div><div id=s100 style=\"font-family:V;font-size:100px\">AAAA</div><div id=s150 style=\"font-family:V;font-size:150px\">AAAA</div><div id=s200 style=\"font-family:V;font-size:200px\">AAAA</div><div id=s12_5 style=\"font-family:V;font-size:12.5px\">AAAA</div><div id=s37_5 style=\"font-family:V;font-size:37.5px\">AAAA</div>",
+   "measure": [
+    {
+     "boxes": "#s25"
+    },
+    {
+     "boxes": "#s50"
+    },
+    {
+     "boxes": "#s75"
+    },
+    {
+     "boxes": "#s100"
+    },
+    {
+     "boxes": "#s150"
+    },
+    {
+     "boxes": "#s200"
+    },
+    {
+     "boxes": "#s12_5"
+    },
+    {
+     "boxes": "#s37_5"
+    }
+   ],
+   "files": {
+    "v.ttf": "crates/text/tests/webfonts/swb-variable.ttf"
+   }
+  },
+  {
+   "name": "ffs-descriptor-merge",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:D3;src:url(dv.ttf);font-feature-settings:'liga' 0}@font-face{font-family:D4;src:url(dv.ttf);font-feature-settings:'liga' 0,'kern' 0}</style><div id=n style=\"font-family:D3\">fi fl ffi AV To</div><div id=e1 style=\"font-family:D3;font-feature-settings:'liga' 1\">fi fl ffi AV To</div><div id=e2 style=\"font-family:D3;font-feature-settings:normal\">fi fl ffi AV To</div><div id=e4 style=\"font-family:D4\">fi fl ffi AV To</div><div id=e3 style=\"font-family:D4;font-feature-settings:'liga' 1\">fi fl ffi AV To</div><div id=e5 style=\"font-family:'DejaVu Sans'\">fi fl ffi AV To</div>",
+   "measure": [
+    {
+     "boxes": "#n"
+    },
+    {
+     "boxes": "#e1"
+    },
+    {
+     "boxes": "#e2"
+    },
+    {
+     "boxes": "#e4"
+    },
+    {
+     "boxes": "#e3"
+    },
+    {
+     "boxes": "#e5"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "local-face-properties",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:A;src:local('Liberation Sans Bold');font-weight:400}@font-face{font-family:B;src:local('Liberation Sans Bold');font-weight:700}@font-face{font-family:C;src:local('Liberation Sans');font-weight:700}@font-face{font-family:D;src:local('Liberation Sans');font-style:italic}@font-face{font-family:E;src:local('Liberation Sans Italic')}@font-face{font-family:F;src:local('Nope'),local('Liberation Serif')}@font-face{font-family:G;src:local('Liberation Serif'),url(dv.ttf)}@font-face{font-family:H;src:url(missing.ttf),local('Liberation Serif')}@font-face{font-family:I;src:local('Liberation Serif');unicode-range:U+41-5A}@font-face{font-family:J;src:local('Liberation Serif Bold');font-weight:400 900}</style><div id=a style=\"font-family:A,monospace\">Hamburgefonstiv 0123</div><div id=a7 style=\"font-family:A,monospace;font-weight:700\">Hamburgefonstiv 0123</div><div id=b style=\"font-family:B,monospace;font-weight:700\">Hamburgefonstiv 0123</div><div id=c style=\"font-family:C,monospace;font-weight:700\">Hamburgefonstiv 0123</div><div id=c4 style=\"font-family:C,monospace\">Hamburgefonstiv 0123</div><div id=d style=\"font-family:D,monospace;font-style:italic\">Hamburgefonstiv 0123</div><div id=e style=\"font-family:E,monospace;font-style:italic\">Hamburgefonstiv 0123</div><div id=f style=\"font-family:F,monospace\">Hamburgefonstiv 0123</div><div id=g style=\"font-family:G,monospace\">Hamburgefonstiv 0123</div><div id=h style=\"font-family:H,monospace\">Hamburgefonstiv 0123</div><div id=i style=\"font-family:I,monospace\">Hamburgefonstiv 0123</div><div id=j style=\"font-family:J,monospace;font-weight:700\">Hamburgefonstiv 0123</div><div id=j4 style=\"font-family:J,monospace\">Hamburgefonstiv 0123</div><div id=rs style=\"font-family:'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=rb style=\"font-family:'Liberation Sans';font-weight:700\">Hamburgefonstiv 0123</div><div id=rse style=\"font-family:'Liberation Serif'\">Hamburgefonstiv 0123</div><div id=rseb style=\"font-family:'Liberation Serif';font-weight:700\">Hamburgefonstiv 0123</div><div id=rm style=\"font-family:monospace\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#a"
+    },
+    {
+     "ink": "#a"
+    },
+    {
+     "boxes": "#a7"
+    },
+    {
+     "ink": "#a7"
+    },
+    {
+     "boxes": "#b"
+    },
+    {
+     "ink": "#b"
+    },
+    {
+     "boxes": "#c"
+    },
+    {
+     "ink": "#c"
+    },
+    {
+     "boxes": "#c4"
+    },
+    {
+     "ink": "#c4"
+    },
+    {
+     "boxes": "#d"
+    },
+    {
+     "ink": "#d"
+    },
+    {
+     "boxes": "#e"
+    },
+    {
+     "ink": "#e"
+    },
+    {
+     "boxes": "#f"
+    },
+    {
+     "ink": "#f"
+    },
+    {
+     "boxes": "#g"
+    },
+    {
+     "ink": "#g"
+    },
+    {
+     "boxes": "#h"
+    },
+    {
+     "ink": "#h"
+    },
+    {
+     "boxes": "#i"
+    },
+    {
+     "ink": "#i"
+    },
+    {
+     "boxes": "#j"
+    },
+    {
+     "ink": "#j"
+    },
+    {
+     "boxes": "#j4"
+    },
+    {
+     "ink": "#j4"
+    },
+    {
+     "boxes": "#rs"
+    },
+    {
+     "ink": "#rs"
+    },
+    {
+     "boxes": "#rb"
+    },
+    {
+     "ink": "#rb"
+    },
+    {
+     "boxes": "#rse"
+    },
+    {
+     "ink": "#rse"
+    },
+    {
+     "boxes": "#rseb"
+    },
+    {
+     "ink": "#rseb"
+    },
+    {
+     "boxes": "#rm"
+    },
+    {
+     "ink": "#rm"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "ffs-descriptor-lists",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:100px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:F1;src:url(dv.ttf);font-feature-settings:'liga' 0, 'kern' 0}@font-face{font-family:F2;src:url(dv.ttf);font-feature-settings:'kern' 0, 'liga' 0}@font-face{font-family:F3;src:url(dv.ttf);font-feature-settings:'liga' 0, 'kern' 0, 'dlig' 1}@font-face{font-family:F4;src:url(dv.ttf);font-feature-settings:'kern' 0}@font-face{font-family:F5;src:url(dv.ttf);font-feature-settings:'liga' 0 'kern' 0}@font-face{font-family:F6;src:url(dv.ttf);font-feature-settings:'liga' 0, 'kern' 0, 'liga' 1}@font-face{font-family:F7;src:url(dv.ttf);font-feature-settings:'kern' 0, 'liga'}</style><div id=F1 style=\"font-family:F1\">fi fl ffi AV To</div><div id=F2 style=\"font-family:F2\">fi fl ffi AV To</div><div id=F3 style=\"font-family:F3\">fi fl ffi AV To</div><div id=F4 style=\"font-family:F4\">fi fl ffi AV To</div><div id=F5 style=\"font-family:F5\">fi fl ffi AV To</div><div id=F6 style=\"font-family:F6\">fi fl ffi AV To</div><div id=F7 style=\"font-family:F7\">fi fl ffi AV To</div><div id=Dv style=\"font-family:'DejaVu Sans'\">fi fl ffi AV To</div>",
+   "measure": [
+    {
+     "boxes": "#F1"
+    },
+    {
+     "boxes": "#F2"
+    },
+    {
+     "boxes": "#F3"
+    },
+    {
+     "boxes": "#F4"
+    },
+    {
+     "boxes": "#F5"
+    },
+    {
+     "boxes": "#F6"
+    },
+    {
+     "boxes": "#F7"
+    },
+    {
+     "boxes": "#Dv"
+    }
+   ],
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf"
+   }
+  },
+  {
+   "name": "local-names",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px serif} div{white-space:pre;float:left;clear:left}@font-face{font-family:L0;src:local('Liberation Sans')}@font-face{font-family:L1;src:local('liberation sans')}@font-face{font-family:L2;src:local('LIBERATION SANS')}@font-face{font-family:L3;src:local('Liberation Sans Regular')}@font-face{font-family:L4;src:local('LiberationSans')}@font-face{font-family:L5;src:local('liberationsans')}@font-face{font-family:L6;src:local('LiberationSans-Regular')}@font-face{font-family:L7;src:local('Liberation Sans Bold')}@font-face{font-family:L8;src:local('liberation sans bold')}@font-face{font-family:L9;src:local('LiberationSans-Bold')}@font-face{font-family:L10;src:local('Liberation Sans Italic')}@font-face{font-family:L11;src:local('Liberation Sans Bold Italic')}@font-face{font-family:L12;src:local('Arial')}@font-face{font-family:L13;src:local('Arial Bold')}@font-face{font-family:L14;src:local('Arimo')}@font-face{font-family:L15;src:local('Helvetica')}@font-face{font-family:L16;src:local('Times New Roman')}@font-face{font-family:L17;src:local('Times New Roman Bold')}@font-face{font-family:L18;src:local('Times')}@font-face{font-family:L19;src:local('Liberation Serif')}@font-face{font-family:L20;src:local('Liberation Serif Bold')}@font-face{font-family:L21;src:local('Liberation Serif Italic')}@font-face{font-family:L22;src:local('LiberationSerif')}@font-face{font-family:L23;src:local('DejaVu Sans')}@font-face{font-family:L24;src:local('DejaVu Sans Bold')}@font-face{font-family:L25;src:local('DejaVuSans')}@font-face{font-family:L26;src:local('DejaVuSans-Bold')}@font-face{font-family:L27;src:local('DejaVu Sans Book')}@font-face{font-family:L28;src:local('DejaVu')}@font-face{font-family:L29;src:local('Liberation Mono')}@font-face{font-family:L30;src:local('Liberation Mono Bold')}@font-face{font-family:L31;src:local('Courier New')}@font-face{font-family:L32;src:local('Liberation')}@font-face{font-family:L33;src:local('Liberation  Sans')}@font-face{font-family:L34;src:local('  Liberation Sans')}@font-face{font-family:L35;src:local('L i b e r a t i o n S a n s')}@font-face{font-family:L36;src:local('Liberation-Sans')}@font-face{font-family:L37;src:local('Liberation\tSans')}@font-face{font-family:L38;src:local('LIBERATIONSANS-BOLD')}@font-face{font-family:L39;src:local('Liberation Sans  Bold')}@font-face{font-family:L40;src:local('LiberationSans Bold')}@font-face{font-family:L41;src:local('DejaVu Sans Bold Oblique')}@font-face{font-family:L42;src:local('DejaVuSansBold')}</style><div id=l0 style=\"font-family:L0,monospace\">Hamburgefonstiv 0123</div><div id=l1 style=\"font-family:L1,monospace\">Hamburgefonstiv 0123</div><div id=l2 style=\"font-family:L2,monospace\">Hamburgefonstiv 0123</div><div id=l3 style=\"font-family:L3,monospace\">Hamburgefonstiv 0123</div><div id=l4 style=\"font-family:L4,monospace\">Hamburgefonstiv 0123</div><div id=l5 style=\"font-family:L5,monospace\">Hamburgefonstiv 0123</div><div id=l6 style=\"font-family:L6,monospace\">Hamburgefonstiv 0123</div><div id=l7 style=\"font-family:L7,monospace\">Hamburgefonstiv 0123</div><div id=l8 style=\"font-family:L8,monospace\">Hamburgefonstiv 0123</div><div id=l9 style=\"font-family:L9,monospace\">Hamburgefonstiv 0123</div><div id=l10 style=\"font-family:L10,monospace\">Hamburgefonstiv 0123</div><div id=l11 style=\"font-family:L11,monospace\">Hamburgefonstiv 0123</div><div id=l12 style=\"font-family:L12,monospace\">Hamburgefonstiv 0123</div><div id=l13 style=\"font-family:L13,monospace\">Hamburgefonstiv 0123</div><div id=l14 style=\"font-family:L14,monospace\">Hamburgefonstiv 0123</div><div id=l15 style=\"font-family:L15,monospace\">Hamburgefonstiv 0123</div><div id=l16 style=\"font-family:L16,monospace\">Hamburgefonstiv 0123</div><div id=l17 style=\"font-family:L17,monospace\">Hamburgefonstiv 0123</div><div id=l18 style=\"font-family:L18,monospace\">Hamburgefonstiv 0123</div><div id=l19 style=\"font-family:L19,monospace\">Hamburgefonstiv 0123</div><div id=l20 style=\"font-family:L20,monospace\">Hamburgefonstiv 0123</div><div id=l21 style=\"font-family:L21,monospace\">Hamburgefonstiv 0123</div><div id=l22 style=\"font-family:L22,monospace\">Hamburgefonstiv 0123</div><div id=l23 style=\"font-family:L23,monospace\">Hamburgefonstiv 0123</div><div id=l24 style=\"font-family:L24,monospace\">Hamburgefonstiv 0123</div><div id=l25 style=\"font-family:L25,monospace\">Hamburgefonstiv 0123</div><div id=l26 style=\"font-family:L26,monospace\">Hamburgefonstiv 0123</div><div id=l27 style=\"font-family:L27,monospace\">Hamburgefonstiv 0123</div><div id=l28 style=\"font-family:L28,monospace\">Hamburgefonstiv 0123</div><div id=l29 style=\"font-family:L29,serif\">Hamburgefonstiv 0123</div><div id=l30 style=\"font-family:L30,serif\">Hamburgefonstiv 0123</div><div id=l31 style=\"font-family:L31,serif\">Hamburgefonstiv 0123</div><div id=l32 style=\"font-family:L32,monospace\">Hamburgefonstiv 0123</div><div id=l33 style=\"font-family:L33,monospace\">Hamburgefonstiv 0123</div><div id=l34 style=\"font-family:L34,monospace\">Hamburgefonstiv 0123</div><div id=l35 style=\"font-family:L35,monospace\">Hamburgefonstiv 0123</div><div id=l36 style=\"font-family:L36,monospace\">Hamburgefonstiv 0123</div><div id=l37 style=\"font-family:L37,monospace\">Hamburgefonstiv 0123</div><div id=l38 style=\"font-family:L38,monospace\">Hamburgefonstiv 0123</div><div id=l39 style=\"font-family:L39,monospace\">Hamburgefonstiv 0123</div><div id=l40 style=\"font-family:L40,monospace\">Hamburgefonstiv 0123</div><div id=l41 style=\"font-family:L41,monospace\">Hamburgefonstiv 0123</div><div id=l42 style=\"font-family:L42,monospace\">Hamburgefonstiv 0123</div><div id=rs style=\"font-family:'Liberation Sans'\">Hamburgefonstiv 0123</div><div id=rb style=\"font-family:'Liberation Sans';font-weight:700\">Hamburgefonstiv 0123</div><div id=rse style=\"font-family:'Liberation Serif'\">Hamburgefonstiv 0123</div><div id=rm style=\"font-family:'Liberation Mono'\">Hamburgefonstiv 0123</div><div id=rd style=\"font-family:'DejaVu Sans'\">Hamburgefonstiv 0123</div><div id=rdb style=\"font-family:'DejaVu Sans';font-weight:700\">Hamburgefonstiv 0123</div><div id=rsi style=\"font-family:'Liberation Sans';font-style:italic\">Hamburgefonstiv 0123</div><div id=rsbi style=\"font-family:'Liberation Sans';font-weight:700;font-style:italic\">Hamburgefonstiv 0123</div><div id=rseb style=\"font-family:'Liberation Serif';font-weight:700\">Hamburgefonstiv 0123</div><div id=rsei style=\"font-family:'Liberation Serif';font-style:italic\">Hamburgefonstiv 0123</div><div id=rmb style=\"font-family:'Liberation Mono';font-weight:700\">Hamburgefonstiv 0123</div>",
+   "measure": [
+    {
+     "boxes": "#l0"
+    },
+    {
+     "boxes": "#l1"
+    },
+    {
+     "boxes": "#l2"
+    },
+    {
+     "boxes": "#l3"
+    },
+    {
+     "boxes": "#l4"
+    },
+    {
+     "boxes": "#l5"
+    },
+    {
+     "boxes": "#l6"
+    },
+    {
+     "boxes": "#l7"
+    },
+    {
+     "boxes": "#l8"
+    },
+    {
+     "boxes": "#l9"
+    },
+    {
+     "boxes": "#l10"
+    },
+    {
+     "boxes": "#l11"
+    },
+    {
+     "boxes": "#l12"
+    },
+    {
+     "boxes": "#l13"
+    },
+    {
+     "boxes": "#l14"
+    },
+    {
+     "boxes": "#l15"
+    },
+    {
+     "boxes": "#l16"
+    },
+    {
+     "boxes": "#l17"
+    },
+    {
+     "boxes": "#l18"
+    },
+    {
+     "boxes": "#l19"
+    },
+    {
+     "boxes": "#l20"
+    },
+    {
+     "boxes": "#l21"
+    },
+    {
+     "boxes": "#l22"
+    },
+    {
+     "boxes": "#l23"
+    },
+    {
+     "boxes": "#l24"
+    },
+    {
+     "boxes": "#l25"
+    },
+    {
+     "boxes": "#l26"
+    },
+    {
+     "boxes": "#l27"
+    },
+    {
+     "boxes": "#l28"
+    },
+    {
+     "boxes": "#l29"
+    },
+    {
+     "boxes": "#l30"
+    },
+    {
+     "boxes": "#l31"
+    },
+    {
+     "boxes": "#l32"
+    },
+    {
+     "boxes": "#l33"
+    },
+    {
+     "boxes": "#l34"
+    },
+    {
+     "boxes": "#l35"
+    },
+    {
+     "boxes": "#l36"
+    },
+    {
+     "boxes": "#l37"
+    },
+    {
+     "boxes": "#l38"
+    },
+    {
+     "boxes": "#l39"
+    },
+    {
+     "boxes": "#l40"
+    },
+    {
+     "boxes": "#l41"
+    },
+    {
+     "boxes": "#l42"
+    },
+    {
+     "boxes": "#rs"
+    },
+    {
+     "boxes": "#rb"
+    },
+    {
+     "boxes": "#rse"
+    },
+    {
+     "boxes": "#rm"
+    },
+    {
+     "boxes": "#rd"
+    },
+    {
+     "boxes": "#rdb"
+    },
+    {
+     "boxes": "#rsi"
+    },
+    {
+     "boxes": "#rsbi"
+    },
+    {
+     "boxes": "#rseb"
+    },
+    {
+     "boxes": "#rsei"
+    },
+    {
+     "boxes": "#rmb"
+    }
+   ]
+  }
+ ]
+}

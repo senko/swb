@@ -283,6 +283,7 @@ fn shape_line(fonts: &mut FontContext, text: &str, size: f32) -> UiLine {
         weight: 400.0,
         style: FontStyle::Normal,
         stretch: 100.0,
+        variations: &[],
         language: None,
     };
     let options = ShapeOptions::default();

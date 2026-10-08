@@ -85,6 +85,11 @@ pub struct FontQuery<'a> {
     pub style: FontStyle,
     /// The `font-stretch` value as a percentage (100 is normal).
     pub stretch: f32,
+    /// The `font-variation-settings` value: (axis tag, value), sorted by
+    /// tag. They are applied after the axis values that `weight`,
+    /// `stretch` and `style` select (CSS Fonts 4 §7), to the axes that the
+    /// font has, clamped to the axis range.
+    pub variations: &'a [([u8; 4], f32)],
     /// The content language (BCP 47, for example `"en-US"`), if known.
     /// It affects system fallback only; shaping takes the language from
     /// [`ShapeOptions::language`](crate::ShapeOptions::language).
@@ -99,6 +104,7 @@ impl<'a> FontQuery<'a> {
             weight: 400.0,
             style: FontStyle::Normal,
             stretch: 100.0,
+            variations: &[],
             language: None,
         }
     }

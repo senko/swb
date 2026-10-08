@@ -17,6 +17,7 @@ use super::specified::{
     SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
 use super::transform;
+use crate::font_settings::{parse_feature_settings, parse_variation_settings};
 use crate::parse::color::parse_color;
 use crate::parse::grid;
 use crate::parse::image::{SpecifiedImage, parse_image};
@@ -95,6 +96,8 @@ pub(crate) fn parse_longhand(
             L::FontStyle => V::FontStyle(parse_font_style(p)?),
             L::FontStretch => V::FontStretch(parse_font_stretch(p)?),
             L::FontVariantCaps => V::FontVariantCaps(keyword(p, FontVariantCaps::from_ident)?),
+            L::FontVariationSettings => V::FontVariationSettings(parse_variation_settings(p)?),
+            L::FontFeatureSettings => V::FontFeatureSettings(parse_feature_settings(p)?),
             L::LineHeight => V::LineHeight(parse_line_height(p)?),
             L::TextAlign => V::TextAlign(parse_text_align(p, cx)?),
             L::TextIndent => V::TextIndent(parse_text_indent(p, quirky)?),

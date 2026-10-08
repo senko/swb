@@ -53,7 +53,11 @@ Format: source, license (for code), what it influenced.
   (bidi)
 - RFC 4647 (language tag matching) — `:lang()`
 - CSS Fonts 4 §4, §5 and §7 (`@font-face`, font matching, variation
-  resolution) — `style/src/font_face.rs`, `text/src/web.rs`; WOFF 1.0 and
+  resolution) — `style/src/font_face.rs`, `text/src/web.rs`; §4 (the descriptors
+  `size-adjust`, `ascent-override`, `descent-override`,
+  `line-gap-override` and `src: local()`), §6 (`font-feature-settings`)
+  and §7 (`font-variation-settings`) — `style/src/font_settings.rs`,
+  `style/src/font_face.rs`, `text/src/web.rs`; WOFF 1.0 and
   WOFF 2.0 (W3C) — the container formats and the limits of
   `text/src/decode.rs` (ADR 0022)
 - SVG 2 (coordinate systems; natural dimensions and the `viewBox`
@@ -161,7 +165,14 @@ Format: source, license (for code), what it influenced.
   supported `format()` and `tech()` values, descriptor validity, which
   faces load for text and line boxes, composite font order, variation
   axis values and the rules for synthetic bold and oblique
-  (`tools/probes/web-fonts.json`, ADR 0022).
+  (`tools/probes/web-fonts.json`, ADR 0022); web fonts, part 2: which
+  names `local()` matches (full name and PostScript name, ignoring case
+  and spaces), how the metric descriptors scale and override the line
+  box (overrides are ratios of the adjusted size), the order of the axis
+  values (matching, `@font-face` descriptor, property), the serialization
+  and the validity of the two settings properties, which of them the
+  `font` shorthand resets, and that synthetic bold ignores
+  `font-variation-settings` (`tools/probes/web-fonts-2.json`, ADR 0022).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.

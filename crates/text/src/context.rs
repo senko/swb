@@ -45,7 +45,8 @@ pub struct FontInfo<'a> {
     /// The face index in the file.
     pub index: u32,
     /// The weight of the face, or the `wght` variation value for variable
-    /// fonts.
+    /// fonts. The value from font matching: `font-variation-settings` does
+    /// not change it, as it does not change synthetic bold (ADR 0022).
     pub weight: f32,
     /// True if the face itself is italic or oblique.
     pub italic: bool,
@@ -79,6 +80,10 @@ pub(crate) struct Variations {
     pub(crate) wdth: Option<u32>,
     pub(crate) slnt: Option<u32>,
     pub(crate) ital: Option<u32>,
+    /// The `font-variation-settings` of the query, applied after the
+    /// axes above: an id from [`FontContext::intern_variation_set`], 0 for
+    /// none.
+    pub(crate) custom: u32,
 }
 
 impl Variations {
@@ -93,6 +98,22 @@ impl Variations {
         .into_iter()
         .filter_map(|(tag, value)| value.map(|v| (Tag::new(tag), f32::from_bits(v))))
         .collect()
+    }
+}
+
+/// The most distinct `font-variation-settings` lists that a context
+/// remembers (one per distinct list in the document's computed styles).
+/// Later lists are ignored, so a hostile page cannot grow the table
+/// without bound.
+const MAX_VARIATION_SETS: usize = 4096;
+
+/// Sets the axis `tag` in `settings`: replaces an earlier value, or adds
+/// the setting.
+fn merge_setting(settings: &mut Vec<(Tag, f32)>, tag: [u8; 4], value: f32) {
+    let tag = Tag::new(&tag);
+    match settings.iter_mut().find(|(t, _)| *t == tag) {
+        Some(setting) => setting.1 = value,
+        None => settings.push((tag, value)),
     }
 }
 
@@ -121,6 +142,12 @@ impl Instance {
     pub(crate) fn synthesis(&self) -> Synthesis {
         self.key.synthesis
     }
+
+    /// The `size-adjust` ratio of the font (1 unless it is a web font
+    /// face with that descriptor).
+    pub(crate) fn size_adjust(&self) -> f32 {
+        self.face.as_ref().map_or(1.0, |face| face.size_adjust)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -129,6 +156,7 @@ struct SelectionKey {
     weight: u32,
     style: FontStyle,
     stretch: u32,
+    custom: u32,
 }
 
 /// The font database and all font caches: family resolution, selected
@@ -136,7 +164,7 @@ struct SelectionKey {
 ///
 /// Use one context per thread; it is `Send` but not `Sync`.
 pub struct FontContext {
-    source: Box<dyn FontSource>,
+    pub(crate) source: Box<dyn FontSource>,
     pub(crate) faces: Vec<Face>,
     face_ids: HashMap<(PathBuf, u32), usize>,
     families: Vec<Family>,
@@ -150,6 +178,10 @@ pub struct FontContext {
     selections: HashMap<SelectionKey, FontId>,
     pub(crate) instances: Vec<Instance>,
     instance_ids: HashMap<InstanceKey, FontId>,
+    /// The interned `font-variation-settings` lists; the id of the list at
+    /// index `i` is `i + 1`.
+    variation_sets: Vec<Vec<([u8; 4], f32)>>,
+    variation_set_ids: HashMap<Vec<([u8; 4], u32)>, u32>,
     /// System fallback result per language and character.
     fallback: HashMap<String, HashMap<char, Option<usize>>>,
     masks: MaskCache,
@@ -174,6 +206,8 @@ impl FontContext {
             selections: HashMap::new(),
             instances: Vec::new(),
             instance_ids: HashMap::new(),
+            variation_sets: Vec::new(),
+            variation_set_ids: HashMap::new(),
             fallback: HashMap::new(),
             masks: MaskCache::new(MASK_CACHE_BUDGET),
             color_warned: HashSet::new(),
@@ -232,13 +266,17 @@ impl FontContext {
 
     /// Font metrics in pixels for a font size of `size` pixels.
     pub fn metrics(&self, font: FontId, size: f32) -> FontMetrics {
-        let size = sanitize_size(size);
         match self
             .instance(font)
             .and_then(|i| i.face.as_ref().map(|f| (i, f)))
         {
-            Some((instance, face)) => metrics::compute(face, &instance.coords, size),
-            None => FontMetrics::placeholder(size),
+            Some((instance, face)) => {
+                let size = sanitize_size(size * face.size_adjust);
+                let mut metrics = metrics::compute(face, &instance.coords, size);
+                face.metric_overrides.apply(&mut metrics, size);
+                metrics
+            }
+            None => FontMetrics::placeholder(sanitize_size(size)),
         }
     }
 
@@ -312,7 +350,8 @@ impl FontContext {
         size: f32,
         subpixel: u8,
     ) -> Option<Arc<GlyphMask>> {
-        let size = sanitize_size(size);
+        let adjust = self.instance(font).map_or(1.0, Instance::size_adjust);
+        let size = sanitize_size(size * adjust);
         let key = MaskKey {
             font,
             glyph,
@@ -456,11 +495,13 @@ impl FontContext {
             bold: matching::synthesize_bold_fallback(query.clamped_weight(), weight),
             oblique: matching::synthesize_oblique(query.style, face_style),
         };
+        let custom = self.intern_variation_set(query.variations);
         Some(self.intern(InstanceKey {
             face: Some(face),
             synthesis,
             variations: Variations {
                 wght,
+                custom,
                 ..Variations::default()
             },
         }))
@@ -594,11 +635,13 @@ impl FontContext {
             stretch: query.clamped_stretch(),
             style: query.style,
         };
+        let custom = self.intern_variation_set(query.variations);
         let key = SelectionKey {
             family,
             weight: desired.weight.to_bits(),
             style: desired.style,
             stretch: desired.stretch.to_bits(),
+            custom,
         };
         if let Some(font) = self.selections.get(&key) {
             return Some(*font);
@@ -634,6 +677,7 @@ impl FontContext {
                 synthesis,
                 variations: Variations {
                     wght,
+                    custom,
                     ..Variations::default()
                 },
             });
@@ -657,6 +701,54 @@ impl FontContext {
         }
     }
 
+    /// The id of a `font-variation-settings` list, 0 for the empty list.
+    /// Non-finite values are dropped. Beyond [`MAX_VARIATION_SETS`] lists,
+    /// the list is ignored.
+    pub(crate) fn intern_variation_set(&mut self, settings: &[([u8; 4], f32)]) -> u32 {
+        let key: Vec<([u8; 4], u32)> = settings
+            .iter()
+            .filter(|(_, value)| value.is_finite())
+            .map(|&(tag, value)| (tag, value.to_bits()))
+            .collect();
+        if key.is_empty() {
+            return 0;
+        }
+        if let Some(&id) = self.variation_set_ids.get(&key) {
+            return id;
+        }
+        if self.variation_sets.len() >= MAX_VARIATION_SETS {
+            log::warn!("more than {MAX_VARIATION_SETS} font-variation-settings lists; ignoring");
+            return 0;
+        }
+        self.variation_sets.push(
+            key.iter()
+                .map(|&(tag, bits)| (tag, f32::from_bits(bits)))
+                .collect(),
+        );
+        let id = u32::try_from(self.variation_sets.len()).unwrap_or(u32::MAX);
+        self.variation_set_ids.insert(key, id);
+        id
+    }
+
+    /// The axis settings of a font, in the order of CSS Fonts 4 §7: the
+    /// axes that font matching sets, the `@font-face` descriptor, then the
+    /// `font-variation-settings` property. A later value for a tag wins.
+    fn variation_settings(&self, key: &InstanceKey, face: Option<&LoadedFace>) -> Vec<(Tag, f32)> {
+        let mut settings = key.variations.settings();
+        if let Some(face) = face {
+            for &(tag, value) in face.variation_settings.iter() {
+                merge_setting(&mut settings, tag, value);
+            }
+        }
+        let custom = (key.variations.custom as usize)
+            .checked_sub(1)
+            .and_then(|i| self.variation_sets.get(i));
+        for &(tag, value) in custom.into_iter().flatten() {
+            merge_setting(&mut settings, tag, value);
+        }
+        settings
+    }
+
     /// Returns the font for `key`, creating it on first use.
     fn intern(&mut self, key: InstanceKey) -> FontId {
         if let Some(&font) = self.instance_ids.get(&key) {
@@ -673,7 +765,7 @@ impl FontContext {
             variation: None,
             plans: Vec::new(),
         };
-        let settings = key.variations.settings();
+        let settings = self.variation_settings(&key, instance.face.as_deref());
         if let Some(face) = &instance.face
             && !settings.is_empty()
             && let Some(font) = face.font()
