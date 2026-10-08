@@ -6,7 +6,7 @@
 //! transforms, and fixed and sticky boxes at the current scroll offset
 //! taken into account.
 
-use swb_dom::{Document, NodeId, local_name};
+use swb_dom::{Document, NodeId, local_name, ns};
 use swb_layout::Point;
 use swb_net::Url;
 use swb_paint::DisplayList;
@@ -53,6 +53,10 @@ pub(crate) fn link_around(doc: &Document, node: NodeId, base: &Url) -> Option<(N
 /// `href` that resolves against `base`.
 pub(crate) fn link_target(doc: &Document, node: NodeId, base: &Url) -> Option<Url> {
     let e = doc.element(node)?;
+    if e.name.ns == ns!(svg) && *e.local_name() == local_name!("a") {
+        // An SVG `a`: `href`, or `xlink:href` (SVG 2 §6.1).
+        return base.join(e.svg_href()?.trim()).ok();
+    }
     if !(e.is_html_named(&local_name!("a")) || e.is_html_named(&local_name!("area"))) {
         return None;
     }

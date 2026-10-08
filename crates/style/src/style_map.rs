@@ -35,15 +35,98 @@ pub struct StyleMap {
     pseudos: HashMap<(NodeId, PseudoKind), Arc<ComputedStyle>>,
     /// The ordinal value of each list item (see `counters.rs`).
     ordinals: HashMap<NodeId, i32>,
+    /// The instance trees of SVG `use` elements (`use_instances.rs`).
+    instances: Vec<UseInstance>,
+    /// The instances of the `use` elements of the document tree.
+    root_uses: HashMap<NodeId, InstanceId>,
+}
+
+/// The identity of the instance tree of one SVG `use` element (SVG 2 §5.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct InstanceId(u32);
+
+/// The instance tree of a `use` element: the computed styles of the
+/// referenced element and its descendants as the `use` element's
+/// inheritance gives them (the cascade matches the original elements, so
+/// only the inherited values differ), and the instances of the `use`
+/// elements inside.
+#[derive(Clone, Debug)]
+pub(crate) struct UseInstance {
+    /// The referenced element.
+    pub(crate) target: NodeId,
+    pub(crate) styles: HashMap<NodeId, Arc<ComputedStyle>>,
+    pub(crate) uses: HashMap<NodeId, InstanceId>,
 }
 
 impl StyleMap {
+    /// The style of `node` in the instance tree `scope`, or in the
+    /// document tree for `None`.
+    pub fn style_in(&self, scope: Option<InstanceId>, node: NodeId) -> Option<&Arc<ComputedStyle>> {
+        match scope {
+            None => self.get(node),
+            Some(InstanceId(i)) => self.instances.get(i as usize)?.styles.get(&node),
+        }
+    }
+
+    /// The instance tree of the SVG `use` element `use_node` in the tree
+    /// `scope` (the document tree for `None`); `None` if it has none (an
+    /// invalid reference, a cycle, or a limit).
+    pub fn use_instance(&self, scope: Option<InstanceId>, use_node: NodeId) -> Option<InstanceId> {
+        match scope {
+            None => self.root_uses.get(&use_node).copied(),
+            Some(InstanceId(i)) => self.instances.get(i as usize)?.uses.get(&use_node).copied(),
+        }
+    }
+
+    /// The number of styled elements in all instance trees.
+    #[cfg(test)]
+    pub(crate) fn instance_element_count(&self) -> usize {
+        self.instances.iter().map(|i| i.styles.len()).sum()
+    }
+
+    /// The element that instance tree `id` copies.
+    pub fn instance_target(&self, id: InstanceId) -> Option<NodeId> {
+        self.instances.get(id.0 as usize).map(|i| i.target)
+    }
+
+    /// Adds an instance tree and returns its identity.
+    pub(crate) fn add_instance(&mut self, instance: UseInstance) -> InstanceId {
+        self.instances.push(instance);
+        InstanceId(u32::try_from(self.instances.len() - 1).unwrap_or(u32::MAX))
+    }
+
+    /// The instance tree being built.
+    pub(crate) fn instance_mut(&mut self, id: InstanceId) -> Option<&mut UseInstance> {
+        self.instances.get_mut(id.0 as usize)
+    }
+
+    /// Records the instance of `use_node` in `scope`.
+    pub(crate) fn set_use_instance(
+        &mut self,
+        scope: Option<InstanceId>,
+        use_node: NodeId,
+        id: InstanceId,
+    ) {
+        match scope {
+            None => {
+                self.root_uses.insert(use_node, id);
+            }
+            Some(s) => {
+                if let Some(instance) = self.instance_mut(s) {
+                    instance.uses.insert(use_node, id);
+                }
+            }
+        }
+    }
+
     /// Creates an empty map with room for `node_count` nodes.
     pub(crate) fn with_capacity(node_count: usize) -> Self {
         StyleMap {
             elements: vec![None; node_count],
             pseudos: HashMap::new(),
             ordinals: HashMap::new(),
+            instances: Vec::new(),
+            root_uses: HashMap::new(),
         }
     }
 
@@ -131,6 +214,15 @@ impl StyleMap {
                 .iter()
                 .all(|(key, a)| other.pseudos.get(key).is_some_and(|b| same(a, b)))
             && self.ordinals == other.ordinals
+            && self.root_uses == other.root_uses
+            && self.instances.len() == other.instances.len()
+            && self.instances.iter().zip(&other.instances).all(|(a, b)| {
+                a.uses == b.uses
+                    && a.styles.len() == b.styles.len()
+                    && a.styles
+                        .iter()
+                        .all(|(k, x)| b.styles.get(k).is_some_and(|y| same(x, y)))
+            })
     }
 
     /// Stores the style of a pseudo-element.

@@ -1086,7 +1086,7 @@ mod tests {
         );
         assert_eq!(s.cursor, Cursor::Pointer);
         assert_eq!(s.user_select, UserSelect::None);
-        assert_eq!(s.pointer_events, PointerEvents::Auto);
+        assert_eq!(s.pointer_events, PointerEvents::VisiblePainted);
         assert!(!valid("cursor", "url(a.cur)"));
         assert_eq!(
             style("-webkit-user-select: text").user_select,

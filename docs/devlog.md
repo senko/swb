@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 feature 6, inline SVG part 2
+
+- `clip-path: url(#id)` on `g`, `a`, `use` and shapes, as a property or
+  a presentation attribute. `clipPath` supports `clipPathUnits`, its own
+  `transform`, `clip-rule`, shapes and `use` children, and `clip-path`
+  on the clip path (intersection); cycles are cut. As in Chromium, the
+  id is looked up in the whole document, and an invalid reference leaves
+  the element unclipped. A clip that is one axis-aligned rectangle
+  becomes a clip rectangle; it is dropped when it covers the content box
+  (all Ars icons). Other clips are a layer multiplied by the coverage of
+  the clip shapes (new display item `PushSvgClip`).
+- `use` draws a copy of the referenced element whose styles inherit from
+  the `use`. The style crate computes these instance trees
+  (`style/src/cascade/use_instances.rs`): at most 20,000 elements and
+  16 levels per document, no copy for a cycle.
+- Box dump: `g`, `a`, `use` and the shapes get their fill bounding boxes
+  in page coordinates, as Chromium reports them; `defs`, `clipPath`,
+  `title` and elements with `display: none` get none. New layout test
+  `tests/layout/inline-svg-boxes.html`.
+- Hit testing: a shape is hit by its geometry (`pointer-events`). An
+  SVG `a` with `href` is a link with the pointer cursor.
+- `shape-rendering: crispEdges` and `optimizeSpeed` draw without
+  anti-aliasing (BBC icons).
+- Six hostile-page cases (`use` expansion and cycles, clip chains,
+  layers and shapes).
+- Scores: Ars geometry 0.7978 → 0.9963, no missing boxes; BBC 0.8053 →
+  0.8786; pixels unchanged. The 229 boxes still missing on BBC are the
+  content of closed `details` (M5).
+- Review fixes: the `use` expansion walked `display: none` subtrees
+  without counting them (10.4 s → 0.15 s on a test page); clip shapes
+  with their own `clip-path` ran full-layer passes that the work budget
+  did not count (19.9 s → 0.58 s). A `use` inside a `clipPath` now
+  keeps the `clip-path` of its target, and the clipped-out part of a
+  shape no longer takes clicks. Two new hostile-page cases.
+
 ## 2026-10-08: M4 feature 5, inline SVG part 1
 
 - swb draws inline `<svg>` with its own code (ADR 0023). resvg stays

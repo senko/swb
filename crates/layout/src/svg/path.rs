@@ -65,6 +65,83 @@ impl SvgPath {
         self.bounds
     }
 
+    /// The bounding box of the path's geometry, as `getBBox()` reports it
+    /// (SVG 2 §8.11, the fill bounding box): curves contribute their
+    /// extrema, not their control points, and a move that no segment
+    /// follows contributes nothing (measured in Chromium 148: `M 10 10 L
+    /// 50 50 M 80 80` is `10 10 40 40`). `None` for a path without a
+    /// point.
+    pub fn fill_bounds(&self) -> Option<Rect> {
+        let mut bounds = Bounds::default();
+        let mut pending: Option<Point> = None;
+        let mut current = Point::default();
+        let mut start = Point::default();
+        for segment in &self.segments {
+            if let PathSegment::MoveTo(p) = *segment {
+                pending = Some(p);
+                current = p;
+                start = p;
+                continue;
+            }
+            if let Some(p) = pending.take() {
+                bounds.add(p);
+            }
+            match *segment {
+                PathSegment::LineTo(p) => bounds.add(p),
+                PathSegment::QuadTo(c, p) => {
+                    bounds.add(p);
+                    bounds.quad_extrema(current, c, p);
+                }
+                PathSegment::CubicTo(c1, c2, p) => {
+                    bounds.add(p);
+                    bounds.cubic_extrema(current, c1, c2, p);
+                }
+                PathSegment::Close => bounds.add(start),
+                PathSegment::MoveTo(_) => {}
+            }
+            current = match *segment {
+                PathSegment::LineTo(p)
+                | PathSegment::QuadTo(_, p)
+                | PathSegment::CubicTo(_, _, p) => p,
+                _ => start,
+            };
+        }
+        bounds.rect()
+    }
+
+    /// The rectangle if the path is one axis-aligned rectangle (`M L L L`
+    /// with an optional last `L` back to the start and an optional `Z`),
+    /// as in `M0 0h40v20H0z`.
+    pub fn as_rect(&self) -> Option<Rect> {
+        let mut points = Vec::with_capacity(5);
+        let mut closed = false;
+        for (i, segment) in self.segments.iter().enumerate() {
+            match *segment {
+                PathSegment::MoveTo(p) if i == 0 => points.push(p),
+                PathSegment::LineTo(p) if i > 0 && !closed && points.len() < 5 => points.push(p),
+                PathSegment::Close if i > 0 && !closed => closed = true,
+                _ => return None,
+            }
+        }
+        if points.len() == 5 && points.first() == points.last() {
+            points.pop();
+        }
+        let [p0, p1, p2, p3] = points[..] else {
+            return None;
+        };
+        let near = |a: f32, b: f32| (a - b).abs() <= 1e-4 * (1.0 + a.abs().max(b.abs()));
+        let rectangular =
+            (near(p0.x, p1.x) && near(p1.y, p2.y) && near(p2.x, p3.x) && near(p3.y, p0.y))
+                || (near(p0.y, p1.y) && near(p1.x, p2.x) && near(p2.y, p3.y) && near(p3.x, p0.x));
+        rectangular.then(|| {
+            let x0 = p0.x.min(p1.x).min(p2.x).min(p3.x);
+            let y0 = p0.y.min(p1.y).min(p2.y).min(p3.y);
+            let x1 = p0.x.max(p1.x).max(p2.x).max(p3.x);
+            let y1 = p0.y.max(p1.y).max(p2.y).max(p3.y);
+            Rect::new(x0, y0, x1 - x0, y1 - y0)
+        })
+    }
+
     /// An upper bound of the path's length: the length of its control
     /// polygon.
     pub fn length_bound(&self) -> f32 {
@@ -102,6 +179,93 @@ impl SvgPath {
             }
         }
         length as f32
+    }
+}
+
+/// The box of points, for [`SvgPath::fill_bounds`].
+#[derive(Default)]
+struct Bounds(Option<(f64, f64, f64, f64)>);
+
+impl Bounds {
+    fn add(&mut self, p: Point) {
+        self.add_xy(f64::from(p.x), f64::from(p.y));
+    }
+
+    fn add_xy(&mut self, x: f64, y: f64) {
+        let (x0, y0, x1, y1) = self.0.unwrap_or((x, y, x, y));
+        self.0 = Some((x0.min(x), y0.min(y), x1.max(x), y1.max(y)));
+    }
+
+    /// Adds the points of the quadratic curve `p0 c p` where a coordinate
+    /// has its extremum.
+    #[allow(clippy::many_single_char_names)]
+    fn quad_extrema(&mut self, p0: Point, c: Point, p: Point) {
+        let at = |t: f64, a: f32, b: f32, e: f32| {
+            let (a, b, e) = (f64::from(a), f64::from(b), f64::from(e));
+            (1.0 - t) * (1.0 - t) * a + 2.0 * (1.0 - t) * t * b + t * t * e
+        };
+        for axis in 0..2 {
+            let (a, b, e) = if axis == 0 {
+                (p0.x, c.x, p.x)
+            } else {
+                (p0.y, c.y, p.y)
+            };
+            let denominator = f64::from(a) - 2.0 * f64::from(b) + f64::from(e);
+            if denominator.abs() < 1e-12 {
+                continue;
+            }
+            let t = (f64::from(a) - f64::from(b)) / denominator;
+            if t > 0.0 && t < 1.0 {
+                self.add_xy(at(t, p0.x, c.x, p.x), at(t, p0.y, c.y, p.y));
+            }
+        }
+    }
+
+    /// Adds the points of the cubic curve `p0 c1 c2 p` where a coordinate
+    /// has its extremum (the roots of the derivative, a quadratic).
+    #[allow(clippy::many_single_char_names)]
+    fn cubic_extrema(&mut self, p0: Point, c1: Point, c2: Point, p: Point) {
+        let at = |t: f64, v: [f32; 4]| {
+            let u = 1.0 - t;
+            let v = v.map(f64::from);
+            u * u * u * v[0] + 3.0 * u * u * t * v[1] + 3.0 * u * t * t * v[2] + t * t * t * v[3]
+        };
+        let xs = [p0.x, c1.x, c2.x, p.x];
+        let ys = [p0.y, c1.y, c2.y, p.y];
+        for values in [xs, ys] {
+            let [a, b, c, d] = values.map(f64::from);
+            let (d0, d1, d2) = (b - a, c - b, d - c);
+            let qa = d0 - 2.0 * d1 + d2;
+            let qb = 2.0 * (d1 - d0);
+            let qc = d0;
+            let mut roots = [None, None];
+            if qa.abs() < 1e-12 {
+                if qb.abs() >= 1e-12 {
+                    roots[0] = Some(-qc / qb);
+                }
+            } else {
+                let discriminant = qb * qb - 4.0 * qa * qc;
+                if discriminant >= 0.0 {
+                    let s = discriminant.sqrt();
+                    roots = [Some((-qb + s) / (2.0 * qa)), Some((-qb - s) / (2.0 * qa))];
+                }
+            }
+            for t in roots.into_iter().flatten() {
+                if t > 0.0 && t < 1.0 {
+                    self.add_xy(at(t, xs), at(t, ys));
+                }
+            }
+        }
+    }
+
+    fn rect(&self) -> Option<Rect> {
+        let (x0, y0, x1, y1) = self.0?;
+        Some(Rect::new(
+            x0 as f32,
+            y0 as f32,
+            (x1 - x0) as f32,
+            (y1 - y0) as f32,
+        ))
     }
 }
 
@@ -159,6 +323,19 @@ impl<'a> PathBuilder<'a> {
 
     pub(crate) fn close(&mut self) -> bool {
         self.push(PathSegment::Close)
+    }
+
+    /// The last move, if the path has no segment that draws (only
+    /// moves): the one point of its bounding box.
+    pub(crate) fn lone_point(&self) -> Option<Point> {
+        let mut last = None;
+        for segment in &self.segments {
+            match segment {
+                PathSegment::MoveTo(p) => last = Some(*p),
+                _ => return None,
+            }
+        }
+        last
     }
 
     /// The path, or `None` if it has no segment that draws (only moves).
@@ -567,7 +744,7 @@ pub(crate) fn points_path(
     points: &str,
     close: bool,
     budget: &mut usize,
-) -> (Option<Arc<SvgPath>>, bool) {
+) -> (Option<Arc<SvgPath>>, Option<Point>, bool) {
     let mut b = PathBuilder::new(budget);
     let mut first = true;
     for (x, y) in PointsParser::from(points) {
@@ -582,7 +759,8 @@ pub(crate) fn points_path(
         b.close();
     }
     let exhausted = b.exhausted;
-    (b.finish().map(Arc::new), exhausted)
+    let point = b.lone_point();
+    (b.finish().map(Arc::new), point, exhausted)
 }
 
 #[cfg(test)]
@@ -705,7 +883,7 @@ mod tests {
         assert_eq!(r.segments().len(), 5);
         let e = ellipse_path(10.0, 10.0, 5.0, 2.0, &mut budget).expect("a path");
         assert_eq!(e.bounds(), Rect::new(5.0, 8.0, 10.0, 4.0));
-        let (poly, _) = points_path("0,0 10,0 10", true, &mut budget);
+        let (poly, _, _) = points_path("0,0 10,0 10", true, &mut budget);
         assert_eq!(
             poly.map(|p| p.segments().to_vec()),
             Some(vec![
@@ -715,5 +893,75 @@ mod tests {
             ])
         );
         assert!((r.length_bound() - 60.0).abs() < 1e-4);
+    }
+
+    fn parsed(d: &str) -> (Option<SvgPath>, Option<Point>) {
+        let mut budget = 1000;
+        let mut b = PathBuilder::new(&mut budget);
+        parse_path_data(d, &mut b);
+        let point = b.lone_point();
+        (b.finish(), point)
+    }
+
+    fn fill_bounds(d: &str) -> Option<Rect> {
+        parsed(d).0.and_then(|p| p.fill_bounds())
+    }
+
+    #[test]
+    fn fill_bounds_use_the_extrema_of_curves() {
+        // Measured in Chromium 148: `M100 100 C 100 50 150 50 150 100` has
+        // the top at 62.5 (not at the control points, 50), a quadratic
+        // `M200 100 Q 225 40 250 100` at 70, and a half circle as an arc.
+        assert_eq!(
+            fill_bounds("M100 100 C 100 50 150 50 150 100"),
+            Some(Rect::new(100.0, 62.5, 50.0, 37.5))
+        );
+        assert_eq!(
+            fill_bounds("M200 100 Q 225 40 250 100"),
+            Some(Rect::new(200.0, 70.0, 50.0, 30.0))
+        );
+        let arc = fill_bounds("M10 200 A 30 30 0 0 1 70 200").expect("bounds");
+        assert!(
+            (arc.y - 170.0).abs() < 0.01 && (arc.width - 60.0).abs() < 0.01,
+            "{arc:?}"
+        );
+    }
+
+    #[test]
+    fn fill_bounds_skip_moves_that_nothing_follows() {
+        // `M 10 10 L 50 50 M 80 80` is 10 10 40 40; two moves in a row
+        // count once (the second); a move and a close count.
+        assert_eq!(
+            fill_bounds("M 10 10 L 50 50 M 80 80"),
+            Some(Rect::new(10.0, 10.0, 40.0, 40.0))
+        );
+        assert_eq!(
+            fill_bounds("M 0 0 M 10 10 L 20 20"),
+            Some(Rect::new(10.0, 10.0, 10.0, 10.0))
+        );
+        assert_eq!(
+            fill_bounds("M 10 10 z"),
+            Some(Rect::new(10.0, 10.0, 0.0, 0.0))
+        );
+        // A path that only moves has no segment that draws and one point.
+        let (path, point) = parsed("M 10 10 M 50 50");
+        assert!(path.is_none());
+        assert_eq!(point, Some(p(50.0, 50.0)));
+        assert_eq!(parsed("x"), (None, None));
+    }
+
+    #[test]
+    fn rectangles_are_found_in_path_data() {
+        let rect = |d: &str| parsed(d).0.and_then(|p| p.as_rect());
+        let expected = Some(Rect::new(0.0, 0.0, 436.0, 144.1));
+        assert_eq!(rect("M0 0h436v144.1H0z"), expected);
+        assert_eq!(rect("M0 0L436 0L436 144.1L0 144.1L0 0z"), expected);
+        assert_eq!(rect("M0 0V144.1H436V0Z"), expected);
+        // Not a rectangle: a triangle, a curve, two subpaths, extra points.
+        assert_eq!(rect("M0 0L10 0L5 10z"), None);
+        assert_eq!(rect("M0 0h10v10h-10v-10h5z"), None);
+        assert_eq!(rect("M0 0h10v10h-10zM20 20h5v5h-5z"), None);
+        assert_eq!(rect("M0 0h10v10C0 10 0 5 0 0z"), None);
+        assert_eq!(rect("M0 0L10 10L20 0L10 -10z"), None);
     }
 }

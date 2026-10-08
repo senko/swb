@@ -208,18 +208,35 @@ impl FragmentTree {
         scroll: Point,
     ) -> std::collections::HashMap<NodeId, Rect> {
         let mut boxes: std::collections::HashMap<NodeId, Rect> = std::collections::HashMap::new();
-        self.walk_painted(offsets, scroll, |f, rect, matrix| {
+        self.walk_painted(offsets, scroll, |f, layout_rect, matrix| {
             if let FragmentRef::Box(b) = f
                 && let Some(node) = b.node
                 && b.pseudo.is_none()
             {
-                let r = matrix.map_rect(&rect);
+                let r = matrix.map_rect(&layout_rect);
                 let clamp = crate::geom::clamp_length;
                 let rect = Rect::new(clamp(r.x), clamp(r.y), clamp(r.width), clamp(r.height));
                 boxes
                     .entry(node)
                     .and_modify(|r| *r = r.union(&rect))
                     .or_insert(rect);
+                if let BoxContent::Svg(svg) = &b.content {
+                    // The elements inside an `<svg>` have boxes of their
+                    // own (their bounding boxes); the `<svg>` is placed
+                    // like any box.
+                    let content = b
+                        .content_rect()
+                        .translate(layout_rect.origin() - b.border_rect.origin());
+                    let size = crate::geom::Size::new(content.width, content.height);
+                    for (node, inner) in svg.element_boxes(size) {
+                        let r = matrix.map_rect(&inner.translate(content.origin()));
+                        let clamp = crate::geom::clamp_length;
+                        boxes.insert(
+                            node,
+                            Rect::new(clamp(r.x), clamp(r.y), clamp(r.width), clamp(r.height)),
+                        );
+                    }
+                }
             }
         });
         boxes

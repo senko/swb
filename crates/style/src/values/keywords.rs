@@ -580,10 +580,33 @@ keyword_enum! {
 }
 
 keyword_enum! {
-    /// The `pointer-events` property (HTML-relevant values).
+    /// The `pointer-events` property. The values other than `auto` and
+    /// `none` are for SVG shapes (SVG 2 §16.4); on HTML content they
+    /// behave as `auto` (swb does not use the property for HTML yet).
     PointerEvents {
         Auto = "auto",
         None = "none",
+        VisiblePainted = "visiblepainted",
+        VisibleFill = "visiblefill",
+        VisibleStroke = "visiblestroke",
+        Visible = "visible",
+        Painted = "painted",
+        Fill = "fill",
+        Stroke = "stroke",
+        All = "all",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// The `shape-rendering` property (SVG 2 §13.4.1). `optimizeSpeed`
+    /// and `crispEdges` draw without anti-aliasing (measured in
+    /// Chromium 148); `auto` and `geometricPrecision` are anti-aliased.
+    ShapeRendering {
+        Auto = "auto",
+        OptimizeSpeed = "optimizespeed",
+        CrispEdges = "crispedges",
+        GeometricPrecision = "geometricprecision",
     }
     default Auto
 }

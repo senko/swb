@@ -128,6 +128,10 @@ ruby > rt { font-size: 50%; text-align: start; }
 a:any-link { color: LinkText; text-decoration: underline; cursor: pointer; }
 a:any-link:active { color: ActiveText; }
 area:any-link { cursor: pointer; }
+/* An SVG `a` with `href` is a link, but has only the cursor (measured:
+   the color and the text decoration stay as inherited). */
+svg a:any-link { color: inherit; text-decoration: none; }
+svg a:any-link:active { color: inherit; }
 
 :focus-visible { outline: auto 1px -webkit-focus-ring-color; }
 a:any-link:focus-visible { outline-offset: 1px; }

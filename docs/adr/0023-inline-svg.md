@@ -32,9 +32,9 @@ dependency, ADR 0011) parses path data, transforms, `viewBox`,
 `preserveAspectRatio`, lengths and point lists; tiny-skia rasterizes.
 No code comes from resvg, usvg or a browser engine.
 
-Part 1 (M4 item 5) is described here. Part 2 (M4 item 6) adds
-`clipPath`, `use`, the box dump of SVG descendants and hit testing of
-shapes.
+Part 1 (M4 item 5) is described first, then part 2 (M4 item 6:
+`clipPath`, `defs` and `use`, the box dump of SVG descendants, hit
+testing of shapes, `shape-rendering`) in its own section after "Limits".
 
 ### Where the pieces live
 
@@ -44,8 +44,8 @@ shapes.
 | `layout` | `layout/src/svg/`: the natural size of the outer `<svg>`, `viewBox` and `preserveAspectRatio` (`viewport.rs`); paths in user units, path data and the basic shapes (`path.rs`); the content of an `<svg>`, built with the box tree (`mod.rs`); its drawing commands for a content box (`draw.rs`). |
 | `paint`  | `inline_svg.rs` turns the commands into display items (`FillPath`, `StrokePath`, opacity groups); `raster/path.rs` rasterizes them with tiny-skia within a work budget. |
 
-Layout keeps the geometry so that part 2 can report the bounding boxes
-of shapes in the box dump from the same data.
+Layout keeps the geometry, so the box dump reports the bounding boxes of
+shapes from the same data (part 2).
 
 ### The outer `<svg>` element
 
@@ -87,9 +87,8 @@ Drawn: `g` and `a` (groups), `path`, `rect`, `circle`, `ellipse`,
 `line`, `polyline`, `polygon`. Everything else draws nothing with its
 subtree: `defs`, `clipPath`, `title`, `desc`, `metadata`,
 `symbol`, gradients, nested `svg`, `use`, `text`, `image`,
-`foreignObject`, unknown elements. `clip-path="url(#id)"` is ignored
-(the Ars icons clip to their own `viewBox`, so they draw correctly
-without it).
+`foreignObject`, unknown elements. (Part 2 draws `use` and applies
+`clip-path`.)
 
 `<style>` elements in the SVG namespace do not draw, but they are
 document style sheets, like HTML `<style>` (measured, probe case
@@ -147,7 +146,7 @@ paint's alpha (the same result without a layer). `visibility` is checked per sha
 visible shape in a hidden `<svg>` draws (measured). Strokes use the
 transform too (a non-uniform scale gives an elliptical pen), dashes
 repeat an odd list twice, and an all-zero list draws a solid stroke.
-Paths are anti-aliased; `shape-rendering` is not supported.
+Paths are anti-aliased (`shape-rendering`: part 2).
 
 The display list items `FillPath` and `StrokePath` carry an
 `Arc<SvgPath>` (user units), a matrix to the list's coordinates, the
@@ -194,21 +193,220 @@ Content from the network must not cause unbounded work or memory:
 
 The hostile-page set has a case for each limit (`inline-svg-*`).
 
+## Part 2
+
+All measurements are from Chromium 148, in `tools/probes/inline-svg.json`
+(cases `box-*`, `clip-*`, `hit-*`, `shape-rendering`, `svg-link-*`), and
+compared with swb by `just probe tools/probes/inline-svg.json
+--with-swb`. The boxes of the elements also have a layout test
+(`tests/layout/inline-svg-boxes.html`).
+
+### Where the pieces live (part 2)
+
+| Crate    | Part |
+|----------|------|
+| `dom`    | `ElementData::svg_href` (`href`, else `xlink:href`); `Document::element_ids` (an `id` index for many lookups). |
+| `style`  | The properties `clip-path` (`none` or one `url()`; `values/svg.rs`), `clip-rule`, `shape-rendering` and the SVG values of `pointer-events`, with their presentation attributes; the instance trees of `use` elements (`cascade/use_instances.rs`, `StyleMap::use_instance`); an SVG `a` with `href` matches `:any-link`. |
+| `layout` | `svg/clip.rs`: clip path references and their regions; `svg/mod.rs`: `use` as groups around a copy; `svg/draw.rs`: one pass over the nodes gives the matrices, bounding boxes, drawing commands (`SvgContent::draw`) and the box dump (`SvgContent::element_boxes`, used by `FragmentTree::element_boxes_scrolled`). |
+| `paint`  | `inline_svg.rs` maps clip regions to a clip rectangle or an SVG clip group (`PushSvgClip`), and hit areas to `HitShape` items; `raster/svg_clip.rs` makes the coverage of a clip group; `hit_path.rs` tests a point against a path; `raster/path.rs` draws without anti-aliasing. |
+
+### `clipPath`
+
+`clip-path` is a property of all elements and a presentation attribute of
+SVG elements; swb uses it on `g`, `a`, `use` and shapes. The computed value
+is `none` or one `url()` (a list of two is invalid, as in Chromium; the
+basic shapes of CSS Masking 1 are not supported, so such a declaration is
+invalid and the one before it applies). Measured:
+
+- The reference is looked up in the whole document, also in another
+  `<svg>`; the first element with the `id` wins. A missing element, an
+  element that is not a `clipPath`, a `clipPath` with `display: none` or
+  inside a `display: none` subtree (no style in swb, no layout object in
+  Chromium), `url(x)` without `#`, and a value without `url()` leave the
+  element unclipped.
+- The clip's user space is the clipped element's, with its own
+  `transform`. `clipPathUnits="objectBoundingBox"` maps the unit square to
+  the element's fill bounding box (a group's: the union of its children's);
+  an empty box (zero width or height) clips everything. The `transform` of
+  the `clipPath` applies outside the bounding box mapping (`translate(0.5
+  0.5)` moves the clip by half a user unit, not by half the box).
+- The clip is the union of the fill geometry of the `path`, `rect`,
+  `circle`, `ellipse`, `line`, `polyline` and `polygon` children, and of
+  `use` children that refer to one of these directly (the `clip-path` of
+  the `use` and the `clip-path` of the shape it refers to both apply, probe
+  case `r-useclip`). `g`, `text` and the
+  others are ignored; children with `display: none` or a `visibility`
+  other than `visible` are skipped; `fill`, `stroke` and `opacity` do not
+  matter. The fill rule is `clip-rule` (inherited from the `clipPath`'s own
+  ancestors, not from the clipped element); `fill-rule` does not matter. A
+  clip path without shapes clips everything.
+- `clip-path` on a `clipPath` and on a child of it intersect. A reference
+  cycle is cut where it closes (the shapes of the clip path that closes it
+  still count). The result of a cut depends on the order of the first
+  references: layout builds each `clipPath` once and caches it, so a
+  `clipPath` in which a cycle was cut keeps the cut version for later
+  direct references. Chromium's result for such cycles is not measured; the
+  order dependence is accepted, because uncached results would be built
+  again at every reference. The edge between pixels is anti-aliased.
+
+Layout resolves a reference when it builds the content (once per
+`clipPath`, cached for the document) and the geometry when it makes the
+commands (`ClipRegion`). A clip that is one axis-aligned rectangle, at most
+scaled and translated (the usual icon: `<clipPath><path d="M0 0h40v40H0z"/>
+</clipPath>`), is a clip rectangle. Paint drops a clip rectangle that
+contains the content box when the `<svg>` clips its overflow (all Ars
+icons) and otherwise emits a plain clip, which the rasterizer snaps to
+device pixels. This deviates from Chromium, which anti-aliases the edge: a
+clip rectangle with edges inside a pixel differs by up to one pixel row or
+column (probe case `clip-frac`: 100 ink against 109 for a 10.4 px square).
+
+Any other clip is an SVG clip group (`PushSvgClip`): paint draws the group
+into a layer and the rasterizer multiplies it by the coverage of the shapes
+(anti-aliased; the union of the shapes, each multiplied by the coverage of
+its own clip, the whole multiplied by the coverage of the `clipPath`'s own
+clip). The temporary coverage layers count against the layer pixel budget.
+Every pass over pixels counts against the path work budget (`BLEND` per
+pixel, as for a blended fill): the fills, the coverage of each clip path
+and each clip rectangle, and the product with a shape's own clip. A shape
+with its own `clip-path` works on the part of the layer that its bounds
+cover, and adds nothing if they miss the layer. A clip that does not fit
+hides its group.
+
+### `defs` and `use`
+
+The content of `defs` and `clipPath` is not drawn and has no box (the
+builder does not enter them); other elements can refer to it. A `use`
+with a local reference (`href` or `xlink:href` with `#id`) draws a copy of
+the referenced element, translated by the `use`'s `x` and `y`. The copy's
+rules come from the original element (selectors match it in its place);
+only inheritance goes through the `use`. The style crate computes the
+referenced subtree again with the style of the `use` as the parent
+(`StyleMap::use_instance`, `style_in`), once for each `use` and again for a
+`use` inside such a copy. The `use` elements inside a copy are collected
+while the copy is styled, so only styled elements count: a `display: none`
+subtree of the target costs nothing (hostile case
+`inline-svg-use-hidden-subtree`). Layout builds two groups for a `use` (the
+element, with its `transform`, `opacity` and `clip-path`, and the
+translation) and the copy inside. Targets: `g`, `a`, the shapes and `use`;
+`symbol` and nested `svg` draw nothing yet (backlog).
+
+Limits: the instance trees of one document hold at most 20,000 elements
+(`MAX_INSTANCE_ELEMENTS`; a `use` of a group of `use` elements grows
+exponentially) and nest at most 16 deep (`MAX_USE_DEPTH`). A reference to
+the `use` itself, to an ancestor, or to an element that an enclosing copy
+already copies is a cycle and has no copy. A `use` without a copy (a bad
+reference, a cycle, a limit) draws nothing; its box is at its `x`, `y`. A
+`use` takes both of its groups from the budget or none.
+
+### The box dump
+
+Chromium reports a box for `g`, `a`, `use` and the shapes, and none for
+`defs`, `clipPath`, `title`, `desc`, `style`, gradients, `mask`, `marker`,
+`pattern`, unknown elements and what is below them, nor for anything with
+`display: none`. The box is the **fill bounding box** under the element's
+full matrix: no stroke, no clip (a clipped element has its unclipped box),
+no `visibility` (hidden elements have a box); the `<svg>`'s own clip does not
+limit it. Curves count by their extrema, not by their control points. A
+group's box is its matrix applied to the union of its children's boxes in
+the group's space (a rotated group is the bounding box of the rotated
+union, not the union of the rotated boxes). Details:
+
+- A shape that draws nothing keeps a box: a `rect` with a zero or negative
+  size keeps its position and has size 0; a path without data, a `circle`
+  with a zero or negative `r` and a `polyline` without points have an empty
+  box at the origin (a path of one point: at that point).
+- Degenerate shapes do not widen the group: a `rect`, `circle` or
+  `ellipse` of size zero, a path without data, an empty group and a `use`
+  without content do not. A path of one point (`M 80 80`, also from a
+  `polygon`) and a `line` (also of length zero) do. In path data a move
+  that nothing follows adds nothing (`M 10 10 L 50 50 M 80 80` is
+  `10 10 40 40`), and two moves in a row count as the last one.
+- An empty group has an empty box at the origin of its user space, with its
+  `transform`; a `use` without content at its `x`, `y`.
+- A `use` has the box of the copy (translated, with its `transform`). The
+  elements in the copy have no box (they are not in the document) and the
+  referenced element in `defs` has none.
+- The box passes through the CSS transforms, scroll offsets and sticky
+  offsets of the ancestors, like the box of the `<svg>`.
+
+`SvgContent::element_boxes` computes the boxes with the same pass as the
+drawing commands. Chromium also reports boxes for `text`, nested `svg`,
+`symbol` (and a `use` of it), `foreignObject`, `image` and `switch`; swb
+reports none (backlog).
+
+### Hit testing
+
+Chromium hit-tests the geometry of shapes: `elementFromPoint` returns the
+shape for a point in its fill and the `<svg>` for the rest of its box. With
+the default `pointer-events` (`visiblePainted`) the fill takes part if
+`fill` is not `none` and the shape is visible (`fill: transparent` and
+`opacity: 0` count as painted; `visibility: hidden` and `pointer-events:
+none` are not hit), and the stroke if `stroke` is not `none`. swb emits a
+`HitShape` display item for each shape element (not for the shapes in a
+`use` copy) with the fill rule and the stroke width. `DisplayList::hit_test`
+finds the topmost one that contains the point: the fill by the winding or
+even-odd rule on the flattened path, the stroke within half its width of the
+flattened path (round caps and joins stand in for the real ones). All values
+of `pointer-events` work for shapes. `clip-path` does not limit the hit
+area. A point outside the clip path of a shape does not hit it (probe case
+`r-hitclip`): `DisplayList::hit_test` tests the point against the outline
+of the clip shapes (`hit_path::clip_contains`: the flattened paths with
+their fill rule, the shapes' own clips and the `outer` clip), not against
+the anti-aliased coverage that painting uses.
+
+An SVG `a` with `href` or `xlink:href` is a link (`:any-link`, the engine's
+`link_target`): the shapes inside follow it and the cursor is the pointer.
+Chromium does not colour SVG links, so the user-agent rule `svg
+a:any-link` keeps the colour and the text decoration as inherited. A link
+around the `<svg>` works as before.
+
+### `shape-rendering`
+
+Inherited. `optimizeSpeed` and `crispEdges` draw without anti-aliasing;
+`auto`, `geometricPrecision` and an invalid value draw with it (measured by
+ink: a circle of radius 15.3 covers 732 pixels with the first two, which is
+the number of pixel centers inside it). For fills, a pixel is in if its
+center is inside the outline. tiny-skia's mode without anti-aliasing cuts
+curves coarsely and loses edge pixels (716 instead of 732), so swb cuts the
+curves into lines of about a pixel before it fills. Strokes use tiny-skia
+as it is (the probe case matches).
+
+### Limits (part 2)
+
+- Per document: 50,000 groups (`MAX_GROUPS`); 256 clip groups that need a
+  layer (`MAX_CLIP_LAYERS`; clips that are rectangles, usually all of
+  them, need none; past the limit the element is not clipped, with a
+  warning); `clip-path` references 8 deep (`MAX_CLIP_DEPTH`; a cycle is
+  cut); the elements of the instance trees (above).
+- Per `<svg>` and drawing pass: 20,000 clip shapes (`MAX_CLIP_SHAPES`; one
+  clip path of 10,000 shapes used by 10,000 elements would make 100 million
+  shapes); past the limit the elements are not clipped, with a warning
+  (once per `<svg>` and drawing pass).
+- Rasterization: the coverage layers of clip groups count against the layer
+  pixel budget, their fills and passes over pixels against the path work
+  budget.
+
+Hostile-page cases: `inline-svg-use-bomb`, `-many-uses`, `-use-cycles`,
+`-use-hidden-subtree`, `-clip-chain`, `-clip-layers`, `-clip-shapes`,
+`-clip-nested-shapes`.
+
 ## Consequences
 
-- Ars Technica and BBC show their logos and icons: Ars geometry 0.7740
-  → 0.7978 and pixels 0.9898 → 0.9952; BBC geometry 0.7775 → 0.8053 and
-  pixels 0.9942 → 0.9985. The `missing` counts grow (Ars 0 → 217, BBC
-  229 → 431): Chromium reports boxes for `g` and shapes, swb does not
-  until part 2.
-- Known gaps, for part 2 and the backlog: the box dump of SVG
-  descendants (Chromium reports the bounding box of shapes and groups;
-  none for `defs`, `clipPath` and their content, and `title`),
-  `clipPath`, `use`, nested `svg`, `symbol`, gradients and patterns
-  (`url()` paints), `text`, `image`, markers, the geometry properties in
-  CSS (`r: 40px` overrides `r` in Chromium), `vector-effect`,
-  `shape-rendering`, `paint-order`, hit testing of shapes (the `<svg>`
-  box is hit as a whole).
+- Ars Technica and BBC show their logos and icons. Part 1: Ars geometry
+  0.7740 → 0.7978 and pixels 0.9898 → 0.9952; BBC geometry 0.7775 → 0.8053
+  and pixels 0.9942 → 0.9985; the `missing` counts grew (Ars 0 → 217, BBC
+  229 → 431), because Chromium reports boxes for `g` and shapes. Part 2:
+  Ars geometry 0.9963 (`missing` 0; the 4 elements left are divs) and BBC
+  0.8786 (`missing` 229 again: the closed `details` of the menu, M5);
+  pixels are unchanged, except for the 120 `crispEdges` icons of BBC.
+- Known gaps, for the backlog: `text`, `image`, `foreignObject`, `switch`,
+  nested `svg` and `symbol` (also as a `use` target), gradients and
+  patterns (`url()` paints), markers, `mask` elements, the geometry
+  properties in CSS (`r: 40px` overrides `r` in Chromium), `vector-effect`,
+  `paint-order`, the basic shapes of `clip-path` on SVG elements (Chromium
+  clips to `circle(30px at 50px 50px)`; probe case `clip-refs`) and
+  `clip-path: url(#id)` on HTML elements (case `clip-other-svg`), the
+  anti-aliased edge of clip rectangles, keyboard focus of SVG links.
 - The rasterizer's anti-aliasing differs from Chromium's in small
   amounts (thin curved shapes: up to about 7 % of the ink in a probe).
 - swb now parses SVG twice: usvg for SVG images, swb's own code for

@@ -66,9 +66,25 @@ pub(crate) fn finish_groups(items: &mut [DisplayItem]) {
         match item {
             DisplayItem::PushTransform { .. }
             | DisplayItem::PushOpacity { .. }
-            | DisplayItem::PushMask { .. } => stack.push((i, Areas::default())),
-            DisplayItem::PopTransform | DisplayItem::PopOpacity | DisplayItem::PopMask => {
+            | DisplayItem::PushMask { .. }
+            | DisplayItem::PushSvgClip { .. } => stack.push((i, Areas::default())),
+            DisplayItem::PopTransform
+            | DisplayItem::PopOpacity
+            | DisplayItem::PopMask
+            | DisplayItem::PopSvgClip => {
                 end_group(items, &mut stack, &mut sticky);
+            }
+            DisplayItem::HitShape {
+                path,
+                transform,
+                stroke_width,
+                ..
+            } => {
+                if let Some((_, top)) = stack.last_mut() {
+                    let grow = stroke_width.unwrap_or(0.0);
+                    let rect = crate::display_list::path_bounds(path, transform, grow);
+                    top.hit = union_areas(top.hit, Some(rect));
+                }
             }
             DisplayItem::PushViewportClip => {
                 if let Some((_, top)) = stack.last_mut() {
@@ -175,6 +191,17 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
             *fixed_bounds = areas.fixed_paint;
             *escapes_clips = areas.escapes;
             areas
+        }
+        // The clip path hides everything outside its extent (SVG content
+        // has no content fixed to the viewport).
+        DisplayItem::PushSvgClip { bounds, .. } => {
+            let extent = *bounds;
+            let shown = areas.paint.and_then(|p| p.intersection(&extent));
+            *bounds = shown.unwrap_or_default();
+            Areas {
+                paint: shown,
+                ..areas
+            }
         }
         // The mask hides everything outside the extent of its layers, also
         // content fixed to the viewport (and the enclosing clips clip it):

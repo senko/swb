@@ -324,6 +324,28 @@ mod tests {
     }
 
     #[test]
+    fn svg_hrefs_and_the_id_index() {
+        let doc = parse_html(
+            "<svg><use id=a href='#x' xlink:href='#y'/><use id=b xlink:href='#y'/><use id=c /></svg>\
+             <p id=x></p><p id=x></p>",
+        );
+        let href = |id: &str| {
+            doc.element(doc.element_by_id(id).unwrap())
+                .unwrap()
+                .svg_href()
+                .map(str::to_owned)
+        };
+        // `href` wins over `xlink:href`.
+        assert_eq!(href("a").as_deref(), Some("#x"));
+        assert_eq!(href("b").as_deref(), Some("#y"));
+        assert_eq!(href("c"), None);
+        // The index has the first element with each id.
+        let ids = doc.element_ids();
+        assert_eq!(ids.get("x"), doc.element_by_id("x").as_ref());
+        assert_eq!(ids.len(), 4);
+    }
+
+    #[test]
     fn attributes_are_kept() {
         let doc = parse_html("<!DOCTYPE html><a href='/x' class='c d'>link</a>");
         let a = doc

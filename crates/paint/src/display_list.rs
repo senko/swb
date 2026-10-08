@@ -58,7 +58,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
-use swb_layout::svg::{StrokeStyle, SvgPath};
+use swb_layout::svg::{ClipPath, StrokeStyle, SvgPath};
 use swb_layout::{
     Ancestry, BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, GroupTransform,
     Matrix, NaturalSize, NoScroll, Point, PositionedGlyph, Rect, ScrollOffsets, ScrollState,
@@ -181,6 +181,22 @@ pub enum DisplayItem {
     },
     /// End the most recent mask group.
     PopMask,
+    /// Start a group that is clipped to the SVG clip path `clip` (ADR
+    /// 0023): its pixels are multiplied by the coverage of the clip path
+    /// when it ends. A clip that is one axis-aligned rectangle is a plain
+    /// [`DisplayItem::PushClip`] instead.
+    PushSvgClip {
+        /// The clip path, in the coordinates of the SVG content box.
+        clip: Arc<ClipPath>,
+        /// From the clip path's coordinates to the list's coordinates (the
+        /// translation to the content box).
+        transform: Matrix,
+        /// An area that contains everything the group shows: its content
+        /// inside the extent of the clip path.
+        bounds: Rect,
+    },
+    /// End the most recent SVG clip group.
+    PopSvgClip,
     /// Start a group whose items are drawn with a transform, up to the
     /// matching [`DisplayItem::PopTransform`].
     PushTransform {
@@ -227,6 +243,8 @@ pub enum DisplayItem {
         color: Rgba,
         /// The fill rule.
         rule: FillRule,
+        /// False to draw without anti-aliasing (`shape-rendering`).
+        anti_alias: bool,
     },
     /// Stroke a path of inline SVG content (anti-aliased).
     StrokePath {
@@ -239,6 +257,22 @@ pub enum DisplayItem {
         color: Rgba,
         /// The stroke, in the path's coordinates.
         stroke: Arc<StrokeStyle>,
+        /// False to draw without anti-aliasing (`shape-rendering`).
+        anti_alias: bool,
+    },
+    /// The geometry of an SVG shape that hit testing finds. Not drawn.
+    HitShape {
+        /// The shape element.
+        node: NodeId,
+        /// The path.
+        path: Arc<SvgPath>,
+        /// From the path's coordinates to the list's coordinates.
+        transform: Matrix,
+        /// The fill rule if the fill takes part.
+        fill: Option<FillRule>,
+        /// The stroke width in the path's coordinates if the stroke takes
+        /// part.
+        stroke_width: Option<f32>,
     },
     /// An area that hit testing finds. Not drawn.
     HitRegion {
@@ -283,8 +317,11 @@ impl DisplayItem {
             | DisplayItem::PopOpacity
             | DisplayItem::PushMask { .. }
             | DisplayItem::PopMask
+            | DisplayItem::PushSvgClip { .. }
+            | DisplayItem::PopSvgClip
             | DisplayItem::PushTransform { .. }
             | DisplayItem::PopTransform
+            | DisplayItem::HitShape { .. }
             | DisplayItem::HitRegion { .. } => None,
         }
     }
@@ -434,7 +471,7 @@ impl DisplayList {
     /// The node of the topmost hit region at `point` (document coordinates,
     /// CSS px) that is not clipped away, at the viewport scroll offset
     /// `scroll` (fixed and sticky boxes move with it). Regions that are
-    /// painted later are on top. Masks do not matter, as in Chromium. A
+    /// painted later are on top. Masks do not matter, as in Chromium. An SVG clip path hides what lies outside the outline of its shapes. A
     /// region in a transform group is hit in the group's coordinates; a
     /// group whose transform cannot be inverted is not hit. Groups whose
     /// bounds do not contain the point are skipped, so the list must have
@@ -459,8 +496,19 @@ impl DisplayList {
                     let visible = clips.last().is_none_or(|&c| c) && inside(rect, local);
                     clips.push(visible);
                 }
+                DisplayItem::PushSvgClip {
+                    clip,
+                    transform,
+                    bounds,
+                } => {
+                    let in_clip = inside(bounds, local)
+                        && local.zip(transform.invert()).is_some_and(|(p, inverse)| {
+                            crate::hit_path::clip_contains(clip, inverse.apply(p))
+                        });
+                    clips.push(clips.last().is_none_or(|&c| c) && in_clip);
+                }
                 DisplayItem::PushViewportClip => clips.push(true),
-                DisplayItem::PopClip => {
+                DisplayItem::PopClip | DisplayItem::PopSvgClip => {
                     clips.pop();
                 }
                 DisplayItem::PushTransform {
@@ -492,6 +540,19 @@ impl DisplayList {
                 }
                 DisplayItem::HitRegion { rect, node }
                     if clips.last().is_none_or(|&c| c) && inside(rect, local) =>
+                {
+                    hit = Some(*node);
+                }
+                DisplayItem::HitShape {
+                    node,
+                    path,
+                    transform,
+                    fill,
+                    stroke_width,
+                } if clips.last().is_none_or(|&c| c)
+                    && local.is_some_and(|p| {
+                        crate::hit_path::contains(path, transform, *fill, *stroke_width, p)
+                    }) =>
                 {
                     hit = Some(*node);
                 }

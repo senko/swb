@@ -26,7 +26,7 @@ pub use length::{
     LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
 };
 pub use mask::{CompositeOperator, MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode};
-pub use svg::SvgPaint;
+pub use svg::{ClipPath, SvgPaint};
 pub use transform::{ClipRect, TransformFunction, TransformOrigin};
 
 /// A generic font family keyword.

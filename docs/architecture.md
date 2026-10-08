@@ -82,8 +82,8 @@ Rules:
   rebuilds it when the input changes.
 - **Display list** (`paint`): a flat list of drawing commands (rectangles,
   borders, glyph runs, images, linear gradients, polylines, polygons,
-  the filled and stroked paths of inline SVG, clips, opacity, mask and
-  transform groups with their bounds) in paint order. A mask group carries its mask layers: images or gradients
+  the filled and stroked paths of inline SVG and their hit areas, clips,
+  opacity, mask, SVG clip path and transform groups with their bounds) in paint order. A mask group carries its mask layers: images or gradients
   positioned like background layers
   (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
@@ -147,14 +147,26 @@ Rules:
   (`style/src/svg_attributes.rs`). When the box tree is built,
   `layout/src/svg/` walks the descendants once into an `SvgContent`
   (groups and shapes with their computed styles; `path`, `polyline` and
-  `polygon` data parsed into user units with `svgtypes`); descendants get
-  no boxes. `BoxContent::Svg` carries it to paint, which asks it for its
-  drawing commands for the content box size (percentages and the
-  `viewBox` transform depend on it) and emits `FillPath` and
-  `StrokePath` items with a matrix from user units
-  (`paint/src/inline_svg.rs`). The rasterizer draws them with tiny-skia
-  within a work budget per strip (`paint/src/raster/path.rs`). Limits
-  per document: 50,000 shapes, 1,000,000 path segments, groups 64 deep.
+  `polygon` data parsed into user units with `svgtypes`; `use` as groups
+  around a copy, whose styles inherit from the `use` element:
+  `style/src/cascade/use_instances.rs`; `clip-path` references to
+  `clipPath` elements, `layout/src/svg/clip.rs`). The descendants get no
+  boxes of their own: `FragmentTree::element_boxes_scrolled` adds the
+  bounding boxes of `g`, shapes and `use` that `SvgContent::element_boxes`
+  computes. `BoxContent::Svg` carries the content to paint, which asks it
+  for its drawing commands for the content box size (percentages and the
+  `viewBox` transform depend on it: clip regions, `FillPath` and
+  `StrokePath` items with a matrix from user units and the hit areas of
+  shapes, `paint/src/inline_svg.rs`). A clip path that is not a clip
+  rectangle becomes a `PushSvgClip` group, which the rasterizer multiplies
+  by the coverage of the clip shapes (`paint/src/raster/svg_clip.rs`).
+  `DisplayList::hit_test` finds shapes by their geometry
+  (`paint/src/hit_path.rs`), so an SVG `a` works as a link. The rasterizer
+  draws paths with tiny-skia within a work budget per strip
+  (`paint/src/raster/path.rs`). Limits per document: 50,000 shapes and
+  50,000 groups, 1,000,000 path segments, groups 64 deep, 256 opacity
+  layers and 256 clip layers, 20,000 elements in the copies of `use`
+  elements.
 - **Web fonts** (ADR 0022): the stylist keeps the `@font-face` rules
   (`swb_style::FontFace`) with their `@media` chain. The engine gives the
   applicable faces to the `FontContext` (`set_web_fonts`), which owns the

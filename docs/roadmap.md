@@ -197,8 +197,25 @@ Features, in this order. Each one ends with a review and a commit.
    use it), `defs`, `use` with local references, the box dump of SVG
    descendants as Chromium reports them (bounding boxes of shapes and
    groups; none for `defs` and `clipPath`), hit testing (an SVG inside
-   a link follows the link), limits and hostile-page cases.
-7. Final pass on the page (`implementer`, scope from a new comparison):
+   a link follows the link), `shape-rendering` (BBC sets `crispEdges`
+   on 120 icon paths), limits and hostile-page cases. Done (ADR 0023,
+   part 2): `symbol` and nested `svg` are left for later. Ars geometry
+   0.7978 → 0.9963 (no missing boxes), BBC 0.8053 → 0.8786 (the 229
+   missing boxes are the content of closed `details`, M5); pixels
+   unchanged.
+7. Raster cost of dense paths (`implementer`). The review of item 6
+   found that the cost estimate charges a path segment about 9 ns
+   (`SEGMENT` in `paint/src/svg/cost.rs`, used by `raster/path.rs` and
+   `raster/svg_clip.rs`), but one tall self-overlapping path of 40,000
+   cubic curves in 100×100 px takes about 4 s to fill: the time grows
+   with the segments times the scanlines they cross. A page with five
+   such fills takes 22 s. Scope: a cost model that bounds this for
+   inline SVG paths, clip paths and SVG images (or a cap on segments per
+   path), measured, with hostile-page cases. Repro: one `<path>` of
+   40,000 cubic curves, each across the full height of a 100×100 px
+   `<svg>`, used as five fills or as a clip path referenced five
+   times.
+8. Final pass on the page (`implementer`, scope from a new comparison):
    the largest remaining differences, links, hover states and the search
    form; then report target 4 as done.
 
@@ -264,11 +281,31 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   use floats instead).
 - Inline SVG beyond parts 1 and 2 (ADR 0023): the geometry properties
   in CSS (`r`, `cx`, `cy`, `x`, `y`, `width`, `height`, `rx`, `ry`, `d`;
-  Chromium lets `r: 40px` override the attribute), `shape-rendering`
-  (BBC sets `crispEdges` on 120 icon paths; swb anti-aliases them),
-  nested `svg` and `symbol`, gradients and patterns (`url()` paints use
-  their fallback), `text`, `image`, markers, `paint-order`,
-  `vector-effect`, `context-fill`, the `miter-clip` and `arcs` joins.
+  Chromium lets `r: 40px` override the attribute), nested `svg` and
+  `symbol` (also as a `use` target: Chromium gives a `use` of a `symbol`
+  with `width` and `height` the viewport of the symbol, and its content
+  clips to it), gradients and patterns (`url()` paints use their
+  fallback), `text`, `image`, `foreignObject`, `switch`, markers, `mask`
+  elements, `paint-order`, `vector-effect`, `context-fill`, the
+  `miter-clip` and `arcs` joins. The boxes of `text`, nested `svg`,
+  `symbol`, `foreignObject`, `image` and `switch` are missing in the box
+  dump (probe cases `box-other`, `box-switch-text-nested` and `box-use`:
+  Chromium reports `text` with its glyph box, `foreignObject` and `image`
+  with their x, y, width and height, `switch` as a group, and nested
+  `svg` and the use of a `symbol` with the box of their content).
+- `clip-path` beyond ADR 0023: the basic shapes (`circle()`, `inset()`,
+  `polygon()`, `path()`) on SVG elements (Chromium 148 clips an SVG shape
+  to `circle(30px at 50px 50px)`; probe case `clip-refs`) and on HTML
+  boxes, and `clip-path: url(#id)` on HTML elements, which Chromium
+  resolves against an inline `clipPath` (case `clip-other-svg`, the
+  `div`). A clip rectangle of an SVG clip path is snapped to device
+  pixels, not anti-aliased (case `clip-frac`).
+- SVG links are not in the tab order (an `a` with `href` in SVG is
+  focusable in Chromium); the HTML `pointer-events: none` is not applied
+  to HTML boxes (swb parses it for shapes only).
+- Ars Technica after part 2 (geometry 0.9963): four `div` elements in the
+  row at y = 412 are 14 px too far left (the divider bars below the
+  header?); look at them in item 7.
 - Inline SVG anti-aliasing: tiny-skia's coverage differs from
   Chromium's on thin curved shapes (the Ars ring icon has 7 % more ink in
   `tools/probes/inline-svg.json`, case `ars-icon`), and a group opacity

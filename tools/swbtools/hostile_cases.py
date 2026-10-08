@@ -1221,3 +1221,97 @@ def inline_svg_huge_geometry() -> Page:
     )
     svgs += "<svg width=1e9 height=1e9 viewBox='0 0 1 1'><rect width=1 height=1 /></svg>"
     return Page(doc(svgs))
+
+
+@case(
+    "inline SVG: 20 levels of a group of two <use> of the level below (2^20 copies), past the "
+    "limit of 20,000 elements in the instances of use elements (ADR 0023)",
+    expect_log="elements in the instances",
+)
+def inline_svg_use_bomb() -> Page:
+    levels = "<rect id=l0 width=5 height=5 />"
+    for i in range(1, 21):
+        levels += f"<g id=l{i}><use href='#l{i - 1}' x=1 /><use href='#l{i - 1}' y=1 /></g>"
+    return Page(doc(f"<svg width=200 height=200><defs>{levels}</defs><use href='#l20' /></svg>"))
+
+
+@case(
+    "inline SVG: 10,000 <use> of a group of 50 shapes (510,000 copies), past the limit of 20,000 "
+    "elements in the instances of use elements (ADR 0023)",
+    expect_log="elements in the instances",
+)
+def inline_svg_many_uses() -> Page:
+    group = "<g id=big>" + "<rect width=5 height=5 />" * 50 + "</g>"
+    uses = "<use href='#big' x=3 />" * 10_000
+    return Page(doc(f"<svg width=200 height=200><defs>{group}</defs>{uses}</svg>"))
+
+
+@case(
+    "inline SVG: use elements that refer to themselves, to their ancestors, in a cycle, and in "
+    "a chain of 5,000 (ADR 0023)"
+)
+def inline_svg_use_cycles() -> Page:
+    chain = "".join(f"<use id=c{i} href='#c{i + 1}' />" for i in range(5_000))
+    body = (
+        "<g id=a><use href='#a' /><use href='#b' /></g><g id=b><use href='#a' /></g>"
+        "<use id=s href='#s' /><use href='#a' />" + chain
+    )
+    return Page(doc(f"<svg width=200 height=200>{body}<rect id=c5000 width=9 height=9 /></svg>"))
+
+
+@case(
+    "inline SVG: 1,000 clip paths in a chain of clip-path references, and a cycle, past the "
+    "depth of 8 (ADR 0023)"
+)
+def inline_svg_clip_chain() -> Page:
+    paths = "".join(
+        f"<clipPath id=k{i} clip-path='url(#k{i + 1})'><rect width=150 height=150 /></clipPath>"
+        for i in range(1_000)
+    )
+    paths += "<clipPath id=k1000 clip-path='url(#k0)'><circle cx=50 cy=50 r=40 /></clipPath>"
+    shapes = "<rect width=100 height=100 clip-path='url(#k0)' />" * 1_000
+    return Page(doc(f"<svg width=200 height=200><defs>{paths}</defs>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: 20,000 groups with a clip path that is not a rectangle, each with a "
+    "viewport-size shape, past the limit of 256 clip paths that need a layer (ADR 0023)",
+    expect_log="clip paths that need a layer",
+)
+def inline_svg_clip_layers() -> Page:
+    clip = "<clipPath id=k><circle cx=640 cy=400 r=300 /></clipPath>"
+    group = "<g clip-path='url(#k)'><rect width=1280 height=800 fill=red /></g>"
+    return Page(doc(f"<svg width=1280 height=800><defs>{clip}</defs>{group * 20_000}</svg>"))
+
+
+@case(
+    "inline SVG: one clip path of 10,000 shapes used by 10,000 elements, past the limit of "
+    "20,000 clip shapes per <svg> (ADR 0023)",
+    expect_log="too many clip path shapes",
+)
+def inline_svg_clip_shapes() -> Page:
+    clip = "<clipPath id=k>" + "<circle cx=50 cy=50 r=3 />" * 10_000 + "</clipPath>"
+    shapes = "<rect width=100 height=100 clip-path='url(#k)' />" * 10_000
+    return Page(doc(f"<svg width=200 height=200><defs>{clip}</defs>{shapes}</svg>"))
+
+
+@case(
+    "inline SVG: 19,000 <use> of a group with a display:none child that holds 300,000 groups: "
+    "the hidden subtree is not walked (ADR 0023)"
+)
+def inline_svg_use_hidden_subtree() -> Page:
+    hidden = "<g style='display:none'>" + "<g/>" * 300_000 + "</g>"
+    defs = f"<defs><g id=g>{hidden}</g></defs>"
+    return Page(doc(f"<svg width=200 height=200>{defs}{'<use href=#g />' * 19_000}</svg>"))
+
+
+@case(
+    "inline SVG: one clip path of 5,000 circles that each have a clip-path, used by 200 groups "
+    "on a 1280 x 800 <svg>: the passes over pixels count against the work budget (ADR 0023)"
+)
+def inline_svg_clip_nested_shapes() -> Page:
+    inner = "<clipPath id=i><circle cx=640 cy=400 r=300 /></clipPath>"
+    circles = "<circle cx=640 cy=400 r=250 clip-path='url(#i)' />" * 5_000
+    group = "<g clip-path='url(#k)'><rect width=1280 height=800 fill=red /></g>"
+    defs = f"<defs>{inner}<clipPath id=k>{circles}</clipPath></defs>"
+    return Page(doc(f"<svg width=1280 height=800>{defs}{group * 200}</svg>"))

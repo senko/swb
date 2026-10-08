@@ -16,13 +16,15 @@
 //! rest of the strip's budget is not drawn instead. A stroke with more
 //! than [`MAX_DASHES`] dashes is drawn solid.
 
+use std::sync::Arc;
+
 use swb_layout::svg::{StrokeStyle, SvgPath};
 use swb_layout::{Matrix, Rect};
 use swb_style::{FillRule, Rgba, StrokeLinecap, StrokeLinejoin};
 use tiny_skia::{LineCap, LineJoin, Path, PathBuilder, Stroke, StrokeDash, Transform};
 
 use super::{Rasterizer, solid_paint};
-use crate::display_list::{path_bounds, stroke_extent};
+use crate::display_list::{DisplayItem, path_bounds, stroke_extent};
 use crate::svg::cost::{BLEND, DASH, PATH, SEGMENT};
 
 /// The path work of one strip (the default of `Budget::max_path_work`),
@@ -34,16 +36,49 @@ pub(super) const MAX_PATH_WORK: f64 = 2.0e9;
 /// path's control polygon). tiny-skia refuses more than a million.
 pub(super) const MAX_DASHES: f32 = 100_000.0;
 
+/// The most lines that [`flat_device_path`] cuts a curve into.
+const FLAT_STEPS: u32 = 64;
+
 /// The segments of the outline of a stroke per segment of its path.
 const STROKE_SEGMENTS: f64 = 4.0;
 
 impl Rasterizer<'_> {
+    /// Draws an item of inline SVG content: a fill, a stroke, or the start
+    /// of a clip group.
+    pub(super) fn svg_item(&mut self, item: &DisplayItem) {
+        match item {
+            DisplayItem::FillPath {
+                path,
+                transform,
+                color,
+                rule,
+                anti_alias,
+            } => self.fill_svg_path(path, transform, (*color, *anti_alias), *rule),
+            DisplayItem::StrokePath {
+                path,
+                transform,
+                color,
+                stroke,
+                anti_alias,
+            } => self.stroke_svg_path(path, transform, (*color, *anti_alias), stroke),
+            DisplayItem::PushSvgClip {
+                clip,
+                transform,
+                bounds,
+            } => {
+                let svg_clip = (Arc::clone(clip), *transform);
+                self.push_layer(1.0, (*bounds, None), None, Some(svg_clip), false);
+            }
+            _ => {}
+        }
+    }
+
     /// Fills `path` (drawn with `transform`, list coordinates).
     pub(super) fn fill_svg_path(
         &mut self,
         path: &SvgPath,
         transform: &Matrix,
-        color: Rgba,
+        (color, anti_alias): (Rgba, bool),
         rule: FillRule,
     ) {
         let Some((device, bounds, work)) = self.plan_path(path, transform, color, 0.0) else {
@@ -57,14 +92,28 @@ impl Rasterizer<'_> {
         if !self.path_work_fits(work) {
             return;
         }
-        let Some(sk_path) = skia_path(path) else {
-            return;
-        };
         let rule = match rule {
             FillRule::NonZero => tiny_skia::FillRule::Winding,
             FillRule::EvenOdd => tiny_skia::FillRule::EvenOdd,
         };
-        let paint = solid_paint(color, true);
+        let paint = solid_paint(color, anti_alias);
+        if !anti_alias {
+            // Without anti-aliasing, a pixel is in if its center is
+            // inside the outline (what Chromium does: a circle covers
+            // exactly the pixels whose centers are inside). tiny-skia
+            // cuts curves coarsely in this mode and loses edge pixels, so
+            // the curves are cut into lines here.
+            let Some(flat) = flat_device_path(path, &device) else {
+                return;
+            };
+            self.draw(bounds, |p, t, m| {
+                p.fill_path(&flat, &paint, rule, t, m);
+            });
+            return;
+        }
+        let Some(sk_path) = skia_path(path) else {
+            return;
+        };
         let ts = skia_transform(&device);
         self.draw(bounds, |p, t, m| {
             p.fill_path(&sk_path, &paint, rule, t.pre_concat(ts), m);
@@ -76,7 +125,7 @@ impl Rasterizer<'_> {
         &mut self,
         path: &SvgPath,
         transform: &Matrix,
-        color: Rgba,
+        (color, anti_alias): (Rgba, bool),
         stroke: &StrokeStyle,
     ) {
         let Some((device, bounds, mut work)) =
@@ -116,7 +165,7 @@ impl Rasterizer<'_> {
             },
             dash,
         };
-        let paint = solid_paint(color, true);
+        let paint = solid_paint(color, anti_alias);
         let ts = skia_transform(&device);
         self.draw(bounds, |p, t, m| {
             p.stroke_path(&sk_path, &paint, &sk_stroke, t.pre_concat(ts), m);
@@ -155,7 +204,7 @@ impl Rasterizer<'_> {
     }
 
     /// The matrix from list coordinates through `m` to target device px.
-    fn device_matrix(&self, m: &Matrix) -> Matrix {
+    pub(super) fn device_matrix(&self, m: &Matrix) -> Matrix {
         let s = self.params.scale;
         let to_device = Matrix::new(
             s,
@@ -170,7 +219,7 @@ impl Rasterizer<'_> {
 
     /// True if `work` fits into the rest of the path budget of the strip
     /// (and charges it). A path that does not fit is not drawn.
-    fn path_work_fits(&mut self, work: f64) -> bool {
+    pub(super) fn path_work_fits(&mut self, work: f64) -> bool {
         let total = self.budget.path_work + work;
         if total.is_nan() || total > self.budget.max_path_work {
             self.budget.skipped.paths = true;
@@ -182,7 +231,7 @@ impl Rasterizer<'_> {
 }
 
 /// The path as a tiny-skia path, or `None` if tiny-skia rejects it.
-fn skia_path(path: &SvgPath) -> Option<Path> {
+pub(super) fn skia_path(path: &SvgPath) -> Option<Path> {
     use swb_layout::svg::PathSegment as S;
     let mut pb = PathBuilder::with_capacity(path.segments().len(), path.segments().len() * 3);
     for segment in path.segments() {
@@ -197,6 +246,65 @@ fn skia_path(path: &SvgPath) -> Option<Path> {
     pb.finish()
 }
 
-fn skia_transform(m: &Matrix) -> Transform {
+/// The path in device px (`device` maps its coordinates there), with each
+/// curve cut into lines a pixel or less long (at most [`FLAT_STEPS`]
+/// lines).
+#[allow(clippy::many_single_char_names)]
+fn flat_device_path(path: &SvgPath, device: &Matrix) -> Option<Path> {
+    use swb_layout::Point;
+    use swb_layout::svg::PathSegment as S;
+    let mut pb = PathBuilder::with_capacity(path.segments().len() * 4, path.segments().len() * 8);
+    let mut current = Point::default();
+    let steps = |points: &[Point]| {
+        let length: f32 = points
+            .windows(2)
+            .map(|w| (w[1].x - w[0].x).hypot(w[1].y - w[0].y))
+            .sum();
+        (length.ceil().max(0.0) as u32).clamp(4, FLAT_STEPS)
+    };
+    for segment in path.segments() {
+        match *segment {
+            S::MoveTo(p) => {
+                current = device.apply(p);
+                pb.move_to(current.x, current.y);
+            }
+            S::LineTo(p) => {
+                current = device.apply(p);
+                pb.line_to(current.x, current.y);
+            }
+            S::QuadTo(c, p) => {
+                let (c, p) = (device.apply(c), device.apply(p));
+                let n = steps(&[current, c, p]);
+                for i in 1..=n {
+                    let t = i as f32 / n as f32;
+                    let u = 1.0 - t;
+                    pb.line_to(
+                        u * u * current.x + 2.0 * u * t * c.x + t * t * p.x,
+                        u * u * current.y + 2.0 * u * t * c.y + t * t * p.y,
+                    );
+                }
+                current = p;
+            }
+            S::CubicTo(c1, c2, p) => {
+                let (c1, c2, p) = (device.apply(c1), device.apply(c2), device.apply(p));
+                let n = steps(&[current, c1, c2, p]);
+                for i in 1..=n {
+                    let t = i as f32 / n as f32;
+                    let u = 1.0 - t;
+                    let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+                    pb.line_to(
+                        a * current.x + b * c1.x + c * c2.x + d * p.x,
+                        a * current.y + b * c1.y + c * c2.y + d * p.y,
+                    );
+                }
+                current = p;
+            }
+            S::Close => pb.close(),
+        }
+    }
+    pb.finish()
+}
+
+pub(super) fn skia_transform(m: &Matrix) -> Transform {
     Transform::from_row(m.a, m.b, m.c, m.d, m.e, m.f)
 }

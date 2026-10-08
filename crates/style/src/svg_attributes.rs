@@ -30,6 +30,8 @@ use crate::values::{Length, SpecifiedLengthPercentage as Lp};
 
 /// The presentation attributes that map to the property of the same name.
 const PROPERTY_ATTRIBUTES: &[&str] = &[
+    "clip-path",
+    "clip-rule",
     "color",
     "display",
     "fill",
@@ -37,6 +39,8 @@ const PROPERTY_ATTRIBUTES: &[&str] = &[
     "fill-rule",
     "opacity",
     "overflow",
+    "pointer-events",
+    "shape-rendering",
     "stroke",
     "stroke-dasharray",
     "stroke-dashoffset",

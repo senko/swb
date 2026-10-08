@@ -6,12 +6,21 @@
 //! `overflow` clips (the user-agent style sheet sets `overflow: hidden`).
 //! Chromium clips at the content box, not the padding box (measured,
 //! `tools/probes/inline-svg.json`, case `paint-viewbox-mapping`).
+//!
+//! A clip path (`clip-path: url(#id)`) that is one axis-aligned rectangle
+//! becomes a clip rectangle, which the rasterizer snaps to device pixels
+//! (Chromium anti-aliases its edge: a deviation of at most one pixel row
+//! or column, and none for the icons that clip to their own `viewBox`).
+//! Any other clip path becomes a group that the rasterizer multiplies by
+//! the coverage of the clip shapes ([`DisplayItem::PushSvgClip`]).
 
-use swb_layout::svg::{SvgContent, SvgDrawItem};
+use std::sync::Arc;
+
+use swb_layout::svg::{ClipPath, ClipRegion, SvgContent, SvgDrawItem};
 use swb_layout::{Matrix, Rect, Size};
 use swb_style::ComputedStyle;
 
-use crate::display_list::DisplayItem;
+use crate::display_list::{DisplayItem, path_bounds};
 use crate::rope::ItemRope;
 
 /// Appends the items of `svg` drawn into the content box `content` (list
@@ -22,13 +31,16 @@ pub(crate) fn paint(list: &mut ItemRope, svg: &SvgContent, style: &ComputedStyle
     if items.is_empty() {
         return;
     }
-    let clip = style.overflow_x.clips() || style.overflow_y.clips();
-    if clip {
+    let clips_overflow = style.overflow_x.clips() || style.overflow_y.clips();
+    if clips_overflow {
         list.push(DisplayItem::PushClip(content));
     }
     let origin = Matrix::translate(content.x, content.y);
+    // The kind of each open clip.
+    let mut clips: Vec<ClipKind> = Vec::new();
+    let viewport = Rect::new(0.0, 0.0, content.width, content.height);
     for item in items {
-        list.push(match item {
+        let next = match item {
             SvgDrawItem::PushOpacity(opacity) => DisplayItem::PushOpacity {
                 opacity: opacity.max(0.0),
                 bounds: Rect::default(),
@@ -36,31 +48,115 @@ pub(crate) fn paint(list: &mut ItemRope, svg: &SvgContent, style: &ComputedStyle
                 escapes_clips: false,
             },
             SvgDrawItem::PopOpacity => DisplayItem::PopOpacity,
+            // A clip rectangle that contains the content box clips nothing
+            // that the content box clip does not (the usual icon: a
+            // `clipPath` of the size of the `viewBox`).
+            SvgDrawItem::PushClip(ClipRegion::Rect(rect))
+                if clips_overflow && contains(&rect, &viewport) =>
+            {
+                clips.push(ClipKind::Redundant);
+                continue;
+            }
+            SvgDrawItem::PushClip(ClipRegion::Rect(rect)) => {
+                clips.push(ClipKind::Rect);
+                DisplayItem::PushClip(origin.map_rect(&rect))
+            }
+            SvgDrawItem::PushClip(ClipRegion::Path(clip)) => {
+                clips.push(ClipKind::Path);
+                DisplayItem::PushSvgClip {
+                    bounds: clip_extent(&clip, &origin),
+                    clip,
+                    transform: origin,
+                }
+            }
+            SvgDrawItem::PopClip => match clips.pop() {
+                Some(ClipKind::Rect) => DisplayItem::PopClip,
+                Some(ClipKind::Path) => DisplayItem::PopSvgClip,
+                Some(ClipKind::Redundant) | None => continue,
+            },
             SvgDrawItem::Fill {
                 path,
                 transform,
                 color,
                 rule,
+                anti_alias,
             } => DisplayItem::FillPath {
                 path,
                 transform: origin.multiply(&transform),
                 color,
                 rule,
+                anti_alias,
             },
             SvgDrawItem::Stroke {
                 path,
                 transform,
                 color,
                 stroke,
+                anti_alias,
             } => DisplayItem::StrokePath {
                 path,
                 transform: origin.multiply(&transform),
                 color,
                 stroke,
+                anti_alias,
             },
-        });
+            SvgDrawItem::Hit(hit) => DisplayItem::HitShape {
+                node: hit.node,
+                path: Arc::clone(&hit.path),
+                transform: origin.multiply(&hit.transform),
+                fill: hit.fill,
+                stroke_width: hit.stroke_width,
+            },
+        };
+        list.push(next);
     }
-    if clip {
+    if clips_overflow {
         list.push(DisplayItem::PopClip);
+    }
+}
+
+/// What a pushed clip became in the display list.
+enum ClipKind {
+    /// A clip rectangle.
+    Rect,
+    /// A group that is multiplied by the coverage of a clip path.
+    Path,
+    /// Nothing.
+    Redundant,
+}
+
+/// True if `outer` contains `inner` (with a margin for rounding).
+fn contains(outer: &Rect, inner: &Rect) -> bool {
+    const EPSILON: f32 = 1e-3;
+    outer.x <= inner.x + EPSILON
+        && outer.y <= inner.y + EPSILON
+        && outer.right() >= inner.right() - EPSILON
+        && outer.bottom() >= inner.bottom() - EPSILON
+}
+
+/// An area (list coordinates, `origin` from the content box) that contains
+/// everything inside the clip path: the shapes' bounds, inside the extent of
+/// the `outer` region.
+fn clip_extent(clip: &ClipPath, origin: &Matrix) -> Rect {
+    let shapes = clip
+        .shapes
+        .iter()
+        .map(|s| path_bounds(&s.path, &origin.multiply(&s.transform), 0.0))
+        .reduce(|a, b| a.union(&b));
+    let Some(shapes) = shapes else {
+        return Rect::default();
+    };
+    match &clip.outer {
+        None => shapes,
+        Some(outer) => shapes
+            .intersection(&region_extent(outer, origin))
+            .unwrap_or_default(),
+    }
+}
+
+fn region_extent(region: &ClipRegion, origin: &Matrix) -> Rect {
+    match region {
+        ClipRegion::Rect(r) => origin.map_rect(r),
+        ClipRegion::Path(p) => clip_extent(p, origin),
     }
 }

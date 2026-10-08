@@ -255,7 +255,8 @@ pub(crate) fn group_area<'a>(items: impl IntoIterator<Item = &'a DisplayItem>) -
         if is_group_start(item) {
             if depth == 0 {
                 let bounds = match item {
-                    DisplayItem::PushMask { bounds, .. } => Some(*bounds),
+                    DisplayItem::PushMask { bounds, .. }
+                    | DisplayItem::PushSvgClip { bounds, .. } => Some(*bounds),
                     _ => None,
                 };
                 open = Some((ClippedInk::new(), bounds));
@@ -263,7 +264,10 @@ pub(crate) fn group_area<'a>(items: impl IntoIterator<Item = &'a DisplayItem>) -
             depth += 1;
         } else if matches!(
             item,
-            DisplayItem::PopOpacity | DisplayItem::PopMask | DisplayItem::PopTransform
+            DisplayItem::PopOpacity
+                | DisplayItem::PopMask
+                | DisplayItem::PopTransform
+                | DisplayItem::PopSvgClip
         ) {
             depth = depth.saturating_sub(1);
         }
@@ -293,6 +297,7 @@ fn is_group_start(item: &DisplayItem) -> bool {
         item,
         DisplayItem::PushOpacity { .. }
             | DisplayItem::PushMask { .. }
+            | DisplayItem::PushSvgClip { .. }
             | DisplayItem::PushTransform { .. }
     )
 }

@@ -29,9 +29,13 @@
 //!
 //! Elements inside a `display: none` subtree get no style.
 //!
-//! At the end, `counters::resolve` replaces `counter()` and `counters()`
+//! After the main pass, `use_instances` styles the copies that SVG `use`
+//! elements draw (they inherit from the `use` element). At the end,
+//! `counters::resolve` replaces `counter()` and `counters()`
 //! in the `content` of pseudo-elements with their text and computes the
 //! ordinal values of list items.
+
+pub(crate) mod use_instances;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -214,6 +218,7 @@ impl Styler<'_> {
             }
             map.set(node, style);
         }
+        self.expand_uses(&mut map);
         crate::counters::resolve(self.doc, &mut map);
         map
     }

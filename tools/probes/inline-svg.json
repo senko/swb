@@ -218,6 +218,324 @@
      ]
     }
    ]
+  },
+  {
+   "name": "box-basic",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=200 height=100 viewBox='0 0 100 50' style='margin:10px'><defs id=defs><clipPath id=cp><rect id=cr x=1 y=1 width=5 height=5 /></clipPath></defs><title id=t>x</title><g id=g1><rect id=r1 x=10 y=10 width=20 height=10 stroke=red stroke-width=4 /><circle id=c1 cx=50 cy=20 r=10 /></g><g id=g2 transform='translate(20 5) scale(2)'><rect id=r2 x=0 y=0 width=10 height=10 transform=rotate(45) /></g><g id=gempty></g><path id=p0 d='M10 10' /><rect id=rz width=0 height=10 x=5 y=5 /><rect id=rn width=-1 height=10 /><line id=l1 x1=5 y1=40 x2=50 y2=40 stroke=blue stroke-width=6 /><line id=l2 x1=5 y1=45 x2=50 y2=45 /><polyline id=pl points='5,5 40,5' /></svg>",
+   "measure": [
+    {
+     "boxes": "svg, svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=200 height=100><g id=g1 style='display:none'><rect id=r1 width=10 height=10 /></g><g id=g2 style='visibility:hidden'><rect id=r2 x=20 width=10 height=10 /></g><rect id=r3 x=40 width=10 height=10 style='display:none' /><rect id=r4 x=60 width=10 height=10 style='visibility:hidden' /><rect id=r5 x=80 width=10 height=10 fill=none /><rect id=r6 x=100 width=10 height=10 opacity=0 /><g id=g3 style='visibility:hidden'><rect id=r7 x=120 width=10 height=10 style='visibility:visible'/></g></svg>",
+   "measure": [
+    {
+     "boxes": "svg, svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-clipped",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=100 height=100><defs><clipPath id=a><rect width=10 height=10 /></clipPath></defs><g id=g1 clip-path='url(#a)'><rect id=r1 x=0 y=0 width=50 height=50 /></g><rect id=r2 x=60 y=60 width=100 height=100 /><rect id=r3 x=200 y=0 width=10 height=10 /><g id=g2><rect id=r4 x=-30 y=-30 width=20 height=20 /></g></svg>",
+   "measure": [
+    {
+     "boxes": "svg, svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-use",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=200 height=100><defs><rect id=r width=10 height=10 /><g id=gg><rect width=5 height=5 x=2 y=2 /><circle r=3 cx=20 cy=20 /></g><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 /></symbol></defs><use id=u1 href='#r' x=30 y=40 /><use id=u2 href='#gg' x=100 y=10 transform='scale(2)' /><use id=u3 href='#s' x=10 y=10 width=50 height=20 /><use id=u4 href='#nope' /></svg>",
+   "measure": [
+    {
+     "boxes": "svg, svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-rotated",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><circle id=c cx=50 cy=50 r=20 transform='rotate(45 50 50)' /><path id=cu d='M100 100 C 100 50 150 50 150 100' /><path id=q d='M200 100 Q 225 40 250 100' /><path id=ar d='M10 200 A 30 30 0 0 1 70 200' /><g id=gt transform='translate(100 200)'></g><g id=gt2 transform='translate(100 200)'><g></g></g><line id=ln x1=200 y1=200 x2=240 y2=200 transform='rotate(45 200 200)' /><ellipse id=el cx=150 cy=250 rx=30 ry=10 transform='rotate(30 150 250)' /></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-invalid",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300 viewBox='0 0 300 300'><path id=a /><path id=b d='x' /><path id=c d='M10 10 L 20' /><path id=d d='M10 10 L 30 30 L 40' /><circle id=e r=0 cx=5 cy=5 /><circle id=f cx=5 cy=5 /><ellipse id=g cx=5 cy=5 /><ellipse id=h cx=5 cy=5 rx=10 /><rect id=i x=5 y=5 /><rect id=j x=5 y=5 width=10 /><rect id=k x=5 y=5 width=10 height=-5 /><circle id=l cx=5 cy=5 r=-4 /><line id=m /><polyline id=n /><polygon id=o points='5,5' /><polyline id=p points='5,5 10' /><path id=q d='M10 10 z' /><path id=r d='M 10 10 M 50 50' /><path id=s d='M 10 10 L 50 50 M 80 80'/></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-groups",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><g id=a><rect style='display:none' width=10 height=10 /></g><g id=b><rect style='visibility:hidden' x=5 y=5 width=10 height=10 /></g><g id=c><g id=c2><rect x=50 y=50 width=10 height=10 /></g><rect x=100 y=100 width=10 height=10 /></g><g id=d transform='scale(2)'><g id=d2 transform='translate(10 10)'><rect id=d3 width=10 height=10 transform='skewX(45)' /></g></g><g id=e transform='translate(100 100)' style='display:none'><rect width=10 height=10 /></g><g id=f opacity=0 transform='translate(5 5)'><rect width=10 height=10 fill=none /></g></svg><svg id=h width=100 height=100 style='display:none'><rect id=hr width=10 height=10 /></svg><svg id=v width=100 height=100 style='visibility:hidden'><rect id=vr width=10 height=10 /></svg>",
+   "measure": [
+    {
+     "boxes": "svg *, #h, #v"
+    }
+   ]
+  },
+  {
+   "name": "box-page-coords",
+   "html": "<!DOCTYPE html><style>body{margin:0}.p{position:absolute;left:100px;top:50px;width:200px;height:100px;padding:5px;border:3px solid;transform:translate(10px,20px) scale(1.5);transform-origin:0 0}</style><div class=p><svg width=100 height=50 viewBox='0 0 10 5' style='margin:7px 3px'><rect id=r x=1 y=1 width=2 height=2 /><g id=g transform='rotate(10)'><rect x=4 y=1 width=2 height=2 /></g></svg></div><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='xMaxYMax meet' style='position:absolute;left:400px;top:300px;padding:10px;border:5px solid'><rect id=r2 x=0 y=0 width=10 height=10 /></svg><svg width=100 height=50 viewBox='0 0 10 10' style='position:absolute;left:400px;top:400px;overflow:visible'><rect id=r3 x=0 y=0 width=10 height=20 /></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-viewbox-slice",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=100 height=50 viewBox='0 0 10 10' preserveAspectRatio='xMidYMid slice'><rect id=r x=0 y=0 width=10 height=10 /><rect id=r2 x=2 y=2 width=2 height=2 /></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-g-rotate",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><g id=g transform='rotate(45)'><rect id=a x=0 y=0 width=10 height=10 /><rect id=b x=90 y=90 width=10 height=10 /></g></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-use2",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><rect id=r x=10 y=10 width=20 height=20 /><use id=u1 href='#r' x=50 /><use id=u2 xlink:href='#r' y=100 /><use id=u3 /><use id=u4 href='#u4' /><use id=u5 href='#g' /><g id=g><use id=u6 href='#u5' x=5 /></g><use id=u7 href='#r' x=10% y=10% /><use id=u8 href='#r' transform='rotate(45)' /><use id=u9 href='#r' style='display:none' /><use id=u10 href='#r' x=1 y=1 width=500 height=500 /><svg id=o><symbol id=sy><rect width=5 height=5 /></symbol></svg><use id=u11 href='#sy' x=200 y=200 /><use id=u12 href='#r' style='visibility:hidden' /></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "hit-shapes",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><a href='#x' style='display:block;width:200px;height:200px'><svg width=200 height=200 style='display:block'><rect id=r x=10 y=10 width=50 height=50 /><circle id=c cx=120 cy=30 r=20 fill=none /><circle id=c2 cx=120 cy=100 r=20 fill=none stroke=red stroke-width=6 /><rect id=r3 x=10 y=100 width=40 height=40 fill=red style='visibility:hidden' /><rect id=r4 x=10 y=150 width=40 height=40 fill=red pointer-events=none /><rect id=r5 x=60 y=150 width=40 height=40 fill=red opacity=0 /><rect id=r6 x=110 y=150 width=40 height=40 fill=transparent /></svg></a>",
+   "measure": [
+    {
+     "js": "[[5,5],[30,30],[120,30],[140,30],[120,100],[139,100],[121,100],[30,120],[30,170],[80,170],[130,170],[190,190]].map(p=>{const e=document.elementFromPoint(p[0],p[1]);return p.join(',')+':'+(e.id||e.tagName)+':'+getComputedStyle(e).cursor})"
+    }
+   ]
+  },
+  {
+   "name": "hit-svg-default",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg id=s width=200 height=200 style='cursor:pointer'><rect id=r x=10 y=10 width=50 height=50 style='cursor:help' /><a id=al href='#y'><rect id=ar x=100 y=100 width=50 height=50 /></a></svg>",
+   "measure": [
+    {
+     "js": "[[30,30],[100,10],[120,120]].map(p=>{const e=document.elementFromPoint(p[0],p[1]);return p.join(',')+':'+(e.id||e.tagName)+':'+getComputedStyle(e).cursor})"
+    }
+   ]
+  },
+  {
+   "name": "clip-basic",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a><rect width=50 height=50 /></clipPath></defs><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><g clip-path='url(#a)'><rect width=100 height=100 /></g></svg><svg id=s3 width=100 height=100 viewBox='0 0 50 50'><rect width=50 height=50 style='clip-path:url(#a)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#a)' transform='translate(20 20)' /></svg><svg id=s5 width=100 height=100><rect width=100 height=100 clip-path='url(#a)' transform='translate(20 20) scale(2)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-units",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a clipPathUnits=objectBoundingBox><rect width=0.5 height=0.5 /></clipPath><clipPath id=b clipPathUnits=userSpaceOnUse><rect width=0.5 height=0.5 /></clipPath><clipPath id=c clipPathUnits=bogus><rect width=50 height=50 /></clipPath></defs><rect x=20 y=20 width=60 height=60 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><rect x=20 y=20 width=60 height=60 clip-path='url(#b)' /></svg><svg id=s3 width=100 height=100><rect x=20 y=20 width=60 height=60 clip-path='url(#c)' /></svg><svg id=s4 width=100 height=100><g clip-path='url(#a)'><rect x=20 y=20 width=20 height=20 /><rect x=60 y=60 width=20 height=20 /></g></svg><svg id=s5 width=100 height=100><rect x=20 y=20 width=0 height=60 stroke=black stroke-width=10 clip-path='url(#a)' /></svg><svg id=s6 width=100 height=100><g clip-path='url(#a)'></g></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-transform",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a transform='translate(50 50)'><rect width=50 height=50 /></clipPath><clipPath id=b><rect width=50 height=50 transform='translate(50 50)' /></clipPath><clipPath id=c clipPathUnits=objectBoundingBox transform='translate(0.5 0.5)'><rect width=0.5 height=0.5 /></clipPath><clipPath id=d transform='scale(2)'><rect width=20 height=20 transform='translate(5 5)' /></clipPath></defs><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><rect width=100 height=100 clip-path='url(#b)' /></svg><svg id=s3 width=100 height=100><rect x=10 y=10 width=80 height=80 clip-path='url(#c)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#d)' /></svg><svg id=s5 width=100 height=100><rect width=100 height=100 clip-path='url(#a)' transform='translate(-50 -50)'/></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-rule",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a><path d='M0 0H100V100H0Z M25 25H75V75H25Z' clip-rule=evenodd /></clipPath><clipPath id=b><path d='M0 0H100V100H0Z M25 25H75V75H25Z' /></clipPath><clipPath id=c clip-rule=evenodd><path d='M0 0H100V100H0Z M25 25H75V75H25Z' /></clipPath><clipPath id=d><path d='M0 0H100V100H0Z M25 25H75V75H25Z' fill-rule=evenodd /></clipPath></defs><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><rect width=100 height=100 clip-path='url(#b)' /></svg><svg id=s3 width=100 height=100><rect width=100 height=100 clip-path='url(#c)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#d)' /></svg><svg id=s5 width=100 height=100 style='clip-rule:evenodd'><rect width=100 height=100 clip-path='url(#b)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-content",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><rect id=r width=30 height=30 /><clipPath id=a><use href='#r' x=10 y=10 /></clipPath><clipPath id=b><g><rect width=50 height=50 /></g></clipPath><clipPath id=c><rect width=50 height=50 style='display:none' /><rect x=50 y=50 width=50 height=50 style='visibility:hidden' /><rect x=50 y=0 width=20 height=20 /></clipPath><clipPath id=d></clipPath><clipPath id=e><rect width=50 height=50 /><rect x=25 y=25 width=50 height=50 /></clipPath><clipPath id=f><rect width=50 height=50 fill=none stroke=red /><circle cx=75 cy=75 r=20 opacity=0.2 fill=red /></clipPath><clipPath id=g><use href='#h' /></clipPath><g id=h><rect width=50 height=50 /></g></defs><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><rect width=100 height=100 clip-path='url(#b)' /></svg><svg id=s3 width=100 height=100><rect width=100 height=100 clip-path='url(#c)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#d)' /></svg><svg id=s5 width=100 height=100><rect width=100 height=100 clip-path='url(#e)' /></svg><svg id=s6 width=100 height=100><rect width=100 height=100 clip-path='url(#f)' /></svg><svg id=s7 width=100 height=100><rect width=100 height=100 clip-path='url(#g)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-refs",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a><rect width=60 height=60 /></clipPath><clipPath id=b clip-path='url(#a)'><rect x=30 y=30 width=60 height=60 /></clipPath><clipPath id=c><rect width=60 height=60 clip-path='url(#a2)' /></clipPath><clipPath id=a2><rect x=30 y=30 width=60 height=60 /></clipPath><clipPath id=cy1 clip-path='url(#cy2)'><rect width=60 height=60 /></clipPath><clipPath id=cy2 clip-path='url(#cy1)'><rect width=60 height=60 /></clipPath><clipPath id=self clip-path='url(#self)'><rect width=60 height=60 /></clipPath></defs><rect width=100 height=100 clip-path='url(#b)' /></svg><svg id=s2 width=100 height=100><rect width=100 height=100 clip-path='url(#c)' /></svg><svg id=s3 width=100 height=100><rect width=100 height=100 clip-path='url(#cy1)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#self)' /></svg><svg id=s5 width=100 height=100><rect width=100 height=100 clip-path='url(#nope)' /></svg><svg id=s6 width=100 height=100><rect id=rr width=50 height=100 /><rect width=100 height=100 x=0 clip-path='url(#rr)' fill=blue /></svg><svg id=s7 width=100 height=100><rect width=100 height=100 clip-path='url(a)' /></svg><svg id=s8 width=100 height=100><rect width=100 height=100 clip-path='url(#a) ' /></svg><svg id=s9 width=100 height=100><rect width=100 height=100 clip-path='url( #a )' /></svg><svg id=s10 width=100 height=100><rect width=100 height=100 clip-path=\"url('#a')\" /></svg><svg id=s11 width=100 height=100><rect width=100 height=100 clip-path='none' /></svg><svg id=s12 width=100 height=100><rect width=100 height=100 clip-path='#a' /></svg><svg id=s13 width=100 height=100><rect width=100 height=100 style='clip-path:url(#a)' clip-path='none' /></svg><svg id=s14 width=100 height=100><rect width=100 height=100 clip-path='url(#a) url(#a2)' /></svg><svg id=s15 width=100 height=100><rect width=100 height=100 clip-path='circle(30px at 50px 50px)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-other-svg",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s0 width=0 height=0><clipPath id=a><rect width=50 height=50 /></clipPath></svg><svg id=s1 width=100 height=100><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100 style='display:none'><clipPath id=b><rect width=50 height=50 /></clipPath></svg><svg id=s3 width=100 height=100><rect width=100 height=100 clip-path='url(#b)' /></svg><div id=d style='width:100px;height:100px;background:black;clip-path:url(#a)'></div><svg id=s4 width=100 height=100><clipPath id=dup><rect width=20 height=20 /></clipPath></svg><svg id=s5 width=100 height=100><clipPath id=dup><rect width=80 height=80 /></clipPath><rect width=100 height=100 clip-path='url(#dup)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg, #d"
+    }
+   ]
+  },
+  {
+   "name": "clip-more",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=100 height=100><defs><clipPath id=a style='display:none'><rect width=50 height=50 /></clipPath><clipPath id=b style='visibility:hidden'><rect width=50 height=50 /></clipPath><clipPath id=c><rect width=50 height=50 transform='rotate(45 25 25)' /></clipPath><clipPath id=d><circle cx=50 cy=50 r=30 /><path d='M0 0H10V10Z' /><polygon points='90,90 100,90 100,100' /></clipPath><clipPath id=e><rect width=50 height=50 stroke=red stroke-width=40 fill=none /></clipPath><clipPath id=f><rect x=10 y=10 width=50 height=50 opacity=0.5 /></clipPath></defs><rect width=100 height=100 clip-path='url(#a)' /></svg><svg id=s2 width=100 height=100><rect width=100 height=100 clip-path='url(#b)' /></svg><svg id=s3 width=100 height=100><rect width=100 height=100 clip-path='url(#c)' /></svg><svg id=s4 width=100 height=100><rect width=100 height=100 clip-path='url(#d)' /></svg><svg id=s5 width=100 height=100><rect width=100 height=100 clip-path='url(#e)' /></svg><svg id=s6 width=100 height=100><rect width=100 height=100 opacity=0.5 clip-path='url(#f)' /></svg><svg id=s7 width=100 height=100><g opacity=0.5 clip-path='url(#c)'><rect width=100 height=100 /><rect width=100 height=100 fill=red /></g></svg><svg id=s8 width=100 height=100><g clip-path='url(#c)' transform='translate(30 0)'><g clip-path='url(#c)' transform='translate(-30 0)'><rect width=100 height=100 /></g></g></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "clip-frac",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=20 height=20><defs><clipPath id=a><rect x=0.5 y=0.5 width=10 height=10 /></clipPath><clipPath id=b><rect x=0.5 y=0.5 width=10.4 height=10.4 /></clipPath></defs><rect width=20 height=20 clip-path='url(#a)' /></svg><svg id=s2 width=20 height=20><rect width=20 height=20 clip-path='url(#b)' /></svg><svg id=s3 width=20 height=20><rect width=20 height=20 clip-path='url(#a)' transform='rotate(0.001)' /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "shape-rendering",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;margin:10px}</style><svg id=s1 width=40 height=40><circle cx=20 cy=20 r=15.3 /></svg><svg id=s2 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=crispEdges /></svg><svg id=s3 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=optimizeSpeed /></svg><svg id=s4 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=geometricPrecision /></svg><svg id=s5 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=auto /></svg><svg id=s6 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=bogus /></svg><svg id=s7 width=40 height=40 shape-rendering=crispEdges><g><circle cx=20 cy=20 r=15.3 /></g></svg><svg id=s8 width=40 height=40 shape-rendering=crispEdges><circle cx=20 cy=20 r=15.3 shape-rendering=auto /></svg><svg id=s9 width=40 height=40><circle cx=20 cy=20 r=15.3 style='shape-rendering:crispEdges' fill=none stroke=black stroke-width=3.3 /></svg><svg id=s10 width=40 height=40><rect x=3.3 y=3.3 width=20.4 height=20.4 shape-rendering=crispEdges /></svg><svg id=s11 width=40 height=40><rect x=3.3 y=3.3 width=20.4 height=20.4 /></svg><svg id=s12 width=40 height=40><line x1=3.3 y1=3.3 x2=30.6 y2=20.1 stroke=black stroke-width=1.5 shape-rendering=crispEdges /></svg><svg id=s13 width=40 height=40><line x1=3.3 y1=3.3 x2=30.6 y2=20.1 stroke=black stroke-width=1.5 /></svg><svg id=s14 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=crispEdges opacity=0.5 /></svg><svg id=s15 width=40 height=40><circle cx=20 cy=20 r=15.3 shape-rendering=optimizeSpeed fill=red /></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "svg-link-cursor",
+   "html": "<!DOCTYPE html><svg width=100 height=100><a id=a href='#x'><rect id=r width=50 height=50 /></a><a id=b xlink:href='#x'><rect id=r2 x=50 width=50 height=50 /></a><a id=c><rect id=r3 y=50 width=50 height=50 /></a></svg><a id=h href='#y'><svg id=s width=10 height=10></svg></a>",
+   "measure": [
+    {
+     "style": "#a, #r, #b, #r2, #c, #r3, #s",
+     "props": [
+      "cursor"
+     ]
+    },
+    {
+     "js": "[...document.querySelectorAll('#a,#b,#c')].map(e=>e.matches(':any-link')+':'+e.matches(':link')+':'+e.matches(':visited'))"
+    },
+    {
+     "js": "[[25,25],[75,25],[25,75]].map(p=>document.elementFromPoint(p[0]+8,p[1]+8).id)"
+    }
+   ]
+  },
+  {
+   "name": "svg-link-style",
+   "html": "<!DOCTYPE html><style>a:link{fill:red} a:any-link rect{stroke:blue} svg|a{fill:green}</style><svg width=100 height=100><a id=a href='#x'><rect id=r width=50 height=50 /></a></svg>",
+   "measure": [
+    {
+     "style": "#r",
+     "props": [
+      "fill",
+      "stroke"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "svg-link-color",
+   "html": "<!DOCTYPE html><svg width=100 height=100><a id=a href='#x'><rect id=r fill=currentColor width=50 height=50 /></a><a id=b><rect id=r2 fill=currentColor width=50 height=50 /></a></svg>",
+   "measure": [
+    {
+     "style": "#a, #r, #b",
+     "props": [
+      "color",
+      "text-decoration-line",
+      "cursor"
+     ]
+    },
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "box-g-degenerate",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><g id=a><rect x=10 y=10 width=10 height=10 /><rect x=50 y=50 width=0 height=10 /></g><g id=b><rect x=10 y=10 width=10 height=10 /><path /></g><g id=c><rect x=10 y=10 width=10 height=10 /><path d='M80 80' /></g><g id=d><rect x=10 y=10 width=10 height=10 /><circle cx=90 cy=90 r=0 /></g><g id=e><rect x=10 y=10 width=10 height=10 /><g transform='translate(100 100)'></g></g><g id=f><rect x=10 y=10 width=10 height=10 /><rect x=70 y=70 width=10 height=10 style='display:none' /></g><g id=g><rect x=10 y=10 width=10 height=10 /><line x1=60 y1=60 x2=60 y2=60 /></g><g id=h><rect x=10 y=10 width=10 height=10 /><polyline points='' /></g></svg>",
+   "measure": [
+    {
+     "boxes": "svg > g"
+    }
+   ]
+  },
+  {
+   "name": "box-g-use-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><defs><g id=eg></g><rect id=zr width=0 height=5 /></defs><g id=a><rect x=10 y=10 width=10 height=10 /><use href='#nope' x=50 y=50 /></g><g id=b><rect x=10 y=10 width=10 height=10 /><use href='#eg' x=50 y=50 /></g><g id=c><rect x=10 y=10 width=10 height=10 /><use href='#zr' x=50 y=50 /></g><g id=d><rect x=10 y=10 width=10 height=10 /><a><rect width=0 height=0 x=70 y=70 /></a></g></svg>",
+   "measure": [
+    {
+     "boxes": "svg > g, svg > g > use"
+    }
+   ]
+  },
+  {
+   "name": "box-other",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=200 height=100><text id=tx x=10 y=30>Hi</text><svg id=in x=10 y=10 width=50 height=50><rect id=r1 width=100 height=100 /></svg><foreignObject id=fo x=0 y=0 width=10 height=10 /><image id=im width=10 height=10 href='x.png' /><linearGradient id=lg /><style id=st></style><desc id=d></desc><metadata id=md></metadata><a id=a1 href='#'><rect id=r2 x=100 width=10 height=10 /></a><switch id=sw><rect id=r3 x=120 width=10 height=10 /></switch><unknown id=un><rect id=r4 x=140 width=10 height=10 /></unknown><mask id=mk><rect width=5 height=5 /></mask><marker id=mr /><pattern id=pt><rect width=5 height=5 /></pattern></svg>",
+   "measure": [
+    {
+     "boxes": "svg, svg *"
+    }
+   ]
+  },
+  {
+   "name": "box-switch-text-nested",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><svg width=300 height=300><symbol id=sy viewBox='0 0 10 10'><rect width=10 height=10 /></symbol><use id=u href='#sy' x=20 y=20 width=100 height=50 /><svg id=n x=10 y=10 width=50 height=50 viewBox='0 0 10 10'><rect id=nr width=10 height=10 /></svg></svg>",
+   "measure": [
+    {
+     "boxes": "svg *"
+    }
+   ]
+  },
+  {
+   "name": "r-useclip",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block}</style><svg id=s1 width=100 height=100><defs><clipPath id=c1 ><circle cx=20 cy=20 r=10 /></clipPath><rect id=r width=50 height=50 clip-path='url(#c1)'/><clipPath id=a><use href='#r' /></clipPath></defs><rect width=100 height=100 clip-path='url(#a)'/></svg>",
+   "measure": [
+    {
+     "ink": "svg"
+    }
+   ]
+  },
+  {
+   "name": "r-hitclip",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block}</style><svg id=s1 width=100 height=100><defs><clipPath id=c1 ><circle cx=20 cy=20 r=10 /></clipPath></defs><rect id=r width=100 height=100 clip-path='url(#c1)'/></svg>",
+   "measure": [
+    {
+     "js": "document.elementFromPoint(90,90).tagName+' '+document.elementFromPoint(20,20).tagName"
+    }
+   ]
+  },
+  {
+   "name": "r-hitrectclip",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block}</style><svg id=s1 width=100 height=100><defs><clipPath id=c1 ><rect width=30 height=30 /></clipPath></defs><rect id=r width=100 height=100 clip-path='url(#c1)'/></svg>",
+   "measure": [
+    {
+     "js": "document.elementFromPoint(90,90).tagName+' '+document.elementFromPoint(20,20).tagName"
+    }
+   ]
   }
  ]
 }

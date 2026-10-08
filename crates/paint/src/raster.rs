@@ -52,6 +52,7 @@ use crate::mask::{self, MaskLayer, MaskLayerImage};
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
 mod path;
+mod svg_clip;
 
 /// The most pixels of a layer for a transform group (a larger layer gets
 /// a lower resolution).
@@ -374,7 +375,13 @@ struct Layer {
     opacity: f32,
     /// The mask layers of a mask group.
     mask: Option<Arc<[MaskLayer]>>,
+    /// The clip path of an SVG clip group, and the matrix from its
+    /// coordinates to the display list's.
+    svg_clip: Option<SvgClip>,
 }
+
+/// An SVG clip path with the matrix from its coordinates to the list's.
+type SvgClip = (Arc<swb_layout::svg::ClipPath>, Matrix);
 
 struct Rasterizer<'a> {
     /// The pixels of the target (or of a strip of it), premultiplied RGBA.
@@ -742,33 +749,33 @@ impl Rasterizer<'_> {
                 bounds,
                 fixed_bounds,
                 escapes_clips,
-            } => self.push_layer(*opacity, (*bounds, *fixed_bounds), None, *escapes_clips),
+            } => self.push_layer(
+                *opacity,
+                (*bounds, *fixed_bounds),
+                None,
+                None,
+                *escapes_clips,
+            ),
             // The mask is drawn inside the enclosing clips, so content
             // fixed to the viewport in the group cannot escape them.
             DisplayItem::PushMask { bounds, layers } => {
-                self.push_layer(1.0, (*bounds, None), Some(Arc::clone(layers)), false);
+                self.push_layer(1.0, (*bounds, None), Some(Arc::clone(layers)), None, false);
             }
-            DisplayItem::PopOpacity | DisplayItem::PopMask => self.pop_layer(images),
+            DisplayItem::PopOpacity | DisplayItem::PopMask | DisplayItem::PopSvgClip => {
+                self.pop_layer(images);
+            }
             DisplayItem::Polyline {
                 points,
                 width,
                 color,
             } => self.polyline(points, *width, *color),
             DisplayItem::Polygon { points, color } => self.polygon(points, *color),
-            DisplayItem::FillPath {
-                path,
-                transform,
-                color,
-                rule,
-            } => self.fill_svg_path(path, transform, *color, *rule),
-            DisplayItem::StrokePath {
-                path,
-                transform,
-                color,
-                stroke,
-            } => self.stroke_svg_path(path, transform, *color, stroke),
+            DisplayItem::FillPath { .. }
+            | DisplayItem::StrokePath { .. }
+            | DisplayItem::PushSvgClip { .. } => self.svg_item(item),
             // `run` handles transform groups.
             DisplayItem::HitRegion { .. }
+            | DisplayItem::HitShape { .. }
             | DisplayItem::PushTransform { .. }
             | DisplayItem::PopTransform => {}
         }
@@ -950,6 +957,7 @@ impl Rasterizer<'_> {
         opacity: f32,
         (bounds, fixed): (Rect, Option<Rect>),
         mask: Option<Arc<[MaskLayer]>>,
+        svg_clip: Option<SvgClip>,
         escapes_clips: bool,
     ) {
         self.mask = None;
@@ -978,6 +986,7 @@ impl Rasterizer<'_> {
             _ => 0,
         };
         let area = area.filter(|_| mask.is_none() || self.mask_work_fits(work));
+        let plain = mask.is_none() && svg_clip.is_none();
         let layer = match area {
             Some(a) if opacity > 0.0 => {
                 let pixmap = self.layer_pixmap(a.width as u32, a.height as u32);
@@ -985,11 +994,12 @@ impl Rasterizer<'_> {
                     self.add_mask_work(work);
                 }
                 Layer {
-                    direct: pixmap.is_none() && mask.is_none(),
+                    direct: pixmap.is_none() && plain,
                     pixmap,
                     origin: (a.x as i32, a.y as i32),
                     opacity,
                     mask,
+                    svg_clip,
                 }
             }
             _ => Layer {
@@ -998,6 +1008,7 @@ impl Rasterizer<'_> {
                 origin: (0, 0),
                 opacity,
                 mask,
+                svg_clip,
             },
         };
         self.layers.push(layer);
@@ -1011,10 +1022,13 @@ impl Rasterizer<'_> {
         let Some(mut pixmap) = layer.pixmap else {
             return;
         };
-        let visible = match &layer.mask {
+        let mut visible = match &layer.mask {
             Some(layers) => self.apply_mask(&mut pixmap, layer.origin, layers, images),
             None => true,
         };
+        if let Some((clip, transform)) = &layer.svg_clip {
+            visible = visible && self.apply_svg_clip(&mut pixmap, layer.origin, clip, transform);
+        }
         self.release(&pixmap);
         let Some(parent) = self.surface_rect().filter(|_| visible) else {
             return;
@@ -1099,6 +1113,7 @@ impl Rasterizer<'_> {
             origin,
             opacity: 1.0,
             mask: None,
+            svg_clip: None,
         });
         self.mask = None;
         match &layer.image {
@@ -3547,6 +3562,7 @@ mod tests {
             transform,
             color,
             rule: swb_style::FillRule::NonZero,
+            anti_alias: true,
         }
     }
 
@@ -3576,6 +3592,7 @@ mod tests {
             transform: m,
             color: BLUE,
             stroke: stroke(2.0, None),
+            anti_alias: true,
         }]);
         assert_eq!(rgb(&p, 7, 30), (0, 0, 255));
         assert_eq!(rgb(&p, 13, 30), (0, 0, 255));
@@ -3610,6 +3627,7 @@ mod tests {
                     transform: m,
                     color: RED,
                     stroke: stroke(1e30, Some(&[1e-30, 1e-30])),
+                    anti_alias: true,
                 },
             ]);
             // Nothing or a fill of the whole target; no panic.
@@ -3632,6 +3650,7 @@ mod tests {
             transform: Matrix::IDENTITY,
             color: RED,
             stroke: stroke(10.0, Some(dashes)),
+            anti_alias: true,
         };
         // 10 on, 10 off: the gap at x = 15 is white.
         let p = render(vec![item(&[10.0, 10.0])]);
@@ -3678,5 +3697,180 @@ mod tests {
         r.run(&items, 0..2, &transform_ends(&items), &mut fonts, &NoImages);
         assert!(r.budget.skipped.paths);
         assert_eq!(rgb(&target, 50, 75), (255, 0, 0));
+    }
+
+    /// A clip shape of `points` in a clip path of the SVG content.
+    fn clip_shape(
+        points: &[(f32, f32)],
+        transform: Matrix,
+        clip: Option<swb_layout::svg::ClipRegion>,
+    ) -> swb_layout::svg::ClipShape {
+        swb_layout::svg::ClipShape {
+            path: svg_path(points),
+            transform,
+            rule: swb_style::FillRule::NonZero,
+            clip,
+        }
+    }
+
+    /// The items of `content` inside an SVG clip group at (`dx`, 0).
+    fn clipped(clip: swb_layout::svg::ClipPath, dx: f32, content: DisplayItem) -> Vec<DisplayItem> {
+        vec![
+            DisplayItem::PushSvgClip {
+                clip: Arc::new(clip),
+                transform: Matrix::translate(dx, 0.0),
+                bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
+            },
+            content,
+            DisplayItem::PopSvgClip,
+        ]
+    }
+
+    fn full_square() -> DisplayItem {
+        let square = svg_path(&[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)]);
+        fill_path(square, Matrix::IDENTITY, RED)
+    }
+
+    #[test]
+    fn svg_clip_groups_show_the_union_of_the_clip_shapes() {
+        use swb_layout::svg::{ClipPath, ClipRegion};
+        let id = Matrix::IDENTITY;
+        let left = clip_shape(
+            &[(0.0, 0.0), (40.0, 0.0), (40.0, 40.0), (0.0, 40.0)],
+            id,
+            None,
+        );
+        let right = clip_shape(
+            &[(60.0, 0.0), (100.0, 0.0), (100.0, 40.0), (60.0, 40.0)],
+            id,
+            None,
+        );
+        let clip = ClipPath {
+            shapes: vec![left, right],
+            outer: None,
+        };
+        let p = render(clipped(clip, 0.0, full_square()));
+        assert_eq!(rgb(&p, 20, 20), (255, 0, 0));
+        assert_eq!(rgb(&p, 80, 20), (255, 0, 0));
+        assert_eq!(rgb(&p, 50, 20), (255, 255, 255));
+        assert_eq!(rgb(&p, 20, 60), (255, 255, 255));
+        // The `transform` of the group moves the clip shapes with it.
+        let shifted = ClipPath {
+            shapes: vec![clip_shape(
+                &[(0.0, 0.0), (40.0, 0.0), (40.0, 40.0), (0.0, 40.0)],
+                id,
+                None,
+            )],
+            outer: None,
+        };
+        let p = render(clipped(shifted, 50.0, full_square()));
+        assert_eq!(rgb(&p, 20, 20), (255, 255, 255));
+        assert_eq!(rgb(&p, 70, 20), (255, 0, 0));
+        // The `outer` region is intersected: here the left half of the
+        // shapes only.
+        let outer = ClipPath {
+            shapes: vec![clip_shape(
+                &[(0.0, 0.0), (100.0, 0.0), (100.0, 40.0), (0.0, 40.0)],
+                id,
+                None,
+            )],
+            outer: Some(ClipRegion::Rect(Rect::new(0.0, 0.0, 50.0, 100.0))),
+        };
+        let p = render(clipped(outer, 0.0, full_square()));
+        assert_eq!(rgb(&p, 20, 20), (255, 0, 0));
+        assert_eq!(rgb(&p, 80, 20), (255, 255, 255));
+        // A shape with its own clip: the part inside it.
+        let own = ClipPath {
+            shapes: vec![clip_shape(
+                &[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)],
+                id,
+                Some(ClipRegion::Rect(Rect::new(50.0, 50.0, 50.0, 50.0))),
+            )],
+            outer: None,
+        };
+        let p = render(clipped(own, 0.0, full_square()));
+        assert_eq!(rgb(&p, 20, 20), (255, 255, 255));
+        assert_eq!(rgb(&p, 70, 70), (255, 0, 0));
+    }
+
+    #[test]
+    fn an_empty_svg_clip_hides_the_group() {
+        use swb_layout::svg::ClipPath;
+        let clip = ClipPath {
+            shapes: Vec::new(),
+            outer: None,
+        };
+        let p = render(clipped(clip, 0.0, full_square()));
+        assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
+    }
+
+    #[test]
+    fn svg_clip_groups_are_bounded_by_the_layer_budget() {
+        use swb_layout::svg::ClipPath;
+        let id = Matrix::IDENTITY;
+        let clip = ClipPath {
+            shapes: vec![clip_shape(
+                &[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)],
+                id,
+                None,
+            )],
+            outer: None,
+        };
+        let items = clipped(clip, 0.0, full_square());
+        let mut target = Pixmap::new(100, 100).unwrap();
+        target.fill(tiny_skia::Color::WHITE);
+        let mut vectors = FrameBudget::new();
+        // The group needs the layer and a temporary one for the coverage.
+        let mut r = rasterizer(&mut target, &mut vectors, 100 * 100, MAX_MASK_PIXELS);
+        let mut fonts = FontContext::for_tests();
+        r.run(&items, 0..3, &transform_ends(&items), &mut fonts, &NoImages);
+        assert!(r.budget.skipped.layers);
+        assert_eq!(r.budget.layer_pixels, 0);
+        // The group draws nothing when its clip cannot be made.
+        assert_eq!(rgb(&target, 50, 50), (255, 255, 255));
+    }
+
+    #[test]
+    fn svg_fills_without_anti_aliasing_cover_the_pixels_with_centers_inside() {
+        // A circle of radius 15.3 around (20, 20): 732 pixel centers are
+        // inside (the count that Chromium draws with `crispEdges`).
+        use swb_layout::svg::{PathSegment, SvgPath};
+        let (cx, cy, r, k) = (20.0_f32, 20.0_f32, 15.3_f32, 0.552_284_8 * 15.3);
+        let p = Point::new;
+        let circle = Arc::new(
+            SvgPath::from_segments(&[
+                PathSegment::MoveTo(p(cx + r, cy)),
+                PathSegment::CubicTo(p(cx + r, cy + k), p(cx + k, cy + r), p(cx, cy + r)),
+                PathSegment::CubicTo(p(cx - k, cy + r), p(cx - r, cy + k), p(cx - r, cy)),
+                PathSegment::CubicTo(p(cx - r, cy - k), p(cx - k, cy - r), p(cx, cy - r)),
+                PathSegment::CubicTo(p(cx + k, cy - r), p(cx + r, cy - k), p(cx + r, cy)),
+                PathSegment::Close,
+            ])
+            .expect("a path"),
+        );
+        let item = |anti_alias| DisplayItem::FillPath {
+            path: Arc::clone(&circle),
+            transform: Matrix::IDENTITY,
+            color: Rgba::BLACK,
+            rule: swb_style::FillRule::NonZero,
+            anti_alias,
+        };
+        let count = |anti_alias| {
+            let pixmap = render(vec![item(anti_alias)]);
+            let mut exact = 0;
+            let mut partial = 0;
+            for y in 0..40 {
+                for x in 0..40 {
+                    match rgb(&pixmap, x, y) {
+                        (0, 0, 0) => exact += 1,
+                        (255, 255, 255) => {}
+                        _ => partial += 1,
+                    }
+                }
+            }
+            (exact, partial)
+        };
+        assert_eq!(count(false), (732, 0));
+        assert!(count(true).1 > 20);
     }
 }

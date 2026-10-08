@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!-- The boxes of the elements inside an inline <svg> (ADR 0023, part 2),
+     as Chromium reports them: g, shapes and use have the fill bounding
+     box under their full matrix (no stroke, no clip, not hidden by
+     visibility); defs, clipPath, title and their content have none;
+     display: none has none; a group is the transformed union of its
+     children; degenerate shapes keep a zero-size box but do not widen the
+     group; an svg inside a transformed block. Text, nested svg, symbol,
+     switch, foreignObject and image are not covered (backlog). -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inline SVG element boxes</title>
+<style>
+  body { margin: 0; }
+  svg { display: block; position: absolute; left: 20px; width: 200px; height: 100px; }
+  .t { transform: translate(10px, 20px) scale(1.5); transform-origin: 0 0; }
+</style>
+</head>
+<body>
+<svg style="top: 10px" viewBox="0 0 100 50">
+  <defs id="d1"><clipPath id="cp"><rect width="5" height="5"/></clipPath><rect id="def-rect" width="10" height="10"/></defs>
+  <title>t</title>
+  <g id="g1"><rect id="r1" x="10" y="10" width="20" height="10" stroke="red" stroke-width="4"/><circle id="c1" cx="50" cy="20" r="10" clip-path="url(#cp)"/></g>
+  <g id="g2" transform="translate(20 5) scale(2)"><rect id="r2" width="10" height="10" transform="rotate(45)"/></g>
+  <g id="g3" style="display:none"><rect id="r3" width="3" height="3"/></g>
+  <g id="g4" style="visibility:hidden"><rect id="r4" x="70" width="5" height="5"/></g>
+  <g id="g5"></g>
+  <g id="g6" transform="translate(30 10)"></g>
+  <path id="p1" d="M10 40"/>
+  <path id="p2"/>
+  <rect id="r5" y="45" width="-1" height="5"/>
+  <line id="l1" x1="5" y1="40" x2="50" y2="40" stroke="blue" stroke-width="6"/>
+  <ellipse id="e1" cx="80" cy="40" rx="10"/>
+  <polyline id="pl1" points="5,5 40,5"/>
+  <path id="curve" d="M60 20 C 60 0 90 0 90 20"/>
+</svg>
+<svg style="top: 130px" viewBox="0 0 100 50">
+  <g id="h1"><rect x="10" y="10" width="10" height="10"/><rect x="50" y="50" width="0" height="10"/></g>
+  <g id="h2"><rect x="10" y="10" width="10" height="10"/><path d="M80 40"/><path/></g>
+  <g id="h3"><rect x="10" y="10" width="10" height="10"/><circle cx="90" cy="40" r="0"/><line x1="60" y1="30" x2="60" y2="30"/></g>
+  <g id="h4" transform="rotate(45)"><rect id="h4a" width="10" height="10"/><rect id="h4b" x="90" y="90" width="10" height="10"/></g>
+</svg>
+<svg style="top: 250px" viewBox="0 0 100 50">
+  <defs><rect id="ur" width="10" height="10"/><g id="ug"><rect width="5" height="5" x="2" y="2"/><circle r="3" cx="20" cy="20"/></g></defs>
+  <use id="u1" href="#ur" x="30" y="40"/>
+  <use id="u2" href="#ug" x="10" y="10" transform="scale(2)"/>
+  <use id="u3" href="#nope" x="5" y="3"/>
+  <use id="u4" xlink:href="#ur" x="10%" y="10%" transform="rotate(45)"/>
+</svg>
+<div class="t" style="position: absolute; left: 400px; top: 10px; width: 200px; height: 100px; padding: 5px; border: 3px solid">
+  <svg style="position: static; margin: 7px 3px; width: 100px; height: 50px" viewBox="0 0 10 5">
+    <rect id="tr" x="1" y="1" width="2" height="2"/>
+    <g id="tg" transform="rotate(10)"><rect id="tg1" x="4" y="1" width="2" height="2"/></g>
+  </svg>
+</div>
+<svg style="top: 400px; left: 400px; width: 100px; height: 50px; padding: 10px; border: 5px solid; box-sizing: content-box"
+     viewBox="0 0 10 10" preserveAspectRatio="xMaxYMax meet">
+  <rect id="pr" width="10" height="10"/>
+</svg>
+<svg style="top: 400px; left: 600px; width: 100px; height: 50px; overflow: visible" viewBox="0 0 10 10">
+  <rect id="ov" width="10" height="20"/>
+</svg>
+</body>
+</html>

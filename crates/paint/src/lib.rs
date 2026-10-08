@@ -13,6 +13,7 @@ mod background;
 mod control;
 mod display_list;
 mod group_bounds;
+mod hit_path;
 mod image;
 mod inline_svg;
 mod mask;

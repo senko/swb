@@ -573,11 +573,15 @@ impl Element for DomElement<'_> {
 
     /// `a` and `area` elements with `href` (HTML: "all a elements that have
     /// an href attribute, and all area elements that have an href
-    /// attribute").
+    /// attribute"), and the SVG `a` elements with `href` or `xlink:href`.
     fn is_link(&self) -> bool {
-        (self.data.is_html_named(&local_name!("a"))
+        let html = (self.data.is_html_named(&local_name!("a"))
             || self.data.is_html_named(&local_name!("area")))
-            && self.data.has_attr("href")
+            && self.data.has_attr("href");
+        let svg = self.data.name.ns == swb_dom::ns!(svg)
+            && *self.data.local_name() == local_name!("a")
+            && self.data.svg_href().is_some();
+        html || svg
     }
 
     fn has_children(&self) -> bool {
@@ -641,6 +645,15 @@ mod tests {
         assert!(matches(&doc, &s, "t", "div > p:last-child"));
         assert!(matches(&doc, &s, "l", ":defined"));
         assert!(matches(&doc, &s, "d", "div:has(> a:link)"));
+    }
+
+    #[test]
+    fn svg_a_elements_with_href_are_links() {
+        let doc = parse_html("<svg><a id=a href=x></a><a id=b xlink:href=y></a><a id=c></a></svg>");
+        let s = StateSet::new(&doc, &ElementStates::default());
+        assert!(matches(&doc, &s, "a", ":any-link"));
+        assert!(matches(&doc, &s, "b", "a:link"));
+        assert!(!matches(&doc, &s, "c", ":any-link"));
     }
 
     #[test]

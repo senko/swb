@@ -10,14 +10,14 @@ use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
+    BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
     CompositeOperator, Contain, ContainIntrinsic, Content, CornerRadius, CounterList, Cursor,
     Direction, Display, EmptyCells, FillRule, FlexBasis, FlexDirection, FlexWrap, Float,
     FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
     GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
     LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
     ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent,
-    Rgba, Size, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextAlign,
+    Rgba, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextAlign,
     TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TrackBreadth, TrackList,
     TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
@@ -83,6 +83,12 @@ pub struct ComputedStyle {
     /// and is resolved by the element that paints.
     pub fill: SvgPaint,
     pub fill_rule: FillRule,
+    /// `clip-rule` (SVG): the fill rule of the shapes in a `clipPath`.
+    pub clip_rule: FillRule,
+    /// `shape-rendering` (SVG).
+    pub shape_rendering: ShapeRendering,
+    /// `clip-path`: `none` or a reference to a `clipPath` element.
+    pub clip_path: ClipPath,
     /// `fill-opacity`, 0 to 1.
     pub fill_opacity: f32,
     /// `stroke` (SVG).
@@ -282,6 +288,9 @@ impl ComputedStyle {
             pointer_events: PointerEvents::Auto,
             fill: SvgPaint::BLACK,
             fill_rule: FillRule::NonZero,
+            clip_rule: FillRule::NonZero,
+            shape_rendering: ShapeRendering::Auto,
+            clip_path: ClipPath::None,
             fill_opacity: 1.0,
             stroke: SvgPaint::None,
             stroke_width: LengthPercentage::Px(1.0),

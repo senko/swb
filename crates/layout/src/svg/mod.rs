@@ -9,19 +9,32 @@
 //! paths of `path`, `polyline` and `polygon` elements, parsed into user
 //! units (`path.rs`). Paint asks the content for its drawing commands
 //! ([`SvgContent::draw`], `draw.rs`) with the size of the content box,
-//! because percentages and the `viewBox` transform depend on it.
+//! because percentages and the `viewBox` transform depend on it; the box
+//! dump asks for the bounding boxes of the elements
+//! ([`SvgContent::element_boxes`]).
 //!
 //! Elements: `g` and `a` (groups), `path`, `rect`, `circle`, `ellipse`,
-//! `line`, `polyline` and `polygon`. Every other element draws nothing,
-//! with its subtree: `defs`, `clipPath`, `title`, `desc`, `style`,
-//! `metadata`, nested `svg`, `use`, `text`, `foreignObject` and unknown
-//! elements.
+//! `line`, `polyline` and `polygon`, and `use` with a reference to one of
+//! these (a copy of the referenced element inside two groups: the `use`
+//! element and its `x`/`y` translation; the copy's styles come from
+//! `StyleMap::use_instance`). `defs`, `clipPath` and the elements that
+//! only they refer to draw nothing themselves. Every other element draws
+//! nothing, with its subtree: `title`, `desc`, `style`, `metadata`,
+//! `symbol`, nested `svg`, `text`, `foreignObject` and unknown elements.
+//!
+//! `clip-path: url(#id)` (`clip.rs`) refers to a `clipPath` element of
+//! the document, also in another `<svg>`. The references are resolved when
+//! the content is built; the clip geometry is resolved with the matrices
+//! when the commands are made.
 //!
 //! Limits, for hostile documents: per box tree (document) at most
-//! [`MAX_SHAPES`] shapes and [`MAX_SEGMENTS`] path segments; groups nest at
-//! most [`MAX_DEPTH`] deep below the `<svg>` element. Content beyond a
-//! limit is not drawn and a warning is logged once per box tree. Paint
-//! bounds the rasterization work (`swb_paint`).
+//! [`MAX_SHAPES`] shapes, [`MAX_GROUPS`] groups and [`MAX_SEGMENTS`] path
+//! segments; groups nest at most [`MAX_DEPTH`] deep below the `<svg>`
+//! element (a `use` is two groups); `clip-path` references nest at most
+//! [`MAX_CLIP_DEPTH`] deep and a reference cycle is dropped. Content beyond
+//! a limit is not drawn and a warning is logged once per box tree. The
+//! style crate bounds the copies of `use` (`MAX_INSTANCE_ELEMENTS`,
+//! `MAX_USE_DEPTH`). Paint bounds the rasterization work (`swb_paint`).
 //!
 //! Opacity: a group (or a shape with a fill and a stroke) with `opacity`
 //! below 1 is composited as a layer. Layers cost memory and time in
@@ -29,19 +42,24 @@
 //! them. Past the limit, the opacity multiplies the alpha of each paint
 //! inside instead, which differs where shapes overlap. A group that holds
 //! one shape with one paint needs no layer (the result is the same) and
-//! does not count.
+//! does not count. Clips that need a layer have their own limit,
+//! [`MAX_CLIP_LAYERS`].
 
+mod clip;
 mod draw;
 mod path;
 mod viewport;
 
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use swb_dom::{Document, ElementData, NodeId, ns};
-use swb_style::{ComputedStyle, Display, LengthPercentage, StyleMap};
+use swb_style::{ComputedStyle, Display, InstanceId, LengthPercentage, StyleMap};
 
-pub use draw::{StrokeStyle, SvgDrawItem};
+pub(crate) use clip::ClipDef;
+pub use clip::{ClipPath, ClipRegion, ClipShape};
+pub use draw::{HitShape, StrokeStyle, SvgDrawItem};
 pub use path::{PathSegment, SvgPath};
 pub(crate) use viewport::natural_size;
 pub use viewport::{Align, PreserveAspectRatio, view_box_transform};
@@ -50,6 +68,9 @@ use crate::geom::Point;
 
 /// The most shapes that the inline SVG of one document draws.
 pub const MAX_SHAPES: usize = 50_000;
+
+/// The most groups (`g`, `a`, `use`) of the inline SVG of one document.
+pub const MAX_GROUPS: usize = 50_000;
 
 /// The most path segments of all shapes of one document (a basic shape
 /// counts its segments too; an arc is up to four).
@@ -63,6 +84,17 @@ pub const MAX_DEPTH: usize = 64;
 /// The most opacity layers (groups and shapes with a fill and a stroke
 /// that need a layer) of the inline SVG of one document.
 pub const MAX_LAYERS: usize = 256;
+
+/// The most clip groups of one document that may need a layer: clips
+/// that are not one axis-aligned rectangle (a rectangle is a plain clip
+/// rectangle without a layer). A clip past the limit is ignored.
+pub const MAX_CLIP_LAYERS: usize = 256;
+
+/// The longest chain of `clip-path` references: an element's clip path,
+/// the clip path of that clip path, and so on; also the nesting of
+/// the `clip-path` of a shape inside a clip path. A cycle is cut where it
+/// closes.
+pub const MAX_CLIP_DEPTH: usize = 8;
 
 /// What the descendants of one outer `<svg>` element draw, in the
 /// element's user space.
@@ -79,18 +111,30 @@ pub struct SvgContent {
 /// One entry of [`SvgContent::nodes`].
 #[derive(Debug, PartialEq)]
 enum Node {
-    /// The start of a group with its style (`opacity`, `transform`).
-    BeginGroup {
-        /// The style of the group.
-        style: Arc<ComputedStyle>,
-        /// True if its `opacity` (below 1) is composited as a layer; false
-        /// if it multiplies the alpha of the paints inside.
-        layer: bool,
-    },
+    /// The start of a group.
+    BeginGroup(Box<Group>),
     /// The end of the innermost group.
     EndGroup,
     /// A shape.
     Shape(Box<Shape>),
+}
+
+/// A group: `g`, `a`, `use`, and the translation inside a `use`.
+#[derive(Debug, PartialEq)]
+struct Group {
+    /// The style of the group (`opacity`, `transform`); `None` for the
+    /// translation of a `use` element.
+    style: Option<Arc<ComputedStyle>>,
+    /// True if its `opacity` (below 1) is composited as a layer; false
+    /// if it multiplies the alpha of the paints inside.
+    layer: bool,
+    /// The element, for the box dump; `None` for the translation of a `use`
+    /// and for the elements of the copy that a `use` draws.
+    node: Option<NodeId>,
+    /// The clip path.
+    clip: Option<Arc<ClipDef>>,
+    /// The `x` and `y` of a `use` element: the translation group.
+    offset: Option<(LengthPercentage, LengthPercentage)>,
 }
 
 /// A shape element.
@@ -102,15 +146,26 @@ struct Shape {
     /// each paint.
     layered: bool,
     geometry: Geometry,
+    /// The element, for the box dump and hit testing; `None` in the copy
+    /// that a `use` draws.
+    node: Option<NodeId>,
+    /// The clip path.
+    clip: Option<Arc<ClipDef>>,
 }
 
 /// The geometry of a shape, with lengths that can be percentages of the
 /// SVG viewport.
-#[derive(Debug, PartialEq)]
-enum Geometry {
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Geometry {
     /// A parsed path (`path`, `polyline`, `polygon`).
     Path(Arc<SvgPath>),
-    /// `rect`: x, y, width, height, and `rx`, `ry` (`None` for `auto`).
+    /// A path without a segment that draws: its one point (path data that
+    /// only moves, a `polygon` of one point), or `None` for no point at all.
+    /// It draws nothing but has a bounding box (at (0, 0) without a
+    /// point). Only a point takes part in the bounding box of the group.
+    Point(Option<Point>),
+    /// `rect`: x, y, width, height (zero if missing or negative), and `rx`,
+    /// `ry` (`None` for `auto`).
     Rect {
         x: LengthPercentage,
         y: LengthPercentage,
@@ -119,7 +174,7 @@ enum Geometry {
         rx: Option<LengthPercentage>,
         ry: Option<LengthPercentage>,
     },
-    /// `circle`: center and radius.
+    /// `circle`: center and radius (zero if missing or negative).
     Circle {
         cx: LengthPercentage,
         cy: LengthPercentage,
@@ -145,24 +200,43 @@ enum Geometry {
 #[derive(Debug)]
 pub(crate) struct SvgBudget {
     shapes: usize,
+    groups: usize,
     segments: usize,
     warned_shapes: bool,
+    warned_groups: bool,
     warned_segments: bool,
     warned_depth: bool,
     layers: usize,
     warned_layers: bool,
+    clip_layers: usize,
+    warned_clip_layers: bool,
+    /// The element for each `id` of the document, built when the first
+    /// reference needs it.
+    ids: Option<HashMap<Box<str>, NodeId>>,
+    /// The clip paths built so far, by `clipPath` element (`None` if the
+    /// element is not a valid clip path).
+    clips: HashMap<NodeId, Option<Arc<ClipDef>>>,
+    /// The `clipPath` elements being built (to cut cycles).
+    clip_stack: Vec<NodeId>,
 }
 
 impl Default for SvgBudget {
     fn default() -> Self {
         SvgBudget {
             shapes: MAX_SHAPES,
+            groups: MAX_GROUPS,
             segments: MAX_SEGMENTS,
             warned_shapes: false,
+            warned_groups: false,
             warned_segments: false,
             warned_depth: false,
             layers: MAX_LAYERS,
             warned_layers: false,
+            clip_layers: MAX_CLIP_LAYERS,
+            warned_clip_layers: false,
+            ids: None,
+            clips: HashMap::new(),
+            clip_stack: Vec::new(),
         }
     }
 }
@@ -185,6 +259,46 @@ impl SvgBudget {
         false
     }
 
+    /// Takes one clip layer; false (with a warning, once) if there is
+    /// none left.
+    fn take_clip_layer(&mut self) -> bool {
+        if self.clip_layers > 0 {
+            self.clip_layers -= 1;
+            return true;
+        }
+        if !self.warned_clip_layers {
+            self.warned_clip_layers = true;
+            log::warn!(
+                "inline SVG: more than {MAX_CLIP_LAYERS} clip paths that need a layer in the \
+                 document; the rest are ignored"
+            );
+        }
+        false
+    }
+
+    /// Takes one group; false (with a warning, once) if there is none
+    /// left.
+    fn take_group(&mut self) -> bool {
+        self.take_groups(1)
+    }
+
+    /// Takes `n` groups or none; false (with a warning, once) if fewer
+    /// are left.
+    fn take_groups(&mut self, n: usize) -> bool {
+        if self.groups >= n {
+            self.groups -= n;
+            return true;
+        }
+        if !self.warned_groups {
+            self.warned_groups = true;
+            log::warn!(
+                "inline SVG: more than {MAX_GROUPS} groups in the document; the rest are not \
+                 drawn"
+            );
+        }
+        false
+    }
+
     fn segments_ran_out(&mut self) {
         if !self.warned_segments {
             self.warned_segments = true;
@@ -193,6 +307,19 @@ impl SvgBudget {
                  the rest is not drawn"
             );
         }
+    }
+
+    /// The element with `id` in `doc`.
+    fn element_by_id(&mut self, doc: &Document, id: &str) -> Option<NodeId> {
+        self.ids
+            .get_or_insert_with(|| {
+                doc.element_ids()
+                    .into_iter()
+                    .map(|(id, node)| (Box::from(id), node))
+                    .collect()
+            })
+            .get(id)
+            .copied()
     }
 }
 
@@ -216,6 +343,9 @@ pub(crate) fn build(
         styles,
         budget,
         nodes: &mut content.nodes,
+        scope: None,
+        copy: false,
+        rotated: false,
     };
     builder.children(node, 0);
     content
@@ -226,61 +356,157 @@ struct Builder<'a> {
     styles: &'a StyleMap,
     budget: &'a mut SvgBudget,
     nodes: &'a mut Vec<Node>,
+    /// The instance tree whose styles the elements have: `None` for the
+    /// document, else the copy that a `use` draws.
+    scope: Option<InstanceId>,
+    /// True inside the copy of a `use`: its nodes are not DOM elements of
+    /// the `<svg>`.
+    copy: bool,
+    /// True if an element on the way down has a `transform` that rotates
+    /// or skews (a clip rectangle is then not axis-aligned).
+    rotated: bool,
 }
 
 impl Builder<'_> {
     /// Adds the content of the element children of `parent`, which is
     /// `depth` groups below the `<svg>` element.
     fn children(&mut self, parent: NodeId, depth: usize) {
-        for child in self.doc.element_children(parent) {
-            let Some(e) = self.doc.element(child).filter(|e| e.name.ns == ns!(svg)) else {
-                continue;
-            };
-            let Some(style) = self.styles.get(child) else {
-                continue;
-            };
-            if style.display == Display::None {
-                continue;
+        let doc = self.doc;
+        for child in doc.element_children(parent) {
+            self.element(child, depth);
+        }
+    }
+
+    /// Adds the content of the SVG element `node`.
+    fn element(&mut self, node: NodeId, depth: usize) {
+        let (doc, styles) = (self.doc, self.styles);
+        let Some(e) = doc.element(node).filter(|e| e.name.ns == ns!(svg)) else {
+            return;
+        };
+        let Some(style) = styles.style_in(self.scope, node) else {
+            return;
+        };
+        if style.display == Display::None {
+            return;
+        }
+        match &**e.local_name() {
+            "g" | "a" => self.group(node, style, depth),
+            "use" => self.use_element(node, e, style, depth),
+            "path" | "rect" | "circle" | "ellipse" | "line" | "polyline" | "polygon" => {
+                self.shape(node, e, style);
             }
-            match &**e.local_name() {
-                "g" | "a" => self.group(child, style, depth),
-                "path" | "rect" | "circle" | "ellipse" | "line" | "polyline" | "polygon" => {
-                    self.shape(e, style);
-                }
-                _ => {}
+            _ => {}
+        }
+    }
+
+    /// The identity of `node` in the box dump: none in a copy.
+    fn dom_node(&self, node: NodeId) -> Option<NodeId> {
+        (!self.copy).then_some(node)
+    }
+
+    /// Warns (once) and returns true if `depth` is too deep for a group.
+    fn too_deep(&mut self, depth: usize) -> bool {
+        if depth < MAX_DEPTH {
+            return false;
+        }
+        if !self.budget.warned_depth {
+            self.budget.warned_depth = true;
+            log::warn!(
+                "inline SVG: groups nested more than {MAX_DEPTH} deep; their content is \
+                 not drawn"
+            );
+        }
+        true
+    }
+
+    fn group(&mut self, node: NodeId, style: &Arc<ComputedStyle>, depth: usize) {
+        if self.too_deep(depth) || !self.budget.take_group() {
+            return;
+        }
+        let rotated = self.rotated;
+        self.rotated |= rotates(style);
+        let clip = self.clip_for(style);
+        let start = self.nodes.len();
+        self.nodes.push(Node::BeginGroup(Box::new(Group {
+            style: Some(Arc::clone(style)),
+            layer: false,
+            node: self.dom_node(node),
+            clip,
+            offset: None,
+        })));
+        self.children(node, depth + 1);
+        self.rotated = rotated;
+        let empty = self.nodes.len() == start + 1;
+        self.end_group(start, style, self.dom_node(node).is_some(), empty);
+    }
+
+    /// Closes the group that began at `start`. An empty group draws
+    /// nothing; it stays if it is an element of the `<svg>` (`keep`), for
+    /// the box dump.
+    fn end_group(&mut self, start: usize, style: &Arc<ComputedStyle>, keep: bool, empty: bool) {
+        if empty && !keep {
+            self.nodes.truncate(start);
+            return;
+        }
+        self.nodes.push(Node::EndGroup);
+        if !empty && style.opacity < 1.0 && !self.single_paint(start + 1) {
+            let layer = self.budget.take_layer();
+            if let Some(Node::BeginGroup(group)) = self.nodes.get_mut(start) {
+                group.layer = layer;
             }
         }
     }
 
-    fn group(&mut self, node: NodeId, style: &Arc<ComputedStyle>, depth: usize) {
-        if depth >= MAX_DEPTH {
-            if !self.budget.warned_depth {
-                self.budget.warned_depth = true;
-                log::warn!(
-                    "inline SVG: groups nested more than {MAX_DEPTH} deep; their content is \
-                     not drawn"
-                );
-            }
+    /// A `use` element: two groups (the element and the translation by its
+    /// `x` and `y`) around the copy of the referenced element. Without a
+    /// copy (a bad reference, a cycle, a limit) the groups are empty.
+    fn use_element(
+        &mut self,
+        node: NodeId,
+        e: &ElementData,
+        style: &Arc<ComputedStyle>,
+        depth: usize,
+    ) {
+        if self.too_deep(depth + 1) || !self.budget.take_groups(2) {
             return;
         }
+        let rotated = self.rotated;
+        self.rotated |= rotates(style);
+        let clip = self.clip_for(style);
+        let length = |name: &str| attribute_length(e, name, style.font_size);
+        let offset = (
+            length("x").unwrap_or(LengthPercentage::ZERO),
+            length("y").unwrap_or(LengthPercentage::ZERO),
+        );
         let start = self.nodes.len();
-        self.nodes.push(Node::BeginGroup {
-            style: Arc::clone(style),
+        self.nodes.push(Node::BeginGroup(Box::new(Group {
+            style: Some(Arc::clone(style)),
             layer: false,
-        });
-        self.children(node, depth + 1);
-        // An empty group draws nothing.
-        if self.nodes.len() == start + 1 {
-            self.nodes.pop();
-            return;
+            node: self.dom_node(node),
+            clip,
+            offset: None,
+        })));
+        self.nodes.push(Node::BeginGroup(Box::new(Group {
+            style: None,
+            layer: false,
+            node: None,
+            clip: None,
+            offset: Some(offset),
+        })));
+        if let Some(instance) = self.styles.use_instance(self.scope, node) {
+            let target = self.styles.instance_target(instance);
+            let saved = (self.scope, self.copy);
+            self.scope = Some(instance);
+            self.copy = true;
+            if let Some(target) = target {
+                self.element(target, depth + 2);
+            }
+            (self.scope, self.copy) = saved;
         }
         self.nodes.push(Node::EndGroup);
-        if style.opacity < 1.0 && !self.single_paint(start + 1) {
-            let layer = self.budget.take_layer();
-            if let Some(Node::BeginGroup { layer: l, .. }) = self.nodes.get_mut(start) {
-                *l = layer;
-            }
-        }
+        self.rotated = rotated;
+        let empty = self.nodes.len() == start + 3;
+        self.end_group(start, style, self.dom_node(node).is_some(), empty);
     }
 
     /// True if the nodes from `from` to the end of the group are one shape
@@ -293,7 +519,7 @@ impl Builder<'_> {
         }
     }
 
-    fn shape(&mut self, e: &ElementData, style: &Arc<ComputedStyle>) {
+    fn shape(&mut self, node: NodeId, e: &ElementData, style: &Arc<ComputedStyle>) {
         if self.budget.shapes == 0 {
             if !self.budget.warned_shapes {
                 self.budget.warned_shapes = true;
@@ -309,66 +535,79 @@ impl Builder<'_> {
         };
         self.budget.shapes -= 1;
         let layered = !(style.opacity < 1.0 && has_two_paints(style)) || self.budget.take_layer();
+        let rotated = self.rotated;
+        self.rotated |= rotates(style);
+        let clip = self.clip_for(style);
+        self.rotated = rotated;
         self.nodes.push(Node::Shape(Box::new(Shape {
             style: Arc::clone(style),
             layered,
             geometry,
+            node: self.dom_node(node),
+            clip,
         })));
     }
 
-    /// The geometry of shape element `e`, or `None` if it draws nothing
-    /// (no path, a negative or zero size).
+    /// The geometry of shape element `e`. Invalid values make a shape that
+    /// draws nothing but still has a bounding box (SVG 2 §10: a negative
+    /// size or radius, a missing `d`, ...). `None` if the segment budget
+    /// is used up.
     fn geometry(&mut self, e: &ElementData, font_size: f32) -> Option<Geometry> {
         let length = |name: &str| attribute_length(e, name, font_size);
         let zero = || LengthPercentage::ZERO;
+        let size = |name: &str| {
+            length(name)
+                .filter(|v| !is_negative(v))
+                .unwrap_or_else(zero)
+        };
         Some(match &**e.local_name() {
             "path" => {
                 let mut b = path::PathBuilder::new(&mut self.budget.segments);
-                path::parse_path_data(e.attr("d")?, &mut b);
+                if let Some(d) = e.attr("d") {
+                    path::parse_path_data(d, &mut b);
+                }
                 let exhausted = b.exhausted;
+                let point = b.lone_point();
                 let path = b.finish();
                 if exhausted {
                     self.budget.segments_ran_out();
                 }
-                Geometry::Path(Arc::new(path?))
+                match path {
+                    Some(path) => Geometry::Path(Arc::new(path)),
+                    None => Geometry::Point(point),
+                }
             }
             name @ ("polyline" | "polygon") => {
-                let (path, exhausted) = path::points_path(
-                    e.attr("points")?,
+                let (path, point, exhausted) = path::points_path(
+                    e.attr("points").unwrap_or(""),
                     name == "polygon",
                     &mut self.budget.segments,
                 );
                 if exhausted {
                     self.budget.segments_ran_out();
                 }
-                Geometry::Path(path?)
+                match path {
+                    Some(path) => Geometry::Path(path),
+                    None => Geometry::Point(point),
+                }
             }
             "rect" => {
-                let width = length("width")?;
-                let height = length("height")?;
-                if is_negative(&width) || is_negative(&height) {
-                    return None;
-                }
                 self.charge(10)?;
                 Geometry::Rect {
                     x: length("x").unwrap_or_else(zero),
                     y: length("y").unwrap_or_else(zero),
-                    width,
-                    height,
+                    width: size("width"),
+                    height: size("height"),
                     rx: length("rx").filter(|v| !is_negative(v)),
                     ry: length("ry").filter(|v| !is_negative(v)),
                 }
             }
             "circle" => {
-                let r = length("r")?;
-                if is_negative(&r) {
-                    return None;
-                }
                 self.charge(6)?;
                 Geometry::Circle {
                     cx: length("cx").unwrap_or_else(zero),
                     cy: length("cy").unwrap_or_else(zero),
-                    r,
+                    r: size("r"),
                 }
             }
             "ellipse" => {
@@ -404,6 +643,16 @@ impl Builder<'_> {
         self.budget.segments -= segments;
         Some(())
     }
+}
+
+/// True if the `transform` of `style` rotates or skews (its matrix is not
+/// a scale and a translation).
+fn rotates(style: &ComputedStyle) -> bool {
+    if style.transform.is_empty() {
+        return false;
+    }
+    let m = crate::positioned::style_transform(style, crate::geom::Rect::new(0.0, 0.0, 1.0, 1.0));
+    m.b.abs() > 1e-6 || m.c.abs() > 1e-6
 }
 
 /// True if `style` may give a shape both a fill and a stroke (a

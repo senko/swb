@@ -110,6 +110,17 @@ impl ElementData {
             .map(|a| a.value.as_str())
     }
 
+    /// The `href` of an SVG element: the attribute `href`, or else
+    /// `xlink:href` (SVG 2 §6.1: `href` wins).
+    pub fn svg_href(&self) -> Option<&str> {
+        self.attr("href").or_else(|| {
+            self.attrs
+                .iter()
+                .find(|a| a.name.ns == ns!(xlink) && &*a.name.local == "href")
+                .map(|a| a.value.as_str())
+        })
+    }
+
     /// True if the attribute exists (with no namespace).
     pub fn has_attr(&self, local: &str) -> bool {
         self.attr(local).is_some()
@@ -443,6 +454,18 @@ impl Document {
     /// The first element with this `id` attribute.
     pub fn element_by_id(&self, id: &str) -> Option<NodeId> {
         self.find_element(NodeId::DOCUMENT, |e| e.id() == Some(id))
+    }
+
+    /// The first element with each `id` attribute value, in one pass: the
+    /// index for many lookups (`element_by_id` scans the tree).
+    pub fn element_ids(&self) -> std::collections::HashMap<&str, NodeId> {
+        let mut ids = std::collections::HashMap::new();
+        for node in self.descendants(NodeId::DOCUMENT) {
+            if let Some(id) = self.element(node).and_then(ElementData::id) {
+                ids.entry(id).or_insert(node);
+            }
+        }
+        ids
     }
 
     // ----- Mutation -----

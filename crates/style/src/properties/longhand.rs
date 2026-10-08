@@ -32,9 +32,9 @@ use crate::values::{
     Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
     FontSizeKeyword, FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition,
     ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
-    VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout,
+    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi,
+    UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -127,6 +127,9 @@ pub(crate) fn parse_longhand(
             L::PointerEvents => V::PointerEvents(parse_pointer_events(p)?),
             L::Fill => V::Fill(svg::parse_paint(p)?),
             L::FillRule => V::FillRule(keyword(p, FillRule::from_ident)?),
+            L::ClipRule => V::ClipRule(keyword(p, FillRule::from_ident)?),
+            L::ShapeRendering => V::ShapeRendering(keyword(p, ShapeRendering::from_ident)?),
+            L::ClipPath => V::ClipPath(svg::parse_clip_path(p)?),
             L::FillOpacity => V::FillOpacity(svg::parse_alpha(p)?),
             L::Stroke => V::Stroke(svg::parse_paint(p)?),
             L::StrokeWidth => V::StrokeWidth(svg::parse_stroke_width(p)?),
@@ -679,24 +682,13 @@ fn parse_unicode_bidi(p: &mut Parser<'_>) -> ParseResult<UnicodeBidi> {
     })
 }
 
-/// `pointer-events`: the SVG-only values behave as `auto` on HTML content.
+/// `pointer-events`: the SVG values are kept (they behave as `auto` on
+/// HTML content); `bounding-box` (SVG 2) is `auto`.
 fn parse_pointer_events(p: &mut Parser<'_>) -> ParseResult<PointerEvents> {
     keyword(p, |i| {
         PointerEvents::from_ident(i).or_else(|| {
-            [
-                "all",
-                "visiblepainted",
-                "visiblefill",
-                "visiblestroke",
-                "visible",
-                "painted",
-                "fill",
-                "stroke",
-                "bounding-box",
-            ]
-            .iter()
-            .any(|k| k.eq_ignore_ascii_case(i))
-            .then_some(PointerEvents::Auto)
+            i.eq_ignore_ascii_case("bounding-box")
+                .then_some(PointerEvents::Auto)
         })
     })
 }

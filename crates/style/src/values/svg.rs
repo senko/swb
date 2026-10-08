@@ -25,6 +25,19 @@ pub enum SvgPaint {
     },
 }
 
+/// A computed `clip-path`: `none` or a reference to a `clipPath` element.
+/// Basic shapes and the other `<clip-source>` forms are not supported
+/// (the declaration is invalid).
+/// <https://drafts.fxtf.org/css-masking/#the-clip-path>
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum ClipPath {
+    /// `none`.
+    #[default]
+    None,
+    /// `url(...)`, as written (trimmed).
+    Url(Arc<str>),
+}
+
 impl SvgPaint {
     /// The initial value of `fill`: black.
     pub const BLACK: SvgPaint = SvgPaint::Color(Color::Rgba(Rgba::BLACK));

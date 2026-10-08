@@ -17,7 +17,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
-| Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links) | no |
+| Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links, `clipPath`, `use`, `shape-rendering`, hit testing of shapes); `tests/layout/inline-svg-boxes.html` (the boxes of `g`, shapes and `use` against Chromium) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Media tests            | `crates/engine/tests/media.rs` (video posters and their requests, `object-fit`, controls and the default poster in pixels, hit testing) | no |

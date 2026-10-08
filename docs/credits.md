@@ -75,6 +75,13 @@ Format: source, license (for code), what it influenced.
   the initial `view-box` reference box) and CSS Color 4 (`currentColor`
   as a computed keyword). The cubic Bézier approximation of circular arcs
   (control points at 4/3 · tan(θ/4) of the radius) is standard geometry.
+  Part 2: SVG 2 §5.6 (`use`, the instance tree and its inheritance), §6.1
+  (`href`), §8.11 (the bounding box: the fill box), §14.3 and CSS Masking 1
+  §5 (`clipPath`, `clipPathUnits`, `clip-rule`, `clip-path`), §13.4 (`shape-rendering`),
+  §16.4 (`pointer-events`) — `style/src/cascade/use_instances.rs`,
+  `layout/src/svg/clip.rs`, `draw.rs`, `paint/src/hit_path.rs`. The extrema
+  of quadratic and cubic Béziers (`SvgPath::fill_bounds`) are the roots of
+  the derivative, standard calculus.
 - HTML Living Standard, forms: form submission, constructing the entry
   list, implicit submission, value sanitization, radio button groups,
   selectedness, labels, constraint validation (`engine/src/forms/`);
@@ -189,7 +196,12 @@ Format: source, license (for code), what it influenced.
   its baseline and flex behaviour, the content-box clip, presentation
   attribute precedence, `currentColor` inheritance, `url()` paints
   without fallback, fill, stroke, dash, opacity and transform results by
-  their ink (`tools/probes/inline-svg.json`, ADR 0023).
+  their ink; part 2: the boxes of `g`, shapes and `use` (fill bounding
+  box, degenerate shapes, empty groups, `display: none`), which clip
+  references and shapes count, the clip units, transforms and fill rule,
+  cycles and invalid references, which pixels the hit test finds, the
+  link cursor of SVG `a`, and the values of `shape-rendering` that turn
+  anti-aliasing off (`tools/probes/inline-svg.json`, ADR 0023).
   Blink's design names (`ScrollableOverflowCalculator`,
   `ScrollManager::LogicalScroll`, `ScrollRectToVisible`) from
   recollection.
