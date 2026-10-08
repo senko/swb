@@ -72,13 +72,25 @@ update-scores: build
 perf *NAMES: build
     uv run --project tools swbtools perf {{NAMES}}
 
+# Run swb on the hostile-page set (default: all cases) and check time and memory limits. Pages and logs: out/hostile/.
+hostile *NAMES: build
+    uv run --project tools swbtools hostile {{NAMES}}
+
 # Write tests/layout/*.boxes.json with Chromium (default: all layout tests).
 layout-refs *NAMES:
     uv run --project tools swbtools layout-refs {{NAMES}}
 
+# Ask Chromium (and swb with --with-swb) about the cases of JSON files. Example: just probe --with-swb tools/probes/example.json
+probe *ARGS:
+    uv run --project tools swbtools probe {{ARGS}}
+
 # Write layout dumps, DOM dumps and screenshots of all fixtures and layout tests to DIR. Compare two snapshots with `diff -r`.
 snapshot DIR: build
     tools/snapshot.sh {{DIR}}
+
+# Prepare the persistent review worktree (../swb-review). Example: just review-tree staged
+review-tree *ARGS:
+    tools/review-tree.sh {{ARGS}}
 
 # Lint, format check and tests of the Python tools. The automation tests use the release binary.
 tools-check: build

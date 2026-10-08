@@ -58,6 +58,8 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
+| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values (see "Probe Chromium behaviour"). |
+| `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
@@ -71,7 +73,7 @@ Options:
   `files/`, `fixture.json` and `reference/`).
 - `capture --with-swb` / `--no-swb`: record swb's requests too, or not.
   Default: use swb if the binary exists.
-- `--swb PATH` (`capture`, `capture-missing`, `compare`, `perf`): the
+- `--swb PATH` (`capture`, `capture-missing`, `compare`, `perf`, `probe`): the
   swb binary. Default: the
   `SWB` environment variable, then `target/release/swb`, then
   `target/debug/swb`.
@@ -473,9 +475,13 @@ covered: their tests must pass.
 
 ### Measure Chromium behaviour
 
+`measure` regenerates data that is checked into the repository. To answer
+a question during development, use `probe` (next section), not a new
+script.
+
 Some data in swb comes from black-box measurements of Chromium, not from
-its source code (Chromium's source is read for ideas, and data from its
-LGPL files is not allowed: ADR 0003, [credits.md](credits.md)).
+its source code (agents do not read Chromium's source: ADR 0021; data from
+its LGPL files is not allowed: ADR 0003).
 `swbtools measure` (`tools/swbtools/measure.py`) repeats these
 measurements. Each one loads generated pages in Chromium with the
 settings above (bundled fonts, JavaScript disabled) and prints the
@@ -497,6 +503,128 @@ tools-check` fails when they no longer match Chromium (for example after a
 Playwright upgrade). It also measures samples of the font sizes and
 compares them with the two data files, which the Rust tests
 (`font_size_rule_matches_chromium`, `font_widths.rs`) compare with swb.
+
+### Probe Chromium behaviour
+
+`swbtools probe` (`tools/swbtools/probe.py`) loads small HTML documents in
+Chromium and prints what you ask for. Do not write one-off Playwright
+scripts: add a case to a JSON file. Chromium has the settings above (bundled
+fonts, JavaScript disabled, device scale factor 1). Each page is a file in a
+temporary directory, loaded by navigation.
+
+```json
+{"viewport": [800, 600],
+ "cases": [
+   {"name": "bfc-next-to-float",
+    "html": "<!DOCTYPE html><style>...</style><div id=a>...</div>",
+    "viewport": [800, 600],
+    "measure": [
+      {"boxes": "#a, #a > p"},
+      {"rects": "span.x"},
+      {"style": "#a", "props": ["width", "line-height"]},
+      {"js": "document.scrollingElement.scrollHeight"}
+    ]}]}
+```
+
+- `viewport` (file and case, optional): default 800x600.
+- `html`: the whole document, used verbatim. Without a doctype the page is
+  in quirks mode, on purpose.
+- `boxes`: the border box of each element that the CSS selector matches, in
+  document coordinates, as in the box dump (union of the client rects,
+  rounded to 2 decimals).
+- `rects`: each `getClientRects()` rectangle of each match (the line
+  fragments of an inline element).
+- `style`: the `getComputedStyle` values of `props`.
+- `js`: the JSON value of an expression.
+
+Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
+selector and the 1-based index among its matches (`#a > p[2]`; a selector
+list is in parentheses: `(#a, #b)[2]`). `rects` adds `#N` for the fragment.
+
+```
+bfc-next-to-float  boxes  (#f, #b, #b > p)[2]  x=108 y=8 w=684 h=52
+bfc-next-to-float  swb    (#f, #b, #b > p)[2]  x=108 y=8 w=684 h=52  dx=0 dy=0 dw=0 dh=0
+```
+
+`--json` prints the same data as JSON. `--case NAME` (repeatable) runs only
+the named cases. A bad selector or expression gives an `error:` value, the
+other queries still run, and the exit status is 1.
+
+`--with-swb` also renders each case in swb (`--headless --test-fonts
+--size WxH --dump-boxes`; binary: `--swb PATH`, `$SWB`,
+`target/release/swb`, `target/debug/swb`). For each `boxes` element it
+reads the same index of `document.querySelectorAll('*')` from swb's dump
+and prints swb's box and the deltas below the Chromium line, with `!` if a delta is above
+`--tolerance` (default 1 px). If the tag at that index differs, or only one
+side has a box, it says so. `rects`, `style` and `js` are Chromium only.
+Exit status 1 if a compared box is outside the tolerance, a tag differs, or
+swb fails; so `just probe --with-swb FILE` works as a quick check.
+
+Case files that other people should reuse go in `tools/probes/`
+(`example.json` shows the format). Scratch case files can live anywhere.
+`tools/tests/test_probe.py` runs the example file.
+
+## Hostile-page set
+
+swb must never panic, hang or exhaust memory on content from the network.
+The set in `tools/swbtools/hostile_cases.py` has one page for each limit
+that an ADR documents (floats, tables, grid, masks, transforms, scroll
+containers, SVG images, counters, custom properties, box depth), each sized
+just past the limit so that the limit acts, and some generic pages (deep
+nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
+`var()` chains, huge lists).
+
+```
+just hostile                    # all cases; builds the release binary first
+just hostile floats-many        # named cases
+uv run swbtools hostile --list  # cases, limits and descriptions
+uv run swbtools hostile --keep  # keep the pages of passing cases
+```
+
+For each case the runner writes the page to `out/hostile/NAME/` (`index.html`,
+extra files, `swb.log`, the box dump and the screenshot), runs
+`swb --headless --test-fonts --size 1280x800 --dump-boxes ... --screenshot ...`
+on it, one case at a time, and prints one line: name, wall time, peak
+resident memory, result. The directories of passing cases are deleted unless
+`--keep` is given.
+
+| Result          | Meaning |
+|-----------------|---------|
+| `ok`            | Exit status 0, within the time and memory limits. |
+| `slow`          | Over the time limit (default 5 s), or killed at twice the limit. |
+| `memory`        | Over the memory limit (default 1 GiB), or killed at the cap. |
+| `panic`         | Exit status 101 or "panicked" in swb's log (also panics that swb catches). |
+| `error`         | Another failure (a crash by a signal, a non-zero exit status). |
+| `inactive`      | The case sets `expect_log` and swb did not log that warning: the limit did not act (the limit changed, or the case does not reach it). |
+| `known failure` | The case is marked as a known failure and fails. This is a pass. |
+| `unexpected pass` | A known failure that now passes. This is a failure: remove the mark. |
+
+The exit status is 1 if a case fails that is not a known failure, or a known
+failure passes (like `tests/layout/known-failures.txt`). A watchdog polls
+`/proc/PID/status` every 50 ms and kills swb (the whole process group) after
+twice the time limit, or when its memory exceeds twice the memory limit (at
+most 4 GiB), so that a bug cannot take the machine down. Times have the
+resolution of the poll interval. The peak memory is the kernel's high-water
+mark of the resident set; for runs shorter than a few polls it is the
+`ru_maxrss` of the child, which includes the runner's own memory (about
+50 to 90 MiB too high). A run of the whole set takes about 30 s on a release
+build.
+
+The limits depend on the machine, so the set is not part of `just check`.
+Implementers run `just hostile` after a change to layout, style, paint or
+the DOM, and reviewers run it as part of the review checklist. A failing case
+is either a regression or a limit that the change should keep.
+
+To add a case, write a function in `hostile_cases.py` that returns a
+`Page(html, files)` and decorate it with `@case(description, ...)`. The
+description names the limit and the ADR. Size the page just past the limit
+(at most 20 MB; `tools/tests/test_hostile.py` checks this and that names are
+unique). Options: `time_limit_s` and `rss_limit_mib` where an ADR documents
+a higher cost, `expect_log` (a part of the warning that swb logs when the
+limit acts), `swb_args` (for example `--full-page`, `--scale 8`) and
+`known_failure="reason"` for an open bug. Put the bug in the backlog in
+`docs/roadmap.md`; when it is fixed, `just hostile` reports `unexpected pass`
+and the mark goes.
 
 ## Scores
 
@@ -580,3 +708,32 @@ current source. The protocol is documented in
 - Dependencies (licenses): playwright (Apache-2.0), pillow (MIT-CMU),
   numpy (BSD-3-Clause), websockets (BSD-3-Clause). Development: pytest
   (MIT), ruff (MIT).
+
+## Review worktree
+
+Reviews and verifications build in a persistent git worktree next to the
+main repository, `../swb-review` (or `$SWB_REVIEW_TREE`). It has its own
+`target/` directory, so builds there are incremental and never share
+output with another tree. `tools/review-tree.sh` (`just review-tree`)
+prepares it:
+
+| Command                          | What it does |
+|----------------------------------|--------------|
+| `just review-tree path`          | Prints the path of the worktree. |
+| `just review-tree reset [COMMIT]`| Checks out COMMIT (default: `HEAD` of the main repository) and removes local changes and untracked files. Ignored files (`target/`, `out/`, `tools/.venv`) stay. |
+| `just review-tree apply PATCH`   | Resets to `HEAD`, then applies the patch (`git apply --index`). |
+| `just review-tree staged`        | Resets to `HEAD`, then applies the staged diff of the main repository. |
+
+The script creates the worktree when it does not exist and marks it with
+a file `swb-review-tree` in its git directory
+(`git -C ../swb-review rev-parse --absolute-git-dir`). It changes only a
+marked worktree, so a wrong `$SWB_REVIEW_TREE` cannot discard the work in
+another tree. In the worktree, run commands with `env -u CARGO_TARGET_DIR`
+so that cargo uses the worktree's own `target/`. Reset the worktree when
+the review is done.
+
+Build output and the Python environment contain absolute paths. After you
+move or rename the worktree (`git worktree move`), delete its `target/`
+and `tools/.venv`.
+Sub-agents that implement a feature work in their own worktrees
+(`.claude/worktrees/`), each with its own target directory.

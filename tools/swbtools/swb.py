@@ -81,6 +81,53 @@ def replay_command(
     ]
 
 
+def probe_command(swb: Path, url: str, viewport: tuple[int, int], boxes: Path) -> list[str]:
+    """Command line that loads `url` (a local file) with the test fonts and
+    writes a box dump. `probe` uses it."""
+    width, height = viewport
+    return [
+        str(swb),
+        "--headless",
+        "--test-fonts",
+        "--size",
+        f"{width}x{height}",
+        "--dump-boxes",
+        str(boxes),
+        url,
+    ]
+
+
+def hostile_command(
+    swb: Path,
+    url: str,
+    viewport: tuple[int, int],
+    timeout_s: int,
+    boxes: Path,
+    screenshot: Path,
+    extra: list[str] | None = None,
+) -> list[str]:
+    """Command line that loads a hostile page (`url`, normally `file://`)
+    with the test fonts, a page load timeout of `timeout_s` and the whole
+    pipeline, including the box dump and the screenshot. `extra` are
+    additional swb options, for example `--full-page`."""
+    width, height = viewport
+    return [
+        str(swb),
+        "--headless",
+        "--test-fonts",
+        "--size",
+        f"{width}x{height}",
+        "--timeout",
+        str(timeout_s),
+        "--dump-boxes",
+        str(boxes),
+        "--screenshot",
+        str(screenshot),
+        *(extra or []),
+        url,
+    ]
+
+
 def serve_command(
     swb: Path,
     viewport: tuple[int, int],

@@ -1,6 +1,6 @@
 # ADR 0021: Code derived from Chromium, Skia and Servo
 
-- Status: accepted (an open question remains, see "Follow-up")
+- Status: accepted
 - Date: 2026-10-07
 
 ## Context
@@ -81,10 +81,16 @@ The owner decided:
 
 ## Follow-up
 
-The owner wants to discuss why Chromium code was read at all ("that was
-the original error"). Until then the rule above applies. The answer given
-on 2026-10-07: ground rule 6 allows reading for ideas; from M0 on the
-practice became studying Chromium's implementation to get identical
-results; in M3 the prompts set exact parity with Chromium as the goal and
-pointed agents at Blink internals, with no boundary between reading and
-writing, and reviews did not check provenance.
+The owner asked why Chromium code was read at all ("that was the
+original error"). The answer given on 2026-10-07: ground rule 6 allows
+reading for ideas; from M0 on the practice became studying Chromium's
+implementation to get identical results; in M3 the prompts set exact
+parity with Chromium as the goal and pointed agents at Blink internals,
+with no boundary between reading and writing, and reviews did not check
+provenance.
+
+On 2026-10-08 the owner closed the question: no further discussion is
+needed. The rule in "Decision" stays. The list of derived code in
+`THIRD_PARTY_NOTICES.md` and in this ADR is the record for a later
+clean-room rewrite. The largest items are table layout (about 1,300
+lines) and grid track sizing (about 600 lines).

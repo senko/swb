@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: Shared tools for the agent workflow
+
+- The owner accepted target 3 (Wikipedia) and closed the question of why
+  Chromium source was read (ADR 0021, "Follow-up").
+- New tools that the serial agent workflow (CLAUDE.md) relies on, all in
+  docs/testing.md:
+  - `swbtools probe` (`just probe`): JSON case files with HTML documents
+    and queries (boxes, client rects, computed values, script values),
+    run in Chromium with the test settings and, with `--with-swb`, in
+    swb, compared box by box. It replaces the one-off Playwright scripts
+    of M2 and M3. First use: swb and Chromium both give no width to
+    columns that only spanning cells cover (a row of `colspan=1000`
+    cells is a few px wide in both).
+  - `swbtools hostile` (`just hostile`): 64 generated hostile pages, one
+    or more for each limit in ADRs 0007, 0010, 0011 and 0015–0019, plus
+    generic ones, each run with a time and memory limit and a watchdog.
+    Known failures: generated `content` text without a size limit (the
+    high-priority bug, next task) and html5ever's quadratic deep nesting
+    (100,000 nested `div`s: 13 s).
+  - `tools/review-tree.sh` (`just review-tree`): the persistent review
+    worktree `../swb-review` with its own target directory.
+- CI: `cargo deny --offline` failed on GitHub because the build downloads
+  only the crates of the host platform; the workflow now runs
+  `cargo fetch --locked` first.
+
 ## 2026-10-07: Provenance and attribution
 
 - A provenance audit compared swb with the Chromium, Skia and Servo

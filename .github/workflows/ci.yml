@@ -31,6 +31,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
+      # Crates for all platforms: the build only downloads the host's, but
+      # `cargo deny --offline` reads the metadata of all of them.
+      - name: Fetch dependencies
+        run: cargo fetch --locked
+
       # The same checks as `just check`. Tests that need Chromium are
       # skipped when it is not installed.
       - name: Check

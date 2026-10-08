@@ -75,17 +75,38 @@ Five workstreams (ADRs 0015–0019), then a final pass on the page:
 - Final pass: flex container min/max sizes and baselines, `<video>` and
   `<audio>` (ADR 0020), CSS counters, line breaking and text measurement:
   done.
-- Target 3 (Wikipedia "Web browser") done: geometry 0.9978 (4,052
-  element boxes), pixels 0.9936.
+- Target 3 (Wikipedia "Web browser") done and accepted by the owner:
+  geometry 0.9978 (4,052 element boxes), pixels 0.9936.
 
 `@font-face` and `@import` were planned for M3, but the Wikipedia page
 uses neither; they moved to "Later".
 
+## After M3: shared tools, robustness, maintenance
+
+One feature at a time, in this order:
+
+1. Shared tools for the agent workflow (CLAUDE.md, "Agents"):
+   - Review worktree: `tools/review-tree.sh` (`just review-tree`), a
+     persistent worktree with its own target directory.
+   - Chromium probe: `swbtools probe` runs case files (HTML documents and
+     what to read: boxes, line rectangles, computed values, script
+     values) in Chromium with the test settings, and optionally in swb,
+     and prints compact results. Replaces ad hoc measurement scripts.
+     `measure` and `linebreaks` stay for the data they regenerate.
+   - Hostile-page set: `swbtools hostile` (`just hostile`) generates the
+     hostile pages behind the limits in ADRs 0007, 0010, 0011 and
+     0015–0019, runs swb on each with a time and memory limit, and fails
+     on a panic, a timeout or too much memory. Known failures are listed
+     with their reason.
+   Separate files: the probe and the hostile set are separate modules of
+   `tools/swbtools/` and can be built in parallel.
+2. Generated content size limit (the high-priority robustness bug in
+   "Backlog from M3").
+3. M3 maintenance: review the whole codebase for duplication, dead code,
+   unclear names and outdated docs; `just snapshot` shows no change.
+
 ## Pending decisions
 
-- The owner wants to discuss why Chromium source code was read during
-  development (ADR 0021, "Follow-up"). Until then, agents read no source
-  code of other engines.
 - Clean-room rewrites of the code derived from Chromium (table layout
   column constraints, width distribution, row heights; grid track
   sizing; sticky offsets; two float helpers), Skia data and Servo

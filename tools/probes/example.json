@@ -1,0 +1,28 @@
+{
+  "viewport": [800, 600],
+  "cases": [
+    {
+      "name": "bfc-next-to-float",
+      "html": "<!DOCTYPE html><style>body { margin: 8px; font: 16px/20px Arial } #f { float: left; width: 100px; height: 50px } #b { overflow: hidden }</style><div id=f></div><div id=b><p>Text in a block formatting context root next to a float.</p></div>",
+      "measure": [
+        {"boxes": "#f, #b, #b > p"}
+      ]
+    },
+    {
+      "name": "inline-split-over-two-lines",
+      "html": "<!DOCTYPE html><style>body { margin: 0; font: 16px/20px Arial } div { width: 150px }</style><div>Some text <span class=x>that wraps over two lines</span> and more.</div>",
+      "measure": [
+        {"boxes": "span.x"},
+        {"rects": "span.x"}
+      ]
+    },
+    {
+      "name": "computed-line-height",
+      "html": "<!DOCTYPE html><style>#a { font: 20px Arial } #b { font: 20px/1.5 Arial } #c { font: 20px/30px Arial }</style><p id=a>x</p><p id=b>x</p><p id=c>x</p>",
+      "measure": [
+        {"style": "#a, #b, #c", "props": ["line-height", "height"]},
+        {"js": "document.scrollingElement.scrollHeight"}
+      ]
+    }
+  ]
+}

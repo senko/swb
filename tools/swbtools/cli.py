@@ -8,6 +8,7 @@ from pathlib import Path
 from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import compare_fixture, update_scores
+from swbtools.hostile import hostile
 from swbtools.layout_refs import layout_refs
 from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
@@ -16,6 +17,8 @@ from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
 from swbtools.pages import list_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
+from swbtools.probe import DEFAULT_TOLERANCE as PROBE_TOLERANCE
+from swbtools.probe import probe
 from swbtools.reference import reference
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
 
@@ -74,6 +77,10 @@ def cmd_perf(args: argparse.Namespace) -> int:
     return perf(names, args.swb, args.runs)
 
 
+def cmd_hostile(args: argparse.Namespace) -> int:
+    return hostile(args.names, args.swb, args.list, args.keep)
+
+
 def cmd_layout_refs(args: argparse.Namespace) -> int:
     return layout_refs(args.names, args.system_fonts)
 
@@ -86,6 +93,16 @@ def cmd_measure(args: argparse.Namespace) -> int:
         )
         return 2
     return measure(args.names)
+
+
+def cmd_probe(args: argparse.Namespace) -> int:
+    binary = None
+    if args.with_swb:
+        binary = swb.find_swb(args.swb)
+        if binary is None:
+            log.error("swb binary not found; build it (`just build`) or pass --swb PATH")
+            return 1
+    return probe(args.files, args.case, binary, args.tolerance, args.json)
 
 
 def cmd_linebreaks(args: argparse.Namespace) -> int:
@@ -173,6 +190,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.set_defaults(func=cmd_compare)
 
+    p = commands.add_parser(
+        "hostile", help="run swb on the hostile-page set and check time and memory limits"
+    )
+    p.add_argument("names", nargs="*", metavar="NAME", help="cases to run (default: all)")
+    p.add_argument("--swb", type=Path, help="path of the swb binary")
+    p.add_argument("--list", action="store_true", help="list the cases and their limits")
+    p.add_argument("--keep", action="store_true", help="keep out/hostile/NAME of passing cases")
+    p.set_defaults(func=cmd_hostile)
+
     p = commands.add_parser("layout-refs", help="write tests/layout/*.boxes.json with Chromium")
     p.add_argument("names", nargs="*", metavar="NAME")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
@@ -198,6 +224,33 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.set_defaults(func=cmd_measure)
+
+    p = commands.add_parser(
+        "probe",
+        help="ask Chromium (and swb) about the cases of JSON files (see docs/testing.md)",
+        description=(
+            "Renders each case in Chromium and prints boxes, line fragments (rects), "
+            "computed styles or JS values. With --with-swb, boxes are also compared with swb "
+            "(rects, style and js are Chromium only); exit status 1 if a box differs by "
+            "more than the tolerance."
+        ),
+    )
+    p.add_argument("files", nargs="+", type=Path, metavar="FILE", help="case files (JSON)")
+    p.add_argument(
+        "--case", action="append", default=[], metavar="NAME", help="run only this case (repeat)"
+    )
+    p.add_argument(
+        "--with-swb", action="store_true", help="also render in swb and compare the boxes"
+    )
+    p.add_argument("--swb", type=Path, help="path of the swb binary (default: $SWB, target/)")
+    p.add_argument(
+        "--tolerance",
+        type=float,
+        default=PROBE_TOLERANCE,
+        help=f"maximum box difference in px (default {PROBE_TOLERANCE:g})",
+    )
+    p.add_argument("--json", action="store_true", help="print JSON instead of text")
+    p.set_defaults(func=cmd_probe)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"
