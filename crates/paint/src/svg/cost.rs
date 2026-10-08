@@ -40,10 +40,12 @@
 //! rasterizer uses the path weights for inline SVG too (`raster/path.rs`).
 
 use std::collections::HashMap;
+use std::sync::{Mutex, PoisonError};
 
 use usvg::{self, Group, Node, NonZeroRect, Paint, filter};
 
-use super::edges::{Draw, EdgeSweep, Edges, SWEEP_SEGMENT, Segment, Work};
+use super::edges::{Draw, EdgeSweep, Edges, SWEEP_SEGMENT, Segment, Window, Work};
+use super::spans::{self, Grid, Rule, SCALES, SPAN, SPAN_SKIP, SpanCount};
 
 /// The cost of one neighbor of a morphology filter.
 const MORPHOLOGY: f64 = 32.0;
@@ -62,7 +64,14 @@ pub(crate) const DASH: f64 = 200.0;
 /// The cost of decoding one pixel of an embedded raster image.
 const RASTER_DECODE: f64 = 10.0;
 /// tiny-skia makes at most this many dashes per path.
-const MAX_DASHES: f64 = 1_000_000.0;
+const MAX_CHARGED_DASHES: f64 = 1_000_000.0;
+/// The most dash array entries (dashes and gaps) along a stroke whose
+/// outline is made to count its spans, as `MAX_DASHES` in `raster/path.rs`
+/// counts them; a path with more is too expensive (`MAX_REJECT`).
+const MAX_OUTLINE_DASHES: f64 = 100_000.0;
+/// Added to the fixed cost of what is too expensive to look at: more than
+/// the render budget of `svg/mod.rs`.
+const MAX_REJECT: f64 = 4.0e9;
 /// resvg clips layers to 5 × 5 canvases (`max_filter_bbox`).
 const MAX_LAYER: f64 = 25.0;
 /// The cost of rendering a path, apart from its pixels and segments.
@@ -76,6 +85,48 @@ const GROUP: f64 = 100.0;
 /// fills, 0.125 ns for opaque ones.)
 pub(crate) const BLEND: f64 = 8.0;
 
+/// The most work of counting the spans of the paths of one image
+/// (`spans.rs`), in units: about 0.3 s, once per image. Paths beyond it are
+/// charged the bound on their spans.
+const MAX_COUNT_WORK: f64 = 1.0e9;
+
+/// The most work of counting spans for all the images of one document, in
+/// units: about 0.6 s. Counting at 0.22 s per image takes 7 s for 30
+/// images of 250,000 segments, without this limit.
+const MAX_DOCUMENT_COUNT_WORK: f64 = 2.0e9;
+
+/// What counting spans (`spans.rs`) may still take in one document, shared
+/// by its SVG images. Past it, images are charged the bound on their spans
+/// without counting (so they render at a lower resolution, or not at all).
+#[derive(Debug)]
+pub struct CountBudget {
+    left: Mutex<f64>,
+}
+
+impl Default for CountBudget {
+    fn default() -> Self {
+        CountBudget {
+            left: Mutex::new(MAX_DOCUMENT_COUNT_WORK),
+        }
+    }
+}
+
+impl CountBudget {
+    /// Takes up to the work of one image from the budget and returns it.
+    fn start(&self) -> f64 {
+        let mut left = self.left.lock().unwrap_or_else(PoisonError::into_inner);
+        let taken = left.min(MAX_COUNT_WORK);
+        *left -= taken;
+        taken
+    }
+
+    /// Gives back the work that an image did not use.
+    fn finish(&self, unused: f64) {
+        let mut left = self.left.lock().unwrap_or_else(PoisonError::into_inner);
+        *left += unused;
+    }
+}
+
 /// The estimate for a render tree.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(super) struct Cost {
@@ -88,23 +139,37 @@ pub(super) struct Cost {
     /// The largest sum of nested layers, in canvases (the canvas itself is
     /// not counted).
     layers: f64,
+    /// The work of the spans of anti-aliased fills that are narrower than a
+    /// pixel (`spans.rs`), per row of the canvas, for a rendering at
+    /// `spans::scale(i)` pixels per user unit: at a scale `s` from that one
+    /// to the next, the work is `s` times `spans[i]` (spans only get wider
+    /// at a larger scale).
+    spans: [f64; SCALES],
+    /// The bound on the same work, per row of the canvas, at any scale.
+    span_bound: f64,
+    /// The area of the canvas in user units (for the scale of a rendering).
+    canvas: f64,
 }
 
 impl Cost {
-    /// The largest number of pixels whose rendering stays within `work`
-    /// units and whose layers stay within `layer_pixels`, or `None` if not
-    /// even one pixel does.
+    /// The largest number of pixels, at most `up_to`, whose rendering stays
+    /// within `work` units and whose layers stay within `layer_pixels`, or
+    /// `None` if not even one pixel does. The work of the spans can make a
+    /// smaller rendering more expensive than a larger one, so the search
+    /// goes down from `up_to`.
+    ///
     /// A cost that is not finite (an overflow, or NaN from one) admits
     /// nothing.
-    pub(super) fn max_pixels(&self, work: f64, layer_pixels: f64) -> Option<f64> {
+    pub(super) fn max_pixels(&self, work: f64, layer_pixels: f64, up_to: f64) -> Option<f64> {
         let terms = [
             self.fixed,
             self.rows,
             self.linear,
             self.quadratic,
             self.layers,
+            self.span_bound,
         ];
-        if !terms.iter().all(|t| t.is_finite()) {
+        if !terms.iter().chain(&self.spans).all(|t| t.is_finite()) {
             return None;
         }
         let work = work - self.fixed;
@@ -112,8 +177,8 @@ impl Cost {
             return None;
         }
         let (a, b) = (self.quadratic, self.linear);
-        let by_work = if self.rows > 0.0 {
-            self.pixels_for(work)
+        let by_work = if self.rows > 0.0 || self.span_bound > 0.0 {
+            self.pixels_for(work, up_to)
         } else if a > 0.0 {
             // The positive root of a p² + b p = work, in the form that
             // does not cancel; an overflow in the root gives 0, not
@@ -133,54 +198,125 @@ impl Cost {
         [by_work, by_memory]
             .iter()
             .all(|p| *p >= 1.0)
-            .then(|| by_work.min(by_memory))
+            .then(|| by_work.min(by_memory).min(up_to.max(1.0)))
     }
 
     /// The work of a rendering of `pixels` canvas pixels.
     pub(super) fn work(&self, pixels: f64) -> f64 {
+        let side = pixels.sqrt();
         self.fixed
-            + self.rows * pixels.sqrt()
+            + self.rows * side
             + self.linear * pixels
             + self.quadratic * pixels * pixels
+            + side * self.span_rows(self.piece(side))
     }
 
-    /// The number of pixels whose work, without the fixed part, is `work`
-    /// (positive): a bisection on the square root of the pixels, since the
-    /// work is monotone in it. Infinite if the work does not grow.
-    fn pixels_for(&self, work: f64) -> f64 {
-        let beyond = |side: f64| {
-            side * (self.rows + side * (self.linear + side * side * self.quadratic)) >= work
+    /// The largest scale of the spans: that of the largest rendering.
+    fn largest(&self) -> f64 {
+        largest_scale(self.canvas)
+    }
+
+    /// The square root of the canvas: a rendering of `side²` canvas pixels
+    /// has `side / root` pixels per user unit.
+    fn root(&self) -> f64 {
+        if self.canvas > 0.0 {
+            self.canvas.sqrt()
+        } else {
+            1.0
+        }
+    }
+
+    /// The piece of the work of the spans for a rendering of `side²` canvas
+    /// pixels: 0 below `spans::scale(0)`, `i + 1` from `spans::scale(i)`.
+    fn piece(&self, side: f64) -> usize {
+        let s = side / self.root();
+        (0..SCALES)
+            .take_while(|&i| s >= spans::scale(self.largest(), i))
+            .count()
+    }
+
+    /// The work of the spans in `piece`, per pixel of the side of the
+    /// rendering: per row of the canvas, the bound or the count at the
+    /// lowest scale of the piece (spans only get wider at a larger scale),
+    /// divided by the square root of the canvas.
+    fn span_rows(&self, piece: usize) -> f64 {
+        let per_row = match piece {
+            0 => self.span_bound,
+            _ => self.spans[piece - 1],
         };
-        let (mut low, mut high) = (0.0, 1.0f64);
-        while !beyond(high) {
-            low = high;
-            high *= 2.0;
-            if high > 1e150 {
-                return f64::INFINITY;
+        per_row / self.root()
+    }
+
+    /// The number of pixels, at most `up_to`, whose work without the fixed
+    /// part stays within `work` (positive). In each piece of the work of
+    /// the spans the work grows with the size; going down from the piece of
+    /// `up_to`, the first piece with a size within the work has the answer,
+    /// found by bisection on the square root of the pixels. Infinite if the
+    /// work does not grow.
+    fn pixels_for(&self, work: f64, up_to: f64) -> f64 {
+        let top = up_to.sqrt();
+        for piece in (0..=self.piece(top)).rev() {
+            let spans = self.span_rows(piece);
+            let beyond = |side: f64| {
+                side * (self.rows + spans + side * (self.linear + side * side * self.quadratic))
+                    > work
+            };
+            let from = match piece {
+                0 => 0.0,
+                _ => spans::scale(self.largest(), piece - 1) * self.root(),
+            };
+            if beyond(from) {
+                continue;
             }
-        }
-        for _ in 0..80 {
-            let middle = f64::midpoint(low, high);
-            if beyond(middle) {
-                high = middle;
-            } else {
-                low = middle;
+            let (mut low, mut high) = (from, top);
+            if high.is_infinite() {
+                high = from.max(1.0);
+                while !beyond(high) {
+                    low = high;
+                    high *= 2.0;
+                    if high > 1e150 {
+                        return f64::INFINITY;
+                    }
+                }
+            } else if !beyond(high) {
+                return up_to;
             }
+            for _ in 0..80 {
+                let middle = f64::midpoint(low, high);
+                if beyond(middle) {
+                    high = middle;
+                } else {
+                    low = middle;
+                }
+            }
+            // Rounded down, so that the work fits.
+            return low * low;
         }
-        // Rounded down, so that the work fits.
-        low * low
+        0.0
     }
 }
 
-/// Estimates the rendering of `tree`.
-pub(super) fn estimate(tree: &usvg::Tree) -> Cost {
+/// Estimates the rendering of `tree`. Counting spans takes from `budget`.
+pub(super) fn estimate(tree: &usvg::Tree, budget: &CountBudget) -> Cost {
+    let mut count_left = budget.start();
+    let cost = estimate_counting(tree, &mut count_left);
+    budget.finish(count_left);
+    cost
+}
+
+/// Estimates the rendering of `tree`; counting spans may take up to
+/// `count_left` and reduces it.
+fn estimate_counting(tree: &usvg::Tree, count_left: &mut f64) -> Cost {
     let canvas = f64::from(tree.size().width()) * f64::from(tree.size().height());
     let mut estimator = Estimator {
         canvas,
         referenced: HashMap::new(),
         edges: true,
+        count_left: *count_left,
     };
-    estimator.subtree(tree.root(), CANVAS)
+    let cost = estimator.subtree(tree.root(), CANVAS);
+    *count_left = estimator.count_left;
+    Cost { canvas, ..cost }
 }
 
 /// The surface that a group draws into.
@@ -209,6 +345,8 @@ struct Estimator {
     /// Whether to count the edges of paths (`edges.rs`); a test switches it
     /// off to see the other terms alone.
     edges: bool,
+    /// The work that counting spans may still take (`MAX_COUNT_WORK`).
+    count_left: f64,
 }
 
 impl Estimator {
@@ -290,6 +428,10 @@ impl Estimator {
         let scale = size.max(1.0);
         cost.fixed += inner.fixed;
         cost.rows += inner.rows * scale.sqrt();
+        for (outer, inner) in cost.spans.iter_mut().zip(inner.spans) {
+            *outer += inner * scale.sqrt();
+        }
+        cost.span_bound += inner.span_bound * scale.sqrt();
         cost.linear += BLEND * size + inner.linear * scale;
         cost.quadratic += inner.quadratic * scale;
         cost.layers = cost.layers.max(above + size + inner.layers);
@@ -297,15 +439,22 @@ impl Estimator {
 
     /// Adds an `<image>`: its area, and decoding (raster) or a nested
     /// rendering (SVG).
-    fn add_image(&self, cost: &mut Cost, image: &usvg::Image, surface: Surface) {
+    fn add_image(&mut self, cost: &mut Cost, image: &usvg::Image, surface: Surface) {
         let area = image.abs_bounding_box().to_non_zero_rect();
         cost.linear += BLEND * self.fraction(area, surface.size);
         if let usvg::ImageKind::SVG(nested) = image.kind() {
             // resvg renders a nested SVG image into a layer of the whole
             // canvas.
-            let inner = estimate(nested);
+            let inner = estimate_counting(nested, &mut self.count_left);
             cost.fixed += inner.fixed;
             cost.rows += inner.rows;
+            // Its scales differ from this tree's: the largest work of its
+            // spans at any of its scales.
+            let most = inner.spans.iter().fold(0.0f64, |a, b| a.max(*b));
+            for outer in &mut cost.spans {
+                *outer += most;
+            }
+            cost.span_bound += inner.span_bound;
             cost.linear += BLEND + inner.linear;
             cost.quadratic += inner.quadratic;
             cost.layers = cost.layers.max(surface.above + 1.0 + inner.layers);
@@ -357,20 +506,102 @@ impl Estimator {
     /// stroke counts as an outline, also if it is thin enough for a
     /// hairline at some sizes: whether it is depends on the size of the
     /// rendering, and the outline costs more.
-    fn add_edges(&self, cost: &mut Cost, path: &usvg::Path) {
-        let edges = path_edges(path);
+    fn add_edges(&mut self, cost: &mut Cost, path: &usvg::Path) {
+        let (edges, window) = path_edges(path);
+        if let Some(fill) = path.fill() {
+            self.add_spans(cost, || segments(path), (&edges, window), fill.rule());
+        }
         // A fill and a stroke scan-convert the path separately.
         let mut work = Work::default();
         if path.fill().is_some() {
             work = work + edges.work(true, Draw::Fill);
         }
-        if path.stroke().is_some() {
+        if let Some(stroke) = path.stroke() {
             work = work + edges.work(true, Draw::Stroke);
+            self.add_dash_spans(cost, path, stroke, window);
         }
         cost.fixed += SWEEP_SEGMENT * path.data().verbs().len() as f64 + work.fixed;
         // The heights are in canvas units: `rows` pixel rows for a canvas
         // of `canvas` pixels is `sqrt(pixels / canvas)` per unit.
         cost.rows += work.rows / self.canvas.sqrt();
+    }
+
+    /// Adds the spans of the dashes of `stroke` (`spans.rs`): the outline
+    /// of the dashed stroke is made with tiny-skia as in `raster/path.rs`
+    /// (`dashed_span_work`), charged for its segments, and counted as a
+    /// non-zero fill. A path with more than [`MAX_OUTLINE_DASHES`] dash
+    /// array entries along it is too expensive.
+    fn add_dash_spans(
+        &mut self,
+        cost: &mut Cost,
+        path: &usvg::Path,
+        stroke: &usvg::Stroke,
+        window: Window,
+    ) {
+        use usvg::tiny_skia_path as sk;
+        let Some(dashes) = stroke.dasharray() else {
+            return;
+        };
+        let interval: f32 = dashes.iter().sum();
+        let count = f64::from(control_polygon_length(path.data())) * dashes.len() as f64
+            / f64::from(interval);
+        if count > MAX_OUTLINE_DASHES {
+            cost.fixed += MAX_REJECT;
+            return;
+        }
+        let (sx, sy) = path.abs_transform().get_scale();
+        let res = sx.max(sy).clamp(1.0, 16.0);
+        let outline = sk::StrokeDash::new(dashes.to_vec(), stroke.dashoffset())
+            .and_then(|dash| path.data().dash(&dash, res))
+            .and_then(|dashed| dashed.stroke(&skia_stroke(stroke), res));
+        let Some(outline) = outline else {
+            return;
+        };
+        cost.fixed += (SEGMENT + SWEEP_SEGMENT) * outline.len() as f64;
+        let transform = path.abs_transform();
+        let mut sweep = EdgeSweep::new(window.0, window.1, 0.0, outline.len() + 1);
+        sweep.path(transformed(&outline, transform), true);
+        let edges = sweep.finish();
+        self.add_spans(
+            cost,
+            || transformed(&outline, transform),
+            (&edges, window),
+            usvg::FillRule::NonZero,
+        );
+    }
+
+    /// Adds the spans of the fill of `path` (`spans.rs`): the bound, and the
+    /// count at each of the scales if the bound is not small at the largest
+    /// rendering and the count fits into what is left of
+    /// `MAX_COUNT_WORK`. Fills count as anti-aliased.
+    fn add_spans<I: IntoIterator<Item = Segment>>(
+        &mut self,
+        cost: &mut Cost,
+        segments: impl FnOnce() -> I,
+        (edges, (rows, columns)): (&Edges, Window),
+        rule: usvg::FillRule,
+    ) {
+        // In rows of the canvas: `span_work` scales them.
+        let bound = SPAN * edges.span_bound;
+        cost.span_bound += bound;
+        let largest = largest_scale(self.canvas);
+        let rule = match rule {
+            usvg::FillRule::NonZero => Rule::NonZero,
+            usvg::FillRule::EvenOdd => Rule::EvenOdd,
+        };
+        let grid = Grid::Scaled(largest_scale(self.canvas));
+        let mut count = SpanCount::new(rows, columns, edges, rule, grid);
+        let small = bound * largest <= SPAN_SKIP;
+        let groups = if small || count.work() > self.count_left {
+            None
+        } else {
+            self.count_left -= count.work();
+            count.path(segments());
+            count.finish()
+        };
+        for (i, work) in cost.spans.iter_mut().enumerate() {
+            *work += groups.map_or(bound, |g| (SPAN * g[i]).min(bound));
+        }
     }
 
     /// Adds a path: its outline, its area, its dashes and its pattern tiles.
@@ -389,7 +620,7 @@ impl Estimator {
                 * if count.is_nan() {
                     0.0
                 } else {
-                    count.min(MAX_DASHES)
+                    count.min(MAX_CHARGED_DASHES)
                 };
         }
         let paints = [
@@ -417,10 +648,16 @@ impl Estimator {
     }
 }
 
+/// The scale of the largest rendering of a canvas of `canvas` square
+/// units (`MAX_RENDER_PIXELS`), in pixels per unit; 1 for an empty canvas.
+fn largest_scale(canvas: f64) -> f64 {
+    let scale = (f64::from(super::MAX_RENDER_PIXELS) / canvas).sqrt();
+    if scale.is_finite() { scale } else { 1.0 }
+}
+
 /// The edges of `path` in the units of the tree's canvas (see
-/// `edges.rs`).
-fn path_edges(path: &usvg::Path) -> Edges {
-    use usvg::tiny_skia_path::PathSegment as S;
+/// `edges.rs`), and the window of rows and columns of the sweep.
+fn path_edges(path: &usvg::Path) -> (Edges, Window) {
     let transform = path.abs_transform();
     let (sx, sy) = transform.get_scale();
     let grow = path.stroke().map_or(0.0, |s| {
@@ -434,21 +671,55 @@ fn path_edges(path: &usvg::Path) -> Edges {
     let rows = (bounds.top() - grow, bounds.bottom() + grow);
     let columns = (bounds.left() - grow, bounds.right() + grow);
     let mut sweep = EdgeSweep::new(rows, columns, grow, path.data().verbs().len() + 1);
-    let point = |p: usvg::tiny_skia_path::Point| {
+    sweep.path(segments(path), path.fill().is_some());
+    (sweep.finish(), (rows, columns))
+}
+
+/// The stroke parameters of tiny-skia for `stroke`, without dashes.
+fn skia_stroke(stroke: &usvg::Stroke) -> usvg::tiny_skia_path::Stroke {
+    use usvg::tiny_skia_path as sk;
+    sk::Stroke {
+        width: stroke.width().get(),
+        miter_limit: stroke.miterlimit().get(),
+        line_cap: match stroke.linecap() {
+            usvg::LineCap::Butt => sk::LineCap::Butt,
+            usvg::LineCap::Round => sk::LineCap::Round,
+            usvg::LineCap::Square => sk::LineCap::Square,
+        },
+        line_join: match stroke.linejoin() {
+            usvg::LineJoin::Miter => sk::LineJoin::Miter,
+            usvg::LineJoin::MiterClip => sk::LineJoin::MiterClip,
+            usvg::LineJoin::Round => sk::LineJoin::Round,
+            usvg::LineJoin::Bevel => sk::LineJoin::Bevel,
+        },
+        dash: None,
+    }
+}
+
+/// The segments of `path` in the units of the tree's canvas.
+fn segments(path: &usvg::Path) -> impl Iterator<Item = Segment> + '_ {
+    transformed(path.data(), path.abs_transform())
+}
+
+/// The segments of `data` moved by `transform`.
+fn transformed(
+    data: &usvg::tiny_skia_path::Path,
+    transform: usvg::Transform,
+) -> impl Iterator<Item = Segment> + '_ {
+    use usvg::tiny_skia_path::PathSegment as S;
+    let point = move |p: usvg::tiny_skia_path::Point| {
         (
             p.x * transform.sx + p.y * transform.kx + transform.tx,
             p.x * transform.ky + p.y * transform.sy + transform.ty,
         )
     };
-    let segments = path.data().segments().map(|segment| match segment {
+    data.segments().map(move |segment| match segment {
         S::MoveTo(p) => Segment::Move(point(p)),
         S::LineTo(p) => Segment::Line(point(p)),
         S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
         S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
         S::Close => Segment::Close,
-    });
-    sweep.path(segments, path.fill().is_some());
-    sweep.finish()
+    })
 }
 
 /// The cost per pixel of painting a path: 1 for opaque colors (tiny-skia
@@ -491,7 +762,7 @@ mod tests {
     }
 
     fn cost(content: &str) -> Cost {
-        estimate(&tree(content))
+        estimate(&tree(content), &CountBudget::default())
     }
 
     /// The estimate without the edges of paths: the area, layers and the
@@ -503,6 +774,7 @@ mod tests {
             canvas,
             referenced: HashMap::new(),
             edges: false,
+            count_left: MAX_COUNT_WORK,
         };
         estimator.subtree(tree.root(), CANVAS)
     }
@@ -521,7 +793,7 @@ mod tests {
         let many = cost_without_edges(&"<rect width='10' height='10'/>".repeat(100));
         assert!((many.linear - 100.0).abs() < 0.5, "{many:?}");
         assert_eq!(
-            many.max_pixels(WORK, LAYERS),
+            many.max_pixels(WORK, LAYERS, f64::INFINITY),
             Some((WORK - many.fixed) / many.linear)
         );
         // Every path costs a fixed amount too.
@@ -596,10 +868,10 @@ mod tests {
             let cost = cost(&body);
             assert!(cost.fixed < MAX_WORK / 2.0, "{paths}x{curves}: {cost:?}");
             // The canvas has 100 pixels.
-            let at_100px = cost.max_pixels(MAX_WORK, LAYERS).unwrap() / 100.0;
+            let at_100px = cost.max_pixels(MAX_WORK, LAYERS, f64::INFINITY).unwrap() / 100.0;
             assert!(at_100px > 1000.0, "{paths}x{curves}: {at_100px}");
             // The work at the largest size is the budget.
-            let pixels = cost.max_pixels(MAX_WORK, LAYERS).unwrap();
+            let pixels = cost.max_pixels(MAX_WORK, LAYERS, f64::INFINITY).unwrap();
             assert!((cost.work(pixels) - MAX_WORK).abs() / MAX_WORK < 1e-6);
         }
     }
@@ -618,9 +890,91 @@ mod tests {
             "<path d='{d}' fill='none' stroke='black' stroke-width='0.1'/>"
         ));
         assert!(
-            walk.max_pixels(MAX_WORK, LAYERS).is_some_and(|p| p > 1e5),
+            walk.max_pixels(MAX_WORK, LAYERS, f64::INFINITY)
+                .is_some_and(|p| p > 1e5),
             "{walk:?}"
         );
+    }
+
+    #[test]
+    fn spans_narrower_than_a_pixel_depend_on_the_size() {
+        // A comb of 500 teeth across the 10 x 10 canvas, 0.01 units wide:
+        // inside a pixel up to about 100 pixels per unit.
+        let mut d = String::new();
+        for i in 0..500 {
+            let x = i as f32 / 50.0;
+            write!(d, "M{x} 0v10h0.01v-10z").unwrap();
+        }
+        let comb = cost(&format!("<path d='{d}'/>"));
+        // At 4,000 x 4,000 pixels the teeth are 4 px wide.
+        assert_eq!(comb.max_pixels(MAX_WORK, LAYERS, 1.6e7), Some(1.6e7));
+        // At 1,000 x 1,000 they are 1 px wide: a smaller rendering.
+        let reduced = comb.max_pixels(MAX_WORK, LAYERS, 1e6).unwrap();
+        assert!(reduced < 3e5, "{reduced}");
+        assert!(comb.work(reduced) <= MAX_WORK * 1.0001);
+        // The same comb stroked has no spans of a fill.
+        let stroked = cost(&format!("<path d='{d}' fill='none' stroke='black'/>"));
+        assert_eq!(stroked.span_bound, 0.0);
+    }
+
+    #[test]
+    fn thin_dashes_of_wide_strokes_are_charged_as_spans() {
+        let stroke = |width: f32, dash: f32| {
+            let path = format!(
+                "<path d='M0 5H10' fill='none' stroke='black' stroke-width='{width}' \
+                 stroke-dasharray='{dash} {dash}'/>"
+            );
+            cost(&path)
+        };
+        // Dashes of 0.002 units on a canvas of 10 units are narrower than a
+        // pixel up to 500 pixels per unit: a comb.
+        let thin = stroke(10.0, 0.002);
+        assert!(thin.span_bound > 1e6, "{thin:?}");
+        let reduced = thin.max_pixels(MAX_WORK, LAYERS, 1.6e7).unwrap();
+        assert!(reduced < 1.6e7, "{reduced}");
+        // Dashes of 1 unit, or a stroke that is a hairline, are not.
+        assert!(stroke(10.0, 1.0).span_bound < 1e4);
+        assert_eq!(
+            stroke(0.0001, 0.002).max_pixels(MAX_WORK, LAYERS, 1.6e7),
+            Some(1.6e7)
+        );
+        // More dashes than the limit: too expensive.
+        assert!(stroke(1.0, 1e-5).fixed > MAX_WORK);
+    }
+
+    #[test]
+    fn counting_spans_has_a_budget_per_document() {
+        // A filled walk of 40,000 segments: the bound on its spans is
+        // large, so the count runs.
+        let mut d = String::from("M0 5");
+        let mut state = 3u32;
+        for i in 0..40_000 {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            write!(
+                d,
+                "L{} {}",
+                i as f32 / 4_000.0,
+                4.0 + (state >> 24) as f32 / 128.0
+            )
+            .unwrap();
+        }
+        let image = tree(&format!("<path d='{d}z'/>"));
+        let left = |budget: &CountBudget| *budget.left.lock().unwrap();
+        let budget = CountBudget::default();
+        let counted = estimate(&image, &budget);
+        let used = MAX_DOCUMENT_COUNT_WORK - left(&budget);
+        assert!(used > 1e6, "{used}");
+        // The images that follow count until the budget is gone, never
+        // beyond it; then they are charged the bound.
+        let mut last = counted;
+        for _ in 0..(MAX_DOCUMENT_COUNT_WORK / used) as usize + 2 {
+            last = estimate(&image, &budget);
+            assert!(left(&budget) >= 0.0);
+        }
+        assert!(left(&budget) < used);
+        let work = |cost: &Cost| cost.spans.iter().sum::<f64>();
+        assert!(work(&last) > work(&counted), "{last:?} {counted:?}");
+        assert!((work(&last) - SCALES as f64 * last.span_bound).abs() < 1e-3 * work(&last));
     }
 
     #[test]
@@ -641,7 +995,7 @@ mod tests {
              <rect width='10' height='10' filter='url(#f)'/>",
         );
         assert!(morphology.quadratic > 0.0, "{morphology:?}");
-        let pixels = morphology.max_pixels(WORK, LAYERS).unwrap();
+        let pixels = morphology.max_pixels(WORK, LAYERS, f64::INFINITY).unwrap();
         assert!((morphology.work(pixels) - WORK).abs() / WORK < 1e-6);
     }
 
@@ -662,7 +1016,7 @@ mod tests {
             "{open}<rect x='-20' y='-20' width='50' height='50'/>{close}"
         ));
         assert!(layers.layers >= 20.0 * 24.0, "{layers:?}");
-        let pixels = layers.max_pixels(WORK, LAYERS).unwrap();
+        let pixels = layers.max_pixels(WORK, LAYERS, f64::INFINITY).unwrap();
         assert!(pixels * layers.layers <= LAYERS * 1.0001);
     }
 
@@ -676,7 +1030,7 @@ mod tests {
              <rect width='10' height='10' fill='url(#p)'/>",
         );
         assert!(pattern.layers > 100_000.0, "{pattern:?}");
-        assert_eq!(pattern.max_pixels(WORK, 1e5), None);
+        assert_eq!(pattern.max_pixels(WORK, 1e5, f64::INFINITY), None);
     }
 
     #[test]
@@ -687,8 +1041,9 @@ mod tests {
             linear: 1.0,
             quadratic: 0.0,
             layers: 0.0,
+            ..Cost::default()
         };
-        assert_eq!(base.max_pixels(WORK, LAYERS), Some(WORK));
+        assert_eq!(base.max_pixels(WORK, LAYERS, f64::INFINITY), Some(WORK));
         let bad = [
             Cost {
                 quadratic: f64::INFINITY,
@@ -726,14 +1081,18 @@ mod tests {
             },
         ];
         for cost in bad {
-            assert_eq!(cost.max_pixels(WORK, LAYERS), None, "{cost:?}");
+            assert_eq!(
+                cost.max_pixels(WORK, LAYERS, f64::INFINITY),
+                None,
+                "{cost:?}"
+            );
         }
         // A large but finite quadratic term gives a small size.
         let steep = Cost {
             quadratic: 1.0,
             ..base
         };
-        let pixels = steep.max_pixels(WORK, LAYERS).unwrap();
+        let pixels = steep.max_pixels(WORK, LAYERS, f64::INFINITY).unwrap();
         assert!((steep.work(pixels) - WORK).abs() / WORK < 1e-9, "{pixels}");
     }
 }

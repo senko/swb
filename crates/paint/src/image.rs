@@ -6,7 +6,7 @@ use swb_layout::NaturalSize;
 use thiserror::Error;
 use tiny_skia::{IntSize, Pixmap};
 
-use crate::svg::SvgImage;
+use crate::svg::{CountBudget, SvgImage};
 
 /// The MIME type of SVG images. Chromium decodes an image as SVG only if
 /// its response has this type; it does not sniff SVG.
@@ -118,9 +118,19 @@ const MAX_DECODER_ALLOC: u64 = MAX_PIXELS * 8;
 /// [`SVG_MIME_TYPE`], otherwise a raster format recognized from the data
 /// (see [`decode`]).
 pub fn decode_with_type(data: &[u8], mime_type: Option<&str>) -> Result<DecodedImage, ImageError> {
+    decode_in_document(data, mime_type, &CountBudget::default())
+}
+
+/// Like [`decode_with_type`], for an image of a document whose SVG images
+/// share `counting` (a [`CountBudget`] per document).
+pub fn decode_in_document(
+    data: &[u8],
+    mime_type: Option<&str>,
+    counting: &CountBudget,
+) -> Result<DecodedImage, ImageError> {
     if mime_type == Some(SVG_MIME_TYPE) {
         Ok(DecodedImage {
-            kind: ImageKind::Vector(Box::new(crate::svg::decode(data)?)),
+            kind: ImageKind::Vector(Box::new(crate::svg::decode_counting(data, counting)?)),
         })
     } else {
         decode(data)

@@ -7,7 +7,9 @@
 //! cost per dash, and the cost of the edges (`crate::svg::edges`: the rows
 //! that they cross and the pairs of edges whose boxes overlap, so a dense
 //! path takes time in proportion to the square of its segments; a stroke of
-//! one pixel or less takes time in proportion to its length).
+//! one pixel or less takes time in proportion to its length), and for an
+//! anti-aliased fill the groups of spans narrower than a pixel
+//! (`crate::svg::spans`).
 //!
 //! Opaque and translucent pixels cost the same: tiny-skia's anti-aliased
 //! path fill takes 2.6 ns per pixel of either, measured on the hostile-page
@@ -33,6 +35,7 @@ use super::{Rasterizer, solid_paint};
 use crate::display_list::{DisplayItem, path_bounds, stroke_extent};
 use crate::svg::cost::{BLEND, DASH, PATH, SEGMENT};
 use crate::svg::edges::{Draw, EdgeSweep, SWEEP_SEGMENT, Segment, flat_steps};
+use crate::svg::spans::{self, Rule};
 
 /// The path work of one strip (the default of `Budget::max_path_work`),
 /// in the units of `crate::svg::cost` (about 0.3 ns each): about 0.6 s.
@@ -52,6 +55,9 @@ const STROKE_SEGMENTS: f64 = 4.0;
 pub(super) struct Scan {
     /// Whether the edges are anti-aliased.
     pub(super) anti_alias: bool,
+    /// The fill rule of a fill (the spans of an anti-aliased fill have a
+    /// cost of their own, `crate::svg::spans`).
+    rule: Option<Rule>,
     /// The width of the stroke, in path units, if the path is stroked (its
     /// outline has more edges).
     stroke_width: Option<f32>,
@@ -61,10 +67,14 @@ pub(super) struct Scan {
 }
 
 impl Scan {
-    /// A fill.
-    pub(super) fn fill(anti_alias: bool) -> Scan {
+    /// A fill with `rule`.
+    pub(super) fn fill(anti_alias: bool, rule: FillRule) -> Scan {
         Scan {
             anti_alias,
+            rule: Some(match rule {
+                FillRule::NonZero => Rule::NonZero,
+                FillRule::EvenOdd => Rule::EvenOdd,
+            }),
             stroke_width: None,
             grow: 0.0,
         }
@@ -74,6 +84,7 @@ impl Scan {
     fn stroke(anti_alias: bool, width: f32, grow: f32) -> Scan {
         Scan {
             anti_alias,
+            rule: None,
             stroke_width: Some(width),
             grow,
         }
@@ -120,7 +131,7 @@ impl Rasterizer<'_> {
         rule: FillRule,
     ) {
         let Some((device, bounds, work)) =
-            self.plan_path(path, transform, color, Scan::fill(anti_alias))
+            self.plan_path(path, transform, color, Scan::fill(anti_alias, rule))
         else {
             return;
         };
@@ -189,21 +200,18 @@ impl Rasterizer<'_> {
         let Some(sk_path) = skia_path(path) else {
             return;
         };
-        let sk_stroke = Stroke {
-            width: stroke.width,
-            miter_limit: stroke.miter_limit,
-            line_cap: match stroke.cap {
-                StrokeLinecap::Butt => LineCap::Butt,
-                StrokeLinecap::Round => LineCap::Round,
-                StrokeLinecap::Square => LineCap::Square,
-            },
-            line_join: match stroke.join {
-                StrokeLinejoin::Miter => LineJoin::Miter,
-                StrokeLinejoin::Round => LineJoin::Round,
-                StrokeLinejoin::Bevel => LineJoin::Bevel,
-            },
-            dash,
-        };
+        if let Some(dash) = &dash {
+            // The dashes are separate shapes: charge the spans of the
+            // outline, and the work of making it.
+            let window = self.visible_area().and_then(|v| v.intersection(&bounds));
+            let room = self.budget.max_path_work - self.budget.path_work;
+            let extra =
+                window.map(|v| dashed_span_work(&sk_path, (stroke, dash), &device, v, room));
+            if !self.path_work_fits(extra.unwrap_or(0.0)) {
+                return;
+            }
+        }
+        let sk_stroke = skia_stroke(stroke, dash);
         let paint = solid_paint(color, anti_alias);
         let ts = skia_transform(&device);
         self.draw(bounds, |p, t, m| {
@@ -246,8 +254,10 @@ impl Rasterizer<'_> {
         }
         let rows = (visible.y, visible.y + visible.height);
         let columns = (visible.x, visible.x + visible.width);
-        let edges = edge_work(path, &device, (rows, columns), scan);
-        let work = PATH + BLEND * pixels + edges;
+        let base = PATH + BLEND * pixels;
+        let room = self.budget.max_path_work - self.budget.path_work - base;
+        let edges = edge_work(path, &device, (rows, columns), scan, room);
+        let work = base + edges;
         Some((device, bounds, work))
     }
 
@@ -280,17 +290,19 @@ impl Rasterizer<'_> {
 
 /// The work of tiny-skia's scan conversion of `path` drawn with `device`,
 /// inside the `rows` and `columns` of the target: the edges' rows and the
-/// pairs of edges whose boxes overlap (see [`crate::svg::edges`]). Linear
-/// in the number of segments.
+/// pairs of edges whose boxes overlap (see [`crate::svg::edges`]), and for
+/// an anti-aliased fill the spans narrower than a pixel
+/// ([`crate::svg::spans`]). Linear in the number of segments. The spans are
+/// counted only if the count fits into `room` (the rest of the budget).
 pub(super) fn edge_work(
     path: &SvgPath,
     device: &Matrix,
     (rows, columns): ((f32, f32), (f32, f32)),
     scan: Scan,
+    room: f64,
 ) -> f64 {
     use swb_layout::svg::PathSegment as S;
-    // The largest scale of the matrix, to turn path units into device px.
-    let scale = (device.a.hypot(device.b)).max(device.c.hypot(device.d));
+    let scale = matrix_scale(device);
     // A stroke of one device pixel or less is a hairline: it has no outline.
     let draw = match scan.stroke_width {
         None => Draw::Fill,
@@ -307,15 +319,111 @@ pub(super) fn edge_work(
         let q = device.apply(p);
         (q.x, q.y)
     };
-    let segments = path.segments().iter().map(|segment| match *segment {
-        S::MoveTo(p) => Segment::Move(point(p)),
-        S::LineTo(p) => Segment::Line(point(p)),
-        S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
-        S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
-        S::Close => Segment::Close,
-    });
-    sweep.path(segments, draw == Draw::Fill);
-    sweep.finish().work(scan.anti_alias, draw).total()
+    let segments = || {
+        path.segments().iter().map(move |segment| match *segment {
+            S::MoveTo(p) => Segment::Move(point(p)),
+            S::LineTo(p) => Segment::Line(point(p)),
+            S::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
+            S::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
+            S::Close => Segment::Close,
+        })
+    };
+    sweep.path(segments(), draw == Draw::Fill);
+    let edges = sweep.finish();
+    let work = edges.work(scan.anti_alias, draw).total();
+    match scan.rule {
+        // Without anti-aliasing, the spans cost nothing extra (measured).
+        Some(rule) if scan.anti_alias => {
+            let room = room - work;
+            work + spans::device_work(&edges, (rows, columns), rule, room, segments)
+        }
+        _ => work,
+    }
+}
+
+/// The stroke parameters of tiny-skia for `stroke` (with `dash`).
+fn skia_stroke(stroke: &StrokeStyle, dash: Option<StrokeDash>) -> Stroke {
+    Stroke {
+        width: stroke.width,
+        miter_limit: stroke.miter_limit,
+        line_cap: match stroke.cap {
+            StrokeLinecap::Butt => LineCap::Butt,
+            StrokeLinecap::Round => LineCap::Round,
+            StrokeLinecap::Square => LineCap::Square,
+        },
+        line_join: match stroke.join {
+            StrokeLinejoin::Miter => LineJoin::Miter,
+            StrokeLinejoin::Round => LineJoin::Round,
+            StrokeLinejoin::Bevel => LineJoin::Bevel,
+        },
+        dash,
+    }
+}
+
+/// The largest scale of `device`, to turn path units into device px.
+fn matrix_scale(device: &Matrix) -> f32 {
+    device.a.hypot(device.b).max(device.c.hypot(device.d))
+}
+
+/// The work of the dashes of a stroke as separate spans: the dashes of
+/// `path` are made into the outline of the stroke (as tiny-skia does when
+/// it draws), and the outline is charged as a non-zero fill, with the work
+/// of making it. Dashes are the one way that a stroke of more than one
+/// pixel has spans narrower than a pixel (measured: parallel strokes
+/// wider than a pixel, with gaps of 0.15 px, 800 to 900 of them, take
+/// 40 ms; a dashed line 780 wide with dashes of 0.2 px, 6 s). A hairline
+/// has no outline and is not charged. `window` is the visible part of the
+/// stroke in device px; the result is infinite if it does not fit into
+/// `room`.
+fn dashed_span_work(
+    path: &Path,
+    (stroke, dash): (&StrokeStyle, &StrokeDash),
+    device: &Matrix,
+    window: Rect,
+    room: f64,
+) -> f64 {
+    use tiny_skia::PathSegment as K;
+    let scale = matrix_scale(device);
+    if stroke.width * scale <= 1.0 {
+        return 0.0;
+    }
+    // The curves of the outline do not need more detail than this.
+    let res = scale.clamp(1.0, 16.0);
+    let outline = path
+        .dash(dash, res)
+        .and_then(|dashed| dashed.stroke(&skia_stroke(stroke, None), res));
+    let Some(outline) = outline else {
+        return 0.0;
+    };
+    let made = (SEGMENT + SWEEP_SEGMENT) * outline.len() as f64;
+    if made > room {
+        return f64::INFINITY;
+    }
+    let point = |p: tiny_skia::Point| {
+        let q = device.apply(Point { x: p.x, y: p.y });
+        (q.x, q.y)
+    };
+    let segments = || {
+        outline.segments().map(move |segment| match segment {
+            K::MoveTo(p) => Segment::Move(point(p)),
+            K::LineTo(p) => Segment::Line(point(p)),
+            K::QuadTo(c, p) => Segment::Quad(point(c), point(p)),
+            K::CubicTo(c1, c2, p) => Segment::Cubic(point(c1), point(c2), point(p)),
+            K::Close => Segment::Close,
+        })
+    };
+    let rows = (window.y, window.y + window.height);
+    let columns = (window.x, window.x + window.width);
+    let mut sweep = EdgeSweep::new(rows, columns, 0.0, outline.len() + 1);
+    sweep.path(segments(), true);
+    let edges = sweep.finish();
+    made + spans::device_work(
+        &edges,
+        (rows, columns),
+        Rule::NonZero,
+        room - made,
+        segments,
+    )
 }
 
 /// The path as a tiny-skia path, or `None` if tiny-skia rejects it.

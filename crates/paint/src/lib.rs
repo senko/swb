@@ -28,12 +28,13 @@ pub use display_list::{
     SELECTION_BACKGROUND, Scrolling, build_display_list,
 };
 pub use image::{
-    DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_with_type, is_supported_image_type,
+    DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_in_document, decode_with_type,
+    is_supported_image_type,
 };
 pub use mask::{MaskLayer, MaskLayerImage};
 pub use raster::{ImageSource, RasterParams, rasterize, rasterize_in_strips};
 pub use scroll_indicator::scroll_indicators;
-pub use svg::VectorCache;
+pub use svg::{CountBudget, VectorCache};
 pub use tiny_skia::Pixmap;
 
 /// Fills the whole pixmap with one color.

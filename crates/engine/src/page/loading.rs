@@ -100,7 +100,7 @@ impl Page {
             }
             Pending::Font { url } => self.font_file_arrived(&url, completion.result),
             Pending::Image { url } => {
-                let state = ImageState::from_fetch(&url, completion.result);
+                let state = ImageState::from_fetch(&url, completion.result, &self.images.counting);
                 self.images.by_url.insert(url.clone(), state);
                 self.images.load_ended(&url);
                 self.invalidate_layout();
@@ -143,10 +143,8 @@ impl Page {
         } else if essence.starts_with("image/") {
             // The image is already here; the generated <img> uses it
             // without fetching it again.
-            images.by_url.insert(
-                response.url.clone(),
-                ImageState::decode(&response.url, &response),
-            );
+            let state = ImageState::decode(&response.url, &response, &images.counting);
+            images.by_url.insert(response.url.clone(), state);
             swb_dom::parse_html(&format!(
                 "<body style=\"margin:0\"><img src=\"{}\">",
                 escape_html(response.url.as_str())

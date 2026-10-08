@@ -11,7 +11,7 @@ use std::sync::Arc;
 use swb_dom::NodeId;
 use swb_layout::NaturalSize;
 use swb_net::{NetError, RequestId, Response, Url};
-use swb_paint::{DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
+use swb_paint::{CountBudget, DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
 use swb_style::Length;
 
 use crate::image_source::SelectedImage;
@@ -62,9 +62,13 @@ pub(crate) enum ImageState {
 
 impl ImageState {
     /// The state after a fetch of the image at `url` completed.
-    pub(crate) fn from_fetch(url: &Url, result: Result<Response, NetError>) -> Self {
+    pub(crate) fn from_fetch(
+        url: &Url,
+        result: Result<Response, NetError>,
+        counting: &CountBudget,
+    ) -> Self {
         match result {
-            Ok(response) if response.is_success() => Self::decode(url, &response),
+            Ok(response) if response.is_success() => Self::decode(url, &response, counting),
             Ok(response) => {
                 log::warn!("image {url}: HTTP {}", response.status);
                 ImageState::Failed
@@ -78,11 +82,11 @@ impl ImageState {
 
     /// Decodes the image in `response`, which was loaded for `url`. The
     /// content type selects SVG; raster formats are recognized from the
-    /// data.
-    pub(crate) fn decode(url: &Url, response: &Response) -> Self {
+    /// data. SVG images share `counting`, the budget of the document.
+    pub(crate) fn decode(url: &Url, response: &Response, counting: &CountBudget) -> Self {
         let content_type = response.content_type();
         let essence = content_type.as_ref().map(|c| c.essence.as_str());
-        match swb_paint::decode_with_type(&response.body, essence) {
+        match swb_paint::decode_in_document(&response.body, essence, counting) {
             Ok(image) => ImageState::Loaded(Arc::new(image)),
             Err(e) => {
                 log::warn!("image {url}: {e}");
@@ -167,6 +171,8 @@ pub(crate) struct Images {
     pub(crate) auto: HashMap<NodeId, AutoSizes>,
     /// Renderings of the page's SVG images.
     vector_cache: VectorCache,
+    /// What counting spans may still take for the page's SVG images.
+    pub(crate) counting: CountBudget,
 }
 
 impl Images {

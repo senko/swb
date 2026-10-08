@@ -185,8 +185,9 @@ Content from the network must not cause unbounded work or memory:
   This differs from SVG images, which are rendered once at a resolution
   that their estimate allows and then cached: inline paths are drawn
   directly for every frame, so the budget decides which paths draw, not
-  the resolution. A stroke with more than 100,000 dashes (estimated
-  from the length of its control polygon) is drawn solid. The edges of a
+  the resolution. A stroke with more than 100,000 dash array entries
+  (dashes and gaps, estimated from the length of its control polygon)
+  is drawn solid. The edges of a
   dense path cost more than its segments and pixels (part 3).
 - Non-finite coordinates end a path; matrices and bounds that are not
   finite draw nothing. tiny-skia does not draw a path whose device
@@ -502,7 +503,7 @@ expensive cannot repeat the sweep for free (40 shapes in 300 references took
 fills).
 
 The weights are rounded up so that the charged time is at least the measured
-time for every case of the fits except the known gap below: `real / charged`
+time for every case of the fits (with the spans below): `real / charged`
 is at most 1.0 for fills and strokes with and without anti-aliasing, and at
 most 1.02 for hairlines (20,000 exactly vertical lines); the median is 0.1 to
 0.7.
@@ -517,19 +518,145 @@ segments in one stroked path. With the model above they are charged 0.5,
 0.9, 1.8, 1.0 and 0.06 billion units (budget: 2) and draw (unit tests: `realistic_dense_paths_are_drawn`). The repro pages
 (five fills or clip references of 40,000 curves) are still not drawn.
 
-Known gap: a fill with anti-aliasing whose edges do not merge into long
-spans takes time that grows with the square of the number of edges in a
-row, and neither the pairs of boxes nor the pairs that overlap in y see
-it. A comb of separate full-height teeth on 1,200 x 780 px takes 2.8 s
-(CPU time of the raster call) to 5 s (wall time of swb, review) with 2,000
-teeth, about 6 s with 3,000 to 4,000 teeth (all drawn; 6,000 are rejected)
-and 6.4 s with 10,000; the filled area under a noisy chart of 40,000 points
-takes 3.3 s. The model charges 0.2 to 0.4 s for the combs and 0.7 s for the
-area. Ten stacked combs of 78 px each behave the same; combs of 40 px or
-less merge and are cheap. Overlapping shapes (the histogram) merge and are
-cheap. Strokes of 1 px are cheap in the same families. Counting the spans
-needs the winding at sample rows (roadmap M4 item 8). The old model had the
-same gap.
+### Spans narrower than a pixel
+
+The review of the model above found a gap: an anti-aliased fill whose
+edges do not merge into long spans took up to 15 times the charged time. A
+comb of separate full-height teeth on 1,200 x 780 px took 5 to 6 s with
+2,000 to 4,000 teeth (drawn), the filled area under a noisy chart of 40,000
+points 1.6 s (CPU time; 3.3 s wall time in the review), and the model
+charged 0.2 to 0.7 s. Neither the pairs of boxes nor the pairs that overlap
+in y see it. `paint/src/svg/spans.rs` charges it.
+
+Measured (same program and method, 230 further timings; `real` is the CPU
+time of `fill_path`):
+
+- Anti-aliased coverage has a resolution of a quarter pixel in x and in y:
+  the alpha of a thin rectangle steps by 64 per quarter pixel, and a span
+  whose ends round to the same quarter draws nothing.
+- The extra time comes from *inside spans*: spans of a row (the runs inside
+  the path under the fill rule) that lie inside one pixel and cover a part
+  of it. 300 teeth 0.4 px wide, 4 px apart, 100 rows: 48 ms; the same teeth
+  1 px wide at whole pixels, 2 px wide, or 0.5 px wide at random positions
+  (so that some cross a pixel boundary): 1 to 6 ms. Teeth 0.25 px wide are
+  slow at any position and slope. The phase matters: 0.4 px teeth at the
+  same position in each pixel are slow, at random positions fast.
+- A span that crosses a pixel boundary ends a *group* of inside spans. The
+  time of a row grows with the inside spans of each group times the pixels
+  that the group touches: 2 to 5.3 ns per pair (5.3 for isolated teeth and
+  pairs of teeth in a pixel, 2 to 2.7 for dense combs where several teeth
+  share a pixel). Groups apart from each other on the row add up as one:
+  two runs of 600 teeth 700 px apart cost the same as one run of 1,200. Wide
+  spans between the groups (1.5 px bars) do not add pixels. Teeth outside
+  the pixmap cost nothing. A slanted tooth touches more pixels in a row: 300
+  teeth 0.25 px wide with a slope of 4 px per row cost the same as vertical
+  ones, the model counts the pixels that the slope covers.
+- The time per row saturates at about 7.7 ms for 1,200 px (3,000 to 10,000
+  teeth all take about 6 s for 780 rows). Stacked combs cost per row like
+  one comb; the review's "combs of 40 px or less are cheap" holds only for
+  teeth so thin that they round to nothing.
+- Without anti-aliasing such fills are cheap (3,000 teeth: 16 ms), and so are
+  strokes of the same paths (wider than a pixel: covered by the model above).
+  The even-odd rule behaves like the non-zero rule for the same spans.
+
+The model, per sample row:
+
+- The crossings of the edges with the row, sorted by x, give the spans under
+  the fill rule. A span is a *break* if it crosses a pixel boundary for every
+  rounding of its ends to quarter pixels and every position of the sample in
+  the row (a margin of an eighth of a pixel, plus the slope of the edge over
+  an eighth of a row, plus 1/64 for float error); *neutral* if its ends
+  surely round to the same quarter (empty) or to a whole pixel; else
+  *inside*. Spans outside the window do not count.
+- The work of a row is the sum over groups of inside spans times the pixels
+  that the group touches (from each span's start minus its slope to its end
+  plus its slope), times `SPAN` = 20 units (6 ns; measured up to 5.3 ns).
+- Sample rows are spaced so that the crossings stay within 8 per edge plus
+  4,096 (at most 4 million), at least a quarter row apart, in the middle of
+  a quarter row. Each sample stands for the rows to the next. An edge that
+  crosses no sample row is charged in each row that it crosses as if it
+  added a span to the largest group of the samples, plus a quarter of the
+  other such edges in its gap (two edges form a span).
+- A bound comes first: a row with `a` edges has at most `a / 2` spans, so at
+  most `(a / 2)²` work (`Edges::span_bound`, from the sweep's bins in O(n)).
+  The charge is the smaller of the bound and the count. If the bound is
+  below 2 million units (0.6 ms), or counting costs more than half of it or
+  more than the rest of the budget, the bound is charged without counting.
+- The count costs 160 units per line and per crossing of a line (measured 30
+  to 45 ns), 700 per curve part and crossing (75 to 190 ns; a curve is cut at
+  a sample row by 22 steps of bisection). This is charged before it runs.
+
+Fitted on 183 timings (combs of 75 to 10,000 teeth, widths, gaps, heights,
+offsets and phases; stacked combs; pairs; teeth with bars between; slanted
+and curved teeth; areas under noisy charts of 2,000 to 40,000 points; the
+control set below), `real / charged` with the whole model is at most 0.88;
+for the slow cases it is 0.4 to 0.88 (combs 0.43, isolated thin teeth 0.85,
+the area of 40,000 points 0.25). Before: up to 27.
+
+| Case (fill, AA, 1,200 x 780 unless noted) | Real | Before: charged | After: charged |
+|---|---|---|---|
+| Comb, 2,000 / 3,000 / 4,000 / 6,000 teeth | 5.0 / 6.0 / 6.1 / 6.1 s | 0.19 / 0.29 / 0.39 / 0.62 s | 11.6 / 13.8 / 14.0 / 14.2 s |
+| 10 stacked combs of 3,000 teeth, 78 px | 6.1 s | 0.49 s | 14 s |
+| Area under a chart, 40,000 / 10,000 / 5,000 / 2,000 points | 1.6 s / 170 / 61 / 20 ms | 0.63 s / 128 / 61 / 24 ms | 6.5 s / 366 / 113 / 28 ms |
+| Control: zigzag of 25,600 lines, 100 x 100 | 44 ms | 0.25 s | 0.36 s |
+| Control: histogram of 5,000 bars (unit test) | 0.25 s | 0.44 s | 0.52 s |
+| Control: walk fills of 60,000 / 200,000 segments | 18 / 61 ms | 26 / 104 ms | 45 / 198 ms |
+| Text-like glyph stems, 30,000 spans | 2.7 ms | 10 ms | 17 ms |
+| Bars 2 px wide with 0.4 px gaps, 500 | 33 ms | 45 ms | 47 ms |
+| Diagonal hatching, 200 lines 0.5 px wide | 11 ms | 19 ms | 0.21 s |
+| Strokes (charts, walks) | unchanged | | |
+
+The paths of `realistic_dense_paths_are_drawn` still draw; the bars use 1.7
+of 2 billion units.
+
+Dashed strokes. Dashes are the one way for a stroke wider than a pixel to
+have spans narrower than a pixel. A dashed line 780 px wide with dashes and
+gaps of 0.2 px is a comb of 3,000 teeth: 6.0 s per frame (0.3: 5.1 s, 0.5:
+3.1 s, 0.7: 60 ms, 1.0: 32 ms; 15 lines of 50 px: 5.8 s). `dashed_span_work`
+(`raster/path.rs`) makes the outline of the stroke with tiny-skia
+(`Path::dash`, then `Path::stroke` without dashes, at the scale of the
+transform clamped to 1 to 16), sweeps it as a non-zero fill and charges its
+spans like those of a fill. The outline costs 10 ns per segment to make
+(measured: 18,000 segments 0.2 ms); it is charged 1,030 units per segment
+(`SEGMENT` and `SWEEP_SEGMENT`) after it exists and before it is swept. Its
+size is limited by the dash limit (`MAX_DASHES`, 100,000 dash array
+entries), which is charged first. A
+stroke of a hairline has no outline and is not charged. Strokes without
+dashes need no such charge. Measured (tiny-skia 0.12.0, 1,200 x 780 px):
+800 to 900 parallel lines of width 1.01, 1.1 and 1.3 px with gaps of 0.15 px
+in one path take 40 to 48 ms; zigzags of 3,000 to 50,000 segments of width
+1.2 px take 72 ms to 1.1 s (the edge model, item 7, charges those); round
+dots of width 1.2 to 3 px, 150 to 700,000 of them, take 0.15 to 1.0 s (the
+cost per dot is that of a small circle). A span of a stroke wider than a
+pixel is wider than a pixel in x (a stroke of width `w` crossing a row has a
+horizontal span of at least `w`), so it ends a group, and only caps and
+joins make narrow spans. Images (`add_dash_spans` in `svg/cost.rs`) make the
+same outline in the units of the canvas (at the scale of the path's
+transform, 1 to 16) and count it at the 17 scales like a fill; a stroke with
+more than 100,000 dash array entries (`MAX_OUTLINE_DASHES`, the same
+count as the inline limit) is too expensive to look at and the image is
+rejected; inline, such a stroke is drawn solid. Before item 8, an image
+was charged for at most 1,000,000 dashes and drawn. A
+dashed line 780 wide with 0.2 px dashes as an image took 6.1 s.
+
+Remaining limits:
+
+- Over-charge: the classification cannot see rounding and sample positions,
+  so some fast fills look like slow ones. Diagonal hatching of thin filled
+  lines is charged up to 30 times its time (200 lines 0.5 px wide at 45° draw,
+  1,000 do not); the area under a chart of 20,000 points (0.58 s) is
+  rejected; combs whose teeth round to nothing are charged as slow.
+- A path whose sub-pixel structure lies only between the sample rows is seen
+  through the charge for edges that cross no sample row; edges that cross a
+  sample row but change their spans between samples (slanted edges) are
+  estimated from the samples.
+- The count of a path with many short edges takes as long as drawing it
+  (200,000 segments of a random walk: about 90 ms, charged).
+- Model time on paths at the document limit of 1,000,000 segments: the sweep
+  takes 40 to 110 ms; the count does not run, because its work (1.5 to 3.5
+  billion units) exceeds the budget. Without a budget it takes 47 ms for a
+  comb of 200,000 teeth, 91 ms for a walk, 73 ms for an area and 0.9 s for
+  330,000 random cubics (4 million crossings, 64 MB).
 
 Where it applies:
 
@@ -556,8 +683,28 @@ Where it applies:
   1,000 px, at a lower resolution (0.49 s); the same holds for 30 x 1,000, 10
   x 2,000 and 3 x 5,000 curves, and a stroked walk of 40,000 segments draws
   at 1,000 px in full (0.18 s). The hostile case `svg-many-dense-paths` (100
-  paths of 400 curves of the repro kind at 1,000 px) renders at 120,000 of
-  1,000,000 pixels.
+  paths of 400 curves of the repro kind at 1,000 px) renders at 33,000 of
+  1,000,000 pixels (120,000 before the spans).
+- The spans of SVG images (`add_spans`): the scale of the rendering is not
+  known when the estimate is made, so the spans are counted at 17 scales,
+  from that of the largest rendering (`MAX_RENDER_PIXELS`) down by halves,
+  without a pixel grid: a span is a break only if it is wider than a pixel
+  plus the margins, and a group touches at most its spans' pixels and at
+  most its extent at twice the scale. At a scale `s` between two of them the
+  work is `s` times the rows of the canvas times the count at the lower one
+  (a span only gets wider at a larger scale). The work is then not monotone
+  in the size, so `max_pixels` takes the requested size and searches down
+  through the pieces. Fills count as anti-aliased. The counts of one image
+  take at most 1 billion units (0.3 s, once, when it is decoded); paths
+  beyond are charged their bound. A nested SVG image adds its largest count
+  to every scale. A comb of 3,000 teeth as an image at 1,200 x 780 (6 s
+  before) renders at 48,000 pixels. All images of a document share a budget
+  for counting, 2 billion units (0.6 s; `CountBudget` in `svg/cost.rs`, one
+  per page in `Images`, so a new document starts with a full one): an image
+  takes up to its 1 billion and gives back what it does not use. After it is
+  used up, images are charged the bound without counting. 30 different
+  images of a filled walk of 250,000 segments took 7.8 s of decoding (1.2 s
+  without counting) and now take 2.2 s; 100 would have taken 25 s.
 - Target pages: the largest path work of a strip is below 0.1 % of the budget
   (2 * 10^9) on Ars Technica and BBC. `just snapshot` before and after is
   identical.
@@ -601,19 +748,34 @@ Hostile-page cases: `inline-svg-dense-paths` (four dense paths: fill, fill
 without AA, stroke, fill and stroke; 22 s before), `inline-svg-dense-clip` (a
 dense clip path, five references; 20 s before),
 `inline-svg-dense-clip-references` (40 shapes in 300 references; more than
-10 s before), `svg-dense-path` (an `<img>` with the 40,000-curve path) and
-`svg-many-dense-paths` (100 paths of 400 curves in an image).
+10 s before), `svg-dense-path` (an `<img>` with the 40,000-curve path),
+`svg-many-dense-paths` (100 paths of 400 curves in an image), and for the
+spans: `inline-svg-separate-spans` (a comb of 3,000 teeth; 6 s before),
+`-separate-spans-stacked` (ten stacked combs), `-separate-spans-area` (the
+area under a chart of 40,000 points), `-separate-spans-clip` (a comb as a
+clip path, five references) and `svg-separate-spans` (a comb as an image);
+for dashes `inline-svg-dashed-thin` (6.0 s before), `-dashed-lines` (15
+lines; 5.8 s before) and `svg-dashed-thin` (an image; 6.1 s before); and
+`svg-many-counted-images` (30 images of a walk of 250,000 segments; 7.8 s
+before).
 
 ## Consequences
 
 - The raster cost of a path is a model of the rows that its edges cross,
   the pairs of edges whose boxes overlap, and the length of hairlines (part
-  3). It is an upper bound on all measured families except fills whose
-  edges do not merge into long spans (a comb of separate teeth, the area
-  under a noisy chart), which it charges 5 to 15 times too little (item 8
-  of M4 bounds them). The
-  constants are from one machine and tiny-skia 0.12.0; a new tiny-skia needs
-  the measurements again.
+  3), and for anti-aliased fills the groups of spans narrower than a
+  pixel. It is an upper bound on the families measured in part 3: fills
+  (combs, stacked combs, slanted and curved teeth, areas under charts,
+  walks, dots, text-like stems, hatching), the dashes of strokes more than
+  a pixel wide (`real / charged` at most 0.88 for the fills); it
+  over-charges some fills of thin shapes that are fast (diagonal hatching,
+  up to 30 times). It does not cover: the time of the model itself (the
+  sweep and the count are charged, but a page can still spend up to the
+  budgets of the sweep and the count per frame and per document), strokes
+  whose joins and caps make narrow spans (round dots; the edge model charges
+  them like small circles), and anything but tiny-skia 0.12.0 on one
+  machine. The constants are from those; a new tiny-skia needs the
+  measurements again.
 - Ars Technica and BBC show their logos and icons. Part 1: Ars geometry
   0.7740 → 0.7978 and pixels 0.9898 → 0.9952; BBC geometry 0.7775 → 0.8053
   and pixels 0.9942 → 0.9985; the `missing` counts grew (Ars 0 → 217, BBC

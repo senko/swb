@@ -30,16 +30,17 @@
 //! y but only 7 million pairs of boxes with a 2 px stroke (and takes 1.3 s),
 //! and takes 0.24 s with a 1 px stroke (a hairline).
 //!
-//! Known gap: a fill whose edges do not merge into long spans, such as a
-//! comb of separate teeth or the area under a noisy chart, takes time that
-//! grows with the square of the edges in a row: 2,000 to 4,000 teeth across
-//! 1,200 x 780 px take 5 to 6 s, and the model charges about 0.4 s (6,000
-//! teeth are rejected). Telling such a fill from one whose overlapping
-//! shapes merge needs the winding of the path at sample rows (roadmap M4
-//! item 8).
+//! An anti-aliased fill whose spans are narrower than a pixel, such as a
+//! comb of separate thin teeth or the area under a noisy chart, takes time
+//! that neither count sees: 3,000 teeth 0.2 px wide across 1,200 x 780 px
+//! take 6 s. `spans.rs` charges it, from the bound [`Edges::span_bound`]
+//! and a count of the spans at sample rows.
 
 /// A point (x, y).
 pub(crate) type Point = (f32, f32);
+
+/// A window of rows (top, bottom) and columns (left, right).
+pub(crate) type Window = ((f32, f32), (f32, f32));
 
 /// The weights of the model for filling or stroking a path in one way, in
 /// the units of `cost.rs` (0.3 ns each). The values are from the
@@ -173,6 +174,9 @@ pub(crate) struct Edges {
     /// The pairs of edges whose bounding boxes overlap in x and y: an
     /// upper bound on the pairs that cross.
     pub(crate) box_pairs: f64,
+    /// A bound on the groups of spans of a fill, summed over rows (see
+    /// `spans.rs`).
+    pub(crate) span_bound: f64,
 }
 
 /// The work of a scan conversion, in the units of `cost.rs`.
@@ -271,43 +275,9 @@ impl Extent {
 
     /// A quadratic (3 values) or cubic (4 values) curve with these control
     /// values.
-    #[allow(clippy::many_single_char_names)] // The names of the polynomial.
     fn curve(v: &[f32]) -> Extent {
-        // The roots of the derivative that lie in (0, 1).
-        let roots = if let [a, b, c] = *v {
-            // Zero at (a - b) / (a - 2 b + c).
-            [(a - b) / (a - 2.0 * b + c), f32::NAN]
-        } else if let [y0, y1, y2, y3] = *v {
-            // The derivative is a t² + b t + c.
-            let a = y3 - 3.0 * y2 + 3.0 * y1 - y0;
-            let b = 2.0 * (y2 - 2.0 * y1 + y0);
-            let c = y1 - y0;
-            if a.abs() > f32::EPSILON * b.abs().max(c.abs()).max(1e-30) {
-                let d = b * b - 4.0 * a * c;
-                if d >= 0.0 {
-                    let sq = d.sqrt();
-                    [(-b - sq) / (2.0 * a), (-b + sq) / (2.0 * a)]
-                } else {
-                    [f32::NAN; 2]
-                }
-            } else {
-                [-c / b, f32::NAN]
-            }
-        } else {
-            [f32::NAN; 2]
-        };
-        let mut ts = [0.0f32; 4];
-        let mut n = 1;
-        for t in roots {
-            // `!` and `<` also reject NaN.
-            if t > 0.0 && t < 1.0 {
-                ts[n] = t;
-                n += 1;
-            }
-        }
-        ts[n] = 1.0;
-        let ts = &mut ts[..=n];
-        ts.sort_by(f32::total_cmp);
+        let (ts, n) = monotone_ts(v);
+        let ts = &ts[..=n];
         let (mut lo, mut hi, mut travel, mut previous) = (v[0], v[0], 0.0, v[0]);
         for t in &ts[1..] {
             let value = if *t >= 1.0 { v[v.len() - 1] } else { at(v, *t) };
@@ -323,6 +293,55 @@ impl Extent {
             parts: n as f32,
         }
     }
+}
+
+/// The parameters that cut a quadratic (3 values) or cubic (4 values) curve
+/// into parts that are monotone in these values: `0`, the roots of the
+/// derivative in (0, 1) in order, and `1`; and the number of parts.
+#[allow(clippy::many_single_char_names)] // The names of the polynomial.
+fn monotone_ts(v: &[f32]) -> ([f32; 4], usize) {
+    // The roots of the derivative that lie in (0, 1).
+    let roots = if let [a, b, c] = *v {
+        // Zero at (a - b) / (a - 2 b + c).
+        [(a - b) / (a - 2.0 * b + c), f32::NAN]
+    } else if let [y0, y1, y2, y3] = *v {
+        // The derivative is a t² + b t + c.
+        let a = y3 - 3.0 * y2 + 3.0 * y1 - y0;
+        let b = 2.0 * (y2 - 2.0 * y1 + y0);
+        let c = y1 - y0;
+        if a.abs() > f32::EPSILON * b.abs().max(c.abs()).max(1e-30) {
+            let d = b * b - 4.0 * a * c;
+            if d >= 0.0 {
+                let sq = d.sqrt();
+                [(-b - sq) / (2.0 * a), (-b + sq) / (2.0 * a)]
+            } else {
+                [f32::NAN; 2]
+            }
+        } else {
+            [-c / b, f32::NAN]
+        }
+    } else {
+        [f32::NAN; 2]
+    };
+    let mut ts = [0.0f32; 4];
+    let mut n = 1;
+    for t in roots {
+        // `!` and `<` also reject NaN.
+        if t > 0.0 && t < 1.0 {
+            ts[n] = t;
+            n += 1;
+        }
+    }
+    ts[n] = 1.0;
+    ts[..=n].sort_by(f32::total_cmp);
+    (ts, n)
+}
+
+/// The monotone parts of a quadratic (3 values) or cubic (4 values) curve
+/// in these values, as ranges of the parameter.
+pub(crate) fn monotone_parts(v: &[f32]) -> impl Iterator<Item = (f32, f32)> {
+    let (ts, n) = monotone_ts(v);
+    (0..n).map(move |i| (ts[i], ts[i + 1]))
 }
 
 /// The number of lines that a curve with these control points (device px)
@@ -491,37 +510,10 @@ impl EdgeSweep {
     /// Adds the edges of a path. A fill (`close`) closes each open subpath
     /// with an edge, a stroke does not.
     pub(crate) fn path(&mut self, segments: impl IntoIterator<Item = Segment>, close: bool) {
-        let (mut start, mut current) = ((0.0, 0.0), (0.0, 0.0));
-        let mut open = false;
-        for segment in segments {
-            match segment {
-                Segment::Move(p) => {
-                    if open && close {
-                        self.line(current, start);
-                    }
-                    (start, current, open) = (p, p, false);
-                }
-                Segment::Line(p) => {
-                    self.line(current, p);
-                    (current, open) = (p, true);
-                }
-                Segment::Quad(c, p) => {
-                    self.curve(&[current, c, p]);
-                    (current, open) = (p, true);
-                }
-                Segment::Cubic(c1, c2, p) => {
-                    self.curve(&[current, c1, c2, p]);
-                    (current, open) = (p, true);
-                }
-                Segment::Close => {
-                    self.line(current, start);
-                    (current, open) = (start, false);
-                }
-            }
-        }
-        if open && close {
-            self.line(current, start);
-        }
+        walk_path(segments, close, |edge| match edge {
+            PathEdge::Line(a, b) => self.line(a, b),
+            PathEdge::Curve(points) => self.curve(points),
+        });
     }
 
     /// The counts. In the order of the edges' first bins, each edge counts
@@ -535,7 +527,26 @@ impl EdgeSweep {
             flat_lines: self.flat_lines,
             row_pairs,
             box_pairs,
+            span_bound: self.span_bound(),
         }
+    }
+
+    /// A bound on the groups of spans of a fill (see `spans.rs`): a row
+    /// that `a` edges cross has at most `a / 2` spans, so its groups add up
+    /// to at most `(a / 2)²`. The sum over the bins of the rows of a bin
+    /// times that square for the edges that reach into the bin.
+    fn span_bound(&self) -> f64 {
+        let mut changes = vec![0i64; self.bins + 1];
+        for edge in &self.boxes {
+            changes[edge.y0 as usize] += 1;
+            changes[edge.y1 as usize + 1] -= 1;
+        }
+        let (mut active, mut sum) = (0i64, 0.0f64);
+        for change in &changes[..self.bins] {
+            active += change;
+            sum += (active as f64 / 2.0).powi(2);
+        }
+        sum * f64::from(self.unit)
     }
 
     /// The pairs of edges that overlap in y, and those that overlap in x
@@ -576,6 +587,54 @@ impl EdgeSweep {
             active += 1;
         }
         (row_pairs, box_pairs)
+    }
+}
+
+/// An edge of a path, for [`walk_path`].
+pub(crate) enum PathEdge<'a> {
+    /// A straight edge between two points.
+    Line(Point, Point),
+    /// A quadratic (3 points) or cubic (4 points) curve.
+    Curve(&'a [Point]),
+}
+
+/// Calls `edge` for each edge of a path. A fill (`close`) closes each open
+/// subpath with a line, a stroke does not.
+pub(crate) fn walk_path(
+    segments: impl IntoIterator<Item = Segment>,
+    close: bool,
+    mut edge: impl FnMut(PathEdge<'_>),
+) {
+    let (mut start, mut current) = ((0.0, 0.0), (0.0, 0.0));
+    let mut open = false;
+    for segment in segments {
+        match segment {
+            Segment::Move(p) => {
+                if open && close {
+                    edge(PathEdge::Line(current, start));
+                }
+                (start, current, open) = (p, p, false);
+            }
+            Segment::Line(p) => {
+                edge(PathEdge::Line(current, p));
+                (current, open) = (p, true);
+            }
+            Segment::Quad(c, p) => {
+                edge(PathEdge::Curve(&[current, c, p]));
+                (current, open) = (p, true);
+            }
+            Segment::Cubic(c1, c2, p) => {
+                edge(PathEdge::Curve(&[current, c1, c2, p]));
+                (current, open) = (p, true);
+            }
+            Segment::Close => {
+                edge(PathEdge::Line(current, start));
+                (current, open) = (start, false);
+            }
+        }
+    }
+    if open && close {
+        edge(PathEdge::Line(current, start));
     }
 }
 

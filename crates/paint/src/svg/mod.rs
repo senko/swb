@@ -40,6 +40,7 @@ mod css;
 pub(crate) mod edges;
 mod entities;
 mod expansion;
+pub(crate) mod spans;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,6 +52,7 @@ use tiny_skia::{IntSize, NonZeroRect, Pixmap, Transform};
 
 pub(crate) use cache::FrameBudget;
 pub use cache::VectorCache;
+pub use cost::CountBudget;
 
 use crate::image::{ImageError, SVG_MIME_TYPE};
 
@@ -132,12 +134,21 @@ pub(crate) struct SvgImage {
     id: u64,
 }
 
-/// Parses SVG data.
+/// Parses SVG data, with a budget of its own for counting spans.
+#[cfg(test)]
 pub(crate) fn decode(data: &[u8]) -> Result<SvgImage, ImageError> {
+    decode_counting(data, &CountBudget::default())
+}
+
+/// Parses SVG data. Counting the spans of its paths takes from `counting`.
+pub(crate) fn decode_counting(data: &[u8], counting: &CountBudget) -> Result<SvgImage, ImageError> {
     let budget = Arc::new(Mutex::new(BUDGET));
     let converted = convert(data, 0, CONVERSION_LIMITS.depth, &budget)?;
     let tree = converted.tree;
-    let cost = tree.as_ref().map(cost::estimate).unwrap_or_default();
+    let cost = tree
+        .as_ref()
+        .map(|tree| cost::estimate(tree, counting))
+        .unwrap_or_default();
     if cost.fixed > MAX_RENDER_WORK {
         return Err(ImageError::Svg("too expensive to render".into()));
     }
@@ -321,7 +332,7 @@ impl SvgImage {
         let pixels = f64::from(size.width()) * f64::from(size.height());
         let max_pixels = self
             .cost
-            .max_pixels(MAX_RENDER_WORK, MAX_LAYER_PIXELS)
+            .max_pixels(MAX_RENDER_WORK, MAX_LAYER_PIXELS, pixels * overdraw)
             .map(|max| max / overdraw)
             .filter(|max| *max >= 1.0);
         let Some(max_pixels) = max_pixels else {

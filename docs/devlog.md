@@ -4,6 +4,49 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-08: M4 item 8, raster cost of fills with thin separate spans
+
+- The review of item 7 found that an anti-aliased fill of separate thin
+  shapes cost far more than the model charged: a comb of 2,000–4,000
+  teeth 0.25 px wide on 1,200 × 780 px took 5–6 s per frame and was
+  drawn; the area under a noisy chart of 40,000 points took 1.6 s.
+- Measured (tiny-skia public API, 183 new timings): coverage steps in
+  quarter pixels in x and y. The extra time comes from spans that lie
+  inside one pixel and cover part of it; a span that crosses a pixel
+  boundary ends a group. A row costs the inside spans of each group
+  times the pixels they touch (2–5.3 ns per pair, at most about 7.7 ms
+  per row at 1,200 px). The time grows linearly with the teeth, not with
+  their square. Fills without anti-aliasing and strokes are cheap.
+- New `paint/src/svg/spans.rs` finds the spans at sample rows (crossings
+  in x order, winding under the fill rule), with margins for rounding
+  and slope, and charges 6 ns per pair. An O(n) bound from the sweep
+  runs first; the count runs only when the bound is large and the count
+  fits into the rest of the budget, and its own work is charged. Inline
+  fills, clip coverage and SVG images use it (images: counted at 17
+  scales; the size search now goes down from the requested size).
+- The combs, stacked combs and the area are rejected in 0.05 s. The
+  paths of item 7 still draw. Over all timings the real time is at most
+  0.88 of the charged time. Five hostile-page cases. Snapshots unchanged.
+- Review fixes. Dashes are separate shapes: a dashed stroke wider than
+  a pixel is now charged from its outline (tiny-skia's public
+  `Path::dash` and `Path::stroke`), counted like a fill. A line 780 px
+  wide with 0.2 px dashes took 6 s; it and 15 such lines are rejected in
+  0.05–0.15 s, inline and in SVG images. Strokes without dashes need no
+  span charge (measured: 800 parallel lines with 0.15 px gaps take
+  45 ms). Counting the spans of SVG images has a budget per document
+  (2 billion units, 0.6 s): 30 images of a 250,000-segment walk decode
+  in 2.2 s instead of 7.8 s. Four more hostile-page cases.
+- The item 7 bench read `/proc/thread-self/schedstat`, which on this
+  kernel advances in 4 ms steps; the new bench uses
+  `CLOCK_THREAD_CPUTIME_ID`.
+- Backlog: some fast fills are charged as slow because the model cannot
+  see rounding and sub-pixel position (diagonal hatching of 1,000 thin
+  filled lines: 106 ms real, rejected; the area of 20,000 points: 0.6 s
+  real, rejected). Slanted edges whose spans change between sample rows
+  are estimated from the samples, not bounded. Decoding SVG images of
+  very many segments costs about 40 ms per 250,000 segments outside the
+  counting budget, with no limit per document.
+
 ## 2026-10-08: M4 item 7, raster cost of dense paths
 
 - The review of item 6 found pages that take minutes to draw: the path

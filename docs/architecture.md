@@ -133,7 +133,8 @@ Rules:
   XML nodes and depth, style sheets (`css.rs`), the size of the render
   tree with copies, reference depth and cycles (`expansion.rs`). An
   estimate of the rendering time and memory (`cost.rs`, with the cost of
-  dense paths from `edges.rs`) sets the resolution. SVG images load only
+  dense paths from `edges.rs` and of spans narrower than a pixel from
+  `spans.rs`) sets the resolution. SVG images load only
   `data:` URLs. They are rendered at the device pixel size of each tile
   and cached per document (`VectorCache` in the engine's `Images`,
   128 MiB). One frame renders new renderings up to a work budget; after
@@ -166,7 +167,8 @@ Rules:
   `a` works as a link. The rasterizer draws paths with tiny-skia within a
   work budget per strip (`paint/src/raster/path.rs`; the cost of a path
   includes the rows that its edges cross and the pairs of edges whose
-  boxes overlap, `paint/src/svg/edges.rs`, ADR 0023 part 3). Limits per
+  boxes overlap, `paint/src/svg/edges.rs`, and for anti-aliased fills the
+  spans narrower than a pixel, `paint/src/svg/spans.rs`, ADR 0023 part 3). Limits per
   document: 50,000 shapes and 50,000 groups, 1,000,000 path segments,
   groups 64 deep, 256 opacity layers and 256 clip layers, 20,000
   elements in the copies of `use` elements.

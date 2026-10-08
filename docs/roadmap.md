@@ -236,7 +236,14 @@ Features, in this order. Each one ends with a review and a commit.
    rule) when many edges overlap in y, charge their measured cost, keep
    the work of the count bounded for 1,000,000 segments, and add
    hostile-page cases for the comb, the stacked combs and the area. The
-   paths of item 7 (charts, bars, walks, images) must still draw.
+   paths of item 7 (charts, bars, walks, images) must still draw. Done
+   (ADR 0023, part 3): `paint/src/svg/spans.rs` counts the spans inside
+   one pixel at sample rows and charges their measured cost, after an
+   O(n) bound and only when the count fits the budget. The combs,
+   stacked combs and the area are rejected in 0.05 s (before: 5–6 s,
+   drawn), and so are dashed strokes of thin dashes (charged from their
+   outline); counting spans in SVG images has a budget per document. The
+   paths of item 7 still draw; snapshots unchanged.
 9. Final pass on the page (`implementer`). A comparison after item 7
    (geometry 0.9963, pixels 0.9952; 4,964 differing pixels) found:
    - The four underline bars of the view selector (`div.absolute` in
@@ -344,9 +351,22 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   focusable in Chromium); the HTML `pointer-events: none` is not applied
   to HTML boxes (swb parses it for shapes only).
 - Raster cost of dense paths (ADR 0023, part 3), beyond items 7 and 8.
-  The model charges at least the measured time for all measured families
-  except anti-aliased fills of separate spans (item 8), and it can reject
-  a path that draws within the budget:
+  The model charges at least the measured time for all measured families,
+  but slanted edges whose spans change between the sample rows of item 8
+  are estimated, not bounded. It can reject a path that draws within the
+  budget:
+  - Item 8 cannot see rounding and sub-pixel position: diagonal hatching
+    of 1,000 thin filled lines (106 ms) and the area under a chart of
+    20,000 points (0.6 s) are rejected; paths of many small dots or
+    rectangles are charged 1.7 times more than after item 7. SVG images
+    count spans without a pixel grid: `svg-many-dense-paths` renders at
+    33,000 instead of 120,000 px. An SVG image with a stroke of more than
+    100,000 dash array entries is rejected (inline, such a stroke is drawn
+    solid).
+  - Decoding an SVG image of very many segments (parse, sweep, bound)
+    costs about 40 ms per 250,000 segments outside the counting budget,
+    with no limit per document: 100 such images take about 4 s. The
+    counting budget goes to the images in load order.
   - Charged too much (false positives): the weights are rounded up to the
     slowest case of each kind, so a path is typically charged 1.5 to 3
     times its time, and up to 10 times for some kinds: 20,000 horizontal
@@ -358,9 +378,10 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
     a thin stroke in an `<img>` is rejected (20,000 points get a lower
     resolution), while inline it draws in 0.4 s.
   - Constants come from one machine and tiny-skia 0.12.0; measure again
-    after an update. The measuring program of the item 7 fix round is not
-    in the repository: add it to `tools/` (CPU time of the thread, counts
-    and work of `edges.rs` next to the time). `just hostile` still has
+    after an update. The measuring programs of items 7 and 8 are not in
+    the repository: add one to `tools/` (`CLOCK_THREAD_CPUTIME_ID`, the
+    counts and work of `edges.rs` and `spans.rs` next to the time).
+    `just hostile` still has
     `inline-svg-opacity-layers` at 2 s (limit 5 s).
   - Hit testing has a work budget per call (40 ms), but no bound per frame:
     cache the last result per (point, display list) if pointer events over a

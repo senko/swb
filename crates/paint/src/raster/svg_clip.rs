@@ -235,8 +235,10 @@ impl Rasterizer<'_> {
         }
         let rows = (0.0, pixmap.height() as f32);
         let columns = (0.0, pixmap.width() as f32);
-        let edges = edge_work(path, matrix, (rows, columns), Scan::fill(true));
-        if !self.path_work_fits(PATH + BLEND * pixels + edges) {
+        let base = PATH + BLEND * pixels;
+        let room = self.budget.max_path_work - self.budget.path_work - base;
+        let edges = edge_work(path, matrix, (rows, columns), Scan::fill(true, rule), room);
+        if !self.path_work_fits(base + edges) {
             return;
         }
         let Some(sk_path) = skia_path(path) else {

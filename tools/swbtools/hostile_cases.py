@@ -1382,11 +1382,139 @@ def svg_dense_path() -> Page:
 
 @case(
     "SVG image with 100 paths of 400 overlapping curves each, shown at 1000 x 1000: the paths "
-    "are cheap alone but add up, and the image is drawn at a lower resolution (about 120,000 "
-    "pixels, 'in at most' in the debug log; ADR 0011)"
+    "are cheap alone but add up, and the image is drawn at a lower resolution (about 33,000 "
+    "pixels, 'in at most' in the debug log; 120,000 before the spans of ADR 0023 part 3; "
+    "ADR 0011)"
 )
 def svg_many_dense_paths() -> Page:
     d = dense_path(400)
     paths = f"<path d='{d}' fill='red'/>" * 100
     svg = f"<svg {SVG_NS} width='100' height='100'>{paths}</svg>"
     return img_page(svg, "width=1000 height=1000")
+
+
+def comb(teeth: int, width: float = 1200, height: float = 780, top: float = 0) -> str:
+    """The `d` of a comb of `teeth` separate rectangles across `width`, each half
+    as wide as its pitch (0.2 px for 3,000 teeth on 1,200 px): every row has
+    `teeth` spans narrower than a pixel, which tiny-skia's anti-aliased fill takes
+    about 2.6 us each to draw (6 s for 780 rows)."""
+    pitch = width / teeth
+    return "".join(
+        f"M{i * pitch:.4f} {top}v{height}h{pitch / 2:.4f}v-{height}z" for i in range(teeth)
+    )
+
+
+@case(
+    "inline SVG: a comb of 3,000 separate teeth 0.2 px wide in one path on 1,200 x 780 px: "
+    "the spans narrower than a pixel count against the path work budget (6 s before; "
+    "ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_separate_spans() -> Page:
+    path = f"<path d='{comb(3_000)}' />"
+    return Page(doc(f"<svg width=1200 height=780>{path}</svg>"))
+
+
+@case(
+    "inline SVG: ten stacked combs of 3,000 teeth, 78 px tall, in separate paths: each path "
+    "is charged for its spans (6 s before; ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_separate_spans_stacked() -> Page:
+    paths = "".join(f"<path d='{comb(3_000, height=78, top=78 * j)}' />" for j in range(10))
+    return Page(doc(f"<svg width=1200 height=780>{paths}</svg>"))
+
+
+@case(
+    "inline SVG: the filled area under a noisy chart of 40,000 points on 1,200 x 780 px: its "
+    "spikes are spans narrower than a pixel (3.3 s before; ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_separate_spans_area() -> Page:
+    state = 7
+    points = []
+    for i in range(40_001):
+        state = (state * 1_103_515_245 + 12_345) % 2**31
+        points.append(f"L{i * 0.03:.2f} {100 + state % 600}")
+    path = f"<path d='M0 780{''.join(points)}L1200 780z' />"
+    return Page(doc(f"<svg width=1200 height=780>{path}</svg>"))
+
+
+@case(
+    "inline SVG: a clip path of a comb of 3,000 teeth used by five rectangles: the coverage "
+    "fill counts the spans (ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_separate_spans_clip() -> Page:
+    clip = f"<clipPath id=k><path d='{comb(3_000)}' /></clipPath>"
+    uses = "<rect width=1200 height=780 clip-path='url(#k)' />" * 5
+    return Page(doc(f"<svg width=1200 height=780><defs>{clip}</defs>{uses}</svg>"))
+
+
+@case(
+    "SVG image of a comb of 3,000 teeth, shown at 1,200 x 780 (6 s before): the spans are "
+    "counted at 17 scales and the image is drawn at about 48,000 pixels ('in at most' in the "
+    "debug log; ADR 0011, ADR 0023 part 3)"
+)
+def svg_separate_spans() -> Page:
+    svg = f"<svg {SVG_NS} width='1200' height='780'><path d='{comb(3_000)}'/></svg>"
+    return img_page(svg, "width=1200 height=780")
+
+
+@case(
+    "inline SVG: a line 780 px wide stroked with a dash pattern of 0.2 px dashes and 0.2 px "
+    "gaps: the dashes are 3,000 separate spans narrower than a pixel in every row, charged "
+    "from the outline of the stroke (6 s before; ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_dashed_thin() -> Page:
+    path = "<path d='M0 390H1200' stroke=black stroke-width=780 stroke-dasharray='0.2 0.2'/>"
+    return Page(doc(f"<svg width=1200 height=780>{path}</svg>"))
+
+
+@case(
+    "inline SVG: 15 lines of 50 px width with dashes of 0.2 px and gaps of 0.2 px, each its own "
+    "path: every path is charged for the spans of its dashes (5.8 s before; ADR 0023, part 3)",
+    expect_log="path work budget ran out",
+)
+def inline_svg_dashed_lines() -> Page:
+    paths = "".join(
+        f"<path d='M0 {26 * i + 25}H1200' stroke=black stroke-width=50 stroke-dasharray='0.2 0.2'/>"
+        for i in range(15)
+    )
+    return Page(doc(f"<svg width=1200 height=780>{paths}</svg>"))
+
+
+@case(
+    "SVG image of a line 780 px wide with dashes and gaps of 0.2 px, shown at 1,200 x 780 "
+    "(6 s before): the dashes are counted as spans and the image is drawn at a lower "
+    "resolution (ADR 0023, part 3)"
+)
+def svg_dashed_thin() -> Page:
+    path = "<path d='M0 390H1200' stroke=black stroke-width=780 stroke-dasharray='0.2 0.2'/>"
+    return img_page(
+        f"<svg {SVG_NS} width='1200' height='780'>{path}</svg>", "width=1200 height=780"
+    )
+
+
+def random_walk(segments: int, width: float = 1200) -> str:
+    """The `d` of a closed polyline of `segments` segments from left to right across
+    `width`, with a noisy height between 397 and 403."""
+    state = 5
+    step = width / segments
+    points = []
+    for i in range(segments):
+        state = (state * 1_103_515_245 + 12_345) % 2**31
+        points.append(f"L{i * step:.3f} {397 + (state >> 8) % 7}")
+    return "M0 400" + "".join(points) + "z"
+
+
+@case(
+    "30 different SVG images, each a filled random walk of 250,000 segments: counting the "
+    "spans of the paths has a budget per document (7.8 s of decoding before; ADR 0023, part 3)",
+    time_limit_s=4.0,
+)
+def svg_many_counted_images() -> Page:
+    svg = f"<svg {SVG_NS} width='1200' height='780'><path d='{random_walk(250_000)}'/></svg>"
+    images = "".join(f"<img src='walk.svg?{i}' width=40 height=26>" for i in range(30))
+    return Page(doc(images), {"walk.svg": svg})

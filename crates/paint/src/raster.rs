@@ -3883,6 +3883,105 @@ mod tests {
     }
 
     #[test]
+    fn fills_of_separate_thin_spans_are_charged() {
+        use swb_layout::svg::PathSegment as S;
+        let p = Point::new;
+        // `teeth` separate rectangles across 1,200 px, half as wide as their
+        // pitch, from `top` to `bottom`.
+        let comb = |teeth: usize, top: f32, bottom: f32| {
+            let pitch = 1200.0 / teeth as f32;
+            let mut segments = vec![];
+            for i in 0..teeth {
+                let x = i as f32 * pitch;
+                segments.extend([
+                    S::MoveTo(p(x, top)),
+                    S::LineTo(p(x, bottom)),
+                    S::LineTo(p(x + pitch / 2.0, bottom)),
+                    S::LineTo(p(x + pitch / 2.0, top)),
+                    S::Close,
+                ]);
+            }
+            path_of(&segments)
+        };
+        let fill = |path, anti_alias| DisplayItem::FillPath {
+            path,
+            transform: Matrix::IDENTITY,
+            color: RED,
+            rule: swb_style::FillRule::NonZero,
+            anti_alias,
+        };
+        // 3,000 teeth 0.2 px wide take 6 s with anti-aliasing (ADR 0023,
+        // part 3), 16 ms without; 300 teeth 2 px wide take 10 ms.
+        assert!(skipped_on_page(fill(comb(3_000, 0.0, 780.0), true)));
+        assert!(!skipped_on_page(fill(comb(3_000, 0.0, 780.0), false)));
+        assert!(!skipped_on_page(fill(comb(300, 0.0, 780.0), true)));
+        // One of ten stacked combs of 78 px takes 0.6 s.
+        assert!(skipped_on_page(fill(comb(3_000, 78.0, 156.0), true)));
+        // The area under a noisy chart: 40,000 points take 1.6 s, 2,000
+        // points 20 ms.
+        let mut state = 5u32;
+        let mut random = move || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 8) as f32 / (1u32 << 24) as f32
+        };
+        let mut area = |points: usize| {
+            let mut segments = vec![S::MoveTo(p(0.0, 780.0))];
+            for i in 0..=points {
+                let x = i as f32 * 1200.0 / points as f32;
+                segments.push(S::LineTo(p(x, 100.0 + random() * 600.0)));
+            }
+            segments.extend([S::LineTo(p(1200.0, 780.0)), S::Close]);
+            path_of(&segments)
+        };
+        assert!(skipped_on_page(fill(area(40_000), true)));
+        assert!(!skipped_on_page(fill(area(2_000), true)));
+    }
+
+    #[test]
+    fn strokes_of_thin_dashes_are_charged() {
+        use swb_layout::svg::PathSegment as S;
+        let line = |y: f32| {
+            path_of(&[
+                S::MoveTo(Point::new(0.0, y)),
+                S::LineTo(Point::new(1200.0, y)),
+            ])
+        };
+        let stroked = |path, width, dashes: Option<&[f32]>| DisplayItem::StrokePath {
+            path,
+            transform: Matrix::IDENTITY,
+            color: RED,
+            stroke: stroke(width, dashes),
+            anti_alias: true,
+        };
+        // A line 780 px wide with 0.2 px dashes and gaps takes 6 s (ADR
+        // 0023, part 3); with dashes of 2 px, 11 ms.
+        assert!(skipped_on_page(stroked(
+            line(390.0),
+            780.0,
+            Some(&[0.2, 0.2])
+        )));
+        assert!(!skipped_on_page(stroked(
+            line(390.0),
+            780.0,
+            Some(&[2.0, 2.0])
+        )));
+        // Thin dashes of a line that is 3 px wide take 24 ms; a solid line
+        // 780 px wide, 3 ms.
+        assert!(!skipped_on_page(stroked(
+            line(390.0),
+            3.0,
+            Some(&[0.2, 0.2])
+        )));
+        assert!(!skipped_on_page(stroked(line(390.0), 780.0, None)));
+        // A hairline has no outline.
+        assert!(!skipped_on_page(stroked(
+            line(390.0),
+            1.0,
+            Some(&[0.2, 0.2])
+        )));
+    }
+
+    #[test]
     fn dense_svg_clip_paths_hide_the_group() {
         use swb_layout::svg::{ClipPath, ClipShape};
         let clip = |curves| ClipPath {
