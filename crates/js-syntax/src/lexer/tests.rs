@@ -332,11 +332,11 @@ fn identifiers_with_escapes() {
 #[test]
 fn identifier_errors() {
     for (source, offset) in [
-        ("a\\u0020", 1),
+        ("a\\u0020", 0),
         ("\\u0031a", 0),
         ("\\u200c", 0),
         ("\\x41", 0),
-        ("a\\", 1),
+        ("a\\", 0),
         ("\u{2060}", 0),
         ("@", 0),
         ("\u{180e}", 0),
@@ -465,43 +465,46 @@ fn number_errors() {
     let separator_after_zero = "Numeric separator can not be used after leading 0.";
     let twice = "Only one underscore is allowed as numeric separator";
     let at_end = "Numeric separators are not allowed at the end of numeric literals";
-    for (source, message) in [
-        ("0_1", separator_after_zero),
-        ("0_n", separator_after_zero),
-        ("1__0", twice),
-        ("0x1__2", twice),
-        ("1_", at_end),
-        ("1_.5", at_end),
-        ("1_n", at_end),
-        ("1e1_", at_end),
-        ("1._5", INVALID_TOKEN),
-        ("1e_1", INVALID_TOKEN),
-        ("0x_1", INVALID_TOKEN),
-        ("07_7", INVALID_TOKEN),
-        ("08_1", INVALID_TOKEN),
-        ("1.5n", INVALID_TOKEN),
-        ("1e3n", INVALID_TOKEN),
-        ("07n", INVALID_TOKEN),
-        ("08n", INVALID_TOKEN),
-        ("00n", INVALID_TOKEN),
-        ("1n_", INVALID_TOKEN),
-        ("3in", INVALID_TOKEN),
-        ("3\\u0061", INVALID_TOKEN),
-        ("3\u{e9}", INVALID_TOKEN),
-        ("0b12", INVALID_TOKEN),
-        ("0o8", INVALID_TOKEN),
-        ("0x", INVALID_TOKEN),
-        ("0b", INVALID_TOKEN),
-        ("1e", INVALID_TOKEN),
-        ("1e+", INVALID_TOKEN),
-        ("08.toString()", INVALID_TOKEN),
-        ("07e1", INVALID_TOKEN),
-        ("0x1g", INVALID_TOKEN),
+    // The offsets are V8's (Node.js 22): the start of the literal for an
+    // invalid token, the separator or the character after it otherwise.
+    // At the end of the source V8 marks no position; swb marks the end.
+    for (source, message, offset) in [
+        ("0_1", separator_after_zero, 1),
+        ("0_n", separator_after_zero, 1),
+        ("1__0", twice, 2),
+        ("0x1__2", twice, 4),
+        ("1_", at_end, 2),
+        ("1_.5", at_end, 2),
+        ("1_n", at_end, 2),
+        ("1e1_", at_end, 4),
+        ("1._5", INVALID_TOKEN, 0),
+        ("1e_1", INVALID_TOKEN, 0),
+        ("0x_1", INVALID_TOKEN, 0),
+        ("07_7", INVALID_TOKEN, 0),
+        ("08_1", INVALID_TOKEN, 2),
+        ("1.5n", INVALID_TOKEN, 0),
+        ("1e3n", INVALID_TOKEN, 0),
+        ("07n", INVALID_TOKEN, 0),
+        ("08n", INVALID_TOKEN, 0),
+        ("00n", INVALID_TOKEN, 0),
+        ("1n_", INVALID_TOKEN, 0),
+        ("3in", INVALID_TOKEN, 0),
+        ("3\\u0061", INVALID_TOKEN, 0),
+        ("3\u{e9}", INVALID_TOKEN, 0),
+        ("0b12", INVALID_TOKEN, 0),
+        ("0o8", INVALID_TOKEN, 0),
+        ("0x", INVALID_TOKEN, 0),
+        ("0b", INVALID_TOKEN, 0),
+        ("1e", INVALID_TOKEN, 0),
+        ("1e+", INVALID_TOKEN, 0),
+        ("08.toString()", INVALID_TOKEN, 0),
+        ("07e1", INVALID_TOKEN, 0),
+        ("0x1g", INVALID_TOKEN, 0),
     ] {
-        assert_eq!(error(source).message, message, "{source}");
+        let error = error(source);
+        assert_eq!(error.message, message, "{source}");
+        assert_eq!(error.offset, offset, "{source}");
     }
-    assert_eq!(error("3in").offset, 1);
-    assert_eq!(error("0_1").offset, 1);
 }
 
 #[test]
@@ -569,13 +572,17 @@ fn string_errors() {
         ("'\\x4'", "Invalid hexadecimal escape sequence", 1),
         ("'\\xg0'", "Invalid hexadecimal escape sequence", 1),
         ("'\\u12'", "Invalid Unicode escape sequence", 1),
-        ("'\\u{}'", "Invalid Unicode escape sequence", 1),
-        ("'\\u{12'", "Invalid Unicode escape sequence", 1),
+        ("'\\u{}'", "Invalid Unicode escape sequence", 4),
+        ("'\\u{12'", "Invalid Unicode escape sequence", 6),
+        ("'\\u{12x}'", "Invalid Unicode escape sequence", 6),
+        ("'\\u{zz}'", "Invalid Unicode escape sequence", 4),
+        ("'\\u12x4'", "Invalid Unicode escape sequence", 1),
         ("'\\u{110000}'", "Undefined Unicode code-point", 1),
         ("'abc", INVALID_TOKEN, 0),
         ("'a\nb'", INVALID_TOKEN, 0),
         ("'a\rb'", INVALID_TOKEN, 0),
-        ("'\\", INVALID_TOKEN, 1),
+        ("'\\", INVALID_TOKEN, 0),
+        ("x = 'abc\\", INVALID_TOKEN, 4),
         ("x = \"", INVALID_TOKEN, 4),
     ] {
         let error = error(source);

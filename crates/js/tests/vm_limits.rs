@@ -244,9 +244,32 @@ fn global_declarations_conflict_across_scripts() {
 fn constructs_outside_the_subset_do_not_compile() {
     on_big_stack(|| {
         let mut rt = runtime(false);
+        // The parser accepts the forms of M7 feature 1a; the compiler
+        // rejects them until feature 3.
         for (source, construct) in [
             ("({ get x() { return 1; } })", "getter or setter"),
             ("var r = /a/;", "regular expression literal"),
+            ("var [a] = [1];", "destructuring"),
+            ("let {b} = {};", "destructuring"),
+            ("[a] = [1];", "destructuring assignment"),
+            ("function f(a = 1) {}", "default value"),
+            ("function f(...a) {}", "rest element"),
+            ("(([a]) => a)", "destructuring"),
+            ("try {} catch ([e]) {}", "destructuring"),
+            ("f(...a);", "spread"),
+            ("[...a];", "spread"),
+            ("({...a});", "object spread"),
+            ("a?.b;", "optional chaining"),
+            ("a`x`;", "tagged template"),
+            ("function f() { return new.target; }", "new.target"),
+            ("1n;", "BigInt literal"),
+            ("({ 1n: 2 });", "BigInt literal"),
+            ("function* g() { yield* a; }", "yield*"),
+            ("for (var k in {});", "for-in"),
+            ("for (var k of []);", "for-of"),
+            ("with ({}) {}", "with"),
+            // The first construct in the source counts.
+            ("x = 1; for (k of a?.b);", "for-of"),
         ] {
             let Err(ScriptError::Compile { kind, message, .. }) = rt.eval(source) else {
                 panic!("{source} compiled");

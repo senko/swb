@@ -1,15 +1,15 @@
-//! Functions (ECMA-262 clause 15): declarations, expressions, methods and
-//! arrow functions, their parameters and bodies.
+//! Functions (ECMA-262 clause 15): declarations, expressions, methods,
+//! accessors and arrow functions, their parameters and bodies.
 
 use swb_js_text::CodeUnit;
 
-use super::{Context, IdentUse, PResult, Parser};
+use super::patterns::{DeclKind, Leaf};
+use super::{Context, IdentUse, PResult, Parser, Recorded};
 use crate::ast::{
-    AssignOp, AssignTarget, ExprId, ExprKind, Function, FunctionId, FunctionKind, Ident, List,
-    PatternId, PatternKind, ScopeId, Span, StmtId, StmtKind,
+    ExprId, ExprKind, Function, FunctionId, FunctionKind, Ident, List, PatternId, PatternKind,
+    ScopeId, Span, StmtId, StmtKind,
 };
 use crate::error::ParseError;
-use crate::interner::names;
 use crate::messages;
 use crate::scope::ScopeKind;
 use crate::token::TokenKind;
@@ -35,6 +35,19 @@ struct FunctionParts {
     params: List<PatternId>,
     body: List<StmtId>,
     expression_body: bool,
+    body_scope: ScopeId,
+}
+
+/// The parameters of an arrow function, as parsed before the `=>`.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum ArrowHead {
+    /// `() =>`.
+    Empty,
+    /// `a =>`: the identifier expression.
+    Identifier(ExprId),
+    /// `(a, b = 1, ...c) =>`: the expression inside the parentheses (a
+    /// [`ExprKind::Sequence`] for more than one element).
+    Parenthesized(ExprId),
 }
 
 impl<U: CodeUnit> Parser<'_, '_, U> {
@@ -53,9 +66,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             body: List::EMPTY,
             span: Span::new(start, start),
             scope: ScopeId::from_index(0),
+            body_scope: ScopeId::from_index(0),
             parent: Some(self.ctx.function),
         });
         self.scopes.add_function();
+        self.recorded.push(Recorded::Function(id));
         id
     }
 
@@ -107,9 +122,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let checked = self.check_identifier(IdentUse::Binding);
             self.ctx.generator = outer_generator;
             let checked = checked?;
-            parent_scope =
-                self.scopes
-                    .push_scope(ScopeKind::FunctionName, Some(self.scope), function, offset);
+            parent_scope = self.new_scope_of(ScopeKind::FunctionName, self.scope, function, offset);
             self.scopes
                 .declare_function_name(parent_scope, checked, offset);
             let reference = self
@@ -138,11 +151,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         ))
     }
 
-    /// A method of an object literal (§15.4); the current token is `(`.
-    pub(super) fn parse_method(&mut self, start: u32, generator: bool) -> PResult<ExprId> {
+    /// A method, getter or setter of an object literal (§15.4); the
+    /// current token is `(`.
+    pub(super) fn parse_method(
+        &mut self,
+        start: u32,
+        kind: FunctionKind,
+        generator: bool,
+    ) -> PResult<ExprId> {
         let function = self.begin_function(start);
         let head = FunctionHead {
-            kind: FunctionKind::Method,
+            kind,
             generator,
             is_declaration: false,
             name: None,
@@ -163,13 +182,13 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         head: FunctionHead,
         parent_scope: ScopeId,
     ) -> PResult<()> {
-        let scope = self.scopes.push_scope(
+        let scope = self.new_scope_of(
             ScopeKind::Function,
-            Some(parent_scope),
+            parent_scope,
             function,
             self.token.start,
         );
-        let outer_scope = std::mem::replace(&mut self.scope, scope);
+        let entered = self.enter_scope(scope);
         let mut context = Context::new(
             function,
             head.kind,
@@ -181,17 +200,16 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let outer = std::mem::replace(&mut self.ctx, context);
         let parts = match self.charge(super::FUNCTION_WEIGHT) {
             Ok(()) => {
-                let parts = self.parse_params_and_body(function, head.kind);
+                let parts = self.parse_params_and_body(head.kind);
                 self.budget.leave(super::FUNCTION_WEIGHT);
                 parts
             }
             Err(error) => Err(error),
         };
-        let strict = self.ctx.strict;
-        self.ctx = outer;
-        self.scope = outer_scope;
+        let inner = std::mem::replace(&mut self.ctx, outer);
+        self.leave_scope(entered);
         let parts = parts?;
-        self.finish_function(function, head, parts, strict, scope);
+        self.finish_function(function, head, parts, &inner, scope);
         Ok(())
     }
 
@@ -200,14 +218,14 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         function: FunctionId,
         head: FunctionHead,
         parts: FunctionParts,
-        strict: bool,
+        inner: &Context,
         scope: ScopeId,
     ) {
         let end = self.prev_end;
         if let Some(record) = self.ast.function_mut(function) {
             record.kind = head.kind;
             record.is_generator = head.generator;
-            record.strict = strict;
+            record.strict = inner.strict;
             record.is_declaration = head.is_declaration;
             record.expression_body = parts.expression_body;
             record.name = head.name.map(|(ident, _)| ident);
@@ -215,24 +233,43 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             record.body = parts.body;
             record.span = Span::new(head.start, end);
             record.scope = scope;
+            record.body_scope = parts.body_scope;
+        }
+        if let Some(record) = self.scopes.function_mut(function) {
+            record.has_direct_eval = inner.direct_evals > 0;
         }
     }
 
-    fn parse_params_and_body(
-        &mut self,
-        function: FunctionId,
-        kind: FunctionKind,
-    ) -> PResult<FunctionParts> {
-        let params = self.parse_params(function, kind)?;
+    fn parse_params_and_body(&mut self, kind: FunctionKind) -> PResult<FunctionParts> {
+        let params = self.parse_params(kind)?;
         if !self.at(TokenKind::LBrace) {
             return Err(self.unexpected());
         }
-        let body = self.parse_function_body()?;
+        let (body, body_scope) = self.parse_body_in_scope(params, Self::parse_function_body)?;
         Ok(FunctionParts {
             params,
             body,
             expression_body: false,
+            body_scope,
         })
+    }
+
+    /// Parses the body with `parse`, in a scope of its own if the
+    /// parameters have expressions (§10.2.11 step 28). Returns the body
+    /// and its scope.
+    fn parse_body_in_scope(
+        &mut self,
+        params: List<PatternId>,
+        parse: impl FnOnce(&mut Self) -> PResult<List<StmtId>>,
+    ) -> PResult<(List<StmtId>, ScopeId)> {
+        if !self.has_parameter_expressions(params) {
+            return Ok((parse(self)?, self.scope));
+        }
+        let entered = self.open_scope(ScopeKind::FunctionBody, self.token.start);
+        let body_scope = self.scope;
+        let body = parse(self);
+        self.leave_scope(entered);
+        Ok((body?, body_scope))
     }
 
     /// `{ FunctionBody }` with its directive prologue.
@@ -243,102 +280,162 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(body)
     }
 
-    /// `FormalParameters` (§15.1): identifiers only in the subset.
-    fn parse_params(
-        &mut self,
-        function: FunctionId,
-        kind: FunctionKind,
-    ) -> PResult<List<PatternId>> {
+    /// `FormalParameters` (§15.1): binding elements and a rest parameter.
+    fn parse_params(&mut self, kind: FunctionKind) -> PResult<List<PatternId>> {
+        let open = self.token.start;
         self.expect(TokenKind::LParen)?;
+        self.ctx.in_params = true;
         let mark = self.scratch_patterns.len();
+        let marks = self.scratch_param_marks.len();
+        let result = self.parse_param_elements();
+        self.ctx.in_params = false;
+        let params = self.ast.push_patterns(&self.scratch_patterns[mark..]);
+        self.scratch_patterns.truncate(mark);
+        let element_marks: Vec<(usize, u32)> = self.scratch_param_marks.drain(marks..).collect();
+        result?;
+        self.finish_params(params, kind, &element_marks, open)?;
+        Ok(params)
+    }
+
+    /// The elements of a parameter list up to and including `)`.
+    fn parse_param_elements(&mut self) -> PResult<()> {
         while !self.at(TokenKind::RParen) {
             let start = self.token.start;
-            match self.token.kind {
-                TokenKind::Ellipsis => {
-                    return Err(ParseError::unsupported(start, "rest parameter"));
+            let binding_mark = self.scopes.binding_mark();
+            if self.eat(TokenKind::Ellipsis)? {
+                let target = self.parse_binding_target(DeclKind::Param, Leaf::Top)?;
+                if self.at(TokenKind::Eq) {
+                    return Err(ParseError::syntax(
+                        self.token.start,
+                        messages::REST_PARAMETER_DEFAULT,
+                    ));
                 }
-                TokenKind::LBracket | TokenKind::LBrace => {
-                    return Err(ParseError::unsupported(start, "destructuring"));
+                let rest = self
+                    .ast
+                    .push_pattern(PatternKind::Rest(target), Span::new(start, self.prev_end));
+                self.scratch_patterns.push(rest);
+                self.scratch_param_marks.push((binding_mark, self.prev_end));
+                if !self.at(TokenKind::RParen) {
+                    if self.at(TokenKind::Comma) {
+                        return Err(ParseError::syntax(
+                            self.token.start,
+                            messages::REST_PARAMETER_NOT_LAST,
+                        ));
+                    }
+                    return Err(self.unexpected());
                 }
-                _ => {}
+                break;
             }
-            let name = self.check_identifier(IdentUse::Binding)?;
-            let ident = self.reference(name, start, true);
-            self.advance()?;
-            if self.at(TokenKind::Eq) {
-                return Err(ParseError::unsupported(start, "default parameter"));
-            }
-            let span = Span::new(start, self.prev_end);
-            let pattern = self.declare_param(function, ident, span);
-            self.scratch_patterns.push(pattern);
+            let element = self.parse_binding_element(DeclKind::Param, Leaf::Top)?;
+            self.scratch_patterns.push(element);
+            self.scratch_param_marks.push((binding_mark, self.prev_end));
             if !self.at(TokenKind::RParen) {
                 self.expect(TokenKind::Comma)?;
             }
         }
-        self.advance()?;
-        if self.scratch_patterns.len() - mark > MAX_PARAMS {
+        self.advance()
+    }
+
+    /// The checks and records of a complete parameter list of the current
+    /// function: the count, simple or not, duplicates (§15.1.1, §15.2.1),
+    /// the arity of accessors (§15.4.1), the registers of the arguments,
+    /// and the temporal dead zone of parameters when the list has
+    /// expressions. `element_marks` has, per element, the binding mark
+    /// before it and its end.
+    fn finish_params(
+        &mut self,
+        params: List<PatternId>,
+        kind: FunctionKind,
+        element_marks: &[(usize, u32)],
+        open: u32,
+    ) -> PResult<()> {
+        let patterns = self.ast.patterns(params);
+        if patterns.len() > MAX_PARAMS {
             return Err(ParseError::syntax(
                 self.prev_end,
                 messages::TOO_MANY_PARAMETERS,
             ));
         }
-        let params = self.ast.push_patterns(&self.scratch_patterns[mark..]);
-        self.scratch_patterns.truncate(mark);
+        let has_rest = patterns
+            .last()
+            .is_some_and(|&p| matches!(self.ast.pattern(p).kind, PatternKind::Rest(_)));
+        match kind {
+            FunctionKind::Getter if !patterns.is_empty() => {
+                return Err(ParseError::syntax(open, messages::GETTER_PARAMETERS));
+            }
+            FunctionKind::Setter if has_rest => {
+                return Err(ParseError::syntax(open, messages::SETTER_REST));
+            }
+            FunctionKind::Setter if patterns.len() != 1 => {
+                return Err(ParseError::syntax(open, messages::SETTER_PARAMETERS));
+            }
+            _ => {}
+        }
+        let simple = self.is_simple_parameter_list(params);
+        let positional: Vec<_> = if simple {
+            patterns
+                .iter()
+                .filter_map(|&p| match self.ast.pattern(p).kind {
+                    PatternKind::Identifier(ident) => {
+                        self.scopes.declared_in(self.scope, ident.name)
+                    }
+                    _ => None,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let count = patterns.len() as u32;
+        if let Some(record) = self.scopes.function_mut(self.ctx.function) {
+            record.params = positional;
+            record.argument_registers = count;
+        }
         self.ctx.params = params;
-        // Methods and arrow functions have UniqueFormalParameters
-        // (§15.4.1, §15.3.1); strict functions too (§15.2.1).
-        let unique = self.ctx.strict || matches!(kind, FunctionKind::Method | FunctionKind::Arrow);
+        self.ctx.simple_params = simple;
+        // Methods, accessors and arrow functions have
+        // UniqueFormalParameters (§15.4.1, §15.3.1); strict functions and
+        // non-simple lists too (§15.2.1).
+        let unique = self.ctx.strict
+            || !simple
+            || matches!(
+                kind,
+                FunctionKind::Method
+                    | FunctionKind::Getter
+                    | FunctionKind::Setter
+                    | FunctionKind::Arrow
+            );
         if unique && let Some(offset) = self.ctx.duplicate_param {
             return Err(ParseError::syntax(offset, messages::DUPLICATE_PARAMETER));
         }
-        Ok(params)
-    }
-
-    /// Declares a parameter of the current function and returns its
-    /// pattern.
-    fn declare_param(&mut self, function: FunctionId, ident: Ident, span: Span) -> PatternId {
-        let (binding, duplicate) = self
-            .scopes
-            .declare_param(self.scope, ident.name, span.start);
-        if duplicate && self.ctx.duplicate_param.is_none() {
-            self.ctx.duplicate_param = Some(span.start);
+        if self.has_parameter_expressions(params) {
+            let all = self.scopes.binding_mark();
+            for (index, &(mark, end)) in element_marks.iter().enumerate() {
+                let next = element_marks.get(index + 1).map_or(all, |&(m, _)| m);
+                self.scopes
+                    .set_init_end_range(mark..next, self.scope, true, end);
+            }
         }
-        if let Some(record) = self.scopes.function_mut(function) {
-            record.params.push(binding);
-        }
-        self.ast.push_pattern(PatternKind::Identifier(ident), span)
+        Ok(())
     }
 
     /// Converts the expression before `=>` into arrow parameters (the
-    /// cover grammar, §15.3.1): an identifier, or a parenthesized list of
-    /// identifiers. `start` is where the expression starts; `marks` and
-    /// `functions` are the table sizes before it.
+    /// cover grammar, §15.3.1): an identifier, or a parenthesized list.
+    /// `start` is where the expression starts; `mark` is the length of
+    /// [`Parser::recorded`] before it.
     pub(super) fn parse_arrow_from_cover(
         &mut self,
         left: ExprId,
         start: u32,
-        marks: (usize, usize),
-        functions: usize,
+        mark: usize,
         no_in: bool,
     ) -> PResult<ExprId> {
         let expr = *self.ast.expr(left);
-        let mut params: Vec<(Ident, Span)> = Vec::new();
-        match expr.kind {
-            ExprKind::Identifier(ident) if expr.span.start == start => {
-                params.push((ident, expr.span));
-            }
-            ExprKind::Paren(inner) if expr.span.start == start => {
-                let items: Vec<ExprId> = match self.ast.expr(inner).kind {
-                    ExprKind::Sequence(list) => self.ast.exprs(list).to_vec(),
-                    _ => vec![inner],
-                };
-                for item in items {
-                    params.push(self.arrow_param(item)?);
-                }
-            }
+        let head = match expr.kind {
+            ExprKind::Identifier(_) if expr.span.start == start => ArrowHead::Identifier(left),
+            ExprKind::Paren(inner) if expr.span.start == start => ArrowHead::Parenthesized(inner),
             ExprKind::Call { callee, .. }
                 if matches!(self.ast.expr(callee).kind,
-                    ExprKind::Identifier(ident) if ident.name == names::ASYNC) =>
+                    ExprKind::Identifier(ident) if ident.name == crate::names::ASYNC) =>
             {
                 return Err(ParseError::unsupported(start, "async arrow function"));
             }
@@ -348,73 +445,60 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     messages::MALFORMED_ARROW_PARAMETERS,
                 ));
             }
-        }
-        self.parse_arrow_function(start, &params, Some((marks, functions)), no_in)
-    }
-
-    /// One parameter of an arrow function, from its cover expression.
-    fn arrow_param(&self, item: ExprId) -> PResult<(Ident, Span)> {
-        let expr = self.ast.expr(item);
-        match expr.kind {
-            ExprKind::Identifier(ident) => Ok((ident, expr.span)),
-            ExprKind::Assign {
-                op: AssignOp::Assign,
-                target: AssignTarget::Simple(target),
-                ..
-            } if matches!(self.ast.expr(target).kind, ExprKind::Identifier(_)) => Err(
-                ParseError::unsupported(expr.span.start, "default parameter"),
-            ),
-            ExprKind::Array(_) | ExprKind::Object(_) => {
-                Err(ParseError::unsupported(expr.span.start, "destructuring"))
-            }
-            _ => Err(ParseError::syntax(
-                expr.span.start,
-                messages::INVALID_DESTRUCTURING_TARGET,
-            )),
-        }
+        };
+        self.parse_arrow_function(start, head, Some(mark), no_in)
     }
 
     /// An arrow function (§15.3) from its parameters; the current token is
-    /// `=>`. `cover` holds the table sizes before the parameters, whose
-    /// identifier occurrences and nested scopes move into the arrow
+    /// `=>`. `mark` is the length of [`Parser::recorded`] before the
+    /// parameters: what was recorded since then moves into the arrow
     /// function's scope.
     pub(super) fn parse_arrow_function(
         &mut self,
         start: u32,
-        params: &[(Ident, Span)],
-        cover: Option<((usize, usize), usize)>,
+        head: ArrowHead,
+        mark: Option<usize>,
         no_in: bool,
     ) -> PResult<ExprId> {
+        // `(a = yield) => 0` in a generator (§15.3.1).
+        let head_yield = self.ctx.last_yield.filter(|&offset| offset >= start);
+        let moved = mark.map_or_else(Vec::new, |mark| {
+            self.recorded.split_off(mark.min(self.recorded.len()))
+        });
+        let outer_function = self.ctx.function;
+        let outer_scope = self.scope;
         let function = self.begin_function(start);
-        let scope = self
-            .scopes
-            .push_scope(ScopeKind::Function, Some(self.scope), function, start);
-        if let Some((marks, functions)) = cover {
-            self.scopes.reparent_since(marks, self.scope, scope);
-            let outer = self.ctx.function;
-            for record in self.ast.functions_from(functions) {
-                if record.parent == Some(outer) && record.kind != FunctionKind::Script {
-                    record.parent = Some(function);
+        let scope = self.new_scope_of(ScopeKind::Function, outer_scope, function, start);
+        let mut evals = 0;
+        for item in moved {
+            match item {
+                Recorded::Reference(id) => self.scopes.move_reference(id, outer_scope, scope),
+                Recorded::Scope(id) => self.scopes.move_scope(id, outer_scope, scope),
+                Recorded::Function(id) => {
+                    if let Some(record) = self.ast.function_mut(id)
+                        && record.parent == Some(outer_function)
+                    {
+                        record.parent = Some(function);
+                    }
                 }
-            }
-            // The arrow function itself is in that range too.
-            if let Some(record) = self.ast.function_mut(function) {
-                record.parent = Some(outer);
+                Recorded::Eval => evals += 1,
             }
         }
-        let outer_scope = std::mem::replace(&mut self.scope, scope);
-        let context = Context::new(
+        self.ctx.direct_evals = self.ctx.direct_evals.saturating_sub(evals);
+        let entered = self.enter_scope(scope);
+        let mut context = Context::new(
             function,
             FunctionKind::Arrow,
             self.ctx.strict,
             false,
             self.labels.len(),
         );
+        context.new_target = self.ctx.new_target;
+        context.direct_evals = evals;
         let outer = std::mem::replace(&mut self.ctx, context);
-        let parts = self.parse_arrow_rest(function, params, no_in);
-        let strict = self.ctx.strict;
-        self.ctx = outer;
-        self.scope = outer_scope;
+        let parts = self.parse_arrow_rest(head, head_yield, no_in);
+        let inner = std::mem::replace(&mut self.ctx, outer);
+        self.leave_scope(entered);
         let parts = parts?;
         let head = FunctionHead {
             kind: FunctionKind::Arrow,
@@ -423,7 +507,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             name: None,
             start,
         };
-        self.finish_function(function, head, parts, strict, scope);
+        self.finish_function(function, head, parts, &inner, scope);
         Ok(self.ast.push_expr(
             ExprKind::Function(function),
             Span::new(start, self.prev_end),
@@ -432,58 +516,83 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     fn parse_arrow_rest(
         &mut self,
-        function: FunctionId,
-        params: &[(Ident, Span)],
+        head: ArrowHead,
+        head_yield: Option<u32>,
         no_in: bool,
     ) -> PResult<FunctionParts> {
-        if params.len() > MAX_PARAMS {
+        let params = self.arrow_params(head)?;
+        if let Some(offset) = head_yield {
+            return Err(ParseError::syntax(offset, messages::YIELD_IN_PARAMETER));
+        }
+        self.expect(TokenKind::Arrow)?;
+        if self.at(TokenKind::LBrace) {
+            let (body, body_scope) = self.parse_body_in_scope(params, Self::parse_function_body)?;
+            return Ok(FunctionParts {
+                params,
+                body,
+                expression_body: false,
+                body_scope,
+            });
+        }
+        let (body, body_scope) = self.parse_body_in_scope(params, |parser| {
+            let body_start = parser.token.start;
+            let value = parser.parse_assignment(no_in)?;
+            let stmt = parser.ast.push_stmt(
+                StmtKind::Return(Some(value)),
+                Span::new(body_start, parser.prev_end),
+            );
+            Ok(parser.ast.push_stmts(&[stmt]))
+        })?;
+        Ok(FunctionParts {
+            params,
+            body,
+            expression_body: true,
+            body_scope,
+        })
+    }
+
+    /// Converts and declares the parameters of an arrow function; the
+    /// current scope is the arrow's.
+    fn arrow_params(&mut self, head: ArrowHead) -> PResult<List<PatternId>> {
+        let items: Vec<ExprId> = match head {
+            ArrowHead::Empty => Vec::new(),
+            ArrowHead::Identifier(item) => vec![item],
+            ArrowHead::Parenthesized(inner) => match self.ast.expr(inner).kind {
+                ExprKind::Sequence(list) => self.ast.exprs(list).to_vec(),
+                _ => vec![inner],
+            },
+        };
+        if items.len() > MAX_PARAMS {
             return Err(ParseError::syntax(
                 self.token.start,
                 messages::TOO_MANY_PARAMETERS,
             ));
         }
-        let mark = self.scratch_patterns.len();
-        for &(ident, span) in params {
-            if self.ctx.strict && super::is_eval_or_arguments(ident.name) {
-                return Err(ParseError::syntax(
-                    span.start,
-                    messages::UNEXPECTED_EVAL_OR_ARGUMENTS,
-                ));
-            }
-            let pattern = self.declare_param(function, ident, span);
-            if self.ctx.duplicate_param.is_some() {
-                return Err(ParseError::syntax(
-                    span.start,
-                    messages::DUPLICATE_PARAMETER,
-                ));
-            }
-            if let Some(reference) = self.scopes.reference_mut(ident.reference) {
-                reference.declaration = true;
-            }
-            self.scratch_patterns.push(pattern);
+        let mut patterns = Vec::with_capacity(items.len());
+        let mut element_marks = Vec::with_capacity(items.len());
+        for item in items {
+            let node = *self.ast.expr(item);
+            let binding_mark = self.scopes.binding_mark();
+            let pattern = match node.kind {
+                ExprKind::Spread(argument) => {
+                    if matches!(self.ast.expr(argument).kind, ExprKind::Assign { .. }) {
+                        return Err(self.rest_parameter_error(argument));
+                    }
+                    let target = self.binding_from_expr(argument, Leaf::Top)?;
+                    self.ast.push_pattern(PatternKind::Rest(target), node.span)
+                }
+                _ => self.arrow_param(item, Leaf::Top)?,
+            };
+            patterns.push(pattern);
+            element_marks.push((binding_mark, node.span.end));
         }
-        let list = self.ast.push_patterns(&self.scratch_patterns[mark..]);
-        self.scratch_patterns.truncate(mark);
-        self.ctx.params = list;
-        self.expect(TokenKind::Arrow)?;
-        if self.at(TokenKind::LBrace) {
-            let body = self.parse_function_body()?;
-            return Ok(FunctionParts {
-                params: list,
-                body,
-                expression_body: false,
-            });
-        }
-        let body_start = self.token.start;
-        let value = self.parse_assignment(no_in)?;
-        let stmt = self.ast.push_stmt(
-            StmtKind::Return(Some(value)),
-            Span::new(body_start, self.prev_end),
-        );
-        Ok(FunctionParts {
-            params: list,
-            body: self.ast.push_stmts(&[stmt]),
-            expression_body: true,
-        })
+        let params = self.ast.push_patterns(&patterns);
+        self.finish_params(
+            params,
+            FunctionKind::Arrow,
+            &element_marks,
+            self.token.start,
+        )?;
+        Ok(params)
     }
 }

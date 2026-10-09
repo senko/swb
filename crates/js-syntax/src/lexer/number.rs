@@ -34,14 +34,14 @@ impl<U: CodeUnit> Lexer<'_, U> {
                 return Err(error_at(start + 1, SEPARATOR_AFTER_ZERO));
             }
             if self.ahead(1).is_some_and(is_decimal_digit) {
-                return self.scan_legacy_literal();
+                return self.scan_legacy_literal(start);
             }
         }
         self.digits.clear();
         if !self.is_at(0, b'.') {
             self.scan_decimal_digits()?;
         }
-        self.scan_decimal_rest(false)
+        self.scan_decimal_rest(false, start)
     }
 
     /// Scans decimal digits with separators into `self.digits`; returns
@@ -58,7 +58,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
     /// Scans the fraction, exponent and `BigInt` suffix of a decimal
     /// literal whose integer part is in `self.digits`. `legacy` is set for
     /// a `NonOctalDecimalIntegerLiteral` (`08`), which cannot be a `BigInt`.
-    fn scan_decimal_rest(&mut self, legacy: bool) -> Result<Lexeme, SyntaxError> {
+    fn scan_decimal_rest(&mut self, legacy: bool, start: usize) -> Result<Lexeme, SyntaxError> {
         let mut integer = true;
         if self.is_at(0, b'.') {
             self.pos += 1;
@@ -74,27 +74,27 @@ impl<U: CodeUnit> Lexer<'_, U> {
                 self.pos += 1;
             }
             if self.scan_decimal_digits()? == 0 {
-                return Err(error_at(self.pos, INVALID_TOKEN));
+                return Err(error_at(start, INVALID_TOKEN));
             }
             integer = false;
         }
         if self.is_at(0, b'n') {
             if !integer || legacy {
-                return Err(error_at(self.pos, INVALID_TOKEN));
+                return Err(error_at(start, INVALID_TOKEN));
             }
             self.pos += 1;
-            self.check_after_numeric()?;
+            self.check_after_numeric(start)?;
             let text = self.digits.as_str().into();
             return Ok(Lexeme::with_value(
                 TokenKind::BigInt,
                 TokenValue::BigInt(text),
             ));
         }
-        self.check_after_numeric()?;
+        self.check_after_numeric(start)?;
         let value: f64 = self
             .digits
             .parse()
-            .map_err(|_| error_at(self.pos, INVALID_TOKEN))?;
+            .map_err(|_| error_at(start, INVALID_TOKEN))?;
         Ok(Lexeme::with_value(
             TokenKind::Number,
             TokenValue::Number(value),
@@ -104,7 +104,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
     /// Scans `0` followed by a decimal digit: a `LegacyOctalIntegerLiteral`
     /// (`017`) or a `NonOctalDecimalIntegerLiteral` (`08`, `019.5`). Both
     /// are errors in strict mode code; neither allows separators.
-    fn scan_legacy_literal(&mut self) -> Result<Lexeme, SyntaxError> {
+    fn scan_legacy_literal(&mut self, start: usize) -> Result<Lexeme, SyntaxError> {
         self.digits.clear();
         let mut octal = true;
         while let Some(unit) = self.peek().filter(|&u| is_decimal_digit(u)) {
@@ -113,20 +113,25 @@ impl<U: CodeUnit> Lexer<'_, U> {
             self.pos += 1;
         }
         if self.is_at(0, b'_') {
-            return Err(error_at(self.pos, INVALID_TOKEN));
+            // V8 marks the start of an octal literal, the separator in a
+            // decimal one.
+            return Err(error_at(
+                if octal { start } else { self.pos },
+                INVALID_TOKEN,
+            ));
         }
         let mut lexeme = if octal {
             if self.is_at(0, b'n') {
-                return Err(error_at(self.pos, INVALID_TOKEN));
+                return Err(error_at(start, INVALID_TOKEN));
             }
-            self.check_after_numeric()?;
+            self.check_after_numeric(start)?;
             let mut value = RadixAccumulator::new(8);
             for digit in self.digits.bytes() {
                 value.push(u32::from(digit - b'0'));
             }
             Lexeme::with_value(TokenKind::Number, TokenValue::Number(value.finish()))
         } else {
-            self.scan_decimal_rest(true)?
+            self.scan_decimal_rest(true, start)?
         };
         lexeme.legacy = if octal {
             Legacy::OctalInteger
@@ -142,7 +147,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
         let digits_start = self.pos;
         let mut value = RadixAccumulator::new(radix);
         if self.scan_digits(radix, true, |d| value.push(d))? == 0 {
-            return Err(error_at(self.pos, INVALID_TOKEN));
+            return Err(error_at(start, INVALID_TOKEN));
         }
         if self.is_at(0, b'n') {
             let prefix = match radix {
@@ -158,13 +163,13 @@ impl<U: CodeUnit> Lexer<'_, U> {
                 }
             }
             self.pos += 1;
-            self.check_after_numeric()?;
+            self.check_after_numeric(start)?;
             return Ok(Lexeme::with_value(
                 TokenKind::BigInt,
                 TokenValue::BigInt(text.into()),
             ));
         }
-        self.check_after_numeric()?;
+        self.check_after_numeric(start)?;
         Ok(Lexeme::with_value(
             TokenKind::Number,
             TokenValue::Number(value.finish()),
@@ -191,7 +196,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
                 match self.ahead(1) {
                     Some(0x5F) => return Err(error_at(self.pos + 1, SEPARATOR_TWICE)),
                     Some(next) if digit_value(next, radix).is_some() => self.pos += 1,
-                    _ => return Err(error_at(self.pos, SEPARATOR_AT_END)),
+                    _ => return Err(error_at(self.pos + 1, SEPARATOR_AT_END)),
                 }
             } else {
                 break;
@@ -202,7 +207,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
 
     /// The source character after a `NumericLiteral` must not be an
     /// `IdentifierStart` or a `DecimalDigit` (§12.9.3).
-    fn check_after_numeric(&self) -> Result<(), SyntaxError> {
+    fn check_after_numeric(&self, start: usize) -> Result<(), SyntaxError> {
         let Some(unit) = self.peek() else {
             return Ok(());
         };
@@ -213,7 +218,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
                 .is_some_and(|(cp, _)| unicode::is_identifier_start(cp))
         };
         if bad {
-            return Err(error_at(self.pos, INVALID_TOKEN));
+            return Err(error_at(start, INVALID_TOKEN));
         }
         Ok(())
     }

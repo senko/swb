@@ -38,7 +38,15 @@ impl<U: CodeUnit> Lexer<'_, U> {
                     break;
                 }
                 Some(BACKSLASH) => {
-                    let kind = self.scan_escape(&mut value, false)?;
+                    // V8 marks the start of the string for a backslash at
+                    // the end of the source.
+                    let kind = self.scan_escape(&mut value, false).map_err(|e| {
+                        if e.message == INVALID_TOKEN {
+                            error_at(start, INVALID_TOKEN)
+                        } else {
+                            e
+                        }
+                    })?;
                     if legacy == Legacy::None {
                         legacy = kind;
                     }
@@ -213,7 +221,8 @@ impl<U: CodeUnit> Lexer<'_, U> {
             0x30 if !self.peek().is_some_and(is_decimal_digit) => 0, // \0
             0x30..=0x37 => {
                 if template {
-                    return Err(error_at(escape, OCTAL_IN_TEMPLATE));
+                    // V8 marks the digit after the backslash.
+                    return Err(error_at(escape + 1, OCTAL_IN_TEMPLATE));
                 }
                 out.push(self.scan_legacy_octal_escape(unit));
                 return Ok(Legacy::OctalEscape);
@@ -287,7 +296,8 @@ impl<U: CodeUnit> Lexer<'_, U> {
             return Err(error_at(escape, UNDEFINED_CODE_POINT));
         }
         if count == 0 || !self.is_at(0, b'}') {
-            return Err(error_at(escape, INVALID_UNICODE_ESCAPE));
+            // V8 marks the character that is not a hexadecimal digit.
+            return Err(error_at(self.pos, INVALID_UNICODE_ESCAPE));
         }
         self.pos += 1;
         Ok(value)

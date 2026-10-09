@@ -513,3 +513,124 @@ fn default_capture_limits() {
     assert_eq!(Limits::DEFAULT.function_captures, 65_535);
     assert_eq!(Limits::DEFAULT.total_captures, 1 << 20);
 }
+
+#[test]
+fn parameter_expressions_have_their_own_scope() {
+    // §10.2.11 step 28: the body's declarations get a scope of their own;
+    // the default sees the parameters (with a TDZ for later ones), not
+    // the body's `var a`. Registers 0 to 2 receive the arguments.
+    check(
+        "function f(a, b = () => a + c, c) { var a; var d; let e; return a; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 9
+         ||scope 1 Function: a cell r3 Parameter, b r4 Parameter, c cell r5 Parameter
+         ||scope 3 FunctionBody: a r6 Var, d r7 Var, e r8 Let
+         function 2 parent 1 params [] registers 0 captures [a<-r3 c<-r5]",
+        "f@9:=global a@11:=cell3 b@14:=r4 a@24:cap0! c@28:cap1! c@31:=cell5 a@40:=r6 \
+         d@47:=r7 e@54:=r8 a@64:r6",
+    );
+    // Patterns without expressions: one scope; `var a` is the parameter.
+    check(
+        "function f([a], {b}) { var a; return b; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 4
+         ||scope 1 Function: a r2 Parameter, b r3 Parameter",
+        "f@9:=global a@12:=r2 b@17:=r3 a@27:=r2 b@37:r3",
+    );
+    // A body `var arguments` starts with the arguments object, which the
+    // function then creates.
+    check(
+        "function f(a = 1) { var arguments; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 4 arguments
+         ||scope 1 Function: a r1 Parameter, arguments r2 Arguments
+         ||scope 2 FunctionBody: arguments r3 Var",
+        "f@9:=global a@11:=r1 arguments@24:=r3",
+    );
+}
+
+#[test]
+fn for_in_of_bindings() {
+    // The right side sees the head's bindings uninitialized; each
+    // iteration has new cells.
+    check(
+        "for (let x of x) { g(() => x); }",
+        "function 0 params [] registers 1
+         ||scope 1 ForInOf: per-iteration x cell r0 Let
+         function 1 parent 0 params [] registers 0 captures [x<-r0]",
+        "x@9:=cell0 x@14:cell0! g@19:global x@27:cap0!",
+    );
+    check(
+        "for (const [k, v] of y) g(() => k);",
+        "function 0 params [] registers 2
+         ||scope 1 ForInOf: per-iteration k cell r0 Const, v r1 Const
+         function 1 parent 0 params [] registers 0 captures [k<-r0]",
+        "k@12:=cell0 v@15:=r1 y@21:global g@24:global k@32:cap0!",
+    );
+    check(
+        "for (var i in o) i;",
+        "function 0 params [] registers 0
+         ||scope 0 Script: i global Var",
+        "i@9:=global o@14:global i@17:global",
+    );
+}
+
+#[test]
+fn arrow_parameters_move_into_the_arrow() {
+    // The function in the default and the reference `b` in it belong to
+    // the arrow function, whose parameter `b` it captures.
+    check(
+        "(a = function g() { return b; }, b) => a;",
+        "function 0 params [] registers 0
+         function 1 g parent 2 params [] registers 1 captures [b<-r3]
+         ||scope 1 FunctionName: g r0 FunctionName
+         function 2 parent 0 params [] registers 4
+         ||scope 3 Function: a r2 Parameter, b cell r3 Parameter",
+        "a@1:=r2 g@14:=r0 b@27:cap0! b@33:=cell3 a@39:r2",
+    );
+    // A direct `eval` in the parameters belongs to the arrow function.
+    check(
+        "function f() { (z = eval('x')) => z; }",
+        "function 0 params [] registers 0 eval
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 0 eval
+         function 2 parent 1 params [] registers 2 eval
+         ||scope 2 Function: z cell r1 Parameter",
+        "f@9:=global z@16:=cell1 eval@20:global z@34:cell1",
+    );
+    let script = analyze("function f() { (z = eval('x')) => z; }");
+    let f = crate::ast::FunctionId::from_index(1);
+    let arrow = crate::ast::FunctionId::from_index(2);
+    assert!(!script.scopes.function(f).has_direct_eval);
+    assert!(script.scopes.function(arrow).has_direct_eval);
+}
+
+#[test]
+fn new_target_catch_patterns_and_with() {
+    check(
+        "function f() { return () => new.target; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 1
+         ||scope 1 Function: new.target cell r0 NewTarget
+         function 2 parent 1 params [] registers 0 captures [new.target<-r0]",
+        "f@9:=global new.target@28:cap0",
+    );
+    check(
+        "try {} catch ([e, {f}]) { e; }",
+        "function 0 params [] registers 2
+         ||scope 2 Catch: e r0 CatchParameter, f r1 CatchParameter",
+        "e@15:=r0 f@19:=r1 e@26:r0",
+    );
+    // The `with` scope has no bindings; the names inside resolve
+    // statically for now (the object comes first with M7 feature 1c).
+    check(
+        "with (o) { var w; w; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: w global Var",
+        "o@6:global w@15:=global w@18:global",
+    );
+}

@@ -2,9 +2,9 @@
 //! whole function nest of a script.
 //!
 //! 1. Resolves each identifier occurrence by walking its scope chain
-//!    (`ResolveBinding`, §9.4.2). `this` and `arguments` resolve to implicit
-//!    bindings of the nearest non-arrow function (§10.2.11), which are
-//!    created on first use.
+//!    (`ResolveBinding`, §9.4.2). `this`, `new.target` and `arguments`
+//!    resolve to implicit bindings of the nearest non-arrow function
+//!    (§10.2.11), which are created on first use.
 //! 2. Marks bindings that an inner function uses as captured, and adds
 //!    the binding to the captures of every function between the use and
 //!    the declaration (flat closures).
@@ -88,11 +88,22 @@ fn capture_key(function: FunctionId, binding: BindingId) -> u64 {
 /// A `var arguments` in a non-arrow function is the binding of the
 /// arguments object (§10.2.11 steps 15 to 22: the object is needed unless
 /// a parameter, a function declaration or a lexical declaration has the
-/// name).
+/// name). In a function with parameter expressions, a `var arguments` of
+/// the body is a binding of its own that starts with the object, which
+/// the function then creates.
 fn mark_var_arguments(ast: &Ast, tree: &mut ScopeTree) {
     for id in ast.function_ids() {
         let function = ast.function(id);
         if !function.kind.has_own_this() || function.kind == FunctionKind::Script {
+            continue;
+        }
+        if function.body_scope != function.scope {
+            let in_body = tree.declared_in(function.body_scope, names::ARGUMENTS);
+            if in_body.is_some_and(|b| tree.binding(b).kind == BindingKind::Var)
+                && tree.declared_in(function.scope, names::ARGUMENTS).is_none()
+            {
+                implicit_binding(tree, id, function.scope, BindingKind::Arguments);
+            }
             continue;
         }
         let Some(binding) = tree.declared_in(function.scope, names::ARGUMENTS) else {
@@ -175,6 +186,14 @@ fn resolve(ast: &Ast, tree: &mut ScopeTree, scope: ScopeId, name: NameId) -> Opt
                 if name == names::THIS {
                     return Some(implicit_binding(tree, function, current, BindingKind::This));
                 }
+                if name == names::NEW_TARGET && kind != FunctionKind::Script {
+                    return Some(implicit_binding(
+                        tree,
+                        function,
+                        current,
+                        BindingKind::NewTarget,
+                    ));
+                }
                 if name == names::ARGUMENTS && kind != FunctionKind::Script {
                     return Some(implicit_binding(
                         tree,
@@ -189,7 +208,8 @@ fn resolve(ast: &Ast, tree: &mut ScopeTree, scope: ScopeId, name: NameId) -> Opt
     }
 }
 
-/// The `this` or `arguments` binding of a function, created on first use.
+/// The `this`, `new.target` or `arguments` binding of a function,
+/// created on first use.
 fn implicit_binding(
     tree: &mut ScopeTree,
     function: FunctionId,
@@ -198,21 +218,23 @@ fn implicit_binding(
 ) -> BindingId {
     let existing = match kind {
         BindingKind::This => tree.function(function).this_binding,
+        BindingKind::NewTarget => tree.function(function).new_target_binding,
         _ => tree.function(function).arguments_binding,
     };
     if let Some(binding) = existing {
         return binding;
     }
-    let name = if kind == BindingKind::This {
-        names::THIS
-    } else {
-        names::ARGUMENTS
+    let name = match kind {
+        BindingKind::This => names::THIS,
+        BindingKind::NewTarget => names::NEW_TARGET,
+        _ => names::ARGUMENTS,
     };
     let offset = tree.scope(scope).start;
     let binding = tree.new_binding(scope, name, kind, offset);
     if let Some(f) = tree.function_mut(function) {
         match kind {
             BindingKind::This => f.this_binding = Some(binding),
+            BindingKind::NewTarget => f.new_target_binding = Some(binding),
             _ => f.arguments_binding = Some(binding),
         }
     }
@@ -224,6 +246,13 @@ fn implicit_binding(
 fn is_global(tree: &ScopeTree, binding: BindingId) -> bool {
     let binding = tree.binding(binding);
     binding.kind != BindingKind::This && tree.scope(binding.scope).kind == ScopeKind::Script
+}
+
+/// Whether a binding has a temporal dead zone: `let`, `const`, and the
+/// parameters of a function with parameter expressions.
+fn has_tdz(binding: &super::Binding) -> bool {
+    binding.kind.is_lexical()
+        || (binding.kind == BindingKind::Parameter && binding.init_end > binding.offset)
 }
 
 /// A captured binding: used in `user`, declared in `owner`.
@@ -276,7 +305,7 @@ fn add_capture_chain(
 /// `arguments` binding has a mapped arguments object (§10.4.4): it
 /// aliases the parameters, so every parameter is a cell that the object
 /// can hold. Strict functions and functions with non-simple parameters
-/// (M7) get an unmapped object and keep registers.
+/// get an unmapped object and keep registers.
 fn mark_mapped_arguments(ast: &Ast, tree: &mut ScopeTree) {
     for id in ast.function_ids() {
         let function = ast.function(id);
@@ -380,7 +409,7 @@ fn assign_storage(tree: &mut ScopeTree, limits: &Limits) -> Result<(), ParseErro
     let function_count = tree.functions.len();
     let mut next: Vec<u32> = vec![0; function_count];
     for (index, f) in tree.functions.iter_mut().enumerate() {
-        let count = f.params.len() as u32;
+        let count = f.argument_registers;
         if count > limits.declared_registers {
             return Err(ParseError::syntax(0, messages::TOO_MANY_VARIABLES));
         }
@@ -451,7 +480,7 @@ fn enter_scope(
         .is_none_or(|parent| tree.scope(parent).function != function);
     let start = entry.start;
     let all_cells = tree.function(function).needs_scope_description;
-    let params = tree.function(function).params.len() as u32;
+    let params = tree.function(function).argument_registers;
     let mapped = tree.function(function).mapped_arguments;
     let slot = next
         .get_mut(function.index())
@@ -470,7 +499,7 @@ fn enter_scope(
         let cell = binding.captured || all_cells || (mapped && is_param);
         let storage = if binding.kind != BindingKind::This && kind == ScopeKind::Script {
             Storage::Global
-        } else if binding.kind == BindingKind::Parameter {
+        } else if binding.kind == BindingKind::Parameter && binding.storage != Storage::Unassigned {
             match binding.storage {
                 Storage::Register(r) if cell => Storage::Cell(r),
                 other => other,
@@ -490,7 +519,8 @@ fn enter_scope(
         };
         if matches!(storage, Storage::Cell(_)) {
             has_cells = true;
-            per_iteration |= kind == ScopeKind::For && binding.kind == BindingKind::Let;
+            per_iteration |= (kind == ScopeKind::For && binding.kind == BindingKind::Let)
+                || (kind == ScopeKind::ForInOf && binding.kind.is_lexical());
         }
         if let Some(b) = tree.binding_mut(id) {
             b.storage = storage;
@@ -534,7 +564,7 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
                 let initialized = user == owner
                     && reference.offset >= binding.init_end
                     && tree.scope(binding.scope).kind != ScopeKind::Switch;
-                let tdz = binding.kind.is_lexical() && !reference.declaration && !initialized;
+                let tdz = has_tdz(binding) && !reference.declaration && !initialized;
                 (resolution, tdz)
             }
         };
@@ -563,7 +593,7 @@ fn mark_needs_tdz(tree: &mut ScopeTree) {
     for index in 0..tree.bindings.len() {
         let id = BindingId::from_index(index);
         let binding = tree.binding(id);
-        if !binding.kind.is_lexical() || binding.storage == Storage::Global {
+        if !has_tdz(binding) || binding.storage == Storage::Global {
             continue;
         }
         let function = tree.scope(binding.scope).function;

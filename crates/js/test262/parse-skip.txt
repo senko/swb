@@ -1,0 +1,59 @@
+# The features that the parse-only mode of the test262 runner skips
+# (`swb-js test262 --parse-only`, M7 feature 1): proposals, and features
+# that were standardized after ECMA-262 2025. Taken from test262's
+# features.txt at the pinned commit; tests with one of these features
+# are skipped. Module tests are skipped too (flag `module`, M7 feature 1c).
+#
+# `feature NAME` per line; `#` starts a comment.
+
+# The proposals section of features.txt (stage 3 and earlier).
+feature Intl.Era-monthcode
+feature Intl.Locale-info
+feature Intl.NumberFormat-v3
+feature legacy-regexp
+feature ShadowRealm
+feature decorators
+feature source-phase-imports
+feature source-phase-imports-module-source
+feature import-defer
+feature export-defer
+feature import-text
+feature immutable-arraybuffer
+feature import-bytes
+feature nonextensible-applies-to-private
+feature await-dictionary
+feature error-stack-accessor
+feature Iterator.prototype.join
+
+# Listed as standard in features.txt, but not part of ECMA-262 2025
+# (ECMA-262 2026 or later, or ECMA-402 and Temporal, which are out of
+# scope: ADR 0026 section 1).
+feature Array.fromAsync
+feature Atomics.pause
+feature canonical-tz
+feature Error.isError
+feature explicit-resource-management
+feature iterator-chunking
+feature iterator-includes
+feature iterator-sequencing
+feature joint-iteration
+feature json-parse-with-source
+feature Math.sumPrecise
+feature Temporal
+feature uint8array-base64
+feature upsert
+feature Intl-enumeration
+feature intl-normative-optional
+feature Intl.DateTimeFormat-datetimestyle
+feature Intl.DateTimeFormat-dayPeriod
+feature Intl.DateTimeFormat-extend-timezonename
+feature Intl.DateTimeFormat-formatRange
+feature Intl.DateTimeFormat-fractionalSecondDigits
+feature Intl.DisplayNames
+feature Intl.DisplayNames-v2
+feature Intl.DurationFormat
+feature Intl.ListFormat
+feature Intl.Locale
+feature Intl.NumberFormat-unified
+feature Intl.RelativeTimeFormat
+feature Intl.Segmenter

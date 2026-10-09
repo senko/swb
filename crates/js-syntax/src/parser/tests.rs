@@ -12,7 +12,7 @@ use crate::parser::{Script, parse_script};
 
 /// Parses `source` in both code-unit widths (the narrow one if the source
 /// fits) and checks that both give the same tree or error.
-fn parse(source: &str) -> Result<Script, ParseError> {
+pub(super) fn parse(source: &str) -> Result<Script, ParseError> {
     let wide: Vec<u16> = source.encode_utf16().collect();
     let mut budget = RecursionBudget::DEFAULT;
     let result = parse_script(Str16::Wide(&wide), &mut budget);
@@ -34,7 +34,7 @@ fn parse(source: &str) -> Result<Script, ParseError> {
 }
 
 /// The tree dump of a valid source.
-fn ast(source: &str) -> String {
+pub(super) fn ast(source: &str) -> String {
     match parse(source) {
         Ok(script) => dump_ast(&script),
         Err(error) => panic!("{source}: {error}"),
@@ -42,22 +42,110 @@ fn ast(source: &str) -> String {
 }
 
 /// The message of the error of an invalid source.
-fn error(source: &str) -> String {
+pub(super) fn error(source: &str) -> String {
     match parse(source) {
         Ok(script) => panic!("{source}: no error, parsed as {}", dump_ast(&script)),
         Err(error) => error.message.into_owned(),
     }
 }
 
-fn check_ast(cases: &[(&str, &str)]) {
+pub(super) fn check_ast(cases: &[(&str, &str)]) {
     for &(source, expected) in cases {
         assert_eq!(ast(source), expected, "source: {source}");
     }
 }
 
-fn check_errors(cases: &[(&str, &str)]) {
-    for &(source, expected) in cases {
-        assert_eq!(error(source), expected, "source: {source}");
+/// The marker of the expected error position in the error tables: the
+/// source `a ‸b` is `a b` and the error is at offset 2. The positions are
+/// V8's (the caret of `new vm.Script(source)` in Node.js 22), except the
+/// cases of [`POSITION_DEVIATIONS`].
+const MARK: char = '\u{2038}';
+
+/// Splits a table source into the source and the marked offset (in code
+/// units).
+fn split_marker(marked: &str) -> (String, u32) {
+    let index = marked
+        .find(MARK)
+        .unwrap_or_else(|| panic!("no position marker in {marked:?}"));
+    let offset = marked[..index].encode_utf16().count();
+    let source = format!("{}{}", &marked[..index], &marked[index + MARK.len_utf8()..]);
+    (source, offset as u32)
+}
+
+/// Checks the message and the offset of each error in `cases`
+/// (`(source with MARK, message)`).
+pub(super) fn check_errors(cases: &[(&str, &str)]) {
+    for &(marked, expected) in cases {
+        let (source, offset) = split_marker(marked);
+        match parse(&source) {
+            Ok(script) => panic!("{source}: no error, parsed as {}", dump_ast(&script)),
+            Err(error) => {
+                assert_eq!(error.message, expected, "message of {source:?}");
+                assert_eq!(error.offset, offset, "offset of {source:?}");
+            }
+        }
+    }
+}
+
+/// The cases where swb marks another position than V8 and the rule is not
+/// simple: `(source with MARK at swb's offset, V8's offset, message)`.
+/// `a\n++` and `x = a\n/b/` end the source, where V8 marks the end of the
+/// previous line. V8 marks the `var` that conflicts with a later `let` or
+/// `function`; swb marks the later declaration. For `x + a => 1` V8 marks
+/// the operator before the arrow parameter; for `(1, 2) => 3` the last
+/// invalid element.
+const POSITION_DEVIATIONS: &[(&str, u32, &str)] = &[
+    ("a\n++‸", 1, "Unexpected end of input"),
+    ("x = a\n/b/‸", 5, "Unexpected end of input"),
+    (
+        "{ { var x } let ‸x }",
+        8,
+        "Identifier 'x' has already been declared",
+    ),
+    (
+        "{ { var x } ‸function x(){} }",
+        8,
+        "Identifier 'x' has already been declared",
+    ),
+    (
+        "{ { { var x } } { let y } let ‸x }",
+        10,
+        "Identifier 'x' has already been declared",
+    ),
+    (
+        "‸x + (a) => 1",
+        2,
+        "Malformed arrow function parameter list",
+    ),
+    ("‸x + a => 1", 2, "Malformed arrow function parameter list"),
+    (
+        "{ var x; let ‸x; }",
+        6,
+        "Identifier 'x' has already been declared",
+    ),
+    (
+        "{ var f; ‸function f() {} }",
+        6,
+        "Identifier 'f' has already been declared",
+    ),
+    (
+        "for (let x;;) { var y; let ‸y; }",
+        20,
+        "Identifier 'y' has already been declared",
+    ),
+    ("(‸1, 2) => 3", 4, "Invalid destructuring assignment target"),
+    ("‸(a)(b) => 3", 3, "Malformed arrow function parameter list"),
+    ("‸a + b => c", 2, "Malformed arrow function parameter list"),
+];
+
+#[test]
+fn position_deviations_are_documented() {
+    for &(marked, v8, expected) in POSITION_DEVIATIONS {
+        let (source, offset) = split_marker(marked);
+        let error = parse(&source).expect_err(&source);
+        assert_eq!(error.message, expected, "message of {source:?}");
+        assert_eq!(error.offset, offset, "offset of {source:?}");
+        assert_ne!(offset, v8, "{source:?} is not a deviation");
     }
 }
 
@@ -354,59 +442,34 @@ fn automatic_semicolon_insertion() {
         ),
     ]);
     check_errors(&[
-        ("a b", "Unexpected identifier 'b'"),
-        ("var a = 1 var b = 2", "Unexpected token 'var'"),
-        ("a\n++", "Unexpected end of input"),
-        ("for (;\n) ;", "Unexpected token ')'"),
-        ("if (a) else b", "Unexpected token 'else'"),
-        ("x => {} + 1", "Unexpected token '+'"),
-        ("x => {}()", "Unexpected token '('"),
-        ("x = a\n/b/", "Unexpected end of input"),
+        ("a ‸b", "Unexpected identifier 'b'"),
+        ("var a = 1 ‸var b = 2", "Unexpected token 'var'"),
+        ("for (;\n‸) ;", "Unexpected token ')'"),
+        ("if (a) ‸else b", "Unexpected token 'else'"),
+        ("x => {} ‸+ 1", "Unexpected token '+'"),
+        ("x => {}‸()", "Unexpected token '('"),
     ]);
 }
 
 #[test]
 fn unsupported_constructs() {
+    // The constructs of M7 features 1b and 1c.
     let cases = [
         ("class A {}", "class"),
         ("x = class {}", "class"),
-        ("with (a) {}", "with"),
-        ("for (a in b) ;", "for-in"),
-        ("for (var a of b) ;", "for-of"),
         ("for await (a of b) ;", "for await"),
-        ("let [a] = b", "destructuring"),
-        ("var {a} = b", "destructuring"),
-        ("[a] = b", "destructuring assignment"),
-        ("({a} = b)", "destructuring assignment"),
-        ("function f([a]) {}", "destructuring"),
-        ("try {} catch ({a}) {}", "destructuring"),
-        ("function f(...a) {}", "rest parameter"),
-        ("(...a) => 1", "rest parameter"),
-        ("(a, ...b) => 1", "rest parameter"),
-        ("function f(a = 1) {}", "default parameter"),
-        ("(a = 1) => 1", "default parameter"),
-        ("([a]) => 1", "destructuring"),
-        ("f(...a)", "spread"),
-        ("[...a]", "spread"),
-        ("({...a})", "spread property"),
-        ("({ get a() {} })", "getter or setter"),
-        ("({ set a(v) {} })", "getter or setter"),
         ("({ async a() {} })", "async method"),
         ("async function f() {}", "async function"),
         ("x = async function () {}", "async function"),
         ("x = async a => a", "async arrow function"),
         ("x = async (a) => a", "async arrow function"),
-        ("function* g() { yield* a }", "yield*"),
-        ("a`b`", "tagged template"),
-        ("a?.b", "optional chaining"),
-        ("function f() { new.target }", "new.target"),
+        ("for (async of => {};;) ;", "async arrow function"),
         ("super.a", "super"),
         ("import('a')", "import"),
         ("import a from 'b'", "module syntax"),
         ("export var a", "module syntax"),
-        ("1n", "BigInt literal"),
-        ("({ 1n: a })", "BigInt literal"),
         ("#a in b", "private name"),
+        ("a?.#b", "private name"),
     ];
     for (source, construct) in cases {
         let error = parse(source).expect_err(source);
@@ -440,7 +503,7 @@ fn source_length_limit() {
 
 /// Runs `test` on a thread with the 8 MiB stack that ADR 0026 section 9
 /// requires of every thread that runs JavaScript.
-fn on_engine_stack(test: impl FnOnce() + Send + 'static) {
+pub(super) fn on_engine_stack(test: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new()
         .stack_size(8 << 20)
         .spawn(test)
@@ -449,7 +512,7 @@ fn on_engine_stack(test: impl FnOnce() + Send + 'static) {
         .expect("the test passes");
 }
 
-fn assert_too_deep(source: &str) {
+pub(super) fn assert_too_deep(source: &str) {
     let wide: Vec<u16> = source.encode_utf16().collect();
     let mut budget = RecursionBudget::DEFAULT;
     let error = parse_script(Str16::Wide(&wide), &mut budget)
@@ -637,752 +700,721 @@ fn valid_sources_parse() {
 
 const EARLY_ERRORS: &[(&str, &str)] = &[
     (
-        "{ { var x } let x }",
+        "{ let x; { var ‸x } }",
         "Identifier 'x' has already been declared",
     ),
     (
-        "{ let x; { var x } }",
+        "{ function x(){} { var ‸x } }",
         "Identifier 'x' has already been declared",
     ),
     (
-        "{ { var x } function x(){} }",
-        "Identifier 'x' has already been declared",
-    ),
-    (
-        "{ function x(){} { var x } }",
-        "Identifier 'x' has already been declared",
-    ),
-    (
-        "{ { { var x } } { let y } let x }",
-        "Identifier 'x' has already been declared",
-    ),
-    (
-        "try {} catch (e) { var e; let f; { var f } }",
+        "try {} catch (e) { var e; let f; { var ‸f } }",
         "Identifier 'f' has already been declared",
     ),
     (
-        "{ var x; } let x;",
+        "{ var x; } let ‸x;",
         "Identifier 'x' has already been declared",
     ),
     (
-        "for (let x;;) { var x }",
+        "for (let x;;) { var ‸x }",
         "Identifier 'x' has already been declared",
     ),
-    ("while (a) const b = 1", "Unexpected token 'const'"),
+    ("while (a) ‸const b = 1", "Unexpected token 'const'"),
     (
-        "var await 1",
+        "var ‸await 1",
         "await is only valid in async functions and the top level bodies of modules",
     ),
     (
-        "await x",
+        "‸await x",
         "await is only valid in async functions and the top level bodies of modules",
     ),
-    ("await ++x", "Unexpected identifier 'x'"),
-    ("f(await 1)", "missing ) after argument list"),
-    ("let a; let a;", "Identifier 'a' has already been declared"),
-    ("let a; var a;", "Identifier 'a' has already been declared"),
-    ("var a; let a;", "Identifier 'a' has already been declared"),
+    ("await ++‸x", "Unexpected identifier 'x'"),
+    ("f(‸await 1)", "missing ) after argument list"),
+    ("let a; let ‸a;", "Identifier 'a' has already been declared"),
+    ("let a; var ‸a;", "Identifier 'a' has already been declared"),
+    ("var a; let ‸a;", "Identifier 'a' has already been declared"),
     (
-        "const a = 1; const a = 2;",
+        "const a = 1; const ‸a = 2;",
         "Identifier 'a' has already been declared",
     ),
     (
-        "{ var a; } let a;",
+        "{ var a; } let ‸a;",
         "Identifier 'a' has already been declared",
     ),
     (
-        "let a; { var a; }",
+        "let a; { var ‸a; }",
         "Identifier 'a' has already been declared",
     ),
     (
-        "function f(a) { let a; }",
+        "function f(a) { let ‸a; }",
         "Identifier 'a' has already been declared",
     ),
     (
-        "function f() {} let f;",
+        "function f() {} let ‸f;",
         "Identifier 'f' has already been declared",
     ),
     (
-        "let f; function f() {}",
+        "let f; ‸function f() {}",
         "Identifier 'f' has already been declared",
     ),
     (
-        "'use strict'; { function f() {} function f() {} }",
+        "'use strict'; { function f() {} ‸function f() {} }",
         "Identifier 'f' has already been declared",
     ),
     (
-        "{ function f() {} let f; }",
+        "{ function f() {} let ‸f; }",
         "Identifier 'f' has already been declared",
     ),
     (
-        "{ function f() {} var f; }",
+        "{ function f() {} var ‸f; }",
         "Identifier 'f' has already been declared",
     ),
     (
-        "try {} catch (e) { let e; }",
+        "try {} catch (e) { let ‸e; }",
         "Identifier 'e' has already been declared",
     ),
     (
-        "for (let i;;) { var i; }",
+        "for (let i;;) { var ‸i; }",
         "Identifier 'i' has already been declared",
     ),
     (
-        "for (let i, i;;) {}",
+        "for (let i, ‸i;;) {}",
         "Identifier 'i' has already been declared",
     ),
     (
-        "for (const i;;) {}",
+        "for (const ‸i;;) {}",
         "Missing initializer in const declaration",
     ),
-    ("const a;", "Missing initializer in const declaration"),
+    ("const ‸a;", "Missing initializer in const declaration"),
     (
-        "let let = 1;",
+        "let ‸let = 1;",
         "let is disallowed as a lexically bound name",
     ),
     (
-        "'use strict'; var let = 1;",
+        "'use strict'; var ‸let = 1;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; let = 1;",
+        "'use strict'; ‸let = 1;",
         "Unexpected strict mode reserved word",
     ),
-    ("a = 1; 1 = 2;", "Invalid left-hand side in assignment"),
-    ("a + b = 1;", "Invalid left-hand side in assignment"),
-    ("(a, b) = 1;", "Invalid left-hand side in assignment"),
-    ("a++ = 1", "Invalid left-hand side in assignment"),
+    ("a = 1; ‸1 = 2;", "Invalid left-hand side in assignment"),
+    ("‸a + b = 1;", "Invalid left-hand side in assignment"),
+    ("‸(a, b) = 1;", "Invalid left-hand side in assignment"),
+    ("‸a++ = 1", "Invalid left-hand side in assignment"),
     (
-        "++a++",
+        "++‸a++",
         "Invalid left-hand side expression in prefix operation",
     ),
     (
-        "1++",
+        "‸1++",
         "Invalid left-hand side expression in postfix operation",
     ),
     (
-        "++1",
+        "++‸1",
         "Invalid left-hand side expression in prefix operation",
     ),
-    ("a + 1 += 2", "Invalid left-hand side in assignment"),
-    ("this = 1", "Invalid left-hand side in assignment"),
-    ("break;", "Illegal break statement"),
+    ("‸a + 1 += 2", "Invalid left-hand side in assignment"),
+    ("‸this = 1", "Invalid left-hand side in assignment"),
+    ("‸break;", "Illegal break statement"),
     (
-        "continue;",
+        "‸continue;",
         "Illegal continue statement: no surrounding iteration statement",
     ),
-    ("x: break y;", "Undefined label 'y'"),
-    ("x: continue x;", "Undefined label 'x'"),
+    ("x: break ‸y;", "Undefined label 'y'"),
+    ("x: continue ‸x;", "Undefined label 'x'"),
     (
-        "x: { continue x; }",
+        "x: { continue ‸x; }",
         "Illegal continue statement: 'x' does not denote an iteration statement",
     ),
     (
-        "while (1) { function f() { break; } }",
+        "while (1) { function f() { ‸break; } }",
         "Illegal break statement",
     ),
-    ("return;", "Illegal return statement"),
-    ("x: x: ;", "Label 'x' has already been declared"),
-    ("x: { x: ; }", "Label 'x' has already been declared"),
+    ("‸return;", "Illegal return statement"),
+    ("x: ‸x: ;", "Label 'x' has already been declared"),
+    ("x: { ‸x: ; }", "Label 'x' has already been declared"),
     (
-        "function f() { x: x: ; }",
+        "function f() { x: ‸x: ; }",
         "Label 'x' has already been declared",
     ),
     (
-        "'use strict'; var eval;",
+        "'use strict'; var ‸eval;",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; var arguments;",
+        "'use strict'; var ‸arguments;",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; eval = 1;",
+        "'use strict'; ‸eval = 1;",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; arguments++;",
+        "'use strict'; ‸arguments++;",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; function eval() {}",
+        "'use strict'; function ‸eval() {}",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; function f(eval) {}",
+        "'use strict'; function f(‸eval) {}",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "function eval() { 'use strict'; }",
+        "function ‸eval() { 'use strict'; }",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "function f(eval) { 'use strict'; }",
+        "function f(‸eval) { 'use strict'; }",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "function f(a, a) { 'use strict'; }",
+        "function f(a, ‸a) { 'use strict'; }",
         "Duplicate parameter name not allowed in this context",
     ),
     (
-        "'use strict'; function f(a, a) {}",
+        "'use strict'; function f(a, ‸a) {}",
         "Duplicate parameter name not allowed in this context",
     ),
     (
-        "(a, a) => 1",
+        "(a, ‸a) => 1",
         "Duplicate parameter name not allowed in this context",
     ),
     (
-        "'use strict'; (eval) => 1",
+        "'use strict'; (‸eval) => 1",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "(eval) => { 'use strict'; }",
+        "(‸eval) => { 'use strict'; }",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; var implements;",
+        "'use strict'; var ‸implements;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var static;",
+        "'use strict'; var ‸static;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var yield;",
+        "'use strict'; var ‸yield;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; implements = 1;",
+        "'use strict'; ‸implements = 1;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "function static() { 'use strict'; }",
+        "function ‸static() { 'use strict'; }",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; 010",
+        "'use strict'; ‸010",
         "Octal literals are not allowed in strict mode.",
     ),
     (
-        "'use strict'; 08",
+        "'use strict'; ‸08",
         "Decimals with leading zeros are not allowed in strict mode.",
     ),
     (
-        "'use strict'; '\\07'",
+        "'use strict'; '\\‸07'",
         "Octal escape sequences are not allowed in strict mode.",
     ),
     (
-        "'use strict'; '\\8'",
+        "'use strict'; '‸\\8'",
         "\\8 and \\9 are not allowed in strict mode.",
     ),
     (
-        "function f() { '\\07'; 'use strict'; }",
+        "function f() { '\\‸07'; 'use strict'; }",
         "Octal escape sequences are not allowed in strict mode.",
     ),
     (
-        "'use strict'; delete x;",
+        "'use strict'; delete ‸x;",
         "Delete of an unqualified identifier in strict mode.",
     ),
     (
-        "'use strict'; delete (x);",
+        "'use strict'; delete (x‸);",
         "Delete of an unqualified identifier in strict mode.",
     ),
     (
-        "'use strict'; delete ((x));",
+        "'use strict'; delete ((x)‸);",
         "Delete of an unqualified identifier in strict mode.",
     ),
-    ("var x = /a/gg;", "Invalid regular expression flags"),
+    ("var x = ‸/a/gg;", "Invalid regular expression flags"),
     (
-        "function* g() { var yield; }",
+        "function* g() { var ‸yield; }",
         "Unexpected identifier 'yield'",
     ),
-    ("function* g(yield) {}", "Unexpected identifier 'yield'"),
+    ("function* g(‸yield) {}", "Unexpected identifier 'yield'"),
     (
-        "function* g() { function yield() {} }",
+        "function* g() { function ‸yield() {} }",
         "Unexpected identifier 'yield'",
     ),
     (
-        "function* g() { (yield) => 1 }",
+        "function* g() { (‸yield) => 1 }",
         "Invalid destructuring assignment target",
     ),
-    ("function* g() { yield => 1 }", "Unexpected token '=>'"),
+    ("function* g() { yield ‸=> 1 }", "Unexpected token '=>'"),
     (
-        "function* g() { function* yield() {} }",
+        "function* g() { function* ‸yield() {} }",
         "Unexpected identifier 'yield'",
     ),
     (
-        "'use strict'; function* yield() {}",
+        "'use strict'; function* ‸yield() {}",
         "Unexpected strict mode reserved word",
     ),
-    ("(function* yield() {})", "Unexpected identifier 'yield'"),
+    ("(function* ‸yield() {})", "Unexpected identifier 'yield'"),
     (
-        "function* g() { (function* yield() {}) }",
+        "function* g() { (function* ‸yield() {}) }",
         "Unexpected identifier 'yield'",
     ),
-    ("function* g() { yield = 1 }", "Unexpected token '='"),
-    ("function* g() { yield ? 1 : 2 }", "Unexpected token '?'"),
+    ("function* g() { yield ‸= 1 }", "Unexpected token '='"),
+    ("function* g() { yield ‸? 1 : 2 }", "Unexpected token '?'"),
     (
-        "function* g() { void yield }",
+        "function* g() { void ‸yield }",
         "Unexpected identifier 'yield'",
     ),
-    ("throw\n1", "Illegal newline after throw"),
-    ("return\n1", "Illegal return statement"),
-    ("var a = 1 var b = 2", "Unexpected token 'var'"),
-    ("if (a) else b", "Unexpected token 'else'"),
+    ("‸throw\n1", "Illegal newline after throw"),
+    ("‸return\n1", "Illegal return statement"),
+    ("var a = 1 ‸var b = 2", "Unexpected token 'var'"),
+    ("if (a) ‸else b", "Unexpected token 'else'"),
     (
-        "if (1) let x = 1",
+        "if (1) ‸let x = 1",
         "Lexical declaration cannot appear in a single-statement context",
     ),
     (
-        "'use strict'; if (1) function f() {}",
+        "'use strict'; if (1) ‸function f() {}",
         "In strict mode code, functions can only be declared at top level or inside a block.",
     ),
     (
-        "while (1) function f() {}",
+        "while (1) ‸function f() {}",
         "In non-strict mode code, functions can only be declared at top level, inside a block, or as the body of an if statement.",
     ),
     (
-        "'use strict'; x: function f() {}",
+        "'use strict'; x: ‸function f() {}",
         "In strict mode code, functions can only be declared at top level or inside a block.",
     ),
     (
-        "while (1) x: function f() {}",
+        "while (1) x: ‸function f() {}",
         "In non-strict mode code, functions can only be declared at top level, inside a block, or as the body of an if statement.",
     ),
     (
-        "if (1) function* g() {}",
+        "if (1) function‸* g() {}",
         "Generators can only be declared at the top level or inside a block.",
     ),
     (
-        "(a, b) => { let a; }",
+        "(a, b) => { let ‸a; }",
         "Identifier 'a' has already been declared",
     ),
-    ("(a,)", "Unexpected token ')'"),
-    ("()", "Unexpected token ')'"),
-    ("(a)\n=> 1", "Unexpected token '=>'"),
-    ("((a)) => 1", "Invalid destructuring assignment target"),
-    ("(a + b) => 1", "Invalid destructuring assignment target"),
-    ("(1) => 1", "Invalid destructuring assignment target"),
-    ("(a.b) => 1", "Invalid destructuring assignment target"),
-    ("`\\unicode`", "Invalid Unicode escape sequence"),
+    ("(a,‸)", "Unexpected token ')'"),
+    ("(‸)", "Unexpected token ')'"),
+    ("(a)\n‸=> 1", "Unexpected token '=>'"),
+    ("(‸(a)) => 1", "Invalid destructuring assignment target"),
+    ("(‸a + b) => 1", "Invalid destructuring assignment target"),
+    ("(‸1) => 1", "Invalid destructuring assignment target"),
+    ("(‸a.b) => 1", "Invalid destructuring assignment target"),
+    ("`‸\\unicode`", "Invalid Unicode escape sequence"),
     (
-        "({ __proto__: 1, __proto__: 2 })",
+        "({ __proto__: 1, ‸__proto__: 2 })",
         "Duplicate __proto__ fields are not allowed in object literals",
     ),
     (
-        "({ __proto__: 1, '__proto__': 2 })",
+        "({ __proto__: 1, ‸'__proto__': 2 })",
         "Duplicate __proto__ fields are not allowed in object literals",
     ),
-    ("a ?? b || c", "Unexpected token '||'"),
-    ("a || b ?? c", "Unexpected token '??'"),
+    ("a ?? b ‸|| c", "Unexpected token '||'"),
+    ("a || b ‸?? c", "Unexpected token '??'"),
     (
-        "-a ** 2",
+        "‸-a ** 2",
         "Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence",
     ),
     (
-        "typeof a ** 2",
+        "‸typeof a ** 2",
         "Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence",
     ),
     (
-        "function f() { 'use strict'; 010 }",
+        "function f() { 'use strict'; ‸010 }",
         "Octal literals are not allowed in strict mode.",
     ),
     (
-        "({ m(a, a) {} })",
+        "({ m(a, ‸a) {} })",
         "Duplicate parameter name not allowed in this context",
     ),
     (
-        "'use strict'; (function eval() {})",
+        "'use strict'; (function ‸eval() {})",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "(function eval() { 'use strict'; })",
+        "(function ‸eval() { 'use strict'; })",
         "Unexpected eval or arguments in strict mode",
     ),
-    ("a = 1 = 2", "Invalid left-hand side in assignment"),
+    ("a = ‸1 = 2", "Invalid left-hand side in assignment"),
     (
-        "function f() { a: { function g() { break a; } } }",
+        "function f() { a: { function g() { break ‸a; } } }",
         "Undefined label 'a'",
     ),
-    ("try {}", "Missing catch or finally after try"),
+    ("try {‸}", "Missing catch or finally after try"),
     (
-        "switch (a) { default: default: }",
+        "switch (a) { default: ‸default: }",
         "More than one default clause in switch statement",
     ),
     (
-        "switch (a) { case 1: continue; }",
+        "switch (a) { case 1: ‸continue; }",
         "Illegal continue statement: no surrounding iteration statement",
     ),
     (
-        "switch (a) { case 1: let b; let b; }",
+        "switch (a) { case 1: let b; let ‸b; }",
         "Identifier 'b' has already been declared",
     ),
-    ("switch (a) { b; }", "Unexpected identifier 'b'"),
-    ("try {} catch (a, b) {}", "Unexpected token ','"),
+    ("switch (a) { ‸b; }", "Unexpected identifier 'b'"),
+    ("try {} catch (a‸, b) {}", "Unexpected token ','"),
     (
-        "var v\\u0061r = 1;",
+        "var ‸v\\u0061r = 1;",
         "Keyword must not contain escaped characters",
     ),
     (
-        "\\u0076ar a = 1;",
+        "‸\\u0076ar a = 1;",
         "Keyword must not contain escaped characters",
     ),
     (
-        "var a = th\\u0069s;",
+        "var a = ‸th\\u0069s;",
         "Keyword must not contain escaped characters",
     ),
-    ("let\nyield 0", "Unexpected number"),
+    ("let\nyield ‸0", "Unexpected number"),
     (
-        "function* g() { let\nyield 0 }",
+        "function* g() { let\n‸yield 0 }",
         "Unexpected identifier 'yield'",
     ),
     (
-        "'use strict'; let\nlet",
+        "'use strict'; let\n‸let",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; for (let = 1;;) ;",
+        "'use strict'; for (‸let = 1;;) ;",
         "Unexpected strict mode reserved word",
     ),
-    ("f() &&= 1", "Invalid left-hand side in assignment"),
-    ("a b", "Unexpected identifier 'b'"),
-    ("a 1", "Unexpected number"),
-    ("a 'x'", "Unexpected string"),
-    ("a /x/", "Unexpected end of input"),
-    ("var", "Unexpected end of input"),
-    ("var 1", "Unexpected number"),
-    ("var a =", "Unexpected end of input"),
-    ("(a", "Unexpected end of input"),
-    ("f(a", "missing ) after argument list"),
-    ("f(a b)", "missing ) after argument list"),
-    ("[a", "Unexpected end of input"),
-    ("{", "Unexpected end of input"),
-    ("}", "Unexpected token '}'"),
-    ("a.1", "Unexpected number"),
-    ("a.'x'", "Unexpected string"),
-    ("a[1", "Unexpected end of input"),
-    ("x = {a b}", "Unexpected identifier 'b'"),
-    ("x = {a:}", "Unexpected token '}'"),
-    ("x = {1}", "Unexpected number"),
-    ("x = {'a'}", "Unexpected string"),
-    ("if", "Unexpected end of input"),
-    ("if (", "Unexpected end of input"),
-    ("if (a", "Unexpected end of input"),
-    ("while (a) ", "Unexpected end of input"),
-    ("function", "Unexpected end of input"),
-    ("function (", "Function statements require a function name"),
-    ("function f", "Unexpected end of input"),
-    ("function f(", "Unexpected end of input"),
-    ("function f(a", "Unexpected end of input"),
-    ("function f(a b)", "Unexpected identifier 'b'"),
-    ("function f(1)", "Unexpected number"),
-    ("function f() {", "Unexpected end of input"),
-    ("a ? b", "Unexpected end of input"),
-    ("a ? b c", "Unexpected identifier 'c'"),
-    ("`${a", "Missing } in template expression"),
-    ("`", "Unexpected end of input"),
+    ("‸f() &&= 1", "Invalid left-hand side in assignment"),
+    ("a ‸b", "Unexpected identifier 'b'"),
+    ("a ‸1", "Unexpected number"),
+    ("a ‸'x'", "Unexpected string"),
+    ("a /x/‸", "Unexpected end of input"),
+    ("var‸", "Unexpected end of input"),
+    ("var ‸1", "Unexpected number"),
+    ("var a =‸", "Unexpected end of input"),
+    ("(a‸", "Unexpected end of input"),
+    ("f(‸a", "missing ) after argument list"),
+    ("f(‸a b)", "missing ) after argument list"),
+    ("[a‸", "Unexpected end of input"),
+    ("{‸", "Unexpected end of input"),
+    ("‸}", "Unexpected token '}'"),
+    ("a‸.1", "Unexpected number"),
+    ("a.‸'x'", "Unexpected string"),
+    ("a[1‸", "Unexpected end of input"),
+    ("x = {a ‸b}", "Unexpected identifier 'b'"),
+    ("x = {a:‸}", "Unexpected token '}'"),
+    ("x = {‸1}", "Unexpected number"),
+    ("x = {‸'a'}", "Unexpected string"),
+    ("if‸", "Unexpected end of input"),
+    ("if (‸", "Unexpected end of input"),
+    ("if (a‸", "Unexpected end of input"),
+    ("while (a) ‸", "Unexpected end of input"),
+    ("function‸", "Unexpected end of input"),
+    ("‸function (", "Function statements require a function name"),
+    ("function f‸", "Unexpected end of input"),
+    ("function f(‸", "Unexpected end of input"),
+    ("function f(a‸", "Unexpected end of input"),
+    ("function f(a ‸b)", "Unexpected identifier 'b'"),
+    ("function f(‸1)", "Unexpected number"),
+    ("function f() {‸", "Unexpected end of input"),
+    ("a ? b‸", "Unexpected end of input"),
+    ("a ? b ‸c", "Unexpected identifier 'c'"),
+    ("`${‸a", "Missing } in template expression"),
+    ("‸`", "Unexpected end of input"),
     (
-        "x = await 1",
+        "x = ‸await 1",
         "await is only valid in async functions and the top level bodies of modules",
     ),
     (
-        "function f() { x = await 1 }",
+        "function f() { x = ‸await 1 }",
         "await is only valid in async functions and the top level bodies of modules",
     ),
-    ("if (a) const b = 1", "Unexpected token 'const'"),
+    ("if (a) ‸const b = 1", "Unexpected token 'const'"),
     (
-        "if (a) let b = 1",
+        "if (a) ‸let b = 1",
         "Lexical declaration cannot appear in a single-statement context",
     ),
-    ("a =>", "Unexpected end of input"),
-    ("a => {", "Unexpected end of input"),
-    ("new", "Unexpected end of input"),
-    ("typeof", "Unexpected end of input"),
-    ("x = enum", "Unexpected reserved word"),
-    ("var enum", "Unexpected reserved word"),
-    ("var if", "Unexpected token 'if'"),
-    ("enum = 1", "Unexpected reserved word"),
-    ("break\nlabel", "Illegal break statement"),
-    ("a\n++", "Unexpected end of input"),
-    ("if (a) {} else", "Unexpected end of input"),
-    ("for (;;", "Unexpected end of input"),
-    ("for (;", "Unexpected end of input"),
+    ("a =>‸", "Unexpected end of input"),
+    ("a => {‸", "Unexpected end of input"),
+    ("new‸", "Unexpected end of input"),
+    ("typeof‸", "Unexpected end of input"),
+    ("x = ‸enum", "Unexpected reserved word"),
+    ("var ‸enum", "Unexpected reserved word"),
+    ("var ‸if", "Unexpected token 'if'"),
+    ("‸enum = 1", "Unexpected reserved word"),
+    ("‸break\nlabel", "Illegal break statement"),
+    ("if (a) {} else‸", "Unexpected end of input"),
+    ("for (;;‸", "Unexpected end of input"),
+    ("for (;‸", "Unexpected end of input"),
     (
-        "for (const x = 1, y;;) ;",
+        "for (const x = 1, ‸y;;) ;",
         "Missing initializer in const declaration",
     ),
-    ("x = function* () { yield\n* a }", "Unexpected token '*'"),
+    ("x = function* () { yield\n‸* a }", "Unexpected token '*'"),
     (
-        "'use strict'; yield",
+        "'use strict'; ‸yield",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; ({ yield })",
+        "'use strict'; ({ ‸yield })",
         "Unexpected strict mode reserved word",
     ),
-    ("({ if })", "Unexpected token 'if'"),
-    ("({ this })", "Unexpected token 'this'"),
+    ("({ ‸if })", "Unexpected token 'if'"),
+    ("({ ‸this })", "Unexpected token 'this'"),
     (
-        "'use strict'; ({ let })",
+        "'use strict'; ({ ‸let })",
         "Unexpected strict mode reserved word",
     ),
-    ("({ a: 1,, })", "Unexpected token ','"),
+    ("({ a: 1,‸, })", "Unexpected token ','"),
     (
-        "x = { m(eval) { 'use strict'; } }",
+        "x = { m(‸eval) { 'use strict'; } }",
         "Unexpected eval or arguments in strict mode",
     ),
-    ("0.toString()", "Invalid or unexpected token"),
+    ("‸0.toString()", "Invalid or unexpected token"),
     (
-        "'use strict'; x = 08.5",
+        "'use strict'; x = ‸08.5",
         "Decimals with leading zeros are not allowed in strict mode.",
     ),
     (
-        "'use strict'; x = 09",
+        "'use strict'; x = ‸09",
         "Decimals with leading zeros are not allowed in strict mode.",
     ),
     (
-        "x = `a\\07`",
+        "x = `a\\‸07`",
         "Octal escape sequences are not allowed in template strings.",
     ),
     (
-        "'use strict'; '\\00'",
+        "'use strict'; '\\‸00'",
         "Octal escape sequences are not allowed in strict mode.",
     ),
     (
-        "'use strict'; function f() { '\\8'; }",
+        "'use strict'; function f() { '‸\\8'; }",
         "\\8 and \\9 are not allowed in strict mode.",
     ),
     (
-        "function f() { '\\8'; 'use strict'; }",
+        "function f() { '‸\\8'; 'use strict'; }",
         "\\8 and \\9 are not allowed in strict mode.",
     ),
     (
-        "function f() { 'use strict'; '\\8'; }",
+        "function f() { 'use strict'; '‸\\8'; }",
         "\\8 and \\9 are not allowed in strict mode.",
     ),
-    ("x + (a) => 1", "Malformed arrow function parameter list"),
-    ("x + a => 1", "Malformed arrow function parameter list"),
-    ("x = () => {} ()", "Unexpected token '('"),
-    ("x = () => {}\n()", "Unexpected token ')'"),
+    ("x = () => {} ‸()", "Unexpected token '('"),
+    ("x = () => {}\n(‸)", "Unexpected token ')'"),
     (
-        "function* g(){ function f() { yield 1 } }",
+        "function* g(){ function f() { yield ‸1 } }",
         "Unexpected number",
     ),
-    ("!a => 1", "Malformed arrow function parameter list"),
-    ("a\n=> 1", "Unexpected token '=>'"),
+    ("‸!a => 1", "Malformed arrow function parameter list"),
+    ("a\n‸=> 1", "Unexpected token '=>'"),
     (
-        "(a, b) => { 'use strict'; var static; }",
+        "(a, b) => { 'use strict'; var ‸static; }",
         "Unexpected strict mode reserved word",
     ),
     (
-        "(static) => { 'use strict' }",
+        "(‸static) => { 'use strict' }",
         "Unexpected strict mode reserved word",
     ),
     (
-        "x = { f(a, a) {} }",
+        "x = { f(a, ‸a) {} }",
         "Duplicate parameter name not allowed in this context",
     ),
-    ("typeof a => 1", "Malformed arrow function parameter list"),
-    ("new a => 1", "Malformed arrow function parameter list"),
-    ("a.b => 1", "Malformed arrow function parameter list"),
-    ("x => {} + 1", "Unexpected token '+'"),
-    ("x => {} .a", "Unexpected token '.'"),
-    ("x => {}()", "Unexpected token '('"),
-    ("({}) = 1", "Invalid left-hand side in assignment"),
-    ("`${}`", "Unexpected token '}'"),
+    ("‸typeof a => 1", "Malformed arrow function parameter list"),
+    ("‸new a => 1", "Malformed arrow function parameter list"),
+    ("‸a.b => 1", "Malformed arrow function parameter list"),
+    ("x => {} ‸+ 1", "Unexpected token '+'"),
+    ("x => {} ‸.a", "Unexpected token '.'"),
+    ("x => {}‸()", "Unexpected token '('"),
+    ("‸({}) = 1", "Invalid left-hand side in assignment"),
+    ("`${‸}`", "Unexpected token '}'"),
     (
-        "'use strict'; arguments = 1",
+        "'use strict'; ‸arguments = 1",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; ++eval",
+        "'use strict'; ++‸eval",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; eval++",
+        "'use strict'; ‸eval++",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; eval += 1",
+        "'use strict'; ‸eval += 1",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; (eval) = 1",
+        "'use strict'; ‸(eval) = 1",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; try {} catch (eval) {}",
+        "'use strict'; try {} catch (‸eval) {}",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "'use strict'; try {} catch (arguments) {}",
+        "'use strict'; try {} catch (‸arguments) {}",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "try {} catch (e) { let e }",
+        "try {} catch (e) { let ‸e }",
         "Identifier 'e' has already been declared",
     ),
     (
-        "try {} catch (e) { function e() {} }",
+        "try {} catch (e) { ‸function e() {} }",
         "Identifier 'e' has already been declared",
     ),
     (
-        "'use strict'; try {} catch (e) { function e() {} }",
+        "'use strict'; try {} catch (e) { ‸function e() {} }",
         "Identifier 'e' has already been declared",
     ),
     (
-        "for (let x = 1; x < 2; x++) function f() {}",
+        "for (let x = 1; x < 2; x++) ‸function f() {}",
         "In non-strict mode code, functions can only be declared at top level, inside a block, or as the body of an if statement.",
     ),
     (
-        "label: for (;;) { label: ; }",
+        "label: for (;;) { ‸label: ; }",
         "Label 'label' has already been declared",
     ),
-    ("a: { a: ; }", "Label 'a' has already been declared"),
-    ("a: b: a: ;", "Label 'a' has already been declared"),
-    ("function f() { break; }", "Illegal break statement"),
+    ("a: { ‸a: ; }", "Label 'a' has already been declared"),
+    ("a: b: ‸a: ;", "Label 'a' has already been declared"),
+    ("function f() { ‸break; }", "Illegal break statement"),
     (
-        "x: while (1) { (function() { continue x; }) }",
+        "x: while (1) { (function() { continue ‸x; }) }",
         "Undefined label 'x'",
     ),
     (
-        "while (1) { (() => { break; }) }",
+        "while (1) { (() => { ‸break; }) }",
         "Illegal break statement",
     ),
-    ("x: if (1) continue x;", "Undefined label 'x'"),
+    ("x: if (1) continue ‸x;", "Undefined label 'x'"),
     (
-        "'use strict'; var package;",
+        "'use strict'; var ‸package;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var private;",
+        "'use strict'; var ‸private;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var protected;",
+        "'use strict'; var ‸protected;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var public;",
+        "'use strict'; var ‸public;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var interface;",
+        "'use strict'; var ‸interface;",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; var let;",
+        "'use strict'; var ‸let;",
         "Unexpected strict mode reserved word",
     ),
-    ("x = a ?? b && c", "Unexpected token '&&'"),
-    ("x = a && b ?? c", "Unexpected token '??'"),
-    ("x = a ? b, c : d", "Unexpected token ','"),
-    ("x = a\n/b/", "Unexpected end of input"),
+    ("x = a ?? b ‸&& c", "Unexpected token '&&'"),
+    ("x = a && b ‸?? c", "Unexpected token '??'"),
+    ("x = a ? b‸, c : d", "Unexpected token ','"),
     (
-        "'use strict'; function f() { arguments = 1 }",
+        "'use strict'; function f() { ‸arguments = 1 }",
         "Unexpected eval or arguments in strict mode",
     ),
     (
-        "{ let x; var x; }",
+        "{ let x; var ‸x; }",
         "Identifier 'x' has already been declared",
     ),
     (
-        "{ var x; let x; }",
-        "Identifier 'x' has already been declared",
-    ),
-    (
-        "{ var f; function f() {} }",
-        "Identifier 'f' has already been declared",
-    ),
-    (
-        "function f(a) { let b; var b; }",
+        "function f(a) { let b; var ‸b; }",
         "Identifier 'b' has already been declared",
     ),
     (
-        "(function(){ let a; { var a; } })",
+        "(function(){ let a; { var ‸a; } })",
         "Identifier 'a' has already been declared",
     ),
-    ("function* g() { yield\n* 2 }", "Unexpected token '*'"),
+    ("function* g() { yield\n‸* 2 }", "Unexpected token '*'"),
     (
-        "'use strict'; '\\08'",
+        "'use strict'; '\\‸08'",
         "Octal escape sequences are not allowed in strict mode.",
     ),
     (
-        "'use strict'; ({ '\\07': 1 })",
+        "'use strict'; ({ '\\‸07': 1 })",
         "Octal escape sequences are not allowed in strict mode.",
     ),
     (
-        "'use strict'; ({ 07: 1 })",
+        "'use strict'; ({ ‸07: 1 })",
         "Octal literals are not allowed in strict mode.",
     ),
     (
-        "function f() { 'use strict'; return 010 }",
+        "function f() { 'use strict'; return ‸010 }",
         "Octal literals are not allowed in strict mode.",
     ),
     (
-        "'use strict'; function* g() { function f() { yield = 1 } }",
+        "'use strict'; function* g() { function f() { ‸yield = 1 } }",
         "Unexpected strict mode reserved word",
     ),
     (
-        "function* g() { x = { yield } }",
+        "function* g() { x = { ‸yield } }",
         "Unexpected identifier 'yield'",
     ),
     (
-        "a: { b: { continue a; } }",
+        "a: { b: { continue ‸a; } }",
         "Illegal continue statement: 'a' does not denote an iteration statement",
     ),
     (
-        "while (1) { a: { continue a; } }",
+        "while (1) { a: { continue ‸a; } }",
         "Illegal continue statement: 'a' does not denote an iteration statement",
     ),
-    ("x = 1; return 2", "Illegal return statement"),
-    ("if (1) { return }", "Illegal return statement"),
-    ("{ return }", "Illegal return statement"),
+    ("x = 1; ‸return 2", "Illegal return statement"),
+    ("if (1) { ‸return }", "Illegal return statement"),
+    ("{ ‸return }", "Illegal return statement"),
     (
-        "var f = function f(f) { let f; }",
+        "var f = function f(f) { let ‸f; }",
         "Identifier 'f' has already been declared",
     ),
     (
-        "'use strict'; x = function arguments() {}",
+        "'use strict'; x = function ‸arguments() {}",
         "Unexpected eval or arguments in strict mode",
     ),
+    ("function* g() { yield‸: 1 }", "Unexpected token ':'"),
     (
-        "for (let x;;) { var y; let y; }",
-        "Identifier 'y' has already been declared",
-    ),
-    ("function* g() { yield: 1 }", "Unexpected token ':'"),
-    (
-        "'use strict'; yield: 1",
+        "'use strict'; ‸yield: 1",
         "Unexpected strict mode reserved word",
     ),
     (
-        "'use strict'; let: 1",
+        "'use strict'; ‸let: 1",
         "Unexpected strict mode reserved word",
     ),
-    ("a ? b : c ? d", "Unexpected end of input"),
-    ("a ? b, c", "Unexpected token ','"),
-    ("x = `\\u{110000}`", "Undefined Unicode code-point"),
-    ("x = '\\u{110000}'", "Undefined Unicode code-point"),
-    ("(1, 2) => 3", "Invalid destructuring assignment target"),
-    ("(a, 1) => 3", "Invalid destructuring assignment target"),
-    ("(a, b.c) => 3", "Invalid destructuring assignment target"),
-    ("(a)(b) => 3", "Malformed arrow function parameter list"),
-    ("a + b => c", "Malformed arrow function parameter list"),
-    ("let a, a", "Identifier 'a' has already been declared"),
+    ("a ? b : c ? d‸", "Unexpected end of input"),
+    ("a ? b‸, c", "Unexpected token ','"),
+    ("x = `‸\\u{110000}`", "Undefined Unicode code-point"),
+    ("x = '‸\\u{110000}'", "Undefined Unicode code-point"),
+    ("(a, ‸1) => 3", "Invalid destructuring assignment target"),
+    ("(a, ‸b.c) => 3", "Invalid destructuring assignment target"),
+    ("let a, ‸a", "Identifier 'a' has already been declared"),
     (
-        "let a; let b; let a",
+        "let a; let b; let ‸a",
         "Identifier 'a' has already been declared",
     ),
     (
-        "const a = 1, a = 2",
+        "const a = 1, ‸a = 2",
         "Identifier 'a' has already been declared",
     ),
     (
-        "function f() { function g() {} let g; }",
+        "function f() { function g() {} let ‸g; }",
         "Identifier 'g' has already been declared",
     ),
     (
-        "function f() { let g; function g() {} }",
+        "function f() { let g; ‸function g() {} }",
         "Identifier 'g' has already been declared",
     ),
 ];

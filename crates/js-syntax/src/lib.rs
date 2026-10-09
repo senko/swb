@@ -24,9 +24,10 @@ mod token;
 
 pub use ast::{
     AssignOp, AssignTarget, Ast, BinaryOp, BindingId, CatchClause, Declarator, Expr, ExprId,
-    ExprKind, Function, FunctionId, FunctionKind, Ident, List, LogicalOp, Pattern, PatternId,
-    PatternKind, Property, PropertyKey, PropertyKind, RefId, ScopeId, Span, Stmt, StmtId, StmtKind,
-    StringId, SwitchCase, Template, TemplateElement, TemplateId, UnaryOp, UpdateOp, VariableKind,
+    ExprKind, ForHead, Function, FunctionId, FunctionKind, Ident, List, LogicalOp, Pattern,
+    PatternId, PatternKind, PatternProperty, Property, PropertyKey, PropertyKind, RefId, ScopeId,
+    Span, Stmt, StmtId, StmtKind, StringId, SwitchCase, Template, TemplateElement, TemplateId,
+    UnaryOp, UpdateOp, VariableKind,
 };
 pub use error::{ErrorKind, ParseError, SyntaxError};
 pub use interner::{Interner, NameId, names};

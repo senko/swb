@@ -3,10 +3,11 @@
 
 use swb_js_text::CodeUnit;
 
-use super::{CHAIN_WEIGHT, IdentUse, PResult, Parser};
+use super::functions::ArrowHead;
+use super::{CHAIN_WEIGHT, IdentUse, PResult, Parser, Recorded};
 use crate::ast::{
-    AssignOp, AssignTarget, BinaryOp, ExprId, ExprKind, List, LogicalOp, Property, PropertyKey,
-    PropertyKind, Span, Template, TemplateElement, UnaryOp, UpdateOp,
+    AssignOp, AssignTarget, BinaryOp, ExprId, ExprKind, FunctionKind, List, LogicalOp, Property,
+    PropertyKey, PropertyKind, Span, Template, TemplateElement, TemplateId, UnaryOp, UpdateOp,
 };
 use crate::error::ParseError;
 use crate::interner::names;
@@ -148,27 +149,90 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     pub(super) fn parse_expression(&mut self, no_in: bool) -> PResult<ExprId> {
         let start = self.token.start;
         let first = self.parse_assignment(no_in)?;
+        self.parse_expression_rest(first, start, no_in)
+    }
+
+    /// The rest of an expression after its first assignment expression
+    /// `first`, which starts at `start`.
+    pub(super) fn parse_expression_rest(
+        &mut self,
+        first: ExprId,
+        start: u32,
+        no_in: bool,
+    ) -> PResult<ExprId> {
         if !self.at(TokenKind::Comma) {
             return Ok(first);
         }
         let mark = self.scratch_exprs.len();
         self.scratch_exprs.push(first);
+        let result = self.parse_sequence_items(no_in);
+        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
+        self.scratch_exprs.truncate(mark);
+        result?;
+        Ok(self.push_expr(ExprKind::Sequence(list), start))
+    }
+
+    fn parse_sequence_items(&mut self, no_in: bool) -> PResult<()> {
         while self.eat(TokenKind::Comma)? {
             let next = self.parse_assignment(no_in)?;
             self.scratch_exprs.push(next);
         }
-        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
-        self.scratch_exprs.truncate(mark);
-        Ok(self.push_expr(ExprKind::Sequence(list), start))
+        Ok(())
     }
 
     /// `AssignmentExpression` (§13.15), including arrow functions and
-    /// `yield`.
+    /// `yield`. An early error that waits for the cover grammar
+    /// ([`Parser::cover_error`]) is reported here: the expression is
+    /// complete and was not converted into a pattern.
     pub(super) fn parse_assignment(&mut self, no_in: bool) -> PResult<ExprId> {
+        let outer = self.cover_error.take();
         self.enter()?;
         let expr = self.parse_assignment_inner(no_in);
         self.leave();
-        expr
+        let expr = expr?;
+        self.check_cover_error()?;
+        self.cover_error = outer;
+        Ok(expr)
+    }
+
+    /// An `AssignmentExpression` that may still become a pattern: an
+    /// element of an array literal, a property value of an object
+    /// literal, an element in parentheses (arrow parameters) or the start
+    /// of a `for` head. If it is an array or object literal, an early
+    /// error that waits for the cover grammar stays pending for the
+    /// caller.
+    pub(super) fn parse_assignment_cover(&mut self, no_in: bool) -> PResult<ExprId> {
+        let outer = self.cover_error.take();
+        self.enter()?;
+        let expr = self.parse_assignment_inner(no_in);
+        self.leave();
+        let expr = expr?;
+        if self.cover_error.is_some()
+            && !matches!(self.kind_of(expr), ExprKind::Array(_) | ExprKind::Object(_))
+        {
+            self.check_cover_error()?;
+        }
+        self.cover_error = match (outer, self.cover_error) {
+            (Some(a), Some(b)) => Some(if a.0 <= b.0 { a } else { b }),
+            (a, b) => a.or(b),
+        };
+        Ok(expr)
+    }
+
+    /// Reports the pending early error of the cover grammar, if any.
+    pub(super) fn check_cover_error(&mut self) -> PResult<()> {
+        match self.cover_error.take() {
+            Some((offset, message)) => Err(ParseError::syntax(offset, message)),
+            None => Ok(()),
+        }
+    }
+
+    /// Notes an early error that applies unless the expression becomes a
+    /// pattern; the first one in the source counts.
+    fn note_cover_error(&mut self, offset: u32, message: &'static str) {
+        if self.cover_error.is_none_or(|(first, _)| offset < first) {
+            self.cover_error = Some((offset, message));
+        }
     }
 
     fn parse_assignment_inner(&mut self, no_in: bool) -> PResult<ExprId> {
@@ -184,27 +248,42 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 return Err(self.unexpected());
             }
             self.advance()?;
-            return self.parse_arrow_function(start, &[], None, no_in);
+            return self.parse_arrow_function(start, ArrowHead::Empty, None, no_in);
         }
-        let marks = self.scopes.marks();
-        let functions = self.ast.function_count();
+        let mark = self.recorded.len();
         let left = self.parse_conditional(no_in)?;
         if self.at(TokenKind::Arrow) {
             if self.token.newline_before {
                 return Err(self.unexpected());
             }
-            return self.parse_arrow_from_cover(left, start, marks, functions, no_in);
+            self.cover_error = None;
+            return self.parse_arrow_from_cover(left, start, mark, no_in);
         }
         let Some(op) = assignment_operator(self.token.kind) else {
             return Ok(left);
         };
-        let target = self.assignment_target(left, op)?;
+        let target = if op == AssignOp::Assign
+            && matches!(self.kind_of(left), ExprKind::Array(_) | ExprKind::Object(_))
+        {
+            let pattern = self.assignment_pattern(left)?;
+            self.cover_error = None;
+            AssignTarget::Pattern(pattern)
+        } else {
+            // V8 reports the target of `{a = 1} += 1` before the
+            // `CoverInitializedName`.
+            let literal = matches!(self.kind_of(left), ExprKind::Array(_) | ExprKind::Object(_));
+            if !literal {
+                self.check_cover_error()?;
+            }
+            self.assignment_target(left, op)?
+        };
         self.advance()?;
         let value = self.parse_assignment(no_in)?;
         Ok(self.push_expr(ExprKind::Assign { op, target, value }, start))
     }
 
-    /// The target of an assignment with `op` (§13.15.1).
+    /// The target of an assignment with `op` (§13.15.1) other than a
+    /// destructuring pattern.
     fn assignment_target(&mut self, left: ExprId, op: AssignOp) -> PResult<AssignTarget> {
         let start = self.ast.expr(left).span.start;
         let target = self.unparenthesized(left);
@@ -220,11 +299,6 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             ExprKind::Call { .. } if !self.ctx.strict && !matches!(op, AssignOp::Logical(_)) => {
                 Ok(AssignTarget::Simple(target))
             }
-            ExprKind::Object(_) | ExprKind::Array(_)
-                if target == left && op == AssignOp::Assign =>
-            {
-                Err(ParseError::unsupported(start, "destructuring assignment"))
-            }
             _ => Err(ParseError::syntax(
                 start,
                 messages::INVALID_ASSIGNMENT_TARGET,
@@ -233,7 +307,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// Strict mode code cannot assign to `eval` or `arguments` (§13.1.1).
-    fn check_strict_target(&self, name: crate::NameId, offset: u32) -> PResult<()> {
+    pub(super) fn check_strict_target(&self, name: crate::NameId, offset: u32) -> PResult<()> {
         if self.ctx.strict && super::is_eval_or_arguments(name) {
             return Err(ParseError::syntax(
                 offset,
@@ -254,7 +328,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             }
             ExprKind::Member { .. } | ExprKind::Index { .. } => Ok(target),
             ExprKind::Call { .. } if !self.ctx.strict => Ok(target),
-            _ => Err(ParseError::syntax(start, message)),
+            _ => {
+                // V8 reports a pending `CoverInitializedName` first.
+                self.check_cover_error()?;
+                Err(ParseError::syntax(start, message))
+            }
         }
     }
 
@@ -262,19 +340,42 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// same line.
     fn parse_yield(&mut self, no_in: bool) -> PResult<ExprId> {
         let start = self.token.start;
+        if self.ctx.in_params {
+            return Err(ParseError::syntax(start, messages::YIELD_IN_PARAMETER));
+        }
+        self.ctx.last_yield = Some(start);
         self.advance()?;
         if self.token.newline_before {
-            return Ok(self.push_expr(ExprKind::Yield { argument: None }, start));
+            return Ok(self.push_expr(
+                ExprKind::Yield {
+                    argument: None,
+                    delegate: false,
+                },
+                start,
+            ));
         }
-        if self.at(TokenKind::Star) {
-            return Err(ParseError::unsupported(start, "yield*"));
+        if self.eat(TokenKind::Star)? {
+            let argument = self.parse_assignment(no_in)?;
+            return Ok(self.push_expr(
+                ExprKind::Yield {
+                    argument: Some(argument),
+                    delegate: true,
+                },
+                start,
+            ));
         }
         let argument = if starts_expression(self.token.kind) {
             Some(self.parse_assignment(no_in)?)
         } else {
             None
         };
-        Ok(self.push_expr(ExprKind::Yield { argument }, start))
+        Ok(self.push_expr(
+            ExprKind::Yield {
+                argument,
+                delegate: false,
+            },
+            start,
+        ))
     }
 
     /// `ConditionalExpression` (§13.14).
@@ -421,7 +522,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let operand = self.unparenthesized(argument);
             if matches!(self.kind_of(operand), ExprKind::Identifier(_)) {
                 return Err(ParseError::syntax(
-                    self.ast.expr(operand).span.start,
+                    self.last_token_start(argument),
                     messages::DELETE_IDENTIFIER,
                 ));
             }
@@ -483,21 +584,31 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         self.parse_chain(object, start, true)
     }
 
-    /// The member accesses (and with `calls`, the calls) after `object`.
-    /// Each link charges the budget: the chain makes the tree deeper.
+    /// The member accesses, tagged templates and (with `calls`) the calls
+    /// after `object`. Each link charges the budget: the chain makes the
+    /// tree deeper. A chain with `?.` is wrapped in an
+    /// [`ExprKind::OptionalChain`] (§13.3.9).
     fn parse_chain(&mut self, mut object: ExprId, start: u32, calls: bool) -> PResult<ExprId> {
         let mut links = 0u32;
+        let mut optional = false;
         let result = loop {
             let link = match self.token.kind {
                 TokenKind::Dot | TokenKind::LBracket => self.parse_member(object, start),
-                TokenKind::LParen if calls => self.parse_call(object, start),
+                TokenKind::LParen if calls => self.parse_call(object, start, false),
+                TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead if optional => Err(
+                    ParseError::syntax(self.token.start, messages::OPTIONAL_CHAIN_TEMPLATE),
+                ),
                 TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead => {
-                    Err(ParseError::unsupported(self.token.start, "tagged template"))
+                    self.parse_tagged_template(object, start)
                 }
-                TokenKind::QuestionDot => Err(ParseError::unsupported(
+                TokenKind::QuestionDot if !calls => Err(ParseError::syntax(
                     self.token.start,
-                    "optional chaining",
+                    messages::OPTIONAL_CHAIN_NEW,
                 )),
+                TokenKind::QuestionDot => {
+                    optional = true;
+                    self.parse_optional_link(object, start)
+                }
                 _ => break Ok(object),
             };
             match link.and_then(|expr| self.charge(CHAIN_WEIGHT).map(|()| expr)) {
@@ -509,81 +620,159 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             }
         };
         self.budget.leave(links * CHAIN_WEIGHT);
-        result
+        let object = result?;
+        if optional {
+            return Ok(self.push_expr(ExprKind::OptionalChain(object), start));
+        }
+        Ok(object)
     }
 
     /// `.name` or `[expression]` after `object`.
     fn parse_member(&mut self, object: ExprId, start: u32) -> PResult<ExprId> {
         if self.eat(TokenKind::Dot)? {
-            let property = match self.token.kind {
-                TokenKind::Identifier => self.token.name().unwrap_or(names::AWAIT),
-                TokenKind::PrivateName => {
-                    return Err(ParseError::unsupported(self.token.start, "private name"));
-                }
-                kind => match kind.keyword_name() {
-                    Some(name) => name,
-                    None => return Err(self.unexpected()),
+            let property = self.member_name()?;
+            return Ok(self.push_expr(
+                ExprKind::Member {
+                    object,
+                    property,
+                    optional: false,
                 },
-            };
-            self.advance()?;
-            return Ok(self.push_expr(ExprKind::Member { object, property }, start));
+                start,
+            ));
         }
+        self.parse_index(object, start, false)
+    }
+
+    /// The `IdentifierName` after `.` or `?.`; advances.
+    fn member_name(&mut self) -> PResult<crate::NameId> {
+        let property = match self.token.kind {
+            TokenKind::Identifier => self.token.name().unwrap_or(names::AWAIT),
+            TokenKind::PrivateName => {
+                return Err(ParseError::unsupported(self.token.start, "private name"));
+            }
+            kind => match kind.keyword_name() {
+                Some(name) => name,
+                None => return Err(self.unexpected()),
+            },
+        };
+        self.advance()?;
+        Ok(property)
+    }
+
+    /// `[expression]` after `object`; the current token is `[`.
+    fn parse_index(&mut self, object: ExprId, start: u32, optional: bool) -> PResult<ExprId> {
         self.expect(TokenKind::LBracket)?;
         let index = self.parse_expression(false)?;
         self.expect(TokenKind::RBracket)?;
-        Ok(self.push_expr(ExprKind::Index { object, index }, start))
+        Ok(self.push_expr(
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            },
+            start,
+        ))
+    }
+
+    /// The link after `?.`: `.name`, `[expression]` or a call (§13.3.9).
+    fn parse_optional_link(&mut self, object: ExprId, start: u32) -> PResult<ExprId> {
+        self.advance()?;
+        match self.token.kind {
+            TokenKind::LBracket => self.parse_index(object, start, true),
+            TokenKind::LParen => self.parse_call(object, start, true),
+            TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead => Err(ParseError::syntax(
+                self.token.start,
+                messages::OPTIONAL_CHAIN_TEMPLATE,
+            )),
+            _ => {
+                let property = self.member_name()?;
+                Ok(self.push_expr(
+                    ExprKind::Member {
+                        object,
+                        property,
+                        optional: true,
+                    },
+                    start,
+                ))
+            }
+        }
     }
 
     /// A call with its arguments. A call of the plain name `eval` (also
     /// in parentheses) is a direct `eval` (§13.3.6.1).
-    fn parse_call(&mut self, callee: ExprId, start: u32) -> PResult<ExprId> {
+    fn parse_call(&mut self, callee: ExprId, start: u32, optional: bool) -> PResult<ExprId> {
         let arguments = self.parse_arguments()?;
         let target = self.unparenthesized(callee);
-        if let ExprKind::Identifier(ident) = self.kind_of(target)
+        if !optional
+            && let ExprKind::Identifier(ident) = self.kind_of(target)
             && ident.name == names::EVAL
-            && let Some(function) = self.scopes.function_mut(self.ctx.function)
         {
-            function.has_direct_eval = true;
+            self.ctx.direct_evals += 1;
+            self.recorded.push(Recorded::Eval);
         }
-        Ok(self.push_expr(ExprKind::Call { callee, arguments }, start))
+        Ok(self.push_expr(
+            ExprKind::Call {
+                callee,
+                arguments,
+                optional,
+            },
+            start,
+        ))
     }
 
-    /// Arguments (§13.3.8): `(a, b,)`.
+    /// A tagged template (§13.3.11): `tag` is called with the template.
+    fn parse_tagged_template(&mut self, tag: ExprId, start: u32) -> PResult<ExprId> {
+        let template = self.parse_template_literal(true)?;
+        Ok(self.push_expr(ExprKind::TaggedTemplate { tag, template }, start))
+    }
+
+    /// Arguments (§13.3.8): `(a, ...b,)`.
     fn parse_arguments(&mut self) -> PResult<List<ExprId>> {
         let open = self.token.start;
         self.expect(TokenKind::LParen)?;
         let mark = self.scratch_exprs.len();
+        let result = self.parse_argument_items();
+        let count = self.scratch_exprs.len() - mark;
+        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
+        self.scratch_exprs.truncate(mark);
+        result?;
+        if count > usize::from(u16::MAX) {
+            return Err(ParseError::syntax(open, messages::TOO_MANY_ARGUMENTS));
+        }
+        Ok(list)
+    }
+
+    /// The arguments up to and including `)`.
+    fn parse_argument_items(&mut self) -> PResult<()> {
         while !self.at(TokenKind::RParen) {
-            if self.at(TokenKind::Ellipsis) {
-                return Err(ParseError::unsupported(self.token.start, "spread"));
-            }
-            let argument = self.parse_assignment(false)?;
+            let start = self.token.start;
+            let argument = if self.eat(TokenKind::Ellipsis)? {
+                let argument = self.parse_assignment(false)?;
+                self.push_expr(ExprKind::Spread(argument), start)
+            } else {
+                self.parse_assignment(false)?
+            };
             self.scratch_exprs.push(argument);
             if self.at(TokenKind::RParen) {
                 break;
             }
             if !self.eat(TokenKind::Comma)? {
                 return Err(ParseError::syntax(
-                    open,
+                    self.prev_start,
                     messages::MISSING_PAREN_AFTER_ARGUMENTS,
                 ));
             }
         }
-        self.advance()?;
-        if self.scratch_exprs.len() - mark > usize::from(u16::MAX) {
-            return Err(ParseError::syntax(open, messages::TOO_MANY_ARGUMENTS));
-        }
-        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
-        self.scratch_exprs.truncate(mark);
-        Ok(list)
+        self.advance()
     }
 
-    /// `new` `MemberExpression` Arguments, or `new` `NewExpression` (§13.3.5).
+    /// `new` `MemberExpression` Arguments, or `new` `NewExpression`
+    /// (§13.3.5), or `new.target` (§13.3.12).
     fn parse_new(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         self.advance()?;
-        if self.at(TokenKind::Dot) {
-            return Err(ParseError::unsupported(start, "new.target"));
+        if self.eat(TokenKind::Dot)? {
+            return self.parse_new_target(start);
         }
         self.enter_small()?;
         let callee = self.parse_new_callee();
@@ -595,6 +784,26 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             List::EMPTY
         };
         Ok(self.push_expr(ExprKind::New { callee, arguments }, start))
+    }
+
+    /// `new.target` after `new.`: only in functions (and arrow functions
+    /// inside them).
+    fn parse_new_target(&mut self, start: u32) -> PResult<ExprId> {
+        if !(self.token.kind == TokenKind::Identifier && self.token.name() == Some(names::TARGET)) {
+            return Err(self.unexpected());
+        }
+        if self.token.escaped {
+            return Err(ParseError::syntax(start, messages::ESCAPED_NEW_TARGET));
+        }
+        if !self.ctx.new_target {
+            return Err(ParseError::syntax(
+                self.token.start,
+                messages::NEW_TARGET_OUTSIDE_FUNCTION,
+            ));
+        }
+        let reference = self.reference(names::NEW_TARGET, start, false).reference;
+        self.advance()?;
+        Ok(self.push_expr(ExprKind::NewTarget(reference), start))
     }
 
     /// The `MemberExpression` after `new`: no calls.
@@ -638,7 +847,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 ExprKind::String(self.ast.push_string(value))
             }
             TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead => {
-                return self.parse_template();
+                let template = self.parse_template_literal(false)?;
+                return Ok(self.push_expr(ExprKind::Template(template), start));
             }
             TokenKind::Slash | TokenKind::SlashEq => {
                 self.rescan(Goal::RegExp)?;
@@ -652,7 +862,13 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             TokenKind::Class => return Err(ParseError::unsupported(start, "class")),
             TokenKind::Super => return Err(ParseError::unsupported(start, "super")),
             TokenKind::Import => return Err(ParseError::unsupported(start, "import")),
-            TokenKind::BigInt => return Err(ParseError::unsupported(start, "BigInt literal")),
+            TokenKind::BigInt => {
+                let digits = match &self.token.value {
+                    TokenValue::BigInt(text) => swb_js_text::String16::from(&**text),
+                    _ => swb_js_text::String16::new(),
+                };
+                ExprKind::BigInt(self.ast.push_string(digits))
+            }
             TokenKind::PrivateName => return Err(ParseError::unsupported(start, "private name")),
             _ => return Err(self.unexpected()),
         };
@@ -696,13 +912,28 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(self.push_expr(ExprKind::RegExp { pattern, flags }, start))
     }
 
-    /// A template literal without a tag (§13.2.8).
-    fn parse_template(&mut self) -> PResult<ExprId> {
-        let start = self.token.start;
+    /// A template literal (§13.2.8); `tagged` for the template of a tagged
+    /// template, whose parts may have invalid escapes.
+    fn parse_template_literal(&mut self, tagged: bool) -> PResult<TemplateId> {
         let quasi_mark = self.scratch_quasis.len();
         let expr_mark = self.scratch_exprs.len();
+        let result = self.parse_template_parts(tagged);
+        let quasis = self
+            .ast
+            .push_template_elements(&self.scratch_quasis[quasi_mark..]);
+        let expressions = self.ast.push_exprs(&self.scratch_exprs[expr_mark..]);
+        self.scratch_quasis.truncate(quasi_mark);
+        self.scratch_exprs.truncate(expr_mark);
+        result?;
+        Ok(self.ast.push_template(Template {
+            quasis,
+            expressions,
+        }))
+    }
+
+    fn parse_template_parts(&mut self, tagged: bool) -> PResult<()> {
         loop {
-            let element = self.template_element()?;
+            let element = self.template_element(tagged)?;
             self.scratch_quasis.push(element);
             let tail = matches!(
                 self.token.kind,
@@ -710,91 +941,129 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             );
             self.advance()?;
             if tail {
-                break;
+                return Ok(());
             }
             let expression = self.parse_expression(false)?;
             self.scratch_exprs.push(expression);
             if !self.at(TokenKind::RBrace) {
-                return Err(ParseError::syntax(start, messages::MISSING_TEMPLATE_BRACE));
+                return Err(ParseError::syntax(
+                    self.prev_start,
+                    messages::MISSING_TEMPLATE_BRACE,
+                ));
             }
             self.rescan(Goal::TemplateTail)?;
         }
-        let quasis = self
-            .ast
-            .push_template_elements(&self.scratch_quasis[quasi_mark..]);
-        let expressions = self.ast.push_exprs(&self.scratch_exprs[expr_mark..]);
-        self.scratch_quasis.truncate(quasi_mark);
-        self.scratch_exprs.truncate(expr_mark);
-        let template = self.ast.push_template(Template {
-            quasis,
-            expressions,
-        });
-        Ok(self.push_expr(ExprKind::Template(template), start))
     }
 
     /// The string part of the current template token. Without a tag, an
-    /// invalid escape is a syntax error (§13.2.8.1).
-    fn template_element(&mut self) -> PResult<TemplateElement> {
+    /// invalid escape is a syntax error (§13.2.8.1); with a tag, the part
+    /// has no cooked value.
+    fn template_element(&mut self, tagged: bool) -> PResult<TemplateElement> {
         let TokenValue::Template(template) = &self.token.value else {
             return Err(self.unexpected());
         };
-        let cooked = template.cooked.clone()?;
+        let cooked = match &template.cooked {
+            Ok(cooked) => Some(cooked.clone()),
+            Err(_) if tagged => None,
+            Err(error) => return Err(error.clone().into()),
+        };
         let raw = template.raw.clone();
         Ok(TemplateElement {
-            cooked: Some(self.ast.push_string(cooked)),
+            cooked: cooked.map(|cooked| self.ast.push_string(cooked)),
             raw: self.ast.push_string(raw),
         })
     }
 
     /// `CoverParenthesizedExpressionAndArrowParameterList` (§13.2): a
     /// parenthesized expression, or the parameters of an arrow function,
-    /// which [`Parser::parse_arrow_from_cover`] converts at `=>`.
+    /// which [`Parser::parse_arrow_from_cover`] converts at `=>`. A rest
+    /// element or a trailing comma requires the `=>`.
     fn parse_parenthesized(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         self.advance()?;
         let inner_start = self.token.start;
-        if self.at(TokenKind::Ellipsis) {
-            return Err(ParseError::unsupported(inner_start, "rest parameter"));
-        }
-        let first = self.parse_assignment(false)?;
-        let inner = if self.at(TokenKind::Comma) {
-            let mark = self.scratch_exprs.len();
-            self.scratch_exprs.push(first);
-            while self.eat(TokenKind::Comma)? {
-                if self.at(TokenKind::RParen) {
-                    // A trailing comma: only arrow parameters allow it.
-                    if self.peek_kind()? != TokenKind::Arrow {
-                        return Err(self.unexpected());
-                    }
-                    break;
-                }
-                if self.at(TokenKind::Ellipsis) {
-                    return Err(ParseError::unsupported(self.token.start, "rest parameter"));
-                }
-                let next = self.parse_assignment(false)?;
-                self.scratch_exprs.push(next);
-            }
-            let items = &self.scratch_exprs[mark..];
-            let inner = if let [only] = items {
-                *only
-            } else {
+        let mark = self.scratch_exprs.len();
+        let result = self.parse_parenthesized_items();
+        let inner = match &self.scratch_exprs[mark..] {
+            [only] => *only,
+            items => {
                 let list = self.ast.push_exprs(items);
                 self.push_expr(ExprKind::Sequence(list), inner_start)
-            };
-            self.scratch_exprs.truncate(mark);
-            inner
-        } else {
-            first
+            }
         };
-        self.expect(TokenKind::RParen)?;
+        self.scratch_exprs.truncate(mark);
+        result?;
         Ok(self.push_expr(ExprKind::Paren(inner), start))
     }
 
-    /// An array literal (§13.2.4) with holes.
+    /// The elements in parentheses, up to and including `)`.
+    fn parse_parenthesized_items(&mut self) -> PResult<()> {
+        loop {
+            if self.at(TokenKind::Ellipsis) {
+                let rest = self.token.clone();
+                self.advance()?;
+                let argument = self.parse_assignment_cover(false)?;
+                let spread = self.push_expr(ExprKind::Spread(argument), rest.start);
+                self.scratch_exprs.push(spread);
+                if let ExprKind::Yield { .. } = self.kind_of(argument) {
+                    return Err(ParseError::syntax(
+                        self.ast.expr(argument).span.start,
+                        messages::unexpected_identifier("yield"),
+                    ));
+                }
+                if !matches!(
+                    self.kind_of(argument),
+                    ExprKind::Identifier(_)
+                        | ExprKind::Array(_)
+                        | ExprKind::Object(_)
+                        | ExprKind::Assign { .. }
+                ) {
+                    return Err(self.unexpected_token(&rest));
+                }
+                if self.at(TokenKind::Comma) {
+                    return Err(self.rest_parameter_error(argument));
+                }
+                self.expect(TokenKind::RParen)?;
+                if self.token.kind != TokenKind::Arrow {
+                    return Err(self.unexpected_token(&rest));
+                }
+                return Ok(());
+            }
+            let item = self.parse_assignment_cover(false)?;
+            self.scratch_exprs.push(item);
+            if !self.eat(TokenKind::Comma)? {
+                return self.expect(TokenKind::RParen);
+            }
+            if self.at(TokenKind::RParen) {
+                // A trailing comma: only arrow parameters allow it.
+                if self.peek_kind()? != TokenKind::Arrow {
+                    return Err(self.unexpected());
+                }
+                return self.advance();
+            }
+        }
+    }
+
+    /// An array literal (§13.2.4) with holes and spread elements.
     fn parse_array(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         self.advance()?;
         let mark = self.scratch_exprs.len();
+        let result = self.parse_array_elements();
+        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
+        self.scratch_exprs.truncate(mark);
+        let trailing = result?;
+        let array = self.push_expr(ExprKind::Array(list), start);
+        if trailing {
+            self.trailing_comma_after_spread.insert(array);
+        }
+        Ok(array)
+    }
+
+    /// The elements up to and including `]`; returns whether a comma
+    /// follows a spread element at the end (`[...a,]`).
+    fn parse_array_elements(&mut self) -> PResult<bool> {
+        let mut trailing = false;
         while !self.at(TokenKind::RBracket) {
             if self.at(TokenKind::Comma) {
                 let hole_start = self.token.start;
@@ -805,19 +1074,20 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.scratch_exprs.push(hole);
                 continue;
             }
-            if self.at(TokenKind::Ellipsis) {
-                return Err(ParseError::unsupported(self.token.start, "spread"));
+            let start = self.token.start;
+            let spread = self.eat(TokenKind::Ellipsis)?;
+            let mut element = self.parse_assignment_cover(false)?;
+            if spread {
+                element = self.push_expr(ExprKind::Spread(element), start);
             }
-            let element = self.parse_assignment(false)?;
             self.scratch_exprs.push(element);
             if !self.at(TokenKind::RBracket) {
                 self.expect(TokenKind::Comma)?;
+                trailing = spread && self.at(TokenKind::RBracket);
             }
         }
         self.advance()?;
-        let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
-        self.scratch_exprs.truncate(mark);
-        Ok(self.push_expr(ExprKind::Array(list), start))
+        Ok(trailing)
     }
 
     /// An object literal (§13.2.5).
@@ -825,40 +1095,52 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let start = self.token.start;
         self.advance()?;
         let mark = self.scratch_properties.len();
+        let result = self.parse_object_properties();
+        let list = self.ast.push_properties(&self.scratch_properties[mark..]);
+        self.scratch_properties.truncate(mark);
+        let trailing = result?;
+        let object = self.push_expr(ExprKind::Object(list), start);
+        if trailing {
+            self.trailing_comma_after_spread.insert(object);
+        }
+        Ok(object)
+    }
+
+    /// The properties up to and including `}`; returns whether a comma
+    /// follows a spread property at the end (`{...a,}`).
+    fn parse_object_properties(&mut self) -> PResult<bool> {
         let mut has_proto = false;
+        let mut trailing = false;
         while !self.at(TokenKind::RBrace) {
             let property = self.parse_property()?;
             if property.kind == PropertyKind::Proto {
                 if has_proto {
-                    return Err(ParseError::syntax(
-                        property.span.start,
-                        messages::DUPLICATE_PROTO,
-                    ));
+                    // Not an error in a pattern (§13.2.5.1, Annex B.3.1).
+                    self.note_cover_error(property.span.start, messages::DUPLICATE_PROTO);
                 }
                 has_proto = true;
             }
             self.scratch_properties.push(property);
             if !self.at(TokenKind::RBrace) {
                 self.expect(TokenKind::Comma)?;
+                trailing = property.kind == PropertyKind::Spread && self.at(TokenKind::RBrace);
             }
         }
         self.advance()?;
-        let list = self.ast.push_properties(&self.scratch_properties[mark..]);
-        self.scratch_properties.truncate(mark);
-        Ok(self.push_expr(ExprKind::Object(list), start))
+        Ok(trailing)
     }
 
     /// A `PropertyDefinition` (§13.2.5).
     fn parse_property(&mut self) -> PResult<Property> {
         let start = self.token.start;
-        if self.at(TokenKind::Star) {
-            self.advance()?;
+        if self.eat(TokenKind::Star)? {
             let key = self.parse_property_key()?;
-            let value = self.parse_method(start, true)?;
+            let value = self.parse_method(start, FunctionKind::Method, true)?;
             return Ok(self.property(PropertyKind::Method, key, value, start));
         }
-        if self.at(TokenKind::Ellipsis) {
-            return Err(ParseError::unsupported(start, "spread property"));
+        if self.eat(TokenKind::Ellipsis)? {
+            let value = self.parse_assignment_cover(false)?;
+            return Ok(self.property(PropertyKind::Spread, PropertyKey::Number(0.0), value, start));
         }
         let key_token = self.token.clone();
         if self.token.kind == TokenKind::Identifier && !self.token.escaped {
@@ -874,19 +1156,25 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                         | TokenKind::Eq
                 )
             {
-                let construct = if accessor {
-                    "getter or setter"
+                if !accessor {
+                    return Err(ParseError::unsupported(start, "async method"));
+                }
+                self.advance()?;
+                let (kind, function) = if name == Some(names::GET) {
+                    (PropertyKind::Getter, FunctionKind::Getter)
                 } else {
-                    "async method"
+                    (PropertyKind::Setter, FunctionKind::Setter)
                 };
-                return Err(ParseError::unsupported(start, construct));
+                let key = self.parse_property_key()?;
+                let value = self.parse_method(start, function, false)?;
+                return Ok(self.property(kind, key, value, start));
             }
         }
         let key = self.parse_property_key()?;
         match self.token.kind {
             TokenKind::Colon => {
                 self.advance()?;
-                let value = self.parse_assignment(false)?;
+                let value = self.parse_assignment_cover(false)?;
                 let kind = if key == PropertyKey::Name(names::PROTO) {
                     PropertyKind::Proto
                 } else {
@@ -895,27 +1183,69 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 Ok(self.property(kind, key, value, start))
             }
             TokenKind::LParen => {
-                let value = self.parse_method(start, false)?;
+                let value = self.parse_method(start, FunctionKind::Method, false)?;
                 Ok(self.property(PropertyKind::Method, key, value, start))
             }
-            TokenKind::Eq => Err(ParseError::unsupported(start, "destructuring assignment")),
-            TokenKind::Comma | TokenKind::RBrace => {
-                // Shorthand: the key must be an IdentifierReference.
-                if !matches!(
-                    key_token.kind,
-                    TokenKind::Identifier | TokenKind::Yield | TokenKind::Await
-                ) {
-                    return Err(self.unexpected_token(&key_token));
-                }
-                let name = self.check_identifier_token(&key_token, IdentUse::Reference)?;
-                let ident = self.reference(name, start, false);
-                let value = self
-                    .ast
-                    .push_expr(ExprKind::Identifier(ident), Span::new(start, self.prev_end));
-                Ok(self.property(PropertyKind::Shorthand, key, value, start))
+            TokenKind::Comma | TokenKind::RBrace | TokenKind::Eq => {
+                self.parse_shorthand(&key_token, key, start)
             }
-            _ => Err(self.unexpected()),
+            kind => {
+                let starts_key = kind.is_keyword()
+                    || matches!(
+                        kind,
+                        TokenKind::Identifier
+                            | TokenKind::String
+                            | TokenKind::Number
+                            | TokenKind::BigInt
+                            | TokenKind::LBracket
+                    );
+                let contextual = matches!(
+                    key_token.name(),
+                    Some(names::GET | names::SET | names::ASYNC)
+                );
+                if starts_key && key_token.escaped && contextual {
+                    // `g\u0065t a() {}`: V8 reports the escaped keyword.
+                    return Err(ParseError::syntax(start, messages::ESCAPED_KEYWORD));
+                }
+                Err(self.unexpected())
+            }
         }
+    }
+
+    /// A shorthand property (`a`), or a `CoverInitializedName` (`a = 1`),
+    /// which only a pattern allows (§13.2.5.1); the key token was `key`.
+    fn parse_shorthand(
+        &mut self,
+        key_token: &crate::token::Token,
+        key: PropertyKey,
+        start: u32,
+    ) -> PResult<Property> {
+        // The key must be an IdentifierReference.
+        if !matches!(
+            key_token.kind,
+            TokenKind::Identifier | TokenKind::Yield | TokenKind::Await
+        ) {
+            return Err(self.unexpected_key(key_token));
+        }
+        let name = self.check_identifier_token(key_token, IdentUse::Reference)?;
+        let ident = self.reference(name, start, false);
+        let mut value = self
+            .ast
+            .push_expr(ExprKind::Identifier(ident), Span::new(start, self.prev_end));
+        if self.at(TokenKind::Eq) {
+            self.note_cover_error(start, messages::INVALID_SHORTHAND_INITIALIZER);
+            self.advance()?;
+            let init = self.parse_assignment(false)?;
+            value = self.push_expr(
+                ExprKind::Assign {
+                    op: AssignOp::Assign,
+                    target: AssignTarget::Simple(value),
+                    value: init,
+                },
+                start,
+            );
+        }
+        Ok(self.property(PropertyKind::Shorthand, key, value, start))
     }
 
     fn property(
@@ -933,9 +1263,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         }
     }
 
-    /// `PropertyName` (§13.2.5): an identifier name, a string, a number or
-    /// a computed key.
-    fn parse_property_key(&mut self) -> PResult<PropertyKey> {
+    /// `PropertyName` (§13.2.5): an identifier name, a string, a number, a
+    /// `BigInt` or a computed key.
+    pub(super) fn parse_property_key(&mut self) -> PResult<PropertyKey> {
         let key = match self.token.kind {
             TokenKind::Identifier => PropertyKey::Name(self.token.name().unwrap_or(names::AWAIT)),
             TokenKind::String => {
@@ -954,7 +1284,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 }
             }
             TokenKind::BigInt => {
-                return Err(ParseError::unsupported(self.token.start, "BigInt literal"));
+                let digits = match &self.token.value {
+                    TokenValue::BigInt(text) => swb_js_text::String16::from(&**text),
+                    _ => swb_js_text::String16::new(),
+                };
+                PropertyKey::BigInt(self.ast.push_string(digits))
             }
             TokenKind::LBracket => {
                 self.advance()?;

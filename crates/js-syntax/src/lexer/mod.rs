@@ -414,13 +414,14 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
             let here = self.pos;
             let first = here == start;
             let cp = if self.peek() == Some(ascii(b'\\')) {
+                // V8 marks the start of the identifier for these two.
                 if !self.is_at(1, b'u') {
-                    return Err(error_at(here, INVALID_TOKEN));
+                    return Err(error_at(start, INVALID_TOKEN));
                 }
                 self.pos += 2;
                 let cp = self.scan_unicode_escape(here)?;
                 if !unicode::is_identifier_char(cp, first) {
-                    return Err(error_at(here, INVALID_TOKEN));
+                    return Err(error_at(start, INVALID_TOKEN));
                 }
                 escaped = true;
                 cp

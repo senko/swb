@@ -21,6 +21,7 @@
 
 mod expr;
 mod function;
+mod support;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -162,6 +163,13 @@ fn compile_functions(
     script: &Script,
     budget: &mut RecursionBudget,
 ) -> CResult<(Vec<Option<Builder>>, Session)> {
+    if let Some((offset, construct)) = support::first_unsupported(script) {
+        return Err(CompileError::Script {
+            kind: ThrowKind::SyntaxError,
+            message: format!("{} ({construct})", swb_js_syntax::messages::NOT_SUPPORTED).into(),
+            offset,
+        });
+    }
     let mut session = Session::default();
     let mut builders = Vec::with_capacity(script.ast.function_count());
     for id in script.ast.function_ids() {

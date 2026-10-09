@@ -3,15 +3,16 @@
 
 use swb_js_text::CodeUnit;
 
+use super::patterns::{DeclKind, Leaf};
 use super::{IdentUse, Label, PResult, Parser, StmtContext, legacy_error};
 use crate::ast::{
-    CatchClause, Declarator, ExprKind, List, PatternKind, Span, StmtId, StmtKind, SwitchCase,
-    VariableKind,
+    AssignTarget, CatchClause, Declarator, ExprId, ExprKind, ForHead, List, PatternKind, Span,
+    StmtId, StmtKind, SwitchCase, VariableKind,
 };
 use crate::error::ParseError;
 use crate::interner::names;
 use crate::messages;
-use crate::scope::{BindingKind, ScopeKind};
+use crate::scope::ScopeKind;
 use crate::token::{Legacy, TokenKind};
 
 impl<U: CodeUnit> Parser<'_, '_, U> {
@@ -31,6 +32,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             if self.at(TokenKind::Eof) {
                 return Err(self.unexpected());
             }
+            self.recorded.truncate(self.scope_base);
             if prologue && !self.at(TokenKind::String) {
                 prologue = false;
             }
@@ -48,10 +50,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 continue;
             }
             if legacy != Legacy::None && prologue_legacy.is_none() {
-                prologue_legacy = Some((token.start, legacy));
+                let offset = self.legacy_offset(token.start, token.end, legacy);
+                prologue_legacy = Some((offset, legacy));
             }
             if self.is_use_strict(token) {
-                self.apply_use_strict(prologue_legacy)?;
+                self.apply_use_strict(prologue_legacy, token.start)?;
             }
         }
         let list = self.ast.push_stmts(&self.scratch_stmts[mark..]);
@@ -82,7 +85,18 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// A Use Strict Directive: the rest of the function (or script) is
     /// strict mode code, and so are its name and parameters (§11.2.2,
     /// §15.2.1), which the parser has already read.
-    fn apply_use_strict(&mut self, prologue_legacy: Option<(u32, Legacy)>) -> PResult<()> {
+    fn apply_use_strict(
+        &mut self,
+        prologue_legacy: Option<(u32, Legacy)>,
+        directive: u32,
+    ) -> PResult<()> {
+        if !self.ctx.simple_params {
+            // §15.2.1: also in code that is strict already.
+            return Err(ParseError::syntax(
+                directive,
+                messages::USE_STRICT_NON_SIMPLE,
+            ));
+        }
         if self.ctx.strict {
             return Ok(());
         }
@@ -96,10 +110,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             check_strict_binding_name(name, offset)?;
         }
         let params = self.ctx.params;
+        // A simple parameter list has identifiers only.
         for &param in self.ast.patterns(params) {
             let pattern = self.ast.pattern(param);
-            let PatternKind::Identifier(ident) = pattern.kind;
-            check_strict_binding_name(ident.name, pattern.span.start)?;
+            if let PatternKind::Identifier(ident) = pattern.kind {
+                check_strict_binding_name(ident.name, pattern.span.start)?;
+            }
         }
         if let Some(offset) = self.ctx.duplicate_param {
             return Err(ParseError::syntax(offset, messages::DUPLICATE_PARAMETER));
@@ -184,7 +200,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             TokenKind::With if self.ctx.strict => {
                 Err(ParseError::syntax(start, messages::STRICT_WITH))
             }
-            TokenKind::With => Err(ParseError::unsupported(start, "with")),
+            TokenKind::With => self.parse_with(),
             TokenKind::Import
                 if matches!(self.peek_kind()?, TokenKind::LParen | TokenKind::Dot) =>
             {
@@ -200,6 +216,13 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// The kind of the token after the current one.
     pub(super) fn peek_kind(&mut self) -> PResult<TokenKind> {
         Ok(self.peek()?.kind)
+    }
+
+    /// Whether the token after the current one is the identifier `name`
+    /// without escapes.
+    fn peek_contextual(&mut self, name: crate::NameId) -> PResult<bool> {
+        let next = self.peek()?;
+        Ok(next.kind == TokenKind::Identifier && !next.escaped && next.name() == Some(name))
     }
 
     /// Whether the current `let` starts a lexical declaration: `let`
@@ -240,9 +263,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// A block statement with its own scope.
     fn parse_block_statement(&mut self) -> PResult<StmtId> {
         let start = self.token.start;
-        let outer = self.open_scope(ScopeKind::Block, start);
+        let entered = self.open_scope(ScopeKind::Block, start);
         let stmt = self.parse_block_in_scope(start);
-        self.close_scope(outer);
+        self.leave_scope(entered);
         stmt
     }
 
@@ -256,55 +279,53 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// `var`, `let` or `const` declarations, without the terminator.
-    /// `no_in` is set in a `for` head.
+    /// `no_in` is set in a `for` head, where a declarator without an
+    /// initializer can be the binding of `for`-`in` or `for`-`of`.
     pub(super) fn parse_variables(&mut self, kind: VariableKind, no_in: bool) -> PResult<StmtKind> {
         self.advance()?;
         let mark = self.scratch_declarators.len();
+        let result = self.parse_declarators(kind, no_in);
+        let declarators = self.ast.push_declarators(&self.scratch_declarators[mark..]);
+        self.scratch_declarators.truncate(mark);
+        result?;
+        Ok(StmtKind::Variables { kind, declarators })
+    }
+
+    fn parse_declarators(&mut self, kind: VariableKind, no_in: bool) -> PResult<()> {
+        let decl = match kind {
+            VariableKind::Var => DeclKind::Var,
+            VariableKind::Let => DeclKind::Let,
+            VariableKind::Const => DeclKind::Const,
+        };
         loop {
             let start = self.token.start;
-            if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
-                return Err(ParseError::unsupported(start, "destructuring"));
-            }
-            let usage = if kind == VariableKind::Var {
-                IdentUse::Binding
-            } else {
-                IdentUse::Lexical
-            };
-            let name = self.check_identifier(usage)?;
-            let binding = match kind {
-                VariableKind::Var => self.scopes.declare_var(self.scope, name, start),
-                VariableKind::Let => {
-                    self.scopes
-                        .declare_lexical(self.scope, name, BindingKind::Let, start)
-                }
-                VariableKind::Const => {
-                    self.scopes
-                        .declare_lexical(self.scope, name, BindingKind::Const, start)
-                }
-            };
-            let binding = self.declared(binding, name, start)?;
-            let ident = self.reference(name, start, true);
-            self.advance()?;
-            let target = self.ast.push_pattern(
-                PatternKind::Identifier(ident),
-                Span::new(start, self.prev_end),
-            );
+            let binding_mark = self.scopes.binding_mark();
+            let target = self.parse_binding_target(decl, Leaf::Top)?;
             let init = if self.eat(TokenKind::Eq)? {
                 Some(self.parse_assignment(no_in)?)
             } else {
                 None
             };
-            if kind == VariableKind::Const && init.is_none() {
+            if init.is_none() {
                 let for_in_of = no_in && (self.at(TokenKind::In) || self.at_contextual(names::OF));
-                if !for_in_of {
+                let pattern = !matches!(self.ast.pattern(target).kind, PatternKind::Identifier(_));
+                if !for_in_of && pattern {
                     return Err(ParseError::syntax(
-                        self.token.start,
+                        start,
+                        messages::MISSING_DESTRUCTURING_INITIALIZER,
+                    ));
+                }
+                if !for_in_of && kind == VariableKind::Const {
+                    return Err(ParseError::syntax(
+                        start,
                         messages::MISSING_CONST_INITIALIZER,
                     ));
                 }
             }
             if kind != VariableKind::Var {
-                self.scopes.set_init_end(binding, self.prev_end);
+                let range = binding_mark..self.scopes.binding_mark();
+                self.scopes
+                    .set_init_end_range(range, self.scope, false, self.prev_end);
             }
             self.scratch_declarators.push(Declarator {
                 target,
@@ -312,12 +333,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 span: Span::new(start, self.prev_end),
             });
             if !self.eat(TokenKind::Comma)? {
-                break;
+                return Ok(());
             }
         }
-        let declarators = self.ast.push_declarators(&self.scratch_declarators[mark..]);
-        self.scratch_declarators.truncate(mark);
-        Ok(StmtKind::Variables { kind, declarators })
     }
 
     /// A function declaration in statement position (§14.1, Annex B.3.1,
@@ -328,7 +346,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         match context {
             StmtContext::ListItem => {}
             _ if generator && context != StmtContext::Other => {
-                return Err(ParseError::syntax(start, messages::GENERATOR_IN_STATEMENT));
+                // V8 marks the `*`.
+                let star = self.peek()?.start;
+                return Err(ParseError::syntax(star, messages::GENERATOR_IN_STATEMENT));
             }
             _ if self.ctx.strict => {
                 return Err(ParseError::syntax(start, messages::STRICT_FUNCTION));
@@ -339,10 +359,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             StmtContext::LabelInList => {}
             StmtContext::If => {
                 // Annex B.3.3: as if the declaration were in a block.
-                let outer = self.open_scope(ScopeKind::Block, start);
+                let entered = self.open_scope(ScopeKind::Block, start);
                 let function = self.parse_function_declaration();
                 let scope = self.scope;
-                self.close_scope(outer);
+                self.leave_scope(entered);
                 let function = self.ast.push_stmt(
                     StmtKind::Function(function?),
                     Span::new(start, self.prev_end),
@@ -453,8 +473,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(self.finish_stmt(StmtKind::DoWhile { body, test }, start))
     }
 
-    /// A `for` statement (§14.7.4). Only the three-part form is in the
-    /// subset; `for`-`in` and `for`-`of` are reported as not supported.
+    /// A `for` statement: the three-part form (§14.7.4), `for`-`in` and
+    /// `for`-`of` (§14.7.5). The head has its own scope.
     fn parse_for(&mut self) -> PResult<StmtId> {
         let start = self.token.start;
         self.advance()?;
@@ -462,29 +482,212 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             return Err(ParseError::unsupported(self.token.start, "for await"));
         }
         self.expect(TokenKind::LParen)?;
-        let outer = self.open_scope(ScopeKind::For, start);
+        let entered = self.open_scope(ScopeKind::For, start);
         let stmt = self.parse_for_rest(start);
-        self.close_scope(outer);
+        self.leave_scope(entered);
         stmt
     }
 
     fn parse_for_rest(&mut self, start: u32) -> PResult<StmtId> {
         let init_start = self.token.start;
+        let binding_mark = self.scopes.binding_mark();
         let is_let = self.at_let_declaration()?;
-        let init = match self.token.kind {
-            TokenKind::Semicolon => None,
-            TokenKind::Var => Some(self.parse_variables(VariableKind::Var, true)?),
-            TokenKind::Const => Some(self.parse_variables(VariableKind::Const, true)?),
-            TokenKind::Identifier if is_let => Some(self.parse_variables(VariableKind::Let, true)?),
-            _ => Some(StmtKind::Expr(self.parse_expression(true)?)),
+        let declaration = match self.token.kind {
+            TokenKind::Var => Some(VariableKind::Var),
+            TokenKind::Const => Some(VariableKind::Const),
+            TokenKind::Identifier if is_let => Some(VariableKind::Let),
+            _ => None,
         };
-        if self.at(TokenKind::In) {
-            return Err(ParseError::unsupported(self.token.start, "for-in"));
+        if let Some(kind) = declaration {
+            let decl = self.parse_variables(kind, true)?;
+            if self.at(TokenKind::In) || self.at_contextual(names::OF) {
+                let head = ForDeclaration {
+                    start,
+                    init_start,
+                    binding_mark,
+                    kind,
+                };
+                return self.parse_for_in_of_declaration(head, decl);
+            }
+            let init = self.finish_stmt(decl, init_start);
+            return self.parse_for_three(start, Some(init));
         }
-        if self.at_contextual(names::OF) {
-            return Err(ParseError::unsupported(self.token.start, "for-of"));
+        if self.at(TokenKind::Semicolon) {
+            return self.parse_for_three(start, None);
         }
-        let init = init.map(|kind| self.finish_stmt(kind, init_start));
+        self.parse_for_expression_head(start)
+    }
+
+    /// The rest of a `for` statement whose head starts with an
+    /// expression.
+    fn parse_for_expression_head(&mut self, start: u32) -> PResult<StmtId> {
+        let head_start = self.token.start;
+        let starts_with_let = self.at_contextual(names::LET);
+        if self.at_contextual(names::ASYNC) && self.peek_contextual(names::OF)? {
+            // `for (async of` cannot start a for-of head (§14.7.5); only
+            // `for (async of => {}; ;)` is valid (an async arrow).
+            self.advance()?;
+            if self.peek_kind()? == TokenKind::Arrow {
+                return Err(ParseError::unsupported(head_start, "async arrow function"));
+            }
+            return Err(ParseError::syntax(head_start, messages::FOR_OF_ASYNC));
+        }
+        let first = self.parse_assignment_cover(true)?;
+        let is_in = self.at(TokenKind::In);
+        let is_of = self.at_contextual(names::OF);
+        if is_in || is_of {
+            if is_of && starts_with_let {
+                return Err(ParseError::syntax(head_start, messages::FOR_OF_LET));
+            }
+            let target = self.for_target(first)?;
+            return self.parse_for_in_of_rest(start, ForHead::Target(target), is_of);
+        }
+        self.check_cover_error()?;
+        let init = self.parse_expression_rest(first, head_start, true)?;
+        if self.at(TokenKind::In) || self.at_contextual(names::OF) {
+            return Err(ParseError::syntax(head_start, messages::INVALID_FOR_TARGET));
+        }
+        let init = self.finish_stmt(StmtKind::Expr(init), head_start);
+        self.parse_for_three(start, Some(init))
+    }
+
+    /// The target of `for`-`in` or `for`-`of` without a declaration
+    /// (§14.7.5.1): an assignment pattern or a simple target.
+    fn for_target(&mut self, first: ExprId) -> PResult<AssignTarget> {
+        let node = *self.ast.expr(first);
+        if matches!(node.kind, ExprKind::Array(_) | ExprKind::Object(_)) {
+            let pattern = self.assignment_pattern(first)?;
+            self.cover_error = None;
+            return Ok(AssignTarget::Pattern(pattern));
+        }
+        self.check_cover_error()?;
+        let target = self.unparenthesized(first);
+        match self.ast.expr(target).kind {
+            ExprKind::Identifier(ident) => {
+                self.check_strict_target(ident.name, node.span.start)?;
+                Ok(AssignTarget::Simple(target))
+            }
+            ExprKind::Member { .. } | ExprKind::Index { .. } => Ok(AssignTarget::Simple(target)),
+            // Runtime errors for call targets (Annex B), in sloppy mode.
+            ExprKind::Call { .. } if !self.ctx.strict => Ok(AssignTarget::Simple(target)),
+            ExprKind::Array(_) | ExprKind::Object(_) => Err(ParseError::syntax(
+                node.span.start,
+                messages::INVALID_DESTRUCTURING_TARGET,
+            )),
+            _ => Err(ParseError::syntax(
+                node.span.start,
+                messages::INVALID_FOR_TARGET,
+            )),
+        }
+    }
+
+    /// `for (var/let/const binding in/of ...)`: one declarator, no
+    /// initializer (except Annex B.3.5 `for (var x = 1 in o)` in sloppy
+    /// mode code).
+    fn parse_for_in_of_declaration(
+        &mut self,
+        head: ForDeclaration,
+        decl: StmtKind,
+    ) -> PResult<StmtId> {
+        let is_of = self.at_contextual(names::OF);
+        let StmtKind::Variables { declarators, .. } = decl else {
+            return Err(self.unexpected());
+        };
+        let list = self.ast.declarators(declarators);
+        let [declarator] = list else {
+            let message = if is_of {
+                messages::FOR_OF_SINGLE_BINDING
+            } else {
+                messages::FOR_IN_SINGLE_BINDING
+            };
+            // V8 marks the first binding.
+            let first = list.first().map_or(head.init_start, |d| d.span.start);
+            return Err(ParseError::syntax(first, message));
+        };
+        if declarator.init.is_some() {
+            let annex_b = !is_of
+                && head.kind == VariableKind::Var
+                && !self.ctx.strict
+                && matches!(
+                    self.ast.pattern(declarator.target).kind,
+                    PatternKind::Identifier(_)
+                );
+            if !annex_b {
+                let message = if is_of {
+                    messages::FOR_OF_INITIALIZER
+                } else {
+                    messages::FOR_IN_INITIALIZER
+                };
+                // V8 marks the last token of the binding.
+                let target = self.ast.pattern(declarator.target);
+                let at = match target.kind {
+                    PatternKind::Identifier(_) => target.span.start,
+                    _ => target.span.end.saturating_sub(1),
+                };
+                return Err(ParseError::syntax(at, message));
+            }
+        }
+        let stmt = self.finish_stmt(decl, head.init_start);
+        let right = self.parse_for_in_of_right(is_of)?;
+        if head.kind != VariableKind::Var {
+            // The bindings are uninitialized while the right side runs
+            // (§14.7.5.6 step 2).
+            let range = head.binding_mark..self.scopes.binding_mark();
+            self.scopes
+                .set_init_end_range(range, self.scope, false, self.prev_end);
+        }
+        self.finish_for_in_of(head.start, ForHead::Declaration(stmt), right, is_of)
+    }
+
+    /// The rest of `for (target in/of right) body`.
+    fn parse_for_in_of_rest(&mut self, start: u32, left: ForHead, is_of: bool) -> PResult<StmtId> {
+        let right = self.parse_for_in_of_right(is_of)?;
+        self.finish_for_in_of(start, left, right, is_of)
+    }
+
+    /// `in Expression` or `of AssignmentExpression`.
+    fn parse_for_in_of_right(&mut self, is_of: bool) -> PResult<ExprId> {
+        self.advance()?;
+        if is_of {
+            self.parse_assignment(false)
+        } else {
+            self.parse_expression(false)
+        }
+    }
+
+    fn finish_for_in_of(
+        &mut self,
+        start: u32,
+        left: ForHead,
+        right: ExprId,
+        is_of: bool,
+    ) -> PResult<StmtId> {
+        self.expect(TokenKind::RParen)?;
+        let body = self.parse_loop_body()?;
+        let scope = self.scope;
+        if let Some(entry) = self.scopes.scope_mut(scope) {
+            entry.kind = ScopeKind::ForInOf;
+        }
+        let kind = if is_of {
+            StmtKind::ForOf {
+                left,
+                right,
+                body,
+                scope,
+            }
+        } else {
+            StmtKind::ForIn {
+                left,
+                right,
+                body,
+                scope,
+            }
+        };
+        Ok(self.finish_stmt(kind, start))
+    }
+
+    /// The rest of a three-part `for` after its initialization.
+    fn parse_for_three(&mut self, start: u32, init: Option<StmtId>) -> PResult<StmtId> {
         self.expect(TokenKind::Semicolon)?;
         let test = if self.at(TokenKind::Semicolon) {
             None
@@ -505,6 +708,28 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 init,
                 test,
                 update,
+                body,
+                scope,
+            },
+            start,
+        ))
+    }
+
+    /// `with (object) body` (§14.11): sloppy mode code only.
+    fn parse_with(&mut self) -> PResult<StmtId> {
+        let start = self.token.start;
+        self.advance()?;
+        self.expect(TokenKind::LParen)?;
+        let object = self.parse_expression(false)?;
+        self.expect(TokenKind::RParen)?;
+        let entered = self.open_scope(ScopeKind::With, self.token.start);
+        let scope = self.scope;
+        let body = self.parse_statement(StmtContext::Other);
+        self.leave_scope(entered);
+        let body = body?;
+        Ok(self.finish_stmt(
+            StmtKind::With {
+                object,
                 body,
                 scope,
             },
@@ -612,12 +837,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         if !self.at(TokenKind::LBrace) {
             return Err(self.unexpected());
         }
-        let outer = self.open_scope(ScopeKind::Switch, self.token.start);
+        let entered = self.open_scope(ScopeKind::Switch, self.token.start);
         self.ctx.switches += 1;
         let cases = self.parse_case_block();
         self.ctx.switches -= 1;
         let scope = self.scope;
-        self.close_scope(outer);
+        self.leave_scope(entered);
         let cases = cases?;
         Ok(self.finish_stmt(
             StmtKind::Switch {
@@ -683,6 +908,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.scratch_stmts.truncate(mark);
                 return Err(self.unexpected());
             }
+            self.recorded.truncate(self.scope_base);
             match self.parse_statement(StmtContext::ListItem) {
                 Ok(stmt) => self.scratch_stmts.push(stmt),
                 Err(error) => {
@@ -719,7 +945,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         };
         if handler.is_none() && finalizer.is_none() {
             return Err(ParseError::syntax(
-                self.token.start,
+                self.prev_start,
                 messages::MISSING_CATCH_OR_FINALLY,
             ));
         }
@@ -737,27 +963,42 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     fn parse_catch(&mut self) -> PResult<CatchClause> {
         let start = self.token.start;
         self.advance()?;
-        let outer = self.open_scope(ScopeKind::Catch, start);
+        let entered = self.open_scope(ScopeKind::Catch, start);
         let clause = self.parse_catch_in_scope();
-        self.close_scope(outer);
+        self.leave_scope(entered);
         clause
     }
 
     fn parse_catch_in_scope(&mut self) -> PResult<CatchClause> {
         let param = if self.eat(TokenKind::LParen)? {
             let start = self.token.start;
-            if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
-                return Err(ParseError::unsupported(start, "destructuring"));
-            }
-            let name = self.check_identifier(IdentUse::Binding)?;
-            self.scopes.declare_catch_param(self.scope, name, start);
-            let ident = self.reference(name, start, true);
-            self.advance()?;
+            // `catch ([let])` is accepted in sloppy mode code, V8 rejects it
+            // ("let is disallowed as a lexically bound name"). ECMA-262
+            // 2025 has no such rule for a catch parameter: 14.15.1 (early
+            // errors of Catch) lists duplicate BoundNames and the clashes
+            // with the LexicallyDeclaredNames and (B.3.4) VarDeclaredNames
+            // of the Block; 14.3.1.1 (`let` in BoundNames) covers `let` and
+            // `const` declarations only; 13.1.1 allows the identifier
+            // `let` in sloppy mode code. test262 has no test for it. (I
+            // could not fetch the specification text; this is from my
+            // reading of those clauses.)
+            let pattern = if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
+                self.parse_binding_target(DeclKind::Catch, Leaf::Top)?
+            } else {
+                let name = self.check_identifier(IdentUse::Binding)?;
+                let declared = self
+                    .scopes
+                    .declare_catch_param(self.scope, name, start, false);
+                self.declared(declared, name, start)?;
+                let ident = self.reference(name, start, true);
+                self.advance()?;
+                self.ast.push_pattern(
+                    PatternKind::Identifier(ident),
+                    Span::new(start, self.prev_end),
+                )
+            };
             self.expect(TokenKind::RParen)?;
-            Some(self.ast.push_pattern(
-                PatternKind::Identifier(ident),
-                Span::new(start, self.prev_end),
-            ))
+            Some(pattern)
         } else {
             None
         };
@@ -767,6 +1008,18 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let body = self.parse_block_in_scope(self.token.start)?;
         Ok(CatchClause { param, body })
     }
+}
+
+/// The parts of a `for` head with a declaration.
+#[derive(Clone, Copy)]
+struct ForDeclaration {
+    /// The start of the statement.
+    start: u32,
+    /// The start of the declaration.
+    init_start: u32,
+    /// The binding mark before the declaration.
+    binding_mark: usize,
+    kind: VariableKind,
 }
 
 /// The strict mode rules for a binding name read in sloppy mode.

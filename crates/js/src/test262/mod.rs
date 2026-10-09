@@ -8,6 +8,10 @@
 //! `test/language/expressions/addition`). Each test gets a fresh runtime
 //! on a thread with an 8 MiB stack. A scores file records the pass count
 //! per group; a run fails if a count goes down.
+//!
+//! `--parse-only` runs only the front end ([`parse`]): over
+//! `test/language/`, `test/built-ins/` and `test/annexB/`, with its own
+//! scores file.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -26,6 +30,9 @@ Usage: swb-js test262 [OPTIONS] [PATH...]
                      without PATH: the directories of the subset file
   --dir DIR          the test262 directory (default: $TEST262_DIR or out/test262)
   --all              run all of test/language/ (to choose the subset)
+  --parse-only       run only the parser, the early errors and the scope
+                     analysis, over test/language, test/built-ins and
+                     test/annexB (scores: crates/js/test262/parse-scores.json)
   --config FILE      the subset file (default: crates/js/test262/subset.txt)
   --scores FILE      the scores file (default: crates/js/test262/scores.json)
   --update           write the pass counts of the subset's groups to the scores
@@ -46,8 +53,12 @@ test was found or the scores file is corrupt; 64 if --update cannot apply.
 const DEFAULT_CONFIG: &str = include_str!("../../test262/subset.txt");
 /// The scores file in the repository (the default of `--scores`).
 const DEFAULT_SCORES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test262/scores.json");
+/// The scores file of the parse-only mode.
+const DEFAULT_PARSE_SCORES: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/test262/parse-scores.json");
 
 mod meta;
+mod parse;
 mod report;
 mod run;
 
@@ -59,6 +70,7 @@ use run::{Limits, Status, collect_tests, group_of, run_mode, run_test};
 struct Args {
     dir: PathBuf,
     all: bool,
+    parse_only: bool,
     config: Option<String>,
     scores: String,
     update: bool,
@@ -73,6 +85,7 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
     let mut parsed = Args {
         dir: PathBuf::from(std::env::var("TEST262_DIR").unwrap_or_else(|_| "out/test262".into())),
         all: false,
+        parse_only: false,
         config: None,
         scores: DEFAULT_SCORES.to_owned(),
         update: false,
@@ -86,6 +99,7 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
         top: 10,
         paths: Vec::new(),
     };
+    let mut scores_given = false;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         let mut value = |name: &str| iter.next().cloned().ok_or(format!("{name} needs a value"));
@@ -97,8 +111,12 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
             "--help" | "-h" => return Ok(None),
             "--dir" => parsed.dir = PathBuf::from(value(arg)?),
             "--all" => parsed.all = true,
+            "--parse-only" => parsed.parse_only = true,
             "--config" => parsed.config = Some(value(arg)?),
-            "--scores" => parsed.scores = value(arg)?,
+            "--scores" => {
+                parsed.scores = value(arg)?;
+                scores_given = true;
+            }
             "--update" => parsed.update = true,
             "--stress" => parsed.limits.stress = true,
             "--jobs" => parsed.jobs = number(value(arg)?, arg)?.max(1) as usize,
@@ -109,6 +127,9 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
             other if other.starts_with('-') => return Err(format!("unknown option {other}")),
             path => parsed.paths.push(path.trim_end_matches('/').to_owned()),
         }
+    }
+    if parsed.parse_only && !scores_given {
+        DEFAULT_PARSE_SCORES.clone_into(&mut parsed.scores);
     }
     Ok(Some(parsed))
 }
@@ -142,7 +163,10 @@ pub(crate) fn main(args: &[String]) -> u8 {
         },
         None => DEFAULT_CONFIG.to_owned(),
     };
-    let subset = parse_subset(&config);
+    let mut subset = parse_subset(&config);
+    if args.parse_only {
+        return parse_only_main(&args, &mut subset);
+    }
     let Some(harness) = load_harness(&args.dir) else {
         eprintln!(
             "swb-js test262: no harness in {} (set TEST262_DIR, or run `just test262`)",
@@ -190,6 +214,43 @@ pub(crate) fn main(args: &[String]) -> u8 {
     summarise(&args, &subset, &roots, &scores, &done)
 }
 
+/// The parse-only mode: its roots, skip list and scores file; `--update`
+/// writes the counts of all groups that ran.
+fn parse_only_main(args: &Args, subset: &mut Subset) -> u8 {
+    subset.features = parse::parse_skip_list(parse::DEFAULT_SKIP);
+    let roots: Vec<String> = if args.paths.is_empty() {
+        parse::ROOTS.iter().map(|&root| root.to_owned()).collect()
+    } else {
+        args.paths.clone()
+    };
+    let mut tests = Vec::new();
+    for root in &roots {
+        collect_tests(&args.dir, root, &mut tests);
+    }
+    tests.sort();
+    tests.dedup();
+    if tests.is_empty() {
+        eprintln!(
+            "swb-js test262: no tests found under {} in {}",
+            roots.join(", "),
+            args.dir.display()
+        );
+        return 1;
+    }
+    subset.dirs = tests.iter().map(|test| group_of(test)).collect();
+    subset.dirs.sort();
+    subset.dirs.dedup();
+    let scores = match read_scores(&args.scores) {
+        Ok(scores) => scores,
+        Err(message) => {
+            eprintln!("swb-js test262: {message}");
+            return 1;
+        }
+    };
+    let done = run_all(args, subset, "", &tests);
+    summarise(args, subset, &roots, &scores, &done)
+}
+
 /// `assert.js` and `sta.js` (in this order of dependency: `sta.js` first).
 fn load_harness(dir: &Path) -> Option<String> {
     let sta = std::fs::read_to_string(dir.join("harness/sta.js")).ok()?;
@@ -222,6 +283,10 @@ fn run_file(
     path: &str,
 ) -> Vec<(&'static str, Status)> {
     match read_test(&args.dir, path) {
+        Ok(source) if args.parse_only => {
+            let meta = parse_meta(&source);
+            parse::run_test(path, &meta, &source, &subset.features)
+        }
         Ok(source) => {
             let meta = parse_meta(&source);
             run_test(harness, &meta, &source, &subset.features, args.limits)

@@ -117,7 +117,9 @@ impl FunctionCompiler<'_> {
                 }
                 self.expr(last, dst)
             }
-            ExprKind::Member { object, property } => {
+            ExprKind::Member {
+                object, property, ..
+            } => {
                 let t = self.target(dst)?;
                 let mark = self.mark();
                 let obj = self.expr(object, None)?;
@@ -126,7 +128,7 @@ impl FunctionCompiler<'_> {
                 self.release(mark);
                 Ok(t)
             }
-            ExprKind::Index { object, index } => {
+            ExprKind::Index { object, index, .. } => {
                 let t = self.target(dst)?;
                 let mark = self.mark();
                 if let Some(text) = self.constant_key(index) {
@@ -141,9 +143,19 @@ impl FunctionCompiler<'_> {
                 self.release(mark);
                 Ok(t)
             }
-            ExprKind::Call { callee, arguments } => self.call(callee, arguments, dst, false),
+            ExprKind::Call {
+                callee, arguments, ..
+            } => self.call(callee, arguments, dst, false),
             ExprKind::New { callee, arguments } => self.call(callee, arguments, dst, true),
-            ExprKind::Yield { argument } => {
+            ExprKind::Spread(_)
+            | ExprKind::OptionalChain(_)
+            | ExprKind::TaggedTemplate { .. }
+            | ExprKind::NewTarget(_)
+            | ExprKind::BigInt(_) => {
+                Err(self
+                    .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
+            }
+            ExprKind::Yield { argument, .. } => {
                 // `t` receives the sent value, `t + 1` the resume mode.
                 let t = self.temps(2)?;
                 match argument {
@@ -432,7 +444,13 @@ impl FunctionCompiler<'_> {
                 return true;
             }
             match self.ast.expr(e).kind {
-                ExprKind::Assign { .. } | ExprKind::Update { .. } => return true,
+                ExprKind::Assign { .. }
+                | ExprKind::Update { .. }
+                | ExprKind::Spread(_)
+                | ExprKind::OptionalChain(_)
+                | ExprKind::TaggedTemplate { .. }
+                | ExprKind::NewTarget(_)
+                | ExprKind::BigInt(_) => return true,
                 ExprKind::Identifier(_)
                 | ExprKind::This(_)
                 | ExprKind::Null
@@ -461,12 +479,13 @@ impl FunctionCompiler<'_> {
                     argument: inner, ..
                 }
                 | ExprKind::Member { object: inner, .. } => work.push(inner),
-                ExprKind::Yield { argument } => work.extend(argument),
+                ExprKind::Yield { argument, .. } => work.extend(argument),
                 ExprKind::Binary { left, right, .. }
                 | ExprKind::Logical { left, right, .. }
                 | ExprKind::Index {
                     object: left,
                     index: right,
+                    ..
                 } => {
                     work.push(left);
                     work.push(right);
@@ -476,7 +495,10 @@ impl FunctionCompiler<'_> {
                     consequent,
                     alternate,
                 } => work.extend([test, consequent, alternate]),
-                ExprKind::Call { callee, arguments } | ExprKind::New { callee, arguments } => {
+                ExprKind::Call {
+                    callee, arguments, ..
+                }
+                | ExprKind::New { callee, arguments } => {
                     work.push(callee);
                     work.extend(self.ast.exprs(arguments));
                 }
@@ -494,12 +516,14 @@ impl FunctionCompiler<'_> {
             UnaryOp::Delete => {
                 let inner = self.unparen(argument);
                 match self.ast.expr(inner).kind {
-                    ExprKind::Member { object, property } => {
+                    ExprKind::Member {
+                        object, property, ..
+                    } => {
                         let obj = self.expr(object, None)?;
                         let site = self.site(self.name_text(property));
                         self.emit(Insn::DeleteNamed { dst: t, obj, site });
                     }
-                    ExprKind::Index { object, index } => {
+                    ExprKind::Index { object, index, .. } => {
                         let obj = self.expr_stable(object, &[index])?;
                         let key = self.expr(index, None)?;
                         self.emit(Insn::DeleteIndex { dst: t, obj, key });
@@ -813,7 +837,7 @@ impl FunctionCompiler<'_> {
         match key {
             AstKey::Name(name) => Some(self.name_text(name)),
             AstKey::Number(value) => Some(String16::from(number_to_string(value).as_str())),
-            AstKey::Computed(_) => None,
+            AstKey::Computed(_) | AstKey::BigInt(_) => None,
         }
     }
 
@@ -862,6 +886,7 @@ impl FunctionCompiler<'_> {
                 PropertyKind::Getter | PropertyKind::Setter => {
                     return Err(self.unsupported("getter or setter"));
                 }
+                PropertyKind::Spread => return Err(self.unsupported("object spread")),
             }
             self.release(inner);
         }
@@ -891,15 +916,19 @@ impl FunctionCompiler<'_> {
         value: ExprId,
         dst: Option<Reg>,
     ) -> CResult<Reg> {
-        let AssignTarget::Simple(target) = target;
+        let AssignTarget::Simple(target) = target else {
+            return Err(self.unsupported("destructuring assignment"));
+        };
         let target = self.unparen(target);
         match self.ast.expr(target).kind {
             ExprKind::Identifier(ident) => self.assign_identifier(op, ident, value, dst),
-            ExprKind::Member { object, property } => {
+            ExprKind::Member {
+                object, property, ..
+            } => {
                 let text = self.name_text(property);
                 self.assign_property(op, object, PropertyRef::Named(text), value, dst)
             }
-            ExprKind::Index { object, index } => match self.constant_key(index) {
+            ExprKind::Index { object, index, .. } => match self.constant_key(index) {
                 Some(text) => {
                     self.assign_property(op, object, PropertyRef::Named(text), value, dst)
                 }
@@ -1092,11 +1121,13 @@ impl FunctionCompiler<'_> {
                 let t = self.target(dst)?;
                 let mark = self.mark();
                 let (obj, key) = match self.ast.expr(target).kind {
-                    ExprKind::Member { object, property } => {
+                    ExprKind::Member {
+                        object, property, ..
+                    } => {
                         let obj = self.expr(object, None)?;
                         (obj, KeyReg::Site(self.site(self.name_text(property))))
                     }
-                    ExprKind::Index { object, index } => {
+                    ExprKind::Index { object, index, .. } => {
                         if let Some(text) = self.constant_key(index) {
                             let obj = self.expr(object, None)?;
                             (obj, KeyReg::Site(self.site(text)))
@@ -1157,7 +1188,9 @@ impl FunctionCompiler<'_> {
         let this = base + 1;
         let target = self.unparen(callee);
         match self.ast.expr(target).kind {
-            ExprKind::Member { object, property } if !is_new => {
+            ExprKind::Member {
+                object, property, ..
+            } if !is_new => {
                 self.expr(object, Some(this))?;
                 let site = self.site(self.name_text(property));
                 self.emit(Insn::GetNamed {
@@ -1166,7 +1199,7 @@ impl FunctionCompiler<'_> {
                     site,
                 });
             }
-            ExprKind::Index { object, index } if !is_new => {
+            ExprKind::Index { object, index, .. } if !is_new => {
                 self.expr(object, Some(this))?;
                 if let Some(text) = self.constant_key(index) {
                     let site = self.site(text);
@@ -1237,13 +1270,15 @@ impl FunctionCompiler<'_> {
             ExprKind::Number(value) => Some(number_to_string(value)),
             ExprKind::String(id) => Some(format!("\"{}\"", self.ast.string(id).to_string_lossy())),
             ExprKind::Paren(inner) => self.render(inner, depth),
-            ExprKind::Member { object, property } => Some(format!(
+            ExprKind::Member {
+                object, property, ..
+            } => Some(format!(
                 "{}.{}",
                 self.render(object, depth - 1)
                     .unwrap_or_else(|| "(intermediate value)".to_owned()),
                 text(property)
             )),
-            ExprKind::Index { object, index } => {
+            ExprKind::Index { object, index, .. } => {
                 let object = self
                     .render(object, depth - 1)
                     .unwrap_or_else(|| "(intermediate value)".to_owned());

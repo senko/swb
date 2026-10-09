@@ -6,18 +6,15 @@
 //! code-unit offsets ([`Span`]). Names are [`NameId`]s of the script's
 //! [`crate::Interner`]; string values are [`StringId`]s.
 //!
-//! The node types are laid out for the whole ES2025 grammar. The parser
-//! produces a subset until M7; the forms that M7 adds get new enum
-//! variants without a change of the existing ones:
+//! The node types are laid out for the whole ES2025 grammar. Classes,
+//! `super`, `await` and modules come with M7 features 1b and 1c, as new
+//! enum variants; [`FunctionKind`] and [`Function::is_async`] already
+//! cover all function forms.
 //!
-//! - [`PatternKind`]: array and object patterns, defaults and rest
-//!   elements next to the identifier form;
-//! - [`AssignTarget`]: a pattern for destructuring assignment;
-//! - [`ExprKind`]: spread, classes, tagged templates, optional chains,
-//!   `super`, `new.target`, `await`, `yield*` (a flag of `Yield`);
-//! - [`StmtKind`]: `for`-`in`, `for`-`of`, `with`, classes;
-//! - [`FunctionKind`] and [`Function::is_async`] already cover all
-//!   function forms.
+//! Patterns ([`Pattern`]) serve both binding patterns (declarations,
+//! parameters, `catch`) and assignment patterns (destructuring
+//! assignment): the leaves are [`PatternKind::Identifier`] (a binding) or
+//! [`PatternKind::Expr`] (an assignment target).
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -275,40 +272,78 @@ pub enum ExprKind {
     },
     /// The comma operator: two or more expressions.
     Sequence(List<ExprId>),
-    /// `object.property`.
+    /// `object.property`, or `object?.property` in an optional chain.
     Member {
         /// The object.
         object: ExprId,
         /// The property name.
         property: NameId,
+        /// `?.`: if the object is `null` or `undefined`, the whole
+        /// [`ExprKind::OptionalChain`] around it is `undefined`.
+        optional: bool,
     },
-    /// `object[index]`.
+    /// `object[index]`, or `object?.[index]` in an optional chain.
     Index {
         /// The object.
         object: ExprId,
         /// The key expression.
         index: ExprId,
+        /// `?.[`: see [`ExprKind::Member`].
+        optional: bool,
     },
     /// A call. A direct `eval` is a call whose callee is the identifier
-    /// `eval`, possibly in parentheses.
+    /// `eval`, possibly in parentheses. Arguments can be
+    /// [`ExprKind::Spread`].
     Call {
         /// The function.
         callee: ExprId,
         /// The arguments.
         arguments: List<ExprId>,
+        /// `callee?.(arguments)`: see [`ExprKind::Member`].
+        optional: bool,
     },
-    /// `new callee(arguments)`; `new callee` has no arguments.
+    /// `new callee(arguments)`; `new callee` has no arguments. Arguments
+    /// can be [`ExprKind::Spread`].
     New {
         /// The constructor.
         callee: ExprId,
         /// The arguments.
         arguments: List<ExprId>,
     },
-    /// `yield` with an optional operand (in generator functions).
+    /// `yield` with an optional operand (in generator functions), or
+    /// `yield* argument`.
     Yield {
         /// The operand.
         argument: Option<ExprId>,
+        /// `yield*`: delegate to the iterator of the operand (§15.5.5).
+        delegate: bool,
     },
+    /// `...argument`: an element of an array literal or an argument of a
+    /// call or `new`.
+    Spread(ExprId),
+    /// An optional chain (§13.3.9): the member accesses and calls of
+    /// `a?.b.c()` up to the end of the chain. The links with `optional`
+    /// set test their object (or callee) for `null` and `undefined`; if it
+    /// is, the value of the whole chain is `undefined` and the rest of the
+    /// chain is not evaluated. Parentheses end a chain: `(a?.b).c`.
+    OptionalChain(ExprId),
+    /// A tagged template: `tag` is called with the template object and
+    /// the substitutions (§13.3.11). Its elements can have no cooked
+    /// value (an invalid escape).
+    TaggedTemplate {
+        /// The function.
+        tag: ExprId,
+        /// The template.
+        template: TemplateId,
+    },
+    /// `new.target` (§13.3.12): the reference resolves to the
+    /// `new.target` binding of the nearest non-arrow function, like
+    /// [`ExprKind::This`].
+    NewTarget(RefId),
+    /// A `BigInt` literal: its digits with the radix prefix (`0x`, `0o`,
+    /// `0b`), without separators and without the `n`. The value comes
+    /// with M7 feature 10.
+    BigInt(StringId),
 }
 
 /// The target of an assignment.
@@ -321,6 +356,10 @@ pub enum AssignTarget {
     /// compatibility behaviour). Parentheses around the target are
     /// removed.
     Simple(ExprId),
+    /// An assignment pattern (destructuring assignment, `=` only;
+    /// §13.15.5): an [`PatternKind::Array`] or [`PatternKind::Object`]
+    /// whose leaves are [`PatternKind::Expr`].
+    Pattern(PatternId),
 }
 
 /// Unary operators (§13.5).
@@ -450,10 +489,12 @@ pub enum PropertyKind {
     Shorthand,
     /// `key() {}`, `*key() {}`.
     Method,
-    /// `get key() {}` (M7).
+    /// `get key() {}`.
     Getter,
-    /// `set key(v) {}` (M7).
+    /// `set key(v) {}`.
     Setter,
+    /// `...value` (object spread, §13.2.5.4). The key has no meaning.
+    Spread,
 }
 
 /// The key of a property definition.
@@ -465,6 +506,9 @@ pub enum PropertyKey {
     Number(f64),
     /// `[expression]`.
     Computed(ExprId),
+    /// A `BigInt` literal (the digits as in [`ExprKind::BigInt`]); the
+    /// key is the decimal string of its value (M7 feature 10).
+    BigInt(StringId),
 }
 
 /// A template literal: `quasis.len() == expressions.len() + 1`.
@@ -488,8 +532,9 @@ pub struct TemplateElement {
 
 // --- Patterns ---
 
-/// A binding pattern: the target of a declaration, a parameter or a
-/// catch parameter.
+/// A pattern: the target of a declaration, a parameter or a catch
+/// parameter (a binding pattern, §14.3.3), or of a destructuring
+/// assignment (an assignment pattern, §13.15.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pattern {
     /// The kind.
@@ -498,12 +543,51 @@ pub struct Pattern {
     pub span: Span,
 }
 
-/// The kinds of binding patterns (§14.3.3). M7 adds array and object
-/// patterns, defaults and rest elements.
+/// The kinds of patterns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PatternKind {
-    /// A `BindingIdentifier`.
+    /// A `BindingIdentifier`: a binding of a binding pattern.
     Identifier(Ident),
+    /// A target of an assignment pattern: an [`ExprKind::Identifier`],
+    /// [`ExprKind::Member`] or [`ExprKind::Index`] (parentheses removed).
+    Expr(ExprId),
+    /// `[a, , b = 1, ...c]`: the elements in order; an elision is a
+    /// [`PatternKind::Hole`], a rest element a [`PatternKind::Rest`] (only
+    /// the last element).
+    Array(List<PatternId>),
+    /// `{ a, b: c, [d]: e = 1, ...f }`.
+    Object {
+        /// The properties in order.
+        properties: List<PatternProperty>,
+        /// The rest element's target: a [`PatternKind::Identifier`] or a
+        /// [`PatternKind::Expr`].
+        rest: Option<PatternId>,
+    },
+    /// An element with an initializer: `target = value`; the value is
+    /// used when the element is `undefined`.
+    Default {
+        /// The target.
+        target: PatternId,
+        /// The initializer.
+        value: ExprId,
+    },
+    /// `...target`: the last element of an array pattern or of a
+    /// parameter list.
+    Rest(PatternId),
+    /// An elision in an array pattern.
+    Hole,
+}
+
+/// A property of an object pattern. A shorthand (`{ a }`, `{ a = 1 }`)
+/// has the key `a` and the value `a` (with its default).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PatternProperty {
+    /// The key.
+    pub key: PropertyKey,
+    /// The target, possibly with a [`PatternKind::Default`].
+    pub value: PatternId,
+    /// The source range.
+    pub span: Span,
 }
 
 // --- Statements ---
@@ -584,6 +668,42 @@ pub enum StmtKind {
         /// copies its cells, §14.7.4.4).
         scope: ScopeId,
     },
+    /// `for (left in right) body` (§14.7.5).
+    ForIn {
+        /// The declaration or the assignment target.
+        left: ForHead,
+        /// The object whose keys the loop visits.
+        right: ExprId,
+        /// The body.
+        body: StmtId,
+        /// The scope of a `let` or `const` declaration in the head. The
+        /// right side is evaluated in it, with the bindings uninitialized
+        /// (`for (let x in x)` throws, §14.7.5.6); each iteration creates
+        /// new cells for the bindings (§14.7.5.7).
+        scope: ScopeId,
+    },
+    /// `for (left of right) body` (§14.7.5); the scope as in
+    /// [`StmtKind::ForIn`].
+    ForOf {
+        /// The declaration or the assignment target.
+        left: ForHead,
+        /// The iterable.
+        right: ExprId,
+        /// The body.
+        body: StmtId,
+        /// The scope of a `let` or `const` declaration in the head.
+        scope: ScopeId,
+    },
+    /// `with (object) body` (sloppy mode code only, §14.11).
+    With {
+        /// The object of the object environment.
+        object: ExprId,
+        /// The body.
+        body: StmtId,
+        /// The scope of the body ([`crate::ScopeKind::With`]): names
+        /// inside it resolve through the object first (M7 feature 1c).
+        scope: ScopeId,
+    },
     /// A labelled statement.
     Labeled {
         /// The label.
@@ -623,6 +743,18 @@ pub enum StmtKind {
         /// The `finally` block (a [`StmtKind::Block`]).
         finalizer: Option<StmtId>,
     },
+}
+
+/// The left side of a `for`-`in` or `for`-`of` statement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ForHead {
+    /// `var`, `let` or `const` with one declarator: a
+    /// [`StmtKind::Variables`]. Only `for (var x = init in o)` in sloppy
+    /// mode code has an initializer (Annex B.3.5).
+    Declaration(StmtId),
+    /// An assignment target or pattern; in sloppy mode code also a call
+    /// (a `ReferenceError` at run time, as for `f() = 1`).
+    Target(AssignTarget),
 }
 
 /// A clause of a `switch` statement.
@@ -692,7 +824,8 @@ pub struct Function {
     pub expression_body: bool,
     /// The binding identifier of a declaration or a named expression.
     pub name: Option<Ident>,
-    /// The parameters.
+    /// The parameters: one pattern per element of the parameter list; a
+    /// rest parameter is a [`PatternKind::Rest`] (the last).
     pub params: List<PatternId>,
     /// The body. For the script, the top-level statements.
     pub body: List<StmtId>,
@@ -700,9 +833,15 @@ pub struct Function {
     /// §20.2.3.5): from `function` (or the first parameter token of an
     /// arrow, or the key of a method) to the closing `}`.
     pub span: Span,
-    /// The scope of the parameters and the top-level declarations of the
-    /// body.
+    /// The scope of the parameters and (see `body_scope`) the top-level
+    /// declarations of the body.
     pub scope: ScopeId,
+    /// The scope of the top-level declarations of the body: the same as
+    /// `scope`, except for a function with parameter expressions
+    /// (defaults or computed keys in the parameters), whose body has a
+    /// [`crate::ScopeKind::FunctionBody`] scope of its own (§10.2.11
+    /// step 28).
+    pub body_scope: ScopeId,
     /// The function in which this one is defined; `None` for the script.
     pub parent: Option<FunctionId>,
 }
@@ -718,9 +857,9 @@ pub enum FunctionKind {
     Arrow,
     /// A method of an object literal.
     Method,
-    /// A getter (M7).
+    /// A getter of an object literal.
     Getter,
-    /// A setter (M7).
+    /// A setter of an object literal.
     Setter,
     /// The constructor of a base class (M7).
     ClassConstructor,
@@ -749,6 +888,7 @@ pub struct Ast {
     expr_lists: Vec<ExprId>,
     stmt_lists: Vec<StmtId>,
     pattern_lists: Vec<PatternId>,
+    pattern_properties: Vec<PatternProperty>,
     properties: Vec<Property>,
     declarators: Vec<Declarator>,
     template_elements: Vec<TemplateElement>,
@@ -809,6 +949,21 @@ impl Ast {
         self.exprs.len()
     }
 
+    /// All expression ids, in creation order.
+    pub fn expr_ids(&self) -> impl Iterator<Item = ExprId> + use<> {
+        (0..self.exprs.len()).map(ExprId::from_index)
+    }
+
+    /// All statement ids, in creation order.
+    pub fn stmt_ids(&self) -> impl Iterator<Item = StmtId> + use<> {
+        (0..self.stmts.len()).map(StmtId::from_index)
+    }
+
+    /// All pattern ids, in creation order.
+    pub fn pattern_ids(&self) -> impl Iterator<Item = PatternId> + use<> {
+        (0..self.patterns.len()).map(PatternId::from_index)
+    }
+
     /// The elements of an expression list.
     pub fn exprs(&self, list: List<ExprId>) -> &[ExprId] {
         self.expr_lists.get(list.range()).unwrap_or(&[])
@@ -822,6 +977,11 @@ impl Ast {
     /// The elements of a pattern list.
     pub fn patterns(&self, list: List<PatternId>) -> &[PatternId] {
         self.pattern_lists.get(list.range()).unwrap_or(&[])
+    }
+
+    /// The properties of an object pattern.
+    pub fn pattern_properties(&self, list: List<PatternProperty>) -> &[PatternProperty] {
+        self.pattern_properties.get(list.range()).unwrap_or(&[])
     }
 
     /// The elements of a property list.
@@ -859,6 +1019,7 @@ impl Ast {
             + bytes(&self.expr_lists)
             + bytes(&self.stmt_lists)
             + bytes(&self.pattern_lists)
+            + bytes(&self.pattern_properties)
             + bytes(&self.properties)
             + bytes(&self.declarators)
             + bytes(&self.template_elements)
@@ -882,6 +1043,10 @@ impl Ast {
         PatternId::from_index(self.patterns.len() - 1)
     }
 
+    pub(crate) fn pattern_mut(&mut self, id: PatternId) -> Option<&mut Pattern> {
+        self.patterns.get_mut(id.index())
+    }
+
     pub(crate) fn push_function(&mut self, function: Function) -> FunctionId {
         self.functions.push(function);
         FunctionId::from_index(self.functions.len() - 1)
@@ -889,10 +1054,6 @@ impl Ast {
 
     pub(crate) fn function_mut(&mut self, id: FunctionId) -> Option<&mut Function> {
         self.functions.get_mut(id.index())
-    }
-
-    pub(crate) fn functions_from(&mut self, start: usize) -> &mut [Function] {
-        self.functions.get_mut(start..).unwrap_or(&mut [])
     }
 
     pub(crate) fn push_string(&mut self, value: String16) -> StringId {
@@ -915,6 +1076,13 @@ impl Ast {
 
     pub(crate) fn push_patterns(&mut self, items: &[PatternId]) -> List<PatternId> {
         push_list(&mut self.pattern_lists, items)
+    }
+
+    pub(crate) fn push_pattern_properties(
+        &mut self,
+        items: &[PatternProperty],
+    ) -> List<PatternProperty> {
+        push_list(&mut self.pattern_properties, items)
     }
 
     pub(crate) fn push_properties(&mut self, items: &[Property]) -> List<Property> {

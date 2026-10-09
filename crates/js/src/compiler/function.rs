@@ -518,6 +518,7 @@ impl<'a> FunctionCompiler<'a> {
                 // Set up by the prologue.
                 BindingKind::Parameter
                 | BindingKind::This
+                | BindingKind::NewTarget
                 | BindingKind::Arguments
                 | BindingKind::FunctionName => continue,
                 BindingKind::Var
@@ -699,6 +700,9 @@ impl<'a> FunctionCompiler<'a> {
         let mark = self.mark();
         match statement.kind {
             StmtKind::Empty | StmtKind::Function(_) => {}
+            StmtKind::ForIn { .. } => return Err(self.unsupported("for-in")),
+            StmtKind::ForOf { .. } => return Err(self.unsupported("for-of")),
+            StmtKind::With { .. } => return Err(self.unsupported("with")),
             StmtKind::Debugger => {
                 self.emit(Insn::Nop);
             }
@@ -845,7 +849,9 @@ impl<'a> FunctionCompiler<'a> {
         target: swb_js_syntax::PatternId,
         init: Option<swb_js_syntax::ExprId>,
     ) -> CResult<()> {
-        let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind;
+        let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind else {
+            return Err(self.unsupported("destructuring"));
+        };
         let reference = self.reference(ident.reference);
         let name = self.name_text(ident.name);
         match (kind, init) {
@@ -1168,7 +1174,9 @@ impl<'a> FunctionCompiler<'a> {
         self.position = self.ast.stmt(clause.body).span.start;
         self.enter_scope(scope)?;
         if let Some(param) = clause.param {
-            let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(param).kind;
+            let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(param).kind else {
+                return Err(self.unsupported("destructuring"));
+            };
             let binding = self
                 .reference(ident.reference)
                 .binding

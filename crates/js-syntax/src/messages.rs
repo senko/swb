@@ -21,6 +21,7 @@ pub(crate) const UNEXPECTED_EVAL_OR_ARGUMENTS: &str = "Unexpected eval or argume
 pub(crate) const AWAIT_OUTSIDE_ASYNC: &str =
     "await is only valid in async functions and the top level bodies of modules";
 pub(crate) const ESCAPED_KEYWORD: &str = "Keyword must not contain escaped characters";
+pub(crate) const ESCAPED_NEW_TARGET: &str = "'new.target' must not contain escaped characters";
 
 pub(crate) const MISSING_CONST_INITIALIZER: &str = "Missing initializer in const declaration";
 pub(crate) const LET_IN_LEXICAL: &str = "let is disallowed as a lexically bound name";
@@ -41,6 +42,37 @@ pub(crate) const INVALID_POSTFIX_TARGET: &str =
     "Invalid left-hand side expression in postfix operation";
 pub(crate) const INVALID_DESTRUCTURING_TARGET: &str = "Invalid destructuring assignment target";
 pub(crate) const MALFORMED_ARROW_PARAMETERS: &str = "Malformed arrow function parameter list";
+pub(crate) const INVALID_SHORTHAND_INITIALIZER: &str = "Invalid shorthand property initializer";
+pub(crate) const REST_NOT_LAST: &str = "Rest element must be last element";
+pub(crate) const REST_NOT_ASSIGNABLE: &str =
+    "`...` must be followed by an assignable reference in assignment contexts";
+pub(crate) const REST_NOT_IDENTIFIER: &str =
+    "`...` must be followed by an identifier in declaration contexts";
+pub(crate) const REST_PARAMETER_NOT_LAST: &str = "Rest parameter must be last formal parameter";
+pub(crate) const REST_PARAMETER_DEFAULT: &str = "Rest parameter may not have a default initializer";
+pub(crate) const MISSING_DESTRUCTURING_INITIALIZER: &str =
+    "Missing initializer in destructuring declaration";
+pub(crate) const PROPERTY_IN_DECLARATION: &str = "Illegal property in declaration context";
+pub(crate) const YIELD_IN_PARAMETER: &str = "Yield expression not allowed in formal parameter";
+pub(crate) const USE_STRICT_NON_SIMPLE: &str =
+    "Illegal 'use strict' directive in function with non-simple parameter list";
+pub(crate) const GETTER_PARAMETERS: &str = "Getter must not have any formal parameters.";
+pub(crate) const SETTER_PARAMETERS: &str = "Setter must have exactly one formal parameter.";
+pub(crate) const SETTER_REST: &str = "Setter function argument must not be a rest parameter";
+pub(crate) const FOR_IN_SINGLE_BINDING: &str =
+    "Invalid left-hand side in for-in loop: Must have a single binding.";
+pub(crate) const FOR_OF_SINGLE_BINDING: &str =
+    "Invalid left-hand side in for-of loop: Must have a single binding.";
+pub(crate) const FOR_IN_INITIALIZER: &str =
+    "for-in loop variable declaration may not have an initializer.";
+pub(crate) const FOR_OF_INITIALIZER: &str =
+    "for-of loop variable declaration may not have an initializer.";
+pub(crate) const INVALID_FOR_TARGET: &str = "Invalid left-hand side in for-loop";
+pub(crate) const FOR_OF_LET: &str = "The left-hand side of a for-of loop may not start with 'let'.";
+pub(crate) const FOR_OF_ASYNC: &str = "The left-hand side of a for-of loop may not be 'async'.";
+pub(crate) const OPTIONAL_CHAIN_TEMPLATE: &str = "Invalid tagged template on optional chain";
+pub(crate) const OPTIONAL_CHAIN_NEW: &str = "Invalid optional chain from new expression";
+pub(crate) const NEW_TARGET_OUTSIDE_FUNCTION: &str = "new.target expression is not allowed here";
 pub(crate) const DUPLICATE_PROTO: &str =
     "Duplicate __proto__ fields are not allowed in object literals";
 pub(crate) const UNARY_BEFORE_EXPONENT: &str = "Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence";

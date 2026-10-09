@@ -591,7 +591,17 @@ failures with a reason. Features, in this order:
      tagged templates; `new.target`; `BigInt` literals; `yield*`;
      computed keys, methods and accessors in object literals; `with`
      (an early error in strict code). The parse-only mode of the
-     runner comes in this session.
+     runner comes in this session. Done 2026-10-09: all of the above;
+     the compiler rejects the new forms with "not supported yet".
+     Parse-only test262 (`just test262 --parse-only`, 48,635 tests of
+     `language/`, `built-ins/` and `annexB/`): 28,203 pass, 364 fail
+     (358 regular expression syntax, feature 8a; 6 Annex B.3.2.4, 1c),
+     12,986 need classes, `async` or modules. Runtime test262: 4,152
+     pass (was 3,762; negative syntax tests). 34 of 60 BBC and 19 of
+     24 Ars scripts parse (were 3 and 10); the others stop at `class`
+     or `async`. 47 to 52 MB/s over the scripts that parse. Open: a
+     non-simple parameter list takes two registers per parameter, so
+     more than about 32,000 such parameters fail (feature 3).
    - 1b. Classes and `async`: class declarations and expressions
      (heritage, constructor, methods, accessors, static members,
      fields, private names and `#x in o`, static blocks), the rules for

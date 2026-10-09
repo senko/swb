@@ -17,20 +17,36 @@
 //! tree one level deeper. Exceeding the budget is a `RangeError`, as in
 //! Chromium.
 //!
+//! Cover grammars (§5.1.4, memo 2.2): an array or object literal before
+//! `=` becomes an assignment pattern, and the expression before `=>`
+//! becomes the parameters of an arrow function, by converting the tree
+//! ([`patterns`]). The identifier occurrences, scopes and functions of
+//! arrow parameters are recorded in the enclosing scope first; the
+//! conversion moves them into the arrow's scope ([`Recorded`]). Each item
+//! moves at most once, so the conversion is linear. The early errors
+//! that only an expression has (`CoverInitializedName`, duplicate
+//! `__proto__`) wait until the expression is known not to be a pattern
+//! ([`Parser::cover_error`]).
+//!
 //! Constructs outside the supported subset give a `SyntaxError` with
 //! the message "not supported yet" ([`ParseError::unsupported`]).
 
 mod expressions;
 mod functions;
+#[cfg(test)]
+mod pattern_tests;
+mod patterns;
 mod statements;
 #[cfg(test)]
 mod tests;
 
 use swb_js_text::{CodeUnit, RecursionBudget, Str16};
 
+use std::collections::HashSet;
+
 use crate::ast::{
-    Ast, Declarator, ExprId, FunctionId, FunctionKind, Ident, List, PatternId, Property, ScopeId,
-    StmtId, SwitchCase, TemplateElement,
+    Ast, Declarator, ExprId, FunctionId, FunctionKind, Ident, List, PatternId, PatternProperty,
+    Property, RefId, ScopeId, StmtId, SwitchCase, TemplateElement,
 };
 use crate::error::ParseError;
 use crate::interner::{Interner, NameId, names};
@@ -170,6 +186,21 @@ pub(crate) struct Context {
     params: List<PatternId>,
     /// The offset of the first repeated parameter name.
     duplicate_param: Option<u32>,
+    /// Whether the parameter list is simple (identifiers only,
+    /// §15.1.3): a "use strict" directive needs it.
+    simple_params: bool,
+    /// Whether the parser is in the parameter list of this function (a
+    /// generator's parameters cannot contain `yield`).
+    in_params: bool,
+    /// The offset of the last `yield` expression of the function (an
+    /// arrow function's parameters cannot contain one, §15.3.1).
+    last_yield: Option<u32>,
+    /// The number of direct `eval` calls of the function (not in nested
+    /// functions).
+    direct_evals: u32,
+    /// Whether `new.target` is allowed: in non-arrow functions, and in
+    /// arrow functions inside them (§15.1.1, §16.1.1).
+    new_target: bool,
 }
 
 impl Context {
@@ -191,8 +222,38 @@ impl Context {
             name: None,
             params: List::EMPTY,
             duplicate_param: None,
+            simple_params: true,
+            in_params: false,
+            last_yield: None,
+            direct_evals: 0,
+            new_target: !matches!(kind, FunctionKind::Script | FunctionKind::Arrow),
         }
     }
+}
+
+/// An item that the parser recorded directly in the current scope (or,
+/// for functions, the current function): what the cover grammar of an
+/// arrow function moves into the arrow's scope.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Recorded {
+    /// An identifier occurrence in the current scope.
+    Reference(RefId),
+    /// A child scope of the current scope.
+    Scope(ScopeId),
+    /// A child function of the current function.
+    Function(FunctionId),
+    /// A direct `eval` call of the current function.
+    Eval,
+}
+
+/// A scope that the parser entered: the scope to return to, and the
+/// length of [`Parser::recorded`] to cut back to.
+#[derive(Clone, Copy, Debug)]
+#[must_use]
+pub(crate) struct Entered {
+    outer: ScopeId,
+    mark: usize,
+    outer_base: usize,
 }
 
 /// How an identifier is used (for the early errors of §13.1.1).
@@ -217,9 +278,13 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     peeked: Option<Token>,
     /// The end of the previous token.
     prev_end: u32,
-    /// Whether the previous token was `await` (for the error message when
-    /// a statement does not end after it, as in `x = await 1`).
-    prev_await: bool,
+    /// The start of the previous token (where V8 marks the "missing )"
+    /// family of errors).
+    prev_start: u32,
+    /// The start of the previous token if it was `await` (for the error
+    /// message when a statement does not end after it, as in
+    /// `x = await 1`).
+    prev_await: Option<u32>,
     /// The limits of the scope analysis (smaller ones in tests).
     limits: analysis::Limits,
     ast: Ast,
@@ -241,6 +306,26 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     scratch_declarators: Vec<Declarator>,
     scratch_quasis: Vec<TemplateElement>,
     scratch_cases: Vec<SwitchCase>,
+    scratch_pattern_properties: Vec<PatternProperty>,
+    /// Per element of the parameter list being parsed: the binding mark
+    /// before it and its end.
+    scratch_param_marks: Vec<(usize, u32)>,
+    /// The items recorded in the open scopes (see [`Recorded`]); the items
+    /// of a scope are cut off when it closes, so the items after a mark
+    /// taken in the current scope all belong to it.
+    recorded: Vec<Recorded>,
+    /// The length of [`Parser::recorded`] when the current scope was
+    /// entered: a statement of the scope starts with no item of an earlier
+    /// statement (none of them can move), so each statement cuts the list
+    /// back to it.
+    scope_base: usize,
+    /// The first early error of the current assignment expression that
+    /// applies only if it is not converted into a pattern: a
+    /// `CoverInitializedName` (`{a = 1}`) or a duplicate `__proto__`.
+    cover_error: Option<(u32, &'static str)>,
+    /// Array and object literals with a trailing comma after a spread
+    /// element: valid literals, but not valid patterns.
+    trailing_comma_after_spread: HashSet<ExprId>,
 }
 
 impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
@@ -260,6 +345,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             body: List::EMPTY,
             span: crate::ast::Span::new(0, source.len() as u32),
             scope: ScopeId::from_index(0),
+            body_scope: ScopeId::from_index(0),
             parent: None,
         });
         scopes.add_function();
@@ -277,7 +363,8 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             },
             peeked: None,
             prev_end: 0,
-            prev_await: false,
+            prev_start: 0,
+            prev_await: None,
             limits: analysis::Limits::DEFAULT,
             ast,
             scopes,
@@ -293,6 +380,12 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             scratch_declarators: Vec::new(),
             scratch_quasis: Vec::new(),
             scratch_cases: Vec::new(),
+            scratch_pattern_properties: Vec::new(),
+            scratch_param_marks: Vec::new(),
+            recorded: Vec::new(),
+            scope_base: 0,
+            cover_error: None,
+            trailing_comma_after_spread: HashSet::new(),
         }
     }
 
@@ -306,6 +399,9 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
         if let Some(function) = self.ast.function_mut(top) {
             function.body = body;
             function.strict = strict;
+        }
+        if let Some(function) = self.scopes.function_mut(top) {
+            function.has_direct_eval = self.ctx.direct_evals > 0;
         }
         analysis::analyze(&self.ast, &mut self.scopes, &self.limits)?;
         Ok(Script {
@@ -321,7 +417,8 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
     /// Moves to the next token.
     fn advance(&mut self) -> PResult<()> {
         self.prev_end = self.token.end;
-        self.prev_await = self.token.kind == TokenKind::Await;
+        self.prev_start = self.token.start;
+        self.prev_await = (self.token.kind == TokenKind::Await).then_some(self.token.start);
         self.token = match self.peeked.take() {
             Some(token) => token,
             None => self.lexer.next_token(Goal::Div)?,
@@ -384,8 +481,8 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             TokenKind::Semicolon => self.advance(),
             TokenKind::RBrace | TokenKind::Eof => Ok(()),
             _ if self.token.newline_before => Ok(()),
-            _ if self.prev_await => Err(ParseError::syntax(
-                self.token.start,
+            _ if self.prev_await.is_some() => Err(ParseError::syntax(
+                self.prev_await.unwrap_or(self.token.start),
                 messages::AWAIT_OUTSIDE_ASYNC,
             )),
             _ => Err(self.unexpected()),
@@ -410,19 +507,45 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             | TokenKind::TemplateTail => messages::UNEXPECTED_TEMPLATE.into(),
             TokenKind::Identifier => {
                 let name = token.name().unwrap_or(names::AWAIT);
-                if self.ctx.strict && is_strict_reserved(name) {
+                if token.escaped && self.is_reserved_here(name) {
+                    messages::ESCAPED_KEYWORD.into()
+                } else if self.ctx.strict && is_strict_reserved(name) {
                     messages::UNEXPECTED_STRICT_RESERVED.into()
+                } else if matches!(name, names::OF | names::ASYNC | names::GET | names::SET) {
+                    // V8 has a token for each of these.
+                    messages::unexpected_token(&self.name_text(name)).into()
                 } else {
                     messages::unexpected_identifier(&self.name_text(name)).into()
                 }
             }
             TokenKind::Yield if self.ctx.strict => messages::UNEXPECTED_STRICT_RESERVED.into(),
             TokenKind::Yield => messages::unexpected_identifier("yield").into(),
-            TokenKind::Enum => messages::UNEXPECTED_RESERVED.into(),
+            TokenKind::Enum | TokenKind::Await => messages::UNEXPECTED_RESERVED.into(),
             TokenKind::RegExp => "Unexpected regular expression".into(),
             kind => messages::unexpected_token(kind.text()).into(),
         };
         ParseError::syntax(token.start, message)
+    }
+
+    /// The error for a property key that is not an identifier, in a
+    /// shorthand property: V8 marks the `]` of a computed key.
+    fn unexpected_key(&self, key_token: &Token) -> ParseError {
+        let mut error = self.unexpected_token(key_token);
+        if key_token.kind == TokenKind::LBracket {
+            error.offset = self.prev_end.saturating_sub(1);
+        }
+        error
+    }
+
+    /// Whether an identifier with this name is a keyword here, so that an
+    /// escaped spelling is an error (§12.7.1): a reserved word, `yield` in
+    /// generators and strict mode code, the strict mode reserved words.
+    fn is_reserved_here(&self, name: NameId) -> bool {
+        TokenKind::keyword_from_name(name).is_some_and(|keyword| match keyword {
+            TokenKind::Yield => self.ctx.generator || self.ctx.strict,
+            TokenKind::Await => false,
+            _ => true,
+        }) || (self.ctx.strict && is_strict_reserved(name))
     }
 
     fn name_text(&self, name: NameId) -> String {
@@ -491,6 +614,13 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
         {
             return error(messages::ESCAPED_KEYWORD);
         }
+        // V8 words an escaped `yield` in a declaration like the plain one.
+        if escaped
+            && self.is_reserved_here(name)
+            && (name != names::YIELD || usage == IdentUse::Reference)
+        {
+            return error(messages::ESCAPED_KEYWORD);
+        }
         if name == names::YIELD && self.ctx.generator {
             return Err(ParseError::syntax(
                 token.start,
@@ -523,22 +653,54 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
         let reference = self
             .scopes
             .push_reference(name, self.scope, offset, declaration);
+        self.recorded.push(Recorded::Reference(reference));
         Ident { name, reference }
     }
 
-    /// Opens a scope inside the current one and makes it current. Returns
-    /// the previous scope, to restore with [`Parser::close_scope`].
-    fn open_scope(&mut self, kind: ScopeKind, start: u32) -> ScopeId {
-        let outer = self.scope;
-        self.scope = self
-            .scopes
-            .push_scope(kind, Some(outer), self.ctx.function, start);
-        outer
+    /// Creates a scope of the current function below `parent`.
+    fn new_scope(&mut self, kind: ScopeKind, parent: ScopeId, start: u32) -> ScopeId {
+        self.new_scope_of(kind, parent, self.ctx.function, start)
     }
 
-    fn close_scope(&mut self, outer: ScopeId) {
+    /// Creates a scope of `function` below `parent`; records it if it is
+    /// a child of the current scope.
+    fn new_scope_of(
+        &mut self,
+        kind: ScopeKind,
+        parent: ScopeId,
+        function: FunctionId,
+        start: u32,
+    ) -> ScopeId {
+        let scope = self.scopes.push_scope(kind, Some(parent), function, start);
+        if parent == self.scope {
+            self.recorded.push(Recorded::Scope(scope));
+        }
+        scope
+    }
+
+    /// Makes `scope` current, until [`Parser::leave_scope`].
+    fn enter_scope(&mut self, scope: ScopeId) -> Entered {
+        let mark = self.recorded.len();
+        Entered {
+            outer: std::mem::replace(&mut self.scope, scope),
+            mark,
+            outer_base: std::mem::replace(&mut self.scope_base, mark),
+        }
+    }
+
+    /// Closes the current scope and returns to the one before it.
+    fn leave_scope(&mut self, entered: Entered) {
         self.scopes.close_scope(self.scope);
-        self.scope = outer;
+        self.recorded.truncate(entered.mark);
+        self.scope = entered.outer;
+        self.scope_base = entered.outer_base;
+    }
+
+    /// Opens a scope inside the current one and makes it current, until
+    /// [`Parser::leave_scope`].
+    fn open_scope(&mut self, kind: ScopeKind, start: u32) -> Entered {
+        let scope = self.new_scope(kind, self.scope, start);
+        self.enter_scope(scope)
     }
 
     /// Checks a literal token against the strict mode rules for Annex B
@@ -548,8 +710,43 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             return Ok(());
         }
         legacy_error(token.legacy).map_or(Ok(()), |message| {
-            Err(ParseError::syntax(token.start, message))
+            let offset = self.legacy_offset(token.start, token.end, token.legacy);
+            Err(ParseError::syntax(offset, message))
         })
+    }
+
+    /// Where V8 marks a legacy string escape: the digit after the
+    /// backslash of an octal escape, the backslash of `\8` and `\9`. The
+    /// start of the token for the other legacy forms.
+    pub(super) fn legacy_offset(&self, start: u32, end: u32, legacy: Legacy) -> u32 {
+        if !matches!(legacy, Legacy::OctalEscape | Legacy::EightOrNine) {
+            return start;
+        }
+        let Some(text) = self.lexer.text(start, end) else {
+            return start;
+        };
+        let mut index = 0;
+        while let Some(unit) = text.get(index) {
+            if unit == 0x5C {
+                let offset = start + index as u32;
+                match text.get(index + 1) {
+                    Some(0x38 | 0x39) => return offset,
+                    Some(digit @ 0x30..=0x37)
+                        if digit != 0x30
+                            || text
+                                .get(index + 2)
+                                .is_some_and(|u| (0x30..=0x39).contains(&u)) =>
+                    {
+                        return offset + 1;
+                    }
+                    _ => {}
+                }
+                index += 2;
+            } else {
+                index += 1;
+            }
+        }
+        start
     }
 }
 

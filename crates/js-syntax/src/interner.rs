@@ -113,6 +113,9 @@ pub mod names {
         TARGET = "target",
         USE_STRICT = "use strict",
         PROTO = "__proto__",
+        // The name of the implicit `new.target` binding (not an
+        // identifier, so no script can declare it).
+        NEW_TARGET = "new.target",
     }
 
     /// The number of reserved words; their ids are `0..RESERVED_WORDS`.

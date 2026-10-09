@@ -15,14 +15,18 @@
 //!   global lexical bindings; both are accessed by name (§9.1.1.4).
 //! - [`ScopeKind::Function`]: the parameters, `var` and function
 //!   declarations and the top-level lexical declarations of a function
-//!   body. (Parameter expressions, M7, need a separate scope for the
-//!   parameters, §10.2.11 step 28.)
+//!   body.
+//! - [`ScopeKind::FunctionBody`]: in a function with parameter
+//!   expressions (defaults, computed keys in parameter patterns), the
+//!   top-level declarations of the body, so that the parameter
+//!   expressions do not see them (§10.2.11 step 28). The function scope
+//!   then holds only the parameters (and `arguments`).
 //! - [`ScopeKind::FunctionName`]: the name of a named function
 //!   expression, between the enclosing scope and the function's scope.
 //! - [`ScopeKind::Block`], [`ScopeKind::Catch`] (the catch parameter and
 //!   the declarations of the catch block), [`ScopeKind::For`] (the
 //!   lexical declarations of a `for` head), [`ScopeKind::Switch`] (the
-//!   case block).
+//!   case block), [`ScopeKind::With`] (the body of a `with` statement).
 //!
 //! Contract for the compiler:
 //!
@@ -37,6 +41,22 @@
 //!   at the declaration.
 //! - [`FunctionScope::mapped_arguments`]: the parameters are cells; the
 //!   arguments object holds them.
+//! - Parameters: with a simple parameter list, parameter `i` is register
+//!   `i` ([`FunctionScope::params`]). With a non-simple list (patterns,
+//!   defaults, a rest parameter), registers `0..argument_registers` hold
+//!   the argument values, `params` is empty, and every binding of the
+//!   list is an ordinary binding of the function scope (kind
+//!   [`BindingKind::Parameter`]) that the compiler initializes from them
+//!   (`IteratorBindingInitialization`, §10.2.11 step 25). With parameter
+//!   expressions, a parameter has a temporal dead zone until its element
+//!   has run ([`Binding::init_end`]).
+//! - A `var` of a [`ScopeKind::FunctionBody`] scope that has the name of
+//!   a parameter (or `arguments`) starts with the value of that binding
+//!   of the function scope, the others with `undefined` (§10.2.11 step
+//!   28.f).
+//! - `for`-`in` and `for`-`of` with `let` or `const`: the right side is
+//!   evaluated in the head's scope with its bindings uninitialized; each
+//!   iteration then creates new cells for them ([`Scope::per_iteration`]).
 //! - The analysis keeps `analysis::TEMPORARIES_RESERVE` registers free
 //!   of declared bindings, but the compiler must check the total register
 //!   count of a function (declared bindings and temporaries) against the
@@ -69,11 +89,20 @@ pub enum ScopeKind {
     Block,
     /// A `catch` clause: the parameter and the block.
     Catch,
-    /// The head of a `for` statement with `let` or `const`.
+    /// The head of a three-part `for` statement with `let` or `const`.
     For,
+    /// The head of a `for`-`in` or `for`-`of` statement.
+    ForInOf,
     /// The case block of a `switch` statement: all clauses share it, so
     /// a clause can run without the declarations of an earlier clause.
     Switch,
+    /// The body of a `with` statement: an object environment (no
+    /// bindings of its own). The names inside resolve through the object
+    /// at run time (M7 feature 1c).
+    With,
+    /// The top-level declarations of the body of a function with
+    /// parameter expressions (a var scope of its own).
+    FunctionBody,
 }
 
 /// A scope.
@@ -96,9 +125,11 @@ pub struct Scope {
     /// Whether some binding of the scope is a cell (cells are created
     /// when the scope is entered).
     pub has_cells: bool,
-    /// A `for` scope whose `let` bindings are cells: the loop copies them
-    /// into new cells (`CreatePerIterationEnvironment`, §14.7.4.4) before
-    /// the first test and before every update. A closure created in the
+    /// A `for` scope whose `let` (or, in `for`-`in` and `for`-`of`, also
+    /// `const`) bindings are cells: a three-part loop copies them into
+    /// new cells (`CreatePerIterationEnvironment`, §14.7.4.4) before the
+    /// first test and before every update; `for`-`in` and `for`-`of`
+    /// create new cells for each iteration (§14.7.5.7). A closure created in the
     /// head keeps the cells of the initialization (`for (let i = 0, g =
     /// () => i; i < 1; i++) { i = 5 }`: `g()` returns 0). The cells of
     /// the scope are created at scope entry as usual; the copies are the
@@ -137,6 +168,9 @@ pub enum BindingKind {
     /// The `this` value of a non-arrow function or of the script
     /// (implicit; its name is `this`), stored at function entry.
     This,
+    /// The `new.target` value of a non-arrow function (implicit; its
+    /// name is `new.target`), stored at function entry.
+    NewTarget,
 }
 
 impl BindingKind {
@@ -174,8 +208,11 @@ pub struct Binding {
     /// The offset of the binding identifier (of the first declaration),
     /// or of the scope for implicit bindings.
     pub offset: u32,
-    /// For `let` and `const`: the offset after the declarator; a load in
-    /// the same function after it needs no TDZ check.
+    /// For `let` and `const`: the offset after the declarator (in a
+    /// `for`-`in` or `for`-`of` head: after the right side); a load in
+    /// the same function after it needs no TDZ check. For a parameter of
+    /// a function with parameter expressions: the end of its element of
+    /// the parameter list (the parameter has a TDZ until then).
     pub init_end: u32,
     /// Whether an inner function refers to it (or a direct `eval` can).
     pub captured: bool,
@@ -253,9 +290,13 @@ pub struct Capture {
 /// The results of the scope analysis for one function.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FunctionScope {
-    /// The binding of each parameter position (duplicate names in sloppy
-    /// mode share a binding, whose register is the last position).
+    /// The binding of each parameter position of a simple parameter list
+    /// (duplicate names in sloppy mode share a binding, whose register is
+    /// the last position); empty for a non-simple list.
     pub params: Vec<BindingId>,
+    /// The registers `0..argument_registers` that receive the argument
+    /// values: one per element of the parameter list.
+    pub argument_registers: u32,
     /// The registers of the declared bindings: the parameters first
     /// (registers `0..params.len()`), then the other bindings. The
     /// compiler allocates temporaries after these.
@@ -271,6 +312,9 @@ pub struct FunctionScope {
     /// inside it uses `arguments`: the function creates the object at
     /// entry.
     pub arguments_binding: Option<BindingId>,
+    /// The `new.target` binding, if the function or an arrow function
+    /// inside it uses `new.target`.
+    pub new_target_binding: Option<BindingId>,
     /// Whether the function has a mapped `arguments` object (sloppy mode,
     /// simple parameters, an `arguments` binding): all its parameters are
     /// cells, which the object holds.
@@ -431,7 +475,9 @@ impl ScopeTree {
     ) -> ScopeId {
         let id = ScopeId::from_index(self.scopes.len());
         let hoist_to = match (kind, parent) {
-            (ScopeKind::Function | ScopeKind::Script, _) | (_, None) => id,
+            (ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody, _) | (_, None) => {
+                id
+            }
             (_, Some(parent)) => self.scope(parent).hoist_to,
         };
         self.scopes.push(Scope {
@@ -495,30 +541,31 @@ impl ScopeTree {
         self.references.get_mut(id.index())
     }
 
-    /// The number of references, scopes and functions so far (marks for
-    /// the arrow function cover grammar).
-    pub(crate) fn marks(&self) -> (usize, usize) {
-        (self.references.len(), self.scopes.len())
+    /// Moves an identifier occurrence of an arrow function's parameters,
+    /// recorded in `from` before the `=>`, into the arrow's scope `to`
+    /// (the cover grammar, §15.3).
+    pub(crate) fn move_reference(&mut self, id: RefId, from: ScopeId, to: ScopeId) {
+        if let Some(reference) = self.references.get_mut(id.index())
+            && reference.scope == from
+        {
+            reference.scope = to;
+        }
     }
 
-    /// Moves what the parser recorded since `marks` in scope `from` into
-    /// scope `to`: the occurrences and the child scopes of an arrow
-    /// function's parameters, which were parsed as an expression before
-    /// the `=>` (the cover grammar, §15.3).
-    pub(crate) fn reparent_since(&mut self, marks: (usize, usize), from: ScopeId, to: ScopeId) {
-        let (references, scopes) = marks;
-        for reference in self.references.get_mut(references..).unwrap_or(&mut []) {
-            if reference.scope == from {
-                reference.scope = to;
-            }
-        }
+    /// Moves a child scope of `from` (in an arrow function's parameters)
+    /// below the arrow's scope `to`.
+    pub(crate) fn move_scope(&mut self, id: ScopeId, from: ScopeId, to: ScopeId) {
         let var_scope = self.scope(to).hoist_to;
-        for (index, scope) in self.scopes.iter_mut().enumerate().skip(scopes) {
-            if scope.parent == Some(from) && index != to.index() {
-                scope.parent = Some(to);
-                if !matches!(scope.kind, ScopeKind::Function | ScopeKind::Script) {
-                    scope.hoist_to = var_scope;
-                }
+        if let Some(scope) = self.scopes.get_mut(id.index())
+            && scope.parent == Some(from)
+            && id != to
+        {
+            scope.parent = Some(to);
+            if !matches!(
+                scope.kind,
+                ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody
+            ) {
+                scope.hoist_to = var_scope;
             }
         }
     }
@@ -548,15 +595,27 @@ impl ScopeTree {
         id
     }
 
-    fn declared_in(&self, scope: ScopeId, name: NameId) -> Option<BindingId> {
+    pub(crate) fn declared_in(&self, scope: ScopeId, name: NameId) -> Option<BindingId> {
         self.declared.get(&key(scope, name)).copied()
     }
 
     fn is_var_scope(&self, scope: ScopeId) -> bool {
         matches!(
             self.scope(scope).kind,
-            ScopeKind::Function | ScopeKind::Script
+            ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody
         )
+    }
+
+    /// Whether `name` is a parameter of the function whose body scope is
+    /// `scope` (a [`ScopeKind::FunctionBody`]): a lexical declaration of
+    /// the body cannot have the name (§15.2.1).
+    fn is_parameter_of_body(&self, scope: ScopeId, name: NameId) -> bool {
+        let entry = self.scope(scope);
+        entry.kind == ScopeKind::FunctionBody
+            && entry.parent.is_some_and(|params| {
+                self.declared_in(params, name)
+                    .is_some_and(|b| self.binding(b).kind == BindingKind::Parameter)
+            })
     }
 
     /// The key of a name in a function, for the early error tables.
@@ -590,7 +649,10 @@ impl ScopeTree {
         kind: BindingKind,
         offset: u32,
     ) -> Result<BindingId, Redeclared> {
-        if self.declared_in(scope, name).is_some() || self.var_declared_inside(scope, name) {
+        if self.declared_in(scope, name).is_some()
+            || self.var_declared_inside(scope, name)
+            || self.is_parameter_of_body(scope, name)
+        {
             return Err(Redeclared);
         }
         self.note_lexical(scope, name);
@@ -647,14 +709,54 @@ impl ScopeTree {
         }
     }
 
-    /// Declares a catch parameter in a fresh catch scope.
+    /// The number of bindings so far.
+    pub(crate) fn binding_mark(&self) -> usize {
+        self.bindings.len()
+    }
+
+    /// Sets [`Binding::init_end`] of the bindings of `scope` in the range
+    /// of binding indices (from [`ScopeTree::binding_mark`]): the
+    /// parameters (`parameters` set: an element of a parameter list with
+    /// expressions) or the lexical bindings (a `for`-`in` or `for`-`of`
+    /// head).
+    pub(crate) fn set_init_end_range(
+        &mut self,
+        range: std::ops::Range<usize>,
+        scope: ScopeId,
+        parameters: bool,
+        end: u32,
+    ) {
+        let bindings = self.bindings.get_mut(range).unwrap_or(&mut []);
+        for binding in bindings.iter_mut().filter(|b| b.scope == scope) {
+            let wanted = if parameters {
+                binding.kind == BindingKind::Parameter
+            } else {
+                binding.kind.is_lexical()
+            };
+            if wanted {
+                binding.init_end = end;
+            }
+        }
+    }
+
+    /// Declares a catch parameter in a fresh catch scope. A name of a
+    /// pattern (`pattern` set) may not repeat, and the block cannot
+    /// declare it with `var` (§14.15.1; Annex B.3.4 allows that only for a
+    /// single identifier).
     pub(crate) fn declare_catch_param(
         &mut self,
         scope: ScopeId,
         name: NameId,
         offset: u32,
-    ) -> BindingId {
-        self.new_binding(scope, name, BindingKind::CatchParameter, offset)
+        pattern: bool,
+    ) -> Result<BindingId, Redeclared> {
+        if self.declared_in(scope, name).is_some() {
+            return Err(Redeclared);
+        }
+        if pattern {
+            self.note_lexical(scope, name);
+        }
+        Ok(self.new_binding(scope, name, BindingKind::CatchParameter, offset))
     }
 
     /// Declares the name of a named function expression in its
@@ -710,13 +812,6 @@ impl ScopeTree {
         };
         self.function_decls.push((scope, function));
         Ok(binding)
-    }
-
-    /// Sets the end of a lexical declarator (for the TDZ check elision).
-    pub(crate) fn set_init_end(&mut self, binding: BindingId, end: u32) {
-        if let Some(binding) = self.binding_mut(binding) {
-            binding.init_end = end;
-        }
     }
 }
 #[cfg(test)]

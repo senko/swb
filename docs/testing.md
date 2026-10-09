@@ -27,7 +27,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
-| test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`); `just test262`, not part of `just check` | no |
+| test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -70,7 +70,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
-| `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json` (see "JavaScript engine tools"). |
+| `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json`; `--parse-only` runs only the front end over `test/language/`, `test/built-ins/` and `test/annexB/` against `parse-scores.json` (see "JavaScript engine tools"). |
 | `just jsdiff FILE...`        | `jsdiff FILE...`                       | Runs files in `swb-js` and in Node.js and diffs stdout and the uncaught error. |
 | `just jsbench [DIR]`         | `jsbench [DIR] [--runs N]`             | The engine's benchmark programs against `node --jitless`; for a directory of scripts also lexing, parse and compile ([performance.md](performance.md)). |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
@@ -902,6 +902,8 @@ another directory and `TEST262_URL` another repository.
   `--report FILE` (one TSV line per test and mode), `--stress`, `--jobs`,
   `--time-limit MS` (default 10000), `--heap-limit MIB` (default 256),
   `--top N`.
+- The groups of `test/built-ins/` have three components
+  (`test/built-ins/Array`); all others four.
 - `crates/js/test262/scores.json` has the pass count per group. The run
   prints the change and exits with 1 if a count went down (or a test
   panicked, or no test was found, or the file is corrupt; a missing file
@@ -910,6 +912,29 @@ another directory and `TEST262_URL` another repository.
   regression. `just test262 --update` writes the counts of the groups of
   the subset and refuses a partial run (a path to a file or below a
   group). The file may only go up; commit it with the change that raised it.
+
+Parse-only mode: `just test262 --parse-only [PATH...]` (`swb-js test262
+--parse-only`) runs only the parser, the early errors and the scope
+analysis of `js-syntax`, without the harness files. Without PATH it runs
+all of `test/language/`, `test/built-ins/` and `test/annexB/`.
+
+- A negative test of phase `parse` passes if the parse fails with a
+  `SyntaxError`; every other test passes if it parses. A test runs in
+  sloppy and strict mode as its flags say (strict: `"use strict";` before
+  the source, except with `raw`).
+- Skipped: tests with the flag `module` (M7 feature 1c), with the phase
+  `resolution`, and tests with a feature of
+  `crates/js/test262/parse-skip.txt` (the proposals of test262's
+  `features.txt` and the features standardized after ECMA-262 2025).
+- "not supported yet" (the constructs of later M7 features) counts as
+  unsupported, apart from failures. A negative test of regular expression
+  syntax that parses fails with the cause "regular expression syntax, M7
+  feature 8a", so the table of failure causes shows their count.
+- Scores: `crates/js/test262/parse-scores.json`, with the same ratchet:
+  the run fails if the pass count of a group that it covers completely
+  went down. `--update` writes the counts of all groups of the run (and
+  refuses a partial run). A whole run takes about a second in a release
+  build.
 
 ### jsdiff and jsbench
 

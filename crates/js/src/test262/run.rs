@@ -253,10 +253,16 @@ pub(crate) fn combine(results: &[(&'static str, Status)]) -> Status {
     unsupported.unwrap_or(Status::Pass)
 }
 
-/// The group of a test path: the first four components of its directory.
+/// The group of a test path: the first four components of its directory
+/// (three for `test/built-ins/`, whose third component is the built-in).
 pub(crate) fn group_of(path: &str) -> String {
     let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
-    dir.split('/').take(4).collect::<Vec<_>>().join("/")
+    let depth = if dir.starts_with("test/built-ins/") {
+        3
+    } else {
+        4
+    };
+    dir.split('/').take(depth).collect::<Vec<_>>().join("/")
 }
 
 /// Collects the `*.js` tests (not fixtures) below `root`, sorted.
@@ -388,6 +394,10 @@ mod tests {
             "test/language/statements/class"
         );
         assert_eq!(group_of("test/language/asi/a.js"), "test/language/asi");
+        assert_eq!(
+            group_of("test/built-ins/Array/prototype/map/a.js"),
+            "test/built-ins/Array"
+        );
     }
 
     const HARNESS: &str = "function Test262Error(m) { this.message = m; }\n\

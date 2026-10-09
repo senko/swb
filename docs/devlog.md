@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M7 feature 1a, patterns and the remaining expressions
+
+- `js-syntax`: destructuring (declarations, parameters, `catch`, `for`
+  heads, assignment through the cover grammar), spread and rest,
+  default parameters, `for`-`in` and `for`-`of`, optional chaining,
+  tagged templates, `new.target`, `BigInt` literals, `yield*`,
+  accessors and computed keys in object literals, `with`; their early
+  errors with V8's messages and positions, measured in Node 22. The
+  cover conversion stays linear: the names, scopes and functions of a
+  cover expression are logged per open scope, and an arrow moves only
+  its own part. Functions with parameter expressions get a separate
+  body scope (§10.2.11); `let` and `const` in `for`-`in`/`of` heads get
+  per-iteration cells and a TDZ for the right side.
+- `js`: the compiler rejects the new forms with "not supported yet"
+  before it compiles anything (`compiler/support.rs`).
+- test262 has a parse-only mode with its own scores: 28,203 pass, 364
+  fail (358 regular expression syntax). The runtime scores rose from
+  3,762 to 4,152 (negative syntax tests). 34 of 60 BBC and 19 of 24 Ars
+  scripts parse; the rest stop at `class` or `async`.
+- Review: no wrong verdict in about 1,300 sources and 36,000
+  truncations compared with Node; all 53,655 passing parse verdicts
+  were also checked in Node. Fixed: error positions (the tests now
+  check them) and some messages.
+- Next: M7 feature 1b, classes and `async`.
+
 ## 2026-10-09: M6 maintenance of the JavaScript crates
 
 - Two reviewers read `js-text`, `js-regexp`, `js-syntax` and the Python

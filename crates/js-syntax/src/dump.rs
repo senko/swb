@@ -10,9 +10,9 @@ use std::fmt::Write;
 use swb_js_text::Str16;
 
 use crate::ast::{
-    AssignOp, AssignTarget, BinaryOp, CatchClause, Declarator, ExprId, ExprKind, FunctionId,
-    FunctionKind, List, LogicalOp, PatternId, PatternKind, Property, PropertyKey, PropertyKind,
-    StmtId, StmtKind, TemplateId, UnaryOp, UpdateOp, VariableKind,
+    AssignOp, AssignTarget, BinaryOp, CatchClause, Declarator, ExprId, ExprKind, ForHead,
+    FunctionId, FunctionKind, List, LogicalOp, PatternId, PatternKind, Property, PropertyKey,
+    PropertyKind, StmtId, StmtKind, TemplateId, UnaryOp, UpdateOp, VariableKind,
 };
 use crate::parser::Script;
 use crate::scope::{CaptureSource, Resolution, Storage};
@@ -112,6 +112,13 @@ impl Dumper<'_> {
                 body,
                 ..
             } => self.for_stmt(init, test, update, body),
+            StmtKind::ForIn {
+                left, right, body, ..
+            } => self.for_in_of("(for-in ", left, right, body),
+            StmtKind::ForOf {
+                left, right, body, ..
+            } => self.for_in_of("(for-of ", left, right, body),
+            StmtKind::With { object, body, .. } => self.with_stmt(object, body),
             StmtKind::Labeled { label, body } => {
                 self.text("(label ");
                 self.name(label);
@@ -198,6 +205,34 @@ impl Dumper<'_> {
         self.text(")");
     }
 
+    fn for_in_of(&mut self, head: &str, left: ForHead, right: ExprId, body: StmtId) {
+        self.text(head);
+        match left {
+            ForHead::Declaration(stmt) => self.stmt(stmt),
+            ForHead::Target(target) => self.assign_target(target),
+        }
+        self.text(" ");
+        self.expr(right);
+        self.text(" ");
+        self.stmt(body);
+        self.text(")");
+    }
+
+    fn with_stmt(&mut self, object: ExprId, body: StmtId) {
+        self.text("(with ");
+        self.expr(object);
+        self.text(" ");
+        self.stmt(body);
+        self.text(")");
+    }
+
+    fn assign_target(&mut self, target: AssignTarget) {
+        match target {
+            AssignTarget::Simple(expr) => self.expr(expr),
+            AssignTarget::Pattern(pattern) => self.pattern(pattern),
+        }
+    }
+
     fn switch_stmt(&mut self, discriminant: ExprId, cases: List<crate::ast::SwitchCase>) {
         let ast = &self.script.ast;
         self.text("(switch ");
@@ -241,9 +276,72 @@ impl Dumper<'_> {
         self.text(")");
     }
 
+    /// A pattern: `[a _ ...b]` (array; `_` an elision), `{(key a) ...b}`
+    /// (object), `(= target value)` (a default).
     fn pattern(&mut self, id: PatternId) {
-        let PatternKind::Identifier(ident) = self.script.ast.pattern(id).kind;
-        self.name(ident.name);
+        let ast = &self.script.ast;
+        match ast.pattern(id).kind {
+            PatternKind::Identifier(ident) => self.name(ident.name),
+            PatternKind::Expr(expr) => self.expr(expr),
+            PatternKind::Hole => self.text("_"),
+            PatternKind::Rest(target) => {
+                self.text("...");
+                self.pattern(target);
+            }
+            PatternKind::Default { target, value } => {
+                self.text("(= ");
+                self.pattern(target);
+                self.text(" ");
+                self.expr(value);
+                self.text(")");
+            }
+            PatternKind::Array(list) => {
+                self.text("[");
+                for (index, &element) in ast.patterns(list).iter().enumerate() {
+                    if index > 0 {
+                        self.text(" ");
+                    }
+                    self.pattern(element);
+                }
+                self.text("]");
+            }
+            PatternKind::Object { properties, rest } => {
+                self.text("{");
+                for (index, property) in ast.pattern_properties(properties).iter().enumerate() {
+                    if index > 0 {
+                        self.text(" ");
+                    }
+                    self.text("(");
+                    self.key(property.key);
+                    self.text(" ");
+                    self.pattern(property.value);
+                    self.text(")");
+                }
+                if let Some(rest) = rest {
+                    if !properties.is_empty() {
+                        self.text(" ");
+                    }
+                    self.text("...");
+                    self.pattern(rest);
+                }
+                self.text("}");
+            }
+        }
+    }
+
+    fn key(&mut self, key: PropertyKey) {
+        match key {
+            PropertyKey::Name(name) => self.name(name),
+            PropertyKey::Number(value) => {
+                let _ = write!(self.out, "{value}");
+            }
+            PropertyKey::BigInt(digits) => self.bigint(digits),
+            PropertyKey::Computed(key) => {
+                self.text("[");
+                self.expr(key);
+                self.text("]");
+            }
+        }
     }
 
     fn function(&mut self, id: FunctionId) {
@@ -253,6 +351,8 @@ impl Dumper<'_> {
             (FunctionKind::Arrow, _) => "(=>",
             (FunctionKind::Method, false) => "(method",
             (FunctionKind::Method, true) => "(method*",
+            (FunctionKind::Getter, _) => "(getter",
+            (FunctionKind::Setter, _) => "(setter",
             (_, false) => "(function",
             (_, true) => "(function*",
         };
@@ -337,38 +437,74 @@ impl Dumper<'_> {
                 alternate,
             } => self.list("?", &[test, consequent, alternate]),
             ExprKind::Assign { op, target, value } => {
-                let AssignTarget::Simple(target) = target;
                 let head = match op {
                     AssignOp::Assign => "=".to_owned(),
                     AssignOp::Compound(op) => format!("{}=", binary_text(op)),
                     AssignOp::Logical(op) => format!("{}=", logical_text(op)),
                 };
-                self.list(&head, &[target, value]);
+                self.text("(");
+                self.text(&head);
+                self.text(" ");
+                self.assign_target(target);
+                self.text(" ");
+                self.expr(value);
+                self.text(")");
             }
             ExprKind::Sequence(list) => self.list(",", ast.exprs(list)),
-            ExprKind::Member { object, property } => {
-                self.text("(. ");
+            ExprKind::Member {
+                object,
+                property,
+                optional,
+            } => {
+                self.text(if optional { "(?. " } else { "(. " });
                 self.expr(object);
                 self.text(" ");
                 self.name(property);
                 self.text(")");
             }
-            ExprKind::Index { object, index } => self.list("[]", &[object, index]),
-            ExprKind::Call { callee, arguments } => {
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            } => self.list(if optional { "?.[]" } else { "[]" }, &[object, index]),
+            ExprKind::Call {
+                callee,
+                arguments,
+                optional,
+            } => {
                 let mut items = vec![callee];
                 items.extend_from_slice(ast.exprs(arguments));
-                self.list("call", &items);
+                self.list(if optional { "?.call" } else { "call" }, &items);
             }
             ExprKind::New { callee, arguments } => {
                 let mut items = vec![callee];
                 items.extend_from_slice(ast.exprs(arguments));
                 self.list("new", &items);
             }
-            ExprKind::Yield { argument } => match argument {
-                Some(argument) => self.list("yield", &[argument]),
+            ExprKind::Yield { argument, delegate } => match argument {
+                Some(argument) => self.list(if delegate { "yield*" } else { "yield" }, &[argument]),
                 None => self.text("(yield)"),
             },
+            ExprKind::Spread(argument) => self.list("...", &[argument]),
+            ExprKind::OptionalChain(chain) => self.list("chain", &[chain]),
+            ExprKind::TaggedTemplate { tag, template } => self.tagged_template(tag, template),
+            ExprKind::NewTarget(_) => self.text("new.target"),
+            ExprKind::BigInt(digits) => self.bigint(digits),
         }
+    }
+
+    fn tagged_template(&mut self, tag: ExprId, template: TemplateId) {
+        self.text("(tag ");
+        self.expr(tag);
+        self.text(" ");
+        self.template(template);
+        self.text(")");
+    }
+
+    fn bigint(&mut self, digits: crate::StringId) {
+        let text = self.script.ast.string(digits).to_string_lossy();
+        self.text(&text);
+        self.text("n");
     }
 
     fn object(&mut self, properties: List<Property>) {
@@ -383,19 +519,16 @@ impl Dumper<'_> {
                 PropertyKind::Method => "method ",
                 PropertyKind::Getter => "get ",
                 PropertyKind::Setter => "set ",
+                PropertyKind::Spread => "...",
             });
-            match property.key {
-                PropertyKey::Name(name) => self.name(name),
-                PropertyKey::Number(value) => {
-                    let _ = write!(self.out, "{value}");
-                }
-                PropertyKey::Computed(key) => {
-                    self.text("[");
-                    self.expr(key);
-                    self.text("]");
-                }
+            if property.kind != PropertyKind::Spread {
+                self.key(property.key);
             }
-            if property.kind != PropertyKind::Shorthand {
+            if property.kind == PropertyKind::Spread {
+                self.expr(property.value);
+            } else if property.kind != PropertyKind::Shorthand
+                || matches!(ast.expr(property.value).kind, ExprKind::Assign { .. })
+            {
                 self.text(" ");
                 self.expr(property.value);
             }

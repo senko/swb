@@ -53,7 +53,7 @@ Format: source, license (for code), what it influenced.
   `js-text/src/string16.rs`; clauses 13 to 16 (expressions, statements,
   functions, scripts and their early errors), §9.1 and §10.2.11
   (environments, FunctionDeclarationInstantiation), §14.7.4.4
-  (per-iteration bindings) and Annex B.3.1 to B.3.4 —
+  (per-iteration bindings) and Annex B.3.1 to B.3.5 —
   `js-syntax/src/parser/`, `js-syntax/src/scope/`. V8's error messages,
   measured as a black box in Node.js 22 — `js-syntax/src/messages.rs`.
   §6.1.6.1.20 (Number::toString), §7.1 (type conversion), §7.2.13 to
