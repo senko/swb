@@ -143,7 +143,8 @@ impl FunctionCompiler<'_> {
             ExprKind::Call { callee, arguments } => self.call(callee, arguments, dst, false),
             ExprKind::New { callee, arguments } => self.call(callee, arguments, dst, true),
             ExprKind::Yield { argument } => {
-                let t = self.temp()?;
+                // `t` receives the sent value, `t + 1` the resume mode.
+                let t = self.temps(2)?;
                 match argument {
                     Some(argument) => {
                         self.expr(argument, Some(t))?;
@@ -153,6 +154,12 @@ impl FunctionCompiler<'_> {
                     }
                 }
                 self.emit(Insn::Yield { reg: t });
+                // `next` skips the return path; `throw` throws here, inside
+                // the handler ranges of the `yield`.
+                let resume = self.emit(Insn::Resume { reg: t, offset: 0 });
+                self.emit_return(t);
+                self.patch_here(resume);
+                self.release(u32::from(t) + 1);
                 match dst {
                     Some(dst) => {
                         self.emit(Insn::Move { dst, src: t });

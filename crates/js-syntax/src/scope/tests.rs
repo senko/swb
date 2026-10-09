@@ -423,6 +423,10 @@ fn needs_tdz_marks_bindings_read_early() {
     // A direct eval can read everything.
     let script = analyze("function f() { let a = 1; eval('a'); }");
     assert_eq!(needs_tdz(&script, "a"), [true]);
+    // The clauses of a switch share a scope; a later clause can run
+    // without the declaration of an earlier one.
+    let script = analyze("function f(x) { switch (x) { case 0: let s = 1; case 1: s; } }");
+    assert_eq!(needs_tdz(&script, "s"), [true]);
 }
 
 /// Parses `source`; panics when it takes longer than `seconds`.

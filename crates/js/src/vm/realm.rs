@@ -7,11 +7,11 @@
 //! global object for `var` and function declarations. Both are accessed by
 //! name.
 //!
-//! The intrinsics live in an array indexed by [`Intrinsic`] (§6.1.7.4).
-//! This session creates only what the interpreter needs: the prototypes of
-//! objects, functions, arrays, the primitive wrappers, generators and the
-//! error types (with `name` and `message`), and `next` on the generator
-//! prototype. The full built-in objects come in session 5.
+//! The intrinsics live in an array indexed by [`Intrinsic`] (§6.1.7.4):
+//! the prototypes that the interpreter needs (objects, functions, arrays,
+//! the primitive wrappers, generators, the error types) and
+//! `%ThrowTypeError%`. The realm is built in a no-GC region; then the
+//! built-in functions are installed ([`crate::builtins`]).
 
 use crate::heap::{Gc, HandleMap, Tracer};
 use crate::object::{Object, ObjectKind};
@@ -38,10 +38,14 @@ pub(crate) enum Intrinsic {
     RangeErrorPrototype,
     ReferenceErrorPrototype,
     SyntaxErrorPrototype,
+    EvalErrorPrototype,
+    UriErrorPrototype,
+    /// `%ThrowTypeError%` (§10.2.4.1).
+    ThrowTypeError,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 14;
+const INTRINSIC_COUNT: usize = 17;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -149,6 +153,16 @@ impl Runtime {
         let range_error_proto = heap.new_object(Some(error_proto))?;
         let reference_error_proto = heap.new_object(Some(error_proto))?;
         let syntax_error_proto = heap.new_object(Some(error_proto))?;
+        let eval_error_proto = heap.new_object(Some(error_proto))?;
+        let uri_error_proto = heap.new_object(Some(error_proto))?;
+        let throw_type_error = heap.new_object_with_kind(
+            Some(function_proto),
+            ObjectKind::Native(Box::new(crate::vm::NativeFunction {
+                func: throw_type_error,
+                realm: index,
+                constructor: false,
+            })),
+        )?;
         let global = heap.new_object(Some(object_proto))?;
         let intrinsics = [
             object_proto,
@@ -165,6 +179,9 @@ impl Runtime {
             range_error_proto,
             reference_error_proto,
             syntax_error_proto,
+            eval_error_proto,
+            uri_error_proto,
+            throw_type_error,
         ];
         let realm = Realm {
             global,
@@ -176,24 +193,23 @@ impl Runtime {
         let length = PropertyKey::String(self.heap.length_atom());
         self.define(string_proto, length, Value::Int(0), false, false, false)?;
         let name_key = PropertyKey::String(self.vm.atoms.name);
-        let message_key = PropertyKey::String(self.vm.atoms.message);
-        for (proto, name) in [
-            (error_proto, "Error"),
-            (type_error_proto, "TypeError"),
-            (range_error_proto, "RangeError"),
-            (reference_error_proto, "ReferenceError"),
-            (syntax_error_proto, "SyntaxError"),
-        ] {
-            let name = self.heap.intern_str(name)?;
-            self.define(proto, name_key, name.into(), true, false, true)?;
-            let empty = self.vm.atoms.empty;
-            self.define(proto, message_key, empty.into(), true, false, true)?;
-        }
         // Function.prototype is a function with length 0 and name "".
         let length = PropertyKey::String(self.heap.length_atom());
         self.define(function_proto, length, Value::Int(0), false, false, true)?;
         let empty = self.vm.atoms.empty;
         self.define(function_proto, name_key, empty.into(), false, false, true)?;
+        // %ThrowTypeError%: length 0 and name "", both fixed; not
+        // extensible (§10.2.4.1).
+        self.define(throw_type_error, length, Value::Int(0), false, false, false)?;
+        self.define(
+            throw_type_error,
+            name_key,
+            empty.into(),
+            false,
+            false,
+            false,
+        )?;
+        self.heap.prevent_extensions(throw_type_error)?;
         // The value properties of the global object (§19.1).
         for (name, value) in [
             ("undefined", Value::Undefined),
@@ -209,24 +225,18 @@ impl Runtime {
     }
 
     /// Creates the error object of a [`VmError::Raise`] in the current
-    /// realm: an ordinary object with the error prototype and an own
-    /// `message` (§20.5.6.1.1; `stack` and the constructors come with the
-    /// built-ins).
+    /// realm: an error object with the error prototype and an own
+    /// `message`, as the constructors create it (§20.5.6.1.1; `stack` is
+    /// M7).
     pub(crate) fn error_object(
         &mut self,
         kind: crate::error::ThrowKind,
         message: &str,
     ) -> VmResult<Gc<Object>> {
-        use crate::error::ThrowKind;
-        let proto = match kind {
-            ThrowKind::Error => Intrinsic::ErrorPrototype,
-            ThrowKind::TypeError => Intrinsic::TypeErrorPrototype,
-            ThrowKind::RangeError => Intrinsic::RangeErrorPrototype,
-            ThrowKind::ReferenceError => Intrinsic::ReferenceErrorPrototype,
-            ThrowKind::SyntaxError => Intrinsic::SyntaxErrorPrototype,
-        };
-        let proto = self.intrinsic(self.current_realm(), proto)?;
-        let object = self.heap.new_object(Some(proto))?;
+        let proto = self.intrinsic(self.current_realm(), error_prototype(kind))?;
+        let object = self
+            .heap
+            .new_object_with_kind(Some(proto), ObjectKind::Error)?;
         let text = self.heap.alloc_str(message)?;
         // The object and the text are the arguments of the definition, so
         // they are rooted during its reservation.
@@ -235,17 +245,58 @@ impl Runtime {
         Ok(object)
     }
 
-    /// The native functions of the realm's intrinsics (after the realm is
-    /// a root).
+    /// The native functions of the realm's intrinsics and the built-in
+    /// objects (after the realm is a root).
     fn install_realm_functions(&mut self, realm: u32) -> VmResult<()> {
+        crate::builtins::install(self, realm)?;
         let scope = self.heap.open_scope();
         let generator_proto = self.intrinsic(realm, Intrinsic::GeneratorPrototype)?;
-        let next = self.new_native_function(realm, "next", 1, crate::vm::generator::next)?;
-        let key = self.heap.key_from_str("next")?;
-        self.define(generator_proto, key, next.into(), true, false, true)?;
+        let methods: [(&str, crate::vm::NativeFn); 3] = [
+            ("next", crate::vm::generator::next),
+            ("return", crate::vm::generator::return_),
+            ("throw", crate::vm::generator::throw),
+        ];
+        for (name, func) in methods {
+            let function = self.new_native_function(realm, name, 1, func)?;
+            let key = self.heap.key_from_str(name)?;
+            self.define(generator_proto, key, function.into(), true, false, true)?;
+        }
         self.heap.close_scope(scope)?;
         Ok(())
     }
+}
+
+/// The intrinsic prototype of the error objects of a kind.
+pub(crate) fn error_prototype(kind: crate::error::ThrowKind) -> Intrinsic {
+    use crate::error::ThrowKind;
+    match kind {
+        ThrowKind::Error => Intrinsic::ErrorPrototype,
+        ThrowKind::TypeError => Intrinsic::TypeErrorPrototype,
+        ThrowKind::RangeError => Intrinsic::RangeErrorPrototype,
+        ThrowKind::ReferenceError => Intrinsic::ReferenceErrorPrototype,
+        ThrowKind::SyntaxError => Intrinsic::SyntaxErrorPrototype,
+        ThrowKind::EvalError => Intrinsic::EvalErrorPrototype,
+        ThrowKind::UriError => Intrinsic::UriErrorPrototype,
+    }
+}
+
+/// `%ThrowTypeError%` (§10.2.4.1): the accessor of `callee` on the
+/// arguments objects of strict functions. V8's message.
+fn throw_type_error(
+    _: &mut Runtime,
+    call: &crate::vm::NativeCall,
+) -> VmResult<crate::vm::NativeReturn> {
+    // The one function is both getter and setter; a setter gets the
+    // value. V8 words an assignment as a write to a read-only property
+    // (measured in Node.js 22).
+    if call.argc() > 0 {
+        return Err(VmError::type_error(
+            "Cannot assign to read only property 'callee' of object '#<Object>'",
+        ));
+    }
+    Err(VmError::type_error(
+        "'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them",
+    ))
 }
 
 /// `%Function.prototype%` called as a function: returns `undefined`

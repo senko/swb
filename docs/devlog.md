@@ -4,6 +4,36 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 5, exceptions, limits and built-ins (`js-spike`)
+
+- `js`: a handler table per code object; a throw searches it from the
+  top frame down and restores the value stack, handle scopes and no-GC
+  regions at the handler. `finally` keeps the pending completion in two
+  registers; each block exists once. Generators resume with a mode
+  (`next`, `throw`, `return`). Termination (time limit, heap limit,
+  host request) skips every handler; the runtime stays usable after it.
+  A time countdown with a deadline and a termination handle for other
+  threads. The first built-ins in `src/builtins/`: `console.log` in
+  Node's format, the error constructors, `Object.keys`, `Array` with
+  `push`, `join`, `forEach` and `map`, `Function.prototype.call` and
+  `apply` as deferred calls, `String()` and `Number()`. `js-syntax`:
+  `switch`.
+- Measurements against `node --jitless`: a loop inside a `try` 1.15x,
+  `forEach` over 1M elements 9.7x. The countdown costs about 5 % on an
+  integer loop; handle scopes per element in native loops cost nothing
+  measurable.
+- Review: 6,000 random programs with nested `try`, loops, `switch` and
+  generators gave the same output as Node, also in GC stress mode. The
+  time limit had a gap: built-ins and string concatenation counted as
+  one step whatever their size, so a loop of `Object.keys` calls on a
+  large object ran 101 s past a 100 ms deadline. Now they charge steps
+  in proportion to their work, and the hostile cases end within 3 ms
+  of the deadline. Also fixed: three messages, a cap on key length and
+  total output in `console.log`.
+- test262 (commit 2e0a567, 2026-10-08) is downloaded for session 6.
+- Next: spike session 6, the `swb-js` shell, `just test262`,
+  `just jsdiff` and the benchmarks.
+
 ## 2026-10-09: M6 spike session 4, compiler and interpreter (`js-spike`)
 
 - `js`: a compiler from the AST and the scope analysis to a register

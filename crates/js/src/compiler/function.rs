@@ -13,6 +13,30 @@
 //! and the declarations, then the function declarations. A generator
 //! stops there (`InitialYield`). The script's prologue declares its
 //! global bindings (§16.1.7).
+//!
+//! `try` (§14.15, ADR 0026 section 5, memo 1.4): the handler table maps
+//! the `try` block to the `catch` code, and the `try` and `catch` code to
+//! a stub that enters the `finally` block with a throw completion. A
+//! `finally` block exists once; it has two registers for the pending
+//! completion (kind and value). `break`, `continue` and `return` that
+//! leave it set the completion and jump to the block; the block ends with
+//! `EndFinally` and a table of routes, one per kind of completion that
+//! can reach it, each continuing through the next outer `finally` block.
+//! The layout:
+//!
+//! ```text
+//!       try block                     <- catch range, finally range
+//!       Jump L                         (with a catch clause)
+//!   C:  catch block                   <- finally range
+//!   L:  Int kind = normal
+//!   F:  finally block
+//!       EndFinally kind value -> X    (normal: to X; throw: rethrow)
+//!       Jump R0, Jump R1, ...         (return, jump target 0, ...)
+//!   R0: route of the return
+//!   R1: route of jump target 0 ...
+//!   H:  Int kind = throw; Jump F      (the handler of the finally range)
+//!   X:
+//! ```
 
 use std::collections::HashMap;
 
@@ -24,7 +48,10 @@ use swb_js_syntax::{
 use swb_js_text::String16;
 
 use super::{Builder, CResult, CompileError, ConstSpec, Session};
-use crate::bytecode::{CodeKind, GlobalDecl, GlobalKind, Insn, MAX_REGISTERS, Reg, ThisMode};
+use crate::bytecode::{
+    COMPLETION_JUMP, COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, CodeKind, GlobalDecl,
+    GlobalKind, Handler, Insn, MAX_REGISTERS, Reg, ThisMode,
+};
 use crate::error::ThrowKind;
 
 /// The budget weight of one statement level of the compiler's recursion:
@@ -38,12 +65,39 @@ pub(super) const STMT_WEIGHT: u32 = 1792;
 /// operators 544, parentheses 368), release 880; a margin of 1.5.
 pub(super) const EXPR_WEIGHT: u32 = 1536;
 
+/// The kinds of statements that `break` or `continue` can target.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BreakableKind {
+    /// A loop: `break` and `continue`, with or without a label.
+    Loop,
+    /// A `switch`: `break` with or without a label.
+    Switch,
+    /// Another labelled statement: `break label` only.
+    Label,
+}
+
 /// A statement that `break` (and for loops `continue`) can target.
 struct Breakable {
     labels: Vec<NameId>,
-    is_loop: bool,
+    kind: BreakableKind,
+    /// The number of enclosing `finally` blocks when the statement
+    /// started: a jump to it crosses the blocks above this depth.
+    finally_depth: usize,
     breaks: Vec<usize>,
     continues: Vec<usize>,
+}
+
+/// A `finally` block while its `try` and `catch` parts compile.
+struct Finally {
+    /// The register of the completion kind.
+    kind: Reg,
+    /// The register of the completion value.
+    value: Reg,
+    /// The jumps to the block (patched to its first instruction).
+    entries: Vec<usize>,
+    /// The jump targets that pass through the block: (breakable, whether
+    /// it is a `continue`). Target `k` has the kind `COMPLETION_JUMP + k`.
+    targets: Vec<(usize, bool)>,
 }
 
 /// The compiler of one function.
@@ -69,6 +123,11 @@ pub(super) struct FunctionCompiler<'a> {
     max_reg: u32,
     breakables: Vec<Breakable>,
     pending_labels: Vec<NameId>,
+    /// The `finally` blocks around the code being compiled, innermost
+    /// last.
+    finallys: Vec<Finally>,
+    /// The exception handlers, in the order of their creation.
+    handlers: Vec<Handler>,
     /// The source offset of the construct being compiled.
     pub(super) position: u32,
     lines: Vec<(u32, u32)>,
@@ -110,6 +169,8 @@ impl<'a> FunctionCompiler<'a> {
             max_reg: fscope.register_count,
             breakables: Vec::new(),
             pending_labels: Vec::new(),
+            finallys: Vec::new(),
+            handlers: Vec::new(),
             position: function.span.start,
             lines: Vec::new(),
             call_names: Vec::new(),
@@ -155,6 +216,10 @@ impl<'a> FunctionCompiler<'a> {
         // because the eval code can read it.
         let uses_arguments = !is_script && self.fscope.arguments_binding.is_some();
         let globals = self.globals_of_script(is_script);
+        // Sorted by start, the outer of two ranges with the same start
+        // first (the order that the verifier and the lookup expect).
+        let mut handlers = self.handlers;
+        handlers.sort_by_key(|h| (h.start, std::cmp::Reverse(h.end)));
         Ok(Builder {
             insns: self.insns,
             constants: self.constants,
@@ -170,6 +235,7 @@ impl<'a> FunctionCompiler<'a> {
             name,
             lines: self.lines,
             call_names: self.call_names,
+            handlers,
             span: (self.function.span.start, self.function.span.end),
         })
     }
@@ -332,7 +398,7 @@ impl<'a> FunctionCompiler<'a> {
     }
 
     /// Emits a jump back to `target`.
-    fn jump_back(&mut self, target: usize) {
+    pub(super) fn jump_back(&mut self, target: usize) {
         let at = self.here();
         let offset = target as i64 - at as i64;
         self.emit(Insn::Jump {
@@ -689,30 +755,33 @@ impl<'a> FunctionCompiler<'a> {
             StmtKind::Labeled { label, body } => self.labeled(label, body)?,
             StmtKind::Break { label } => {
                 let target = self.find_breakable(label, false)?;
-                let at = self.emit(Insn::Jump { offset: 0 });
-                if let Some(b) = self.breakables.get_mut(target) {
-                    b.breaks.push(at);
-                }
+                self.jump_to(target, false);
             }
             StmtKind::Continue { label } => {
                 let target = self.find_breakable(label, true)?;
-                let at = self.emit(Insn::Jump { offset: 0 });
-                if let Some(b) = self.breakables.get_mut(target) {
-                    b.continues.push(at);
-                }
+                self.jump_to(target, true);
             }
             StmtKind::Return(argument) => {
                 let value = match argument {
                     Some(e) => self.expr(e, None)?,
                     None => self.undefined_temp()?,
                 };
-                self.emit(Insn::Return { src: value });
+                self.emit_return(value);
             }
             StmtKind::Throw(e) => {
                 let value = self.expr(e, None)?;
                 self.emit(Insn::Throw { src: value });
             }
-            StmtKind::Try { .. } => return Err(self.unsupported("try statement")),
+            StmtKind::Switch {
+                discriminant,
+                cases,
+                scope,
+            } => self.switch_statement(discriminant, cases, scope)?,
+            StmtKind::Try {
+                block,
+                handler,
+                finalizer,
+            } => self.try_statement(block, handler, finalizer)?,
         }
         self.release(mark);
         self.position = outer;
@@ -724,12 +793,7 @@ impl<'a> FunctionCompiler<'a> {
     fn do_while(&mut self, body: StmtId, test: swb_js_syntax::ExprId) -> CResult<()> {
         let labels = std::mem::take(&mut self.pending_labels);
         let top = self.here();
-        self.breakables.push(Breakable {
-            labels,
-            is_loop: true,
-            breaks: Vec::new(),
-            continues: Vec::new(),
-        });
+        self.push_breakable(labels, BreakableKind::Loop);
         self.stmt(body)?;
         let breakable = self.breakables.pop().ok_or(Self::internal("loop stack"))?;
         for at in breakable.continues {
@@ -764,12 +828,7 @@ impl<'a> FunctionCompiler<'a> {
             return self.stmt(body);
         }
         let labels = std::mem::take(&mut self.pending_labels);
-        self.breakables.push(Breakable {
-            labels,
-            is_loop: false,
-            breaks: Vec::new(),
-            continues: Vec::new(),
-        });
+        self.push_breakable(labels, BreakableKind::Label);
         self.stmt(body)?;
         let breakable = self.breakables.pop().ok_or(Self::internal("label stack"))?;
         for at in breakable.breaks {
@@ -879,12 +938,7 @@ impl<'a> FunctionCompiler<'a> {
         exits: Vec<usize>,
         next: Option<(ScopeId, bool, Option<swb_js_syntax::ExprId>, usize)>,
     ) -> CResult<()> {
-        self.breakables.push(Breakable {
-            labels,
-            is_loop: true,
-            breaks: Vec::new(),
-            continues: Vec::new(),
-        });
+        self.push_breakable(labels, BreakableKind::Loop);
         self.stmt(body)?;
         let breakable = self.breakables.pop().ok_or(Self::internal("loop stack"))?;
         match (continue_to, next) {
@@ -914,15 +968,268 @@ impl<'a> FunctionCompiler<'a> {
         Ok(())
     }
 
+    /// Starts a statement that `break` or `continue` can target.
+    fn push_breakable(&mut self, labels: Vec<NameId>, kind: BreakableKind) {
+        self.breakables.push(Breakable {
+            labels,
+            kind,
+            finally_depth: self.finallys.len(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+        });
+    }
+
     /// The breakable statement that `break label` or `continue label`
     /// targets.
     fn find_breakable(&self, label: Option<NameId>, is_continue: bool) -> CResult<usize> {
         self.breakables
             .iter()
-            .rposition(|b| match label {
-                Some(label) => b.labels.contains(&label) && (b.is_loop || !is_continue),
-                None => b.is_loop,
+            .rposition(|b| {
+                let is_loop = b.kind == BreakableKind::Loop;
+                match label {
+                    Some(label) => b.labels.contains(&label) && (is_loop || !is_continue),
+                    None if is_continue => is_loop,
+                    None => b.kind != BreakableKind::Label,
+                }
             })
             .ok_or(Self::internal("a break or continue without a target"))
+    }
+
+    /// A `break` (or `continue`) to the breakable statement `target`: a
+    /// jump, or through the innermost `finally` block that it leaves.
+    fn jump_to(&mut self, target: usize, is_continue: bool) {
+        let depth = self.breakables.get(target).map_or(0, |b| b.finally_depth);
+        if self.finallys.len() > depth
+            && let Some(finally) = self.finallys.last_mut()
+        {
+            let known = finally
+                .targets
+                .iter()
+                .position(|&t| t == (target, is_continue));
+            let k = known.unwrap_or_else(|| {
+                finally.targets.push((target, is_continue));
+                finally.targets.len() - 1
+            });
+            let kind = finally.kind;
+            self.emit(Insn::Int {
+                dst: kind,
+                value: COMPLETION_JUMP + k as i32,
+            });
+            let at = self.emit(Insn::Jump { offset: 0 });
+            if let Some(finally) = self.finallys.last_mut() {
+                finally.entries.push(at);
+            }
+            return;
+        }
+        let at = self.emit(Insn::Jump { offset: 0 });
+        if let Some(b) = self.breakables.get_mut(target) {
+            if is_continue {
+                b.continues.push(at);
+            } else {
+                b.breaks.push(at);
+            }
+        }
+    }
+
+    /// Returns the value of `value`: a `Return`, or through the innermost
+    /// `finally` block.
+    pub(super) fn emit_return(&mut self, value: Reg) {
+        let Some(finally) = self.finallys.last() else {
+            self.emit(Insn::Return { src: value });
+            return;
+        };
+        let (kind, register) = (finally.kind, finally.value);
+        if value != register {
+            self.emit(Insn::Move {
+                dst: register,
+                src: value,
+            });
+        }
+        self.emit(Insn::Int {
+            dst: kind,
+            value: COMPLETION_RETURN,
+        });
+        let at = self.emit(Insn::Jump { offset: 0 });
+        if let Some(finally) = self.finallys.last_mut() {
+            finally.entries.push(at);
+        }
+    }
+
+    /// `switch` (§14.12.4 `CaseBlockEvaluation`): the tests in source
+    /// order, then the jump to `default` (the order of the specification:
+    /// the clauses before `default`, then the ones after it, then
+    /// `default`), then the bodies, which fall through.
+    fn switch_statement(
+        &mut self,
+        discriminant: swb_js_syntax::ExprId,
+        cases: swb_js_syntax::List<swb_js_syntax::SwitchCase>,
+        scope: ScopeId,
+    ) -> CResult<()> {
+        let labels = std::mem::take(&mut self.pending_labels);
+        let value = self.temp()?;
+        self.expr(discriminant, Some(value))?;
+        self.enter_scope(scope)?;
+        let cases = self.ast.cases(cases).to_vec();
+        let mut tests = Vec::new();
+        for (i, case) in cases.iter().enumerate() {
+            if let Some(test) = case.test {
+                self.position = case.span.start;
+                let mark = self.mark();
+                let v = self.expr(test, None)?;
+                let t = self.temp()?;
+                self.emit(Insn::StrictEq {
+                    dst: t,
+                    a: value,
+                    b: v,
+                });
+                tests.push((i, self.emit(Insn::JumpIfTrue { cond: t, offset: 0 })));
+                self.release(mark);
+            }
+        }
+        let otherwise = self.emit(Insn::Jump { offset: 0 });
+        self.push_breakable(labels, BreakableKind::Switch);
+        let mut starts = Vec::with_capacity(cases.len());
+        for case in &cases {
+            starts.push(self.here());
+            for &statement in self.ast.stmts(case.body) {
+                self.stmt(statement)?;
+            }
+        }
+        let breakable = self
+            .breakables
+            .pop()
+            .ok_or(Self::internal("switch stack"))?;
+        for (i, at) in tests {
+            let start = starts.get(i).copied().unwrap_or_else(|| self.here());
+            self.patch(at, start);
+        }
+        let default = cases
+            .iter()
+            .position(|c| c.test.is_none())
+            .and_then(|i| starts.get(i).copied())
+            .unwrap_or_else(|| self.here());
+        self.patch(otherwise, default);
+        for at in breakable.breaks {
+            self.patch_here(at);
+        }
+        Ok(())
+    }
+
+    /// `try` (§14.15.3); see the module documentation for the layout.
+    fn try_statement(
+        &mut self,
+        block: StmtId,
+        handler: Option<swb_js_syntax::CatchClause>,
+        finalizer: Option<StmtId>,
+    ) -> CResult<()> {
+        if finalizer.is_some() {
+            let kind = self.temps(2)?;
+            self.finallys.push(Finally {
+                kind,
+                value: kind + 1,
+                entries: Vec::new(),
+                targets: Vec::new(),
+            });
+        }
+        let start = self.here();
+        self.stmt(block)?;
+        if let Some(clause) = handler {
+            let end = self.here();
+            let skip = self.emit(Insn::Jump { offset: 0 });
+            let mark = self.mark();
+            let exception = self.temp()?;
+            let target = self.here();
+            if end > start {
+                self.handlers.push(Handler {
+                    start: start as u32,
+                    end: end as u32,
+                    target: target as u32,
+                    register: exception,
+                });
+            }
+            self.catch_clause(clause, exception)?;
+            self.release(mark);
+            self.patch_here(skip);
+        }
+        if let Some(finalizer) = finalizer {
+            self.finally_block(start, finalizer)?;
+        }
+        Ok(())
+    }
+
+    /// The `catch` clause: the scope of the parameter and the block, the
+    /// parameter's binding, the statements.
+    fn catch_clause(&mut self, clause: swb_js_syntax::CatchClause, exception: Reg) -> CResult<()> {
+        let StmtKind::Block { body, scope } = self.ast.stmt(clause.body).kind else {
+            return Err(Self::internal("a catch clause without a block"));
+        };
+        self.enter(STMT_WEIGHT)?;
+        self.position = self.ast.stmt(clause.body).span.start;
+        self.enter_scope(scope)?;
+        if let Some(param) = clause.param {
+            let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(param).kind;
+            let binding = self
+                .reference(ident.reference)
+                .binding
+                .ok_or(Self::internal("a catch parameter without a binding"))?;
+            self.init_binding(binding, exception)?;
+        }
+        for &statement in self.ast.stmts(body) {
+            self.stmt(statement)?;
+        }
+        self.leave(STMT_WEIGHT);
+        Ok(())
+    }
+
+    /// The `finally` block of a `try` statement whose code starts at
+    /// `start`, with its routes and its handler stub.
+    fn finally_block(&mut self, start: usize, finalizer: StmtId) -> CResult<()> {
+        let finally = self.finallys.pop().ok_or(Self::internal("finally stack"))?;
+        let (kind, value) = (finally.kind, finally.value);
+        let end = self.here();
+        self.emit(Insn::Int {
+            dst: kind,
+            value: COMPLETION_NORMAL,
+        });
+        let entry = self.here();
+        for at in finally.entries {
+            self.patch(at, entry);
+        }
+        self.stmt(finalizer)?;
+        let end_finally = self.emit(Insn::EndFinally {
+            kind,
+            value,
+            offset: 0,
+        });
+        // The table: the return, then each jump target.
+        let table: Vec<usize> = (0..=finally.targets.len())
+            .map(|_| self.emit(Insn::Jump { offset: 0 }))
+            .collect();
+        let mut routes = table.into_iter();
+        if let Some(at) = routes.next() {
+            self.patch_here(at);
+            self.emit_return(value);
+        }
+        for (&(target, is_continue), at) in finally.targets.iter().zip(routes) {
+            self.patch_here(at);
+            self.jump_to(target, is_continue);
+        }
+        // The handler of the `try` and `catch` code.
+        let stub = self.here();
+        self.emit(Insn::Int {
+            dst: kind,
+            value: COMPLETION_THROW,
+        });
+        self.jump_back(entry);
+        if end > start {
+            self.handlers.push(Handler {
+                start: start as u32,
+                end: end as u32,
+                target: stub as u32,
+                register: value,
+            });
+        }
+        self.patch_here(end_finally);
+        Ok(())
     }
 }

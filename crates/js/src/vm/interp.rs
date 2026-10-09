@@ -13,15 +13,21 @@
 //!
 //! Errors: an instruction that fails returns the error from the loop; the
 //! frame record holds the pc after the failing instruction.
-//! [`Runtime::run_frames`] then unwinds. Session 5 adds the handler
-//! search there: for each frame from the top, look up `pc - 1` in the
-//! code's handler table; on a hit, close the handle scopes to the loop's
-//! entry depth, store the thrown value in the handler's register, set the
-//! frame's pc to the handler and run the loop again.
+//! [`Runtime::run_frames`] then searches the handler tables: for each
+//! frame from the top, it looks up `pc - 1` in the code's table (the
+//! innermost range). On a hit it pops the frames above, closes the handle
+//! scopes and the no-GC regions down to the loop's entry, cuts the value
+//! stack to the top of the frame's window, stores the thrown value in the
+//! handler's register (a `Raise` becomes an error object only here) and
+//! runs the loop again at the handler. Terminations and internal errors
+//! skip the search.
 
 use std::rc::Rc;
 
-use crate::bytecode::{Constant, Insn};
+use crate::bytecode::{
+    COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, Handler, Insn, RESUME_NEXT,
+    RESUME_RETURN, RESUME_THROW,
+};
 use crate::object::{GetResult, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
@@ -41,18 +47,30 @@ enum Access {
 
 impl Runtime {
     /// Runs the frames from the top frame until that frame (whose result
-    /// goes to the host) returns; returns its result. On an uncaught error
-    /// the frames down to and including the entry frame are removed.
+    /// goes to the host) returns; returns its result. An exception that a
+    /// handler of these frames catches continues there; on an uncaught
+    /// error the frames down to and including the entry frame are removed.
     pub(crate) fn run_frames(&mut self) -> VmResult<Value> {
         let entry = self.vm.frames.len();
         if entry == 0 {
             return Err(VmError::invariant("run without a frame"));
         }
         let scope_depth = self.heap.scope_depth();
-        let result = self.execute();
-        if result.is_err() {
-            // Session 5: the handler search goes here (see the module
-            // documentation).
+        let no_gc = self.heap.no_gc_depth();
+        loop {
+            let mut error = match self.execute() {
+                Ok(value) => return Ok(value),
+                Err(error) => error,
+            };
+            if matches!(error, VmError::Throw(_) | VmError::Raise { .. })
+                && let Some((index, handler)) = self.find_handler(entry - 1)
+            {
+                match self.enter_handler(index, handler, error, scope_depth, no_gc) {
+                    Ok(()) => continue,
+                    // Creating the error object failed (the heap limit).
+                    Err(failure) => error = failure,
+                }
+            }
             if self.vm.error_offset.is_none()
                 && let Some(frame) = self.vm.frames.last()
             {
@@ -61,8 +79,68 @@ impl Runtime {
             }
             self.unwind(entry - 1);
             self.heap.close_scopes_to(scope_depth);
+            self.heap.restore_no_gc_depth(no_gc);
+            return Err(error);
         }
-        result
+    }
+
+    /// The innermost handler for the instruction that failed in the
+    /// frames from the top down to `lowest`: the frame's index and the
+    /// handler.
+    fn find_handler(&self, lowest: usize) -> Option<(usize, Handler)> {
+        let frames = self.vm.frames.get(lowest..)?;
+        frames.iter().enumerate().rev().find_map(|(i, frame)| {
+            // A frame whose first instruction has not run has no failing
+            // instruction.
+            let pc = (frame.pc as usize).checked_sub(1)?;
+            let handler = frame.compiled.handler_at(pc)?;
+            Some((lowest + i, handler))
+        })
+    }
+
+    /// Continues at a handler of frame `index`: pops the frames above it
+    /// (their generators complete), restores the stacks and the regions of
+    /// the loop's entry, stores the thrown value.
+    fn enter_handler(
+        &mut self,
+        index: usize,
+        handler: Handler,
+        error: VmError,
+        scope_depth: usize,
+        no_gc: u32,
+    ) -> VmResult<()> {
+        self.unwind(index + 1);
+        let frame = self
+            .vm
+            .frames
+            .get(index)
+            .ok_or(VmError::invariant("a handler frame without a record"))?;
+        let base = frame.base as usize;
+        let top = base + frame.compiled.register_count as usize;
+        // A deferred call or a native can have left a window above the
+        // top frame.
+        self.vm.stack.resize(top, Value::Undefined);
+        self.heap.close_scopes_to(scope_depth);
+        self.heap.restore_no_gc_depth(no_gc);
+        // The value is not rooted until it is in the register; only the
+        // creation of an error object allocates, and it has no other
+        // unrooted value.
+        let value = match error {
+            VmError::Throw(value) => value,
+            VmError::Raise { kind, message } => self.error_object(kind, &message)?.into(),
+            other => return Err(other),
+        };
+        let slot = self
+            .vm
+            .stack
+            .get_mut(base + usize::from(handler.register))
+            .ok_or(VmError::invariant("a handler register outside the frame"))?;
+        *slot = value;
+        if let Some(frame) = self.vm.frames.get_mut(index) {
+            frame.pc = handler.target;
+        }
+        self.vm.error_offset = None;
+        Ok(())
     }
 
     /// The loop.
@@ -130,9 +208,16 @@ impl Runtime {
             ($offset:expr) => {{
                 let offset: i32 = $offset;
                 let target = (pc as i64 - 1) + i64::from(offset);
-                if offset <= 0 && self.heap.gc_due() {
-                    // A backward jump is a safepoint.
-                    tri!(self.heap.safepoint(&self.vm));
+                if offset <= 0 {
+                    // A backward jump is a safepoint and a step of the
+                    // time countdown.
+                    if self.heap.gc_due() {
+                        tri!(self.heap.safepoint(&self.vm));
+                    }
+                    self.vm.countdown = self.vm.countdown.wrapping_sub(1);
+                    if self.vm.countdown == 0 {
+                        tri!(self.check_time());
+                    }
                 }
                 pc = match usize::try_from(target) {
                     Ok(target) => target,
@@ -384,13 +469,19 @@ impl Runtime {
                 Insn::GetNamed { dst, obj, site } => {
                     let key = site!(site);
                     let target = get!(obj);
-                    if let Value::Object(object) = target {
+                    if let Value::Object(object) = target
+                        && !matches!(key, PropertyKey::Index(_))
+                    {
                         match tri!(self.heap.get(object, key, target)) {
                             GetResult::Value(value) => put!(dst, value),
                             GetResult::CallGetter { getter, receiver } => {
                                 call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
                             }
                         }
+                    } else if let Value::Object(_) = target {
+                        // An index: String objects have their own.
+                        let found = tri!(self.get_property(target, key));
+                        lookup!(dst, found);
                     } else {
                         save!();
                         let found = tri!(self.get_primitive_property(target, key));
@@ -978,6 +1069,26 @@ impl Runtime {
                         "Invalid left-hand side in assignment"
                     )));
                 }
+                Insn::EndFinally {
+                    kind,
+                    value,
+                    offset,
+                } => match get!(kind) {
+                    Value::Int(COMPLETION_NORMAL) => jump!(offset),
+                    Value::Int(COMPLETION_THROW) => {
+                        let exception = get!(value);
+                        tri!(Err(VmError::Throw(exception)));
+                    }
+                    // The table of routes follows the instruction and ends
+                    // before its target.
+                    Value::Int(k)
+                        if k >= COMPLETION_RETURN
+                            && k - COMPLETION_RETURN < offset.saturating_sub(1) =>
+                    {
+                        pc += (k - COMPLETION_RETURN) as usize;
+                    }
+                    _ => return Err(VmError::invariant("a finally block without a completion")),
+                },
 
                 // --- Generators ---
                 Insn::InitialYield => {
@@ -994,6 +1105,16 @@ impl Runtime {
                     }
                     reload!();
                 }
+                Insn::Resume { reg, offset } => match get!(reg.saturating_add(1)) {
+                    Value::Int(RESUME_NEXT) => jump!(offset),
+                    Value::Int(RESUME_THROW) => {
+                        let exception = get!(reg);
+                        tri!(Err(VmError::Throw(exception)));
+                    }
+                    // The compiled return path follows.
+                    Value::Int(RESUME_RETURN) => {}
+                    _ => return Err(VmError::invariant("a resumption without a mode")),
+                },
                 Insn::Nop => {}
             }
         }

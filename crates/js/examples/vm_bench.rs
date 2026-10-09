@@ -35,10 +35,44 @@ const PROGRAMS: &[(&str, &str)] = &[
         "1M small objects",
         "function run() { var last; for (var i = 0; i < 1000000; i++) { last = {a: i, b: i + 0.5, c: 'x'}; } return last.a; }",
     ),
+    (
+        "string: 20k appends of 'ab'",
+        "function run() { var s = ''; for (var i = 0; i < 20000; i++) { s += 'ab'; } return s.length; }",
+    ),
+    (
+        "sum 10M integers in a try",
+        "function run() { var s = 0; for (var i = 0; i < 10000000; i++) { try { s += i; } catch (e) { s = 0; } } return s; }",
+    ),
+    (
+        "sum 10M integers in a try-finally",
+        "function run() { var s = 0; for (var i = 0; i < 10000000; i++) { try { s += i; } finally { s += 0; } } return s; }",
+    ),
+    (
+        "throw and catch 1M times",
+        "function run() { var c = 0; for (var i = 0; i < 1000000; i++) { try { throw i; } catch (e) { c += e; } } return c; }",
+    ),
+    (
+        "throw TypeError 1M times",
+        "function run() { var c = 0; for (var i = 0; i < 1000000; i++) { try { null.x; } catch (e) { c++; } } return c; }",
+    ),
+    (
+        "forEach over 1M elements",
+        "var arr = []; for (var i = 0; i < 1000000; i++) arr[i] = i;
+         function run() { var s = 0; arr.forEach(function (x) { s += x; }); return s; }",
+    ),
+    (
+        "for loop over 1M elements",
+        "var arr = []; for (var i = 0; i < 1000000; i++) arr[i] = i;
+         function run() { var s = 0; for (var i = 0; i < arr.length; i++) { s += arr[i]; } return s; }",
+    ),
+    (
+        "join 1M elements",
+        "var arr = []; for (var i = 0; i < 1000000; i++) arr[i] = i;
+         function run() { return arr.join().length; }",
+    ),
 ];
 
-/// One block of the generated program (the program of session 2 without
-/// `try`, which comes in session 5).
+/// One block of the generated program (the program of session 2).
 const CHUNK: &str = r"function chunkN(p, q) {
   var total = 0, items = [1, 2.5, 'three', null, true, , { a: p, 'b': q, [p]: q, m() { return this.a; } }];
   let counter = 0;
@@ -54,6 +88,8 @@ const CHUNK: &str = r"function chunkN(p, q) {
   do { total **= 1; } while (total < 0);
   if (typeof p === 'undefined' || p instanceof inner) { total = void 0; } else { counter = 0; }
   label: for (var j = 0; j < 3; ++j) { if (j == 2) break label; }
+  try { if (p) throw new Error('x'); } catch (err) { total = err; } finally { counter = counter || 0; }
+  try { total &&= 1; total ||= 2; total ??= 3; } catch { }
   return { total: total, counter, inner, add, gen: function* () { yield total; yield; } };
 }
 chunkN(1, 2);
@@ -111,6 +147,25 @@ fn measure() {
         result.map(|_| ()),
         start.elapsed().as_secs_f64() * 1000.0
     );
+    // The time limit: how late after the deadline endless scripts end.
+    for source in [
+        "for (;;) {}",
+        "function f() { f(); } for (;;) { try { f(); } catch (e) {} }",
+        "var a = []; a.length = 4294967295; a.forEach(function () {})",
+        "var a = []; a.length = 4294967295; a.join('')",
+    ] {
+        let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");
+        let limit = Duration::from_millis(100);
+        let start = Instant::now();
+        rt.set_deadline(Some(start + limit));
+        let result = rt.eval(source);
+        let late = start.elapsed().saturating_sub(limit);
+        println!(
+            "time limit 100 ms: {source}: {:?}, {:.2} ms after the deadline",
+            result.map(|_| ()),
+            late.as_secs_f64() * 1000.0
+        );
+    }
     // Speed.
     for (name, source) in PROGRAMS {
         let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");

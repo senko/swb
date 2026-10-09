@@ -10,11 +10,12 @@
 //! shapes, dictionary mode, elements, the ordinary internal methods and
 //! the array exotic object), the bytecode compiler and its verifier, the
 //! interpreter with frames, closures, native functions and generators,
-//! the realms with their minimal intrinsics, and the embedding API
-//! ([`Runtime`]). The front end is in `swb-js-syntax`, the code units and
+//! the realms with their intrinsics, exceptions and the time limit, the
+//! first built-in objects, and the embedding API ([`Runtime`]). The front end is in `swb-js-syntax`, the code units and
 //! Unicode data in `swb-js-text`, and regular expressions in
 //! `swb-js-regexp`.
 
+mod builtins;
 mod bytecode;
 mod compiler;
 pub mod error;
@@ -35,9 +36,9 @@ pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Equality, Symbol, Value, ValueCell};
 
 pub use compiler::CompileStats;
-pub use runtime::{MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
+pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
 pub use swb_js_syntax::RecursionBudget;
 pub use vm::{
     Closure, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, GeneratorState, NativeCall, NativeFn,
-    NativeFunction, NativeReturn, Resume, VmError, VmResult,
+    NativeFunction, NativeReturn, Resume, ResumeMode, TerminationHandle, VmError, VmResult,
 };

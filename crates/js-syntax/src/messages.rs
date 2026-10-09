@@ -51,6 +51,7 @@ pub(crate) const ILLEGAL_CONTINUE: &str =
 pub(crate) const ILLEGAL_RETURN: &str = "Illegal return statement";
 pub(crate) const NEWLINE_AFTER_THROW: &str = "Illegal newline after throw";
 pub(crate) const MISSING_CATCH_OR_FINALLY: &str = "Missing catch or finally after try";
+pub(crate) const MULTIPLE_DEFAULTS: &str = "More than one default clause in switch statement";
 pub(crate) const STRICT_WITH: &str = "Strict mode code may not include a with statement";
 
 pub(crate) const STRICT_OCTAL_LITERAL: &str = "Octal literals are not allowed in strict mode.";

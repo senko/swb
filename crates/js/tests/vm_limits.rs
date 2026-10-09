@@ -1,12 +1,13 @@
 //! Limits and hostile cases of the compiler and the interpreter (ADR 0026
 //! section 9): deep recursion, native re-entry, deep nesting, the value
-//! stack, the heap limit, constructs outside the subset, and the API
-//! around them. All run on a thread with an 8 MiB stack; in a debug build
+//! stack, the heap limit, the time limit and termination, constructs
+//! outside the subset, and the API around them. All run on a thread with an 8 MiB stack; in a debug build
 //! they also show that no case overflows the Rust stack.
 
 mod common;
 
 use std::fmt::Write;
+use std::time::{Duration, Instant};
 
 use common::{error_text, on_big_stack, run, run_in, runtime};
 use swb_js::{
@@ -244,7 +245,7 @@ fn constructs_outside_the_subset_do_not_compile() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         for (source, construct) in [
-            ("try { } catch (e) { }", "try statement"),
+            ("({ get x() { return 1; } })", "getter or setter"),
             ("var r = /a/;", "regular expression literal"),
         ] {
             let Err(ScriptError::Compile { kind, message, .. }) = rt.eval(source) else {
@@ -533,4 +534,431 @@ fn the_stack_limit_is_clamped() {
         let mut rt = Runtime::new(config).unwrap();
         assert_eq!(rt.eval("1 + 1"), Ok(Value::Int(2)));
     });
+}
+
+// --- Session 5: termination, the time limit, exceptions at the limits ---
+
+/// The deadline of the hostile cases (the tests check that a run ends
+/// within a few seconds of it, also in a debug build).
+const DEADLINE: Duration = Duration::from_millis(200);
+
+/// Runs `source` with a deadline; returns the result and the time it took.
+fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
+    let start = Instant::now();
+    rt.set_deadline(Some(start + DEADLINE));
+    let result = rt.eval(source);
+    rt.set_deadline(None);
+    (result, start.elapsed())
+}
+
+/// The state that every run must leave behind: no frames, an empty value
+/// stack, no open handle scope, no no-GC region.
+fn assert_clean(rt: &Runtime) {
+    assert_eq!(rt.stack_depths(), (0, 0));
+    assert_eq!(rt.heap().scope_depth(), 0);
+    assert_eq!(rt.heap().no_gc_depth(), 0);
+}
+
+#[test]
+fn endless_scripts_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let cases = [
+            "for (;;) {}",
+            "while (true) { try {} finally {} }",
+            "var x = 0; while (true) { try { x++; } catch (e) {} }",
+            "function f() { f(); } for (;;) { try { f(); } catch (e) {} }",
+            "function g() { return g(); } while (true) { try { g(); } catch (e) { continue; } }",
+            "var a = []; a.length = 4294967295; a.forEach(function () {})",
+            "var a = []; a.length = 4294967295; a.join('')",
+            "var a = []; a.length = 4294967295; a.map(function (x) { return x; })",
+            "var o = {length: 4294967295}; Array.prototype.forEach.call(o, function () {})",
+            "function* g() { while (true) yield 1; } var it = g(); while (true) it.next();",
+            "var o = {}; defineAccessor(o, 'x', function () { return 1; }); while (true) o.x;",
+            "function f() { return later(f); } while (true) { try { f(); } catch (e) {} }",
+            "while (true) { [1, 2, 3].forEach(function () {}); }",
+            "outer: while (true) { switch (1) { case 1: continue outer; } }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            assert_eq!(rt.eval("1 + 1"), Ok(Value::Int(2)));
+        }
+    });
+}
+
+#[test]
+fn termination_skips_handlers_and_finally_blocks() {
+    on_big_stack(|| {
+        for stress in [false, true] {
+            let mut rt = runtime(stress);
+            let cases = [
+                // In a `try` with `catch` and `finally`.
+                "var ran = []; try { for (;;) {} } catch (e) { ran.push('catch'); } finally { ran.push('finally'); }",
+                // Inside a `finally` block.
+                "try { throw 1; } finally { for (;;) {} }",
+                // Inside a native callback, in a `try` outside.
+                "try { [1, 2].forEach(function () { for (;;) {} }); } catch (e) { ran.push('outer catch'); }",
+                // Inside a callback that a native calls through re-entry.
+                "try { callTwice(function () { for (;;) {} }, 1); } finally { ran.push('finally 2'); }",
+                // Inside a generator.
+                "var running = (function* () { try { yield 1; for (;;) {} } finally { ran.push('gen finally'); } })(); running.next(); running.next();",
+            ];
+            rt.eval("var ran = [];").unwrap();
+            for source in cases {
+                let (result, _) = eval_with_deadline(&mut rt, source);
+                assert_eq!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::TimeLimit)),
+                    "{source}"
+                );
+                assert_clean(&rt);
+            }
+            // No handler and no `finally` block ran.
+            assert_eq!(run_in(&mut rt, "ran.length"), "=> 0");
+            // The generator that was running is closed.
+            assert_eq!(
+                run_in(&mut rt, "var r = running.next(); print(r.value, r.done)"),
+                "undefined true"
+            );
+            rt.collect();
+            assert_eq!(rt.heap().stats().total_stale_roots, 0);
+        }
+    });
+}
+
+#[test]
+fn suspended_generators_resume_after_a_termination() {
+    on_big_stack(|| {
+        for stress in [false, true] {
+            let mut rt = runtime(stress);
+            rt.eval(
+                "function* g() { var n = 0; try { while (true) yield n++; } finally { print('closed'); } }
+                 var a = g(); a.next(); a.next();",
+            )
+            .unwrap();
+            let (result, _) = eval_with_deadline(&mut rt, "a.next(); for (;;) {}");
+            assert_eq!(result, Err(ScriptError::Terminated(Termination::TimeLimit)));
+            assert_clean(&rt);
+            gc_now(&mut rt);
+            assert_eq!(
+                run_in(&mut rt, "print(a.next().value); a.return(9).value"),
+                "3\nclosed\n=> 9"
+            );
+            assert_eq!(rt.heap().stats().total_stale_roots, 0);
+        }
+    });
+}
+
+/// A collection with the runtime's roots (also in stress mode, where the
+/// heap collects at every safepoint anyway).
+fn gc_now(rt: &mut Runtime) {
+    let stats = rt.collect();
+    assert_eq!(stats.last_stale_roots, 0);
+}
+
+#[test]
+fn another_thread_can_end_a_script() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let handle = rt.termination_handle();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            handle.terminate();
+        });
+        let start = Instant::now();
+        assert_eq!(
+            rt.eval("var n = 0; while (true) { try { n++; } finally { n--; } }"),
+            Err(ScriptError::Terminated(Termination::HostRequest))
+        );
+        assert!(start.elapsed() < Duration::from_secs(5));
+        stopper.join().unwrap();
+        // The request is used up; the next script runs.
+        assert!(!rt.termination_handle().is_requested());
+        assert_eq!(run_in(&mut rt, "n"), "=> 0");
+        assert_clean(&rt);
+        // A request also ends a run of the host through a native call.
+        rt.termination_handle().terminate();
+        let f = rt.eval("(function () { for (;;) {} })").unwrap();
+        assert_eq!(
+            rt.call_function(f, Value::Undefined, &[]),
+            Err(ScriptError::Terminated(Termination::HostRequest))
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn a_million_throws_keep_memory_steady() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        rt.eval("function thrower(i) { throw new Error('e' + i); }")
+            .unwrap();
+        rt.collect();
+        let before = rt.heap().heap_size();
+        let out = run_in(
+            &mut rt,
+            "var caught = 0; for (var i = 0; i < 1000000; i++) { try { thrower(i); } catch (e) { caught++; } finally { } } caught",
+        );
+        assert_eq!(out, "=> 1000000");
+        assert_clean(&rt);
+        rt.collect();
+        let after = rt.heap().heap_size();
+        assert!(
+            after < before + (64 << 10),
+            "the heap grew from {before} to {after} bytes"
+        );
+        // Raised errors (created only when caught) and thrown primitives
+        // through native frames.
+        let out = run_in(
+            &mut rt,
+            "var n = 0; for (var i = 0; i < 100000; i++) { try { null.x; } catch (e) { n++; } try { callTwice(function () { throw i; }, 0); } catch (e) { n++; } } n",
+        );
+        assert_eq!(out, "=> 200000");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn deep_joins_and_catches_stay_inside_the_recursion_budget() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Nested arrays: each level of `join` re-enters through `toString`.
+        let out = run_in(
+            &mut rt,
+            "var a = []; for (var i = 0; i < 100000; i++) a = [a]; try { a.join(); } catch (e) { print(e.name, e.message); } 'after'",
+        );
+        assert_eq!(out, "RangeError Maximum call stack size exceeded\n=> after");
+        assert_eq!(rt.recursion_budget(), RecursionBudget::DEFAULT);
+        // A stack overflow in native re-entry, caught in script code, then
+        // again.
+        let out = run_in(
+            &mut rt,
+            "function f(n) { return callTwice(f, n + 1); } var k = 0; for (var i = 0; i < 3; i++) { try { f(0); } catch (e) { k++; } } k",
+        );
+        assert_eq!(out, "=> 3");
+        assert_eq!(rt.recursion_budget(), RecursionBudget::DEFAULT);
+        assert_clean(&rt);
+        // A cycle through two arrays.
+        let out = run_in(&mut rt, "var x = [1]; var y = [x, 2]; x.push(y); String(x)");
+        assert_eq!(out, "=> 1,,2");
+    });
+}
+
+#[test]
+fn uncaught_errors_through_finally_and_natives_report_the_offset() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // A throw that passes a `finally` block: the offset is where the
+        // `finally` block rethrows it. (V8 reports the original throw;
+        // swb keeps no message location yet.)
+        let source = "try {\n  throw new TypeError('t');\n} finally {\n  var x = 1;\n}";
+        let Err(ScriptError::Uncaught {
+            name,
+            message,
+            offset,
+        }) = rt.eval(source)
+        else {
+            panic!("an uncaught error");
+        };
+        assert_eq!((name.as_str(), message.as_str()), ("TypeError", "t"));
+        assert!(offset.is_some());
+        // An error that a native raises: the offset of the call.
+        let source = "var a = 1;\n[1].forEach(2);";
+        let Err(ScriptError::Uncaught {
+            message, offset, ..
+        }) = rt.eval(source)
+        else {
+            panic!("an uncaught error");
+        };
+        assert_eq!(message, "number 2 is not a function");
+        assert_eq!(offset, Some(source.find("[1]").unwrap() as u32));
+        // A caught error leaves no offset behind.
+        assert_eq!(
+            rt.eval("try { null.x; } catch (e) { 5 }"),
+            Ok(Value::Int(5))
+        );
+        assert_clean(&rt);
+    });
+}
+
+/// `scopeLen()`: the number of values in all open handle scopes.
+#[allow(clippy::unnecessary_wraps)]
+fn scope_len(rt: &mut Runtime, _: &NativeCall) -> VmResult<NativeReturn> {
+    Ok(NativeReturn::Value(Value::from(
+        rt.heap().scope_len() as f64
+    )))
+}
+
+#[test]
+fn natives_that_call_back_do_not_grow_their_scope() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        rt.define_global_function("scopeLen", 0, scope_len).unwrap();
+        // The scope sizes seen by the callback stay the same over many
+        // elements, in `forEach`, `map` and `join` (through `toString`).
+        let out = run_in(
+            &mut rt,
+            "var a = []; for (var i = 0; i < 5000; i++) a[i] = i;
+             var sizes = [];
+             a.forEach(function (x) { if (x == 1 || x == 4999) sizes.push(scopeLen()); });
+             a.map(function (x) { if (x == 1 || x == 4999) sizes.push(scopeLen()); return {x: x}; });
+             var b = []; for (var j = 0; j < 5000; j++) b[j] = {toString: function () { if (this.i == 1 || this.i == 4999) sizes.push(scopeLen()); return ''; }, i: j};
+             b.join();
+             print(sizes[0] == sizes[1], sizes[2] == sizes[3], sizes[4] == sizes[5], sizes.length)",
+        );
+        assert_eq!(out, "true true true 6");
+    });
+}
+
+#[test]
+fn handler_tables_are_verified() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let listing = rt
+            .disassemble("try { f(); } catch (e) { g(e); } finally { h(); }")
+            .unwrap();
+        assert!(listing.contains("EndFinally"), "{listing}");
+        // Deep nesting of `try` compiles within the budget or fails with a
+        // RangeError, never a crash.
+        let depth = 3000;
+        let source = format!(
+            "{}{}",
+            "try { ".repeat(depth),
+            "} finally { }".repeat(depth)
+        );
+        match rt.eval(&source) {
+            Ok(_) => {}
+            Err(ScriptError::Compile { kind, .. }) => assert_eq!(kind, ThrowKind::RangeError),
+            Err(other) => panic!("{other:?}"),
+        }
+        let mut source = String::new();
+        for i in 0..200 {
+            let _ = write!(source, "try {{ if (n == {i}) throw {i}; ");
+        }
+        for _ in 0..200 {
+            source.push_str("} finally { n += 1000; } ");
+        }
+        let out = run_in(
+            &mut rt,
+            &format!("var n = 150; try {{ {source} }} catch (e) {{ print(e, n); }}"),
+        );
+        assert_eq!(out, "150 151150");
+    });
+}
+
+// --- Work-proportional time charges (review of spike session 5) ---------
+//
+// Each script runs an endless loop whose single iteration is big work for
+// one native call or one operator. A deadline of 100 ms must end it. Bound
+// of the test: 2 x the deadline + 50 ms in a release build; 1 s in a
+// debug build (the dev profile is optimised, but it checks overflow and
+// the machine may be loaded).
+
+fn ends_by_deadline(src: &str) -> Duration {
+    let deadline = Duration::from_millis(100);
+    let bound = if cfg!(debug_assertions) {
+        Duration::from_secs(1)
+    } else {
+        deadline * 2 + Duration::from_millis(50)
+    };
+    let mut rt = runtime(false);
+    rt.set_deadline(Some(Instant::now() + deadline));
+    let start = Instant::now();
+    let result = rt.eval(src);
+    let took = start.elapsed();
+    assert!(
+        matches!(result, Err(ScriptError::Terminated(Termination::TimeLimit))),
+        "{result:?} for {src}"
+    );
+    assert!(took < bound, "{took:?} (bound {bound:?}) for {src}");
+    took
+}
+
+const BIG_STRING: &str = "var s='x'; for(var i=0;i<24;i++) s=s+s; ";
+
+#[test]
+fn time_limit_object_keys_of_a_big_object() {
+    ends_by_deadline("var o={}; for(var i=0;i<100000;i++) o['k'+i]=i; for(;;){ Object.keys(o) }");
+}
+
+#[test]
+fn time_limit_concatenation_of_big_strings() {
+    ends_by_deadline(&format!("{BIG_STRING}for(;;){{ var t=s+'a' }}"));
+}
+
+#[test]
+fn time_limit_join_of_big_strings() {
+    ends_by_deadline(&format!("{BIG_STRING}for(;;){{ [s,s].join('') }}"));
+}
+
+#[test]
+fn time_limit_join_with_a_big_separator() {
+    ends_by_deadline(&format!("{BIG_STRING}for(;;){{ [1,2].join(s) }}"));
+}
+
+#[test]
+fn time_limit_console_log_of_a_big_array() {
+    ends_by_deadline(
+        "var a=[]; for(var i=0;i<100000;i++) a.push(String(i)); for(;;){ console.log(a) }",
+    );
+}
+
+#[test]
+fn time_limit_console_log_of_a_big_object() {
+    ends_by_deadline("var o={}; for(var i=0;i<100000;i++) o['k'+i]=i; for(;;){ console.log(o) }");
+}
+
+#[test]
+fn time_limit_object_keys_of_a_big_string_object() {
+    ends_by_deadline(&format!("{BIG_STRING}Object.keys(new String(s))"));
+}
+
+#[test]
+fn time_limit_push_with_many_arguments() {
+    ends_by_deadline(
+        "var a=[], args=[]; for(var i=0;i<60000;i++) args.push(i); for(;;){ a.push.apply(a,args) }",
+    );
+}
+
+#[test]
+fn time_limit_apply_with_a_big_array_like() {
+    ends_by_deadline(
+        "var args=[]; for(var i=0;i<60000;i++) args.push(i); function f(){} for(;;){ f.apply(null,args) }",
+    );
+}
+
+#[test]
+fn console_log_cuts_long_keys() {
+    let mut rt = runtime(false);
+    let out = run_in(
+        &mut rt,
+        "var o={}, k='x'; for(var i=0;i<20;i++) k=k+k; for(var j=0;j<3;j++) o[k+j]=1; console.log(o)",
+    );
+    // Three keys of 10,000 units each, with the rest of the name counted.
+    assert!(out.len() < 100_000, "{}", out.len());
+    assert!(
+        out.contains("... 1038577 more characters"),
+        "{}",
+        &out[..60]
+    );
+}
+
+#[test]
+fn console_log_stops_a_huge_structure() {
+    let mut rt = runtime(false);
+    let out = run_in(
+        &mut rt,
+        "var s='x'; for(var i=0;i<13;i++) s=s+s; \
+         var a=[]; for(var i=0;i<100;i++) a.push(s); \
+         var b=[]; for(var i=0;i<100;i++) b.push(a); \
+         var c=[]; for(var i=0;i<100;i++) c.push(b); console.log(c)",
+    );
+    assert!(out.len() < 20_000_000, "{}", out.len());
 }

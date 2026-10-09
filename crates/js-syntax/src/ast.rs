@@ -15,7 +15,7 @@
 //! - [`AssignTarget`]: a pattern for destructuring assignment;
 //! - [`ExprKind`]: spread, classes, tagged templates, optional chains,
 //!   `super`, `new.target`, `await`, `yield*` (a flag of `Yield`);
-//! - [`StmtKind`]: `switch`, `for`-`in`, `for`-`of`, `with`, classes;
+//! - [`StmtKind`]: `for`-`in`, `for`-`of`, `with`, classes;
 //! - [`FunctionKind`] and [`Function::is_async`] already cover all
 //!   function forms.
 
@@ -605,6 +605,15 @@ pub enum StmtKind {
     Return(Option<ExprId>),
     /// `throw`.
     Throw(ExprId),
+    /// `switch` (§14.12).
+    Switch {
+        /// The value that the clauses compare with.
+        discriminant: ExprId,
+        /// The `case` and `default` clauses in source order.
+        cases: List<SwitchCase>,
+        /// The scope of the case block (one scope for all clauses).
+        scope: ScopeId,
+    },
     /// `try` with `catch`, `finally` or both.
     Try {
         /// The `try` block (a [`StmtKind::Block`]).
@@ -614,6 +623,17 @@ pub enum StmtKind {
         /// The `finally` block (a [`StmtKind::Block`]).
         finalizer: Option<StmtId>,
     },
+}
+
+/// A clause of a `switch` statement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SwitchCase {
+    /// The expression of `case`; `None` for `default`.
+    pub test: Option<ExprId>,
+    /// The statements of the clause.
+    pub body: List<StmtId>,
+    /// The source range of the clause.
+    pub span: Span,
 }
 
 /// The `catch` clause of a `try` statement.
@@ -732,6 +752,7 @@ pub struct Ast {
     properties: Vec<Property>,
     declarators: Vec<Declarator>,
     template_elements: Vec<TemplateElement>,
+    cases: Vec<SwitchCase>,
 }
 
 /// Looks up `id` in `table`. Ids are only created by the table's arena, so
@@ -813,6 +834,11 @@ impl Ast {
         self.declarators.get(list.range()).unwrap_or(&[])
     }
 
+    /// The clauses of a `switch` statement.
+    pub fn cases(&self, list: List<SwitchCase>) -> &[SwitchCase] {
+        self.cases.get(list.range()).unwrap_or(&[])
+    }
+
     /// The elements of a template element list.
     pub fn template_elements(&self, list: List<TemplateElement>) -> &[TemplateElement] {
         self.template_elements.get(list.range()).unwrap_or(&[])
@@ -836,6 +862,7 @@ impl Ast {
             + bytes(&self.properties)
             + bytes(&self.declarators)
             + bytes(&self.template_elements)
+            + bytes(&self.cases)
     }
 
     // --- Building (parser only) ---
@@ -896,6 +923,10 @@ impl Ast {
 
     pub(crate) fn push_declarators(&mut self, items: &[Declarator]) -> List<Declarator> {
         push_list(&mut self.declarators, items)
+    }
+
+    pub(crate) fn push_cases(&mut self, items: &[SwitchCase]) -> List<SwitchCase> {
+        push_list(&mut self.cases, items)
     }
 
     pub(crate) fn push_template_elements(

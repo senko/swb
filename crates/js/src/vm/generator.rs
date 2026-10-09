@@ -11,10 +11,18 @@
 //! `next`; a return completes the generator with `{ value, done: true }`.
 //!
 //! Captured bindings are heap cells, so nothing refers to a position in
-//! the moved window. `return()` and `throw()` and the resume modes come
-//! with M7 feature 7.
+//! the moved window.
+//!
+//! `return(v)` and `throw(e)` resume with a mode (ADR 0026 section 5): the
+//! resumption writes the value into the `yield`'s register and the mode
+//! into the register after it, and the compiled dispatch after the
+//! `yield` ([`crate::bytecode::Insn::Resume`]) continues, throws at the
+//! `yield` (so the handler table of the generator applies), or takes the
+//! compiled return path, which runs the `finally` blocks. A generator
+//! that has not started or has completed handles the abrupt modes without
+//! running code (§27.5.3.4).
 
-use crate::bytecode::Reg;
+use crate::bytecode::{RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
 use crate::heap::{Gc, Tracer};
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
@@ -22,7 +30,8 @@ use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::call::Step;
 use crate::vm::{
-    Frame, Intrinsic, NativeCall, NativeReturn, Resume, ReturnTo, STACK_OVERFLOW, VmError, VmResult,
+    Frame, Intrinsic, NativeCall, NativeReturn, Resume, ResumeMode, ReturnTo, STACK_OVERFLOW,
+    VmError, VmResult,
 };
 
 /// The state of a generator (§27.5.2 `[[GeneratorState]]`).
@@ -70,20 +79,46 @@ impl GeneratorState {
 /// `%GeneratorPrototype%.next(value)` (§27.5.1.2): asks the interpreter
 /// to resume the generator.
 pub(crate) fn next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    resume_request(rt, call, ResumeMode::Next, "next")
+}
+
+/// `%GeneratorPrototype%.return(value)` (§27.5.1.3).
+pub(crate) fn return_(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    resume_request(rt, call, ResumeMode::Return, "return")
+}
+
+/// `%GeneratorPrototype%.throw(exception)` (§27.5.1.4).
+pub(crate) fn throw(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    resume_request(rt, call, ResumeMode::Throw, "throw")
+}
+
+/// The request of the three methods after the receiver check
+/// (§27.5.3.2 `GeneratorValidate`; V8's message).
+fn resume_request(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    mode: ResumeMode,
+    method: &str,
+) -> VmResult<NativeReturn> {
     let generator = match call.this() {
         Value::Object(object)
             if matches!(rt.heap.object(object)?.kind, ObjectKind::Generator(_)) =>
         {
             object
         }
-        _ => {
-            return Err(VmError::type_error(
-                "next method called on incompatible receiver",
-            ));
+        other => {
+            return Err(VmError::type_error(format!(
+                "Method [Generator].prototype.{method} called on incompatible receiver {}",
+                rt.primitive_text(other)
+            )));
         }
     };
     let value = rt.arg(call, 0);
-    Ok(NativeReturn::Resume(Resume { generator, value }))
+    Ok(NativeReturn::Resume(Resume {
+        generator,
+        value,
+        mode,
+    }))
 }
 
 impl Runtime {
@@ -187,27 +222,37 @@ impl Runtime {
         Ok(ret)
     }
 
-    /// Resumes a suspended generator with `value` (§27.5.3.3
-    /// GeneratorResume): moves its frame back on top of the stacks. The
-    /// frame's result goes to `ret`; the stack returns to `restore_top`.
+    /// Resumes a generator (§27.5.3.3 `GeneratorResume`, §27.5.3.4
+    /// `GeneratorResumeAbrupt`): moves its frame back on top of the stacks
+    /// with the value and the mode in its registers. The frame's result
+    /// goes to `ret`; the stack returns to `restore_top`. The value is
+    /// rooted by the caller (it is an argument of the native call).
     pub(crate) fn resume_generator(
         &mut self,
-        generator: Gc<Object>,
-        value: Value,
+        resume: Resume,
         ret: ReturnTo,
         restore_top: usize,
     ) -> VmResult<Step> {
+        let Resume {
+            generator,
+            value,
+            mode,
+        } = resume;
         let status = self.generator_state(generator)?.status;
-        match status {
-            GeneratorStatus::Executing => {
+        match (status, mode) {
+            (GeneratorStatus::Executing, _) => {
                 return Err(VmError::type_error("Generator is already running"));
             }
-            GeneratorStatus::Completed => {
-                let result = self.iter_result(Value::Undefined, true)?;
-                return Ok(Step::Value(result.into()));
+            (GeneratorStatus::SuspendedStart, ResumeMode::Return | ResumeMode::Throw) => {
+                self.complete_generator(generator)?;
+                return self.finished_generator_result(value, mode);
             }
-            GeneratorStatus::SuspendedStart | GeneratorStatus::SuspendedYield => {}
+            (GeneratorStatus::Completed, _) => {
+                return self.finished_generator_result(value, mode);
+            }
+            (GeneratorStatus::SuspendedStart | GeneratorStatus::SuspendedYield, _) => {}
         }
+        self.tick()?;
         if self.vm.frames.len() >= self.vm.frame_limit {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }
@@ -228,9 +273,20 @@ impl Runtime {
         state.status = GeneratorStatus::Executing;
         if status == GeneratorStatus::SuspendedYield
             && let Some(register) = state.resume_register
-            && let Some(slot) = vm.stack.get_mut(window + usize::from(register))
         {
-            *slot = value;
+            let mode = match mode {
+                ResumeMode::Next => RESUME_NEXT,
+                ResumeMode::Throw => RESUME_THROW,
+                ResumeMode::Return => RESUME_RETURN,
+            };
+            let at = window + usize::from(register);
+            match vm.stack.get_mut(at..at + 2) {
+                Some([slot, mode_slot]) => {
+                    *slot = value;
+                    *mode_slot = Value::Int(mode);
+                }
+                _ => return Err(VmError::invariant("a yield register outside the frame")),
+            }
         }
         frame.base = window as u32;
         frame.ret = ret;
@@ -238,6 +294,18 @@ impl Runtime {
         frame.generator = Some(generator);
         vm.frames.push(frame);
         Ok(Step::Entered)
+    }
+
+    /// The result of `next`, `return` or `throw` on a generator that does
+    /// not run: `{ value: undefined, done: true }`, `{ value, done: true }`
+    /// or the thrown value.
+    fn finished_generator_result(&mut self, value: Value, mode: ResumeMode) -> VmResult<Step> {
+        let result = match mode {
+            ResumeMode::Next => self.iter_result(Value::Undefined, true)?,
+            ResumeMode::Return => self.iter_result(value, true)?,
+            ResumeMode::Throw => return Err(VmError::Throw(value)),
+        };
+        Ok(Step::Value(result.into()))
     }
 
     /// Marks the generator of a frame that returned or threw as completed.

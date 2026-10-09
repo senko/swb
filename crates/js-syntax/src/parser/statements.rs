@@ -5,7 +5,8 @@ use swb_js_text::CodeUnit;
 
 use super::{IdentUse, Label, PResult, Parser, StmtContext, legacy_error};
 use crate::ast::{
-    CatchClause, Declarator, ExprKind, List, PatternKind, Span, StmtId, StmtKind, VariableKind,
+    CatchClause, Declarator, ExprKind, List, PatternKind, Span, StmtId, StmtKind, SwitchCase,
+    VariableKind,
 };
 use crate::error::ParseError;
 use crate::interner::names;
@@ -179,7 +180,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     .push_stmt(StmtKind::Debugger, Span::new(start, self.prev_end)))
             }
             TokenKind::Class => Err(ParseError::unsupported(start, "class")),
-            TokenKind::Switch => Err(ParseError::unsupported(start, "switch")),
+            TokenKind::Switch => self.parse_switch(),
             TokenKind::With if self.ctx.strict => {
                 Err(ParseError::syntax(start, messages::STRICT_WITH))
             }
@@ -545,7 +546,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.advance()?;
             Some(name)
         } else {
-            if self.ctx.iterations == 0 {
+            let allowed = if is_break {
+                self.ctx.iterations + self.ctx.switches > 0
+            } else {
+                self.ctx.iterations > 0
+            };
+            if !allowed {
                 let message = if is_break {
                     messages::ILLEGAL_BREAK
                 } else {
@@ -594,6 +600,100 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let argument = self.parse_expression(false)?;
         self.consume_semicolon()?;
         Ok(self.finish_stmt(StmtKind::Throw(argument), start))
+    }
+
+    /// `switch` (§14.12): the clauses share the scope of the case block.
+    fn parse_switch(&mut self) -> PResult<StmtId> {
+        let start = self.token.start;
+        self.advance()?;
+        self.expect(TokenKind::LParen)?;
+        let discriminant = self.parse_expression(false)?;
+        self.expect(TokenKind::RParen)?;
+        if !self.at(TokenKind::LBrace) {
+            return Err(self.unexpected());
+        }
+        let outer = self.open_scope(ScopeKind::Switch, self.token.start);
+        self.ctx.switches += 1;
+        let cases = self.parse_case_block();
+        self.ctx.switches -= 1;
+        let scope = self.scope;
+        self.close_scope(outer);
+        let cases = cases?;
+        Ok(self.finish_stmt(
+            StmtKind::Switch {
+                discriminant,
+                cases,
+                scope,
+            },
+            start,
+        ))
+    }
+
+    /// `{ CaseClauses DefaultClause CaseClauses }` (§14.12).
+    fn parse_case_block(&mut self) -> PResult<List<SwitchCase>> {
+        self.expect(TokenKind::LBrace)?;
+        let mark = self.scratch_cases.len();
+        let result = self.parse_case_clauses();
+        let cases = self.ast.push_cases(&self.scratch_cases[mark..]);
+        self.scratch_cases.truncate(mark);
+        result?;
+        self.expect(TokenKind::RBrace)?;
+        Ok(cases)
+    }
+
+    fn parse_case_clauses(&mut self) -> PResult<()> {
+        let mut has_default = false;
+        while !self.at(TokenKind::RBrace) {
+            let start = self.token.start;
+            let test = match self.token.kind {
+                TokenKind::Case => {
+                    self.advance()?;
+                    Some(self.parse_expression(false)?)
+                }
+                TokenKind::Default => {
+                    if has_default {
+                        return Err(ParseError::syntax(start, messages::MULTIPLE_DEFAULTS));
+                    }
+                    has_default = true;
+                    self.advance()?;
+                    None
+                }
+                _ => return Err(self.unexpected()),
+            };
+            self.expect(TokenKind::Colon)?;
+            let body = self.parse_clause_statements()?;
+            self.scratch_cases.push(SwitchCase {
+                test,
+                body,
+                span: Span::new(start, self.prev_end),
+            });
+        }
+        Ok(())
+    }
+
+    /// The statements of one clause, up to the next clause or the end of
+    /// the case block.
+    fn parse_clause_statements(&mut self) -> PResult<List<StmtId>> {
+        let mark = self.scratch_stmts.len();
+        while !matches!(
+            self.token.kind,
+            TokenKind::Case | TokenKind::Default | TokenKind::RBrace
+        ) {
+            if self.at(TokenKind::Eof) {
+                self.scratch_stmts.truncate(mark);
+                return Err(self.unexpected());
+            }
+            match self.parse_statement(StmtContext::ListItem) {
+                Ok(stmt) => self.scratch_stmts.push(stmt),
+                Err(error) => {
+                    self.scratch_stmts.truncate(mark);
+                    return Err(error);
+                }
+            }
+        }
+        let list = self.ast.push_stmts(&self.scratch_stmts[mark..]);
+        self.scratch_stmts.truncate(mark);
+        Ok(list)
     }
 
     /// `try` (§14.15).

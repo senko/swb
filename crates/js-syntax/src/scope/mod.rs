@@ -21,7 +21,8 @@
 //!   expression, between the enclosing scope and the function's scope.
 //! - [`ScopeKind::Block`], [`ScopeKind::Catch`] (the catch parameter and
 //!   the declarations of the catch block), [`ScopeKind::For`] (the
-//!   lexical declarations of a `for` head).
+//!   lexical declarations of a `for` head), [`ScopeKind::Switch`] (the
+//!   case block).
 //!
 //! Contract for the compiler:
 //!
@@ -72,6 +73,9 @@ pub enum ScopeKind {
     Catch,
     /// The head of a `for` statement with `let` or `const`.
     For,
+    /// The case block of a `switch` statement: all clauses share it, so
+    /// a clause can run without the declarations of an earlier clause.
+    Switch,
 }
 
 /// A scope.

@@ -467,7 +467,11 @@ impl Runtime {
         let mut text = String16::new();
         push_units(&mut text, self.heap.string(a)?.as_str16());
         push_units(&mut text, self.heap.string(b)?.as_str16());
-        Ok(self.heap.alloc_string(text)?)
+        let result = self.heap.alloc_string(text)?;
+        // Charged after the copy; the result is not rooted, so a check
+        // that ends the script is the only thing that can follow.
+        self.charge_units(total)?;
+        Ok(result)
     }
 
     /// `x instanceof target` (§13.10.2 `InstanceofOperator` with

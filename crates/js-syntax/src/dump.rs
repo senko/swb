@@ -112,20 +112,7 @@ impl Dumper<'_> {
                 update,
                 body,
                 ..
-            } => {
-                self.text("(for ");
-                match init {
-                    Some(init) => self.stmt(init),
-                    None => self.text("_"),
-                }
-                self.text(" ");
-                self.opt_expr(test);
-                self.text(" ");
-                self.opt_expr(update);
-                self.text(" ");
-                self.stmt(body);
-                self.text(")");
-            }
+            } => self.for_stmt(init, test, update, body),
             StmtKind::Labeled { label, body } => {
                 self.text("(label ");
                 self.name(label);
@@ -155,6 +142,11 @@ impl Dumper<'_> {
                 self.expr(argument);
                 self.text(")");
             }
+            StmtKind::Switch {
+                discriminant,
+                cases,
+                ..
+            } => self.switch_stmt(discriminant, cases),
             StmtKind::Try {
                 block,
                 handler,
@@ -182,6 +174,49 @@ impl Dumper<'_> {
                 }
                 None => self.pattern(declarator.target),
             }
+        }
+        self.text(")");
+    }
+
+    fn for_stmt(
+        &mut self,
+        init: Option<StmtId>,
+        test: Option<ExprId>,
+        update: Option<ExprId>,
+        body: StmtId,
+    ) {
+        self.text("(for ");
+        match init {
+            Some(init) => self.stmt(init),
+            None => self.text("_"),
+        }
+        self.text(" ");
+        self.opt_expr(test);
+        self.text(" ");
+        self.opt_expr(update);
+        self.text(" ");
+        self.stmt(body);
+        self.text(")");
+    }
+
+    fn switch_stmt(&mut self, discriminant: ExprId, cases: List<crate::ast::SwitchCase>) {
+        let ast = &self.script.ast;
+        self.text("(switch ");
+        self.expr(discriminant);
+        for case in ast.cases(cases) {
+            self.text(" (");
+            match case.test {
+                Some(test) => {
+                    self.text("case ");
+                    self.expr(test);
+                }
+                None => self.text("default"),
+            }
+            for &stmt in ast.stmts(case.body) {
+                self.text(" ");
+                self.stmt(stmt);
+            }
+            self.text(")");
         }
         self.text(")");
     }

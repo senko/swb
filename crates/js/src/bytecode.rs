@@ -22,12 +22,19 @@
 //! - control flow: jumps (a backward jump is a safepoint);
 //! - calls: `Call` and `New` take a window of consecutive registers
 //!   `callee, this, arg0, ...`; the result goes into the callee register;
-//! - errors, and the generator suspension points.
+//! - errors, the end of a `finally` block, and the generator suspension
+//!   and resumption points.
+//!
+//! Exceptions (ADR 0026 section 5): the handler table maps ranges of
+//! instructions to a handler and the register that receives the caught
+//! value. A `finally` block keeps the pending completion in two
+//! registers, its kind ([`COMPLETION_NORMAL`] and the others) and its
+//! value; [`Insn::EndFinally`] continues it.
 //!
 //! The code object ([`FunctionCode`], held by [`CodeObject`] in the heap)
 //! holds the instructions, the constant pool (strings, numbers, nested
 //! function code), the property sites, the capture sources of closures,
-//! the line table, the handler table (filled in session 5) and the
+//! the line table, the handler table and the
 //! global declarations of a script. The collector traces its constants
 //! through [`GenericData`].
 
@@ -45,6 +52,22 @@ pub(crate) type Reg = u16;
 
 /// The most registers of one frame (the operand width).
 pub(crate) const MAX_REGISTERS: u32 = 65_535;
+
+/// The completion kinds of a `finally` block (the kind register): the
+/// block was entered normally, by a throw (the value register holds the
+/// exception), by a `return` (the value register holds the result), or by
+/// a `break` or `continue` to the jump target `kind - COMPLETION_JUMP` of
+/// the block's table.
+pub(crate) const COMPLETION_NORMAL: i32 = 0;
+pub(crate) const COMPLETION_THROW: i32 = 1;
+pub(crate) const COMPLETION_RETURN: i32 = 2;
+pub(crate) const COMPLETION_JUMP: i32 = 3;
+
+/// The resume modes of a generator (the register after a `yield`'s value
+/// register): `next(v)`, `throw(e)`, `return(v)` (§27.5.3.3, §27.5.3.4).
+pub(crate) const RESUME_NEXT: i32 = 0;
+pub(crate) const RESUME_THROW: i32 = 1;
+pub(crate) const RESUME_RETURN: i32 = 2;
 
 /// One instruction. `dst` is the register that receives the result.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -487,14 +510,34 @@ pub(crate) enum Insn {
     /// (Annex B web compatibility; Chromium throws at run time).
     ThrowInvalidAssign,
 
+    /// The end of a `finally` block: continues the completion in `kind`
+    /// and `value`. Normal: jumps by `offset` (past the block's table).
+    /// Throw: throws `value`. Return and jumps: continues at the entry
+    /// `kind - COMPLETION_RETURN` of the table of jumps that follows the
+    /// instruction (the table ends before `offset`).
+    EndFinally {
+        kind: Reg,
+        value: Reg,
+        offset: i32,
+    },
+
     // --- Generators ---
     /// The end of a generator's prologue: creates the generator object,
     /// suspends the frame and returns the object to the caller.
     InitialYield,
     /// Yields the value of `reg` (as `{ value, done: false }`); on resume,
-    /// `reg` receives the value that `next(v)` sent.
+    /// `reg` receives the value that was sent and `reg + 1` the resume
+    /// mode ([`RESUME_NEXT`] and the others).
     Yield {
         reg: Reg,
+    },
+    /// The dispatch after a `yield` on the resume mode in `reg + 1`: next
+    /// jumps by `offset`, throw throws the value in `reg`, return
+    /// continues with the next instruction (the compiled return path,
+    /// which runs the `finally` blocks).
+    Resume {
+        reg: Reg,
+        offset: i32,
     },
 
     /// Does nothing (`debugger`).
@@ -512,7 +555,9 @@ impl Insn {
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
-            | Insn::JumpIfNotGe { offset, .. } => Some(offset),
+            | Insn::JumpIfNotGe { offset, .. }
+            | Insn::EndFinally { offset, .. }
+            | Insn::Resume { offset, .. } => Some(offset),
             _ => None,
         }
     }
@@ -528,7 +573,9 @@ impl Insn {
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
-            | Insn::JumpIfNotGe { offset, .. } => *offset = new,
+            | Insn::JumpIfNotGe { offset, .. }
+            | Insn::EndFinally { offset, .. }
+            | Insn::Resume { offset, .. } => *offset = new,
             _ => {}
         }
     }
@@ -585,7 +632,10 @@ pub(crate) enum ThisMode {
     Global,
 }
 
-/// A range of instructions with a handler (session 5 fills the table).
+/// A range of instructions with a handler. The table of a code object is
+/// sorted by `start`, and for equal starts the outer range comes first;
+/// two ranges are disjoint or nested, so the last range that contains a
+/// position is the innermost one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Handler {
     /// The first instruction of the range.
@@ -646,7 +696,7 @@ pub(crate) struct FunctionCode {
     pub(crate) name: Gc<JsString>,
     /// (first instruction, source offset), sorted by instruction.
     pub(crate) lines: Box<[(u32, u32)]>,
-    /// The exception handlers (empty until session 5).
+    /// The exception handlers.
     pub(crate) handlers: Box<[Handler]>,
     /// (instruction, constant index of the callee text) for the messages
     /// of `Call` and `New` ("f is not a function"), sorted.
@@ -696,6 +746,20 @@ impl FunctionCode {
             .checked_sub(1)
             .and_then(|i| self.lines.get(i))
             .map(|&(_, offset)| offset)
+    }
+
+    /// The innermost handler whose range contains `pc`.
+    pub(crate) fn handler_at(&self, pc: usize) -> Option<Handler> {
+        let pc = u32::try_from(pc).ok()?;
+        // The ranges that start at or before `pc`; the last one that
+        // still contains it is the innermost.
+        let candidates = self.handlers.partition_point(|h| h.start <= pc);
+        self.handlers
+            .get(..candidates)?
+            .iter()
+            .rev()
+            .find(|h| pc < h.end)
+            .copied()
     }
 
     /// The constant with the callee text of the call at `pc`.
@@ -858,8 +922,14 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
                     return fail("capture index");
                 }
             }
-            Insn::InitialYield | Insn::Yield { .. } if code.kind != CodeKind::Generator => {
+            Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
+                if code.kind != CodeKind::Generator =>
+            {
                 return fail("yield outside a generator");
+            }
+            // The resume mode goes into the register after `reg`.
+            Insn::Yield { reg } | Insn::Resume { reg, .. } if u32::from(reg) + 1 >= registers => {
+                return fail("resume mode register out of range");
             }
             _ => {}
         }
@@ -938,7 +1008,9 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::NewObject { dst }
         | I::NewArray { dst, .. }
         | I::Closure { dst, .. } => f(dst),
-        I::MakeCell { reg } | I::CopyCell { reg } | I::Yield { reg } => f(reg),
+        I::MakeCell { reg } | I::CopyCell { reg } | I::Yield { reg } | I::Resume { reg, .. } => {
+            f(reg);
+        }
         I::CheckTdz { src, .. }
         | I::StoreCapture { src, .. }
         | I::SetGlobal { src, .. }
@@ -963,6 +1035,11 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Dec { dst, src }
         | I::ToString { dst, src }
         | I::StoreCell { cell: dst, src }
+        | I::EndFinally {
+            kind: dst,
+            value: src,
+            ..
+        }
         | I::Push { array: dst, src }
         | I::SetProto { obj: dst, src }
         | I::GetNamed { dst, obj: src, .. }
@@ -1143,5 +1220,66 @@ mod tests {
         }]
         .into();
         assert!(verify(&nested).is_err());
+    }
+
+    #[test]
+    fn the_innermost_handler_wins() {
+        let mut table = code(vec![Insn::Nop; 8], 2);
+        let handler = |start, end, target| Handler {
+            start,
+            end,
+            target,
+            register: 1,
+        };
+        // Sorted by start, the outer range first for equal starts.
+        table.handlers = vec![
+            handler(0, 6, 7),
+            handler(0, 3, 6),
+            handler(1, 2, 5),
+            handler(4, 5, 5),
+        ]
+        .into();
+        let target = |pc| table.handler_at(pc).map(|h| h.target);
+        assert_eq!(target(0), Some(6));
+        assert_eq!(target(1), Some(5));
+        assert_eq!(target(2), Some(6));
+        assert_eq!(target(3), Some(7));
+        assert_eq!(target(4), Some(5));
+        assert_eq!(target(5), Some(7));
+        assert_eq!(target(6), None);
+    }
+
+    #[test]
+    fn the_verifier_checks_the_resume_registers() {
+        let mut generator = code(
+            vec![
+                Insn::Yield { reg: 0 },
+                Insn::Resume { reg: 0, offset: 1 },
+                Insn::Return { src: 0 },
+            ],
+            2,
+        );
+        generator.kind = CodeKind::Generator;
+        assert_eq!(verify(&generator), Ok(()));
+        // The mode register `reg + 1` is outside the frame.
+        generator.register_count = 1;
+        assert!(verify(&generator).is_err());
+        // Not in a generator.
+        generator.register_count = 2;
+        generator.kind = CodeKind::Normal;
+        assert!(verify(&generator).is_err());
+        // The target of `EndFinally` must be inside the code.
+        let finally = code(
+            vec![
+                Insn::EndFinally {
+                    kind: 0,
+                    value: 1,
+                    offset: 5,
+                },
+                Insn::Return { src: 0 },
+            ],
+            2,
+        );
+        assert!(verify(&finally).is_err());
     }
 }

@@ -307,6 +307,15 @@ fn statements() {
             "(try (block a) (finally (block b)))",
         ),
         ("debugger;", "(debugger)"),
+        ("switch (a) {}", "(switch a)"),
+        (
+            "switch (a) { case 1: b; break; default: case 2: { c } }",
+            "(switch a (case 1 b (break)) (default) (case 2 (block c)))",
+        ),
+        (
+            "x: switch (a) { case 1: let b; function f() {} break x; }",
+            "(label x (switch a (case 1 (let b) (function f ()) (break x))))",
+        ),
         ("if (a) function f() {}", "(if a (block (function f ())))"),
         ("x: function f() {}", "(label x (function f ()))"),
         (
@@ -361,7 +370,6 @@ fn unsupported_constructs() {
     let cases = [
         ("class A {}", "class"),
         ("x = class {}", "class"),
-        ("switch (a) {}", "switch"),
         ("with (a) {}", "with"),
         ("for (a in b) ;", "for-in"),
         ("for (var a of b) ;", "for-of"),
@@ -997,6 +1005,19 @@ const EARLY_ERRORS: &[(&str, &str)] = &[
         "Undefined label 'a'",
     ),
     ("try {}", "Missing catch or finally after try"),
+    (
+        "switch (a) { default: default: }",
+        "More than one default clause in switch statement",
+    ),
+    (
+        "switch (a) { case 1: continue; }",
+        "Illegal continue statement: no surrounding iteration statement",
+    ),
+    (
+        "switch (a) { case 1: let b; let b; }",
+        "Identifier 'b' has already been declared",
+    ),
+    ("switch (a) { b; }", "Unexpected identifier 'b'"),
     ("try {} catch (a, b) {}", "Unexpected token ','"),
     (
         "var v\\u0061r = 1;",

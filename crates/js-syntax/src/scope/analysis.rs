@@ -528,9 +528,12 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
                     Storage::Cell(r) => Resolution::Cell(r),
                 };
                 // A load in the same function after the declarator has run
-                // needs no check (memo 2.4; the parser has no `switch`
-                // yet, whose clauses share one scope).
-                let initialized = user == owner && reference.offset >= binding.init_end;
+                // needs no check (memo 2.4). The clauses of a `switch`
+                // share one scope, and a clause can run without the
+                // clauses before it, so their bindings are always checked.
+                let initialized = user == owner
+                    && reference.offset >= binding.init_end
+                    && tree.scope(binding.scope).kind != ScopeKind::Switch;
                 let tdz = binding.kind.is_lexical() && !reference.declaration && !initialized;
                 (resolution, tdz)
             }

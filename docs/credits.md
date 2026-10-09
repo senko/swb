@@ -60,8 +60,13 @@ Format: source, license (for code), what it influenced.
   §7.2.15 (comparison and equality), §10.2 (ordinary function objects),
   §10.4.4.6 (unmapped arguments), clause 13 (operators), §14.7.4.4
   (per-iteration bindings), §16.1.7 (GlobalDeclarationInstantiation) and
-  §27.5 (generators) — `js/src/compiler/`, `js/src/vm/`; V8's run-time
-  error messages, measured in Node.js 22 — `js/src/vm/property.rs`.
+  §27.5 (generators) — `js/src/compiler/`, `js/src/vm/`; §14.12
+  (`switch`), §14.15 (`try`), §27.5.3 (generator resumption) —
+  `js-syntax`, `js/src/compiler/`, `js/src/vm/`; §10.2.4.1
+  (%ThrowTypeError%), §20.1 to §20.5 (Object, Function, the error
+  constructors), §21.1 (Number), §22.1 (String) and §23.1 (Array) for
+  the built-ins in `js/src/builtins/`. V8's run-time error messages,
+  measured in Node.js 22 — `js/src/vm/property.rs`, `js/src/builtins/`.
   The Unicode Character Database 17.0
   (`DerivedCoreProperties.txt`: ID_Start, ID_Continue;
   `DerivedGeneralCategory.txt`: Zs) — `js-text/src/unicode/tables.rs`
@@ -133,8 +138,15 @@ Format: source, license (for code), what it influenced.
   machine with temporaries in stack order after "The Implementation of
   Lua 5.0" and Duktape's design notes; one value stack and frame records
   without host recursion after Duktape and MicroQuickJS; deferred calls
-  after MicroQuickJS) — `js/src/compiler/`, `js/src/vm/`. No code was
-  copied; the sessions read only the memos.
+  after MicroQuickJS) — `js/src/compiler/`, `js/src/vm/`. Exceptions
+  after study memo 1.4: a handler table per code object (the JVM's
+  exception table, CPython 3.11) and the `finally` completion stored in
+  two registers (Duktape's design, ECMA-262 §6.2.4 and §14.15);
+  termination and the time countdown at calls and jumps after memo 1.5
+  (QuickJS) and HTML §8.1.4.5. No code was copied; the sessions read
+  only the memos.
+- Node.js `util.inspect`, measured as a black box — the output format of
+  `console.log` (`js/src/builtins/console.rs`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

@@ -30,7 +30,7 @@ use swb_js_text::{CodeUnit, RecursionBudget, Str16};
 
 use crate::ast::{
     Ast, Declarator, ExprId, FunctionId, FunctionKind, Ident, List, PatternId, Property, ScopeId,
-    StmtId, TemplateElement,
+    StmtId, SwitchCase, TemplateElement,
 };
 use crate::error::ParseError;
 use crate::interner::{Interner, NameId, names};
@@ -161,6 +161,9 @@ pub(crate) struct Context {
     label_base: usize,
     /// The number of enclosing iteration statements in this function.
     iterations: u32,
+    /// The number of enclosing `switch` statements in this function
+    /// (an unlabelled `break` may leave them).
+    switches: u32,
     /// The name of the function, for the retroactive strict mode check.
     name: Option<(NameId, u32)>,
     /// The parameters, for the retroactive strict mode check.
@@ -184,6 +187,7 @@ impl Context {
             generator,
             label_base,
             iterations: 0,
+            switches: 0,
             name: None,
             params: List::EMPTY,
             duplicate_param: None,
@@ -236,6 +240,7 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     scratch_properties: Vec<Property>,
     scratch_declarators: Vec<Declarator>,
     scratch_quasis: Vec<TemplateElement>,
+    scratch_cases: Vec<SwitchCase>,
 }
 
 impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
@@ -287,6 +292,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             scratch_properties: Vec::new(),
             scratch_declarators: Vec::new(),
             scratch_quasis: Vec::new(),
+            scratch_cases: Vec::new(),
         }
     }
 

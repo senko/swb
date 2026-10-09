@@ -123,8 +123,22 @@ pub enum NativeReturn {
         /// The arguments.
         args: Vec<Value>,
     },
-    /// Resume a generator (the `next` method of generator objects).
+    /// Resume a generator (the `next`, `return` and `throw` methods of
+    /// generator objects).
     Resume(Resume),
+}
+
+/// How a generator resumes (§27.5.3.3 `GeneratorResume`, §27.5.3.4
+/// `GeneratorResumeAbrupt`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResumeMode {
+    /// `next(v)`: `v` is the value of the `yield` expression.
+    Next,
+    /// `throw(e)`: the `yield` throws `e`.
+    Throw,
+    /// `return(v)`: the generator returns `v` (after its `finally`
+    /// blocks).
+    Return,
 }
 
 /// A request to resume a suspended generator with a value.
@@ -132,6 +146,7 @@ pub enum NativeReturn {
 pub struct Resume {
     pub(crate) generator: Gc<crate::object::Object>,
     pub(crate) value: Value,
+    pub(crate) mode: ResumeMode,
 }
 
 impl Runtime {
@@ -196,11 +211,24 @@ impl Runtime {
         length: u32,
         func: NativeFn,
     ) -> VmResult<Gc<crate::object::Object>> {
+        self.new_builtin(realm, name, length, func, false)
+    }
+
+    /// [`Runtime::new_native_function`] that can be a constructor (it
+    /// then sees `new.target`).
+    pub(crate) fn new_builtin(
+        &mut self,
+        realm: u32,
+        name: &str,
+        length: u32,
+        func: NativeFn,
+        constructor: bool,
+    ) -> VmResult<Gc<crate::object::Object>> {
         let proto = self.intrinsic(realm, Intrinsic::FunctionPrototype)?;
         let kind = ObjectKind::Native(Box::new(NativeFunction {
             func,
             realm,
-            constructor: false,
+            constructor,
         }));
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);

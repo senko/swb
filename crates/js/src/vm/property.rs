@@ -59,9 +59,41 @@ impl Runtime {
     /// `base[key]` for any base value.
     pub(crate) fn get_property(&mut self, base: Value, key: PropertyKey) -> VmResult<Lookup> {
         match base {
-            Value::Object(object) => Ok(self.heap.get(object, key, base)?.into()),
+            Value::Object(object) => {
+                if let Some(value) = self.string_object_index(object, key)? {
+                    return Ok(Lookup::Value(value));
+                }
+                Ok(self.heap.get(object, key, base)?.into())
+            }
             _ => self.get_primitive_property(base, key),
         }
+    }
+
+    /// The index properties of a String object (§10.4.3.5
+    /// `StringGetOwnProperty`), which the minimal wrapper of the spike
+    /// does not store: the code unit at `key` if the object is a String
+    /// object and `key` an index below its length.
+    pub(crate) fn string_object_index(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> VmResult<Option<Value>> {
+        let PropertyKey::Index(_) = key else {
+            return Ok(None);
+        };
+        match self.heap.object(object)?.kind {
+            ObjectKind::StringWrapper(string) => self.string_own_property(string, key),
+            _ => Ok(None),
+        }
+    }
+
+    /// `HasProperty` (§7.3.12) with the index properties of String
+    /// objects.
+    pub(crate) fn has_property(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
+        if self.string_object_index(object, key)?.is_some() {
+            return Ok(true);
+        }
+        Ok(self.heap.has_property(object, key)?)
     }
 
     /// `base[key]` for a primitive base (§6.2.5.5 `GetValue` with `ToObject`,
@@ -350,7 +382,7 @@ impl Runtime {
             )));
         };
         let key = self.to_property_key(key)?;
-        Ok(self.heap.has_property(object, key)?)
+        self.has_property(object, key)
     }
 
     /// Appends a hole to an array literal: `length` + 1.
@@ -385,7 +417,9 @@ impl Runtime {
         );
         let params = frame.compiled.param_count as usize;
         let proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;
-        let object = self.heap.new_object(Some(proto))?;
+        let object = self
+            .heap
+            .new_object_with_kind(Some(proto), ObjectKind::Arguments)?;
         // The register roots the object while its properties are added.
         *self
             .vm
@@ -416,10 +450,14 @@ impl Runtime {
             false,
             true,
         )?;
-        if !strict && let Some(function) = function {
-            // Strict functions get a `callee` accessor that throws
-            // (%ThrowTypeError%, §10.2.4); it comes with the built-ins.
-            let callee = PropertyKey::String(self.vm.atoms.callee);
+        let callee = PropertyKey::String(self.vm.atoms.callee);
+        if strict {
+            // §10.4.4.6 step 8: an accessor that throws.
+            let thrower: Value = self.intrinsic(realm, Intrinsic::ThrowTypeError)?.into();
+            let desc = PropertyDescriptor::accessor(thrower, thrower, false, false);
+            self.heap
+                .define_own_property(object, callee, desc, &self.vm)?;
+        } else if let Some(function) = function {
             self.define(object, callee, function.into(), true, false, true)?;
         }
         Ok(())
@@ -710,6 +748,17 @@ impl Runtime {
                 .compiled
                 .source_text()
                 .map_or_else(|| "#<Object>".to_owned(), |text| shorten_source(&text)),
+            Ok(ObjectKind::Native(_)) => {
+                let key = PropertyKey::String(self.vm.atoms.name);
+                let name = match self.heap.get_own_property(object, key) {
+                    Ok(Some(Property::Data {
+                        value: Value::String(name),
+                        ..
+                    })) => self.name_text(name),
+                    _ => String::new(),
+                };
+                format!("function {name}() {{ [native code] }}")
+            }
             _ => "#<Object>".to_owned(),
         }
     }

@@ -666,6 +666,30 @@ the sections above left room or where the first plan did not work:
   literals 10.6x slower. Inline caches in the property sites, a cache
   for global access and cached literal shapes are the next performance
   steps (M7 feature 13).
+- Exceptions (session 5): the handler table is sorted by start (the
+  outer range first for equal starts), so the last range that contains
+  a position is the innermost. A `finally` block ends with an
+  instruction that dispatches on the stored completion through a table
+  of routes; each route continues the completion through the next outer
+  `finally`. Catch code follows the `try` block, so the normal path
+  pays one jump (+14 % on a two-instruction loop). The handler search
+  restores the value stack to the catching frame's top, closes handle
+  scopes and no-GC regions down to the loop's entry, and creates the
+  error object for a `Raise` only there.
+- Generators: `yield` uses two registers (the value and the resume
+  mode); the `Resume` instruction after it continues on `next`, throws
+  on `throw` (inside the handler ranges of the `yield`) and enters an
+  inline return path on `return`.
+- Time: a countdown of 10,000 steps (backward jumps, function entries,
+  generator resumptions), then a check of an atomic termination
+  request and of the deadline. Built-in functions and string
+  concatenation charge steps in proportion to their work: one per
+  element or key, one per 64 code units copied. About 5 % on a loop of
+  integer additions; the hostile cases end within 3 ms of a 100 ms
+  deadline. One charge per operation was not enough: a loop of
+  `Object.keys` calls on a large object ran 101 s past the deadline.
+- Handle scopes per element in native loops cost nothing measurable
+  (`forEach` over 1M elements).
 
 ## Consequences
 

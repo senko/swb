@@ -8,6 +8,17 @@
 //! Values that the API returns are handles: a returned result stays alive
 //! until the next call that runs script code; a native function's values
 //! stay alive until it returns (they are recorded in its handle scope).
+//!
+//! Limits (ADR 0026 section 9): the host sets a deadline per task
+//! ([`Runtime::set_deadline`]) and can ask from any thread to end the
+//! running script ([`Runtime::termination_handle`]); both end the script
+//! with [`ScriptError::Terminated`]. After a termination the runtime is
+//! usable: the frames, the value stack, the handle scopes and the no-GC
+//! regions of the ended run are gone, a generator that was running is
+//! closed, and suspended generators can resume in a later run.
+//!
+//! Output: `console.log` writes its lines to the console sink of the
+//! host ([`Runtime::set_console`]); without one, the lines are dropped.
 
 use std::any::Any;
 use std::borrow::Cow;
@@ -25,8 +36,8 @@ use crate::object::{GetResult, PropertyDescriptor};
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::{
-    Atoms, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, Frame, NativeFn, ReturnTo, STACK_OVERFLOW, Vm,
-    VmError, VmResult,
+    Atoms, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, Frame, NativeFn, ReturnTo, STACK_OVERFLOW,
+    TIME_CHECK_INTERVAL, TerminationHandle, Vm, VmError, VmResult,
 };
 
 /// The largest value stack: frame records keep stack positions in 32 bits.
@@ -81,7 +92,8 @@ pub enum ScriptError {
         /// in the innermost script frame.
         offset: Option<u32>,
     },
-    /// The script was ended (heap limit; later the time limit).
+    /// The script was ended: the heap limit, the time limit or a request
+    /// of the host. No handler and no `finally` block ran.
     Terminated(Termination),
     /// An engine bug ended the script (logged).
     Internal(InternalError),
@@ -124,12 +136,26 @@ impl From<ParseError> for ScriptError {
     }
 }
 
+/// The receiver of `console.log` lines.
+pub type ConsoleSink = Box<dyn FnMut(&str)>;
+
 /// A JavaScript runtime: one heap, one value stack, realms.
 pub struct Runtime {
     pub(crate) heap: Heap,
     pub(crate) vm: Vm,
     pub(crate) budget: RecursionBudget,
     host: Option<Box<dyn Any>>,
+    console: Option<ConsoleSink>,
+}
+
+/// The lengths of the VM's stacks and regions before a host run, to
+/// restore after a run that ended abruptly.
+struct RunStart {
+    frames: usize,
+    stack: usize,
+    scopes: usize,
+    no_gc: u32,
+    joins: usize,
 }
 
 impl Runtime {
@@ -146,12 +172,17 @@ impl Runtime {
             stack_limit: config.stack_limit.min(MAX_STACK_LIMIT),
             last_value: Value::Undefined,
             error_offset: None,
+            countdown: TIME_CHECK_INTERVAL,
+            deadline: None,
+            termination: TerminationHandle::default(),
+            join_stack: Vec::new(),
         };
         let mut runtime = Runtime {
             heap,
             vm,
             budget: config.recursion_budget,
             host: None,
+            console: None,
         };
         runtime.create_realm().map_err(finish_error)?;
         Ok(runtime)
@@ -193,6 +224,66 @@ impl Runtime {
         self.host.as_mut()?.downcast_mut()
     }
 
+    /// Sets the receiver of the lines of `console.log` (one call per
+    /// line, without the line end).
+    pub fn set_console(&mut self, sink: ConsoleSink) {
+        self.console = Some(sink);
+    }
+
+    /// Writes a line to the console sink.
+    pub(crate) fn console_line(&mut self, line: &str) {
+        if let Some(sink) = self.console.as_mut() {
+            sink(line);
+        }
+    }
+
+    /// Sets the deadline of the following runs: a script that is still
+    /// running at the deadline ends with [`Termination::TimeLimit`]
+    /// (checked every 10,000 steps: measured, scripts end within 0.5 ms
+    /// of the deadline). `None` removes it.
+    pub fn set_deadline(&mut self, deadline: Option<std::time::Instant>) {
+        self.vm.deadline = deadline;
+    }
+
+    /// The deadline of the runs.
+    pub fn deadline(&self) -> Option<std::time::Instant> {
+        self.vm.deadline
+    }
+
+    /// A handle that another thread can use to end the running script
+    /// ([`Termination::HostRequest`]).
+    pub fn termination_handle(&self) -> TerminationHandle {
+        self.vm.termination.clone()
+    }
+
+    /// The number of frame records and of values in the value stack (for
+    /// diagnostics and tests: both are 0 between host runs).
+    pub fn stack_depths(&self) -> (usize, usize) {
+        (self.vm.frames.len(), self.vm.stack.len())
+    }
+
+    /// The lengths of the VM's stacks before a host run.
+    fn run_start(&self) -> RunStart {
+        RunStart {
+            frames: self.vm.frames.len(),
+            stack: self.vm.stack.len(),
+            scopes: self.heap.scope_depth(),
+            no_gc: self.heap.no_gc_depth(),
+            joins: self.vm.join_stack.len(),
+        }
+    }
+
+    /// Restores the state before a host run after an abrupt end. The
+    /// interpreter already removed its frames; this is the safety net for
+    /// paths that left early (generators of removed frames complete).
+    fn restore_run_start(&mut self, start: &RunStart) {
+        self.unwind(start.frames);
+        self.vm.stack.truncate(start.stack);
+        self.heap.close_scopes_to(start.scopes);
+        self.heap.restore_no_gc_depth(start.no_gc);
+        self.vm.join_stack.truncate(start.joins);
+    }
+
     /// Compiles and runs a classic script in realm 0. Returns its
     /// completion value (the value of the last expression statement that
     /// ran; the full completion rules of §16.1.6 come later).
@@ -204,8 +295,12 @@ impl Runtime {
     /// [`Runtime::eval`] with source text in code units.
     pub fn eval_source(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
+        let start = self.run_start();
         let (code, compiled) = self.compile(source)?;
         let result = self.run_script(code, compiled, 0);
+        if result.is_err() {
+            self.restore_run_start(&start);
+        }
         self.finish(result)
     }
 
@@ -292,9 +387,12 @@ impl Runtime {
         args: &[Value],
     ) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
+        let start = self.run_start();
         let scope = self.heap.open_scope();
         let result = self.call(callee, this, args);
-        if let Err(error) = self.heap.close_scope(scope) {
+        if result.is_err() {
+            self.restore_run_start(&start);
+        } else if let Err(error) = self.heap.close_scope(scope) {
             return Err(finish_error(error.into()));
         }
         self.finish(result)
@@ -394,6 +492,12 @@ impl Runtime {
     /// `#<Object>`.
     pub fn display(&self, value: Value) -> String {
         self.primitive_text(value)
+    }
+
+    /// The text of a value as `console.log` shows it (Node.js's short
+    /// form); no script code runs.
+    pub fn inspect(&self, value: Value) -> String {
+        crate::builtins::inspect(self, value)
     }
 
     /// Defines an accessor property on an object (a helper for natives

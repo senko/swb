@@ -5,7 +5,8 @@
 //! - [`Error::Internal`]: an engine bug, for example a stale handle. It
 //!   ends the script; it is never a panic.
 //! - [`Error::Terminated`]: the script must end (heap limit, out of
-//!   memory). No JavaScript handler sees it.
+//!   memory, time limit, a request of the host). No JavaScript handler
+//!   and no `finally` block sees it.
 //! - [`Error::Throw`]: the caller must throw a new error object of the
 //!   given kind. The object model cannot create error objects itself,
 //!   because they need a realm.
@@ -54,6 +55,13 @@ pub enum Termination {
     /// slot index left.
     #[error("out of memory")]
     OutOfMemory,
+    /// The deadline that the host set has passed (ADR 0026 section 9).
+    #[error("the time limit was exceeded")]
+    TimeLimit,
+    /// The host asked to end the script (a termination request, for
+    /// example from another thread).
+    #[error("the host ended the script")]
+    HostRequest,
 }
 
 /// The kind of error object that the caller throws for [`Error::Throw`]
@@ -70,6 +78,10 @@ pub enum ThrowKind {
     ReferenceError,
     /// `SyntaxError`.
     SyntaxError,
+    /// `EvalError`.
+    EvalError,
+    /// `URIError`.
+    UriError,
 }
 
 impl ThrowKind {
@@ -81,6 +93,8 @@ impl ThrowKind {
             ThrowKind::RangeError => "RangeError",
             ThrowKind::ReferenceError => "ReferenceError",
             ThrowKind::SyntaxError => "SyntaxError",
+            ThrowKind::EvalError => "EvalError",
+            ThrowKind::UriError => "URIError",
         }
     }
 }

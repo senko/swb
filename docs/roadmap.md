@@ -498,7 +498,28 @@ at a time, in this order:
       `Error` constructors, `Object.keys`, `Array` (index, `length`,
       `push`, `join`, `forEach`, `map`: natives that call back, for the
       handle scopes), `Function.prototype.call` (the deferred call),
-      `String()` and `Number()`.
+      `String()` and `Number()`. Done 2026-10-09: handler tables,
+      `finally` with a stored completion, `switch` (added to the
+      parser), generator `return` and `throw`, termination (time limit,
+      heap limit, host request; uncatchable; the runtime stays usable),
+      the time countdown with charges in proportion to the work of
+      built-ins, and the listed built-ins plus `Object`,
+      `Object.prototype.toString`/`valueOf`/`hasOwnProperty` and
+      `Function.prototype.toString`; 210 more scripts compared with
+      Node 22, also in GC stress mode; the reviewer compared 6,000 random
+      programs with Node without a difference. Against
+      `node --jitless`: a `try` that never throws 1.15x, `forEach` over
+      1M elements 9.7x (the callbacks re-enter the interpreter), fib
+      5.3x (20 % slower than after session 4 because the global object
+      grew; the global cache of M7 feature 13 removes the by-name
+      lookup). Open: an error that `finally` rethrows reports the
+      offset of the `finally` block; catch code sits inline after the
+      `try` block (one jump on the normal path); writes to index
+      properties of String objects create own properties;
+      `Number.prototype.toString(radix)` prints all digits of fractions
+      instead of the shortest form; `console.log` has no `%s` and no
+      column grouping; errors raised by natives are created in the
+      realm of the catching frame.
    6. Tools (`implementer`). The `swb-js` shell with `$262`;
       `just test262` (test262 at a pinned commit in a git-ignored
       directory, a list of features in scope, the scores file; in the

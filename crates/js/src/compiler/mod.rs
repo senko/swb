@@ -82,6 +82,8 @@ pub(crate) struct Builder {
     pub(crate) name: Option<String16>,
     pub(crate) lines: Vec<(u32, u32)>,
     pub(crate) call_names: Vec<(u32, u32)>,
+    /// The exception handlers, sorted.
+    pub(crate) handlers: Vec<crate::bytecode::Handler>,
     /// The range of the function in the source.
     pub(crate) span: (u32, u32),
 }
@@ -286,7 +288,7 @@ fn finish_code(
         uses_arguments: builder.uses_arguments,
         name,
         lines: builder.lines.into(),
-        handlers: Box::new([]),
+        handlers: builder.handlers.into(),
         call_names: builder.call_names.into(),
         source: Rc::clone(source),
         span: builder.span,

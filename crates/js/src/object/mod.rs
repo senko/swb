@@ -66,6 +66,11 @@ pub enum ObjectKind {
     BooleanWrapper(bool),
     /// A Symbol object (`[[SymbolData]]`).
     SymbolWrapper(Gc<Symbol>),
+    /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise.
+    Error,
+    /// An arguments object (`[[ParameterMap]]` absent: the unmapped form,
+    /// §10.4.4.6): ordinary otherwise.
+    Arguments,
 }
 
 impl fmt::Debug for ObjectKind {
@@ -81,6 +86,8 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
+            ObjectKind::Error => "Error",
+            ObjectKind::Arguments => "Arguments",
         };
         f.write_str(name)
     }
@@ -95,7 +102,9 @@ impl ObjectKind {
             | ObjectKind::Array { .. }
             | ObjectKind::Native(_)
             | ObjectKind::NumberWrapper(_)
-            | ObjectKind::BooleanWrapper(_) => {}
+            | ObjectKind::BooleanWrapper(_)
+            | ObjectKind::Error
+            | ObjectKind::Arguments => {}
             ObjectKind::Host { data, .. } => tracer.generic(*data),
             ObjectKind::Function(closure) => closure.trace(tracer),
             ObjectKind::Generator(state) => state.trace(tracer),

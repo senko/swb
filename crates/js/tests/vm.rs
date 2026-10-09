@@ -1319,3 +1319,1017 @@ Uncaught TypeError: Cannot convert undefined or null to object",
     ("var q = 1; var NaN; print(q)", "1"),
     ("var Infinity; print(typeof Infinity)", "number"),
 ];
+
+// --- Session 5: exceptions, `finally`, `switch`, generators with
+// exceptions, built-ins and `console.log`. ---
+
+#[test]
+fn exceptions() {
+    check_cases(EXCEPTIONS);
+}
+
+#[test]
+fn completions() {
+    check_cases(COMPLETIONS);
+}
+
+#[test]
+fn switches() {
+    check_cases(SWITCHES);
+}
+
+#[test]
+fn generator_exceptions() {
+    check_cases(GENERATOR_EXCEPTIONS);
+}
+
+#[test]
+fn builtins_errors() {
+    check_cases(BUILTINS_ERRORS);
+}
+
+#[test]
+fn builtins_arrays() {
+    check_cases(BUILTINS_ARRAYS);
+}
+
+#[test]
+fn builtins_objects() {
+    check_cases(BUILTINS_OBJECTS);
+}
+
+#[test]
+fn builtins_primitives() {
+    check_cases(BUILTINS_PRIMITIVES);
+}
+
+#[test]
+fn console() {
+    check_cases(CONSOLE);
+}
+
+/// `exceptions` (expected output from Node.js 22).
+const EXCEPTIONS: &[(&str, &str)] = &[
+    (
+        "try { throw 1; } catch (e) { print('caught', e); }",
+        "caught 1",
+    ),
+    (
+        "try { throw 'x'; } catch { print('no binding'); }",
+        "no binding",
+    ),
+    (
+        "try { print('body'); } catch (e) { print('not here'); }",
+        "body",
+    ),
+    (
+        "try { undefinedName; } catch (e) { print(e.name, e.message, e instanceof ReferenceError, e instanceof Error); }",
+        "ReferenceError undefinedName is not defined true true",
+    ),
+    (
+        "try { null.x; } catch (e) { print(e.constructor === TypeError, e.message); }",
+        "true Cannot read properties of null (reading 'x')",
+    ),
+    (
+        "try { undefined(); } catch (e) { print(e.message); }",
+        "undefined is not a function",
+    ),
+    (
+        "var r = []; for (var i = 0; i < 3; i++) { try { if (i == 1) throw i; r.push('ok' + i); } catch (e) { r.push('caught' + e); } } r.join()",
+        "=> ok0,caught1,ok2",
+    ),
+    (
+        "function thrower() { throw new TypeError('from callee'); } try { thrower(); } catch (e) { print(e.name + ': ' + e.message); }",
+        "TypeError: from callee",
+    ),
+    (
+        "function a() { b(); } function b() { c(); } function c() { throw 'deep'; } try { a(); } catch (e) { print(e); } print('after')",
+        "deep
+after",
+    ),
+    (
+        "var o = {}; defineAccessor(o, 'g', function () { throw 'getter'; }); try { o.g; } catch (e) { print('caught', e); }",
+        "caught getter",
+    ),
+    (
+        "var o = {}; defineAccessor(o, 's', undefined, function (v) { throw 'setter ' + v; }); try { o.s = 5; } catch (e) { print(e); }",
+        "setter 5",
+    ),
+    (
+        "try { callTwice(function () { throw 'through native'; }, 1); } catch (e) { print('caught', e); }",
+        "caught through native",
+    ),
+    (
+        "try { later(function () { throw 'deferred'; }); } catch (e) { print(e); }",
+        "deferred",
+    ),
+    (
+        "try { [1, 2, 3].forEach(function (x) { if (x == 2) throw 'at ' + x; print('saw', x); }); } catch (e) { print('caught', e); }",
+        "saw 1
+caught at 2",
+    ),
+    (
+        "function f(n) { return f(n + 1) + 1; } var msgs = []; for (var k = 0; k < 3; k++) { try { f(0); } catch (e) { msgs.push(e instanceof RangeError ? e.message : 'other'); } } msgs.join(' | ')",
+        "=> Maximum call stack size exceeded | Maximum call stack size exceeded | Maximum call stack size exceeded",
+    ),
+    (
+        "function f() { f(); } try { f(); } catch (e) { print(e.name); } try { f(); } catch (e) { print('again', e.name); } 'usable'",
+        "RangeError
+again RangeError
+=> usable",
+    ),
+    (
+        "try { try { throw 'inner'; } catch (e) { throw e + ' rethrown'; } } catch (e) { print(e); }",
+        "inner rethrown",
+    ),
+    (
+        "try { try { throw 1; } finally { print('inner finally'); } } catch (e) { print('outer caught', e); }",
+        "inner finally
+outer caught 1",
+    ),
+    (
+        "try { try { throw 1; } catch (e) { throw 2; } finally { print('finally runs'); } } catch (e) { print('got', e); }",
+        "finally runs
+got 2",
+    ),
+    (
+        "try { try { throw 1; } finally { throw 2; } } catch (e) { print('finally wins', e); }",
+        "finally wins 2",
+    ),
+    (
+        "var log = []; function f() { try { log.push('try'); return 'r'; } catch (e) { log.push('catch'); } finally { log.push('finally'); } } log.push(f()); log.join()",
+        "=> try,finally,r",
+    ),
+    (
+        "var fs = []; for (var i = 0; i < 3; i++) { try { throw 'v' + i; } catch (e) { fs.push(function () { return e; }); } } fs[0]() + fs[1]() + fs[2]()",
+        "=> v0v1v2",
+    ),
+    (
+        "var fs = []; for (let i = 0; i < 3; i++) { try { throw i; } catch (e) { var j = e * 10; fs.push(() => e + j); } } print(fs[0](), fs[1](), fs[2]())",
+        "20 21 22",
+    ),
+    ("try { throw {code: 42}; } catch (e) { e.code }", "=> 42"),
+    (
+        "var e = 'outer'; try { throw 'inner'; } catch (e) { var e = 'assigned'; } e",
+        "=> outer",
+    ),
+    (
+        "function f() { try { throw 1; } catch (e) { return typeof e; } } f()",
+        "=> number",
+    ),
+    (
+        "var n = 0; while (true) { try { n++; if (n > 3) break; } finally { print('f', n); } } n",
+        "f 1
+f 2
+f 3
+f 4
+=> 4",
+    ),
+    (
+        "var count = 0; for (var i = 0; i < 100000; i++) { try { throw i; } catch (e) { count += e & 1; } } count",
+        "=> 50000",
+    ),
+    (
+        "try { throw undefined; } catch (e) { print(e === undefined); }",
+        "true",
+    ),
+    (
+        "function f() { try { return g(); } catch (e) { return 'caught ' + e; } } function g() { throw 'g'; } f()",
+        "=> caught g",
+    ),
+    (
+        "var x = 1; try { x = 2; throw 0; } catch (e) { x += 10; } finally { x *= 2; } x",
+        "=> 24",
+    ),
+    (
+        "throw new RangeError('top level')",
+        "Uncaught RangeError: top level",
+    ),
+    ("throw 'a string'", "Uncaught a string"),
+    (
+        "throw {message: 'custom', name: 'Mine'}",
+        "Uncaught Mine: custom",
+    ),
+    (
+        "function f() { throw new Error('inside', {cause: 'why'}); } try { f(); } catch (e) { print(e.message, e.cause); }",
+        "inside why",
+    ),
+    (
+        "try { throw 1 } catch (e) { try { throw 2 } catch (e) { print('inner', e) } print('outer', e) }",
+        "inner 2
+outer 1",
+    ),
+    (
+        "try { let a = 1; throw a; } catch (e) { let a = e + 1; print(a); } finally { let a = 'f'; print(a); }",
+        "2
+f",
+    ),
+    (
+        "function f() { try { return 'try'; } finally { print('cleanup'); } } print(f())",
+        "cleanup
+try",
+    ),
+    (
+        "var o = { valueOf: function () { throw 'valueOf'; } }; try { o + 1; } catch (e) { print('caught', e); }",
+        "caught valueOf",
+    ),
+    (
+        "try { new (function () { throw 'ctor'; })(); } catch (e) { print(e); }",
+        "ctor",
+    ),
+    (
+        "try { 1(); } catch (e) { print(e.message); } try { new 5; } catch (e) { print(e.message); }",
+        "1 is not a function
+5 is not a constructor",
+    ),
+];
+
+/// `completions` (expected output from Node.js 22).
+const COMPLETIONS: &[(&str, &str)] = &[
+    (
+        "function f() { try { return 'try'; } finally { return 'finally'; } } f()",
+        "=> finally",
+    ),
+    (
+        "function f() { try { throw 'x'; } finally { return 'finally overrides throw'; } } f()",
+        "=> finally overrides throw",
+    ),
+    (
+        "function f() { try { return 'a'; } finally { try { return 'b'; } finally { print('inner'); } } } f()",
+        "inner
+=> b",
+    ),
+    (
+        "function f() { for (var i = 0; i < 3; i++) { try { if (i == 1) return 'returned ' + i; } finally { print('fin', i); } } } f()",
+        "fin 0
+fin 1
+=> returned 1",
+    ),
+    (
+        "var out = []; outer: for (var i = 0; i < 3; i++) { for (var j = 0; j < 3; j++) { try { try { if (j == 1) continue outer; if (i == 2) break outer; out.push(i + '' + j); } finally { out.push('f1'); } } finally { out.push('f2'); } } } out.join()",
+        "=> 00,f1,f2,f1,f2,10,f1,f2,f1,f2,f1,f2",
+    ),
+    (
+        "var out = []; for (var i = 0; i < 4; i++) { try { if (i % 2) continue; out.push(i); } finally { out.push('f' + i); } } out.join()",
+        "=> 0,f0,f1,2,f2,f3",
+    ),
+    (
+        "var out = []; a: { try { out.push('in'); break a; } finally { out.push('finally'); } out.push('never'); } out.join()",
+        "=> in,finally",
+    ),
+    (
+        "var out = []; for (var i = 0; i < 3; i++) { try { break; } finally { out.push('f'); continue; } } out.join() + i",
+        "=> f,f,f3",
+    ),
+    (
+        "function f() { while (true) { try { return 'r'; } finally { break; } } return 'after loop'; } f()",
+        "=> after loop",
+    ),
+    (
+        "function f() { l: try { return 'r'; } finally { break l; } return 'label'; } f()",
+        "=> label",
+    ),
+    (
+        "var out = []; for (var i = 0; i < 2; i++) { switch (i) { case 0: try { out.push('case0'); break; } finally { out.push('fin0'); } case 1: out.push('case1'); } } out.join()",
+        "=> case0,fin0,case1",
+    ),
+    (
+        "function f(x) { switch (x) { case 1: try { return 'one'; } finally { print('cleanup one'); } default: return 'other'; } } print(f(1), f(2))",
+        "cleanup one
+one other",
+    ),
+    (
+        "function f() { var log = []; for (var i = 0; i < 2; i++) { for (var j = 0; j < 2; j++) { try { if (j) break; log.push(i + ':' + j); } finally { log.push('f'); } } } return log.join(); } f()",
+        "=> 0:0,f,f,1:0,f,f",
+    ),
+    (
+        "function f() { try { try { return 1; } finally { print('a'); } } finally { print('b'); } } f()",
+        "a
+b
+=> 1",
+    ),
+    (
+        "function f() { try { try { throw 'x'; } finally { print('a'); } } catch (e) { return 'caught ' + e; } finally { print('b'); } } f()",
+        "a
+b
+=> caught x",
+    ),
+    (
+        "function f() { var i = 0; do { try { i++; if (i < 3) continue; return i; } finally { print('fin', i); } } while (true); } f()",
+        "fin 1
+fin 2
+fin 3
+=> 3",
+    ),
+    (
+        "function f() { try { return (function () { try { throw 'inner'; } finally { print('in fn'); } })(); } catch (e) { return 'outer ' + e; } } f()",
+        "in fn
+=> outer inner",
+    ),
+    (
+        "var log = []; function f() { try { log.push(1); return log.push(2); } finally { log.push(3); } } print(f(), log.join())",
+        "2 1,2,3",
+    ),
+    (
+        "var n = 0; for (;;) { try { n++; if (n == 5) break; continue; } finally { if (n == 3) n = 4; } } n",
+        "=> 5",
+    ),
+    (
+        "var x = 0; l1: for (;;) { l2: for (;;) { try { try { x++; break l1; } finally { x += 10; } } finally { x += 100; } } } x",
+        "=> 111",
+    ),
+    (
+        "function f() { try { return 'x'; } finally { } } f()",
+        "=> x",
+    ),
+];
+
+/// `switches` (expected output from Node.js 22).
+const SWITCHES: &[(&str, &str)] = &[
+    (
+        "switch (2) { case 1: print('one'); case 2: print('two'); case 3: print('three'); break; case 4: print('four'); }",
+        "two
+three",
+    ),
+    (
+        "switch ('x') { case 'y': print('y'); break; default: print('default'); case 'z': print('z'); }",
+        "default
+z",
+    ),
+    ("switch (5) { case 1: print(1); }", ""),
+    (
+        "function f(v) { switch (v) { case 1: return 'num'; case '1': return 'str'; default: return 'none'; } } print(f(1), f('1'), f(true))",
+        "num str none",
+    ),
+    (
+        "var log = []; function k(v) { log.push(v); return v; } switch (k(3)) { case k(1): case k(3): log.push('match'); break; case k(4): } log.join()",
+        "=> 3,1,3,match",
+    ),
+    (
+        "var log = []; function k(v) { log.push(v); return v; } switch (k(9)) { case k(1): break; default: log.push('d'); case k(2): log.push('two'); } log.join()",
+        "=> 9,1,2,d,two",
+    ),
+    ("switch (0) { case 0: let a = 'block'; print(a); }", "block"),
+    (
+        "try { switch (1) { case 0: let a = 1; case 1: a; } } catch (e) { print(e.name, e.message); }",
+        "ReferenceError Cannot access 'a' before initialization",
+    ),
+    (
+        "switch (1) { case 1: print(inner()); function inner() { return 'hoisted'; } } 'end'",
+        "hoisted
+=> end",
+    ),
+    (
+        "var out = []; for (var i = 0; i < 4; i++) { switch (i) { case 1: continue; case 2: out.push('two'); break; default: out.push(i); } out.push('end' + i); } out.join()",
+        "=> 0,end0,two,end2,3,end3",
+    ),
+    (
+        "lbl: switch (1) { case 1: for (var i = 0; i < 3; i++) { if (i == 1) break lbl; print(i); } print('not here'); } print('out')",
+        "0
+out",
+    ),
+    (
+        "var fs = []; switch (1) { case 1: let v = 'cap'; fs.push(() => v); } fs[0]()",
+        "=> cap",
+    ),
+    (
+        "switch (NaN) { case NaN: print('nan'); break; default: print('no match for NaN'); }",
+        "no match for NaN",
+    ),
+    ("var x = 0; switch (x++) { case 0: x += 10; } x", "=> 11"),
+];
+
+/// `generator_exceptions` (expected output from Node.js 22).
+const GENERATOR_EXCEPTIONS: &[(&str, &str)] = &[
+    (
+        "function* g() { yield 1; throw new Error('gen error'); } var it = g(); it.next(); try { it.next(); } catch (e) { print('caught', e.message); } var r = it.next(); print(r.value, r.done)",
+        "caught gen error
+undefined true",
+    ),
+    (
+        "function* g() { try { yield 1; yield 2; } finally { print('cleanup'); } } var it = g(); print(it.next().value); var r = it.return(42); print(r.value, r.done); print(it.next().done)",
+        "1
+cleanup
+42 true
+true",
+    ),
+    (
+        "function* g() { try { yield 1; } catch (e) { print('caught in gen', e); yield 'recovered'; } } var it = g(); it.next(); var r = it.throw('E'); print(r.value, r.done); print(it.next().done)",
+        "caught in gen E
+recovered false
+true",
+    ),
+    (
+        "function* g() { yield 1; } var it = g(); try { it.throw('before start'); } catch (e) { print('thrown', e); } print(it.next().done)",
+        "thrown before start
+true",
+    ),
+    (
+        "function* g() { print('never'); yield 1; } var it = g(); var r = it.return('early'); print(r.value, r.done, it.next().done)",
+        "early true true",
+    ),
+    (
+        "function* g() { yield 1; } var it = g(); it.next(); it.next(); print(it.return('x').value); try { it.throw('y'); } catch (e) { print('done gen throws', e); }",
+        "x
+done gen throws y",
+    ),
+    (
+        "function* g() { try { yield 1; } finally { yield 'from finally'; print('after finally yield'); } } var it = g(); it.next(); var a = it.return('R'); print(a.value, a.done); var b = it.next(); print(b.value, b.done)",
+        "from finally false
+after finally yield
+R true",
+    ),
+    (
+        "function* g() { try { yield 1; } finally { return 'finally return'; } } var it = g(); it.next(); var r = it.return('R'); print(r.value, r.done)",
+        "finally return true",
+    ),
+    (
+        "function* g() { try { try { yield 1; } finally { print('inner'); } } finally { print('outer'); } } var it = g(); it.next(); print(it.return(7).value)",
+        "inner
+outer
+7",
+    ),
+    (
+        "function* g() { while (true) { try { yield 'tick'; } catch (e) { print('caught', e); } } } var it = g(); it.next(); it.throw(1); it.throw(2); print(it.next().value)",
+        "caught 1
+caught 2
+tick",
+    ),
+    (
+        "function* g() { yield 1; } var it = g(); it.next(); try { it.throw(new TypeError('t')); } catch (e) { print(e.name); }",
+        "TypeError",
+    ),
+    (
+        "function* g() { it.return(5); } var it = g(); try { it.next(); } catch (e) { print(e.name, e.message); }",
+        "TypeError Generator is already running",
+    ),
+    (
+        "function* g() { it.throw(5); } var it = g(); try { it.next(); } catch (e) { print(e.message); }",
+        "Generator is already running",
+    ),
+    (
+        "function* g() { yield 1; } var it = g(); try { it.next.call({}); } catch (e) { print(e.message); } try { it.return.call(1); } catch (e) { print(e.message); }",
+        "Method [Generator].prototype.next called on incompatible receiver #<Object>
+Method [Generator].prototype.return called on incompatible receiver 1",
+    ),
+    (
+        "function* g() { var x = yield 1; print('got', x); try { yield 2; } catch (e) { print('c', e); } return 'end'; } var it = g(); it.next(); it.next('v'); var r = it.throw('t'); print(r.value, r.done)",
+        "got v
+c t
+end true",
+    ),
+    (
+        "function* g() { for (var i = 0; i < 3; i++) { try { yield i; } finally { print('f' + i); } } } var it = g(); it.next(); it.next(); it.return(); print(it.next().done)",
+        "f0
+f1
+true",
+    ),
+    (
+        "function* g() { yield 1; yield 2; } var it = g(); it.next(); print(JSON_missing_is_fine = 1); it.return('a').value",
+        "1
+=> a",
+    ),
+    (
+        "function* g() { try { yield 1; } finally { throw 'from finally'; } } var it = g(); it.next(); try { it.return('x'); } catch (e) { print('caught', e); } print(it.next().done)",
+        "caught from finally
+true",
+    ),
+];
+
+/// `builtins_errors` (expected output from Node.js 22).
+const BUILTINS_ERRORS: &[(&str, &str)] = &[
+    (
+        "var e = new Error('m'); print(e.message, e.name, String(e), e instanceof Error, Object.keys(e).length)",
+        "m Error Error: m true 0",
+    ),
+    (
+        "var e = Error('no new'); print(e.message, e instanceof Error)",
+        "no new true",
+    ),
+    (
+        "print(TypeError.name, TypeError.length, Error.length, typeof RangeError, URIError.name, EvalError.prototype.name)",
+        "TypeError 1 1 function URIError EvalError",
+    ),
+    (
+        "print(new TypeError('t') instanceof Error, new SyntaxError('s') instanceof SyntaxError, new RangeError() instanceof TypeError)",
+        "true true false",
+    ),
+    (
+        "print(TypeError.prototype.constructor === TypeError, Error.prototype.name, Error.prototype.message === '', TypeError.prototype.message === '')",
+        "true Error true true",
+    ),
+    (
+        "Error.marker = 'inherited'; print(TypeError.marker, URIError.marker, TypeError.prototype instanceof Error, Error.prototype instanceof Error)",
+        "inherited inherited true false",
+    ),
+    (
+        "var e = new Error('m', {cause: 'c'}); print(e.cause, Object.keys(e).length, new Error('x', {}).cause, 'cause' in new Error('x', 5))",
+        "c 0 undefined false",
+    ),
+    (
+        "print(new Error().message === '', 'message' in new Error(), new Error(undefined).hasOwnProperty('message'), new Error('x').hasOwnProperty('message'))",
+        "true true false true",
+    ),
+    (
+        "print(String(new Error('')), String(new TypeError('tt')), String(new ReferenceError()))",
+        "Error TypeError: tt ReferenceError",
+    ),
+    (
+        "print(Error.prototype.toString.call({name: 'N', message: 'M'}), Error.prototype.toString.call({}), Error.prototype.toString.call({name: '', message: 'only'}))",
+        "N: M Error only",
+    ),
+    (
+        "try { Error.prototype.toString.call(1); } catch (e) { print(e.message); }",
+        "Method Error.prototype.toString called on incompatible receiver 1",
+    ),
+    (
+        "var e = new Error({toString: function () { return 'converted'; }}); e.message",
+        "=> converted",
+    ),
+    (
+        "var e = new RangeError('r'); e.name = 'Custom'; String(e)",
+        "=> Custom: r",
+    ),
+    (
+        "try { null.f(); } catch (e) { print(e.constructor.name, Object.keys(e).join(), e.toString()); }",
+        "TypeError  TypeError: Cannot read properties of null (reading 'f')",
+    ),
+    (
+        "try { (function () { 'use strict'; return arguments.callee; })(); } catch (e) { print(e.name, e.message); }",
+        "TypeError 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them",
+    ),
+    (
+        "(function () { 'use strict'; try { arguments.callee = 1; } catch (e) { print('set', e.name); } try { return typeof arguments.callee; } catch (e) { return 'get ' + e.name; } })()",
+        "set TypeError
+=> get TypeError",
+    ),
+    (
+        "(function () { return typeof arguments.callee; })()",
+        "=> function",
+    ),
+    (
+        "print(typeof Error.prototype.toString, Error.prototype.toString.name, Error.prototype.toString.length)",
+        "function toString 0",
+    ),
+    (
+        "var o = {}; o.f = TypeError; var e = new o.f('via member'); e.message",
+        "=> via member",
+    ),
+];
+
+/// `builtins_arrays` (expected output from Node.js 22).
+const BUILTINS_ARRAYS: &[(&str, &str)] = &[
+    (
+        "var a = [1, 2]; print(a.push(3, 4), a.length, a.join('-'))",
+        "4 4 1-2-3-4",
+    ),
+    (
+        "print([1, [2, [3, 4]], 5].join(), [null, undefined, 0].join(), [].join(), [1, 2].join(undefined))",
+        "1,2,3,4,5 ,,0  1,2",
+    ),
+    (
+        "var a = [1, 2]; a.push(a); print(a.join(), String(a))",
+        "1,2, 1,2,",
+    ),
+    ("var a = [1, 2]; a.push([3, a]); String(a)", "=> 1,2,3,"),
+    (
+        "print(Array.prototype.join.call({length: 3, 0: 'a', 2: 'c'}), Array.prototype.join.call('abc', '+'))",
+        "a,,c a+b+c",
+    ),
+    (
+        "var o = {length: 2}; Array.prototype.push.call(o, 'x'); print(o.length, o[2])",
+        "3 x",
+    ),
+    (
+        "var o = {}; print(Array.prototype.push.call(o), o.length)",
+        "0 0",
+    ),
+    (
+        "try { Array.prototype.push.call({length: 2 ** 53 - 1}, 1); } catch (e) { print(e.message); }",
+        "Pushing 1 elements on an array-like of length 9007199254740991 is disallowed, as the total surpasses 2**53-1",
+    ),
+    (
+        "var a = []; a.length = 4294967295; try { a.push(1); } catch (e) { print(e.name, e.message); }",
+        "RangeError Invalid array length",
+    ),
+    (
+        "var sum = 0; [1, 2, 3].forEach(function (x, i, arr) { sum += x * i + arr.length; }); sum",
+        "=> 17",
+    ),
+    (
+        "var seen = []; [1, , 3].forEach(function (x, i) { seen.push(i + ':' + x); }); seen.join()",
+        "=> 0:1,2:3",
+    ),
+    (
+        "var o = {v: 10}; var r = []; [1, 2].forEach(function (x) { r.push(this.v + x); }, o); r.join()",
+        "=> 11,12",
+    ),
+    (
+        "var r = []; Array.prototype.forEach.call({length: 2, 0: 'a', 1: 'b'}, function (x) { r.push(x); }); r.join()",
+        "=> a,b",
+    ),
+    (
+        "var a = [1, 2, 3]; var n = 0; a.forEach(function (x) { if (x == 1) a.push(99); n++; }); print(n, a.length)",
+        "3 4",
+    ),
+    (
+        "try { [1].forEach(1); } catch (e) { print(e.message); } try { [1].map(); } catch (e) { print(e.message); } try { [1].forEach('s'); } catch (e) { print(e.message); }",
+        r#"number 1 is not a function
+undefined is not a function
+string "s" is not a function"#,
+    ),
+    (
+        "try { [1].forEach({}); } catch (e) { print(e.message); } try { [1].map(null); } catch (e) { print(e.message); }",
+        "object is not a function
+object null is not a function",
+    ),
+    (
+        "var m = [1, 2, 3].map(function (x, i) { return x * 10 + i; }); print(m.join(), m.length, Array.isArray(m))",
+        "10,21,32 3 true",
+    ),
+    (
+        "var m = [1, , 3].map(function (x) { return x * 2; }); print(m.length, 1 in m, m.join())",
+        "3 false 2,,6",
+    ),
+    (
+        "var m = Array.prototype.map.call('ab', function (c) { return c + c; }); m.join()",
+        "=> aa,bb",
+    ),
+    (
+        "print(Array.isArray([]), Array.isArray({}), Array.isArray('a'), Array.isArray(), Array.isArray.length, Array.isArray.name)",
+        "true false false false 1 isArray",
+    ),
+    (
+        "print(Array(3).length, Array(1, 2).join(), new Array().length, Array('3').length, new Array(2.0).length, Array(0).length)",
+        "3 1,2 0 1 2 0",
+    ),
+    (
+        "try { Array(-1); } catch (e) { print(e.name, e.message); } try { new Array(1.5); } catch (e) { print(e.message); }",
+        "RangeError Invalid array length
+Invalid array length",
+    ),
+    (
+        "var a = new Array(2); a[5] = 'x'; print(a.length, a.join('.'))",
+        "6 .....x",
+    ),
+    (
+        "print([1, 2, 3].toString(), String([]), [] + [], [1] + 1, typeof Array.prototype.toString)",
+        "1,2,3   11 function",
+    ),
+    (
+        "var o = {join: 1}; print(Array.prototype.toString.call(o))",
+        "[object Object]",
+    ),
+    (
+        "var o = {join: function () { return 'custom join'; }}; Array.prototype.toString.call(o)",
+        "=> custom join",
+    ),
+    (
+        "var a = [{toString: function () { return 'T'; }}, 1]; a.join('|')",
+        "=> T|1",
+    ),
+    (
+        "var a = []; for (var i = 0; i < 500; i++) a.push(i); var total = 0; a.forEach(function (x) { total += x; }); print(total, a.map(function (x) { return x * 2; })[499])",
+        "124750 998",
+    ),
+    (
+        "print(Array.prototype.push.length, Array.prototype.join.length, Array.prototype.forEach.length, Array.prototype.map.length, Array.length, Array.name)",
+        "1 1 1 1 1 Array",
+    ),
+    (
+        "print(Array.prototype.constructor === Array, [].constructor === Array, [] instanceof Array, Object.keys(Array.prototype).length)",
+        "true true true 0",
+    ),
+    (
+        "var o = {}; defineAccessor(o, 'length', function () { print('length read'); return 2; }); defineAccessor(o, 0, function () { return 'g0'; }); Array.prototype.join.call(o)",
+        "length read
+=> g0,",
+    ),
+    (
+        "var r = [1, 2, 3].map(function (x) { gc(); return {v: x}; }); r[2].v",
+        "=> 3",
+    ),
+];
+
+/// `builtins_objects` (expected output from Node.js 22).
+const BUILTINS_OBJECTS: &[(&str, &str)] = &[
+    (
+        "Object.keys({a: 1, b: 2, 1: 'x', 0: 'y'}).join()",
+        "=> 0,1,a,b",
+    ),
+    (
+        "print(Object.keys([1, , 3]).join(), Object.keys('ab').join(), Object.keys(new String('xyz')).join(), Object.keys(5).length)",
+        "0,2 0,1 0,1,2 0",
+    ),
+    (
+        "try { Object.keys(null); } catch (e) { print(e.message); } try { Object.keys(); } catch (e) { print(e.name); }",
+        "Cannot convert undefined or null to object
+TypeError",
+    ),
+    (
+        "var o = {}; defineAccessor(o, 'acc', function () { return 1; }); o.plain = 2; Object.keys(o).join()",
+        "=> acc,plain",
+    ),
+    (
+        "function F() { this.own = 1; } F.prototype.inherited = 2; Object.keys(new F()).join()",
+        "=> own",
+    ),
+    (
+        "print(Object.keys.length, Object.keys.name, Object.length, Object.name, typeof Object)",
+        "1 keys 1 Object function",
+    ),
+    (
+        "print(Object.prototype.toString.call(null), Object.prototype.toString.call([]), Object.prototype.toString.call(function () {}), Object.prototype.toString.call(new Error('x')))",
+        "[object Null] [object Array] [object Function] [object Error]",
+    ),
+    (
+        "print(Object.prototype.toString.call(1), Object.prototype.toString.call('s'), Object.prototype.toString.call(true), Object.prototype.toString.call(undefined))",
+        "[object Number] [object String] [object Boolean] [object Undefined]",
+    ),
+    (
+        "print(String({}), String(Object.prototype), (function () { return Object.prototype.toString.call(arguments); })())",
+        "[object Object] [object Object] [object Arguments]",
+    ),
+    (
+        "print(typeof Object(1), Object(1) instanceof Number, typeof Object(), Object(null) instanceof Object, new Object('s') instanceof String)",
+        "object true object true true",
+    ),
+    (
+        "var o = {a: 1}; print(Object(o) === o, o.valueOf() === o, typeof Object.prototype.valueOf.call(2))",
+        "true true object",
+    ),
+    (
+        "print(Function.prototype.call.length, Function.prototype.apply.length, Function.prototype.toString.length, Function.prototype.call.name)",
+        "1 2 0 call",
+    ),
+    (
+        "function add(a, b) { return this.base + a + b; } print(add.call({base: 1}, 2, 3), add.apply({base: 10}, [20, 30]), add.apply({base: 0}, {length: 2, 0: 4, 1: 5}))",
+        "6 60 9",
+    ),
+    (
+        "function f() { return arguments.length; } print(f.apply(null), f.apply(null, undefined), f.call(), f.apply(null, []))",
+        "0 0 0 0",
+    ),
+    (
+        "try { (function () {}).apply(null, 1); } catch (e) { print(e.message); }",
+        "CreateListFromArrayLike called on non-object",
+    ),
+    (
+        "function f() { 'use strict'; return this; } print(f.call(5), typeof f.call(), f.apply('s'))",
+        "5 undefined s",
+    ),
+    (
+        "function f() { return typeof this; } print(f.call(5), f.call(null) === undefined)",
+        "object false",
+    ),
+    (
+        "function count(n) { return n == 0 ? 0 : 1 + count.call(null, n - 1); } count(2000)",
+        "=> 2000",
+    ),
+    (
+        "print(String(function f(a) { return a; }), String(Array.prototype.push))",
+        "function f(a) { return a; } function push() { [native code] }",
+    ),
+    (
+        "try { Function.prototype.toString.call({}); } catch (e) { print(e.message); }",
+        "Function.prototype.toString requires that 'this' be a Function",
+    ),
+    (
+        "var bound = Function.prototype.call; print(typeof bound, bound.call(function () { return 'inner'; }))",
+        "function inner",
+    ),
+    (
+        "print(typeof Function, Function.length, Function.name, Function.prototype.constructor === Function, (function () {}).constructor === Function)",
+        "function 1 Function true true",
+    ),
+    (
+        "print({a: 1}.hasOwnProperty('a'), {a: 1}.hasOwnProperty('b'), [1].hasOwnProperty(0), [1].hasOwnProperty('length'), 'ab'.hasOwnProperty(1), new String('ab').hasOwnProperty(2))",
+        "true false true true true false",
+    ),
+];
+
+/// `builtins_primitives` (expected output from Node.js 22).
+const BUILTINS_PRIMITIVES: &[(&str, &str)] = &[
+    (
+        "print(String(123), String(null), String(undefined), String(true), String(-0), String(1e21), String(), String('s'))",
+        "123 null undefined true 0 1e+21  s",
+    ),
+    (
+        "print(String([1, 2]), String({}), String(function () {} ) === undefined)",
+        "1,2 [object Object] false",
+    ),
+    (
+        "var s = new String('ab'); print(typeof s, s.length, s[1], s instanceof String, String(s), s + 'c', s.toString(), s.valueOf())",
+        "object 2 b true ab abc ab ab",
+    ),
+    (
+        "print(Number(undefined), Number(null), Number(''), Number(' 12 '), Number('1e3'), Number([5]), Number(true), Number('0x10'), Number('x'))",
+        "NaN 0 0 12 1000 5 1 16 NaN",
+    ),
+    (
+        "print(Number(), typeof Number('1'), new Number(3).valueOf(), new Number(5) + 1, typeof new Number(1), new Number(2) instanceof Number)",
+        "0 number 3 6 object true",
+    ),
+    (
+        "print((255).toString(16), (-255).toString(36), (0.5).toString(2), (3.75).toString(2), (10).toString(), (1.5).toString(10), (255).toString(2))",
+        "ff -73 0.1 11.11 10 1.5 11111111",
+    ),
+    (
+        "try { (255).toString(1); } catch (e) { print(e.name, e.message); } try { (255).toString(37); } catch (e) { print(e.message); }",
+        "RangeError toString() radix argument must be between 2 and 36
+toString() radix argument must be between 2 and 36",
+    ),
+    (
+        "try { Number.prototype.toString.call('x'); } catch (e) { print(e.message); } try { Number.prototype.valueOf.call({}); } catch (e) { print(e.message); }",
+        "Number.prototype.toString requires that 'this' be a Number
+Number.prototype.valueOf requires that 'this' be a Number",
+    ),
+    (
+        "try { String.prototype.toString.call(1); } catch (e) { print(e.message); } try { String.prototype.valueOf.call({}); } catch (e) { print(e.message); }",
+        "String.prototype.toString requires that 'this' be a String
+String.prototype.valueOf requires that 'this' be a String",
+    ),
+    (
+        "print(String.length, String.name, Number.length, Number.name, String.prototype.constructor === String, (5).constructor === Number)",
+        "1 String 1 Number true true",
+    ),
+    (
+        "print('abc'.toString(), (12).valueOf(), (1.25).toString(), typeof (7).toString)",
+        "abc 12 1.25 function",
+    ),
+    (
+        "var n = new Number(42); var s = new String('x'); print(n == 42, n === 42, s == 'x', s === 'x')",
+        "true false true false",
+    ),
+    (
+        "print(Number('Infinity'), Number('-0') === 0, 1 / Number('-0'), Number('1_000'), Number('.5'), Number('5.'))",
+        "Infinity true -Infinity NaN 0.5 5",
+    ),
+];
+
+/// `console` (expected output from Node.js 22).
+const CONSOLE: &[(&str, &str)] = &[
+    ("console.log('hello', 'world')", "hello world"),
+    (
+        "console.log(1, -0, 1.5, NaN, -Infinity, true, null, undefined)",
+        "1 -0 1.5 NaN -Infinity true null undefined",
+    ),
+    (
+        "console.log([1, 2, 3], [], [[]], ['a', 'b'])",
+        "[ 1, 2, 3 ] [] [ [] ] [ 'a', 'b' ]",
+    ),
+    (
+        "console.log({a: 1, b: 'x'}, {}, {nested: {deeper: {deepest: {gone: 1}}}})",
+        "{ a: 1, b: 'x' } {} { nested: { deeper: { deepest: [Object] } } }",
+    ),
+    (
+        "console.log([1, , 3], [, ,], new Array(3), [undefined, null])",
+        "[ 1, <1 empty item>, 3 ] [ <2 empty items> ] [ <3 empty items> ] [ undefined, null ]",
+    ),
+    (
+        "var o = {}; o.self = o; console.log(o)",
+        "<ref *1> { self: [Circular *1] }",
+    ),
+    (
+        "var a = [1]; a.push(a); console.log(a)",
+        "<ref *1> [ 1, [Circular *1] ]",
+    ),
+    (
+        "var o = {x: {}}; o.x.back = o; o.y = o.x; console.log(o)",
+        "<ref *1> { x: { back: [Circular *1] }, y: { back: [Circular *1] } }",
+    ),
+    (
+        "console.log(function f() {}, function () {}, () => 1, function* g() {})",
+        "[Function: f] [Function (anonymous)] [Function (anonymous)] [GeneratorFunction: g]",
+    ),
+    (
+        "function f() {} f.prop = 1; console.log(f)",
+        "[Function: f] { prop: 1 }",
+    ),
+    (
+        "console.log([function named() {}, Array.prototype.push])",
+        "[ [Function: named], [Function: push] ]",
+    ),
+    (
+        "console.log(new Number(5), new String('ab'), Object(true))",
+        "[Number: 5] [String: 'ab'] [Boolean: true]",
+    ),
+    (
+        "console.log({'a-b': 1, $x: 2, _y: 3, 0: 4, a1: 5, '1a': 6})",
+        "{ '0': 4, 'a-b': 1, '$x': 2, _y: 3, a1: 5, '1a': 6 }",
+    ),
+    (
+        r#"console.log(['a\nb', "it's", 'say "hi"', 'tab\t', 'back\\slash'])"#,
+        r#"[ 'a\nb', "it's", 'say "hi"', 'tab\t', 'back\\slash' ]"#,
+    ),
+    (
+        "console.log({s: 'single'}, ['x'], 'top level stays raw')",
+        "{ s: 'single' } [ 'x' ] top level stays raw",
+    ),
+    (
+        "function Foo() { this.a = 1; } console.log(new Foo())",
+        "Foo { a: 1 }",
+    ),
+    (
+        "console.log((function* () {})(), (function () { return arguments; })(1, 2))",
+        "Object [Generator] {} [Arguments] { '0': 1, '1': 2 }",
+    ),
+    (
+        "var o = {}; defineAccessor(o, 'g', function () { throw 'never called'; }); defineAccessor(o, 's', undefined, function () {}); console.log(o)",
+        "{ g: [Getter], s: [Setter] }",
+    ),
+    (
+        "var a = [1, 2]; a.extra = 'x'; console.log(a)",
+        "[ 1, 2, extra: 'x' ]",
+    ),
+    (
+        "console.log([[[[1]]]], {a: [{b: {c: 1}}]})",
+        "[ [ [ [Array] ] ] ] { a: [ { b: [Object] } ] }",
+    ),
+    (
+        "var big = []; for (var i = 0; i < 105; i++) big[i] = 0; console.log(big.length, [1, 2, 3, 4, 5, 6])",
+        "105 [ 1, 2, 3, 4, 5, 6 ]",
+    ),
+    (
+        "var o = {valueOf: function () { throw 'no'; }, toString: function () { throw 'no'; }}; console.log(o)",
+        "{ valueOf: [Function: valueOf], toString: [Function: toString] }",
+    ),
+    (
+        "console.log({a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', b: {c: 1}})",
+        "{
+  a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  b: { c: 1 }
+}",
+    ),
+    (
+        "console.log({o: {a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}, p: [1, 2]})",
+        "{
+  o: {
+    a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  },
+  p: [ 1, 2 ]
+}",
+    ),
+    (
+        "console.log({a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}, {a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'})",
+        "{ a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' } {
+  a: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+}",
+    ),
+    (
+        "console.log(console.log.name, console.log.length, typeof console)",
+        "log 0 object",
+    ),
+    ("console.log()", ""),
+    (
+        "console.log(Object.keys({b: 1, a: 2}), [1, 2].map(function (x) { return {v: x}; }))",
+        "[ 'b', 'a' ] [ { v: 1 }, { v: 2 } ]",
+    ),
+    (
+        "console.log([new Number(-0), 'x'.length])",
+        "[ [Number: -0], 1 ]",
+    ),
+];
+
+// --- Fixes after the review of session 5: messages. Expected outputs
+// from Node.js 22. ---
+
+#[test]
+fn builtins_messages() {
+    check_cases(BUILTINS_MESSAGES);
+}
+
+const BUILTINS_MESSAGES: &[(&str, &str)] = &[
+    (
+        "try { Array.prototype.forEach.call(undefined, function () {}); } catch (e) { print(e.name + ': ' + e.message); }",
+        "TypeError: Array.prototype.forEach called on null or undefined",
+    ),
+    (
+        "try { Array.prototype.forEach.call(null, function () {}); } catch (e) { print(e.message); }",
+        "Array.prototype.forEach called on null or undefined",
+    ),
+    (
+        "try { Array.prototype.map.call(undefined, function () {}); } catch (e) { print(e.message); }",
+        "Array.prototype.map called on null or undefined",
+    ),
+    (
+        "try { Array.prototype.join.call(undefined); } catch (e) { print(e.message); }",
+        "Cannot convert undefined or null to object",
+    ),
+    (
+        "try { Array.prototype.push.call(null, 1); } catch (e) { print(e.message); }",
+        "Cannot convert undefined or null to object",
+    ),
+    (
+        "'use strict'; try { [].join.name = 'x'; } catch (e) { print(e.message); }",
+        "Cannot assign to read only property 'name' of function 'function join() { [native code] }'",
+    ),
+    (
+        "'use strict'; try { Object.keys.length = 5; } catch (e) { print(e.message); }",
+        "Cannot assign to read only property 'length' of function 'function keys() { [native code] }'",
+    ),
+    (
+        "'use strict'; try { (function () { arguments.callee = 1; })(); } catch (e) { print(e.message); }",
+        "Cannot assign to read only property 'callee' of object '#<Object>'",
+    ),
+];

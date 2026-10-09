@@ -20,22 +20,40 @@
 //! records, the realms with their intrinsics and global lexical bindings,
 //! and the value that the host reads last. Suspended generator frames are
 //! traced through their generator objects.
+//!
+//! Exceptions (ADR 0026 section 5): an instruction that fails leaves the
+//! loop with the error; [`Runtime::run_frames`] searches the handler
+//! tables of the frames from the top down and continues at the handler,
+//! or pops the frames and returns the error to its Rust caller (a native
+//! function on the way gets it as the result of its call). A termination
+//! skips every handler.
+//!
+//! Time (ADR 0026 section 9): a countdown at backward jumps, function
+//! entries, generator resumptions and in long built-in loops; at zero the
+//! time check compares the clock with the host's deadline and reads the
+//! termination request of the host.
 
 mod call;
-mod convert;
+pub(crate) mod convert;
 mod function;
 mod generator;
 mod interp;
 pub(crate) mod number;
 mod property;
 mod realm;
+pub(crate) mod time;
 
 use std::borrow::Cow;
 use std::rc::Rc;
 
-pub use function::{Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume};
+pub use function::{
+    Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
+};
 pub use generator::GeneratorState;
-pub(crate) use realm::{Intrinsic, Realm};
+pub(crate) use property::SetOutcome;
+pub(crate) use realm::{Intrinsic, Realm, error_prototype};
+pub(crate) use time::TIME_CHECK_INTERVAL;
+pub use time::TerminationHandle;
 
 use crate::bytecode::{FunctionCode, Reg};
 use crate::error::{Error, InternalError, Termination, ThrowKind};
@@ -271,6 +289,15 @@ pub(crate) struct Vm {
     pub(crate) last_value: Value,
     /// The source offset where the current uncaught error was thrown.
     pub(crate) error_offset: Option<u32>,
+    /// The countdown to the next time check.
+    pub(crate) countdown: u32,
+    /// The deadline of the running task (set by the host).
+    pub(crate) deadline: Option<std::time::Instant>,
+    /// The termination request of the host (another thread can set it).
+    pub(crate) termination: TerminationHandle,
+    /// The arrays that `Array.prototype.join` is joining (V8's cycle
+    /// detection: a nested join of one of them gives the empty string).
+    pub(crate) join_stack: Vec<Gc<Object>>,
 }
 
 impl RootSource for Vm {
@@ -286,6 +313,9 @@ impl RootSource for Vm {
         }
         self.atoms.trace(tracer);
         tracer.value(self.last_value);
+        for object in &self.join_stack {
+            tracer.object(*object);
+        }
     }
 }
 

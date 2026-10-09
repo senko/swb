@@ -75,8 +75,10 @@ impl Runtime {
         }
     }
 
-    /// Pushes the frame of a closure.
+    /// Pushes the frame of a closure. A function entry is a step of the
+    /// time countdown.
     fn enter_function(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<Step> {
+        self.tick()?;
         if self.vm.frames.len() >= self.vm.frame_limit {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }
@@ -225,7 +227,7 @@ impl Runtime {
                 }
             }
             NativeReturn::Resume(resume) => {
-                self.resume_generator(resume.generator, resume.value, site.ret, site.restore_top)
+                self.resume_generator(resume, site.ret, site.restore_top)
             }
         }
     }

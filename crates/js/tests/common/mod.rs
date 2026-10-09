@@ -1,17 +1,28 @@
 //! The harness of the VM tests: runs a script with a `print` function
-//! that collects lines, on a thread with an 8 MiB stack (ADR 0026
-//! section 9), with and without the GC stress mode.
+//! that collects lines (`console.log` writes to the same lines), on a
+//! thread with an 8 MiB stack (ADR 0026 section 9), with and without the
+//! GC stress mode.
 
 #![allow(dead_code, clippy::unwrap_used, clippy::unnecessary_wraps)]
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use swb_js::{
     HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Value, VmError,
     VmResult,
 };
 
-/// The output lines of `print`.
-#[derive(Default)]
-pub(crate) struct Output(pub(crate) Vec<String>);
+/// The output lines of `print` and `console.log`.
+#[derive(Clone, Default)]
+pub(crate) struct Output(pub(crate) Rc<RefCell<Vec<String>>>);
+
+impl Output {
+    /// Takes the lines written so far.
+    pub(crate) fn take(&self) -> Vec<String> {
+        std::mem::take(&mut *self.0.borrow_mut())
+    }
+}
 
 /// `print(...)`: `ToString` of each argument, joined by spaces.
 pub(crate) fn print(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
@@ -21,7 +32,7 @@ pub(crate) fn print(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         parts.push(rt.to_rust_string(value)?);
     }
     if let Some(output) = rt.host_data_mut::<Output>() {
-        output.0.push(parts.join(" "));
+        output.0.borrow_mut().push(parts.join(" "));
     }
     Ok(NativeReturn::Value(Value::Undefined))
 }
@@ -79,7 +90,12 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
         ..RuntimeConfig::default()
     };
     let mut rt = Runtime::new(config).unwrap();
-    rt.set_host_data(Output::default());
+    let output = Output::default();
+    let sink = output.clone();
+    rt.set_console(Box::new(move |line| {
+        sink.0.borrow_mut().push(line.to_owned());
+    }));
+    rt.set_host_data(output);
     rt.define_global_function("print", 1, print).unwrap();
     rt.define_global_function("defineAccessor", 4, define_accessor)
         .unwrap();
@@ -94,7 +110,7 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
 /// the error) of a script.
 pub(crate) fn run_in(rt: &mut Runtime, source: &str) -> String {
     let result = rt.eval(source);
-    let mut lines = std::mem::take(&mut rt.host_data_mut::<Output>().unwrap().0);
+    let mut lines = rt.host_data_mut::<Output>().unwrap().take();
     match result {
         Ok(value) => {
             if !value.is_undefined() {
