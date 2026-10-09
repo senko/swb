@@ -2726,6 +2726,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "swb-js"
+version = "0.1.0"
+dependencies = [
+ "swb-js-regexp",
+ "swb-js-syntax",
+ "swb-js-text",
+]
+
+[[package]]
+name = "swb-js-regexp"
+version = "0.1.0"
+dependencies = [
+ "swb-js-text",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "swb-js-syntax"
+version = "0.1.0"
+dependencies = [
+ "swb-js-regexp",
+ "swb-js-text",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "swb-js-text"
+version = "0.1.0"
+
+[[package]]
 name = "swb-layout"
 version = "0.1.0"
 dependencies = [

@@ -431,7 +431,11 @@ at a time, in this order:
       identifier tables (ADR 0003 decision: generated tables or a
       crate). The full lexer: all tokens, templates, regular expression
       literals, numeric literals, escapes, Unicode identifiers, on demand
-      with the goal symbol from the parser.
+      with the goal symbol from the parser. Done 2026-10-09: all 60 BBC
+      scripts lex (1.13 million tokens, about 125 MB/s in a release build,
+      with a previous-token heuristic in the test driver). Open: the lexer
+      loses the interner when the source is too long (session 2 decides);
+      the interner stores each name twice (performance, later).
    2. A parser for a subset and the scope analysis (`implementer-hard`).
       The AST arena. The subset: `var`, `let`, `const`; function
       declarations and expressions; generator functions with `yield`

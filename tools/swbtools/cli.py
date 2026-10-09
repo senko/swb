@@ -9,6 +9,7 @@ from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.hostile import hostile
+from swbtools.js_unicode_tables import write_tables as write_js_unicode_tables
 from swbtools.layout_refs import layout_refs
 from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
@@ -116,6 +117,10 @@ def cmd_linebreaks(args: argparse.Namespace) -> int:
 
 def cmd_linebreak_tables(args: argparse.Namespace) -> int:
     return write_tables()
+
+
+def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
+    return write_js_unicode_tables()
 
 
 def cmd_substitute(args: argparse.Namespace) -> int:
@@ -288,6 +293,11 @@ def build_parser() -> argparse.ArgumentParser:
         "linebreak-tables", help="write crates/text/src/linebreak/tables.rs (UCD, measurements)"
     )
     p.set_defaults(func=cmd_linebreak_tables)
+
+    p = commands.add_parser(
+        "js-unicode-tables", help="write crates/js-text/src/unicode/tables.rs (UCD)"
+    )
+    p.set_defaults(func=cmd_js_unicode_tables)
 
     p = commands.add_parser(
         "substitute",

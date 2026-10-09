@@ -16,6 +16,10 @@ swb-automation = { path = "crates/automation" }
 swb-css = { path = "crates/css" }
 swb-dom = { path = "crates/dom" }
 swb-engine = { path = "crates/engine" }
+swb-js = { path = "crates/js" }
+swb-js-regexp = { path = "crates/js-regexp" }
+swb-js-syntax = { path = "crates/js-syntax" }
+swb-js-text = { path = "crates/js-text" }
 swb-layout = { path = "crates/layout" }
 swb-net = { path = "crates/net" }
 swb-paint = { path = "crates/paint" }

@@ -1,0 +1,17 @@
+[package]
+name = "swb-js-syntax"
+description = "JavaScript front end: lexer, parser, abstract syntax tree and scope analysis."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+swb-js-regexp.workspace = true
+swb-js-text.workspace = true
+thiserror.workspace = true

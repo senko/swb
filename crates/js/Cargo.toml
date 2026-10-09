@@ -1,0 +1,17 @@
+[package]
+name = "swb-js"
+description = "JavaScript engine: compiler, interpreter, heap, built-in objects and embedding API."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+swb-js-regexp.workspace = true
+swb-js-syntax.workspace = true
+swb-js-text.workspace = true

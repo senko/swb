@@ -15,7 +15,7 @@ Writes `crates/text/src/linebreak/tables.rs` from two sources:
    - `LETTER_UNITS`: General_Category L* or N*, the "typographic letter
      units" of `word-break: keep-all` (CSS Text 3 §5.2).
    The files are downloaded from unicode.org into `out/ucd/` unless they are
-   there already.
+   there already (`ucd.py`).
 
 2. The measurements of Chromium in `crates/text/tests/linebreak/latin1.txt`
    (`swbtools linebreaks`): the break opportunity between every pair of
@@ -27,12 +27,11 @@ Writes `crates/text/src/linebreak/tables.rs` from two sources:
 """
 
 import logging
-import re
-import urllib.request
 from pathlib import Path
 
 from swbtools import paths
 from swbtools.linebreaks import LATIN1, MATRIX_SYMBOLS, data_dir
+from swbtools.ucd import has_property, ranges, read_property, ucd_file, value_ranges
 
 log = logging.getLogger(__name__)
 
@@ -50,89 +49,7 @@ FILES = {
     "emoji-data": "ucd/emoji/emoji-data.txt",
 }
 
-MAX_CODE_POINT = 0x10FFFF
-
 SOFT_HYPHEN = 0xAD
-
-
-def ucd_file(name: str, version: str) -> Path:
-    """Returns the local copy of a UCD file; downloads it if missing."""
-    path = paths.out_dir() / "ucd" / version / Path(FILES[name]).name
-    if not path.is_file():
-        url = f"https://www.unicode.org/Public/{version}/{FILES[name]}"
-        log.info("downloading %s", url)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(url, timeout=60) as response:
-            path.write_bytes(response.read())
-    return path
-
-
-def read_property(path: Path, default: str) -> list[str]:
-    """The value of a property for every code point: the `@missing` lines
-    first, then the data lines."""
-    values = [default] * (MAX_CODE_POINT + 1)
-    data: list[tuple[int, int, str]] = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        missing = re.match(r"#\s*@missing:\s*([0-9A-F]+)\.\.([0-9A-F]+);\s*(\w+)", raw)
-        if missing:
-            first, last = int(missing.group(1), 16), int(missing.group(2), 16)
-            values[first : last + 1] = [missing.group(3)] * (last - first + 1)
-            continue
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = [field.strip() for field in line.split(";")]
-        first_text, _, last_text = fields[0].partition("..")
-        first = int(first_text, 16)
-        last = int(last_text, 16) if last_text else first
-        data.append((first, last, fields[1]))
-    for first, last, value in data:
-        values[first : last + 1] = [value] * (last - first + 1)
-    return values
-
-
-def has_property(path: Path, name: str) -> list[bool]:
-    """For every code point, whether a binary property file (such as
-    emoji-data.txt, which lists several properties) gives it `name`."""
-    values = [False] * (MAX_CODE_POINT + 1)
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = [field.strip() for field in line.split(";")]
-        if fields[1] != name:
-            continue
-        first_text, _, last_text = fields[0].partition("..")
-        first = int(first_text, 16)
-        last = int(last_text, 16) if last_text else first
-        values[first : last + 1] = [True] * (last - first + 1)
-    return values
-
-
-def ranges(selected: list[bool]) -> list[tuple[int, int]]:
-    """The ranges of code points where `selected` is true."""
-    out: list[tuple[int, int]] = []
-    for cp, on in enumerate(selected):
-        if not on:
-            continue
-        if out and out[-1][1] == cp - 1:
-            out[-1] = (out[-1][0], cp)
-        else:
-            out.append((cp, cp))
-    return out
-
-
-def value_ranges(values: list[str | None]) -> list[tuple[int, int, str]]:
-    """The ranges of equal values, without the code points whose value is None."""
-    out: list[tuple[int, int, str]] = []
-    for cp, value in enumerate(values):
-        if value is None:
-            continue
-        if out and out[-1][1] == cp - 1 and out[-1][2] == value:
-            out[-1] = (out[-1][0], cp, value)
-        else:
-            out.append((cp, cp, value))
-    return out
 
 
 def _range_list(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
@@ -145,11 +62,11 @@ def _range_list(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
 
 def ucd_tables() -> list[str]:
     """The Rust source of the UCD tables."""
-    old = read_property(ucd_file("LineBreak", OLD_VERSION), "XX")
-    new = read_property(ucd_file("LineBreak", VERSION), "XX")
-    width = read_property(ucd_file("EastAsianWidth", VERSION), "N")
-    category = read_property(ucd_file("DerivedGeneralCategory", VERSION), "Cn")
-    pictographic = has_property(ucd_file("emoji-data", VERSION), "Extended_Pictographic")
+    old = read_property(ucd_file(FILES["LineBreak"], OLD_VERSION), "XX")
+    new = read_property(ucd_file(FILES["LineBreak"], VERSION), "XX")
+    width = read_property(ucd_file(FILES["EastAsianWidth"], VERSION), "N")
+    category = read_property(ucd_file(FILES["DerivedGeneralCategory"], VERSION), "Cn")
+    pictographic = has_property(ucd_file(FILES["emoji-data"], VERSION), "Extended_Pictographic")
     pairs = list(zip(new, category, strict=True))
 
     overrides = value_ranges([n if n != o else None for o, n in zip(old, new, strict=True)])

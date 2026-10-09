@@ -1,12 +1,6 @@
 """The line break measurement tool and the table generator (without Chromium)."""
 
-from swbtools.linebreak_tables import (
-    has_property,
-    ranges,
-    read_matrices,
-    read_property,
-    value_ranges,
-)
+from swbtools.linebreak_tables import read_matrices
 from swbtools.linebreaks import (
     ALLOWED,
     FORCED,
@@ -21,6 +15,7 @@ from swbtools.linebreaks import (
     format_matrix,
     marks_for,
 )
+from swbtools.ucd import has_property, ranges, read_property, value_ranges
 
 
 def test_breaks_from_lines_skips_code_points_without_rectangles():

@@ -45,6 +45,15 @@ Format: source, license (for code), what it influenced.
   error codes of the automation protocol
 - UI Events KeyboardEvent key values — https://www.w3.org/TR/uievents-key/ —
   key names of the engine and the automation protocol
+- ECMAScript 2025 Language Specification (ECMA-262, 16th edition) —
+  https://tc39.es/ecma262/2025/ — clause 12 (lexical grammar) and Annex
+  B.1 (HTML-like comments, legacy octal literals and escapes) —
+  `js-syntax/src/lexer/`; §13.2.7.2 and §22.2.6.4 (regular expression
+  flags) — `js-regexp`; §6.1.4 and §11.1 (code units and code points) —
+  `js-text/src/string16.rs`. The Unicode Character Database 17.0
+  (`DerivedCoreProperties.txt`: ID_Start, ID_Continue;
+  `DerivedGeneralCategory.txt`: Zs) — `js-text/src/unicode/tables.rs`
+  (`swbtools js-unicode-tables`).
 - Unicode Standard Annex #14 (line breaking; revisions 51 to 57, for
   Unicode 15.1 to 18.0) and the Unicode Character Database 17.0
   (`LineBreak.txt`, `EastAsianWidth.txt`, `DerivedGeneralCategory.txt`,
@@ -97,6 +106,9 @@ Format: source, license (for code), what it influenced.
 - "Web Browser Engineering", Pavel Panchekha and Chris Harrelson —
   https://browser.engineering/ — overall structure of a minimal browser
   (layout tree, display list, the order of pipeline stages).
+- Donald E. Knuth, The Art of Computer Programming, vol. 3, §6.4
+  (multiplicative hashing with the golden ratio) — the name cache of
+  `js-syntax/src/interner.rs`.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

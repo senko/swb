@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 1, crates and lexer (branch `js-spike`)
+
+- The four crates of ADR 0026. `js-text`: code units of both widths
+  (`Str16`, `String16`), code points, UTF-8 conversion, and the
+  identifier and white-space classes from UCD 17.0 (new `swbtools
+  js-unicode-tables`; the UCD helpers moved to `tools/swbtools/ucd.py`,
+  the line-break tables regenerate unchanged). `js-regexp`: a flag check
+  only. `js-syntax`: the complete lexer of clause 12 and Annex B.1, on
+  demand by goal symbol, with checkpoints for re-scanning and a name
+  interner. `js`: a skeleton.
+- The BBC scripts (3.5 MB) lex in about 28 ms (125 MB/s); interning is a
+  quarter of that.
+- Review: no lexer bug. Fixed: one strict-mode flag became an enum of
+  the four legacy forms (Chromium has a message for each); the name
+  cache used the Fx hash constant, now Fibonacci hashing (Knuth, in
+  credits); `-->` at the input start no longer depends on the goal
+  symbol; the regular expression error type is non-exhaustive.
+- Next: spike session 2, the subset parser and the scope analysis.
+
 ## 2026-10-09: M6 step 2, architecture of the language core
 
 - ADR 0026, written from the memos, the specifications and the
