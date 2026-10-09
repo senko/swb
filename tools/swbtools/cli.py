@@ -7,7 +7,7 @@ from pathlib import Path
 
 from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
-from swbtools.compare import compare_fixture, update_scores
+from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.hostile import hostile
 from swbtools.layout_refs import layout_refs
 from swbtools.linebreak_tables import write_tables
@@ -54,6 +54,10 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if names is None:
         log.error("give fixture names or --all")
         return 2
+    options = Options(full_page=args.full_page, clicks=tuple(args.click))
+    if args.update_scores and (options.full_page or options.clicks):
+        log.error("--update-scores works only with the plain comparison")
+        return 2
     binary = None
     if not args.no_run:
         binary = swb.find_swb(args.swb)
@@ -63,7 +67,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     results: dict[str, Scores] = {}
     failed = False
     for name in names:
-        scores = compare_fixture(name, binary, args.tolerance, args.threshold)
+        scores = compare_fixture(name, binary, args.tolerance, args.threshold, options)
         if scores is None:
             failed = True
         else:
@@ -192,6 +196,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--update-scores", action="store_true", help="write the scores to fixtures/scores.json"
+    )
+    p.add_argument(
+        "--full-page",
+        action="store_true",
+        help="also compare the full-page screenshots (live Chromium capture) and list the "
+        "differing regions",
+    )
+    p.add_argument(
+        "--click",
+        action="append",
+        default=[],
+        metavar="SELECTOR",
+        help="click the first element that matches SELECTOR in both browsers before the "
+        "comparison (repeatable; applied in order). Chromium's boxes and screenshots are then a "
+        "live capture, and the output files get a state suffix",
     )
     p.set_defaults(func=cmd_compare)
 

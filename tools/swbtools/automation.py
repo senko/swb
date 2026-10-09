@@ -63,15 +63,24 @@ class Browser:
         fixture: Path | None = None,
         viewport: tuple[int, int] = (1280, 800),
         test_fonts: bool = True,
+        log_file: Path | None = None,
     ) -> Self:
         """Starts a headless swb and connects to it. `fixture` serves all
-        requests from a fixture directory."""
+        requests from a fixture directory. `log_file` receives swb's stderr
+        (default: the terminal)."""
         binary = swb.find_swb(swb_path)
         if binary is None:
             raise FileNotFoundError("the swb binary does not exist; run `just build`")
         command = swb.serve_command(binary, viewport, fixture, test_fonts)
         log.info("running %s", " ".join(command))
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)
+        if log_file is None:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)
+        else:
+            # The child keeps its own copy of the descriptor.
+            with log_file.open("wb") as stderr:
+                process = subprocess.Popen(
+                    command, stdout=subprocess.PIPE, stderr=stderr, text=True
+                )
         try:
             return cls(_read_address(process), process)
         except BaseException:

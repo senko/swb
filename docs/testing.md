@@ -58,6 +58,8 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
+| `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
+| `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
@@ -89,7 +91,17 @@ Options:
   made with it.
 - `compare --tolerance PX` (default 2), `compare --threshold N` (default 32),
   `compare --no-run` (compare the swb output that is already in
-  `out/compare/NAME/`; useful to look at a report again or to test the tool).
+  `out/compare/NAME/`; useful to look at a report again or to test the tool;
+  with `--full-page` or `--click` it also reuses Chromium's live capture there).
+- `just compare` passes its arguments to a shell without quotes. A selector
+  that contains a space or one of `#>[]:*()'"` needs a second level of
+  quotes: `just compare bbc --click "'details > summary'"`,
+  `just compare bbc --click "'#menu'"`.
+- `compare --full-page`: also take full-page screenshots in both browsers and
+  compare them (score, differing regions).
+- `compare --click SELECTOR` (repeatable, applied in order): compare the page
+  after the clicks. The output files get a state suffix. Not allowed with
+  `--update-scores`.
 
 The environment variable `SWB_ROOT` sets the repository root for the tools.
 Normally they find it themselves.
@@ -452,7 +464,9 @@ senko-net: geometry 0.8621 size 0.8793 relative 0.8621 pixels 0.9767 missing 5 e
   image, the tag sequence differences, the worst-matching elements (path,
   both rectangles, deltas), and the elements with a box in only one
   browser.
-- `boxes.json`, `screenshot.png`, `swb.log`: swb's output.
+- `boxes.json`, `screenshot.png`, `swb.log`: swb's output. With
+  `--full-page` also `fullpage.png`, `reference-fullpage.png`,
+  `reference-boxes.json`, `diff-fullpage.png`.
 - `reference.png`: a copy of the Chromium screenshot. `diff.png`: the
   pixel difference (red).
 
@@ -460,6 +474,69 @@ The element path in the report has the form
 `html > body:nth-child(2) > div:nth-child(3)` (`:nth-child` only when the
 parent has more than one element child). Paste it into
 `document.querySelector()` in a browser to find the element.
+
+#### Full page: `compare --full-page`
+
+Chromium's `reference` screenshot and the pixel score cover only the first
+viewport. With `--full-page`, the tool also:
+
+- replays the fixture in Chromium as `reference` does (same viewport, fonts,
+  lazy-image scroll, wait for `document.fonts.ready`, animations off) and
+  saves a full-page screenshot, `reference-fullpage.png`, and the box dump
+  of that run, `reference-boxes.json`. It writes into `out/compare/NAME/`,
+  never into `fixtures/`;
+- runs swb a second time with `--full-page --screenshot`
+  (`fullpage.png`);
+- compares both images over the union of their areas with the same
+  threshold as the viewport score. If the sizes differ, the report and the
+  summary line say so, the score covers the larger area, and the part
+  outside the smaller image counts as different. `diff-fullpage.png`
+  shows the difference (red) on the union area;
+- lists the differing regions: connected areas of differing pixels, where
+  pixels within 8 px of each other (8-connected blocks of 8 px) form one
+  region. Each row has the tight bounding rectangle (x, y, w&times;h in
+  px), the number of differing pixels and the path of the smallest
+  Chromium box that contains the rectangle. The table shows the 50 regions
+  with the most differing pixels. The box is only geometry: it can be a box that is
+  not drawn, for example the closed `details` menu of the BBC fixture, whose
+  hidden boxes overlap the page.
+
+The summary line adds `fullpage SCORE regions N`. The score is not stored in
+`fixtures/scores.json`.
+
+**Does Playwright's full-page capture change Chromium's layout?** No.
+Measured on the `bbc` fixture (12,697 px high, 2,745 elements) and on a
+synthetic page with `height: 100vh`, `position: fixed; bottom: 0` and
+`position: fixed; top: 10px` boxes: the box dump, `innerHeight` (800),
+the computed `max-height: 80vh` and the positions of the fixed and sticky
+boxes are identical before and after the capture. The image shows the page
+from its top with the layout of the viewport: `100vh` stays 800 px and fixed
+boxes are drawn at their positions in the first viewport, as in swb's
+`--full-page`. `compare --full-page` reads the box dump again after the
+capture and logs a warning if it differs.
+
+#### States: `compare --click SELECTOR`
+
+With one or more `--click`, the tool loads the page in both browsers, clicks
+the first element that matches each selector in turn (Playwright in Chromium;
+`dom.querySelector` and `input.click` with `nodeId` in swb, through the
+automation API), waits until the page settles (Chromium: 200 ms and the fonts;
+swb: `page.waitForLoad` and the load state), scrolls to the top and takes the
+boxes and the screenshots. The state replaces the plain run: the scores are
+those of the state. Chromium's boxes and screenshot are a live capture, not
+the committed reference, because the reference has only the initial state.
+`--full-page` works together with it. It fails if a selector matches nothing
+or a click is not possible (Chromium waits 5 s for the element). With
+JavaScript off, the clicks only change what the browser does by itself: toggle
+`details`, check a checkbox, focus, follow a link.
+
+All files of a state run end with `-click-SLUG-HASH` (SLUG from the
+selectors, HASH from the whole list), so that they do not replace the plain
+run's files: `boxes-click-details-summary-5799ee.json`,
+`screenshot-...png`, `fullpage-...png`, `reference-...png` (Chromium's
+viewport screenshot), `reference-boxes-...json`, `reference-fullpage-...png`,
+`diff-...png`, `diff-fullpage-...png`, `report-...html`. The summary line
+prints the report path.
 
 To see which images swb requests (for example to check image source
 selection), run swb with `RUST_LOG=swb_engine=debug` and look for the

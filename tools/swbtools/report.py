@@ -5,6 +5,7 @@ from html import escape
 from pathlib import Path
 
 from swbtools.boxes import Rect
+from swbtools.fullpage import COVERED_REGIONS, FullPage
 from swbtools.scoring import Comparison, Scores, element_paths
 
 TABLE_ROWS = 100
@@ -182,6 +183,54 @@ def _extra(comparison: Comparison) -> str:
     )
 
 
+def _shots(images: dict[str, str]) -> str:
+    return "".join(
+        f'<figure><figcaption>{escape(caption)}</figcaption><a href="{escape(src)}">'
+        f'<img src="{escape(src)}" alt="{escape(caption)}"></a></figure>'
+        for caption, src in images.items()
+    )
+
+
+def _region_rows(full_page: FullPage) -> list[list[str]]:
+    rows = []
+    regions = zip(full_page.regions, full_page.covers, strict=False)
+    for number, (region, cover) in enumerate(regions, start=1):
+        x, y, width, height = region.rect
+        rows.append(
+            [
+                _cell(str(number), "num"),
+                _cell(f"{x}, {y}, {width}&times;{height}", "num"),
+                _cell(str(region.pixels), "num"),
+                _cell(escape(cover) if cover else "none", "path"),
+            ]
+        )
+    return rows
+
+
+def _full_page(full_page: FullPage | None, images: dict[str, str]) -> str:
+    if full_page is None:
+        return ""
+    ref, other = full_page.reference_size, full_page.swb_size
+    if full_page.sizes_differ:
+        size_note = (
+            f"<p class=bad>The sizes differ: Chromium {ref[0]}&times;{ref[1]} px, swb "
+            f"{other[0]}&times;{other[1]} px. The score covers the union of both areas; "
+            "the part outside the smaller image counts as different.</p>"
+        )
+    else:
+        size_note = f"<p>Both screenshots are {ref[0]}&times;{ref[1]} px.</p>"
+    rows = _region_rows(full_page)
+    headers = ["#", f"region {RECT_HEADER} (px)", "differing px", "smallest Chromium box"]
+    table = _table(headers, rows) if rows else "<p>No differing pixels.</p>"
+    return (
+        f"<h2>Full page</h2><p>Pixel score <b>{full_page.score:.4f}</b>, "
+        f"{len(full_page.regions)} differing regions (up to {COVERED_REGIONS} shown, most "
+        "differing pixels first). Differing pixels within 8 px of each other form one "
+        "region.</p>"
+        f"{size_note}{table}<div class=shots>{_shots(images)}</div>"
+    )
+
+
 def write_report(
     path: Path,
     name: str,
@@ -189,14 +238,22 @@ def write_report(
     scores: Scores,
     images: dict[str, str],
     log_file: str | None,
+    full_page: FullPage | None = None,
+    full_page_images: dict[str, str] | None = None,
+    clicks: Sequence[str] = (),
 ) -> None:
     """Writes the report. `images` maps a caption to an image path relative
-    to the report."""
+    to the report. `full_page` and `full_page_images` add the full-page
+    section; `clicks` are the selectors that were clicked to reach the
+    state."""
     paths = element_paths(comparison.reference)
-    shots = "".join(
-        f'<figure><figcaption>{escape(caption)}</figcaption><a href="{escape(src)}">'
-        f'<img src="{escape(src)}" alt="{escape(caption)}"></a></figure>'
-        for caption, src in images.items()
+    shots = _shots(images)
+    state = (
+        "<p>State after clicking: "
+        + ", then ".join(f"<code>{escape(selector)}</code>" for selector in clicks)
+        + ". Chromium's boxes and screenshots are a live capture.</p>"
+        if clicks
+        else ""
     )
     log_link = f' · <a href="{escape(log_file)}">swb log</a>' if log_file else ""
     title = f"swb vs Chromium: {escape(name)}"
@@ -207,8 +264,9 @@ def write_report(
         f"<h1>{title}</h1>"
         f"<p class=meta>{escape(comparison.reference.url)} · tolerance "
         f"{comparison.tolerance:g} px{log_link}</p>"
-        f"{_scores_table(scores, comparison)}"
+        f"{state}{_scores_table(scores, comparison)}"
         f"<h2>First viewport</h2><div class=shots>{shots}</div>"
+        f"{_full_page(full_page, full_page_images or {})}"
         f"{_differences(comparison)}{_worst(comparison, paths)}"
         f"{_missing(comparison, paths)}{_extra(comparison)}"
         "</body></html>\n"

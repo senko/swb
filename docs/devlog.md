@@ -4,6 +4,27 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M5 plan, full-page and state comparison (M5 item 1)
+
+- The owner accepted target 4 (Ars Technica).
+- M5 plan (BBC): after M4 the page has geometry 0.8786 and pixels 0.9985.
+  What remains: the content of the closed `details` menu (229 missing
+  boxes) and its toggle, `display: grid` on `<button>` in the off-screen
+  drawer, `scrollbar-width`, and text pixels. `quotes`, complex `:not()`
+  and `::-webkit-scrollbar` from the old list are not needed.
+- `compare --full-page` compares full-page screenshots (Chromium live,
+  swb `--full-page`) with a score over the union of both areas and a
+  list of differing regions; `compare --click SELECTOR` compares the
+  state after clicks in both browsers (Playwright; swb's automation
+  API). The full-page arrays are uint8 and processed in bands of 512
+  rows (review: the first version used about 700 MB for BBC).
+- Playwright's full-page capture does not change Chromium's layout.
+- Full page: BBC 0.9981, Ars 0.9966. No layout difference and no missing
+  paint feature below the first viewport. The differences are sub-pixel
+  glyph positions inside words (item 4) and 1–2 px lines at the edges
+  of scaled images.
+- Next: M5 item 2, `details` and `summary`.
+
 ## 2026-10-09: M4 maintenance
 
 - Two read-only reviewers (paint and layout; the other crates, tools and

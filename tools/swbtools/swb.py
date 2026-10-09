@@ -81,6 +81,20 @@ def replay_command(
     ]
 
 
+def full_page_command(
+    swb: Path, fixture: Path, url: str, viewport: tuple[int, int], screenshot: Path
+) -> list[str]:
+    """Command line that loads `url` from the fixture with the test fonts and
+    writes a full-page screenshot."""
+    return [
+        *_replay_options(swb, fixture, viewport),
+        "--full-page",
+        "--screenshot",
+        str(screenshot),
+        url,
+    ]
+
+
 def probe_command(
     swb: Path, url: str, viewport: tuple[int, int], boxes: Path, screenshot: Path | None = None
 ) -> list[str]:

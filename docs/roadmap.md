@@ -279,24 +279,93 @@ used): `box-shadow`, `filter`, `text-shadow`, `-webkit-line-clamp`,
 `backdrop-filter`. Style takes 27 ms on this page (Wikipedia: 10 ms for
 twice the elements); look at it in the final pass only if it grows.
 
-Target 4 is done (geometry 1.0000, pixels 0.9992) and waits for the
-owner's check. End-of-milestone maintenance: two read-only reviews
+Target 4 is done (geometry 1.0000, pixels 0.9992); the owner accepted
+it. End-of-milestone maintenance: two read-only reviews
 (paint and layout; the other crates, tools and docs) listed
 duplication, dead code, names and outdated docs; one implementer applied
 the selected items; `just snapshot` shows no change: done.
 
-## M5: BBC — planned
+## M5: BBC — in progress
 
 Target 5, `https://www.bbc.com/` (fixture `bbc`), JavaScript off.
 Baseline on 2026-10-08: geometry 0.0290, pixels 0.9583 (2,745
-elements). Most differences are web fonts (BBC Reith) and inline SVG
-(logo, icons), which M4 adds. Known items for M5, to plan after M4:
+elements). After M4 (web fonts, inline SVG), on 2026-10-09: geometry
+0.8786, pixels 0.9985; the tag sequences match and swb logs no
+warnings. The remaining differences:
 
-- Closed `<details>`: Chromium reports boxes for the content
-  (`::details-content` with `content-visibility: hidden`); swb has none
-  (229 missing elements in the no-JavaScript menu).
-- `:not()` with complex selectors (`a:not(.x a)::before`), `quotes`,
-  `::-webkit-scrollbar` (Chromium accepts it, so the rule stays valid).
+- 229 missing boxes: the content of the closed `<details>` menu (the
+  navigation for pages without JavaScript: 76 links in nested lists).
+  Chromium puts the content of `details` in a `::details-content` box
+  that has `content-visibility: hidden` while `details` is closed: the
+  content is laid out (the box dump reports it) but not drawn. swb hides
+  it with `display: none`. swb also does not toggle `details` when the
+  user clicks its `summary`, so the menu does not open.
+- The navigation drawer (off screen at x = -320, used with JavaScript):
+  its 16 buttons are `display: grid` (`grid-template-columns: 1fr
+  auto`). swb lays out the content of `<button>` only as flow or flex,
+  so the icon goes to a second line (54 px high buttons instead of
+  44 px).
+- 1,526 differing pixels, in the text of headings and summaries. The text
+  has no whole-pixel offset.
+- `compare` scores only the first viewport (800 of 12,697 px) and only
+  the initial state of the page.
+
+The page does not need `quotes` (it sets only `quotes: none` and has no
+`q`), and `:not()` with complex selectors already works. The page's
+`::-webkit-scrollbar` rules each have only that selector, so swb drops
+them with no effect.
+
+Features, in this order. Each one ends with a review and a commit.
+
+1. Comparison of the full page and of states (`implementer`; only
+   `tools/`). Scope: `compare --full-page` takes Chromium's full-page
+   screenshot of the replayed fixture (as `reference` does, after
+   `document.fonts.ready`) and swb's `--full-page` screenshot into
+   `out/compare/NAME/`, and adds a full-page pixel score and the
+   differing regions to the report. Check that the full-page capture does
+   not change Chromium's layout (`vh` units, fixed boxes). `compare
+   --click SELECTOR` (repeatable) clicks the element in both browsers
+   (Playwright; swb's automation API) before the boxes and screenshots
+   are taken. The committed references and `scores.json` do not change.
+   Then compare the BBC and Ars pages in full; add the BBC findings to
+   item 4 and the Ars findings to the backlog. Done: Chromium's full-page
+   capture does not change its layout (`vh` stays 800 px, fixed boxes stay
+   at their first-viewport positions). Full-page pixels: BBC 0.9981
+   (1280 × 12,697), Ars 0.9966 (1280 × 9,626). Neither page shows a
+   layout difference or a missing paint feature. About 95 % of the
+   differing regions are text: inside a word, swb puts the glyphs from
+   some letter on at another sub-pixel position than Chromium. Most other
+   regions are 1–2 px lines at the edges of scaled images. One Ars avatar
+   shows another image (backlog).
+2. `<details>` and `<summary>` (`implementer`). Scope (HTML §4.11.1 and
+   §15.5.5, measured in Chromium with the probe tool): the children of
+   `details` other than its first `summary` (also text) form the
+   `::details-content` block box. While `details` is closed, this box
+   acts as `content-visibility: hidden`: its content is laid out (match
+   Chromium's boxes) but not drawn, not hit tested, not reached with
+   Tab, and not part of the scrollable overflow or the text selection.
+   A `details` without a `summary` gets Chromium's default summary.
+   Activation: a click on the first `summary` (not on a link or other
+   interactive content in it), or Enter or Space on it, toggles the
+   `open` attribute and lays out the page again; `[open]` and `:open`
+   match and the marker changes. The BBC menu matches Chromium closed
+   and open (`compare --click`). Hostile-page cases: deeply nested
+   `details`, much hidden content. Not in scope: the `name` attribute
+   (exclusive accordions), the `toggle` event, `::details-content` in
+   page style sheets, `content-visibility` as a property.
+3. Grid buttons and `scrollbar-width` (`implementer`). Scope: `display:
+   grid` and `inline-grid` on `<button>` lay out its content as a grid
+   (the drawer buttons: `grid-template-columns: 1fr auto`, `gap: 22px`);
+   `scrollbar-width: auto | thin | none`, where `none` hides the scroll
+   indicator of that scroll container in the GUI (the page's two
+   `overflow: scroll` carousels; Chromium shows no scroll bar there).
+4. Final pass on the page (`implementer`). Scope: the sub-pixel glyph
+   positions in words (all text on both pages; find the cause, fix it if
+   it is not anti-aliasing, backlog otherwise); the 1–2 px lines at the
+   edges of scaled images (the same); links
+   (also in inline SVG and in the menu) and the page's `:hover` rules
+   (engine tests, as for Ars); `just perf bbc` compared with Ars. Then
+   report target 5 as done.
 
 ## Pending decisions
 
@@ -305,6 +374,16 @@ elements). Most differences are web fonts (BBC Reith) and inline SVG
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M5
+
+- Ars: the avatar at (64, 572, 75 × 75) in the full-page comparison shows
+  another image in its circle (Chromium: a beige placeholder grid; swb: a
+  teal one). Check the selected `srcset` candidate and the decoding.
+- Tools, `compare --full-page`: the covering box of a region is only
+  geometry, so it can name a box that is not drawn (the closed `details`
+  menu on BBC). Chromium waits a fixed 200 ms after each `--click`; pages
+  with timers are not covered.
 
 ## Backlog from M4
 
