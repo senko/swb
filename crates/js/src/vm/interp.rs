@@ -573,13 +573,13 @@ impl Runtime {
 
                 // --- Literals ---
                 Insn::NewObject { dst } => {
-                    let realm = self.vm.frames.last().map_or(0, |f| f.realm);
+                    let realm = self.current_realm();
                     let proto = tri!(self.intrinsic(realm, Intrinsic::ObjectPrototype));
                     let object = tri!(self.heap.new_object(Some(proto)));
                     put!(dst, Value::Object(object));
                 }
-                Insn::NewArray { dst, capacity: _ } => {
-                    let realm = self.vm.frames.last().map_or(0, |f| f.realm);
+                Insn::NewArray { dst } => {
+                    let realm = self.current_realm();
                     let proto = tri!(self.intrinsic(realm, Intrinsic::ArrayPrototype));
                     let array = tri!(self.heap.new_array(Some(proto), 0));
                     put!(dst, Value::Object(array));
@@ -863,7 +863,7 @@ impl Runtime {
                         Value::Int(x) if x != i32::MIN => Value::Int(-x),
                         _ => {
                             save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_numeric(value)));
+                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
                             Value::Double(-x)
                         }
                     };
@@ -875,7 +875,7 @@ impl Runtime {
                         Value::Int(_) | Value::Double(_) => value,
                         _ => {
                             save!();
-                            Value::number(tri!(self.with_scope(|rt| rt.to_numeric(value))))
+                            Value::number(tri!(self.with_scope(|rt| rt.to_number(value))))
                         }
                     };
                     put!(dst, result);
@@ -886,7 +886,7 @@ impl Runtime {
                         !x
                     } else {
                         save!();
-                        let x = tri!(self.with_scope(|rt| rt.to_numeric(value)));
+                        let x = tri!(self.with_scope(|rt| rt.to_number(value)));
                         !super::convert::to_int32(x)
                     };
                     put!(dst, Value::Int(result));
@@ -907,7 +907,7 @@ impl Runtime {
                         Value::Int(x) if x < i32::MAX => Value::Int(x + 1),
                         _ => {
                             save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_numeric(value)));
+                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
                             Value::Double(x + 1.0)
                         }
                     };
@@ -919,7 +919,7 @@ impl Runtime {
                         Value::Int(x) if x > i32::MIN => Value::Int(x - 1),
                         _ => {
                             save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_numeric(value)));
+                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
                             Value::Double(x - 1.0)
                         }
                     };
@@ -1048,7 +1048,7 @@ impl Runtime {
                     };
                     let (handle, compiled) = (*handle, Rc::clone(compiled));
                     let captures = tri!(self.collect_captures(base, &compiled));
-                    let realm = self.vm.frames.last().map_or(0, |f| f.realm);
+                    let realm = self.current_realm();
                     save!();
                     let scope = self.heap.open_scope();
                     let function = tri!(self.new_closure(handle, &compiled, captures, realm));
@@ -1118,21 +1118,6 @@ impl Runtime {
                 Insn::Nop => {}
             }
         }
-    }
-
-    /// Runs `f` inside a new handle scope (the slow paths of the
-    /// instructions, which can run script code and collect). The scope
-    /// closes when `f` succeeds; after an error the unwinder closes it.
-    pub(crate) fn with_scope<T>(
-        &mut self,
-        f: impl FnOnce(&mut Runtime) -> VmResult<T>,
-    ) -> VmResult<T> {
-        let scope = self.heap.open_scope();
-        let result = f(self);
-        if result.is_ok() {
-            self.heap.close_scope(scope)?;
-        }
-        result
     }
 
     /// The cell of capture `index` of the running function.

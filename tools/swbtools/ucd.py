@@ -9,6 +9,7 @@ ranges for generated Rust tables.
 import logging
 import re
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 
 from swbtools import paths
@@ -34,6 +35,18 @@ def ucd_file(relative: str, version: str) -> Path:
     return path
 
 
+def _data_lines(path: Path) -> Iterator[tuple[int, int, list[str]]]:
+    """The data lines of a UCD file: first and last code point, and the
+    fields after the code points. Comments and empty lines are skipped."""
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        fields = [field.strip() for field in line.split(";")]
+        first, last = _code_points(fields[0])
+        yield first, last, fields[1:]
+
+
 def _code_points(field: str) -> tuple[int, int]:
     """The first and last code point of a field such as `0041..005A` or `0030`."""
     first_text, _, last_text = field.partition("..")
@@ -45,21 +58,13 @@ def read_property(path: Path, default: str) -> list[str]:
     """The value of a property for every code point: the `@missing` lines
     first, then the data lines."""
     values = [default] * (MAX_CODE_POINT + 1)
-    data: list[tuple[int, int, str]] = []
     for raw in path.read_text(encoding="utf-8").splitlines():
         missing = re.match(r"#\s*@missing:\s*([0-9A-F]+)\.\.([0-9A-F]+);\s*(\w+)", raw)
         if missing:
             first, last = int(missing.group(1), 16), int(missing.group(2), 16)
             values[first : last + 1] = [missing.group(3)] * (last - first + 1)
-            continue
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = [field.strip() for field in line.split(";")]
-        first, last = _code_points(fields[0])
-        data.append((first, last, fields[1]))
-    for first, last, value in data:
-        values[first : last + 1] = [value] * (last - first + 1)
+    for first, last, fields in _data_lines(path):
+        values[first : last + 1] = [fields[0]] * (last - first + 1)
     return values
 
 
@@ -67,15 +72,9 @@ def has_property(path: Path, name: str) -> list[bool]:
     """For every code point, whether a binary property file (such as
     emoji-data.txt, which lists several properties) gives it `name`."""
     values = [False] * (MAX_CODE_POINT + 1)
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = [field.strip() for field in line.split(";")]
-        if fields[1] != name:
-            continue
-        first, last = _code_points(fields[0])
-        values[first : last + 1] = [True] * (last - first + 1)
+    for first, last, fields in _data_lines(path):
+        if fields[0] == name:
+            values[first : last + 1] = [True] * (last - first + 1)
     return values
 
 
@@ -103,3 +102,11 @@ def value_ranges(values: list[str | None]) -> list[tuple[int, int, str]]:
         else:
             out.append((cp, cp, value))
     return out
+
+
+def range_table(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
+    """The Rust source of one table of code point ranges."""
+    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, u32); {len(items)}] = ["]
+    lines += [f"    (0x{a:04X}, 0x{b:04X})," for a, b in items]
+    lines += ["];", ""]
+    return lines

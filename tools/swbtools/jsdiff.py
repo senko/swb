@@ -88,7 +88,7 @@ def run_node(node: str, file: Path) -> Run:
     return run_process([node, "-e", NODE_WRAPPER, str(file)])
 
 
-def compare(name: str, swb_run: Run, node_run: Run) -> str:
+def diff_runs(name: str, swb_run: Run, node_run: Run) -> str:
     """The unified diff of two runs; an empty string if they agree."""
     parts = []
     if swb_run.stdout != node_run.stdout:
@@ -144,7 +144,7 @@ def jsdiff(files: list[Path], swb_js: Path | None) -> int:
             ]
             print(f"timeout: {file} ({', '.join(engines)})")
             continue
-        diff = compare(str(file), swb_run, node_run)
+        diff = diff_runs(str(file), swb_run, node_run)
         if diff:
             differing += 1
             print(diff, end="")

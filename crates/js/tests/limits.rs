@@ -1,6 +1,6 @@
 //! The heap limit as a bound on memory, the 90 % rule, no-GC regions,
 //! handle scopes after early returns, roots of every kind, and object
-//! kind payloads (spike session 3, fix round).
+//! kind payloads.
 
 #![allow(clippy::unwrap_used)]
 

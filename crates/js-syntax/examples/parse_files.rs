@@ -1,7 +1,7 @@
 //! Parses JavaScript files with the scope analysis and reports, per file,
 //! whether it parses or the first error (for a construct outside the
-//! supported subset, its name). A measurement tool for the parser
-//! (roadmap M6 step 3), not part of `just check`.
+//! supported subset, its name). A measurement tool for the parser, not
+//! part of `just check`.
 //!
 //! Usage:
 //!
@@ -13,15 +13,16 @@
 //!   the bytes per token.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
+#[path = "common/mod.rs"]
+mod common;
+
 use swb_js_syntax::{
-    Goal, Interner, Lexer, LexerOptions, LineIndex, ParseError, RecursionBudget, Script, TokenKind,
-    parse_script,
+    Goal, Interner, Lexer, LexerOptions, LineIndex, ParseError, Script, TokenKind, parse_script,
 };
-use swb_js_text::{Str16, String16};
+use swb_js_text::{RecursionBudget, Str16, String16};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -30,10 +31,7 @@ fn main() -> ExitCode {
         generated(megabytes);
         return ExitCode::SUCCESS;
     }
-    let mut files = Vec::new();
-    for arg in &args {
-        collect(Path::new(arg), &mut files);
-    }
+    let files = common::js_files(&args).unwrap_or_default();
     if files.is_empty() {
         eprintln!("usage: parse_files [--generate MB | FILE_OR_DIRECTORY...]");
         return ExitCode::FAILURE;
@@ -105,23 +103,6 @@ fn describe(error: &ParseError, source: Str16<'_>) -> String {
         "{what} at {}:{} near `{around}`",
         location.line, location.column
     )
-}
-
-fn collect(path: &Path, files: &mut Vec<PathBuf>) {
-    if path.is_dir() {
-        let Ok(entries) = std::fs::read_dir(path) else {
-            return;
-        };
-        let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
-        paths.sort();
-        files.extend(
-            paths
-                .into_iter()
-                .filter(|p| p.extension().is_some_and(|e| e == "js")),
-        );
-    } else {
-        files.push(path.to_owned());
-    }
 }
 
 /// One block of the generated program; `N` is replaced by a number.

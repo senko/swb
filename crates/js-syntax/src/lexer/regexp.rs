@@ -4,11 +4,15 @@
 
 use swb_js_text::{CodeUnit, unicode};
 
-use super::{CR, LF, LS, Lexeme, Lexer, PS, error_at};
+use super::{CR, LF, LS, Lexeme, Lexer, PS, ascii, error_at};
 use crate::SyntaxError;
+use crate::messages::UNTERMINATED_REGEXP;
 use crate::token::{TokenKind, TokenValue};
 
-const UNTERMINATED: &str = "Invalid regular expression: missing /";
+const BACKSLASH: u16 = ascii(b'\\');
+const OPEN_BRACKET: u16 = ascii(b'[');
+const CLOSE_BRACKET: u16 = ascii(b']');
+const SLASH: u16 = ascii(b'/');
 
 impl<U: CodeUnit> Lexer<'_, U> {
     /// Scans a `RegularExpressionLiteral` that starts with `/` at `start`.
@@ -19,21 +23,21 @@ impl<U: CodeUnit> Lexer<'_, U> {
         let mut in_class = false;
         let body_end = loop {
             let Some(unit) = self.peek() else {
-                return Err(error_at(start, UNTERMINATED));
+                return Err(error_at(start, UNTERMINATED_REGEXP));
             };
             match unit {
-                LF | CR | LS | PS => return Err(error_at(start, UNTERMINATED)),
+                LF | CR | LS | PS => return Err(error_at(start, UNTERMINATED_REGEXP)),
                 // RegularExpressionBackslashSequence: `\` and a character
                 // that is not a line terminator.
-                0x5C => match self.ahead(1) {
+                BACKSLASH => match self.ahead(1) {
                     None | Some(LF | CR | LS | PS) => {
-                        return Err(error_at(start, UNTERMINATED));
+                        return Err(error_at(start, UNTERMINATED_REGEXP));
                     }
                     Some(_) => self.pos += 1,
                 },
-                0x5B => in_class = true,
-                0x5D => in_class = false,
-                0x2F if !in_class => break self.pos,
+                OPEN_BRACKET => in_class = true,
+                CLOSE_BRACKET => in_class = false,
+                SLASH if !in_class => break self.pos,
                 _ => {}
             }
             self.pos += 1;

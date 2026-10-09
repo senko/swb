@@ -7,7 +7,7 @@
 //! [`crate::Interner`]; string values are [`StringId`]s.
 //!
 //! The node types are laid out for the whole ES2025 grammar. The parser
-//! of the spike produces a subset; the forms that M7 adds get new enum
+//! produces a subset until M7; the forms that M7 adds get new enum
 //! variants without a change of the existing ones:
 //!
 //! - [`PatternKind`]: array and object patterns, defaults and rest

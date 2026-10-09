@@ -13,6 +13,9 @@ use crate::object::{Object, ObjectKind, Property, PropertyDescriptor};
 use crate::string::PropertyKey;
 use crate::value::Value;
 
+/// The message of the `RangeError` for an invalid array length.
+pub(crate) const INVALID_ARRAY_LENGTH: &str = "Invalid array length";
+
 /// `ToUint32` of the value of a `length` descriptor, with the check of
 /// `ArraySetLength` steps 3 to 5: the value must be an integer from 0 to
 /// 2^32 − 1.
@@ -20,7 +23,7 @@ use crate::value::Value;
 /// Strings and objects need `ToNumber`, which can run script code or needs
 /// `StringToNumber`; the caller converts them before (an internal error
 /// otherwise).
-fn array_length(value: Value) -> Result<u32> {
+fn to_array_length(value: Value) -> Result<u32> {
     let number = match value {
         Value::Int(int) => f64::from(int),
         Value::Double(double) => double,
@@ -46,7 +49,7 @@ fn array_length(value: Value) -> Result<u32> {
     if number >= 0.0 && number <= f64::from(u32::MAX) && number.fract() == 0.0 {
         Ok(number as u32)
     } else {
-        Err(Error::range_error("Invalid array length"))
+        Err(Error::range_error(INVALID_ARRAY_LENGTH))
     }
 }
 
@@ -62,7 +65,7 @@ impl Heap {
         }
     }
 
-    fn set_array_length_field(
+    pub(crate) fn set_array_length_field(
         &mut self,
         array: Gc<Object>,
         new_length: u32,
@@ -114,7 +117,7 @@ impl Heap {
         let Some(value) = desc.value else {
             return self.define_length(array, &desc);
         };
-        let new_length = array_length(value)?;
+        let new_length = to_array_length(value)?;
         let mut new_desc = desc;
         new_desc.value = Some(length_value(new_length));
         let (old_length, old_writable) = self.array_length(array)?;
@@ -169,7 +172,7 @@ impl Heap {
             Apply::Update(Property::Data {
                 value, writable, ..
             }) => {
-                let new_length = array_length(value)?;
+                let new_length = to_array_length(value)?;
                 self.set_array_length_field(array, new_length, writable)?;
                 Ok(true)
             }

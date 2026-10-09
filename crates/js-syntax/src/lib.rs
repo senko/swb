@@ -7,6 +7,9 @@
 //! ([`ScopeTree`]) and the names ([`Interner`]). The parser drives the
 //! [`Lexer`]: it asks for one [`Token`] at a time with the [`Goal`]
 //! symbol of its context.
+//!
+//! The "memo" references in the sources are the study memos in
+//! `docs/js-study/` (memo 2: `02-front-end.md`).
 
 mod ast;
 pub mod dump;
@@ -14,7 +17,7 @@ mod error;
 mod interner;
 mod lexer;
 mod lines;
-mod messages;
+pub mod messages;
 mod parser;
 mod scope;
 mod token;
@@ -34,5 +37,4 @@ pub use scope::{
     Binding, BindingKind, Capture, CaptureSource, FunctionScope, Reference, Resolution, Scope,
     ScopeKind, ScopeTree, Storage,
 };
-pub use swb_js_text::RecursionBudget;
 pub use token::{Goal, Legacy, Template as TemplateToken, Token, TokenKind, TokenValue};

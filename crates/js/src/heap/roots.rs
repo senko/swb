@@ -310,12 +310,6 @@ impl Heap {
         }
     }
 
-    /// Replaces the handle of a persistent root.
-    pub fn set_persistent(&mut self, root: &Persistent, value: Root) -> Result<()> {
-        self.persistent_slot(root)?.value = Some(value);
-        Ok(())
-    }
-
     /// Releases a persistent root.
     #[expect(
         clippy::needless_pass_by_value,

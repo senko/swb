@@ -29,7 +29,7 @@ fn in_ranges(table: &[(u32, u32)], cp: u32) -> bool {
 }
 
 /// Whether a code point has the Unicode property `ID_Start`.
-pub fn is_id_start(cp: u32) -> bool {
+pub(crate) fn is_id_start(cp: u32) -> bool {
     if cp < 0x80 {
         return (cp as u8).is_ascii_alphabetic();
     }
@@ -37,7 +37,7 @@ pub fn is_id_start(cp: u32) -> bool {
 }
 
 /// Whether a code point has the Unicode property `ID_Continue`.
-pub fn is_id_continue(cp: u32) -> bool {
+pub(crate) fn is_id_continue(cp: u32) -> bool {
     if cp < 0x80 {
         return (cp as u8).is_ascii_alphanumeric() || cp == u32::from(b'_');
     }
@@ -52,6 +52,16 @@ pub fn is_identifier_start(cp: u32) -> bool {
 /// `IdentifierPartChar` (§12.7): `ID_Continue`, `$`, ZWNJ or ZWJ.
 pub fn is_identifier_part(cp: u32) -> bool {
     cp == u32::from(b'$') || cp == ZWNJ || cp == ZWJ || is_id_continue(cp)
+}
+
+/// Whether `cp` can be in an identifier at this position: an
+/// `IdentifierStartChar` if `first`, else an `IdentifierPartChar`.
+pub fn is_identifier_char(cp: u32, first: bool) -> bool {
+    if first {
+        is_identifier_start(cp)
+    } else {
+        is_identifier_part(cp)
+    }
 }
 
 /// `WhiteSpace` (§12.2): TAB, VT, FF, ZWNBSP and `General_Category` Zs.

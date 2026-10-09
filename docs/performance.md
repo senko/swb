@@ -82,8 +82,8 @@ Observations:
 ## JavaScript engine
 
 `just jsbench [DIR]` (`swbtools jsbench`) builds `swb-js`, the `vm_bench`
-example (`crates/js/examples/vm_bench.rs`) and the `lex_files` example,
-then prints two Markdown tables.
+example (`crates/js/examples/vm_bench.rs`) and the `lex_files` example
+(`crates/js-syntax/examples/lex_files.rs`), then prints two Markdown tables.
 
 1. The small programs of `vm_bench`. Each program runs five times in the
    engine and the best time counts. The same programs (`vm_bench
@@ -102,10 +102,21 @@ then prints two Markdown tables.
    in a browser, save the page's scripts (the `<script src>` files and the
    inline scripts) with the developer tools or with `curl` into one
    directory, one `.js` file per script. Any directory of `.js` files works;
-   the numbers below are for the 60 scripts of the session-6 run, so they
+   the numbers below are for the 60 scripts of the M6 spike run, so they
    compare only with the same set. Example: `just jsbench out/bbc-js`.
 
-2026-10-09, JS spike session 6 (branch `js-spike`, base b7e9342). Release
+Two examples are not part of `jsbench`:
+
+- `cargo run --release -p swb-js --example heap_bench` measures the heap
+  (the collection pause for one million small objects, allocation speed,
+  the cost of a handle access and of recording a handle, memory per
+  small object).
+- `cargo run --release -p swb-js-syntax --example parse_files -- FILE_OR_DIRECTORY...`
+  parses files with the scope analysis; with `--generate MB` it parses a
+  generated program and reports the time, the memory of the tree and the
+  bytes per token.
+
+2026-10-09, end of the M6 spike (commit f3dd6c3). Release
 build, Linux, Intel Core i5-13500, Node.js 22.11.
 
 | Program | swb-js (ms) | node --jitless (ms) | ratio |

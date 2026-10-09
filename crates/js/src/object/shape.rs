@@ -51,7 +51,7 @@ pub(crate) struct ShapeEntry {
 }
 
 /// An ordered key list that shared shapes use a prefix of.
-pub struct KeyList {
+pub(crate) struct KeyList {
     pub(crate) entries: Vec<ShapeEntry>,
     /// Scratch for the collector: the longest prefix that a live shape
     /// uses.

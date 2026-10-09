@@ -87,10 +87,10 @@ impl PropertyKey {
 }
 
 /// The largest array index plus one: `length` of an array is at most this.
-pub const MAX_ARRAY_LENGTH: u32 = u32::MAX;
+pub(crate) const MAX_ARRAY_LENGTH: u32 = u32::MAX;
 
 /// The array index that `text` is the canonical form of (§6.1.7), if any.
-pub fn array_index(text: Str16<'_>) -> Option<u32> {
+pub(crate) fn array_index(text: Str16<'_>) -> Option<u32> {
     let len = text.len();
     if len == 0 || len > 10 {
         return None;

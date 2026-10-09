@@ -14,10 +14,8 @@ use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::convert::{MAX_STRING_LENGTH, to_uint32};
+use crate::vm::convert::{MAX_SAFE_INTEGER, MAX_STRING_LENGTH, checked_array_length};
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
-
-use super::MAX_SAFE_INTEGER;
 
 /// A joined text above this many code units reserves its memory in the
 /// heap's accounting at each doubling (the buffer is Rust memory until
@@ -48,11 +46,9 @@ fn array_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
     if argc == 1 {
         let length = rt.arg(call, 0);
         if let Some(number) = length.as_number() {
-            let int_length = to_uint32(number);
-            if f64::from(int_length) != number {
-                return Err(VmError::range_error("Invalid array length"));
-            }
-            let array = rt.heap.new_array(Some(proto), int_length)?;
+            let array = rt
+                .heap
+                .new_array(Some(proto), checked_array_length(number)?)?;
             return Ok(NativeReturn::Value(array.into()));
         }
     }
@@ -144,18 +140,19 @@ fn join_elements(
             text.push_str16(separator.as_str16());
             rt.charge_units(separator.len())?;
         }
-        let scope = rt.heap.open_scope();
-        let key = rt.index_key(k)?;
-        let element = rt.get_value(object.into(), key)?;
-        if !element.is_nullish() {
-            let string = rt.to_string(element)?;
-            let piece = rt.heap.string(string)?.as_str16();
-            let units = piece.len();
-            text.push_str16(piece);
-            // The copy costs steps in proportion to its size.
-            rt.charge_units(units)?;
-        }
-        rt.heap.close_scope(scope)?;
+        rt.with_scope(|rt| {
+            let key = rt.index_key(k)?;
+            let element = rt.get_value(object.into(), key)?;
+            if !element.is_nullish() {
+                let string = rt.to_string(element)?;
+                let piece = rt.heap.string(string)?.as_str16();
+                let units = piece.len();
+                text.push_str16(piece);
+                // The copy costs steps in proportion to its size.
+                rt.charge_units(units)?;
+            }
+            Ok(())
+        })?;
         if text.len() > MAX_STRING_LENGTH {
             return Err(VmError::range_error("Invalid string length"));
         }
@@ -182,17 +179,18 @@ fn for_each(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let mut k = 0.0;
     while k < length {
         rt.tick()?;
-        let scope = rt.heap.open_scope();
-        let key = rt.index_key(k)?;
-        if rt.has_property(object, key)? {
-            let value = rt.get_value(object.into(), key)?;
-            rt.call(
-                callback,
-                this_arg,
-                &[value, Value::number(k), object.into()],
-            )?;
-        }
-        rt.heap.close_scope(scope)?;
+        rt.with_scope(|rt| {
+            let key = rt.index_key(k)?;
+            if rt.has_property(object, key)? {
+                let value = rt.get_value(object.into(), key)?;
+                rt.call(
+                    callback,
+                    this_arg,
+                    &[value, Value::number(k), object.into()],
+                )?;
+            }
+            Ok(())
+        })?;
         k += 1.0;
     }
     Ok(NativeReturn::Value(Value::Undefined))
@@ -208,33 +206,32 @@ fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     if !rt.is_callable(callback)? {
         return Err(rt.not_callable(callback));
     }
-    if length > f64::from(u32::MAX) {
-        return Err(VmError::range_error("Invalid array length"));
-    }
+    let length_u32 = checked_array_length(length)?;
     let proto = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayPrototype)?;
-    let result = rt.heap.new_array(Some(proto), length as u32)?;
+    let result = rt.heap.new_array(Some(proto), length_u32)?;
     rt.heap.record(result);
     let this_arg = rt.arg(call, 1);
     let mut k = 0.0;
     while k < length {
         rt.tick()?;
-        let scope = rt.heap.open_scope();
-        let key = rt.index_key(k)?;
-        if rt.has_property(object, key)? {
-            let value = rt.get_value(object.into(), key)?;
-            let mapped = rt.call(
-                callback,
-                this_arg,
-                &[value, Value::number(k), object.into()],
-            )?;
-            if !rt.heap.create_data_property(result, key, mapped, &rt.vm)? {
-                return Err(VmError::type_error(format!(
-                    "Cannot add property {}, object is not extensible",
-                    rt.key_text(key)
-                )));
+        rt.with_scope(|rt| {
+            let key = rt.index_key(k)?;
+            if rt.has_property(object, key)? {
+                let value = rt.get_value(object.into(), key)?;
+                let mapped = rt.call(
+                    callback,
+                    this_arg,
+                    &[value, Value::number(k), object.into()],
+                )?;
+                if !rt.heap.create_data_property(result, key, mapped, &rt.vm)? {
+                    return Err(VmError::type_error(format!(
+                        "Cannot add property {}, object is not extensible",
+                        rt.key_text(key)
+                    )));
+                }
             }
-        }
-        rt.heap.close_scope(scope)?;
+            Ok(())
+        })?;
         k += 1.0;
     }
     Ok(NativeReturn::Value(result.into()))

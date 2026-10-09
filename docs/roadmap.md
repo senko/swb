@@ -480,9 +480,10 @@ at a time, in this order:
       table; frames, deferred and native calls, closures, generators,
       the realm and the global lexical record, the embedding API; about
       290 scripts compared with Node 22, each also in GC stress mode, and
-      5,076 number-to-string cases. Against `node --jitless`: calls
-      4.7x, an integer loop 1.0x, property access 4.7x, closures 3.1x,
-      object literals 10.6x slower; code 5.5 bytes per source byte
+      5,076 number-to-string cases. Against `node --jitless` after this
+      session (current numbers: docs/performance.md): calls 4.7x, an
+      integer loop 1.0x, property access 4.7x, closures 3.1x, object
+      literals 10.6x slower; code 5.5 bytes per source byte
       (line table 6.5 of 28.6 MB). Open: member and call chains stop in
       the compiler at about 2,700 links (the parser accepts 16,000);
       the parser stops `else if` chains at about 1,360 and nested
@@ -490,8 +491,7 @@ at a time, in this order:
       is not counted in the heap limit (bounded by the stack limit);
       the script source stays alive, uncounted, while a closure of the
       script lives; the completion value is approximate; each ordinary
-      closure allocates its `prototype` object at once; native
-      functions show `#<Object>` in messages.
+      closure allocates its `prototype` object at once.
    5. Exceptions, limits and built-ins (`implementer-hard`). The handler
       table, `finally` completions, termination, the time countdown, the
       frame limit, the recursion budget. Built-ins: `console.log`, the
@@ -569,18 +569,43 @@ feature is a known failure with that reason. At the end of M7, each
 area passes at least 95 % of its tests in scope; the rest are known
 failures with a reason. Features, in this order:
 
-1. Full syntax (`implementer-hard`, `js-syntax`). The whole ES2025
-   grammar with Annex B: classes (fields, private names, accessors,
-   static blocks), destructuring, spread and rest, default parameters,
-   generators and `async` syntax, optional chaining, `??`, tagged
-   templates, numeric separators, `BigInt` literals, `with`, module
-   syntax, HTML-like comments. All early errors (those of regular
-   expression literals come with feature 8a), the complete scope
-   analysis (direct `eval`, `with`, mapped `arguments`, the Annex B.3.2
-   and B.3.3 semantics of function declarations in blocks and in `if`
-   statements in sloppy mode, which old scripts depend on). Tests: the
-   syntax tests of test262 `language/`; the BBC and Ars scripts parse
-   without errors.
+1. Full syntax (`implementer-hard`, `js-syntax`), in three sessions.
+   The whole ES2025 grammar with Annex B, all early errors (those of
+   regular expression literals come with feature 8a) and the complete
+   scope analysis. Until feature 3, the compiler in `js` rejects the
+   new constructs with "not supported yet". Tests in each session: a
+   parse-only mode of the test262 runner (a negative test of phase
+   `parse` must give a `SyntaxError`, every other test must parse;
+   scores per group in their own file, which may only go up), unit
+   tests with V8's messages, measured in Node, and the hostile inputs
+   of the spike for the new forms. The target scripts are in the
+   git-ignored `out/bbc-js/` (60 BBC scripts) and `out/ars-js/` (24
+   Ars Technica scripts, external and inline); they are not in the
+   repository, and `URLS.txt` in each directory lists their sources.
+   - 1a. Patterns and the remaining expressions: destructuring in
+     declarations, parameters, `catch` and `for` heads, and
+     destructuring assignment through the cover grammar; spread and
+     rest; default parameters (with the separate scope of parameter
+     expressions); `for`-`in` and `for`-`of` (the `let` and `async of`
+     lookahead rules, Annex B.3.5 initializers); optional chaining;
+     tagged templates; `new.target`; `BigInt` literals; `yield*`;
+     computed keys, methods and accessors in object literals; `with`
+     (an early error in strict code). The parse-only mode of the
+     runner comes in this session.
+   - 1b. Classes and `async`: class declarations and expressions
+     (heritage, constructor, methods, accessors, static members,
+     fields, private names and `#x in o`, static blocks), the rules for
+     `super` properties and calls, `async` functions, arrows (the
+     `async (` cover grammar), methods and generators, `await` and
+     `yield` as identifiers by context, `for await`.
+   - 1c. Modules and the rest of the scope analysis: the Module goal
+     (the `import` and `export` forms and their early errors,
+     `import.meta`, `import()`, top-level `await`); direct `eval` and
+     `with` in the scope analysis (the names in their reach resolve at
+     run time); mapped `arguments`; Annex B.3.2 and B.3.3 (function
+     declarations in blocks, in `if` statements and labelled statements
+     in sloppy code). Exit of feature 1: all BBC and Ars scripts parse
+     without errors; the parse-only test262 scores of `test/language/`.
 2. Fundamental objects (`implementer`). What the test262 harness and the
    language need first: `Object`, `Function` (`bind`, `call`, `apply`,
    `toString`), `Boolean`, `Symbol` with the well-known symbols, the
@@ -657,6 +682,36 @@ own ADR, and the on/off setting of M6 step 4.
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M6
+
+From the maintenance review of the JavaScript crates. Items that an M7
+feature already covers (regular expression patterns, loop-driven
+`forEach` and `map`, pre-sized array literals, `toString(radix)`) are
+not repeated here; the open items of each spike session are in M6 step
+3 above.
+
+- The scope analysis's capture map: check that a crafted script cannot
+  drive it into long probe chains (it has the per-process key now).
+- The test262 runner recognizes "not supported yet" by the message
+  text; make it a structured field of `ParseError`.
+- The lexer scans an identifier with a non-ASCII or escaped part twice;
+  the interner copies one-byte names into a scratch buffer on each
+  cache miss. Measure before a change.
+- `Lexer::new` cuts the source at `MAX_SOURCE_LEN` without an error;
+  `check_source_len` is the guard, and the examples skip it.
+- String objects: their index properties are not exotic (writes create
+  own properties).
+- `console.log` has no `%s` and no column grouping; errors raised by
+  natives are created in the realm of the catching frame; `eval`
+  returns an approximate completion value.
+- The time-limit tests (`2 x deadline + 50 ms`) can fail on a loaded
+  machine.
+- `index_key` creates an atom for each index of 2^32 - 1 or more:
+  measure a loop over such an array-like.
+- `Runtime::define_accessor` serves only the tests; remove it when
+  `Object.defineProperty` exists. `examples/heap_bench.rs` is not part
+  of `jsbench`; its `rss()` repeats `peak_rss_kib` of `bench.rs`.
 
 ## Backlog from M5
 

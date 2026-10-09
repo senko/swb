@@ -1,9 +1,8 @@
 //! Regular expressions for the JavaScript engine (ADR 0026 section 10):
 //! pattern parser, compiler and backtracking matcher.
 //!
-//! This is a stub for the spike (roadmap M6 step 3): it checks the flags
-//! of a regular expression literal and accepts any pattern. Feature 8a of
-//! M7 replaces it with the pattern parser and its early errors.
+//! Pattern parsing is not implemented yet (M7 feature 8a):
+//! [`check_literal`] checks the flags only.
 
 use swb_js_text::Str16;
 
@@ -40,20 +39,35 @@ impl Flags {
         self.0 & other.0 == other.0
     }
 
+    /// The flag letters in the order of `RegExp.prototype.flags`
+    /// (§22.2.6.4), with their flags.
+    const LETTERS: [(Flags, char); 8] = [
+        (Flags::HAS_INDICES, 'd'),
+        (Flags::GLOBAL, 'g'),
+        (Flags::IGNORE_CASE, 'i'),
+        (Flags::MULTILINE, 'm'),
+        (Flags::DOT_ALL, 's'),
+        (Flags::UNICODE, 'u'),
+        (Flags::UNICODE_SETS, 'v'),
+        (Flags::STICKY, 'y'),
+    ];
+
+    /// The letters of the flags that are set, in the order of
+    /// `RegExp.prototype.flags`.
+    pub fn letters(self) -> impl Iterator<Item = char> {
+        Self::LETTERS
+            .into_iter()
+            .filter(move |&(flag, _)| self.contains(flag))
+            .map(|(_, letter)| letter)
+    }
+
     /// The flag of a flag letter, or `None` for another code unit.
     fn from_letter(unit: u16) -> Option<Flags> {
-        let flag = match u8::try_from(unit).ok()? {
-            b'd' => Flags::HAS_INDICES,
-            b'g' => Flags::GLOBAL,
-            b'i' => Flags::IGNORE_CASE,
-            b'm' => Flags::MULTILINE,
-            b's' => Flags::DOT_ALL,
-            b'u' => Flags::UNICODE,
-            b'v' => Flags::UNICODE_SETS,
-            b'y' => Flags::STICKY,
-            _ => return None,
-        };
-        Some(flag)
+        let letter = char::from_u32(u32::from(unit))?;
+        Self::LETTERS
+            .into_iter()
+            .find(|&(_, l)| l == letter)
+            .map(|(flag, _)| flag)
     }
 }
 
@@ -85,8 +99,8 @@ pub fn parse_flags(text: Str16<'_>) -> Result<Flags, Error> {
 }
 
 /// Checks a regular expression literal (§13.2.7.2,
-/// `IsValidRegularExpressionLiteral`) and returns its flags. The stub
-/// accepts any pattern.
+/// `IsValidRegularExpressionLiteral`) and returns its flags. It accepts any
+/// pattern until M7 feature 8a.
 pub fn check_literal(pattern: Str16<'_>, flags: Str16<'_>) -> Result<Flags, Error> {
     let _ = pattern;
     parse_flags(flags)
@@ -117,6 +131,13 @@ mod tests {
     }
 
     #[test]
+    fn letters_follow_the_flags_order() {
+        let all = flags("ysmigd").expect("valid flags");
+        assert_eq!(all.letters().collect::<String>(), "dgimsy");
+        assert_eq!(Flags::empty().letters().count(), 0);
+    }
+
+    #[test]
     fn invalid_flags() {
         for text in ["gg", "x", "G", "uv", "gimg", " "] {
             assert_eq!(flags(text), Err(Error::InvalidFlags), "{text:?}");
@@ -132,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn any_pattern() {
+    fn pattern_is_not_checked_yet() {
         let pattern = Str16::Latin1(b"(unclosed[");
         assert!(check_literal(pattern, Str16::Latin1(b"g")).is_ok());
     }

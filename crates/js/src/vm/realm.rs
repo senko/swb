@@ -123,11 +123,12 @@ impl Runtime {
         Ok(index)
     }
 
-    fn build_realm(&mut self) -> VmResult<Realm> {
+    /// Creates the realm's objects: the prototypes, `%ThrowTypeError%` and
+    /// the global object, without their properties. `index` is the index
+    /// that the realm will have.
+    fn create_realm_objects(&mut self, index: u32) -> VmResult<Realm> {
         let heap = &mut self.heap;
         let object_proto = heap.new_object(None)?;
-        let index = u32::try_from(self.vm.realms.len())
-            .map_err(|_| VmError::invariant("too many realms"))?;
         let function_proto = heap.new_object_with_kind(
             Some(object_proto),
             ObjectKind::Native(Box::new(crate::vm::NativeFunction {
@@ -188,15 +189,31 @@ impl Runtime {
             intrinsics,
             lexical: HandleMap::default(),
         };
-        // Properties. The realm is not a root yet, but the region does
-        // not collect.
+        Ok(realm)
+    }
+
+    fn build_realm(&mut self) -> VmResult<Realm> {
+        let index = u32::try_from(self.vm.realms.len())
+            .map_err(|_| VmError::invariant("too many realms"))?;
+        let realm = self.create_realm_objects(index)?;
+        // The realm is not a root yet, but the region does not collect.
+        self.define_prototype_properties(&realm)?;
+        self.define_global_values(realm.global)?;
+        Ok(realm)
+    }
+
+    /// The `length` and `name` of `%Function.prototype%` and
+    /// `%ThrowTypeError%`, and the `length` of `%String.prototype%`.
+    fn define_prototype_properties(&mut self, realm: &Realm) -> VmResult<()> {
+        let string_proto = realm.intrinsic(Intrinsic::StringPrototype);
+        let function_proto = realm.intrinsic(Intrinsic::FunctionPrototype);
+        let throw_type_error = realm.intrinsic(Intrinsic::ThrowTypeError);
         let length = PropertyKey::String(self.heap.length_atom());
         self.define(string_proto, length, Value::Int(0), false, false, false)?;
         let name_key = PropertyKey::String(self.vm.atoms.name);
         // Function.prototype is a function with length 0 and name "".
-        let length = PropertyKey::String(self.heap.length_atom());
-        self.define(function_proto, length, Value::Int(0), false, false, true)?;
         let empty = self.vm.atoms.empty;
+        self.define(function_proto, length, Value::Int(0), false, false, true)?;
         self.define(function_proto, name_key, empty.into(), false, false, true)?;
         // %ThrowTypeError%: length 0 and name "", both fixed; not
         // extensible (§10.2.4.1).
@@ -210,7 +227,11 @@ impl Runtime {
             false,
         )?;
         self.heap.prevent_extensions(throw_type_error)?;
-        // The value properties of the global object (§19.1).
+        Ok(())
+    }
+
+    /// The value properties of the global object (§19.1).
+    fn define_global_values(&mut self, global: Gc<Object>) -> VmResult<()> {
         for (name, value) in [
             ("undefined", Value::Undefined),
             ("NaN", Value::Double(f64::NAN)),
@@ -220,8 +241,7 @@ impl Runtime {
             self.define(global, key, value, false, false, false)?;
         }
         let key = self.heap.key_from_str("globalThis")?;
-        self.define(global, key, global.into(), true, false, true)?;
-        Ok(realm)
+        self.define(global, key, global.into(), true, false, true)
     }
 
     /// Creates the error object of a [`VmError::Raise`] in the current
@@ -249,20 +269,20 @@ impl Runtime {
     /// objects (after the realm is a root).
     fn install_realm_functions(&mut self, realm: u32) -> VmResult<()> {
         crate::builtins::install(self, realm)?;
-        let scope = self.heap.open_scope();
-        let generator_proto = self.intrinsic(realm, Intrinsic::GeneratorPrototype)?;
-        let methods: [(&str, crate::vm::NativeFn); 3] = [
-            ("next", crate::vm::generator::next),
-            ("return", crate::vm::generator::return_),
-            ("throw", crate::vm::generator::throw),
-        ];
-        for (name, func) in methods {
-            let function = self.new_native_function(realm, name, 1, func)?;
-            let key = self.heap.key_from_str(name)?;
-            self.define(generator_proto, key, function.into(), true, false, true)?;
-        }
-        self.heap.close_scope(scope)?;
-        Ok(())
+        self.scoped(|rt| {
+            let generator_proto = rt.intrinsic(realm, Intrinsic::GeneratorPrototype)?;
+            let methods: [(&str, crate::vm::NativeFn); 3] = [
+                ("next", crate::vm::generator::next),
+                ("return", crate::vm::generator::return_),
+                ("throw", crate::vm::generator::throw),
+            ];
+            for (name, func) in methods {
+                let function = rt.new_native_function(realm, name, 1, func)?;
+                let key = rt.heap.key_from_str(name)?;
+                rt.define(generator_proto, key, function.into(), true, false, true)?;
+            }
+            Ok(())
+        })
     }
 }
 

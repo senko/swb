@@ -3,11 +3,14 @@
 //! the called function runs as a script-to-script call of the
 //! interpreter loop, without Rust recursion.
 
+use swb_js_syntax::messages::NOT_SUPPORTED;
+
 use crate::object::{ObjectKind, Property};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
+use crate::vm::convert::checked_array_length;
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, STACK_OVERFLOW, VmError, VmResult};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::FunctionPrototype)?;
@@ -28,7 +31,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
 fn function_constructor(_: &mut Runtime, _: &NativeCall) -> VmResult<NativeReturn> {
     Err(VmError::Raise {
         kind: crate::error::ThrowKind::SyntaxError,
-        message: "not supported yet (Function constructor)".into(),
+        message: format!("{NOT_SUPPORTED} (Function constructor)").into(),
     })
 }
 
@@ -59,11 +62,9 @@ fn apply(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
             // The arguments go into the value stack; a list that cannot
             // fit fails before it is read (V8 also fails with a
             // `RangeError`).
-            if length > f64::from(u32::MAX) {
-                return Err(VmError::range_error("Invalid array length"));
-            }
+            checked_array_length(length)?;
             if length > rt.vm.stack_limit as f64 {
-                return Err(VmError::range_error(crate::vm::STACK_OVERFLOW));
+                return Err(VmError::range_error(STACK_OVERFLOW));
             }
             let mut args = Vec::with_capacity(length as usize);
             for index in 0..length as u32 {

@@ -3,7 +3,8 @@
 //! The lexer interns every identifier and private name; the parser and the
 //! scope analysis compare names by id. The table lives as long as the
 //! compile of one script; the compiler maps names to runtime property keys
-//! when it creates the code objects (memo 2.1, ADR 0026 section 3).
+//! when it creates the code objects (ADR 0026 section 3; memo 2.1 in
+//! `docs/js-study/02-front-end.md`).
 //!
 //! The well-known names in [`names`] (the reserved words and the
 //! contextual keywords) have fixed ids in every table.
@@ -95,7 +96,9 @@ pub mod names {
         PRIVATE = "private",
         PROTECTED = "protected",
         PUBLIC = "public",
-        // Contextual keywords and names with special rules.
+        // Contextual keywords and names with special rules. `AS`,
+        // `CONSTRUCTOR`, `FROM`, `META`, `PROTOTYPE` and `TARGET` have no
+        // user yet; the M7 features for classes and modules use them.
         ARGUMENTS = "arguments",
         AS = "as",
         ASYNC = "async",

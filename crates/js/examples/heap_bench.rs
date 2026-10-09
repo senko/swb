@@ -1,5 +1,5 @@
-//! Measurements of the heap for the spike report (ADR 0026,
-//! "Consequences"): the collection pause for one million small objects,
+//! Measurements of the heap for ADR 0026 ("Consequences") and
+//! `docs/js-spike-report.md`: the collection pause for one million small objects,
 //! allocation speed, the cost of a handle access with the generation
 //! check, the cost of recording a handle in a handle scope, and the
 //! memory per small object.

@@ -9,7 +9,7 @@ mod common;
 use std::fmt::Write;
 use std::time::{Duration, Instant};
 
-use common::{error_text, on_big_stack, run, run_in, runtime};
+use common::{on_big_stack, run, run_in, runtime, runtime_with};
 use swb_js::{
     HeapConfig, NativeCall, NativeReturn, RecursionBudget, Runtime, RuntimeConfig, ScriptError,
     Termination, ThrowKind, Value, VmResult,
@@ -94,7 +94,7 @@ fn the_frame_and_stack_limits_are_settings() {
             frame_limit: 100,
             ..RuntimeConfig::default()
         };
-        let mut rt = Runtime::new(config).unwrap();
+        let mut rt = runtime_with(config);
         let depth = |rt: &mut Runtime, n: u32| {
             rt.eval(&format!(
                 "function f(n) {{ return n ? f(n - 1) + 1 : 0; }} f({n})"
@@ -109,7 +109,7 @@ fn the_frame_and_stack_limits_are_settings() {
             stack_limit: 1000,
             ..RuntimeConfig::default()
         };
-        let mut rt = Runtime::new(config).unwrap();
+        let mut rt = runtime_with(config);
         // About 4 values per frame: the limit of 1000 values comes first.
         assert!(rt.eval("function f(n) { return f(n + 1); } f(0)").is_err());
         assert_eq!(rt.eval("1 + 1"), Ok(Value::Int(2)));
@@ -127,7 +127,7 @@ fn deep_recursion_in_stress_mode() {
             frame_limit: 300,
             ..RuntimeConfig::default()
         };
-        let mut rt = Runtime::new(config).unwrap();
+        let mut rt = runtime_with(config);
         let result =
             rt.eval("function f(n) { var o = {n: n}; return n ? f(n - 1) + o.n : 0; } f(250)");
         assert_eq!(result, Ok(Value::Int(31375)));
@@ -259,7 +259,7 @@ fn constructs_outside_the_subset_do_not_compile() {
             panic!("70,000 arguments compiled");
         };
         assert_eq!(
-            error_text(&error),
+            error.to_string(),
             "SyntaxError: Too many arguments in function call (only 65535 allowed)"
         );
     });
@@ -281,7 +281,7 @@ fn the_compiler_checks_the_register_total() {
             panic!("too many registers compiled");
         };
         assert_eq!(
-            error_text(&error),
+            error.to_string(),
             "SyntaxError: Expression needs too many registers (only 65535 allowed in a function)"
         );
         // Without the call it compiles and runs.
@@ -336,7 +336,7 @@ fn deep_nesting_compiles_or_fails_cleanly() {
                 panic!("a nest beyond the budget compiled");
             };
             assert_eq!(
-                error_text(&error),
+                error.to_string(),
                 "RangeError: Maximum call stack size exceeded"
             );
         }
@@ -353,7 +353,7 @@ fn the_heap_limit_ends_a_growing_script() {
             },
             ..RuntimeConfig::default()
         };
-        let mut rt = Runtime::new(config).unwrap();
+        let mut rt = runtime_with(config);
         // Doubling a string: the concatenation reserves first.
         assert_eq!(
             rt.eval("var s = 'x'; while (true) s = s + s;"),
@@ -410,7 +410,7 @@ fn call_arguments_and_variables_have_their_own_limits() {
                 panic!("65,536 arguments compiled");
             };
             assert_eq!(
-                error_text(&error),
+                error.to_string(),
                 "SyntaxError: Too many arguments in function call (only 65535 allowed)"
             );
         }
@@ -422,7 +422,7 @@ fn call_arguments_and_variables_have_their_own_limits() {
             panic!("65,535 arguments compiled");
         };
         assert_eq!(
-            error_text(&error),
+            error.to_string(),
             "SyntaxError: Expression needs too many registers (only 65535 allowed in a function)"
         );
         // More declared variables than registers: the message about
@@ -435,7 +435,7 @@ fn call_arguments_and_variables_have_their_own_limits() {
             panic!("70,000 variables compiled");
         };
         assert_eq!(
-            error_text(&error),
+            error.to_string(),
             "SyntaxError: Too many variables declared in a function"
         );
     });
@@ -531,12 +531,12 @@ fn the_stack_limit_is_clamped() {
             stack_limit: usize::MAX,
             ..RuntimeConfig::default()
         };
-        let mut rt = Runtime::new(config).unwrap();
+        let mut rt = runtime_with(config);
         assert_eq!(rt.eval("1 + 1"), Ok(Value::Int(2)));
     });
 }
 
-// --- Session 5: termination, the time limit, exceptions at the limits ---
+// --- Termination, the time limit, exceptions at the limits ---
 
 /// The deadline of the hostile cases (the tests check that a run ends
 /// within a few seconds of it, also in a debug build).
@@ -853,7 +853,7 @@ fn handler_tables_are_verified() {
     });
 }
 
-// --- Work-proportional time charges (review of spike session 5) ---------
+// --- Work-proportional time charges ---
 //
 // Each script runs an endless loop whose single iteration is big work for
 // one native call or one operator. A deadline of 100 ms must end it. Bound

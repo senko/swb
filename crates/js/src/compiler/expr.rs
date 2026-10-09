@@ -7,6 +7,7 @@
 //! direct destination only for expressions that write their destination
 //! once, after reading all operands (`writes_target_last`).
 
+use swb_js_syntax::messages::TOO_MANY_ARGUMENTS;
 use swb_js_syntax::{
     AssignOp, AssignTarget, BinaryOp, BindingKind, ExprId, ExprKind, Ident, List, LogicalOp,
     PropertyKey as AstKey, PropertyKind, RefId, Resolution, UnaryOp, UpdateOp,
@@ -791,10 +792,7 @@ impl FunctionCompiler<'_> {
         let mark = self.mark();
         let array = self.temp()?;
         let items = self.ast.exprs(elements).to_vec();
-        self.emit(Insn::NewArray {
-            dst: array,
-            capacity: items.len() as u32,
-        });
+        self.emit(Insn::NewArray { dst: array });
         for item in items {
             if self.ast.expr(item).kind == ExprKind::Hole {
                 self.emit(Insn::Hole { array });
@@ -1150,7 +1148,7 @@ impl FunctionCompiler<'_> {
         let Ok(argc) = u16::try_from(args.len()) else {
             return Err(super::CompileError::Script {
                 kind: crate::error::ThrowKind::SyntaxError,
-                message: "Too many arguments in function call (only 65535 allowed)".into(),
+                message: TOO_MANY_ARGUMENTS.into(),
                 offset: self.position,
             });
         };

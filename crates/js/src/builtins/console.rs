@@ -71,7 +71,7 @@ fn log(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         match rt.arg(call, i) {
             Value::String(string) => line.push_str(&rt.name_text(string)),
             value => {
-                let (text, work) = inspect_counted(rt, value);
+                let (text, work) = inspect(rt, value);
                 line.push_str(&text);
                 steps += work;
             }
@@ -83,15 +83,20 @@ fn log(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
-/// The text of a value as `console.log` shows it inside a structure
-/// (strings quoted).
-pub(crate) fn inspect(rt: &Runtime, value: Value) -> String {
-    inspect_counted(rt, value).0
+/// A Number as `console.log` shows it: like `ToString`, but `-0` for
+/// negative zero.
+fn format_number(n: f64) -> String {
+    if n == 0.0 && n.is_sign_negative() {
+        "-0".to_owned()
+    } else {
+        crate::vm::number::number_to_string(n)
+    }
 }
 
-/// [`inspect`] and the work it did, in steps of the time countdown (one
-/// per key listed or element visited, one per 64 units written).
-fn inspect_counted(rt: &Runtime, value: Value) -> (String, usize) {
+/// The text of a value as `console.log` shows it inside a structure
+/// (strings quoted), and the work it did, in steps of the time countdown
+/// (one per key listed or element visited, one per 64 units written).
+fn inspect(rt: &Runtime, value: Value) -> (String, usize) {
     let mut inspector = Inspector {
         rt,
         stack: Vec::new(),
@@ -132,8 +137,7 @@ impl Inspector<'_> {
                 }
                 Err(_) => "''".to_owned(),
             },
-            Value::Int(0) => "0".to_owned(),
-            Value::Double(d) if d == 0.0 && d.is_sign_negative() => "-0".to_owned(),
+            Value::Double(d) => format_number(d),
             Value::Object(object) => self.object(object, depth, indent),
             _ => self.rt.primitive_text(value),
         }
@@ -212,23 +216,16 @@ impl Inspector<'_> {
                 } else {
                     "Function"
                 };
-                match self.own_string(object, rt.vm.atoms.name) {
+                match rt.own_data_string(object, rt.vm.atoms.name) {
                     Some(name) if !name.is_empty() => format!("[{kind}: {name}]"),
                     _ => format!("[{kind} (anonymous)]"),
                 }
             }
-            ObjectKind::Native(_) => match self.own_string(object, rt.vm.atoms.name) {
+            ObjectKind::Native(_) => match rt.own_data_string(object, rt.vm.atoms.name) {
                 Some(name) if !name.is_empty() => format!("[Function: {name}]"),
                 _ => "[Function (anonymous)]".to_owned(),
             },
-            ObjectKind::NumberWrapper(n) => {
-                let text = if *n == 0.0 && n.is_sign_negative() {
-                    "-0".to_owned()
-                } else {
-                    crate::vm::number::number_to_string(*n)
-                };
-                format!("[Number: {text}]")
-            }
+            ObjectKind::NumberWrapper(n) => format!("[Number: {}]", format_number(*n)),
             ObjectKind::BooleanWrapper(b) => format!("[Boolean: {b}]"),
             ObjectKind::StringWrapper(s) => match rt.heap.string(*s) {
                 Ok(text) => format!("[String: {}]", quote(text.as_str16())),
@@ -240,10 +237,10 @@ impl Inspector<'_> {
             ObjectKind::Error => {
                 // Without a `stack` property (M7), Node.js shows
                 // `[Name: message]`.
-                let name = self
-                    .chain_string(object, rt.vm.atoms.name)
+                let name = rt
+                    .chain_data_string(object, rt.vm.atoms.name)
                     .unwrap_or_else(|| "Error".to_owned());
-                match self.chain_string(object, rt.vm.atoms.message) {
+                match rt.chain_data_string(object, rt.vm.atoms.message) {
                     Some(message) if !message.is_empty() => format!("[{name}: {message}]"),
                     _ => format!("[{name}]"),
                 }
@@ -275,76 +272,10 @@ impl Inspector<'_> {
         } else {
             "Object"
         };
-        match self.constructor_name(proto) {
+        match rt.chain_constructor_name(proto) {
             Some(name) if name != default && !name.is_empty() => format!("{name} "),
             _ => String::new(),
         }
-    }
-
-    /// The `name` of the `constructor` data property found on the
-    /// prototype chain from `proto` (no getters run).
-    fn constructor_name(&self, proto: Gc<Object>) -> Option<String> {
-        let rt = self.rt;
-        let key = PropertyKey::String(rt.vm.atoms.constructor);
-        let mut current = Some(proto);
-        let mut steps = 0;
-        while let Some(object) = current {
-            steps += 1;
-            if steps > 1000 {
-                return None;
-            }
-            if let Ok(Some(property)) = rt.heap.get_own_property(object, key) {
-                return match property {
-                    Property::Data {
-                        value: Value::Object(constructor),
-                        ..
-                    } => self.own_string(constructor, rt.vm.atoms.name),
-                    _ => None,
-                };
-            }
-            current = rt.heap.get_prototype_of(object).ok().flatten();
-        }
-        None
-    }
-
-    /// An own data property that holds a string.
-    fn own_string(&self, object: Gc<Object>, name: Gc<crate::string::JsString>) -> Option<String> {
-        match self
-            .rt
-            .heap
-            .get_own_property(object, PropertyKey::String(name))
-        {
-            Ok(Some(Property::Data {
-                value: Value::String(text),
-                ..
-            })) => Some(self.rt.name_text(text)),
-            _ => None,
-        }
-    }
-
-    /// A data property on the prototype chain that holds a string.
-    fn chain_string(
-        &self,
-        object: Gc<Object>,
-        name: Gc<crate::string::JsString>,
-    ) -> Option<String> {
-        let mut current = Some(object);
-        let mut steps = 0;
-        while let Some(o) = current {
-            steps += 1;
-            if steps > 1000 {
-                return None;
-            }
-            match self.rt.heap.get_own_property(o, PropertyKey::String(name)) {
-                Ok(Some(Property::Data {
-                    value: Value::String(text),
-                    ..
-                })) => return Some(self.rt.name_text(text)),
-                Ok(Some(_)) => return None,
-                _ => current = self.rt.heap.get_prototype_of(o).ok().flatten(),
-            }
-        }
-        None
     }
 
     /// The elements of an array (holes as `<N empty items>`), then its

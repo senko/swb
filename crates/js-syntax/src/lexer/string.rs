@@ -3,27 +3,18 @@
 
 use swb_js_text::{CodeUnit, String16};
 
-use super::{CR, INVALID_TOKEN, LF, LS, Lexeme, Lexer, PS, ascii, error_at, is_decimal_digit};
+use super::number::digit_value;
+use super::{CR, LF, LS, Lexeme, Lexer, PS, ascii, error_at, is_decimal_digit};
 use crate::SyntaxError;
+use crate::messages::{
+    EIGHT_NINE_IN_TEMPLATE, INVALID_HEX_ESCAPE, INVALID_TOKEN, INVALID_UNICODE_ESCAPE,
+    OCTAL_IN_TEMPLATE, UNDEFINED_CODE_POINT, UNEXPECTED_END,
+};
 use crate::token::{Legacy, Template, TokenKind, TokenValue};
-
-const INVALID_HEX_ESCAPE: &str = "Invalid hexadecimal escape sequence";
-const INVALID_UNICODE_ESCAPE: &str = "Invalid Unicode escape sequence";
-const UNDEFINED_CODE_POINT: &str = "Undefined Unicode code-point";
-const OCTAL_IN_TEMPLATE: &str = "Octal escape sequences are not allowed in template strings.";
-const EIGHT_NINE_IN_TEMPLATE: &str = "\\8 and \\9 are not allowed in template strings.";
-/// V8 reports a template without its end as "Unexpected end of input"
-/// (Node.js 22).
-const UNTERMINATED_TEMPLATE: &str = "Unexpected end of input";
 
 const BACKSLASH: u16 = ascii(b'\\');
 const BACKTICK: u16 = ascii(b'`');
 const DOLLAR: u16 = ascii(b'$');
-
-/// The value of a hexadecimal digit, or `None`.
-fn hex_value(unit: u16) -> Option<u32> {
-    char::from_u32(u32::from(unit))?.to_digit(16)
-}
 
 impl<U: CodeUnit> Lexer<'_, U> {
     /// Scans a `StringLiteral`.
@@ -88,7 +79,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
             cooked.push_units(text);
             raw.push_units(text);
             match self.peek() {
-                None => return Err(error_at(start, UNTERMINATED_TEMPLATE)),
+                None => return Err(error_at(start, UNEXPECTED_END)),
                 Some(BACKTICK) => {
                     self.pos += 1;
                     break if head {
@@ -120,34 +111,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
                     raw.push(LF);
                 }
                 Some(_) => {
-                    let escape = self.pos;
-                    if self.ahead(1) == Some(CR) {
-                        // A LineContinuation: nothing in the cooked value,
-                        // `\` LF in the raw value.
-                        self.pos += 2;
-                        if self.peek() == Some(LF) {
-                            self.pos += 1;
-                        }
-                        raw.push(BACKSLASH);
-                        raw.push(LF);
-                        continue;
-                    }
-                    if let Err(error) = self.scan_escape(&mut cooked, true) {
-                        if self.pos >= self.source.len() {
-                            // An escape that the source ends in reports
-                            // its own error, except a lone backslash.
-                            if escape + 1 >= self.source.len() {
-                                return Err(error_at(start, UNTERMINATED_TEMPLATE));
-                            }
-                            return Err(error);
-                        }
-                        // A NotEscapeSequence: the scan continues after
-                        // the escape character; the following units are
-                        // ordinary template characters.
-                        cooked_error.get_or_insert(error);
-                        self.pos = escape + 2;
-                    }
-                    raw.push_units(self.slice(escape, self.pos));
+                    self.scan_template_escape(start, &mut cooked, &mut raw, &mut cooked_error)?;
                 }
             }
         };
@@ -162,6 +126,47 @@ impl<U: CodeUnit> Lexer<'_, U> {
             kind,
             TokenValue::Template(Box::new(template)),
         ))
+    }
+
+    /// Scans the escape sequence or line continuation at `\` in a template
+    /// and appends it to the cooked and raw values. An invalid escape
+    /// sequence stores its error in `cooked_error` and the scan goes on.
+    fn scan_template_escape(
+        &mut self,
+        start: usize,
+        cooked: &mut String16,
+        raw: &mut String16,
+        cooked_error: &mut Option<SyntaxError>,
+    ) -> Result<(), SyntaxError> {
+        let escape = self.pos;
+        if self.ahead(1) == Some(CR) {
+            // A LineContinuation: nothing in the cooked value, `\` LF in
+            // the raw value.
+            self.pos += 2;
+            if self.peek() == Some(LF) {
+                self.pos += 1;
+            }
+            raw.push(BACKSLASH);
+            raw.push(LF);
+            return Ok(());
+        }
+        if let Err(error) = self.scan_escape(cooked, true) {
+            if self.pos >= self.source.len() {
+                // An escape that the source ends in reports its own
+                // error, except a lone backslash.
+                if escape + 1 >= self.source.len() {
+                    return Err(error_at(start, UNEXPECTED_END));
+                }
+                return Err(error);
+            }
+            // A NotEscapeSequence: the scan continues after the escape
+            // character; the following units are ordinary template
+            // characters.
+            cooked_error.get_or_insert(error);
+            self.pos = escape + 2;
+        }
+        raw.push_units(self.slice(escape, self.pos));
+        Ok(())
     }
 
     /// Scans an escape sequence at `\` and appends its value to `out`
@@ -253,7 +258,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
     fn scan_hex_digits(&mut self, count: usize) -> Option<u32> {
         let mut value = 0;
         for n in 0..count {
-            value = value * 16 + hex_value(self.ahead(n)?)?;
+            value = value * 16 + digit_value(self.ahead(n)?, 16)?;
         }
         self.pos += count;
         Some(value)
@@ -271,7 +276,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
         self.pos += 1;
         let mut value: u32 = 0;
         let mut count = 0;
-        while let Some(digit) = self.peek().and_then(hex_value) {
+        while let Some(digit) = self.peek().and_then(|unit| digit_value(unit, 16)) {
             // Saturates above the largest code point; leading zeros are
             // allowed in any number.
             value = ((value << 4) | digit).min(0x11_0000);

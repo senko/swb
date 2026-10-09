@@ -73,14 +73,6 @@ impl Value {
         }
     }
 
-    /// The object handle, if this is an Object.
-    pub fn as_object(self) -> Option<Gc<Object>> {
-        match self {
-            Value::Object(object) => Some(object),
-            _ => None,
-        }
-    }
-
     /// Whether this is `undefined`.
     pub fn is_undefined(self) -> bool {
         matches!(self, Value::Undefined)

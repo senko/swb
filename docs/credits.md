@@ -66,7 +66,7 @@ Format: source, license (for code), what it influenced.
   (%ThrowTypeError%), §20.1 to §20.5 (Object, Function, the error
   constructors), §21.1 (Number), §22.1 (String) and §23.1 (Array) for
   the built-ins in `js/src/builtins/`. V8's run-time error messages,
-  measured in Node.js 22 — `js/src/vm/property.rs`, `js/src/builtins/`.
+  measured in Node.js 22 — `js/src/vm/messages.rs`, `js/src/builtins/`.
   The Unicode Character Database 17.0
   (`DerivedCoreProperties.txt`: ID_Start, ID_Continue;
   `DerivedGeneralCategory.txt`: Zs) — `js-text/src/unicode/tables.rs`
@@ -126,7 +126,7 @@ Format: source, license (for code), what it influenced.
 - Donald E. Knuth, The Art of Computer Programming, vol. 3, §6.4
   (multiplicative hashing with the golden ratio) — the name cache of
   `js-syntax/src/interner.rs`.
-- The handle hash of `js/src/heap/hash.rs`: the multiply-rotate step of
+- The handle hash of `js-text/src/hash.rs`: the multiply-rotate step of
   the FxHash scheme (Firefox, rustc; MIT/Apache-2.0) and the 64-bit
   finalizer of MurmurHash3 (Austin Appleby, public domain), written from
   their published descriptions; no code copied.
@@ -156,7 +156,7 @@ Format: source, license (for code), what it influenced.
 - test262 (BSD-3-Clause, Ecma International), commit 2e0a567
   (2026-10-08) — the conformance tests of the JavaScript engine. A
   separate checkout in `out/test262`, not copied into the repository;
-  the runner in `js/src/test262.rs` follows the frontmatter rules of its
+  the runner in `js/src/test262/` follows the frontmatter rules of its
   `INTERPRETING.md` and loads its harness files `assert.js` and
   `sta.js`.
 

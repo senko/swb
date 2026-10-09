@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 maintenance of the JavaScript crates
+
+- Two reviewers read `js-text`, `js-regexp`, `js-syntax` and the Python
+  tools, and the crate `js` with the docs; one implementer applied the
+  lists. Duplicates removed: the radix parser (the exact one of the
+  lexer, now in `js-text`, also serves StringToNumber, so `"0x..."`
+  strings above 2^53 now convert exactly, as in V8), the two
+  multiplicative hashers (one keyed hasher in `js-text`), messages
+  defined in both crates, array-length checks in four places, value
+  descriptions for messages and `console.log`. Dead code removed (about
+  ten unused API items, an unused instruction operand, the unused
+  `js-regexp` dependency of `js`). `test262.rs` and `vm/property.rs`
+  are split into modules; the modules of `js` are private; comments no
+  longer refer to spike sessions. `swb-js --dump-ast` prints the AST.
+- Behaviour: the tests, the test262 totals (3,762 pass) and the
+  benchmark rows are unchanged within noise. No browser crate depends
+  on the JavaScript crates, so `just snapshot` was not needed.
+- M7 feature 1 is split into three sessions (roadmap). The Ars
+  Technica scripts (24, external and inline) are in `out/ars-js/` and
+  the BBC scripts in `out/bbc-js/`, git-ignored.
+- Next: M7 feature 1a, patterns and the remaining expressions.
+
 ## 2026-10-09: M6 spike session 6, tools; end of the spike
 
 - `swb-js`: a shell with `print`, `console.log`, `$262`, the limits,

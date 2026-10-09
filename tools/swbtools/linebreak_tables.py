@@ -31,7 +31,14 @@ from pathlib import Path
 
 from swbtools import paths
 from swbtools.linebreaks import LATIN1, MATRIX_SYMBOLS, data_dir
-from swbtools.ucd import has_property, ranges, read_property, ucd_file, value_ranges
+from swbtools.ucd import (
+    has_property,
+    range_table,
+    ranges,
+    read_property,
+    ucd_file,
+    value_ranges,
+)
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +57,6 @@ FILES = {
 }
 
 SOFT_HYPHEN = 0xAD
-
-
-def _range_list(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, u32); {len(items)}] = ["]
-    lines += [f"    (0x{a:04X}, 0x{b:04X})," for a, b in items]
-    lines.append("];")
-    lines.append("")
-    return lines
 
 
 def ucd_tables() -> list[str]:
@@ -82,32 +81,32 @@ def ucd_tables() -> list[str]:
     ]
     lines += [f"    (0x{a:04X}, 0x{b:04X}, Class::{v})," for a, b, v in overrides]
     lines += ["];", ""]
-    lines += _range_list(
+    lines += range_table(
         "EAST_ASIAN",
         "East_Asian_Width F, W or H (`$EastAsian` in UAX #14).",
         ranges([w in ("F", "W", "H") for w in width]),
     )
-    lines += _range_list(
+    lines += range_table(
         "SA_MARKS",
         "Line_Break SA with General_Category Mn or Mc: resolved to CM (LB1).",
         ranges([lb == "SA" and gc in ("Mn", "Mc") for lb, gc in pairs]),
     )
-    lines += _range_list(
+    lines += range_table(
         "INITIAL_QUOTES",
         "Line_Break QU with General_Category Pi.",
         ranges([lb == "QU" and gc == "Pi" for lb, gc in pairs]),
     )
-    lines += _range_list(
+    lines += range_table(
         "FINAL_QUOTES",
         "Line_Break QU with General_Category Pf.",
         ranges([lb == "QU" and gc == "Pf" for lb, gc in pairs]),
     )
-    lines += _range_list(
+    lines += range_table(
         "UNASSIGNED_PICTOGRAPHIC",
         "Extended_Pictographic code points that are unassigned (LB30b).",
         ranges([e and gc == "Cn" for e, gc in zip(pictographic, category, strict=True)]),
     )
-    lines += _range_list(
+    lines += range_table(
         "LETTER_UNITS",
         "General_Category L* or N*: typographic letter units (`keep-all`).",
         ranges([gc[0] in "LN" for gc in category]),

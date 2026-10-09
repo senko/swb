@@ -1,11 +1,14 @@
-//! The error messages of the parser. The wording is V8's, measured in
-//! Node.js 22 (`new vm.Script(source)`), so that scripts that inspect
-//! `error.message` see what they see in Chromium.
+//! The error messages of the lexer and the parser. The wording is V8's,
+//! measured in Node.js 22 (`new vm.Script(source)`), so that scripts that
+//! inspect `error.message` see what they see in Chromium. The four `pub`
+//! constants are also used by the compiler and the interpreter, so that
+//! each text exists once.
 
-pub(crate) const NOT_SUPPORTED: &str = "not supported yet";
-pub(crate) const STACK_OVERFLOW: &str = "Maximum call stack size exceeded";
+pub const NOT_SUPPORTED: &str = "not supported yet";
+pub const STACK_OVERFLOW: &str = "Maximum call stack size exceeded";
 pub(crate) const SOURCE_TOO_LONG: &str = "Script is too large";
 
+/// Also the error for a template without its end (Node.js 22).
 pub(crate) const UNEXPECTED_END: &str = "Unexpected end of input";
 pub(crate) const UNEXPECTED_NUMBER: &str = "Unexpected number";
 pub(crate) const UNEXPECTED_STRING: &str = "Unexpected string";
@@ -63,13 +66,26 @@ pub(crate) const STRICT_EIGHT_OR_NINE: &str = "\\8 and \\9 are not allowed in st
 
 /// Not measured: V8 allows about 4 million variables per function; swb
 /// has 16-bit register operands (ADR 0026 section 4).
-pub(crate) const TOO_MANY_VARIABLES: &str = "Too many variables declared in a function";
+pub const TOO_MANY_VARIABLES: &str = "Too many variables declared in a function";
 /// Not measured: V8 has no such limit. A `RangeError` in swb.
 pub(crate) const TOO_MANY_CAPTURES: &str = "Too many captured variables in a script";
 pub(crate) const TOO_MANY_PARAMETERS: &str =
     "Too many parameters in function definition (only 65534 allowed)";
-pub(crate) const TOO_MANY_ARGUMENTS: &str =
-    "Too many arguments in function call (only 65535 allowed)";
+pub const TOO_MANY_ARGUMENTS: &str = "Too many arguments in function call (only 65535 allowed)";
+
+// Lexical errors.
+pub(crate) const INVALID_TOKEN: &str = "Invalid or unexpected token";
+pub(crate) const UNTERMINATED_REGEXP: &str = "Invalid regular expression: missing /";
+pub(crate) const INVALID_HEX_ESCAPE: &str = "Invalid hexadecimal escape sequence";
+pub(crate) const INVALID_UNICODE_ESCAPE: &str = "Invalid Unicode escape sequence";
+pub(crate) const UNDEFINED_CODE_POINT: &str = "Undefined Unicode code-point";
+pub(crate) const OCTAL_IN_TEMPLATE: &str =
+    "Octal escape sequences are not allowed in template strings.";
+pub(crate) const EIGHT_NINE_IN_TEMPLATE: &str = "\\8 and \\9 are not allowed in template strings.";
+pub(crate) const SEPARATOR_AFTER_ZERO: &str = "Numeric separator can not be used after leading 0.";
+pub(crate) const SEPARATOR_TWICE: &str = "Only one underscore is allowed as numeric separator";
+pub(crate) const SEPARATOR_AT_END: &str =
+    "Numeric separators are not allowed at the end of numeric literals";
 
 /// "Identifier 'x' has already been declared".
 pub(crate) fn already_declared(name: &str) -> String {

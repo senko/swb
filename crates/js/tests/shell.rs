@@ -51,6 +51,33 @@ fn files_run_in_one_global_scope() {
 }
 
 #[test]
+fn dump_ast_prints_the_tree_and_reports_a_syntax_error() {
+    let dir = temp_dir("dump-ast");
+    let file = dir.join("t.js");
+    std::fs::write(&file, "var a = 1; function f(x) { return x + a; }").unwrap();
+    let out = shell(&["--dump-ast", file.to_str().unwrap()]);
+    assert_eq!(code(&out), 0);
+    let stdout = text(&out.stdout);
+    assert!(
+        stdout.starts_with("(var (a 1)) (function f (x) (return (+ x a)))\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("scope 1 Function: x r0 Parameter"),
+        "{stdout}"
+    );
+    let bad = dir.join("bad.js");
+    std::fs::write(&bad, "var = ;").unwrap();
+    let out = shell(&["--dump-ast", bad.to_str().unwrap()]);
+    assert_eq!(code(&out), 2);
+    assert!(
+        text(&out.stderr).contains("bad.js:1:5"),
+        "{}",
+        text(&out.stderr)
+    );
+}
+
+#[test]
 fn uncaught_error_exits_1_with_the_position() {
     let dir = temp_dir("uncaught");
     let file = dir.join("e.js");

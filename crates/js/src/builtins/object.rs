@@ -41,7 +41,7 @@ fn keys(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     rt.heap.record(result);
     let mut count = 0;
     // A String object's own index properties come from its string
-    // (§10.4.3.3); the minimal wrapper of the spike does not store them.
+    // (§10.4.3.3); the String object does not store them.
     if let ObjectKind::StringWrapper(string) = rt.heap.object(object)?.kind {
         let length = rt.heap.string(string)?.len() as u32;
         for index in 0..length {

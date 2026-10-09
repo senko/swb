@@ -9,8 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use swb_js::{
-    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Value, VmError,
-    VmResult,
+    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, Value, VmError, VmResult,
 };
 
 /// The output lines of `print` and `console.log`.
@@ -80,6 +79,11 @@ pub(crate) fn gc(rt: &mut Runtime, _: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
+/// A runtime with a given configuration and no test functions.
+pub(crate) fn runtime_with(config: RuntimeConfig) -> Runtime {
+    Runtime::new(config).unwrap()
+}
+
 /// A runtime with the test functions.
 pub(crate) fn runtime(stress: bool) -> Runtime {
     let config = RuntimeConfig {
@@ -89,7 +93,7 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
         },
         ..RuntimeConfig::default()
     };
-    let mut rt = Runtime::new(config).unwrap();
+    let mut rt = runtime_with(config);
     let output = Output::default();
     let sink = output.clone();
     rt.set_console(Box::new(move |line| {
@@ -117,20 +121,9 @@ pub(crate) fn run_in(rt: &mut Runtime, source: &str) -> String {
                 lines.push(format!("=> {}", rt.display(value)));
             }
         }
-        Err(error) => lines.push(error_text(&error)),
+        Err(error) => lines.push(error.to_string()),
     }
     lines.join("\n")
-}
-
-/// The text of an error, without the offset.
-pub(crate) fn error_text(error: &ScriptError) -> String {
-    match error {
-        ScriptError::Uncaught { name, message, .. } if name.is_empty() => {
-            format!("Uncaught {message}")
-        }
-        ScriptError::Uncaught { name, message, .. } => format!("Uncaught {name}: {message}"),
-        other => other.to_string(),
-    }
 }
 
 /// Runs `f` on a thread with an 8 MiB stack.

@@ -1,12 +1,15 @@
 //! The built-in objects (ECMA-262 clauses 19 to 28).
 //!
-//! The spike (session 5) has the ones that its tests and the test262
-//! harness need first: `console.log`, `Object` with `keys`, the `Error`
-//! constructors, `Array` with `isArray`, `push`, `join`, `forEach` and
-//! `map`, `Function.prototype.call`, `apply` and `toString`, and `String`
-//! and `Number` with their prototype methods. Each function has the
-//! `name` and `length` of the specification; methods and constructors are
-//! writable, non-enumerable and configurable properties (clause 18).
+//! Implemented so far: `console.log`; `Object` with `keys` and the
+//! prototype methods `toString`, `valueOf` and `hasOwnProperty`; the
+//! `Error` constructors; `Array` with `isArray`, `push`, `join`, `forEach`,
+//! `map` and `toString`; `Function.prototype.call`, `apply` and `toString`
+//! (the `Function` constructor is M7); and `String` and `Number` with
+//! their prototype methods. `Boolean` and `Symbol` have prototype
+//! intrinsics for wrapper objects but no constructors yet. Each function
+//! has the `name` and `length` of the specification; methods and
+//! constructors are writable, non-enumerable and configurable properties
+//! (clause 18).
 //!
 //! Natives that call back into script code (`forEach`, `map`, and `join`
 //! through `toString`) open a handle scope per element, so that their
@@ -22,25 +25,18 @@ mod function;
 mod object;
 mod primitive;
 
-pub(crate) use console::inspect;
-
 use crate::heap::Gc;
 use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
+use crate::vm::convert::to_length;
 use crate::vm::{Intrinsic, NativeCall, NativeFn, SetOutcome, VmError, VmResult};
-
-/// The largest integer that `ToLength` gives (2^53 − 1).
-const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 
 /// Installs the built-in objects of a realm (after its intrinsics exist
 /// and the realm is a root).
 pub(crate) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
-    let scope = rt.heap.open_scope();
-    let result = install_all(rt, realm);
-    rt.heap.close_scope(scope)?;
-    result
+    rt.scoped(|rt| install_all(rt, realm))
 }
 
 fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
@@ -143,7 +139,7 @@ impl Runtime {
         }
         let key = PropertyKey::String(self.heap.length_atom());
         let value = self.get_value(object.into(), key)?;
-        Ok(to_length(self.to_numeric(value)?))
+        Ok(to_length(self.to_number(value)?))
     }
 
     /// The property key of an index `k` (an integer, 0 ≤ k < 2^53),
@@ -189,34 +185,5 @@ impl Runtime {
             Value::Object(_) | Value::Empty | Value::Cell(_) => "object".to_owned(),
         };
         VmError::type_error(format!("{text} is not a function"))
-    }
-}
-
-/// `ToIntegerOrInfinity` (§7.1.5) of a Number.
-fn to_integer_or_infinity(x: f64) -> f64 {
-    if x.is_nan() {
-        return 0.0;
-    }
-    // `trunc` keeps infinities; `+ 0.0` turns -0 into +0.
-    x.trunc() + 0.0
-}
-
-/// `ToLength` (§7.1.20) of a Number.
-fn to_length(x: f64) -> f64 {
-    to_integer_or_infinity(x).clamp(0.0, MAX_SAFE_INTEGER)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn length_conversions() {
-        assert_eq!(to_length(-5.0), 0.0);
-        assert_eq!(to_length(f64::NAN), 0.0);
-        assert_eq!(to_length(f64::INFINITY), MAX_SAFE_INTEGER);
-        assert_eq!(to_length(3.9), 3.0);
-        assert!(to_integer_or_infinity(-0.5).is_sign_positive());
-        assert_eq!(to_integer_or_infinity(f64::NEG_INFINITY), f64::NEG_INFINITY);
     }
 }

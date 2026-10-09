@@ -8,6 +8,7 @@ use crate::object::ObjectKind;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
+use crate::vm::convert::to_integer_or_infinity;
 use crate::vm::number::number_to_string;
 use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
@@ -64,7 +65,7 @@ fn number(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let n = if call.argc() == 0 {
         0.0
     } else {
-        rt.to_numeric(rt.arg(call, 0))?
+        rt.to_number(rt.arg(call, 0))?
     };
     if call.new_target().is_undefined() {
         return Ok(NativeReturn::Value(Value::number(n)));
@@ -132,7 +133,7 @@ fn number_to_string_method(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nati
     let x = this_number(rt, call)?;
     let radix = match rt.arg(call, 0) {
         Value::Undefined => 10.0,
-        value => super::to_integer_or_infinity(rt.to_numeric(value)?),
+        value => to_integer_or_infinity(rt.to_number(value)?),
     };
     if !(2.0..=36.0).contains(&radix) {
         return Err(VmError::range_error(

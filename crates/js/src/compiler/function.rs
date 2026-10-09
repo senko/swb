@@ -40,12 +40,13 @@
 
 use std::collections::HashMap;
 
+use swb_js_syntax::messages::{NOT_SUPPORTED, STACK_OVERFLOW, TOO_MANY_VARIABLES};
 use swb_js_syntax::{
     Ast, BindingId, BindingKind, Function, FunctionId, FunctionKind, FunctionScope, NameId,
-    RecursionBudget, Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId,
-    StmtKind, Storage, VariableKind,
+    Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId, StmtKind, Storage,
+    VariableKind,
 };
-use swb_js_text::String16;
+use swb_js_text::{RecursionBudget, String16};
 
 use super::{Builder, CResult, CompileError, ConstSpec, Session};
 use crate::bytecode::{
@@ -274,7 +275,7 @@ impl<'a> FunctionCompiler<'a> {
     pub(super) fn unsupported(&self, construct: &'static str) -> CompileError {
         CompileError::Script {
             kind: ThrowKind::SyntaxError,
-            message: format!("not supported yet ({construct})").into(),
+            message: format!("{NOT_SUPPORTED} ({construct})").into(),
             offset: self.position,
         }
     }
@@ -284,7 +285,7 @@ impl<'a> FunctionCompiler<'a> {
     fn too_many_variables(&self) -> CompileError {
         CompileError::Script {
             kind: ThrowKind::SyntaxError,
-            message: "Too many variables declared in a function".into(),
+            message: TOO_MANY_VARIABLES.into(),
             offset: self.position,
         }
     }
@@ -310,7 +311,7 @@ impl<'a> FunctionCompiler<'a> {
     pub(super) fn enter(&mut self, weight: u32) -> CResult<()> {
         self.budget.enter(weight).map_err(|_| CompileError::Script {
             kind: ThrowKind::RangeError,
-            message: crate::vm::STACK_OVERFLOW.into(),
+            message: STACK_OVERFLOW.into(),
             offset: self.position,
         })
     }

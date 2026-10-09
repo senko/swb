@@ -7,7 +7,6 @@
 
 use std::fmt::Write;
 
-use swb_js_regexp::Flags;
 use swb_js_text::Str16;
 
 use crate::ast::{
@@ -313,7 +312,7 @@ impl Dumper<'_> {
                 let text = ast.string(pattern).to_string_lossy();
                 self.text(&text);
                 self.text("/");
-                self.text(&flags_text(flags));
+                self.text(&flags.letters().collect::<String>());
             }
             ExprKind::Array(elements) => self.list("array", ast.exprs(elements)),
             ExprKind::Hole => self.text("hole"),
@@ -440,23 +439,6 @@ impl Dumper<'_> {
         }
         self.text("\"");
     }
-}
-
-fn flags_text(flags: Flags) -> String {
-    [
-        (Flags::HAS_INDICES, 'd'),
-        (Flags::GLOBAL, 'g'),
-        (Flags::IGNORE_CASE, 'i'),
-        (Flags::MULTILINE, 'm'),
-        (Flags::DOT_ALL, 's'),
-        (Flags::UNICODE, 'u'),
-        (Flags::UNICODE_SETS, 'v'),
-        (Flags::STICKY, 'y'),
-    ]
-    .iter()
-    .filter(|(flag, _)| flags.contains(*flag))
-    .map(|&(_, c)| c)
-    .collect()
 }
 
 fn unary_text(op: UnaryOp) -> &'static str {

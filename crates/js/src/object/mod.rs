@@ -13,9 +13,11 @@ mod ops;
 mod property;
 mod shape;
 
+pub(crate) use array::INVALID_ARRAY_LENGTH;
 pub use ops::{GetResult, SetResult};
 pub use property::{Property, PropertyDescriptor};
-pub use shape::{KeyList, Shape};
+pub(crate) use shape::KeyList;
+pub use shape::Shape;
 
 pub(crate) use elements::Elements;
 pub(crate) use shape::{ShapeKind, Transition};
@@ -42,7 +44,8 @@ pub enum ObjectKind {
         length_writable: bool,
     },
     /// A host object: native data that the embedder owns (ADR 0026
-    /// section 12). Also the example of a kind with a payload.
+    /// section 12). The host classes of M8 build on it; only a test creates
+    /// it today.
     Host {
         /// The class of the host object (chosen by the embedder).
         class: u32,
@@ -57,7 +60,7 @@ pub enum ObjectKind {
     /// A generator object (§27.5): its state and, while it is suspended,
     /// its frame and register window.
     Generator(Box<GeneratorState>),
-    /// A String object (§10.4.3). Minimal in the spike: `length` is an own
+    /// A String object (§10.4.3). Minimal until M7: `length` is an own
     /// property; the VM reads the index properties from the string.
     StringWrapper(Gc<JsString>),
     /// A Number object (`[[NumberData]]`).
@@ -447,8 +450,7 @@ fn write_slots(slots: &mut [Value], slot: u32, first: Value, second: Option<Valu
 mod tests {
     use super::*;
 
-    /// The record sizes that the memory measurements of the spike
-    /// assume; a change shows up here first.
+    /// The record sizes that `docs/performance.md` assumes; a change shows up here first.
     #[test]
     fn record_sizes() {
         assert_eq!(size_of::<Object>(), 88);

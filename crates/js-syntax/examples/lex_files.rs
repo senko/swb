@@ -1,21 +1,23 @@
 //! Lexes JavaScript files and reports the token count, the lexing speed
-//! and the errors. A measurement tool for the lexer (roadmap M6 step 3),
-//! not part of `just check`.
+//! and the errors. A measurement tool for the lexer, not part of
+//! `just check`.
 //!
 //! Usage: `cargo run --release -p swb-js-syntax --example lex_files --
 //! [--runs N] FILE_OR_DIRECTORY...` (a directory means its `*.js` files).
 //!
-//! Without a parser, this driver chooses the goal symbol itself with a
-//! previous-token heuristic: `/` starts a regular expression unless the
+//! This driver lexes without the parser on purpose (it measures the lexer
+//! alone), so it chooses the goal symbol with a previous-token heuristic: `/` starts a regular expression unless the
 //! previous token ends an expression (a name, a literal, `)`, `]`, `}`,
 //! `this`, `super`, `++`, `--`), and `}` continues a template when it
 //! closes a substitution. The heuristic is wrong in known cases (for
 //! example `if (x) /re/.test(s)`); its errors are reported, not the
 //! lexer's.
 
-use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
+
+#[path = "common/mod.rs"]
+mod common;
 
 use swb_js_syntax::{Goal, Interner, Lexer, LexerOptions, SyntaxError, Token, TokenKind};
 use swb_js_text::{CodeUnit, Str16, String16};
@@ -138,25 +140,6 @@ fn context(text: &String16, offset: u32) -> String {
         .unwrap_or_default()
 }
 
-fn files(args: &[String]) -> std::io::Result<Vec<PathBuf>> {
-    let mut out = Vec::new();
-    for arg in args {
-        let path = Path::new(arg);
-        if path.is_dir() {
-            let mut entries: Vec<PathBuf> = std::fs::read_dir(path)?
-                .filter_map(Result::ok)
-                .map(|entry| entry.path())
-                .filter(|p| p.extension().is_some_and(|e| e == "js"))
-                .collect();
-            entries.sort();
-            out.extend(entries);
-        } else {
-            out.push(path.to_path_buf());
-        }
-    }
-    Ok(out)
-}
-
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mut runs = 10;
@@ -164,7 +147,7 @@ fn main() -> ExitCode {
         runs = args.get(1).and_then(|n| n.parse().ok()).unwrap_or(runs);
         args.drain(..2.min(args.len()));
     }
-    let paths = match files(&args) {
+    let paths = match common::js_files(&args) {
         Ok(paths) if !paths.is_empty() => paths,
         Ok(_) => {
             eprintln!("usage: lex_files [--runs N] FILE_OR_DIRECTORY...");

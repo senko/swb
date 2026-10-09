@@ -9,7 +9,7 @@
 //! decimal text goes to Rust's float parser, which rounds correctly. The
 //! exact version with all its edge cases is M7 feature 4.
 
-use swb_js_text::Str16;
+use swb_js_text::{RadixAccumulator, Str16, unicode};
 
 /// `Number::toString(x)` in radix 10 (§6.1.6.1.20).
 pub(crate) fn number_to_string(x: f64) -> String {
@@ -83,11 +83,8 @@ fn digit_count(formatted: &str) -> Option<usize> {
 /// Whether a code unit is `StrWhiteSpaceChar` (§7.1.4.1: `WhiteSpace` and
 /// `LineTerminator`).
 fn is_str_whitespace(unit: u16) -> bool {
-    matches!(
-        unit,
-        0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x20 | 0xA0 | 0x1680 | 0x2000
-            ..=0x200A | 0x2028 | 0x2029 | 0x202F | 0x205F | 0x3000 | 0xFEFF
-    )
+    let unit = u32::from(unit);
+    unicode::is_whitespace(unit) || unicode::is_line_terminator(unit)
 }
 
 /// `StringToNumber` (§7.1.4.1.1): NaN for text that is not a
@@ -186,21 +183,20 @@ fn is_decimal_literal(text: &str) -> bool {
     i == bytes.len()
 }
 
-/// The value of digits in a radix (at least one digit, no separators).
+/// The value of digits in a radix (at least one digit, no separators),
+/// exact and rounded to nearest, ties to even, like a numeric literal.
 fn parse_radix(digits: &str, radix: u32) -> f64 {
     if digits.is_empty() {
         return f64::NAN;
     }
-    let mut value = 0.0_f64;
+    let mut value = RadixAccumulator::new(radix);
     for c in digits.chars() {
         let Some(digit) = c.to_digit(radix) else {
             return f64::NAN;
         };
-        // Exact while below 2^53; above, this rounds per step (the exact
-        // version is M7 feature 4).
-        value = value * f64::from(radix) + f64::from(digit);
+        value.push(digit);
     }
-    value
+    value.finish()
 }
 
 #[cfg(test)]
@@ -258,5 +254,23 @@ mod tests {
         assert_eq!(n("\u{3000}7\u{FEFF}"), 7.0);
         assert!(n("12px").is_nan());
         assert!(n("-0").is_sign_negative());
+    }
+
+    #[test]
+    fn string_to_number_radix_is_exact() {
+        // Expected values from Node.js 22 (`Number(text)`).
+        let n = |s: &str| string_to_number(swb_js_text::String16::from(s).as_str16());
+        // 2^53 + 1 is a tie and rounds down to the even 2^53.
+        assert_eq!(n("0x20000000000001"), 9_007_199_254_740_992.0);
+        // 2^53 + 3 is a tie and rounds up to the even 2^53 + 4.
+        assert_eq!(n("0x20000000000003"), 9_007_199_254_740_996.0);
+        assert_eq!(n("0x1fffffffffffff1"), 144_115_188_075_855_860.0);
+        assert_eq!(n("0o7777777777777777777777"), 73_786_976_294_838_210_000.0);
+        assert_eq!(
+            n("0B111111111111111111111111111111111111111111111111111111"),
+            18_014_398_509_481_984.0
+        );
+        assert_eq!(n(&format!("0x{}", "f".repeat(256))), f64::INFINITY);
+        assert_eq!(n(&format!("0x1{}", "0".repeat(255))), 2f64.powi(1020));
     }
 }

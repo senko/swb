@@ -37,7 +37,9 @@ mod call;
 pub(crate) mod convert;
 mod function;
 mod generator;
+mod global;
 mod interp;
+mod messages;
 pub(crate) mod number;
 mod property;
 mod realm;
@@ -59,6 +61,7 @@ use crate::bytecode::{FunctionCode, Reg};
 use crate::error::{Error, InternalError, Termination, ThrowKind};
 use crate::heap::{Gc, Generic, RootSource, Tracer};
 use crate::object::Object;
+use crate::runtime::Runtime;
 use crate::string::JsString;
 use crate::value::Value;
 
@@ -76,7 +79,7 @@ pub const DEFAULT_STACK_LIMIT: usize = 1 << 22;
 pub(crate) const REENTRY_WEIGHT: u32 = 10 * 1024;
 
 /// The message of the `RangeError` for too deep recursion.
-pub(crate) const STACK_OVERFLOW: &str = "Maximum call stack size exceeded";
+pub(crate) use swb_js_syntax::messages::STACK_OVERFLOW;
 
 /// Where the result of a frame goes when the frame returns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -319,11 +322,41 @@ impl RootSource for Vm {
     }
 }
 
+impl Runtime {
+    /// Runs `f` inside a new handle scope (the slow paths of the
+    /// instructions and the natives, which can run script code and
+    /// collect). The scope closes when `f` succeeds; after an error the
+    /// unwinder closes it.
+    #[inline]
+    pub(crate) fn with_scope<T>(
+        &mut self,
+        f: impl FnOnce(&mut Runtime) -> VmResult<T>,
+    ) -> VmResult<T> {
+        let scope = self.heap.open_scope();
+        let result = f(self);
+        if result.is_ok() {
+            self.heap.close_scope(scope)?;
+        }
+        result
+    }
+
+    /// Like [`Runtime::with_scope`], but the scope closes after an error
+    /// too, for callers that nothing unwinds (the embedding API).
+    pub(crate) fn scoped<T>(&mut self, f: impl FnOnce(&mut Runtime) -> VmResult<T>) -> VmResult<T> {
+        let scope = self.heap.open_scope();
+        let result = f(self);
+        let closed = self.heap.close_scope(scope);
+        let value = result?;
+        closed?;
+        Ok(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The record sizes that the spike's measurements assume; a change
+    /// The record sizes that `docs/performance.md` assumes; a change
     /// shows up here first.
     #[test]
     fn record_sizes() {

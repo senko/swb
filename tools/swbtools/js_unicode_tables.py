@@ -13,7 +13,7 @@ The tables are sorted, disjoint ranges of code points.
 from pathlib import Path
 
 from swbtools import paths
-from swbtools.ucd import has_property, ranges, read_property, ucd_file
+from swbtools.ucd import has_property, range_table, ranges, read_property, ucd_file
 
 VERSION = "17.0.0"
 """The Unicode version of the tables."""
@@ -22,14 +22,6 @@ FILES = {
     "DerivedCoreProperties": "ucd/DerivedCoreProperties.txt",
     "DerivedGeneralCategory": "ucd/extracted/DerivedGeneralCategory.txt",
 }
-
-
-def range_table(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
-    """The Rust source of one range table."""
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, u32); {len(items)}] = ["]
-    lines += [f"    (0x{a:04X}, 0x{b:04X})," for a, b in items]
-    lines += ["];", ""]
-    return lines
 
 
 def generate_tables(core: Path, category: Path) -> str:

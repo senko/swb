@@ -25,14 +25,14 @@ use std::borrow::Cow;
 use std::fmt;
 use std::rc::Rc;
 
-use swb_js_syntax::{ErrorKind, ParseError, RecursionBudget};
-use swb_js_text::{Str16, String16};
+use swb_js_syntax::{ErrorKind, ParseError};
+use swb_js_text::{RecursionBudget, Str16, String16};
 
 use crate::bytecode::FunctionCode;
 use crate::compiler::{CompileError, CompileStats, compile_script};
 use crate::error::{Error, InternalError, Termination, ThrowKind};
 use crate::heap::{Gc, GcStats, Generic, Heap, HeapConfig};
-use crate::object::{GetResult, PropertyDescriptor};
+use crate::object::{GetResult, Object, PropertyDescriptor};
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::{
@@ -193,11 +193,6 @@ impl Runtime {
         &self.heap
     }
 
-    /// The heap, for writing.
-    pub fn heap_mut(&mut self) -> &mut Heap {
-        &mut self.heap
-    }
-
     /// Runs a full collection with the VM's roots.
     pub fn collect(&mut self) -> GcStats {
         self.heap.collect(&self.vm)
@@ -239,8 +234,8 @@ impl Runtime {
 
     /// Sets the deadline of the following runs: a script that is still
     /// running at the deadline ends with [`Termination::TimeLimit`]
-    /// (checked every 10,000 steps: measured, scripts end within 0.5 ms
-    /// of the deadline). `None` removes it.
+    /// (checked every few thousand steps, see `TIME_CHECK_INTERVAL`).
+    /// `None` removes it.
     pub fn set_deadline(&mut self, deadline: Option<std::time::Instant>) {
         self.vm.deadline = deadline;
     }
@@ -286,27 +281,22 @@ impl Runtime {
 
     /// Compiles and runs a classic script in realm 0. Returns its
     /// completion value (the value of the last expression statement that
-    /// ran; the full completion rules of §16.1.6 come later).
-    pub fn eval(&mut self, source: &str) -> Result<Value, ScriptError> {
-        let text = String16::from(source);
-        self.eval_source(text.as_str16())
-    }
-
-    /// [`Runtime::eval`] with source text in code units.
+    /// ran; the completion rules of §16.1.6 are approximate until M7).
     ///
     /// Like [`Runtime::call`], a nested use (from a native function)
     /// charges the shared recursion budget; too deep a nesting is a
     /// `RangeError`.
-    pub fn eval_source(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
+    pub fn eval(&mut self, source: &str) -> Result<Value, ScriptError> {
         if self.budget.enter(REENTRY_WEIGHT).is_err() {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
-        let result = self.eval_source_inner(source);
+        let text = String16::from(source);
+        let result = self.eval_text(text.as_str16());
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
 
-    fn eval_source_inner(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
+    fn eval_text(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
         let start = self.run_start();
         let (code, compiled) = self.compile(source)?;
@@ -337,10 +327,7 @@ impl Runtime {
     /// measurements); nothing runs.
     pub fn compile_stats(&mut self, source: &str) -> Result<CompileStats, ScriptError> {
         let text = String16::from(source);
-        let script = swb_js_syntax::parse_script(text.as_str16(), &mut self.budget)?;
-        let (_, compiled) =
-            compile_script(&mut self.heap, &script, text.as_str16(), &mut self.budget)
-                .map_err(compile_error)?;
+        let (_, compiled) = self.compile(text.as_str16())?;
         Ok(CompileStats::of(&compiled))
     }
 
@@ -348,10 +335,7 @@ impl Runtime {
     /// functions (for tests and debugging); nothing runs.
     pub fn disassemble(&mut self, source: &str) -> Result<String, ScriptError> {
         let text = String16::from(source);
-        let script = swb_js_syntax::parse_script(text.as_str16(), &mut self.budget)?;
-        let (_, compiled) =
-            compile_script(&mut self.heap, &script, text.as_str16(), &mut self.budget)
-                .map_err(compile_error)?;
+        let (_, compiled) = self.compile(text.as_str16())?;
         Ok(crate::bytecode::disassemble(&compiled, &self.heap))
     }
 
@@ -474,17 +458,12 @@ impl Runtime {
         length: u32,
         func: NativeFn,
     ) -> Result<(), ScriptError> {
-        let scope = self.heap.open_scope();
-        let result = (|| {
-            let function = self.new_native_function(0, name, length, func)?;
-            let global = self.global_object(0)?;
-            let key = self.heap.key_from_str(name)?;
-            self.define(global, key, function.into(), true, false, true)
-        })();
-        self.heap
-            .close_scope(scope)
-            .map_err(|e| finish_error(e.into()))?;
-        result.map_err(finish_error)
+        self.scoped(|rt| {
+            let function = rt.new_native_function(0, name, length, func)?;
+            let global = rt.global_object(0)?;
+            rt.define_native(global, name, function.into(), false)
+        })
+        .map_err(finish_error)
     }
 
     /// Creates a plain object with native methods and installs it as a
@@ -495,40 +474,39 @@ impl Runtime {
         name: &str,
         functions: &[(&str, u32, NativeFn)],
     ) -> Result<(), ScriptError> {
-        let scope = self.heap.open_scope();
-        let result = (|| {
-            let proto = self.intrinsic(0, crate::vm::Intrinsic::ObjectPrototype)?;
-            let object = self.heap.new_object(Some(proto))?;
-            self.heap.record(object);
+        self.scoped(|rt| {
+            let proto = rt.intrinsic(0, crate::vm::Intrinsic::ObjectPrototype)?;
+            let object = rt.heap.new_object(Some(proto))?;
+            rt.heap.record(object);
             for &(fname, length, func) in functions {
-                let function = self.new_native_function(0, fname, length, func)?;
-                let key = self.heap.key_from_str(fname)?;
-                self.define(object, key, function.into(), true, true, true)?;
+                let function = rt.new_native_function(0, fname, length, func)?;
+                rt.define_native(object, fname, function.into(), true)?;
             }
-            let global = self.global_object(0)?;
-            let key = self.heap.key_from_str(name)?;
-            self.define(global, key, object.into(), true, false, true)
-        })();
-        self.heap
-            .close_scope(scope)
-            .map_err(|e| finish_error(e.into()))?;
-        result.map_err(finish_error)
+            let global = rt.global_object(0)?;
+            rt.define_native(global, name, object.into(), false)
+        })
+        .map_err(finish_error)
+    }
+
+    /// Defines a data property of a host object: writable and
+    /// configurable, and enumerable if `enumerable`.
+    fn define_native(
+        &mut self,
+        target: Gc<Object>,
+        name: &str,
+        value: Value,
+        enumerable: bool,
+    ) -> VmResult<()> {
+        let key = self.heap.key_from_str(name)?;
+        self.define(target, key, value, true, enumerable, true)
     }
 
     /// The `name` of the `constructor` of a value (both read as data
     /// properties along the prototype chain; no script code runs), or an
     /// empty string. test262 compares the constructors of thrown values.
     pub fn constructor_name(&self, value: Value) -> String {
-        let Value::Object(object) = value else {
-            return String::new();
-        };
-        let key = PropertyKey::String(self.vm.atoms.constructor);
-        let Ok(GetResult::Value(Value::Object(ctor))) = self.heap.get(object, key, value) else {
-            return String::new();
-        };
-        let key = PropertyKey::String(self.vm.atoms.name);
-        match self.heap.get(ctor, key, ctor.into()) {
-            Ok(GetResult::Value(Value::String(text))) => self.name_text(text),
+        match value {
+            Value::Object(object) => self.chain_constructor_name(object).unwrap_or_default(),
             _ => String::new(),
         }
     }
@@ -536,14 +514,10 @@ impl Runtime {
     /// `ToString` of a value as Rust text (lossy for unpaired surrogates).
     /// Can run script code (`toString`, `valueOf`).
     pub fn to_rust_string(&mut self, value: Value) -> VmResult<String> {
-        let scope = self.heap.open_scope();
-        let result = self.to_string(value);
-        let text = match result {
-            Ok(string) => Ok(self.name_text(string)),
-            Err(error) => Err(error),
-        };
-        self.heap.close_scope(scope)?;
-        text
+        self.scoped(|rt| {
+            let string = rt.to_string(value)?;
+            Ok(rt.name_text(string))
+        })
     }
 
     /// The text of a value without running script code (for tests and
@@ -553,14 +527,8 @@ impl Runtime {
         self.primitive_text(value)
     }
 
-    /// The text of a value as `console.log` shows it (Node.js's short
-    /// form); no script code runs.
-    pub fn inspect(&self, value: Value) -> String {
-        crate::builtins::inspect(self, value)
-    }
-
     /// Defines an accessor property on an object (a helper for natives
-    /// and tests until `Object.defineProperty` exists).
+    /// and tests).
     pub fn define_accessor(
         &mut self,
         object: Value,

@@ -252,10 +252,9 @@ pub(crate) enum Insn {
     NewObject {
         dst: Reg,
     },
-    /// `dst` = a new array with room for `capacity` elements.
+    /// `dst` = a new empty array.
     NewArray {
         dst: Reg,
-        capacity: u32,
     },
     /// CreateDataPropertyOrThrow(obj, sites[site], src).
     DefineNamed {
@@ -676,7 +675,7 @@ pub(crate) struct GlobalDecl {
 pub(crate) struct FunctionCode {
     pub(crate) insns: Box<[Insn]>,
     pub(crate) constants: Box<[Constant]>,
-    /// The keys of the property sites (later with inline caches).
+    /// The keys of the property sites (inline caches are M7 feature 13).
     pub(crate) sites: Box<[PropertyKey]>,
     /// Where a closure of this code gets each captured cell.
     pub(crate) captures: Box<[CaptureSource]>,

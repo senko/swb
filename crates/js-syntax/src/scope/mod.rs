@@ -37,13 +37,13 @@
 //!   at the declaration.
 //! - [`FunctionScope::mapped_arguments`]: the parameters are cells; the
 //!   arguments object holds them.
-//! - The analysis keeps [`analysis::TEMPORARIES_RESERVE`] registers free
+//! - The analysis keeps `analysis::TEMPORARIES_RESERVE` registers free
 //!   of declared bindings, but the compiler must check the total register
 //!   count of a function (declared bindings and temporaries) against the
 //!   limit of 65,535 again and report the same error.
 //! - Resource limits (`RangeError` from the parse): the total number of
 //!   capture entries of a script and the captures of one function, see
-//!   [`analysis::Limits`].
+//!   `analysis::Limits`.
 //!
 //! Block-level function declarations follow the strict-mode semantics in
 //! sloppy mode too (a lexical binding of the block); the Annex B.3.2
@@ -52,11 +52,9 @@
 
 pub(crate) mod analysis;
 
-use std::collections::HashMap;
-use std::hash::{BuildHasherDefault, Hasher};
-
 use crate::ast::{BindingId, FunctionId, List, RefId, ScopeId};
 use crate::interner::NameId;
+use swb_js_text::hash::KeyedMap;
 
 /// The kinds of scopes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -295,29 +293,8 @@ pub struct FunctionScope {
     pub needs_scope_description: bool,
 }
 
-/// A fast hasher for the `u64` keys of the scope maps (scope id and name
-/// id). The keys are dense ids that a script cannot choose freely, so a
-/// multiplicative hash is enough.
-#[derive(Default)]
-pub(crate) struct IdHasher(u64);
-
-impl Hasher for IdHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        for &byte in bytes {
-            self.0 = (self.0.rotate_left(8) ^ u64::from(byte)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-        }
-    }
-
-    fn write_u64(&mut self, value: u64) {
-        self.0 = (value ^ (value >> 29)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    }
-}
-
-pub(crate) type IdMap<V> = HashMap<u64, V, BuildHasherDefault<IdHasher>>;
+/// A map with the `u64` keys of the scope maps (scope id and name id).
+pub(crate) type IdMap<V> = KeyedMap<u64, V>;
 
 /// The map key of a name in a scope.
 fn key(scope: ScopeId, name: NameId) -> u64 {

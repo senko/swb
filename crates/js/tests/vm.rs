@@ -1086,10 +1086,10 @@ const SEMANTICS: &[(&str, &str)] = &[
     ),
 ];
 
-/// Review fixes of session 4 (array `length` conversions, messages, the
-/// tie rule of `Number::toString`).
+/// Array `length` conversions, messages and the tie rule of
+/// `Number::toString`.
 #[test]
-fn review_fixes() {
+fn array_length_messages_and_number_to_string_ties() {
     check_cases(FIXES);
 }
 
@@ -1320,8 +1320,8 @@ Uncaught TypeError: Cannot convert undefined or null to object",
     ("var Infinity; print(typeof Infinity)", "number"),
 ];
 
-// --- Session 5: exceptions, `finally`, `switch`, generators with
-// exceptions, built-ins and `console.log`. ---
+// --- Exceptions, `finally`, `switch`, generators with exceptions,
+// built-ins and `console.log`. ---
 
 #[test]
 fn exceptions() {
@@ -2291,11 +2291,10 @@ const CONSOLE: &[(&str, &str)] = &[
     ),
 ];
 
-// --- Fixes after the review of session 5: messages. Expected outputs
-// from Node.js 22. ---
+// --- Messages of the built-ins. Expected outputs from Node.js 22. ---
 
 #[test]
-fn builtins_messages() {
+fn built_in_messages() {
     check_cases(BUILTINS_MESSAGES);
 }
 

@@ -17,7 +17,7 @@
 //! tree one level deeper. Exceeding the budget is a `RangeError`, as in
 //! Chromium.
 //!
-//! Constructs outside the subset of the spike give a `SyntaxError` with
+//! Constructs outside the supported subset give a `SyntaxError` with
 //! the message "not supported yet" ([`ParseError::unsupported`]).
 
 mod expressions;

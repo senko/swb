@@ -1,5 +1,5 @@
-//! Measurements of the compiler and the interpreter for the spike report
-//! (ADR 0026 "Consequences"): the instruction size, the code size of a
+//! Measurements of the compiler and the interpreter for ADR 0026 ("Consequences") and
+//! `docs/js-spike-report.md`: the instruction size, the code size of a
 //! generated program, and the time of small programs (compare with
 //! `node --jitless`, V8's interpreter, on the same programs; the
 //! `--print-js` option writes them as a Node.js script).
@@ -72,7 +72,7 @@ const PROGRAMS: &[(&str, &str)] = &[
     ),
 ];
 
-/// One block of the generated program (the program of session 2).
+/// One block of the generated program (the front-end measurements use the same program).
 const CHUNK: &str = r"function chunkN(p, q) {
   var total = 0, items = [1, 2.5, 'three', null, true, , { a: p, 'b': q, [p]: q, m() { return this.a; } }];
   let counter = 0;

@@ -24,7 +24,8 @@ use crate::vm::{VmError, VmResult};
 /// release build: the countdown itself costs about 5 % on a loop of
 /// integer additions, and intervals from 1,000 to 100,000 make no
 /// measurable difference to it; with 10,000, endless loops (also in
-/// native loops over holes) end within 0.15 ms of the deadline.
+/// native loops over holes) end soon after the deadline (the hostile cases
+/// of docs/performance.md).
 pub(crate) const TIME_CHECK_INTERVAL: u32 = 10_000;
 
 /// The code units that a copy costs as much as one step of the
@@ -48,11 +49,6 @@ impl TerminationHandle {
     /// Whether a request is pending.
     pub fn is_requested(&self) -> bool {
         self.0.load(Ordering::Relaxed)
-    }
-
-    /// Withdraws a pending request.
-    pub fn cancel(&self) {
-        self.0.store(false, Ordering::Relaxed);
     }
 
     /// Takes a pending request (clears it).

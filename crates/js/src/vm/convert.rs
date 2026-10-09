@@ -10,7 +10,7 @@
 use swb_js_text::{Str16, String16};
 
 use crate::heap::Gc;
-use crate::object::{Object, ObjectKind};
+use crate::object::{INVALID_ARRAY_LENGTH, Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
@@ -47,6 +47,33 @@ pub(crate) enum NumberOp {
     Shl,
     Shr,
     UShr,
+}
+
+/// The largest integer that `ToLength` gives (2^53 − 1).
+pub(crate) const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+/// `ToIntegerOrInfinity` (§7.1.5) of a Number.
+pub(crate) fn to_integer_or_infinity(x: f64) -> f64 {
+    if x.is_nan() {
+        return 0.0;
+    }
+    // `trunc` keeps infinities; `+ 0.0` turns -0 into +0.
+    x.trunc() + 0.0
+}
+
+/// `ToLength` (§7.1.20) of a Number.
+pub(crate) fn to_length(x: f64) -> f64 {
+    to_integer_or_infinity(x).clamp(0.0, MAX_SAFE_INTEGER)
+}
+
+/// The length of a new array for a Number: an integer from 0 to 2^32 − 1,
+/// else a `RangeError` (`ArrayCreate`, §10.4.2.2, and `Array(len)`).
+pub(crate) fn checked_array_length(length: f64) -> VmResult<u32> {
+    if (0.0..=f64::from(u32::MAX)).contains(&length) && length.fract() == 0.0 {
+        Ok(length as u32)
+    } else {
+        Err(VmError::range_error(INVALID_ARRAY_LENGTH))
+    }
 }
 
 /// `ToInt32` (§7.1.6).
@@ -168,7 +195,7 @@ impl Runtime {
 
     /// `ToNumber` (§7.1.4); also `ToNumeric` (§7.1.3) while `BigInt` is not
     /// supported.
-    pub(crate) fn to_numeric(&mut self, value: Value) -> VmResult<f64> {
+    pub(crate) fn to_number(&mut self, value: Value) -> VmResult<f64> {
         let primitive = self.to_primitive(value, Hint::Number)?;
         match primitive {
             Value::Undefined => Ok(f64::NAN),
@@ -348,10 +375,10 @@ impl Runtime {
                 }
                 (x, y) if same_type(x, y) => return self.strictly_equal(x, y),
                 (Value::Int(_) | Value::Double(_), Value::String(_)) => {
-                    b = Value::Double(self.to_numeric(b)?);
+                    b = Value::Double(self.to_number(b)?);
                 }
                 (Value::String(_), Value::Int(_) | Value::Double(_)) => {
-                    a = Value::Double(self.to_numeric(a)?);
+                    a = Value::Double(self.to_number(a)?);
                 }
                 (Value::Bool(x), _) => a = Value::Int(i32::from(x)),
                 (_, Value::Bool(y)) => b = Value::Int(i32::from(y)),
@@ -402,11 +429,11 @@ impl Runtime {
             Some(a.units().lt(b.units()))
         } else {
             let (nx, ny) = if swapped {
-                let ny = self.to_numeric(py)?;
-                (self.to_numeric(px)?, ny)
+                let ny = self.to_number(py)?;
+                (self.to_number(px)?, ny)
             } else {
-                let nx = self.to_numeric(px)?;
-                (nx, self.to_numeric(py)?)
+                let nx = self.to_number(px)?;
+                (nx, self.to_number(py)?)
             };
             if nx.is_nan() || ny.is_nan() {
                 None
@@ -433,15 +460,15 @@ impl Runtime {
             let sb = self.to_string(pb)?;
             return Ok(Value::String(self.concat(sa, sb)?));
         }
-        let x = self.to_numeric(pa)?;
-        let y = self.to_numeric(pb)?;
+        let x = self.to_number(pa)?;
+        let y = self.to_number(pb)?;
         Ok(Value::Double(x + y))
     }
 
     /// A numeric binary operator for operands that are not both Numbers.
     pub(crate) fn arith_slow(&mut self, op: NumberOp, a: Value, b: Value) -> VmResult<Value> {
-        let x = self.to_numeric(a)?;
-        let y = self.to_numeric(b)?;
+        let x = self.to_number(a)?;
+        let y = self.to_number(b)?;
         Ok(number_op(op, x, y))
     }
 
@@ -555,6 +582,26 @@ mod tests {
         assert_eq!(to_int32(f64::INFINITY), 0);
         assert_eq!(to_uint32(-1.0), u32::MAX);
         assert_eq!(to_uint32(1e20), 1_661_992_960);
+    }
+
+    #[test]
+    fn length_conversions() {
+        assert_eq!(to_length(-5.0), 0.0);
+        assert_eq!(to_length(f64::NAN), 0.0);
+        assert_eq!(to_length(f64::INFINITY), MAX_SAFE_INTEGER);
+        assert_eq!(to_length(3.9), 3.0);
+        assert!(to_integer_or_infinity(-0.5).is_sign_positive());
+        assert_eq!(to_integer_or_infinity(f64::NEG_INFINITY), f64::NEG_INFINITY);
+    }
+
+    #[test]
+    fn array_lengths_are_uint32_integers() {
+        assert_eq!(checked_array_length(0.0).ok(), Some(0));
+        assert_eq!(checked_array_length(-0.0).ok(), Some(0));
+        assert_eq!(checked_array_length(4_294_967_295.0).ok(), Some(u32::MAX));
+        for bad in [-1.0, 1.5, 4_294_967_296.0, f64::NAN, f64::INFINITY] {
+            assert!(checked_array_length(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

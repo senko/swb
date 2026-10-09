@@ -261,25 +261,6 @@ impl PropertyDescriptor {
         self.is_generic() && self.enumerable.is_none() && self.configurable.is_none()
     }
 
-    /// `FromPropertyDescriptor`'s input: the complete descriptor of a
-    /// property.
-    pub const fn from_property(property: Property) -> Self {
-        match property {
-            Property::Data {
-                value,
-                writable,
-                enumerable,
-                configurable,
-            } => Self::data(value, writable, enumerable, configurable),
-            Property::Accessor {
-                get,
-                set,
-                enumerable,
-                configurable,
-            } => Self::accessor(get, set, enumerable, configurable),
-        }
-    }
-
     /// Checks what `ToPropertyDescriptor` (§6.2.6.5) guarantees: not both
     /// kinds of field, and no internal `Empty` value.
     pub(crate) fn check(&self) -> Result<()> {

@@ -321,7 +321,7 @@ impl Runtime {
     /// methods are rooted during their reservations, so `value` must only
     /// be rooted by the caller until this returns.
     pub(crate) fn iter_result(&mut self, value: Value, done: bool) -> VmResult<Gc<Object>> {
-        let realm = self.vm.frames.last().map_or(0, |f| f.realm);
+        let realm = self.current_realm();
         let proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;
         let object = self.heap.new_object(Some(proto))?;
         let value_key = PropertyKey::String(self.vm.atoms.value);

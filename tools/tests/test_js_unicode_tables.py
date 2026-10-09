@@ -1,6 +1,6 @@
 """The generator of the JavaScript lexer's Unicode tables (without network)."""
 
-from swbtools.js_unicode_tables import generate_tables
+from swbtools.js_unicode_tables import VERSION, generate_tables, tables_path
 
 
 def test_generate_tables(tmp_path):
@@ -29,3 +29,8 @@ def test_generate_tables(tmp_path):
     spaces = source.split("SPACE_SEPARATORS")[1]
     assert "(0x0020, 0x0020),\n    (0x00A0, 0x00A0),\n    (0x3000, 0x3000),\n];" in spaces
     assert source.endswith("];\n")
+
+
+def test_the_committed_tables_name_the_generator_version():
+    header = tables_path().read_text(encoding="utf-8").split("\n\n", 1)[0]
+    assert f"Character Database {VERSION}" in header

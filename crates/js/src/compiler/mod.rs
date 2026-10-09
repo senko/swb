@@ -26,7 +26,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use swb_js_syntax::{CaptureSource, FunctionId, RecursionBudget, Script};
+use swb_js_syntax::{CaptureSource, FunctionId, Script};
+use swb_js_text::RecursionBudget;
 use swb_js_text::{Str16, String16};
 
 use crate::bytecode::{

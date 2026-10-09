@@ -33,7 +33,6 @@
 
 mod arena;
 mod gc;
-mod hash;
 mod roots;
 
 use std::any::Any;
@@ -44,7 +43,8 @@ use swb_js_text::{Str16, String16};
 pub use arena::Gc;
 pub(crate) use arena::{Arena, MarkBits};
 pub use gc::Tracer;
-pub(crate) use hash::HandleMap;
+/// A map for handle keys (a keyed hasher; see `swb_js_text::hash`).
+pub(crate) type HandleMap<K, V> = swb_js_text::hash::KeyedMap<K, V>;
 pub use roots::{HandleScope, NoRoots, Persistent, Root, RootSource};
 
 use crate::error::{Error, Result, Termination};
@@ -186,11 +186,6 @@ impl Heap {
     /// The configuration.
     pub fn config(&self) -> &HeapConfig {
         &self.config
-    }
-
-    /// Changes the configuration (for example the stress mode).
-    pub fn set_config(&mut self, config: HeapConfig) {
-        self.config = config;
     }
 
     /// Collector statistics.
@@ -337,13 +332,6 @@ impl Heap {
     pub fn generic<T: GenericData>(&self, handle: Gc<Generic>) -> Result<&T> {
         let data: &dyn Any = &*self.arenas.generic.get(handle)?.0;
         data.downcast_ref()
-            .ok_or(Error::invariant("generic data of another type"))
-    }
-
-    /// The generic data of a handle, for writing, if it has the type `T`.
-    pub fn generic_mut<T: GenericData>(&mut self, handle: Gc<Generic>) -> Result<&mut T> {
-        let data: &mut dyn Any = &mut *self.arenas.generic.get_mut(handle)?.0;
-        data.downcast_mut()
             .ok_or(Error::invariant("generic data of another type"))
     }
 

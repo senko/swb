@@ -1,7 +1,8 @@
 //! `swb-js`: the shell of the JavaScript engine (ADR 0026 section 13).
-//! It runs script files and `-e CODE`, and has two subcommands for the
-//! test tools: `test262` (the test262 runner) and `bench-compile` (parse
-//! and compile time and memory for a directory of scripts).
+//! It runs script files and `-e CODE`, prints the parse tree with
+//! `--dump-ast FILE`, and has two subcommands for the test tools:
+//! `test262` (the test262 runner) and `bench-compile` (parse and compile
+//! time and memory for a directory of scripts).
 
 mod bench;
 mod shell;
@@ -12,6 +13,9 @@ use std::io::{BufWriter, Read};
 use std::process::ExitCode;
 use std::rc::Rc;
 use std::time::Duration;
+
+use swb_js_syntax::{LineIndex, dump};
+use swb_js_text::{RecursionBudget, String16};
 
 use shell::{Options, STACK_SIZE};
 
@@ -24,6 +28,7 @@ Usage:
   swb-js [OPTIONS] -              read the script from standard input
   swb-js test262 [--help]         the test262 runner (just test262)
   swb-js bench-compile DIR        parse and compile the scripts of DIR
+  swb-js --dump-ast FILE          print the syntax tree, scopes and references
 
 Options:
   -e CODE               run CODE (before the files, if both are given)
@@ -65,7 +70,38 @@ fn dispatch(args: &[String]) -> u8 {
     match args.first().map(String::as_str) {
         Some("test262") => test262::main(&args[1..]),
         Some("bench-compile") => bench::main(&args[1..]),
+        Some("--dump-ast") => dump_ast_main(&args[1..]),
         _ => shell_main(args),
+    }
+}
+
+/// `--dump-ast FILE`: parses the file and prints the dumps of
+/// `swb_js_syntax::dump` (S-expressions, scopes, references).
+fn dump_ast_main(args: &[String]) -> u8 {
+    let [file] = args else {
+        return usage_error("--dump-ast needs one file");
+    };
+    let bytes = match std::fs::read(file) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            eprintln!("swb-js: cannot read {file}: {error}");
+            return 66;
+        }
+    };
+    let source = String16::from(String::from_utf8_lossy(&bytes).as_ref());
+    let mut budget = RecursionBudget::default();
+    match swb_js_syntax::parse_script(source.as_str16(), &mut budget) {
+        Ok(script) => {
+            println!("{}", dump::dump_ast(&script));
+            println!("{}", dump::dump_scopes(&script));
+            println!("{}", dump::dump_references(&script));
+            0
+        }
+        Err(error) => {
+            let location = LineIndex::new(source.as_str16()).location(error.offset);
+            eprintln!("{file}:{}:{}: {error}", location.line, location.column);
+            2
+        }
     }
 }
 

@@ -616,12 +616,12 @@ DOM nodes, the event loop) needs its own ADR with the first target.
   loops, huge allocations, catastrophic regular expressions, deep
   recursion, Proxy chains, deep JSON.
 
-### 14. Changes from the spike
+### 14. Choices made during the spike (M6)
 
-The spike sessions on the branch `js-spike` made these choices where
-the sections above left room or where the first plan did not work:
+The spike made these choices where the sections above left room or
+where the first plan did not work:
 
-- Heap (session 3): the internal methods that can grow a buffer whose
+- Heap: the internal methods that can grow a buffer whose
   size a script controls (named slots, dense elements, the change to
   sparse elements, dictionary growth) reserve first, so they are
   safepoints. They keep their own arguments alive during the
@@ -648,7 +648,7 @@ the sections above left room or where the first plan did not work:
 - No-GC regions (for example the end of a compile) have a depth that an
   unwinder can restore, as handle scopes can be closed down to a depth;
   a safepoint in a no-GC region still checks the limit.
-- Compiler and interpreter (session 4): code is shared as an immutable
+- Compiler and interpreter: code is shared as an immutable
   `Rc` by the code object (the heap thing that traces the constants),
   the closures and the frames, so the loop needs no heap lookup to fetch
   instructions. Registers hold cells as an internal value variant
@@ -661,12 +661,11 @@ the sections above left room or where the first plan did not work:
   bytes (expression) or 1,792 bytes (statement) of the budget, a native
   re-entry 10 KiB (measured in a debug build: 992, 1,120 and 6,688 bytes
   per level).
-- Measured against `node --jitless`, before inline caches: calls 4.7x,
-  an integer loop 1.0x, property access 4.7x, closures 3.1x and object
-  literals 10.6x slower. Inline caches in the property sites, a cache
-  for global access and cached literal shapes are the next performance
-  steps (M7 feature 13).
-- Exceptions (session 5): the handler table is sorted by start (the
+- The speed against `node --jitless`, before inline caches, is in
+  [docs/performance.md](../performance.md). Inline caches in the
+  property sites, a cache for global access and cached literal shapes
+  are the next performance steps (M7 feature 13).
+- Exceptions: the handler table is sorted by start (the
   outer range first for equal starts), so the last range that contains
   a position is the innermost. A `finally` block ends with an
   instruction that dispatches on the stored completion through a table

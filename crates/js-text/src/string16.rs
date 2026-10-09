@@ -302,6 +302,14 @@ impl String16 {
         matches!(self.0, Repr::Latin1(_))
     }
 
+    /// Removes all units. The text uses the narrow width again.
+    pub fn clear(&mut self) {
+        match &mut self.0 {
+            Repr::Latin1(units) => units.clear(),
+            Repr::Wide(_) => *self = String16::new(),
+        }
+    }
+
     /// Appends one code unit.
     pub fn push(&mut self, unit: u16) {
         match &mut self.0 {

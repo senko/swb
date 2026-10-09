@@ -18,11 +18,12 @@ mod string;
 mod tests;
 
 use swb_js_text::{
-    CodeUnit, Str16, combine_surrogates, is_lead_surrogate, is_trail_surrogate, unicode,
+    CodeUnit, Str16, String16, combine_surrogates, is_lead_surrogate, is_trail_surrogate, unicode,
 };
 
 use crate::SyntaxError;
 use crate::interner::Interner;
+use crate::messages::INVALID_TOKEN;
 use crate::token::{Goal, Legacy, Token, TokenKind, TokenValue, keyword_kind};
 
 /// The largest source length in code units: offsets are `u32`, and a
@@ -33,9 +34,6 @@ const LF: u16 = 0x0A;
 const CR: u16 = 0x0D;
 const LS: u16 = 0x2028;
 const PS: u16 = 0x2029;
-
-/// Chromium's message for most lexical errors.
-pub(crate) const INVALID_TOKEN: &str = "Invalid or unexpected token";
 
 /// The code unit of an ASCII character.
 const fn ascii(c: u8) -> u16 {
@@ -73,7 +71,7 @@ impl LexerOptions {
         }
     }
 
-    /// The options for a module.
+    /// The options for a module. No user yet; M7 feature 1 (modules) uses it.
     pub const fn module() -> Self {
         LexerOptions {
             html_comments: false,
@@ -132,7 +130,7 @@ pub struct Lexer<'a, U: CodeUnit> {
     interner: Interner,
     /// The code units of an identifier that has escapes or non-ASCII
     /// characters.
-    name_buf: Vec<u16>,
+    name_buf: String16,
     /// The digits of a decimal literal, without separators.
     digits: String,
 }
@@ -150,7 +148,7 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
             newline_before: false,
             options,
             interner,
-            name_buf: Vec::new(),
+            name_buf: String16::new(),
             digits: String::new(),
         }
     }
@@ -421,12 +419,7 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
                 }
                 self.pos += 2;
                 let cp = self.scan_unicode_escape(here)?;
-                let valid = if first {
-                    unicode::is_identifier_start(cp)
-                } else {
-                    unicode::is_identifier_part(cp)
-                };
-                if !valid {
+                if !unicode::is_identifier_char(cp, first) {
                     return Err(error_at(here, INVALID_TOKEN));
                 }
                 escaped = true;
@@ -435,18 +428,13 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
                 let Some((cp, len)) = self.code_point_at(here) else {
                     break;
                 };
-                let valid = if first {
-                    unicode::is_identifier_start(cp)
-                } else {
-                    unicode::is_identifier_part(cp)
-                };
-                if !valid {
+                if !unicode::is_identifier_char(cp, first) {
                     break;
                 }
                 self.pos += len;
                 cp
             };
-            push_code_point(&mut self.name_buf, cp);
+            self.name_buf.push_code_point(cp);
         }
         if self.pos == start {
             return Err(error_at(start, INVALID_TOKEN));
@@ -457,7 +445,7 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
         {
             return Ok(Lexeme::new(kind));
         }
-        let name = self.interner.intern(Str16::Wide(&self.name_buf));
+        let name = self.interner.intern(self.name_buf.as_str16());
         Ok(Lexeme {
             escaped,
             ..Lexeme::with_value(TokenKind::Identifier, TokenValue::Name(name))
@@ -553,17 +541,6 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
         };
         self.pos = start + len;
         Ok(Lexeme::new(kind))
-    }
-}
-
-/// Appends a code point to UTF-16 units.
-fn push_code_point(units: &mut Vec<u16>, cp: u32) {
-    if let Ok(unit) = u16::try_from(cp) {
-        units.push(unit);
-    } else {
-        let offset = cp.saturating_sub(0x10000);
-        units.push(0xD800 + ((offset >> 10) & 0x3FF) as u16);
-        units.push(0xDC00 + (offset & 0x3FF) as u16);
     }
 }
 
