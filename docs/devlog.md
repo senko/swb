@@ -4,6 +4,36 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 3, heap, objects and GC (`js-spike`)
+
+- `js`: an arena per kind with (index, generation) handles; a
+  stop-the-world mark-and-sweep collector with mark bits beside the
+  arenas, a work list and large vectors marked in parts; weak tables
+  for atoms, shape transitions and root shapes; roots from the VM,
+  persistent roots, handle scopes; safepoints, reservations, the heap
+  limit and a stress mode. A 16-byte `Value` with the three equality
+  algorithms; flat strings of both widths and atoms; shapes with root
+  shapes per prototype, shared key lists and dictionary mode; dense and
+  sparse elements; the ordinary internal methods and the array exotic
+  object, with accessors returned to the caller as call requests.
+- Measurements (release): GC pause 16 ms for 1 million objects with 3
+  properties each; 202 ns to allocate such an object; 3.1 ns per handle
+  access; 169 bytes per object.
+- Review: no path freed a live object, but the limit did not bound
+  memory (539 MB resident at a 128 MB limit, because arenas kept their
+  peak size), a heap near the limit collected at every safepoint, and a
+  no-GC region could switch the limit off. Fixed: the limit counts the
+  slots of every arena, a sweep gives back the free tail with a
+  generation floor for reused indices, a live size above 90 % of the
+  limit after a collection ends the script, safepoints in no-GC regions
+  check the limit. A second review of the fixes found that counting the
+  doubled vector capacity could end a script at 75 % live data; the
+  limit now counts slots up to the length (the resident pages), and
+  handle-scope tokens carry an id. Resident growth in the three-phase
+  test: 48 MiB at a 128 MiB limit.
+- ADR 0026 got section 14 (changes from the spike).
+- Next: spike session 4, the compiler and the interpreter core.
+
 ## 2026-10-09: M6 spike session 2, parser and scope analysis (`js-spike`)
 
 - `js-syntax`: an AST arena (`Expr` at most 24 bytes, `Stmt` 32; node

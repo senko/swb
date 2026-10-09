@@ -463,7 +463,13 @@ at a time, in this order:
       ropes), the weak atom table, shapes with root shapes, transitions
       and dictionary mode, dense elements, mark-and-sweep with a work
       list, handle scopes, safepoints, reservations, byte accounting and
-      the heap limit, the stress mode.
+      the heap limit, the stress mode. Done 2026-10-09: GC pause 16 ms for
+      1 million small objects, 202 ns to allocate `{a, b, c}`, 3.1 ns per
+      handle access with the generation check, 4.2 ns to record a handle
+      in a scope, 169 bytes per small object; changes to the design are
+      in ADR 0026 section 14. Open: arenas reuse free slots but give back
+      only the free tail; `own_property_keys` returns an unaccounted
+      vector; the realm flag for array prototypes; ephemerons.
    4. Compiler and interpreter core (`implementer-hard`). Register
       allocation, the instruction enum with its size test, property
       sites, the verifier, frames without Rust recursion, calls with the

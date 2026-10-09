@@ -2732,6 +2732,7 @@ dependencies = [
  "swb-js-regexp",
  "swb-js-syntax",
  "swb-js-text",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

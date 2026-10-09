@@ -332,8 +332,8 @@ then string keys and then symbols, each in insertion order
   field with a writable flag.
 - A sparse ordered map from index to property (a B-tree map) when the
   vector would be too sparse (a density rule, measured), or when an
-  element gets non-default attributes or an accessor. An array does not
-  return to the dense form.
+  element gets non-default attributes or an accessor. An array returns
+  to the dense form only when its sparse map becomes empty (section 14).
 - Memory grows with the number of stored elements, never with `length`
   or an index from the script. Shrinking `length` costs at most the
   number of stored elements.
@@ -615,6 +615,37 @@ DOM nodes, the event loop) needs its own ADR with the first target.
 - The hostile-page set gets JavaScript cases: deep nesting, endless
   loops, huge allocations, catastrophic regular expressions, deep
   recursion, Proxy chains, deep JSON.
+
+### 14. Changes from the spike
+
+The spike sessions on the branch `js-spike` made these choices where
+the sections above left room or where the first plan did not work:
+
+- Heap (session 3): the internal methods that can grow a buffer whose
+  size a script controls (named slots, dense elements, the change to
+  sparse elements, dictionary growth) reserve first, so they are
+  safepoints. They keep their own arguments alive during the
+  reservation; every other handle of the caller must be in its roots or
+  a handle scope. All methods that can collect take the VM's root source
+  as a parameter, so the signature shows each safepoint.
+- Shapes: ordered key lists are things of their own arena (no shared
+  mutable Rust references); after marking, each list is cut to the
+  longest prefix that a live shape uses. A shape holds its parent
+  strongly; the transition index is weak.
+- Dictionary mode keeps the property values in the object's slots, as
+  in shape mode; the dictionary maps keys to slots.
+- Elements: a dense vector of up to 64 elements is always allowed;
+  above that, at least one slot in four holds an element. An array
+  whose sparse map becomes empty returns to an empty dense vector;
+  otherwise it stays sparse.
+- The heap limit counts the capacity of every arena (free slots
+  included) and of owned buffers, so it bounds the memory of the
+  process; a sweep gives back the free slots at the end of an arena. If
+  the live size is above 90 % of the limit after a collection, the
+  script ends (termination), instead of collecting at every safepoint.
+- No-GC regions (for example the end of a compile) have a depth that an
+  unwinder can restore, as handle scopes can be closed down to a depth;
+  a safepoint in a no-GC region still checks the limit.
 
 ## Consequences
 

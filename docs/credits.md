@@ -115,6 +115,14 @@ Format: source, license (for code), what it influenced.
 - Donald E. Knuth, The Art of Computer Programming, vol. 3, §6.4
   (multiplicative hashing with the golden ratio) — the name cache of
   `js-syntax/src/interner.rs`.
+- The handle hash of `js/src/heap/hash.rs`: the multiply-rotate step of
+  the FxHash scheme (Firefox, rustc; MIT/Apache-2.0) and the 64-bit
+  finalizer of MurmurHash3 (Austin Appleby, public domain), written from
+  their published descriptions; no code copied.
+- Jones, Hosking, Moss, The Garbage Collection Handbook (mark-and-sweep
+  with a work list, weak tables) and the study memos 3 and 4 (shapes,
+  dictionary mode, generational indices, the array density idea of Lua
+  5.0) — `js/src/heap/`, `js/src/object/`.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).
