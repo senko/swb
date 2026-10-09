@@ -447,7 +447,17 @@ at a time, in this order:
       conditional, assignment and compound assignment, `typeof`, comma.
       Scope analysis with registers, cells and the temporal dead zone.
       The shared recursion budget in the parser. The early errors of the
-      subset.
+      subset. Done 2026-10-09: 72 MB/s for parse and scope analysis of a
+      5 MB generated program, about 31 bytes per token in memory; 3 of
+      the 60 BBC scripts parse, the others stop at the first construct
+      outside the subset (`for`-`in`, destructuring, spread, tagged
+      templates, default parameters, `switch`, optional chaining, classes,
+      rest; M7 feature 1). Long left-associative chains stop at about
+      16,000 links (V8 accepts 1,000,000) and right-nested `?:` chains at
+      about 1,360 terms (Node accepts 30,000; minifiers turn `if`-`else`
+      chains into `?:` chains). Measure the longest chains in the target
+      scripts; if they come near the limits, lower the budget weights of
+      these paths or walk such chains without recursion.
    3. Heap, values, strings, objects and GC (`implementer-hard`). Arenas
       with generations, the value enum, flat strings of both widths (no
       ropes), the weak atom table, shapes with root shapes, transitions
@@ -512,7 +522,9 @@ failures with a reason. Features, in this order:
    templates, numeric separators, `BigInt` literals, `with`, module
    syntax, HTML-like comments. All early errors (those of regular
    expression literals come with feature 8a), the complete scope
-   analysis (direct `eval`, `with`, mapped `arguments`). Tests: the
+   analysis (direct `eval`, `with`, mapped `arguments`, the Annex B.3.2
+   and B.3.3 semantics of function declarations in blocks and in `if`
+   statements in sloppy mode, which old scripts depend on). Tests: the
    syntax tests of test262 `language/`; the BBC and Ars scripts parse
    without errors.
 2. Fundamental objects (`implementer`). What the test262 harness and the

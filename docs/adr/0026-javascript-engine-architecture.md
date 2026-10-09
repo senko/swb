@@ -114,8 +114,10 @@ value `Empty` (section 7). Loads of lexical bindings check it. The
 compiler may leave out the check only where memo 2.4 shows it is safe
 (same function, after the declaration in source order, in the declaring
 block or a nested one, not in a later `case` clause, not in a function
-that can be created before the initialization). The first version checks
-everywhere; check elision is a performance task.
+that can be created before the initialization). The first version leaves
+out the check only for a load in the same function that follows the
+complete declaration in source order; `switch` must add the `case`
+clause rule. Further elision is a performance task.
 
 **Dynamic scope.** Only functions that use the dynamic features pay for
 them (memo 2.5):
@@ -504,7 +506,8 @@ Content from the network must never crash or hang the browser.
 | Time per task | A countdown at function entry, backward jumps, regular expression steps and long built-in loops; at zero, the host's time check (deadline per task). | Termination |
 | Script call depth | Length of the frame vector; default 10,000, compared with Chromium. | `RangeError` |
 | Value stack | Bounded number of slots. | `RangeError` |
-| Rust recursion | One shared budget for all Rust recursion in the engine: native re-entry into the interpreter, parser levels and AST depth, JSON, Proxy traps, the regular expression parser. Each kind charges a weight that approximates its stack use. The budget assumes a stack of at least 8 MiB (see below); a test runs the worst cases in a debug build on a thread with that stack size. | `RangeError` (or `SyntaxError` in the parser, as measured in Chromium) |
+| Rust recursion | One shared budget for all Rust recursion in the engine: native re-entry into the interpreter, parser levels and AST depth, JSON, Proxy traps, the regular expression parser. Each kind charges a weight that approximates its stack use. The budget assumes a stack of at least 8 MiB (see below); a test runs the worst cases in a debug build on a thread with that stack size. | `RangeError` (also in the parser, as in Chromium) |
+| Scope analysis | At most 2^20 captured-variable entries per script and 65,535 per function (flat closures copy a capture into each function in between); at most 65,535 − 1,024 declared registers per function (1,024 stay for temporaries; the compiler checks the total). | `RangeError` (captures), `SyntaxError` (registers) |
 | Heap | Byte accounting, limit set by the host. | Termination |
 | String length | About 2^29 code units (measured). | `RangeError` |
 | Regular expressions | Steps polled with the time check; backtrack stack counted in the heap; limits for pattern nesting, program size and capture count. | Termination or `SyntaxError` |

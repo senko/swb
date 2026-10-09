@@ -95,15 +95,7 @@ struct Outcome {
 }
 
 fn lex<U: CodeUnit>(units: &[U]) -> Outcome {
-    let mut lexer = match Lexer::new(units, LexerOptions::script(), Interner::new()) {
-        Ok(lexer) => lexer,
-        Err(error) => {
-            return Outcome {
-                tokens: 0,
-                error: Some(error),
-            };
-        }
-    };
+    let mut lexer = Lexer::new(units, LexerOptions::script(), Interner::new());
     let mut heuristic = Heuristic::default();
     let mut tokens = 0;
     loop {

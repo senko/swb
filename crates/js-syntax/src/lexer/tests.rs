@@ -15,7 +15,7 @@ fn lex_units<U: CodeUnit>(
     options: LexerOptions,
     goal: &mut dyn FnMut(&[Token]) -> Goal,
 ) -> Result<(Vec<Token>, Interner), SyntaxError> {
-    let mut lexer = Lexer::new(units, options, Interner::new())?;
+    let mut lexer = Lexer::new(units, options, Interner::new());
     let mut tokens = Vec::new();
     loop {
         let token = lexer.next_token(goal(&tokens))?;
@@ -689,8 +689,7 @@ fn templates_with_substitutions() {
 
 fn kinds_with(source: &str, goal: Goal) -> Vec<TokenKind> {
     let wide: Vec<u16> = source.encode_utf16().collect();
-    let mut lexer =
-        Lexer::new(&wide[..], LexerOptions::script(), Interner::new()).expect("short source");
+    let mut lexer = Lexer::new(&wide[..], LexerOptions::script(), Interner::new());
     let mut kinds = Vec::new();
     while let Ok(token) = lexer.next_token(goal) {
         if token.kind == K::Eof {
@@ -703,15 +702,25 @@ fn kinds_with(source: &str, goal: Goal) -> Vec<TokenKind> {
 
 #[test]
 fn template_errors() {
-    for source in ["`abc", "`a$", "`\\", "`\\u{12", "}abc"] {
+    for source in ["`abc", "`a$", "`\\", "}abc"] {
         let goal = if source.starts_with('}') {
             Goal::TemplateTail
         } else {
             Goal::Div
         };
         let error = error_with(source, goal);
-        assert_eq!(error.message, "Unterminated template literal", "{source}");
+        assert_eq!(error.message, "Unexpected end of input", "{source}");
         assert_eq!(error.offset, 0, "{source}");
+    }
+    // An escape error at the end of the source is the escape's own error
+    // (Node.js 22).
+    for (source, message) in [
+        ("`\\u{12", "Invalid Unicode escape sequence"),
+        ("`\\u", "Invalid Unicode escape sequence"),
+        ("`\\u{110000", "Undefined Unicode code-point"),
+    ] {
+        let error = error_with(source, Goal::Div);
+        assert_eq!(error.message, message, "{source}");
     }
 }
 
@@ -741,8 +750,7 @@ fn regular_expressions() {
     }
     // A regular expression ends at the first `/` outside a class.
     let wide: Vec<u16> = "/a/ /b/".encode_utf16().collect();
-    let mut lexer =
-        Lexer::new(&wide[..], LexerOptions::script(), Interner::new()).expect("short source");
+    let mut lexer = Lexer::new(&wide[..], LexerOptions::script(), Interner::new());
     let first = lexer
         .next_token(Goal::RegExp)
         .expect("a regular expression");
@@ -875,8 +883,7 @@ fn hashbang() {
 #[test]
 fn end_of_input_repeats() {
     let wide: Vec<u16> = "a".encode_utf16().collect();
-    let mut lexer =
-        Lexer::new(&wide[..], LexerOptions::script(), Interner::new()).expect("short source");
+    let mut lexer = Lexer::new(&wide[..], LexerOptions::script(), Interner::new());
     assert_eq!(
         lexer.next_token(Goal::Div).map(|t| t.kind),
         Ok(K::Identifier)
@@ -890,8 +897,7 @@ fn end_of_input_repeats() {
 #[test]
 fn rescan_with_another_goal() {
     let source = b"x\n/a/g";
-    let mut lexer =
-        Lexer::new(&source[..], LexerOptions::script(), Interner::new()).expect("short source");
+    let mut lexer = Lexer::new(&source[..], LexerOptions::script(), Interner::new());
     assert_eq!(
         lexer.next_token(Goal::Div).map(|t| t.kind),
         Ok(K::Identifier)
@@ -992,8 +998,7 @@ fn every_prefix_and_suffix_lexes_without_panic() {
     ] {
         for cut in 0..wide.len() {
             for part in [&wide[..cut], &wide[cut..]] {
-                let mut lexer = Lexer::new(part, LexerOptions::script(), Interner::new())
-                    .expect("short source");
+                let mut lexer = Lexer::new(part, LexerOptions::script(), Interner::new());
                 for _ in 0..=part.len() {
                     match lexer.next_token(goal) {
                         Ok(token) if token.kind != K::Eof => {
@@ -1014,8 +1019,7 @@ const TEN_MB: usize = 10 * 1024 * 1024;
 #[test]
 fn hostile_ten_megabyte_line() {
     let source = "a+".repeat(TEN_MB / 2);
-    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new())
-        .expect("below the length limit");
+    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new());
     let mut count = 0;
     while lexer.next_token(Goal::Div).is_ok_and(|t| t.kind != K::Eof) {
         count += 1;
@@ -1035,13 +1039,13 @@ fn hostile_ten_megabyte_tokens() {
     ] {
         let source = format!("{prefix}{}{suffix}", body.repeat(TEN_MB));
         let token = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new())
-            .and_then(|mut lexer| lexer.next_token(Goal::RegExp))
+            .next_token(Goal::RegExp)
             .expect("one long token");
         assert_eq!((token.kind, token.end as usize), (kind, source.len()));
     }
     let digits = "9".repeat(TEN_MB);
     let token = Lexer::new(digits.as_bytes(), LexerOptions::script(), Interner::new())
-        .and_then(|mut lexer| lexer.next_token(Goal::Div))
+        .next_token(Goal::Div)
         .expect("a long number");
     assert_eq!(token.value, TokenValue::Number(f64::INFINITY));
 }
@@ -1050,8 +1054,7 @@ fn hostile_ten_megabyte_tokens() {
 fn hostile_nested_template_substitutions() {
     const DEPTH: usize = 100_000;
     let source = format!("{}x{}", "`${".repeat(DEPTH), "}`".repeat(DEPTH));
-    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new())
-        .expect("below the length limit");
+    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new());
     // The parser's part: after `x`, each `}` continues a template.
     let (mut heads, mut tails, mut closing) = (0, 0, false);
     loop {
@@ -1076,13 +1079,12 @@ fn hostile_nested_template_substitutions() {
 fn hostile_unterminated_comments() {
     let source = "/* ".repeat(TEN_MB / 3);
     let error = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new())
-        .and_then(|mut lexer| lexer.next_token(Goal::RegExp))
+        .next_token(Goal::RegExp)
         .expect_err("an unterminated comment");
     assert_eq!(error.offset, 0);
     // `/*/` ends a comment: a run of `/*` is comments and `*` punctuators.
     let source = "/*".repeat(TEN_MB / 2);
-    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new())
-        .expect("below the length limit");
+    let mut lexer = Lexer::new(source.as_bytes(), LexerOptions::script(), Interner::new());
     let mut stars = 0;
     while lexer.next_token(Goal::Div).is_ok_and(|t| t.kind == K::Star) {
         stars += 1;

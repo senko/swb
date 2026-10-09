@@ -109,6 +109,7 @@ pub mod names {
         SET = "set",
         TARGET = "target",
         USE_STRICT = "use strict",
+        PROTO = "__proto__",
     }
 
     /// The number of reserved words; their ids are `0..RESERVED_WORDS`.

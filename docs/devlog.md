@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 2, parser and scope analysis (`js-spike`)
+
+- `js-syntax`: an AST arena (`Expr` at most 24 bytes, `Stmt` 32; node
+  types for the whole grammar), a recursive-descent parser for the
+  subset of roadmap step 3.2 with re-scanning for `/` and template `}`,
+  arrow parameters converted from the parenthesized expression, early
+  errors with V8's messages (about 400 cases measured in Node), and
+  "not supported yet" outside the subset. The scope analysis runs over
+  tables after the parse, without recursion: registers, cells, globals
+  by name, captures through each function in between (flat closures),
+  temporal-dead-zone flags, per-iteration `let` cells, `arguments` and
+  arrow `this`. `js-text` got the shared recursion budget (approximate
+  stack bytes, 4 MiB by default, weights measured in a debug build).
+- 72 MB/s for parse and analysis of a 5 MB generated program, about 31
+  bytes per token. 3 of 60 BBC scripts are inside the subset; the rest
+  stop at `for`-`in`, destructuring, spread and other M7 constructs.
+- Review: mapped `arguments` did not make parameters cells; `var`
+  declarations were quadratic in the block depth (14 s for a 206 KB
+  hostile script); flat-closure captures could amplify memory (523 MB
+  from 510 KB); resolution was O(depth) per reference. Fixed: cells for
+  mapped parameters, constant-time `var` checks, limits on captures, a
+  resolution cache, an explicit `needs_tdz` flag, a register reserve for
+  temporaries, three messages. Annex B.3.3 (functions declared in blocks
+  in sloppy mode) is missing; it is in M7 feature 1. Right-nested `?:`
+  chains stop at about 1,360 terms (backlog in the roadmap).
+- Next: spike session 3, the heap, values, strings, objects and GC.
+
 ## 2026-10-09: M6 spike session 1, crates and lexer (branch `js-spike`)
 
 - The four crates of ADR 0026. `js-text`: code units of both widths

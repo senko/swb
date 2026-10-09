@@ -12,7 +12,9 @@ const INVALID_UNICODE_ESCAPE: &str = "Invalid Unicode escape sequence";
 const UNDEFINED_CODE_POINT: &str = "Undefined Unicode code-point";
 const OCTAL_IN_TEMPLATE: &str = "Octal escape sequences are not allowed in template strings.";
 const EIGHT_NINE_IN_TEMPLATE: &str = "\\8 and \\9 are not allowed in template strings.";
-const UNTERMINATED_TEMPLATE: &str = "Unterminated template literal";
+/// V8 reports a template without its end as "Unexpected end of input"
+/// (Node.js 22).
+const UNTERMINATED_TEMPLATE: &str = "Unexpected end of input";
 
 const BACKSLASH: u16 = ascii(b'\\');
 const BACKTICK: u16 = ascii(b'`');
@@ -132,7 +134,12 @@ impl<U: CodeUnit> Lexer<'_, U> {
                     }
                     if let Err(error) = self.scan_escape(&mut cooked, true) {
                         if self.pos >= self.source.len() {
-                            return Err(error_at(start, UNTERMINATED_TEMPLATE));
+                            // An escape that the source ends in reports
+                            // its own error, except a lone backslash.
+                            if escape + 1 >= self.source.len() {
+                                return Err(error_at(start, UNTERMINATED_TEMPLATE));
+                            }
+                            return Err(error);
                         }
                         // A NotEscapeSequence: the scan continues after
                         // the escape character; the following units are

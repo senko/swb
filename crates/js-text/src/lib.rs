@@ -6,11 +6,14 @@
 //! This crate has the borrowed view ([`Str16`]) and the owned form
 //! ([`String16`]) of such text, the [`CodeUnit`] trait that the lexer and
 //! the regular expression matcher are generic over, and the Unicode data
-//! that the lexer needs ([`unicode`]).
+//! that the lexer needs ([`unicode`]). It also has the engine's shared
+//! [`RecursionBudget`], because every engine crate depends on this one.
 
+mod budget;
 mod string16;
 pub mod unicode;
 
+pub use budget::{BudgetExhausted, RecursionBudget};
 pub use string16::{
     CodePoints, CodeUnit, Str16, String16, Units, combine_surrogates, is_lead_surrogate,
     is_trail_surrogate,

@@ -50,7 +50,13 @@ Format: source, license (for code), what it influenced.
   B.1 (HTML-like comments, legacy octal literals and escapes) —
   `js-syntax/src/lexer/`; §13.2.7.2 and §22.2.6.4 (regular expression
   flags) — `js-regexp`; §6.1.4 and §11.1 (code units and code points) —
-  `js-text/src/string16.rs`. The Unicode Character Database 17.0
+  `js-text/src/string16.rs`; clauses 13 to 16 (expressions, statements,
+  functions, scripts and their early errors), §9.1 and §10.2.11
+  (environments, FunctionDeclarationInstantiation), §14.7.4.4
+  (per-iteration bindings) and Annex B.3.1 to B.3.4 —
+  `js-syntax/src/parser/`, `js-syntax/src/scope/`. V8's error messages,
+  measured as a black box in Node.js 22 — `js-syntax/src/messages.rs`.
+  The Unicode Character Database 17.0
   (`DerivedCoreProperties.txt`: ID_Start, ID_Continue;
   `DerivedGeneralCategory.txt`: Zs) — `js-text/src/unicode/tables.rs`
   (`swbtools js-unicode-tables`).

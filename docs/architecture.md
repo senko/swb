@@ -44,9 +44,9 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011), inline SVG drawing commands, hit testing of SVG shapes, group bounds, image reduction, and the cost model of path rasterization (`path_cost`). | `dom`, `layout`, `style`, `text` |
 | `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
-| `js-text`    | JavaScript text: code units of both widths (`Str16`, `String16`), code points, UTF-8 conversion, the Unicode character classes of the lexer (generated tables). ADR 0026. | — |
+| `js-text`    | JavaScript text: code units of both widths (`Str16`, `String16`), code points, UTF-8 conversion, the Unicode character classes of the lexer (generated tables); the engine's shared recursion budget (`RecursionBudget`, here because all JavaScript crates use it). ADR 0026. | — |
 | `js-regexp`  | Regular expressions. In the spike only the flag check; later the pattern parser, compiler and matcher. | `js-text` |
-| `js-syntax`  | JavaScript front end: lexer (on demand, by goal symbol), name interner; later the parser, AST, early errors and scope analysis. | `js-text`, `js-regexp` |
+| `js-syntax`  | JavaScript front end: lexer (on demand, by goal symbol), name interner, parser (recursive descent, precedence climbing) with the early errors, the AST in an arena per script, and the scope analysis (registers, cells, globals by name, temporal-dead-zone checks, captures). In the spike a subset of ES2025; other constructs give "not supported yet". | `js-text`, `js-regexp` |
 | `js`         | JavaScript engine (a skeleton in the spike): later the compiler, interpreter, heap, built-in objects and embedding API. | `js-text`, `js-syntax`, `js-regexp` |
 | `swb`        | The binary: CLI, window, browser UI, clipboard, headless runner, benchmark.    | `engine`, `automation`, `net`, `paint`; `dom`, `layout`, `style`, `text` for the toolbar and debugging dumps |
 

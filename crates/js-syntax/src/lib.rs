@@ -1,17 +1,38 @@
-//! The JavaScript front end of swb (ADR 0026 section 3): the lexer, and
-//! later the parser, the abstract syntax tree, the early errors and the
-//! scope analysis.
+//! The JavaScript front end of swb (ADR 0026 section 3): the lexer, the
+//! parser with the early errors, the abstract syntax tree and the scope
+//! analysis.
 //!
-//! The parser drives the [`Lexer`]: it asks for one [`Token`] at a time
-//! with the [`Goal`] symbol of its context. Identifier names go into an
-//! [`Interner`] that the lexer and the parser share.
+//! [`parse_script`] parses a classic script into a [`Script`]: the tree
+//! ([`Ast`]), the scopes with the results of the scope analysis
+//! ([`ScopeTree`]) and the names ([`Interner`]). The parser drives the
+//! [`Lexer`]: it asks for one [`Token`] at a time with the [`Goal`]
+//! symbol of its context.
 
+mod ast;
+pub mod dump;
 mod error;
 mod interner;
 mod lexer;
+mod lines;
+mod messages;
+mod parser;
+mod scope;
 mod token;
 
-pub use error::SyntaxError;
+pub use ast::{
+    AssignOp, AssignTarget, Ast, BinaryOp, BindingId, CatchClause, Declarator, Expr, ExprId,
+    ExprKind, Function, FunctionId, FunctionKind, Ident, List, LogicalOp, Pattern, PatternId,
+    PatternKind, Property, PropertyKey, PropertyKind, RefId, ScopeId, Span, Stmt, StmtId, StmtKind,
+    StringId, Template, TemplateElement, TemplateId, UnaryOp, UpdateOp, VariableKind,
+};
+pub use error::{ErrorKind, ParseError, SyntaxError};
 pub use interner::{Interner, NameId, names};
 pub use lexer::{Checkpoint, Lexer, LexerOptions, MAX_SOURCE_LEN};
-pub use token::{Goal, Legacy, Template, Token, TokenKind, TokenValue};
+pub use lines::{LineIndex, Location};
+pub use parser::{Script, check_source_len, parse_script};
+pub use scope::{
+    Binding, BindingKind, Capture, CaptureSource, FunctionScope, Reference, Resolution, Scope,
+    ScopeKind, ScopeTree, Storage,
+};
+pub use swb_js_text::RecursionBudget;
+pub use token::{Goal, Legacy, Template as TemplateToken, Token, TokenKind, TokenValue};

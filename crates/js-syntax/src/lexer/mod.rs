@@ -138,17 +138,13 @@ pub struct Lexer<'a, U: CodeUnit> {
 }
 
 impl<'a, U: CodeUnit> Lexer<'a, U> {
-    /// A lexer at the start of `source`. Fails if the source is longer
-    /// than [`MAX_SOURCE_LEN`].
-    pub fn new(
-        source: &'a [U],
-        options: LexerOptions,
-        interner: Interner,
-    ) -> Result<Self, SyntaxError> {
-        if source.len() > MAX_SOURCE_LEN {
-            return Err(SyntaxError::new(0, "Script is too large"));
-        }
-        Ok(Lexer {
+    /// A lexer at the start of `source`. The caller checks the length
+    /// first ([`crate::check_source_len`]); the lexer sees at most
+    /// [`MAX_SOURCE_LEN`] code units of a longer source, so that offsets
+    /// fit in `u32`.
+    pub fn new(source: &'a [U], options: LexerOptions, interner: Interner) -> Self {
+        let source = source.get(..MAX_SOURCE_LEN).unwrap_or(source);
+        Lexer {
             source,
             pos: 0,
             newline_before: false,
@@ -156,7 +152,7 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
             interner,
             name_buf: Vec::new(),
             digits: String::new(),
-        })
+        }
     }
 
     /// The source.
