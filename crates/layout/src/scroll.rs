@@ -560,7 +560,8 @@ fn add_box(
         extent.add(box_overflow_rect(b, limit).translate(origin));
     }
     let style = &b.style;
-    if style.overflow_x.clips() && style.overflow_y.clips() {
+    // Hidden contents (paint containment) are clipped.
+    if style.contents_hidden || style.overflow_x.clips() && style.overflow_y.clips() {
         return;
     }
     let mut inner = Extent::NONE;

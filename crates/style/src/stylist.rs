@@ -178,6 +178,8 @@ pub struct Stylist {
     after_rules: RuleMap,
     marker_rules: RuleMap,
     placeholder_rules: RuleMap,
+    /// No rules: the pseudo-elements of `details` have no rules.
+    no_rules: RuleMap,
     /// All media query lists that rules depend on.
     media_lists: Vec<MediaQueryList>,
     /// Chains of media query lists (nested `@media`); each rule refers to
@@ -212,6 +214,7 @@ impl Stylist {
             after_rules: RuleMap::default(),
             marker_rules: RuleMap::default(),
             placeholder_rules: RuleMap::default(),
+            no_rules: RuleMap::default(),
             media_lists: Vec::new(),
             media_chains: Vec::new(),
             next_order: 0,
@@ -394,6 +397,9 @@ impl Stylist {
             RuleTarget::Pseudo(PseudoKind::After) => &self.after_rules,
             RuleTarget::Pseudo(PseudoKind::Marker) => &self.marker_rules,
             RuleTarget::Pseudo(PseudoKind::Placeholder) => &self.placeholder_rules,
+            RuleTarget::Pseudo(PseudoKind::DetailsSummary | PseudoKind::DetailsContent) => {
+                &self.no_rules
+            }
         }
     }
 

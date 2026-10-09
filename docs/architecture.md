@@ -245,6 +245,22 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   formatting context is finished, because spaces collapse across inline
   box boundaries. Generated text (`content`, list markers) is limited to
   1 MiB per box tree (`MAX_GENERATED_TEXT`, ADR 0007).
+- `details` (HTML §15.5.5): style computation gives every `details` a
+  `::details-content` pseudo-element style (`PseudoKind::DetailsContent`)
+  and, without a `summary` child, a default summary style
+  (`DetailsSummary`: a list item with the text "Details"). Box
+  construction puts all children except the first `summary` into the
+  `::details-content` box. While `details` is closed, its style has
+  `contents_hidden` (Chromium's `content-visibility: hidden` on that box):
+  the box is a block formatting context and the containing block of
+  absolutely positioned boxes, has no height, intrinsic size or baseline,
+  and does not add to scrollable overflow. After layout, `hide_contents`
+  moves its children to `BoxFragment::hidden`: paint, hit testing, the
+  selection and scrolling see only `children`, while the box dump
+  (`FragmentTree::element_boxes`) also walks `hidden`. The engine toggles
+  the `open` attribute on a click on the summary or Enter/Space on it
+  (`page/forms.rs`), restyles, and skips elements in closed contents in
+  the focus order (`Document::in_closed_details_content`).
 - Flex layout (`flex.rs`) follows CSS Flexbox 1 §9: lines, flexible
   lengths, cross sizes, `align-content`, first baselines and automatic
   minimum sizes. Item layouts are cached in `LayoutContext::layouts`.

@@ -24,6 +24,16 @@ pub enum PseudoKind {
     /// `placeholder` attribute). Layout uses its style for the placeholder
     /// text.
     Placeholder,
+    /// The default summary of a `details` element without a `summary`
+    /// child (a list item with the text "Details" and a disclosure
+    /// marker). The marker has the `Marker` style of the `details`
+    /// element and its list item ordinal is 0.
+    DetailsSummary,
+    /// `::details-content`: the box around the children of a `details`
+    /// element other than its summary. Layout builds it for every
+    /// `details` that has such children. Page style sheets cannot style
+    /// it.
+    DetailsContent,
 }
 
 /// Computed styles for the elements of a document.
@@ -147,6 +157,14 @@ impl StyleMap {
         kind: PseudoKind,
     ) -> Option<&mut Arc<ComputedStyle>> {
         self.pseudos.get_mut(&(id, kind))
+    }
+
+    /// True if a `details` element is closed and has a `::details-content`
+    /// box with hidden contents.
+    pub fn has_hidden_contents(&self) -> bool {
+        self.pseudos
+            .iter()
+            .any(|((_, kind), style)| *kind == PseudoKind::DetailsContent && style.contents_hidden)
     }
 
     /// The ordinal value of list item `id` (an element with

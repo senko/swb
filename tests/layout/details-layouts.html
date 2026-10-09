@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- details with other display values: the ::details-content box is a flex
+     or grid item (zero size while closed), and a closed details in a
+     scroll container does not extend its scrollable overflow. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>details: display and overflow</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  details { margin-bottom: 10px; }
+  summary { display: block; }
+  .flex { display: flex; }
+  .col { display: flex; flex-direction: column; }
+  .grid { display: grid; }
+  .fixed { height: 100px; }
+  #w { width: 200px; height: 100px; overflow: auto; }
+  p { margin: 16px 0; }
+</style>
+</head>
+<body>
+  <details class="flex" id="f1"><summary id="s1">Sum</summary><p id="p1">x</p></details>
+  <details class="flex" id="f2" open><summary id="s2">Sum</summary><p id="p2">x</p><p id="p3">y</p></details>
+  <details class="col" id="c1"><summary id="s3">Sum</summary><p id="p4">x</p></details>
+  <details class="grid" id="g1"><summary id="s4">Sum</summary><p id="p5">x</p></details>
+  <details class="fixed" id="h1"><summary id="s5">Sum</summary><p id="p6">x</p></details>
+  <details id="pc" style="width: 400px"><summary id="s6">Sum</summary><div id="p7" style="width: 50%; height: 30px; margin-left: auto">x</div><div id="q1" style="padding-top: 10%">q</div></details>
+  <div>before</div>
+  <details id="bb" style="border: 3px solid; padding: 4px"><summary id="s7">Sum</summary><div id="p8" style="height: 30px; background: red">x</div></details>
+  <div id="w" data-scroll="0 9999"><details id="d1"><summary id="s8">Sum</summary><div id="big" style="height: 1000px">x</div></details><div id="below">below</div></div>
+</body>
+</html>

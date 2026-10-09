@@ -59,7 +59,8 @@ use crate::properties::{
 use crate::style_map::{PseudoKind, StyleMap};
 use crate::stylist::{CascadeOrigin, RuleTarget, Stylist};
 use crate::values::{
-    Content, Display, Float, FontSizeOrigin, LengthContext, Overflow, TextAlign, UserSelect,
+    Content, ContentItem, Display, Float, FontSizeOrigin, LengthContext, ListStylePosition,
+    ListStyleType, Overflow, TextAlign, UserSelect,
 };
 
 /// The ratio of the default fixed (monospace) font size to the default
@@ -325,6 +326,12 @@ impl Styler<'_> {
         if has_placeholder(data) {
             kinds.push(PseudoKind::Placeholder);
         }
+        let details = data.is_html_named(&swb_dom::local_name!("details"));
+        let default_summary = details && self.doc.details_summary(el.node_id()).is_none();
+        if default_summary {
+            // The marker of the default summary.
+            kinds.push(PseudoKind::Marker);
+        }
         for kind in kinds {
             let mut matched = std::mem::take(&mut self.matched);
             matched.clear();
@@ -364,6 +371,42 @@ impl Styler<'_> {
             }
             self.matched = matched;
         }
+        if details {
+            Self::style_details_pseudos(el, style, default_summary, map);
+        }
+    }
+
+    /// Styles the pseudo-elements of a `details` element: the default
+    /// summary (if `default_summary`) and `::details-content`. They have
+    /// no rules; their styles are set here.
+    /// <https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements>
+    fn style_details_pseudos(
+        el: &DomElement<'_>,
+        style: &Arc<ComputedStyle>,
+        default_summary: bool,
+        map: &mut StyleMap,
+    ) {
+        let data = el.data();
+        let node = el.node_id();
+        let open = data.has_attr("open");
+        if default_summary {
+            let mut summary = ComputedStyle::anonymous_from(style);
+            summary.display = Display::ListItem;
+            summary.list_style_type = if open {
+                ListStyleType::DisclosureOpen
+            } else {
+                ListStyleType::DisclosureClosed
+            };
+            summary.list_style_position = ListStylePosition::Inside;
+            // The label is English, as Chromium's with the default locale.
+            summary.content = Content::Items(Arc::from([ContentItem::String("Details".into())]));
+            map.set_pseudo(node, PseudoKind::DetailsSummary, Arc::new(summary));
+            map.set_list_item_ordinal(node, 0);
+        }
+        let mut content = ComputedStyle::anonymous_from(style);
+        content.display = Display::Block;
+        content.contents_hidden = !open;
+        map.set_pseudo(node, PseudoKind::DetailsContent, Arc::new(content));
     }
 }
 
@@ -1146,6 +1189,46 @@ mod tests {
     }
 
     #[test]
+    fn details_pseudo_elements() {
+        let (doc, map) = render(
+            "<details id=closed><summary id=s>s</summary><p id=p>x</p></details>\
+             <details id=open open><summary>s</summary></details>\
+             <details id=nosum><p>x</p></details>",
+            "",
+        );
+        let content = |id: &str| map.pseudo(node(&doc, id), PseudoKind::DetailsContent);
+        assert!(
+            content("closed")
+                .expect("::details-content")
+                .contents_hidden
+        );
+        assert!(!content("open").expect("::details-content").contents_hidden);
+        assert_eq!(content("closed").map(|s| s.display), Some(Display::Block));
+        assert!(map.has_hidden_contents());
+        // The children keep their styles (they are laid out).
+        assert_eq!(get(&doc, &map, "p").display, Display::Block);
+        // Only a `details` without a summary has the default summary and
+        // its marker.
+        let summary = |id: &str| map.pseudo(node(&doc, id), PseudoKind::DetailsSummary);
+        assert!(summary("closed").is_none() && summary("open").is_none());
+        let default = summary("nosum").expect("default summary");
+        assert_eq!(default.display, Display::ListItem);
+        assert_eq!(default.list_style_type, ListStyleType::DisclosureClosed);
+        assert_eq!(default.list_style_position, ListStylePosition::Inside);
+        assert_eq!(
+            map.list_marker_text(node(&doc, "nosum"), default),
+            Some("\u{25B8} ".to_owned())
+        );
+        let (doc, map) = render("<details id=d open><p>x</p></details>", "");
+        assert_eq!(
+            map.pseudo(node(&doc, "d"), PseudoKind::DetailsSummary)
+                .map(|s| s.list_style_type),
+            Some(ListStyleType::DisclosureOpen)
+        );
+        assert!(!map.has_hidden_contents());
+    }
+
+    #[test]
     fn user_agent_defaults() {
         let (doc, map) = render(
             "<body id=body><h1 id=h1>t</h1><p id=p>x</p><ul id=ul><li><ul id=ul2></ul></li></ul>\
@@ -1220,7 +1303,8 @@ mod tests {
             get(&doc, &map, "sum").list_style_type,
             ListStyleType::DisclosureClosed
         );
-        assert_eq!(get(&doc, &map, "hidden").display, Display::None);
+        // The children of `details` are laid out; the content box hides them.
+        assert_eq!(get(&doc, &map, "hidden").display, Display::Block);
         let hr = get(&doc, &map, "hr");
         assert_eq!(hr.border_widths(), [1.0; 4]);
         assert_eq!(hr.margin_left, LengthPercentageOrAuto::Auto);

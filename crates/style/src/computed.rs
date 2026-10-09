@@ -238,6 +238,13 @@ pub struct ComputedStyle {
     pub object_position: [PositionComponent; 2],
     pub user_select: UserSelect,
     pub unicode_bidi: UnicodeBidi,
+    /// True for the `::details-content` box of a closed `details`. Not a
+    /// CSS property: it stands for Chromium's `content-visibility: hidden`
+    /// on that box. The box has size, layout, paint and style
+    /// containment, and its contents are laid out but not rendered (not
+    /// painted, hit tested or selected, and not part of the scrollable
+    /// overflow of the boxes around).
+    pub contents_hidden: bool,
 }
 
 static INITIAL: LazyLock<Arc<ComputedStyle>> =
@@ -421,6 +428,7 @@ impl ComputedStyle {
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,
             unicode_bidi: UnicodeBidi::Normal,
+            contents_hidden: false,
         }
     }
 

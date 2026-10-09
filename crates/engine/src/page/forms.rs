@@ -5,7 +5,8 @@
 use std::sync::Arc;
 
 use swb_dom::{NodeId, local_name};
-use swb_layout::Point;
+use swb_layout::{FragmentRef, Point};
+use swb_style::PseudoKind;
 use swb_style::is_actually_disabled;
 
 use super::{HistoryHandling, Page};
@@ -211,14 +212,17 @@ impl Page {
         true
     }
 
-    /// The element whose activation behavior a click on `node` runs: the
-    /// nearest inclusive ancestor that is a link, a button, a checkbox, a
-    /// radio button or a label. A label does not count if the click is on
+    /// The element whose activation behavior a click on `node` (at
+    /// `point`, in viewport coordinates) runs: the nearest inclusive
+    /// ancestor that is a link, a button, a checkbox, a radio button, a
+    /// label, or the summary of a `details` element (also its default
+    /// summary, which has no element: the target is then the `details`
+    /// element). A label or summary does not count if the click is on
     /// other interactive content inside it (a text field, a select): as in
     /// Chromium's `HTMLLabelElement`, the label then does nothing. A
     /// disabled control gets no click events, so nothing above it
     /// activates (as in Chromium).
-    pub(super) fn activation_target(&self, node: NodeId) -> Option<NodeId> {
+    pub(super) fn activation_target(&self, node: NodeId, point: Point) -> Option<NodeId> {
         let doc = self.document.as_ref()?;
         let mut in_interactive = false;
         for n in std::iter::once(node).chain(doc.ancestors(node)) {
@@ -228,6 +232,16 @@ impl Page {
             match &**e.local_name() {
                 "a" | "area" if e.has_attr("href") => return Some(n),
                 "label" if !in_interactive => return Some(n),
+                "summary" if !in_interactive && doc.details_of_summary(n).is_some() => {
+                    return Some(n);
+                }
+                "details"
+                    if !in_interactive
+                        && doc.details_summary(n).is_none()
+                        && self.in_default_summary(n, point) =>
+                {
+                    return Some(n);
+                }
                 _ => {}
             }
             match self.forms.control_type(n) {
@@ -254,6 +268,14 @@ impl Page {
         let Some(e) = doc.element(target) else {
             return false;
         };
+        if e.is_html_named(&local_name!("summary")) {
+            return doc
+                .details_of_summary(target)
+                .is_some_and(|details| self.toggle_details(details));
+        }
+        if e.is_html_named(&local_name!("details")) {
+            return self.toggle_details(target);
+        }
         if e.is_html_named(&local_name!("label")) {
             if let Some(control) = labeled_control(doc, target) {
                 return self.activate_label(control);
@@ -273,6 +295,60 @@ impl Page {
             }
         }
         self.follow_link_around(target)
+    }
+
+    /// True if `point` (viewport coordinates) is in the default summary of
+    /// `details`, which has no summary element.
+    fn in_default_summary(&self, details: NodeId, point: Point) -> bool {
+        let Some(tree) = &self.fragments else {
+            return false;
+        };
+        let point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
+        let mut inside = false;
+        tree.walk_painted(
+            self.scrollers.offsets(),
+            self.scroll,
+            |fragment, rect, matrix| {
+                if let FragmentRef::Box(b) = fragment
+                    && b.node == Some(details)
+                    && b.pseudo == Some(PseudoKind::DetailsSummary)
+                {
+                    inside |= matrix.map_rect(&rect).contains(point);
+                }
+            },
+        );
+        inside
+    }
+
+    /// Toggles the `open` attribute of `details` and lays out the page
+    /// again (the activation behavior of its summary). The focus leaves
+    /// content that is no longer rendered. Returns true.
+    /// <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-summary-element>
+    pub(super) fn toggle_details(&mut self, details: NodeId) -> bool {
+        let Some(doc) = self.document.as_mut() else {
+            return false;
+        };
+        let Some(element) = doc.element_mut(details) else {
+            return false;
+        };
+        if !element.remove_attr("open") {
+            element.set_attr("open", "");
+        }
+        self.styles = None;
+        self.invalidate_layout();
+        if let (Some(doc), Some(focus)) = (&self.document, self.input.states.focus)
+            && doc.in_closed_details_content(focus)
+        {
+            self.update_states(|s| s.focus = None);
+        }
+        // A selection that starts or ends in the hidden content goes away.
+        if let (Some(doc), Some(selection)) = (&self.document, self.input.selection)
+            && (doc.in_closed_details_content(selection.anchor.node)
+                || doc.in_closed_details_content(selection.focus.node))
+        {
+            self.clear_selection();
+        }
+        true
     }
 
     /// Follows the nearest link that contains `node` (or is `node`).

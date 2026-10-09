@@ -199,14 +199,19 @@ pub fn has_transform(fragment: &BoxFragment) -> bool {
 }
 
 /// True if the box is the containing block of its absolutely positioned
-/// descendants: positioned (CSS 2.2 §10.1) or transformed (CSS
-/// Transforms 1 §1).
+/// descendants: positioned (CSS 2.2 §10.1), transformed (CSS Transforms 1
+/// §1), or with layout containment (hidden contents, CSS Containment 2
+/// §3.2).
 pub fn is_absolute_containing_block(fragment: &BoxFragment) -> bool {
-    fragment.style.position != Position::Static || has_transform(fragment)
+    fragment.style.position != Position::Static
+        || has_transform(fragment)
+        || fragment.style.contents_hidden
 }
 
 /// True if the box is the containing block of its fixed descendants
-/// instead of the viewport: transformed.
+/// instead of the viewport: transformed. Deviation: layout containment
+/// (hidden contents) does not count, so a fixed box in the hidden
+/// contents of a closed `details` is relative to the viewport.
 pub fn is_fixed_containing_block(fragment: &BoxFragment) -> bool {
     has_transform(fragment)
 }

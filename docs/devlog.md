@@ -4,6 +4,24 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: `details` and `summary` (M5 item 2)
+
+- The content of a closed `details` is laid out in a `::details-content`
+  box with size, layout and paint containment, as Chromium's
+  `content-visibility: hidden`. After layout the boxes move to
+  `BoxFragment::hidden`: the box dump reports them, paint, hit testing,
+  selection, Tab and scrolling do not see them.
+- A click, Enter or Space on the first `summary` toggles `open` (not a
+  click on a link or field in it). A `details` without `summary` gets the
+  default summary ("Details").
+- Measured: inside disclosure markers are 1.0592 em wide and keep the
+  line height.
+- Review: no blocking bugs; closing a `details` now also removes a
+  selection in its content. The other findings went to the backlog.
+- BBC geometry 0.8786 → 0.9660, no missing boxes; the open menu matches
+  Chromium. Other fixtures unchanged.
+- Next: M5 item 3, grid buttons and `scrollbar-width`.
+
 ## 2026-10-09: M5 plan, full-page and state comparison (M5 item 1)
 
 - The owner accepted target 4 (Ars Technica).

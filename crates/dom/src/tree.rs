@@ -430,6 +430,48 @@ impl Document {
         self.element(id).is_some_and(|e| e.is_html_named(local))
     }
 
+    /// The summary of `details`: its first `summary` child element. `None`
+    /// if `details` is not an HTML `details` element or has no summary
+    /// (it then shows a default one).
+    /// <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element>
+    pub fn details_summary(&self, details: NodeId) -> Option<NodeId> {
+        if !self.is_html_element(details, &local_name!("details")) {
+            return None;
+        }
+        self.element_children(details)
+            .find(|&c| self.is_html_element(c, &local_name!("summary")))
+    }
+
+    /// The `details` element of which `summary` is the summary: its
+    /// parent, if `summary` is the first `summary` child of an HTML
+    /// `details` element.
+    pub fn details_of_summary(&self, summary: NodeId) -> Option<NodeId> {
+        let parent = self.parent(summary)?;
+        (self.details_summary(parent) == Some(summary)).then_some(parent)
+    }
+
+    /// True if `node` is in the content of a closed `details` element: a
+    /// descendant of a `details` without the `open` attribute that is
+    /// not (in) its summary. The content of a closed `details` is laid
+    /// out but not rendered.
+    pub fn in_closed_details_content(&self, node: NodeId) -> bool {
+        let mut child = node;
+        while let Some(parent) = self.parent(child) {
+            if let Some(details) = self.element(parent)
+                && details.is_html_named(&local_name!("details"))
+                && !details.has_attr("open")
+                // Only a `summary` can be the summary (the check avoids
+                // a search among the children of `details` otherwise).
+                && !(self.is_html_element(child, &local_name!("summary"))
+                    && self.details_summary(parent) == Some(child))
+            {
+                return true;
+            }
+            child = parent;
+        }
+        false
+    }
+
     /// The concatenated text of all descendant text nodes.
     pub fn text_content(&self, id: NodeId) -> String {
         let mut out = String::new();
@@ -642,6 +684,28 @@ mod tests {
 
     fn html(local: &str) -> QualName {
         QualName::new(None, ns!(html), LocalName::from(local))
+    }
+
+    #[test]
+    fn details_summaries() {
+        let doc = crate::parse_html(
+            "<details id=a><p id=p>x</p><summary id=s1>1</summary><summary id=s2>2</summary>\
+             <div id=d><span id=inner></span></div></details>\
+             <details id=b open><summary id=s3>3</summary><i id=i>x</i></details>\
+             <summary id=lone>x</summary>",
+        );
+        let id = |name: &str| doc.element_by_id(name).expect("element");
+        assert_eq!(doc.details_summary(id("a")), Some(id("s1")));
+        assert_eq!(doc.details_summary(id("p")), None);
+        assert_eq!(doc.details_of_summary(id("s1")), Some(id("a")));
+        assert_eq!(doc.details_of_summary(id("s2")), None);
+        assert_eq!(doc.details_of_summary(id("lone")), None);
+        let hidden = |name: &str| doc.in_closed_details_content(id(name));
+        // The summaries other than the first and all other children are in
+        // the content; the first summary is not.
+        assert!(hidden("p") && hidden("s2") && hidden("inner") && hidden("d"));
+        assert!(!hidden("s1") && !hidden("a") && !hidden("lone"));
+        assert!(!hidden("s3") && !hidden("i"));
     }
 
     #[test]

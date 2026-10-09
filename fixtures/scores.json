@@ -6,10 +6,10 @@
     "size": 1.0
   },
   "bbc": {
-    "geometry": 0.8786,
+    "geometry": 0.966,
     "pixels": 0.9985,
-    "relative": 0.89,
-    "size": 0.8954
+    "relative": 0.9774,
+    "size": 0.9828
   },
   "hacker-news": {
     "geometry": 1.0,

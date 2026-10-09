@@ -1326,6 +1326,7 @@ pub(crate) fn finish_fragment(
         scrollable_overflow: None,
         in_positioned_inline: false,
         hanging_from: None,
+        hidden: None,
     }
 }
 
@@ -1425,11 +1426,23 @@ pub(crate) fn layout_sized(
     let mut children = layout_contents(ctx, ib, child_cb, limits, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let inflow = children.inflow;
-    let mut content = specified_height.unwrap_or(children.content_height);
+    // Size containment: hidden contents have no height of their own.
+    let natural_height = if style.contents_hidden {
+        0.0
+    } else {
+        children.content_height
+    };
+    let mut content = specified_height.unwrap_or(natural_height);
     if ratio_height.is_some() && crate::aspect::grows_to_content(style) {
         content = content.max(children.content_height);
     }
     let height = limits.clamp(content);
+    // Hidden contents have no baseline (size containment).
+    let baselines = if style.contents_hidden {
+        Baselines::default()
+    } else {
+        children.baselines.offset(edge_sum.top)
+    };
     let mut fragment = finish_fragment(
         base,
         Rect::new(
@@ -1440,7 +1453,7 @@ pub(crate) fn layout_sized(
         ),
         &edges,
         children.fragments,
-        children.baselines.offset(edge_sum.top),
+        baselines,
     );
     if let IndependentContents::Replaced(r) = &ib.contents {
         fragment.content = match (r.media, &r.svg) {

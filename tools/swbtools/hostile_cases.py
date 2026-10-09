@@ -1576,3 +1576,27 @@ def rounded_cards() -> Page:
     css = ".c{width:300px;height:300px;overflow:hidden;border-radius:12px;display:inline-block}"
     card = nest("<div class=c>", "</div>", 3, "<div style='height:300px;background:#f00'>x</div>")
     return Page(doc(card * 2_000, css))
+
+
+@case(
+    "400 nested open details elements: each adds the box of its ::details-content to the box "
+    "depth limit (ADR 0015)",
+    expect_log="boxes nested deeper",
+)
+def details_nested_open() -> Page:
+    return Page(doc(nest("<details open><summary>s</summary>", "</details>", 400, "text")))
+
+
+@case("400 nested closed details elements (laid out, hidden contents inside hidden contents)")
+def details_nested_closed() -> Page:
+    return Page(doc(nest("<details><summary>s</summary>", "</details>", 400, "text")))
+
+
+@case(
+    "20 closed details elements with 1,500 list items and links each, and a nested closed "
+    "details in each item (60,000 laid out boxes that are not drawn)"
+)
+def details_much_hidden_content() -> Page:
+    item = "<li><a href='#x'>link text that is a little longer</a>"
+    items = (item + "<details><summary>n</summary>sub</details></li>") * 1_500
+    return Page(doc(f"<details><summary>menu</summary><ul>{items}</ul></details>" * 20))

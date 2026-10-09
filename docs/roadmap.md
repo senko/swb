@@ -352,7 +352,16 @@ Features, in this order. Each one ends with a review and a commit.
    and open (`compare --click`). Hostile-page cases: deeply nested
    `details`, much hidden content. Not in scope: the `name` attribute
    (exclusive accordions), the `toggle` event, `::details-content` in
-   page style sheets, `content-visibility` as a property.
+   page style sheets, `content-visibility` as a property. Done: the
+   content box of a closed `details` has size, layout and paint
+   containment (an internal style flag, not the CSS property); after
+   layout its children move to `BoxFragment::hidden`, which the box dump
+   reads and paint, hit testing, selection and scrolling do not. Closing
+   a `details` removes the focus and the selection from its content.
+   Inside disclosure markers are 1.0592 em wide (measured) and no longer
+   make the line taller. BBC geometry 0.8786 → 0.9660, no missing boxes;
+   the open menu (`compare --click`) matches Chromium (pixels 0.9985).
+   The remaining differences are the drawer buttons (item 3).
 3. Grid buttons and `scrollbar-width` (`implementer`). Scope: `display:
    grid` and `inline-grid` on `<button>` lay out its content as a grid
    (the drawer buttons: `grid-template-columns: 1fr auto`, `gap: 22px`);
@@ -384,6 +393,19 @@ Features, in this order. Each one ends with a review and a commit.
   geometry, so it can name a box that is not drawn (the closed `details`
   menu on BBC). Chromium waits a fixed 200 ms after each `--click`; pages
   with timers are not covered.
+- `details` (M5 item 2): Chromium draws the disclosure marker as a
+  triangle, swb as a font glyph. An inside marker before a block child
+  of `summary` is on its own line in Chromium (on the block's first line
+  in swb; the intrinsic width approximates it); right-to-left inside
+  markers are on the left in swb. Inside `disc` markers: Chromium starts
+  the text at 22 px (16 px font), swb at 9.6 px. The default summary is
+  not focusable. Fragment navigation, find and `scrollIntoView` do not
+  open a closed `details`. A fixed box in closed content is placed
+  relative to the viewport (Chromium: the content box). `columns` on
+  `details` does not apply (the content box is a separate block). Hover
+  and active states in content that closes stay until the next mouse
+  move. `in_closed_details_content` walks the ancestors for each node in
+  focus traversal (O(n · depth)).
 
 ## Backlog from M4
 

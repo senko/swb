@@ -605,6 +605,10 @@ pub(crate) fn build_block_container(
     if let Some(node) = base.element() {
         builder.push_children(ctx, node, state);
     } else if let Some(node) = base.node
+        && base.pseudo == Some(PseudoKind::DetailsContent)
+    {
+        builder.push_details_content(ctx, node, state);
+    } else if let Some(node) = base.node
         && let Some(text) = state.generated_content(&base.style)
     {
         builder.inline.push_generated(node, &base.style, &text);
@@ -677,18 +681,72 @@ impl ContainerBuilder {
         if parent_style.is_some() {
             self.push_pseudo(ctx, parent, PseudoKind::Before, state);
         }
+        if ctx
+            .styles
+            .pseudo(parent, PseudoKind::DetailsContent)
+            .is_some()
+        {
+            self.push_details_children(ctx, parent, state);
+        } else {
+            self.push_nodes(ctx, ctx.doc.children(parent), parent_style.as_ref(), state);
+        }
+        if parent_style.is_some() {
+            self.push_pseudo(ctx, parent, PseudoKind::After, state);
+        }
+    }
+
+    /// Adds the children of a `details` element: its summary (the first
+    /// `summary` child, or the default summary) and the `::details-content`
+    /// box with all other children.
+    /// <https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements>
+    fn push_details_children(
+        &mut self,
+        ctx: &BuildContext<'_>,
+        details: NodeId,
+        state: &mut BuildState,
+    ) {
+        match ctx.doc.details_summary(details) {
+            Some(summary) => self.push_element(ctx, summary, state),
+            None => self.push_pseudo(ctx, details, PseudoKind::DetailsSummary, state),
+        }
+        self.push_pseudo(ctx, details, PseudoKind::DetailsContent, state);
+    }
+
+    /// Adds the children of `details` that are in its `::details-content`
+    /// box: all but the summary. `self.style` is the style of the box.
+    fn push_details_content(
+        &mut self,
+        ctx: &BuildContext<'_>,
+        details: NodeId,
+        state: &mut BuildState,
+    ) {
+        let summary = ctx.doc.details_summary(details);
+        let style = Arc::clone(&self.style);
+        let children = ctx.doc.children(details).filter(|&c| Some(c) != summary);
+        self.push_nodes(ctx, children, Some(&style), state);
+    }
+
+    /// Adds `nodes`, the children of an element whose style is
+    /// `parent_style` (or of its `::details-content` box).
+    fn push_nodes(
+        &mut self,
+        ctx: &BuildContext<'_>,
+        nodes: impl Iterator<Item = NodeId>,
+        parent_style: Option<&Arc<ComputedStyle>>,
+        state: &mut BuildState,
+    ) {
         // Consecutive table-internal children share one anonymous table.
         let mut table: Option<AnonymousTable> = None;
-        for child in ctx.doc.children(parent) {
+        for child in nodes {
             if let Some(pending) = &mut table {
-                if pending.takes(ctx, child, parent_style.as_ref(), state) {
+                if pending.takes(ctx, child, parent_style, state) {
                     continue;
                 }
-                self.push_anonymous_table(table.take(), parent_style.as_ref(), ctx, state);
+                self.push_anonymous_table(table.take(), parent_style, ctx, state);
             }
             match &ctx.doc.node(child).data {
                 NodeData::Text(text) => {
-                    if let Some(style) = &parent_style {
+                    if let Some(style) = parent_style {
                         self.inline.push_text(child, style, text);
                     }
                 }
@@ -701,10 +759,7 @@ impl ContainerBuilder {
                 _ => {}
             }
         }
-        self.push_anonymous_table(table, parent_style.as_ref(), ctx, state);
-        if parent_style.is_some() {
-            self.push_pseudo(ctx, parent, PseudoKind::After, state);
-        }
+        self.push_anonymous_table(table, parent_style, ctx, state);
     }
 
     /// A builder for an anonymous table around misparented table-internal
@@ -1089,13 +1144,19 @@ fn build_block_level(
         || style.overflow_x.is_scroll_container()
         || style.overflow_y.is_scroll_container()
         || multicol
+        // Layout containment: hidden contents are a block formatting context.
+        || style.contents_hidden
         || base.element().is_some_and(|n| is_atomic(ctx, n));
     if establishes_bfc {
         return BlockLevelBox::Independent(build_independent(ctx, base, state));
     }
-    let marker = base
-        .element()
-        .and_then(|n| build_marker(ctx, n, &base.style, state));
+    // The default summary of `details` is a list item without an element.
+    let marker_node = match base.pseudo {
+        None => base.element(),
+        Some(PseudoKind::DetailsSummary) => base.node,
+        Some(_) => None,
+    };
+    let marker = marker_node.and_then(|n| build_marker(ctx, n, &base.style, state));
     let contents = build_block_container(ctx, &base, state);
     BlockLevelBox::Block {
         base,

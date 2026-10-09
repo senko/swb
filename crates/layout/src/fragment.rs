@@ -116,6 +116,18 @@ impl FragmentTree {
         &'a self,
         offsets: &dyn ScrollOffsets,
         scroll: Point,
+        visit: impl FnMut(FragmentRef<'a>, Rect, &Matrix),
+    ) {
+        self.walk_painted_in(offsets, scroll, false, visit);
+    }
+
+    /// [`FragmentTree::walk_painted`]; with `hidden`, it also visits the
+    /// fragments in [`BoxFragment::hidden`].
+    fn walk_painted_in<'a>(
+        &'a self,
+        offsets: &dyn ScrollOffsets,
+        scroll: Point,
+        hidden: bool,
         mut visit: impl FnMut(FragmentRef<'a>, Rect, &Matrix),
     ) {
         /// The state of the walk above a box.
@@ -125,6 +137,7 @@ impl FragmentTree {
             state: ScrollState,
             offsets: &'s dyn ScrollOffsets,
             scroll: Point,
+            hidden: bool,
         }
         fn walk_box<'a>(
             b: &'a BoxFragment,
@@ -157,7 +170,12 @@ impl FragmentTree {
                 state,
                 ..*above
             };
-            for child in b.children.iter() {
+            let hidden = b
+                .hidden
+                .iter()
+                .filter(|_| above.hidden)
+                .flat_map(|h| h.iter());
+            for child in b.children.iter().chain(hidden) {
                 match child {
                     Fragment::Box(child) => walk_box(child, &below, &inner, cache, visit),
                     Fragment::Text(t) => {
@@ -177,6 +195,7 @@ impl FragmentTree {
                 state: ScrollState::default(),
                 offsets,
                 scroll,
+                hidden,
             };
             let mut cache = (StickyCache::default(), Vec::new());
             walk_box(
@@ -199,7 +218,8 @@ impl FragmentTree {
     /// The union of the border boxes of each element's fragments as
     /// painted with the scroll offsets of scroll containers `offsets` and
     /// at the viewport scroll offset `scroll`, in document coordinates
-    /// (pseudo-element boxes excluded). A transformed box gives the
+    /// (pseudo-element boxes excluded; the boxes in hidden contents are
+    /// included, see [`BoxFragment::hidden`]). A transformed box gives the
     /// bounding box of its transformed border box, as `getClientRects()`
     /// in browsers.
     pub fn element_boxes_scrolled(
@@ -208,7 +228,7 @@ impl FragmentTree {
         scroll: Point,
     ) -> std::collections::HashMap<NodeId, Rect> {
         let mut boxes: std::collections::HashMap<NodeId, Rect> = std::collections::HashMap::new();
-        self.walk_painted(offsets, scroll, |f, layout_rect, matrix| {
+        self.walk_painted_in(offsets, scroll, true, |f, layout_rect, matrix| {
             if let FragmentRef::Box(b) = f
                 && let Some(node) = b.node
                 && b.pseudo.is_none()
@@ -493,6 +513,14 @@ pub struct BoxFragment {
     /// after it do not count in scrollable overflow (as in Chromium); see
     /// `scroll::box_overflow_rect`.
     pub hanging_from: Option<f32>,
+    /// The children of a box with hidden contents
+    /// ([`ComputedStyle::contents_hidden`]: the content of a closed
+    /// `details`), moved out of `children` when layout is done. They are
+    /// laid out, so that the boxes of their elements are known
+    /// ([`FragmentTree::element_boxes`]), but paint, hit testing, the
+    /// selection and scrolling do not see them. Positions are relative to
+    /// this box as for `children`. `None` for other boxes.
+    pub hidden: Option<Arc<Vec<Fragment>>>,
 }
 
 impl BoxFragment {

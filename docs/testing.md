@@ -16,6 +16,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Engine tests           | `crates/engine/tests/page.rs` (navigation, history, fragments, cancellation, hit testing, display list) | no |
 | Interaction tests      | `crates/engine/tests/interaction.rs`    | no                                |
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
+| Details tests          | `crates/engine/tests/details.rs` (`details` and `summary`: toggling with the mouse and keyboard, hidden contents, default summary) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
 | Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links, `clipPath`, `use`, `shape-rendering`, hit testing of shapes); `tests/layout/inline-svg-boxes.html` (the boxes of `g`, shapes and `use` against Chromium) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |

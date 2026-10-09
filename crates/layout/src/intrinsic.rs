@@ -39,6 +39,10 @@ pub(crate) fn independent_content_sizes(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
 ) -> ContentSizes {
+    // Size containment: hidden contents have no intrinsic size.
+    if ib.base.style.contents_hidden {
+        return ContentSizes::default();
+    }
     // A block, flex or grid container with an aspect ratio and a definite
     // height is as wide as the ratio makes it (CSS Sizing 4 §5.1; Chromium).
     if crate::aspect::applies_to(ib)
@@ -48,7 +52,8 @@ pub(crate) fn independent_content_sizes(
     }
     match &ib.contents {
         IndependentContents::Flow(container) => {
-            container_content_sizes(ctx, container, &ib.base.style)
+            let sizes = container_content_sizes(ctx, container, &ib.base.style);
+            with_inside_marker(ctx, sizes, container, ib.marker.as_ref())
         }
         IndependentContents::Flex(items) => flex_content_sizes(ctx, &ib.base.style, items),
         IndependentContents::Grid(items) => crate::grid::content_sizes(ctx, ib, items),
@@ -141,20 +146,48 @@ pub(crate) fn independent_outer_sizes(
 
 fn block_level_outer_sizes(ctx: &mut LayoutContext<'_>, b: &BlockLevelBox) -> ContentSizes {
     match b {
-        BlockLevelBox::Block { base, contents, .. } => {
-            outer_sizes(
-                &base.style,
-                || match crate::aspect::width_of_definite_height(&base.style) {
-                    Some(w) => ContentSizes { min: w, max: w },
-                    None => container_content_sizes(ctx, contents, &base.style),
-                },
-            )
-        }
+        BlockLevelBox::Block {
+            base,
+            contents,
+            marker,
+        } => outer_sizes(&base.style, || {
+            if let Some(w) = crate::aspect::width_of_definite_height(&base.style) {
+                return ContentSizes { min: w, max: w };
+            }
+            let sizes = container_content_sizes(ctx, contents, &base.style);
+            with_inside_marker(ctx, sizes, contents, marker.as_ref())
+        }),
         BlockLevelBox::Independent(ib) | BlockLevelBox::Float(ib) => {
             independent_outer_sizes(ctx, ib)
         }
         BlockLevelBox::AbsolutelyPositioned(_) => ContentSizes::default(),
         BlockLevelBox::InInline(b) => block_level_outer_sizes(ctx, &b.block),
+    }
+}
+
+/// `sizes`, the content sizes of the list item contents `container`, with
+/// the width of an inside marker. It is in the first line: with inline
+/// content it adds to the max-content width; with block content, the first
+/// block's line is as wide as the marker and its text, which the maximum
+/// of the widths approximates. The min-content width is at least the
+/// marker's. An outside marker takes no room in the content box.
+fn with_inside_marker(
+    ctx: &mut LayoutContext<'_>,
+    sizes: ContentSizes,
+    container: &BlockContainer,
+    marker: Option<&crate::box_tree::Marker>,
+) -> ContentSizes {
+    let Some(marker) = marker.filter(|m| !m.outside) else {
+        return sizes;
+    };
+    let width = crate::list_marker::shape_marker(ctx, marker).width;
+    let max = match container {
+        BlockContainer::Inline(_) => sizes.max + width,
+        BlockContainer::Blocks(_) => sizes.max.max(width),
+    };
+    ContentSizes {
+        min: sizes.min.max(width),
+        max,
     }
 }
 

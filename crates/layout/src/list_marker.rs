@@ -17,6 +17,12 @@ use crate::fonts;
 use crate::fragment::{Fragment, TextFragment};
 use crate::geom::Rect;
 
+/// The width of the marker of `disclosure-open` and `disclosure-closed`
+/// (the symbol and the space after it) in em, measured in Chromium 148:
+/// the text of an inside marker starts 16.94 px (16 px font), 33.91 px
+/// (32 px), 10.59 px (10 px) and 25.42 px (24 px) from the left edge.
+const DISCLOSURE_WIDTH: f32 = 1.0592;
+
 /// A marker that waits for the first line box of its list item.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PendingMarker<'a> {
@@ -78,6 +84,10 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
     let families = fonts::family_names(&style.font_family);
     let query = fonts::query(style, &families);
     let runs = ctx.fonts.itemize(&marker.text, &query);
+    let disclosure = matches!(
+        style.list_style_type,
+        swb_style::ListStyleType::DisclosureOpen | swb_style::ListStyleType::DisclosureClosed
+    );
     let options = swb_text::ShapeOptions::default();
     let mut shaped = ShapedMarker {
         fragments: Vec::new(),
@@ -88,7 +98,18 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
     for run in runs {
         let text = &marker.text[run.range.clone()];
         let glyph_run = ctx.fonts.shape(run.font, style.font_size, text, &options);
-        let metrics = fonts::line_metrics(ctx.fonts, run.font, style.font_size);
+        // Chromium draws the disclosure symbols without a font: they do not
+        // change the height of the line (the symbol font here is a
+        // fallback font with larger metrics).
+        let metrics_font = if disclosure {
+            ctx.fonts
+                .itemize("x", &query)
+                .first()
+                .map_or(run.font, |r| r.font)
+        } else {
+            run.font
+        };
+        let metrics = fonts::line_metrics(ctx.fonts, metrics_font, style.font_size);
         let (above, below) = crate::inline::text_extent(style, metrics);
         shaped.above = shaped.above.max(above);
         shaped.below = shaped.below.max(below);
@@ -112,6 +133,9 @@ pub(crate) fn shape_marker(ctx: &mut LayoutContext<'_>, marker: &Marker) -> Shap
             line_height: metrics.ascent + metrics.descent,
         });
         shaped.width += glyph_run.advance;
+    }
+    if disclosure {
+        shaped.width = DISCLOSURE_WIDTH * style.font_size;
     }
     shaped
 }

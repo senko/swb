@@ -263,7 +263,9 @@ impl Page {
         self.set_selection(selection);
         self.input.press = Some(Press {
             origin: point,
-            target: hit.as_ref().and_then(|h| self.activation_target(h.node)),
+            target: hit
+                .as_ref()
+                .and_then(|h| self.activation_target(h.node, point)),
             anchor,
             control,
             dragging: false,
@@ -330,7 +332,7 @@ impl Page {
             return (changed, false);
         };
         let hit = self.hit_test(x, y);
-        let target = hit.and_then(|h| self.activation_target(h.node));
+        let target = hit.and_then(|h| self.activation_target(h.node, Point::new(x, y)));
         let activated = match target {
             Some(target) if press.target == Some(target) => self.activate(target, Point::new(x, y)),
             _ => false,
@@ -360,6 +362,13 @@ impl Page {
             return handled;
         }
         let ctrl = modifiers.ctrl || modifiers.meta;
+        if !ctrl
+            && !modifiers.alt
+            && (key == &Key::Enter || key.is_char(' '))
+            && let Some(details) = self.focused_summary()
+        {
+            return self.toggle_details(details);
+        }
         match key {
             Key::Tab if !ctrl && !modifiers.alt => self.focus_next(modifiers.shift),
             Key::Enter if !ctrl && !modifiers.alt => self.activate_focused(),
@@ -423,6 +432,7 @@ impl Page {
         let boxes = tree.element_boxes();
         let rendered = |n: NodeId| {
             boxes.contains_key(&n)
+                && !doc.in_closed_details_content(n)
                 && styles
                     .get(n)
                     .is_some_and(|s| s.visibility == Visibility::Visible)
@@ -436,6 +446,12 @@ impl Page {
             self.select_field_text(next);
         }
         true
+    }
+
+    /// The `details` element whose summary has the focus.
+    fn focused_summary(&self) -> Option<NodeId> {
+        let doc = self.document.as_ref()?;
+        doc.details_of_summary(self.input.states.focus?)
     }
 
     /// Follows the focused link, if there is one and it is rendered.
@@ -460,6 +476,10 @@ impl Page {
             .get(node)
             .is_some_and(|s| s.visibility == Visibility::Visible)
             && tree.element_boxes().contains_key(&node)
+            && !self
+                .document
+                .as_ref()
+                .is_some_and(|doc| doc.in_closed_details_content(node))
     }
 
     /// Scrolls for a scrolling key. Returns true if the key is one. As in
@@ -519,7 +539,9 @@ impl Page {
     fn click_focus_target(&self, node: NodeId) -> Option<NodeId> {
         let (doc, tree) = (self.document.as_ref()?, self.fragments.as_ref()?);
         let boxes = tree.element_boxes();
-        focus::click_target(doc, node, |n| boxes.contains_key(&n))
+        focus::click_target(doc, node, |n| {
+            boxes.contains_key(&n) && !doc.in_closed_details_content(n)
+        })
     }
 
     /// The element of a hit node: the node itself, or the parent of a text

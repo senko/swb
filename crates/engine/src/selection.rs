@@ -665,7 +665,17 @@ pub(crate) fn selected_text(
                 let tab = style.display == Display::TableCell && has_next_cell(doc, styles, node);
                 stack.push(Step::Leave(breaks, tab));
                 let first = stack.len();
-                stack.extend(doc.children(node).map(Step::Enter));
+                // The hidden contents of a closed `details` are not text of
+                // the page: only its summary is.
+                let hidden = styles
+                    .pseudo(node, swb_style::PseudoKind::DetailsContent)
+                    .is_some_and(|s| s.contents_hidden);
+                let summary = doc.details_summary(node);
+                stack.extend(
+                    doc.children(node)
+                        .filter(|&c| !hidden || Some(c) == summary)
+                        .map(Step::Enter),
+                );
                 stack[first..].reverse();
             }
             _ => {}

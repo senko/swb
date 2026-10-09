@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- A details element without a summary child shows a default summary: a
+     list item with the text "Details" and a disclosure marker. A summary
+     with the default display: list-item has an inside disclosure marker
+     (1.0592 em wide; it does not change the line height); the marker counts
+     for the shrink-to-fit width. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>details: default summary and marker</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  details { margin-bottom: 10px; }
+  .row { display: flex; }
+  .ib { display: inline-block; }
+  .fl { float: left; }
+</style>
+</head>
+<body>
+  <details id="d1"><p id="p1">para</p></details>
+  <details id="d2" open><p id="p2">para</p></details>
+  <details id="d3"></details>
+  <details id="d4"><summary id="s4">Sum <b id="b4">bold</b></summary>text</details>
+  <details id="d5" open><summary id="s5">Sum</summary>text</details>
+  <div class="row"><details id="d6"><summary id="s6">Sum</summary><p id="p6">x</p></details><div id="o6">other</div></div>
+  <div class="row"><details id="d7" open><summary id="s7">Sum</summary><p id="p7">x</p></details><div id="o7">other</div></div>
+  <details id="d8" class="ib"><summary id="s8">Sum</summary><p id="p8">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</p></details>
+  <div id="after8">after</div>
+  <details id="d9" class="fl"><summary id="s9">Sum</summary><p id="p9">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</p></details>
+  <div id="after9" style="clear: both">after</div>
+</body>
+</html>

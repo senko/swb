@@ -48,20 +48,9 @@ fn focusable_by_default(doc: &Document, node: NodeId, element: &ElementData) -> 
         | local_name!("textarea")
         | local_name!("iframe") => true,
         local_name!("audio") | local_name!("video") => element.has_attr("controls"),
-        local_name!("summary") => is_details_summary(doc, node),
+        local_name!("summary") => doc.details_of_summary(node).is_some(),
         _ => false,
     }
-}
-
-/// True if `node` is the first `summary` child of a `details` element.
-fn is_details_summary(doc: &Document, node: NodeId) -> bool {
-    doc.parent(node).is_some_and(|parent| {
-        doc.is_html_element(parent, &local_name!("details"))
-            && doc
-                .element_children(parent)
-                .find(|&c| doc.is_html_element(c, &local_name!("summary")))
-                == Some(node)
-    })
 }
 
 /// The element that a click on `node` focuses: the nearest inclusive

@@ -1,0 +1,29 @@
+{
+  "viewport": [800, 600],
+  "cases": [
+    {"name": "marker-16",
+     "html": "<!DOCTYPE html><style>body{margin:0}</style><details><summary id=s><span id=t>x</span></summary></details><details open><summary id=s2><span id=t2>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t, #s2, #t2"}, {"ink": "#s"}, {"ink": "#s2"}]},
+    {"name": "marker-32",
+     "html": "<!DOCTYPE html><style>body{margin:0;font-size:32px}</style><details><summary id=s><span id=t>x</span></summary></details><details open><summary id=s2><span id=t2>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t, #s2, #t2"}, {"ink": "#s"}, {"ink": "#s2"}]},
+    {"name": "marker-10",
+     "html": "<!DOCTYPE html><style>body{margin:0;font-size:10px}</style><details><summary id=s><span id=t>x</span></summary></details><details open><summary id=s2><span id=t2>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t, #s2, #t2"}, {"ink": "#s"}, {"ink": "#s2"}]},
+    {"name": "marker-24-lh",
+     "html": "<!DOCTYPE html><style>body{margin:0;font-size:24px;line-height:40px}</style><details><summary id=s><span id=t>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t"}, {"ink": "#s"}]},
+    {"name": "marker-empty-summary",
+     "html": "<!DOCTYPE html><style>body{margin:0}</style><details><summary id=s></summary></details><details><summary id=s2><div id=d>block</div></summary></details>",
+     "measure": [{"boxes": "#s, #s2, #d"}, {"ink": "#s"}, {"ink": "#s2"}]},
+    {"name": "marker-lsnone",
+     "html": "<!DOCTYPE html><style>body{margin:0}summary{list-style:none}</style><details><summary id=s><span id=t>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t"}, {"ink": "#s"}]},
+    {"name": "marker-ul-inside-disc",
+     "html": "<!DOCTYPE html><style>body{margin:0}li{list-style:inside disc}</style><ul style='padding:0'><li id=s><span id=t>x</span></li></ul>",
+     "measure": [{"boxes": "#s, #t"}, {"ink": "#s"}]},
+    {"name": "marker-rtl",
+     "html": "<!DOCTYPE html><style>body{margin:0}</style><details dir=rtl><summary id=s><span id=t>x</span></summary></details>",
+     "measure": [{"boxes": "#s, #t"}, {"ink": "#s"}]}
+  ]
+}

@@ -306,6 +306,11 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
     let root = root_box.map(|root_box| {
         let mut root = block::layout_root(ctx, &root_box, icb);
         positioned::place_out_of_flow(ctx, &root_box, &mut root, input.viewport);
+        if input.styles.has_hidden_contents() {
+            // The cached fragments share their children with the tree.
+            ctx.layouts.clear();
+            hide_contents(&mut root);
+        }
         root
     });
     let scroll_size = scroll::viewport_scroll_size(root.as_ref(), input.viewport);
@@ -316,6 +321,22 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         viewport_overflow: viewport_overflow
             .map_or((Overflow::Visible, Overflow::Visible), |(_, x, y)| (x, y)),
         viewport: input.viewport,
+    }
+}
+
+/// Moves the children of the boxes with hidden contents into
+/// [`BoxFragment::hidden`], so that only the walks that ask for them see
+/// them. Runs after the out-of-flow pass, which places the boxes in the
+/// hidden contents. The recursion depth is bounded by the box tree depth.
+fn hide_contents(b: &mut BoxFragment) {
+    if b.style.contents_hidden {
+        b.hidden = Some(std::mem::take(&mut b.children));
+        return;
+    }
+    for child in Arc::make_mut(&mut b.children) {
+        if let Fragment::Box(child) = child {
+            hide_contents(child);
+        }
     }
 }
 
@@ -383,6 +404,76 @@ pub(crate) mod test_support;
 mod tests {
     use super::*;
     use crate::test_support::layout_html;
+
+    const DETAILS: &str = "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}\
+        summary{display:block} p{margin:16px 0}</style>";
+
+    #[test]
+    fn closed_details_contents_are_laid_out_but_have_no_height() {
+        let l = layout_html(&format!(
+            "{DETAILS}<details id=d><summary id=s>S</summary>t<p id=p>x</p></details>\
+             <div id=after>a</div>"
+        ));
+        assert_eq!(l.rect("d").height, 20.0);
+        assert_eq!(l.rect("after").y, 20.0);
+        // The paragraph has a box, below the text, in the hidden children.
+        let p = l.rect("p");
+        assert_eq!((p.y, p.height), (20.0 + 20.0 + 16.0, 20.0));
+        assert!(l.texts().iter().all(|(_, t)| t != "x"), "not in the tree");
+        let content = l
+            .tree
+            .root
+            .as_ref()
+            .and_then(|root| find_content(root))
+            .expect("the ::details-content fragment");
+        assert!(content.children.is_empty());
+        assert!(content.hidden.as_ref().is_some_and(|h| !h.is_empty()));
+    }
+
+    fn find_content(b: &BoxFragment) -> Option<&BoxFragment> {
+        if b.pseudo == Some(swb_style::PseudoKind::DetailsContent) {
+            return Some(b);
+        }
+        b.children.iter().find_map(|c| match c {
+            Fragment::Box(c) => find_content(c),
+            Fragment::Text(_) => None,
+        })
+    }
+
+    #[test]
+    fn open_details_contents_flow_after_the_summary() {
+        let l = layout_html(&format!(
+            "{DETAILS}<details id=d open><summary id=s>S</summary><p id=p>x</p></details>\
+             <div id=after>a</div>"
+        ));
+        assert_eq!(l.rect("p").y, 20.0 + 16.0);
+        // The last margin collapses through the details element.
+        assert_eq!(l.rect("d").height, 20.0 + 16.0 + 20.0);
+        assert_eq!(l.rect("after").y, 20.0 + 16.0 + 20.0 + 16.0);
+        assert!(l.texts().iter().any(|(_, t)| t == "x"));
+    }
+
+    #[test]
+    fn closed_details_contents_are_the_containing_block_of_absolute_boxes() {
+        let l = layout_html(&format!(
+            "{DETAILS}<div style='margin-left:30px'><details id=d><summary>S</summary>\
+             <div id=a style='position:absolute;left:5px;top:100px;width:10px;height:10px'></div>\
+             </details></div>"
+        ));
+        let a = l.rect("a");
+        assert_eq!((a.x, a.y), (35.0, 120.0));
+    }
+
+    #[test]
+    fn closed_details_contents_have_no_intrinsic_size() {
+        let l = layout_html(&format!(
+            "{DETAILS}<details id=d style='display:flex'><summary id=s>S</summary>\
+             <p id=p>wide paragraph text</p></details>"
+        ));
+        let (s, p) = (l.rect("s"), l.rect("p"));
+        assert_eq!(p.width, 0.0);
+        assert_eq!(p.x, s.right());
+    }
 
     #[test]
     fn body_overflow_applies_to_the_viewport() {

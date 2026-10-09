@@ -454,10 +454,10 @@ details > summary:first-of-type {
 details[open] > summary:first-of-type {
   list-style-type: disclosure-open;
 }
-/* The content of a closed details element is not rendered. */
-details:not([open]) > :not(summary:first-of-type) {
-  display: none;
-}
+/* The children of details other than the first summary are in its
+   ::details-content box. If details is closed, the box is laid out but not
+   rendered (like content-visibility: hidden). Style computation sets the
+   style of the box and of the default summary (`cascade.rs`). */
 
 /* 15.5.13 The marquee element */
 

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- A closed details element: the children other than the first summary
+     (also text) are in the ::details-content box, which acts as
+     content-visibility: hidden. It is laid out (the box dump has its
+     descendants) but has no height, is a block formatting context and the
+     containing block of absolutely positioned boxes, and is not part of the
+     scrollable overflow. Open details for comparison. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>details: closed contents</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  details { margin-bottom: 10px; }
+  summary { display: block; }
+  .styled { width: 300px; padding: 10px; border: 2px solid; margin: 5px; }
+  .styled p { margin: 20px; padding: 3px; }
+  .abs { height: 50px; position: absolute; top: 400px; left: 50px; width: 80px; }
+  .fl { float: left; width: 40px; height: 40px; }
+</style>
+</head>
+<body>
+  <details id="plain"><summary id="s1">Sum</summary>text <b id="b1">bold</b><p id="p1">para</p><ul id="u1"><li>one<ul><li id="l2">two</li></ul></li></ul></details>
+  <details id="opened" open><summary id="s2">Sum</summary>text <b id="b2">bold</b><p id="p2">para</p><ul id="u2"><li>one<ul><li id="l3">two</li></ul></li></ul></details>
+  <details class="styled" id="st"><summary id="s3">Sum</summary><p id="p3">para that is long enough to wrap over more than one line in a three hundred pixel box, yes</p><div class="abs" id="a1">abs</div><div class="fl" id="f1">f</div><div id="g1" style="clear: both">g</div></details>
+  <details id="outer"><summary>Outer</summary><details id="inner"><summary id="s4">Inner</summary><p id="p4">deep</p></details><p id="p5">second</p></details>
+  <details id="outer2" open><summary>Outer</summary><details id="inner2"><summary id="s5">Inner</summary><p id="p6">deep</p></details><p id="p7">second</p></details>
+  <details id="nosum2"><summary style="display: none">Hidden</summary><p id="p8">x</p><p id="p9" style="display: none">y</p><p id="p10" style="visibility: hidden">z</p></details>
+  <details id="second"><p id="p11">before</p><summary id="s6">First summary</summary><summary id="s7">Second</summary></details>
+  <p id="end">end</p>
+</body>
+</html>
