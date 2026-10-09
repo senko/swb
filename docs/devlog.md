@@ -24,7 +24,7 @@ in commit messages, ADRs and other docs.
 - Skipped, with reasons in the roadmap backlog: the two sources for
   hidden details content (style and attribute), the doubled marker style
   of a `details` with `display: list-item`.
-- M5 is complete. Target 5 waits for the owner's check.
+- M5 is complete. The owner accepted target 5.
 
 ## 2026-10-09: final pass on BBC (M5 item 4)
 

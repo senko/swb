@@ -396,8 +396,8 @@ Features, in this order. Each one ends with a review and a commit.
    0.9981 → 0.9987; Hacker News 0.9981 → 0.9988, senko.net 0.9973 →
    0.9989. Target 5 done.
 
-Target 5 is done (geometry 1.0000, pixels 0.9987) and waits for the
-owner's check. End-of-milestone maintenance: two read-only reviews
+Target 5 is done (geometry 1.0000, pixels 0.9987); the owner accepted
+it. End-of-milestone maintenance: two read-only reviews
 (layout, paint and text; the other crates, tools and docs) listed
 duplication, names and outdated docs; one implementer applied the
 selected items and measured a new performance baseline; `just snapshot`
