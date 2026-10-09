@@ -4,14 +4,15 @@
 
 #![allow(dead_code)] // Each test binary uses a different subset.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use swb_engine::{
-    ElementBox, FontContext, Modifiers, NodeId, Page, PageConfig, Pixmap, Rect, Size, Url,
+    ElementBox, FontContext, Key, Modifiers, NodeId, Page, PageConfig, Pixmap, Rect, Size, Url,
 };
-use swb_net::Fetcher;
+use swb_net::{Fetcher, Headers, Method, NetError, NetworkFetcher, Request, Response};
 use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights, Scrolling};
 
 /// A directory with test pages, removed at the end of the test.
@@ -258,4 +259,96 @@ fn align(reference: &[ElementBox], actual: &[ElementBox]) -> Vec<(usize, Option<
         }
     }
     paired.into_iter().enumerate().collect()
+}
+
+/// Serves the pages it knows and, for other URLs, a small page that shows
+/// the URL. Records every request.
+#[derive(Default)]
+pub(crate) struct TestSite {
+    pub(crate) pages: HashMap<String, String>,
+    /// The `Content-Type` of the pages; `text/html; charset=utf-8` if not
+    /// set.
+    pub(crate) content_type: Option<&'static str>,
+    /// Answer `POST` requests with a 303 redirect to the same URL.
+    pub(crate) redirect_posts: bool,
+    pub(crate) requests: Mutex<Vec<Request>>,
+}
+
+impl Fetcher for TestSite {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        self.requests
+            .lock()
+            .expect("the test fetcher lock")
+            .push(request.clone());
+        if self.redirect_posts && request.method == Method::Post {
+            let headers: Headers = [("location", request.url.as_str())].into_iter().collect();
+            return Ok(Response {
+                url: request.url.clone(),
+                status: 303,
+                headers,
+                body: Vec::new(),
+                redirected: false,
+            });
+        }
+        let mut url = request.url.clone();
+        url.set_fragment(None);
+        let body =
+            self.pages.get(url.as_str()).cloned().unwrap_or_else(|| {
+                format!("<!DOCTYPE html><title>result</title><p id=url>{url}</p>")
+            });
+        let content_type = self.content_type.unwrap_or("text/html; charset=utf-8");
+        let headers: Headers = [("content-type", content_type)].into_iter().collect();
+        Ok(Response {
+            url: request.url.clone(),
+            status: 200,
+            headers,
+            body: body.into_bytes(),
+            redirected: false,
+        })
+    }
+}
+
+impl TestSite {
+    pub(crate) fn requests(&self) -> Vec<Request> {
+        self.requests.lock().expect("the test fetcher lock").clone()
+    }
+
+    pub(crate) fn last_request(&self) -> Request {
+        self.requests()
+            .last()
+            .cloned()
+            .expect("the site received a request")
+    }
+}
+
+/// Loads `url` with a network fetcher (for `file:` URLs) into an 800×600
+/// page with the test fonts.
+pub(crate) fn open_url(url: Url) -> Page {
+    let mut page = new_page(Arc::new(NetworkFetcher::new()), 2, Size::new(800.0, 600.0));
+    page.navigate(url);
+    finish_loading(&mut page, Duration::from_secs(20));
+    page
+}
+
+/// The center of `r`.
+pub(crate) fn center(r: Rect) -> (f32, f32) {
+    (r.x + r.width / 2.0, r.y + r.height / 2.0)
+}
+
+/// Clicks the center of the element with `id` (the page is not scrolled).
+pub(crate) fn click(page: &mut Page, id: &str) -> bool {
+    let (x, y) = center(rect(page, id));
+    page.click(x, y)
+}
+
+/// Clicks `dx` px right of the left edge of the element with `id`, at the
+/// vertical center.
+pub(crate) fn click_offset(page: &mut Page, id: &str, dx: f32) -> bool {
+    let r = rect(page, id);
+    page.click(r.x + dx, r.y + r.height / 2.0)
+}
+
+/// A key press without modifiers.
+pub(crate) fn key(page: &mut Page, key: &Key) -> bool {
+    page.key_down(key, Modifiers::NONE)
 }

@@ -287,7 +287,8 @@ from the specification, not measured.
 Scroll latching for wheel gestures; `overscroll-behavior`;
 `scroll-behavior: smooth` (scrolling is instant); scroll snapping;
 `scroll-padding` and `scroll-margin`; classic scrollbars that take space,
-`scrollbar-gutter`, `scrollbar-width` and `scrollbar-color`; dragging the
+`scrollbar-gutter` and `scrollbar-color`; `scrollbar-width: thin` (it
+draws as `auto`); dragging the
 indicators; `background-attachment: local`; `overflow-clip-margin`;
 right-to-left and vertical writing modes and the start-edge overflow of
 `row-reverse` and `column-reverse` flex containers; scrolling

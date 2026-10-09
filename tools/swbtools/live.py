@@ -43,8 +43,6 @@ class LiveResult:
 
     missing: list[str]
     """Requested URLs that the fixture does not have."""
-    layout_changed: bool
-    """True if the full-page capture changed the box dump (it should not)."""
 
 
 async def click_and_settle(page: Page, selectors: list[str]) -> None:
@@ -80,15 +78,13 @@ async def capture_live(
         write_dump(output.boxes, dump)
         if output.viewport_png is not None:
             await page.screenshot(path=output.viewport_png, animations="disabled", caret="hide")
-        changed = False
         if output.full_page_png is not None:
             await page.screenshot(
                 path=output.full_page_png, full_page=True, animations="disabled", caret="hide"
             )
-            changed = _differs(dump, await browser.collect_boxes(page, url))
-            if changed:
+            if _differs(dump, await browser.collect_boxes(page, url)):
                 log.warning("the full-page capture changed Chromium's layout")
-    return LiveResult(sorted(set(replayer.missing)), changed)
+    return LiveResult(sorted(set(replayer.missing)))
 
 
 def _differs(before: BoxDump, after: BoxDump) -> bool:

@@ -8,27 +8,15 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use swb_engine::{Cursor, Page, Rect, Size};
-use swb_net::NetworkFetcher;
+use swb_engine::{Cursor, Page};
 use swb_style::{Color, Rgba, TextDecorationLine};
 
 mod common;
-use common::{Site, node, rect};
+use common::{Site, center, node, open_url, rect};
 
 /// Loads `html` into an 800×600 page with the test fonts.
 fn open(site: &Site, html: &str) -> Page {
-    let url = site.page("page.html", html);
-    let mut page = common::new_page(Arc::new(NetworkFetcher::new()), 2, Size::new(800.0, 600.0));
-    page.navigate(url);
-    common::finish_loading(&mut page, Duration::from_secs(20));
-    page
-}
-
-fn center(r: Rect) -> (f32, f32) {
-    (r.x + r.width / 2.0, r.y + r.height / 2.0)
+    open_url(site.page("page.html", html))
 }
 
 fn hover(page: &mut Page, id: &str) {

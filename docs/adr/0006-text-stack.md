@@ -168,7 +168,8 @@ ascent and descent for line layout, which is the layout crate's decision.
 - Shaping runs in font units and scales to pixels without rounding. Shape
   plans are cached per font; shaping results are not cached.
 - Glyph masks: unhinted outlines from skrifa, anti-aliased fill with
-  tiny-skia, horizontal subpixel offsets in quarter pixels. Synthetic bold
+  tiny-skia (4x supersampled for small masks, see Update 2026-10-09),
+  horizontal subpixel offsets in quarter pixels. Synthetic bold
   strokes and fills the outline like Skia (stroke width: font size times
   1/24 at 9 px, 1/32 at 36 px, linear in between). Synthetic oblique shears
   by 0.25. Advances do not change for synthetic bold, as in Skia.

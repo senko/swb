@@ -115,7 +115,9 @@ impl FragmentTree {
     /// offset `scroll`: the transforms of the box and its ancestors, the
     /// scroll offset for boxes fixed to the viewport, and sticky offsets
     /// (see [`Ancestry::group_transforms`]). Paint and hit testing place
-    /// the fragments the same way.
+    /// the fragments the same way. It skips the fragments in
+    /// [`BoxFragment::hidden`]; only `walk_painted_in` with `hidden = true`
+    /// visits them.
     pub fn walk_painted<'a>(
         &'a self,
         offsets: &dyn ScrollOffsets,

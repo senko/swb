@@ -79,8 +79,9 @@ checkboxes, radio buttons and labels, and submission with `GET` and
   `intrinsic.rs` and `inline/mod.rs` only call it.
 - Box construction gives a control generated content: one inline
   formatting context with the text (text fields, buttons, selects, text
-  areas), the DOM content (`<button>`: a block container, or flex items
-  if the button has `display: flex` or `inline-flex`), or nothing
+  areas), the DOM content (`<button>`: a block container, or flex or grid
+  items if the button has `display: flex`, `inline-flex`, `display: grid`
+  or `inline-grid`), or nothing
   (checkboxes, radio buttons). The text of a text field has caret stops
   that are byte offsets in the shown text; its text fragments belong to
   the control element. The page selection skips the text of controls

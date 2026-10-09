@@ -236,23 +236,8 @@ fn placement(
     placed
 }
 
-/// Lays out a grid container `base` with the children `children` and a
-/// content-box width of `content_width`; its content-box height is
-/// `content_height` if given (a stretched flex item), else from its
-/// style or its rows. The fragment is at (0, 0).
-pub(crate) fn layout(
-    ctx: &mut LayoutContext<'_>,
-    base: &BoxBase,
-    children: &[IndependentBox],
-    content_width: f32,
-    content_height: Option<f32>,
-    cb: ContainingBlock,
-) -> BoxFragment {
-    layout_grid(ctx, base, children, content_width, content_height, cb)
-}
-
 /// The min-content and max-content widths of the content box of grid
-/// container `ib` (cached per layout pass).
+/// container `base` (cached per layout pass).
 pub(crate) fn content_sizes(
     ctx: &mut LayoutContext<'_>,
     base: &BoxBase,
@@ -894,8 +879,11 @@ pub(crate) fn layout_contents(
     })
 }
 
-/// Lays out a grid container (§12.1 and §11).
-fn layout_grid(
+/// Lays out a grid container `base` (§12.1 and §11) with the children
+/// `children` and a content-box width of `width`; its content-box height
+/// is `given_height` if given (a stretched flex item), else from its
+/// style or its rows. The fragment is at (0, 0).
+pub(crate) fn layout(
     ctx: &mut LayoutContext<'_>,
     base: &BoxBase,
     children: &[IndependentBox],

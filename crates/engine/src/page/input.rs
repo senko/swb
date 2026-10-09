@@ -2,15 +2,25 @@
 //! selection), the keyboard (focus navigation, scrolling, activation), and
 //! the element states that depend on them.
 
-use swb_dom::NodeId;
-use swb_layout::{Point, Size};
-use swb_style::{Cursor, ElementStates, UserSelect, Visibility};
+use swb_dom::{Document, NodeId};
+use swb_layout::{FragmentTree, Point, Size};
+use swb_style::{Cursor, ElementStates, StyleMap, UserSelect, Visibility};
 
 use super::Page;
 use crate::focus;
 use crate::hit_test::{self, HitResult};
 use crate::input::{Key, Modifiers, MouseButton};
 use crate::selection::{self, Selection, Snap, TextPosition};
+
+/// True if the element has a box, is visible and is not in the content of
+/// a closed `details`.
+fn is_rendered(doc: &Document, tree: &FragmentTree, styles: &StyleMap, node: NodeId) -> bool {
+    tree.element_boxes().contains_key(&node)
+        && !doc.in_closed_details_content(node)
+        && styles
+            .get(node)
+            .is_some_and(|s| s.visibility == Visibility::Visible)
+}
 
 /// How far (in CSS px) the pointer must move with the button held before a
 /// press becomes a drag that selects text. Chromium uses 4 px.
@@ -429,14 +439,7 @@ impl Page {
         else {
             return false;
         };
-        let boxes = tree.element_boxes();
-        let rendered = |n: NodeId| {
-            boxes.contains_key(&n)
-                && !doc.in_closed_details_content(n)
-                && styles
-                    .get(n)
-                    .is_some_and(|s| s.visibility == Visibility::Visible)
-        };
+        let rendered = |n: NodeId| is_rendered(doc, tree, styles, n);
         let from = self.input.states.focus.or(self.input.focus_start);
         let next = focus::next_in_order(doc, from, backward, rendered);
         self.input.focus_start = None;
@@ -469,17 +472,11 @@ impl Page {
     /// True if the element has a box and is visible.
     fn is_rendered(&mut self, node: NodeId) -> bool {
         self.update_layout();
-        let (Some(tree), Some(styles)) = (&self.fragments, &self.styles) else {
+        let (Some(doc), Some(tree), Some(styles)) = (&self.document, &self.fragments, &self.styles)
+        else {
             return false;
         };
-        styles
-            .get(node)
-            .is_some_and(|s| s.visibility == Visibility::Visible)
-            && tree.element_boxes().contains_key(&node)
-            && !self
-                .document
-                .as_ref()
-                .is_some_and(|doc| doc.in_closed_details_content(node))
+        is_rendered(doc, tree, styles, node)
     }
 
     /// Scrolls for a scrolling key. Returns true if the key is one. As in

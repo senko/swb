@@ -6,6 +6,7 @@ from pathlib import Path
 
 from swbtools.boxes import Rect
 from swbtools.fullpage import COVERED_REGIONS, FullPage
+from swbtools.regions import BLOCK
 from swbtools.scoring import Comparison, Scores, element_paths
 
 TABLE_ROWS = 100
@@ -225,8 +226,8 @@ def _full_page(full_page: FullPage | None, images: dict[str, str]) -> str:
     return (
         f"<h2>Full page</h2><p>Pixel score <b>{full_page.score:.4f}</b>, "
         f"{len(full_page.regions)} differing regions (up to {COVERED_REGIONS} shown, most "
-        "differing pixels first). Differing pixels within 8 px of each other form one "
-        "region.</p>"
+        "differing pixels first). "
+        f"Differing pixels within {BLOCK} px of each other form one region.</p>"
         f"{size_note}{table}<div class=shots>{_shots(images)}</div>"
     )
 

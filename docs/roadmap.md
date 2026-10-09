@@ -285,7 +285,7 @@ it. End-of-milestone maintenance: two read-only reviews
 duplication, dead code, names and outdated docs; one implementer applied
 the selected items; `just snapshot` shows no change: done.
 
-## M5: BBC — in progress
+## M5: BBC — done
 
 Target 5, `https://www.bbc.com/` (fixture `bbc`), JavaScript off.
 Baseline on 2026-10-08: geometry 0.0290, pixels 0.9583 (2,745
@@ -397,7 +397,11 @@ Features, in this order. Each one ends with a review and a commit.
    0.9989. Target 5 done.
 
 Target 5 is done (geometry 1.0000, pixels 0.9987) and waits for the
-owner's check. Next: the end-of-milestone maintenance.
+owner's check. End-of-milestone maintenance: two read-only reviews
+(layout, paint and text; the other crates, tools and docs) listed
+duplication, names and outdated docs; one implementer applied the
+selected items and measured a new performance baseline; `just snapshot`
+shows no change: done.
 
 ## Pending decisions
 
@@ -428,7 +432,13 @@ owner's check. Next: the end-of-milestone maintenance.
   `details` does not apply (the content box is a separate block). Hover
   and active states in content that closes stay until the next mouse
   move. `in_closed_details_content` walks the ancestors for each node in
-  focus traversal (O(n · depth)).
+  focus traversal (O(n · depth)). Two sources decide whether content is
+  hidden: the selection reads the `contents_hidden` style, focus and
+  activation read the `open` attribute (`in_closed_details_content`);
+  they agree today. A `details` with `display: list-item` and no
+  `summary` computes its `::marker` style twice, and the second
+  overwrites the first (not measured in Chromium) (M5 maintenance
+  review).
 - Tests: `cargo test --release -p swb-layout --test deep_nesting` overflows
   the 2 MiB stack in `grids_nested_in_flex_containers` (also on d8c1a78;
   the debug build of `just test` passes). The browser lays out on the
@@ -465,8 +475,6 @@ owner's check. Next: the end-of-milestone maintenance.
   after many navigations in one tab later pages lose their variation
   settings (a warning, then no variations), although ADR 0022 calls the
   limit per document (M4 maintenance review).
-- docs/performance.md has the M1 baseline (three fixtures); measure
-  Ars Technica and BBC with `just perf` and replace the table.
 - Web font sources cross from the engine to `text` as strings
   (`"local(NAME)"` is encoded and parsed back in `text/src/web.rs`);
   give the text API a typed source (M4 maintenance review).

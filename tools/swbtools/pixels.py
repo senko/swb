@@ -10,10 +10,11 @@ DEFAULT_THRESHOLD = 32
 """A pixel matches if no color channel differs by more than this (0 to 255)."""
 
 
-def load_rgb(path: Path) -> np.ndarray:
-    """Loads an image as an array of shape (height, width, 3), dtype int16."""
+def load_rgb(path: Path | io.BytesIO, dtype: type = np.int16) -> np.ndarray:
+    """Loads an image as an array of shape (height, width, 3), dtype int16
+    unless `dtype` says otherwise."""
     with Image.open(path) as image:
-        return np.asarray(image.convert("RGB"), dtype=np.int16)
+        return np.asarray(image.convert("RGB"), dtype=dtype)
 
 
 def difference_mask(
@@ -38,8 +39,7 @@ that a tall page needs no full-size temporary arrays."""
 def load_rgb8(path: Path) -> np.ndarray:
     """Loads an image as an array of shape (height, width, 3), dtype uint8
     (half the memory of `load_rgb`; for full-page screenshots)."""
-    with Image.open(path) as image:
-        return np.asarray(image.convert("RGB"), dtype=np.uint8)
+    return load_rgb(path, np.uint8)
 
 
 def union_difference(
@@ -85,11 +85,7 @@ def pixel_score(mask: np.ndarray) -> float:
 
 def diff_image(reference: np.ndarray, mask: np.ndarray) -> Image.Image:
     """A pale grayscale copy of the reference with differing pixels in red."""
-    gray = reference.mean(axis=2)
-    pale = (255 - (255 - gray) * 0.3).astype(np.uint8)
-    image = np.stack([pale, pale, pale], axis=2)
-    image[mask] = (255, 0, 0)
-    return Image.fromarray(image, "RGB")
+    return union_diff_image(reference, mask)
 
 
 def compare_screenshots(
@@ -112,8 +108,7 @@ def write_png_unless_close(path: Path, png: bytes, noise: int = NOISE) -> bool:
     some images bit for bit the same; this keeps such noise out of git
     diffs. Returns True if the file was written."""
     if path.is_file():
-        with Image.open(io.BytesIO(png)) as image:
-            new = np.asarray(image.convert("RGB"), dtype=np.int16)
+        new = load_rgb(io.BytesIO(png))
         old = load_rgb(path)
         if old.shape == new.shape and int(np.abs(old - new).max(initial=0)) <= noise:
             return False

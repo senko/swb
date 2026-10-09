@@ -4,6 +4,7 @@
 - Date: 2026-10-04
 - Updated: 2026-10-07 (provenance): see "Update (2026-10-07):
   provenance" at the end.
+- Updated: 2026-10-09 (M5): see "Update (2026-10-09)" at the end.
 
 ## Context
 
@@ -65,7 +66,7 @@ parsers in `style/src/parse/grid.rs`.
 ### Box tree
 
 `display: grid` and `inline-grid` build `IndependentContents::Grid`. The
-children are built exactly like flex items (`build_flex_items`): every
+children are built exactly like flex items (`build_item_boxes`): every
 in-flow child becomes an item, text runs get anonymous blocks, floats are
 items.
 
@@ -245,8 +246,7 @@ column pass (§12.1 steps 3 and 4), `fit-content` sizes of items
 `justify-items: legacy`, `safe`/`unsafe` overflow alignment (parsed and
 ignored), `z-index` on grid items that are not positioned (Grid 2 §6.5;
 paint does not make them stacking contexts, as for flex items),
-absolutely positioned items placed by grid lines, fragmentation, and
-`display: grid` on `<button>` (laid out as a block). The container's
+absolutely positioned items placed by grid lines, and fragmentation. The container's
 intrinsic widths resolve a percentage `height` against an indefinite
 size, so with `repeat(auto-fill)` rows they can use another number of
 repetitions than the layout.
@@ -290,3 +290,8 @@ and `.h`, and `grid_layout_utils.cc` (BSD-3-Clause). The project owner
 decided to keep this code with attribution: a comment at each item and an
 entry in `THIRD_PARTY_NOTICES.md` with the Chromium license. A clean-room
 rewrite may follow.
+
+## Update (2026-10-09)
+
+M5 supports `display: grid` and `inline-grid` on `<button>`: the button
+content is a grid container (`crates/layout/src/control.rs`).

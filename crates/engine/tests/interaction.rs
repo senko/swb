@@ -6,33 +6,18 @@
 #![allow(clippy::unwrap_used)]
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use swb_engine::{Cursor, Key, Modifiers, MouseButton, Page, Point, Rect, Size, Url};
-use swb_net::NetworkFetcher;
 use swb_paint::SELECTION_BACKGROUND;
 use swb_style::TextDecorationLine;
 
 mod common;
-use common::{CTRL, SHIFT, Site, node, rect};
+use common::{CTRL, SHIFT, Site, center, node, open_url, rect};
 
 /// Loads `html` into an 800×600 page with the test fonts.
 fn open(site: &Site, html: &str) -> (Page, Url) {
     let url = site.page("page.html", html);
     (open_url(url.clone()), url)
-}
-
-/// Loads `url` into an 800×600 page with the test fonts.
-fn open_url(url: Url) -> Page {
-    let fetcher = Arc::new(NetworkFetcher::new());
-    let mut page = common::new_page(fetcher, 2, Size::new(800.0, 600.0));
-    page.navigate(url);
-    common::finish_loading(&mut page, Duration::from_secs(20));
-    page
-}
-
-fn center(r: Rect) -> (f32, f32) {
-    (r.x + r.width / 2.0, r.y + r.height / 2.0)
 }
 
 fn press(page: &mut Page, x: f32, y: f32, clicks: u32) {

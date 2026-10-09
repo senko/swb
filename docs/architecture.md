@@ -396,7 +396,8 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   the selected glyphs, then the glyphs again in the selection color) and
   outlines; `outline-style: auto` is Chromium's two-ring focus ring.
 - Rasterization works in device pixels. Rectangles without rounded corners
-  and clips are snapped to whole pixels; an opacity or mask group draws
+  and clips are snapped to whole pixels, and a single image is drawn into
+  its pixel-snapped rectangle (tiled images are not snapped); an opacity or mask group draws
   into a layer that covers only its visible bounds, and a mask group's
   layer is multiplied by the mask when the group ends. The rasterizer
   works in strips: a window is one strip; a full-page screenshot is split

@@ -14,7 +14,7 @@ use swb_engine::{Key, Modifiers, MouseButton, Page, Point, Size, Url};
 use swb_net::{Fetcher, NetError, NetworkFetcher, Request, Response};
 
 mod common;
-use common::{Site, node, rect, tiny_png};
+use common::{Site, key, node, rect, tiny_png};
 
 /// Loads `html` into an 800×600 page with the test fonts.
 fn open(site: &Site, html: &str) -> (Page, Url) {
@@ -30,10 +30,6 @@ fn open(site: &Site, html: &str) -> (Page, Url) {
 fn offset(page: &mut Page, id: &str) -> Point {
     let n = node(page, id);
     page.element_scroll(n).unwrap().offset
-}
-
-fn key(page: &mut Page, key: &Key) -> bool {
-    page.key_down(key, Modifiers::NONE)
 }
 
 /// The pixels of a rendering of the page (800×600 at scale 1).

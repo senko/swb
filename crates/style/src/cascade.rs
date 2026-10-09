@@ -2,7 +2,8 @@
 //!
 //! [`compute_styles`] walks the element tree (iteratively, so deep trees
 //! cannot overflow the stack) and computes one style per element, plus
-//! styles for `::before`, `::after`, `::marker` and `::placeholder`.
+//! styles for `::before`, `::after`, `::marker` and `::placeholder`, and
+//! for the pseudo-elements of `details` (`style_details_pseudos`).
 //!
 //! For each element:
 //!
@@ -67,8 +68,8 @@ use crate::values::{
 /// font size: 13px / 16px.
 const FIXED_FONT_RATIO: f32 = 13.0 / 16.0;
 
-/// Computes styles for all elements (and `::before`, `::after`, `::marker`
-/// and `::placeholder`) of the document.
+/// Computes styles for all elements (and `::before`, `::after`, `::marker`,
+/// `::placeholder` and the pseudo-elements of `details`) of the document.
 pub fn compute_styles(
     doc: &Document,
     stylist: &Stylist,
@@ -316,7 +317,7 @@ impl Styler<'_> {
         map: &mut StyleMap,
     ) {
         let data = el.data();
-        let mut kinds = Vec::with_capacity(3);
+        let mut kinds = Vec::with_capacity(5);
         if crate::element_kinds::generates_content_pseudos(data) {
             kinds.extend([PseudoKind::Before, PseudoKind::After]);
         }

@@ -47,6 +47,7 @@ SWB_BOXES = "boxes.json"
 SWB_SCREENSHOT = "screenshot.png"
 SWB_FULL_PAGE = "fullpage.png"
 SWB_LOG = "swb.log"
+SWB_FULL_PAGE_LOG = "swb-fullpage.log"
 REFERENCE_COPY = "reference.png"
 REFERENCE_LIVE_BOXES = "reference-boxes.json"
 REFERENCE_FULL_PAGE = "reference-fullpage.png"
@@ -112,7 +113,7 @@ def run_swb(name: str, swb_binary: Path, output: Path, full_page: bool = False) 
         command = swb.full_page_command(
             swb_binary, fixture, meta.url, meta.viewport, output / SWB_FULL_PAGE
         )
-        if swb.run(command, log_file=output / "swb-fullpage.log") != 0:
+        if swb.run(command, log_file=output / SWB_FULL_PAGE_LOG) != 0:
             log.error("%s: swb failed to take the full-page screenshot", name)
             return False
     return True

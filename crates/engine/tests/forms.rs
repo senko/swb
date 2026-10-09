@@ -7,74 +7,19 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::collections::HashMap;
 use std::fmt::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use swb_engine::{Key, LoadState, Modifiers, MouseButton, Page, Rect, Size, Url};
 use swb_layout::{BoxContent, FragmentRef};
-use swb_net::{Fetcher, Headers, Method, NetError, Request, Response};
+use swb_net::{Fetcher, Method, Request};
 use swb_paint::{DisplayItem, SELECTION_BACKGROUND};
 
 mod common;
-use common::{CTRL, SHIFT, node, rect};
+use common::{CTRL, SHIFT, TestSite, click, key, node, rect};
 
 const ORIGIN: &str = "https://site.test/";
-
-/// Serves the pages it knows and, for other URLs, a small page that shows
-/// the URL. Records every request.
-#[derive(Default)]
-struct TestSite {
-    pages: HashMap<String, String>,
-    /// The `Content-Type` of the pages; `text/html; charset=utf-8` if not
-    /// set.
-    content_type: Option<&'static str>,
-    /// Answer `POST` requests with a 303 redirect to the same URL.
-    redirect_posts: bool,
-    requests: Mutex<Vec<Request>>,
-}
-
-impl Fetcher for TestSite {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        self.requests.lock().unwrap().push(request.clone());
-        if self.redirect_posts && request.method == Method::Post {
-            let headers: Headers = [("location", request.url.as_str())].into_iter().collect();
-            return Ok(Response {
-                url: request.url.clone(),
-                status: 303,
-                headers,
-                body: Vec::new(),
-                redirected: false,
-            });
-        }
-        let mut url = request.url.clone();
-        url.set_fragment(None);
-        let body =
-            self.pages.get(url.as_str()).cloned().unwrap_or_else(|| {
-                format!("<!DOCTYPE html><title>result</title><p id=url>{url}</p>")
-            });
-        let content_type = self.content_type.unwrap_or("text/html; charset=utf-8");
-        let headers: Headers = [("content-type", content_type)].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status: 200,
-            headers,
-            body: body.into_bytes(),
-            redirected: false,
-        })
-    }
-}
-
-impl TestSite {
-    fn requests(&self) -> Vec<Request> {
-        self.requests.lock().unwrap().clone()
-    }
-
-    fn last_request(&self) -> Request {
-        self.requests().last().cloned().unwrap()
-    }
-}
 
 const TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -127,16 +72,6 @@ fn control_scroll(page: &mut Page) -> f32 {
         }
     });
     scroll.unwrap()
-}
-
-/// Clicks the center of the element with `id` (the page is not scrolled).
-fn click(page: &mut Page, id: &str) -> bool {
-    let r = rect(page, id);
-    page.click(r.x + r.width / 2.0, r.y + r.height / 2.0)
-}
-
-fn key(page: &mut Page, key: &Key) -> bool {
-    page.key_down(key, Modifiers::NONE)
 }
 
 /// Types text as key presses.

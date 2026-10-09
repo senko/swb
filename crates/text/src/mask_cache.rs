@@ -2,11 +2,10 @@
 //!
 //! Policy:
 //!
-//! - Masks of at most [`MAX_CACHED_MASK_BYTES`] (65,536 pixels, the area
+//! - Masks of at most [`MAX_CACHED_MASK_PIXELS`] (65,536 pixels, the area
 //!   of 256 × 256) are cached. Larger masks occur only at very large font
 //!   sizes; they are rasterized again on every request and are never kept.
-//!   Skia also stops caching glyph images above 256 pixels and draws such
-//!   glyphs as paths.
+//!   The limit is swb's own choice.
 //! - The cached mask data never exceeds [`MASK_CACHE_BUDGET`] bytes, and the
 //!   cache never has more than [`MAX_CACHED_MASKS`] entries (glyphs without
 //!   a mask count as entries of zero bytes). If a new entry does not fit,
@@ -19,8 +18,8 @@ use std::sync::Arc;
 use crate::raster::GlyphMask;
 use crate::{FontId, GlyphId};
 
-/// Largest mask, in bytes (one byte per pixel), that the cache keeps.
-pub(crate) const MAX_CACHED_MASK_BYTES: usize = 256 * 256;
+/// Largest mask, in pixels (one byte per pixel), that the cache keeps.
+pub(crate) const MAX_CACHED_MASK_PIXELS: usize = 256 * 256;
 
 /// Largest total size of the cached mask data, in bytes.
 pub(crate) const MASK_CACHE_BUDGET: usize = 64 << 20;
@@ -67,7 +66,7 @@ impl MaskCache {
     /// Stores the result for `key`, unless the mask is too large to cache.
     pub(crate) fn insert(&mut self, key: MaskKey, mask: Option<Arc<GlyphMask>>) {
         let bytes = mask_bytes(mask.as_ref());
-        if bytes > MAX_CACHED_MASK_BYTES || bytes > self.budget {
+        if bytes > MAX_CACHED_MASK_PIXELS || bytes > self.budget {
             return;
         }
         if let Some(old) = self.entries.remove(&key) {
@@ -123,11 +122,11 @@ mod tests {
     #[test]
     fn large_masks_are_not_cached() {
         let mut cache = MaskCache::new(MASK_CACHE_BUDGET);
-        cache.insert(key(1), Some(mask(MAX_CACHED_MASK_BYTES)));
-        cache.insert(key(2), Some(mask(MAX_CACHED_MASK_BYTES + 1)));
+        cache.insert(key(1), Some(mask(MAX_CACHED_MASK_PIXELS)));
+        cache.insert(key(2), Some(mask(MAX_CACHED_MASK_PIXELS + 1)));
         assert!(cache.get(&key(1)).is_some());
         assert_eq!(cache.get(&key(2)), None);
-        assert_eq!(cache.bytes, MAX_CACHED_MASK_BYTES);
+        assert_eq!(cache.bytes, MAX_CACHED_MASK_PIXELS);
     }
 
     #[test]

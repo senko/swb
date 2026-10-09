@@ -61,7 +61,7 @@ use crate::block::{
 };
 use crate::box_tree::{
     BlockContainer, BoxBase, BuildContext, BuildState, IndependentBox, IndependentContents,
-    InlineFormattingContext, build_block_container, build_flex_items, control_text,
+    InlineFormattingContext, build_block_container, build_item_boxes, control_text,
 };
 use crate::fonts;
 use crate::fragment::{BoxContent, BoxFragment, ControlContent, Fragment};
@@ -252,10 +252,10 @@ pub(crate) fn build(
         ControlKind::Checkbox | ControlKind::Radio => ControlContents::None,
         ControlKind::ButtonElement => match base.style.display {
             Display::Flex | Display::InlineFlex => {
-                ControlContents::Flex(build_flex_items(ctx, base, state))
+                ControlContents::Flex(build_item_boxes(ctx, base, state))
             }
             Display::Grid | Display::InlineGrid => {
-                ControlContents::Grid(build_flex_items(ctx, base, state))
+                ControlContents::Grid(build_item_boxes(ctx, base, state))
             }
             _ => ControlContents::Flow(build_block_container(ctx, base, state)),
         },
@@ -357,7 +357,7 @@ struct Inner {
 }
 
 impl Inner {
-    /// Content without text: block or flex children (or none).
+    /// Content without text: block, flex or grid children (or none).
     fn boxes(fragments: Vec<Fragment>, width: f32, height: f32, baseline: Option<f32>) -> Inner {
         Inner {
             fragments,
@@ -389,21 +389,18 @@ pub(crate) fn layout(
         ControlKind::Select => (content_width - SELECT_PADDING.0 - SELECT_PADDING.1).max(0.0),
         _ => content_width,
     };
-    let is_container = matches!(
-        control.contents,
-        ControlContents::Flex(_) | ControlContents::Grid(_)
-    );
-    let (inner, height) = layout_container(ctx, base, control, content_width, content_height, cb)
-        .unwrap_or_else(|| {
-            let inner = layout_inner(ctx, base.node, control, style, text_width);
-            let height = content_height.unwrap_or_else(|| {
-                let intrinsic = intrinsic_height(ctx, style, kind, inner.height);
-                let vertical = edge_sum.vertical();
-                let specified = resolve_size(&style.height, cb.height, style.box_sizing, vertical);
-                clamp_height(style, specified.unwrap_or(intrinsic), cb.height, vertical)
-            });
-            (inner, height)
+    let container = layout_container(ctx, base, control, content_width, content_height, cb);
+    let is_container = container.is_some();
+    let (inner, height) = container.unwrap_or_else(|| {
+        let inner = layout_inner(ctx, base.node, control, style, text_width);
+        let height = content_height.unwrap_or_else(|| {
+            let intrinsic = intrinsic_height(ctx, style, kind, inner.height);
+            let vertical = edge_sum.vertical();
+            let specified = resolve_size(&style.height, cb.height, style.box_sizing, vertical);
+            clamp_height(style, specified.unwrap_or(intrinsic), cb.height, vertical)
         });
+        (inner, height)
+    });
     // Flex and grid containers fill their box: nothing to center.
     let (x, y) = if is_container {
         (0.0, 0.0)
@@ -491,9 +488,9 @@ fn layout_inner(
         height: None,
     };
     match &control.contents {
-        ControlContents::None => Inner::boxes(Vec::new(), 0.0, 0.0, None),
-        // Laid out by `layout_container`.
-        ControlContents::Flex(_) | ControlContents::Grid(_) => {
+        // Containers are laid out by `layout_container`; this is never
+        // reached for them.
+        ControlContents::None | ControlContents::Flex(_) | ControlContents::Grid(_) => {
             Inner::boxes(Vec::new(), 0.0, 0.0, None)
         }
         ControlContents::Flow(container) => {

@@ -7,7 +7,9 @@
 //! universal. To find the rules that can match an element, the cascade
 //! looks up the element's ID, classes and local name, plus the universal
 //! bucket. Rules for `::before`, `::after`, `::marker` and `::placeholder`
-//! have their own maps; rules for other pseudo-elements are dropped.
+//! have their own maps; rules for other pseudo-elements are dropped. The
+//! pseudo-elements of `details` get their styles in `style_details_pseudos`
+//! (in the cascade), without rules.
 //!
 //! `@media` conditions are evaluated when styles are computed (the
 //! environment can change); `@supports` conditions are evaluated when a

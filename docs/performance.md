@@ -55,14 +55,16 @@ whenever it runs (style, layout, display list).
 
 ## Baseline
 
-2026-10-02, M1. Release build, Linux, Intel Core i5-13500, 20 runs, median
-times in ms.
+2026-10-09, M5 (commit 1cbcadb). Release build, Linux, Intel Core i5-13500,
+20 runs, median times in ms.
 
 | Fixture | Elements | parse | stylesheets | style | layout | display list | raster | Total |
 |---|---|---|---|---|---|---|---|---|
-| hacker-news | 818 | 0.65 | 0.65 | 1.09 | 1.28 | 0.09 | 0.36 | 4.12 |
-| senko-net | 65 | 0.06 | 0.37 | 0.06 | 0.30 | 0.01 | 0.53 | 1.33 |
-| wikipedia-web-browser | 4052 | 5.22 | 6.76 | 8.12 | 7.97 | 0.74 | 1.24 | 30.05 |
+| ars-technica | 1943 | 3.15 | 4.13 | 20.70 | 6.81 | 0.47 | 5.06 | 40.33 |
+| bbc | 2745 | 4.05 | 2.30 | 4.65 | 10.39 | 0.70 | 3.35 | 25.45 |
+| hacker-news | 818 | 0.65 | 0.46 | 1.46 | 1.82 | 0.14 | 0.67 | 5.20 |
+| senko-net | 65 | 0.06 | 0.24 | 0.08 | 0.38 | 0.03 | 0.56 | 1.34 |
+| wikipedia-web-browser | 4052 | 5.26 | 5.54 | 10.00 | 12.99 | 1.17 | 2.23 | 37.19 |
 
 Observations:
 

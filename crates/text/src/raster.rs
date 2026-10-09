@@ -8,6 +8,9 @@
 //! - Synthetic oblique shears the outline by -0.25 in Skia's y-down space
 //!   (a horizontal skew of a quarter of the height, as Chromium draws
 //!   synthetic oblique text).
+//!
+//! Masks of up to [`MAX_CACHED_MASK_PIXELS`] pixels are filled at
+//! `SUPERSAMPLE` times the resolution and averaged down, for edge precision.
 
 use skrifa::instance::{LocationRef, NormalizedCoord, Size};
 use skrifa::outline::{DrawSettings, OutlinePen};
@@ -17,7 +20,7 @@ use tiny_skia::{FillRule, LineJoin, Mask, Path, PathBuilder, Stroke, Transform};
 use crate::GlyphId;
 use crate::context::Synthesis;
 use crate::face::LoadedFace;
-use crate::mask_cache::MAX_CACHED_MASK_BYTES;
+use crate::mask_cache::MAX_CACHED_MASK_PIXELS;
 
 /// Largest mask width or height in pixels. Larger glyphs are not
 /// rasterized.
@@ -125,7 +128,7 @@ fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<Gly
     }
     // Large glyphs do not need the precision, and their masks are not
     // cached: the direct fill bounds their cost.
-    let ss = if (width as usize) * (height as usize) <= MAX_CACHED_MASK_BYTES {
+    let ss = if (width as usize) * (height as usize) <= MAX_CACHED_MASK_PIXELS {
         SUPERSAMPLE
     } else {
         1
@@ -151,7 +154,7 @@ fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<Gly
 /// stems of glyphs up to 1/8 px away from where `FreeType` (Chromium) puts
 /// them (measured with the same glyph at the same sub-pixel position;
 /// with 4, edges are exact to 1/16 px). Only masks that the cache can keep
-/// (at most `MAX_CACHED_MASK_BYTES` pixels) are filled this way, so the
+/// (at most `MAX_CACHED_MASK_PIXELS` pixels) are filled this way, so the
 /// larger mask is at most 1 MiB.
 const SUPERSAMPLE: u32 = 4;
 

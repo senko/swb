@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use swb_dom::{NodeId, local_name};
 use swb_layout::{FragmentRef, Point};
-use swb_style::PseudoKind;
-use swb_style::is_actually_disabled;
+use swb_style::{PseudoKind, is_actually_disabled};
 
 use super::{HistoryHandling, Page};
 use crate::edit::TextEdit;

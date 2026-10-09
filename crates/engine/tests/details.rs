@@ -6,48 +6,25 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Key, Modifiers, Page, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, Request, Response};
+use swb_engine::{Key, Page, Size, Url};
+use swb_net::Fetcher;
 
 mod common;
-use common::{node, rect};
-
-/// Serves one page for every URL and records the requested URLs.
-struct Site {
-    html: String,
-    requests: Mutex<Vec<String>>,
-}
-
-impl Fetcher for Site {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        self.requests
-            .lock()
-            .unwrap()
-            .push(request.url.as_str().to_owned());
-        let headers: Headers = [("content-type", "text/html; charset=utf-8")]
-            .into_iter()
-            .collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status: 200,
-            headers,
-            body: self.html.clone().into_bytes(),
-            redirected: false,
-        })
-    }
-}
+use common::{TestSite, click_offset, key, node, rect};
 
 const BODY: &str = "<!DOCTYPE html><body style='margin:0; font: 16px/20px sans-serif'>\
                     <style>summary{display:block}</style>";
 
-fn open(html: &str) -> (Page, Arc<Site>) {
-    let site = Arc::new(Site {
-        html: format!("{BODY}{html}"),
-        requests: Mutex::new(Vec::new()),
-    });
+fn open(html: &str) -> (Page, Arc<TestSite>) {
+    let mut site = TestSite::default();
+    // The link target `/go` shows the same page.
+    for url in ["https://site.test/", "https://site.test/go"] {
+        site.pages.insert(url.to_owned(), format!("{BODY}{html}"));
+    }
+    let site = Arc::new(site);
     let fetcher: Arc<dyn Fetcher> = Arc::clone(&site) as Arc<dyn Fetcher>;
     let mut page = common::new_page(fetcher, 2, Size::new(800.0, 600.0));
     page.navigate(Url::parse("https://site.test/").unwrap());
@@ -55,13 +32,9 @@ fn open(html: &str) -> (Page, Arc<Site>) {
     (page, site)
 }
 
+/// Clicks the left end of the element with `id`.
 fn click(page: &mut Page, id: &str) -> bool {
-    let r = rect(page, id);
-    page.click(r.x + 2.0, r.y + r.height / 2.0)
-}
-
-fn key(page: &mut Page, key: &Key) -> bool {
-    page.key_down(key, Modifiers::NONE)
+    click_offset(page, id, 2.0)
 }
 
 fn is_open(page: &Page, id: &str) -> bool {
@@ -165,8 +138,7 @@ fn a_click_on_a_link_or_a_field_in_the_summary_does_not_toggle() {
     click(&mut page, "a");
     common::finish_loading(&mut page, Duration::from_secs(20));
     assert!(!is_open(&page, "d"));
-    let requests = site.requests.lock().unwrap().clone();
-    assert_eq!(requests.last().unwrap(), "https://site.test/go");
+    assert_eq!(site.last_request().url.as_str(), "https://site.test/go");
 }
 
 #[test]

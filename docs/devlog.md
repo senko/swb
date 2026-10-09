@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M5 maintenance
+
+- Two read-only reviewers (layout, paint and text; the other crates,
+  tools and docs) listed duplication, names and outdated docs; one
+  implementer applied the selected items. `just snapshot` is
+  byte-identical before and after (346 files); the compare scores do
+  not change.
+- Code: `grid::layout` merged with `layout_grid`, duplicate arms in the
+  button layout merged, `build_flex_items` renamed `build_item_boxes`
+  (it builds grid items too), `MAX_CACHED_MASK_BYTES` renamed
+  `MAX_CACHED_MASK_PIXELS`, one `is_rendered` test for focus. Engine test
+  helpers (`TestSite`, `open_url`, `center`, `click`, `key`) moved to
+  `tests/common`. Tools: small duplicates in `pixels.py`, a dead field,
+  constants for literals.
+- Docs: ADRs 0006, 0013, 0017 and 0019 match M5; docs/performance.md has
+  a new baseline for all five fixtures (BBC 25 ms, Ars 40 ms, Wikipedia
+  37 ms).
+- Skipped, with reasons in the roadmap backlog: the two sources for
+  hidden details content (style and attribute), the doubled marker style
+  of a `details` with `display: list-item`.
+- M5 is complete. Target 5 waits for the owner's check.
+
 ## 2026-10-09: final pass on BBC (M5 item 4)
 
 - The text pixel differences on all pages were glyph edge coverage, not

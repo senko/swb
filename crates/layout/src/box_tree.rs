@@ -468,10 +468,10 @@ pub(crate) fn build_independent(
     let marker = element.and_then(|n| build_marker(ctx, n, &base.style, state));
     let contents = match base.style.display {
         Display::Flex | Display::InlineFlex => {
-            IndependentContents::Flex(build_flex_items(ctx, &base, state))
+            IndependentContents::Flex(build_item_boxes(ctx, &base, state))
         }
         Display::Grid | Display::InlineGrid => {
-            IndependentContents::Grid(build_flex_items(ctx, &base, state))
+            IndependentContents::Grid(build_item_boxes(ctx, &base, state))
         }
         Display::Table | Display::InlineTable => {
             IndependentContents::Table(crate::table::build_table(ctx, &base, state))
@@ -619,7 +619,7 @@ pub(crate) fn build_block_container(
 /// Builds the children of a flex or grid container: every in-flow child
 /// becomes an item; contiguous inline content is wrapped in anonymous
 /// blocks. Floats are items (`float` does not apply to them).
-pub(crate) fn build_flex_items(
+pub(crate) fn build_item_boxes(
     ctx: &BuildContext<'_>,
     base: &BoxBase,
     state: &mut BuildState,
