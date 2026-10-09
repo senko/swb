@@ -823,6 +823,14 @@ reach 1. `geometry` is the main metric.
   `local()` sources and the metric descriptors (`size-adjust` and the
   overrides) are not supported yet, so fallback faces that use them
   differ.
+- The `--full-page` score of `ars-technica` is not reproducible: the
+  placeholder images of the article cards differ between Chromium runs
+  (0.9558 to 0.9966 on the same swb output; swb's screenshots are
+  identical). Compare its text and layout regions, not the score.
+- Glyph pixels differ slightly from Chromium's (FreeType): about 1–3 % of
+  the ink of a glyph, in both directions, and edges up to about 0.03 px
+  away. Glyph positions (advances, kerning, letter-spacing, the quarter
+  pixel steps) match; see the `glyph-positions` probe cases.
 - Alignment works on tags only. When swb builds a different DOM (for
   example template contents in the tree, or different parser recovery),
   elements in the differing blocks count as missing or extra.

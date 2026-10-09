@@ -4,6 +4,22 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: final pass on BBC (M5 item 4)
+
+- The text pixel differences on all pages were glyph edge coverage, not
+  positions: swb and Chromium use the same advances and quarter-pixel
+  offsets, but tiny-skia resolves edges to 1/4 px. Glyph masks that the
+  cache keeps are now filled at 4 times the size and averaged down (ADR
+  0006 update). Review: large glyphs paid 16 times the cost on every
+  use; they are now filled directly, with the hostile case
+  `huge-glyphs`.
+- Single images are scaled into their pixel-snapped rectangle (the 1–2 px
+  lines at the edges of BBC images).
+- Engine tests for the BBC links and `:hover` rules; no bug found.
+- Scores: BBC pixels 0.9987 (full page 0.9987), Hacker News 0.9988,
+  senko.net 0.9989. 148 snapshot images change.
+- Target 5 is done. Next: the M5 maintenance.
+
 ## 2026-10-09: grid buttons, `scrollbar-width` (M5 item 3)
 
 - `<button>` with `display: grid` or `inline-grid` lays out its content

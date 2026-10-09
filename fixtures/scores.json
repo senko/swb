@@ -7,19 +7,19 @@
   },
   "bbc": {
     "geometry": 1.0,
-    "pixels": 0.9985,
+    "pixels": 0.9987,
     "relative": 1.0,
     "size": 1.0
   },
   "hacker-news": {
     "geometry": 1.0,
-    "pixels": 0.998,
+    "pixels": 0.9988,
     "relative": 1.0,
     "size": 1.0
   },
   "senko-net": {
     "geometry": 1.0,
-    "pixels": 0.9973,
+    "pixels": 0.9989,
     "relative": 1.0,
     "size": 1.0
   },

@@ -17,6 +17,7 @@ use tiny_skia::{FillRule, LineJoin, Mask, Path, PathBuilder, Stroke, Transform};
 use crate::GlyphId;
 use crate::context::Synthesis;
 use crate::face::LoadedFace;
+use crate::mask_cache::MAX_CACHED_MASK_BYTES;
 
 /// Largest mask width or height in pixels. Larger glyphs are not
 /// rasterized.
@@ -122,8 +123,15 @@ fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<Gly
     if bounds.width() <= f32::EPSILON || bounds.height() <= f32::EPSILON {
         return None;
     }
-    let mut mask = Mask::new(width, height)?;
-    let to_mask = Transform::from_translate(-left, -top);
+    // Large glyphs do not need the precision, and their masks are not
+    // cached: the direct fill bounds their cost.
+    let ss = if (width as usize) * (height as usize) <= MAX_CACHED_MASK_BYTES {
+        SUPERSAMPLE
+    } else {
+        1
+    };
+    let mut mask = Mask::new(width.checked_mul(ss)?, height.checked_mul(ss)?)?;
+    let to_mask = Transform::from_translate(-left, -top).post_scale(ss as f32, ss as f32);
     mask.fill_path(&path, FillRule::Winding, true, to_mask);
     if let Some(stroke) = &stroke {
         mask.fill_path(stroke, FillRule::Winding, true, to_mask);
@@ -133,8 +141,41 @@ fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<Gly
         top: top as i32,
         width,
         height,
-        data: mask.take(),
+        data: downsample(mask.data(), width, height, ss),
     })
+}
+
+/// The edge precision factor: the outline is filled in a mask `SUPERSAMPLE`
+/// times larger in each direction and averaged down. tiny-skia's
+/// anti-aliasing resolves edges to 1/4 px only, so a direct fill puts the
+/// stems of glyphs up to 1/8 px away from where `FreeType` (Chromium) puts
+/// them (measured with the same glyph at the same sub-pixel position;
+/// with 4, edges are exact to 1/16 px). Only masks that the cache can keep
+/// (at most `MAX_CACHED_MASK_BYTES` pixels) are filled this way, so the
+/// larger mask is at most 1 MiB.
+const SUPERSAMPLE: u32 = 4;
+
+/// Averages `ss` x `ss` blocks of a mask `ss` times larger than
+/// `width` x `height`.
+fn downsample(big: &[u8], width: u32, height: u32, ss: u32) -> Vec<u8> {
+    let (w, h, ss) = (width as usize, height as usize, ss as usize);
+    let mut out = Vec::with_capacity(w * h);
+    for y in 0..h {
+        for x in 0..w {
+            let mut sum = 0usize;
+            for dy in 0..ss {
+                let row = (y * ss + dy) * w * ss + x * ss;
+                sum += big
+                    .get(row..row + ss)
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|&v| usize::from(v))
+                    .sum::<usize>();
+            }
+            out.push(((sum + ss * ss / 2) / (ss * ss)) as u8);
+        }
+    }
+    out
 }
 
 /// Skia's fake bold stroke width as a fraction of the font size.
@@ -206,5 +247,40 @@ mod tests {
             (0, -4, 4, 4)
         );
         assert!(mask.data.iter().all(|&a| a == 255));
+    }
+
+    #[test]
+    fn edges_have_sixteenth_pixel_coverage() {
+        // A bar from x = 0.3 to x = 1.3, 4 px high.
+        let mut builder = PathBuilder::new();
+        builder.move_to(0.3, -4.0);
+        builder.line_to(1.3, -4.0);
+        builder.line_to(1.3, 0.0);
+        builder.line_to(0.3, 0.0);
+        builder.close();
+        let path = builder.finish().unwrap();
+        let mask = fill(path, 10.0, 0, Synthesis::default()).unwrap();
+        assert_eq!((mask.width, mask.height), (2, 4));
+        let (left, right) = (i32::from(mask.data[0]), i32::from(mask.data[1]));
+        // Exact coverage: 0.7 and 0.3 of 255.
+        assert!((left - 179).abs() <= 8, "left {left}");
+        assert!((right - 77).abs() <= 8, "right {right}");
+    }
+
+    #[test]
+    fn large_glyphs_are_filled_directly() {
+        // 300 x 300 px, more than the cache keeps: quarter-pixel edges.
+        let mut builder = PathBuilder::new();
+        builder.move_to(0.3, -300.0);
+        builder.line_to(300.3, -300.0);
+        builder.line_to(300.3, 0.0);
+        builder.line_to(0.3, 0.0);
+        builder.close();
+        let path = builder.finish().unwrap();
+        let mask = fill(path, 400.0, 0, Synthesis::default()).unwrap();
+        assert_eq!((mask.width, mask.height), (301, 300));
+        // Without supersampling, 0.7 coverage comes out as 0.75.
+        let left = i32::from(mask.data[0]);
+        assert!((left - 191).abs() <= 2, "left {left}");
     }
 }

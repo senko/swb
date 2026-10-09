@@ -1671,6 +1671,8 @@ impl Rasterizer<'_> {
         };
         let tiled = is_tiled(area, tile);
         let tile = self.to_device(tile);
+        // Chromium draws a single image into its pixel-snapped rectangle.
+        let tile = if tiled { tile } else { snap(tile) };
         let area = snap(self.to_device(area));
         let Some(r) = skia_rect(area) else {
             return;
@@ -2683,6 +2685,26 @@ mod tests {
             &OneImage(DecodedImage::from_pixmap(image), None),
         );
         assert_eq!(rgb(&p, 50, 0), (0, 0, 0));
+    }
+
+    #[test]
+    fn a_single_image_is_scaled_into_its_pixel_snapped_rectangle() {
+        // 4x1: two black pixels, two white. Drawn 20 px wide at x = 10.5,
+        // the snapped rectangle is x = 11 (rounded), so the edge between
+        // black and white is centered on x = 21, not 20.5.
+        let mut image = Pixmap::new(4, 1).unwrap();
+        image.fill(tiny_skia::Color::BLACK);
+        for x in 2..4 {
+            image.data_mut()[x * 4..x * 4 + 4].copy_from_slice(&[255; 4]);
+        }
+        let tile = Rect::new(10.5, 0.0, 20.0, 10.0);
+        let p = render_with(
+            vec![image_item(tile, tile)],
+            1.0,
+            &OneImage(DecodedImage::from_pixmap(image), None),
+        );
+        let (gray, ..) = rgb(&p, 20, 5);
+        assert!((i32::from(gray) - 102).abs() <= 8, "gray {gray}");
     }
 
     fn svg(source: &str) -> DecodedImage {

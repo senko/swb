@@ -20,9 +20,9 @@ scroll containers, `aspect-ratio`, web fonts (WOFF2, variable fonts),
 inline SVG and SVG images, responsive images, video posters, CSS
 counters and quirks mode; links, scrolling, back/forward, the address
 bar, hover effects, keyboard focus (Tab), text selection with copy, forms
-(GET and POST) and cookies work. No JavaScript yet. Four target pages
-(senko.net, Hacker News, a Wikipedia article, the Ars Technica front
-page) match Chromium's layout; the BBC front page is next.
+(GET and POST) and cookies work, and `details` menus open and close. No
+JavaScript yet. Five target pages (senko.net, Hacker News, a Wikipedia
+article, the Ars Technica and BBC front pages) match Chromium's layout.
 See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 
 ## Build and run

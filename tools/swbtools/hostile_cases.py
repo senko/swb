@@ -300,6 +300,20 @@ def many_shadows() -> Page:
     return Page(doc(body))
 
 
+@case(
+    "60 different bold italic glyphs at 3,800 px in the viewport (glyph masks: side 4,096; "
+    "no supersampling above the cached size: 44 MiB, 171 MiB with it)",
+    rss_limit_mib=128,
+)
+def huge_glyphs() -> Page:
+    text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567"
+    spans = "".join(
+        f"<span style='position:absolute;left:{-(i % 3) * 600}px;top:{-(i % 4) * 900}px'>{c}</span>"
+        for i, c in enumerate(text)
+    )
+    return Page(doc(f"<div style='font:italic bold 3800px/1 serif'>{spans}</div>"))
+
+
 # --- Style (ADR 0007) ------------------------------------------------------
 
 

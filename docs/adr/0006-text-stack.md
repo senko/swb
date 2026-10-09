@@ -361,3 +361,29 @@ keeps the shaping of the whole text, so at a `break-all` or
 `overflow-wrap` break a kerning pair or an Arabic joining across the
 break stays (a line can be up to one kerning value narrower than in
 Chromium).
+
+## Update (2026-10-09): glyph edge precision
+
+M5 item 4 measured the text pixel differences on the BBC and Ars pages
+(tools/probes/glyph-positions.json). swb and Chromium place glyphs at the
+same advances and the same quarter-pixel offsets. The difference is the
+coverage at the edges: tiny-skia's anti-aliased fill resolves an edge to
+1/4 px (edge coverage comes in steps of 0.25), while Chromium's glyphs
+(FreeType) have exact area coverage. Stems were up to 1/8 px away from
+Chromium's (mean centroid shift 0.07 px, maximum 0.22 px on a BBC
+heading).
+
+Decision: a glyph whose mask can be cached (at most 65,536 pixels) is
+filled in a mask 4 times larger in each direction and averaged down,
+which gives edges to 1/16 px (maximum shift 0.06 px; 8 times gives no
+more). Larger glyphs are filled directly: the precision does not show at
+that size, they are not cached, and the larger mask (up to 16 times the
+pixels) would cost time and memory on every use. The larger mask is at
+most 1 MiB.
+
+Consequences: the raster stage takes about 5 % longer on a cold cache.
+Viewport pixel scores rise (Hacker News 0.9981 → 0.9988, senko.net
+0.9973 → 0.9989, BBC 0.9985 → 0.9987); 148 of the 346 snapshot files
+change (only images). What remains are 1–3 % ink differences inside
+glyphs, from FreeType's own coverage computation. The hostile case
+`huge-glyphs` checks the memory of large glyphs (128 MiB limit).

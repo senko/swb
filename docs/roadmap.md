@@ -383,7 +383,21 @@ Features, in this order. Each one ends with a review and a commit.
    edges of scaled images (the same); links
    (also in inline SVG and in the menu) and the page's `:hover` rules
    (engine tests, as for Ars); `just perf bbc` compared with Ars. Then
-   report target 5 as done.
+   report target 5 as done. Done: the glyphs were at the right positions;
+   their edges were not. tiny-skia resolves glyph edges to 1/4 px,
+   FreeType (Chromium) gives exact coverage. Glyph masks that the cache
+   keeps are now filled at 4 times the size and averaged down (1/16 px
+   edges; ADR 0006 update). The image lines came from `<img>` boxes at
+   fractional positions: Chromium scales the image into the pixel-snapped
+   rectangle, swb sampled with the unsnapped one. Engine tests cover the
+   page's links (cards, the SVG logo, section titles with SVG, the menu)
+   and `:hover` rules; they found no bug. Perf: BBC 25 ms (9 µs per
+   element), Ars 40 ms (21 µs). BBC pixels 0.9985 → 0.9987, full page
+   0.9981 → 0.9987; Hacker News 0.9981 → 0.9988, senko.net 0.9973 →
+   0.9989. Target 5 done.
+
+Target 5 is done (geometry 1.0000, pixels 0.9987) and waits for the
+owner's check. Next: the end-of-milestone maintenance.
 
 ## Pending decisions
 
@@ -420,6 +434,19 @@ Features, in this order. Each one ends with a review and a commit.
   the debug build of `just test` passes). The browser lays out on the
   main thread (8 MiB) and the hostile case `grid-flex-nesting` passes,
   but the test's 2 MiB claim does not hold for release builds.
+- Paint, images: only single images are drawn into the pixel-snapped
+  rectangle. A tiled image, and a `no-repeat` background whose tile is
+  smaller than its area, use the unsnapped tile. `background-size: cover`
+  and repeated backgrounds differ more: Chromium fades the image edge to
+  transparent, swb pads it. An SVG image is rendered at the unsnapped
+  size and then drawn into the snapped rectangle (resampled by up to
+  1 px).
+- Text: after the 1/16 px edges, glyph ink still differs by 1–3 % from
+  FreeType's coverage.
+- Tools: the Ars full-page score varies between 0.9558 and 0.9966 for
+  byte-identical swb output, because Chromium's card placeholder images
+  differ between runs. Find out why (it can be the cause of the avatar
+  item above).
 
 ## Backlog from M4
 
