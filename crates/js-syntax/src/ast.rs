@@ -6,10 +6,14 @@
 //! code-unit offsets ([`Span`]). Names are [`NameId`]s of the script's
 //! [`crate::Interner`]; string values are [`StringId`]s.
 //!
-//! The node types are laid out for the whole ES2025 grammar. Classes,
-//! `super`, `await` and modules come with M7 features 1b and 1c, as new
-//! enum variants; [`FunctionKind`] and [`Function::is_async`] already
-//! cover all function forms.
+//! The node types are laid out for the whole ES2025 grammar. Modules come
+//! with M7 feature 1c, as new enum variants.
+//!
+//! Classes ([`Class`]) live in a table of their own, with their elements
+//! ([`ClassElement`]). The field initializers of a class belong to
+//! synthetic functions ([`FunctionKind::InstanceInitializer`],
+//! [`FunctionKind::StaticInitializer`]), so that `this`, `super` and the
+//! captures inside them follow the rules of functions.
 //!
 //! Patterns ([`Pattern`]) serve both binding patterns (declarations,
 //! parameters, `catch`) and assignment patterns (destructuring
@@ -86,6 +90,10 @@ ids! {
     StringId;
     /// A template literal in [`Ast::template`].
     TemplateId;
+    /// A class in [`Ast::class`].
+    ClassId;
+    /// A `super(...)` call in [`Ast::super_call`].
+    SuperCallId;
     /// A scope in [`crate::ScopeTree::scope`].
     ScopeId;
     /// A binding in [`crate::ScopeTree::binding`].
@@ -344,13 +352,83 @@ pub enum ExprKind {
     /// `0b`), without separators and without the `n`. The value comes
     /// with M7 feature 10.
     BigInt(StringId),
+    /// A class expression (§15.7).
+    Class(ClassId),
+    /// `await argument` (§15.8): in the body of an async function.
+    Await(ExprId),
+    /// `super.property` (§13.3.7): the property of the prototype of the
+    /// home object, with `this` as the receiver. `this` resolves to the
+    /// `this` binding and `home` to the home object binding
+    /// ([`crate::BindingKind::HomeObject`]) of the nearest non-arrow
+    /// function (a method, accessor, constructor or class initializer).
+    SuperMember {
+        /// The property name.
+        property: NameId,
+        /// The `this` occurrence.
+        this: RefId,
+        /// The home object occurrence.
+        home: RefId,
+    },
+    /// `super[index]` (§13.3.7), as [`ExprKind::SuperMember`].
+    SuperIndex {
+        /// The key expression.
+        index: ExprId,
+        /// The `this` occurrence.
+        this: RefId,
+        /// The home object occurrence.
+        home: RefId,
+    },
+    /// `super(arguments)` (§13.3.7.1): only in the constructor of a
+    /// derived class and in arrow functions inside it.
+    SuperCall(SuperCallId),
+    /// `object.#name`, or `object?.#name` in an optional chain
+    /// (§13.3.2). The identifier is a private name (its text starts with
+    /// `#`); it resolves to the private name binding
+    /// ([`crate::BindingKind::PrivateName`]) of a class body scope.
+    PrivateMember {
+        /// The object.
+        object: ExprId,
+        /// The private name.
+        name: Ident,
+        /// `?.#name`: see [`ExprKind::Member`].
+        optional: bool,
+    },
+    /// `#name in object` (§13.10.1): whether the object has the private
+    /// name.
+    PrivateIn {
+        /// The private name.
+        name: Ident,
+        /// The object.
+        object: ExprId,
+    },
+}
+
+/// A `super(arguments)` call (§13.3.7.1). The occurrences resolve to the
+/// implicit bindings of the nearest non-arrow function (a derived
+/// constructor): the call constructs the parent class with the function's
+/// `new.target`, initializes the `this` binding with the result and runs
+/// the field initializers of the active function's class.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SuperCall {
+    /// The arguments; they can be [`ExprKind::Spread`].
+    pub arguments: List<ExprId>,
+    /// The `this` occurrence (the call initializes the binding).
+    pub this: RefId,
+    /// The `new.target` occurrence.
+    pub new_target: RefId,
+    /// The occurrence of the active function binding
+    /// ([`crate::BindingKind::ActiveFunction`]): the parent constructor is
+    /// its prototype at the time of the call (§13.3.7.2).
+    pub function: RefId,
 }
 
 /// The target of an assignment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AssignTarget {
-    /// A simple target: an [`ExprKind::Identifier`], [`ExprKind::Member`]
-    /// or [`ExprKind::Index`], or (in sloppy mode code, `=` and the
+    /// A simple target: an [`ExprKind::Identifier`], [`ExprKind::Member`],
+    /// [`ExprKind::Index`], [`ExprKind::PrivateMember`],
+    /// [`ExprKind::SuperMember`] or [`ExprKind::SuperIndex`] (not in an
+    /// optional chain), or (in sloppy mode code, `=` and the
     /// arithmetic compound operators only) an [`ExprKind::Call`], which
     /// throws a `ReferenceError` at run time (Chromium's web
     /// compatibility behaviour). Parentheses around the target are
@@ -548,8 +626,10 @@ pub struct Pattern {
 pub enum PatternKind {
     /// A `BindingIdentifier`: a binding of a binding pattern.
     Identifier(Ident),
-    /// A target of an assignment pattern: an [`ExprKind::Identifier`],
-    /// [`ExprKind::Member`] or [`ExprKind::Index`] (parentheses removed).
+    /// A target of an assignment pattern: an [`ExprKind::Identifier`] or
+    /// a property access ([`ExprKind::Member`], [`ExprKind::Index`],
+    /// [`ExprKind::PrivateMember`], [`ExprKind::SuperMember`],
+    /// [`ExprKind::SuperIndex`]); parentheses removed.
     Expr(ExprId),
     /// `[a, , b = 1, ...c]`: the elements in order; an elision is a
     /// [`PatternKind::Hole`], a rest element a [`PatternKind::Rest`] (only
@@ -693,7 +773,14 @@ pub enum StmtKind {
         body: StmtId,
         /// The scope of a `let` or `const` declaration in the head.
         scope: ScopeId,
+        /// `for await (left of right)`: iterates an async iterator (in
+        /// async functions only).
+        is_await: bool,
     },
+    /// A class declaration (§15.7). Its binding is a lexical binding of
+    /// the enclosing scope ([`crate::BindingKind::Class`]), initialized
+    /// when the declaration runs.
+    Class(ClassId),
     /// `with (object) body` (sloppy mode code only, §14.11).
     With {
         /// The object of the object environment.
@@ -809,9 +896,10 @@ pub struct Declarator {
 pub struct Function {
     /// The kind.
     pub kind: FunctionKind,
-    /// Whether it is a generator (`function*`).
+    /// Whether it is a generator (`function*`, `*m() {}`).
     pub is_generator: bool,
-    /// Whether it is `async` (M7; always false now).
+    /// Whether it is `async` (an async function, arrow function or
+    /// method; with `is_generator` an async generator).
     pub is_async: bool,
     /// Whether its code is strict mode code.
     pub strict: bool,
@@ -855,16 +943,30 @@ pub enum FunctionKind {
     Normal,
     /// An arrow function: lexical `this` and `arguments`.
     Arrow,
-    /// A method of an object literal.
+    /// A method of an object literal or a class (it has a home object
+    /// for `super` properties).
     Method,
-    /// A getter of an object literal.
+    /// A getter of an object literal or a class.
     Getter,
-    /// A setter of an object literal.
+    /// A setter of an object literal or a class.
     Setter,
-    /// The constructor of a base class (M7).
+    /// The constructor of a base class.
     ClassConstructor,
-    /// The constructor of a derived class (M7).
+    /// The constructor of a derived class (`class C extends B`): `this`
+    /// is uninitialized until `super(...)` returns.
     DerivedConstructor,
+    /// The synthetic function of a class that runs the initializers of
+    /// its instance fields ([`Class::instance_init`]): `this` is the new
+    /// object, the home object is the class prototype, `new.target` is
+    /// `undefined`. It has no parameters and no statements; the
+    /// initializers are the values of the field elements.
+    InstanceInitializer,
+    /// The synthetic function of a class that runs its static field
+    /// initializers and static blocks in source order
+    /// ([`Class::static_init`]): `this` and the home object are the
+    /// class constructor. Each static block has a var scope of its own
+    /// ([`crate::ScopeKind::StaticBlock`]).
+    StaticInitializer,
 }
 
 impl FunctionKind {
@@ -872,6 +974,120 @@ impl FunctionKind {
     pub fn has_own_this(self) -> bool {
         self != FunctionKind::Arrow
     }
+
+    /// Whether the function is a method-like function with a home object
+    /// (`super` properties are allowed, §15.4).
+    pub fn has_home_object(self) -> bool {
+        matches!(
+            self,
+            FunctionKind::Method
+                | FunctionKind::Getter
+                | FunctionKind::Setter
+                | FunctionKind::ClassConstructor
+                | FunctionKind::DerivedConstructor
+                | FunctionKind::InstanceInitializer
+                | FunctionKind::StaticInitializer
+        )
+    }
+}
+
+// --- Classes ---
+
+/// A class declaration or expression (§15.7). Class code is strict mode
+/// code.
+///
+/// Scopes: `scope` ([`crate::ScopeKind::Class`]) holds the inner binding
+/// of the name, which the heritage, the computed keys and the methods
+/// see (immutable, uninitialized until the class is defined). Its child
+/// `body_scope` ([`crate::ScopeKind::ClassBody`]) holds the private names
+/// of the class ([`crate::BindingKind::PrivateName`]), created when the
+/// class definition starts. The heritage is evaluated in `scope` (it
+/// cannot see the private names), the computed keys in `body_scope`; the
+/// scopes of the methods and of the initializer functions are children of
+/// `body_scope`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Class {
+    /// The binding identifier, if any.
+    pub name: Option<NameId>,
+    /// For a declaration: the occurrence of the name that initializes the
+    /// binding in the enclosing scope.
+    pub declaration: Option<RefId>,
+    /// For a named class: the occurrence of the name that initializes the
+    /// inner binding in `scope`.
+    pub inner: Option<RefId>,
+    /// The `extends` expression (a `LeftHandSideExpression`).
+    pub heritage: Option<ExprId>,
+    /// The `constructor` method ([`FunctionKind::ClassConstructor`] or
+    /// [`FunctionKind::DerivedConstructor`]); `None` for the default
+    /// constructor (§15.7.14 step 14).
+    pub constructor: Option<FunctionId>,
+    /// The other elements, in source order.
+    pub elements: List<ClassElement>,
+    /// The scope of the inner name binding.
+    pub scope: ScopeId,
+    /// The scope of the private names.
+    pub body_scope: ScopeId,
+    /// The function that initializes the instance fields: present if the
+    /// class has an instance field.
+    pub instance_init: Option<FunctionId>,
+    /// The function that runs the static fields and static blocks:
+    /// present if the class has one.
+    pub static_init: Option<FunctionId>,
+    /// The source text of the class (for `Function.prototype.toString` of
+    /// the constructor): from `class` to the closing `}`.
+    pub span: Span,
+}
+
+/// An element of a class body other than the constructor.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ClassElement {
+    /// The kind.
+    pub kind: ClassElementKind,
+    /// Whether the element is `static`.
+    pub is_static: bool,
+    /// The name; [`ClassKey::StaticBlock`] for a static block.
+    pub key: ClassKey,
+    /// For a method or an accessor: an [`ExprKind::Function`]. For a field:
+    /// the initializer, an expression of the class's initializer function
+    /// (`instance_init` or `static_init`). `None` for a field without an
+    /// initializer and for a static block.
+    pub value: Option<ExprId>,
+    /// The source range.
+    pub span: Span,
+}
+
+/// The kinds of class elements.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClassElementKind {
+    /// A method (also a generator, async or async generator method).
+    Method,
+    /// `get name() {}`.
+    Getter,
+    /// `set name(v) {}`.
+    Setter,
+    /// A field: `name` or `name = value`.
+    Field,
+    /// `static { ... }`: statements of the class's `static_init` function,
+    /// in a [`crate::ScopeKind::StaticBlock`] scope.
+    StaticBlock {
+        /// The statements.
+        body: List<StmtId>,
+        /// The var scope of the block.
+        scope: ScopeId,
+    },
+}
+
+/// The name of a class element.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ClassKey {
+    /// A property name (as in object literals).
+    Property(PropertyKey),
+    /// A private name (`#name`; the text includes the `#`). The
+    /// occurrence resolves to the private name binding of the class body
+    /// scope.
+    Private(Ident),
+    /// No name: a static block.
+    StaticBlock,
 }
 
 // --- The arena ---
@@ -893,6 +1109,9 @@ pub struct Ast {
     declarators: Vec<Declarator>,
     template_elements: Vec<TemplateElement>,
     cases: Vec<SwitchCase>,
+    classes: Vec<Class>,
+    class_elements: Vec<ClassElement>,
+    super_calls: Vec<SuperCall>,
 }
 
 /// Looks up `id` in `table`. Ids are only created by the table's arena, so
@@ -932,6 +1151,27 @@ impl Ast {
     /// The template literal `id`.
     pub fn template(&self, id: TemplateId) -> &Template {
         lookup(&self.templates, id.index())
+    }
+
+    /// The class `id`.
+    pub fn class(&self, id: ClassId) -> &Class {
+        lookup(&self.classes, id.index())
+    }
+
+    /// The `super(...)` call `id`.
+    pub fn super_call(&self, id: SuperCallId) -> &SuperCall {
+        lookup(&self.super_calls, id.index())
+    }
+
+    /// The elements of a class.
+    pub fn class_elements(&self, list: List<ClassElement>) -> &[ClassElement] {
+        self.class_elements.get(list.range()).unwrap_or(&[])
+    }
+
+    /// All class ids, in the order in which their parse ended (inner
+    /// classes before outer ones).
+    pub fn class_ids(&self) -> impl Iterator<Item = ClassId> + use<> {
+        (0..self.classes.len()).map(ClassId::from_index)
     }
 
     /// The number of functions (including the script).
@@ -1024,6 +1264,9 @@ impl Ast {
             + bytes(&self.declarators)
             + bytes(&self.template_elements)
             + bytes(&self.cases)
+            + bytes(&self.classes)
+            + bytes(&self.class_elements)
+            + bytes(&self.super_calls)
     }
 
     // --- Building (parser only) ---
@@ -1102,6 +1345,20 @@ impl Ast {
         items: &[TemplateElement],
     ) -> List<TemplateElement> {
         push_list(&mut self.template_elements, items)
+    }
+
+    pub(crate) fn push_class(&mut self, class: Class) -> ClassId {
+        self.classes.push(class);
+        ClassId::from_index(self.classes.len() - 1)
+    }
+
+    pub(crate) fn push_class_elements(&mut self, items: &[ClassElement]) -> List<ClassElement> {
+        push_list(&mut self.class_elements, items)
+    }
+
+    pub(crate) fn push_super_call(&mut self, call: SuperCall) -> SuperCallId {
+        self.super_calls.push(call);
+        SuperCallId::from_index(self.super_calls.len() - 1)
     }
 }
 

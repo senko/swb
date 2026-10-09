@@ -2,9 +2,12 @@
 //! whole function nest of a script.
 //!
 //! 1. Resolves each identifier occurrence by walking its scope chain
-//!    (`ResolveBinding`, §9.4.2). `this`, `new.target` and `arguments`
+//!    (`ResolveBinding`, §9.4.2). `this`, `new.target`, `arguments`, the
+//!    home object (`super`) and the active function (`%function`)
 //!    resolve to implicit bindings of the nearest non-arrow function
-//!    (§10.2.11), which are created on first use.
+//!    (§10.2.11), which are created on first use. Private names (`#x`)
+//!    resolve like other names: their bindings are in the class body
+//!    scopes.
 //! 2. Marks bindings that an inner function uses as captured, and adds
 //!    the binding to the captures of every function between the use and
 //!    the declaration (flat closures).
@@ -30,7 +33,8 @@ use crate::interner::{NameId, names};
 use crate::messages;
 
 use super::{
-    BindingKind, Capture, CaptureSource, IdMap, Resolution, ScopeKind, ScopeTree, Storage, key,
+    BindingKind, Capture, CaptureSource, FunctionScope, IdMap, Resolution, ScopeKind, ScopeTree,
+    Storage, key,
 };
 
 /// The resource limits of the analysis. Tests use small values.
@@ -133,6 +137,9 @@ fn resolve_references(
         let Some(&reference) = tree.references.get(index) else {
             break;
         };
+        if reference.dead {
+            continue;
+        }
         let cache_key = key(reference.scope, reference.name);
         let resolved = if let Some(&cached) = cache.get(&cache_key) {
             cached
@@ -182,61 +189,67 @@ fn resolve(ast: &Ast, tree: &mut ScopeTree, scope: ScopeId, name: NameId) -> Opt
         if matches!(entry.kind, ScopeKind::Function | ScopeKind::Script) {
             let function = entry.function;
             let kind = ast.function(function).kind;
-            if kind.has_own_this() {
-                if name == names::THIS {
-                    return Some(implicit_binding(tree, function, current, BindingKind::This));
-                }
-                if name == names::NEW_TARGET && kind != FunctionKind::Script {
-                    return Some(implicit_binding(
-                        tree,
-                        function,
-                        current,
-                        BindingKind::NewTarget,
-                    ));
-                }
-                if name == names::ARGUMENTS && kind != FunctionKind::Script {
-                    return Some(implicit_binding(
-                        tree,
-                        function,
-                        current,
-                        BindingKind::Arguments,
-                    ));
-                }
+            if kind.has_own_this()
+                && let Some(implicit) = implicit_kind(kind, name)
+            {
+                return Some(implicit_binding(tree, function, current, implicit));
             }
         }
         current = entry.parent?;
     }
 }
 
-/// The `this`, `new.target` or `arguments` binding of a function,
-/// created on first use.
+/// The implicit binding that `name` names in a non-arrow function of
+/// `kind`, if any. The parser allows `super` and `new.target` only where
+/// the function has them.
+fn implicit_kind(kind: FunctionKind, name: NameId) -> Option<BindingKind> {
+    let script = kind == FunctionKind::Script;
+    Some(match name {
+        names::THIS => BindingKind::This,
+        names::NEW_TARGET if !script => BindingKind::NewTarget,
+        names::ARGUMENTS if !script => BindingKind::Arguments,
+        names::SUPER if !script => BindingKind::HomeObject,
+        names::ACTIVE_FUNCTION if !script => BindingKind::ActiveFunction,
+        _ => return None,
+    })
+}
+
+/// The slot of an implicit binding of `kind` in a function's record.
+fn implicit_slot(f: &mut FunctionScope, kind: BindingKind) -> &mut Option<BindingId> {
+    match kind {
+        BindingKind::This => &mut f.this_binding,
+        BindingKind::NewTarget => &mut f.new_target_binding,
+        BindingKind::HomeObject => &mut f.home_object_binding,
+        BindingKind::ActiveFunction => &mut f.active_function_binding,
+        _ => &mut f.arguments_binding,
+    }
+}
+
+/// An implicit binding of a function (`this`, `new.target`, `arguments`,
+/// the home object, the active function), created on first use.
 fn implicit_binding(
     tree: &mut ScopeTree,
     function: FunctionId,
     scope: ScopeId,
     kind: BindingKind,
 ) -> BindingId {
-    let existing = match kind {
-        BindingKind::This => tree.function(function).this_binding,
-        BindingKind::NewTarget => tree.function(function).new_target_binding,
-        _ => tree.function(function).arguments_binding,
-    };
+    let existing = tree
+        .function_mut(function)
+        .and_then(|f| *implicit_slot(f, kind));
     if let Some(binding) = existing {
         return binding;
     }
     let name = match kind {
         BindingKind::This => names::THIS,
         BindingKind::NewTarget => names::NEW_TARGET,
+        BindingKind::HomeObject => names::SUPER,
+        BindingKind::ActiveFunction => names::ACTIVE_FUNCTION,
         _ => names::ARGUMENTS,
     };
     let offset = tree.scope(scope).start;
     let binding = tree.new_binding(scope, name, kind, offset);
     if let Some(f) = tree.function_mut(function) {
-        match kind {
-            BindingKind::This => f.this_binding = Some(binding),
-            BindingKind::NewTarget => f.new_target_binding = Some(binding),
-            _ => f.arguments_binding = Some(binding),
-        }
+        *implicit_slot(f, kind) = Some(binding);
     }
     binding
 }
@@ -543,6 +556,9 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
         let Some(&reference) = tree.references.get(index) else {
             break;
         };
+        if reference.dead {
+            continue;
+        }
         let user = tree.scope(reference.scope).function;
         let (resolution, tdz_check) = match reference.binding {
             None => (Resolution::Global, false),

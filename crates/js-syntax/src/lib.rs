@@ -23,10 +23,11 @@ mod scope;
 mod token;
 
 pub use ast::{
-    AssignOp, AssignTarget, Ast, BinaryOp, BindingId, CatchClause, Declarator, Expr, ExprId,
-    ExprKind, ForHead, Function, FunctionId, FunctionKind, Ident, List, LogicalOp, Pattern,
-    PatternId, PatternKind, PatternProperty, Property, PropertyKey, PropertyKind, RefId, ScopeId,
-    Span, Stmt, StmtId, StmtKind, StringId, SwitchCase, Template, TemplateElement, TemplateId,
+    AssignOp, AssignTarget, Ast, BinaryOp, BindingId, CatchClause, Class, ClassElement,
+    ClassElementKind, ClassId, ClassKey, Declarator, Expr, ExprId, ExprKind, ForHead, Function,
+    FunctionId, FunctionKind, Ident, List, LogicalOp, Pattern, PatternId, PatternKind,
+    PatternProperty, Property, PropertyKey, PropertyKind, RefId, ScopeId, Span, Stmt, StmtId,
+    StmtKind, StringId, SuperCall, SuperCallId, SwitchCase, Template, TemplateElement, TemplateId,
     UnaryOp, UpdateOp, VariableKind,
 };
 pub use error::{ErrorKind, ParseError, SyntaxError};

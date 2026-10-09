@@ -268,8 +268,20 @@ fn constructs_outside_the_subset_do_not_compile() {
             ("for (var k in {});", "for-in"),
             ("for (var k of []);", "for-of"),
             ("with ({}) {}", "with"),
+            // The forms of feature 1b.
+            ("class A {}", "class"),
+            ("x = class { m() {} };", "class"),
+            ("async function f() {}", "async function"),
+            ("x = async () => 1;", "async function"),
+            ("x = { async m() {} };", "async function"),
+            ("x = { m() { return super.x; } };", "super"),
             // The first construct in the source counts.
             ("x = 1; for (k of a?.b);", "for-of"),
+            ("x = async function () { await 1; };", "async function"),
+            (
+                "x = async function () { for await (k of a); };",
+                "async function",
+            ),
         ] {
             let Err(ScriptError::Compile { kind, message, .. }) = rt.eval(source) else {
                 panic!("{source} compiled");

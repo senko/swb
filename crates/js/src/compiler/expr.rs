@@ -151,7 +151,14 @@ impl FunctionCompiler<'_> {
             | ExprKind::OptionalChain(_)
             | ExprKind::TaggedTemplate { .. }
             | ExprKind::NewTarget(_)
-            | ExprKind::BigInt(_) => {
+            | ExprKind::BigInt(_)
+            | ExprKind::Class(_)
+            | ExprKind::Await(_)
+            | ExprKind::SuperMember { .. }
+            | ExprKind::SuperIndex { .. }
+            | ExprKind::SuperCall(_)
+            | ExprKind::PrivateMember { .. }
+            | ExprKind::PrivateIn { .. } => {
                 Err(self
                     .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
             }
@@ -450,7 +457,14 @@ impl FunctionCompiler<'_> {
                 | ExprKind::OptionalChain(_)
                 | ExprKind::TaggedTemplate { .. }
                 | ExprKind::NewTarget(_)
-                | ExprKind::BigInt(_) => return true,
+                | ExprKind::BigInt(_)
+                | ExprKind::Class(_)
+                | ExprKind::Await(_)
+                | ExprKind::SuperMember { .. }
+                | ExprKind::SuperIndex { .. }
+                | ExprKind::SuperCall(_)
+                | ExprKind::PrivateMember { .. }
+                | ExprKind::PrivateIn { .. } => return true,
                 ExprKind::Identifier(_)
                 | ExprKind::This(_)
                 | ExprKind::Null

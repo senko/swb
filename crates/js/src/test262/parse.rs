@@ -180,9 +180,10 @@ mod tests {
             Status::Skipped("feature later".into())
         );
         assert!(matches!(
-            run("/*---\n---*/", "class A {}"),
+            run("/*---\n---*/", "import('a')"),
             Status::Unsupported(_)
         ));
+        assert_eq!(run("/*---\n---*/", "class A {}"), Status::Pass);
     }
 
     #[test]

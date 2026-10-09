@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-10: M7 feature 1b, classes and async
+
+- `js-syntax`: classes (declarations and expressions, `extends`,
+  constructors, methods, accessors, generator and async methods,
+  static members, fields, private names, `#x in o`, static blocks)
+  and the `async` forms (functions, arrows through the `async(...)`
+  cover, methods, async generators, `await`, `for await`), with their
+  early errors and V8's messages and positions, measured in Node 22.
+  Private names are bindings of a class body scope; the parser checks
+  them when the outermost class ends. The field initializers of a
+  class belong to one synthetic function for instance fields and one
+  for static fields and static blocks. `super` resolves to implicit
+  home object and active function bindings, so arrows capture it like
+  `this`. Annex B.3.2.4 duplicates of generators and async functions
+  are errors now (planned for 1c).
+- `js`: the compiler rejects the new forms with "not supported yet".
+- All 60 BBC and 24 Ars scripts parse (were 34 and 19), at 48 MB/s.
+  Parse-only test262: 40,604 pass (was 28,203); the 358 failures are
+  regular expression syntax (feature 8a), the 591 unsupported tests
+  use modules (1c). Runtime test262: 4,231 pass (was 4,152).
+- Review: about 1,000 targeted sources and 1,700 prefixes compared
+  with Node, no verdict difference. Fixed: a class named `await` in
+  an async arrow head was accepted; unresolved private names cost
+  names times nesting depth (now merged smaller into larger: 0.62 s to
+  0.07 s at 300 levels and 80k names); the dead `async` reference of
+  an async arrow head forced a capture; five messages and positions.
+- Open: `await` in field initializers follows V8, not the spec
+  (test262 has no test); a class with more than about 64,500 private
+  names does not fit the registers (feature 3).
+- Next: M7 feature 1c, modules and the rest of the scope analysis.
+
 ## 2026-10-09: M7 feature 1a, patterns and the remaining expressions
 
 - `js-syntax`: destructuring (declarations, parameters, `catch`, `for`

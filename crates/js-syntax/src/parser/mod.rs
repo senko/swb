@@ -28,9 +28,18 @@
 //! `__proto__`) wait until the expression is known not to be a pattern
 //! ([`Parser::cover_error`]).
 //!
+//! `await` and `yield` depend on the context ([`AwaitMode`],
+//! [`Context::generator`]); class bodies are strict mode code and check
+//! their private names when the outermost class ends ([`classes`]).
+//!
 //! Constructs outside the supported subset give a `SyntaxError` with
 //! the message "not supported yet" ([`ParseError::unsupported`]).
 
+#[cfg(test)]
+mod class_fix_tests;
+#[cfg(test)]
+mod class_tests;
+mod classes;
 mod expressions;
 mod functions;
 #[cfg(test)]
@@ -42,7 +51,7 @@ mod tests;
 
 use swb_js_text::{CodeUnit, RecursionBudget, Str16};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     Ast, Declarator, ExprId, FunctionId, FunctionKind, Ident, List, PatternId, PatternProperty,
@@ -166,6 +175,21 @@ pub(crate) struct Label {
     is_block: bool,
 }
 
+/// What `await` is in the current context (the `[Await]` parameter of
+/// the grammar, §15.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AwaitMode {
+    /// `[~Await]`: an identifier (in scripts outside async functions).
+    Identifier,
+    /// `[+Await]` in an async function: `await` starts an
+    /// `AwaitExpression` (an early error in the parameters).
+    Expression,
+    /// `[+Await]` where no `AwaitExpression` may run: a class static
+    /// block (§15.7.1 "Contains await") and, as in V8, a static field
+    /// initializer. `await` is a reserved word there.
+    Reserved,
+}
+
 /// The state of the function being parsed.
 #[derive(Clone, Debug)]
 pub(crate) struct Context {
@@ -173,6 +197,8 @@ pub(crate) struct Context {
     kind: FunctionKind,
     strict: bool,
     generator: bool,
+    /// What `await` is here.
+    await_mode: AwaitMode,
     /// Labels at indices below this belong to enclosing functions.
     label_base: usize,
     /// The number of enclosing iteration statements in this function.
@@ -198,9 +224,27 @@ pub(crate) struct Context {
     /// The number of direct `eval` calls of the function (not in nested
     /// functions).
     direct_evals: u32,
+    /// The offset of the last `await` expression of the function (an
+    /// arrow function's parameters cannot contain one, §15.3.1, §15.9.1).
+    last_await: Option<u32>,
+    /// The offset of the last `await` used as an identifier in the code
+    /// of the function (also in the parameters of arrow functions in it):
+    /// an error in the head of an async arrow function (§15.9).
+    last_await_name: Option<u32>,
     /// Whether `new.target` is allowed: in non-arrow functions, and in
     /// arrow functions inside them (§15.1.1, §16.1.1).
     new_target: bool,
+    /// Whether `super.x` and `super[x]` are allowed: in methods,
+    /// accessors, constructors and class initializers, and in arrow
+    /// functions inside them (§15.4.1, §15.2.1).
+    super_property: bool,
+    /// Whether `super(...)` is allowed: in derived constructors and in
+    /// arrow functions inside them (§15.7.1).
+    super_call: bool,
+    /// Whether an `arguments` reference is an early error: in class field
+    /// initializers and static blocks, and in arrow functions inside them
+    /// (`ContainsArguments`, §15.7.1).
+    arguments_forbidden: bool,
 }
 
 impl Context {
@@ -226,8 +270,39 @@ impl Context {
             in_params: false,
             last_yield: None,
             direct_evals: 0,
+            await_mode: AwaitMode::Identifier,
+            last_await: None,
+            last_await_name: None,
             new_target: !matches!(kind, FunctionKind::Script | FunctionKind::Arrow),
+            super_property: kind.has_home_object(),
+            super_call: kind == FunctionKind::DerivedConstructor,
+            arguments_forbidden: matches!(
+                kind,
+                FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer
+            ),
         }
+    }
+
+    /// The context of an arrow function in this one: `this`,
+    /// `new.target`, `super` and `arguments` are the enclosing function's.
+    fn arrow(&self, function: FunctionId, label_base: usize, is_async: bool) -> Context {
+        let mut arrow = Context::new(
+            function,
+            FunctionKind::Arrow,
+            self.strict,
+            false,
+            label_base,
+        );
+        arrow.await_mode = if is_async {
+            AwaitMode::Expression
+        } else {
+            AwaitMode::Identifier
+        };
+        arrow.new_target = self.new_target;
+        arrow.super_property = self.super_property;
+        arrow.super_call = self.super_call;
+        arrow.arguments_forbidden = self.arguments_forbidden;
+        arrow
     }
 }
 
@@ -264,6 +339,10 @@ pub(crate) enum IdentUse {
     /// A `BindingIdentifier` of a `var`, a parameter, a function name or
     /// a catch parameter.
     Binding,
+    /// A function name, a class declaration name or a catch parameter:
+    /// like `Binding`, but V8 words `arguments` in class initializers as
+    /// a strict mode error.
+    Name,
     /// A `BindingIdentifier` of `let` or `const`.
     Lexical,
 }
@@ -326,6 +405,17 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     /// Array and object literals with a trailing comma after a spread
     /// element: valid literals, but not valid patterns.
     trailing_comma_after_spread: HashSet<ExprId>,
+    /// The calls `async(...)` that can be the head of an async arrow
+    /// function (§15.9: `async` without escapes and without a line
+    /// terminator before `(`), with the offset of the comma after the first
+    /// spread argument (`async(...a,)`: a valid call, but not valid
+    /// parameters).
+    async_heads: HashMap<ExprId, Option<u32>>,
+    /// The private names of the classes being parsed, innermost last.
+    classes: Vec<classes::PrivateNames>,
+    /// The `#name` id of each private name (the lexer gives the name
+    /// without `#`).
+    private_ids: HashMap<NameId, NameId>,
 }
 
 impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
@@ -386,6 +476,9 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             scope_base: 0,
             cover_error: None,
             trailing_comma_after_spread: HashSet::new(),
+            async_heads: HashMap::new(),
+            classes: Vec::new(),
+            private_ids: HashMap::new(),
         }
     }
 
@@ -481,10 +574,12 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             TokenKind::Semicolon => self.advance(),
             TokenKind::RBrace | TokenKind::Eof => Ok(()),
             _ if self.token.newline_before => Ok(()),
-            _ if self.prev_await.is_some() => Err(ParseError::syntax(
-                self.prev_await.unwrap_or(self.token.start),
-                messages::AWAIT_OUTSIDE_ASYNC,
-            )),
+            _ if self.prev_await.is_some() && self.ctx.await_mode == AwaitMode::Identifier => {
+                Err(ParseError::syntax(
+                    self.prev_await.unwrap_or(self.token.start),
+                    messages::AWAIT_OUTSIDE_ASYNC,
+                ))
+            }
             _ => Err(self.unexpected()),
         }
     }
@@ -521,6 +616,10 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             TokenKind::Yield if self.ctx.strict => messages::UNEXPECTED_STRICT_RESERVED.into(),
             TokenKind::Yield => messages::unexpected_identifier("yield").into(),
             TokenKind::Enum | TokenKind::Await => messages::UNEXPECTED_RESERVED.into(),
+            TokenKind::PrivateName => {
+                let name = token.name().unwrap_or(names::AWAIT);
+                messages::unexpected_identifier(&format!("#{}", self.name_text(name))).into()
+            }
             TokenKind::RegExp => "Unexpected regular expression".into(),
             kind => messages::unexpected_token(kind.text()).into(),
         };
@@ -539,11 +638,12 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
 
     /// Whether an identifier with this name is a keyword here, so that an
     /// escaped spelling is an error (§12.7.1): a reserved word, `yield` in
-    /// generators and strict mode code, the strict mode reserved words.
+    /// generators and strict mode code, `await` in async code and static
+    /// blocks, the strict mode reserved words.
     fn is_reserved_here(&self, name: NameId) -> bool {
         TokenKind::keyword_from_name(name).is_some_and(|keyword| match keyword {
             TokenKind::Yield => self.ctx.generator || self.ctx.strict,
-            TokenKind::Await => false,
+            TokenKind::Await => self.ctx.await_mode != AwaitMode::Identifier,
             _ => true,
         }) || (self.ctx.strict && is_strict_reserved(name))
     }
@@ -614,12 +714,23 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
         {
             return error(messages::ESCAPED_KEYWORD);
         }
-        // V8 words an escaped `yield` in a declaration like the plain one.
-        if escaped
-            && self.is_reserved_here(name)
-            && (name != names::YIELD || usage == IdentUse::Reference)
-        {
+        if name == names::AWAIT && self.ctx.await_mode != AwaitMode::Identifier {
+            // V8 words an escaped `await` reference in async code like the
+            // other escaped keywords.
+            if escaped
+                && usage == IdentUse::Reference
+                && self.ctx.await_mode == AwaitMode::Expression
+            {
+                return error(messages::ESCAPED_KEYWORD);
+            }
+            return error(messages::UNEXPECTED_RESERVED);
+        }
+        // V8 words an escaped `yield` like the plain one.
+        if escaped && name != names::YIELD && self.is_reserved_here(name) {
             return error(messages::ESCAPED_KEYWORD);
+        }
+        if self.ctx.strict && is_strict_reserved(name) {
+            return error(messages::UNEXPECTED_STRICT_RESERVED);
         }
         if name == names::YIELD && self.ctx.generator {
             return Err(ParseError::syntax(
@@ -627,8 +738,13 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
                 messages::unexpected_identifier("yield"),
             ));
         }
-        if self.ctx.strict && is_strict_reserved(name) {
-            return error(messages::UNEXPECTED_STRICT_RESERVED);
+        if name == names::ARGUMENTS && self.ctx.arguments_forbidden {
+            // `ContainsArguments` (§15.7.1); V8 also reports most
+            // bindings so, but not the names.
+            if usage == IdentUse::Name {
+                return error(messages::UNEXPECTED_EVAL_OR_ARGUMENTS);
+            }
+            return error(messages::ARGUMENTS_IN_CLASS_INIT);
         }
         if usage != IdentUse::Reference && self.ctx.strict && is_eval_or_arguments(name) {
             return error(messages::UNEXPECTED_EVAL_OR_ARGUMENTS);

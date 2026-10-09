@@ -10,9 +10,10 @@ use std::fmt::Write;
 use swb_js_text::Str16;
 
 use crate::ast::{
-    AssignOp, AssignTarget, BinaryOp, CatchClause, Declarator, ExprId, ExprKind, ForHead,
-    FunctionId, FunctionKind, List, LogicalOp, PatternId, PatternKind, Property, PropertyKey,
-    PropertyKind, StmtId, StmtKind, TemplateId, UnaryOp, UpdateOp, VariableKind,
+    AssignOp, AssignTarget, BinaryOp, CatchClause, ClassElementKind, ClassId, ClassKey, Declarator,
+    ExprId, ExprKind, ForHead, FunctionId, FunctionKind, List, LogicalOp, PatternId, PatternKind,
+    Property, PropertyKey, PropertyKind, StmtId, StmtKind, TemplateId, UnaryOp, UpdateOp,
+    VariableKind,
 };
 use crate::parser::Script;
 use crate::scope::{CaptureSource, Resolution, Storage};
@@ -116,8 +117,13 @@ impl Dumper<'_> {
                 left, right, body, ..
             } => self.for_in_of("(for-in ", left, right, body),
             StmtKind::ForOf {
-                left, right, body, ..
-            } => self.for_in_of("(for-of ", left, right, body),
+                left,
+                right,
+                body,
+                is_await,
+                ..
+            } => self.for_in_of(for_of_head(is_await), left, right, body),
+            StmtKind::Class(class) => self.class(class),
             StmtKind::With { object, body, .. } => self.with_stmt(object, body),
             StmtKind::Labeled { label, body } => {
                 self.text("(label ");
@@ -126,15 +132,8 @@ impl Dumper<'_> {
                 self.stmt(body);
                 self.text(")");
             }
-            StmtKind::Break { label } | StmtKind::Continue { label } => {
-                let is_break = matches!(ast.stmt(id).kind, StmtKind::Break { .. });
-                self.text(if is_break { "(break" } else { "(continue" });
-                if let Some(label) = label {
-                    self.text(" ");
-                    self.name(label);
-                }
-                self.text(")");
-            }
+            StmtKind::Break { label } => self.jump("(break", label),
+            StmtKind::Continue { label } => self.jump("(continue", label),
             StmtKind::Return(argument) => {
                 self.text("(return");
                 if let Some(argument) = argument {
@@ -159,6 +158,15 @@ impl Dumper<'_> {
                 finalizer,
             } => self.try_stmt(block, handler, finalizer),
         }
+    }
+
+    fn jump(&mut self, head: &str, label: Option<crate::NameId>) {
+        self.text(head);
+        if let Some(label) = label {
+            self.text(" ");
+            self.name(label);
+        }
+        self.text(")");
     }
 
     fn variables(&mut self, kind: VariableKind, declarators: List<Declarator>) {
@@ -344,6 +352,61 @@ impl Dumper<'_> {
         }
     }
 
+    /// A class: `(class NAME (extends X) (constructor F) (method KEY F)
+    /// (static get KEY F) (field KEY VALUE) (static-block STMT...))`.
+    fn class(&mut self, id: ClassId) {
+        let ast = &self.script.ast;
+        let class = ast.class(id);
+        self.text("(class");
+        if let Some(name) = class.name {
+            self.text(" ");
+            self.name(name);
+        }
+        if let Some(heritage) = class.heritage {
+            self.text(" (extends ");
+            self.expr(heritage);
+            self.text(")");
+        }
+        if let Some(constructor) = class.constructor {
+            self.text(" (constructor ");
+            self.function(constructor);
+            self.text(")");
+        }
+        for element in ast.class_elements(class.elements) {
+            self.text(" (");
+            if element.is_static {
+                self.text("static ");
+            }
+            let head = match element.kind {
+                ClassElementKind::Method => "method ",
+                ClassElementKind::Getter => "get ",
+                ClassElementKind::Setter => "set ",
+                ClassElementKind::Field => "field ",
+                ClassElementKind::StaticBlock { body, .. } => {
+                    self.text("block");
+                    for &stmt in ast.stmts(body) {
+                        self.text(" ");
+                        self.stmt(stmt);
+                    }
+                    self.text(")");
+                    continue;
+                }
+            };
+            self.text(head);
+            match element.key {
+                ClassKey::Property(key) => self.key(key),
+                ClassKey::Private(ident) => self.name(ident.name),
+                ClassKey::StaticBlock => {}
+            }
+            if let Some(value) = element.value {
+                self.text(" ");
+                self.expr(value);
+            }
+            self.text(")");
+        }
+        self.text(")");
+    }
+
     fn function(&mut self, id: FunctionId) {
         let ast = &self.script.ast;
         let function = ast.function(id);
@@ -353,10 +416,16 @@ impl Dumper<'_> {
             (FunctionKind::Method, true) => "(method*",
             (FunctionKind::Getter, _) => "(getter",
             (FunctionKind::Setter, _) => "(setter",
+            (FunctionKind::ClassConstructor | FunctionKind::DerivedConstructor, _) => "(ctor",
             (_, false) => "(function",
             (_, true) => "(function*",
         };
-        self.text(head);
+        if function.is_async {
+            self.text("(async ");
+            self.text(&head[1..]);
+        } else {
+            self.text(head);
+        }
         if let Some(name) = function.name {
             self.text(" ");
             self.name(name.name);
@@ -436,20 +505,7 @@ impl Dumper<'_> {
                 consequent,
                 alternate,
             } => self.list("?", &[test, consequent, alternate]),
-            ExprKind::Assign { op, target, value } => {
-                let head = match op {
-                    AssignOp::Assign => "=".to_owned(),
-                    AssignOp::Compound(op) => format!("{}=", binary_text(op)),
-                    AssignOp::Logical(op) => format!("{}=", logical_text(op)),
-                };
-                self.text("(");
-                self.text(&head);
-                self.text(" ");
-                self.assign_target(target);
-                self.text(" ");
-                self.expr(value);
-                self.text(")");
-            }
+            ExprKind::Assign { op, target, value } => self.assign(op, target, value),
             ExprKind::Sequence(list) => self.list(",", ast.exprs(list)),
             ExprKind::Member {
                 object,
@@ -490,7 +546,67 @@ impl Dumper<'_> {
             ExprKind::TaggedTemplate { tag, template } => self.tagged_template(tag, template),
             ExprKind::NewTarget(_) => self.text("new.target"),
             ExprKind::BigInt(digits) => self.bigint(digits),
+            ExprKind::Class(_)
+            | ExprKind::Await(_)
+            | ExprKind::SuperMember { .. }
+            | ExprKind::SuperIndex { .. }
+            | ExprKind::SuperCall(_)
+            | ExprKind::PrivateMember { .. }
+            | ExprKind::PrivateIn { .. } => self.class_or_async_expr(ast.expr(id).kind),
         }
+    }
+
+    /// The expressions of classes, `super`, private names and `await`.
+    fn class_or_async_expr(&mut self, kind: ExprKind) {
+        let ast = &self.script.ast;
+        match kind {
+            ExprKind::Class(class) => self.class(class),
+            ExprKind::Await(argument) => self.list("await", &[argument]),
+            ExprKind::SuperMember { property, .. } => {
+                self.text("(super. ");
+                self.name(property);
+                self.text(")");
+            }
+            ExprKind::SuperIndex { index, .. } => self.list("super[]", &[index]),
+            ExprKind::SuperCall(call) => {
+                let arguments = ast.super_call(call).arguments;
+                self.list("super-call", ast.exprs(arguments));
+            }
+            ExprKind::PrivateMember {
+                object,
+                name,
+                optional,
+            } => {
+                self.text(if optional { "(?. " } else { "(. " });
+                self.expr(object);
+                self.text(" ");
+                self.name(name.name);
+                self.text(")");
+            }
+            ExprKind::PrivateIn { name, object } => {
+                self.text("(in ");
+                self.name(name.name);
+                self.text(" ");
+                self.expr(object);
+                self.text(")");
+            }
+            _ => {}
+        }
+    }
+
+    fn assign(&mut self, op: AssignOp, target: AssignTarget, value: ExprId) {
+        let head = match op {
+            AssignOp::Assign => "=".to_owned(),
+            AssignOp::Compound(op) => format!("{}=", binary_text(op)),
+            AssignOp::Logical(op) => format!("{}=", logical_text(op)),
+        };
+        self.text("(");
+        self.text(&head);
+        self.text(" ");
+        self.assign_target(target);
+        self.text(" ");
+        self.expr(value);
+        self.text(")");
     }
 
     fn tagged_template(&mut self, tag: ExprId, template: TemplateId) {
@@ -571,6 +687,14 @@ impl Dumper<'_> {
             }
         }
         self.text("\"");
+    }
+}
+
+fn for_of_head(is_await: bool) -> &'static str {
+    if is_await {
+        "(for-await-of "
+    } else {
+        "(for-of "
     }
 }
 
@@ -713,7 +837,7 @@ pub fn dump_scopes(script: &Script) -> String {
 }
 
 /// The resolution of every identifier occurrence, as `name@offset:how`,
-/// where `how` is `rN`, `cellN`, `capN` or `global`, with `!` for a TDZ
+/// where `how` is `rN`, `cellN`, `capN`, `global` or `dead`, with `!` for a TDZ
 /// check and `=` for a declaration.
 pub fn dump_references(script: &Script) -> String {
     let tree = &script.scopes;
@@ -721,6 +845,7 @@ pub fn dump_references(script: &Script) -> String {
     for index in 0..tree.reference_count() {
         let reference = tree.reference(crate::ast::RefId::from_index(index));
         let how = match reference.resolution {
+            Resolution::Unresolved if reference.dead => "dead".to_owned(),
             Resolution::Unresolved => "?".to_owned(),
             Resolution::Register(r) => format!("r{r}"),
             Resolution::Cell(r) => format!("cell{r}"),

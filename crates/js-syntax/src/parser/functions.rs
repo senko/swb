@@ -1,15 +1,17 @@
 //! Functions (ECMA-262 clause 15): declarations, expressions, methods,
-//! accessors and arrow functions, their parameters and bodies.
+//! accessors and arrow functions (also `async` ones and async
+//! generators, §15.6, §15.8, §15.9), their parameters and bodies.
 
 use swb_js_text::CodeUnit;
 
 use super::patterns::{DeclKind, Leaf};
-use super::{Context, IdentUse, PResult, Parser, Recorded};
+use super::{AwaitMode, Context, IdentUse, PResult, Parser, Recorded};
 use crate::ast::{
     ExprId, ExprKind, Function, FunctionId, FunctionKind, Ident, List, PatternId, PatternKind,
-    ScopeId, Span, StmtId, StmtKind,
+    RefId, ScopeId, Span, StmtId, StmtKind,
 };
 use crate::error::ParseError;
+use crate::interner::names;
 use crate::messages;
 use crate::scope::ScopeKind;
 use crate::token::TokenKind;
@@ -19,14 +21,29 @@ const MAX_PARAMS: usize = 65534;
 
 /// What the parser knows about a function before its body.
 #[derive(Clone, Copy)]
-struct FunctionHead {
-    kind: FunctionKind,
-    generator: bool,
-    is_declaration: bool,
+pub(super) struct FunctionHead {
+    pub(super) kind: FunctionKind,
+    pub(super) generator: bool,
+    pub(super) is_async: bool,
+    pub(super) is_declaration: bool,
     /// The binding identifier and its offset.
-    name: Option<(Ident, u32)>,
+    pub(super) name: Option<(Ident, u32)>,
     /// The source start of the function.
-    start: u32,
+    pub(super) start: u32,
+}
+
+impl FunctionHead {
+    /// The head of a method-like function without a name.
+    pub(super) fn method(kind: FunctionKind, generator: bool, is_async: bool, start: u32) -> Self {
+        FunctionHead {
+            kind,
+            generator,
+            is_async,
+            is_declaration: false,
+            name: None,
+            start,
+        }
+    }
 }
 
 /// The parts of a parsed function.
@@ -48,12 +65,34 @@ pub(super) enum ArrowHead {
     /// `(a, b = 1, ...c) =>`: the expression inside the parentheses (a
     /// [`ExprKind::Sequence`] for more than one element).
     Parenthesized(ExprId),
+    /// `async (a, b) =>`: the arguments of the call `async(a, b)`
+    /// (§15.9, `CoverCallExpressionAndAsyncArrowHead`).
+    AsyncCall {
+        /// The arguments.
+        arguments: List<ExprId>,
+        /// The occurrence of the callee `async`, which is not a reference.
+        callee: RefId,
+        /// The offset of the comma after the first spread argument.
+        spread_comma: Option<u32>,
+    },
+}
+
+/// How an arrow function was written.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ArrowStart {
+    /// Where the arrow function starts (`async` or the parameters).
+    pub(super) start: u32,
+    /// The length of [`Parser::recorded`] before the parameters: what was
+    /// recorded since then moves into the arrow function's scope.
+    pub(super) mark: Option<usize>,
+    /// Whether it is an async arrow function.
+    pub(super) is_async: bool,
 }
 
 impl<U: CodeUnit> Parser<'_, '_, U> {
     /// Adds a function record whose content is filled in when the parse
     /// of the function ends.
-    fn begin_function(&mut self, start: u32) -> FunctionId {
+    pub(super) fn begin_function(&mut self, start: u32) -> FunctionId {
         let id = self.ast.push_function(Function {
             kind: FunctionKind::Normal,
             is_generator: false,
@@ -74,31 +113,41 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         id
     }
 
-    /// `FunctionDeclaration` and `GeneratorDeclaration` (§15.2, §15.5). The
-    /// current token is `function`.
-    pub(super) fn parse_function_declaration(&mut self) -> PResult<FunctionId> {
-        let start = self.token.start;
+    /// `FunctionDeclaration`, `GeneratorDeclaration` and their async forms
+    /// (§15.2, §15.5, §15.6, §15.8). The current token is `function`;
+    /// `start` is where the declaration starts (`async` or `function`).
+    pub(super) fn parse_function_declaration(
+        &mut self,
+        start: u32,
+        is_async: bool,
+    ) -> PResult<FunctionId> {
+        let function_token = self.token.start;
         self.advance()?;
         let generator = self.eat(TokenKind::Star)?;
         if !self.at_identifier() {
             if self.at(TokenKind::LParen) {
-                return Err(ParseError::syntax(start, messages::FUNCTION_NAME_REQUIRED));
+                return Err(ParseError::syntax(
+                    function_token,
+                    messages::FUNCTION_NAME_REQUIRED,
+                ));
             }
             return Err(self.unexpected());
         }
         // The name is bound in the enclosing scope, with its rules.
         let name_offset = self.token.start;
-        let name = self.check_identifier(IdentUse::Binding)?;
+        let name = self.check_identifier(IdentUse::Name)?;
         let function = self.begin_function(start);
+        let plain_sloppy = !self.ctx.strict && !generator && !is_async;
         let declared =
             self.scopes
-                .declare_function(self.scope, name, name_offset, function, !self.ctx.strict);
+                .declare_function(self.scope, name, name_offset, function, plain_sloppy);
         self.declared(declared, name, start)?;
         let ident = self.reference(name, name_offset, true);
         self.advance()?;
         let head = FunctionHead {
             kind: FunctionKind::Normal,
             generator,
+            is_async,
             is_declaration: true,
             name: Some((ident, name_offset)),
             start,
@@ -107,10 +156,15 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(function)
     }
 
-    /// `FunctionExpression` and `GeneratorExpression` (§15.2, §15.5). A name
-    /// is bound in its own scope, with the rules of the function itself.
-    pub(super) fn parse_function_expression(&mut self) -> PResult<ExprId> {
-        let start = self.token.start;
+    /// `FunctionExpression`, `GeneratorExpression` and their async forms
+    /// (§15.2, §15.5, §15.6, §15.8). A name is bound in its own scope,
+    /// with the `yield` and `await` rules of the function itself. The
+    /// current token is `function`; `start` is where the expression starts.
+    pub(super) fn parse_function_expression(
+        &mut self,
+        start: u32,
+        is_async: bool,
+    ) -> PResult<ExprId> {
         self.advance()?;
         let generator = self.eat(TokenKind::Star)?;
         let function = self.begin_function(start);
@@ -119,8 +173,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         if self.at_identifier() {
             let offset = self.token.start;
             let outer_generator = std::mem::replace(&mut self.ctx.generator, generator);
-            let checked = self.check_identifier(IdentUse::Binding);
+            let outer_await =
+                std::mem::replace(&mut self.ctx.await_mode, function_await_mode(is_async));
+            let checked = self.check_identifier(IdentUse::Name);
             self.ctx.generator = outer_generator;
+            self.ctx.await_mode = outer_await;
             let checked = checked?;
             parent_scope = self.new_scope_of(ScopeKind::FunctionName, self.scope, function, offset);
             self.scopes
@@ -140,6 +197,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let head = FunctionHead {
             kind: FunctionKind::Normal,
             generator,
+            is_async,
             is_declaration: false,
             name,
             start,
@@ -151,26 +209,14 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         ))
     }
 
-    /// A method, getter or setter of an object literal (§15.4); the
+    /// A method, getter, setter or class constructor (§15.4, §15.7); the
     /// current token is `(`.
-    pub(super) fn parse_method(
-        &mut self,
-        start: u32,
-        kind: FunctionKind,
-        generator: bool,
-    ) -> PResult<ExprId> {
-        let function = self.begin_function(start);
-        let head = FunctionHead {
-            kind,
-            generator,
-            is_declaration: false,
-            name: None,
-            start,
-        };
+    pub(super) fn parse_method(&mut self, head: FunctionHead) -> PResult<ExprId> {
+        let function = self.begin_function(head.start);
         self.parse_function_rest(function, head, self.scope)?;
         Ok(self.ast.push_expr(
             ExprKind::Function(function),
-            Span::new(start, self.prev_end),
+            Span::new(head.start, self.prev_end),
         ))
     }
 
@@ -197,6 +243,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.labels.len(),
         );
         context.name = head.name.map(|(ident, offset)| (ident.name, offset));
+        context.await_mode = function_await_mode(head.is_async);
         let outer = std::mem::replace(&mut self.ctx, context);
         let parts = match self.charge(super::FUNCTION_WEIGHT) {
             Ok(()) => {
@@ -225,6 +272,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         if let Some(record) = self.ast.function_mut(function) {
             record.kind = head.kind;
             record.is_generator = head.generator;
+            record.is_async = head.is_async;
             record.strict = inner.strict;
             record.is_declaration = head.is_declaration;
             record.expression_body = parts.expression_body;
@@ -395,15 +443,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         // Methods, accessors and arrow functions have
         // UniqueFormalParameters (§15.4.1, §15.3.1); strict functions and
         // non-simple lists too (§15.2.1).
-        let unique = self.ctx.strict
-            || !simple
-            || matches!(
-                kind,
-                FunctionKind::Method
-                    | FunctionKind::Getter
-                    | FunctionKind::Setter
-                    | FunctionKind::Arrow
-            );
+        let unique =
+            self.ctx.strict || !simple || kind.has_home_object() || kind == FunctionKind::Arrow;
         if unique && let Some(offset) = self.ctx.duplicate_param {
             return Err(ParseError::syntax(offset, messages::DUPLICATE_PARAMETER));
         }
@@ -419,9 +460,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// Converts the expression before `=>` into arrow parameters (the
-    /// cover grammar, §15.3.1): an identifier, or a parenthesized list.
-    /// `start` is where the expression starts; `mark` is the length of
-    /// [`Parser::recorded`] before it.
+    /// cover grammar, §15.3.1, §15.9.1): an identifier, a parenthesized
+    /// list, or the arguments of a call `async(...)`. `start` is where the
+    /// expression starts; `mark` is the length of [`Parser::recorded`]
+    /// before it.
     pub(super) fn parse_arrow_from_cover(
         &mut self,
         left: ExprId,
@@ -430,14 +472,22 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         no_in: bool,
     ) -> PResult<ExprId> {
         let expr = *self.ast.expr(left);
+        let mut is_async = false;
         let head = match expr.kind {
             ExprKind::Identifier(_) if expr.span.start == start => ArrowHead::Identifier(left),
             ExprKind::Paren(inner) if expr.span.start == start => ArrowHead::Parenthesized(inner),
-            ExprKind::Call { callee, .. }
-                if matches!(self.ast.expr(callee).kind,
-                    ExprKind::Identifier(ident) if ident.name == crate::names::ASYNC) =>
+            ExprKind::Call {
+                callee, arguments, ..
+            } if expr.span.start == start
+                && let Some(&spread_comma) = self.async_heads.get(&left)
+                && let ExprKind::Identifier(callee) = self.ast.expr(callee).kind =>
             {
-                return Err(ParseError::unsupported(start, "async arrow function"));
+                is_async = true;
+                ArrowHead::AsyncCall {
+                    arguments,
+                    callee: callee.reference,
+                    spread_comma,
+                }
             }
             _ => {
                 return Err(ParseError::syntax(
@@ -446,33 +496,80 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 ));
             }
         };
-        self.parse_arrow_function(start, head, Some(mark), no_in)
+        let arrow = ArrowStart {
+            start,
+            mark: Some(mark),
+            is_async,
+        };
+        self.parse_arrow_function(arrow, head, no_in)
     }
 
-    /// An arrow function (§15.3) from its parameters; the current token is
-    /// `=>`. `mark` is the length of [`Parser::recorded`] before the
-    /// parameters: what was recorded since then moves into the arrow
-    /// function's scope.
-    pub(super) fn parse_arrow_function(
+    /// `async x => ...` (§15.9); the current token is the parameter (after
+    /// `async`, without a line terminator in between).
+    pub(super) fn parse_async_arrow_identifier(
         &mut self,
         start: u32,
-        head: ArrowHead,
-        mark: Option<usize>,
         no_in: bool,
     ) -> PResult<ExprId> {
-        // `(a = yield) => 0` in a generator (§15.3.1).
+        let mark = self.recorded.len();
+        let param_token = self.token.clone();
+        let param = self.parse_identifier_reference()?;
+        if !self.at(TokenKind::Arrow) {
+            return Err(self.unexpected_token(&param_token));
+        }
+        if self.token.newline_before {
+            return Err(self.unexpected());
+        }
+        let arrow = ArrowStart {
+            start,
+            mark: Some(mark),
+            is_async: true,
+        };
+        self.parse_arrow_function(arrow, ArrowHead::Identifier(param), no_in)
+    }
+
+    /// An arrow function (§15.3, §15.9) from its parameters; the current
+    /// token is `=>`. What was recorded since `arrow.mark` moves into the
+    /// arrow function's scope.
+    pub(super) fn parse_arrow_function(
+        &mut self,
+        arrow: ArrowStart,
+        head: ArrowHead,
+        no_in: bool,
+    ) -> PResult<ExprId> {
+        let start = arrow.start;
+        // `(a = yield) => 0` in a generator, `(a = await 1) => 0` in an
+        // async function (§15.3.1, §15.9.1).
         let head_yield = self.ctx.last_yield.filter(|&offset| offset >= start);
-        let moved = mark.map_or_else(Vec::new, |mark| {
+        let head_await = self.ctx.last_await.filter(|&offset| offset >= start);
+        let moved = arrow.mark.map_or_else(Vec::new, |mark| {
             self.recorded.split_off(mark.min(self.recorded.len()))
         });
+        let callee = match head {
+            ArrowHead::AsyncCall { callee, .. } => Some(callee),
+            _ => None,
+        };
         let outer_function = self.ctx.function;
         let outer_scope = self.scope;
         let function = self.begin_function(start);
         let scope = self.new_scope_of(ScopeKind::Function, outer_scope, function, start);
         let mut evals = 0;
+        // An async arrow function's parameters cannot use `await` as an
+        // identifier (§15.9: `[+Await]`).
+        let mut await_name = None;
+        let nested_await_name = self.ctx.last_await_name.filter(|&offset| offset >= start);
         for item in moved {
             match item {
-                Recorded::Reference(id) => self.scopes.move_reference(id, outer_scope, scope),
+                Recorded::Reference(id) if Some(id) == callee => self.scopes.mark_dead(id),
+                Recorded::Reference(id) => {
+                    if arrow.is_async && await_name.is_none() {
+                        let reference = self.scopes.reference(id);
+                        if reference.name == names::AWAIT && reference.scope == outer_scope {
+                            await_name = Some(reference.offset);
+                        }
+                    }
+                    self.scopes.move_reference(id, outer_scope, scope);
+                }
                 Recorded::Scope(id) => self.scopes.move_scope(id, outer_scope, scope),
                 Recorded::Function(id) => {
                     if let Some(record) = self.ast.function_mut(id)
@@ -486,23 +583,22 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         }
         self.ctx.direct_evals = self.ctx.direct_evals.saturating_sub(evals);
         let entered = self.enter_scope(scope);
-        let mut context = Context::new(
-            function,
-            FunctionKind::Arrow,
-            self.ctx.strict,
-            false,
-            self.labels.len(),
-        );
-        context.new_target = self.ctx.new_target;
+        let mut context = self.ctx.arrow(function, self.labels.len(), arrow.is_async);
         context.direct_evals = evals;
         let outer = std::mem::replace(&mut self.ctx, context);
-        let parts = self.parse_arrow_rest(head, head_yield, no_in);
+        let checks = HeadChecks {
+            yield_at: head_yield,
+            await_at: head_await,
+            await_name: await_name.or(nested_await_name.filter(|_| arrow.is_async)),
+        };
+        let parts = self.parse_arrow_rest(head, checks, no_in);
         let inner = std::mem::replace(&mut self.ctx, outer);
         self.leave_scope(entered);
         let parts = parts?;
         let head = FunctionHead {
             kind: FunctionKind::Arrow,
             generator: false,
+            is_async: arrow.is_async,
             is_declaration: false,
             name: None,
             start,
@@ -517,12 +613,18 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     fn parse_arrow_rest(
         &mut self,
         head: ArrowHead,
-        head_yield: Option<u32>,
+        checks: HeadChecks,
         no_in: bool,
     ) -> PResult<FunctionParts> {
         let params = self.arrow_params(head)?;
-        if let Some(offset) = head_yield {
+        if let Some(offset) = checks.await_name {
+            return Err(ParseError::syntax(offset, messages::AWAIT_BINDING_IN_ASYNC));
+        }
+        if let Some(offset) = checks.yield_at {
             return Err(ParseError::syntax(offset, messages::YIELD_IN_PARAMETER));
+        }
+        if let Some(offset) = checks.await_at {
+            return Err(ParseError::syntax(offset, messages::AWAIT_IN_PARAMETER));
         }
         self.expect(TokenKind::Arrow)?;
         if self.at(TokenKind::LBrace) {
@@ -554,6 +656,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// Converts and declares the parameters of an arrow function; the
     /// current scope is the arrow's.
     fn arrow_params(&mut self, head: ArrowHead) -> PResult<List<PatternId>> {
+        let is_async = matches!(head, ArrowHead::AsyncCall { .. });
         let items: Vec<ExprId> = match head {
             ArrowHead::Empty => Vec::new(),
             ArrowHead::Identifier(item) => vec![item],
@@ -561,6 +664,19 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 ExprKind::Sequence(list) => self.ast.exprs(list).to_vec(),
                 _ => vec![inner],
             },
+            ArrowHead::AsyncCall {
+                arguments,
+                spread_comma,
+                ..
+            } => {
+                // A spread argument of `async(...)` is a rest parameter:
+                // only the last, without a trailing comma. V8 marks the
+                // comma after it.
+                if let Some(comma) = spread_comma {
+                    return Err(ParseError::syntax(comma, messages::REST_PARAMETER_NOT_LAST));
+                }
+                self.ast.exprs(arguments).to_vec()
+            }
         };
         if items.len() > MAX_PARAMS {
             return Err(ParseError::syntax(
@@ -575,7 +691,14 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let binding_mark = self.scopes.binding_mark();
             let pattern = match node.kind {
                 ExprKind::Spread(argument) => {
-                    if matches!(self.ast.expr(argument).kind, ExprKind::Assign { .. }) {
+                    if let ExprKind::Assign { value, .. } = self.ast.expr(argument).kind {
+                        if is_async {
+                            // V8 marks the end of the initializer here.
+                            return Err(ParseError::syntax(
+                                self.last_token_start(value),
+                                messages::REST_PARAMETER_DEFAULT,
+                            ));
+                        }
                         return Err(self.rest_parameter_error(argument));
                     }
                     let target = self.binding_from_expr(argument, Leaf::Top)?;
@@ -594,5 +717,24 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.token.start,
         )?;
         Ok(params)
+    }
+}
+
+/// The early errors of an arrow function's head that the parameter
+/// conversion does not see: the offsets of a `yield` expression, an
+/// `await` expression, and (async arrow functions) an `await` identifier.
+#[derive(Clone, Copy, Debug)]
+struct HeadChecks {
+    yield_at: Option<u32>,
+    await_at: Option<u32>,
+    await_name: Option<u32>,
+}
+
+/// The `await` rules of a function's own code.
+pub(super) fn function_await_mode(is_async: bool) -> AwaitMode {
+    if is_async {
+        AwaitMode::Expression
+    } else {
+        AwaitMode::Identifier
     }
 }

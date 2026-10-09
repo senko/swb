@@ -96,9 +96,8 @@ pub mod names {
         PRIVATE = "private",
         PROTECTED = "protected",
         PUBLIC = "public",
-        // Contextual keywords and names with special rules. `AS`,
-        // `CONSTRUCTOR`, `FROM`, `META`, `PROTOTYPE` and `TARGET` have no
-        // user yet; the M7 features for classes and modules use them.
+        // Contextual keywords and names with special rules. `AS`, `FROM`
+        // and `META` have no user yet; M7 feature 1c (modules) uses them.
         ARGUMENTS = "arguments",
         AS = "as",
         ASYNC = "async",
@@ -113,9 +112,12 @@ pub mod names {
         TARGET = "target",
         USE_STRICT = "use strict",
         PROTO = "__proto__",
-        // The name of the implicit `new.target` binding (not an
-        // identifier, so no script can declare it).
+        // The names of the implicit `new.target` binding and of the
+        // active function binding of a derived constructor (not
+        // identifiers, so no script can declare them). The home object
+        // binding has the name `super`.
         NEW_TARGET = "new.target",
+        ACTIVE_FUNCTION = "%function",
     }
 
     /// The number of reserved words; their ids are `0..RESERVED_WORDS`.

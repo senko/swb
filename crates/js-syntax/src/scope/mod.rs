@@ -27,6 +27,10 @@
 //!   the declarations of the catch block), [`ScopeKind::For`] (the
 //!   lexical declarations of a `for` head), [`ScopeKind::Switch`] (the
 //!   case block), [`ScopeKind::With`] (the body of a `with` statement).
+//! - Classes: [`ScopeKind::Class`] (the inner binding of the class name),
+//!   [`ScopeKind::ClassBody`] (the private names) and
+//!   [`ScopeKind::StaticBlock`] (the var scope of a static block inside
+//!   the class's static initializer function); see [`crate::Class`].
 //!
 //! Contract for the compiler:
 //!
@@ -64,11 +68,29 @@
 //! - Resource limits (`RangeError` from the parse): the total number of
 //!   capture entries of a script and the captures of one function, see
 //!   `analysis::Limits`.
+//! - Implicit bindings of non-arrow functions, created on first use (also
+//!   from arrow functions inside, which capture them): `this`
+//!   ([`BindingKind::This`]), `new.target`, `arguments`, the home object
+//!   of a method ([`BindingKind::HomeObject`], for `super` properties)
+//!   and the active function of a derived constructor
+//!   ([`BindingKind::ActiveFunction`], for `super(...)`). The compiler
+//!   stores them at function entry. In a
+//!   [`crate::FunctionKind::DerivedConstructor`] the `this` binding starts
+//!   uninitialized: every load of it checks, and `super(...)` initializes
+//!   it (and throws if it is initialized already).
+//! - Classes: the inner name binding ([`BindingKind::ClassName`]) and the
+//!   outer binding of a declaration ([`BindingKind::Class`]) have a
+//!   temporal dead zone until the class is defined
+//!   ([`Binding::init_end`]: the end of the class). The private names of
+//!   a class body ([`BindingKind::PrivateName`]) are created when the
+//!   body scope is entered, before the heritage runs (§15.7.14 step 7);
+//!   a getter and a setter of one name share the binding.
 //!
 //! Block-level function declarations follow the strict-mode semantics in
 //! sloppy mode too (a lexical binding of the block); the Annex B.3.2
-//! semantics come in M7. Duplicate block-level function declarations in
-//! sloppy mode are allowed (B.3.2.4).
+//! semantics come in M7 feature 1c. Duplicate block-level declarations of
+//! plain functions (not generators or async functions) in sloppy mode are
+//! allowed (B.3.2.4).
 
 pub(crate) mod analysis;
 
@@ -103,6 +125,14 @@ pub enum ScopeKind {
     /// The top-level declarations of the body of a function with
     /// parameter expressions (a var scope of its own).
     FunctionBody,
+    /// A class: the inner binding of the class name. The heritage is
+    /// evaluated in it.
+    Class,
+    /// The body of a class: its private names.
+    ClassBody,
+    /// A static block of a class (a var scope of its own, inside the
+    /// class's static initializer function).
+    StaticBlock,
 }
 
 /// A scope.
@@ -171,12 +201,32 @@ pub enum BindingKind {
     /// The `new.target` value of a non-arrow function (implicit; its
     /// name is `new.target`), stored at function entry.
     NewTarget,
+    /// The binding of a class declaration in the enclosing scope:
+    /// mutable, with a temporal dead zone (like `let`).
+    Class,
+    /// The inner binding of a class's name in its [`ScopeKind::Class`]
+    /// scope: immutable (assignment is a `TypeError`, class code is
+    /// strict), with a temporal dead zone until the class is defined.
+    ClassName,
+    /// A private name of a class body (its name includes the `#`): a new
+    /// Private Name for each evaluation of the class.
+    PrivateName,
+    /// The home object of a method, accessor, constructor or class
+    /// initializer (implicit; its name is `super`): the object whose
+    /// prototype `super` properties read (§10.2.11, §13.3.7).
+    HomeObject,
+    /// The function object of a derived constructor (implicit; its name
+    /// is `%function`): `super(...)` constructs its prototype (§13.3.7.2).
+    ActiveFunction,
 }
 
 impl BindingKind {
     /// Whether the binding has a temporal dead zone.
     pub fn is_lexical(self) -> bool {
-        matches!(self, BindingKind::Let | BindingKind::Const)
+        matches!(
+            self,
+            BindingKind::Let | BindingKind::Const | BindingKind::Class | BindingKind::ClassName
+        )
     }
 }
 
@@ -266,6 +316,9 @@ pub struct Reference {
     pub resolution: Resolution,
     /// Whether a load must check the temporal dead zone.
     pub tdz_check: bool,
+    /// Whether the occurrence is not a use: the `async` of an
+    /// `async(...) =>` head. The analysis skips it; it stays unresolved.
+    pub dead: bool,
 }
 
 /// Where a function gets one of its captured cells when its closure is
@@ -315,6 +368,12 @@ pub struct FunctionScope {
     /// The `new.target` binding, if the function or an arrow function
     /// inside it uses `new.target`.
     pub new_target_binding: Option<BindingId>,
+    /// The home object binding, if the function or an arrow function
+    /// inside it uses a `super` property.
+    pub home_object_binding: Option<BindingId>,
+    /// The active function binding, if the function (a derived
+    /// constructor) or an arrow function inside it calls `super(...)`.
+    pub active_function_binding: Option<BindingId>,
     /// Whether the function has a mapped `arguments` object (sloppy mode,
     /// simple parameters, an `arguments` binding): all its parameters are
     /// cells, which the object holds.
@@ -345,6 +404,14 @@ fn key(scope: ScopeId, name: NameId) -> u64 {
     ((scope.index() as u64) << 32) | u64::from(name.index())
 }
 
+/// Whether `var` declarations hoist to a scope of this kind.
+fn is_var_scope_kind(kind: ScopeKind) -> bool {
+    matches!(
+        kind,
+        ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody | ScopeKind::StaticBlock
+    )
+}
+
 /// A redeclaration early error: the name is already declared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Redeclared;
@@ -372,6 +439,11 @@ pub struct ScopeTree {
     last_var_scope: IdMap<ScopeId>,
     /// Function declarations: (scope, function), in source order.
     function_decls: Vec<(ScopeId, FunctionId)>,
+    /// The block-level function bindings that a generator or async
+    /// function declaration (or one in strict mode code) declared: Annex
+    /// B.3.2.4 allows a duplicate only between plain function
+    /// declarations of sloppy mode code.
+    special_block_functions: std::collections::HashSet<BindingId>,
     /// The pools of [`Scope::bindings`] and [`Scope::functions`].
     scope_bindings: Vec<BindingId>,
     scope_functions: Vec<FunctionId>,
@@ -450,6 +522,7 @@ impl ScopeTree {
             + self.last_var_scope.capacity() * 16
             + bytes(&self.open_lexical_log)
             + bytes(&self.function_decls)
+            + self.special_block_functions.capacity() * 8
             + bytes(&self.scope_bindings)
             + bytes(&self.scope_functions)
     }
@@ -475,9 +548,8 @@ impl ScopeTree {
     ) -> ScopeId {
         let id = ScopeId::from_index(self.scopes.len());
         let hoist_to = match (kind, parent) {
-            (ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody, _) | (_, None) => {
-                id
-            }
+            (kind, _) if is_var_scope_kind(kind) => id,
+            (_, None) => id,
             (_, Some(parent)) => self.scope(parent).hoist_to,
         };
         self.scopes.push(Scope {
@@ -533,8 +605,16 @@ impl ScopeTree {
             binding: None,
             resolution: Resolution::Unresolved,
             tdz_check: false,
+            dead: false,
         });
         RefId::from_index(self.references.len() - 1)
+    }
+
+    /// Marks an occurrence as dead (see [`Reference::dead`]).
+    pub(crate) fn mark_dead(&mut self, id: RefId) {
+        if let Some(reference) = self.references.get_mut(id.index()) {
+            reference.dead = true;
+        }
     }
 
     pub(crate) fn reference_mut(&mut self, id: RefId) -> Option<&mut Reference> {
@@ -552,19 +632,28 @@ impl ScopeTree {
         }
     }
 
-    /// Moves a child scope of `from` (in an arrow function's parameters)
-    /// below the arrow's scope `to`.
+    /// Moves a scope recorded in `from` (in an arrow function's
+    /// parameters) into the arrow's scope `to`: a child of `from` becomes
+    /// a child of `to`, and a scope of `from`'s function (the scopes of a
+    /// class in the parameters, also nested ones) becomes a scope of the
+    /// arrow function.
     pub(crate) fn move_scope(&mut self, id: ScopeId, from: ScopeId, to: ScopeId) {
+        let from_function = self.scope(from).function;
+        let to_function = self.scope(to).function;
         let var_scope = self.scope(to).hoist_to;
-        if let Some(scope) = self.scopes.get_mut(id.index())
-            && scope.parent == Some(from)
-            && id != to
-        {
-            scope.parent = Some(to);
-            if !matches!(
-                scope.kind,
-                ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody
-            ) {
+        if id == to {
+            return;
+        }
+        if let Some(scope) = self.scopes.get_mut(id.index()) {
+            let same_function = scope.function == from_function;
+            let child = scope.parent == Some(from);
+            if same_function {
+                scope.function = to_function;
+            }
+            if child {
+                scope.parent = Some(to);
+            }
+            if (same_function || child) && !is_var_scope_kind(scope.kind) {
                 scope.hoist_to = var_scope;
             }
         }
@@ -600,10 +689,7 @@ impl ScopeTree {
     }
 
     fn is_var_scope(&self, scope: ScopeId) -> bool {
-        matches!(
-            self.scope(scope).kind,
-            ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody
-        )
+        is_var_scope_kind(self.scope(scope).kind)
     }
 
     /// Whether `name` is a parameter of the function whose body scope is
@@ -759,6 +845,40 @@ impl ScopeTree {
         Ok(self.new_binding(scope, name, BindingKind::CatchParameter, offset))
     }
 
+    /// Declares the inner binding of a class name in its
+    /// [`ScopeKind::Class`] scope.
+    pub(crate) fn declare_class_name(
+        &mut self,
+        scope: ScopeId,
+        name: NameId,
+        offset: u32,
+    ) -> BindingId {
+        self.new_binding(scope, name, BindingKind::ClassName, offset)
+    }
+
+    /// Declares a private name (with its `#`) in a
+    /// [`ScopeKind::ClassBody`] scope, or returns the binding of the name
+    /// (the second accessor of a getter and setter pair). The parser
+    /// checks the duplicates.
+    pub(crate) fn declare_private_name(
+        &mut self,
+        scope: ScopeId,
+        name: NameId,
+        offset: u32,
+    ) -> BindingId {
+        match self.declared_in(scope, name) {
+            Some(existing) => existing,
+            None => self.new_binding(scope, name, BindingKind::PrivateName, offset),
+        }
+    }
+
+    /// Sets [`Binding::init_end`] of one binding.
+    pub(crate) fn set_init_end(&mut self, binding: BindingId, end: u32) {
+        if let Some(binding) = self.bindings.get_mut(binding.index()) {
+            binding.init_end = end;
+        }
+    }
+
     /// Declares the name of a named function expression in its
     /// [`ScopeKind::FunctionName`] scope.
     pub(crate) fn declare_function_name(
@@ -772,13 +892,16 @@ impl ScopeTree {
 
     /// Declares a function declaration of `function` in `scope`: var-like
     /// at the top level of a function or script, lexical in a block.
+    /// `plain_sloppy`: a plain function declaration (not a generator or
+    /// async) in sloppy mode code, which Annex B.3.2.4 allows to repeat
+    /// another plain one in a block.
     pub(crate) fn declare_function(
         &mut self,
         scope: ScopeId,
         name: NameId,
         offset: u32,
         function: FunctionId,
-        sloppy: bool,
+        plain_sloppy: bool,
     ) -> Result<BindingId, Redeclared> {
         let existing = self.declared_in(scope, name);
         let binding = if self.is_var_scope(scope) {
@@ -799,14 +922,24 @@ impl ScopeTree {
             }
         } else {
             match existing {
-                // Annex B.3.2.4: duplicate function declarations in a
-                // block of sloppy mode code.
-                Some(id) if sloppy && self.binding(id).kind == BindingKind::Function => id,
+                // Annex B.3.2.4: duplicate plain function declarations in
+                // a block of sloppy mode code.
+                Some(id)
+                    if plain_sloppy
+                        && self.binding(id).kind == BindingKind::Function
+                        && !self.special_block_functions.contains(&id) =>
+                {
+                    id
+                }
                 Some(_) => return Err(Redeclared),
                 None if self.var_declared_inside(scope, name) => return Err(Redeclared),
                 None => {
                     self.note_lexical(scope, name);
-                    self.new_binding(scope, name, BindingKind::Function, offset)
+                    let id = self.new_binding(scope, name, BindingKind::Function, offset);
+                    if !plain_sloppy {
+                        self.special_block_functions.insert(id);
+                    }
+                    id
                 }
             }
         };

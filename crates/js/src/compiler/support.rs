@@ -21,6 +21,12 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
             target: AssignTarget::Pattern(_),
             ..
         } => "destructuring assignment",
+        ExprKind::Class(_) => "class",
+        ExprKind::Await(_) => "await",
+        ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } | ExprKind::SuperCall(_) => {
+            "super"
+        }
+        ExprKind::PrivateMember { .. } | ExprKind::PrivateIn { .. } => "private name",
         _ => return None,
     })
 }
@@ -29,8 +35,10 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
 fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
         StmtKind::ForIn { .. } => "for-in",
+        StmtKind::ForOf { is_await: true, .. } => "for await",
         StmtKind::ForOf { .. } => "for-of",
         StmtKind::With { .. } => "with",
+        StmtKind::Class(_) => "class",
         _ => return None,
     })
 }
@@ -84,6 +92,12 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         let pattern = ast.pattern(id);
         if let Some(construct) = unsupported_pattern(pattern.kind) {
             note(pattern.span.start, construct);
+        }
+    }
+    for id in ast.function_ids() {
+        let function = ast.function(id);
+        if function.is_async {
+            note(function.span.start, "async function");
         }
     }
     first

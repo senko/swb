@@ -12,7 +12,8 @@
 
 use swb_js_text::CodeUnit;
 
-use super::{IdentUse, LEVEL_WEIGHT, PResult, Parser};
+use super::expressions::{is_property_target, starts_expression};
+use super::{AwaitMode, IdentUse, LEVEL_WEIGHT, PResult, Parser};
 use crate::ast::{
     AssignOp, AssignTarget, BindingId, ExprId, ExprKind, Ident, List, PatternId, PatternKind,
     PatternProperty, PropertyKind, Span,
@@ -71,6 +72,24 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         match self.token.kind {
             TokenKind::LBracket => self.parse_array_binding(kind),
             TokenKind::LBrace => self.parse_object_binding(kind),
+            TokenKind::Await
+                if leaf != Leaf::Top && self.ctx.await_mode == AwaitMode::Expression =>
+            {
+                // V8 reads an element of a pattern in async code as an
+                // expression: `await` starts an await expression.
+                let start = self.token.start;
+                if self.ctx.in_params {
+                    return Err(ParseError::syntax(start, messages::AWAIT_IN_PARAMETER));
+                }
+                self.advance()?;
+                if starts_expression(self.token.kind) {
+                    return Err(ParseError::syntax(
+                        start,
+                        messages::INVALID_DESTRUCTURING_TARGET,
+                    ));
+                }
+                Err(self.unexpected())
+            }
             _ if self.at_identifier() => {
                 let start = self.token.start;
                 let ident = self.parse_binding_identifier(kind, leaf)?;
@@ -487,12 +506,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     return Err(ParseError::syntax(span.start, message));
                 }
             }
-            ExprKind::Member {
-                optional: false, ..
-            }
-            | ExprKind::Index {
-                optional: false, ..
-            } => {}
+            kind if is_property_target(kind) => {}
             _ => return invalid(),
         }
         Ok(self.ast.push_pattern(PatternKind::Expr(target), span))
@@ -562,9 +576,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     fn object_rest_target(&mut self, argument: ExprId) -> PResult<PatternId> {
         let target = self.unparenthesized(argument);
         match self.ast.expr(target).kind {
-            ExprKind::Identifier(_) | ExprKind::Member { .. } | ExprKind::Index { .. } => {
-                self.assignment_leaf(argument, Leaf::Plain)
-            }
+            ExprKind::Identifier(_) => self.assignment_leaf(argument, Leaf::Plain),
+            kind if is_property_target(kind) => self.assignment_leaf(argument, Leaf::Plain),
             _ => Err(ParseError::syntax(
                 self.ast.expr(argument).span.start,
                 messages::REST_NOT_ASSIGNABLE,
@@ -596,12 +609,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     messages::INVALID_DESTRUCTURING_TARGET,
                 ));
             }
-            AssignTarget::Simple(expr)
-                if matches!(
-                    self.ast.expr(expr).kind,
-                    ExprKind::Member { .. } | ExprKind::Index { .. }
-                ) =>
-            {
+            AssignTarget::Simple(expr) if is_property_target(self.ast.expr(expr).kind) => {
                 Err(ParseError::syntax(
                     self.ast.expr(expr).span.start,
                     messages::PROPERTY_IN_DECLARATION,
@@ -634,9 +642,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.budget.leave(LEVEL_WEIGHT);
                 result
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } if leaf != Leaf::Top => Err(
-                ParseError::syntax(node.span.start, messages::PROPERTY_IN_DECLARATION),
-            ),
+            kind if leaf != Leaf::Top && is_property_target(kind) => Err(ParseError::syntax(
+                node.span.start,
+                messages::PROPERTY_IN_DECLARATION,
+            )),
             ExprKind::Yield { .. } => {
                 let message = if leaf == Leaf::Top {
                     messages::INVALID_DESTRUCTURING_TARGET
@@ -696,11 +705,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                                 ExprKind::Identifier(_)
                             ) {
                                 let value = self.ast.expr(property.value);
-                                let message = match value.kind {
-                                    ExprKind::Member { .. } | ExprKind::Index { .. } => {
-                                        messages::PROPERTY_IN_DECLARATION
-                                    }
-                                    _ => messages::REST_NOT_IDENTIFIER,
+                                let message = if is_property_target(value.kind) {
+                                    messages::PROPERTY_IN_DECLARATION
+                                } else {
+                                    messages::REST_NOT_IDENTIFIER
                                 };
                                 return Err(ParseError::syntax(value.span.start, message));
                             }

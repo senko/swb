@@ -3,8 +3,9 @@
 
 use swb_js_text::CodeUnit;
 
+use super::expressions::is_property_target;
 use super::patterns::{DeclKind, Leaf};
-use super::{IdentUse, Label, PResult, Parser, StmtContext, legacy_error};
+use super::{AwaitMode, IdentUse, Label, PResult, Parser, StmtContext, legacy_error};
 use crate::ast::{
     AssignTarget, CatchClause, Declarator, ExprId, ExprKind, ForHead, List, PatternKind, Span,
     StmtId, StmtKind, SwitchCase, VariableKind,
@@ -133,12 +134,24 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     fn parse_statement_inner(&mut self, context: StmtContext) -> PResult<StmtId> {
         let start = self.token.start;
+        // In async code `await:` is an await expression with a missing
+        // operand (V8 reports the `:`).
         let is_label = self.at_identifier()
             && !(self.at(TokenKind::Yield) && self.ctx.generator)
+            && !(self.at(TokenKind::Await) && self.ctx.await_mode == AwaitMode::Expression)
             && self.peek_kind()? == TokenKind::Colon;
         let is_let = self.at_let_declaration()?;
         if !is_label {
             self.label_chain = None;
+        }
+        if self.ctx.generator
+            && self.at(TokenKind::Identifier)
+            && self.token.escaped
+            && self.token.name() == Some(names::YIELD)
+        {
+            // V8 reports an escaped `yield` at the start of a statement in
+            // a generator as an escaped keyword (elsewhere as `yield`).
+            return Err(ParseError::syntax(start, messages::ESCAPED_KEYWORD));
         }
         let kind = self.token.kind;
         match kind {
@@ -179,7 +192,14 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.consume_semicolon()?;
                 Ok(self.finish_stmt(stmt, start))
             }
-            TokenKind::Function => self.parse_function_statement(context),
+            TokenKind::Function => self.parse_function_statement(context, start, false),
+            TokenKind::Identifier if self.at_async_function()? => {
+                if self.token.escaped {
+                    return Err(ParseError::syntax(start, messages::ESCAPED_KEYWORD));
+                }
+                self.advance()?;
+                self.parse_function_statement(context, start, true)
+            }
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
             TokenKind::Do => self.parse_do_while(),
@@ -195,7 +215,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     .ast
                     .push_stmt(StmtKind::Debugger, Span::new(start, self.prev_end)))
             }
-            TokenKind::Class => Err(ParseError::unsupported(start, "class")),
+            TokenKind::Class if context != StmtContext::ListItem => Err(self.unexpected()),
+            TokenKind::Class => {
+                let class = self.parse_class(true)?;
+                Ok(self.finish_stmt(StmtKind::Class(class), start))
+            }
             TokenKind::Switch => self.parse_switch(),
             TokenKind::With if self.ctx.strict => {
                 Err(ParseError::syntax(start, messages::STRICT_WITH))
@@ -225,6 +249,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(next.kind == TokenKind::Identifier && !next.escaped && next.name() == Some(name))
     }
 
+    /// Whether the current token is `async` (possibly with escapes)
+    /// followed by `function` on the same line: an async function
+    /// declaration (§15.8).
+    fn at_async_function(&mut self) -> PResult<bool> {
+        if !(self.at(TokenKind::Identifier) && self.token.name() == Some(names::ASYNC)) {
+            return Ok(false);
+        }
+        let next = self.peek()?;
+        Ok(next.kind == TokenKind::Function && !next.newline_before)
+    }
+
     /// Whether the current `let` starts a lexical declaration: `let`
     /// followed by an identifier, `[` or `{` (§14.3.1; an expression
     /// statement cannot start with `let [`, §14.5).
@@ -249,12 +284,6 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     fn parse_expression_statement(&mut self) -> PResult<StmtId> {
         let start = self.token.start;
-        if self.at_contextual(names::ASYNC)
-            && self.peek_kind()? == TokenKind::Function
-            && !self.peek()?.newline_before
-        {
-            return Err(ParseError::unsupported(start, "async function"));
-        }
         let expr = self.parse_expression(false)?;
         self.consume_semicolon()?;
         Ok(self.finish_stmt(StmtKind::Expr(expr), start))
@@ -339,12 +368,23 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// A function declaration in statement position (§14.1, Annex B.3.1,
-    /// B.3.3).
-    fn parse_function_statement(&mut self, context: StmtContext) -> PResult<StmtId> {
-        let start = self.token.start;
+    /// B.3.3); the current token is `function`, `start` is where the
+    /// declaration starts (`async` or `function`).
+    fn parse_function_statement(
+        &mut self,
+        context: StmtContext,
+        start: u32,
+        is_async: bool,
+    ) -> PResult<StmtId> {
         let generator = self.peek_kind()? == TokenKind::Star;
         match context {
             StmtContext::ListItem => {}
+            _ if is_async => {
+                return Err(ParseError::syntax(
+                    start,
+                    messages::ASYNC_FUNCTION_IN_STATEMENT,
+                ));
+            }
             _ if generator && context != StmtContext::Other => {
                 // V8 marks the `*`.
                 let star = self.peek()?.start;
@@ -360,7 +400,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             StmtContext::If => {
                 // Annex B.3.3: as if the declaration were in a block.
                 let entered = self.open_scope(ScopeKind::Block, start);
-                let function = self.parse_function_declaration();
+                let function = self.parse_function_declaration(start, false);
                 let scope = self.scope;
                 self.leave_scope(entered);
                 let function = self.ast.push_stmt(
@@ -371,7 +411,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 return Ok(self.finish_stmt(StmtKind::Block { body, scope }, start));
             }
         }
-        let function = self.parse_function_declaration()?;
+        let function = self.parse_function_declaration(start, is_async)?;
         Ok(self.finish_stmt(StmtKind::Function(function), start))
     }
 
@@ -473,19 +513,137 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(self.finish_stmt(StmtKind::DoWhile { body, test }, start))
     }
 
-    /// A `for` statement: the three-part form (§14.7.4), `for`-`in` and
-    /// `for`-`of` (§14.7.5). The head has its own scope.
+    /// A `for` statement: the three-part form (§14.7.4), `for`-`in`,
+    /// `for`-`of` and `for await`-`of` (§14.7.5). The head has its own
+    /// scope.
     fn parse_for(&mut self) -> PResult<StmtId> {
         let start = self.token.start;
         self.advance()?;
-        if self.at(TokenKind::Await) {
-            return Err(ParseError::unsupported(self.token.start, "for await"));
+        let is_await = self.at_await_keyword();
+        if is_await {
+            if self.ctx.await_mode != AwaitMode::Expression {
+                return Err(self.unexpected());
+            }
+            if self.token.escaped {
+                return Err(ParseError::syntax(
+                    self.token.start,
+                    messages::ESCAPED_KEYWORD,
+                ));
+            }
+            self.advance()?;
         }
         self.expect(TokenKind::LParen)?;
         let entered = self.open_scope(ScopeKind::For, start);
-        let stmt = self.parse_for_rest(start);
+        let stmt = if is_await {
+            self.parse_for_await_rest(start)
+        } else {
+            self.parse_for_rest(start)
+        };
         self.leave_scope(entered);
         stmt
+    }
+
+    /// Whether the current token is `await` (also escaped, which is an
+    /// error after `for`).
+    fn at_await_keyword(&self) -> bool {
+        self.at(TokenKind::Await)
+            || (self.at(TokenKind::Identifier) && self.token.name() == Some(names::AWAIT))
+    }
+
+    /// The head and body of `for await (... of ...)` after the `(`
+    /// (§14.7.5): a declaration or a target, then `of`.
+    fn parse_for_await_rest(&mut self, start: u32) -> PResult<StmtId> {
+        let init_start = self.token.start;
+        let binding_mark = self.scopes.binding_mark();
+        let is_let = self.at_let_declaration()?;
+        let declaration = match self.token.kind {
+            TokenKind::Var => Some(VariableKind::Var),
+            TokenKind::Const => Some(VariableKind::Const),
+            TokenKind::Identifier if is_let => Some(VariableKind::Let),
+            _ => None,
+        };
+        if let Some(kind) = declaration {
+            let decl = self.parse_variables(kind, true)?;
+            if !self.at_contextual(names::OF) {
+                self.check_escaped_of()?;
+                return Err(self.for_await_head_error(decl));
+            }
+            let head = ForDeclaration {
+                start,
+                init_start,
+                binding_mark,
+                kind,
+                is_await: true,
+            };
+            return self.parse_for_in_of_declaration(head, decl);
+        }
+        let head_start = self.token.start;
+        let starts_with_let = self.at_contextual(names::LET);
+        // `for await (async of x)` is valid (§14.7.5 has no `async of`
+        // lookahead rule for `for await`): `async` is the target here,
+        // not the start of an async arrow function.
+        let outer = self.cover_error.take();
+        let first = if self.at_contextual(names::ASYNC) && self.peek_contextual(names::OF)? {
+            self.parse_identifier_reference()
+        } else {
+            // `for await ( LeftHandSideExpression of ...`.
+            self.parse_left_hand_side()
+        };
+        let first = first.inspect_err(|_| self.cover_error = outer)?;
+        if !self.at_contextual(names::OF) {
+            self.check_cover_error()?;
+            self.check_escaped_of()?;
+            return Err(self.unexpected());
+        }
+        if starts_with_let {
+            return Err(ParseError::syntax(head_start, messages::FOR_OF_LET));
+        }
+        let target = self.for_target(first);
+        self.cover_error = outer;
+        let target = target?;
+        let right = self.parse_for_in_of_right(true)?;
+        self.finish_for_in_of(start, ForHead::Target(target), right, true, true)
+    }
+
+    /// Where V8 marks an initializer of a for-in/of binding: the
+    /// identifier, or the last token of a pattern.
+    fn binding_error_offset(&self, target: crate::PatternId) -> u32 {
+        let target = self.ast.pattern(target);
+        match target.kind {
+            PatternKind::Identifier(_) => target.span.start,
+            _ => target.span.end.saturating_sub(1),
+        }
+    }
+
+    /// `of` written with escapes after a `for await` head (§14.7.5: a
+    /// keyword must not contain escapes).
+    fn check_escaped_of(&self) -> PResult<()> {
+        if self.at(TokenKind::Identifier)
+            && self.token.escaped
+            && self.token.name() == Some(names::OF)
+        {
+            return Err(ParseError::syntax(
+                self.token.start,
+                messages::ESCAPED_KEYWORD,
+            ));
+        }
+        Ok(())
+    }
+
+    /// The error for a declaration in a `for await` head that `of` does not
+    /// follow: V8 reports an initializer at the binding.
+    fn for_await_head_error(&self, decl: StmtKind) -> ParseError {
+        if let StmtKind::Variables { declarators, .. } = decl
+            && let Some(declarator) = self
+                .ast
+                .declarators(declarators)
+                .iter()
+                .find(|d| d.init.is_some())
+        {
+            let target = self.binding_error_offset(declarator.target);
+            return ParseError::syntax(target, messages::FOR_AWAIT_INITIALIZER);
+        }
+        self.unexpected()
     }
 
     fn parse_for_rest(&mut self, start: u32) -> PResult<StmtId> {
@@ -506,6 +664,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     init_start,
                     binding_mark,
                     kind,
+                    is_await: false,
                 };
                 return self.parse_for_in_of_declaration(head, decl);
             }
@@ -523,16 +682,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     fn parse_for_expression_head(&mut self, start: u32) -> PResult<StmtId> {
         let head_start = self.token.start;
         let starts_with_let = self.at_contextual(names::LET);
-        if self.at_contextual(names::ASYNC) && self.peek_contextual(names::OF)? {
+        let first = if self.at_contextual(names::ASYNC) && self.peek_contextual(names::OF)? {
             // `for (async of` cannot start a for-of head (§14.7.5); only
             // `for (async of => {}; ;)` is valid (an async arrow).
             self.advance()?;
-            if self.peek_kind()? == TokenKind::Arrow {
-                return Err(ParseError::unsupported(head_start, "async arrow function"));
+            if self.peek_kind()? != TokenKind::Arrow {
+                return Err(ParseError::syntax(head_start, messages::FOR_OF_ASYNC));
             }
-            return Err(ParseError::syntax(head_start, messages::FOR_OF_ASYNC));
-        }
-        let first = self.parse_assignment_cover(true)?;
+            self.parse_async_arrow_identifier(head_start, true)?
+        } else {
+            self.parse_assignment_cover(true)?
+        };
         let is_in = self.at(TokenKind::In);
         let is_of = self.at_contextual(names::OF);
         if is_in || is_of {
@@ -567,7 +727,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.check_strict_target(ident.name, node.span.start)?;
                 Ok(AssignTarget::Simple(target))
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } => Ok(AssignTarget::Simple(target)),
+            kind if is_property_target(kind) => Ok(AssignTarget::Simple(target)),
             // Runtime errors for call targets (Annex B), in sloppy mode.
             ExprKind::Call { .. } if !self.ctx.strict => Ok(AssignTarget::Simple(target)),
             ExprKind::Array(_) | ExprKind::Object(_) => Err(ParseError::syntax(
@@ -595,7 +755,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         };
         let list = self.ast.declarators(declarators);
         let [declarator] = list else {
-            let message = if is_of {
+            let message = if head.is_await {
+                messages::FOR_AWAIT_SINGLE_BINDING
+            } else if is_of {
                 messages::FOR_OF_SINGLE_BINDING
             } else {
                 messages::FOR_IN_SINGLE_BINDING
@@ -604,6 +766,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let first = list.first().map_or(head.init_start, |d| d.span.start);
             return Err(ParseError::syntax(first, message));
         };
+        if declarator.init.is_some() && head.is_await {
+            let target = self.binding_error_offset(declarator.target);
+            return Err(ParseError::syntax(target, messages::FOR_AWAIT_INITIALIZER));
+        }
         if declarator.init.is_some() {
             let annex_b = !is_of
                 && head.kind == VariableKind::Var
@@ -618,12 +784,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 } else {
                     messages::FOR_IN_INITIALIZER
                 };
-                // V8 marks the last token of the binding.
-                let target = self.ast.pattern(declarator.target);
-                let at = match target.kind {
-                    PatternKind::Identifier(_) => target.span.start,
-                    _ => target.span.end.saturating_sub(1),
-                };
+                let at = self.binding_error_offset(declarator.target);
                 return Err(ParseError::syntax(at, message));
             }
         }
@@ -636,13 +797,19 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.scopes
                 .set_init_end_range(range, self.scope, false, self.prev_end);
         }
-        self.finish_for_in_of(head.start, ForHead::Declaration(stmt), right, is_of)
+        self.finish_for_in_of(
+            head.start,
+            ForHead::Declaration(stmt),
+            right,
+            is_of,
+            head.is_await,
+        )
     }
 
     /// The rest of `for (target in/of right) body`.
     fn parse_for_in_of_rest(&mut self, start: u32, left: ForHead, is_of: bool) -> PResult<StmtId> {
         let right = self.parse_for_in_of_right(is_of)?;
-        self.finish_for_in_of(start, left, right, is_of)
+        self.finish_for_in_of(start, left, right, is_of, false)
     }
 
     /// `in Expression` or `of AssignmentExpression`.
@@ -661,6 +828,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         left: ForHead,
         right: ExprId,
         is_of: bool,
+        is_await: bool,
     ) -> PResult<StmtId> {
         self.expect(TokenKind::RParen)?;
         let body = self.parse_loop_body()?;
@@ -674,6 +842,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 right,
                 body,
                 scope,
+                is_await,
             }
         } else {
             StmtKind::ForIn {
@@ -795,10 +964,14 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(self.finish_stmt(kind, start))
     }
 
-    /// `return` (§14.10), only in function bodies.
+    /// `return` (§14.10), only in function bodies (not in class static
+    /// blocks, §15.7.1).
     fn parse_return(&mut self) -> PResult<StmtId> {
         let start = self.token.start;
-        if self.ctx.kind == crate::FunctionKind::Script {
+        if matches!(
+            self.ctx.kind,
+            crate::FunctionKind::Script | crate::FunctionKind::StaticInitializer
+        ) {
             return Err(ParseError::syntax(start, messages::ILLEGAL_RETURN));
         }
         self.advance()?;
@@ -985,7 +1158,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let pattern = if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
                 self.parse_binding_target(DeclKind::Catch, Leaf::Top)?
             } else {
-                let name = self.check_identifier(IdentUse::Binding)?;
+                let name = self.check_identifier(IdentUse::Name)?;
                 let declared = self
                     .scopes
                     .declare_catch_param(self.scope, name, start, false);
@@ -1020,6 +1193,8 @@ struct ForDeclaration {
     /// The binding mark before the declaration.
     binding_mark: usize,
     kind: VariableKind,
+    /// `for await`.
+    is_await: bool,
 }
 
 /// The strict mode rules for a binding name read in sloppy mode.

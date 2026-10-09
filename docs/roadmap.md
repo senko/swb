@@ -607,7 +607,18 @@ failures with a reason. Features, in this order:
      fields, private names and `#x in o`, static blocks), the rules for
      `super` properties and calls, `async` functions, arrows (the
      `async (` cover grammar), methods and generators, `await` and
-     `yield` as identifiers by context, `for await`.
+     `yield` as identifiers by context, `for await`. Done 2026-10-10:
+     all of the above with their early errors; the compiler rejects
+     the new forms with "not supported yet". Annex B.3.2.4 duplicate
+     block declarations of generators and async functions are errors
+     now (this was in 1c). Parse-only test262: 40,604 pass, 358 fail
+     (all regular expression syntax, feature 8a), 591 use modules.
+     Runtime test262: 4,231 pass. All 60 BBC and 24 Ars scripts parse,
+     48 MB/s. Open: `await` in field initializers follows V8 (an
+     identifier in instance fields, reserved in static fields; test262
+     has no test); each private name takes a register of the enclosing
+     function, so a class with more than about 64,500 private names
+     fails (feature 3).
    - 1c. Modules and the rest of the scope analysis: the Module goal
      (the `import` and `export` forms and their early errors,
      `import.meta`, `import()`, top-level `await`); direct `eval` and

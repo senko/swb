@@ -93,7 +93,8 @@ pub(super) fn check_errors(cases: &[(&str, &str)]) {
 /// previous line. V8 marks the `var` that conflicts with a later `let` or
 /// `function`; swb marks the later declaration. For `x + a => 1` V8 marks
 /// the operator before the arrow parameter; for `(1, 2) => 3` the last
-/// invalid element.
+/// invalid element; for `async(a)(b) => 1` the last call. For an `await`
+/// shorthand in async arrow parameters V8 marks the `}`.
 const POSITION_DEVIATIONS: &[(&str, u32, &str)] = &[
     ("a\n++‸", 1, "Unexpected end of input"),
     ("x = a\n/b/‸", 5, "Unexpected end of input"),
@@ -136,6 +137,56 @@ const POSITION_DEVIATIONS: &[(&str, u32, &str)] = &[
     ("(‸1, 2) => 3", 4, "Invalid destructuring assignment target"),
     ("‸(a)(b) => 3", 3, "Malformed arrow function parameter list"),
     ("‸a + b => c", 2, "Malformed arrow function parameter list"),
+    (
+        "async ({‸await}) => 1",
+        13,
+        "'await' is not a valid identifier name in an async function",
+    ),
+    (
+        "class C { #f; m() { ‸#f in () => {} } }",
+        23,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = ‸a + () => 1",
+        6,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = async ({ ‸await }) => 1",
+        19,
+        "'await' is not a valid identifier name in an async function",
+    ),
+    (
+        "x = ‸a || async () => 1",
+        6,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = ‸a + async () => 1",
+        6,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = ‸async(a)(b) => 1",
+        12,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = ‸async(a).b => 1",
+        12,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "x = ‸async?.(a) => 1",
+        0,
+        "Malformed arrow function parameter list",
+    ),
+    (
+        "{ var f; ‸async function f() {} }",
+        6,
+        "Identifier 'f' has already been declared",
+    ),
 ];
 
 #[test]
@@ -453,23 +504,11 @@ fn automatic_semicolon_insertion() {
 
 #[test]
 fn unsupported_constructs() {
-    // The constructs of M7 features 1b and 1c.
+    // The constructs of M7 feature 1c.
     let cases = [
-        ("class A {}", "class"),
-        ("x = class {}", "class"),
-        ("for await (a of b) ;", "for await"),
-        ("({ async a() {} })", "async method"),
-        ("async function f() {}", "async function"),
-        ("x = async function () {}", "async function"),
-        ("x = async a => a", "async arrow function"),
-        ("x = async (a) => a", "async arrow function"),
-        ("for (async of => {};;) ;", "async arrow function"),
-        ("super.a", "super"),
         ("import('a')", "import"),
         ("import a from 'b'", "module syntax"),
         ("export var a", "module syntax"),
-        ("#a in b", "private name"),
-        ("a?.#b", "private name"),
     ];
     for (source, construct) in cases {
         let error = parse(source).expect_err(source);

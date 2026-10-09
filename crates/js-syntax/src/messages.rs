@@ -89,6 +89,30 @@ pub(crate) const MISSING_CATCH_OR_FINALLY: &str = "Missing catch or finally afte
 pub(crate) const MULTIPLE_DEFAULTS: &str = "More than one default clause in switch statement";
 pub(crate) const STRICT_WITH: &str = "Strict mode code may not include a with statement";
 
+pub(crate) const ASYNC_FUNCTION_IN_STATEMENT: &str =
+    "Async functions can only be declared at the top level or inside a block.";
+pub(crate) const AWAIT_IN_PARAMETER: &str =
+    "Illegal await-expression in formal parameters of async function";
+pub(crate) const AWAIT_BINDING_IN_ASYNC: &str =
+    "'await' is not a valid identifier name in an async function";
+pub(crate) const FOR_AWAIT_SINGLE_BINDING: &str =
+    "Invalid left-hand side in for-await-of loop: Must have a single binding.";
+pub(crate) const FOR_AWAIT_INITIALIZER: &str =
+    "for-await-of loop variable declaration may not have an initializer.";
+pub(crate) const UNEXPECTED_SUPER: &str = "'super' keyword unexpected here";
+pub(crate) const UNEXPECTED_PRIVATE_FIELD: &str = "Unexpected private field";
+pub(crate) const DELETE_PRIVATE: &str = "Private fields can not be deleted";
+pub(crate) const ARGUMENTS_IN_CLASS_INIT: &str =
+    "'arguments' is not allowed in class field initializer or static initialization block";
+pub(crate) const DUPLICATE_CONSTRUCTOR: &str = "A class may only have one constructor";
+pub(crate) const STATIC_PROTOTYPE: &str =
+    "Classes may not have a static property named 'prototype'";
+pub(crate) const CONSTRUCTOR_FIELD: &str = "Classes may not have a field named 'constructor'";
+pub(crate) const CONSTRUCTOR_ACCESSOR: &str = "Class constructor may not be an accessor";
+pub(crate) const CONSTRUCTOR_GENERATOR: &str = "Class constructor may not be a generator";
+pub(crate) const CONSTRUCTOR_ASYNC: &str = "Class constructor may not be an async method";
+pub(crate) const CONSTRUCTOR_PRIVATE: &str = "Class constructor may not be a private method";
+
 pub(crate) const STRICT_OCTAL_LITERAL: &str = "Octal literals are not allowed in strict mode.";
 pub(crate) const STRICT_LEADING_ZERO: &str =
     "Decimals with leading zeros are not allowed in strict mode.";
@@ -137,6 +161,12 @@ pub(crate) fn undefined_label(name: &str) -> String {
 /// "Illegal continue statement: 'x' does not denote an iteration statement".
 pub(crate) fn continue_not_loop(name: &str) -> String {
     format!("Illegal continue statement: '{name}' does not denote an iteration statement")
+}
+
+/// "Private field '#x' must be declared in an enclosing class" (`name`
+/// includes the `#`).
+pub(crate) fn undeclared_private(name: &str) -> String {
+    format!("Private field '{name}' must be declared in an enclosing class")
 }
 
 /// "Unexpected token 'x'".

@@ -255,7 +255,10 @@ impl<'a> FunctionCompiler<'a> {
             FunctionKind::Getter | FunctionKind::Setter => {
                 return Err(self.unsupported("getter or setter"));
             }
-            FunctionKind::ClassConstructor | FunctionKind::DerivedConstructor => {
+            FunctionKind::ClassConstructor
+            | FunctionKind::DerivedConstructor
+            | FunctionKind::InstanceInitializer
+            | FunctionKind::StaticInitializer => {
                 return Err(self.unsupported("class"));
             }
         })
@@ -526,6 +529,12 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::Let
                 | BindingKind::Const
                 | BindingKind::CatchParameter => {}
+                BindingKind::Class | BindingKind::ClassName | BindingKind::PrivateName => {
+                    return Err(self.unsupported("class"));
+                }
+                BindingKind::HomeObject | BindingKind::ActiveFunction => {
+                    return Err(self.unsupported("super"));
+                }
             }
             let lexical = b.kind.is_lexical();
             match b.storage {
@@ -703,6 +712,7 @@ impl<'a> FunctionCompiler<'a> {
             StmtKind::ForIn { .. } => return Err(self.unsupported("for-in")),
             StmtKind::ForOf { .. } => return Err(self.unsupported("for-of")),
             StmtKind::With { .. } => return Err(self.unsupported("with")),
+            StmtKind::Class(_) => return Err(self.unsupported("class")),
             StmtKind::Debugger => {
                 self.emit(Insn::Nop);
             }

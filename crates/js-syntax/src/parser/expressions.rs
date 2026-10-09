@@ -3,11 +3,12 @@
 
 use swb_js_text::CodeUnit;
 
-use super::functions::ArrowHead;
-use super::{CHAIN_WEIGHT, IdentUse, PResult, Parser, Recorded};
+use super::functions::{ArrowHead, ArrowStart, FunctionHead};
+use super::{AwaitMode, CHAIN_WEIGHT, IdentUse, PResult, Parser, Recorded};
 use crate::ast::{
     AssignOp, AssignTarget, BinaryOp, ExprId, ExprKind, FunctionKind, List, LogicalOp, Property,
-    PropertyKey, PropertyKind, Span, Template, TemplateElement, TemplateId, UnaryOp, UpdateOp,
+    PropertyKey, PropertyKind, Span, SuperCall, Template, TemplateElement, TemplateId, UnaryOp,
+    UpdateOp,
 };
 use crate::error::ParseError;
 use crate::interner::names;
@@ -61,6 +62,13 @@ fn binary_operator(kind: TokenKind, no_in: bool) -> Option<(Operator, u8)> {
 /// The precedence of `|`: the operands of `??` (§13.13).
 const BIT_OR_PRECEDENCE: u8 = 3;
 
+/// The precedence of the relational operators (`#x in o`, §13.10).
+const RELATIONAL_PRECEDENCE: u8 = 7;
+
+/// The precedence of the shift operators: the right operand of
+/// `#x in` is a `ShiftExpression`.
+const SHIFT_PRECEDENCE: u8 = 8;
+
 /// The assignment operator of a token.
 fn assignment_operator(kind: TokenKind) -> Option<AssignOp> {
     use BinaryOp as B;
@@ -88,7 +96,7 @@ fn assignment_operator(kind: TokenKind) -> Option<AssignOp> {
 
 /// Whether a token can start an expression (for the optional operand of
 /// `yield`).
-fn starts_expression(kind: TokenKind) -> bool {
+pub(super) fn starts_expression(kind: TokenKind) -> bool {
     matches!(
         kind,
         TokenKind::Identifier
@@ -128,8 +136,21 @@ fn starts_expression(kind: TokenKind) -> bool {
     )
 }
 
+/// Whether an expression of this kind is a property access that can be
+/// assigned to (§13.15.1: not in an optional chain).
+pub(super) fn is_property_target(kind: ExprKind) -> bool {
+    matches!(
+        kind,
+        ExprKind::Member { .. }
+            | ExprKind::Index { .. }
+            | ExprKind::PrivateMember { .. }
+            | ExprKind::SuperMember { .. }
+            | ExprKind::SuperIndex { .. }
+    )
+}
+
 impl<U: CodeUnit> Parser<'_, '_, U> {
-    fn push_expr(&mut self, kind: ExprKind, start: u32) -> ExprId {
+    pub(super) fn push_expr(&mut self, kind: ExprKind, start: u32) -> ExprId {
         self.ast.push_expr(kind, Span::new(start, self.prev_end))
     }
 
@@ -244,11 +265,34 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             // `() => ...`: the only place where `()` is valid.
             self.advance()?;
             let arrow = self.peek()?;
-            if arrow.kind != TokenKind::Arrow || arrow.newline_before {
+            if arrow.kind == TokenKind::Arrow && arrow.newline_before {
+                // V8 reports the `=>` after a line break.
+                let arrow = arrow.clone();
+                return Err(self.unexpected_token(&arrow));
+            }
+            if arrow.kind != TokenKind::Arrow {
                 return Err(self.unexpected());
             }
             self.advance()?;
-            return self.parse_arrow_function(start, ArrowHead::Empty, None, no_in);
+            let arrow = ArrowStart {
+                start,
+                mark: None,
+                is_async: false,
+            };
+            return self.parse_arrow_function(arrow, ArrowHead::Empty, no_in);
+        }
+        if self.at_contextual(names::ASYNC) {
+            let next = self.peek()?;
+            if !next.newline_before
+                && matches!(
+                    next.kind,
+                    TokenKind::Identifier | TokenKind::Yield | TokenKind::Await
+                )
+            {
+                // `async x => ...` (§15.9).
+                self.advance()?;
+                return self.parse_async_arrow_identifier(start, no_in);
+            }
         }
         let mark = self.recorded.len();
         let left = self.parse_conditional(no_in)?;
@@ -292,7 +336,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.check_strict_target(ident.name, start)?;
                 Ok(AssignTarget::Simple(target))
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } => Ok(AssignTarget::Simple(target)),
+            kind if is_property_target(kind) => Ok(AssignTarget::Simple(target)),
             // Chromium accepts `f() = x` and throws a ReferenceError at run
             // time (web compatibility); later editions of ECMA-262 allow
             // it in sloppy mode code, except for the logical operators.
@@ -326,7 +370,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 self.check_strict_target(ident.name, start)?;
                 Ok(target)
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } => Ok(target),
+            kind if is_property_target(kind) => Ok(target),
             ExprKind::Call { .. } if !self.ctx.strict => Ok(target),
             _ => {
                 // V8 reports a pending `CoverInitializedName` first.
@@ -402,7 +446,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// climbing (§13.6 to §13.13).
     fn parse_binary(&mut self, min: u8, no_in: bool) -> PResult<ExprId> {
         let start = self.token.start;
-        let mut left = self.parse_unary()?;
+        let mut left = if self.at(TokenKind::PrivateName) {
+            self.parse_private_in(min, no_in)?
+        } else {
+            self.parse_unary()?
+        };
         let mut links = 0u32;
         let result = loop {
             let Some((op, precedence)) = binary_operator(self.token.kind, no_in) else {
@@ -490,16 +538,68 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     ..
                 },
             ) => self.unexpected(),
-            (Operator::Binary(BinaryOp::Exponent), ExprKind::Unary { .. }) => ParseError::syntax(
-                self.ast.expr(left).span.start,
-                messages::UNARY_BEFORE_EXPONENT,
-            ),
+            (Operator::Binary(BinaryOp::Exponent), ExprKind::Unary { .. } | ExprKind::Await(_)) => {
+                ParseError::syntax(
+                    self.ast.expr(self.innermost_unary(left)).span.start,
+                    messages::UNARY_BEFORE_EXPONENT,
+                )
+            }
             _ => return Ok(()),
         };
         Err(error)
     }
 
-    /// `UnaryExpression` and prefix `UpdateExpression` (§13.4, §13.5).
+    /// The innermost unary or `await` expression in the chain of operands
+    /// that starts at `expr`. V8 reports `**` after a unary expression
+    /// while it parses the innermost one (`-await 1 ** 2` marks `await`).
+    fn innermost_unary(&self, expr: ExprId) -> ExprId {
+        let mut current = expr;
+        while let ExprKind::Unary { argument, .. } | ExprKind::Await(argument) =
+            self.kind_of(current)
+        {
+            if !matches!(
+                self.kind_of(argument),
+                ExprKind::Unary { .. } | ExprKind::Await(_)
+            ) {
+                break;
+            }
+            current = argument;
+        }
+        current
+    }
+
+    /// `#x in object` (§13.10): a private name is valid only as the left
+    /// operand of `in` at the start of a relational expression.
+    fn parse_private_in(&mut self, min: u8, no_in: bool) -> PResult<ExprId> {
+        let start = self.token.start;
+        if self.classes.is_empty() {
+            // V8 reports this before the form of the expression.
+            let name = self.current_private_id()?;
+            return Err(self.undeclared_private(name, self.prev_start));
+        }
+        if min > RELATIONAL_PRECEDENCE || no_in || self.peek_kind()? != TokenKind::In {
+            return Err(self.unexpected());
+        }
+        let name = self.private_name_use()?;
+        self.advance()?;
+        self.advance()?;
+        let object = self.parse_binary(SHIFT_PRECEDENCE, no_in)?;
+        Ok(self.push_expr(ExprKind::PrivateIn { name, object }, start))
+    }
+
+    /// The current private name token as a use (a reference that must
+    /// resolve to a private name of an enclosing class); does not advance.
+    /// V8 reports an undeclared name at the token before it (the `.` of
+    /// `this.#x`).
+    pub(super) fn private_name_use(&mut self) -> PResult<crate::Ident> {
+        let start = self.token.start;
+        let name = self.current_private_id()?;
+        self.note_private_use(name, self.prev_start)?;
+        Ok(self.reference(name, start, false))
+    }
+
+    /// `UnaryExpression` and prefix `UpdateExpression` (§13.4, §13.5), and
+    /// `AwaitExpression` (§15.8).
     fn parse_unary(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         let op = match self.token.kind {
@@ -511,6 +611,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             TokenKind::Tilde => UnaryOp::BitNot,
             TokenKind::Bang => UnaryOp::Not,
             TokenKind::PlusPlus | TokenKind::MinusMinus => return self.parse_prefix_update(),
+            TokenKind::Await if self.ctx.await_mode == AwaitMode::Expression => {
+                return self.parse_await();
+            }
             _ => return self.parse_postfix(),
         };
         self.advance()?;
@@ -518,16 +621,53 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let argument = self.parse_unary();
         self.leave_small();
         let argument = argument?;
-        if op == UnaryOp::Delete && self.ctx.strict {
-            let operand = self.unparenthesized(argument);
-            if matches!(self.kind_of(operand), ExprKind::Identifier(_)) {
-                return Err(ParseError::syntax(
-                    self.last_token_start(argument),
-                    messages::DELETE_IDENTIFIER,
-                ));
-            }
+        if op == UnaryOp::Delete {
+            self.check_delete(argument)?;
         }
         Ok(self.push_expr(ExprKind::Unary { op, argument }, start))
+    }
+
+    /// The early errors of `delete` (§13.5.1.1): an identifier in strict
+    /// mode code, a private member (V8 marks the private name, or the
+    /// closing parenthesis around it).
+    fn check_delete(&self, argument: ExprId) -> PResult<()> {
+        let operand = self.unparenthesized(argument);
+        let operand = match self.kind_of(operand) {
+            ExprKind::OptionalChain(chain) => chain,
+            _ => operand,
+        };
+        match self.kind_of(operand) {
+            ExprKind::Identifier(_) if self.ctx.strict => Err(ParseError::syntax(
+                self.last_token_start(argument),
+                messages::DELETE_IDENTIFIER,
+            )),
+            ExprKind::PrivateMember { name, .. } => {
+                let offset = if operand == argument
+                    || matches!(self.kind_of(argument), ExprKind::OptionalChain(_))
+                {
+                    self.scopes.reference(name.reference).offset
+                } else {
+                    self.ast.expr(argument).span.end.saturating_sub(1)
+                };
+                Err(ParseError::syntax(offset, messages::DELETE_PRIVATE))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// `await UnaryExpression` (§15.8) in an async function.
+    fn parse_await(&mut self) -> PResult<ExprId> {
+        let start = self.token.start;
+        if self.ctx.in_params {
+            return Err(ParseError::syntax(start, messages::AWAIT_IN_PARAMETER));
+        }
+        self.ctx.last_await = Some(start);
+        self.advance()?;
+        self.enter_small()?;
+        let argument = self.parse_unary();
+        self.leave_small();
+        let argument = argument?;
+        Ok(self.push_expr(ExprKind::Await(argument), start))
     }
 
     fn parse_prefix_update(&mut self) -> PResult<ExprId> {
@@ -574,7 +714,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// `LeftHandSideExpression`: `new`, member access and calls (§13.3).
-    fn parse_left_hand_side(&mut self) -> PResult<ExprId> {
+    pub(super) fn parse_left_hand_side(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         let object = if self.at(TokenKind::New) {
             self.parse_new()?
@@ -594,7 +734,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let result = loop {
             let link = match self.token.kind {
                 TokenKind::Dot | TokenKind::LBracket => self.parse_member(object, start),
-                TokenKind::LParen if calls => self.parse_call(object, start, false),
+                TokenKind::LParen if calls => {
+                    let async_head = links == 0 && self.is_async_callee(object);
+                    self.parse_call(object, start, false, async_head)
+                }
                 TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead if optional => Err(
                     ParseError::syntax(self.token.start, messages::OPTIONAL_CHAIN_TEMPLATE),
                 ),
@@ -627,9 +770,22 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         Ok(object)
     }
 
-    /// `.name` or `[expression]` after `object`.
+    /// Whether `callee` followed by the current `(` can be the head of an
+    /// async arrow function: the identifier `async` without escapes and
+    /// parentheses, with no line terminator before `(` (§15.9).
+    fn is_async_callee(&self, callee: ExprId) -> bool {
+        let node = self.ast.expr(callee);
+        matches!(node.kind, ExprKind::Identifier(ident) if ident.name == names::ASYNC)
+            && node.span.end - node.span.start == 5
+            && !self.token.newline_before
+    }
+
+    /// `.name`, `.#name` or `[expression]` after `object`.
     fn parse_member(&mut self, object: ExprId, start: u32) -> PResult<ExprId> {
         if self.eat(TokenKind::Dot)? {
+            if self.at(TokenKind::PrivateName) {
+                return self.parse_private_member(object, start, false);
+            }
             let property = self.member_name()?;
             return Ok(self.push_expr(
                 ExprKind::Member {
@@ -643,13 +799,30 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         self.parse_index(object, start, false)
     }
 
+    /// `.#name` (or `?.#name`) after `object`; the current token is the
+    /// private name.
+    fn parse_private_member(
+        &mut self,
+        object: ExprId,
+        start: u32,
+        optional: bool,
+    ) -> PResult<ExprId> {
+        let name = self.private_name_use()?;
+        self.advance()?;
+        Ok(self.push_expr(
+            ExprKind::PrivateMember {
+                object,
+                name,
+                optional,
+            },
+            start,
+        ))
+    }
+
     /// The `IdentifierName` after `.` or `?.`; advances.
     fn member_name(&mut self) -> PResult<crate::NameId> {
         let property = match self.token.kind {
             TokenKind::Identifier => self.token.name().unwrap_or(names::AWAIT),
-            TokenKind::PrivateName => {
-                return Err(ParseError::unsupported(self.token.start, "private name"));
-            }
             kind => match kind.keyword_name() {
                 Some(name) => name,
                 None => return Err(self.unexpected()),
@@ -679,11 +852,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         self.advance()?;
         match self.token.kind {
             TokenKind::LBracket => self.parse_index(object, start, true),
-            TokenKind::LParen => self.parse_call(object, start, true),
+            TokenKind::LParen => self.parse_call(object, start, true, false),
             TokenKind::NoSubstitutionTemplate | TokenKind::TemplateHead => Err(ParseError::syntax(
                 self.token.start,
                 messages::OPTIONAL_CHAIN_TEMPLATE,
             )),
+            TokenKind::PrivateName => self.parse_private_member(object, start, true),
             _ => {
                 let property = self.member_name()?;
                 Ok(self.push_expr(
@@ -699,9 +873,18 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// A call with its arguments. A call of the plain name `eval` (also
-    /// in parentheses) is a direct `eval` (§13.3.6.1).
-    fn parse_call(&mut self, callee: ExprId, start: u32, optional: bool) -> PResult<ExprId> {
-        let arguments = self.parse_arguments()?;
+    /// in parentheses) is a direct `eval` (§13.3.6.1). With `async_head`
+    /// (`async(...)`), the arguments may still become the parameters of
+    /// an async arrow function: early errors of the cover grammar stay
+    /// pending ([`Parser::cover_error`]).
+    fn parse_call(
+        &mut self,
+        callee: ExprId,
+        start: u32,
+        optional: bool,
+        async_head: bool,
+    ) -> PResult<ExprId> {
+        let (arguments, spread_comma) = self.parse_arguments_cover(async_head)?;
         let target = self.unparenthesized(callee);
         if !optional
             && let ExprKind::Identifier(ident) = self.kind_of(target)
@@ -710,14 +893,18 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.ctx.direct_evals += 1;
             self.recorded.push(Recorded::Eval);
         }
-        Ok(self.push_expr(
+        let call = self.push_expr(
             ExprKind::Call {
                 callee,
                 arguments,
                 optional,
             },
             start,
-        ))
+        );
+        if async_head {
+            self.async_heads.insert(call, spread_comma);
+        }
+        Ok(call)
     }
 
     /// A tagged template (§13.3.11): `tag` is called with the template.
@@ -727,43 +914,59 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// Arguments (§13.3.8): `(a, ...b,)`.
-    fn parse_arguments(&mut self) -> PResult<List<ExprId>> {
+    pub(super) fn parse_arguments(&mut self) -> PResult<List<ExprId>> {
+        Ok(self.parse_arguments_cover(false)?.0)
+    }
+
+    /// Arguments; with `cover`, the arguments of `async(...)`, which can
+    /// become arrow parameters. Returns the list and the offset of the
+    /// comma after the first spread argument, if any.
+    fn parse_arguments_cover(&mut self, cover: bool) -> PResult<(List<ExprId>, Option<u32>)> {
         let open = self.token.start;
         self.expect(TokenKind::LParen)?;
         let mark = self.scratch_exprs.len();
-        let result = self.parse_argument_items();
+        let result = self.parse_argument_items(cover);
         let count = self.scratch_exprs.len() - mark;
         let list = self.ast.push_exprs(&self.scratch_exprs[mark..]);
         self.scratch_exprs.truncate(mark);
-        result?;
+        let spread_comma = result?;
         if count > usize::from(u16::MAX) {
             return Err(ParseError::syntax(open, messages::TOO_MANY_ARGUMENTS));
         }
-        Ok(list)
+        Ok((list, spread_comma))
     }
 
     /// The arguments up to and including `)`.
-    fn parse_argument_items(&mut self) -> PResult<()> {
+    fn parse_argument_items(&mut self, cover: bool) -> PResult<Option<u32>> {
+        let mut spread_comma = None;
         while !self.at(TokenKind::RParen) {
             let start = self.token.start;
-            let argument = if self.eat(TokenKind::Ellipsis)? {
-                let argument = self.parse_assignment(false)?;
-                self.push_expr(ExprKind::Spread(argument), start)
+            let spread = self.eat(TokenKind::Ellipsis)?;
+            let mut argument = if cover {
+                self.parse_assignment_cover(false)?
             } else {
                 self.parse_assignment(false)?
             };
+            if spread {
+                argument = self.push_expr(ExprKind::Spread(argument), start);
+            }
             self.scratch_exprs.push(argument);
             if self.at(TokenKind::RParen) {
                 break;
             }
+            let comma = self.token.start;
             if !self.eat(TokenKind::Comma)? {
                 return Err(ParseError::syntax(
                     self.prev_start,
                     messages::MISSING_PAREN_AFTER_ARGUMENTS,
                 ));
             }
+            if spread && spread_comma.is_none() {
+                spread_comma = Some(comma);
+            }
         }
-        self.advance()
+        self.advance()?;
+        Ok(spread_comma)
     }
 
     /// `new` `MemberExpression` Arguments, or `new` `NewExpression`
@@ -809,12 +1012,68 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// The `MemberExpression` after `new`: no calls.
     fn parse_new_callee(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
-        let callee = if self.at(TokenKind::New) {
-            self.parse_new()?
-        } else {
-            self.parse_primary()?
+        let callee = match self.token.kind {
+            TokenKind::New => self.parse_new()?,
+            TokenKind::Super => self.parse_super(false)?,
+            _ => self.parse_primary()?,
         };
         self.parse_chain(callee, start, false)
+    }
+
+    /// `super.name`, `super[expression]` (in methods) or `super(...)` (in
+    /// derived constructors; not after `new`), §13.3.7. V8 marks `super`
+    /// for every misplaced form.
+    fn parse_super(&mut self, calls: bool) -> PResult<ExprId> {
+        let start = self.token.start;
+        let misplaced = || Err(ParseError::syntax(start, messages::UNEXPECTED_SUPER));
+        self.advance()?;
+        match self.token.kind {
+            TokenKind::Dot | TokenKind::LBracket if !self.ctx.super_property => misplaced(),
+            TokenKind::Dot => {
+                self.advance()?;
+                if self.at(TokenKind::PrivateName) {
+                    return Err(ParseError::syntax(
+                        self.token.start,
+                        messages::UNEXPECTED_PRIVATE_FIELD,
+                    ));
+                }
+                let this = self.reference(names::THIS, start, false).reference;
+                let home = self.reference(names::SUPER, start, false).reference;
+                let property = self.member_name()?;
+                Ok(self.push_expr(
+                    ExprKind::SuperMember {
+                        property,
+                        this,
+                        home,
+                    },
+                    start,
+                ))
+            }
+            TokenKind::LBracket => {
+                let this = self.reference(names::THIS, start, false).reference;
+                let home = self.reference(names::SUPER, start, false).reference;
+                self.advance()?;
+                let index = self.parse_expression(false)?;
+                self.expect(TokenKind::RBracket)?;
+                Ok(self.push_expr(ExprKind::SuperIndex { index, this, home }, start))
+            }
+            TokenKind::LParen if calls && self.ctx.super_call => {
+                let this = self.reference(names::THIS, start, false).reference;
+                let new_target = self.reference(names::NEW_TARGET, start, false).reference;
+                let function = self
+                    .reference(names::ACTIVE_FUNCTION, start, false)
+                    .reference;
+                let arguments = self.parse_arguments()?;
+                let call = self.ast.push_super_call(SuperCall {
+                    arguments,
+                    this,
+                    new_target,
+                    function,
+                });
+                Ok(self.push_expr(ExprKind::SuperCall(call), start))
+            }
+            _ => misplaced(),
+        }
     }
 
     /// `PrimaryExpression` (§13.2).
@@ -858,9 +1117,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             TokenKind::LParen => return self.parse_parenthesized(),
             TokenKind::LBracket => return self.parse_array(),
             TokenKind::LBrace => return self.parse_object(),
-            TokenKind::Function => return self.parse_function_expression(),
-            TokenKind::Class => return Err(ParseError::unsupported(start, "class")),
-            TokenKind::Super => return Err(ParseError::unsupported(start, "super")),
+            TokenKind::Function => return self.parse_function_expression(start, false),
+            TokenKind::Class => {
+                let class = self.parse_class(false)?;
+                return Ok(self.push_expr(ExprKind::Class(class), start));
+            }
+            TokenKind::Super => return self.parse_super(true),
             TokenKind::Import => return Err(ParseError::unsupported(start, "import")),
             TokenKind::BigInt => {
                 let digits = match &self.token.value {
@@ -869,28 +1131,27 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 };
                 ExprKind::BigInt(self.ast.push_string(digits))
             }
-            TokenKind::PrivateName => return Err(ParseError::unsupported(start, "private name")),
             _ => return Err(self.unexpected()),
         };
         self.advance()?;
         Ok(self.push_expr(kind, start))
     }
 
-    /// `IdentifierReference` (§13.1).
-    fn parse_identifier_reference(&mut self) -> PResult<ExprId> {
+    /// `IdentifierReference` (§13.1), or an async function expression
+    /// (`async function`, §15.8).
+    pub(super) fn parse_identifier_reference(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
-        if self.at_contextual(names::ASYNC) && !self.peek()?.newline_before {
-            match self.peek_kind()? {
-                TokenKind::Function => {
-                    return Err(ParseError::unsupported(start, "async function"));
-                }
-                TokenKind::Identifier => {
-                    return Err(ParseError::unsupported(start, "async arrow function"));
-                }
-                _ => {}
+        if self.at_contextual(names::ASYNC) {
+            let next = self.peek()?;
+            if next.kind == TokenKind::Function && !next.newline_before {
+                self.advance()?;
+                return self.parse_function_expression(start, true);
             }
         }
         let name = self.check_identifier(IdentUse::Reference)?;
+        if name == names::AWAIT {
+            self.ctx.last_await_name = Some(start);
+        }
         let ident = self.reference(name, start, false);
         self.advance()?;
         Ok(self.push_expr(ExprKind::Identifier(ident), start))
@@ -981,6 +1242,19 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     fn parse_parenthesized(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
         self.advance()?;
+        if self.at(TokenKind::RParen) {
+            // `()` before `=>` where no arrow function can start
+            // (`a + () => 1`): an empty group, which the `=>` then rejects
+            // as V8 does ("Malformed arrow function parameter list", or
+            // "Unexpected token '=>'" after a heritage).
+            if self.peek_kind()? != TokenKind::Arrow {
+                return Err(self.unexpected());
+            }
+            let empty = self.ast.push_exprs(&[]);
+            let inner = self.push_expr(ExprKind::Sequence(empty), self.token.start);
+            self.advance()?;
+            return Ok(self.push_expr(ExprKind::Paren(inner), start));
+        }
         let inner_start = self.token.start;
         let mark = self.scratch_exprs.len();
         let result = self.parse_parenthesized_items();
@@ -1135,7 +1409,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let start = self.token.start;
         if self.eat(TokenKind::Star)? {
             let key = self.parse_property_key()?;
-            let value = self.parse_method(start, FunctionKind::Method, true)?;
+            let head = FunctionHead::method(FunctionKind::Method, true, false, start);
+            let value = self.parse_method(head)?;
             return Ok(self.property(PropertyKind::Method, key, value, start));
         }
         if self.eat(TokenKind::Ellipsis)? {
@@ -1146,9 +1421,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         if self.token.kind == TokenKind::Identifier && !self.token.escaped {
             let name = self.token.name();
             let accessor = name == Some(names::GET) || name == Some(names::SET);
-            if (accessor || name == Some(names::ASYNC))
+            let next = self.peek()?;
+            let is_async = name == Some(names::ASYNC) && !next.newline_before;
+            if (accessor || is_async)
                 && !matches!(
-                    self.peek_kind()?,
+                    next.kind,
                     TokenKind::Comma
                         | TokenKind::Colon
                         | TokenKind::LParen
@@ -1156,17 +1433,23 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                         | TokenKind::Eq
                 )
             {
-                if !accessor {
-                    return Err(ParseError::unsupported(start, "async method"));
-                }
                 self.advance()?;
+                if is_async {
+                    // `async m() {}`, `async *m() {}` (§15.8, §15.6).
+                    let generator = self.eat(TokenKind::Star)?;
+                    let key = self.parse_property_key()?;
+                    let head = FunctionHead::method(FunctionKind::Method, generator, true, start);
+                    let value = self.parse_method(head)?;
+                    return Ok(self.property(PropertyKind::Method, key, value, start));
+                }
                 let (kind, function) = if name == Some(names::GET) {
                     (PropertyKind::Getter, FunctionKind::Getter)
                 } else {
                     (PropertyKind::Setter, FunctionKind::Setter)
                 };
                 let key = self.parse_property_key()?;
-                let value = self.parse_method(start, function, false)?;
+                let value =
+                    self.parse_method(FunctionHead::method(function, false, false, start))?;
                 return Ok(self.property(kind, key, value, start));
             }
         }
@@ -1183,7 +1466,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 Ok(self.property(kind, key, value, start))
             }
             TokenKind::LParen => {
-                let value = self.parse_method(start, FunctionKind::Method, false)?;
+                let head = FunctionHead::method(FunctionKind::Method, false, false, start);
+                let value = self.parse_method(head)?;
                 Ok(self.property(PropertyKind::Method, key, value, start))
             }
             TokenKind::Comma | TokenKind::RBrace | TokenKind::Eq => {
@@ -1198,7 +1482,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                             | TokenKind::Number
                             | TokenKind::BigInt
                             | TokenKind::LBracket
-                    );
+                    )
+                    || (kind == TokenKind::Star && key_token.name() == Some(names::ASYNC));
                 let contextual = matches!(
                     key_token.name(),
                     Some(names::GET | names::SET | names::ASYNC)
@@ -1227,7 +1512,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         ) {
             return Err(self.unexpected_key(key_token));
         }
+        if key_token.escaped
+            && key_token.name() == Some(names::AWAIT)
+            && self.ctx.await_mode != AwaitMode::Identifier
+        {
+            // V8 words an escaped shorthand `await` like a plain one.
+            return Err(ParseError::syntax(start, messages::UNEXPECTED_RESERVED));
+        }
         let name = self.check_identifier_token(key_token, IdentUse::Reference)?;
+        if name == names::AWAIT {
+            self.ctx.last_await_name = Some(start);
+        }
         let ident = self.reference(name, start, false);
         let mut value = self
             .ast

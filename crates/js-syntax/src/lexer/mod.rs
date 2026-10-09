@@ -461,7 +461,15 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
                 self.scan_identifier(name_start, false)?
             }
             Some(unit) if unit >= 0x80 || unit == ascii(b'\\') => {
-                self.scan_identifier_slow(name_start, false)?
+                // V8 reports a name that does not start with an
+                // identifier start at the `#`.
+                self.scan_identifier_slow(name_start, false)
+                    .map_err(|mut error| {
+                        if error.offset as usize == name_start {
+                            error.offset = start as u32;
+                        }
+                        error
+                    })?
             }
             _ => return Err(error_at(start, INVALID_TOKEN)),
         };
