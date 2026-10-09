@@ -103,6 +103,7 @@ impl Tracer<'_> {
             Value::Symbol(symbol) => self.symbol(symbol),
             Value::BigInt(bigint) => self.bigint(bigint),
             Value::Object(object) => self.object(object),
+            Value::Cell(cell) => self.cell(cell),
             Value::Undefined
             | Value::Null
             | Value::Bool(_)
@@ -416,7 +417,9 @@ impl Heap {
             freed += f;
             live += l;
         };
-        add(arenas.objects.sweep(&marks.objects, Object::heap_size));
+        add(arenas
+            .objects
+            .sweep(&marks.objects, |o| o.heap_size() + o.kind.heap_size()));
         add(arenas.strings.sweep(&marks.strings, JsString::heap_size));
         add(arenas.symbols.sweep(&marks.symbols, |_| 0));
         add(arenas
@@ -446,12 +449,15 @@ impl Heap {
 
         self.live_bytes = live;
         self.allocated = 0;
+        let pause = start.elapsed();
         self.stats = GcStats {
             collections: self.stats.collections + 1,
-            last_pause: start.elapsed(),
+            last_pause: pause,
+            total_pause: self.stats.total_pause + pause,
             last_freed: freed,
             live_bytes: live,
             last_stale_roots: stale,
+            total_stale_roots: self.stats.total_stale_roots + stale,
         };
         self.stats
     }

@@ -475,7 +475,23 @@ at a time, in this order:
       sites, the verifier, frames without Rust recursion, calls with the
       argument rules of ADR 0026 section 5, deferred calls, closures with
       cells, and a minimal generator (`yield` and `next()` in a function
-      with a captured variable, to test that frames can move).
+      with a captured variable, to test that frames can move). Done
+      2026-10-09: 12-byte instructions, property sites, verifier, line
+      table; frames, deferred and native calls, closures, generators,
+      the realm and the global lexical record, the embedding API; about
+      290 scripts compared with Node 22, each also in GC stress mode, and
+      5,076 number-to-string cases. Against `node --jitless`: calls
+      4.7x, an integer loop 1.0x, property access 4.7x, closures 3.1x,
+      object literals 10.6x slower; code 5.5 bytes per source byte
+      (line table 6.5 of 28.6 MB). Open: member and call chains stop in
+      the compiler at about 2,700 links (the parser accepts 16,000);
+      the parser stops `else if` chains at about 1,360 and nested
+      function expressions at about 370 (debug build); the value stack
+      is not counted in the heap limit (bounded by the stack limit);
+      the script source stays alive, uncounted, while a closure of the
+      script lives; the completion value is approximate; each ordinary
+      closure allocates its `prototype` object at once; native
+      functions show `#<Object>` in messages.
    5. Exceptions, limits and built-ins (`implementer-hard`). The handler
       table, `finally` completions, termination, the time countdown, the
       frame limit, the recursion budget. Built-ins: `console.log`, the

@@ -45,6 +45,10 @@ pub enum Value {
     /// reaches a script: every path out of the VM and the object model
     /// converts or rejects it.
     Empty,
+    /// Internal: the cell of a captured binding, held in a register of the
+    /// frame that declares it (ADR 0026 section 3). Only the interpreter
+    /// reads it; it never reaches a script or the object model.
+    Cell(Gc<ValueCell>),
 }
 
 impl Value {
@@ -82,9 +86,20 @@ impl Value {
         matches!(self, Value::Undefined)
     }
 
+    /// Whether this is `undefined` or `null`.
+    pub fn is_nullish(self) -> bool {
+        matches!(self, Value::Undefined | Value::Null)
+    }
+
     /// Whether this is the internal `Empty` marker.
     pub fn is_empty(self) -> bool {
         matches!(self, Value::Empty)
+    }
+
+    /// Whether this is one of the internal variants (`Empty`, `Cell`),
+    /// which never reach a script or the object model.
+    pub fn is_internal(self) -> bool {
+        matches!(self, Value::Empty | Value::Cell(_))
     }
 }
 
@@ -150,7 +165,7 @@ pub struct BigInt {
 }
 
 /// A cell: the storage of a binding that a closure captures (ADR 0026
-/// section 3).
+/// section 3). A register holds it as [`Value::Cell`].
 #[derive(Debug, Default)]
 pub struct ValueCell {
     /// The current value; `Empty` while the binding is uninitialized.
@@ -204,6 +219,7 @@ impl Heap {
             }
             (Value::Symbol(x), Value::Symbol(y)) => x == y,
             (Value::Object(x), Value::Object(y)) => x == y,
+            (Value::Cell(x), Value::Cell(y)) => x == y,
             (Value::BigInt(x), Value::BigInt(y)) => x == y || self.bigint(x)? == self.bigint(y)?,
             _ => false,
         })

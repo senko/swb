@@ -56,13 +56,33 @@ pub enum Termination {
     OutOfMemory,
 }
 
-/// The kind of error object that the caller throws for [`Error::Throw`].
+/// The kind of error object that the caller throws for [`Error::Throw`]
+/// (and that the VM creates for its own errors).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ThrowKind {
+    /// `Error`.
+    Error,
     /// `TypeError`.
     TypeError,
     /// `RangeError`.
     RangeError,
+    /// `ReferenceError`.
+    ReferenceError,
+    /// `SyntaxError`.
+    SyntaxError,
+}
+
+impl ThrowKind {
+    /// The name of the constructor.
+    pub fn name(self) -> &'static str {
+        match self {
+            ThrowKind::Error => "Error",
+            ThrowKind::TypeError => "TypeError",
+            ThrowKind::RangeError => "RangeError",
+            ThrowKind::ReferenceError => "ReferenceError",
+            ThrowKind::SyntaxError => "SyntaxError",
+        }
+    }
 }
 
 impl Error {

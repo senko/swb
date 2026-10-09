@@ -148,9 +148,7 @@ impl Heap {
         desc.check()?;
         match self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
-            ObjectKind::Ordinary | ObjectKind::Host { .. } => {
-                self.ordinary_define_own_property(object, key, desc, roots)
-            }
+            _ => self.ordinary_define_own_property(object, key, desc, roots),
         }
     }
 
@@ -278,8 +276,8 @@ impl Heap {
         receiver: Value,
         roots: &dyn RootSource,
     ) -> Result<SetResult> {
-        if value.is_empty() {
-            return Err(Error::invariant("[[Set]] with an Empty value"));
+        if value.is_internal() {
+            return Err(Error::invariant("[[Set]] with an internal value"));
         }
         if receiver == Value::Object(object) && self.set_own_fast(object, key, value)? {
             return Ok(SetResult::Done(true));

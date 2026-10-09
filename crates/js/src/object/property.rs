@@ -289,7 +289,7 @@ impl PropertyDescriptor {
             ));
         }
         let fields = [self.value, self.get, self.set];
-        if fields.iter().flatten().any(|value| value.is_empty()) {
+        if fields.iter().flatten().any(|value| value.is_internal()) {
             return Err(Error::invariant("an Empty value in a property descriptor"));
         }
         Ok(())

@@ -20,14 +20,16 @@ pub use shape::{KeyList, Shape};
 pub(crate) use elements::Elements;
 pub(crate) use shape::{ShapeKind, Transition};
 
+use std::fmt;
+
 use crate::error::Result;
 use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
-use crate::string::PropertyKey;
-use crate::value::Value;
+use crate::string::{JsString, PropertyKey};
+use crate::value::{Symbol, Value};
+use crate::vm::{Closure, GeneratorState, NativeFunction};
 
 /// The kind of an object: which internal methods it has (§10.1, §10.4).
 /// Other kinds come with their features.
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObjectKind {
     /// An ordinary object.
     Ordinary,
@@ -47,17 +49,68 @@ pub enum ObjectKind {
         /// The native data; the collector traces it with the object.
         data: Gc<Generic>,
     },
+    /// A function of script code (§10.2): its code, captured cells and
+    /// `this` mode.
+    Function(Box<Closure>),
+    /// A native function (§10.3).
+    Native(Box<NativeFunction>),
+    /// A generator object (§27.5): its state and, while it is suspended,
+    /// its frame and register window.
+    Generator(Box<GeneratorState>),
+    /// A String object (§10.4.3). Minimal in the spike: `length` is an own
+    /// property; the VM reads the index properties from the string.
+    StringWrapper(Gc<JsString>),
+    /// A Number object (`[[NumberData]]`).
+    NumberWrapper(f64),
+    /// A Boolean object (`[[BooleanData]]`).
+    BooleanWrapper(bool),
+    /// A Symbol object (`[[SymbolData]]`).
+    SymbolWrapper(Gc<Symbol>),
+}
+
+impl fmt::Debug for ObjectKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            ObjectKind::Ordinary => "Ordinary",
+            ObjectKind::Array { .. } => "Array",
+            ObjectKind::Host { .. } => "Host",
+            ObjectKind::Function(_) => "Function",
+            ObjectKind::Native(_) => "Native",
+            ObjectKind::Generator(_) => "Generator",
+            ObjectKind::StringWrapper(_) => "StringWrapper",
+            ObjectKind::NumberWrapper(_) => "NumberWrapper",
+            ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
+            ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
+        };
+        f.write_str(name)
+    }
 }
 
 impl ObjectKind {
     /// Reports the handles in the payload of the kind to the tracer. The
-    /// marking loop calls it for every marked object. A kind with a
-    /// payload adds a variant and an arm here (function kinds: their code,
-    /// environment and home object).
+    /// marking loop calls it for every marked object.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         match self {
-            ObjectKind::Ordinary | ObjectKind::Array { .. } => {}
+            ObjectKind::Ordinary
+            | ObjectKind::Array { .. }
+            | ObjectKind::Native(_)
+            | ObjectKind::NumberWrapper(_)
+            | ObjectKind::BooleanWrapper(_) => {}
             ObjectKind::Host { data, .. } => tracer.generic(*data),
+            ObjectKind::Function(closure) => closure.trace(tracer),
+            ObjectKind::Generator(state) => state.trace(tracer),
+            ObjectKind::StringWrapper(string) => tracer.string(*string),
+            ObjectKind::SymbolWrapper(symbol) => tracer.symbol(*symbol),
+        }
+    }
+
+    /// The bytes that the payload owns outside the object record.
+    pub(crate) fn heap_size(&self) -> usize {
+        match self {
+            ObjectKind::Function(closure) => closure.heap_size(),
+            ObjectKind::Native(_) => size_of::<NativeFunction>(),
+            ObjectKind::Generator(state) => state.heap_size(),
+            _ => 0,
         }
     }
 }
@@ -84,7 +137,8 @@ impl Object {
         self.shape
     }
 
-    /// The bytes that the object owns outside its slot.
+    /// The bytes that the object owns outside its slot (without the
+    /// payload of its kind, which [`ObjectKind::heap_size`] counts).
     pub(crate) fn heap_size(&self) -> usize {
         self.slots.capacity() * size_of::<Value>() + self.elements.heap_size()
     }
@@ -121,6 +175,16 @@ impl Heap {
         )
     }
 
+    /// A new object of a kind with a payload (functions, generators,
+    /// wrappers). The kind's handles must be live.
+    pub(crate) fn new_object_with_kind(
+        &mut self,
+        proto: Option<Gc<Object>>,
+        kind: ObjectKind,
+    ) -> Result<Gc<Object>> {
+        self.new_object_of_kind(proto, kind)
+    }
+
     fn new_object_of_kind(
         &mut self,
         proto: Option<Gc<Object>>,
@@ -131,7 +195,7 @@ impl Heap {
             self.object(proto)?;
         }
         let shape = self.root_shape(proto)?;
-        self.charge(Arena::<Object>::slot_size());
+        self.charge(Arena::<Object>::slot_size() + kind.heap_size());
         self.arenas.objects.insert(Object {
             shape,
             slots: Vec::new(),
@@ -382,7 +446,7 @@ mod tests {
         assert_eq!(Arena::<Object>::slot_size(), 96);
         assert_eq!(Arena::<Shape>::slot_size(), 96);
         assert_eq!(Arena::<KeyList>::slot_size(), 40);
-        assert_eq!(Arena::<crate::string::JsString>::slot_size(), 48);
+        assert_eq!(Arena::<JsString>::slot_size(), 48);
         assert_eq!(size_of::<shape::ShapeEntry>(), 20);
         assert_eq!(size_of::<Elements>(), 32);
     }

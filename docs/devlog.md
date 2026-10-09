@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 4, compiler and interpreter (`js-spike`)
+
+- `js`: a compiler from the AST and the scope analysis to a register
+  machine (12-byte instructions, constant pool, property sites, line
+  table, verifier; each function separately, code objects created in
+  one no-GC region); an interpreter with one value stack and one frame
+  vector, without Rust recursion for script calls, accessor calls and
+  generator resumptions; native functions with a handle scope and
+  deferred calls; closures with cells; generators that move their frame
+  into the generator object; the realm with the global object and the
+  global lexical record; conversions and operators; the embedding API
+  (`Runtime`, `eval`, native functions, errors). Error messages follow
+  V8, measured in Node 22.
+- Measurements (release) against `node --jitless`: `fib(27)` 4.7x, a
+  10M-step integer loop 1.0x, `o.x = o.x + o.y` 4.7x, a closure counter
+  3.1x, 1M object literals 10.6x slower. The time goes to global lookup
+  by name and the generic `[[Get]]`, `[[Set]]` and define paths; inline
+  caches and literal shapes come in M7 feature 13. Code: 5.5 bytes per
+  source byte; parse and compile at 29 MB/s.
+- Review: no rooting error and no panic in about 500 scripts in normal
+  and GC stress mode. Fixed: Number-to-string broke exact ties upward
+  (810 of 5,076 test doubles differed from Node), a string or object
+  written to an array's `length` ended the script with an internal
+  error, a wrapper for `this` stayed in the native's handle scope, the
+  global declaration checks ran after earlier bindings were created,
+  host calls could pass internal values to script, and five messages.
+- Next: spike session 5, exceptions, limits and the first built-ins.
+
 ## 2026-10-09: M6 spike session 3, heap, objects and GC (`js-spike`)
 
 - `js`: an arena per kind with (index, generation) handles; a

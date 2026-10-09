@@ -37,7 +37,7 @@ fn array_length(value: Value) -> Result<u32> {
                 "Cannot convert a BigInt value to a number",
             ));
         }
-        Value::String(_) | Value::Object(_) | Value::Empty => {
+        Value::String(_) | Value::Object(_) | Value::Empty | Value::Cell(_) => {
             return Err(Error::invariant(
                 "ArraySetLength needs a primitive; the caller applies ToNumber to strings and objects",
             ));
@@ -58,7 +58,7 @@ impl Heap {
                 length,
                 length_writable,
             } => Ok((length, length_writable)),
-            ObjectKind::Ordinary | ObjectKind::Host { .. } => Err(Error::invariant("not an array")),
+            _ => Err(Error::invariant("not an array")),
         }
     }
 
@@ -77,7 +77,7 @@ impl Heap {
                 *length_writable = writable;
                 Ok(())
             }
-            ObjectKind::Ordinary | ObjectKind::Host { .. } => Err(Error::invariant("not an array")),
+            _ => Err(Error::invariant("not an array")),
         }
     }
 

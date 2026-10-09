@@ -95,6 +95,8 @@ pub struct GcStats {
     pub collections: u64,
     /// The pause of the last collection.
     pub last_pause: Duration,
+    /// The pauses of all collections so far.
+    pub total_pause: Duration,
     /// The slots that the last collection freed.
     pub last_freed: usize,
     /// The live bytes after the last collection.
@@ -102,6 +104,9 @@ pub struct GcStats {
     /// Stale handles that the last collection found in roots (rooting
     /// bugs; each is ignored).
     pub last_stale_roots: usize,
+    /// Stale handles in roots over all collections so far (a nonzero
+    /// value is a rooting bug).
+    pub total_stale_roots: usize,
 }
 
 /// The arenas, one per kind.
@@ -197,6 +202,7 @@ impl Heap {
 
     /// The estimated heap size: the live bytes of the last collection plus
     /// the bytes charged since.
+    #[inline]
     pub fn heap_size(&self) -> usize {
         self.live_bytes.saturating_add(self.allocated)
     }
@@ -207,6 +213,7 @@ impl Heap {
     }
 
     /// The collection threshold for [`Heap::allocated_since_gc`].
+    #[inline]
     pub fn threshold(&self) -> usize {
         self.live_bytes
             .saturating_mul(self.config.growth_factor)
@@ -219,6 +226,7 @@ impl Heap {
     }
 
     /// Whether a collection is due at the next safepoint.
+    #[inline]
     pub fn gc_due(&self) -> bool {
         self.config.stress
             || self.allocated > self.threshold()

@@ -2729,6 +2729,7 @@ dependencies = [
 name = "swb-js"
 version = "0.1.0"
 dependencies = [
+ "log",
  "swb-js-regexp",
  "swb-js-syntax",
  "swb-js-text",

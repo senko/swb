@@ -56,6 +56,12 @@ Format: source, license (for code), what it influenced.
   (per-iteration bindings) and Annex B.3.1 to B.3.4 —
   `js-syntax/src/parser/`, `js-syntax/src/scope/`. V8's error messages,
   measured as a black box in Node.js 22 — `js-syntax/src/messages.rs`.
+  §6.1.6.1.20 (Number::toString), §7.1 (type conversion), §7.2.13 to
+  §7.2.15 (comparison and equality), §10.2 (ordinary function objects),
+  §10.4.4.6 (unmapped arguments), clause 13 (operators), §14.7.4.4
+  (per-iteration bindings), §16.1.7 (GlobalDeclarationInstantiation) and
+  §27.5 (generators) — `js/src/compiler/`, `js/src/vm/`; V8's run-time
+  error messages, measured in Node.js 22 — `js/src/vm/property.rs`.
   The Unicode Character Database 17.0
   (`DerivedCoreProperties.txt`: ID_Start, ID_Continue;
   `DerivedGeneralCategory.txt`: Zs) — `js-text/src/unicode/tables.rs`
@@ -123,6 +129,12 @@ Format: source, license (for code), what it influenced.
   with a work list, weak tables) and the study memos 3 and 4 (shapes,
   dictionary mode, generational indices, the array density idea of Lua
   5.0) — `js/src/heap/`, `js/src/object/`.
+- The study memos 1 and 2 for the compiler and interpreter (register
+  machine with temporaries in stack order after "The Implementation of
+  Lua 5.0" and Duktape's design notes; one value stack and frame records
+  without host recursion after Duktape and MicroQuickJS; deferred calls
+  after MicroQuickJS) — `js/src/compiler/`, `js/src/vm/`. No code was
+  copied; the sessions read only the memos.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

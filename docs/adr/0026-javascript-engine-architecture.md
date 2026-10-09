@@ -638,14 +638,34 @@ the sections above left room or where the first plan did not work:
   above that, at least one slot in four holds an element. An array
   whose sparse map becomes empty returns to an empty dense vector;
   otherwise it stays sparse.
-- The heap limit counts the capacity of every arena (free slots
-  included) and of owned buffers, so it bounds the memory of the
-  process; a sweep gives back the free slots at the end of an arena. If
+- The heap limit counts every slot of each arena (free slots included;
+  spare vector capacity above the length not, so that a doubling of the
+  vector does not count twice) and the capacity of owned buffers, so it
+  bounds the memory of the process; a sweep gives back the free slots
+  at the end of an arena. If
   the live size is above 90 % of the limit after a collection, the
   script ends (termination), instead of collecting at every safepoint.
 - No-GC regions (for example the end of a compile) have a depth that an
   unwinder can restore, as handle scopes can be closed down to a depth;
   a safepoint in a no-GC region still checks the limit.
+- Compiler and interpreter (session 4): code is shared as an immutable
+  `Rc` by the code object (the heap thing that traces the constants),
+  the closures and the frames, so the loop needs no heap lookup to fetch
+  instructions. Registers hold cells as an internal value variant
+  (`Value::Cell`, like `Empty`). Instructions have three register
+  operands, or two and a 32-bit operand (12 bytes). The result of a call
+  goes into the callee's register; `this` is the register after it.
+  Each function compiles separately; the code objects are created
+  innermost first in one no-GC region. Left-associative operator chains
+  compile without recursion; other compiler recursion charges 1,536
+  bytes (expression) or 1,792 bytes (statement) of the budget, a native
+  re-entry 10 KiB (measured in a debug build: 992, 1,120 and 6,688 bytes
+  per level).
+- Measured against `node --jitless`, before inline caches: calls 4.7x,
+  an integer loop 1.0x, property access 4.7x, closures 3.1x and object
+  literals 10.6x slower. Inline caches in the property sites, a cache
+  for global access and cached literal shapes are the next performance
+  steps (M7 feature 13).
 
 ## Consequences
 
