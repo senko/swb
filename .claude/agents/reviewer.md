@@ -23,7 +23,8 @@ Standing rules:
   main repository's target directory.
 - Measure Chromium with the shared probe tool; add cases instead of
   writing new scripts.
-- Do not read the source code of other browsers or rendering engines.
+- Do not read the source code of other browsers, rendering engines or
+  JavaScript engines.
 - Report at most 30 lines: findings ranked by severity, each with
   file:line, the problem, a concrete case (swb vs Chromium values), and
   severity (bug / robustness / provenance / quality / nit). Put long

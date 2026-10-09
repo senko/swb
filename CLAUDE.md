@@ -59,6 +59,7 @@ Sub-agent types (`.claude/agents/`). Always pass a type:
 | `implementer`      | Sonnet, medium | Other features, fix rounds. |
 | `reviewer`         | Sonnet, medium | The review of each feature. |
 | `measurer`         | Haiku, low     | Chromium probes, snapshots, `compare`, performance runs. |
+| `analyst`          | Opus, high     | JavaScript engine study memos (ADR 0025). The only type that reads engine source. |
 
 Rules for sub-agents:
 
@@ -73,8 +74,12 @@ Rules for sub-agents:
   persistent review worktree with its own target directory. Never build a
   tree with another tree's target directory.
 - Do not read the source code of other browsers or rendering engines
-  (Chromium, Blink, WebKit, Gecko, Servo, Skia). Derive behaviour from the
-  specifications and from black-box measurements in Chromium (ADR 0021).
+  (Chromium, Blink, WebKit, Gecko, Servo, Skia, Ladybird). Derive
+  behaviour from the specifications and from black-box measurements in
+  Chromium (ADR 0021).
+- Do not read the source code of JavaScript engines. Only `analyst`
+  sessions read the engines that ADR 0025 allows, and write study memos
+  in `docs/js-study/`; all other sessions use the memos.
 
 Review checklist:
 

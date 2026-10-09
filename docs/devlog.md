@@ -4,6 +4,51 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 step 1, JavaScript study memos
+
+- Five `analyst` sessions (in parallel, read-only) wrote the study memos
+  in `docs/js-study/` from QuickJS, QuickJS-ng, MicroQuickJS (MIT,
+  license checked), MuJS (now on Codeberg) and Duktape with its design
+  notes, plus the literature. Each memo is about 7,000 words. I reviewed
+  each against the rules of ADR 0025 (no code, pseudocode, source
+  identifiers, opcode or field lists); all passed without changes except
+  a status line. I checked the uncertain ECMA-262 section numbers
+  against the draft.
+- Main findings for the design: none of the five engines has inline
+  caches, lazy parsing or a linear-time regular expression fallback;
+  only the QuickJS family has generators, `async`, `BigInt`, weak
+  references, modules and spec-exact `RepeatMatcher`. MicroQuickJS is
+  closest to an index-handle heap (moving collector, registered roots,
+  offsets instead of pointers). Script-to-script calls without host
+  recursion: Duktape and MicroQuickJS. The BBC scripts: 3.5 MB, about
+  1.1 million tokens, 16,000 functions, nesting at most 36 brackets and
+  10 functions deep; several files are one line of up to 485 KB.
+- Memo 1 cites ES2025 section numbers, memos 2 to 5 the current draft;
+  clause 27 differs by three (README notes this).
+- Next: step 2, the architecture ADR of the language core.
+
+## 2026-10-09: JavaScript decisions
+
+- Discussed with the owner how to add JavaScript without a third-party
+  engine. Decisions are in the ground rules and ADR 0025: the
+  specification, test262, literature and black-box tests are the main
+  sources; `analyst` sessions read a few small engines with permissive
+  licenses (QuickJS, MuJS, Duktape) and answer written questions in
+  memos without code; all other sessions read only the memos. Our own
+  parser. Edge libraries (number formatting, time zones, ICU4X) are
+  allowed. Node.js and test262 are test tools only. An on/off setting,
+  off by default. All scripts run, whatever their origin. The user-agent
+  string stays.
+- A rule by origin would block the sites' own code: BBC loads 55 of its
+  60 scripts from `static.files.bbci.co.uk`, Ars Technica from
+  `cdn.arstechnica.net`. A later ad and tracker blocker would use URL
+  lists.
+- ADR 0021 now also names Ladybird and the browsers' JavaScript engines.
+  New agent type `analyst`; the other agent types do not read JavaScript
+  engine source.
+- Next: M6 (roadmap): the study memos, then the architecture ADR, then a
+  spike on a branch.
+
 ## 2026-10-09: M5 maintenance
 
 - Two read-only reviewers (layout, paint and text; the other crates,

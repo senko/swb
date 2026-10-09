@@ -71,3 +71,26 @@ repository. Read them before you start work.
   need a new decision. The license must be documented clearly wherever it
   applies, so that the MIT license of the project does not hide it
   ([ADR 0014](adr/0014-public-suffix-list-license-exception.md)).
+
+## Decisions from 2026-10-09: JavaScript
+
+Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
+
+- swb gets its own JavaScript engine. The sources of knowledge are the
+  ECMAScript specification, test262, published literature, black-box
+  tests in Node.js and Chromium, and study memos. A memo answers specific
+  questions from small engines with permissive licenses, without code or
+  pseudocode. Sessions that design or implement the engine do not read
+  engine source code.
+- The JavaScript parser is our own. No third-party parser.
+- General-purpose libraries at the edges of the engine are allowed under
+  ADR 0003, for example number formatting, time zones and
+  internationalization.
+- Node.js and test262 may be used as test tools. Building the browser and
+  `cargo test` must not need them.
+- A setting turns JavaScript on or off. With JavaScript off, swb behaves
+  exactly as it did before JavaScript support.
+- swb runs all scripts of a page, also scripts from other sites (CDNs).
+  An optional ad and tracker blocker is a possible later target.
+- The user-agent string does not change. If browser sniffing causes real
+  problems, decide again.

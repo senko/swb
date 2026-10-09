@@ -300,6 +300,40 @@ Format: source, license (for code), what it influenced.
   widths (`fake_bold_scale` in `text/src/raster.rs`) from
   `SkTextFormatParams.h`; see `THIRD_PARTY_NOTICES.md`.
 
+## JavaScript engine study (ADR 0025)
+
+`analyst` sessions read these engines on 2026-10-09 and wrote the study
+memos in `docs/js-study/`. The memos describe ideas in words and contain
+no code. The "Sources" section of each memo lists the files that were
+read and the literature. Sessions that design, implement or review swb's
+JavaScript engine read only the memos, never the engine source.
+
+- QuickJS (MIT, Fabrice Bellard, Charlie Gordon), commit 535a7c2
+  (2026-09-29), including `doc/quickjs.texi` — memos 1 to 5.
+- QuickJS-ng (MIT, Fabrice Bellard, Charlie Gordon, Ben Noordhuis, Saúl
+  Ibarra Corretgé), commit c359cac (2026-10-09) — memos 1 to 5.
+- MicroQuickJS (MIT, Fabrice Bellard, Charlie Gordon), commit 6d4d7eb
+  (2026-09-26) — memos 1 to 5.
+- MuJS (ISC, Artifex Software), commit aab59f2 (2026-10-06),
+  https://codeberg.org/ccxvii/mujs — memos 1 to 5.
+- Duktape (MIT, Duktape authors), commit 3afa016 (2026-09-05, 3.0
+  development), source and the design notes in `doc/` — memos 1 to 5.
+
+Literature used by the memos (details in each memo): Ierusalimschy, de
+Figueiredo, Celes, "The Implementation of Lua 5.0"; Nystrom, Crafting
+Interpreters; Shi, Gregg, Beatty, Ertl, "Virtual Machine Showdown"; the
+Self papers on maps and polymorphic inline caches (Chambers, Ungar, Lee;
+Hölzle, Chambers, Ungar); Brunthaler, "Inline Caching Meets Quickening";
+Jones, Hosking, Moss, The Garbage Collection Handbook; Bacon and Rajan
+(trial deletion); Hayes (ephemerons); Jonkers (sliding compaction);
+Boehm, Atkinson, Plass (ropes); Steele and White, Burger and Dybvig, Gay,
+Clinger, Loitsch, Adams (Ryū), Lemire (number conversion); Knuth TAOCP
+vol. 2; Brent and Zimmermann, Modern Computer Arithmetic; Russ Cox's
+regular expression articles; Davis, Servant, Lee (selective
+memoization); RFC 9636 and the IANA time zone database documentation;
+the V8 blog, the SpiderMonkey documentation and the WebKit blog
+(articles and documentation, not source).
+
 ## Bundled data
 
 - Liberation fonts 2.1.5 (Sans, Serif, Mono; Regular, Bold, Italic,

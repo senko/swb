@@ -19,7 +19,9 @@ Standing rules:
 - Stay within the feature's scope. Put findings outside it in your report
   as backlog items.
 - Do not read the source code of other browsers or rendering engines
-  (Chromium, Blink, WebKit, Gecko, Servo, Skia), online or on disk.
+  (Chromium, Blink, WebKit, Gecko, Servo, Skia, Ladybird) or of any
+  JavaScript engine, online or on disk. For the JavaScript engine, use
+  the study memos in docs/js-study/ (ADR 0025).
   Use the specifications and black-box measurements in Chromium with the
   shared probe tool (docs/testing.md); add probe cases instead of writing
   new scripts.

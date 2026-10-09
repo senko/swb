@@ -403,6 +403,38 @@ duplication, names and outdated docs; one implementer applied the
 selected items and measured a new performance baseline; `just snapshot`
 shows no change: done.
 
+## M6: JavaScript — preparation
+
+Decisions: ground rules (2026-10-09) and ADR 0025. The owner gives
+target pages later; this preparation does not depend on them. One step
+at a time, in this order:
+
+1. Study: five `analyst` sessions answer the questions in
+   [js-study/README.md](js-study/README.md), one memo each (read-only
+   research, so they may run in parallel). The orchestrator reviews each
+   memo for code, pseudocode and copied structure, and records the
+   sources in docs/credits.md. Done 2026-10-09: five memos, reviewed;
+   MicroQuickJS added after its license check (MIT).
+2. Design: a session that has read only the specifications, the memos
+   and the literature writes the architecture ADR of the language core
+   (crates, parser, bytecode, heap and GC, values, strings, objects,
+   limits) and an ordered feature plan in this file.
+3. Spike on a separate branch: a small vertical slice (a parser for a
+   subset, bytecode, VM, GC, `console.log`), the test262 runner
+   (`just test262`, test262 fetched at a pinned commit into a git-ignored
+   directory) and the differential tool against Node.js. It tests the
+   heap design in safe Rust before the main work depends on it.
+4. With the first engine integration: the JavaScript on/off setting
+   (ADR 0025; off by default): command line, automation API, browser
+   window; the scripting flag in the HTML parser, the serializer,
+   `@media (scripting)` and media controls.
+
+When the owner gives targets: survey each target's scripts first
+(bundle sizes, the language features they use, and the Web APIs that
+they call during load, measured in Chromium), and agree what "works"
+means per target (for example menus, carousels, lazy images). That sets
+the scope of the bindings, as the CSS feature lists did for M4 and M5.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -888,4 +920,8 @@ issues also have a test in `tests/layout/` listed in `known-failures.txt`.
 - Find in page, tabs, bookmarks.
 - Bidirectional text.
 - Incremental style and layout; GPU rasterization if needed.
-- JavaScript (needs the owner's decision first, see ground rules).
+- JavaScript: see M6.
+- An optional ad and tracker blocker (a possible target, ground rules
+  2026-10-09). It works with lists of ad and tracker URLs, not by
+  origin. Check the licenses of the lists before swb ships or downloads
+  any (ADR 0003).

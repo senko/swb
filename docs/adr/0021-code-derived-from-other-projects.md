@@ -76,6 +76,12 @@ The owner decided:
   of Google's woff2 decoder, is neither: swb uses it as a library, and
   its source was read only to audit its robustness before it was
   adopted. No code was copied (docs/credits.md).
+- Update (2026-10-09): the rule also covers Ladybird (LibWeb, LibJS) and
+  the JavaScript engines of browsers (V8, SpiderMonkey,
+  JavaScriptCore). For the JavaScript engine, ADR 0025 allows analyst
+  sessions to read a few small engines with permissive licenses and to
+  write study memos without code; all other sessions read only the
+  memos.
 
 ## Consequences
 
