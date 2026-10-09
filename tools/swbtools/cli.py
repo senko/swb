@@ -10,6 +10,8 @@ from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.hostile import hostile
 from swbtools.js_unicode_tables import write_tables as write_js_unicode_tables
+from swbtools.jsbench import jsbench
+from swbtools.jsdiff import jsdiff
 from swbtools.layout_refs import layout_refs
 from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
@@ -81,6 +83,14 @@ def cmd_compare(args: argparse.Namespace) -> int:
 def cmd_perf(args: argparse.Namespace) -> int:
     names = _names(args) or list_fixtures()
     return perf(names, args.swb, args.runs)
+
+
+def cmd_jsdiff(args: argparse.Namespace) -> int:
+    return jsdiff(args.files, args.swb_js)
+
+
+def cmd_jsbench(args: argparse.Namespace) -> int:
+    return jsbench(args.directory, args.runs)
 
 
 def cmd_hostile(args: argparse.Namespace) -> int:
@@ -227,6 +237,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--list", action="store_true", help="list the cases and their limits")
     p.add_argument("--keep", action="store_true", help="keep out/hostile/NAME of passing cases")
     p.set_defaults(func=cmd_hostile)
+
+    p = commands.add_parser(
+        "jsdiff",
+        help="run JavaScript files in swb-js and Node.js and diff stdout and the uncaught error",
+    )
+    p.add_argument("files", nargs="+", type=Path, metavar="FILE")
+    p.add_argument("--swb-js", type=Path, help="path of swb-js (default: $SWB_JS, target/release)")
+    p.set_defaults(func=cmd_jsdiff)
+
+    p = commands.add_parser(
+        "jsbench",
+        help="benchmark the JavaScript engine against node --jitless (docs/performance.md)",
+    )
+    p.add_argument(
+        "directory", nargs="?", type=Path, help="a directory of scripts to lex, parse and compile"
+    )
+    p.add_argument("--runs", type=int, default=5, help="runs of the lexer measurement (default 5)")
+    p.set_defaults(func=cmd_jsbench)
 
     p = commands.add_parser("layout-refs", help="write tests/layout/*.boxes.json with Chromium")
     p.add_argument("names", nargs="*", metavar="NAME")

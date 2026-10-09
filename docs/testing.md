@@ -25,6 +25,8 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Responsive image tests | `crates/engine/tests/responsive_images.rs` (`srcset`, `sizes` and `<picture>` at other scales and viewports, selection again after a viewport or scale change, `object-fit` with density; by the color of the drawn image) | no |
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
+| JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262.rs` unit tests (frontmatter, skip rules) | no |
+| test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`); `just test262`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -67,6 +69,9 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
+| `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json` (see "JavaScript engine tools"). |
+| `just jsdiff FILE...`        | `jsdiff FILE...`                       | Runs files in `swb-js` and in Node.js and diffs stdout and the uncaught error. |
+| `just jsbench [DIR]`         | `jsbench [DIR] [--runs N]`             | The engine's benchmark programs against `node --jitless`; for a directory of scripts also lexing, parse and compile ([performance.md](performance.md)). |
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
@@ -853,6 +858,69 @@ binary (skipped if it does not exist). `just tools-check` (part of
 `just check`) builds the release binary first, so the test uses the
 current source. The protocol is documented in
 [automation.md](automation.md).
+
+## JavaScript engine tools
+
+The shell `swb-js` is a binary of the `js` crate (ADR 0026 section 13).
+`cargo run --release -p swb-js -- [OPTIONS] FILE...` or `-e CODE` runs
+scripts in one global scope. `print` and `console.log` write to stdout.
+`$262` has `evalScript`, `gc` and `global`; `createRealm`,
+`detachArrayBuffer` and `agent` are not available. Options:
+`--heap-limit MIB`, `--stress` (GC at every safepoint), `--time-limit MS`,
+`--disassemble` (bytecode listing), `--compile-only`. Exit codes: 0
+success; 1 uncaught error (`Uncaught TypeError: message` and
+`    at FILE:LINE:COLUMN` on stderr); 2 compile error; 3 termination (time
+or heap limit); 64 bad command line.
+
+### test262
+
+`just test262 [PATH...]` runs the tests with the runner `swb-js test262`.
+test262 lives in `out/test262` (ignored by the repository); if the
+directory is missing, the recipe clones it and checks out the commit named
+in the `justfile` (`test262_commit`, the only place). `TEST262_DIR` uses
+another directory and `TEST262_URL` another repository.
+
+- `crates/js/test262/subset.txt`: the features in scope and the groups
+  (`dir` lines) that run. A group is the first four components of a test's
+  directory, for example `test/language/expressions/addition`.
+- A test is skipped if it needs a harness file other than `assert.js` and
+  `sta.js`, has the flag `module`, `async` or `CanBlockIsTrue`, has a
+  feature outside the list, uses `$262.createRealm`, `$262.agent` or
+  `$262.detachArrayBuffer`, or expects an error in the `resolution` phase.
+  The others run in sloppy and strict mode as the flags say (`onlyStrict`,
+  `noStrict`, `raw`); a test passes if all of its modes pass. A negative
+  test checks the phase (`parse`/`early`: a compile error; `runtime`: an
+  uncaught error) and the name of the thrown value's constructor.
+- Results per group: pass, fail, unsupported (the engine said "not
+  supported yet") and skipped. The runner starts `--jobs` worker threads (default: the number of
+  CPUs), each with an 8 MiB stack. A worker takes the next test, runs it
+  in each mode with a fresh runtime, and reuses its thread for the next
+  test; a panic is caught, counts as a failure named "panic" and there must
+  be none. A test file that cannot be read is a failure with the I/O
+  message. Options: `--all` (all of `test/language/`, to choose the subset),
+  `--report FILE` (one TSV line per test and mode), `--stress`, `--jobs`,
+  `--time-limit MS` (default 10000), `--heap-limit MIB` (default 256),
+  `--top N`.
+- `crates/js/test262/scores.json` has the pass count per group. The run
+  prints the change and exits with 1 if a count went down (or a test
+  panicked, or no test was found, or the file is corrupt; a missing file
+  starts empty with a warning). Only the groups that the run covers
+  completely are compared, so a run of one file never reports a
+  regression. `just test262 --update` writes the counts of the groups of
+  the subset and refuses a partial run (a path to a file or below a
+  group). The file may only go up; commit it with the change that raised it.
+
+### jsdiff and jsbench
+
+`just jsdiff FILE...` runs each file in `swb-js` and in Node.js (a classic
+script; `print` joins the `String` of its arguments with spaces, like
+the `print` of `swb-js`) and prints a unified diff of stdout and
+of the first line of the uncaught-error report (a compile error is
+`SyntaxError: ...` on both sides). Exit status 1 if any file differs. It
+needs `node` and a built `swb-js`. A run that exceeds 60 s is reported
+as `timeout: FILE (ENGINE)` and counts as a difference.
+
+`just jsbench [DIR]` is described in [performance.md](performance.md).
 
 ## Python tools: development
 

@@ -701,7 +701,11 @@ the sections above left room or where the first plan did not work:
   native loops, the generation check on each access, the instruction
   size, the interpreter speed compared with `node --jitless`, the GC
   pause for a heap of one million objects, and the compile time and peak
-  memory for the BBC scripts.
+  memory for the BBC scripts. The spike measured them
+  ([docs/js-spike-report.md](../js-spike-report.md)); none of them
+  needs a change of this design. Only 3 of the 60 BBC scripts are inside
+  the spike's subset, so the compile time of the real scripts comes
+  with M7 feature 1.
 - The register machine makes the compiler larger than a stack machine
   compiler; the AST makes this manageable.
 - Eager compilation and eager built-ins keep the first version simple.

@@ -42,6 +42,37 @@ run *ARGS:
 build:
     cargo build --release -p swb
 
+# --- JavaScript engine tools (crates/js, tools/). See docs/testing.md. ---
+
+# The test262 commit that `just test262` uses (the only place that names it).
+test262_commit := "2e0a56762801e275a9fdf96dc49d90ba0cddcf63"
+test262_url := env_var_or_default("TEST262_URL", "https://github.com/tc39/test262.git")
+
+# Run the test262 subset with swb-js and compare the pass counts with crates/js/test262/scores.json (--update writes it). TEST262_DIR overrides out/test262.
+test262 *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="${TEST262_DIR:-out/test262}"
+    if [ ! -d "$dir/harness" ]; then
+        echo "cloning test262 into $dir at {{test262_commit}}"
+        mkdir -p "$(dirname "$dir")"
+        GIT_CONFIG_GLOBAL=/dev/null git clone --quiet --no-checkout "{{test262_url}}" "$dir"
+        GIT_CONFIG_GLOBAL=/dev/null git -C "$dir" checkout --quiet "{{test262_commit}}"
+    fi
+    if [ -e "$dir/.git" ] && [ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" != "{{test262_commit}}" ]; then
+        echo "warning: $dir is not at {{test262_commit}}; the scores may not match" >&2
+    fi
+    cargo run --release -q -p swb-js -- test262 --dir "$dir" {{ARGS}}
+
+# Run JavaScript files in swb-js and Node.js 22 and diff stdout and the uncaught error. Example: just jsdiff a.js b.js
+jsdiff +FILES:
+    cargo build --release -q -p swb-js
+    uv run --project tools swbtools jsdiff {{FILES}}
+
+# Benchmark the JavaScript engine against node --jitless; with DIR, also lex, parse and compile its scripts. Example: just jsbench out/bbc-js
+jsbench *DIR:
+    uv run --project tools swbtools jsbench {{DIR}}
+
 # --- Test tools (tools/, Python with uv). See docs/testing.md. ---
 
 # Run a test tool command. Example: just tools list

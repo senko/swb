@@ -1,0 +1,134 @@
+# The test262 subset of the JavaScript spike (ADR 0026 section 13).
+#
+# `feature NAME`: tests with a `features` entry outside this list are
+#   skipped (tests without features always run).
+# `dir PATH`: a group of tests (the first four components of the directory,
+#   relative to the test262 directory) that `just test262` runs.
+#
+# Tests are also skipped when they need a harness file other than
+# assert.js and sta.js, or the flags module, async or CanBlockIsTrue, or
+# $262.createRealm, $262.agent or $262.detachArrayBuffer.
+
+feature arrow-function
+feature coalesce-expression
+feature computed-property-names
+feature const
+feature default-parameters
+feature destructuring-assignment
+feature destructuring-binding
+feature exponentiation
+feature for-of
+feature generators
+feature globalThis
+feature hashbang
+feature json-superset
+feature let
+feature logical-assignment-operators
+feature new.target
+feature numeric-separator-literal
+feature object-rest
+feature object-spread
+feature optional-catch-binding
+feature optional-chaining
+feature rest-parameters
+feature u180e
+
+# The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
+dir test/language/arguments-object
+dir test/language/asi
+dir test/language/block-scope/leave
+dir test/language/block-scope/shadowing
+dir test/language/block-scope/syntax
+dir test/language/comments
+dir test/language/comments/hashbang
+dir test/language/directive-prologue
+dir test/language/expressions/addition
+dir test/language/expressions/array
+dir test/language/expressions/arrow-function
+dir test/language/expressions/assignment
+dir test/language/expressions/assignmenttargettype
+dir test/language/expressions/bitwise-and
+dir test/language/expressions/bitwise-not
+dir test/language/expressions/bitwise-or
+dir test/language/expressions/bitwise-xor
+dir test/language/expressions/call
+dir test/language/expressions/coalesce
+dir test/language/expressions/compound-assignment
+dir test/language/expressions/conditional
+dir test/language/expressions/delete
+dir test/language/expressions/division
+dir test/language/expressions/does-not-equals
+dir test/language/expressions/equals
+dir test/language/expressions/exponentiation
+dir test/language/expressions/function
+dir test/language/expressions/generators
+dir test/language/expressions/greater-than
+dir test/language/expressions/greater-than-or-equal
+dir test/language/expressions/grouping
+dir test/language/expressions/in
+dir test/language/expressions/instanceof
+dir test/language/expressions/left-shift
+dir test/language/expressions/less-than
+dir test/language/expressions/less-than-or-equal
+dir test/language/expressions/logical-and
+dir test/language/expressions/logical-assignment
+dir test/language/expressions/logical-not
+dir test/language/expressions/logical-or
+dir test/language/expressions/modulus
+dir test/language/expressions/multiplication
+dir test/language/expressions/new
+dir test/language/expressions/object
+dir test/language/expressions/postfix-decrement
+dir test/language/expressions/postfix-increment
+dir test/language/expressions/prefix-decrement
+dir test/language/expressions/prefix-increment
+dir test/language/expressions/property-accessors
+dir test/language/expressions/right-shift
+dir test/language/expressions/strict-does-not-equals
+dir test/language/expressions/strict-equals
+dir test/language/expressions/subtraction
+dir test/language/expressions/template-literal
+dir test/language/expressions/unary-minus
+dir test/language/expressions/unary-plus
+dir test/language/expressions/unsigned-right-shift
+dir test/language/expressions/yield
+dir test/language/function-code
+dir test/language/future-reserved-words
+dir test/language/global-code
+dir test/language/identifier-resolution
+dir test/language/identifiers
+dir test/language/keywords
+dir test/language/line-terminators
+dir test/language/literals/numeric
+dir test/language/literals/regexp
+dir test/language/literals/string
+dir test/language/punctuators
+dir test/language/reserved-words
+dir test/language/statementList
+dir test/language/statements/block
+dir test/language/statements/break
+dir test/language/statements/const
+dir test/language/statements/continue
+dir test/language/statements/do-while
+dir test/language/statements/for
+dir test/language/statements/for-in
+dir test/language/statements/for-of
+dir test/language/statements/function
+dir test/language/statements/generators
+dir test/language/statements/if
+dir test/language/statements/labeled
+dir test/language/statements/let
+dir test/language/statements/return
+dir test/language/statements/switch
+dir test/language/statements/throw
+dir test/language/statements/try
+dir test/language/statements/variable
+dir test/language/statements/while
+dir test/language/statements/with
+dir test/language/types/boolean
+dir test/language/types/number
+dir test/language/types/object
+dir test/language/types/reference
+dir test/language/types/string
+dir test/language/types/undefined
+dir test/language/white-space

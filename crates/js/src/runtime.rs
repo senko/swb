@@ -36,8 +36,8 @@ use crate::object::{GetResult, PropertyDescriptor};
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::{
-    Atoms, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, Frame, NativeFn, ReturnTo, STACK_OVERFLOW,
-    TIME_CHECK_INTERVAL, TerminationHandle, Vm, VmError, VmResult,
+    Atoms, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, Frame, NativeFn, REENTRY_WEIGHT, ReturnTo,
+    STACK_OVERFLOW, TIME_CHECK_INTERVAL, TerminationHandle, Vm, VmError, VmResult,
 };
 
 /// The largest value stack: frame records keep stack positions in 32 bits.
@@ -293,7 +293,20 @@ impl Runtime {
     }
 
     /// [`Runtime::eval`] with source text in code units.
+    ///
+    /// Like [`Runtime::call`], a nested use (from a native function)
+    /// charges the shared recursion budget; too deep a nesting is a
+    /// `RangeError`.
     pub fn eval_source(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
+        if self.budget.enter(REENTRY_WEIGHT).is_err() {
+            return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
+        }
+        let result = self.eval_source_inner(source);
+        self.budget.leave(REENTRY_WEIGHT);
+        result
+    }
+
+    fn eval_source_inner(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
         let start = self.run_start();
         let (code, compiled) = self.compile(source)?;
@@ -472,6 +485,52 @@ impl Runtime {
             .close_scope(scope)
             .map_err(|e| finish_error(e.into()))?;
         result.map_err(finish_error)
+    }
+
+    /// Creates a plain object with native methods and installs it as a
+    /// property of the global object of realm 0 (for host objects such as
+    /// the `$262` of test262).
+    pub fn define_global_object(
+        &mut self,
+        name: &str,
+        functions: &[(&str, u32, NativeFn)],
+    ) -> Result<(), ScriptError> {
+        let scope = self.heap.open_scope();
+        let result = (|| {
+            let proto = self.intrinsic(0, crate::vm::Intrinsic::ObjectPrototype)?;
+            let object = self.heap.new_object(Some(proto))?;
+            self.heap.record(object);
+            for &(fname, length, func) in functions {
+                let function = self.new_native_function(0, fname, length, func)?;
+                let key = self.heap.key_from_str(fname)?;
+                self.define(object, key, function.into(), true, true, true)?;
+            }
+            let global = self.global_object(0)?;
+            let key = self.heap.key_from_str(name)?;
+            self.define(global, key, object.into(), true, false, true)
+        })();
+        self.heap
+            .close_scope(scope)
+            .map_err(|e| finish_error(e.into()))?;
+        result.map_err(finish_error)
+    }
+
+    /// The `name` of the `constructor` of a value (both read as data
+    /// properties along the prototype chain; no script code runs), or an
+    /// empty string. test262 compares the constructors of thrown values.
+    pub fn constructor_name(&self, value: Value) -> String {
+        let Value::Object(object) = value else {
+            return String::new();
+        };
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        let Ok(GetResult::Value(Value::Object(ctor))) = self.heap.get(object, key, value) else {
+            return String::new();
+        };
+        let key = PropertyKey::String(self.vm.atoms.name);
+        match self.heap.get(ctor, key, ctor.into()) {
+            Ok(GetResult::Value(Value::String(text))) => self.name_text(text),
+            _ => String::new(),
+        }
     }
 
     /// `ToString` of a value as Rust text (lossy for unpaired surrogates).

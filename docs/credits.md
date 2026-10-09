@@ -153,6 +153,13 @@ Format: source, license (for code), what it influenced.
 
 ## Projects
 
+- test262 (BSD-3-Clause, Ecma International), commit 2e0a567
+  (2026-10-08) — the conformance tests of the JavaScript engine. A
+  separate checkout in `out/test262`, not copied into the repository;
+  the runner in `js/src/test262.rs` follows the frontmatter rules of its
+  `INTERPRETING.md` and loads its harness files `assert.js` and
+  `sta.js`.
+
 - `wuff` (MIT, Nico Burns; a port of Google's woff2 decoder, MIT) — a
   dependency for WOFF and WOFF2 decoding; its source was read for the
   robustness audit of ADR 0022. No code copied.

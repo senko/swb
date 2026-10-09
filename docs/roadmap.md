@@ -526,7 +526,15 @@ at a time, in this order:
       spike only tests that need no harness file other than `assert.js`
       and `sta.js`, from a list of `language/` directories that the
       subset covers); `just jsdiff` against Node.js; benchmarks against
-      `node --jitless`.
+      `node --jitless`. Done 2026-10-09: the `swb-js` shell (files,
+      `-e`, stdin, limits, stress mode, `--disassemble`, exit codes,
+      `$262` without `createRealm`); `just test262` (the pinned commit
+      in the `justfile`, the subset and scores files in
+      `crates/js/test262/`): 98 groups, 3,762 pass, 1,028 fail, 3,476
+      unsupported, 1,917 skipped, in 0.3 s, no panics; `just jsdiff`;
+      `just jsbench` (docs/performance.md). The harness files needed no
+      new built-ins. Open: the error position of `null.x` is the start
+      of the statement; `$262.evalScript` loses unpaired surrogates.
 
    Exit: a report with the measurements that ADR 0026 lists under
    "Consequences" (handle scope overhead, generation checks, instruction
@@ -536,7 +544,10 @@ at a time, in this order:
    nesting, endless loops, deep recursion, huge allocations). Then
    ADR 0026 gets an update where the spike showed a better choice, and
    the branch merges into `main` as the base of M7, or the design
-   changes first.
+   changes first. Done 2026-10-09:
+   [docs/js-spike-report.md](js-spike-report.md). The design holds;
+   the choices of the spike are in ADR 0026 section 14; `js-spike`
+   merges into `main`.
 4. With the first engine integration: the JavaScript on/off setting
    (ADR 0025; off by default): command line, automation API, browser
    window; the scripting flag in the HTML parser, the serializer,
@@ -624,9 +635,14 @@ failures with a reason. Features, in this order:
     and `BigUint64Array`), `DataView`, `Atomics` on non-shared buffers.
 12. `Date` (`implementer`; the time zone library under ADR 0003).
     Annex B: `getYear`, `setYear`, `toGMTString`.
-13. Performance (`implementer-hard`). Inline caches, elision of
-    temporal-dead-zone checks, and lazy built-ins or lazy compilation
-    if measurements on the target scripts show the need.
+13. Performance (`implementer-hard`). Inline caches, a cache for
+    global access, cached shapes for object literals, native callbacks
+    without re-entry into the interpreter (`forEach` and similar),
+    one byte per character for the kept source text of ASCII scripts,
+    elision of temporal-dead-zone checks, and lazy built-ins or lazy
+    compilation if measurements on the target scripts show the need.
+    The spike measured calls 5x, property access 5x and object
+    literals 11x slower than `node --jitless` (docs/js-spike-report.md).
 14. Modules (`implementer-hard`), when a target uses
     `<script type="module">`.
 

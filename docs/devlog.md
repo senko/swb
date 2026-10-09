@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 spike session 6, tools; end of the spike
+
+- `swb-js`: a shell with `print`, `console.log`, `$262`, the limits,
+  the GC stress mode and exit codes per result. `just test262` runs the
+  subset of test262 (98 groups of `test/language/`, 10,183 tests) in
+  0.3 s: 3,762 pass, 1,028 fail, 3,476 use syntax outside the subset;
+  no panics, the same counts in stress mode. A scores file per group
+  may only go up. `just jsdiff` compares output with Node.js 22;
+  `just jsbench` measures against `node --jitless`
+  (docs/performance.md).
+- Review: no wrong verdict of the runner (each pass was checked in
+  Node). Fixed: an unreadable test file counted as a pass, runs on part
+  of a group lowered or broke the scores, a recursive
+  `$262.evalScript` overflowed the Rust stack (re-entrant `eval` now
+  charges the recursion budget), the shell did not stop on a closed
+  output pipe, `jsdiff` stopped at a timeout.
+- Spike report: docs/js-spike-report.md. The architecture of ADR 0026
+  holds; the spike's choices are in section 14. The costs for M7: calls
+  5x, property access 5x, object literals 11x slower than V8's
+  interpreter (global cache, inline caches, literal shapes in feature
+  13); string appends 83x (ropes in feature 5).
+- `js-spike` merges into `main`. Next: M7 feature 1 (full syntax).
+  M6 step 4 (the on/off setting) comes with the first engine
+  integration.
+
 ## 2026-10-09: M6 spike session 5, exceptions, limits and built-ins (`js-spike`)
 
 - `js`: a handler table per code object; a throw searches it from the

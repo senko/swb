@@ -2730,6 +2730,7 @@ name = "swb-js"
 version = "0.1.0"
 dependencies = [
  "log",
+ "serde_json",
  "swb-js-regexp",
  "swb-js-syntax",
  "swb-js-text",

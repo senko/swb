@@ -78,3 +78,86 @@ Observations:
   `:hover`; the next mouse movement does.
 - Raster time depends on the window size and on how much of the page has
   text; glyph masks are cached.
+
+## JavaScript engine
+
+`just jsbench [DIR]` (`swbtools jsbench`) builds `swb-js`, the `vm_bench`
+example (`crates/js/examples/vm_bench.rs`) and the `lex_files` example,
+then prints two Markdown tables.
+
+1. The small programs of `vm_bench`. Each program runs five times in the
+   engine and the best time counts. The same programs (`vm_bench
+   --print-js`) run in `node --jitless` (V8's interpreter, used as a black
+   box) with the same best-of-5 timing. The ratio is swb / Node. The
+   programs run through the embedding API, not through the `swb-js`
+   shell, because the shell has no clock.
+2. With a directory DIR: `lex_files` lexes all `*.js` files (best of
+   `--runs`, default 5); `swb-js bench-compile DIR` parses and compiles each
+   file (best of 3 passes) and reports the count of scripts that compile,
+   the time and code size of those, the time that the front end needs until
+   the first unsupported construct for all scripts, and the peak resident
+   memory of the process. The BBC scripts (60 files, 3.5 MB) are not in the
+   repository. The fixture `fixtures/pages/bbc` has no scripts (the
+   browser runs without JavaScript). To get the set, open https://www.bbc.com/
+   in a browser, save the page's scripts (the `<script src>` files and the
+   inline scripts) with the developer tools or with `curl` into one
+   directory, one `.js` file per script. Any directory of `.js` files works;
+   the numbers below are for the 60 scripts of the session-6 run, so they
+   compare only with the same set. Example: `just jsbench out/bbc-js`.
+
+2026-10-09, JS spike session 6 (branch `js-spike`, base b7e9342). Release
+build, Linux, Intel Core i5-13500, Node.js 22.11.
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| fib(27) | 55.4 | 10.7 | 5.18x |
+| sum 10M integers | 121.5 | 113.7 | 1.07x |
+| o.x = o.x + o.y, 5M times | 397.3 | 77.5 | 5.13x |
+| closure counter 1M calls | 64.0 | 20.1 | 3.18x |
+| 1M small objects | 251.8 | 22.8 | 11.04x |
+| string: 20k appends of 'ab' | 25.0 | 0.3 | 83.33x |
+| sum 10M integers in a try | 140.9 | 123.8 | 1.14x |
+| sum 10M integers in a try-finally | 204.4 | 219.3 | 0.93x |
+| throw and catch 1M times | 24.4 | 308.2 | 0.08x |
+| throw TypeError 1M times | 248.5 | 3997.0 | 0.06x |
+| forEach over 1M elements | 107.2 | 11.0 | 9.75x |
+| for loop over 1M elements | 129.9 | 16.4 | 7.92x |
+| join 1M elements | 133.4 | 66.1 | 2.02x |
+
+The BBC scripts (the 60 scripts of the target page):
+
+| Measure | Value |
+|---|---|
+| Scripts | 60 (3.5 MB) |
+| Lexing, all scripts | 29.1 ms, 121 MB/s, 38.9 million tokens/s (60 of 60 lex to the end) |
+| Scripts that compile | 3 of 60 |
+| Parse and compile, scripts that compile | 0.09 ms for 2 KB (21 MB/s) |
+| Code objects, scripts that compile | 8 KB (4.2 bytes per source byte) |
+| Parse until the first unsupported construct, all scripts | 4.6 ms for 0.14 MB read (30 MB/s) |
+| Peak memory of the process | 8 MiB |
+| Does not compile: for-in | 15 |
+| Does not compile: destructuring | 13 |
+| Does not compile: spread property | 11 |
+| Does not compile: tagged template | 7 |
+| Does not compile: default parameter | 6 |
+
+Observations:
+
+- Only 3 of the 60 scripts are inside the spike subset, so the compile
+  numbers for real scripts come from tiny inputs. The speed of the front
+  end on a large input is better shown by the generated 5.2 MB program of
+  `vm_bench`: parse and compile in 182 ms (29 MB/s), code objects 38.7 MB
+  (7.4 bytes per source byte), 1.1 million instructions. The measure "until
+  the first unsupported construct" includes the per-file set-up and the
+  error path, so its 30 MB/s is a lower bound.
+- The lexer runs at 121 MB/s over the BBC scripts (7 of them need two-byte
+  strings), and the parser and compiler at about a quarter of that speed.
+  A page like the BBC scripts (3.5 MB) would need about 120 ms to compile
+  at 29 MB/s if all of it were supported.
+- The throw rows compare an engine without `stack` with V8, which builds
+  stack traces; they are not comparable until M7 adds `stack`. The string
+  row is slow because swb has no ropes (ADR 0026: flat strings): each
+  append copies.
+- The slowest rows (small objects 11x, `forEach` 9.8x, `for` loop 7.9x,
+  property update 5.1x) point at M7 work: inline caches for property access,
+  the global cache, and callbacks that do not re-enter the interpreter.
