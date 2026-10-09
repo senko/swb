@@ -418,12 +418,68 @@ at a time, in this order:
 2. Design: a session that has read only the specifications, the memos
    and the literature writes the architecture ADR of the language core
    (crates, parser, bytecode, heap and GC, values, strings, objects,
-   limits) and an ordered feature plan in this file.
-3. Spike on a separate branch: a small vertical slice (a parser for a
-   subset, bytecode, VM, GC, `console.log`), the test262 runner
-   (`just test262`, test262 fetched at a pinned commit into a git-ignored
-   directory) and the differential tool against Node.js. It tests the
-   heap design in safe Rust before the main work depends on it.
+   limits) and an ordered feature plan in this file. Done 2026-10-09:
+   [ADR 0026](adr/0026-javascript-engine-architecture.md) (crates
+   `js-text`, `js-regexp`, `js-syntax`, `js`; AST front end; register machine;
+   mark-and-sweep over arenas with generational handles and handle
+   scopes); the feature plan is M7 below.
+3. Spike on the branch `js-spike`: a vertical slice that tests ADR 0026
+   before the main work depends on it. Six sessions, in this order:
+   1. Crates, `js-text` and the lexer (`implementer-hard`). The four
+      crates (`js-regexp` only a stub that accepts any pattern).
+      `js-text`: code units of both widths, UTF-8 conversion, the
+      identifier tables (ADR 0003 decision: generated tables or a
+      crate). The full lexer: all tokens, templates, regular expression
+      literals, numeric literals, escapes, Unicode identifiers, on demand
+      with the goal symbol from the parser.
+   2. A parser for a subset and the scope analysis (`implementer-hard`).
+      The AST arena. The subset: `var`, `let`, `const`; function
+      declarations and expressions; generator functions with `yield`
+      (no `yield*`); arrow functions; `if`, `while`, `do`-`while`, `for`
+      (three-part, with one `let` binding per iteration); labels,
+      `break`, `continue`, `return`, `throw`, `try`-`catch`-`finally`;
+      literals (number, string, template without tag, object, array),
+      member access, calls, `new`, `this`, unary, binary, logical,
+      conditional, assignment and compound assignment, `typeof`, comma.
+      Scope analysis with registers, cells and the temporal dead zone.
+      The shared recursion budget in the parser. The early errors of the
+      subset.
+   3. Heap, values, strings, objects and GC (`implementer-hard`). Arenas
+      with generations, the value enum, flat strings of both widths (no
+      ropes), the weak atom table, shapes with root shapes, transitions
+      and dictionary mode, dense elements, mark-and-sweep with a work
+      list, handle scopes, safepoints, reservations, byte accounting and
+      the heap limit, the stress mode.
+   4. Compiler and interpreter core (`implementer-hard`). Register
+      allocation, the instruction enum with its size test, property
+      sites, the verifier, frames without Rust recursion, calls with the
+      argument rules of ADR 0026 section 5, deferred calls, closures with
+      cells, and a minimal generator (`yield` and `next()` in a function
+      with a captured variable, to test that frames can move).
+   5. Exceptions, limits and built-ins (`implementer-hard`). The handler
+      table, `finally` completions, termination, the time countdown, the
+      frame limit, the recursion budget. Built-ins: `console.log`, the
+      `Error` constructors, `Object.keys`, `Array` (index, `length`,
+      `push`, `join`, `forEach`, `map`: natives that call back, for the
+      handle scopes), `Function.prototype.call` (the deferred call),
+      `String()` and `Number()`.
+   6. Tools (`implementer`). The `swb-js` shell with `$262`;
+      `just test262` (test262 at a pinned commit in a git-ignored
+      directory, a list of features in scope, the scores file; in the
+      spike only tests that need no harness file other than `assert.js`
+      and `sta.js`, from a list of `language/` directories that the
+      subset covers); `just jsdiff` against Node.js; benchmarks against
+      `node --jitless`.
+
+   Exit: a report with the measurements that ADR 0026 lists under
+   "Consequences" (handle scope overhead, generation checks, instruction
+   size, interpreter speed against `node --jitless`, GC pause for one
+   million objects, lexing speed on the BBC scripts), the test262 pass
+   count of the subset, the generator test, and the hostile cases (deep
+   nesting, endless loops, deep recursion, huge allocations). Then
+   ADR 0026 gets an update where the spike showed a better choice, and
+   the branch merges into `main` as the base of M7, or the design
+   changes first.
 4. With the first engine integration: the JavaScript on/off setting
    (ADR 0025; off by default): command line, automation API, browser
    window; the scripting flag in the HTML parser, the serializer,
@@ -434,6 +490,90 @@ When the owner gives targets: survey each target's scripts first
 they call during load, measured in Chromium), and agree what "works"
 means per target (for example menus, carousels, lazy images). That sets
 the scope of the bindings, as the CSS feature lists did for M4 and M5.
+
+## M7: JavaScript language core
+
+Starts after the spike (M6 step 3) is merged. Design: ADR 0026. Scope:
+ECMA-262 2025 with Annex B, no `Intl`. Each feature ends with a review
+and a commit, and raises the test262 scores file for the directories
+that its scope names. A test that fails only because it needs a later
+feature is a known failure with that reason. At the end of M7, each
+area passes at least 95 % of its tests in scope; the rest are known
+failures with a reason. Features, in this order:
+
+1. Full syntax (`implementer-hard`, `js-syntax`). The whole ES2025
+   grammar with Annex B: classes (fields, private names, accessors,
+   static blocks), destructuring, spread and rest, default parameters,
+   generators and `async` syntax, optional chaining, `??`, tagged
+   templates, numeric separators, `BigInt` literals, `with`, module
+   syntax, HTML-like comments. All early errors (those of regular
+   expression literals come with feature 8a), the complete scope
+   analysis (direct `eval`, `with`, mapped `arguments`). Tests: the
+   syntax tests of test262 `language/`; the BBC and Ars scripts parse
+   without errors.
+2. Fundamental objects (`implementer`). What the test262 harness and the
+   language need first: `Object`, `Function` (`bind`, `call`, `apply`,
+   `toString`), `Boolean`, `Symbol` with the well-known symbols, the
+   `Error` types with `cause` and Chromium's `stack` format, `Reflect`,
+   the global functions, all property-attribute paths
+   (`defineProperty`, `freeze` and others), the array iterator and the
+   `Array.prototype` methods that the harness files use. Annex B:
+   `__proto__`, `__defineGetter__` and the related methods.
+3. Language semantics (`implementer-hard`, `js`). The VM for everything
+   of feature 1 except generators and `async`: destructuring, spread,
+   classes and `super`, getters and setters, optional chaining,
+   `for`-`in`, `for`-`of` with iterator closing, `switch`, tagged
+   templates, `arguments`, `this` in sloppy and strict mode, direct and
+   indirect `eval`, `with`, `new Function`, `new.target`, the Annex B
+   function semantics. Tests: test262 `language/` without generators,
+   `async` and modules.
+4. Numbers (`implementer-hard` for the exact conversions, ADR 0026
+   section 7). `Number`, `Math`, `parseInt`, `parseFloat`,
+   StringToNumber, number-to-string in all radixes, `toFixed`,
+   `toExponential`, `toPrecision`.
+5. Strings and JSON (`implementer`). `String` without the regular
+   expression methods, ropes, the string iterator, `normalize`, case
+   mapping, the URI functions, `JSON` with its depth limit. Annex B:
+   `escape`, `unescape`, `substr`, the HTML methods (`anchor` and
+   others), `trimLeft` and `trimRight`.
+6. Arrays and collections (`implementer`). `Array` with dense and sparse
+   elements, the iterator helpers, `Map`, `Set` (with the ES2025 set
+   methods).
+7. Generators, promises, `async` (`implementer-hard`). Generator objects,
+   `Promise`, the job queue and its host hooks, `async` functions, async
+   generators, `for await`, async-from-sync iterators,
+   `Array.fromAsync`.
+8. Regular expressions (ADR 0026 section 10), in two parts:
+   - 8a (`implementer-hard`, `js-regexp`): the pattern parser with
+     Annex B, the compiler and the matcher, the `u`, `v`, `d`, `s`, `y`
+     flags, lookbehind, named groups, Unicode properties and case
+     folding (tables in `js-text`), and the early errors of regular
+     expression literals in `js-syntax`. Because `js-regexp` is a
+     separate crate, 8a may run in parallel with features 2 to 7; its
+     changes to `js-text` and `js-syntax` merge between features.
+   - 8b (`implementer`, `js`, after 5 and 8a): the `RegExp` built-in, the
+     string methods that use it (`Symbol.match`, `replace`, `split`,
+     `matchAll`), `RegExp.escape`, Annex B `RegExp.prototype.compile`;
+     the legacy static properties (`RegExp.$1`) only if a target uses
+     them.
+9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
+   invariant checks, `WeakMap`, `WeakSet` and their ephemeron marking,
+   `WeakRef`, `FinalizationRegistry`, the kept-alive list.
+10. `BigInt` (`implementer-hard`).
+11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
+    `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
+    and `BigUint64Array`), `DataView`, `Atomics` on non-shared buffers.
+12. `Date` (`implementer`; the time zone library under ADR 0003).
+    Annex B: `getYear`, `setYear`, `toGMTString`.
+13. Performance (`implementer-hard`). Inline caches, elision of
+    temporal-dead-zone checks, and lazy built-ins or lazy compilation
+    if measurements on the target scripts show the need.
+14. Modules (`implementer-hard`), when a target uses
+    `<script type="module">`.
+
+After M7 (or interleaved, when the owner gives targets): the bindings
+and the engine integration (layers 2 and 3 of ADR 0025), each with its
+own ADR, and the on/off setting of M6 step 4.
 
 ## Pending decisions
 

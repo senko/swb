@@ -4,16 +4,54 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: M6 step 2, architecture of the language core
+
+- ADR 0026, written from the memos, the specifications and the
+  literature only. Main choices and why:
+  - Four crates (`js-text`, `js-regexp`, `js-syntax`, `js`), so that
+    each can be tested alone and the regular expression engine can grow
+    in parallel; `js-text` holds the code units and Unicode data that
+    the other three share.
+  - An AST first: cover grammars by conversion (linear), scope analysis
+    over the whole function nest, captured variables in cells created
+    at the declaration, so that generator frames can move.
+  - A register machine with Rust enum instructions, a verifier pass and
+    a handler table; `finally` with a stored completion.
+  - Arenas with (index, generation) handles, stop-the-world
+    mark-and-sweep, handle scopes for native code, collections only at
+    safepoints, a stress mode.
+  - Two string widths with ropes; shapes with transitions and the
+    prototype in the shape; dense and sparse elements; no inline caches
+    at first.
+  - Numbers: Rust's shortest formatting and correctly rounded parsing,
+    plus an own exact routine for radixes and fixed formats (no `ryu`).
+  - One shared budget for all Rust recursion.
+- A `reviewer` session checked ADR 0026, the roadmap and the step 1
+  docs (the step 1 commit had no reviewer session; ground rule 15). It
+  found an instruction-size conflict with cache operands (now property
+  sites), an undefined order of collection and heap-limit checks (now
+  reservations as safepoints), gaps (root shapes per prototype, the
+  state after termination, a shared text crate, the stack size, extra
+  arguments) and dependency errors in the M7 order (iterators before
+  the language semantics, `BigInt` before typed arrays, weak
+  collections with ephemerons, the regular expression feature split so
+  that only its crate part runs in parallel). All fixed. No section
+  number was wrong.
+- Roadmap: the spike (M6 step 3) is six sessions on the branch
+  `js-spike`; M7 is the ordered feature plan of the language core (14
+  features).
+- Next: spike session 1 (crates, `js-text`, the lexer).
+
 ## 2026-10-09: M6 step 1, JavaScript study memos
 
 - Five `analyst` sessions (in parallel, read-only) wrote the study memos
   in `docs/js-study/` from QuickJS, QuickJS-ng, MicroQuickJS (MIT,
   license checked), MuJS (now on Codeberg) and Duktape with its design
-  notes, plus the literature. Each memo is about 7,000 words. I reviewed
-  each against the rules of ADR 0025 (no code, pseudocode, source
-  identifiers, opcode or field lists); all passed without changes except
-  a status line. I checked the uncertain ECMA-262 section numbers
-  against the draft.
+  notes, plus the literature. Each memo is about 7,000 words. The
+  orchestrator reviewed each against the rules of ADR 0025 (no code,
+  pseudocode, source identifiers, opcode or field lists); all passed
+  without changes except a status line. The uncertain ECMA-262 section
+  numbers were checked against the draft.
 - Main findings for the design: none of the five engines has inline
   caches, lazy parsing or a linear-time regular expression fallback;
   only the QuickJS family has generators, `async`, `BigInt`, weak

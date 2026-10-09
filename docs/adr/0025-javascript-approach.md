@@ -134,3 +134,11 @@ reasons:
   60,000 to 100,000 lines of Rust for ES2023 without `Intl` (swb has
   about 122,000 lines now). The bindings add to this, in proportion to
   the APIs that the targets use.
+
+## Updates
+
+- 2026-10-09: the MicroQuickJS license is checked (MIT); the analysts
+  read it for the memos (docs/credits.md).
+- 2026-10-09: ADR 0026 is the architecture of the language core. It
+  sets the language level to ECMA-262 2025 with Annex B, and it does not
+  use `ryu`: Rust's float formatting gives the shortest digits.
