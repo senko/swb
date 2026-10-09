@@ -405,7 +405,8 @@ fn out_of_flow_boxes(root: &IndependentBox) -> HashMap<usize, &IndependentBox> {
                         crate::control::ControlContents::Flow(c) => {
                             stack.push(Item::Container(c));
                         }
-                        crate::control::ControlContents::Flex(items) => {
+                        crate::control::ControlContents::Flex(items)
+                        | crate::control::ControlContents::Grid(items) => {
                             stack.extend(items.iter().map(Item::Box));
                         }
                         crate::control::ControlContents::None

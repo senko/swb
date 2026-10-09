@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Buttons with display: grid, inline-grid and flex: the content is
+     laid out as grid or flex items in a container that fills the button
+     (not centered vertically as flow content is); fixed height, track
+     sizes, align-content, baseline in a line, intrinsic width, anonymous
+     items for text. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grid buttons</title>
+<style>
+  body { margin: 0; font: 16px/20px sans-serif; }
+  button { padding: 0; border: 0; }
+  .fixed { height: 100px; width: 200px; }
+  .nav { display: grid; grid-template-columns: 1fr auto; gap: 22px;
+         padding: 13px 14px; width: 100%; text-align: left; background: #eee; }
+  .nav i { display: block; width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+  <button class=fixed style="display: grid; grid-template-columns: 1fr auto"><span>text</span><i style="width: 10px; height: 10px"></i></button>
+  <button class=fixed style="display: grid; grid-template-rows: 20px"><span>text</span></button>
+  <button class=fixed style="display: grid; align-content: start; grid-template-rows: 20px"><span>text</span></button>
+  <button class=fixed style="display: grid; align-content: center; grid-template-rows: 20px"><span>text</span></button>
+  <button class=fixed style="display: flex"><span>text</span></button>
+  <button class=fixed style="display: flex; align-items: flex-start"><span>text</span></button>
+  <button class=fixed><span>text</span></button>
+  <button class=nav><span>Home</span><i></i></button>
+  <div>abc <button style="display: inline-grid; grid-template-columns: auto auto"><span>xy</span><span>zw</span></button> def
+    <button style="display: inline-grid; height: 60px"><span style="font-size: 30px; line-height: 36px">big</span></button>
+    <button style="display: inline-grid; grid-template-columns: 30px 30px"></button> tail</div>
+  <button style="display: grid"><span>one two three</span><span>x</span></button>
+  <div style="width: 50px"><button style="display: grid"><span>one two three</span></button></div>
+  <button style="display: grid; grid-template-columns: 100px 1fr"><span>q</span><span>w</span></button>
+  <button style="display: grid; grid-template-columns: repeat(2, 1fr)"><span>q</span><span>wwwwwww</span></button>
+  <button style="display: grid; padding: 2px; border: 3px solid"></button>
+  <button style="display: grid; padding: 2px; border: 3px solid">plain text</button>
+  <button style="display: grid; padding: 2px; border: 3px solid">a<b>b</b>c</button>
+  <button style="display: grid; width: 100px; height: 40px; position: relative; grid-template-columns: 150px"><span>wide</span><i style="position: absolute; left: 5px; top: 3px; width: 4px; height: 4px"></i></button>
+  <button style="display: grid; grid-template-rows: 60px; width: 100px"><span>x</span></button>
+</body>
+</html>

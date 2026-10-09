@@ -320,6 +320,11 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         scroll_size,
         viewport_overflow: viewport_overflow
             .map_or((Overflow::Visible, Overflow::Visible), |(_, x, y)| (x, y)),
+        viewport_scrollbar_hidden: input
+            .document
+            .document_element()
+            .and_then(|root| input.styles.get(root))
+            .is_some_and(|s| s.scrollbar_width == swb_style::ScrollbarWidth::None),
         viewport: input.viewport,
     }
 }

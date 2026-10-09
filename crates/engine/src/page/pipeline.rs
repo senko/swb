@@ -289,6 +289,9 @@ impl Page {
         let Some(fragments) = &self.fragments else {
             return;
         };
+        if fragments.viewport_scrollbar_hidden {
+            return;
+        }
         let port = Rect::new(0.0, 0.0, self.viewport.width, self.viewport.height);
         // No indicator on axes with `overflow: hidden`.
         let (user_x, user_y) = self.viewport_user_axes();

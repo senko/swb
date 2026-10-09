@@ -10,8 +10,8 @@
 //! - text fields, buttons and selects: one line of text (the value or the
 //!   placeholder, the label, the selected option) in an inline formatting
 //!   context; text areas: the value, wrapped;
-//! - `<button>` elements: their DOM content (as flex items with
-//!   `display: flex`);
+//! - `<button>` elements: their DOM content (as flex or grid items with
+//!   `display: flex` or `display: grid`);
 //! - checkboxes and radio buttons: nothing (paint draws them).
 //!
 //! The text of a text field or a text area has caret stops: byte offsets
@@ -31,7 +31,11 @@
 //! - A text area is `ceil(a * cols)` plus a scroll bar (15 px) wide and
 //!   `rows` lines high.
 //! - Buttons and `<button>` elements are as wide as their content; their
-//!   content is centered vertically.
+//!   flow content is centered vertically. The content of a `<button>`
+//!   with `display: flex` or `display: grid` is not centered: the button
+//!   is an ordinary flex or grid container (its height, `align-items`,
+//!   `align-content` and track sizes apply; measured in Chromium 148,
+//!   `tools/probes/grid-button.json`).
 //! - A select is as wide as its widest option (indented by four spaces in
 //!   an `optgroup`, measured with the select's font, rounded up) plus 4 px
 //!   of padding on the left and 16 px on the right (the arrow), and one
@@ -170,6 +174,8 @@ pub(crate) enum ControlContents {
     Flow(BlockContainer),
     /// The DOM content of a `<button>` with `display: flex`: flex items.
     Flex(Vec<IndependentBox>),
+    /// The DOM content of a `<button>` with `display: grid`: grid items.
+    Grid(Vec<IndependentBox>),
 }
 
 /// The size of checkboxes and radio buttons (Chromium's theme).
@@ -248,6 +254,9 @@ pub(crate) fn build(
             Display::Flex | Display::InlineFlex => {
                 ControlContents::Flex(build_flex_items(ctx, base, state))
             }
+            Display::Grid | Display::InlineGrid => {
+                ControlContents::Grid(build_flex_items(ctx, base, state))
+            }
             _ => ControlContents::Flow(build_block_container(ctx, base, state)),
         },
         _ => {
@@ -295,9 +304,10 @@ fn text_style(
 /// The min-content and max-content widths of a control's content box.
 pub(crate) fn content_sizes(
     ctx: &mut LayoutContext<'_>,
-    style: &ComputedStyle,
+    base: &BoxBase,
     control: &ControlBox,
 ) -> ContentSizes {
+    let style = &*base.style;
     let width = match (&control.control.kind, &control.contents) {
         (ControlKind::TextField { size }, _) => text_field_width(ctx, style, *size),
         (ControlKind::TextArea { cols, .. }, _) => text_area_width(ctx, style, *cols),
@@ -315,6 +325,9 @@ pub(crate) fn content_sizes(
         }
         (ControlKind::ButtonElement, ControlContents::Flex(items)) => {
             return intrinsic::flex_content_sizes(ctx, style, items);
+        }
+        (ControlKind::ButtonElement, ControlContents::Grid(items)) => {
+            return crate::grid::content_sizes(ctx, base, items);
         }
         _ => 0.0,
     };
@@ -376,14 +389,27 @@ pub(crate) fn layout(
         ControlKind::Select => (content_width - SELECT_PADDING.0 - SELECT_PADDING.1).max(0.0),
         _ => content_width,
     };
-    let inner = layout_inner(ctx, base.node, control, style, text_width);
-    let height = content_height.unwrap_or_else(|| {
-        let intrinsic = intrinsic_height(ctx, style, kind, inner.height);
-        let vertical = edge_sum.vertical();
-        let specified = resolve_size(&style.height, cb.height, style.box_sizing, vertical);
-        clamp_height(style, specified.unwrap_or(intrinsic), cb.height, vertical)
-    });
-    let (x, y) = content_position(kind, height, inner.height);
+    let is_container = matches!(
+        control.contents,
+        ControlContents::Flex(_) | ControlContents::Grid(_)
+    );
+    let (inner, height) = layout_container(ctx, base, control, content_width, content_height, cb)
+        .unwrap_or_else(|| {
+            let inner = layout_inner(ctx, base.node, control, style, text_width);
+            let height = content_height.unwrap_or_else(|| {
+                let intrinsic = intrinsic_height(ctx, style, kind, inner.height);
+                let vertical = edge_sum.vertical();
+                let specified = resolve_size(&style.height, cb.height, style.box_sizing, vertical);
+                clamp_height(style, specified.unwrap_or(intrinsic), cb.height, vertical)
+            });
+            (inner, height)
+        });
+    // Flex and grid containers fill their box: nothing to center.
+    let (x, y) = if is_container {
+        (0.0, 0.0)
+    } else {
+        content_position(kind, height, inner.height)
+    };
     let scroll = scroll_offset(&control.control, &inner, content_width, height);
     let dx = x - scroll.x;
     let dy = y - scroll.y;
@@ -466,16 +492,9 @@ fn layout_inner(
     };
     match &control.contents {
         ControlContents::None => Inner::boxes(Vec::new(), 0.0, 0.0, None),
-        ControlContents::Flex(items) => {
-            // The control's min-height and max-height apply to the control
-            // box, which centers this content (`content_position`).
-            let flex = crate::flex::layout_flex(ctx, style, items, cb, SizeLimits::NONE);
-            Inner::boxes(
-                flex.fragments,
-                width,
-                flex.content_height,
-                flex.first_baseline,
-            )
+        // Laid out by `layout_container`.
+        ControlContents::Flex(_) | ControlContents::Grid(_) => {
+            Inner::boxes(Vec::new(), 0.0, 0.0, None)
         }
         ControlContents::Flow(container) => {
             let children = layout_flow_root(ctx, container, style, cb, &mut Vec::new());
@@ -489,6 +508,48 @@ fn layout_inner(
         ControlContents::Text { ifc, style } => {
             layout_text(ctx, node, &control.control, ifc, style, width)
         }
+    }
+}
+
+/// Lays out the content of a `<button>` with `display: flex` or `display:
+/// grid` as the container that it is: the content box has the specified
+/// height (or the height of the content), clamped by `min-height` and
+/// `max-height`. Returns the content and the content-box height, or `None`
+/// for other controls.
+fn layout_container(
+    ctx: &mut LayoutContext<'_>,
+    base: &BoxBase,
+    control: &ControlBox,
+    width: f32,
+    given_height: Option<f32>,
+    cb: ContainingBlock,
+) -> Option<(Inner, f32)> {
+    let style = &base.style;
+    let vertical = BoxEdges::resolve(style, cb.width).sum().vertical();
+    let limits = match given_height {
+        Some(_) => SizeLimits::NONE,
+        None => SizeLimits::of_height(style, cb.height, vertical),
+    };
+    match &control.contents {
+        ControlContents::Flex(items) => {
+            let specified = given_height
+                .or_else(|| resolve_size(&style.height, cb.height, style.box_sizing, vertical));
+            let item_cb = ContainingBlock {
+                width,
+                height: specified.map(|h| limits.clamp(h)),
+            };
+            let flex = crate::flex::layout_flex(ctx, style, items, item_cb, limits);
+            let height = limits.clamp(specified.unwrap_or(flex.content_height));
+            let inner = Inner::boxes(flex.fragments, width, height, flex.first_baseline);
+            Some((inner, height))
+        }
+        ControlContents::Grid(items) => {
+            let grid = crate::grid::layout_contents(ctx, base, items, width, given_height, cb);
+            let height = grid.content_height;
+            let inner = Inner::boxes(grid.fragments, width, height, grid.baselines.first);
+            Some((inner, height))
+        }
+        _ => None,
     }
 }
 

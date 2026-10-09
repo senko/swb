@@ -9,9 +9,13 @@
 //! containers get them in the display list (inside their clip, above
 //! their content); the viewport gets the same indicator drawn over the
 //! page by the engine (ADR 0019).
+//!
+//! `scrollbar-width: none` on a scroll container (on the root element for
+//! the viewport) hides its indicators; scrolling still works. `thin` is
+//! drawn as `auto`: the indicator is already thin.
 
 use swb_layout::{BoxFragment, Point, Rect, ScrollOffsets, Size, scroll_range};
-use swb_style::{BorderStyle, Overflow, Rgba};
+use swb_style::{BorderStyle, Overflow, Rgba, ScrollbarWidth};
 
 use crate::display_list::DisplayItem;
 
@@ -83,6 +87,10 @@ pub(crate) fn element_scroll_indicators(
     let (Some(overflow), Some(_)) = (b.scrollable_overflow, b.scroll_node()) else {
         return Vec::new();
     };
+    // `scrollbar-width: none` hides the indicator; scrolling still works.
+    if b.style.scrollbar_width == ScrollbarWidth::None {
+        return Vec::new();
+    }
     scroll_indicators(
         rect.inset(&b.border),
         Size::new(overflow.width, overflow.height),

@@ -32,6 +32,10 @@ pub struct FragmentTree {
     /// `visible` if neither has another value), horizontal and vertical.
     /// The user cannot scroll an axis with `hidden` or `clip`; scripts can.
     pub viewport_overflow: (swb_style::Overflow, swb_style::Overflow),
+    /// True if the root element has `scrollbar-width: none`: the viewport
+    /// shows no scroll indicator (CSS Scrollbars 1 §3: the root element's
+    /// value applies to the viewport; `body` is not consulted).
+    pub viewport_scrollbar_hidden: bool,
     /// The size of the viewport (the initial containing block).
     pub viewport: crate::geom::Size,
 }

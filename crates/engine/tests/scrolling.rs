@@ -731,6 +731,67 @@ fn a_hidden_viewport_axis_does_not_move_with_the_wheel_and_has_no_indicator() {
 }
 
 #[test]
+fn scrollbar_width_none_hides_the_indicator_but_not_scrolling() {
+    let site = Site::new("scroll-scrollbar-width");
+    let html = ROWS.replace("rgb(0, 0, 255)", "rgb(255, 255, 255)");
+    let dark = |p: [u8; 3]| p.iter().all(|&c| c < 200);
+    for (value, shown) in [("auto", true), ("thin", true), ("none", false)] {
+        let html = html.replace("#s {", &format!("#s {{ scrollbar-width: {value};"));
+        let (mut page, _) = open(&site, &html);
+        page.set_scroll_indicators(true);
+        let p = pixels(&mut page);
+        assert_eq!(dark(pixel(&p, 195, 10)), shown, "scrollbar-width: {value}");
+        // The viewport keeps its own indicator.
+        assert!(dark(pixel(&p, 795, 10)), "scrollbar-width: {value}");
+        // The wheel scrolls the container with or without the indicator.
+        let s = node(&page, "s");
+        assert!(page.wheel(100.0, 50.0, 0.0, 40.0));
+        assert_eq!(page.element_scroll(s).unwrap().offset.y, 40.0);
+    }
+}
+
+#[test]
+fn scrollbar_width_is_not_inherited() {
+    let site = Site::new("scroll-scrollbar-width-inherit");
+    let html = "<!DOCTYPE html><body style='margin:0'>\
+         <div style='scrollbar-width:none;width:200px;height:300px'>\
+         <div style='overflow:auto;height:100px'><div style='height:300px'></div></div></div>";
+    let (mut page, _) = open(&site, html);
+    page.set_scroll_indicators(true);
+    let dark = |p: [u8; 3]| p.iter().all(|&c| c < 200);
+    let p = pixels(&mut page);
+    // The inner container is a scroll container with `auto`: it shows
+    // its indicator although its parent has `none`.
+    assert!(dark(pixel(&p, 195, 10)), "{:?}", pixel(&p, 195, 10));
+}
+
+#[test]
+fn scrollbar_width_none_on_the_root_hides_the_viewport_indicator() {
+    let site = Site::new("scroll-scrollbar-width-root");
+    let page_html = |root: &str, body: &str| {
+        format!(
+            "<!DOCTYPE html><html style='{root}'><body style='margin:0;{body}'>\
+             <div style='height:3000px'></div>"
+        )
+    };
+    let dark = |p: [u8; 3]| p.iter().all(|&c| c < 200);
+    for (root, body, shown) in [
+        ("", "", true),
+        ("scrollbar-width: none", "", false),
+        // The value of `body` does not apply to the viewport.
+        ("", "scrollbar-width: none", true),
+    ] {
+        let (mut page, _) = open(&site, &page_html(root, body));
+        page.set_scroll_indicators(true);
+        let p = pixels(&mut page);
+        assert_eq!(dark(pixel(&p, 795, 10)), shown, "{root} / {body}");
+        // Scrolling works in all cases.
+        assert!(page.wheel(100.0, 100.0, 0.0, 50.0));
+        assert_eq!(page.scroll_position(), Point::new(0.0, 50.0));
+    }
+}
+
+#[test]
 fn the_end_of_a_fractional_range_is_a_whole_pixel_and_survives_a_relayout() {
     // Chromium 148: content of 200.4 px in a 100 px scrollport scrolls to
     // 100.

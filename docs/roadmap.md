@@ -368,6 +368,15 @@ Features, in this order. Each one ends with a review and a commit.
    `scrollbar-width: auto | thin | none`, where `none` hides the scroll
    indicator of that scroll container in the GUI (the page's two
    `overflow: scroll` carousels; Chromium shows no scroll bar there).
+   Done: grid and flex buttons lay out their content as a plain grid or
+   flex container (`grid::layout_contents` is shared with `layout_grid`).
+   Measured: Chromium centers only flow content of a button vertically;
+   swb also centered flex content, which is fixed. `scrollbar-width` is
+   computed; `none` hides the indicator of the container, and the
+   viewport follows the root element (CSS Scrollbars 1; the headless
+   shell cannot show it). `thin` draws as `auto`. BBC geometry 0.9660 →
+   1.0000 (no missing or extra boxes); pixels 0.9985; other fixtures
+   unchanged.
 4. Final pass on the page (`implementer`). Scope: the sub-pixel glyph
    positions in words (all text on both pages; find the cause, fix it if
    it is not anti-aliasing, backlog otherwise); the 1–2 px lines at the
@@ -406,6 +415,11 @@ Features, in this order. Each one ends with a review and a commit.
   and active states in content that closes stay until the next mouse
   move. `in_closed_details_content` walks the ancestors for each node in
   focus traversal (O(n · depth)).
+- Tests: `cargo test --release -p swb-layout --test deep_nesting` overflows
+  the 2 MiB stack in `grids_nested_in_flex_containers` (also on d8c1a78;
+  the debug build of `just test` passes). The browser lays out on the
+  main thread (8 MiB) and the hostile case `grid-flex-nesting` passes,
+  but the test's 2 MiB claim does not hold for release builds.
 
 ## Backlog from M4
 
@@ -554,11 +568,11 @@ Features, in this order. Each one ends with a review and a commit.
   whose size depends on intrinsic tracks from baseline alignment; §12.1
   steps 3 and 4 (a second column pass for items whose width depends on
   their height); `fit-content(<length>)` item sizes; inheritance of
-  `justify-items: legacy`; `safe` and `unsafe` (parsed, ignored); absolutely positioned
-  items placed by grid lines; fragmentation; `display: grid` on
-  `<button>`; subgrid; masonry. The intrinsic pass resolves a
-  percentage `height` against an indefinite size, so `repeat(auto-fill)`
-  rows can get another count there.
+  `justify-items: legacy`; `safe` and `unsafe` (parsed, ignored);
+  absolutely positioned items placed by grid lines; fragmentation;
+  subgrid; masonry. The intrinsic pass resolves a percentage `height`
+  against an indefinite size, so `repeat(auto-fill)` rows can get another
+  count there.
 - Paint: `z-index` on non-positioned flex and grid items does not create
   a stacking context.
 - Layout: block layout ignores `width: min-content | max-content |
@@ -568,8 +582,11 @@ Features, in this order. Each one ends with a review and a commit.
   auto`, CSS Sizing 4 §5.1.1); `display: table` ignores the ratio; grid
   items that stretch in the block axis do not pass the stretched height as
   a transferred width contribution to the column sizing (Chromium sizes
-  `1fr 2fr` columns with ratio items differently). `vertical-align: top` and `bottom` on atomic inlines
-  act as `baseline` (known failure `vertical-align-top-bottom`).
+  `1fr 2fr` columns with ratio items differently). `vertical-align: top`
+  and `bottom` on atomic inlines act as `baseline` (known failure
+  `vertical-align-top-bottom`); the M5 review also saw it for a button
+  next to a 60 px button or `inline-flex` box (Chromium y = 0, swb 20 or
+  40).
 - Scrolling: wheel-gesture latching; `overscroll-behavior`, smooth
   scrolling, snapping, `scroll-padding` and `scroll-margin`; classic
   scrollbars that take space, `scrollbar-gutter`, dragging the

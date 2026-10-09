@@ -246,6 +246,15 @@ had no viewport scrollbar before. Headless screenshots and comparisons
 have no indicators (`Page::set_scroll_indicators`, off by default),
 because the Chromium references have no scrollbars.
 
+`scrollbar-width: none` (CSS Scrollbars 1 §3; not inherited) hides the
+indicators of that scroll container; scrolling with the wheel and the
+keys is unchanged. The viewport follows the root element's value only
+(the spec; `body` is not consulted, unlike `overflow`). `FragmentTree::
+viewport_scrollbar_hidden` carries it. `thin` draws as `auto`, because the
+indicator is already thin. The headless shell has no scroll bars, so
+Chromium cannot show the used value of the viewport; the root-only rule is
+from the specification, not measured.
+
 ### Automation and tests
 
 - Protocol additions: `dom.scrollInfo`, `dom.scrollTo`, `input.wheel`

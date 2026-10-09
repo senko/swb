@@ -345,7 +345,10 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   `BoxContent::Media` carries them to paint (`paint/src/media.rs`).
   Posters load like `<img>` sources; media resources are never fetched.
 - Form controls are atomic boxes with generated content
-  (`layout/src/control.rs`); their sizes follow Chromium.
+  (`layout/src/control.rs`); their sizes follow Chromium. A `<button>`
+  with `display: flex` or `display: grid` lays out its DOM content as an
+  ordinary flex or grid container (`grid::layout_contents`); its flow
+  content is centered vertically.
 - `<br>` elements and inline boxes around block-level children get boxes
   for the box dump; the latter are `BoxContent::GeometryOnly`.
 - Absolutely positioned boxes (`layout/src/positioned.rs`, ADR 0016)

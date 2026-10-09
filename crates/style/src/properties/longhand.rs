@@ -32,9 +32,9 @@ use crate::values::{
     Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
     FontSizeKeyword, FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition,
     ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position,
-    ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout,
-    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi,
-    UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin,
+    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
+    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -262,6 +262,7 @@ pub(crate) fn parse_longhand(
                 V::ContainIntrinsicHeight(parse_contain_intrinsic(p, quirky)?)
             }
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
+            L::ScrollbarWidth => V::ScrollbarWidth(keyword(p, ScrollbarWidth::from_ident)?),
             L::ObjectPosition => {
                 let (x, y) = parse_position(p)?;
                 V::ObjectPosition([x, y])

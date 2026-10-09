@@ -4,6 +4,19 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-09: grid buttons, `scrollbar-width` (M5 item 3)
+
+- `<button>` with `display: grid` or `inline-grid` lays out its content
+  as a grid. Measured: Chromium centers only flow content of a button
+  vertically; flex and grid content is laid out as in a plain container
+  (stretch, `align-content`). swb centered flex content before; fixed.
+- `scrollbar-width: auto | thin | none`; `none` hides the GUI scroll
+  indicator (the BBC carousels). The viewport follows the root element.
+- BBC geometry 0.9660 → 1.0000. Other fixtures unchanged.
+- Review: no bugs. A release-only stack overflow in the `deep_nesting`
+  test exists on main too (backlog).
+- Next: M5 item 4, the final pass.
+
 ## 2026-10-09: `details` and `summary` (M5 item 2)
 
 - The content of a closed `details` is laid out in a `::details-content`

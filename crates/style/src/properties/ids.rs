@@ -24,7 +24,7 @@ use crate::values::{
     Contain, CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection,
     FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
     GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, ShapeRendering,
+    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
     SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
     StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
     TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
@@ -257,6 +257,7 @@ longhands! {
     ContainIntrinsicWidth "contain-intrinsic-width" reset contain_intrinsic_width: SpecifiedContainIntrinsic;
     ContainIntrinsicHeight "contain-intrinsic-height" reset contain_intrinsic_height: SpecifiedContainIntrinsic;
     ObjectFit "object-fit" reset object_fit: ObjectFit;
+    ScrollbarWidth "scrollbar-width" reset scrollbar_width: ScrollbarWidth;
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;

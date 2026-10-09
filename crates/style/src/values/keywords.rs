@@ -612,6 +612,17 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `scrollbar-width` property (CSS Scrollbars 1 §3). `thin` draws
+    /// as `auto` in swb's overlay indicators; `none` hides them.
+    ScrollbarWidth {
+        Auto = "auto",
+        Thin = "thin",
+        None = "none",
+    }
+    default Auto
+}
+
+keyword_enum! {
     /// The `user-select` property.
     UserSelect {
         Auto = "auto",

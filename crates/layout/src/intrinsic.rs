@@ -56,7 +56,7 @@ pub(crate) fn independent_content_sizes(
             with_inside_marker(ctx, sizes, container, ib.marker.as_ref())
         }
         IndependentContents::Flex(items) => flex_content_sizes(ctx, &ib.base.style, items),
-        IndependentContents::Grid(items) => crate::grid::content_sizes(ctx, ib, items),
+        IndependentContents::Grid(items) => crate::grid::content_sizes(ctx, &ib.base, items),
         IndependentContents::Replaced(r) => {
             let edges = BoxEdges::resolve(&ib.base.style, 0.0);
             let w = crate::replaced::natural_content_width(&ib.base.style, r, &edges);
@@ -73,7 +73,7 @@ pub(crate) fn independent_content_sizes(
             }
         }
         IndependentContents::Control(control) => {
-            crate::control::content_sizes(ctx, &ib.base.style, control)
+            crate::control::content_sizes(ctx, &ib.base, control)
         }
     }
 }

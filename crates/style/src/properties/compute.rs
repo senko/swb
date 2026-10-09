@@ -251,6 +251,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::ContainIntrinsicWidth(v) => s.contain_intrinsic_width = v.compute(cx),
         V::ContainIntrinsicHeight(v) => s.contain_intrinsic_height = v.compute(cx),
         V::ObjectFit(v) => s.object_fit = *v,
+        V::ScrollbarWidth(v) => s.scrollbar_width = *v,
         V::ObjectPosition([x, y]) => s.object_position = [x.compute(cx), y.compute(cx)],
         V::UserSelect(v) => s.user_select = *v,
         V::UnicodeBidi(v) => s.unicode_bidi = *v,

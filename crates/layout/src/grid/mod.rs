@@ -58,7 +58,7 @@ use crate::block::{
     Baselines, BoxEdges, ContainingBlock, apply_relative_position, clamp_height, clamp_width,
     finish_fragment, layout_flex_item, margin_or_zero, outer_size, resolve_max_size, resolve_size,
 };
-use crate::box_tree::{IndependentBox, IndependentContents};
+use crate::box_tree::{BoxBase, IndependentBox, IndependentContents};
 use crate::fragment::{BoxFragment, Fragment};
 use crate::geom::Rect;
 use crate::intrinsic::{self, ContentSizes};
@@ -186,20 +186,20 @@ fn auto_repetitions(
     count.clamp(1.0, limit) as u32
 }
 
-/// The placement of the in-flow `items` of grid container `ib` (cached
+/// The placement of the in-flow `items` of grid container `base` (cached
 /// per layout pass).
 fn placement(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     items: &[&IndependentBox],
     column_repeat: u32,
     row_repeat: u32,
 ) -> Rc<Placement> {
-    let key = (ib.base.id, column_repeat, row_repeat);
+    let key = (base.id, column_repeat, row_repeat);
     if let Some(p) = ctx.grids.placements.get(&key) {
         return Rc::clone(p);
     }
-    let style = &ib.base.style;
+    let style = &base.style;
     let areas = style.grid_template_areas.as_deref();
     let (columns, rows) = templates(style, column_repeat, row_repeat);
     let mut row_names =
@@ -236,36 +236,35 @@ fn placement(
     placed
 }
 
-/// Lays out a grid container `ib` with the children `children` and a
+/// Lays out a grid container `base` with the children `children` and a
 /// content-box width of `content_width`; its content-box height is
 /// `content_height` if given (a stretched flex item), else from its
 /// style or its rows. The fragment is at (0, 0).
 pub(crate) fn layout(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     children: &[IndependentBox],
     content_width: f32,
     content_height: Option<f32>,
     cb: ContainingBlock,
 ) -> BoxFragment {
-    crate::table::TableCache::percent_free(ctx, |ctx| {
-        layout_grid(ctx, ib, children, content_width, content_height, cb)
-    })
+    layout_grid(ctx, base, children, content_width, content_height, cb)
 }
 
 /// The min-content and max-content widths of the content box of grid
 /// container `ib` (cached per layout pass).
 pub(crate) fn content_sizes(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     children: &[IndependentBox],
 ) -> ContentSizes {
-    if let Some(sizes) = ctx.grids.content_sizes.get(&ib.base.id) {
+    if let Some(sizes) = ctx.grids.content_sizes.get(&base.id) {
         return *sizes;
     }
-    let sizes =
-        crate::table::TableCache::percent_free(ctx, |ctx| compute_content_sizes(ctx, ib, children));
-    ctx.grids.content_sizes.insert(ib.base.id, sizes);
+    let sizes = crate::table::TableCache::percent_free(ctx, |ctx| {
+        compute_content_sizes(ctx, base, children)
+    });
+    ctx.grids.content_sizes.insert(base.id, sizes);
     sizes
 }
 
@@ -745,10 +744,10 @@ fn axis_areas(placement: &Placement, columns: bool) -> Vec<(i32, i32)> {
 /// min-content and max-content widths of the grid's columns.
 fn compute_content_sizes(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     children: &[IndependentBox],
 ) -> ContentSizes {
-    let style = ib.base.style.as_ref();
+    let style = base.style.as_ref();
     let boxes = in_flow_items(children);
     let edges = BoxEdges::resolve(style, 0.0).sum();
     let (min_width, max_width) = axis_limits(
@@ -782,7 +781,7 @@ fn compute_content_sizes(
         min_height,
         max_height,
     );
-    let placement = placement(ctx, ib, &boxes, column_repeat, row_repeat);
+    let placement = placement(ctx, base, &boxes, column_repeat, row_repeat);
     let (column_template, row_template) = templates(style, column_repeat, row_repeat);
     let mut columns = Tracks::new(
         &column_template,
@@ -855,41 +854,75 @@ fn size_rows(
     });
 }
 
+/// The laid-out content of a grid container: its item fragments relative
+/// to the content box.
+pub(crate) struct GridContents {
+    pub(crate) fragments: Vec<Fragment>,
+    pub(crate) content_height: f32,
+    /// Relative to the content box.
+    pub(crate) baselines: Baselines,
+    /// The end of the tracks (the in-flow extent for scrolling).
+    tracks_end: crate::geom::Size,
+}
+
+/// Lays out the content of a grid container (§12.1 and §11).
+pub(crate) fn layout_contents(
+    ctx: &mut LayoutContext<'_>,
+    base: &BoxBase,
+    children: &[IndependentBox],
+    width: f32,
+    given_height: Option<f32>,
+    cb: ContainingBlock,
+) -> GridContents {
+    crate::table::TableCache::percent_free(ctx, |ctx| {
+        let style = base.style.as_ref();
+        let boxes = in_flow_items(children);
+        let grid = size_grid(ctx, base, &boxes, width, given_height, cb);
+        let (mut fragments, baselines) = place_items(ctx, &grid, style);
+        // Absolutely positioned children are laid out after the document
+        // (`positioned.rs`).
+        add_placeholders(ctx, children, &mut fragments, StaticParent::Grid);
+        GridContents {
+            fragments,
+            content_height: grid.content_height,
+            baselines,
+            tracks_end: crate::geom::Size::new(
+                tracks_end(&grid.column_positions),
+                tracks_end(&grid.row_positions),
+            ),
+        }
+    })
+}
+
 /// Lays out a grid container (§12.1 and §11).
 fn layout_grid(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     children: &[IndependentBox],
     width: f32,
     given_height: Option<f32>,
     cb: ContainingBlock,
 ) -> BoxFragment {
-    let style = ib.base.style.as_ref();
+    let style = base.style.as_ref();
     let edges = BoxEdges::resolve(style, cb.width);
-    let boxes = in_flow_items(children);
-    let grid = size_grid(ctx, ib, &boxes, width, given_height, cb);
-    let (mut fragments, baselines) = place_items(ctx, &grid, style);
-    // Absolutely positioned children are laid out after the document
-    // (`positioned.rs`).
-    add_placeholders(ctx, children, &mut fragments, StaticParent::Grid);
+    let contents = layout_contents(ctx, base, children, width, given_height, cb);
     let mut fragment = finish_fragment(
-        &ib.base,
+        base,
         Rect::new(
             0.0,
             0.0,
             width + edges.sum().horizontal(),
-            grid.content_height + edges.sum().vertical(),
+            contents.content_height + edges.sum().vertical(),
         ),
         &edges,
-        fragments,
-        baselines.offset(edges.sum().top),
+        contents.fragments,
+        contents.baselines.offset(edges.sum().top),
     );
     if crate::scroll::is_scroll_container(style) {
-        let inflow = crate::geom::Size::new(
-            tracks_end(&grid.column_positions),
-            tracks_end(&grid.row_positions),
-        );
-        fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(&fragment, inflow));
+        fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(
+            &fragment,
+            contents.tracks_end,
+        ));
     }
     fragment
 }
@@ -976,18 +1009,18 @@ fn axis_limits(
     )
 }
 
-/// Places the items `boxes` of grid container `ib` and sizes its tracks
+/// Places the items `boxes` of grid container `base` and sizes its tracks
 /// (§12.1 steps 1, 2 and 5) for a content-box width of `width` (and a
 /// height of `given_height`, if given).
 fn size_grid<'a>(
     ctx: &mut LayoutContext<'_>,
-    ib: &IndependentBox,
+    base: &BoxBase,
     boxes: &[&'a IndependentBox],
     width: f32,
     given_height: Option<f32>,
     cb: ContainingBlock,
 ) -> SizedGrid<'a> {
-    let style = ib.base.style.as_ref();
+    let style = base.style.as_ref();
     let v_edges = BoxEdges::resolve(style, cb.width).sum().vertical();
     // The available block size: a definite height (clamped), else
     // indefinite (Chromium's `ComputeBlockSizeForFragment` with an
@@ -1018,7 +1051,7 @@ fn size_grid<'a>(
         min_height,
         max_height,
     );
-    let placement = placement(ctx, ib, boxes, column_repeat, row_repeat);
+    let placement = placement(ctx, base, boxes, column_repeat, row_repeat);
     let (column_template, row_template) = templates(style, column_repeat, row_repeat);
     let column_areas = axis_areas(&placement, true);
     let row_areas = axis_areas(&placement, false);

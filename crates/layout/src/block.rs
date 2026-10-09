@@ -1395,7 +1395,7 @@ pub(crate) fn layout_sized(
     };
     if let IndependentContents::Grid(children) = &ib.contents {
         let content_height = content_height.or(ratio_height);
-        return crate::grid::layout(ctx, ib, children, content_width, content_height, cb);
+        return crate::grid::layout(ctx, &ib.base, children, content_width, content_height, cb);
     }
     let specified_height = content_height
         .or_else(|| {

@@ -1482,6 +1482,18 @@ mod tests {
             (Overflow::Hidden, Overflow::Auto)
         );
         assert_eq!(s.object_fit, ObjectFit::Cover);
+        assert_eq!(
+            style("scrollbar-width: none").scrollbar_width,
+            ScrollbarWidth::None
+        );
+        assert_eq!(
+            style("scrollbar-width: thin").scrollbar_width,
+            ScrollbarWidth::Thin
+        );
+        assert_eq!(
+            style("scrollbar-width: bogus").scrollbar_width,
+            ScrollbarWidth::Auto
+        );
         assert_eq!(style("opacity: 2").opacity, 1.0);
         assert_eq!(style("overflow: overlay").overflow_y, Overflow::Auto);
         let s = style(
