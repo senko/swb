@@ -221,10 +221,12 @@ impl Inspector<'_> {
                     _ => format!("[{kind} (anonymous)]"),
                 }
             }
-            ObjectKind::Native(_) => match rt.own_data_string(object, rt.vm.atoms.name) {
-                Some(name) if !name.is_empty() => format!("[Function: {name}]"),
-                _ => "[Function (anonymous)]".to_owned(),
-            },
+            ObjectKind::Native(_) | ObjectKind::Bound(_) => {
+                match rt.own_data_string(object, rt.vm.atoms.name) {
+                    Some(name) if !name.is_empty() => format!("[Function: {name}]"),
+                    _ => "[Function (anonymous)]".to_owned(),
+                }
+            }
             ObjectKind::NumberWrapper(n) => format!("[Number: {}]", format_number(*n)),
             ObjectKind::BooleanWrapper(b) => format!("[Boolean: {b}]"),
             ObjectKind::StringWrapper(s) => match rt.heap.string(*s) {

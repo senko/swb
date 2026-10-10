@@ -1,37 +1,45 @@
 //! The built-in objects (ECMA-262 clauses 19 to 28).
 //!
-//! Implemented so far: `console.log`; `Object` with `keys` and the
-//! prototype methods `toString`, `valueOf` and `hasOwnProperty`; the
-//! `Error` constructors; `Array` with `isArray`, `push`, `join`, `forEach`,
-//! `map` and `toString`; `Function.prototype.call`, `apply` and `toString`
-//! (the `Function` constructor is M7); and `String` and `Number` with
-//! their prototype methods. `Boolean` and `Symbol` have prototype
+//! Implemented so far: `console.log`; `Object` (all static functions
+//! except `fromEntries` and `groupBy`, `Object.prototype` with Annex B)
+//! and `Reflect`; the `Error` constructors; `Array` with `isArray`,
+//! `push`, `join`, `forEach`, `map` and `toString`; `Function.prototype`
+//! with `call`, `apply`, `bind` and `toString` (the `Function` constructor
+//! is M7); `isNaN`, `isFinite` and `Math.pow`; and `String` and `Number`
+//! with their prototype methods. `Boolean` and `Symbol` have prototype
 //! intrinsics for wrapper objects but no constructors yet. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
 //! (clause 18).
 //!
-//! Natives that call back into script code (`forEach`, `map`, and `join`
-//! through `toString`) open a handle scope per element, so that their
-//! scope does not grow with the length of the array, and step the time
-//! countdown once per element, also over holes (ADR 0026 section 9).
-//! `Function.prototype.call`, `apply` and `Array.prototype.toString` end
-//! in a deferred call, without Rust recursion.
+//! Natives that call back into script code (`forEach`, `map`, `join`
+//! through `toString`, and the key loops of `Object` that read getters)
+//! open a handle scope per element, so that their scope does not grow
+//! with the length of the array, and step the time countdown once per
+//! element, also over holes (ADR 0026 section 9). `Function.prototype.call`,
+//! `apply`, `Reflect.apply`, `Reflect.construct` and
+//! `Array.prototype.toString` end in a deferred call, without Rust
+//! recursion.
 
 mod array;
 mod console;
+mod descriptor;
 mod error;
 mod function;
+mod global;
+mod integrity;
 mod object;
+mod object_proto;
 mod primitive;
+mod reflect;
 
 use crate::heap::Gc;
 use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::convert::to_length;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, SetOutcome, VmError, VmResult};
+use crate::vm::convert::{checked_array_length, to_length};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, STACK_OVERFLOW, SetOutcome, VmError, VmResult};
 
 /// Installs the built-in objects of a realm (after its intrinsics exist
 /// and the realm is a root).
@@ -41,6 +49,8 @@ pub(crate) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
 
 fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     object::install(rt, realm)?;
+    reflect::install(rt, realm)?;
+    global::install(rt, realm)?;
     function::install(rt, realm)?;
     error::install(rt, realm)?;
     array::install(rt, realm)?;
@@ -118,6 +128,70 @@ impl Runtime {
         let object = self.to_object(call.this())?;
         self.heap.record(object);
         Ok(object)
+    }
+
+    /// `ToObject` of argument `index`, recorded in the native's handle
+    /// scope (V8 words the failure "Cannot convert undefined or null to
+    /// object").
+    fn this_object_arg(&mut self, call: &NativeCall, index: usize) -> VmResult<Gc<Object>> {
+        let object = self.to_object(self.arg(call, index))?;
+        self.heap.record(object);
+        Ok(object)
+    }
+
+    /// `ToPropertyKey(value)`, recorded in the native's handle scope (a
+    /// key that is not an index is an atom, which the scope keeps alive).
+    fn key_arg(&mut self, value: Value) -> VmResult<PropertyKey> {
+        let key = self.to_property_key(value)?;
+        Ok(self.heap.record(key))
+    }
+
+    /// A new empty array with the `Array.prototype` of the current realm,
+    /// recorded in the native's handle scope.
+    fn new_array(&mut self) -> VmResult<Gc<Object>> {
+        let proto = self.intrinsic(self.current_realm(), Intrinsic::ArrayPrototype)?;
+        let array = self.heap.new_array(Some(proto), 0)?;
+        Ok(self.heap.record(array))
+    }
+
+    /// A new array `[first, second]`; both values must be reachable or
+    /// recorded by the caller.
+    fn pair_array(&mut self, first: Value, second: Value) -> VmResult<Gc<Object>> {
+        let array = self.new_array()?;
+        for (index, value) in [first, second].into_iter().enumerate() {
+            let key = PropertyKey::Index(index as u32);
+            self.heap
+                .create_data_property(array, key, value, &self.vm)?;
+        }
+        Ok(array)
+    }
+
+    /// `CreateListFromArrayLike` (§7.3.19) with the limit of the value
+    /// stack: the arguments go there, so a list that cannot fit fails
+    /// before it is read (V8 also fails with a `RangeError`). Each value
+    /// is recorded in the native's handle scope until the deferred call
+    /// moves the list into the value stack.
+    fn list_from_array_like(&mut self, value: Value) -> VmResult<Vec<Value>> {
+        let Value::Object(list) = value else {
+            return Err(VmError::type_error(
+                "CreateListFromArrayLike called on non-object",
+            ));
+        };
+        let length = self.length_of_array_like(list)?;
+        checked_array_length(length)?;
+        // V8's limit for the length of a list of arguments.
+        if length >= f64::from(1u32 << 27) {
+            return Err(VmError::range_error(crate::object::INVALID_ARRAY_LENGTH));
+        }
+        if length > self.vm.stack_limit as f64 {
+            return Err(VmError::range_error(STACK_OVERFLOW));
+        }
+        let mut args = Vec::with_capacity(length as usize);
+        for index in 0..length as u32 {
+            self.tick()?;
+            args.push(self.get_value(list.into(), PropertyKey::Index(index))?);
+        }
+        Ok(args)
     }
 
     /// `ToObject(this)` for the generic array methods that V8 words as

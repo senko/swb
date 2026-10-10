@@ -38,6 +38,7 @@ pub(crate) mod convert;
 mod function;
 mod generator;
 mod global;
+pub(crate) mod internal;
 mod interp;
 mod messages;
 pub(crate) mod number;
@@ -49,10 +50,10 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 pub use function::{
-    Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
+    BoundFunction, Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
 };
 pub use generator::GeneratorState;
-pub(crate) use property::SetOutcome;
+pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
 pub(crate) use time::TIME_CHECK_INTERVAL;
 pub use time::TerminationHandle;

@@ -270,6 +270,16 @@ impl Heap {
         Ok(())
     }
 
+    /// Fails with [`Termination::HeapLimit`] when `bytes` more would put
+    /// the heap size over the limit. Does not collect (it takes `&self`);
+    /// for a buffer outside the heap that a script sizes.
+    pub fn check_room(&self, bytes: usize) -> Result<()> {
+        if self.heap_size().saturating_add(bytes) > self.config.limit {
+            return Err(Termination::HeapLimit.into());
+        }
+        Ok(())
+    }
+
     /// Starts a region in which no collection runs (for example the end
     /// of a compile, ADR 0026 section 3). Safepoints and reservations in
     /// the region only check the limit. Regions nest.

@@ -21,6 +21,18 @@ const HOST_USES: &[&str] = &[
     "$262.IsHTMLDDA",
 ];
 
+/// The harness files that tests may include besides `sta.js` and
+/// `assert.js` (which every test gets). A test that includes another file
+/// is skipped.
+pub(crate) const HARNESS_INCLUDES: &[&str] = &[
+    "propertyHelper.js",
+    "compareArray.js",
+    "isConstructor.js",
+    "fnGlobalObject.js",
+    "nans.js",
+    "decimalToHexString.js",
+];
+
 /// What to do with a test.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Plan {
@@ -38,11 +50,10 @@ pub(crate) fn plan(meta: &Meta, source: &str, features: &BTreeSet<String>) -> Pl
             return Plan::Skip(format!("flag {flag}"));
         }
     }
-    if let Some(other) = meta
-        .includes
-        .iter()
-        .find(|name| !matches!(name.as_str(), "assert.js" | "sta.js"))
-    {
+    if let Some(other) = meta.includes.iter().find(|name| {
+        !matches!(name.as_str(), "assert.js" | "sta.js")
+            && !HARNESS_INCLUDES.contains(&name.as_str())
+    }) {
         return Plan::Skip(format!("include {other}"));
     }
     if let Some(feature) = meta.features.iter().find(|f| !features.contains(*f)) {
@@ -327,8 +338,15 @@ mod tests {
             Plan::Skip("flag CanBlockIsTrue".into())
         );
         assert_eq!(
-            skip("/*---\nincludes: [propertyHelper.js]\n---*/", ""),
-            Plan::Skip("include propertyHelper.js".into())
+            skip("/*---\nincludes: [testTypedArray.js]\n---*/", ""),
+            Plan::Skip("include testTypedArray.js".into())
+        );
+        assert_eq!(
+            skip("/*---\nincludes: [propertyHelper.js, nans.js]\n---*/", ""),
+            Plan::Run {
+                sloppy: true,
+                strict: true
+            }
         );
         assert_eq!(
             skip("/*---\nfeatures: [ok, other]\n---*/", ""),

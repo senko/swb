@@ -14,7 +14,7 @@ use crate::object::{INVALID_ARRAY_LENGTH, Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
-use crate::vm::function::is_callable_kind;
+use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::number::{number_to_string, string_to_number};
 use crate::vm::{Intrinsic, VmError, VmResult};
 
@@ -189,6 +189,14 @@ impl Runtime {
     pub(crate) fn is_callable(&self, value: Value) -> VmResult<bool> {
         match value {
             Value::Object(object) => Ok(is_callable_kind(&self.heap.object(object)?.kind)),
+            _ => Ok(false),
+        }
+    }
+
+    /// `IsConstructor` (§7.2.4).
+    pub(crate) fn is_constructor(&self, value: Value) -> VmResult<bool> {
+        match value {
+            Value::Object(object) => Ok(is_constructor_kind(&self.heap.object(object)?.kind)),
             _ => Ok(false),
         }
     }
@@ -505,7 +513,7 @@ impl Runtime {
     /// `OrdinaryHasInstance`, §7.3.21; `Symbol.hasInstance` and bound
     /// functions come with the built-ins).
     pub(crate) fn instance_of(&mut self, value: Value, target: Value) -> VmResult<bool> {
-        let Value::Object(constructor) = target else {
+        let Value::Object(mut constructor) = target else {
             return Err(VmError::type_error(
                 "Right-hand side of 'instanceof' is not an object",
             ));
@@ -514,6 +522,13 @@ impl Runtime {
             return Err(VmError::type_error(
                 "Right-hand side of 'instanceof' is not callable",
             ));
+        }
+        // OrdinaryHasInstance step 3 (§7.3.21): a bound function asks its
+        // target (a loop, for a chain of bound functions).
+        while let ObjectKind::Bound(bound) = &self.heap.object(constructor)?.kind {
+            let next = bound.target;
+            self.tick()?;
+            constructor = next;
         }
         let Value::Object(object) = value else {
             return Ok(false);

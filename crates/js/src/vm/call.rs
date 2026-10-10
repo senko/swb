@@ -51,6 +51,10 @@ pub(crate) struct CallSite {
     pub(crate) restore_top: usize,
     /// Whether this is `[[Construct]]` (`new`).
     pub(crate) construct: bool,
+    /// `new.target` of a `[[Construct]]` whose `new.target` is not the
+    /// callee (`Reflect.construct`, bound functions). The call keeps it
+    /// alive in the slot of `this`.
+    pub(crate) new_target: Option<Gc<Object>>,
 }
 
 impl Runtime {
@@ -71,7 +75,116 @@ impl Runtime {
                 let (func, realm) = (native.func, native.realm);
                 self.call_native(function, func, realm, site)
             }
+            ObjectKind::Bound(_) => self.invoke_bound(function, site),
             _ => Ok(Step::NotCallable),
+        }
+    }
+
+    /// `[[Call]]` and `[[Construct]]` of a bound function (§10.4.1.1,
+    /// §10.4.1.2). A loop walks the chain of bound functions (a step of
+    /// the countdown per level) and collects the bound arguments, the
+    /// innermost first; then one call of the final target replaces the
+    /// recursion of the specification. The call goes through a new window
+    /// at the top of the value stack, as a deferred call does.
+    fn invoke_bound(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<Step> {
+        let mut current = function;
+        let mut new_target = site.new_target.unwrap_or(function);
+        let mut bound_this = Value::Undefined;
+        let mut bound_count = 0usize;
+        while let Some((target, this, count)) = self.bound_parts(current)? {
+            self.tick()?;
+            bound_count = bound_count.saturating_add(count);
+            bound_this = this;
+            // Step 4 of [[Construct]]: a `new.target` that is this bound
+            // function becomes its target.
+            if new_target == current {
+                new_target = target;
+            }
+            current = target;
+        }
+        if bound_count.saturating_add(site.argc) > self.vm.stack_limit {
+            return Err(VmError::range_error(STACK_OVERFLOW));
+        }
+        // The copy below is O(bound args + call args): charge it first.
+        self.charge(bound_count.saturating_add(site.argc))?;
+        let mut args = Vec::with_capacity(bound_count + site.argc);
+        self.collect_bound_args(function, &mut args)?;
+        args.extend_from_slice(
+            self.vm
+                .stack
+                .get(site.window..site.window + site.argc)
+                .ok_or(VmError::invariant("arguments outside the stack"))?,
+        );
+        let nt = site.construct.then_some(Value::Object(new_target));
+        self.invoke_deferred(Value::Object(current), bound_this, &args, nt, site)
+    }
+
+    /// The target, the bound `this` and the number of bound arguments of
+    /// a bound function; `None` for any other object.
+    fn bound_parts(&self, function: Gc<Object>) -> VmResult<Option<(Gc<Object>, Value, usize)>> {
+        Ok(match &self.heap.object(function)?.kind {
+            ObjectKind::Bound(bound) => Some((bound.target, bound.this, bound.args.len())),
+            _ => None,
+        })
+    }
+
+    /// Appends the bound arguments of a chain of bound functions, the
+    /// innermost function's first.
+    fn collect_bound_args(&self, function: Gc<Object>, out: &mut Vec<Value>) -> VmResult<()> {
+        let mut chain = Vec::new();
+        let mut current = function;
+        while let ObjectKind::Bound(bound) = &self.heap.object(current)?.kind {
+            chain.push(bound);
+            current = bound.target;
+        }
+        for bound in chain.iter().rev() {
+            out.extend_from_slice(&bound.args);
+        }
+        Ok(())
+    }
+
+    /// Calls (or constructs, with `new_target`) `callee` through a new
+    /// window at the top of the value stack. The result of a frame that
+    /// this call pushes goes where `site` says.
+    fn invoke_deferred(
+        &mut self,
+        callee: Value,
+        this: Value,
+        args: &[Value],
+        new_target: Option<Value>,
+        site: CallSite,
+    ) -> VmResult<Step> {
+        let new_target = match new_target {
+            None => None,
+            Some(Value::Object(object)) => Some(object),
+            Some(_) => return Err(VmError::invariant("new.target is not an object")),
+        };
+        let window = self.push_window(callee, this, args)?;
+        let deferred = CallSite {
+            window,
+            argc: args.len(),
+            ret: site.ret,
+            restore_top: site.restore_top,
+            construct: new_target.is_some(),
+            new_target,
+        };
+        match self.invoke(deferred)? {
+            Step::Value(value) => {
+                self.vm.stack.truncate(window - 2);
+                Ok(Step::Value(value))
+            }
+            Step::NotCallable => {
+                let what = if new_target.is_some() {
+                    "a constructor"
+                } else {
+                    "a function"
+                };
+                Err(VmError::type_error(format!(
+                    "{} is not {what}",
+                    self.describe_value(callee)
+                )))
+            }
+            Step::Entered => Ok(Step::Entered),
         }
     }
 
@@ -96,10 +209,13 @@ impl Runtime {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }
         let (this, new_target) = if site.construct {
-            let this = self.construct_this(function, realm)?;
-            // The slot of `this` roots the new object.
+            let new_target = site.new_target.unwrap_or(function);
+            // The slot of `this` roots `new.target` while its `prototype`
+            // is read (a getter can run script code), then the new object.
+            self.set_stack_value(window - 1, new_target.into())?;
+            let this = self.construct_this(new_target, realm)?;
             self.set_stack_value(window - 1, this.into())?;
-            (Value::Object(this), Value::Object(function))
+            (Value::Object(this), Value::Object(new_target))
         } else {
             let this = self.stack_value(window - 1)?;
             let this = match this_mode {
@@ -140,17 +256,43 @@ impl Runtime {
         Ok(Step::Entered)
     }
 
-    /// OrdinaryCreateFromConstructor(F, "%Object.prototype%") (§10.1.13)
-    /// for `[[Construct]]` of an ordinary function.
-    fn construct_this(&mut self, function: Gc<Object>, realm: u32) -> VmResult<Gc<Object>> {
+    /// OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%")
+    /// (§10.1.13) for `[[Construct]]` of an ordinary function. The
+    /// `prototype` of an ordinary function is a data property, but another
+    /// `new.target` (a bound function with a changed prototype chain) can
+    /// have a getter; it runs through re-entry.
+    fn construct_this(&mut self, new_target: Gc<Object>, realm: u32) -> VmResult<Gc<Object>> {
         let key = PropertyKey::String(self.vm.atoms.prototype);
-        // The `prototype` of an ordinary function is a non-configurable
-        // data property, so [[Get]] finds no getter.
-        let proto = match self.heap.get(function, key, function.into())? {
-            GetResult::Value(Value::Object(proto)) => proto,
-            _ => self.intrinsic(realm, Intrinsic::ObjectPrototype)?,
+        let proto = match self.heap.get(new_target, key, new_target.into())? {
+            GetResult::Value(Value::Object(proto)) => Some(proto),
+            GetResult::Value(_) => None,
+            GetResult::CallGetter { getter, receiver } => {
+                match self.with_scope(|rt| rt.call(getter, receiver, &[]))? {
+                    Value::Object(proto) => Some(proto),
+                    _ => None,
+                }
+            }
+        };
+        let proto = if let Some(proto) = proto {
+            proto
+        } else {
+            let realm = self.function_realm(new_target).unwrap_or(realm);
+            self.intrinsic(realm, Intrinsic::ObjectPrototype)?
         };
         Ok(self.heap.new_object(Some(proto))?)
+    }
+
+    /// `GetFunctionRealm` (§7.3.24) for the function kinds that exist.
+    pub(crate) fn function_realm(&self, function: Gc<Object>) -> Option<u32> {
+        let mut current = function;
+        loop {
+            match &self.heap.object(current).ok()?.kind {
+                ObjectKind::Function(closure) => return Some(closure.realm),
+                ObjectKind::Native(native) => return Some(native.realm),
+                ObjectKind::Bound(bound) => current = bound.target,
+                _ => return None,
+            }
+        }
     }
 
     /// `OrdinaryCallBindThis` for sloppy functions (§10.2.1.2): `undefined`
@@ -179,14 +321,18 @@ impl Runtime {
         } else {
             self.stack_value(site.window - 1)?
         };
+        let new_target = if site.construct {
+            let new_target = site.new_target.unwrap_or(function);
+            // The slot of `this` keeps `new.target` alive during the call.
+            self.set_stack_value(site.window - 1, new_target.into())?;
+            new_target.into()
+        } else {
+            Value::Undefined
+        };
         let call = NativeCall {
             callee: function,
             this,
-            new_target: if site.construct {
-                function.into()
-            } else {
-                Value::Undefined
-            },
+            new_target,
             start: site.window,
             argc: site.argc,
             realm,
@@ -206,26 +352,13 @@ impl Runtime {
                 Ok(Step::Value(value))
             }
             NativeReturn::Call { callee, this, args } => {
-                let window = self.push_window(callee, this, &args)?;
-                let deferred = CallSite {
-                    window,
-                    argc: args.len(),
-                    ret: site.ret,
-                    restore_top: site.restore_top,
-                    construct: false,
-                };
-                match self.invoke(deferred)? {
-                    Step::Value(value) => {
-                        self.vm.stack.truncate(window - 2);
-                        Ok(Step::Value(value))
-                    }
-                    Step::NotCallable => Err(VmError::type_error(format!(
-                        "{} is not a function",
-                        self.describe_value(callee)
-                    ))),
-                    Step::Entered => Ok(Step::Entered),
-                }
+                self.invoke_deferred(callee, this, &args, None, site)
             }
+            NativeReturn::Construct {
+                callee,
+                new_target,
+                args,
+            } => self.invoke_deferred(callee, Value::Undefined, &args, Some(new_target), site),
             NativeReturn::Resume(resume) => {
                 self.resume_generator(resume, site.ret, site.restore_top)
             }
@@ -360,6 +493,7 @@ impl Runtime {
             ret: ReturnTo::Host,
             restore_top,
             construct: false,
+            new_target: None,
         };
         match self.invoke(site) {
             Ok(Step::Value(value)) => {

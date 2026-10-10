@@ -36,18 +36,6 @@ pub(crate) fn print(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
-/// `defineAccessor(object, name, getter, setter)`: an accessor property
-/// (until `Object.defineProperty` exists).
-pub(crate) fn define_accessor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.arg(call, 0);
-    let name = rt.arg(call, 1);
-    let name = rt.to_rust_string(name)?;
-    let getter = rt.arg(call, 2);
-    let setter = rt.arg(call, 3);
-    rt.define_accessor(object, &name, getter, setter)?;
-    Ok(NativeReturn::Value(Value::Undefined))
-}
-
 /// `callTwice(f, x)`: calls `f(x)` twice through re-entry and returns the
 /// sum of the results (a native that calls back).
 pub(crate) fn call_twice(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
@@ -101,8 +89,13 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
     }));
     rt.set_host_data(output);
     rt.define_global_function("print", 1, print).unwrap();
-    rt.define_global_function("defineAccessor", 4, define_accessor)
-        .unwrap();
+    // `defineAccessor(object, name, getter, setter)`: an accessor property,
+    // defined in script.
+    rt.eval(
+        "Object.defineProperty(globalThis, 'defineAccessor', { value: function (o, k, g, s) { \
+         Object.defineProperty(o, k, { get: g, set: s, enumerable: true, configurable: true }); } })",
+    )
+    .unwrap();
     rt.define_global_function("callTwice", 2, call_twice)
         .unwrap();
     rt.define_global_function("later", 1, later).unwrap();

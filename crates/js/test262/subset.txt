@@ -5,10 +5,15 @@
 # `dir PATH`: a group of tests (the first four components of the directory,
 #   relative to the test262 directory) that `just test262` runs.
 #
-# Tests are also skipped when they need a harness file other than
-# assert.js and sta.js, or the flags module, async or CanBlockIsTrue, or
-# $262.createRealm, $262.agent or $262.detachArrayBuffer.
+# Tests are also skipped when they include a harness file other than
+# assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
+# fnGlobalObject.js, nans.js or decimalToHexString.js, or have the flags
+# module, async or CanBlockIsTrue, or use $262.createRealm, $262.agent or
+# $262.detachArrayBuffer.
 
+feature __getter__
+feature __proto__
+feature __setter__
 feature arrow-function
 feature coalesce-expression
 feature computed-property-names
@@ -17,6 +22,7 @@ feature default-parameters
 feature destructuring-assignment
 feature destructuring-binding
 feature exponentiation
+feature for-in-order
 feature for-of
 feature generators
 feature globalThis
@@ -28,13 +34,28 @@ feature new.target
 feature numeric-separator-literal
 feature object-rest
 feature object-spread
+feature Object.hasOwn
+feature Object.is
 feature optional-catch-binding
 feature optional-chaining
+feature Reflect
+feature Reflect.construct
+feature Reflect.set
+feature Reflect.setPrototypeOf
 feature rest-parameters
 feature u180e
 
+# The groups of test/built-ins/ (M7 feature 2a):
+dir test/built-ins/Object
+dir test/built-ins/Reflect
+dir test/built-ins/isNaN
+dir test/built-ins/isFinite
+dir test/built-ins/global
+dir test/built-ins/ThrowTypeError
+
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
+dir test/language/arguments-object/mapped
 dir test/language/asi
 dir test/language/block-scope/leave
 dir test/language/block-scope/shadowing
@@ -47,11 +68,15 @@ dir test/language/expressions/array
 dir test/language/expressions/arrow-function
 dir test/language/expressions/assignment
 dir test/language/expressions/assignmenttargettype
+dir test/language/expressions/async-arrow-function
+dir test/language/expressions/async-function
+dir test/language/expressions/await
 dir test/language/expressions/bitwise-and
 dir test/language/expressions/bitwise-not
 dir test/language/expressions/bitwise-or
 dir test/language/expressions/bitwise-xor
 dir test/language/expressions/call
+dir test/language/expressions/class
 dir test/language/expressions/coalesce
 dir test/language/expressions/compound-assignment
 dir test/language/expressions/conditional
@@ -78,6 +103,7 @@ dir test/language/expressions/modulus
 dir test/language/expressions/multiplication
 dir test/language/expressions/new
 dir test/language/expressions/object
+dir test/language/expressions/optional-chaining
 dir test/language/expressions/postfix-decrement
 dir test/language/expressions/postfix-increment
 dir test/language/expressions/prefix-decrement
@@ -88,9 +114,11 @@ dir test/language/expressions/strict-does-not-equals
 dir test/language/expressions/strict-equals
 dir test/language/expressions/subtraction
 dir test/language/expressions/template-literal
+dir test/language/expressions/typeof
 dir test/language/expressions/unary-minus
 dir test/language/expressions/unary-plus
 dir test/language/expressions/unsigned-right-shift
+dir test/language/expressions/void
 dir test/language/expressions/yield
 dir test/language/function-code
 dir test/language/future-reserved-words
@@ -105,8 +133,10 @@ dir test/language/literals/string
 dir test/language/punctuators
 dir test/language/reserved-words
 dir test/language/statementList
+dir test/language/statements/async-function
 dir test/language/statements/block
 dir test/language/statements/break
+dir test/language/statements/class
 dir test/language/statements/const
 dir test/language/statements/continue
 dir test/language/statements/do-while

@@ -51,6 +51,35 @@ impl Closure {
     }
 }
 
+/// The data of a bound function exotic object (§10.4.1): its target (a
+/// function, possibly bound itself), the bound `this` and the bound
+/// arguments. A call walks the chain of bound functions in a loop, so a
+/// chain of any depth needs no Rust recursion.
+pub struct BoundFunction {
+    /// `[[BoundTargetFunction]]`.
+    pub(crate) target: Gc<crate::object::Object>,
+    /// `[[BoundThis]]`.
+    pub(crate) this: Value,
+    /// `[[BoundArguments]]`.
+    pub(crate) args: Box<[Value]>,
+    /// Whether the target is a constructor.
+    pub(crate) constructor: bool,
+}
+
+impl BoundFunction {
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        tracer.object(self.target);
+        tracer.value(self.this);
+        for value in &self.args {
+            tracer.value(*value);
+        }
+    }
+
+    pub(crate) fn heap_size(&self) -> usize {
+        size_of::<BoundFunction>() + self.args.len() * size_of::<Value>()
+    }
+}
+
 /// A native function: called with the runtime and the call's arguments.
 pub type NativeFn = fn(&mut Runtime, &NativeCall) -> VmResult<NativeReturn>;
 
@@ -120,6 +149,16 @@ pub enum NativeReturn {
         callee: Value,
         /// The `this` value.
         this: Value,
+        /// The arguments.
+        args: Vec<Value>,
+    },
+    /// A deferred `[[Construct]]` (`Reflect.construct`): like `Call`, with
+    /// `new.target`.
+    Construct {
+        /// The constructor.
+        callee: Value,
+        /// `new.target`.
+        new_target: Value,
         /// The arguments.
         args: Vec<Value>,
     },
@@ -282,7 +321,10 @@ impl Runtime {
 
 /// Whether an object kind is callable (has `[[Call]]`).
 pub(crate) fn is_callable_kind(kind: &ObjectKind) -> bool {
-    matches!(kind, ObjectKind::Function(_) | ObjectKind::Native(_))
+    matches!(
+        kind,
+        ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_)
+    )
 }
 
 /// Whether an object kind is a constructor (has `[[Construct]]`).
@@ -290,6 +332,7 @@ pub(crate) fn is_constructor_kind(kind: &ObjectKind) -> bool {
     match kind {
         ObjectKind::Function(closure) => closure.compiled.kind == CodeKind::Normal,
         ObjectKind::Native(native) => native.constructor,
+        ObjectKind::Bound(bound) => bound.constructor,
         _ => false,
     }
 }

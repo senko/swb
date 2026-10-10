@@ -884,8 +884,13 @@ another directory and `TEST262_URL` another repository.
 - `crates/js/test262/subset.txt`: the features in scope and the groups
   (`dir` lines) that run. A group is the first four components of a test's
   directory, for example `test/language/expressions/addition`.
-- A test is skipped if it needs a harness file other than `assert.js` and
-  `sta.js`, has the flag `module`, `async` or `CanBlockIsTrue`, has a
+- Every test gets `sta.js` and `assert.js`, then the files of its
+  `includes` in the test's order (each file once; the runner reads each
+  file once per run). The accepted files are `propertyHelper.js`,
+  `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js` and
+  `decimalToHexString.js` (`HARNESS_INCLUDES` in `run.rs`). A test is
+  skipped if it needs another harness file, has the flag `module`, `async`
+  or `CanBlockIsTrue`, has a
   feature outside the list, uses `$262.createRealm`, `$262.agent` or
   `$262.detachArrayBuffer`, or expects an error in the `resolution` phase.
   The others run in sloppy and strict mode as the flags say (`onlyStrict`,

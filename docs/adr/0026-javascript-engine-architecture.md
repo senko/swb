@@ -690,6 +690,19 @@ where the first plan did not work:
 - Handle scopes per element in native loops cost nothing measurable
   (`forEach` over 1M elements).
 
+### 15. Choices made during M7
+
+- Bound functions (feature 2a): an object kind of its own. `bind`
+  does not flatten a chain; a call walks the chain in a loop and
+  collects the bound arguments, then calls the final target like a
+  deferred call, so a deep chain costs no Rust recursion. Natives can
+  end in a deferred `[[Construct]]` with an explicit `new.target`
+  (`Reflect.construct`, bound constructors), as they can end in a
+  deferred call.
+- String objects (feature 2a): the heap answers the internal methods
+  for the characters of the string without allocation; only a read
+  allocates the one-character string.
+
 ## Consequences
 
 - The design keeps each memory risk behind a check: generations catch

@@ -3,7 +3,9 @@
 //! It reads the frontmatter of each test (INTERPRETING.md of test262),
 //! skips the tests that need more than the engine supports, runs the others
 //! in strict and sloppy mode with the harness files `sta.js` and
-//! `assert.js`, and sums the results per group (the first four components
+//! `assert.js` and the `includes` of the test (the files of
+//! [`run::HARNESS_INCLUDES`], loaded after those two in the test's order),
+//! and sums the results per group (the first four components
 //! of a test's directory, for example
 //! `test/language/expressions/addition`). Each test gets a fresh runtime
 //! on a thread with an 8 MiB stack. A scores file records the pass count
@@ -13,9 +15,10 @@
 //! `test/language/`, `test/built-ins/` and `test/annexB/`, with its own
 //! scores file.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::shell::STACK_SIZE;
@@ -167,14 +170,14 @@ pub(crate) fn main(args: &[String]) -> u8 {
     if args.parse_only {
         return parse_only_main(&args, &mut subset);
     }
-    let Some(harness) = load_harness(&args.dir) else {
+    let Some(harness) = Harness::load(&args.dir) else {
         eprintln!(
             "swb-js test262: no harness in {} (set TEST262_DIR, or run `just test262`)",
             args.dir.display()
         );
         return 66;
     };
-    if let Some(error) = check_harness(&harness, args.limits) {
+    if let Some(error) = check_harness(&harness.base, args.limits) {
         eprintln!("swb-js test262: the harness files do not run: {error}");
         return 1;
     }
@@ -247,15 +250,71 @@ fn parse_only_main(args: &Args, subset: &mut Subset) -> u8 {
             return 1;
         }
     };
-    let done = run_all(args, subset, "", &tests);
+    let done = run_all(args, subset, &Harness::empty(), &tests);
     summarise(args, subset, &roots, &scores, &done)
 }
 
-/// `assert.js` and `sta.js` (in this order of dependency: `sta.js` first).
-fn load_harness(dir: &Path) -> Option<String> {
-    let sta = std::fs::read_to_string(dir.join("harness/sta.js")).ok()?;
-    let assert = std::fs::read_to_string(dir.join("harness/assert.js")).ok()?;
-    Some(format!("{sta}\n{assert}"))
+/// The harness files of a run: `sta.js` and `assert.js` for every test
+/// (in this order of dependency: `sta.js` first), then the `includes` of
+/// a test in its order. The contents of the included files are read once.
+struct Harness {
+    dir: PathBuf,
+    base: String,
+    included: Mutex<HashMap<String, Arc<String>>>,
+}
+
+impl Harness {
+    /// No harness files (the parse-only mode does not run code).
+    fn empty() -> Harness {
+        Harness {
+            dir: PathBuf::new(),
+            base: String::new(),
+            included: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn load(dir: &Path) -> Option<Harness> {
+        let sta = std::fs::read_to_string(dir.join("harness/sta.js")).ok()?;
+        let assert = std::fs::read_to_string(dir.join("harness/assert.js")).ok()?;
+        Some(Harness {
+            dir: dir.to_owned(),
+            base: format!("{sta}\n{assert}"),
+            included: Mutex::new(HashMap::new()),
+        })
+    }
+
+    /// The text of an included harness file (cached).
+    fn file(&self, name: &str) -> Result<Arc<String>, String> {
+        let mut cache = self
+            .included
+            .lock()
+            .map_err(|_| "the harness cache is poisoned".to_owned())?;
+        if let Some(text) = cache.get(name) {
+            return Ok(Arc::clone(text));
+        }
+        let path = self.dir.join("harness").join(name);
+        let text = std::fs::read_to_string(&path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let text = Arc::new(text);
+        cache.insert(name.to_owned(), Arc::clone(&text));
+        Ok(text)
+    }
+
+    /// The harness text of a test: the base files, then the includes that
+    /// the base does not have, once each, in the order of the test.
+    fn text_for(&self, includes: &[String]) -> Result<String, String> {
+        let mut text = self.base.clone();
+        let mut seen: Vec<&str> = Vec::new();
+        for name in includes {
+            if matches!(name.as_str(), "assert.js" | "sta.js") || seen.contains(&name.as_str()) {
+                continue;
+            }
+            seen.push(name);
+            text.push('\n');
+            text.push_str(&self.file(name)?);
+        }
+        Ok(text)
+    }
 }
 
 /// Runs the harness files alone; the error if they fail.
@@ -279,7 +338,7 @@ fn read_test(dir: &Path, path: &str) -> Result<String, String> {
 fn run_file(
     args: &Args,
     subset: &Subset,
-    harness: &str,
+    harness: &Harness,
     path: &str,
 ) -> Vec<(&'static str, Status)> {
     match read_test(&args.dir, path) {
@@ -289,14 +348,20 @@ fn run_file(
         }
         Ok(source) => {
             let meta = parse_meta(&source);
-            run_test(harness, &meta, &source, &subset.features, args.limits)
+            let text = match harness.text_for(&meta.includes) {
+                Ok(text) => text,
+                // A file the plan accepts but that is missing: the test
+                // fails (the plan skips the others).
+                Err(message) => return vec![("-", Status::Fail(message))],
+            };
+            run_test(&text, &meta, &source, &subset.features, args.limits)
         }
         Err(message) => vec![("-", Status::Fail(message))],
     }
 }
 
 /// Runs the tests on worker threads (8 MiB stacks).
-fn run_all(args: &Args, subset: &Subset, harness: &str, tests: &[String]) -> Vec<Done> {
+fn run_all(args: &Args, subset: &Subset, harness: &Harness, tests: &[String]) -> Vec<Done> {
     let next = AtomicUsize::new(0);
     let done: Mutex<Vec<Done>> = Mutex::new(Vec::new());
     std::thread::scope(|scope| {

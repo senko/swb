@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-10: M7 feature 2a, `Object`, `Reflect` and `bind`
+
+- Feature 2 is split into three sessions (roadmap): 2a `Object`,
+  `Reflect` and the property paths; 2b symbols, `Boolean` and
+  iteration; 2c errors and the rest of `Function`.
+- `js`: `Object` (all static functions except `fromEntries` and
+  `groupBy`), `Object.prototype` with the Annex B accessor methods and
+  `__proto__`, all of `Reflect`, `Function.prototype.bind`, `isNaN`,
+  `isFinite`, `Math.pow`. New modules `builtins/descriptor.rs`,
+  `integrity.rs`, `object_proto.rs`, `reflect.rs`, `global.rs`, and
+  `vm/internal.rs` (the internal methods for natives).
+- Bound functions: a call walks the chain in a loop (100,000 levels
+  work). Natives can end in a deferred `[[Construct]]` with
+  `new.target`. The name of a bound function is limited to 32,768
+  code units until strings have ropes (feature 5): each bound function
+  stores a flat copy, so a loop of `f = f.bind()` stored O(n²) units
+  and reached the heap limit at 20,000 levels.
+- Property paths: String objects are exotic (the heap answers for
+  their characters without allocation); `ArraySetLength` converts
+  string and object values; the cycle check of `[[SetPrototypeOf]]`
+  charges the time countdown; `%Object.prototype%` is immutable. A
+  native that lists the keys of an object charges the countdown and
+  checks the heap limit before it allocates the list (a String object
+  lists one key per character).
+- Review: about 190 cases equal to Node, also in GC stress mode, and
+  no rooting error. Fixed: bound calls did not charge the copy of
+  their bound arguments (142 s past a 1 s limit); key lists of large
+  String objects were allocated outside the heap limit (an abort at
+  2^28 characters); an own `undefined` index property was hidden by a
+  String object on the prototype chain; two messages. Removed
+  `Runtime::define_accessor` (backlog M6); the tests define accessors
+  in script.
+- test262 runner: loads `propertyHelper.js`, `compareArray.js`,
+  `isConstructor.js`, `fnGlobalObject.js`, `nans.js` and
+  `decimalToHexString.js` after `sta.js` and `assert.js`. Runtime
+  test262: 6,679 pass (was 4,235); the new groups `Object`, `Reflect`,
+  `isNaN`, `isFinite`, `global`, `ThrowTypeError` pass 1,836, the
+  `test/language/` groups 608 more. 1,153 tests of the new groups wait
+  for `for`-`in` in the compiler (feature 3), because
+  `propertyHelper.js` uses it.
+
 ## 2026-10-10: M7 feature 1c, modules, eval and Annex B; end of feature 1
 
 - `js-syntax`: `parse_module` (imports and exports with import

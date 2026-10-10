@@ -240,6 +240,7 @@ impl Runtime {
                     ret,
                     restore_top,
                     construct: false,
+                    new_target: None,
                 };
                 match tri!(self.invoke(site)) {
                     Step::Value(value) => {
@@ -1015,6 +1016,7 @@ impl Runtime {
                         ret: ReturnTo::Register(callee),
                         restore_top: base + code.register_count as usize,
                         construct,
+                        new_target: None,
                     };
                     match tri!(self.invoke(site)) {
                         Step::Value(value) => put!(callee, value),

@@ -73,9 +73,33 @@ impl Runtime {
     /// The `TypeError` of a failed strict write to an object: a read-only
     /// property on the chain, or a non-extensible object.
     pub(crate) fn failed_write(&self, target: Gc<Object>, key: PropertyKey) -> VmError {
+        // A write to `length` of an array with a writable `length` fails
+        // when ArraySetLength meets an element that cannot be deleted
+        // (§10.4.2.4 step 17); V8 names that element, which is now the last.
+        if key == PropertyKey::String(self.heap.length_atom())
+            && let Ok((length, true)) = self.heap.array_length(target)
+            && length > 0
+        {
+            return VmError::type_error(format!(
+                "Cannot delete property '{}' of [object Array]",
+                length - 1
+            ));
+        }
         let mut current = Some(target);
         while let Some(object) = current {
-            match self.heap.get_own_property(object, key) {
+            // The characters of a String object are read-only.
+            let character = matches!(self.heap.string_object_unit(object, key), Ok(Some(_)));
+            let own = if character {
+                Ok(Some(Property::Data {
+                    value: Value::Undefined,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false,
+                }))
+            } else {
+                self.heap.get_own_property(object, key)
+            };
+            match own {
                 Ok(Some(Property::Accessor { .. })) => {
                     return VmError::type_error(format!(
                         "Cannot set property {} of {} which has only a getter",
@@ -89,10 +113,15 @@ impl Runtime {
                     } else {
                         "object"
                     };
+                    let mut text = self.object_text(target);
+                    if character && text == "#<Object>" {
+                        // V8 words an inherited character of a String
+                        // object this way.
+                        "[object Object]".clone_into(&mut text);
+                    }
                     return VmError::type_error(format!(
-                        "Cannot assign to read only property '{}' of {kind} '{}'",
+                        "Cannot assign to read only property '{}' of {kind} '{text}'",
                         self.key_text(key),
-                        self.object_text(target)
                     ));
                 }
                 _ => {}
@@ -200,6 +229,7 @@ impl Runtime {
         }
         match self.heap.object(object).map(|o| &o.kind) {
             Ok(ObjectKind::Array { .. }) => "[object Array]".to_owned(),
+            Ok(ObjectKind::StringWrapper(_)) => "[object String]".to_owned(),
             Ok(ObjectKind::Function(closure)) => closure
                 .compiled
                 .source_text()

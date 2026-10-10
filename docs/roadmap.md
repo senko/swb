@@ -652,7 +652,78 @@ failures with a reason. Features, in this order:
    the global functions, all property-attribute paths
    (`defineProperty`, `freeze` and others), the array iterator and the
    `Array.prototype` methods that the harness files use. Annex B:
-   `__proto__`, `__defineGetter__` and the related methods.
+   `__proto__`, `__defineGetter__` and the related methods. In three
+   sessions. The test262 runner accepts more harness files in each
+   session, so groups of `test/language/` that were skipped run too;
+   each session updates the scores of all groups it covers. A failure
+   that needs a later feature is a known failure with that reason.
+   - 2a. `Object`, `Reflect` and the property paths. `Object`: the
+     constructor (with `new.target`) and all static functions except
+     `fromEntries` and `groupBy` (they need iterators, 2b).
+     `Object.prototype`: `hasOwnProperty`, `isPrototypeOf`,
+     `propertyIsEnumerable`, `toLocaleString`, `toString` (without
+     `@@toStringTag`, 2b), `valueOf`; Annex B: the `__proto__`
+     accessor, `__defineGetter__`, `__defineSetter__`,
+     `__lookupGetter__`, `__lookupSetter__`. `Reflect`: all 13
+     functions. `Function.prototype.bind` and bound function objects
+     (§10.4.1). The internal methods `[[GetOwnProperty]]`,
+     `[[DefineOwnProperty]]` and `[[OwnPropertyKeys]]` for each object
+     kind that exists now: arrays (`length`, ArraySetLength), String
+     objects (§10.4.3), functions; `freeze` and `seal` of arrays;
+     prototype cycles and non-extensible objects in
+     `setPrototypeOf`. Globals: `isNaN`, `isFinite`, and `Math.pow`
+     alone (`propertyHelper.js` needs it; the rest of `Math` is
+     feature 4). Runner: the harness files `propertyHelper.js`,
+     `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`,
+     `nans.js`, `decimalToHexString.js`; the groups `Object`,
+     `Reflect`, `isNaN`, `isFinite`, `global` and `ThrowTypeError` of
+     `test/built-ins/`. Done 2026-10-10: all of the above. A call of a
+     bound function walks the chain in a loop (100,000 levels work);
+     `Reflect.construct` and bound constructors end in a deferred
+     `[[Construct]]` with `new.target`. The heap answers the internal
+     methods of String objects for their characters. Runtime test262:
+     6,679 pass (was 4,235): the six new groups pass 1,836, the
+     `test/language/` groups 608 more (the harness files, and 10 new
+     `dir` lines). Parse-only unchanged. Known failures: 1,153 tests
+     of the new groups need `for`-`in` (feature 3), because
+     `propertyHelper.js` uses it (with a patched copy of the file the
+     six groups pass 2,677); `Boolean`, `Symbol` and `@@toStringTag`
+     (2b); the poison pills of `Function.prototype` and
+     `Array.prototype.indexOf` (2c); `Math` and `Number` constants
+     (feature 4); `Date`, `RegExp`, `JSON`, `Proxy`. Open: the name of
+     a bound function is limited to 32,768 code units, because each
+     bound function stores a flat copy (a loop of `f = f.bind()` would
+     store O(n²) units; ropes, feature 5, remove the limit); argument
+     lists of 2^27 values or more are a `RangeError`, as in V8;
+     `Heap::get` in the embedding API does not see the characters of a
+     String object on a prototype chain (the VM does); a key list that
+     does not fit under the heap limit (`Object.keys` of a String
+     object of 2^28 characters) ends the script, where V8 throws
+     `RangeError: Too many properties to enumerate`; the check does not
+     collect first.
+   - 2b. Symbols, `Boolean` and iteration. The well-known symbols (one
+     set per runtime, §6.1.5.1); `Symbol` (the constructor, `for` and
+     `keyFor` with the registry, the well-known symbol properties) and
+     `Symbol.prototype` (`description`, `toString`, `valueOf`,
+     `@@toPrimitive`, `@@toStringTag`). The symbols in the VM:
+     `@@toPrimitive` in ToPrimitive, `@@hasInstance` in `instanceof`
+     and `Function.prototype[@@hasInstance]`, `@@toStringTag` in
+     `Object.prototype.toString` and on the built-in prototypes.
+     `Boolean` with its prototype. Iteration: `%IteratorPrototype%`,
+     `%ArrayIteratorPrototype%`, `Array.prototype.keys`, `values`,
+     `entries` and `@@iterator`, the iterator operations for natives
+     (§7.4), `Object.fromEntries` and `Object.groupBy`. Groups:
+     `Symbol`, `Boolean`, `ArrayIteratorPrototype`.
+   - 2c. Errors and the rest of `Function`. `Error` and the native
+     errors with `message`, `cause`, `Error.prototype.toString` and
+     `AggregateError`; the `stack` property in Chromium's format
+     (measured in Node: own property and attributes, the frame lines).
+     `Function.prototype.toString` for all function kinds (§20.2.3.5),
+     the `caller` and `arguments` properties of `Function.prototype`
+     (§10.2.4). The `Array.prototype` methods that the harness files
+     use and that are missing. Runner: `nativeErrors.js`; the groups
+     `Error`, `NativeErrors`, `AggregateError` and `Function` (the
+     `Function` constructor is feature 3).
 3. Language semantics (`implementer-hard`, `js`). The VM for everything
    of feature 1 except generators and `async`: destructuring, spread,
    classes and `super`, getters and setters, optional chaining,
@@ -739,8 +810,6 @@ not repeated here; the open items of each spike session are in M6 step
   cache miss. Measure before a change.
 - `Lexer::new` cuts the source at `MAX_SOURCE_LEN` without an error;
   `check_source_len` is the guard, and the examples skip it.
-- String objects: their index properties are not exotic (writes create
-  own properties).
 - `console.log` has no `%s` and no column grouping; errors raised by
   natives are created in the realm of the catching frame; `eval`
   returns an approximate completion value.
@@ -748,9 +817,8 @@ not repeated here; the open items of each spike session are in M6 step
   machine.
 - `index_key` creates an atom for each index of 2^32 - 1 or more:
   measure a loop over such an array-like.
-- `Runtime::define_accessor` serves only the tests; remove it when
-  `Object.defineProperty` exists. `examples/heap_bench.rs` is not part
-  of `jsbench`; its `rss()` repeats `peak_rss_kib` of `bench.rs`.
+- `examples/heap_bench.rs` is not part of `jsbench`; its `rss()`
+  repeats `peak_rss_kib` of `bench.rs`.
 
 ## Backlog from M5
 

@@ -52,19 +52,56 @@ impl Runtime {
         self.vm.frames.last().map_or(0, |f| f.realm)
     }
 
+    /// `[[OwnPropertyKeys]]` for a built-in function: charges the time
+    /// countdown for the keys, then lists them (the heap checks that the
+    /// list fits under the limit before it allocates).
+    pub(crate) fn own_keys(&mut self, object: Gc<Object>) -> VmResult<Vec<PropertyKey>> {
+        let bound = self.heap.own_key_bound(object)?;
+        self.charge(bound)?;
+        Ok(self.heap.own_property_keys(object)?)
+    }
+
     // --- Property reads ---
 
     /// `base[key]` for any base value.
     pub(crate) fn get_property(&mut self, base: Value, key: PropertyKey) -> VmResult<Lookup> {
         match base {
-            Value::Object(object) => {
-                if let Some(value) = self.string_object_index(object, key)? {
-                    return Ok(Lookup::Value(value));
-                }
-                Ok(self.heap.get(object, key, base)?.into())
-            }
+            Value::Object(object) => self.get_with_receiver(object, key, base),
             _ => self.get_primitive_property(base, key),
         }
+    }
+
+    /// `[[Get]]` of an object with a receiver, including the index
+    /// properties of String objects (§10.4.3.5), also those on the
+    /// prototype chain. The heap does not know the characters (each is a
+    /// new string), so an index that the heap does not find gets a second
+    /// look along the chain.
+    pub(crate) fn get_with_receiver(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        receiver: Value,
+    ) -> VmResult<Lookup> {
+        if let Some(value) = self.string_object_index(object, key)? {
+            return Ok(Lookup::Value(value));
+        }
+        let found = self.heap.get(object, key, receiver)?;
+        if let (PropertyKey::Index(_), GetResult::Value(Value::Undefined)) = (key, found)
+            // An own property with the value `undefined` ends the lookup.
+            && self.heap.get_own_property(object, key)?.is_none()
+        {
+            let mut current = self.heap.get_prototype_of(object)?;
+            while let Some(proto) = current {
+                if self.heap.get_own_property(proto, key)?.is_some() {
+                    break;
+                }
+                if let Some(value) = self.string_object_index(proto, key)? {
+                    return Ok(Lookup::Value(value));
+                }
+                current = self.heap.get_prototype_of(proto)?;
+            }
+        }
+        Ok(found.into())
     }
 
     /// The index properties of a String object (§10.4.3.5
@@ -85,12 +122,9 @@ impl Runtime {
         }
     }
 
-    /// `HasProperty` (§7.3.12) with the index properties of String
-    /// objects.
+    /// `HasProperty` (§7.3.12); the heap knows the index properties of
+    /// String objects.
     pub(crate) fn has_property(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
-        if self.string_object_index(object, key)?.is_some() {
-            return Ok(true);
-        }
         Ok(self.heap.has_property(object, key)?)
     }
 
@@ -213,7 +247,7 @@ impl Runtime {
     /// specification says), a `RangeError` if they differ. The heap's
     /// define takes only primitives, and the conversion can run script.
     /// Other writes pass unchanged.
-    fn array_length_operand(
+    pub(crate) fn array_length_operand(
         &mut self,
         base: Value,
         key: PropertyKey,
@@ -229,14 +263,7 @@ impl Runtime {
         if !matches!(self.heap.array_length(array), Ok((_, true))) {
             return Ok(value);
         }
-        self.with_scope(|rt| {
-            let integer = rt.to_number(value)?;
-            let number = rt.to_number(value)?;
-            if f64::from(super::convert::to_uint32(integer)) != number {
-                return Err(VmError::range_error(INVALID_ARRAY_LENGTH));
-            }
-            Ok(Value::number(number))
-        })
+        self.convert_array_length(value)
     }
 
     /// `delete base[key]` (§13.5.1.2). A failure throws in strict mode

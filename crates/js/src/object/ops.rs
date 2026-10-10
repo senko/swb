@@ -68,20 +68,33 @@ impl Heap {
         object: Gc<Object>,
         proto: Option<Gc<Object>>,
     ) -> Result<bool> {
+        Ok(self.set_prototype_of_counted(object, proto)?.0)
+    }
+
+    /// [`Heap::set_prototype_of`] that also returns the number of
+    /// prototypes the cycle check visited, so that a caller can charge the
+    /// time countdown for it.
+    pub fn set_prototype_of_counted(
+        &mut self,
+        object: Gc<Object>,
+        proto: Option<Gc<Object>>,
+    ) -> Result<(bool, usize)> {
         let record = self.object(object)?;
         let shape = self.arenas.shapes.get(record.shape)?;
         if shape.proto == proto {
-            return Ok(true);
+            return Ok((true, 0));
         }
         if !record.extensible {
-            return Ok(false);
+            return Ok((false, 0));
         }
         // Step 8: no cycles. All kinds so far use the ordinary
         // [[GetPrototypeOf]], so the walk goes to the end of the chain.
         let mut current = proto;
+        let mut steps = 0;
         while let Some(p) = current {
+            steps += 1;
             if p == object {
-                return Ok(false);
+                return Ok((false, steps));
             }
             current = self.get_prototype_of(p)?;
         }
@@ -94,7 +107,7 @@ impl Heap {
             let shape = self.object(object)?.shape;
             self.arenas.shapes.get_mut(shape)?.proto = proto;
         }
-        Ok(true)
+        Ok((true, steps))
     }
 
     /// `[[IsExtensible]]` (§10.1.3).
@@ -146,9 +159,52 @@ impl Heap {
         roots: &dyn RootSource,
     ) -> Result<bool> {
         desc.check()?;
+        if let Some(unit) = self.string_object_unit(object, key)? {
+            return self.string_define_own_property(unit, &desc);
+        }
         match self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
             _ => self.ordinary_define_own_property(object, key, desc, roots),
+        }
+    }
+
+    /// The code unit that a String object's index property `key` has
+    /// (§10.4.3.5 `StringGetOwnProperty`): `Some` if `object` is a String
+    /// object and `key` an index below the length of its string. These
+    /// properties are not stored: they are enumerable, not writable and
+    /// not configurable data properties.
+    pub(crate) fn string_object_unit(
+        &self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> Result<Option<u16>> {
+        let PropertyKey::Index(index) = key else {
+            return Ok(None);
+        };
+        match self.object(object)?.kind {
+            ObjectKind::StringWrapper(string) => {
+                Ok(self.string(string)?.as_str16().get(index as usize))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// `[[DefineOwnProperty]]` of a String object for an index property
+    /// of its string (§10.4.3.2 step 2): `IsCompatiblePropertyDescriptor`
+    /// against the data property of the character. Nothing is stored.
+    fn string_define_own_property(&self, unit: u16, desc: &PropertyDescriptor) -> Result<bool> {
+        if desc.is_accessor()
+            || desc.configurable == Some(true)
+            || desc.enumerable == Some(false)
+            || desc.writable == Some(true)
+        {
+            return Ok(false);
+        }
+        match desc.value {
+            None => Ok(true),
+            Some(Value::String(string)) => Ok(self.string(string)?.as_str16().get(0) == Some(unit)
+                && self.string(string)?.len() == 1),
+            Some(_) => Ok(false),
         }
     }
 
@@ -232,7 +288,9 @@ impl Heap {
     pub fn has_property(&self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         let mut current = object;
         loop {
-            if self.get_own_property(current, key)?.is_some() {
+            if self.get_own_property(current, key)?.is_some()
+                || self.string_object_unit(current, key)?.is_some()
+            {
                 return Ok(true);
             }
             match self.get_prototype_of(current)? {
@@ -286,6 +344,10 @@ impl Heap {
         // over the prototype chain.
         let mut current = object;
         loop {
+            if self.string_object_unit(current, key)?.is_some() {
+                // A character of a String object: not writable.
+                return Ok(SetResult::Done(false));
+            }
             match self.get_own_property(current, key)? {
                 Some(Property::Data { writable, .. }) => {
                     if !writable {
@@ -312,6 +374,9 @@ impl Heap {
         let Value::Object(target) = receiver else {
             return Ok(SetResult::Done(false));
         };
+        if self.string_object_unit(target, key)?.is_some() {
+            return Ok(SetResult::Done(false));
+        }
         let done = match self.get_own_property(target, key)? {
             Some(
                 Property::Accessor { .. }
@@ -379,6 +444,9 @@ impl Heap {
 
     /// [[Delete]] (§10.1.10).
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
+        if self.string_object_unit(object, key)?.is_some() {
+            return Ok(false);
+        }
         let Some(current) = self.get_own_property(object, key)? else {
             return Ok(true);
         };
@@ -392,13 +460,40 @@ impl Heap {
         Ok(true)
     }
 
+    /// An upper bound of the number of keys that
+    /// [`Heap::own_property_keys`] lists, without listing them.
+    pub fn own_key_bound(&self, object: Gc<Object>) -> Result<usize> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        let mut count = record
+            .elements
+            .stored()
+            .saturating_add(shape.entries(&self.arenas.key_lists)?.len())
+            .saturating_add(1);
+        if let ObjectKind::StringWrapper(string) = record.kind {
+            count = count.saturating_add(self.string(string)?.len());
+        }
+        Ok(count)
+    }
+
     /// `[[OwnPropertyKeys]]` (§10.1.11.1): array indices in ascending order,
-    /// then strings and then symbols, each in creation order.
+    /// then strings and then symbols, each in creation order. A String
+    /// object lists the indices of its string first (§10.4.3.3).
     pub fn own_property_keys(&self, object: Gc<Object>) -> Result<Vec<PropertyKey>> {
         let record = self.object(object)?;
         let shape = self.arenas.shapes.get(record.shape)?;
         let entries = shape.entries(&self.arenas.key_lists)?;
-        let mut keys = Vec::with_capacity(record.elements.stored() + entries.len() + 1);
+        let mut keys = Vec::new();
+        // The vector is outside the heap accounting: check that it fits
+        // under the limit before it is allocated.
+        let count = self.own_key_bound(object)?;
+        self.check_room(count.saturating_mul(size_of::<PropertyKey>()))?;
+        keys.try_reserve(count)?;
+        if let ObjectKind::StringWrapper(string) = record.kind {
+            // §10.4.3.3 step 5: the indices of the string come first.
+            let length = self.string(string)?.len();
+            keys.extend((0..length).map(|index| PropertyKey::Index(index as u32)));
+        }
         record.elements.keys(&mut keys);
         if let ObjectKind::Array { .. } = record.kind {
             // `length` is created with the array, before any other string

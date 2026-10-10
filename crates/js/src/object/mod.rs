@@ -28,7 +28,7 @@ use crate::error::Result;
 use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Symbol, Value};
-use crate::vm::{Closure, GeneratorState, NativeFunction};
+use crate::vm::{BoundFunction, Closure, GeneratorState, NativeFunction};
 
 /// The kind of an object: which internal methods it has (§10.1, §10.4).
 /// Other kinds come with their features.
@@ -57,11 +57,16 @@ pub enum ObjectKind {
     Function(Box<Closure>),
     /// A native function (§10.3).
     Native(Box<NativeFunction>),
+    /// A bound function exotic object (§10.4.1).
+    Bound(Box<BoundFunction>),
     /// A generator object (§27.5): its state and, while it is suspended,
     /// its frame and register window.
     Generator(Box<GeneratorState>),
-    /// A String object (§10.4.3). Minimal until M7: `length` is an own
-    /// property; the VM reads the index properties from the string.
+    /// A String object (§10.4.3). `length` is a stored property; the
+    /// index properties come from the string and are not stored (the heap
+    /// answers `[[HasProperty]]`, `[[Delete]]`, `[[OwnPropertyKeys]]`,
+    /// `[[DefineOwnProperty]]` and `[[Set]]` for them; the VM reads the
+    /// characters, which are new strings).
     StringWrapper(Gc<JsString>),
     /// A Number object (`[[NumberData]]`).
     NumberWrapper(f64),
@@ -84,6 +89,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::Host { .. } => "Host",
             ObjectKind::Function(_) => "Function",
             ObjectKind::Native(_) => "Native",
+            ObjectKind::Bound(_) => "Bound",
             ObjectKind::Generator(_) => "Generator",
             ObjectKind::StringWrapper(_) => "StringWrapper",
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
@@ -110,6 +116,7 @@ impl ObjectKind {
             | ObjectKind::Arguments => {}
             ObjectKind::Host { data, .. } => tracer.generic(*data),
             ObjectKind::Function(closure) => closure.trace(tracer),
+            ObjectKind::Bound(bound) => bound.trace(tracer),
             ObjectKind::Generator(state) => state.trace(tracer),
             ObjectKind::StringWrapper(string) => tracer.string(*string),
             ObjectKind::SymbolWrapper(symbol) => tracer.symbol(*symbol),
@@ -121,6 +128,7 @@ impl ObjectKind {
         match self {
             ObjectKind::Function(closure) => closure.heap_size(),
             ObjectKind::Native(_) => size_of::<NativeFunction>(),
+            ObjectKind::Bound(bound) => bound.heap_size(),
             ObjectKind::Generator(state) => state.heap_size(),
             _ => 0,
         }

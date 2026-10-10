@@ -32,7 +32,7 @@ use crate::bytecode::FunctionCode;
 use crate::compiler::{CompileError, CompileStats, compile_script};
 use crate::error::{Error, InternalError, Termination, ThrowKind};
 use crate::heap::{Gc, GcStats, Generic, Heap, HeapConfig};
-use crate::object::{GetResult, Object, PropertyDescriptor};
+use crate::object::{GetResult, Object};
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::{
@@ -525,32 +525,6 @@ impl Runtime {
     /// `#<Object>`.
     pub fn display(&self, value: Value) -> String {
         self.primitive_text(value)
-    }
-
-    /// Defines an accessor property on an object (a helper for natives
-    /// and tests).
-    pub fn define_accessor(
-        &mut self,
-        object: Value,
-        name: &str,
-        getter: Value,
-        setter: Value,
-    ) -> VmResult<bool> {
-        let Value::Object(object) = object else {
-            return Err(VmError::type_error("not an object"));
-        };
-        let check = |rt: &Runtime, f: Value| -> VmResult<()> {
-            if f.is_undefined() || rt.is_callable(f)? {
-                Ok(())
-            } else {
-                Err(VmError::type_error("Getter must be a function"))
-            }
-        };
-        check(self, getter)?;
-        check(self, setter)?;
-        let key = self.heap.key_from_str(name)?;
-        let desc = PropertyDescriptor::accessor(getter, setter, true, true);
-        Ok(self.heap.define_own_property(object, key, desc, &self.vm)?)
     }
 }
 
