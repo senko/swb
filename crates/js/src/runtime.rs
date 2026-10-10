@@ -37,7 +37,7 @@ use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::{
     Atoms, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, Frame, NativeFn, REENTRY_WEIGHT, ReturnTo,
-    STACK_OVERFLOW, TIME_CHECK_INTERVAL, TerminationHandle, Vm, VmError, VmResult,
+    STACK_OVERFLOW, Symbols, TIME_CHECK_INTERVAL, TerminationHandle, Vm, VmError, VmResult,
 };
 
 /// The largest value stack: frame records keep stack positions in 32 bits.
@@ -163,11 +163,13 @@ impl Runtime {
     pub fn new(config: RuntimeConfig) -> Result<Runtime, ScriptError> {
         let mut heap = Heap::new(config.heap);
         let atoms = make_atoms(&mut heap).map_err(|e| finish_error(VmError::from(e)))?;
+        let symbols = Symbols::new(&mut heap).map_err(|e| finish_error(VmError::from(e)))?;
         let vm = Vm {
             stack: Vec::new(),
             frames: Vec::new(),
             realms: Vec::new(),
             atoms,
+            symbols,
             frame_limit: config.frame_limit,
             stack_limit: config.stack_limit.min(MAX_STACK_LIMIT),
             last_value: Value::Undefined,
@@ -511,6 +513,20 @@ impl Runtime {
         }
     }
 
+    /// Records the thrown value of `error` in the open handle scope, so it
+    /// survives a collection (no-op for other errors).
+    ///
+    /// A thrown value is not rooted while it propagates as a Rust `Err`.
+    /// Every Rust site that holds a thrown value across a safepoint (a
+    /// call into script code, an allocation that can collect) must call
+    /// this first: `IteratorClose` after an error, and later for-of,
+    /// destructuring, the Map and Set constructors and promise jobs.
+    pub(crate) fn hold_error(&mut self, error: &VmError) {
+        if let VmError::Throw(value) = error {
+            self.heap.record(*value);
+        }
+    }
+
     /// `ToString` of a value as Rust text (lossy for unpaired surrogates).
     /// Can run script code (`toString`, `valueOf`).
     pub fn to_rust_string(&mut self, value: Value) -> VmResult<String> {
@@ -553,6 +569,9 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         function: atom("function")?,
         true_: atom("true")?,
         false_: atom("false")?,
+        default: atom("default")?,
+        next: atom("next")?,
+        return_: atom("return")?,
     })
 }
 

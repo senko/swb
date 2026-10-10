@@ -1,13 +1,14 @@
 //! The built-in objects (ECMA-262 clauses 19 to 28).
 //!
-//! Implemented so far: `console.log`; `Object` (all static functions
-//! except `fromEntries` and `groupBy`, `Object.prototype` with Annex B)
-//! and `Reflect`; the `Error` constructors; `Array` with `isArray`,
-//! `push`, `join`, `forEach`, `map` and `toString`; `Function.prototype`
-//! with `call`, `apply`, `bind` and `toString` (the `Function` constructor
-//! is M7); `isNaN`, `isFinite` and `Math.pow`; and `String` and `Number`
-//! with their prototype methods. `Boolean` and `Symbol` have prototype
-//! intrinsics for wrapper objects but no constructors yet. Each function
+//! Implemented so far: `console.log`; `Object` (all static functions,
+//! `Object.prototype` with Annex B) and `Reflect`; the `Error`
+//! constructors; `Array` with `isArray`, `push`, `join`, `forEach`, `map`,
+//! `toString`, `keys`, `values`, `entries` and `@@iterator`;
+//! `Function.prototype` with `call`, `apply`, `bind`, `toString` and
+//! `@@hasInstance` (the `Function` constructor is M7); `isNaN`, `isFinite`
+//! and `Math.pow`; `String`, `Number` and `Boolean` with their prototype
+//! methods; `Symbol` with the well-known symbols; and `%IteratorPrototype%`
+//! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
 //! (clause 18).
@@ -22,16 +23,20 @@
 //! recursion.
 
 mod array;
+mod boolean;
 mod console;
 mod descriptor;
 mod error;
 mod function;
 mod global;
 mod integrity;
+mod iterator;
 mod object;
+mod object_iter;
 mod object_proto;
 mod primitive;
 mod reflect;
+mod symbol;
 
 use crate::heap::Gc;
 use crate::object::Object;
@@ -39,7 +44,10 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::convert::{checked_array_length, to_length};
-use crate::vm::{Intrinsic, NativeCall, NativeFn, STACK_OVERFLOW, SetOutcome, VmError, VmResult};
+use crate::vm::{
+    Intrinsic, NativeCall, NativeFn, STACK_OVERFLOW, SetOutcome, VmError, VmResult, WELL_KNOWN,
+    WellKnown,
+};
 
 /// Installs the built-in objects of a realm (after its intrinsics exist
 /// and the realm is a root).
@@ -55,6 +63,9 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     error::install(rt, realm)?;
     array::install(rt, realm)?;
     primitive::install(rt, realm)?;
+    boolean::install(rt, realm)?;
+    symbol::install(rt, realm)?;
+    iterator::install(rt, realm)?;
     console::install(rt, realm)
 }
 
@@ -74,6 +85,43 @@ fn method(
     let key = rt.heap.key_from_str(name)?;
     rt.define(target, key, function.into(), true, false, true)?;
     Ok(function)
+}
+
+/// Defines a method whose key is a well-known symbol (the function is
+/// named "[Symbol.iterator]" and so on). `attributes` is (writable,
+/// configurable).
+fn symbol_method(
+    rt: &mut Runtime,
+    realm: u32,
+    target: Gc<Object>,
+    which: WellKnown,
+    length: u32,
+    func: NativeFn,
+    attributes: (bool, bool),
+) -> VmResult<Gc<Object>> {
+    let name = WELL_KNOWN
+        .iter()
+        .find(|(known, _)| *known == which)
+        .map_or("", |(_, name)| *name);
+    let function = rt.new_builtin(realm, &format!("[Symbol.{name}]"), length, func, false)?;
+    let key = rt.symbol_key(which);
+    rt.define(
+        target,
+        key,
+        function.into(),
+        attributes.0,
+        false,
+        attributes.1,
+    )?;
+    Ok(function)
+}
+
+/// Defines `@@toStringTag` (non-writable, non-enumerable, configurable).
+pub(crate) fn to_string_tag(rt: &mut Runtime, target: Gc<Object>, tag: &str) -> VmResult<()> {
+    let text = rt.heap.intern_str(tag)?;
+    rt.heap.record(text);
+    let key = rt.symbol_key(WellKnown::ToStringTag);
+    rt.define(target, key, text.into(), false, false, true)
 }
 
 /// Defines a property of the global object (writable, non-enumerable,
@@ -239,25 +287,5 @@ impl Runtime {
                 Ok(())
             }
         }
-    }
-
-    /// The `TypeError` of a callback that is not callable, as V8 words it
-    /// for the array methods ("number 1 is not a function").
-    fn not_callable(&self, value: Value) -> VmError {
-        let text = match value {
-            Value::Undefined => "undefined".to_owned(),
-            Value::Null => "object null".to_owned(),
-            Value::Bool(b) => format!("boolean {b}"),
-            Value::Int(_) | Value::Double(_) => {
-                let n = value.as_number().unwrap_or(f64::NAN);
-                // V8 shows -0 as 0 here.
-                format!("number {}", crate::vm::number::number_to_string(n))
-            }
-            Value::String(s) => format!("string \"{}\"", self.name_text(s)),
-            Value::Symbol(_) => "symbol".to_owned(),
-            Value::BigInt(_) => "bigint".to_owned(),
-            Value::Object(_) | Value::Empty | Value::Cell(_) => "object".to_owned(),
-        };
-        VmError::type_error(format!("{text} is not a function"))
     }
 }

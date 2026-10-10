@@ -17,6 +17,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let math = rt.heap.new_object(Some(proto))?;
     rt.heap.record(math);
     super::method(rt, realm, math, "pow", 2, pow)?;
+    super::to_string_tag(rt, math, "Math")?;
     super::global(rt, realm, "Math", math.into())
 }
 

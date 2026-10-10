@@ -128,13 +128,29 @@ impl Runtime {
         }
     }
 
+    /// Whether `object` is the `prototype` of Number, Boolean, String or
+    /// Symbol in some realm.
+    pub(crate) fn is_wrapper_prototype(&self, object: Gc<Object>) -> bool {
+        const WRAPPERS: [Intrinsic; 4] = [
+            Intrinsic::NumberPrototype,
+            Intrinsic::BooleanPrototype,
+            Intrinsic::StringPrototype,
+            Intrinsic::SymbolPrototype,
+        ];
+        self.vm.realms.iter().any(|realm| {
+            WRAPPERS
+                .iter()
+                .any(|which| realm.intrinsic(*which) == Some(object))
+        })
+    }
+
     /// Whether `object` is the `%Object.prototype%` of a realm, an
     /// immutable prototype object (§10.4.7).
     fn is_immutable_prototype(&self, object: Gc<Object>) -> bool {
         self.vm
             .realms
             .iter()
-            .any(|realm| realm.intrinsic(Intrinsic::ObjectPrototype) == object)
+            .any(|realm| realm.intrinsic(Intrinsic::ObjectPrototype) == Some(object))
     }
 
     /// `[[SetPrototypeOf]]` (§10.1.2, §10.4.7.1). The cycle check charges

@@ -1,6 +1,6 @@
 //! `String` and `Number` (ECMA-262 §22.1, §21.1): the functions (type
 //! conversions), the constructors (wrapper objects) and the prototype
-//! methods `toString` and `valueOf`.
+//! methods `toString` and `valueOf`. `Boolean` is in [`super::boolean`].
 
 use swb_js_text::String16;
 
@@ -31,10 +31,7 @@ fn string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let construct = !call.new_target().is_undefined();
     let text = match rt.arg(call, 0) {
         _ if call.argc() == 0 => rt.vm.atoms.empty,
-        Value::Symbol(symbol) if !construct => {
-            let text = rt.key_text(PropertyKey::Symbol(symbol));
-            rt.heap.alloc_str(&text)?
-        }
+        Value::Symbol(symbol) if !construct => super::symbol::descriptive_string(rt, symbol)?,
         value => rt.to_string(value)?,
     };
     if !construct {
@@ -105,7 +102,7 @@ fn this_number(rt: &Runtime, call: &NativeCall) -> VmResult<f64> {
 
 /// V8's `TypeError` for a receiver of the wrong type
 /// ("Number.prototype.valueOf requires that 'this' be a Number").
-fn requires(rt: &Runtime, call: &NativeCall, type_name: &str) -> VmError {
+pub(super) fn requires(rt: &Runtime, call: &NativeCall, type_name: &str) -> VmError {
     let key = PropertyKey::String(rt.vm.atoms.name);
     let method = match rt.heap.get_own_property(call.callee(), key) {
         Ok(Some(crate::object::Property::Data {

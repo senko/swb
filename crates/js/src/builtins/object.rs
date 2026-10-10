@@ -1,12 +1,14 @@
 //! `Object` (ECMA-262 §20.1.1 and §20.1.2): the constructor and the
-//! static functions, except `fromEntries` and `groupBy` (they need
-//! iterators). The descriptor functions are in [`super::descriptor`], the
-//! integrity levels in [`super::integrity`], `Object.prototype` in
-//! [`super::object_proto`].
+//! static functions. The descriptor functions are in
+//! [`super::descriptor`], the integrity levels in [`super::integrity`],
+//! `fromEntries` and `groupBy` in [`super::object_iter`], `Object.prototype`
+//! in [`super::object_proto`].
 //!
 //! Functions that loop over the keys of an object charge the time
 //! countdown in proportion to the number of keys, and open a handle scope
 //! per key when they call getters.
+
+use swb_js_text::String16;
 
 use crate::heap::Gc;
 use crate::object::{Object, ObjectKind};
@@ -14,18 +16,19 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::internal::ProtoSet;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::ObjectPrototype)?;
     let object = super::constructor(rt, realm, "Object", 1, object_constructor, proto)?;
-    let statics: [(&str, u32, NativeFn); 21] = [
+    let statics: [(&str, u32, NativeFn); 23] = [
         ("assign", 2, assign),
         ("create", 2, super::descriptor::create),
         ("defineProperties", 2, super::descriptor::define_properties),
         ("defineProperty", 3, super::descriptor::define_property),
         ("entries", 1, entries),
         ("freeze", 1, super::integrity::freeze),
+        ("fromEntries", 1, super::object_iter::from_entries),
         (
             "getOwnPropertyDescriptor",
             2,
@@ -39,6 +42,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         ("getOwnPropertyNames", 1, get_own_property_names),
         ("getOwnPropertySymbols", 1, get_own_property_symbols),
         ("getPrototypeOf", 1, get_prototype_of),
+        ("groupBy", 2, super::object_iter::group_by),
         ("hasOwn", 2, has_own),
         ("is", 2, is),
         ("isExtensible", 1, super::integrity::is_extensible),
@@ -257,35 +261,62 @@ fn is(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Bool(same)))
 }
 
-/// `Object.prototype.toString` (§20.1.3.6) and the tag text of other
-/// functions that need the built-in tag: `[object Tag]`. Without
-/// `Symbol.toStringTag` (M7 feature 2b), generator objects get the tag
-/// that `%GeneratorPrototype%[@@toStringTag]` would give.
+/// `Object.prototype.toString` (§20.1.3.6) and the text of other
+/// functions that need it: `[object Tag]`, where the tag is the string
+/// value of `@@toStringTag` if there is one, else the built-in tag of the
+/// kind of object.
 pub(super) fn builtin_tag_text(rt: &mut Runtime, value: Value) -> VmResult<Value> {
-    let tag = match value {
-        Value::Undefined => "Undefined",
-        Value::Null => "Null",
+    let builtin = match value {
+        Value::Undefined => return tag_string(rt, "Undefined"),
+        Value::Null => return tag_string(rt, "Null"),
         _ => {
             let object = rt.to_object(value)?;
-            match &rt.heap.object(object)?.kind {
-                ObjectKind::Array { .. } => "Array",
-                ObjectKind::Arguments => "Arguments",
-                ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => {
-                    "Function"
-                }
-                ObjectKind::Error => "Error",
-                ObjectKind::BooleanWrapper(_) => "Boolean",
-                ObjectKind::NumberWrapper(_) => "Number",
-                ObjectKind::StringWrapper(_) => "String",
-                ObjectKind::Generator(_) => "Generator",
-                ObjectKind::Ordinary | ObjectKind::Host { .. } | ObjectKind::SymbolWrapper(_) => {
-                    "Object"
-                }
+            rt.heap.record(object);
+            let builtin = builtin_tag(&rt.heap.object(object)?.kind);
+            let key = rt.symbol_key(WellKnown::ToStringTag);
+            if let Value::String(tag) = rt.get_value(object.into(), key)? {
+                return tag_text(rt, tag);
             }
+            builtin
         }
     };
-    let text = rt.heap.alloc_str(&format!("[object {tag}]"))?;
-    Ok(text.into())
+    tag_string(rt, builtin)
+}
+
+/// The built-in tag of an object kind (steps 4 to 14 of §20.1.3.6).
+fn builtin_tag(kind: &ObjectKind) -> &'static str {
+    match kind {
+        ObjectKind::Array { .. } => "Array",
+        ObjectKind::Arguments => "Arguments",
+        ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => "Function",
+        ObjectKind::Error => "Error",
+        ObjectKind::BooleanWrapper(_) => "Boolean",
+        ObjectKind::NumberWrapper(_) => "Number",
+        ObjectKind::StringWrapper(_) => "String",
+        ObjectKind::Generator(_)
+        | ObjectKind::ArrayIterator(_)
+        | ObjectKind::Ordinary
+        | ObjectKind::Host { .. }
+        | ObjectKind::SymbolWrapper(_) => "Object",
+    }
+}
+
+fn tag_string(rt: &mut Runtime, tag: &str) -> VmResult<Value> {
+    Ok(rt.heap.alloc_str(&format!("[object {tag}]"))?.into())
+}
+
+/// `"[object " + tag + "]"` for a tag that is a script string (it can
+/// be long, so the copy is charged and reserved).
+fn tag_text(rt: &mut Runtime, tag: Gc<crate::string::JsString>) -> VmResult<Value> {
+    let tag_units = rt.heap.string(tag)?.len();
+    if tag_units >= 1 << 16 {
+        rt.heap.reserve(tag_units * 4, &rt.vm)?;
+    }
+    let mut text = String16::from("[object ");
+    text.push_str16(rt.heap.string(tag)?.as_str16());
+    text.push_str16(String16::from("]").as_str16());
+    rt.charge_units(tag_units)?;
+    Ok(rt.heap.alloc_string(text)?.into())
 }
 
 #[cfg(test)]

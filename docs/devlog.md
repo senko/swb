@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-10: M7 feature 2b, symbols, `Boolean` and iteration
+
+- `js`: the 13 well-known symbols and the `Symbol.for` registry (keyed
+  by atom) as roots of the runtime (`vm/symbols.rs`); `Symbol` and
+  `Symbol.prototype`; `Boolean`; `@@toPrimitive` in ToPrimitive;
+  `instanceof` with `@@hasInstance` (one loop, also over bound
+  chains); `@@toStringTag` in `Object.prototype.toString` and on the
+  built-in objects. `%IteratorPrototype%` (`@@iterator` only; the
+  iterator helpers are feature 6), the array iterator,
+  `Array.prototype.keys`, `values`, `entries`, `@@iterator`, and
+  `@@iterator` on arguments objects. The iterator operations of §7.4
+  for natives (`vm/iter.rs`), used by `Object.fromEntries` and
+  `Object.groupBy`.
+- GC stress mode found that a thrown value is not rooted while it
+  propagates as a Rust error: a native that calls `return` on an
+  iterator after an error must root the value first. The rule and its
+  helper (`hold_error`) are in ADR 0026 section 15.
+- Review: about 400 cases equal to Node, also in GC stress mode; no
+  other site holds a thrown value across a safepoint. Fixed: messages
+  quoted whole script strings (134 MB for a 128M-unit string; now cut
+  as V8 does, at 100 units plus `<...>`, and other quotes at 1,024
+  units, where V8 does not cut); the message of a write to a symbol
+  primitive; intrinsics that are set late are `None` until set, not
+  the global object; three `console.log` formats.
+- Runtime test262: 7,215 pass (was 6,679); the new groups `Symbol`,
+  `Boolean` and `ArrayIteratorPrototype` pass 89, and about 40
+  `test/language/` groups gained passes. Parse-only unchanged.
+
 ## 2026-10-10: M7 feature 2a, `Object`, `Reflect` and `bind`
 
 - Feature 2 is split into three sessions (roadmap): 2a `Object`,

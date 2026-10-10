@@ -14,6 +14,7 @@
 feature __getter__
 feature __proto__
 feature __setter__
+feature array-grouping
 feature arrow-function
 feature coalesce-expression
 feature computed-property-names
@@ -34,6 +35,7 @@ feature new.target
 feature numeric-separator-literal
 feature object-rest
 feature object-spread
+feature Object.fromEntries
 feature Object.hasOwn
 feature Object.is
 feature optional-catch-binding
@@ -43,6 +45,21 @@ feature Reflect.construct
 feature Reflect.set
 feature Reflect.setPrototypeOf
 feature rest-parameters
+feature Symbol
+feature Symbol.asyncIterator
+feature Symbol.hasInstance
+feature Symbol.isConcatSpreadable
+feature Symbol.iterator
+feature Symbol.match
+feature Symbol.matchAll
+feature Symbol.prototype.description
+feature Symbol.replace
+feature Symbol.search
+feature Symbol.species
+feature Symbol.split
+feature Symbol.toPrimitive
+feature Symbol.toStringTag
+feature Symbol.unscopables
 feature u180e
 
 # The groups of test/built-ins/ (M7 feature 2a):
@@ -53,6 +70,11 @@ dir test/built-ins/isFinite
 dir test/built-ins/global
 dir test/built-ins/ThrowTypeError
 
+# Added in M7 feature 2b:
+dir test/built-ins/Symbol
+dir test/built-ins/Boolean
+dir test/built-ins/ArrayIteratorPrototype
+
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
 dir test/language/arguments-object/mapped
@@ -62,6 +84,7 @@ dir test/language/block-scope/shadowing
 dir test/language/block-scope/syntax
 dir test/language/comments
 dir test/language/comments/hashbang
+dir test/language/computed-property-names/object
 dir test/language/directive-prologue
 dir test/language/expressions/addition
 dir test/language/expressions/array

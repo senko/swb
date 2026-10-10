@@ -40,10 +40,12 @@ mod generator;
 mod global;
 pub(crate) mod internal;
 mod interp;
+mod iter;
 mod messages;
 pub(crate) mod number;
 mod property;
 mod realm;
+mod symbols;
 pub(crate) mod time;
 
 use std::borrow::Cow;
@@ -55,6 +57,7 @@ pub use function::{
 pub use generator::GeneratorState;
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
+pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};
 pub(crate) use time::TIME_CHECK_INTERVAL;
 pub use time::TerminationHandle;
 
@@ -243,6 +246,9 @@ pub(crate) struct Atoms {
     pub(crate) function: Gc<JsString>,
     pub(crate) true_: Gc<JsString>,
     pub(crate) false_: Gc<JsString>,
+    pub(crate) default: Gc<JsString>,
+    pub(crate) next: Gc<JsString>,
+    pub(crate) return_: Gc<JsString>,
 }
 
 impl Atoms {
@@ -269,6 +275,9 @@ impl Atoms {
             self.function,
             self.true_,
             self.false_,
+            self.default,
+            self.next,
+            self.return_,
         ] {
             tracer.string(atom);
         }
@@ -284,6 +293,8 @@ pub(crate) struct Vm {
     /// The realms (ADR 0026 section 12).
     pub(crate) realms: Vec<Realm>,
     pub(crate) atoms: Atoms,
+    /// The well-known symbols and the symbol registry.
+    pub(crate) symbols: Symbols,
     /// The most frame records.
     pub(crate) frame_limit: usize,
     /// The most values in the value stack.
@@ -316,6 +327,7 @@ impl RootSource for Vm {
             realm.trace(tracer);
         }
         self.atoms.trace(tracer);
+        self.symbols.trace(tracer);
         tracer.value(self.last_value);
         for object in &self.join_stack {
             tracer.object(*object);

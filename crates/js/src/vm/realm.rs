@@ -42,10 +42,20 @@ pub(crate) enum Intrinsic {
     UriErrorPrototype,
     /// `%ThrowTypeError%` (§10.2.4.1).
     ThrowTypeError,
+    /// `%IteratorPrototype%` (§27.1.2).
+    IteratorPrototype,
+    /// `%ArrayIteratorPrototype%` (§23.1.5.2).
+    ArrayIteratorPrototype,
+    /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
+    /// built-in functions are installed.
+    FunctionHasInstance,
+    /// `%Array.prototype.values%` (§23.1.3.40), set when the built-in
+    /// functions are installed; the `@@iterator` of arguments objects.
+    ArrayPrototypeValues,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 17;
+const INTRINSIC_COUNT: usize = 21;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -60,7 +70,9 @@ pub(crate) struct LexicalBinding {
 pub(crate) struct Realm {
     /// The global object (in a browser, behind `WindowProxy`).
     pub(crate) global: Gc<Object>,
-    intrinsics: [Gc<Object>; INTRINSIC_COUNT],
+    /// `None` for the two intrinsics that exist only after the built-in
+    /// functions are installed, until `set_intrinsic` runs.
+    intrinsics: [Option<Gc<Object>>; INTRINSIC_COUNT],
     /// The global `let` and `const` bindings, by atom (a handle-keyed
     /// map: the keys are atoms, whose handles a script cannot choose).
     pub(crate) lexical: HandleMap<Gc<JsString>, LexicalBinding>,
@@ -69,7 +81,7 @@ pub(crate) struct Realm {
 impl Realm {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         tracer.object(self.global);
-        for object in &self.intrinsics {
+        for object in self.intrinsics.iter().flatten() {
             tracer.object(*object);
         }
         for (name, binding) in &self.lexical {
@@ -78,13 +90,18 @@ impl Realm {
         }
     }
 
-    /// An intrinsic object.
-    pub(crate) fn intrinsic(&self, which: Intrinsic) -> Gc<Object> {
+    /// Replaces an intrinsic (for objects that exist only after the
+    /// built-in functions are installed).
+    pub(crate) fn set_intrinsic(&mut self, which: Intrinsic, object: Gc<Object>) {
+        if let Some(slot) = self.intrinsics.get_mut(which as usize) {
+            *slot = Some(object);
+        }
+    }
+
+    /// An intrinsic object; `None` while it is not set yet.
+    pub(crate) fn intrinsic(&self, which: Intrinsic) -> Option<Gc<Object>> {
         // The array has one entry per variant, in declaration order.
-        self.intrinsics
-            .get(which as usize)
-            .copied()
-            .unwrap_or(self.global)
+        self.intrinsics.get(which as usize).copied().flatten()
     }
 }
 
@@ -94,8 +111,17 @@ impl Runtime {
         self.vm
             .realms
             .get(realm as usize)
-            .map(|r| r.intrinsic(which))
-            .ok_or(VmError::invariant("a realm index without a realm"))
+            .ok_or(VmError::invariant("a realm index without a realm"))?
+            .intrinsic(which)
+            .ok_or(VmError::invariant("an intrinsic that is not set yet"))
+    }
+
+    /// Sets an intrinsic of a realm that exists only after the built-in
+    /// functions are installed.
+    pub(crate) fn set_intrinsic(&mut self, realm: u32, which: Intrinsic, object: Gc<Object>) {
+        if let Some(realm) = self.vm.realms.get_mut(realm as usize) {
+            realm.set_intrinsic(which, object);
+        }
     }
 
     /// The global object of a realm.
@@ -147,6 +173,7 @@ impl Runtime {
             heap.new_object_with_kind(Some(object_proto), ObjectKind::BooleanWrapper(false))?;
         let symbol_proto = heap.new_object(Some(object_proto))?;
         let iterator_proto = heap.new_object(Some(object_proto))?;
+        let array_iterator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
@@ -166,23 +193,28 @@ impl Runtime {
         )?;
         let global = heap.new_object(Some(object_proto))?;
         let intrinsics = [
-            object_proto,
-            function_proto,
-            array_proto,
-            string_proto,
-            number_proto,
-            boolean_proto,
-            symbol_proto,
-            generator_proto,
-            generator_function_proto,
-            error_proto,
-            type_error_proto,
-            range_error_proto,
-            reference_error_proto,
-            syntax_error_proto,
-            eval_error_proto,
-            uri_error_proto,
-            throw_type_error,
+            Some(object_proto),
+            Some(function_proto),
+            Some(array_proto),
+            Some(string_proto),
+            Some(number_proto),
+            Some(boolean_proto),
+            Some(symbol_proto),
+            Some(generator_proto),
+            Some(generator_function_proto),
+            Some(error_proto),
+            Some(type_error_proto),
+            Some(range_error_proto),
+            Some(reference_error_proto),
+            Some(syntax_error_proto),
+            Some(eval_error_proto),
+            Some(uri_error_proto),
+            Some(throw_type_error),
+            Some(iterator_proto),
+            Some(array_iterator_proto),
+            // Set by `set_intrinsic` when the function exists.
+            None,
+            None,
         ];
         let realm = Realm {
             global,
@@ -205,9 +237,15 @@ impl Runtime {
     /// The `length` and `name` of `%Function.prototype%` and
     /// `%ThrowTypeError%`, and the `length` of `%String.prototype%`.
     fn define_prototype_properties(&mut self, realm: &Realm) -> VmResult<()> {
-        let string_proto = realm.intrinsic(Intrinsic::StringPrototype);
-        let function_proto = realm.intrinsic(Intrinsic::FunctionPrototype);
-        let throw_type_error = realm.intrinsic(Intrinsic::ThrowTypeError);
+        let string_proto = realm
+            .intrinsic(Intrinsic::StringPrototype)
+            .ok_or(VmError::invariant("an intrinsic that is not set yet"))?;
+        let function_proto = realm
+            .intrinsic(Intrinsic::FunctionPrototype)
+            .ok_or(VmError::invariant("an intrinsic that is not set yet"))?;
+        let throw_type_error = realm
+            .intrinsic(Intrinsic::ThrowTypeError)
+            .ok_or(VmError::invariant("an intrinsic that is not set yet"))?;
         let length = PropertyKey::String(self.heap.length_atom());
         self.define(string_proto, length, Value::Int(0), false, false, false)?;
         let name_key = PropertyKey::String(self.vm.atoms.name);
@@ -281,7 +319,10 @@ impl Runtime {
                 let key = rt.heap.key_from_str(name)?;
                 rt.define(generator_proto, key, function.into(), true, false, true)?;
             }
-            Ok(())
+            crate::builtins::to_string_tag(rt, generator_proto, "Generator")?;
+            let generator_function_proto =
+                rt.intrinsic(realm, Intrinsic::GeneratorFunctionPrototype)?;
+            crate::builtins::to_string_tag(rt, generator_function_proto, "GeneratorFunction")
         })
     }
 }

@@ -17,7 +17,7 @@ use crate::object::{
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
-use crate::vm::{Intrinsic, VmError, VmResult};
+use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
 
 /// The result of a property read.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -383,6 +383,10 @@ impl Runtime {
             false,
             true,
         )?;
+        // §10.4.4.6 step 7: `@@iterator` is `%Array.prototype.values%`.
+        let iterator = self.symbol_key(WellKnown::Iterator);
+        let values = self.intrinsic(realm, Intrinsic::ArrayPrototypeValues)?;
+        self.define(object, iterator, values.into(), true, false, true)?;
         let callee = PropertyKey::String(self.vm.atoms.callee);
         if strict {
             // §10.4.4.6 step 8: an accessor that throws.

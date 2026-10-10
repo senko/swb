@@ -702,6 +702,27 @@ where the first plan did not work:
 - String objects (feature 2a): the heap answers the internal methods
   for the characters of the string without allocation; only a read
   allocates the one-character string.
+- Symbols (feature 2b): the well-known symbols and the registry of
+  `Symbol.for` belong to the runtime, not to a realm, and are roots.
+  The registry maps the atom of the key to the symbol; entries are
+  never removed, and each counts against the heap limit.
+- Iterator operations for natives (feature 2b, §7.4) are methods of the
+  runtime (`vm/iter.rs`). A native keeps the iterator record in its
+  handle scope, opens a handle scope per step, and closes the iterator
+  on its own errors; it roots a thrown value before it calls `return`
+  and lets terminations pass. A native that builds a result from an
+  iterator builds it in the heap while it loops, never in a Rust vector
+  that a script sizes.
+- A thrown value that travels as a Rust `Err` is not traced (feature
+  2b, found by the stress mode). Every Rust site that holds such a
+  value across a safepoint (IteratorClose now; later `for`-`of`,
+  destructuring, the `Map` and `Set` constructors, promise jobs) roots
+  it in the open handle scope with one helper (`hold_error`). A single
+  traced VM slot for "the current exception" does not work: `return`
+  can throw a second value while the first is held.
+- `instanceof` (feature 2b) is one loop over InstanceofOperator and
+  OrdinaryHasInstance; the default `Function.prototype[@@hasInstance]`
+  is recognized by identity and not called.
 
 ## Consequences
 

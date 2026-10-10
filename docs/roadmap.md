@@ -713,7 +713,26 @@ failures with a reason. Features, in this order:
      `%ArrayIteratorPrototype%`, `Array.prototype.keys`, `values`,
      `entries` and `@@iterator`, the iterator operations for natives
      (§7.4), `Object.fromEntries` and `Object.groupBy`. Groups:
-     `Symbol`, `Boolean`, `ArrayIteratorPrototype`.
+     `Symbol`, `Boolean`, `ArrayIteratorPrototype`. Done 2026-10-10:
+     all of the above, and `@@iterator` on arguments objects. The
+     well-known symbols and the registry belong to the runtime;
+     `instanceof` merges InstanceofOperator and OrdinaryHasInstance in
+     one loop, so bound chains need no Rust recursion. Runtime test262:
+     7,215 pass (was 6,679): `Symbol` 39, `Boolean` 37,
+     `ArrayIteratorPrototype` 13, `Object` 155 more, about 40
+     `test/language/` groups more (the `Symbol` features no longer
+     skip them). Known failures: `Array[@@species]` (2c), `Proxy`,
+     `String.prototype` methods and `[@@iterator]` (feature 5), `Date`,
+     `Number` constants (feature 4), `eval`, and the tests that use
+     `for`-`in`, accessors in literals or destructuring (feature 3).
+     Deviations from V8 that follow the spec and test262: an array
+     iterator stays done after a getter throws; `Object.fromEntries`
+     does not close the iterator when `next` throws or returns a
+     non-object; swb cuts a quoted script string in any message at
+     1,024 units (V8 cuts only some messages, at 100 units). Open:
+     `Array.prototype[@@unscopables]` (2c),
+     `GeneratorFunction.prototype.prototype`, a fast path for array
+     iterators (feature 3).
    - 2c. Errors and the rest of `Function`. `Error` and the native
      errors with `message`, `cause`, `Error.prototype.toString` and
      `AggregateError`; the `stack` property in Chromium's format

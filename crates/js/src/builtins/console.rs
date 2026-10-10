@@ -32,7 +32,7 @@ use crate::object::{Object, ObjectKind, Property};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult, WellKnown};
 
 /// The deepest level whose objects are shown (Node.js's default depth).
 const MAX_DEPTH: usize = 2;
@@ -157,7 +157,9 @@ impl Inspector<'_> {
             return "[Object]".to_owned();
         };
         let is_array = matches!(record.kind, ObjectKind::Array { .. });
-        let base = self.base(object, &record.kind);
+        let base = self
+            .base(object, &record.kind)
+            .map(|base| self.with_function_tag(object, &record.kind, base));
         let entries_shown = depth <= MAX_DEPTH;
         if !entries_shown {
             if let Some(base) = base {
@@ -209,6 +211,18 @@ impl Inspector<'_> {
     /// them: functions, boxed primitives, errors.
     fn base(&self, object: Gc<Object>, kind: &ObjectKind) -> Option<String> {
         let rt = self.rt;
+        // Node.js shows the prototype object of a primitive wrapper as an
+        // ordinary object (`{}`), not as a wrapper.
+        if matches!(
+            kind,
+            ObjectKind::NumberWrapper(_)
+                | ObjectKind::BooleanWrapper(_)
+                | ObjectKind::StringWrapper(_)
+                | ObjectKind::SymbolWrapper(_)
+        ) && rt.is_wrapper_prototype(object)
+        {
+            return None;
+        }
         Some(match kind {
             ObjectKind::Function(closure) => {
                 let kind = if closure.compiled.kind == crate::bytecode::CodeKind::Generator {
@@ -251,32 +265,85 @@ impl Inspector<'_> {
         })
     }
 
+    /// A function's base text with its `@@toStringTag` (`[Function: f]
+    /// [Q]`), when the tag differs from the constructor name.
+    fn with_function_tag(&self, object: Gc<Object>, kind: &ObjectKind, base: String) -> String {
+        if !matches!(
+            kind,
+            ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_)
+        ) {
+            return base;
+        }
+        let Some(tag) = self.string_tag(object) else {
+            return base;
+        };
+        let constructor = match self.rt.heap.get_prototype_of(object) {
+            Ok(Some(proto)) => self.rt.chain_constructor_name(proto),
+            _ => None,
+        };
+        if constructor.as_deref() == Some(tag.as_str()) || base.starts_with(&format!("[{tag}")) {
+            base
+        } else {
+            format!("{base} [{tag}]")
+        }
+    }
+
     /// The text before the braces of an ordinary object: `Foo ` for an
     /// object whose constructor is not `Object`, `[Object: null
-    /// prototype] `, `Object [Generator] `, `[Arguments] `.
+    /// prototype] `, `Object [Generator] `, `[Arguments] `, and
+    /// `Object [Tag] ` for an object with a `@@toStringTag` (Node.js omits
+    /// the tag when it is an enumerable own property, because the
+    /// property is listed anyway).
     fn prefix(&self, object: Gc<Object>, kind: &ObjectKind) -> String {
         match kind {
             ObjectKind::Generator(_) => return "Object [Generator] ".to_owned(),
             ObjectKind::Arguments => return "[Arguments] ".to_owned(),
-            ObjectKind::Ordinary | ObjectKind::Array { .. } => {}
+            ObjectKind::Ordinary | ObjectKind::Array { .. } | ObjectKind::ArrayIterator(_) => {}
             _ => return String::new(),
         }
         let rt = self.rt;
-        let Ok(Some(proto)) = rt.heap.get_prototype_of(object) else {
-            return if matches!(kind, ObjectKind::Array { .. }) {
-                "[Array(0): null prototype] ".to_owned()
-            } else {
-                "[Object: null prototype] ".to_owned()
-            };
+        let tag = self.string_tag(object);
+        // An array names its length: `Array(1)`, `A(2)`.
+        let sized = |name: &str| match kind {
+            ObjectKind::Array { .. } => {
+                let length = rt.heap.array_length(object).map_or(0, |(l, _)| l);
+                format!("{name}({length})")
+            }
+            _ => name.to_owned(),
         };
         let default = if matches!(kind, ObjectKind::Array { .. }) {
             "Array"
         } else {
             "Object"
         };
-        match rt.chain_constructor_name(proto) {
-            Some(name) if name != default && !name.is_empty() => format!("{name} "),
+        let Ok(Some(proto)) = rt.heap.get_prototype_of(object) else {
+            let start = format!("[{}: null prototype] ", sized(default));
+            return tag.map_or_else(|| start.clone(), |tag| format!("{start}[{tag}] "));
+        };
+        match (rt.chain_constructor_name(proto), tag) {
+            (Some(name), Some(tag)) if !name.is_empty() && name != tag => {
+                format!("{} [{tag}] ", sized(&name))
+            }
+            (Some(name), _) if name != default && !name.is_empty() => {
+                format!("{} ", sized(&name))
+            }
             _ => String::new(),
+        }
+    }
+
+    /// The `@@toStringTag` of an object as a plain data property that is
+    /// not an enumerable own property (no getter runs).
+    fn string_tag(&self, object: Gc<Object>) -> Option<String> {
+        let key = self.rt.symbol_key(WellKnown::ToStringTag);
+        if let Ok(Some(Property::Data {
+            enumerable: true, ..
+        })) = self.rt.heap.get_own_property(object, key)
+        {
+            return None;
+        }
+        match self.rt.chain_data_value_of(object, key)? {
+            Value::String(tag) => Some(self.rt.name_text(tag)).filter(|tag| !tag.is_empty()),
+            _ => None,
         }
     }
 

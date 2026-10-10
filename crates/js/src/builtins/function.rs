@@ -1,5 +1,5 @@
-//! `Function.prototype` (ECMA-262 §20.2.3): `call`, `apply`, `bind` and
-//! `toString`. `call` and `apply` return a deferred call (memo 1.2), so
+//! `Function.prototype` (ECMA-262 §20.2.3): `call`, `apply`, `bind`,
+//! `toString` and `@@hasInstance`. `call` and `apply` return a deferred call (memo 1.2), so
 //! the called function runs as a script-to-script call of the
 //! interpreter loop, without Rust recursion. `bind` creates a bound
 //! function exotic object (§10.4.1); calls of bound functions are in
@@ -12,7 +12,9 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::convert::to_integer_or_infinity;
-use crate::vm::{BoundFunction, Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
+use crate::vm::{
+    BoundFunction, Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown,
+};
 
 /// The longest name, in code units, that `bind` gives a bound function.
 const BOUND_NAME_LIMIT: usize = 1 << 15;
@@ -29,7 +31,24 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     for (name, length, func) in methods {
         super::method(rt, realm, proto, name, length, func)?;
     }
+    let has_instance = super::symbol_method(
+        rt,
+        realm,
+        proto,
+        WellKnown::HasInstance,
+        1,
+        has_instance,
+        (false, false),
+    )?;
+    rt.set_intrinsic(realm, Intrinsic::FunctionHasInstance, has_instance);
     Ok(())
+}
+
+/// `Function.prototype[@@hasInstance](V)` (§20.2.3.6):
+/// `OrdinaryHasInstance(this, V)`.
+fn has_instance(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let result = rt.ordinary_has_instance(call.this(), rt.arg(call, 0))?;
+    Ok(NativeReturn::Value(Value::Bool(result)))
 }
 
 /// `Function(...)` (§20.2.1.1): creating functions from text is M7 (it

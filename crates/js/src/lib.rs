@@ -28,7 +28,10 @@ pub use heap::{
     Gc, GcStats, Generic, GenericData, HandleScope, Heap, HeapConfig, HeapCounts, NoRoots,
     Persistent, Root, RootSource, Tracer,
 };
-pub use object::{GetResult, Object, ObjectKind, Property, PropertyDescriptor, SetResult, Shape};
+pub use object::{
+    ArrayIterator, GetResult, IterationKind, Object, ObjectKind, Property, PropertyDescriptor,
+    SetResult, Shape,
+};
 pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Equality, Symbol, Value, ValueCell};
 

@@ -16,7 +16,7 @@ use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
 use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::number::{number_to_string, string_to_number};
-use crate::vm::{Intrinsic, VmError, VmResult};
+use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
 
 /// The longest string (V8's limit: 2^29 − 24 code units).
 pub(crate) const MAX_STRING_LENGTH: usize = (1 << 29) - 24;
@@ -159,12 +159,28 @@ fn number_op(op: NumberOp, x: f64, y: f64) -> Value {
 // they need the runtime mutably because they can run script code.
 #[allow(clippy::wrong_self_convention)]
 impl Runtime {
-    /// `ToPrimitive` (§7.1.1) with `OrdinaryToPrimitive` (§7.1.1.1);
-    /// `Symbol.toPrimitive` comes with the built-ins.
+    /// `ToPrimitive` (§7.1.1): `@@toPrimitive` if the object has one,
+    /// else `OrdinaryToPrimitive` (§7.1.1.1).
     pub(crate) fn to_primitive(&mut self, value: Value, hint: Hint) -> VmResult<Value> {
         let Value::Object(object) = value else {
             return Ok(value);
         };
+        let key = self.symbol_key(WellKnown::ToPrimitive);
+        if let Some(method) = self.get_method(value, key)? {
+            let atoms = &self.vm.atoms;
+            let hint = match hint {
+                Hint::Default => atoms.default,
+                Hint::Number => atoms.number,
+                Hint::String => atoms.string,
+            };
+            let result = self.call(method, value, &[hint.into()])?;
+            if matches!(result, Value::Object(_)) {
+                return Err(VmError::type_error(
+                    "Cannot convert object to primitive value",
+                ));
+            }
+            return Ok(result);
+        }
         let atoms = &self.vm.atoms;
         let order = if hint == Hint::String {
             [atoms.to_string, atoms.value_of]
@@ -183,6 +199,20 @@ impl Runtime {
         Err(VmError::type_error(
             "Cannot convert object to primitive value",
         ))
+    }
+
+    /// `GetMethod` (§7.3.11): `None` for `undefined` and `null`, a
+    /// `TypeError` for a value that is not callable. The method is
+    /// recorded in the current handle scope.
+    pub(crate) fn get_method(&mut self, value: Value, key: PropertyKey) -> VmResult<Option<Value>> {
+        let method = self.get_value(value, key)?;
+        if method.is_nullish() {
+            return Ok(None);
+        }
+        if !self.is_callable(method)? {
+            return Err(self.not_callable(method));
+        }
+        Ok(Some(method))
     }
 
     /// `IsCallable` (§7.2.3).
@@ -509,27 +539,77 @@ impl Runtime {
         Ok(result)
     }
 
-    /// `x instanceof target` (§13.10.2 `InstanceofOperator` with
-    /// `OrdinaryHasInstance`, §7.3.21; `Symbol.hasInstance` and bound
-    /// functions come with the built-ins).
+    /// `x instanceof target` (§13.10.2 `InstanceofOperator`): the
+    /// `@@hasInstance` method of the target, else `OrdinaryHasInstance`.
     pub(crate) fn instance_of(&mut self, value: Value, target: Value) -> VmResult<bool> {
-        let Value::Object(mut constructor) = target else {
-            return Err(VmError::type_error(
-                "Right-hand side of 'instanceof' is not an object",
-            ));
-        };
-        if !self.is_callable(target)? {
-            return Err(VmError::type_error(
-                "Right-hand side of 'instanceof' is not callable",
-            ));
+        self.has_instance_loop(value, target, false)
+    }
+
+    /// `OrdinaryHasInstance` (§7.3.21).
+    pub(crate) fn ordinary_has_instance(
+        &mut self,
+        constructor: Value,
+        value: Value,
+    ) -> VmResult<bool> {
+        self.has_instance_loop(value, constructor, true)
+    }
+
+    /// `InstanceofOperator` and `OrdinaryHasInstance` as one loop: a bound
+    /// function asks its target, which is the operator again (step 3 of
+    /// §7.3.21), so a chain of bound functions needs no Rust recursion.
+    /// `ordinary` skips the `@@hasInstance` lookup of the first target.
+    fn has_instance_loop(
+        &mut self,
+        value: Value,
+        mut target: Value,
+        mut ordinary: bool,
+    ) -> VmResult<bool> {
+        loop {
+            if !ordinary {
+                if !matches!(target, Value::Object(_)) {
+                    return Err(VmError::type_error(
+                        "Right-hand side of 'instanceof' is not an object",
+                    ));
+                }
+                let key = self.symbol_key(WellKnown::HasInstance);
+                match self.get_method(target, key)? {
+                    // Function.prototype[@@hasInstance] is
+                    // OrdinaryHasInstance: no call needed.
+                    Some(handler) if !self.is_default_has_instance(handler) => {
+                        let result = self.call(handler, target, &[value])?;
+                        return self.to_boolean(result);
+                    }
+                    None if !self.is_callable(target)? => {
+                        return Err(VmError::type_error(
+                            "Right-hand side of 'instanceof' is not callable",
+                        ));
+                    }
+                    Some(_) | None => {}
+                }
+            }
+            // OrdinaryHasInstance.
+            let Value::Object(constructor) = target else {
+                return Ok(false);
+            };
+            if !self.is_callable(target)? {
+                return Ok(false);
+            }
+            if let ObjectKind::Bound(bound) = &self.heap.object(constructor)?.kind {
+                target = bound.target.into();
+                self.tick()?;
+                ordinary = false;
+                continue;
+            }
+            return self.ordinary_has_instance_tail(constructor, value);
         }
-        // OrdinaryHasInstance step 3 (§7.3.21): a bound function asks its
-        // target (a loop, for a chain of bound functions).
-        while let ObjectKind::Bound(bound) = &self.heap.object(constructor)?.kind {
-            let next = bound.target;
-            self.tick()?;
-            constructor = next;
-        }
+    }
+
+    /// Steps 4 to 8 of `OrdinaryHasInstance`: the prototype chain walk.
+    fn ordinary_has_instance_tail(
+        &mut self,
+        constructor: Gc<Object>,
+        value: Value,
+    ) -> VmResult<bool> {
         let Value::Object(object) = value else {
             return Ok(false);
         };
@@ -546,9 +626,18 @@ impl Runtime {
             if p == proto {
                 return Ok(true);
             }
+            self.tick()?;
             current = self.heap.get_prototype_of(p)?;
         }
         Ok(false)
+    }
+
+    /// Whether `handler` is `Function.prototype[@@hasInstance]` of the
+    /// current realm.
+    fn is_default_has_instance(&self, handler: Value) -> bool {
+        matches!(handler, Value::Object(h) if self
+            .intrinsic(self.current_realm(), Intrinsic::FunctionHasInstance)
+            .is_ok_and(|default| default == h))
     }
 }
 

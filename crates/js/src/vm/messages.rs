@@ -13,7 +13,43 @@ use crate::vm::function::is_callable_kind;
 /// The longest prototype chain that the text helpers follow.
 const CHAIN_LIMIT: usize = 1000;
 
+/// The longest string that `typed_text` quotes in full (Node.js 22 keeps
+/// the first 100 units of a longer one and appends `<...>`).
+const TYPED_LIMIT: usize = 100;
+
+/// The longest string that the other messages quote. Node.js does not cut
+/// these; the bound only keeps a message small when the script passes a
+/// huge string.
+const QUOTE_LIMIT: usize = 1024;
+
+/// The marker that ends a shortened string.
+const CUT_MARK: &str = "<...>";
+
 impl Runtime {
+    /// The text of a script string as a message quotes it: at most
+    /// `QUOTE_LIMIT` units, then `<...>`. Every message that quotes a
+    /// script string goes through this or `clipped_text_to`.
+    pub(crate) fn clipped_text(&self, string: Gc<JsString>) -> String {
+        self.clipped_text_to(string, QUOTE_LIMIT)
+    }
+
+    /// Like `clipped_text` with another limit.
+    pub(crate) fn clipped_text_to(&self, string: Gc<JsString>, limit: usize) -> String {
+        let Ok(text) = self.heap.string(string) else {
+            return String::new();
+        };
+        let text = text.as_str16();
+        if text.len() <= limit {
+            return text.to_string_lossy();
+        }
+        let mut out = text
+            .slice(0, limit)
+            .map(swb_js_text::Str16::to_string_lossy)
+            .unwrap_or_default();
+        out.push_str(CUT_MARK);
+        out
+    }
+
     /// The `TypeError` of a read from `undefined` or `null`.
     pub(crate) fn cannot_read(&self, base: Value, key: PropertyKey) -> VmError {
         let what = if base == Value::Null {
@@ -54,14 +90,15 @@ impl Runtime {
                 return VmError::type_error(format!(
                     "Cannot assign to read only property '{}' of string '{}'",
                     self.key_text(key),
-                    self.name_text(string)
+                    self.clipped_text(string)
                 ));
             }
         }
         let (kind, text) = match base {
-            Value::String(string) => ("string", self.name_text(string)),
+            Value::String(string) => ("string", self.clipped_text(string)),
             Value::Int(_) | Value::Double(_) => ("number", self.primitive_text(base)),
             Value::Bool(_) => ("boolean", self.primitive_text(base)),
+            Value::Symbol(symbol) => ("symbol", self.key_text(PropertyKey::Symbol(symbol))),
             _ => ("symbol", "Symbol()".to_owned()),
         };
         VmError::type_error(format!(
@@ -138,7 +175,7 @@ impl Runtime {
     pub(crate) fn tdz_error(&self, name: Gc<JsString>) -> VmError {
         VmError::reference_error(format!(
             "Cannot access '{}' before initialization",
-            self.name_text(name)
+            self.clipped_text(name)
         ))
     }
 
@@ -155,7 +192,15 @@ impl Runtime {
     /// property of that name is an accessor or no object has one; no
     /// getter runs.
     pub(crate) fn chain_data_value(&self, object: Gc<Object>, name: Gc<JsString>) -> Option<Value> {
-        let key = PropertyKey::String(name);
+        self.chain_data_value_of(object, PropertyKey::String(name))
+    }
+
+    /// [`Runtime::chain_data_value`] for any property key.
+    pub(crate) fn chain_data_value_of(
+        &self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> Option<Value> {
         let mut current = Some(object);
         for _ in 0..CHAIN_LIMIT {
             let object = current?;
@@ -177,7 +222,7 @@ impl Runtime {
             Ok(Some(Property::Data {
                 value: Value::String(text),
                 ..
-            })) => Some(self.name_text(text)),
+            })) => Some(self.clipped_text(text)),
             _ => None,
         }
     }
@@ -189,7 +234,7 @@ impl Runtime {
         name: Gc<JsString>,
     ) -> Option<String> {
         match self.chain_data_value(object, name)? {
-            Value::String(text) => Some(self.name_text(text)),
+            Value::String(text) => Some(self.clipped_text(text)),
             _ => None,
         }
     }
@@ -207,14 +252,14 @@ impl Runtime {
     pub(crate) fn key_text(&self, key: PropertyKey) -> String {
         match key {
             PropertyKey::Index(index) => index.to_string(),
-            PropertyKey::String(name) => self.name_text(name),
+            PropertyKey::String(name) => self.clipped_text(name),
             PropertyKey::Symbol(symbol) => {
                 let description = self
                     .heap
                     .symbol(symbol)
                     .ok()
                     .and_then(|s| s.description)
-                    .map(|d| self.name_text(d))
+                    .map(|d| self.clipped_text(d))
                     .unwrap_or_default();
                 format!("Symbol({description})")
             }
@@ -230,6 +275,9 @@ impl Runtime {
         match self.heap.object(object).map(|o| &o.kind) {
             Ok(ObjectKind::Array { .. }) => "[object Array]".to_owned(),
             Ok(ObjectKind::StringWrapper(_)) => "[object String]".to_owned(),
+            Ok(ObjectKind::NumberWrapper(_)) => "[object Number]".to_owned(),
+            Ok(ObjectKind::BooleanWrapper(_)) => "[object Boolean]".to_owned(),
+            Ok(ObjectKind::SymbolWrapper(_)) => "[object Symbol]".to_owned(),
             Ok(ObjectKind::Function(closure)) => closure
                 .compiled
                 .source_text()
@@ -244,6 +292,41 @@ impl Runtime {
         }
     }
 
+    /// The text that V8 uses for a value in the messages of built-in
+    /// functions: the type, and the value for primitives that have a
+    /// short one ("number 1", "object null", "function").
+    pub(crate) fn typed_text(&self, value: Value) -> String {
+        match value {
+            Value::Undefined => "undefined".to_owned(),
+            Value::Null => "object null".to_owned(),
+            Value::Bool(b) => format!("boolean {b}"),
+            Value::Int(_) | Value::Double(_) => {
+                let n = value.as_number().unwrap_or(f64::NAN);
+                // V8 shows -0 as 0 here.
+                format!("number {}", crate::vm::number::number_to_string(n))
+            }
+            Value::String(s) => format!("string \"{}\"", self.clipped_text_to(s, TYPED_LIMIT)),
+            Value::Symbol(_) => "symbol".to_owned(),
+            Value::BigInt(_) => "bigint".to_owned(),
+            Value::Object(_) if self.is_callable(value).unwrap_or(false) => "function".to_owned(),
+            Value::Object(_) | Value::Empty | Value::Cell(_) => "object".to_owned(),
+        }
+    }
+
+    /// The `TypeError` of a callback that is not callable, as V8 words it
+    /// for the array methods ("number 1 is not a function").
+    pub(crate) fn not_callable(&self, value: Value) -> VmError {
+        VmError::type_error(format!("{} is not a function", self.typed_text(value)))
+    }
+
+    /// The `TypeError` of a value without a usable `@@iterator` method.
+    pub(crate) fn not_iterable(&self, value: Value) -> VmError {
+        VmError::type_error(format!(
+            "{} is not iterable (cannot read property Symbol(Symbol.iterator))",
+            self.typed_text(value)
+        ))
+    }
+
     /// The text of a primitive value without running script code.
     pub(crate) fn primitive_text(&self, value: Value) -> String {
         match value {
@@ -252,7 +335,7 @@ impl Runtime {
             Value::Bool(b) => b.to_string(),
             Value::Int(i) => i.to_string(),
             Value::Double(d) => super::number::number_to_string(d),
-            Value::String(s) => self.name_text(s),
+            Value::String(s) => self.clipped_text(s),
             Value::Symbol(s) => self.key_text(PropertyKey::Symbol(s)),
             Value::BigInt(_) => "BigInt".to_owned(),
             Value::Object(o) => self.object_text(o),

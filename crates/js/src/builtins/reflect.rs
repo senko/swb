@@ -35,6 +35,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     for (name, length, func) in functions {
         super::method(rt, realm, reflect, name, length, func)?;
     }
+    super::to_string_tag(rt, reflect, "Reflect")?;
     super::global(rt, realm, "Reflect", reflect.into())
 }
 

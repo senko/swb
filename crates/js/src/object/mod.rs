@@ -74,11 +74,37 @@ pub enum ObjectKind {
     BooleanWrapper(bool),
     /// A Symbol object (`[[SymbolData]]`).
     SymbolWrapper(Gc<Symbol>),
+    /// An Array Iterator (§23.1.5): the array-like, the next index and
+    /// the kind of its results.
+    ArrayIterator(Box<ArrayIterator>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise.
     Error,
     /// An arguments object (`[[ParameterMap]]` absent: the unmapped form,
     /// §10.4.4.6): ordinary otherwise.
     Arguments,
+}
+
+/// What an Array Iterator returns for each index (§23.1.5.1
+/// `CreateArrayIterator`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IterationKind {
+    /// The indices.
+    Keys,
+    /// The elements.
+    Values,
+    /// `[index, element]` pairs.
+    Entries,
+}
+
+/// The state of an Array Iterator.
+#[derive(Debug)]
+pub struct ArrayIterator {
+    /// `[[IteratedArrayLike]]`; `None` once the iterator is exhausted.
+    pub(crate) target: Option<Gc<Object>>,
+    /// `[[ArrayLikeNextIndex]]`: an integer below 2^53.
+    pub(crate) next_index: f64,
+    /// `[[ArrayLikeIterationKind]]`.
+    pub(crate) kind: IterationKind,
 }
 
 impl fmt::Debug for ObjectKind {
@@ -95,6 +121,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
+            ObjectKind::ArrayIterator(_) => "ArrayIterator",
             ObjectKind::Error => "Error",
             ObjectKind::Arguments => "Arguments",
         };
@@ -120,6 +147,11 @@ impl ObjectKind {
             ObjectKind::Generator(state) => state.trace(tracer),
             ObjectKind::StringWrapper(string) => tracer.string(*string),
             ObjectKind::SymbolWrapper(symbol) => tracer.symbol(*symbol),
+            ObjectKind::ArrayIterator(state) => {
+                if let Some(target) = state.target {
+                    tracer.object(target);
+                }
+            }
         }
     }
 
@@ -130,6 +162,7 @@ impl ObjectKind {
             ObjectKind::Native(_) => size_of::<NativeFunction>(),
             ObjectKind::Bound(bound) => bound.heap_size(),
             ObjectKind::Generator(state) => state.heap_size(),
+            ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
             _ => 0,
         }
     }
