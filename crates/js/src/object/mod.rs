@@ -28,7 +28,7 @@ use crate::error::Result;
 use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Symbol, Value};
-use crate::vm::{BoundFunction, Closure, GeneratorState, NativeFunction};
+use crate::vm::{BoundFunction, Closure, ErrorData, GeneratorState, NativeFunction};
 
 /// The kind of an object: which internal methods it has (§10.1, §10.4).
 /// Other kinds come with their features.
@@ -77,8 +77,10 @@ pub enum ObjectKind {
     /// An Array Iterator (§23.1.5): the array-like, the next index and
     /// the kind of its results.
     ArrayIterator(Box<ArrayIterator>),
-    /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise.
-    Error,
+    /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
+    /// payload is the captured stack for the `stack` property (none if
+    /// `Error.stackTraceLimit` was not a number at the capture).
+    Error(Option<Box<ErrorData>>),
     /// An arguments object (`[[ParameterMap]]` absent: the unmapped form,
     /// §10.4.4.6): ordinary otherwise.
     Arguments,
@@ -122,7 +124,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
-            ObjectKind::Error => "Error",
+            ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
         };
         f.write_str(name)
@@ -136,11 +138,19 @@ impl ObjectKind {
         match self {
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
-            | ObjectKind::Native(_)
             | ObjectKind::NumberWrapper(_)
             | ObjectKind::BooleanWrapper(_)
-            | ObjectKind::Error
             | ObjectKind::Arguments => {}
+            ObjectKind::Error(data) => {
+                if let Some(data) = data {
+                    data.trace(tracer);
+                }
+            }
+            ObjectKind::Native(native) => {
+                if let Some(name) = native.name {
+                    tracer.string(name);
+                }
+            }
             ObjectKind::Host { data, .. } => tracer.generic(*data),
             ObjectKind::Function(closure) => closure.trace(tracer),
             ObjectKind::Bound(bound) => bound.trace(tracer),
@@ -163,6 +173,7 @@ impl ObjectKind {
             ObjectKind::Bound(bound) => bound.heap_size(),
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
+            ObjectKind::Error(Some(data)) => data.heap_size(),
             _ => 0,
         }
     }

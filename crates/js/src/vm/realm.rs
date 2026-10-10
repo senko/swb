@@ -40,6 +40,7 @@ pub(crate) enum Intrinsic {
     SyntaxErrorPrototype,
     EvalErrorPrototype,
     UriErrorPrototype,
+    AggregateErrorPrototype,
     /// `%ThrowTypeError%` (§10.2.4.1).
     ThrowTypeError,
     /// `%IteratorPrototype%` (§27.1.2).
@@ -52,10 +53,18 @@ pub(crate) enum Intrinsic {
     /// `%Array.prototype.values%` (§23.1.3.40), set when the built-in
     /// functions are installed; the `@@iterator` of arguments objects.
     ArrayPrototypeValues,
+    /// `Error`, set when the built-in functions are installed (for
+    /// `Error.stackTraceLimit`).
+    ErrorConstructor,
+    /// `Array`, set when the built-in functions are installed.
+    ArrayConstructor,
+    /// The getter and setter of the `stack` accessor of error objects.
+    StackGetter,
+    StackSetter,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 21;
+const INTRINSIC_COUNT: usize = 26;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -161,6 +170,7 @@ impl Runtime {
                 func: function_prototype,
                 realm: index,
                 constructor: false,
+                name: None,
             })),
         )?;
         let array_proto = heap.new_array(Some(object_proto), 0)?;
@@ -183,12 +193,14 @@ impl Runtime {
         let syntax_error_proto = heap.new_object(Some(error_proto))?;
         let eval_error_proto = heap.new_object(Some(error_proto))?;
         let uri_error_proto = heap.new_object(Some(error_proto))?;
+        let aggregate_error_proto = heap.new_object(Some(error_proto))?;
         let throw_type_error = heap.new_object_with_kind(
             Some(function_proto),
             ObjectKind::Native(Box::new(crate::vm::NativeFunction {
                 func: throw_type_error,
                 realm: index,
                 constructor: false,
+                name: None,
             })),
         )?;
         let global = heap.new_object(Some(object_proto))?;
@@ -209,10 +221,15 @@ impl Runtime {
             Some(syntax_error_proto),
             Some(eval_error_proto),
             Some(uri_error_proto),
+            Some(aggregate_error_proto),
             Some(throw_type_error),
             Some(iterator_proto),
             Some(array_iterator_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
+            None,
+            None,
+            None,
             None,
             None,
         ];
@@ -253,6 +270,15 @@ impl Runtime {
         let empty = self.vm.atoms.empty;
         self.define(function_proto, length, Value::Int(0), false, false, true)?;
         self.define(function_proto, name_key, empty.into(), false, false, true)?;
+        // AddRestrictedFunctionProperties (§10.2.4): `arguments` and
+        // `caller` throw. Chromium's order of the keys.
+        for name in ["arguments", "caller"] {
+            let key = self.heap.key_from_str(name)?;
+            let thrower: Value = throw_type_error.into();
+            let desc = crate::object::PropertyDescriptor::accessor(thrower, thrower, false, true);
+            self.heap
+                .define_own_property(function_proto, key, desc, &self.vm)?;
+        }
         // %ThrowTypeError%: length 0 and name "", both fixed; not
         // extensible (§10.2.4.1).
         self.define(throw_type_error, length, Value::Int(0), false, false, false)?;
@@ -283,24 +309,30 @@ impl Runtime {
     }
 
     /// Creates the error object of a [`VmError::Raise`] in the current
-    /// realm: an error object with the error prototype and an own
-    /// `message`, as the constructors create it (§20.5.6.1.1; `stack` is
-    /// M7).
+    /// realm: an error object with the error prototype, a `stack` and an
+    /// own `message`, as the constructors create it (§20.5.6.1.1). The
+    /// stack is that of the frames at the time of the call, so the
+    /// caller creates the object before it removes any frame.
     pub(crate) fn error_object(
         &mut self,
         kind: crate::error::ThrowKind,
         message: &str,
     ) -> VmResult<Gc<Object>> {
-        let proto = self.intrinsic(self.current_realm(), error_prototype(kind))?;
-        let object = self
-            .heap
-            .new_object_with_kind(Some(proto), ObjectKind::Error)?;
-        let text = self.heap.alloc_str(message)?;
-        // The object and the text are the arguments of the definition, so
-        // they are rooted during its reservation.
-        let key = PropertyKey::String(self.vm.atoms.message);
-        self.define(object, key, text.into(), true, false, true)?;
-        Ok(object)
+        // The object is rooted in a scope of its own while it is built;
+        // the caller stores it before anything else can collect.
+        self.scoped(|rt| {
+            let proto = rt.intrinsic(rt.current_realm(), error_prototype(kind))?;
+            let object = rt
+                .heap
+                .new_object_with_kind(Some(proto), ObjectKind::Error(None))?;
+            rt.heap.record(object);
+            rt.install_stack(object, None)?;
+            let text = rt.heap.alloc_str(message)?;
+            rt.heap.record(text);
+            let key = PropertyKey::String(rt.vm.atoms.message);
+            rt.define(object, key, text.into(), true, false, true)?;
+            Ok(object)
+        })
     }
 
     /// The native functions of the realm's intrinsics and the built-in
@@ -342,15 +374,21 @@ pub(crate) fn error_prototype(kind: crate::error::ThrowKind) -> Intrinsic {
 }
 
 /// `%ThrowTypeError%` (§10.2.4.1): the accessor of `callee` on the
-/// arguments objects of strict functions. V8's message.
+/// arguments objects of strict functions, and the getter and setter of
+/// `caller` and `arguments` on `Function.prototype`. V8's messages.
 fn throw_type_error(
-    _: &mut Runtime,
+    rt: &mut Runtime,
     call: &crate::vm::NativeCall,
 ) -> VmResult<crate::vm::NativeReturn> {
     // The one function is both getter and setter; a setter gets the
-    // value. V8 words an assignment as a write to a read-only property
-    // (measured in Node.js 22).
-    if call.argc() > 0 {
+    // value. V8 words an assignment to `callee` as a write to a
+    // read-only property (measured in Node.js 22), but an assignment to
+    // `caller` or `arguments` of a function as the access error.
+    let on_arguments = matches!(
+        call.this(),
+        Value::Object(object) if matches!(rt.heap.object(object)?.kind, ObjectKind::Arguments)
+    );
+    if call.argc() > 0 && on_arguments {
         return Err(VmError::type_error(
             "Cannot assign to read only property 'callee' of object '#<Object>'",
         ));

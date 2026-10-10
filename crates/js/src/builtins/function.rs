@@ -7,7 +7,7 @@
 
 use swb_js_syntax::messages::NOT_SUPPORTED;
 
-use crate::object::{ObjectKind, Property};
+use crate::object::ObjectKind;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -23,9 +23,9 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::FunctionPrototype)?;
     super::constructor(rt, realm, "Function", 1, function_constructor, proto)?;
     let methods: [(&str, u32, NativeFn); 4] = [
-        ("call", 1, call),
         ("apply", 2, apply),
         ("bind", 1, bind),
+        ("call", 1, call),
         ("toString", 0, to_string),
     ];
     for (name, length, func) in methods {
@@ -180,15 +180,13 @@ fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
             .compiled
             .source_text()
             .ok_or(VmError::invariant("a function without its source text"))?,
-        ObjectKind::Native(_) => {
-            let key = PropertyKey::String(rt.vm.atoms.name);
-            let name = match rt.heap.get_own_property(function, key)? {
-                Some(Property::Data {
-                    value: Value::String(name),
-                    ..
-                }) => rt.name_text(name),
-                _ => String::new(),
-            };
+        ObjectKind::Native(native) => {
+            // The name that the function was created with, not the
+            // `name` property (a script can redefine it), as V8 shows it.
+            let name = native
+                .name
+                .map(|name| rt.name_text(name))
+                .unwrap_or_default();
             swb_js_text::String16::from(format!("function {name}() {{ [native code] }}").as_str())
         }
         ObjectKind::Bound(_) => swb_js_text::String16::from("function () { [native code] }"),

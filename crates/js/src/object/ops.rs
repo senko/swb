@@ -460,6 +460,38 @@ impl Heap {
         Ok(true)
     }
 
+    /// Appends to `found` the string keys of the own named properties
+    /// of `object` that hold `function`, as a data value or as a getter
+    /// or setter (for the method name in stack traces). It looks at no
+    /// more than `*budget` properties and lowers the budget by the number
+    /// it looked at; it allocates nothing in proportion to the object.
+    pub(crate) fn keys_holding(
+        &self,
+        object: Gc<Object>,
+        function: Gc<Object>,
+        budget: &mut usize,
+        found: &mut Vec<PropertyKey>,
+    ) -> Result<()> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        for entry in shape.entries(&self.arenas.key_lists)? {
+            if *budget == 0 {
+                break;
+            }
+            *budget -= 1;
+            if entry.flags.deleted() || entry.key.is_symbol() {
+                continue;
+            }
+            let slot = entry.slot as usize;
+            let holds =
+                |i: usize| matches!(record.slots.get(i), Some(Value::Object(o)) if *o == function);
+            if holds(slot) || (entry.flags.accessor() && holds(slot + 1)) {
+                found.push(entry.key);
+            }
+        }
+        Ok(())
+    }
+
     /// An upper bound of the number of keys that
     /// [`Heap::own_property_keys`] lists, without listing them.
     pub fn own_key_bound(&self, object: Gc<Object>) -> Result<usize> {

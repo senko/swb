@@ -3,7 +3,9 @@
 For each file, the tool compares the standard output and the first line of
 the uncaught-error report (`Uncaught Name: message`). Node runs the file
 as a classic script in the global scope, with `print` defined as
-`ToString` of each argument, joined by spaces (like swb-js). Not part of `just check`.
+`ToString` of each argument, joined by spaces (like swb-js); the stack-trace
+lines of Node's own frames (`node:` and `[eval]`) are removed from its output.
+Not part of `just check`.
 """
 
 import difflib
@@ -83,9 +85,25 @@ def run_swb(binary: Path, file: Path) -> Run:
     return run_process([str(binary), str(file)])
 
 
+NODE_FRAME = re.compile(r"^ +at (?:.* \()?(?:node:|\[eval\])[^()]*\)?$")
+"""A stack-trace line of Node's own frames below the script: the location
+(bare, or in parentheses after a function name) starts with `node:`
+(`vm`, `internal/...`) or `[eval]` (`[eval]:7:6`, `[eval]-wrapper:6:24`).
+A user frame whose path only contains these words does not match."""
+
+
+def strip_node_frames(text: str) -> str:
+    """Removes the stack-trace lines of Node's own frames from the output."""
+    lines = text.splitlines(keepends=True)
+    return "".join(line for line in lines if not NODE_FRAME.match(line.rstrip("\r\n")))
+
+
 def run_node(node: str, file: Path) -> Run:
-    """Runs a file in Node.js."""
-    return run_process([node, "-e", NODE_WRAPPER, str(file)])
+    """Runs a file in Node.js. The frames of Node itself below the script
+    are removed from the output, so that printed stacks compare."""
+    run = run_process([node, "-e", NODE_WRAPPER, str(file)])
+    run.stdout = strip_node_frames(run.stdout)
+    return run
 
 
 def diff_runs(name: str, swb_run: Run, node_run: Run) -> str:

@@ -39,7 +39,7 @@ pub use compiler::CompileStats;
 pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
 pub use swb_js_text::RecursionBudget;
 pub use vm::{
-    BoundFunction, Closure, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, GeneratorState, NativeCall,
-    NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode, TerminationHandle, VmError,
-    VmResult,
+    BoundFunction, Closure, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, ErrorData, GeneratorState,
+    NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode, StackFrame,
+    TerminationHandle, VmError, VmResult,
 };

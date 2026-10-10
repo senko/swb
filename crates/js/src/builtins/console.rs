@@ -250,7 +250,7 @@ impl Inspector<'_> {
             ObjectKind::SymbolWrapper(s) => {
                 format!("[Symbol: {}]", rt.key_text(PropertyKey::Symbol(*s)))
             }
-            ObjectKind::Error => {
+            ObjectKind::Error(_) => {
                 // Without a `stack` property (M7), Node.js shows
                 // `[Name: message]`.
                 let name = rt

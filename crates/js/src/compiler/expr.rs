@@ -124,6 +124,7 @@ impl FunctionCompiler<'_> {
                 let mark = self.mark();
                 let obj = self.expr(object, None)?;
                 let site = self.site(self.name_text(property));
+                self.position = self.name_position(e);
                 self.emit(Insn::GetNamed { dst: t, obj, site });
                 self.release(mark);
                 Ok(t)
@@ -134,10 +135,12 @@ impl FunctionCompiler<'_> {
                 if let Some(text) = self.constant_key(index) {
                     let obj = self.expr(object, None)?;
                     let site = self.site(text);
+                    self.position = self.bracket_position(e);
                     self.emit(Insn::GetNamed { dst: t, obj, site });
                 } else {
                     let obj = self.expr_stable(object, &[index])?;
                     let key = self.expr(index, None)?;
+                    self.position = self.bracket_position(e);
                     self.emit(Insn::GetIndex { dst: t, obj, key });
                 }
                 self.release(mark);
@@ -230,6 +233,8 @@ impl FunctionCompiler<'_> {
             && self.ast.function(function).name.is_none()
         {
             self.session.inferred_names.insert(function, name);
+        } else {
+            self.note_array_functions(inner, &name);
         }
         self.expr(e, dst)
     }
@@ -658,15 +663,18 @@ impl FunctionCompiler<'_> {
         let mut links = Vec::new();
         let mut leftmost = e;
         while let ExprKind::Binary { op, left, right } = self.ast.expr(leftmost).kind {
-            links.push((op, right, self.ast.expr(leftmost).span.start));
+            // Chromium reports an operator at the operator token.
+            let position = self.operator_position(left, self.ast.expr(leftmost).span.start);
+            links.push((op, right, position));
             leftmost = self.unparen(left);
         }
         links.reverse();
         let t = self.target(dst)?;
         let mark = self.mark();
-        if let [(op, right, _)] = links.as_slice() {
+        if let [(op, right, position)] = links.as_slice() {
             let a = self.expr_stable(leftmost, &[*right])?;
             let b = self.expr(*right, None)?;
+            self.position = *position;
             self.emit(Self::binary_insn(*op, t, a, b));
         } else {
             let acc = self.temp()?;
@@ -926,7 +934,7 @@ impl FunctionCompiler<'_> {
     }
 
     /// The key text of a constant index expression (`o["x"]`, `o[0]`).
-    fn constant_key(&self, index: ExprId) -> Option<String16> {
+    pub(super) fn constant_key(&self, index: ExprId) -> Option<String16> {
         match self.ast.expr(self.unparen(index)).kind {
             ExprKind::String(id) => Some(self.ast.string(id).clone()),
             ExprKind::Number(value) => Some(String16::from(number_to_string(value).as_str())),
@@ -946,20 +954,45 @@ impl FunctionCompiler<'_> {
         let AssignTarget::Simple(target) = target else {
             return Err(self.unsupported("destructuring assignment"));
         };
+        let raw_target = target;
         let target = self.unparen(target);
+        // Chromium reports a failed read of a compound assignment at the
+        // start of the target and a failed write at the operator.
+        let places = (
+            self.ast.expr(target).span.start,
+            self.operator_position(raw_target, self.position),
+        );
+        if matches!(op, AssignOp::Assign)
+            && matches!(
+                self.ast.expr(target).kind,
+                ExprKind::Member { .. } | ExprKind::Index { .. }
+            )
+        {
+            self.note_member_function(target, value);
+        }
         match self.ast.expr(target).kind {
-            ExprKind::Identifier(ident) => self.assign_identifier(op, ident, value, dst),
+            ExprKind::Identifier(ident) => {
+                self.position = places.1;
+                self.assign_identifier(op, ident, value, dst)
+            }
             ExprKind::Member {
                 object, property, ..
             } => {
                 let text = self.name_text(property);
-                self.assign_property(op, object, PropertyRef::Named(text), value, dst)
+                self.assign_property(op, object, PropertyRef::Named(text), value, dst, places)
             }
             ExprKind::Index { object, index, .. } => match self.constant_key(index) {
                 Some(text) => {
-                    self.assign_property(op, object, PropertyRef::Named(text), value, dst)
+                    self.assign_property(op, object, PropertyRef::Named(text), value, dst, places)
                 }
-                None => self.assign_property(op, object, PropertyRef::Computed(index), value, dst),
+                None => self.assign_property(
+                    op,
+                    object,
+                    PropertyRef::Computed(index),
+                    value,
+                    dst,
+                    places,
+                ),
             },
             ExprKind::Call { .. } => {
                 // Annex B web compatibility: the call runs, then the
@@ -1046,6 +1079,7 @@ impl FunctionCompiler<'_> {
         key: PropertyRef,
         value: ExprId,
         dst: Option<Reg>,
+        (read_position, write_position): (u32, u32),
     ) -> CResult<Reg> {
         let t = self.target(dst)?;
         let mark = self.mark();
@@ -1071,20 +1105,25 @@ impl FunctionCompiler<'_> {
         match op {
             AssignOp::Assign => {
                 self.expr(value, Some(t))?;
+                self.position = write_position;
                 self.emit_put(obj, key, t);
             }
             AssignOp::Compound(binary) => {
+                self.position = read_position;
                 self.emit_get(t, obj, key);
                 let inner = self.mark();
                 let b = self.expr(value, None)?;
+                self.position = write_position;
                 self.emit(Self::binary_insn(binary, t, t, b));
                 self.release(inner);
                 self.emit_put(obj, key, t);
             }
             AssignOp::Logical(logical) => {
+                self.position = read_position;
                 self.emit_get(t, obj, key);
                 let skip = self.emit(Self::logical_skip(logical, t));
                 self.expr(value, Some(t))?;
+                self.position = write_position;
                 self.emit_put(obj, key, t);
                 self.patch_here(skip);
             }
@@ -1210,7 +1249,11 @@ impl FunctionCompiler<'_> {
                 offset: self.position,
             });
         };
-        let call_position = self.position;
+        let call_position = if is_new {
+            self.position
+        } else {
+            self.callee_position(callee, self.position)
+        };
         let base = self.temps(2 + args.len())?;
         let this = base + 1;
         let target = self.unparen(callee);
@@ -1220,6 +1263,7 @@ impl FunctionCompiler<'_> {
             } if !is_new => {
                 self.expr(object, Some(this))?;
                 let site = self.site(self.name_text(property));
+                self.position = self.name_position(target);
                 self.emit(Insn::GetNamed {
                     dst: base,
                     obj: this,
@@ -1230,6 +1274,7 @@ impl FunctionCompiler<'_> {
                 self.expr(object, Some(this))?;
                 if let Some(text) = self.constant_key(index) {
                     let site = self.site(text);
+                    self.position = self.bracket_position(target);
                     self.emit(Insn::GetNamed {
                         dst: base,
                         obj: this,
@@ -1238,6 +1283,7 @@ impl FunctionCompiler<'_> {
                 } else {
                     let mark = self.mark();
                     let key = self.expr(index, None)?;
+                    self.position = self.bracket_position(target);
                     self.emit(Insn::GetIndex {
                         dst: base,
                         obj: this,

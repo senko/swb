@@ -109,10 +109,16 @@ fn eval_script(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     }
 }
 
-/// Runs a script under the time limit of the options.
-pub(crate) fn run(rt: &mut Runtime, options: &Options, source: &str) -> Result<Value, ScriptError> {
+/// Runs a script under the time limit of the options. `name` is the
+/// script name that stack traces show.
+pub(crate) fn run(
+    rt: &mut Runtime,
+    options: &Options,
+    source: &str,
+    name: &str,
+) -> Result<Value, ScriptError> {
     rt.set_deadline(options.time_limit.map(|limit| Instant::now() + limit));
-    rt.eval(source)
+    rt.eval_named(source, name)
 }
 
 /// The text of an error as the shell prints it: `Uncaught TypeError:

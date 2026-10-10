@@ -91,6 +91,10 @@ pub struct NativeFunction {
     pub(crate) realm: u32,
     /// Whether `new` may call it (it then sees `new.target`).
     pub(crate) constructor: bool,
+    /// The name that the function was created with (an atom; none for
+    /// the nameless intrinsics). `Function.prototype.toString` shows it
+    /// even after a script redefines the `name` property.
+    pub(crate) name: Option<Gc<JsString>>,
 }
 
 /// The arguments of a native call. The callee, `this` and the arguments
@@ -264,15 +268,16 @@ impl Runtime {
         constructor: bool,
     ) -> VmResult<Gc<crate::object::Object>> {
         let proto = self.intrinsic(realm, Intrinsic::FunctionPrototype)?;
+        let name = self.heap.intern_str(name)?;
+        self.heap.record(name);
         let kind = ObjectKind::Native(Box::new(NativeFunction {
             func,
             realm,
             constructor,
+            name: Some(name),
         }));
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);
-        let name = self.heap.intern_str(name)?;
-        self.heap.record(name);
         self.define_function_properties(function, Value::Int(length as i32), name.into())?;
         Ok(function)
     }

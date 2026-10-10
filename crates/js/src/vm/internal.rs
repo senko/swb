@@ -115,6 +115,23 @@ impl Runtime {
         Err(self.define_failure(object, key))
     }
 
+    /// `CreateDataPropertyOrThrow(object, key, value)` (§7.3.7).
+    pub(crate) fn create_data_property_or_throw(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+    ) -> VmResult<()> {
+        if self
+            .heap
+            .create_data_property(object, key, value, &self.vm)?
+        {
+            Ok(())
+        } else {
+            Err(self.define_failure(object, key))
+        }
+    }
+
     /// The `TypeError` for a refused definition of `key`.
     pub(crate) fn define_failure(&mut self, object: Gc<Object>, key: PropertyKey) -> VmError {
         let text = self.key_text(key);

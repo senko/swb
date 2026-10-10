@@ -1,5 +1,6 @@
 //! `Array` (ECMA-262 §23.1): the constructor, `Array.isArray`, and the
-//! prototype methods `push`, `join`, `forEach`, `map` and `toString`.
+//! prototype methods `push`, `join`, `indexOf`, `slice`, `forEach`, `map`
+//! and `toString`. The other methods are M7 feature 6.
 //!
 //! The methods are generic: they work on any object with a `length`
 //! (`LengthOfArrayLike`), test holes with `[[HasProperty]]` and read with
@@ -14,7 +15,9 @@ use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::convert::{MAX_SAFE_INTEGER, MAX_STRING_LENGTH, checked_array_length};
+use crate::vm::convert::{
+    MAX_SAFE_INTEGER, MAX_STRING_LENGTH, checked_array_length, to_integer_or_infinity,
+};
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
 
 /// A joined text above this many code units reserves its memory in the
@@ -25,10 +28,14 @@ const RESERVE_FROM: usize = 1 << 16;
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::ArrayPrototype)?;
     let array = super::constructor(rt, realm, "Array", 1, array_constructor, proto)?;
+    rt.set_intrinsic(realm, Intrinsic::ArrayConstructor, array);
     super::method(rt, realm, array, "isArray", 1, is_array)?;
-    let methods: [(&str, u32, NativeFn); 5] = [
+    super::array_species::install(rt, realm, array, proto)?;
+    let methods: [(&str, u32, NativeFn); 7] = [
         ("push", 1, push),
         ("join", 1, join),
+        ("indexOf", 1, index_of),
+        ("slice", 2, slice),
         ("forEach", 1, for_each),
         ("map", 1, map),
         ("toString", 0, to_string),
@@ -196,9 +203,7 @@ fn for_each(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
-/// `Array.prototype.map(callback, thisArg)` (§23.1.3.21). Deviation: the
-/// result is always a plain array of the current realm; `ArraySpeciesCreate`
-/// (`constructor` and `Symbol.species`) comes in M7.
+/// `Array.prototype.map(callback, thisArg)` (§23.1.3.21).
 fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = rt.this_object_of(call, "Array.prototype.map")?;
     let length = rt.length_of_array_like(object)?;
@@ -206,10 +211,7 @@ fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     if !rt.is_callable(callback)? {
         return Err(rt.not_callable(callback));
     }
-    let length_u32 = checked_array_length(length)?;
-    let proto = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayPrototype)?;
-    let result = rt.heap.new_array(Some(proto), length_u32)?;
-    rt.heap.record(result);
+    let result = rt.array_species_create(object, length)?;
     let this_arg = rt.arg(call, 1);
     let mut k = 0.0;
     while k < length {
@@ -223,12 +225,7 @@ fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
                     this_arg,
                     &[value, Value::number(k), object.into()],
                 )?;
-                if !rt.heap.create_data_property(result, key, mapped, &rt.vm)? {
-                    return Err(VmError::type_error(format!(
-                        "Cannot add property {}, object is not extensible",
-                        rt.key_text(key)
-                    )));
-                }
+                rt.create_data_property_or_throw(result, key, mapped)?;
             }
             Ok(())
         })?;
@@ -252,4 +249,79 @@ fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     }
     let text = super::object::builtin_tag_text(rt, object.into())?;
     Ok(NativeReturn::Value(text))
+}
+
+/// The start index of a range argument of `slice` and the like
+/// (§23.1.3.28 steps 4 to 7): a relative index clamped to `0..=length`.
+fn relative_index(rt: &mut Runtime, value: Value, length: f64, default: f64) -> VmResult<f64> {
+    if value.is_undefined() {
+        return Ok(default);
+    }
+    let relative = to_integer_or_infinity(rt.to_number(value)?);
+    Ok(if relative < 0.0 {
+        (length + relative).max(0.0)
+    } else {
+        relative.min(length)
+    })
+}
+
+/// `Array.prototype.slice(start, end)` (§23.1.3.28).
+fn slice(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let object = rt.this_object(call)?;
+    let length = rt.length_of_array_like(object)?;
+    let start = relative_index(rt, rt.arg(call, 0), length, 0.0)?;
+    let end = relative_index(rt, rt.arg(call, 1), length, length)?;
+    let count = (end - start).max(0.0);
+    let result = rt.array_species_create(object, count)?;
+    let mut k = start;
+    let mut n = 0.0;
+    while k < end {
+        rt.tick()?;
+        rt.with_scope(|rt| {
+            let from = rt.index_key(k)?;
+            if rt.has_property(object, from)? {
+                let value = rt.get_value(object.into(), from)?;
+                let to = rt.index_key(n)?;
+                rt.create_data_property_or_throw(result, to, value)?;
+            }
+            Ok(())
+        })?;
+        k += 1.0;
+        n += 1.0;
+    }
+    let key = PropertyKey::String(rt.heap.length_atom());
+    rt.set_or_throw(result, key, Value::number(n))?;
+    Ok(NativeReturn::Value(result.into()))
+}
+
+/// `Array.prototype.indexOf(searchElement, fromIndex)` (§23.1.3.17).
+fn index_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let object = rt.this_object_of(call, "Array.prototype.indexOf")?;
+    let length = rt.length_of_array_like(object)?;
+    let not_found = NativeReturn::Value(Value::Int(-1));
+    if length == 0.0 {
+        return Ok(not_found);
+    }
+    let n = to_integer_or_infinity(rt.to_number(rt.arg(call, 1))?);
+    if n == f64::INFINITY {
+        return Ok(not_found);
+    }
+    let mut k = if n >= 0.0 { n } else { (length + n).max(0.0) };
+    let search = rt.arg(call, 0);
+    while k < length {
+        rt.tick()?;
+        let found = rt.with_scope(|rt| {
+            let key = rt.index_key(k)?;
+            if rt.has_property(object, key)? {
+                let element = rt.get_value(object.into(), key)?;
+                return rt.strictly_equal(search, element);
+            }
+            Ok(false)
+        })?;
+        if found {
+            return Ok(NativeReturn::Value(Value::number(k)));
+        }
+        k += 1.0;
+    }
+    Ok(not_found)
 }

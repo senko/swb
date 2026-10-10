@@ -289,19 +289,26 @@ impl Runtime {
     /// charges the shared recursion budget; too deep a nesting is a
     /// `RangeError`.
     pub fn eval(&mut self, source: &str) -> Result<Value, ScriptError> {
+        self.eval_named(source, "")
+    }
+
+    /// Like [`Runtime::eval`], with the name of the script (a file name
+    /// or URL) that stack traces show. An empty name shows as
+    /// `<anonymous>`.
+    pub fn eval_named(&mut self, source: &str, name: &str) -> Result<Value, ScriptError> {
         if self.budget.enter(REENTRY_WEIGHT).is_err() {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(text.as_str16());
+        let result = self.eval_text(text.as_str16(), name);
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
 
-    fn eval_text(&mut self, source: Str16<'_>) -> Result<Value, ScriptError> {
+    fn eval_text(&mut self, source: Str16<'_>, name: &str) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
         let start = self.run_start();
-        let (code, compiled) = self.compile(source)?;
+        let (code, compiled) = self.compile(source, name)?;
         let result = self.run_script(code, compiled, 0);
         if result.is_err() {
             self.restore_run_start(&start);
@@ -314,6 +321,7 @@ impl Runtime {
     fn compile(
         &mut self,
         source: Str16<'_>,
+        name: &str,
     ) -> Result<(Gc<Generic>, Rc<FunctionCode>), ScriptError> {
         let script = swb_js_syntax::parse_script(source, &mut self.budget)?;
         // The compile data counts against the heap limit while it exists
@@ -322,14 +330,15 @@ impl Runtime {
         self.heap
             .reserve(size, &self.vm)
             .map_err(|e| finish_error(e.into()))?;
-        compile_script(&mut self.heap, &script, source, &mut self.budget).map_err(compile_error)
+        compile_script(&mut self.heap, &script, source, name, &mut self.budget)
+            .map_err(compile_error)
     }
 
     /// Compiles a script and returns the statistics of its code (for
     /// measurements); nothing runs.
     pub fn compile_stats(&mut self, source: &str) -> Result<CompileStats, ScriptError> {
         let text = String16::from(source);
-        let (_, compiled) = self.compile(text.as_str16())?;
+        let (_, compiled) = self.compile(text.as_str16(), "")?;
         Ok(CompileStats::of(&compiled))
     }
 
@@ -337,7 +346,7 @@ impl Runtime {
     /// functions (for tests and debugging); nothing runs.
     pub fn disassemble(&mut self, source: &str) -> Result<String, ScriptError> {
         let text = String16::from(source);
-        let (_, compiled) = self.compile(text.as_str16())?;
+        let (_, compiled) = self.compile(text.as_str16(), "")?;
         Ok(crate::bytecode::disassemble(&compiled, &self.heap))
     }
 
@@ -552,6 +561,8 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         constructor: atom("constructor")?,
         name: atom("name")?,
         message: atom("message")?,
+        stack: atom("stack")?,
+        stack_trace_limit: atom("stackTraceLimit")?,
         value: atom("value")?,
         done: atom("done")?,
         callee: atom("callee")?,

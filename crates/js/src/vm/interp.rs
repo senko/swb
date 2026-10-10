@@ -18,7 +18,8 @@
 //! innermost range). On a hit it pops the frames above, closes the handle
 //! scopes and the no-GC regions down to the loop's entry, cuts the value
 //! stack to the top of the frame's window, stores the thrown value in the
-//! handler's register (a `Raise` becomes an error object only here) and
+//! handler's register (a `Raise` becomes an error object first, with the
+//! frames still in place for its `stack`) and
 //! runs the loop again at the handler. Terminations and internal errors
 //! skip the search.
 
@@ -62,6 +63,14 @@ impl Runtime {
                 Ok(value) => return Ok(value),
                 Err(error) => error,
             };
+            // A `Raise` becomes an error object here, while the frames
+            // of the failure still exist: its `stack` shows them.
+            if let VmError::Raise { kind, message } = &error {
+                error = match self.error_object(*kind, message) {
+                    Ok(object) => VmError::Throw(object.into()),
+                    Err(failure) => failure,
+                };
+            }
             if matches!(error, VmError::Throw(_) | VmError::Raise { .. })
                 && let Some((index, handler)) = self.find_handler(entry - 1)
             {
@@ -122,12 +131,10 @@ impl Runtime {
         self.vm.stack.resize(top, Value::Undefined);
         self.heap.close_scopes_to(scope_depth);
         self.heap.restore_no_gc_depth(no_gc);
-        // The value is not rooted until it is in the register; only the
-        // creation of an error object allocates, and it has no other
-        // unrooted value.
+        // `run_frames` made the error object of a `Raise` before the
+        // frames went; nothing allocates between that and this store.
         let value = match error {
             VmError::Throw(value) => value,
-            VmError::Raise { kind, message } => self.error_object(kind, &message)?.into(),
             other => return Err(other),
         };
         let slot = self

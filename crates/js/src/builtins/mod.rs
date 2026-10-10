@@ -2,10 +2,14 @@
 //!
 //! Implemented so far: `console.log`; `Object` (all static functions,
 //! `Object.prototype` with Annex B) and `Reflect`; the `Error`
-//! constructors; `Array` with `isArray`, `push`, `join`, `forEach`, `map`,
-//! `toString`, `keys`, `values`, `entries` and `@@iterator`;
-//! `Function.prototype` with `call`, `apply`, `bind`, `toString` and
-//! `@@hasInstance` (the `Function` constructor is M7); `isNaN`, `isFinite`
+//! constructors, `AggregateError` and the V8 extensions
+//! `Error.captureStackTrace` and `Error.stackTraceLimit`; `Array` with
+//! `isArray`, `@@species`, `push`, `join`, `indexOf`, `slice`, `forEach`,
+//! `map`, `toString`, `keys`, `values`, `entries`, `@@iterator` and
+//! `@@unscopables`;
+//! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
+//! `@@hasInstance` and the restricted `caller` and `arguments` (the
+//! `Function` constructor is M7); `isNaN`, `isFinite`
 //! and `Math.pow`; `String`, `Number` and `Boolean` with their prototype
 //! methods; `Symbol` with the well-known symbols; and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
@@ -23,6 +27,7 @@
 //! recursion.
 
 mod array;
+mod array_species;
 mod boolean;
 mod console;
 mod descriptor;
@@ -37,6 +42,8 @@ mod object_proto;
 mod primitive;
 mod reflect;
 mod symbol;
+
+pub(crate) use error::error_header;
 
 use crate::heap::Gc;
 use crate::object::Object;

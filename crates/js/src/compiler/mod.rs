@@ -19,8 +19,10 @@
 //! recursion budget per level; left-associative chains of binary and
 //! logical operators are compiled in a loop.
 
+mod debug_names;
 mod expr;
 mod function;
+mod positions;
 mod support;
 
 use std::borrow::Cow;
@@ -95,6 +97,10 @@ pub(crate) struct Builder {
 #[derive(Default)]
 pub(crate) struct Session {
     pub(crate) inferred_names: HashMap<FunctionId, String16>,
+    /// The names that Chromium shows in stack traces for anonymous
+    /// functions assigned to members (`a.b = function () {}` gives
+    /// `a.b`); they do not change the `name` property.
+    pub(crate) debug_names: HashMap<FunctionId, String16>,
 }
 
 /// Statistics of compiled code (for measurements).
@@ -148,19 +154,25 @@ pub(crate) fn compile_script(
     heap: &mut Heap,
     script: &Script,
     source: Str16<'_>,
+    name: &str,
     budget: &mut RecursionBudget,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let initial = *budget;
-    let source = Rc::new(source.to_string16());
-    let result = compile_functions(script, budget)
+    let text = source;
+    let source = Rc::new(crate::bytecode::Source::new(
+        source.to_string16(),
+        Rc::from(name),
+    ));
+    let result = compile_functions(script, text, budget)
         .and_then(|(builders, session)| materialize(heap, script, builders, &session, &source));
     *budget = initial;
     result
 }
 
 /// Compiles every function of the script.
-fn compile_functions(
-    script: &Script,
+fn compile_functions<'a>(
+    script: &'a Script,
+    text: Str16<'a>,
     budget: &mut RecursionBudget,
 ) -> CResult<(Vec<Option<Builder>>, Session)> {
     if let Some((offset, construct)) = support::first_unsupported(script) {
@@ -174,7 +186,7 @@ fn compile_functions(
     let mut builders = Vec::with_capacity(script.ast.function_count());
     for id in script.ast.function_ids() {
         let builder =
-            function::FunctionCompiler::new(script, id, &mut session, budget).compile()?;
+            function::FunctionCompiler::new(script, id, &mut session, budget, text).compile()?;
         builders.push(Some(builder));
     }
     Ok((builders, session))
@@ -218,7 +230,7 @@ fn materialize(
     script: &Script,
     mut builders: Vec<Option<Builder>>,
     session: &Session,
-    source: &Rc<String16>,
+    source: &Rc<crate::bytecode::Source>,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let depth = depths(script);
     let mut order: Vec<FunctionId> = script.ast.function_ids().collect();
@@ -233,7 +245,8 @@ fn materialize(
                 .and_then(Option::take)
                 .ok_or(Error::invariant("a function compiled twice"))?;
             let name = session.inferred_names.get(&id).cloned();
-            let code = finish_code(heap, builder, name, &done, source)?;
+            let debug_name = session.debug_names.get(&id).cloned();
+            let code = finish_code(heap, builder, (name, debug_name), &done, source)?;
             let code = Rc::new(code);
             let handle = heap.alloc_generic(CodeObject(Rc::clone(&code)))?;
             if let Some(slot) = done.get_mut(id.index()) {
@@ -256,9 +269,9 @@ fn materialize(
 fn finish_code(
     heap: &mut Heap,
     builder: Builder,
-    inferred_name: Option<String16>,
+    (inferred_name, debug_name): (Option<String16>, Option<String16>),
     done: &[Option<(Gc<Generic>, Rc<FunctionCode>)>],
-    source: &Rc<String16>,
+    source: &Rc<crate::bytecode::Source>,
 ) -> CResult<FunctionCode> {
     let mut constants = Vec::with_capacity(builder.constants.len());
     for constant in &builder.constants {
@@ -283,6 +296,7 @@ fn finish_code(
     }
     let name_text = builder.name.or(inferred_name).unwrap_or_default();
     let name = heap.intern(name_text.as_str16())?;
+    let debug_name = heap.intern(debug_name.unwrap_or_default().as_str16())?;
     let code = FunctionCode {
         insns: builder.insns.into(),
         constants: constants.into(),
@@ -296,6 +310,7 @@ fn finish_code(
         strict: builder.strict,
         uses_arguments: builder.uses_arguments,
         name,
+        debug_name,
         lines: builder.lines.into(),
         handlers: builder.handlers.into(),
         call_names: builder.call_names.into(),

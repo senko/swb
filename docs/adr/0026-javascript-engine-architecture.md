@@ -723,6 +723,31 @@ where the first plan did not work:
 - `instanceof` (feature 2b) is one loop over InstanceofOperator and
   OrdinaryHasInstance; the default `Function.prototype[@@hasInstance]`
   is recognized by identity and not called.
+- `stack` (feature 2c): every error object, made by a constructor or
+  raised by the VM or a native, has an own accessor property `stack`
+  with the getter and setter of its realm. The error object holds the
+  captured frames (function, code, source offset, receiver, construct
+  flag; at most `Error.stackTraceLimit` and never more than 200, so
+  the cost of an error is bounded) and, after the first read, the
+  text. The first line comes from `name` and `message` at the first
+  read, as in Chromium. The frames are traced, and the heap is charged
+  for them at capture. An error that the VM raises becomes an object
+  before any frame is removed. Source positions are Chromium's (the
+  name of a property read, the `(` of a call that does not end in an
+  identifier, the operator of an assignment); the compiler finds these
+  tokens by a scan of the source between two nodes. The names of
+  anonymous functions assigned to members (`a.b = function () {}`)
+  are inferred for traces only; `name` stays empty. Built-in functions
+  are not frames. As in V8, a `new.target` that is a script function
+  hides the frames up to and including its innermost call; one that is
+  not on the stack leaves no frames.
+- `AggregateError` (feature 2c) builds its `errors` array while it
+  reads the iterator, so no Rust vector has a size that a script
+  chooses; it does not close the iterator on an error (the spec does
+  not), so it holds no thrown value.
+- `Function.prototype.toString` of a native (feature 2c) shows the
+  name that the function got at creation, not its current `name`
+  property, as V8 does.
 
 ## Consequences
 

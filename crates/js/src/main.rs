@@ -240,7 +240,7 @@ fn run_script(
     if command.compile_only {
         return Ok(());
     }
-    match shell::run(rt, &command.options, source) {
+    match shell::run(rt, &command.options, source, name) {
         Ok(_) => Ok(()),
         Err(error) => Err(fail(&error)),
     }

@@ -693,6 +693,10 @@ pub(crate) struct FunctionCode {
     pub(crate) uses_arguments: bool,
     /// The name of the function (the empty string for anonymous ones).
     pub(crate) name: Gc<JsString>,
+    /// The name that stack traces show for a function without a name:
+    /// the dotted path of the member that it is assigned to (`a.b.c = function () {}`),
+    /// as Chromium infers it; the empty string if there is none.
+    pub(crate) debug_name: Gc<JsString>,
     /// (first instruction, source offset), sorted by instruction.
     pub(crate) lines: Box<[(u32, u32)]>,
     /// The exception handlers.
@@ -703,8 +707,39 @@ pub(crate) struct FunctionCode {
     /// The source text of the script (shared by all its functions) and the
     /// range of this function in it (code units; for messages and
     /// `Function.prototype.toString`).
-    pub(crate) source: Rc<String16>,
+    pub(crate) source: Rc<Source>,
     pub(crate) span: (u32, u32),
+}
+
+/// The text of a script with its name, shared by all the functions of
+/// the script. The line index for stack traces is built on the first
+/// use (once per script, not once per error).
+#[derive(Debug)]
+pub(crate) struct Source {
+    /// The text.
+    pub(crate) text: String16,
+    /// The name that stack traces show (a file name or URL; empty when
+    /// the host gave none).
+    pub(crate) name: Rc<str>,
+    lines: std::cell::OnceCell<swb_js_syntax::LineIndex>,
+}
+
+impl Source {
+    /// A script text with its name.
+    pub(crate) fn new(text: String16, name: Rc<str>) -> Self {
+        Source {
+            text,
+            name,
+            lines: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// The line and column of a code-unit offset (both from 1).
+    pub(crate) fn location(&self, offset: u32) -> swb_js_syntax::Location {
+        self.lines
+            .get_or_init(|| swb_js_syntax::LineIndex::new(self.text.as_str16()))
+            .location(offset)
+    }
 }
 
 impl FunctionCode {
@@ -713,6 +748,7 @@ impl FunctionCode {
     pub(crate) fn source_text(&self) -> Option<String16> {
         let (start, end) = self.span;
         self.source
+            .text
             .as_str16()
             .slice(start as usize, end as usize)
             .map(swb_js_text::Str16::to_string16)
@@ -731,7 +767,7 @@ impl FunctionCode {
             // Only the script's code owns the source text for the heap
             // limit; the functions share it.
             + if self.kind == CodeKind::Script {
-                self.source.len() * 2
+                self.source.text.len() * 2
             } else {
                 0
             }
@@ -801,6 +837,7 @@ impl GenericData for CodeObject {
             tracer.key(*key);
         }
         tracer.string(code.name);
+        tracer.string(code.debug_name);
     }
 
     fn heap_size(&self) -> usize {
@@ -1123,10 +1160,11 @@ mod tests {
             strict: true,
             uses_arguments: false,
             name: Gc::new(0, 0),
+            debug_name: Gc::new(0, 0),
             lines: Box::new([]),
             handlers: Box::new([]),
             call_names: Box::new([]),
-            source: Rc::new(String16::default()),
+            source: Rc::new(Source::new(String16::default(), Rc::from(""))),
             span: (0, 0),
         }
     }

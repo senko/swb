@@ -45,6 +45,8 @@ mod messages;
 pub(crate) mod number;
 mod property;
 mod realm;
+mod stack;
+mod stack_text;
 mod symbols;
 pub(crate) mod time;
 
@@ -57,6 +59,8 @@ pub use function::{
 pub use generator::GeneratorState;
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
+pub use stack::{ErrorData, StackFrame};
+pub(crate) use stack::{capture_stack_trace, stack_getter, stack_setter};
 pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};
 pub(crate) use time::TIME_CHECK_INTERVAL;
 pub use time::TerminationHandle;
@@ -229,6 +233,8 @@ pub(crate) struct Atoms {
     pub(crate) constructor: Gc<JsString>,
     pub(crate) name: Gc<JsString>,
     pub(crate) message: Gc<JsString>,
+    pub(crate) stack: Gc<JsString>,
+    pub(crate) stack_trace_limit: Gc<JsString>,
     pub(crate) value: Gc<JsString>,
     pub(crate) done: Gc<JsString>,
     pub(crate) callee: Gc<JsString>,
@@ -258,6 +264,8 @@ impl Atoms {
             self.constructor,
             self.name,
             self.message,
+            self.stack,
+            self.stack_trace_limit,
             self.value,
             self.done,
             self.callee,
@@ -374,7 +382,7 @@ mod tests {
     #[test]
     fn record_sizes() {
         assert_eq!(size_of::<Frame>(), 128);
-        assert_eq!(size_of::<FunctionCode>(), 168);
+        assert_eq!(size_of::<FunctionCode>(), 176);
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
         assert_eq!(size_of::<GeneratorState>(), 160);
         assert_eq!(size_of::<Closure>(), 40);

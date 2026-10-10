@@ -289,7 +289,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         ObjectKind::Array { .. } => "Array",
         ObjectKind::Arguments => "Arguments",
         ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => "Function",
-        ObjectKind::Error => "Error",
+        ObjectKind::Error(_) => "Error",
         ObjectKind::BooleanWrapper(_) => "Boolean",
         ObjectKind::NumberWrapper(_) => "Number",
         ObjectKind::StringWrapper(_) => "String",

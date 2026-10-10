@@ -31,6 +31,7 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "fnGlobalObject.js",
     "nans.js",
     "decimalToHexString.js",
+    "nativeErrors.js",
 ];
 
 /// What to do with a test.
@@ -126,7 +127,7 @@ pub(crate) fn run_mode(
         Ok(rt) => rt,
         Err(error) => return Status::Fail(format!("runtime: {error}")),
     };
-    let result = shell::run(&mut rt, &options, &text);
+    let result = shell::run(&mut rt, &options, &text, "");
     judge(&rt, meta, result.map(|_| ()))
 }
 

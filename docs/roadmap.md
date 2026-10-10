@@ -736,13 +736,39 @@ failures with a reason. Features, in this order:
    - 2c. Errors and the rest of `Function`. `Error` and the native
      errors with `message`, `cause`, `Error.prototype.toString` and
      `AggregateError`; the `stack` property in Chromium's format
-     (measured in Node: own property and attributes, the frame lines).
+     (measured in Node: own property and attributes, the frame lines),
+     and V8's `Error.captureStackTrace` and `Error.stackTraceLimit`,
+     which Chromium has and two BBC scripts feature-test
+     (`Error.prepareStackTrace` is not in scope).
      `Function.prototype.toString` for all function kinds (§20.2.3.5),
      the `caller` and `arguments` properties of `Function.prototype`
      (§10.2.4). The `Array.prototype` methods that the harness files
-     use and that are missing. Runner: `nativeErrors.js`; the groups
+     use and that are missing, `Array[@@species]` and
+     `Array.prototype[@@unscopables]`. Runner: `nativeErrors.js` (not
+     `nativeFunctionMatcher.js`, which needs `RegExp`); the groups
      `Error`, `NativeErrors`, `AggregateError` and `Function` (the
-     `Function` constructor is feature 3).
+     `Function` constructor is feature 3). Done 2026-10-10: all of the
+     above, with `ArraySpeciesCreate`, `indexOf` and `slice`. Every
+     error object has an own `stack` accessor; the frames (at most
+     `Error.stackTraceLimit`, never more than 200) are captured at
+     creation and the text is built at the first read; source
+     positions and the names of anonymous functions in traces follow
+     V8. Runtime test262: 8,429 pass (was 7,215): `Error` 29,
+     `NativeErrors` 44, `AggregateError` 9, `Function` 223, `Array`
+     892 (the rest of `Array` is feature 6). Known failures: the tests
+     that use `for`-`in`, `new Function` or `eval` (feature 3),
+     `nativeFunctionMatcher.js` (`RegExp`, feature 8), `Date`, `JSON`,
+     `Number` constants, `Proxy`. Deviations from V8: built-in
+     functions, eval code and `async` functions are not frames;
+     sloppy functions have no own `caller` and `arguments` (the spec
+     has none); `captureStackTrace` on a plain object defines a data
+     property. Cost: 1M `throw new Error` take about 440 ms (was
+     245 ms; `node --jitless` 1,254 ms). Open: the names of methods
+     with computed keys are empty at run time (feature 3);
+     `console.log` of an error prints `[Name: message]`, not the
+     stack; `Function.prototype.toString` of a class must use the
+     class's span when the compiler compiles classes (feature 3).
+     End of feature 2.
 3. Language semantics (`implementer-hard`, `js`). The VM for everything
    of feature 1 except generators and `async`: destructuring, spread,
    classes and `super`, getters and setters, optional chaining,
@@ -838,6 +864,14 @@ not repeated here; the open items of each spike session are in M6 step
   measure a loop over such an array-like.
 - `examples/heap_bench.rs` is not part of `jsbench`; its `rss()`
   repeats `peak_rss_kib` of `bench.rs`.
+- Legacy `caller` and `arguments` of sloppy functions (M7 2c): V8
+  gives sloppy functions own `caller` and `arguments` properties
+  (`f.caller` is the calling function or `null`); swb follows the
+  spec, so `f.caller` reaches `Function.prototype.caller` and throws a
+  `TypeError`. Old code that walks `arguments.callee.caller` breaks.
+  No target script uses `.caller`; decide when one does.
+- `Error.prepareStackTrace` (V8) is not supported; a BBC script uses
+  it only in an error path, behind a feature test.
 
 ## Backlog from M5
 

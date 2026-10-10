@@ -887,8 +887,9 @@ another directory and `TEST262_URL` another repository.
 - Every test gets `sta.js` and `assert.js`, then the files of its
   `includes` in the test's order (each file once; the runner reads each
   file once per run). The accepted files are `propertyHelper.js`,
-  `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js` and
-  `decimalToHexString.js` (`HARNESS_INCLUDES` in `run.rs`). A test is
+  `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js`,
+  `decimalToHexString.js` and `nativeErrors.js` (`HARNESS_INCLUDES` in
+  `run.rs`). A test is
   skipped if it needs another harness file, has the flag `module`, `async`
   or `CanBlockIsTrue`, has a
   feature outside the list, uses `$262.createRealm`, `$262.agent` or
@@ -948,7 +949,10 @@ all of `test/language/`, `test/built-ins/` and `test/annexB/`.
 script; `print` joins the `String` of its arguments with spaces, like
 the `print` of `swb-js`) and prints a unified diff of stdout and
 of the first line of the uncaught-error report (a compile error is
-`SyntaxError: ...` on both sides). Exit status 1 if any file differs. It
+`SyntaxError: ...` on both sides). The stack-trace lines of Node's own frames
+below the script (`node:` and `[eval]`) are removed from Node's output, so
+that printed `stack` texts compare; both engines get the file name as given.
+Exit status 1 if any file differs. It
 needs `node` and a built `swb-js`. A run that exceeds 60 s is reported
 as `timeout: FILE (ENGINE)` and counts as a difference.
 

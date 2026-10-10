@@ -56,6 +56,20 @@ const PROGRAMS: &[(&str, &str)] = &[
         "function run() { var c = 0; for (var i = 0; i < 1000000; i++) { try { null.x; } catch (e) { c++; } } return c; }",
     ),
     (
+        "throw new Error 1M times",
+        "function run() { var c = 0; for (var i = 0; i < 1000000; i++) { try { throw new Error('x'); } catch (e) { c++; } } return c; }",
+    ),
+    (
+        "throw new Error 10 frames deep, 200k times",
+        "function d(n) { if (n) return d(n - 1); throw new Error('x'); }
+         function run() { var c = 0; for (var i = 0; i < 200000; i++) { try { d(10); } catch (e) { c++; } } return c; }",
+    ),
+    (
+        "new Error and read stack, 100k times",
+        "function d(n) { return n ? d(n - 1) : new Error('x'); }
+         function run() { var c = 0; for (var i = 0; i < 100000; i++) { c += d(5).stack.length; } return c; }",
+    ),
+    (
         "forEach over 1M elements",
         "var arr = []; for (var i = 0; i < 1000000; i++) arr[i] = i;
          function run() { var s = 0; arr.forEach(function (x) { s += x; }); return s; }",

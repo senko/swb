@@ -7,14 +7,16 @@
 #
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
-# fnGlobalObject.js, nans.js or decimalToHexString.js, or have the flags
+# fnGlobalObject.js, nans.js, decimalToHexString.js or nativeErrors.js, or have the flags
 # module, async or CanBlockIsTrue, or use $262.createRealm, $262.agent or
 # $262.detachArrayBuffer.
 
 feature __getter__
 feature __proto__
 feature __setter__
+feature AggregateError
 feature array-grouping
+feature Array.prototype.values
 feature arrow-function
 feature coalesce-expression
 feature computed-property-names
@@ -22,6 +24,7 @@ feature const
 feature default-parameters
 feature destructuring-assignment
 feature destructuring-binding
+feature error-cause
 feature exponentiation
 feature for-in-order
 feature for-of
@@ -74,6 +77,13 @@ dir test/built-ins/ThrowTypeError
 dir test/built-ins/Symbol
 dir test/built-ins/Boolean
 dir test/built-ins/ArrayIteratorPrototype
+
+# Added in M7 feature 2c:
+dir test/built-ins/Error
+dir test/built-ins/NativeErrors
+dir test/built-ins/AggregateError
+dir test/built-ins/Function
+dir test/built-ins/Array
 
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object

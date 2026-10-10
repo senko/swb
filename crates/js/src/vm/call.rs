@@ -515,6 +515,54 @@ impl Runtime {
         }
     }
 
+    /// `Construct(callee, args)` from Rust (a native function or the host):
+    /// the new object, recorded in the current handle scope. Like
+    /// [`Runtime::call`], script code runs in a nested interpreter loop
+    /// that charges the shared recursion budget.
+    pub(crate) fn construct(&mut self, callee: Value, args: &[Value]) -> VmResult<Value> {
+        if self.budget.enter(REENTRY_WEIGHT).is_err() {
+            return Err(VmError::range_error(STACK_OVERFLOW));
+        }
+        let result = self.construct_inner(callee, args);
+        self.budget.leave(REENTRY_WEIGHT);
+        let value = result?;
+        if self.heap.scope_depth() > 0 {
+            self.heap.record(value);
+        }
+        Ok(value)
+    }
+
+    fn construct_inner(&mut self, callee: Value, args: &[Value]) -> VmResult<Value> {
+        let restore_top = self.vm.stack.len();
+        let window = self.push_window(callee, Value::Undefined, args)?;
+        let site = CallSite {
+            window,
+            argc: args.len(),
+            ret: ReturnTo::Host,
+            restore_top,
+            construct: true,
+            new_target: None,
+        };
+        match self.invoke(site) {
+            Ok(Step::Value(value)) => {
+                self.vm.stack.truncate(restore_top);
+                Ok(value)
+            }
+            Ok(Step::Entered) => self.run_frames(),
+            Ok(Step::NotCallable) => {
+                self.vm.stack.truncate(restore_top);
+                Err(VmError::type_error(format!(
+                    "{} is not a constructor",
+                    self.describe_value(callee)
+                )))
+            }
+            Err(error) => {
+                self.vm.stack.truncate(restore_top);
+                Err(error)
+            }
+        }
+    }
+
     /// The value at an absolute index of the value stack.
     pub(crate) fn stack_value(&self, index: usize) -> VmResult<Value> {
         self.vm

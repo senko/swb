@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-10: M7 feature 2c, errors, `stack` and the rest of `Function`; end of feature 2
+
+- `js`: `AggregateError`, `cause`, `Error.prototype.toString`, and
+  the `stack` property in Chromium's format, measured in Node 22
+  (frame lines, `new`, methods, the 10-frame default), with V8's
+  `Error.captureStackTrace` and `Error.stackTraceLimit`, which two BBC
+  scripts feature-test. Every error object has an own `stack`
+  accessor; the frames are captured at creation (at most 200) and the
+  text is built at the first read. Source positions and the names of
+  anonymous functions in traces follow V8 (`compiler/positions.rs`,
+  `compiler/debug_names.rs`).
+- `Function.prototype.toString` for all function kinds,
+  `Function.prototype.caller` and `arguments`; `Array[@@species]`,
+  `Array.prototype[@@unscopables]`, ArraySpeciesCreate, `indexOf`,
+  `slice`. The test262 runner accepts `nativeErrors.js`; `jsdiff`
+  removes Node's own frames, so printed stacks compare.
+- Cost: 1M `throw new Error` take about 440 ms (was 245 ms;
+  `node --jitless` 1,254 ms); other benchmarks unchanged.
+- Review: about 40 stack traces and 30 function texts equal to Node,
+  also in GC stress mode; retained errors count against the heap
+  limit. Fixed: `new.target` now hides the frames up to its own call,
+  as in V8 (without it, every subclass of `Error` would show an extra
+  `at new E` line); the internal name of a constructor in a frame;
+  the message of a refused `map` result; `jsdiff` kept no user frames
+  whose path contains `node:`. Backlog: the legacy `caller` of sloppy
+  functions, `Error.prepareStackTrace`.
+- Runtime test262: 8,429 pass (was 7,215); new groups `Error`,
+  `NativeErrors`, `AggregateError`, `Function`, `Array`. Parse-only
+  unchanged (41,882).
+- Feature 2 is complete: runtime test262 went from 4,235 to 8,429
+  passes. About 1,150 tests of the new groups wait for `for`-`in`
+  (feature 3), because `propertyHelper.js` uses it. Next: M7
+  feature 3, language semantics, after a pause that the owner asked
+  for.
+
 ## 2026-10-10: M7 feature 2b, symbols, `Boolean` and iteration
 
 - `js`: the 13 well-known symbols and the `Symbol.for` registry (keyed

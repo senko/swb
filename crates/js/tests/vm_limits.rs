@@ -183,7 +183,8 @@ fn uncaught_errors_report_the_offset() {
             panic!("an uncaught error");
         };
         assert_eq!(message, "Cannot read properties of null (reading 'x')");
-        let expected = source.find("null.x").unwrap() as u32;
+        // The position of a property read is the name, as in V8.
+        let expected = source.find("null.x").unwrap() as u32 + "null.".len() as u32;
         assert_eq!(offset, Some(expected));
         // The error object is the last value.
         let Value::Object(_) = rt.last_value() else {
@@ -804,7 +805,8 @@ fn uncaught_errors_through_finally_and_natives_report_the_offset() {
         };
         assert_eq!((name.as_str(), message.as_str()), ("TypeError", "t"));
         assert!(offset.is_some());
-        // An error that a native raises: the offset of the call.
+        // An error that a native raises: the offset of the call (V8
+        // reports the name of the method).
         let source = "var a = 1;\n[1].forEach(2);";
         let Err(ScriptError::Uncaught {
             message, offset, ..
@@ -813,7 +815,7 @@ fn uncaught_errors_through_finally_and_natives_report_the_offset() {
             panic!("an uncaught error");
         };
         assert_eq!(message, "number 2 is not a function");
-        assert_eq!(offset, Some(source.find("[1]").unwrap() as u32));
+        assert_eq!(offset, Some(source.find("forEach").unwrap() as u32));
         // A caught error leaves no offset behind.
         assert_eq!(
             rt.eval("try { null.x; } catch (e) { 5 }"),

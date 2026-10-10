@@ -46,7 +46,7 @@ use swb_js_syntax::{
     Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId, StmtKind, Storage,
     VariableKind,
 };
-use swb_js_text::{RecursionBudget, String16};
+use swb_js_text::{RecursionBudget, Str16, String16};
 
 use super::{Builder, CResult, CompileError, ConstSpec, Session};
 use crate::bytecode::{
@@ -110,6 +110,8 @@ pub(super) struct FunctionCompiler<'a> {
     pub(super) function: &'a Function,
     pub(super) fscope: &'a FunctionScope,
     pub(super) session: &'a mut Session,
+    /// The text of the script (for the positions of tokens).
+    pub(super) text: Str16<'a>,
     budget: &'a mut RecursionBudget,
     pub(super) insns: Vec<Insn>,
     constants: Vec<ConstSpec>,
@@ -146,6 +148,7 @@ impl<'a> FunctionCompiler<'a> {
         id: FunctionId,
         session: &'a mut Session,
         budget: &'a mut RecursionBudget,
+        text: Str16<'a>,
     ) -> Self {
         let function = script.ast.function(id);
         let fscope = script.scopes.function(id);
@@ -157,6 +160,7 @@ impl<'a> FunctionCompiler<'a> {
             function,
             fscope,
             session,
+            text,
             budget,
             insns: Vec::new(),
             constants: Vec::new(),
@@ -469,7 +473,7 @@ impl<'a> FunctionCompiler<'a> {
         self.script
             .names
             .get(name)
-            .map(swb_js_text::Str16::to_string16)
+            .map(Str16::to_string16)
             .unwrap_or_default()
     }
 

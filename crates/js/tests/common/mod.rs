@@ -106,7 +106,12 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
 /// The printed lines and the result (the completion value as text, or
 /// the error) of a script.
 pub(crate) fn run_in(rt: &mut Runtime, source: &str) -> String {
-    let result = rt.eval(source);
+    run_in_named(rt, source, "")
+}
+
+/// Like [`run_in`], with the script name that stack traces show.
+pub(crate) fn run_in_named(rt: &mut Runtime, source: &str, name: &str) -> String {
+    let result = rt.eval_named(source, name);
     let mut lines = rt.host_data_mut::<Output>().unwrap().take();
     match result {
         Ok(value) => {
@@ -155,6 +160,35 @@ pub(crate) fn check_cases(cases: &[(&str, &str)]) {
             if actual != expected {
                 failures.push(format!(
                     "--- {source}\n(stress: {stress})\nexpected:\n{expected}\nactual:\n{actual}\n"
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Runs a script under the name `t.js` (as the stack tests of Node.js
+/// do) with and without the stress mode.
+pub(crate) fn run_script(source: &str, stress: bool) -> String {
+    let source = source.to_owned();
+    on_big_stack(move || {
+        let mut rt = runtime(stress);
+        let out = run_in_named(&mut rt, &source, "t.js");
+        let stats = rt.heap().stats();
+        assert_eq!(stats.total_stale_roots, 0, "stale roots");
+        out
+    })
+}
+
+/// Like [`check_cases`], for scripts that run under the name `t.js`.
+pub(crate) fn check_script_cases(cases: &[(&str, &str)]) {
+    let mut failures = Vec::new();
+    for &(source, expected) in cases {
+        for stress in [false, true] {
+            let actual = run_script(source, stress);
+            if actual.trim_end() != expected.trim_end() {
+                failures.push(format!(
+                    "(stress: {stress})\n--- expected:\n{expected}\n--- actual:\n{actual}\n"
                 ));
             }
         }
