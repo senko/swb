@@ -2,7 +2,7 @@
 # (`swb-js test262 --parse-only`, M7 feature 1): proposals, and features
 # that were standardized after ECMA-262 2025. Taken from test262's
 # features.txt at the pinned commit; tests with one of these features
-# are skipped. Module tests are skipped too (flag `module`, M7 feature 1c).
+# are skipped. Module tests (flag `module`) parse with the Module goal.
 #
 # `feature NAME` per line; `#` starts a comment.
 

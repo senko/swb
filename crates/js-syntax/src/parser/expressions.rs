@@ -662,12 +662,20 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             return Err(ParseError::syntax(start, messages::AWAIT_IN_PARAMETER));
         }
         self.ctx.last_await = Some(start);
+        self.note_module_await();
         self.advance()?;
         self.enter_small()?;
         let argument = self.parse_unary();
         self.leave_small();
         let argument = argument?;
         Ok(self.push_expr(ExprKind::Await(argument), start))
+    }
+
+    /// Notes an `await` at the top level of a module (`[[HasTLA]]`).
+    pub(super) fn note_module_await(&mut self) {
+        if self.module_code && self.ctx.kind == FunctionKind::Module {
+            self.module_await = true;
+        }
     }
 
     fn parse_prefix_update(&mut self) -> PResult<ExprId> {
@@ -890,8 +898,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             && let ExprKind::Identifier(ident) = self.kind_of(target)
             && ident.name == names::EVAL
         {
-            self.ctx.direct_evals += 1;
-            self.recorded.push(Recorded::Eval);
+            self.note_direct_eval();
         }
         let call = self.push_expr(
             ExprKind::Call {
@@ -905,6 +912,20 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.async_heads.insert(call, spread_comma);
         }
         Ok(call)
+    }
+
+    /// Counts a direct `eval` call of the current function.
+    fn note_direct_eval(&mut self) {
+        let sloppy = !self.ctx.strict;
+        let in_params = self.ctx.in_params;
+        self.ctx.direct_evals += 1;
+        if sloppy {
+            self.ctx.sloppy_evals += 1;
+            if in_params {
+                self.ctx.sloppy_param_evals += 1;
+            }
+        }
+        self.recorded.push(Recorded::Eval { sloppy, in_params });
     }
 
     /// A tagged template (§13.3.11): `tag` is called with the template.
@@ -1012,6 +1033,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// The `MemberExpression` after `new`: no calls.
     fn parse_new_callee(&mut self) -> PResult<ExprId> {
         let start = self.token.start;
+        if self.at(TokenKind::Import) && self.peek_kind()? == TokenKind::LParen {
+            return Err(ParseError::syntax(start, messages::NEW_IMPORT));
+        }
         let callee = match self.token.kind {
             TokenKind::New => self.parse_new()?,
             TokenKind::Super => self.parse_super(false)?,
@@ -1123,7 +1147,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 return Ok(self.push_expr(ExprKind::Class(class), start));
             }
             TokenKind::Super => return self.parse_super(true),
-            TokenKind::Import => return Err(ParseError::unsupported(start, "import")),
+            TokenKind::Import => return self.parse_import_expression(),
             TokenKind::BigInt => {
                 let digits = match &self.token.value {
                     TokenValue::BigInt(text) => swb_js_text::String16::from(&**text),
@@ -1135,6 +1159,47 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         };
         self.advance()?;
         Ok(self.push_expr(kind, start))
+    }
+
+    /// `import.meta` (§13.3.12, module code only) or an import call
+    /// `import(specifier, options)` (§13.3.10); the current token is
+    /// `import`.
+    fn parse_import_expression(&mut self) -> PResult<ExprId> {
+        let start = self.token.start;
+        self.advance()?;
+        if self.eat(TokenKind::Dot)? {
+            if !(self.at(TokenKind::Identifier) && self.token.name() == Some(names::META)) {
+                return Err(self.unexpected());
+            }
+            if self.token.escaped {
+                return Err(ParseError::syntax(start, messages::ESCAPED_IMPORT_META));
+            }
+            if !self.module_code {
+                return Err(ParseError::syntax(
+                    self.token.start,
+                    messages::IMPORT_META_OUTSIDE_MODULE,
+                ));
+            }
+            self.advance()?;
+            return Ok(self.push_expr(ExprKind::ImportMeta, start));
+        }
+        let open = self.token.start;
+        if !self.at(TokenKind::LParen) && !self.module_code {
+            // V8 reads it as an import declaration outside a module.
+            return Err(ParseError::syntax(start, messages::IMPORT_OUTSIDE_MODULE));
+        }
+        self.expect(TokenKind::LParen)?;
+        if self.at(TokenKind::RParen) {
+            return Err(ParseError::syntax(open, messages::IMPORT_CALL_SPECIFIER));
+        }
+        let specifier = self.parse_assignment(false)?;
+        let mut options = None;
+        if self.eat(TokenKind::Comma)? && !self.at(TokenKind::RParen) {
+            options = Some(self.parse_assignment(false)?);
+            self.eat(TokenKind::Comma)?;
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(self.push_expr(ExprKind::ImportCall { specifier, options }, start))
     }
 
     /// `IdentifierReference` (§13.1), or an async function expression

@@ -4,7 +4,9 @@
 //!
 //! [`parse_script`] parses a classic script into a [`Script`]: the tree
 //! ([`Ast`]), the scopes with the results of the scope analysis
-//! ([`ScopeTree`]) and the names ([`Interner`]). The parser drives the
+//! ([`ScopeTree`]) and the names ([`Interner`]). [`parse_module`] parses
+//! a module (with its [`ModuleRecord`]) and [`parse_eval`] eval code in
+//! the context of its call ([`EvalContext`]). The parser drives the
 //! [`Lexer`]: it asks for one [`Token`] at a time with the [`Goal`]
 //! symbol of its context.
 //!
@@ -18,6 +20,7 @@ mod interner;
 mod lexer;
 mod lines;
 pub mod messages;
+mod module;
 mod parser;
 mod scope;
 mod token;
@@ -34,9 +37,13 @@ pub use error::{ErrorKind, ParseError, SyntaxError};
 pub use interner::{Interner, NameId, names};
 pub use lexer::{Checkpoint, Lexer, LexerOptions, MAX_SOURCE_LEN};
 pub use lines::{LineIndex, Location};
-pub use parser::{Script, check_source_len, parse_script};
+pub use module::{
+    ExportEntry, ExportImportName, ImportAttribute, ImportEntry, ImportName, ModuleRecord,
+    ModuleRequest,
+};
+pub use parser::{EvalContext, Script, check_source_len, parse_eval, parse_module, parse_script};
 pub use scope::{
-    Binding, BindingKind, Capture, CaptureSource, FunctionScope, Reference, Resolution, Scope,
-    ScopeKind, ScopeTree, Storage,
+    Binding, BindingKind, Capture, CaptureSource, DynamicEnv, DynamicKind, DynamicLookup,
+    FunctionScope, Reference, Resolution, Scope, ScopeKind, ScopeTree, Storage,
 };
 pub use token::{Goal, Legacy, Template as TemplateToken, Token, TokenKind, TokenValue};

@@ -52,8 +52,10 @@ Format: source, license (for code), what it influenced.
   flags) — `js-regexp`; §6.1.4 and §11.1 (code units and code points) —
   `js-text/src/string16.rs`; clauses 13 to 16 (expressions, statements,
   functions, scripts and their early errors), §9.1 and §10.2.11
-  (environments, FunctionDeclarationInstantiation), §14.7.4.4
-  (per-iteration bindings) and Annex B.3.1 to B.3.5 —
+  (environments, FunctionDeclarationInstantiation), §10.4.4.7 (mapped
+  arguments), §14.7.4.4 (per-iteration bindings), §16.2.1.6.1
+  (ParseModule), §19.2.1.1 and §19.2.1.3 (PerformEval,
+  EvalDeclarationInstantiation) and Annex B.3.1 to B.3.5 —
   `js-syntax/src/parser/`, `js-syntax/src/scope/`. V8's error messages,
   measured as a black box in Node.js 22 — `js-syntax/src/messages.rs`.
   §6.1.6.1.20 (Number::toString), §7.1 (type conversion), §7.2.13 to

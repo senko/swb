@@ -233,16 +233,17 @@ fn hoisting_and_shadowing() {
          function 2 a parent 1 params [] registers 0",
         "f@9:=global a@11:=r0 a@25:=r0 a@39:r0",
     );
-    // Block-level functions are block bindings (strict semantics).
+    // Block-level functions are block bindings; in sloppy mode code also
+    // var bindings (Annex B.3.2: the last reference, `h@55:r1`).
     check(
         "function f() { var x = 1; if (x) { let y = x; function h() { return y; } } }",
         "function 0 params [] registers 0
          ||scope 0 Script: f global Function
-         function 1 f parent 0 params [] registers 3
-         ||scope 1 Function: x r0 Var
-         ||scope 2 Block: y cell r1 Let, h r2 Function
-         function 2 h parent 1 params [] registers 0 captures [y<-r1]",
-        "f@9:=global x@19:=r0 x@30:r0 y@39:=cell1 x@43:r0 h@55:=r2 y@68:cap0!",
+         function 1 f parent 0 params [] registers 4
+         ||scope 1 Function: x r0 Var, h r1 BlockFunctionVar
+         ||scope 2 Block: y cell r2 Let, h r3 Function
+         function 2 h parent 1 params [] registers 0 captures [y<-r2]",
+        "f@9:=global x@19:=r0 x@30:r0 y@39:=cell2 x@43:r0 h@55:=r3 y@68:cap0! h@55:r1",
     );
     // A `var` in a catch block with the parameter's name assigns the
     // parameter (Annex B.3.4) and also declares a variable.
@@ -269,11 +270,13 @@ fn direct_eval_makes_cells() {
         "function f() { eval('x'); var y; function g() { var z; } }",
         "function 0 params [] registers 0 eval
          ||scope 0 Script: f global Function
-         function 1 f parent 0 params [] registers 2 eval
-         ||scope 1 Function: y cell r0 Var, g cell r1 Function
+         function 1 f parent 0 params [] registers 6 this arguments mapped eval
+         ||scope 1 Function: y cell r0 Var, g cell r1 Function, %env cell r2 DynamicEnv, \
+         this cell r3 This, new.target cell r4 NewTarget, arguments cell r5 Arguments
          function 2 g parent 1 params [] registers 1
          ||scope 2 Function: z r0 Var",
-        "f@9:=global eval@15:global y@30:=cell0 g@42:=cell1 z@52:=r0",
+        "f@9:=global eval@15:global~1 y@30:=cell0 g@42:=cell1 z@52:=r0 this@10:cell3 \
+         new.target@10:cell4 arguments@10:cell5 %env@10:global %env@15:cell2",
     );
 }
 
@@ -591,15 +594,19 @@ fn arrow_parameters_move_into_the_arrow() {
          ||scope 3 Function: a r2 Parameter, b cell r3 Parameter",
         "a@1:=r2 g@14:=r0 b@27:cap0! b@33:=cell3 a@39:r2",
     );
-    // A direct `eval` in the parameters belongs to the arrow function.
+    // A direct `eval` in the parameters belongs to the arrow function: its
+    // vars go into an environment outside the parameters, and the arrow
+    // captures what the eval code may use from `f`.
     check(
         "function f() { (z = eval('x')) => z; }",
         "function 0 params [] registers 0 eval
          ||scope 0 Script: f global Function
-         function 1 f parent 0 params [] registers 0 eval
-         function 2 parent 1 params [] registers 2 eval
-         ||scope 2 Function: z cell r1 Parameter",
-        "f@9:=global z@16:=cell1 eval@20:global z@34:cell1",
+         function 1 f parent 0 params [] registers 3 this arguments mapped eval
+         ||scope 1 Function: this cell r0 This, new.target cell r1 NewTarget, arguments cell r2 Arguments
+         function 2 parent 1 params [] registers 3 captures [this<-r0 new.target<-r1 arguments<-r2] eval
+         ||scope 2 Function: z cell r1 Parameter, %env cell r2 DynamicEnv",
+        "f@9:=global z@16:=cell1 eval@20:global~1 z@34:cell1 this@15:cap0 new.target@15:cap1 \
+         arguments@15:cap2~1 %env@15:global %env@20:cell2",
     );
     let script = analyze("function f() { (z = eval('x')) => z; }");
     let f = crate::ast::FunctionId::from_index(1);
@@ -625,12 +632,13 @@ fn new_target_catch_patterns_and_with() {
          ||scope 2 Catch: e r0 CatchParameter, f r1 CatchParameter",
         "e@15:=r0 f@19:=r1 e@26:r0",
     );
-    // The `with` scope has no bindings; the names inside resolve
-    // statically for now (the object comes first with M7 feature 1c).
+    // The `with` scope holds its object environment; the names inside
+    // check it first (`~1`).
     check(
         "with (o) { var w; w; }",
-        "function 0 params [] registers 0
-         ||scope 0 Script: w global Var",
-        "o@6:global w@15:=global w@18:global",
+        "function 0 params [] registers 1
+         ||scope 0 Script: w global Var
+         ||scope 1 With: %env r0 DynamicEnv",
+        "o@6:global w@15:=global~1 w@18:global~1 %env@9:global %env@15:r0",
     );
 }

@@ -96,8 +96,7 @@ pub mod names {
         PRIVATE = "private",
         PROTECTED = "protected",
         PUBLIC = "public",
-        // Contextual keywords and names with special rules. `AS`, `FROM`
-        // and `META` have no user yet; M7 feature 1c (modules) uses them.
+        // Contextual keywords and names with special rules.
         ARGUMENTS = "arguments",
         AS = "as",
         ASYNC = "async",
@@ -118,6 +117,11 @@ pub mod names {
         // binding has the name `super`.
         NEW_TARGET = "new.target",
         ACTIVE_FUNCTION = "%function",
+        // The implicit binding of a dynamic environment (`with` body,
+        // eval vars), and the local name of an anonymous default export
+        // (§16.2.3: "*default*"). Neither is an identifier.
+        DYNAMIC_ENV = "%env",
+        DEFAULT_EXPORT = "*default*",
     }
 
     /// The number of reserved words; their ids are `0..RESERVED_WORDS`.

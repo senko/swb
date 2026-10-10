@@ -157,6 +157,24 @@ impl Dumper<'_> {
                 handler,
                 finalizer,
             } => self.try_stmt(block, handler, finalizer),
+            kind @ (StmtKind::Import
+            | StmtKind::ExportList
+            | StmtKind::ExportDeclaration(_)
+            | StmtKind::ExportDefault { .. }) => self.module_stmt(kind),
+        }
+    }
+
+    /// The import and export statements.
+    fn module_stmt(&mut self, kind: StmtKind) {
+        match kind {
+            StmtKind::Import => self.text("(import)"),
+            StmtKind::ExportDeclaration(declaration) => {
+                self.text("(export ");
+                self.stmt(declaration);
+                self.text(")");
+            }
+            StmtKind::ExportDefault { value, .. } => self.list("export-default", &[value]),
+            _ => self.text("(export)"),
         }
     }
 
@@ -553,6 +571,12 @@ impl Dumper<'_> {
             | ExprKind::SuperCall(_)
             | ExprKind::PrivateMember { .. }
             | ExprKind::PrivateIn { .. } => self.class_or_async_expr(ast.expr(id).kind),
+            ExprKind::ImportCall { specifier, options } => {
+                let mut items = vec![specifier];
+                items.extend(options);
+                self.list("import", &items);
+            }
+            ExprKind::ImportMeta => self.text("import.meta"),
         }
     }
 
@@ -785,6 +809,7 @@ pub fn dump_scopes(script: &Script) -> String {
                     match capture.source {
                         CaptureSource::ParentRegister(r) => format!("{name}<-r{r}"),
                         CaptureSource::ParentCapture(i) => format!("{name}<-c{i}"),
+                        CaptureSource::Import(i) => format!("{name}<-import{i}"),
                     }
                 })
                 .collect();
@@ -820,6 +845,8 @@ pub fn dump_scopes(script: &Script) -> String {
                     Storage::Register(r) => format!("r{r}"),
                     Storage::Cell(r) => format!("cell r{r}"),
                     Storage::Global => "global".to_owned(),
+                    Storage::Caller => "caller".to_owned(),
+                    Storage::Import => "import".to_owned(),
                 };
                 let _ = write!(
                     out,
@@ -851,14 +878,20 @@ pub fn dump_references(script: &Script) -> String {
             Resolution::Cell(r) => format!("cell{r}"),
             Resolution::Capture(i) => format!("cap{i}"),
             Resolution::Global => "global".to_owned(),
+            Resolution::Caller => "caller".to_owned(),
         };
+        let dynamic = tree
+            .dynamic_lookup(crate::ast::RefId::from_index(index))
+            .map(|lookup| format!("~{}", lookup.count))
+            .unwrap_or_default();
         parts.push(format!(
-            "{}@{}:{}{}{}",
+            "{}@{}:{}{}{}{}",
             script.name_text(reference.name),
             reference.offset,
             if reference.declaration { "=" } else { "" },
             how,
             if reference.tdz_check { "!" } else { "" },
+            dynamic,
         ));
     }
     parts.join(" ")

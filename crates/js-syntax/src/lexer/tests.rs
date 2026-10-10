@@ -855,16 +855,19 @@ fn html_like_comments() {
     })
     .expect("punctuators");
     assert_eq!(tokens.len(), 4);
-    // Modules have no HTML-like comments.
+    // Modules have no HTML-like comments; V8 rejects the forms (at the
+    // last `-` of `<!--` and at the `>` of `-->`).
+    for (source, offset) in [("a <!-- b", 5), ("a\n--> b", 4), ("/*\n*/ --> b", 8)] {
+        let error = lex_with(source, LexerOptions::module(), |_| Goal::Div).expect_err(source);
+        assert_eq!(
+            (error.message.as_ref(), error.offset),
+            (HTML_COMMENT_IN_MODULE, offset),
+            "{source}"
+        );
+    }
+    // `-->` after a token on its line is `--` and `>` in modules too.
     let (tokens, _) =
-        lex_with("a <!-- b", LexerOptions::module(), |_| Goal::Div).expect("punctuators");
-    let kinds: Vec<_> = tokens.iter().map(|t| t.kind).collect();
-    assert_eq!(
-        kinds,
-        [K::Identifier, K::Lt, K::Bang, K::MinusMinus, K::Identifier]
-    );
-    let (tokens, _) =
-        lex_with("a\n--> b", LexerOptions::module(), |_| Goal::Div).expect("punctuators");
+        lex_with("x --> y", LexerOptions::module(), |_| Goal::Div).expect("punctuators");
     assert_eq!(tokens.len(), 4);
 }
 

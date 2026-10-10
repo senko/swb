@@ -358,6 +358,39 @@ const M7_EARLY_ERRORS: &[(&str, &str)] = &[
         "`...` must be followed by an assignable reference in assignment contexts",
     ),
     (
+        "({...‸a()} = {})",
+        "Invalid destructuring assignment target",
+    ),
+    (
+        "({...‸this} = {})",
+        "Invalid destructuring assignment target",
+    ),
+    ("({...‸1} = {})", "Invalid destructuring assignment target"),
+    (
+        "({...‸a = 1} = x)",
+        "`...` must be followed by an assignable reference in assignment contexts",
+    ),
+    (
+        "({...‸[a] = 1} = x)",
+        "`...` must be followed by an assignable reference in assignment contexts",
+    ),
+    (
+        "({a: {...‸b = 1}} = x)",
+        "`...` must be followed by an assignable reference in assignment contexts",
+    ),
+    (
+        "for ({...‸a = 1} of x);",
+        "`...` must be followed by an assignable reference in assignment contexts",
+    ),
+    (
+        "({...‸(a = 1)} = x)",
+        "Invalid destructuring assignment target",
+    ),
+    (
+        "({...‸a += 1} = x)",
+        "Invalid destructuring assignment target",
+    ),
+    (
         "[...‸(a = 1)] = 1",
         "Invalid destructuring assignment target",
     ),

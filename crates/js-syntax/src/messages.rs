@@ -129,6 +129,21 @@ pub(crate) const TOO_MANY_PARAMETERS: &str =
     "Too many parameters in function definition (only 65534 allowed)";
 pub const TOO_MANY_ARGUMENTS: &str = "Too many arguments in function call (only 65535 allowed)";
 
+// Modules and `import` (measured with `node --check` on `.mjs` files).
+pub(crate) const IMPORT_OUTSIDE_MODULE: &str = "Cannot use import statement outside a module";
+pub(crate) const IMPORT_META_OUTSIDE_MODULE: &str = "Cannot use 'import.meta' outside a module";
+pub(crate) const ESCAPED_IMPORT_META: &str = "'import.meta' must not contain escaped characters";
+pub(crate) const IMPORT_CALL_SPECIFIER: &str = "import() requires a specifier";
+pub(crate) const NEW_IMPORT: &str = "Cannot use new with import";
+pub(crate) const HTML_COMMENT_IN_MODULE: &str = "HTML comments are not allowed in modules";
+pub(crate) const UNPAIRED_SURROGATE_EXPORT_NAME: &str =
+    "Invalid module export name: contains unpaired surrogate";
+pub(crate) const STRING_EXPORT_WITHOUT_FROM: &str =
+    "String literal module export names must be followed by a 'from' clause";
+/// V8 calls the binding of `export default` `.default`.
+pub(crate) const DEFAULT_EXPORT_REDECLARED: &str =
+    "Identifier '.default' has already been declared";
+
 // Lexical errors.
 pub(crate) const INVALID_TOKEN: &str = "Invalid or unexpected token";
 pub(crate) const UNTERMINATED_REGEXP: &str = "Invalid regular expression: missing /";
@@ -167,6 +182,28 @@ pub(crate) fn continue_not_loop(name: &str) -> String {
 /// includes the `#`).
 pub(crate) fn undeclared_private(name: &str) -> String {
     format!("Private field '{name}' must be declared in an enclosing class")
+}
+
+/// "Import assertion has duplicate key 'x'" (V8's wording from before
+/// import attributes).
+pub(crate) fn duplicate_import_attribute(key: &str) -> String {
+    format!("Import assertion has duplicate key '{key}'")
+}
+
+/// "Duplicate export of 'x'".
+pub(crate) fn duplicate_export(name: &str) -> String {
+    format!("Duplicate export of '{name}'")
+}
+
+/// "Export 'x' is not defined in module".
+pub(crate) fn undefined_export(name: &str) -> String {
+    format!("Export '{name}' is not defined in module")
+}
+
+/// "'x' must not contain escaped characters" (a contextual keyword of the
+/// module grammar, such as `from` or `as`).
+pub(crate) fn escaped_contextual_keyword(name: &str) -> String {
+    format!("'{name}' must not contain escaped characters")
 }
 
 /// "Unexpected token 'x'".

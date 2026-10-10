@@ -23,7 +23,7 @@ use swb_js_text::{
 
 use crate::SyntaxError;
 use crate::interner::Interner;
-use crate::messages::INVALID_TOKEN;
+use crate::messages::{HTML_COMMENT_IN_MODULE, INVALID_TOKEN};
 use crate::token::{Goal, Legacy, Token, TokenKind, TokenValue, keyword_kind};
 
 /// The largest source length in code units: offsets are `u32`, and a
@@ -71,7 +71,7 @@ impl LexerOptions {
         }
     }
 
-    /// The options for a module. No user yet; M7 feature 1 (modules) uses it.
+    /// The options for a module ([`crate::parse_module`]).
     pub const fn module() -> Self {
         LexerOptions {
             html_comments: false,
@@ -329,6 +329,24 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
                     && self.is_at(2, b'>') =>
                 {
                     self.skip_line_comment();
+                }
+                // Modules have no HTML-like comments. V8 rejects the forms
+                // with its own message (also `a <!-- b`, which ECMA-262
+                // reads as `a < !--b`), at the last `-` of `<!--` and at
+                // the `>` of `-->`.
+                0x3C if !html
+                    && self.is_at(1, b'!')
+                    && self.is_at(2, b'-')
+                    && self.is_at(3, b'-') =>
+                {
+                    return Err(error_at(self.pos + 3, HTML_COMMENT_IN_MODULE));
+                }
+                0x2D if !html
+                    && (self.newline_before || input_start)
+                    && self.is_at(1, b'-')
+                    && self.is_at(2, b'>') =>
+                {
+                    return Err(error_at(self.pos + 2, HTML_COMMENT_IN_MODULE));
                 }
                 LS | PS => {
                     self.pos += 1;

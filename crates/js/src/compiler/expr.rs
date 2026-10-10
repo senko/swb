@@ -158,7 +158,9 @@ impl FunctionCompiler<'_> {
             | ExprKind::SuperIndex { .. }
             | ExprKind::SuperCall(_)
             | ExprKind::PrivateMember { .. }
-            | ExprKind::PrivateIn { .. } => {
+            | ExprKind::PrivateIn { .. }
+            | ExprKind::ImportCall { .. }
+            | ExprKind::ImportMeta => {
                 Err(self
                     .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
             }
@@ -246,7 +248,13 @@ impl FunctionCompiler<'_> {
     // --- Bindings ---
 
     /// Loads the binding of an identifier occurrence.
-    fn load_ref(&mut self, id: RefId, dst: Option<Reg>) -> CResult<Reg> {
+    ///
+    /// A reference with a dynamic lookup (`ScopeTree::dynamic_lookup`: in a
+    /// `with` body or in reach of a sloppy direct `eval`) compiles to its
+    /// static fallback only. That is correct while the VM has no `eval`
+    /// and the compiler rejects `with` (M7 feature 3 adds both): no
+    /// dynamic environment can hold a binding then.
+    pub(super) fn load_ref(&mut self, id: RefId, dst: Option<Reg>) -> CResult<Reg> {
         let reference = self.reference(id);
         let name = || reference.name;
         match reference.resolution {
@@ -282,6 +290,8 @@ impl FunctionCompiler<'_> {
                 Ok(t)
             }
             Resolution::Unresolved => Err(Self::internal("an unresolved reference")),
+            // Only eval code has these, and nothing compiles eval code yet.
+            Resolution::Caller => Err(self.unsupported("eval code")),
         }
     }
 
@@ -297,7 +307,7 @@ impl FunctionCompiler<'_> {
 
     /// `PutValue` on an identifier (an assignment, not a declaration):
     /// checks the dead zone, rejects constants.
-    fn store_ref(&mut self, id: RefId, src: Reg) -> CResult<()> {
+    pub(super) fn store_ref(&mut self, id: RefId, src: Reg) -> CResult<()> {
         let reference = self.reference(id);
         let kind = self.binding_kind(&reference);
         let constant = kind == Some(BindingKind::Const)
@@ -345,6 +355,7 @@ impl FunctionCompiler<'_> {
                 }
             }
             Resolution::Unresolved => return Err(Self::internal("an unresolved reference")),
+            Resolution::Caller => return Err(self.unsupported("eval code")),
         }
         Ok(())
     }
@@ -464,7 +475,9 @@ impl FunctionCompiler<'_> {
                 | ExprKind::SuperIndex { .. }
                 | ExprKind::SuperCall(_)
                 | ExprKind::PrivateMember { .. }
-                | ExprKind::PrivateIn { .. } => return true,
+                | ExprKind::PrivateIn { .. }
+                | ExprKind::ImportCall { .. }
+                | ExprKind::ImportMeta => return true,
                 ExprKind::Identifier(_)
                 | ExprKind::This(_)
                 | ExprKind::Null

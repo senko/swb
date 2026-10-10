@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-10: M7 feature 1c, modules, eval and Annex B; end of feature 1
+
+- `js-syntax`: `parse_module` (imports and exports with import
+  attributes and string names, all `export default` forms,
+  `import.meta`, top-level `await`, no HTML-like comments, the module
+  early errors, the module records of ParseModule); `import()` with
+  options, also in scripts; `parse_eval` with the early errors of the
+  call site (`new.target`, `super`, `super()`, `arguments` in field
+  initializers, the caller's private names). Scope analysis: `with`
+  bodies and the var scopes of sloppy functions with a direct `eval`
+  (also an `eval` in the parameters, §10.2.11) are dynamic
+  environments; each reference in their reach records how many of them
+  to check before its static binding, so the data stays linear.
+  Functions with an `eval` get every implicit binding that eval code
+  may use. Annex B.3.2/B.3.3 block functions get their var binding,
+  decided after the parse. Module scope: top-level bindings belong to
+  the module function, exported ones are cells, imports are captures.
+- `js`: the compiler rejects module code, `import()` and `import.meta`,
+  compiles dynamic references with their static fallback (no `eval`
+  and no `with` at run time yet), and copies hoisted block functions
+  into their var bindings in function code. The parse-only test262
+  mode parses module tests with the Module goal.
+- Parse-only test262: 41,882 pass (was 40,604), none unsupported; the
+  358 failures are regular expression syntax (feature 8a). Runtime
+  test262: 4,235 pass (was 4,231). All BBC and Ars scripts parse at
+  49 MB/s. Their deepest member chain is 16 links, `else if` chain 5,
+  nested function expressions 10: far below the compiler limits that
+  the spike found (about 2,700, 1,360, 370), so no change is needed.
+- Review: no wrong verdict in about 350 module probes, 140 eval
+  contexts, 120 Annex B programs run in swb-js and Node, and 4,000
+  prefixes. Fixed: a 1a message for `({...a = 1} = x)` that the patch
+  had changed, the position of `export async`, the namespace re-export
+  in the module contract. Deviations from V8 that follow the spec or
+  test262: a block function named `arguments`, nested block functions
+  of one name.
+- Feature 1 (the full ES2025 syntax) is complete. Next: M7 feature 2,
+  fundamental objects.
+
 ## 2026-10-10: M7 feature 1b, classes and async
 
 - `js-syntax`: classes (declarations and expressions, `extends`,

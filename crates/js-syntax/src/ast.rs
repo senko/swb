@@ -6,8 +6,9 @@
 //! code-unit offsets ([`Span`]). Names are [`NameId`]s of the script's
 //! [`crate::Interner`]; string values are [`StringId`]s.
 //!
-//! The node types are laid out for the whole ES2025 grammar. Modules come
-//! with M7 feature 1c, as new enum variants.
+//! The node types cover the whole ES2025 grammar. Module code adds the
+//! import and export statements; the module records of a module are in
+//! [`crate::ModuleRecord`].
 //!
 //! Classes ([`Class`]) live in a table of their own, with their elements
 //! ([`ClassElement`]). The field initializers of a class belong to
@@ -401,6 +402,18 @@ pub enum ExprKind {
         /// The object.
         object: ExprId,
     },
+    /// `import(specifier)` or `import(specifier, options)` (§13.3.10):
+    /// loads a module and returns a promise of its namespace object. Also
+    /// in scripts.
+    ImportCall {
+        /// The module specifier.
+        specifier: ExprId,
+        /// The options object (import attributes, ES2025).
+        options: Option<ExprId>,
+    },
+    /// `import.meta` (§13.3.12): the module's meta object (module code
+    /// only).
+    ImportMeta,
 }
 
 /// A `super(arguments)` call (§13.3.7.1). The occurrences resolve to the
@@ -788,7 +801,8 @@ pub enum StmtKind {
         /// The body.
         body: StmtId,
         /// The scope of the body ([`crate::ScopeKind::With`]): names
-        /// inside it resolve through the object first (M7 feature 1c).
+        /// inside it resolve through the object first
+        /// ([`crate::DynamicLookup`]).
         scope: ScopeId,
     },
     /// A labelled statement.
@@ -812,6 +826,30 @@ pub enum StmtKind {
     Return(Option<ExprId>),
     /// `throw`.
     Throw(ExprId),
+    /// An import declaration (§16.2.2): no code. Its bindings are
+    /// created when the module is linked ([`crate::ModuleRecord`]).
+    Import,
+    /// `export` with a declaration (§16.2.3): the declaration (a
+    /// [`StmtKind::Variables`], [`StmtKind::Function`] or
+    /// [`StmtKind::Class`]), which runs as usual. `export default
+    /// function` and `export default class` are declarations too; without
+    /// a name, the function's name is `*default*` (its `name` property is
+    /// "default"), and the class has no name and binds `*default*`
+    /// ([`Class::declaration`]).
+    ExportDeclaration(StmtId),
+    /// `export default AssignmentExpression;`: evaluates the value (an
+    /// anonymous function or class gets the name "default") and
+    /// initializes the module's binding `*default*` (the occurrence
+    /// `binding`).
+    ExportDefault {
+        /// The value.
+        value: ExprId,
+        /// The declaration occurrence of `*default*`.
+        binding: RefId,
+    },
+    /// The other export forms (`export { a as b }`, `export * from "m"`,
+    /// `export { a } from "m"`): no code.
+    ExportList,
     /// `switch` (§14.12).
     Switch {
         /// The value that the clauses compare with.
@@ -967,12 +1005,21 @@ pub enum FunctionKind {
     /// class constructor. Each static block has a var scope of its own
     /// ([`crate::ScopeKind::StaticBlock`]).
     StaticInitializer,
+    /// The top-level code of direct eval code ([`crate::parse_eval`]):
+    /// `this`, `new.target`, `arguments` and `super` are the caller's
+    /// ([`crate::Resolution::Caller`]). Indirect eval code is a
+    /// [`FunctionKind::Script`] whose top scope is a
+    /// [`crate::ScopeKind::Eval`].
+    Eval,
+    /// The top-level code of a module ([`crate::parse_module`]): strict,
+    /// `this` is `undefined`, `await` is allowed.
+    Module,
 }
 
 impl FunctionKind {
     /// Whether the function has its own `this` and `arguments`.
     pub fn has_own_this(self) -> bool {
-        self != FunctionKind::Arrow
+        !matches!(self, FunctionKind::Arrow | FunctionKind::Eval)
     }
 
     /// Whether the function is a method-like function with a home object

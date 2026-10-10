@@ -121,10 +121,31 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         start: u32,
         is_async: bool,
     ) -> PResult<FunctionId> {
+        self.parse_function_declaration_in(start, is_async, false)
+    }
+
+    /// The function declaration of `export default` (§16.2.3,
+    /// `HoistableDeclaration[+Default]`): without a name it binds
+    /// `*default*`.
+    pub(super) fn parse_function_declaration_default(
+        &mut self,
+        start: u32,
+        is_async: bool,
+    ) -> PResult<FunctionId> {
+        self.parse_function_declaration_in(start, is_async, true)
+    }
+
+    fn parse_function_declaration_in(
+        &mut self,
+        start: u32,
+        is_async: bool,
+        default_export: bool,
+    ) -> PResult<FunctionId> {
         let function_token = self.token.start;
         self.advance()?;
         let generator = self.eat(TokenKind::Star)?;
-        if !self.at_identifier() {
+        let anonymous = default_export && self.at(TokenKind::LParen);
+        if !self.at_identifier() && !anonymous {
             if self.at(TokenKind::LParen) {
                 return Err(ParseError::syntax(
                     function_token,
@@ -135,7 +156,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         }
         // The name is bound in the enclosing scope, with its rules.
         let name_offset = self.token.start;
-        let name = self.check_identifier(IdentUse::Name)?;
+        let name = if anonymous {
+            names::DEFAULT_EXPORT
+        } else {
+            self.check_identifier(IdentUse::Name)?
+        };
         let function = self.begin_function(start);
         let plain_sloppy = !self.ctx.strict && !generator && !is_async;
         let declared =
@@ -143,7 +168,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 .declare_function(self.scope, name, name_offset, function, plain_sloppy);
         self.declared(declared, name, start)?;
         let ident = self.reference(name, name_offset, true);
-        self.advance()?;
+        if !anonymous {
+            self.advance()?;
+        }
         let head = FunctionHead {
             kind: FunctionKind::Normal,
             generator,
@@ -154,6 +181,19 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         };
         self.parse_function_rest(function, head, self.scope)?;
         Ok(function)
+    }
+
+    /// The `await` rules of a function's own code: an `AwaitExpression` in
+    /// async functions; otherwise an identifier, but a reserved word in
+    /// module code (§12.7.2).
+    pub(super) fn function_await_mode(&self, is_async: bool) -> AwaitMode {
+        if is_async {
+            AwaitMode::Expression
+        } else if self.module_code {
+            AwaitMode::Reserved
+        } else {
+            AwaitMode::Identifier
+        }
     }
 
     /// `FunctionExpression`, `GeneratorExpression` and their async forms
@@ -173,8 +213,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         if self.at_identifier() {
             let offset = self.token.start;
             let outer_generator = std::mem::replace(&mut self.ctx.generator, generator);
-            let outer_await =
-                std::mem::replace(&mut self.ctx.await_mode, function_await_mode(is_async));
+            let own_await = self.function_await_mode(is_async);
+            let outer_await = std::mem::replace(&mut self.ctx.await_mode, own_await);
             let checked = self.check_identifier(IdentUse::Name);
             self.ctx.generator = outer_generator;
             self.ctx.await_mode = outer_await;
@@ -243,7 +283,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.labels.len(),
         );
         context.name = head.name.map(|(ident, offset)| (ident.name, offset));
-        context.await_mode = function_await_mode(head.is_async);
+        context.await_mode = self.function_await_mode(head.is_async);
         let outer = std::mem::replace(&mut self.ctx, context);
         let parts = match self.charge(super::FUNCTION_WEIGHT) {
             Ok(()) => {
@@ -285,6 +325,8 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         }
         if let Some(record) = self.scopes.function_mut(function) {
             record.has_direct_eval = inner.direct_evals > 0;
+            record.sloppy_body_eval = inner.sloppy_evals > inner.sloppy_param_evals;
+            record.sloppy_param_eval = inner.sloppy_param_evals > 0;
         }
     }
 
@@ -553,7 +595,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let outer_scope = self.scope;
         let function = self.begin_function(start);
         let scope = self.new_scope_of(ScopeKind::Function, outer_scope, function, start);
-        let mut evals = 0;
+        let mut evals = MovedEvals::default();
         // An async arrow function's parameters cannot use `await` as an
         // identifier (§15.9: `[+Await]`).
         let mut await_name = None;
@@ -578,13 +620,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                         record.parent = Some(function);
                     }
                 }
-                Recorded::Eval => evals += 1,
+                Recorded::Eval { sloppy, in_params } => evals.add(sloppy, in_params),
             }
         }
-        self.ctx.direct_evals = self.ctx.direct_evals.saturating_sub(evals);
+        evals.take_from(&mut self.ctx);
         let entered = self.enter_scope(scope);
         let mut context = self.ctx.arrow(function, self.labels.len(), arrow.is_async);
-        context.direct_evals = evals;
+        context.await_mode = self.function_await_mode(arrow.is_async);
+        // The moved calls were in the arrow function's parameters.
+        context.direct_evals = evals.all;
+        context.sloppy_evals = evals.sloppy;
+        context.sloppy_param_evals = evals.sloppy;
         let outer = std::mem::replace(&mut self.ctx, context);
         let checks = HeadChecks {
             yield_at: head_yield,
@@ -720,6 +766,37 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 }
 
+/// The direct `eval` calls that move from the enclosing function into an
+/// arrow function's parameters.
+#[derive(Clone, Copy, Debug, Default)]
+struct MovedEvals {
+    all: u32,
+    sloppy: u32,
+    /// Those that were in the enclosing function's own parameter list.
+    sloppy_in_params: u32,
+}
+
+impl MovedEvals {
+    fn add(&mut self, sloppy: bool, in_params: bool) {
+        self.all += 1;
+        if sloppy {
+            self.sloppy += 1;
+            if in_params {
+                self.sloppy_in_params += 1;
+            }
+        }
+    }
+
+    /// Takes the calls out of the enclosing function's counts.
+    fn take_from(self, outer: &mut Context) {
+        outer.direct_evals = outer.direct_evals.saturating_sub(self.all);
+        outer.sloppy_evals = outer.sloppy_evals.saturating_sub(self.sloppy);
+        outer.sloppy_param_evals = outer
+            .sloppy_param_evals
+            .saturating_sub(self.sloppy_in_params);
+    }
+}
+
 /// The early errors of an arrow function's head that the parameter
 /// conversion does not see: the offsets of a `yield` expression, an
 /// `await` expression, and (async arrow functions) an `await` identifier.
@@ -728,13 +805,4 @@ struct HeadChecks {
     yield_at: Option<u32>,
     await_at: Option<u32>,
     await_name: Option<u32>,
-}
-
-/// The `await` rules of a function's own code.
-pub(super) fn function_await_mode(is_async: bool) -> AwaitMode {
-    if is_async {
-        AwaitMode::Expression
-    } else {
-        AwaitMode::Identifier
-    }
 }

@@ -1,21 +1,28 @@
 //! The scope analysis (ADR 0026 section 3): runs after the parse over the
 //! whole function nest of a script.
 //!
-//! 1. Resolves each identifier occurrence by walking its scope chain
+//! 1. Annex B.3.2: the var bindings of block-level functions in sloppy
+//!    mode code ([`super::block_functions`]); the dynamic environments of
+//!    `with` bodies and sloppy direct eval, and the implicit bindings that
+//!    eval code may use ([`super::dynamic`]).
+//! 2. Resolves each identifier occurrence by walking its scope chain
 //!    (`ResolveBinding`, §9.4.2). `this`, `new.target`, `arguments`, the
 //!    home object (`super`) and the active function (`%function`)
 //!    resolve to implicit bindings of the nearest non-arrow function
 //!    (§10.2.11), which are created on first use. Private names (`#x`)
 //!    resolve like other names: their bindings are in the class body
-//!    scopes.
-//! 2. Marks bindings that an inner function uses as captured, and adds
+//!    scopes. The walk counts the dynamic environments that it passes
+//!    before the binding ([`super::DynamicLookup`]).
+//! 3. Marks bindings that an inner function uses as captured, and adds
 //!    the binding to the captures of every function between the use and
-//!    the declaration (flat closures).
-//! 3. Assigns storage: script-level declarations are global and accessed
+//!    the declaration (flat closures). Module code receives its imports
+//!    as captures.
+//! 4. Assigns storage: script-level declarations are global and accessed
 //!    by name; other bindings get a register of their function's frame,
 //!    and captured ones hold a cell there. Registers of sibling blocks are
-//!    reused.
-//! 4. Fills in the resolution of each occurrence and the temporal dead
+//!    reused. The var-scoped declarations of sloppy eval code belong to
+//!    the caller or the global object.
+//! 5. Fills in the resolution of each occurrence and the temporal dead
 //!    zone checks.
 //!
 //! The analysis works on the tables that the parser recorded; it does
@@ -27,14 +34,15 @@
 //! so the worst case is (distinct (scope, name) pairs) x (depth). The
 //! capture lists are bounded by [`Limits`].
 
-use crate::ast::{Ast, BindingId, FunctionId, FunctionKind, List, PatternKind, ScopeId};
+use crate::ast::{Ast, BindingId, FunctionId, FunctionKind, List, PatternKind, RefId, ScopeId};
 use crate::error::ParseError;
 use crate::interner::{NameId, names};
 use crate::messages;
 
+use super::dynamic::{self, is_dynamic_name};
 use super::{
-    BindingKind, Capture, CaptureSource, FunctionScope, IdMap, Resolution, ScopeKind, ScopeTree,
-    Storage, key,
+    BindingKind, Capture, CaptureSource, CodeKind, FunctionScope, IdMap, Resolution, ScopeKind,
+    ScopeTree, Storage, block_functions, key,
 };
 
 /// The resource limits of the analysis. Tests use small values.
@@ -72,12 +80,33 @@ impl Limits {
 /// Runs the analysis on the tables of a parsed script.
 pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Result<(), ParseError> {
     mark_var_arguments(ast, tree);
-    let mut captures: IdMap<u32> = IdMap::default();
-    resolve_references(ast, tree, &mut captures, limits)?;
+    block_functions::hoist_block_functions(ast, tree);
+    dynamic::add_eval_references(ast, tree);
+    dynamic::create_dynamic_envs(ast, tree);
+    let top_strict = ast
+        .function_ids()
+        .next()
+        .is_some_and(|f| ast.function(f).strict);
+    let eval_vars = eval_var_storage(tree.code, top_strict);
+    let mut resolver = Resolver {
+        captures: IdMap::default(),
+        total: 0,
+        counts: Vec::new(),
+        limits: *limits,
+        eval_vars,
+    };
+    let all = tree.references.len();
+    resolver.resolve_references(ast, tree, 0..all)?;
+    let counts = std::mem::take(&mut resolver.counts);
+    let first_new = dynamic::record_lookups(tree, &counts);
+    let all = tree.references.len();
+    resolver.resolve_references(ast, tree, first_new..all)?;
+    dynamic::finish_outer_links(tree);
+    let captures = resolver.captures;
     mark_direct_eval(ast, tree);
     mark_mapped_arguments(ast, tree);
     group_by_scope(tree);
-    assign_storage(tree, limits)?;
+    assign_storage(tree, limits, eval_vars)?;
     finish_references(tree, &captures);
     finish_captures(ast, tree, &captures);
     mark_needs_tdz(tree);
@@ -98,7 +127,9 @@ fn capture_key(function: FunctionId, binding: BindingId) -> u64 {
 fn mark_var_arguments(ast: &Ast, tree: &mut ScopeTree) {
     for id in ast.function_ids() {
         let function = ast.function(id);
-        if !function.kind.has_own_this() || function.kind == FunctionKind::Script {
+        if !function.kind.has_own_this()
+            || matches!(function.kind, FunctionKind::Script | FunctionKind::Module)
+        {
             continue;
         }
         if function.body_scope != function.scope {
@@ -124,78 +155,143 @@ fn mark_var_arguments(ast: &Ast, tree: &mut ScopeTree) {
     }
 }
 
-/// Step 1 and 2: the binding of each occurrence, and the captures.
-fn resolve_references(
-    ast: &Ast,
-    tree: &mut ScopeTree,
-    captures: &mut IdMap<u32>,
-    limits: &Limits,
-) -> Result<(), ParseError> {
-    let mut cache: IdMap<Option<BindingId>> = IdMap::default();
-    let mut total = 0;
-    for index in 0..tree.references.len() {
-        let Some(&reference) = tree.references.get(index) else {
-            break;
-        };
-        if reference.dead {
-            continue;
-        }
-        let cache_key = key(reference.scope, reference.name);
-        let resolved = if let Some(&cached) = cache.get(&cache_key) {
-            cached
-        } else {
-            let found = resolve(ast, tree, reference.scope, reference.name);
-            cache.insert(cache_key, found);
-            found
-        };
-        let Some(binding) = resolved else {
-            continue;
-        };
-        if let Some(r) = tree.references.get_mut(index) {
-            r.binding = Some(binding);
-        }
-        let declared_in = tree.binding(binding).scope;
-        if is_global(tree, binding) {
-            continue;
-        }
-        let user = tree.scope(reference.scope).function;
-        let owner = tree.scope(declared_in).function;
-        if user != owner {
-            if let Some(b) = tree.binding_mut(binding) {
-                b.captured = true;
-            }
-            let chain = Chain {
-                user,
-                owner,
-                binding,
-            };
-            add_capture_chain(ast, tree, captures, chain, &mut total, limits)?;
-        }
-    }
-    Ok(())
+/// The state of steps 2 and 3.
+struct Resolver {
+    /// The capture index of each (function, binding).
+    captures: IdMap<u32>,
+    /// The capture entries of the script so far.
+    total: usize,
+    /// The references with a dynamic lookup, with their counts.
+    counts: Vec<(RefId, u32)>,
+    limits: Limits,
+    /// The storage of the var-scoped declarations of sloppy eval code.
+    eval_vars: Option<Storage>,
 }
 
-/// The binding that `name` resolves to from `scope`, or `None` for a
-/// global or unresolvable name.
-fn resolve(ast: &Ast, tree: &mut ScopeTree, scope: ScopeId, name: NameId) -> Option<BindingId> {
+impl Resolver {
+    /// Steps 2 and 3 for the references in `range`: the binding of each
+    /// occurrence, its dynamic count, and the captures.
+    fn resolve_references(
+        &mut self,
+        ast: &Ast,
+        tree: &mut ScopeTree,
+        range: std::ops::Range<usize>,
+    ) -> Result<(), ParseError> {
+        let mut cache: IdMap<(Option<BindingId>, u32)> = IdMap::default();
+        for index in range {
+            let Some(&reference) = tree.references.get(index) else {
+                break;
+            };
+            if reference.dead {
+                continue;
+            }
+            let cache_key = key(reference.scope, reference.name);
+            let (resolved, count) = if let Some(&cached) = cache.get(&cache_key) {
+                cached
+            } else {
+                let found = resolve(ast, tree, reference.scope, reference.name);
+                cache.insert(cache_key, found);
+                found
+            };
+            if count > 0 {
+                self.counts.push((RefId::from_index(index), count));
+            }
+            let Some(binding) = resolved else {
+                continue;
+            };
+            if let Some(r) = tree.references.get_mut(index) {
+                r.binding = Some(binding);
+            }
+            self.capture(ast, tree, reference.scope, binding)?;
+        }
+        Ok(())
+    }
+
+    /// Adds the captures for a use of `binding` in `scope`: a binding of
+    /// another function, or an import (which the module function itself
+    /// receives as a capture).
+    fn capture(
+        &mut self,
+        ast: &Ast,
+        tree: &mut ScopeTree,
+        scope: ScopeId,
+        binding: BindingId,
+    ) -> Result<(), ParseError> {
+        if is_global(tree, binding) || self.outside_frame(tree, binding) {
+            return Ok(());
+        }
+        let entry = *tree.binding(binding);
+        let user = tree.scope(scope).function;
+        let owner = tree.scope(entry.scope).function;
+        let owner = match entry.kind {
+            BindingKind::Import => None,
+            _ if user == owner => return Ok(()),
+            _ => Some(owner),
+        };
+        if let Some(b) = tree.binding_mut(binding) {
+            b.captured = true;
+        }
+        let chain = Chain {
+            user,
+            owner,
+            binding,
+        };
+        let total = &mut self.total;
+        add_capture_chain(ast, tree, &mut self.captures, chain, total, &self.limits)
+    }
+
+    /// Whether a binding lives outside the frames of this code: a
+    /// var-scoped declaration of sloppy eval code.
+    fn outside_frame(&self, tree: &ScopeTree, binding: BindingId) -> bool {
+        let binding = tree.binding(binding);
+        self.eval_vars.is_some()
+            && tree.scope(binding.scope).kind == ScopeKind::Eval
+            && is_var_scoped(binding.kind)
+    }
+}
+
+/// The binding that `name` resolves to from `scope` (`None` for a global
+/// or unresolvable name), and the number of dynamic environments that the
+/// walk passed before it.
+fn resolve(
+    ast: &Ast,
+    tree: &mut ScopeTree,
+    scope: ScopeId,
+    name: NameId,
+) -> (Option<BindingId>, u32) {
+    let dynamic = is_dynamic_name(name);
+    let mut count = 0;
     let mut current = scope;
     loop {
         let entry = tree.scope(current);
         if entry.binding_count > 0
             && let Some(binding) = tree.declared_in(current, name)
         {
-            return Some(binding);
+            // Private names are not identifiers: no object environment
+            // has them (§9.1.1.2).
+            let private = tree.binding(binding).kind == BindingKind::PrivateName;
+            return (Some(binding), if private { 0 } else { count });
         }
-        if matches!(entry.kind, ScopeKind::Function | ScopeKind::Script) {
+        if matches!(
+            entry.kind,
+            ScopeKind::Function | ScopeKind::Script | ScopeKind::Module | ScopeKind::Eval
+        ) {
             let function = entry.function;
             let kind = ast.function(function).kind;
             if kind.has_own_this()
                 && let Some(implicit) = implicit_kind(kind, name)
             {
-                return Some(implicit_binding(tree, function, current, implicit));
+                let binding = implicit_binding(tree, function, current, implicit);
+                return (Some(binding), count);
             }
         }
-        current = entry.parent?;
+        if dynamic && entry.dynamic_env.is_some() {
+            count += 1;
+        }
+        match entry.parent {
+            Some(parent) => current = parent,
+            None => return (None, count),
+        }
     }
 }
 
@@ -203,7 +299,7 @@ fn resolve(ast: &Ast, tree: &mut ScopeTree, scope: ScopeId, name: NameId) -> Opt
 /// `kind`, if any. The parser allows `super` and `new.target` only where
 /// the function has them.
 fn implicit_kind(kind: FunctionKind, name: NameId) -> Option<BindingKind> {
-    let script = kind == FunctionKind::Script;
+    let script = matches!(kind, FunctionKind::Script | FunctionKind::Module);
     Some(match name {
         names::THIS => BindingKind::This,
         names::NEW_TARGET if !script => BindingKind::NewTarget,
@@ -261,6 +357,27 @@ fn is_global(tree: &ScopeTree, binding: BindingId) -> bool {
     binding.kind != BindingKind::This && tree.scope(binding.scope).kind == ScopeKind::Script
 }
 
+/// The storage of the var-scoped declarations of eval code (§19.2.1.3):
+/// the caller's variable environment in sloppy direct eval code, the
+/// global object in sloppy indirect eval code, the eval code's own frame
+/// in strict eval code (`None`).
+fn eval_var_storage(code: CodeKind, strict: bool) -> Option<Storage> {
+    match code {
+        _ if strict => None,
+        CodeKind::DirectEval => Some(Storage::Caller),
+        CodeKind::IndirectEval => Some(Storage::Global),
+        CodeKind::Script | CodeKind::Module => None,
+    }
+}
+
+/// Whether a binding kind is var-scoped (for the top scope of eval code).
+fn is_var_scoped(kind: BindingKind) -> bool {
+    matches!(
+        kind,
+        BindingKind::Var | BindingKind::Function | BindingKind::BlockFunctionVar
+    )
+}
+
 /// Whether a binding has a temporal dead zone: `let`, `const`, and the
 /// parameters of a function with parameter expressions.
 fn has_tdz(binding: &super::Binding) -> bool {
@@ -268,11 +385,12 @@ fn has_tdz(binding: &super::Binding) -> bool {
         || (binding.kind == BindingKind::Parameter && binding.init_end > binding.offset)
 }
 
-/// A captured binding: used in `user`, declared in `owner`.
+/// A captured binding: used in `user`, declared in `owner` (`None` for an
+/// import, which the module function captures too).
 #[derive(Clone, Copy)]
 struct Chain {
     user: FunctionId,
-    owner: FunctionId,
+    owner: Option<FunctionId>,
     binding: BindingId,
 }
 
@@ -287,7 +405,7 @@ fn add_capture_chain(
     limits: &Limits,
 ) -> Result<(), ParseError> {
     let mut function = chain.user;
-    while function != chain.owner {
+    while Some(function) != chain.owner {
         let key = capture_key(function, chain.binding);
         if captures.contains_key(&key) {
             // The functions above have it too.
@@ -417,7 +535,11 @@ fn prefix_sums(counts: &mut [usize]) -> Vec<usize> {
 /// Step 3: registers and cells, by a depth-first walk over the scope
 /// tree with an explicit stack. Registers of a block are free again after
 /// the block, so sibling blocks share them.
-fn assign_storage(tree: &mut ScopeTree, limits: &Limits) -> Result<(), ParseError> {
+fn assign_storage(
+    tree: &mut ScopeTree,
+    limits: &Limits,
+    eval_vars: Option<Storage>,
+) -> Result<(), ParseError> {
     let children = scope_children(tree);
     let function_count = tree.functions.len();
     let mut next: Vec<u32> = vec![0; function_count];
@@ -441,7 +563,7 @@ fn assign_storage(tree: &mut ScopeTree, limits: &Limits) -> Result<(), ParseErro
     };
     // (scope, next child, the function's next register before the scope)
     let mut stack: Vec<(ScopeId, usize, u32)> = Vec::new();
-    let saved = enter_scope(tree, root, &mut next, limits)?;
+    let saved = enter_scope(tree, root, &mut next, limits, eval_vars)?;
     stack.push((root, 0, saved));
     while let Some(top) = stack.last_mut() {
         let (scope, cursor, saved) = *top;
@@ -451,7 +573,7 @@ fn assign_storage(tree: &mut ScopeTree, limits: &Limits) -> Result<(), ParseErro
             .copied();
         if let Some(child) = child {
             top.1 += 1;
-            let saved = enter_scope(tree, child, &mut next, limits)?;
+            let saved = enter_scope(tree, child, &mut next, limits, eval_vars)?;
             stack.push((child, 0, saved));
         } else {
             let function = tree.scope(scope).function;
@@ -484,6 +606,7 @@ fn enter_scope(
     scope: ScopeId,
     next: &mut [u32],
     limits: &Limits,
+    eval_vars: Option<Storage>,
 ) -> Result<u32, ParseError> {
     let entry = tree.scope(scope);
     let function = entry.function;
@@ -510,8 +633,14 @@ fn enter_scope(
         let binding = tree.binding(id);
         let is_param = binding.kind == BindingKind::Parameter;
         let cell = binding.captured || all_cells || (mapped && is_param);
-        let storage = if binding.kind != BindingKind::This && kind == ScopeKind::Script {
-            Storage::Global
+        let outside = match kind {
+            ScopeKind::Script if binding.kind != BindingKind::This => Some(Storage::Global),
+            ScopeKind::Eval if is_var_scoped(binding.kind) => eval_vars,
+            ScopeKind::Module if binding.kind == BindingKind::Import => Some(Storage::Import),
+            _ => None,
+        };
+        let storage = if let Some(storage) = outside {
+            storage
         } else if binding.kind == BindingKind::Parameter && binding.storage != Storage::Unassigned {
             match binding.storage {
                 Storage::Register(r) if cell => Storage::Cell(r),
@@ -561,15 +690,21 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
         }
         let user = tree.scope(reference.scope).function;
         let (resolution, tdz_check) = match reference.binding {
+            None if tree.code == CodeKind::DirectEval => (Resolution::Caller, false),
             None => (Resolution::Global, false),
             Some(id) => {
                 let binding = tree.binding(id);
                 let owner = tree.scope(binding.scope).function;
+                let captured = || {
+                    captures
+                        .get(&capture_key(user, id))
+                        .map_or(Resolution::Global, |&i| Resolution::Capture(i))
+                };
                 let resolution = match binding.storage {
                     Storage::Global | Storage::Unassigned => Resolution::Global,
-                    _ if user != owner => captures
-                        .get(&capture_key(user, id))
-                        .map_or(Resolution::Global, |&i| Resolution::Capture(i)),
+                    Storage::Caller => Resolution::Caller,
+                    Storage::Import => captured(),
+                    _ if user != owner => captured(),
                     Storage::Register(r) => Resolution::Register(r),
                     Storage::Cell(r) => Resolution::Cell(r),
                 };
@@ -577,9 +712,12 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
                 // needs no check (memo 2.4). The clauses of a `switch`
                 // share one scope, and a clause can run without the
                 // clauses before it, so their bindings are always checked.
+                // An import's cell belongs to another module, which may
+                // not have initialized it yet.
                 let initialized = user == owner
                     && reference.offset >= binding.init_end
-                    && tree.scope(binding.scope).kind != ScopeKind::Switch;
+                    && tree.scope(binding.scope).kind != ScopeKind::Switch
+                    && binding.kind != BindingKind::Import;
                 let tdz = has_tdz(binding) && !reference.declaration && !initialized;
                 (resolution, tdz)
             }
@@ -609,7 +747,12 @@ fn mark_needs_tdz(tree: &mut ScopeTree) {
     for index in 0..tree.bindings.len() {
         let id = BindingId::from_index(index);
         let binding = tree.binding(id);
-        if !has_tdz(binding) || binding.storage == Storage::Global {
+        if !has_tdz(binding)
+            || matches!(
+                binding.storage,
+                Storage::Global | Storage::Caller | Storage::Import
+            )
+        {
             continue;
         }
         let function = tree.scope(binding.scope).function;
@@ -622,18 +765,29 @@ fn mark_needs_tdz(tree: &mut ScopeTree) {
 }
 
 /// Fills [`Capture::source`]: from the parent's register or the parent's
-/// own captures.
+/// own captures; in the module function, an import's cell from the
+/// linker.
 fn finish_captures(ast: &Ast, tree: &mut ScopeTree, captures: &IdMap<u32>) {
+    let imports: std::collections::HashMap<BindingId, u32> = tree
+        .import_bindings
+        .iter()
+        .enumerate()
+        .map(|(index, &binding)| (binding, index as u32))
+        .collect();
     for function in ast.function_ids() {
-        let Some(parent) = ast.function(function).parent else {
-            continue;
-        };
+        let parent = ast.function(function).parent;
         let list = tree.function(function).captures.clone();
         let sources: Vec<CaptureSource> = list
             .iter()
             .map(|capture| {
                 let binding = tree.binding(capture.binding);
-                if tree.scope(binding.scope).function == parent {
+                let Some(parent) = parent else {
+                    let index = imports.get(&capture.binding).copied().unwrap_or(0);
+                    return CaptureSource::Import(index);
+                };
+                if tree.scope(binding.scope).function == parent
+                    && binding.kind != BindingKind::Import
+                {
                     let register = match binding.storage {
                         Storage::Cell(r) | Storage::Register(r) => r,
                         _ => 0,

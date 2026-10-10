@@ -1,15 +1,17 @@
 //! The parse-only mode of the runner (`--parse-only`): only the parser,
 //! the early errors and the scope analysis of `js-syntax` run. A negative
 //! test of phase `parse` passes if the parse fails with a `SyntaxError`;
-//! every other test passes if it parses. Module tests (M7 feature 1c) and
-//! tests of features after ES2025 are skipped
+//! every other test passes if it parses (a negative test of phase
+//! `resolution` too: its error comes from linking, which is not part of
+//! the parse). Tests with the flag `module` parse with the Module goal.
+//! Tests of features after ES2025 are skipped
 //! (`crates/js/test262/parse-skip.txt`).
 
 use std::collections::BTreeSet;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use swb_js_syntax::messages::NOT_SUPPORTED;
-use swb_js_syntax::{ErrorKind, parse_script};
+use swb_js_syntax::{ErrorKind, parse_module, parse_script};
 use swb_js_text::{RecursionBudget, String16};
 
 use super::meta::Meta;
@@ -30,28 +32,28 @@ pub(super) fn parse_skip_list(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Whether and in which modes a test runs (sloppy, strict).
-fn plan(meta: &Meta, skipped: &BTreeSet<String>) -> Result<(bool, bool), String> {
+/// The goal and mode of one parse of a test.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    Sloppy,
+    Strict,
+    Module,
+}
+
+/// In which modes a test runs.
+fn plan(meta: &Meta, skipped: &BTreeSet<String>) -> Result<&'static [Mode], String> {
     let has = |flag: &str| meta.flags.iter().any(|f| f == flag);
-    if has("module") {
-        return Err("flag module".to_owned());
-    }
     if let Some(feature) = meta.features.iter().find(|f| skipped.contains(*f)) {
         return Err(format!("feature {feature}"));
     }
-    if meta
-        .negative
-        .as_ref()
-        .is_some_and(|n| n.phase == "resolution")
-    {
-        return Err("phase resolution".to_owned());
-    }
-    Ok(if has("raw") || has("noStrict") {
-        (true, false)
+    Ok(if has("module") {
+        &[Mode::Module]
+    } else if has("raw") || has("noStrict") {
+        &[Mode::Sloppy]
     } else if has("onlyStrict") {
-        (false, true)
+        &[Mode::Strict]
     } else {
-        (true, true)
+        &[Mode::Sloppy, Mode::Strict]
     })
 }
 
@@ -63,16 +65,20 @@ fn is_regexp_test(path: &str, meta: &Meta) -> bool {
 }
 
 /// Parses one test in one mode and judges the result.
-fn run_mode(path: &str, meta: &Meta, source: &str, strict: bool) -> Status {
+fn run_mode(path: &str, meta: &Meta, source: &str, mode: Mode) -> Status {
     let raw = meta.flags.iter().any(|f| f == "raw");
-    let text = if strict && !raw {
+    let text = if mode == Mode::Strict && !raw {
         format!("\"use strict\";\n{source}")
     } else {
         source.to_owned()
     };
     let units = String16::from(text.as_str());
     let mut budget = RecursionBudget::default();
-    let result = parse_script(units.as_str16(), &mut budget);
+    let result = if mode == Mode::Module {
+        parse_module(units.as_str16(), &mut budget)
+    } else {
+        parse_script(units.as_str16(), &mut budget)
+    };
     let expects_error = meta
         .negative
         .as_ref()
@@ -107,16 +113,18 @@ pub(super) fn run_test(
     source: &str,
     skipped: &BTreeSet<String>,
 ) -> Vec<(&'static str, Status)> {
-    let (sloppy, strict) = match plan(meta, skipped) {
+    let modes = match plan(meta, skipped) {
         Ok(modes) => modes,
         Err(reason) => return vec![("-", Status::Skipped(reason))],
     };
     let mut results = Vec::new();
-    for (enabled, label, flag) in [(sloppy, "sloppy", false), (strict, "strict", true)] {
-        if !enabled {
-            continue;
-        }
-        let status = catch_unwind(AssertUnwindSafe(|| run_mode(path, meta, source, flag)))
+    for &mode in modes {
+        let label = match mode {
+            Mode::Sloppy => "sloppy",
+            Mode::Strict => "strict",
+            Mode::Module => "module",
+        };
+        let status = catch_unwind(AssertUnwindSafe(|| run_mode(path, meta, source, mode)))
             .unwrap_or_else(|_| Status::Fail("panic".to_owned()));
         results.push((label, status));
     }
@@ -170,20 +178,27 @@ mod tests {
     }
 
     #[test]
-    fn skips_and_unsupported_constructs() {
-        assert_eq!(
-            run("/*---\nflags: [module]\n---*/", "x"),
-            Status::Skipped("flag module".into())
-        );
+    fn skips_and_modules() {
         assert_eq!(
             run("/*---\nfeatures: [later]\n---*/", "x"),
             Status::Skipped("feature later".into())
         );
-        assert!(matches!(
-            run("/*---\n---*/", "import('a')"),
-            Status::Unsupported(_)
-        ));
+        assert_eq!(run("/*---\n---*/", "import('a')"), Status::Pass);
         assert_eq!(run("/*---\n---*/", "class A {}"), Status::Pass);
+        // Module tests parse with the Module goal.
+        let module = "/*---\nflags: [module]\n---*/";
+        assert_eq!(run(module, "export var a; await 1;"), Status::Pass);
+        assert!(matches!(
+            run("/*---\n---*/", "export var a;"),
+            Status::Fail(_)
+        ));
+        let parse = "/*---\nnegative:\n  phase: parse\n  type: SyntaxError\nflags: [module]\n---*/";
+        assert_eq!(run(parse, "export {a};"), Status::Pass);
+        // Link errors are not parse errors.
+        let link =
+            "/*---\nnegative:\n  phase: resolution\n  type: SyntaxError\nflags: [module]\n---*/";
+        assert_eq!(run(link, "import {a} from './x.js';"), Status::Pass);
+        assert!(matches!(run(link, "export {a};"), Status::Fail(_)));
     }
 
     #[test]

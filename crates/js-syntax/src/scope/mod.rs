@@ -73,8 +73,10 @@
 //!   ([`BindingKind::This`]), `new.target`, `arguments`, the home object
 //!   of a method ([`BindingKind::HomeObject`], for `super` properties)
 //!   and the active function of a derived constructor
-//!   ([`BindingKind::ActiveFunction`], for `super(...)`). The compiler
-//!   stores them at function entry. In a
+//!   ([`BindingKind::ActiveFunction`], for `super(...)`). A function with
+//!   a direct `eval` has all that the eval code may use
+//!   ([`FunctionScope::has_direct_eval`]). The compiler stores them at
+//!   function entry. In a
 //!   [`crate::FunctionKind::DerivedConstructor`] the `this` binding starts
 //!   uninitialized: every load of it checks, and `super(...)` initializes
 //!   it (and throws if it is initialized already).
@@ -86,13 +88,42 @@
 //!   body scope is entered, before the heritage runs (§15.7.14 step 7);
 //!   a getter and a setter of one name share the binding.
 //!
-//! Block-level function declarations follow the strict-mode semantics in
-//! sloppy mode too (a lexical binding of the block); the Annex B.3.2
-//! semantics come in M7 feature 1c. Duplicate block-level declarations of
-//! plain functions (not generators or async functions) in sloppy mode are
-//! allowed (B.3.2.4).
+//! - Block-level function declarations (Annex B.3.2, B.3.3): a function
+//!   declaration in a block (also in a `switch` clause, an `if` clause or
+//!   a labelled statement in a block) is a lexical binding of the block.
+//!   In sloppy mode code, a plain function declaration (not a generator
+//!   or async function) whose replacement by `var F` would not be an
+//!   early error also has a var binding in the enclosing var scope
+//!   (kind [`BindingKind::BlockFunctionVar`] if nothing else declares the
+//!   name there). When the declaration is evaluated, the compiler copies
+//!   the block binding's value into that binding:
+//!   [`FunctionScope::block_function_var`] of the declared function is a
+//!   reference in the var scope that resolves to it. In global code the
+//!   binding is created only if `CanDeclareGlobalVar` allows it and no
+//!   lexical declaration of another script has the name (a run-time check,
+//!   B.3.2.2); if it is not created, the copy does not happen either. In
+//!   sloppy direct eval code the var binding is the caller's
+//!   ([`Storage::Caller`]); B.3.2.3 skips it if a scope of the caller
+//!   between the call and its variable environment declares the name.
+//!   Duplicate block-level declarations of plain functions in sloppy mode
+//!   are allowed (B.3.2.4).
+//! - Dynamic scope (ADR 0026 "Dynamic scope"): the body of a `with`
+//!   statement and the var scope of a sloppy function that contains a
+//!   direct `eval` have a [`DynamicEnv`]: an implicit binding (name
+//!   `%env`, kind [`BindingKind::DynamicEnv`]) that holds a run-time
+//!   environment record (the `with` object, or the per-call object of the
+//!   vars that eval code declares), linked to the next outer one. A
+//!   reference in its reach whose static binding is outside it has a
+//!   [`DynamicLookup`] ([`ScopeTree::dynamic_lookup`]): the run-time
+//!   lookup checks that many records, innermost first, before the static
+//!   resolution. Names that are not identifiers (`this`, `new.target`,
+//!   `super`, private names) never have one.
+//! - Eval code ([`ScopeKind::Eval`]) and module code ([`ScopeKind::Module`]):
+//!   see the kinds.
 
 pub(crate) mod analysis;
+mod block_functions;
+mod dynamic;
 
 use crate::ast::{BindingId, FunctionId, List, RefId, ScopeId};
 use crate::interner::NameId;
@@ -118,9 +149,10 @@ pub enum ScopeKind {
     /// The case block of a `switch` statement: all clauses share it, so
     /// a clause can run without the declarations of an earlier clause.
     Switch,
-    /// The body of a `with` statement: an object environment (no
-    /// bindings of its own). The names inside resolve through the object
-    /// at run time (M7 feature 1c).
+    /// The body of a `with` statement: an object environment. Its only
+    /// binding is the implicit [`BindingKind::DynamicEnv`] that holds the
+    /// object; the names inside resolve through the object first
+    /// ([`DynamicLookup`]).
     With,
     /// The top-level declarations of the body of a function with
     /// parameter expressions (a var scope of its own).
@@ -133,6 +165,17 @@ pub enum ScopeKind {
     /// A static block of a class (a var scope of its own, inside the
     /// class's static initializer function).
     StaticBlock,
+    /// The top level of eval code (§19.2.1.3). Its lexical declarations
+    /// are new for each evaluation (registers or cells of the eval code).
+    /// Its var-scoped declarations (`var`, functions, Annex B block
+    /// functions) are bindings of this scope in strict eval code; in
+    /// sloppy eval code they belong to the variable environment of the
+    /// caller ([`Storage::Caller`], direct eval) or of the global
+    /// environment ([`Storage::Global`], indirect eval).
+    Eval,
+    /// The top level of a module (§16.2.1.6.4): its declarations and its
+    /// imports are bindings of the module environment, not globals.
+    Module,
 }
 
 /// A scope.
@@ -168,6 +211,8 @@ pub struct Scope {
     /// The number of bindings declared so far (for a fast skip during
     /// resolution).
     binding_count: u32,
+    /// The index of the scope's [`DynamicEnv`] in the tree, if it has one.
+    dynamic_env: Option<u32>,
     /// The nearest enclosing function or script scope (or the scope
     /// itself): where `var` declarations of this scope hoist to.
     hoist_to: ScopeId,
@@ -218,6 +263,25 @@ pub enum BindingKind {
     /// The function object of a derived constructor (implicit; its name
     /// is `%function`): `super(...)` constructs its prototype (§13.3.7.2).
     ActiveFunction,
+    /// The var binding that only Annex B.3.2 creates for a function
+    /// declaration in a block of sloppy mode code: a `var` that starts as
+    /// `undefined` and receives the function when its declaration is
+    /// evaluated. In global code it exists only if the run-time checks of
+    /// B.3.2.2 allow it (see the module documentation).
+    BlockFunctionVar,
+    /// The run-time environment record of a [`DynamicEnv`] (implicit; its
+    /// name is `%env`): for a `with` body the object environment, for the
+    /// var scope of a sloppy function with a direct `eval` the object that
+    /// holds the vars the eval code declares. Each record links to the
+    /// next outer one ([`DynamicEnv::outer`]).
+    DynamicEnv,
+    /// An imported binding of a module (`import x from "m"`, `import * as
+    /// ns from "m"`): immutable, created by the linker. It has no storage
+    /// in the module's frame ([`Storage::Import`]); module code reads the
+    /// cell of the exporting module through a capture
+    /// ([`CaptureSource::Import`]). The target cell can still be in its
+    /// temporal dead zone, so loads check it.
+    Import,
 }
 
 impl BindingKind {
@@ -225,7 +289,11 @@ impl BindingKind {
     pub fn is_lexical(self) -> bool {
         matches!(
             self,
-            BindingKind::Let | BindingKind::Const | BindingKind::Class | BindingKind::ClassName
+            BindingKind::Let
+                | BindingKind::Const
+                | BindingKind::Class
+                | BindingKind::ClassName
+                | BindingKind::Import
         )
     }
 }
@@ -244,6 +312,15 @@ pub enum Storage {
     /// A global binding, accessed by name: the declarative part of the
     /// global environment, then the global object (§9.1.1.4).
     Global,
+    /// A var-scoped declaration of sloppy direct eval code: a binding of
+    /// the caller's variable environment (an existing binding of the
+    /// caller, or a new one in its per-call eval var object, or a global).
+    /// The compiler accesses it through the caller's scope description
+    /// (M7 feature 3).
+    Caller,
+    /// An imported binding of a module: no storage in the frame (see
+    /// [`BindingKind::Import`]).
+    Import,
 }
 
 /// A binding.
@@ -294,6 +371,63 @@ pub enum Resolution {
     Capture(u32),
     /// A global binding, accessed by name.
     Global,
+    /// Direct eval code only: the name does not resolve inside the eval
+    /// code (or names a var-scoped declaration of sloppy eval code,
+    /// [`Storage::Caller`]). The compiler resolves it against the scope
+    /// description of the caller, including the caller's dynamic
+    /// environments (M7 feature 3). `this`, `new.target`, `super` and
+    /// `arguments` of eval code resolve so too.
+    Caller,
+}
+
+/// The dynamic part of a reference's resolution (ADR 0026 "Dynamic
+/// scope"): before the static resolution ([`Reference::resolution`]),
+/// the run-time lookup checks `count` dynamic environment records,
+/// innermost first, for a binding of the name (a `with` object, with the
+/// `Symbol.unscopables` check of §9.1.1.2.1, or an eval var object). The
+/// record of the innermost one is the value of the binding that `env`
+/// resolves to; each record holds the next outer one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DynamicLookup {
+    /// A reference (name `%env`, in the scope of the occurrence) that
+    /// resolves to the binding of the innermost dynamic environment.
+    pub env: RefId,
+    /// The number of dynamic environments to check (at least 1).
+    pub count: u32,
+}
+
+/// The kinds of dynamic environments.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DynamicKind {
+    /// The object environment of a `with` statement, created when the body
+    /// is entered (`ToObject` of the object).
+    With,
+    /// The vars that sloppy direct eval code declares in the variable
+    /// environment of a function call: an object created at function
+    /// entry. For the body's var scope (an eval in the body), or, for an
+    /// eval in the parameter expressions, the separate environment of
+    /// §10.2.11 step 20 outside the parameters (the function's
+    /// [`ScopeKind::Function`] scope; a binding of that scope itself is
+    /// found before it).
+    EvalVars,
+}
+
+/// A dynamic environment: see the module documentation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DynamicEnv {
+    /// The kind.
+    pub kind: DynamicKind,
+    /// The scope it belongs to: the [`ScopeKind::With`] scope, or the var
+    /// scope of the function. A reference in this scope (or inside it)
+    /// whose binding is outside it checks the environment first.
+    pub scope: ScopeId,
+    /// The implicit binding (kind [`BindingKind::DynamicEnv`]) in `scope`
+    /// that holds the record.
+    pub binding: BindingId,
+    /// A reference from the scope around `scope` that resolves to the
+    /// binding of the next outer dynamic environment, which the new record
+    /// links to; `None` if there is none.
+    pub outer: Option<RefId>,
 }
 
 /// An identifier occurrence: a reference, or the binding identifier of a
@@ -329,6 +463,10 @@ pub enum CaptureSource {
     ParentRegister(u16),
     /// A capture of the enclosing function, by index.
     ParentCapture(u32),
+    /// Module code: the cell of an imported binding, which the linker
+    /// gives the module function: the index in
+    /// [`crate::ModuleRecord::import_entries`].
+    Import(u32),
 }
 
 /// A captured cell of a function.
@@ -374,26 +512,38 @@ pub struct FunctionScope {
     /// The active function binding, if the function (a derived
     /// constructor) or an arrow function inside it calls `super(...)`.
     pub active_function_binding: Option<BindingId>,
-    /// Whether the function has a mapped `arguments` object (sloppy mode,
-    /// simple parameters, an `arguments` binding): all its parameters are
-    /// cells, which the object holds.
+    /// Whether the function has a mapped `arguments` object (§10.4.4.6,
+    /// §10.4.4.7): sloppy mode code, a simple parameter list, not an arrow
+    /// function, and an `arguments` object (an `arguments` reference in
+    /// the function or in an arrow function inside it, or a direct `eval`,
+    /// whose code can read it: `argumentsObjectNeeded` of §10.2.11). All
+    /// its parameters are cells, which the object holds.
     ///
-    /// Two cases for the compiler: with duplicate parameter names
-    /// (`function f(a, a)`), only the last parameter of a name is mapped
-    /// (§10.4.4.7), so earlier indices hold plain values. A sloppy function
-    /// with a direct `eval` but no `arguments` reference has this flag
-    /// false, yet `eval` code can read `arguments`: its parameters are
-    /// cells (scope description), and the compiler must create the mapped
-    /// object for it too.
+    /// With duplicate parameter names (`function f(a, a)`), only the last
+    /// parameter of a name is mapped (§10.4.4.7), so earlier indices hold
+    /// plain values.
     pub mapped_arguments: bool,
     /// Whether the function contains a direct call of `eval` (not in a
-    /// nested function).
+    /// nested function). The function then has every implicit binding
+    /// that the eval code may use (`this`; in functions `new.target` and
+    /// `arguments`; the home object in methods; the active function in
+    /// derived constructors), also if its own code does not use them; an
+    /// arrow function captures those of the enclosing function.
     pub has_direct_eval: bool,
     /// Whether the function or a nested one has a direct `eval`: the
     /// function keeps a scope description for the eval code, and all its
-    /// bindings are cells (ADR 0026 section 3, "Dynamic scope"). The
-    /// eval semantics come in M7.
+    /// bindings are cells (ADR 0026 section 3, "Dynamic scope").
     pub needs_scope_description: bool,
+    /// For a function declaration in a block of sloppy mode code that
+    /// Annex B.3.2 hoists: a reference in the enclosing var scope that
+    /// resolves to the var binding which receives the function object
+    /// when the declaration is evaluated (`F.[[VarEnv]].SetMutableBinding`
+    /// of B.3.2.1 to B.3.2.3).
+    pub block_function_var: Option<RefId>,
+    /// Parse facts for the analysis: a direct `eval` in sloppy mode code
+    /// of the body, and one in the parameter list.
+    pub(crate) sloppy_body_eval: bool,
+    pub(crate) sloppy_param_eval: bool,
 }
 
 /// A map with the `u64` keys of the scope maps (scope id and name id).
@@ -408,8 +558,29 @@ fn key(scope: ScopeId, name: NameId) -> u64 {
 fn is_var_scope_kind(kind: ScopeKind) -> bool {
     matches!(
         kind,
-        ScopeKind::Function | ScopeKind::Script | ScopeKind::FunctionBody | ScopeKind::StaticBlock
+        ScopeKind::Function
+            | ScopeKind::Script
+            | ScopeKind::FunctionBody
+            | ScopeKind::StaticBlock
+            | ScopeKind::Eval
+            | ScopeKind::Module
     )
+}
+
+/// The kind of code that a [`ScopeTree`] describes (set by the parse
+/// entry).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum CodeKind {
+    /// A classic script.
+    #[default]
+    Script,
+    /// Direct eval code: unresolved names resolve against the caller.
+    DirectEval,
+    /// Indirect eval code: global code whose lexical declarations are its
+    /// own.
+    IndirectEval,
+    /// A module.
+    Module,
 }
 
 /// A redeclaration early error: the name is already declared.
@@ -447,6 +618,19 @@ pub struct ScopeTree {
     /// The pools of [`Scope::bindings`] and [`Scope::functions`].
     scope_bindings: Vec<BindingId>,
     scope_functions: Vec<FunctionId>,
+    /// The catch scopes whose parameter is a pattern: a `var` of one of
+    /// its names in the block is an early error (Annex B.3.4 allows it
+    /// only for a single identifier).
+    pattern_catch_scopes: std::collections::HashSet<ScopeId>,
+    /// The dynamic environments.
+    dynamic_envs: Vec<DynamicEnv>,
+    /// The dynamic lookups of references, sorted by reference.
+    dynamic_lookups: Vec<(RefId, DynamicLookup)>,
+    /// The kind of code.
+    pub(crate) code: CodeKind,
+    /// Module code: the binding of each import entry, in the order of
+    /// [`crate::ModuleRecord::import_entries`].
+    pub(crate) import_bindings: Vec<BindingId>,
 }
 
 fn lookup<T>(table: &[T], index: usize) -> &T {
@@ -488,6 +672,29 @@ impl ScopeTree {
         self.scope_functions.get(list.range()).unwrap_or(&[])
     }
 
+    /// The dynamic environment of a scope (a `with` body, or the var
+    /// scope of a sloppy function with a direct `eval`).
+    pub fn dynamic_env(&self, scope: ScopeId) -> Option<&DynamicEnv> {
+        let index = self.scope(scope).dynamic_env?;
+        self.dynamic_envs.get(index as usize)
+    }
+
+    /// All dynamic environments, in the order of their scopes' creation
+    /// by the analysis.
+    pub fn dynamic_envs(&self) -> &[DynamicEnv] {
+        &self.dynamic_envs
+    }
+
+    /// The dynamic part of the resolution of an identifier occurrence:
+    /// the dynamic environments to check before its static resolution.
+    pub fn dynamic_lookup(&self, id: RefId) -> Option<DynamicLookup> {
+        self.dynamic_lookups
+            .binary_search_by_key(&id, |&(r, _)| r)
+            .ok()
+            .and_then(|index| self.dynamic_lookups.get(index))
+            .map(|&(_, lookup)| lookup)
+    }
+
     /// The number of scopes.
     pub fn scope_count(&self) -> usize {
         self.scopes.len()
@@ -525,6 +732,9 @@ impl ScopeTree {
             + self.special_block_functions.capacity() * 8
             + bytes(&self.scope_bindings)
             + bytes(&self.scope_functions)
+            + self.pattern_catch_scopes.capacity() * 8
+            + bytes(&self.dynamic_envs)
+            + bytes(&self.dynamic_lookups)
     }
 
     // --- Building (parser) ---
@@ -562,6 +772,7 @@ impl ScopeTree {
             has_cells: false,
             per_iteration: false,
             binding_count: 0,
+            dynamic_env: None,
             hoist_to,
         });
         id
@@ -692,6 +903,16 @@ impl ScopeTree {
         is_var_scope_kind(self.scope(scope).kind)
     }
 
+    /// Whether a binding is lexically declared: `let`, `const`, a class,
+    /// an import, or a function declaration at the top level of a module
+    /// (in modules these are lexical, §16.2.1.1).
+    fn is_lexical_binding(&self, binding: BindingId) -> bool {
+        let binding = self.binding(binding);
+        binding.kind.is_lexical()
+            || (binding.kind == BindingKind::Function
+                && self.scope(binding.scope).kind == ScopeKind::Module)
+    }
+
     /// Whether `name` is a parameter of the function whose body scope is
     /// `scope` (a [`ScopeKind::FunctionBody`]): a lexical declaration of
     /// the body cannot have the name (§15.2.1).
@@ -765,7 +986,7 @@ impl ScopeTree {
         }
         let var_scope = self.scope(scope).hoist_to;
         let binding = match self.declared_in(var_scope, name) {
-            Some(existing) if self.binding(existing).kind.is_lexical() => {
+            Some(existing) if self.is_lexical_binding(existing) => {
                 return Err(Redeclared);
             }
             Some(existing) => existing,
@@ -841,8 +1062,38 @@ impl ScopeTree {
         }
         if pattern {
             self.note_lexical(scope, name);
+            self.pattern_catch_scopes.insert(scope);
         }
         Ok(self.new_binding(scope, name, BindingKind::CatchParameter, offset))
+    }
+
+    /// Declares an imported binding in the module scope (a lexical
+    /// declaration of the module, §16.2.1.1).
+    pub(crate) fn declare_import(
+        &mut self,
+        scope: ScopeId,
+        name: NameId,
+        offset: u32,
+    ) -> Result<BindingId, Redeclared> {
+        let binding = self.declare_lexical(scope, name, BindingKind::Import, offset)?;
+        self.import_bindings.push(binding);
+        Ok(binding)
+    }
+
+    /// Marks the binding of a local export as captured: the linker gives
+    /// its cell to the importing modules.
+    pub(crate) fn mark_exported(&mut self, scope: ScopeId, name: NameId) -> bool {
+        match self.declared_in(scope, name) {
+            Some(binding) => {
+                if let Some(b) = self.binding_mut(binding)
+                    && b.kind != BindingKind::Import
+                {
+                    b.captured = true;
+                }
+                true
+            }
+            None => false,
+        }
     }
 
     /// Declares the inner binding of a class name in its
@@ -904,7 +1155,8 @@ impl ScopeTree {
         plain_sloppy: bool,
     ) -> Result<BindingId, Redeclared> {
         let existing = self.declared_in(scope, name);
-        let binding = if self.is_var_scope(scope) {
+        let module = self.scope(scope).kind == ScopeKind::Module;
+        let binding = if self.is_var_scope(scope) && !module {
             match existing {
                 Some(id) => {
                     let kind = self.binding(id).kind;
@@ -947,5 +1199,9 @@ impl ScopeTree {
         Ok(binding)
     }
 }
+#[cfg(test)]
+mod block_function_tests;
+#[cfg(test)]
+mod dynamic_tests;
 #[cfg(test)]
 mod tests;

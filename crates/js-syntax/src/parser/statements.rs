@@ -230,9 +230,13 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             {
                 self.parse_expression_statement()
             }
-            TokenKind::Import | TokenKind::Export => {
-                Err(ParseError::unsupported(start, "module syntax"))
-            }
+            TokenKind::Import if self.at_module_top(context) => self.parse_import_declaration(),
+            // V8 parses `import` in an inner statement of a module as an
+            // expression (and reports the token after it).
+            TokenKind::Import if self.module_code => self.parse_expression_statement(),
+            TokenKind::Import => Err(ParseError::syntax(start, messages::IMPORT_OUTSIDE_MODULE)),
+            TokenKind::Export if self.at_module_top(context) => self.parse_export_declaration(),
+            TokenKind::Export => Err(self.unexpected()),
             _ => self.parse_expression_statement(),
         }
     }
@@ -263,7 +267,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// Whether the current `let` starts a lexical declaration: `let`
     /// followed by an identifier, `[` or `{` (§14.3.1; an expression
     /// statement cannot start with `let [`, §14.5).
-    fn at_let_declaration(&mut self) -> PResult<bool> {
+    pub(super) fn at_let_declaration(&mut self) -> PResult<bool> {
         if !self.at_contextual(names::LET) {
             return Ok(false);
         }
@@ -530,6 +534,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     messages::ESCAPED_KEYWORD,
                 ));
             }
+            self.note_module_await();
             self.advance()?;
         }
         self.expect(TokenKind::LParen)?;
@@ -970,7 +975,10 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let start = self.token.start;
         if matches!(
             self.ctx.kind,
-            crate::FunctionKind::Script | crate::FunctionKind::StaticInitializer
+            crate::FunctionKind::Script
+                | crate::FunctionKind::StaticInitializer
+                | crate::FunctionKind::Eval
+                | crate::FunctionKind::Module
         ) {
             return Err(ParseError::syntax(start, messages::ILLEGAL_RETURN));
         }

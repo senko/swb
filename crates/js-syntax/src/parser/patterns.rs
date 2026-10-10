@@ -572,17 +572,26 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     }
 
     /// The target of `...` in an object assignment pattern: a simple
-    /// target only.
+    /// target only. V8 words a nested pattern or a default (`...a = 1`,
+    /// not parenthesized) and another expression differently.
     fn object_rest_target(&mut self, argument: ExprId) -> PResult<PatternId> {
         let target = self.unparenthesized(argument);
-        match self.ast.expr(target).kind {
-            ExprKind::Identifier(_) => self.assignment_leaf(argument, Leaf::Plain),
-            kind if is_property_target(kind) => self.assignment_leaf(argument, Leaf::Plain),
-            _ => Err(ParseError::syntax(
-                self.ast.expr(argument).span.start,
-                messages::REST_NOT_ASSIGNABLE,
-            )),
-        }
+        let message = match self.ast.expr(target).kind {
+            ExprKind::Identifier(_) => return self.assignment_leaf(argument, Leaf::Plain),
+            kind if is_property_target(kind) => {
+                return self.assignment_leaf(argument, Leaf::Plain);
+            }
+            ExprKind::Array(_) | ExprKind::Object(_) => messages::REST_NOT_ASSIGNABLE,
+            ExprKind::Assign {
+                op: AssignOp::Assign,
+                ..
+            } if target == argument => messages::REST_NOT_ASSIGNABLE,
+            _ => messages::INVALID_DESTRUCTURING_TARGET,
+        };
+        Err(ParseError::syntax(
+            self.ast.expr(argument).span.start,
+            message,
+        ))
     }
 
     // --- Arrow parameters, from the cover expression ---

@@ -27,18 +27,24 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
             "super"
         }
         ExprKind::PrivateMember { .. } | ExprKind::PrivateIn { .. } => "private name",
+        ExprKind::ImportCall { .. } => "import()",
+        ExprKind::ImportMeta => "import.meta",
         _ => return None,
     })
 }
 
 /// The construct of a statement that the compiler does not support.
-fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
+pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
         StmtKind::ForIn { .. } => "for-in",
         StmtKind::ForOf { is_await: true, .. } => "for await",
         StmtKind::ForOf { .. } => "for-of",
         StmtKind::With { .. } => "with",
         StmtKind::Class(_) => "class",
+        StmtKind::Import
+        | StmtKind::ExportDeclaration(_)
+        | StmtKind::ExportDefault { .. }
+        | StmtKind::ExportList => "module syntax",
         _ => return None,
     })
 }
@@ -59,6 +65,9 @@ fn unsupported_pattern(kind: PatternKind) -> Option<&'static str> {
 /// The first construct of the script (by source offset) that the
 /// compiler does not support, with its offset.
 pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> {
+    if script.module.is_some() {
+        return Some((0, "module"));
+    }
     let ast = &script.ast;
     let mut first: Option<(u32, &'static str)> = None;
     let mut note = |offset: u32, construct: &'static str| {

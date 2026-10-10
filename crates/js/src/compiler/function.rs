@@ -42,7 +42,7 @@ use std::collections::HashMap;
 
 use swb_js_syntax::messages::{NOT_SUPPORTED, STACK_OVERFLOW, TOO_MANY_VARIABLES};
 use swb_js_syntax::{
-    Ast, BindingId, BindingKind, Function, FunctionId, FunctionKind, FunctionScope, NameId,
+    Ast, BindingId, BindingKind, ExprId, Function, FunctionId, FunctionKind, FunctionScope, NameId,
     Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId, StmtKind, Storage,
     VariableKind,
 };
@@ -212,9 +212,8 @@ impl<'a> FunctionCompiler<'a> {
             ThisMode::Global
         };
         let name = self.function.name.map(|ident| self.name_text(ident.name));
-        // TODO(M7, direct eval): a sloppy function with a direct `eval`
-        // and no `arguments` reference needs the arguments object too,
-        // because the eval code can read it.
+        // A function with a direct `eval` has an `arguments` binding when
+        // §10.2.11 needs the object (the scope analysis adds it).
         let uses_arguments = !is_script && self.fscope.arguments_binding.is_some();
         let globals = self.globals_of_script(is_script);
         // Sorted by start, the outer of two ranges with the same start
@@ -261,6 +260,8 @@ impl<'a> FunctionCompiler<'a> {
             | FunctionKind::StaticInitializer => {
                 return Err(self.unsupported("class"));
             }
+            FunctionKind::Eval => return Err(self.unsupported("eval code")),
+            FunctionKind::Module => return Err(self.unsupported("module")),
         })
     }
 
@@ -497,6 +498,8 @@ impl<'a> FunctionCompiler<'a> {
                 self.emit(insn);
             }
             Storage::Unassigned => return Err(Self::internal("a binding without storage")),
+            Storage::Caller => return Err(self.unsupported("eval code")),
+            Storage::Import => return Err(self.unsupported("module")),
         }
         Ok(())
     }
@@ -518,22 +521,29 @@ impl<'a> FunctionCompiler<'a> {
         for &binding in self.scopes.bindings_of(scope) {
             let b = *self.scopes.binding(binding);
             match b.kind {
-                // Set up by the prologue.
+                // Set up by the prologue. The record of a dynamic
+                // environment: the dynamic lookups compile to their static
+                // fallbacks (see `load_ref`), so nothing reads it yet. The
+                // home object and the active function: only `super` reads
+                // them, which `support.rs` rejects; a method with a direct
+                // `eval` has them too (M7 feature 3 for all three).
                 BindingKind::Parameter
                 | BindingKind::This
                 | BindingKind::NewTarget
                 | BindingKind::Arguments
-                | BindingKind::FunctionName => continue,
+                | BindingKind::FunctionName
+                | BindingKind::DynamicEnv
+                | BindingKind::HomeObject
+                | BindingKind::ActiveFunction => continue,
+                BindingKind::Import => return Err(self.unsupported("module")),
                 BindingKind::Var
                 | BindingKind::Function
+                | BindingKind::BlockFunctionVar
                 | BindingKind::Let
                 | BindingKind::Const
                 | BindingKind::CatchParameter => {}
                 BindingKind::Class | BindingKind::ClassName | BindingKind::PrivateName => {
                     return Err(self.unsupported("class"));
-                }
-                BindingKind::HomeObject | BindingKind::ActiveFunction => {
-                    return Err(self.unsupported("super"));
                 }
             }
             let lexical = b.kind.is_lexical();
@@ -569,6 +579,23 @@ impl<'a> FunctionCompiler<'a> {
             self.init_binding(binding, t)?;
             self.release(mark);
         }
+        Ok(())
+    }
+
+    /// The evaluation of a function declaration that Annex B.3.2 hoists:
+    /// the value of its block binding goes into its var binding
+    /// (B.3.2.1, `F.[[VarEnv]].SetMutableBinding`).
+    fn block_function_var(&mut self, function: FunctionId) -> CResult<()> {
+        let Some(target) = self.scopes.function(function).block_function_var else {
+            return Ok(());
+        };
+        let Some(ident) = self.ast.function(function).name else {
+            return Err(Self::internal("a function declaration without a name"));
+        };
+        let mark = self.mark();
+        let value = self.load_ref(ident.reference, None)?;
+        self.store_ref(target, value)?;
+        self.release(mark);
         Ok(())
     }
 
@@ -687,8 +714,12 @@ impl<'a> FunctionCompiler<'a> {
             if b.storage != Storage::Global {
                 continue;
             }
+            // An Annex B.3.2.2 var of a block function is declared like a
+            // `var`; B.3.2.2 skips it instead of failing when
+            // `CanDeclareGlobalVar` is false or another script has a
+            // lexical declaration of the name (M7 feature 3).
             let kind = match b.kind {
-                BindingKind::Var => GlobalKind::Var,
+                BindingKind::Var | BindingKind::BlockFunctionVar => GlobalKind::Var,
                 BindingKind::Function => GlobalKind::Function,
                 BindingKind::Let => GlobalKind::Let,
                 BindingKind::Const => GlobalKind::Const,
@@ -708,11 +739,19 @@ impl<'a> FunctionCompiler<'a> {
         let outer = std::mem::replace(&mut self.position, statement.span.start);
         let mark = self.mark();
         match statement.kind {
-            StmtKind::Empty | StmtKind::Function(_) => {}
-            StmtKind::ForIn { .. } => return Err(self.unsupported("for-in")),
-            StmtKind::ForOf { .. } => return Err(self.unsupported("for-of")),
-            StmtKind::With { .. } => return Err(self.unsupported("with")),
-            StmtKind::Class(_) => return Err(self.unsupported("class")),
+            StmtKind::Empty => {}
+            StmtKind::Function(function) => self.block_function_var(function)?,
+            kind @ (StmtKind::ForIn { .. }
+            | StmtKind::ForOf { .. }
+            | StmtKind::With { .. }
+            | StmtKind::Import
+            | StmtKind::ExportDeclaration(_)
+            | StmtKind::ExportDefault { .. }
+            | StmtKind::ExportList
+            | StmtKind::Class(_)) => {
+                let construct = super::support::unsupported_stmt(kind).unwrap_or("statement");
+                return Err(self.unsupported(construct));
+            }
             StmtKind::Debugger => {
                 self.emit(Insn::Nop);
             }
@@ -737,22 +776,7 @@ impl<'a> FunctionCompiler<'a> {
                 test,
                 consequent,
                 alternate,
-            } => {
-                let exits = self.branch_false(test)?;
-                self.stmt(consequent)?;
-                if let Some(alternate) = alternate {
-                    let skip = self.emit(Insn::Jump { offset: 0 });
-                    for exit in exits {
-                        self.patch_here(exit);
-                    }
-                    self.stmt(alternate)?;
-                    self.patch_here(skip);
-                } else {
-                    for exit in exits {
-                        self.patch_here(exit);
-                    }
-                }
-            }
+            } => self.if_statement(test, consequent, alternate)?,
             StmtKind::While { test, body } => {
                 let labels = std::mem::take(&mut self.pending_labels);
                 let top = self.here();
@@ -804,8 +828,32 @@ impl<'a> FunctionCompiler<'a> {
         Ok(())
     }
 
+    /// `if` (§14.6).
+    fn if_statement(
+        &mut self,
+        test: ExprId,
+        consequent: StmtId,
+        alternate: Option<StmtId>,
+    ) -> CResult<()> {
+        let exits = self.branch_false(test)?;
+        self.stmt(consequent)?;
+        if let Some(alternate) = alternate {
+            let skip = self.emit(Insn::Jump { offset: 0 });
+            for exit in exits {
+                self.patch_here(exit);
+            }
+            self.stmt(alternate)?;
+            self.patch_here(skip);
+        } else {
+            for exit in exits {
+                self.patch_here(exit);
+            }
+        }
+        Ok(())
+    }
+
     /// `do ... while` (§14.7.2).
-    fn do_while(&mut self, body: StmtId, test: swb_js_syntax::ExprId) -> CResult<()> {
+    fn do_while(&mut self, body: StmtId, test: ExprId) -> CResult<()> {
         let labels = std::mem::take(&mut self.pending_labels);
         let top = self.here();
         self.push_breakable(labels, BreakableKind::Loop);
@@ -857,7 +905,7 @@ impl<'a> FunctionCompiler<'a> {
         &mut self,
         kind: VariableKind,
         target: swb_js_syntax::PatternId,
-        init: Option<swb_js_syntax::ExprId>,
+        init: Option<ExprId>,
     ) -> CResult<()> {
         let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind else {
             return Err(self.unsupported("destructuring"));
@@ -909,8 +957,8 @@ impl<'a> FunctionCompiler<'a> {
     fn for_statement(
         &mut self,
         init: Option<StmtId>,
-        test: Option<swb_js_syntax::ExprId>,
-        update: Option<swb_js_syntax::ExprId>,
+        test: Option<ExprId>,
+        update: Option<ExprId>,
         body: StmtId,
         scope: ScopeId,
     ) -> CResult<()> {
@@ -953,7 +1001,7 @@ impl<'a> FunctionCompiler<'a> {
         body: StmtId,
         continue_to: Option<usize>,
         exits: Vec<usize>,
-        next: Option<(ScopeId, bool, Option<swb_js_syntax::ExprId>, usize)>,
+        next: Option<(ScopeId, bool, Option<ExprId>, usize)>,
     ) -> CResult<()> {
         self.push_breakable(labels, BreakableKind::Loop);
         self.stmt(body)?;
@@ -1078,7 +1126,7 @@ impl<'a> FunctionCompiler<'a> {
     /// `default`), then the bodies, which fall through.
     fn switch_statement(
         &mut self,
-        discriminant: swb_js_syntax::ExprId,
+        discriminant: ExprId,
         cases: swb_js_syntax::List<swb_js_syntax::SwitchCase>,
         scope: ScopeId,
     ) -> CResult<()> {

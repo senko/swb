@@ -63,7 +63,7 @@ const MARK: char = '\u{2038}';
 
 /// Splits a table source into the source and the marked offset (in code
 /// units).
-fn split_marker(marked: &str) -> (String, u32) {
+pub(super) fn split_marker(marked: &str) -> (String, u32) {
     let index = marked
         .find(MARK)
         .unwrap_or_else(|| panic!("no position marker in {marked:?}"));
@@ -503,19 +503,29 @@ fn automatic_semicolon_insertion() {
 }
 
 #[test]
-fn unsupported_constructs() {
-    // The constructs of M7 feature 1c.
-    let cases = [
-        ("import('a')", "import"),
-        ("import a from 'b'", "module syntax"),
-        ("export var a", "module syntax"),
-    ];
-    for (source, construct) in cases {
-        let error = parse(source).expect_err(source);
-        assert_eq!(error.message, "not supported yet", "{source}");
-        assert_eq!(error.unsupported, Some(construct), "{source}");
-        assert_eq!(error.kind, ErrorKind::Syntax);
-    }
+fn scripts_have_no_module_syntax() {
+    check_errors(&[
+        (
+            "‸import a from 'b'",
+            "Cannot use import statement outside a module",
+        ),
+        (
+            "{ ‸import 'b' }",
+            "Cannot use import statement outside a module",
+        ),
+        ("‸export var a", "Unexpected token 'export'"),
+        ("import.‸meta", "Cannot use 'import.meta' outside a module"),
+        (
+            "x = ‸import",
+            "Cannot use import statement outside a module",
+        ),
+        ("new ‸import(x)", "Cannot use new with import"),
+    ]);
+    check_ast(&[
+        ("import('a')", "(import \"a\")"),
+        ("import(a, b,)", "(import a b)"),
+        ("import(a).then(f)", "(call (. (import a) then) f)"),
+    ]);
 }
 
 #[test]

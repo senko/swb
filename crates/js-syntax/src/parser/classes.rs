@@ -66,6 +66,12 @@ impl PrivateNames {
         }
     }
 
+    /// Declares a private name of an enclosing class outside the code
+    /// being parsed (eval code, §19.2.1.3 step 5).
+    pub(super) fn declare_outer(&mut self, name: NameId) {
+        self.declared.insert(name, PrivateDecl::Pair);
+    }
+
     /// Takes over the uses of an ended inner class, which did not declare
     /// them, keeping the earliest offset of each name.
     fn absorb(&mut self, mut inner: HashMap<NameId, u32>) {
@@ -110,15 +116,30 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// `ClassDeclaration` or `ClassExpression` (§15.7); the current token
     /// is `class`. A declaration binds its name in the current scope.
     pub(super) fn parse_class(&mut self, is_declaration: bool) -> PResult<ClassId> {
+        self.parse_class_with(is_declaration, false)
+    }
+
+    /// The class declaration of `export default` (§16.2.3,
+    /// `ClassDeclaration[+Default]`): without a name it binds `*default*`
+    /// ([`crate::Class::declaration`]) and has no inner binding.
+    pub(super) fn parse_class_default(&mut self) -> PResult<ClassId> {
+        self.parse_class_with(true, true)
+    }
+
+    fn parse_class_with(&mut self, is_declaration: bool, default_export: bool) -> PResult<ClassId> {
         self.enter()?;
         let outer_strict = std::mem::replace(&mut self.ctx.strict, true);
-        let class = self.parse_class_inner(is_declaration);
+        let class = self.parse_class_inner(is_declaration, default_export);
         self.ctx.strict = outer_strict;
         self.leave();
         class
     }
 
-    fn parse_class_inner(&mut self, is_declaration: bool) -> PResult<ClassId> {
+    fn parse_class_inner(
+        &mut self,
+        is_declaration: bool,
+        default_export: bool,
+    ) -> PResult<ClassId> {
         let start = self.token.start;
         self.advance()?;
         let mut name = None;
@@ -144,18 +165,22 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             }
             name = Some((checked, offset));
             self.advance()?;
-        } else if is_declaration {
+        } else if is_declaration && !default_export {
             return Err(self.unexpected());
         }
         let mut declaration = None;
-        if let Some((name, offset)) = name
+        let bound = match name {
+            None if default_export => Some((names::DEFAULT_EXPORT, start)),
+            bound => bound,
+        };
+        if let Some((bound, offset)) = bound
             && is_declaration
         {
             let declared =
                 self.scopes
-                    .declare_lexical(self.scope, name, BindingKind::Class, offset);
-            let binding = self.declared(declared, name, start)?;
-            declaration = Some((binding, self.reference(name, offset, true).reference));
+                    .declare_lexical(self.scope, bound, BindingKind::Class, offset);
+            let binding = self.declared(declared, bound, start)?;
+            declaration = Some((binding, self.reference(bound, offset, true).reference));
         }
         let class_scope = self.new_scope(ScopeKind::Class, self.scope, start);
         let entered = self.enter_scope(class_scope);
@@ -557,7 +582,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// reserved in static ones, also outside async functions.
     fn initializer_context(&self, init: Initializer, kind: FunctionKind) -> Context {
         let mut context = Context::new(init.function, kind, true, false, self.labels.len());
-        context.await_mode = if kind == FunctionKind::StaticInitializer {
+        context.await_mode = if kind == FunctionKind::StaticInitializer || self.module_code {
             AwaitMode::Reserved
         } else {
             AwaitMode::Identifier
@@ -711,7 +736,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     /// At the end of a class: its uses of names it did not declare move to
     /// the enclosing class; outside all classes they are early errors.
-    fn resolve_private_names(&mut self, class: PrivateNames) -> PResult<()> {
+    pub(super) fn resolve_private_names(&mut self, class: PrivateNames) -> PResult<()> {
         let PrivateNames {
             declared,
             mut unresolved,

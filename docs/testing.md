@@ -919,13 +919,14 @@ analysis of `js-syntax`, without the harness files. Without PATH it runs
 all of `test/language/`, `test/built-ins/` and `test/annexB/`.
 
 - A negative test of phase `parse` passes if the parse fails with a
-  `SyntaxError`; every other test passes if it parses. A test runs in
-  sloppy and strict mode as its flags say (strict: `"use strict";` before
-  the source, except with `raw`).
-- Skipped: tests with the flag `module` (M7 feature 1c), with the phase
-  `resolution`, and tests with a feature of
-  `crates/js/test262/parse-skip.txt` (the proposals of test262's
-  `features.txt` and the features standardized after ECMA-262 2025).
+  `SyntaxError`; every other test passes if it parses, also a negative
+  test of phase `resolution` (a link error, which the parse does not
+  see). A test runs in sloppy and strict mode as its flags say (strict:
+  `"use strict";` before the source, except with `raw`); a test with the
+  flag `module` runs once, with the Module goal (`parse_module`).
+- Skipped: tests with a feature of `crates/js/test262/parse-skip.txt`
+  (the proposals of test262's `features.txt` and the features
+  standardized after ECMA-262 2025).
 - "not supported yet" (the constructs of later M7 features) counts as
   unsupported, apart from failures. A negative test of regular expression
   syntax that parses fails with the cause "regular expression syntax, M7

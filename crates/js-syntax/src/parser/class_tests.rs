@@ -419,9 +419,15 @@ fn classes_in_arrow_parameters_move_with_them() {
     .expect("the arrow");
     let scopes = dump_scopes(&script);
     // The class scope and the class's functions belong to the arrow
-    // function (5), which also has the direct `eval` of the computed key.
+    // function (5), which also has the direct `eval` of the computed key
+    // (strict class code: no var environment) and captures what the eval
+    // code may use.
     assert!(
-        scopes.contains("function 5 parent 1 params [] registers 3 captures [y<-r0] eval\n  scope 2 Class: C cell r2 ClassName"),
+        scopes.contains(
+            "function 5 parent 1 params [] registers 3 \
+             captures [y<-r0 this<-r1 new.target<-r2 arguments<-r3] eval\n  \
+             scope 2 Class: C cell r2 ClassName"
+        ),
         "{scopes}"
     );
     for function in [

@@ -32,16 +32,24 @@
 //! [`Context::generator`]); class bodies are strict mode code and check
 //! their private names when the outermost class ends ([`classes`]).
 //!
-//! Constructs outside the supported subset give a `SyntaxError` with
-//! the message "not supported yet" ([`ParseError::unsupported`]).
+//! The entries: scripts ([`parse_script`]), modules ([`parse_module`],
+//! with [`modules`]) and eval code ([`parse_eval`], whose early errors
+//! depend on the call site, [`EvalContext`]). The parser covers the whole
+//! ES2025 grammar except the early errors of regular expression literals
+//! (M7 feature 8a).
 
 #[cfg(test)]
 mod class_fix_tests;
 #[cfg(test)]
 mod class_tests;
 mod classes;
+#[cfg(test)]
+mod eval_tests;
 mod expressions;
 mod functions;
+#[cfg(test)]
+mod module_tests;
+mod modules;
 #[cfg(test)]
 mod pattern_tests;
 mod patterns;
@@ -61,7 +69,8 @@ use crate::error::ParseError;
 use crate::interner::{Interner, NameId, names};
 use crate::lexer::{Lexer, LexerOptions, MAX_SOURCE_LEN};
 use crate::messages;
-use crate::scope::{Redeclared, ScopeKind, ScopeTree, analysis};
+use crate::module::ModuleRecord;
+use crate::scope::{CodeKind, Redeclared, ScopeKind, ScopeTree, analysis};
 use crate::token::{Goal, Legacy, Token, TokenKind, TokenValue};
 
 /// The budget weight of one recursive parser level (a statement or an
@@ -90,6 +99,28 @@ pub(crate) const CHAIN_WEIGHT: u32 = 256;
 /// The result type of the parser.
 pub(crate) type PResult<T> = Result<T, ParseError>;
 
+/// Runs `$body` with a [`Parser`] for `$source` (either width) bound to
+/// `$parser`, after the length check; gives the budget back.
+macro_rules! run_parser {
+    ($source:expr, $budget:ident, $code:expr, |$parser:ident| $body:expr) => {{
+        let source = $source;
+        check_source_len(source.len())?;
+        let initial = *$budget;
+        let result = match source {
+            Str16::Latin1(units) => {
+                let $parser = Parser::new(units, $budget, $code);
+                $body
+            }
+            Str16::Wide(units) => {
+                let $parser = Parser::new(units, $budget, $code);
+                $body
+            }
+        };
+        *$budget = initial;
+        result
+    }};
+}
+
 /// A parsed and analysed script.
 #[derive(Debug)]
 pub struct Script {
@@ -100,8 +131,12 @@ pub struct Script {
     pub scopes: ScopeTree,
     /// The names of the script.
     pub names: Interner,
-    /// The top-level code: a [`FunctionKind::Script`] function.
+    /// The top-level code: a [`FunctionKind::Script`] function (also for
+    /// indirect eval code), a [`FunctionKind::Eval`] function (direct
+    /// eval code) or a [`FunctionKind::Module`] function.
     pub top: FunctionId,
+    /// For a module: its module records (§16.2.1.7.1 `ParseModule`).
+    pub module: Option<ModuleRecord>,
 }
 
 impl Script {
@@ -127,14 +162,38 @@ pub fn check_source_len(len: usize) -> Result<(), ParseError> {
 /// scope analysis. `budget` is the shared recursion budget: the parse
 /// charges it while it nests and gives everything back when it returns.
 pub fn parse_script(source: Str16<'_>, budget: &mut RecursionBudget) -> Result<Script, ParseError> {
-    check_source_len(source.len())?;
-    let initial = *budget;
-    let result = match source {
-        Str16::Latin1(units) => Parser::new(units, budget).parse_script(),
-        Str16::Wide(units) => Parser::new(units, budget).parse_script(),
+    run_parser!(source, budget, CodeKind::Script, |parser| parser
+        .parse_script())
+}
+
+/// Parses a module (§16.2.1.7.1 `ParseModule`): the Module goal (strict
+/// mode code, `await` at the top level, imports and exports, no
+/// HTML-like comments), the module early errors (§16.2.1.1) and the
+/// module records ([`Script::module`]). The top-level declarations are
+/// bindings of the module environment; see [`crate::ModuleRecord`] for
+/// the contract with the linker.
+pub fn parse_module(source: Str16<'_>, budget: &mut RecursionBudget) -> Result<Script, ParseError> {
+    run_parser!(source, budget, CodeKind::Module, |parser| parser
+        .parse_module())
+}
+
+/// Parses eval code (§19.2.1.1 `PerformEval`): a script whose early
+/// errors depend on the call site ([`EvalContext`]). The top-level code is
+/// a [`FunctionKind::Eval`] function for direct eval (its unresolved
+/// names resolve against the caller, [`crate::Resolution::Caller`]) and a
+/// [`FunctionKind::Script`] function for indirect eval; its top scope is a
+/// [`crate::ScopeKind::Eval`].
+pub fn parse_eval(
+    source: Str16<'_>,
+    context: &EvalContext,
+    budget: &mut RecursionBudget,
+) -> Result<Script, ParseError> {
+    let code = if context.direct {
+        CodeKind::DirectEval
+    } else {
+        CodeKind::IndirectEval
     };
-    *budget = initial;
-    result
+    run_parser!(source, budget, code, |parser| parser.parse_eval(context))
 }
 
 /// [`parse_script`] with explicit analysis limits, for tests.
@@ -144,9 +203,35 @@ pub(crate) fn parse_script_with_limits(
     limits: analysis::Limits,
 ) -> Result<Script, ParseError> {
     let mut budget = RecursionBudget::default();
-    let mut parser = Parser::new(source, &mut budget);
+    let mut parser = Parser::new(source, &mut budget, CodeKind::Script);
     parser.limits = limits;
     parser.parse_script()
+}
+
+/// The context of a direct eval call (§19.2.1.1 `PerformEval`), which
+/// decides early errors of the eval code. The default is an indirect
+/// eval (global code).
+#[derive(Clone, Debug, Default)]
+pub struct EvalContext {
+    /// A direct eval: the code runs in the caller's environment.
+    pub direct: bool,
+    /// The caller is strict mode code (`strictCaller`); only for direct
+    /// eval.
+    pub strict: bool,
+    /// The call is in a function (`inFunction`: `new.target` is allowed).
+    pub in_function: bool,
+    /// The function has a home object (`inMethod`: `super` properties).
+    pub in_method: bool,
+    /// The function is a derived constructor (`inDerivedConstructor`:
+    /// `super(...)`).
+    pub in_derived_constructor: bool,
+    /// The function is a class field initializer or static block
+    /// (`inClassFieldInitializer`: `arguments` is an early error).
+    pub in_class_field_initializer: bool,
+    /// The private names of the classes around the call, with their `#`
+    /// (the descriptions of the caller's `PrivateEnvironment` chain). A
+    /// caller in a class is class code, which is strict.
+    pub private_names: Vec<swb_js_text::String16>,
 }
 
 /// What kind of statement position a statement is in (for function and
@@ -224,6 +309,10 @@ pub(crate) struct Context {
     /// The number of direct `eval` calls of the function (not in nested
     /// functions).
     direct_evals: u32,
+    /// The direct `eval` calls in sloppy mode code of the function, and
+    /// those of them in its parameter list.
+    sloppy_evals: u32,
+    sloppy_param_evals: u32,
     /// The offset of the last `await` expression of the function (an
     /// arrow function's parameters cannot contain one, §15.3.1, §15.9.1).
     last_await: Option<u32>,
@@ -270,10 +359,18 @@ impl Context {
             in_params: false,
             last_yield: None,
             direct_evals: 0,
+            sloppy_evals: 0,
+            sloppy_param_evals: 0,
             await_mode: AwaitMode::Identifier,
             last_await: None,
             last_await_name: None,
-            new_target: !matches!(kind, FunctionKind::Script | FunctionKind::Arrow),
+            new_target: !matches!(
+                kind,
+                FunctionKind::Script
+                    | FunctionKind::Arrow
+                    | FunctionKind::Eval
+                    | FunctionKind::Module
+            ),
             super_property: kind.has_home_object(),
             super_call: kind == FunctionKind::DerivedConstructor,
             arguments_forbidden: matches!(
@@ -317,8 +414,9 @@ pub(crate) enum Recorded {
     Scope(ScopeId),
     /// A child function of the current function.
     Function(FunctionId),
-    /// A direct `eval` call of the current function.
-    Eval,
+    /// A direct `eval` call of the current function: whether it is in
+    /// sloppy mode code, and whether it is in a parameter list.
+    Eval { sloppy: bool, in_params: bool },
 }
 
 /// A scope that the parser entered: the scope to return to, and the
@@ -416,18 +514,45 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     /// The `#name` id of each private name (the lexer gives the name
     /// without `#`).
     private_ids: HashMap<NameId, NameId>,
+    /// The state of a module being parsed; `None` for scripts and eval
+    /// code.
+    module: Option<Box<modules::ModuleState>>,
+    /// Whether the code is module code (`await` is reserved in it).
+    module_code: bool,
+    /// Whether the module's top level contains `await` (`[[HasTLA]]`).
+    module_await: bool,
 }
 
 impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
-    fn new(source: &'a [U], budget: &'b mut RecursionBudget) -> Self {
-        let lexer = Lexer::new(source, LexerOptions::script(), Interner::new());
+    fn new(source: &'a [U], budget: &'b mut RecursionBudget, code: CodeKind) -> Self {
+        let (options, kind, scope_kind) = match code {
+            CodeKind::Script => (
+                LexerOptions::script(),
+                FunctionKind::Script,
+                ScopeKind::Script,
+            ),
+            CodeKind::DirectEval => (LexerOptions::script(), FunctionKind::Eval, ScopeKind::Eval),
+            CodeKind::IndirectEval => (
+                LexerOptions::script(),
+                FunctionKind::Script,
+                ScopeKind::Eval,
+            ),
+            CodeKind::Module => (
+                LexerOptions::module(),
+                FunctionKind::Module,
+                ScopeKind::Module,
+            ),
+        };
+        let module = code == CodeKind::Module;
+        let lexer = Lexer::new(source, options, Interner::new());
         let mut ast = Ast::default();
         let mut scopes = ScopeTree::default();
+        scopes.code = code;
         let top = ast.push_function(crate::ast::Function {
-            kind: FunctionKind::Script,
+            kind,
             is_generator: false,
             is_async: false,
-            strict: false,
+            strict: module,
             is_declaration: false,
             expression_body: false,
             name: None,
@@ -439,7 +564,11 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             parent: None,
         });
         scopes.add_function();
-        let scope = scopes.push_scope(ScopeKind::Script, None, top, 0);
+        let scope = scopes.push_scope(scope_kind, None, top, 0);
+        let mut ctx = Context::new(top, kind, module, false, 0);
+        if module {
+            ctx.await_mode = AwaitMode::Expression;
+        }
         Parser {
             lexer,
             token: Token {
@@ -459,7 +588,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             ast,
             scopes,
             budget,
-            ctx: Context::new(top, FunctionKind::Script, false, false, 0),
+            ctx,
             scope,
             labels: Vec::new(),
             label_chain: None,
@@ -479,6 +608,9 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             async_heads: HashMap::new(),
             classes: Vec::new(),
             private_ids: HashMap::new(),
+            module: module.then(Box::default),
+            module_code: module,
+            module_await: false,
         }
     }
 
@@ -487,14 +619,50 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
     fn parse_script(mut self) -> PResult<Script> {
         self.token = self.lexer.next_token(Goal::HashbangOrRegExp)?;
         let body = self.parse_statements(TokenKind::Eof, true)?;
+        self.finish(body, None)
+    }
+
+    /// The body of eval code with the early errors of its call site
+    /// (§19.2.1.1 steps 5 to 11); then the scope analysis.
+    fn parse_eval(mut self, context: &EvalContext) -> PResult<Script> {
+        if context.direct {
+            self.ctx.strict = context.strict;
+            self.ctx.new_target = context.in_function;
+            self.ctx.super_property = context.in_method;
+            self.ctx.super_call = context.in_derived_constructor;
+            self.ctx.arguments_forbidden = context.in_class_field_initializer;
+            // The caller's private names (§19.2.1.3 step 5): an
+            // outermost class frame that declares them.
+            let mut frame = classes::PrivateNames::default();
+            for name in &context.private_names {
+                let id = self.lexer.interner_mut().intern(name.as_str16());
+                frame.declare_outer(id);
+            }
+            self.classes.push(frame);
+        }
+        // Eval code is a Script source text: it can start with a hashbang
+        // comment (§12.5).
+        self.token = self.lexer.next_token(Goal::HashbangOrRegExp)?;
+        let body = self.parse_statements(TokenKind::Eof, true)?;
+        if let Some(frame) = self.classes.pop() {
+            self.resolve_private_names(frame)?;
+        }
+        self.finish(body, None)
+    }
+
+    /// Fills in the top-level function, runs the scope analysis and
+    /// returns the script.
+    fn finish(mut self, body: List<StmtId>, module: Option<ModuleRecord>) -> PResult<Script> {
         let top = self.ctx.function;
         let strict = self.ctx.strict;
         if let Some(function) = self.ast.function_mut(top) {
             function.body = body;
             function.strict = strict;
         }
+        let (all, sloppy) = (self.ctx.direct_evals, self.ctx.sloppy_evals);
         if let Some(function) = self.scopes.function_mut(top) {
-            function.has_direct_eval = self.ctx.direct_evals > 0;
+            function.has_direct_eval = all > 0;
+            function.sloppy_body_eval = sloppy > 0;
         }
         analysis::analyze(&self.ast, &mut self.scopes, &self.limits)?;
         Ok(Script {
@@ -502,6 +670,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             scopes: self.scopes,
             names: self.lexer.into_interner(),
             top,
+            module,
         })
     }
 
@@ -657,6 +826,10 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
     }
 
     fn redeclared(&self, name: NameId, offset: u32) -> ParseError {
+        if name == names::DEFAULT_EXPORT {
+            // V8 calls the binding of `export default` `.default`.
+            return ParseError::syntax(offset, messages::DEFAULT_EXPORT_REDECLARED);
+        }
         ParseError::syntax(offset, messages::already_declared(&self.name_text(name)))
     }
 

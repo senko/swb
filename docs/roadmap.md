@@ -627,6 +627,24 @@ failures with a reason. Features, in this order:
      declarations in blocks, in `if` statements and labelled statements
      in sloppy code). Exit of feature 1: all BBC and Ars scripts parse
      without errors; the parse-only test262 scores of `test/language/`.
+     Done 2026-10-10: the Module goal (imports and exports with
+     attributes and string names, the `export default` forms,
+     top-level `await`, `import.meta`, the module early errors, the
+     module records), `import()` with options, eval code with the early
+     errors of its call site, direct `eval` and `with` in the scope
+     analysis, the implicit bindings of functions with `eval`, mapped
+     `arguments`, Annex B.3.2 and B.3.3. The compiler rejects module
+     code, `import()` and `import.meta`, and copies hoisted block
+     functions into their var bindings. Parse-only test262: 41,882 pass
+     (`language/`: 22,837), 358 fail (all regular expression syntax,
+     feature 8a), none unsupported. Runtime test262: 4,235 pass. All 60
+     BBC and 24 Ars scripts parse, 49 MB/s. The deepest member chain in
+     the target scripts is 16 links, `else if` chain 5, nested function
+     expressions 10, far below the compiler limits of the spike. Exit
+     of feature 1 reached. Open: module top-level bindings are
+     registers (about 64,500 at most) and imports are captures (65,535
+     at most; feature 14); global Annex B vars are declared like `var`,
+     without the run-time checks of B.3.2.2 (feature 3).
 2. Fundamental objects (`implementer`). What the test262 harness and the
    language need first: `Object`, `Function` (`bind`, `call`, `apply`,
    `toString`), `Boolean`, `Symbol` with the well-known symbols, the
