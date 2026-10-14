@@ -17,9 +17,12 @@
 //! - globals, accessed by name (§9.1.1.4);
 //! - properties: named access through a property site, keyed access,
 //!   `delete`, `in`;
-//! - literals: objects and arrays;
+//! - literals: objects (data properties, accessors, spread, the names of
+//!   functions with computed keys) and arrays, the template objects of
+//!   tagged templates;
 //! - operators (three registers or two);
-//! - control flow: jumps (a backward jump is a safepoint);
+//! - control flow: jumps (a backward jump is a safepoint), the jump of an
+//!   optional chain, the key iteration of `for`-`in`;
 //! - calls: `Call` and `New` take a window of consecutive registers
 //!   `callee, this, arg0, ...`; the result goes into the callee register;
 //! - errors, the end of a `finally` block, and the generator suspension
@@ -33,17 +36,20 @@
 //!
 //! The code object ([`FunctionCode`], held by [`CodeObject`] in the heap)
 //! holds the instructions, the constant pool (strings, numbers, nested
-//! function code), the property sites, the capture sources of closures,
-//! the line table, the handler table and the
-//! global declarations of a script. The collector traces its constants
-//! through [`GenericData`].
+//! function code, the strings of tagged templates), the property sites,
+//! the capture sources of closures, the line table, the handler table and
+//! the global declarations of a script. The collector traces its
+//! constants through [`GenericData`]; the heap form also keeps the
+//! template objects that the code created.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use swb_js_syntax::CaptureSource;
 use swb_js_text::String16;
 
-use crate::heap::{Gc, Generic, GenericData, Tracer};
+use crate::heap::{Gc, Generic, GenericData, HandleMap, Tracer};
+use crate::object::Object;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 
@@ -68,6 +74,19 @@ pub(crate) const COMPLETION_JUMP: i32 = 3;
 pub(crate) const RESUME_NEXT: i32 = 0;
 pub(crate) const RESUME_THROW: i32 = 1;
 pub(crate) const RESUME_RETURN: i32 = 2;
+
+/// The prefixes of [`Insn::SetFunctionName`]: none, `get `, `set `.
+pub(crate) const NAME_PREFIX_NONE: u32 = 0;
+pub(crate) const NAME_PREFIX_GET: u32 = 1;
+pub(crate) const NAME_PREFIX_SET: u32 = 2;
+
+/// The contexts of [`Insn::ThrowInvalidAssign`], which select V8's
+/// message: an assignment, a prefix or postfix update, the target of a
+/// `for`-`in` or `for`-`of` loop.
+pub(crate) const INVALID_TARGET_ASSIGN: u32 = 0;
+pub(crate) const INVALID_TARGET_PREFIX: u32 = 1;
+pub(crate) const INVALID_TARGET_POSTFIX: u32 = 2;
+pub(crate) const INVALID_TARGET_FOR: u32 = 3;
 
 /// One instruction. `dst` is the register that receives the result.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -159,6 +178,10 @@ pub(crate) enum Insn {
     },
     /// `dst` = a new (unmapped) arguments object.
     Arguments {
+        dst: Reg,
+    },
+    /// `dst` = `new.target` of the frame (`undefined` in a call).
+    NewTarget {
         dst: Reg,
     },
 
@@ -281,6 +304,43 @@ pub(crate) enum Insn {
     SetProto {
         obj: Reg,
         src: Reg,
+    },
+    /// Defines the getter `src` of the key in `key` (a value of `ToKey` or
+    /// a string constant) on the object literal `obj`: enumerable and
+    /// configurable, merged with an existing setter (§13.2.5.5,
+    /// §15.4.5 `MethodDefinitionEvaluation`).
+    DefineGetter {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// Defines the setter `src`, like [`Insn::DefineGetter`].
+    DefineSetter {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// `SetFunctionName` (§10.2.9) of the closure in `func` with the key
+    /// in `key` at run time (computed keys); `prefix` is
+    /// [`NAME_PREFIX_NONE`], [`NAME_PREFIX_GET`] or [`NAME_PREFIX_SET`].
+    SetFunctionName {
+        func: Reg,
+        key: Reg,
+        prefix: u32,
+    },
+    /// `CopyDataProperties(obj, src, « »)` (§7.3.25) for object spread:
+    /// the own enumerable string and symbol keys of `ToObject(src)` in
+    /// order, read with `[[Get]]`; nothing for `undefined` and `null`.
+    CopyDataProperties {
+        obj: Reg,
+        src: Reg,
+    },
+    /// `dst` = the template object of the template literal
+    /// `constants[index]` (§13.2.8.4 `GetTemplateObject`): one frozen
+    /// array per site and realm, cached in the code object.
+    GetTemplate {
+        dst: Reg,
+        index: u32,
     },
 
     // --- Binary operators: dst = a op b ---
@@ -448,6 +508,26 @@ pub(crate) enum Insn {
         src: Reg,
         offset: i32,
     },
+    /// Jumps if `src` is `undefined` or `null` (the links of an optional
+    /// chain).
+    JumpIfNullish {
+        src: Reg,
+        offset: i32,
+    },
+    /// `for`-`in` (§14.7.5.6): `dst` = the key iterator of
+    /// `ToObject(src)` (an internal object), or `undefined` if `src` is
+    /// `undefined` or `null` (no iterations).
+    ForInStart {
+        dst: Reg,
+        src: Reg,
+    },
+    /// The next key of the `for`-`in` iterator in `iter` into `dst` (a
+    /// string); jumps by `offset` when there is none.
+    ForInNext {
+        dst: Reg,
+        iter: Reg,
+        offset: i32,
+    },
     /// Jumps unless `a < b` (a fused compare and branch for loops).
     JumpIfNotLt {
         a: Reg,
@@ -506,8 +586,11 @@ pub(crate) enum Insn {
         name: u32,
     },
     /// Throws the `ReferenceError` of an assignment to a call expression
-    /// (Annex B web compatibility; Chromium throws at run time).
-    ThrowInvalidAssign,
+    /// (Annex B web compatibility; Chromium throws at run time). `context`
+    /// is one of the `INVALID_TARGET_*` constants.
+    ThrowInvalidAssign {
+        context: u32,
+    },
 
     /// The end of a `finally` block: continues the completion in `kind`
     /// and `value`. Normal: jumps by `offset` (past the block's table).
@@ -551,6 +634,8 @@ impl Insn {
             | Insn::JumpIfTrue { offset, .. }
             | Insn::JumpIfFalse { offset, .. }
             | Insn::JumpIfNotNullish { offset, .. }
+            | Insn::JumpIfNullish { offset, .. }
+            | Insn::ForInNext { offset, .. }
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
@@ -569,6 +654,8 @@ impl Insn {
             | Insn::JumpIfTrue { offset, .. }
             | Insn::JumpIfFalse { offset, .. }
             | Insn::JumpIfNotNullish { offset, .. }
+            | Insn::JumpIfNullish { offset, .. }
+            | Insn::ForInNext { offset, .. }
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
@@ -587,7 +674,7 @@ impl Insn {
                 | Insn::Return { .. }
                 | Insn::Throw { .. }
                 | Insn::ThrowConstAssign { .. }
-                | Insn::ThrowInvalidAssign
+                | Insn::ThrowInvalidAssign { .. }
         )
     }
 }
@@ -599,6 +686,18 @@ pub(crate) enum Constant {
     Value(Value),
     /// The code of a nested function: its code object and the shared code.
     Function(Gc<Generic>, Rc<FunctionCode>),
+    /// The strings of a tagged template (atoms): the cooked string of each
+    /// part (`None` for an invalid escape) and its raw string.
+    Template(Box<[TemplatePart]>),
+}
+
+/// One string part of a tagged template's constant.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TemplatePart {
+    /// The template value; `None` if the part has an invalid escape.
+    pub(crate) cooked: Option<Gc<JsString>>,
+    /// The raw value.
+    pub(crate) raw: Gc<JsString>,
 }
 
 /// The kind of a function's code: how it is called and what its function
@@ -756,8 +855,17 @@ impl FunctionCode {
 
     /// The bytes that the code owns outside its own record.
     pub(crate) fn heap_size(&self) -> usize {
+        let template_parts: usize = self
+            .constants
+            .iter()
+            .map(|constant| match constant {
+                Constant::Template(parts) => parts.len() * size_of::<TemplatePart>(),
+                _ => 0,
+            })
+            .sum();
         self.insns.len() * size_of::<Insn>()
             + self.constants.len() * size_of::<Constant>()
+            + template_parts
             + self.sites.len() * size_of::<PropertyKey>()
             + self.captures.len() * size_of::<CaptureSource>()
             + self.globals.len() * size_of::<GlobalDecl>()
@@ -807,7 +915,7 @@ impl FunctionCode {
         let (_, constant) = *self.call_names.get(index)?;
         match self.constants.get(constant as usize)? {
             Constant::Value(value) => Some(*value),
-            Constant::Function(..) => None,
+            Constant::Function(..) | Constant::Template(_) => None,
         }
     }
 
@@ -821,16 +929,40 @@ impl FunctionCode {
 }
 
 /// The heap form of a code object: a generic heap thing that traces the
-/// constants of its code.
-pub(crate) struct CodeObject(pub(crate) Rc<FunctionCode>);
+/// constants of its code. It also holds the template objects of the
+/// code's tagged templates (§13.2.8.4: one per site and realm), so they
+/// live as long as the code.
+pub(crate) struct CodeObject {
+    pub(crate) code: Rc<FunctionCode>,
+    /// The template objects by (constant index, realm).
+    pub(crate) templates: RefCell<HandleMap<(u32, u32), Gc<Object>>>,
+}
+
+impl CodeObject {
+    /// The code object of compiled code, without template objects.
+    pub(crate) fn new(code: Rc<FunctionCode>) -> Self {
+        CodeObject {
+            code,
+            templates: RefCell::new(HandleMap::default()),
+        }
+    }
+}
 
 impl GenericData for CodeObject {
     fn trace(&self, tracer: &mut Tracer<'_>) {
-        let code = &self.0;
+        let code = &self.code;
         for constant in &code.constants {
             match constant {
                 Constant::Value(value) => tracer.value(*value),
                 Constant::Function(child, _) => tracer.generic(*child),
+                Constant::Template(parts) => {
+                    for part in parts {
+                        if let Some(cooked) = part.cooked {
+                            tracer.string(cooked);
+                        }
+                        tracer.string(part.raw);
+                    }
+                }
             }
         }
         for key in &code.sites {
@@ -838,12 +970,21 @@ impl GenericData for CodeObject {
         }
         tracer.string(code.name);
         tracer.string(code.debug_name);
+        for &object in self.templates.borrow().values() {
+            tracer.object(object);
+        }
     }
 
     fn heap_size(&self) -> usize {
-        size_of::<FunctionCode>() + self.0.heap_size()
+        size_of::<FunctionCode>()
+            + self.code.heap_size()
+            + self.templates.borrow().capacity() * TEMPLATE_ENTRY_BYTES
     }
 }
+
+/// The bytes of one entry of [`CodeObject::templates`] (key, value and
+/// the hash table's control byte, rounded up).
+pub(crate) const TEMPLATE_ENTRY_BYTES: usize = 24;
 
 /// A listing of a function's code and of its nested functions, in the
 /// order of their constants: one instruction per line with its position.
@@ -869,7 +1010,7 @@ pub(crate) fn disassemble(code: &Rc<FunctionCode>, heap: &crate::heap::Heap) -> 
             .iter()
             .filter_map(|c| match c {
                 Constant::Function(_, child) => Some(Rc::clone(child)),
-                Constant::Value(_) => None,
+                Constant::Value(_) | Constant::Template(_) => None,
             })
             .collect();
         children.reverse();
@@ -914,48 +1055,13 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
         if !ok {
             return fail("register operand out of range");
         }
+        if let Err(message) = check_tables(code, insn) {
+            return fail(message);
+        }
         match *insn {
             Insn::Call { callee, argc } | Insn::New { callee, argc } => {
                 if u32::from(callee) + 2 + u32::from(argc) > registers {
                     return fail("call window outside the frame");
-                }
-            }
-            Insn::Const { index, .. } => {
-                if !matches!(code.constants.get(index as usize), Some(Constant::Value(_))) {
-                    return fail("constant index");
-                }
-            }
-            Insn::Closure { index, .. } => {
-                if !matches!(
-                    code.constants.get(index as usize),
-                    Some(Constant::Function(..))
-                ) {
-                    return fail("function constant index");
-                }
-            }
-            Insn::CheckTdz { name, .. }
-            | Insn::GetGlobal { name, .. }
-            | Insn::TypeofGlobal { name, .. }
-            | Insn::SetGlobal { name, .. }
-            | Insn::InitGlobalLexical { name, .. }
-            | Insn::InitGlobalFunction { name, .. }
-            | Insn::DeleteGlobal { name, .. }
-            | Insn::ThrowConstAssign { name } => {
-                if code.string(name).is_none() {
-                    return fail("name constant index");
-                }
-            }
-            Insn::GetNamed { site, .. }
-            | Insn::SetNamed { site, .. }
-            | Insn::DeleteNamed { site, .. }
-            | Insn::DefineNamed { site, .. } => {
-                if site as usize >= code.sites.len() {
-                    return fail("site index");
-                }
-            }
-            Insn::LoadCapture { index, .. } | Insn::StoreCapture { index, .. } => {
-                if index as usize >= code.captures.len() {
-                    return fail("capture index");
                 }
             }
             Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
@@ -985,6 +1091,48 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
         }
     }
     verify_handlers(code)
+}
+
+/// The constant, name, site and capture indices of an instruction: inside
+/// their tables, with the right kinds; and the prefix of
+/// `SetFunctionName`.
+fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
+    let constant = |index: u32| code.constants.get(index as usize);
+    let (ok, message) = match *insn {
+        Insn::Const { index, .. } => (
+            matches!(constant(index), Some(Constant::Value(_))),
+            "constant index",
+        ),
+        Insn::Closure { index, .. } => (
+            matches!(constant(index), Some(Constant::Function(..))),
+            "function constant index",
+        ),
+        Insn::GetTemplate { index, .. } => (
+            matches!(constant(index), Some(Constant::Template(_))),
+            "template constant index",
+        ),
+        Insn::SetFunctionName { prefix, .. } => (prefix <= NAME_PREFIX_SET, "function name prefix"),
+        Insn::ThrowInvalidAssign { context } => {
+            (context <= INVALID_TARGET_FOR, "invalid target context")
+        }
+        Insn::CheckTdz { name, .. }
+        | Insn::GetGlobal { name, .. }
+        | Insn::TypeofGlobal { name, .. }
+        | Insn::SetGlobal { name, .. }
+        | Insn::InitGlobalLexical { name, .. }
+        | Insn::InitGlobalFunction { name, .. }
+        | Insn::DeleteGlobal { name, .. }
+        | Insn::ThrowConstAssign { name } => (code.string(name).is_some(), "name constant index"),
+        Insn::GetNamed { site, .. }
+        | Insn::SetNamed { site, .. }
+        | Insn::DeleteNamed { site, .. }
+        | Insn::DefineNamed { site, .. } => ((site as usize) < code.sites.len(), "site index"),
+        Insn::LoadCapture { index, .. } | Insn::StoreCapture { index, .. } => {
+            ((index as usize) < code.captures.len(), "capture index")
+        }
+        _ => (true, ""),
+    };
+    if ok { Ok(()) } else { Err(message) }
 }
 
 /// The handler table: ranges inside the code, targets inside the code,
@@ -1038,6 +1186,8 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::This { dst }
         | I::Callee { dst }
         | I::Arguments { dst }
+        | I::NewTarget { dst }
+        | I::GetTemplate { dst, .. }
         | I::GetGlobal { dst, .. }
         | I::TypeofGlobal { dst, .. }
         | I::DeleteGlobal { dst, .. }
@@ -1054,7 +1204,8 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::InitGlobalFunction { src, .. }
         | I::Return { src }
         | I::Throw { src }
-        | I::JumpIfNotNullish { src, .. } => f(src),
+        | I::JumpIfNotNullish { src, .. }
+        | I::JumpIfNullish { src, .. } => f(src),
         I::JumpIfTrue { cond, .. } | I::JumpIfFalse { cond, .. } => f(cond),
         I::Hole { array } => f(array),
         I::Call { callee, .. } | I::New { callee, .. } => f(callee),
@@ -1078,6 +1229,14 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         }
         | I::Push { array: dst, src }
         | I::SetProto { obj: dst, src }
+        | I::CopyDataProperties { obj: dst, src }
+        | I::SetFunctionName {
+            func: dst,
+            key: src,
+            ..
+        }
+        | I::ForInStart { dst, src }
+        | I::ForInNext { dst, iter: src, .. }
         | I::GetNamed { dst, obj: src, .. }
         | I::SetNamed { obj: dst, src, .. }
         | I::DeleteNamed { dst, obj: src, .. }
@@ -1096,7 +1255,10 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
             f(obj);
             f(key);
         }
-        I::SetIndex { obj, key, src } | I::DefineIndex { obj, key, src } => {
+        I::SetIndex { obj, key, src }
+        | I::DefineIndex { obj, key, src }
+        | I::DefineGetter { obj, key, src }
+        | I::DefineSetter { obj, key, src } => {
             f(obj);
             f(key);
             f(src);
@@ -1129,7 +1291,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         I::DeclareGlobals
         | I::Jump { .. }
         | I::ThrowConstAssign { .. }
-        | I::ThrowInvalidAssign
+        | I::ThrowInvalidAssign { .. }
         | I::InitialYield
         | I::Nop => {}
     }
@@ -1284,6 +1446,76 @@ mod tests {
         assert_eq!(target(4), Some(5));
         assert_eq!(target(5), Some(7));
         assert_eq!(target(6), None);
+    }
+
+    #[test]
+    fn the_verifier_checks_the_operands_of_feature_3a() {
+        // `ForInNext` jumps; its target must be inside the code.
+        let for_in = code(
+            vec![
+                Insn::ForInStart { dst: 0, src: 0 },
+                Insn::ForInNext {
+                    dst: 1,
+                    iter: 0,
+                    offset: 2,
+                },
+                Insn::Jump { offset: -1 },
+                Insn::Return { src: 0 },
+            ],
+            2,
+        );
+        assert_eq!(verify(&for_in), Ok(()));
+        let mut bad = code(for_in.insns.to_vec(), 2);
+        bad.insns = vec![
+            Insn::ForInNext {
+                dst: 1,
+                iter: 0,
+                offset: 9,
+            },
+            Insn::Return { src: 0 },
+        ]
+        .into();
+        assert!(verify(&bad).is_err());
+        // A template constant must be a template; a name prefix must be
+        // one of the three.
+        let template = code(
+            vec![
+                Insn::GetTemplate { dst: 0, index: 0 },
+                Insn::Return { src: 0 },
+            ],
+            1,
+        );
+        assert_eq!(
+            verify(&template).map_err(|e| e.message),
+            Err("template constant index")
+        );
+        let prefix = code(
+            vec![
+                Insn::SetFunctionName {
+                    func: 0,
+                    key: 0,
+                    prefix: 3,
+                },
+                Insn::Return { src: 0 },
+            ],
+            1,
+        );
+        assert_eq!(
+            verify(&prefix).map_err(|e| e.message),
+            Err("function name prefix")
+        );
+        let registers = code(
+            vec![
+                Insn::DefineGetter {
+                    obj: 0,
+                    key: 1,
+                    src: 2,
+                },
+                Insn::Return { src: 0 },
+            ],
+            2,
+        );
+        assert!(verify(&registers).is_err());
     }
 
     #[test]

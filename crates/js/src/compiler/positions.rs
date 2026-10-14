@@ -8,6 +8,8 @@
 //!   (`f()`, `a.b()`: the name), else at the `(` (`a[k]()`, `(f)()`,
 //!   `f()()`). A `new` expression is at the `new`.
 //! - A write to a property (`a.b = v`, `a.b += v`) is at the operator.
+//! - Inside an optional chain, a property read `a?.b.c` is at the `.`
+//!   before the name; a tagged template call is at its `` ` ``.
 //!
 //! The AST has the span of each expression but not of the tokens inside
 //! it, so the `[`, the `(` and the operator are found by a scan over the
@@ -35,6 +37,23 @@ impl FunctionCompiler<'_> {
             .end
             .saturating_sub(length as u32)
             .max(node.span.start)
+    }
+
+    /// The position of the `.` of `a.b` (the first `.` after the object).
+    pub(super) fn dot_position(&self, member: ExprId) -> u32 {
+        let node = self.ast.expr(member);
+        let ExprKind::Member { object, .. } = node.kind else {
+            return node.span.start;
+        };
+        self.find_token(self.ast.expr(object).span.end, b'.')
+            .unwrap_or(node.span.start)
+    }
+
+    /// The position of the `` ` `` that starts the template of a tagged
+    /// template (Chromium's position of the call).
+    pub(super) fn template_position(&self, tag: ExprId, fallback: u32) -> u32 {
+        self.find_token(self.ast.expr(tag).span.end, b'`')
+            .unwrap_or(fallback)
     }
 
     /// The position of the `[` of `a[k]`: the first `[` after the object.

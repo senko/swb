@@ -26,8 +26,8 @@
 use std::rc::Rc;
 
 use crate::bytecode::{
-    COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, Handler, Insn, RESUME_NEXT,
-    RESUME_RETURN, RESUME_THROW,
+    COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, Handler, INVALID_TARGET_FOR,
+    INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, Insn, RESUME_NEXT, RESUME_RETURN, RESUME_THROW,
 };
 use crate::object::{GetResult, ObjectKind};
 use crate::runtime::Runtime;
@@ -426,6 +426,14 @@ impl Runtime {
                     save!();
                     tri!(self.create_arguments(base + usize::from(dst)));
                 }
+                Insn::NewTarget { dst } => {
+                    let new_target = self
+                        .vm
+                        .frames
+                        .last()
+                        .map_or(Value::Undefined, |f| f.new_target);
+                    put!(dst, new_target);
+                }
 
                 // --- Globals ---
                 Insn::DeclareGlobals => {
@@ -639,6 +647,42 @@ impl Runtime {
                     if let Some(proto) = proto {
                         tri!(self.heap.set_prototype_of(object, proto));
                     }
+                }
+                Insn::DefineGetter { obj, key, src } | Insn::DefineSetter { obj, key, src } => {
+                    let Value::Object(object) = get!(obj) else {
+                        return Err(VmError::invariant("a literal that is not an object"));
+                    };
+                    let (key, function) = (get!(key), get!(src));
+                    let getter = matches!(insn, Insn::DefineGetter { .. });
+                    save!();
+                    tri!(self.define_literal_accessor(object, key, function, getter));
+                }
+                Insn::SetFunctionName { func, key, prefix } => {
+                    let (function, key) = (get!(func), get!(key));
+                    save!();
+                    tri!(self.with_scope(|rt| rt.set_function_name(function, key, prefix)));
+                }
+                Insn::CopyDataProperties { obj, src } => {
+                    let Value::Object(object) = get!(obj) else {
+                        return Err(VmError::invariant("a literal that is not an object"));
+                    };
+                    let source = get!(src);
+                    save!();
+                    tri!(self.with_scope(|rt| rt.copy_data_properties(object, source)));
+                }
+                Insn::GetTemplate { dst, index } => {
+                    let Some(code_object) = self.vm.frames.last().map(|f| f.code) else {
+                        return Err(VmError::invariant("no frame"));
+                    };
+                    let realm = self.current_realm();
+                    save!();
+                    let template = tri!(self.with_scope(|rt| rt.template_object(
+                        code_object,
+                        &code,
+                        index,
+                        realm
+                    )));
+                    put!(dst, template);
                 }
 
                 // --- Arithmetic ---
@@ -961,6 +1005,31 @@ impl Runtime {
                         jump!(offset);
                     }
                 }
+                Insn::JumpIfNullish { src, offset } => {
+                    if matches!(get!(src), Value::Undefined | Value::Null) {
+                        jump!(offset);
+                    }
+                }
+                Insn::ForInStart { dst, src } => {
+                    let value = get!(src);
+                    save!();
+                    let iterator = tri!(self.with_scope(|rt| rt.for_in_iterator(value)));
+                    put!(dst, iterator);
+                }
+                Insn::ForInNext { dst, iter, offset } => {
+                    // The iterator of `undefined` or `null` is `undefined`.
+                    let key = if let Value::Object(iterator) = get!(iter) {
+                        save!();
+                        tri!(self.for_in_next(iterator))
+                    } else {
+                        None
+                    };
+                    if let Some(key) = key {
+                        put!(dst, key);
+                    } else {
+                        jump!(offset);
+                    }
+                }
                 Insn::JumpIfNotLt { a, b, offset } => {
                     let r = compare!(
                         a,
@@ -1073,10 +1142,10 @@ impl Runtime {
                 Insn::ThrowConstAssign { name: _ } => {
                     tri!(Err(VmError::type_error("Assignment to constant variable.")));
                 }
-                Insn::ThrowInvalidAssign => {
-                    tri!(Err(VmError::reference_error(
-                        "Invalid left-hand side in assignment"
-                    )));
+                Insn::ThrowInvalidAssign { context } => {
+                    tri!(Err(VmError::reference_error(invalid_target_message(
+                        context
+                    ))));
                 }
                 Insn::EndFinally {
                     kind,
@@ -1217,5 +1286,16 @@ impl Runtime {
             });
         }
         self.to_property_key(key)
+    }
+}
+
+/// V8's message for an assignment to a call expression in `context` (one
+/// of the `INVALID_TARGET_*` constants; the verifier checks the range).
+fn invalid_target_message(context: u32) -> &'static str {
+    match context {
+        INVALID_TARGET_PREFIX => "Invalid left-hand side expression in prefix operation",
+        INVALID_TARGET_POSTFIX => "Invalid left-hand side expression in postfix operation",
+        INVALID_TARGET_FOR => "Invalid left-hand side in for-loop",
+        _ => "Invalid left-hand side in assignment",
     }
 }

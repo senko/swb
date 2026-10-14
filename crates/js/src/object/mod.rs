@@ -84,6 +84,22 @@ pub enum ObjectKind {
     /// An arguments object (`[[ParameterMap]]` absent: the unmapped form,
     /// §10.4.4.6): ordinary otherwise.
     Arguments,
+    /// The key iterator of a `for`-`in` loop (§14.7.5.9): internal, only
+    /// a register of the loop holds it.
+    ForInIterator(Box<ForInIterator>),
+}
+
+/// The state of a `for`-`in` loop: the object and the keys that the loop
+/// visits, collected when it starts (see `vm/for_in.rs`).
+#[derive(Debug)]
+pub struct ForInIterator {
+    /// The object (after `ToObject`).
+    pub(crate) object: Gc<Object>,
+    /// The enumerable string keys of the object and its prototypes, in
+    /// order, each once; emptied when the loop has visited them all.
+    pub(crate) keys: Box<[PropertyKey]>,
+    /// The index of the next key.
+    pub(crate) next: usize,
 }
 
 /// What an Array Iterator returns for each index (§23.1.5.1
@@ -126,6 +142,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
+            ObjectKind::ForInIterator(_) => "ForInIterator",
         };
         f.write_str(name)
     }
@@ -162,6 +179,12 @@ impl ObjectKind {
                     tracer.object(target);
                 }
             }
+            ObjectKind::ForInIterator(state) => {
+                tracer.object(state.object);
+                for &key in &state.keys {
+                    tracer.key(key);
+                }
+            }
         }
     }
 
@@ -174,6 +197,9 @@ impl ObjectKind {
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
             ObjectKind::Error(Some(data)) => data.heap_size(),
+            ObjectKind::ForInIterator(state) => {
+                size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()
+            }
             _ => 0,
         }
     }

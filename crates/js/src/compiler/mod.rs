@@ -34,7 +34,7 @@ use swb_js_text::RecursionBudget;
 use swb_js_text::{Str16, String16};
 
 use crate::bytecode::{
-    CodeKind, CodeObject, Constant, FunctionCode, GlobalDecl, Insn, ThisMode, verify,
+    CodeKind, CodeObject, Constant, FunctionCode, GlobalDecl, Insn, TemplatePart, ThisMode, verify,
 };
 use crate::error::{Error, ThrowKind};
 use crate::heap::{Gc, Generic, Heap};
@@ -67,6 +67,8 @@ pub(crate) enum ConstSpec {
     String(String16),
     Number(f64),
     Function(FunctionId),
+    /// The (cooked, raw) strings of a tagged template's parts.
+    Template(Vec<(Option<String16>, String16)>),
 }
 
 /// The compiled form of one function before materialization.
@@ -248,7 +250,7 @@ fn materialize(
             let debug_name = session.debug_names.get(&id).cloned();
             let code = finish_code(heap, builder, (name, debug_name), &done, source)?;
             let code = Rc::new(code);
-            let handle = heap.alloc_generic(CodeObject(Rc::clone(&code)))?;
+            let handle = heap.alloc_generic(CodeObject::new(Rc::clone(&code)))?;
             if let Some(slot) = done.get_mut(id.index()) {
                 *slot = Some((handle, code));
             }
@@ -287,6 +289,18 @@ fn finish_code(
                     .flatten()
                     .ok_or(Error::invariant("a nested function without code"))?;
                 Constant::Function(handle, code)
+            }
+            ConstSpec::Template(parts) => {
+                let mut atoms = Vec::with_capacity(parts.len());
+                for (cooked, raw) in parts {
+                    let cooked = match cooked {
+                        Some(text) => Some(heap.intern(text.as_str16())?),
+                        None => None,
+                    };
+                    let raw = heap.intern(raw.as_str16())?;
+                    atoms.push(TemplatePart { cooked, raw });
+                }
+                Constant::Template(atoms.into())
             }
         });
     }

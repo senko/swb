@@ -5,8 +5,8 @@
 //! frames are removed). Each case also runs in the GC stress mode.
 //!
 //! Generated from the scripts and Node's output; cases whose output
-//! differs from Node on purpose (built-in functions are not frames, the
-//! names of functions with computed keys) are not in the lists.
+//! differs from Node on purpose (built-in functions are not frames) are
+//! not in the lists.
 
 #![allow(clippy::too_many_lines, reason = "a test is a list of script cases")]
 
@@ -1075,6 +1075,87 @@ Error: x
 Error: x
     at Anon.f (t.js:17:39)
     at t.js:18:10
+",
+    )]);
+}
+
+/// The names of methods and accessors with computed keys, and the
+/// positions in optional chains, tagged templates and object spread
+/// (M7 feature 3a).
+#[test]
+fn computed_names_and_new_forms() {
+    check_script_cases(&[(
+        r"var s = Symbol('desc'), e = Symbol(), s2 = Symbol('two');
+var o = {
+  [s]() { return new Error('sym'); },
+  [e]() { return new Error('nodesc'); },
+  ['comp' + 'uted']() { return new Error('computed'); },
+  get [s2]() { return new Error('getter'); },
+  get g() { return new Error('plain getter'); },
+  ['x' + 'y']: function () { return new Error('fn'); },
+};
+print(o[s]().stack);
+print(o[e]().stack);
+print(o.computed().stack);
+print(o[s2].stack);
+print(o.g.stack);
+print(o.xy().stack);
+var a = { b: null, n: { m: null } };
+try { a?.b.c; } catch (err) { print(err.stack); }
+try { a?.n.m(); } catch (err) { print(err.stack); }
+try { a?.b
+  .c(); } catch (err) { print(err.stack); }
+try { a.zz`t`; } catch (err) { print(err.stack); }
+function tg() { return new Error('in tag'); }
+print(tg`x${1}`.stack);
+var sp = { get x() { throw new Error('spread getter'); } };
+try { var c = { a: 1,
+  ...sp }; } catch (err) { print(err.stack); }
+function NT() { return new.target ? new Error('constructed') : new Error('called'); }
+print(new NT().stack);
+print(NT().stack);
+try { for (var k in { a: 1 }) { null[k]; } } catch (err) { print(err.stack); }
+",
+        r"Error: sym
+    at [desc] (t.js:3:18)
+    at t.js:10:11
+Error: nodesc
+    at Object.<anonymous> (t.js:4:18)
+    at t.js:11:11
+Error: computed
+    at Object.computed (t.js:5:32)
+    at t.js:12:9
+Error: getter
+    at get [two] (t.js:6:23)
+    at t.js:13:8
+Error: plain getter
+    at get g (t.js:7:20)
+    at t.js:14:9
+Error: fn
+    at Object.xy (t.js:8:37)
+    at t.js:15:9
+TypeError: Cannot read properties of null (reading 'c')
+    at t.js:17:11
+TypeError: a?.n.m is not a function
+    at t.js:18:12
+TypeError: Cannot read properties of null (reading 'c')
+    at t.js:20:3
+TypeError: a.zz is not a function
+    at t.js:21:11
+Error: in tag
+    at tg (t.js:22:24)
+    at t.js:23:9
+Error: spread getter
+    at get x (t.js:24:28)
+    at t.js:26:6
+Error: constructed
+    at new NT (t.js:27:37)
+    at t.js:28:7
+Error: called
+    at NT (t.js:27:64)
+    at t.js:29:7
+TypeError: Cannot read properties of null (reading 'a')
+    at t.js:30:37
 ",
     )]);
 }

@@ -42,9 +42,9 @@ use std::collections::HashMap;
 
 use swb_js_syntax::messages::{NOT_SUPPORTED, STACK_OVERFLOW, TOO_MANY_VARIABLES};
 use swb_js_syntax::{
-    Ast, BindingId, BindingKind, ExprId, Function, FunctionId, FunctionKind, FunctionScope, NameId,
-    Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId, StmtKind, Storage,
-    VariableKind,
+    AssignTarget, Ast, BindingId, BindingKind, ExprId, ForHead, Function, FunctionId, FunctionKind,
+    FunctionScope, NameId, Reference, Resolution, ScopeId, ScopeKind, ScopeTree, Script, StmtId,
+    StmtKind, Storage, VariableKind,
 };
 use swb_js_text::{RecursionBudget, Str16, String16};
 
@@ -131,6 +131,12 @@ pub(super) struct FunctionCompiler<'a> {
     finallys: Vec<Finally>,
     /// The exception handlers, in the order of their creation.
     handlers: Vec<Handler>,
+    /// The short-circuit jumps of the optional chains being compiled,
+    /// innermost last.
+    pub(super) chain_exits: Vec<Vec<usize>>,
+    /// The links of the optional chains being compiled (the member
+    /// accesses and calls along each chain, for source positions).
+    pub(super) chain_links: Vec<ExprId>,
     /// The source offset of the construct being compiled.
     pub(super) position: u32,
     lines: Vec<(u32, u32)>,
@@ -176,6 +182,8 @@ impl<'a> FunctionCompiler<'a> {
             pending_labels: Vec::new(),
             finallys: Vec::new(),
             handlers: Vec::new(),
+            chain_exits: Vec::new(),
+            chain_links: Vec::new(),
             position: function.span.start,
             lines: Vec::new(),
             call_names: Vec::new(),
@@ -254,10 +262,9 @@ impl<'a> FunctionCompiler<'a> {
             _ if function.is_generator => CodeKind::Generator,
             FunctionKind::Normal => CodeKind::Normal,
             FunctionKind::Arrow => CodeKind::Arrow,
-            FunctionKind::Method => CodeKind::Method,
-            FunctionKind::Getter | FunctionKind::Setter => {
-                return Err(self.unsupported("getter or setter"));
-            }
+            // Accessors of object literals are methods (§15.4.5): not
+            // constructors, without `prototype`.
+            FunctionKind::Method | FunctionKind::Getter | FunctionKind::Setter => CodeKind::Method,
             FunctionKind::ClassConstructor
             | FunctionKind::DerivedConstructor
             | FunctionKind::InstanceInitializer
@@ -443,6 +450,13 @@ impl<'a> FunctionCompiler<'a> {
         let index = self.constants.len() as u32;
         self.constants.push(ConstSpec::Number(value));
         self.number_constants.insert(bits, index);
+        index
+    }
+
+    /// A new constant (not shared with equal ones).
+    pub(super) fn push_constant(&mut self, constant: ConstSpec) -> u32 {
+        let index = self.constants.len() as u32;
+        self.constants.push(constant);
         index
     }
 
@@ -661,6 +675,9 @@ impl<'a> FunctionCompiler<'a> {
         for &binding in self.scopes.bindings_of(scope) {
             match self.scopes.binding(binding).kind {
                 BindingKind::This => self.init_special(binding, Insn::This { dst: 0 })?,
+                BindingKind::NewTarget => {
+                    self.init_special(binding, Insn::NewTarget { dst: 0 })?;
+                }
                 BindingKind::Arguments => {
                     if let Some((_, t)) = arguments {
                         self.init_value(binding, t)?;
@@ -676,8 +693,8 @@ impl<'a> FunctionCompiler<'a> {
         Ok(())
     }
 
-    /// Initializes `this` or the callee binding with the value that `load`
-    /// (with any `dst`) produces.
+    /// Initializes `this`, `new.target` or the callee binding with the
+    /// value that `load` (with any `dst`) produces.
     fn init_special(&mut self, binding: BindingId, load: Insn) -> CResult<()> {
         let b = *self.scopes.binding(binding);
         let (Storage::Register(r) | Storage::Cell(r)) = b.storage else {
@@ -685,6 +702,7 @@ impl<'a> FunctionCompiler<'a> {
         };
         let load = match load {
             Insn::Callee { .. } => Insn::Callee { dst: r },
+            Insn::NewTarget { .. } => Insn::NewTarget { dst: r },
             _ => Insn::This { dst: r },
         };
         self.emit(load);
@@ -745,8 +763,13 @@ impl<'a> FunctionCompiler<'a> {
         match statement.kind {
             StmtKind::Empty => {}
             StmtKind::Function(function) => self.block_function_var(function)?,
-            kind @ (StmtKind::ForIn { .. }
-            | StmtKind::ForOf { .. }
+            StmtKind::ForIn {
+                left,
+                right,
+                body,
+                scope,
+            } => self.for_in(left, right, body, scope)?,
+            kind @ (StmtKind::ForOf { .. }
             | StmtKind::With { .. }
             | StmtKind::Import
             | StmtKind::ExportDeclaration(_)
@@ -890,6 +913,7 @@ impl<'a> FunctionCompiler<'a> {
             StmtKind::While { .. }
                 | StmtKind::DoWhile { .. }
                 | StmtKind::For { .. }
+                | StmtKind::ForIn { .. }
                 | StmtKind::Labeled { .. }
         ) {
             return self.stmt(body);
@@ -995,6 +1019,100 @@ impl<'a> FunctionCompiler<'a> {
             exits,
             Some((scope, per_iteration, update, top)),
         )
+    }
+
+    /// `for (left in right) body` (§14.7.5.6 `ForIn/OfHeadEvaluation`,
+    /// §14.7.5.7 `ForIn/OfBodyEvaluation`, Annex B.3.5 for the initializer
+    /// of `var`). The keys come from an iterator that the VM makes
+    /// (`ForInStart`); `ForInNext` puts each key into a register or ends
+    /// the loop. A `let` or `const` binding that is a cell gets a new cell
+    /// in each iteration.
+    fn for_in(
+        &mut self,
+        left: ForHead,
+        right: ExprId,
+        body: StmtId,
+        scope: ScopeId,
+    ) -> CResult<()> {
+        let labels = std::mem::take(&mut self.pending_labels);
+        let declaration = match left {
+            ForHead::Declaration(stmt) => {
+                let StmtKind::Variables { kind, declarators } = self.ast.stmt(stmt).kind else {
+                    return Err(Self::internal("a for-in declaration without variables"));
+                };
+                let [declarator] = self.ast.declarators(declarators) else {
+                    return Err(Self::internal("a for-in declaration with several bindings"));
+                };
+                let declarator = *declarator;
+                if kind == VariableKind::Var && declarator.init.is_some() {
+                    self.declarator(kind, declarator.target, declarator.init)?;
+                }
+                Some((kind, declarator.target))
+            }
+            ForHead::Target(_) => None,
+        };
+        // The value of a loop that does not run its body is `undefined`
+        // (§14.7.5.7 step 2; a nullish object breaks with an empty value,
+        // which §14.7.1.1 turns into `undefined`).
+        if let Some(completion) = self.completion {
+            self.emit(Insn::Undefined { dst: completion });
+        }
+        self.enter_scope(scope)?;
+        let iterator = self.temp()?;
+        let key = self.temp()?;
+        self.expr(right, Some(iterator))?;
+        self.position = self.ast.expr(right).span.start;
+        self.emit(Insn::ForInStart {
+            dst: iterator,
+            src: iterator,
+        });
+        let top = self.here();
+        let exit = self.emit(Insn::ForInNext {
+            dst: key,
+            iter: iterator,
+            offset: 0,
+        });
+        match (declaration, left) {
+            (Some((kind, target)), _) => self.for_in_binding(kind, target, key)?,
+            (None, ForHead::Target(AssignTarget::Simple(target))) => {
+                self.assign_to_target(target, key)?;
+            }
+            (None, _) => return Err(self.unsupported("destructuring")),
+        }
+        self.loop_body(labels, body, Some(top), vec![exit], None)?;
+        // After a `break`, the register still holds the iterator and its
+        // key list; release them now, not when the register is reused.
+        self.emit(Insn::Undefined { dst: iterator });
+        Ok(())
+    }
+
+    /// The binding of a `for`-`in` declaration gets the key in `key`.
+    fn for_in_binding(
+        &mut self,
+        kind: VariableKind,
+        target: swb_js_syntax::PatternId,
+        key: Reg,
+    ) -> CResult<()> {
+        let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind else {
+            return Err(self.unsupported("destructuring"));
+        };
+        if kind == VariableKind::Var {
+            return self.store_ref(ident.reference, key);
+        }
+        let binding = self
+            .reference(ident.reference)
+            .binding
+            .ok_or(Self::internal("a declaration without a binding"))?;
+        match self.scopes.binding(binding).storage {
+            // A new binding per iteration (§14.7.5.7 step 6.g): closures
+            // of earlier iterations keep their cells.
+            Storage::Cell(r) => {
+                self.emit(Insn::Move { dst: r, src: key });
+                self.emit(Insn::MakeCell { reg: r });
+                Ok(())
+            }
+            _ => self.init_binding(binding, key),
+        }
     }
 
     /// The body of a loop, its continue target and its exit. For `while`,

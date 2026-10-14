@@ -2332,3 +2332,378 @@ const BUILTINS_MESSAGES: &[(&str, &str)] = &[
         "Cannot assign to read only property 'callee' of object '#<Object>'",
     ),
 ];
+
+// --- M7 feature 3a: `for`-`in`, object literals, optional chaining, tagged
+// templates, `new.target`. Expected outputs from Node.js 22. ---
+
+#[test]
+fn for_in() {
+    check_cases(FOR_IN);
+}
+
+#[test]
+fn object_literals() {
+    check_cases(OBJECT_LITERALS);
+}
+
+#[test]
+fn optional_chaining() {
+    check_cases(OPTIONAL_CHAINING);
+}
+
+#[test]
+fn tagged_templates() {
+    check_cases(TAGGED_TEMPLATES);
+}
+
+#[test]
+fn new_target() {
+    check_cases(NEW_TARGET);
+}
+
+const FOR_IN: &[(&str, &str)] = &[
+    (
+        "var r = []; for (var k in { a: 1, b: 2, 1: 'x', 0: 'y' }) r.push(k); print(r.join(), typeof k);",
+        "0,1,a,b string",
+    ),
+    (
+        "var p = { x: 1, y: 2 }; var o = Object.create(p); o.a = 1; o.y = 3; var r = []; for (var k in o) r.push(k); print(r.join());",
+        "a,y,x",
+    ),
+    (
+        "var p = { h: 1, v: 2 }; var o = Object.create(p); Object.defineProperty(o, 'h', { value: 0, enumerable: false }); var r = []; for (var k in o) r.push(k); print(r.join());",
+        "v",
+    ),
+    (
+        "var r = []; for (var k in null) r.push(k); for (var k2 in undefined) r.push(k2); print(r.length, k, k2);",
+        "0 undefined undefined",
+    ),
+    (
+        "var r = []; for (var k in 'ab') r.push(k); for (var k2 in new String('c')) r.push(k2); for (var k3 in 5) r.push(k3); print(r.join());",
+        "0,1,0",
+    ),
+    (
+        "var a = [1, , 3]; a.x = 'x'; var r = []; for (var k in a) r.push(k); print(r.join());",
+        "0,2,x",
+    ),
+    (
+        "var o = { a: 1, b: 2, c: 3 }; var r = []; for (var k in o) { if (k === 'a') { delete o.b; o.d = 4; } r.push(k); } print(r.join());",
+        "a,c",
+    ),
+    (
+        "var p = { z: 1 }; var o = Object.create(p); o.a = 1; var r = []; for (var k in o) { if (k === 'a') { delete p.z; p.w = 2; } r.push(k); } print(r.join());",
+        "a",
+    ),
+    (
+        "var o = { a: 1, b: 2 }; var r = []; for (var k in o) { if (k === 'a') Object.defineProperty(o, 'b', { enumerable: false }); r.push(k); } print(r.join());",
+        "a,b",
+    ),
+    (
+        "var p = { x: 1 }; var o = Object.create(p); o.a = 1; var r = []; for (var k in o) { Object.setPrototypeOf(o, { y: 1 }); r.push(k); } print(r.join());",
+        "a",
+    ),
+    (
+        "var o = Object.create(null); o.b = 1; o[2] = 2; o.a = 3; o[1] = 4; var s = Symbol(); o[s] = 5; var r = []; for (var k in o) r.push(k); print(r.join());",
+        "1,2,b,a",
+    ),
+    (
+        "var fns = []; for (let k in { a: 1, b: 2 }) fns.push(function () { return k; }); print(fns[0](), fns[1]());",
+        "a b",
+    ),
+    (
+        "var fns = []; for (const k in { x: 1, y: 2 }) fns.push(() => k); print(fns[0](), fns[1]());",
+        "x y",
+    ),
+    (
+        "try { for (const k in { x: 1 }) { k = 2; } } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError Assignment to constant variable.",
+    ),
+    (
+        "try { for (let z in z) {} } catch (e) { print(e.constructor.name, e.message); }",
+        "ReferenceError Cannot access 'z' before initialization",
+    ),
+    (
+        "var g; try { for (let w in (g = function () { return w; }, { a: 1 })) {} g(); } catch (e) { print(e.constructor.name, e.message); }",
+        "ReferenceError Cannot access 'w' before initialization",
+    ),
+    (
+        "var t = {}; for (t.p in { a: 1, b: 2 }) {} var u = []; var i = 0; for (u[i++] in { x: 1, y: 2 }) {} print(t.p, u.join(), i);",
+        "b x,y 2",
+    ),
+    (
+        "for (var v = 'init' in {}) {} for (var w = 'init' in { q: 1 }) {} print(v, w);",
+        "init q",
+    ),
+    (
+        "var out = []; outer: for (var a in { a1: 1, a2: 2 }) { for (var b in { b1: 1, b2: 2 }) { if (b === 'b2') continue outer; if (a === 'a2') break outer; out.push(a + b); } } print(out.join());",
+        "a1b1",
+    ),
+    (
+        "var log = []; function f() { for (var x in { a: 1, b: 2 }) { try { return x; } finally { log.push('finally ' + x); } } } print(f(), log.join());",
+        "a finally a",
+    ),
+    (
+        "function* gen() { for (var x in { a: 1, b: 2, c: 3 }) yield x; } var it = gen(); print(it.next().value, it.next().value, it.next().value, it.next().done);",
+        "a b c true",
+    ),
+    (
+        "function args() { var r = []; for (var x in arguments) r.push(x); return r.join(); } print(args('a', 'b', 'c'));",
+        "0,1,2",
+    ),
+    (
+        "function F() {} F.prototype.m = function () {}; var o = new F(); o.own = 1; var r = []; for (var k in o) r.push(k); for (var k2 in function () {}) r.push(k2); print(r.join());",
+        "own,m",
+    ),
+    (
+        "try { (function () { 'use strict'; for (undeclared in { a: 1 }) {} })(); } catch (e) { print(e.constructor.name, e.message); }",
+        "ReferenceError undeclared is not defined",
+    ),
+    (
+        "for (implicitGlobal in { zz: 1 }) {} print(implicitGlobal);",
+        "zz",
+    ),
+    (
+        "var log = []; function target() { log.push('target'); return {}; } for (target().k in { a: 1, b: 2 }) { log.push('body'); } print(log.join());",
+        "target,body,target,body",
+    ),
+    (
+        "var o = {}; for (var j = 0; j < 100; j++) o['k' + j] = j; var n = 0; for (var k in o) { delete o['k' + (99 - n)]; n++; } print(n);",
+        "50",
+    ),
+    (
+        "var p = { a: 1 }; for (var i = 0; i < 50; i++) { p = Object.create(p); p['k' + i] = i; p.a = i; } var r = []; for (var k in p) r.push(k); print(r.length, r[0], r[1], r[50]);",
+        "51 k49 a k0",
+    ),
+    (
+        "var r = []; for (var k in { get g() { return 1; }, v: 2 }) r.push(k); for (var k2 in Object.freeze({ f: 1 })) r.push(k2); print(r.join());",
+        "g,v,f",
+    ),
+    (
+        "var n = 0; for (var x in { a: 1 }) { var inner = () => x; } print(inner(), (function () { for (var y in { b: 1 }) {} return y; })());",
+        "a b",
+    ),
+    (
+        "var o = { a: 1, b: 2 }; var r = []; for (var k in o) { r.push(k); gc(); } print(r.join());",
+        "a,b",
+    ),
+    (
+        "function f() { return {}; } var r = []; try { for (f() in { a: 1 }); } catch (e) { r.push(e.name + ': ' + e.message); } try { f()++; } catch (e) { r.push(e.message); } try { --f(); } catch (e) { r.push(e.message); } try { f() = 1; } catch (e) { r.push(e.message); } print(r.join(' / '));",
+        "ReferenceError: Invalid left-hand side in for-loop / Invalid left-hand side expression in postfix operation / Invalid left-hand side expression in prefix operation / Invalid left-hand side in assignment",
+    ),
+];
+
+const OBJECT_LITERALS: &[(&str, &str)] = &[
+    (
+        "var o = { get a() { return 1; }, set a(v) { this.v = v; } }; o.a = 5; var d = Object.getOwnPropertyDescriptor(o, 'a'); print(o.a, o.v, d.enumerable, d.configurable, d.get.name, d.set.name, d.get.length, d.set.length);",
+        "1 5 true true get a set a 0 1",
+    ),
+    (
+        "var o = { a: 1, get a() { return 2; } }; var d = Object.getOwnPropertyDescriptor(o, 'a'); print(o.a, typeof d.get, d.set, 'value' in d);",
+        "2 function undefined false",
+    ),
+    (
+        "var o = { get a() { return 2; }, a: 3 }; var d = Object.getOwnPropertyDescriptor(o, 'a'); print(o.a, d.writable, 'get' in d);",
+        "3 true false",
+    ),
+    (
+        "var o = { get 1() { return 'one'; }, get 'x y'() { return 'xy'; } }; print(o[1], o['x y'], Object.getOwnPropertyDescriptor(o, '1').get.name, Object.getOwnPropertyDescriptor(o, 'x y').get.name);",
+        "one xy get 1 get x y",
+    ),
+    (
+        "var g = Object.getOwnPropertyDescriptor({ get a() {} }, 'a').get; print('prototype' in g, Object.getPrototypeOf(g) === Function.prototype); try { new g(); } catch (e) { print(e.constructor.name); }",
+        "false true\nTypeError",
+    ),
+    (
+        "var s = Symbol('desc'); var e = Symbol(); var o = { [s]() {}, [e]() {}, ['k' + 1]: function () {}, ['a' + 'r']: () => {}, get [s]() { return 1; } }; print(Object.getOwnPropertyDescriptor(o, s).get.name, o[e].name === '', o.k1.name, o.ar.name);",
+        "get [desc] true k1 ar",
+    ),
+    (
+        "var s = Symbol('x'); var o = { set [s](v) {}, [1 + 1]() {}, [s.description]: function named() {} }; print(Object.getOwnPropertyDescriptor(o, s).set.name, o[2].name, o.x.name);",
+        "set [x] 2 named",
+    ),
+    (
+        "var order = []; var o = { [(order.push('k1'), 'a')]: order.push('v1'), get [(order.push('k2'), 'b')]() {}, [(order.push('k3'), 'c')]: order.push('v3') }; print(order.join(), Object.keys(o).join());",
+        "k1,v1,k2,k3,v3 a,b,c",
+    ),
+    (
+        "var o = { ...{ a: 1, b: 2 }, c: 3, ...{ a: 4 } }; print(Object.keys(o).join(), o.a, o.b, o.c);",
+        "a,b,c 4 2 3",
+    ),
+    (
+        "var o = { ...null, ...undefined, ...5, ...true, ...'hi' }; print(Object.keys(o).join(), o[0], o[1]);",
+        "0,1 h i",
+    ),
+    (
+        "var s = Symbol('s'); var src = { [s]: 1, z: 2 }; Object.defineProperty(src, 'hid', { value: 1, enumerable: false }); var o = { ...src }; print(o[s], o.z, 'hid' in o);",
+        "1 2 false",
+    ),
+    (
+        "var log = []; var src = { get a() { log.push('a'); delete this.b; return 1; }, b: 2, c: 3 }; var o = { ...src }; print(log.join(), Object.keys(o).join(), Object.getOwnPropertyDescriptor(o, 'a').value);",
+        "a a,c 1",
+    ),
+    (
+        "var o = { ...[1, 2], length: 0 }; print(Object.keys(o).join(), Array.isArray(o));",
+        "0,1,length false",
+    ),
+    (
+        "var p = { inherited: 1 }; var src = Object.create(p); src.own = 2; var o = { ...src }; print(Object.keys(o).join());",
+        "own",
+    ),
+    (
+        "var frozen = Object.freeze({ a: 1 }); var o = { ...frozen }; o.a = 2; var d = Object.getOwnPropertyDescriptor(o, 'a'); print(o.a, d.writable, d.enumerable, d.configurable);",
+        "2 true true true",
+    ),
+    (
+        "try { ({ ...{ get x() { throw new Error('boom'); } } }); } catch (e) { print(e.message); }",
+        "boom",
+    ),
+    (
+        "var o = { __proto__: { inherited: true }, own: 1 }; print(o.inherited, Object.keys(o).join(), Object.getPrototypeOf(o) === Object.prototype);",
+        "true own false",
+    ),
+    (
+        "var o = { ['__proto__']: 1 }; print(Object.keys(o).join(), Object.getPrototypeOf(o) === Object.prototype);",
+        "__proto__ true",
+    ),
+];
+
+const OPTIONAL_CHAINING: &[(&str, &str)] = &[
+    (
+        "var a = { b: { c: 1 }, n: null }; print(a?.b?.c, a?.x?.y, a.n?.z, a?.['b'].c, a?.b.c);",
+        "1 undefined undefined 1 1",
+    ),
+    (
+        "var u; print(u?.b.c.d, u?.[print('not evaluated')], u?.(), u?.b(), null?.x, 0?.toString(), ''?.length);",
+        "undefined undefined undefined undefined undefined 0 0",
+    ),
+    (
+        "var o = { f() { return this === o; }, g: null }; print(o.f?.(), o?.f(), (o?.f)(), o.g?.(), o['f']?.());",
+        "true true true undefined true",
+    ),
+    (
+        "var a = { b: 1 }; var u = null; print(delete u?.b, delete a?.b, 'b' in a); try { delete a?.x.y; } catch (e) { print(e.message); }",
+        "true true false\nCannot convert undefined or null to object",
+    ),
+    (
+        "var a = { x: undefined }; try { a.x?.y.z; print('short'); } catch (e) { print(e.message); } try { (a?.x).y; } catch (e) { print(e.message); }",
+        "short\nCannot read properties of undefined (reading 'y')",
+    ),
+    (
+        "var a = {}; try { a?.x(); } catch (e) { print(e.message); } try { a?.['x'](); } catch (e) { print(e.message); } try { a.y?.z(); print('ok'); } catch (e) { print(e.message); }",
+        "a?.x is not a function\na?.x is not a function\nok",
+    ),
+    (
+        "var n = 0; function g() { n++; return null; } print(g()?.[n++], n);",
+        "undefined 1",
+    ),
+    (
+        "var a = { b: { c() { return this.d; }, d: 5 } }; print(a?.b.c(), a.b?.c(), a?.b?.['c']?.());",
+        "5 5 5",
+    ),
+    (
+        "var a = null; var r = a?.b ?? 'default'; print(r, typeof a?.b);",
+        "default undefined",
+    ),
+    (
+        "function f(o) { return o?.p?.q; } print(f(), f({}), f({ p: { q: 3 } }));",
+        "undefined undefined 3",
+    ),
+];
+
+const TAGGED_TEMPLATES: &[(&str, &str)] = &[
+    (
+        "function tag(s, a, b) { return [s.length, s.join('|'), s.raw.join('|'), a, b, arguments.length].join(' '); } print(tag`a${1}b${2}c`);",
+        "3 a|b|c a|b|c 1 2 3",
+    ),
+    (
+        "function id(s) { return s; } var x = []; for (var i = 0; i < 3; i++) x.push(id`same`); print(x[0] === x[1], x[1] === x[2]);",
+        "true true",
+    ),
+    (
+        "function id(s) { return s; } function mk() { return id`site`; } print(mk() === mk(), id`site` === mk());",
+        "true false",
+    ),
+    (
+        "function id(s) { return s; } var t = id`a${0}b`; print(Object.isFrozen(t), Object.isFrozen(t.raw), Array.isArray(t), Array.isArray(t.raw), t.length, t.raw.length);",
+        "true true true true 2 2",
+    ),
+    (
+        "function id(s) { return s; } var t = id`x`; var d = Object.getOwnPropertyDescriptor(t, 'raw'); var e = Object.getOwnPropertyDescriptor(t, '0'); print(d.writable, d.enumerable, d.configurable, e.writable, e.enumerable, e.configurable);",
+        "false false false false true false",
+    ),
+    (
+        "function id(s) { return s; } var t = id`\\unicode and \\u{110000} ok`; print(t[0] === undefined, t.raw[0]);",
+        "true \\unicode and \\u{110000} ok",
+    ),
+    (
+        "function id(s) { return s; } var t = id`line\\nnext`; print(t[0].length, t.raw[0].length);",
+        "9 10",
+    ),
+    (
+        "var o = { m(s) { return this === o; } }; print(o.m`x`, o['m']`y`);",
+        "true true",
+    ),
+    (
+        "var u; try { u`x`; } catch (e) { print(e.message); } var a = {}; try { a.zz`x`; } catch (e) { print(e.message); }",
+        "u is not a function\na.zz is not a function",
+    ),
+    (
+        "var order = []; function tag() { order.push('call'); } function sub(n) { order.push('sub' + n); } tag`${sub(1)}${sub(2)}`; print(order.join());",
+        "sub1,sub2,call",
+    ),
+    (
+        "function f(s) { return s[0]; } print(f`a\\`b`, f``.length, f`${1}`.length);",
+        "a`b 0 0",
+    ),
+    (
+        "var calls = 0; function t(s) { calls++; return s; } function site() { return t`x`; } var first = site(); for (var i = 0; i < 1000; i++) { if (site() !== first) throw 'differs'; } print(calls);",
+        "1001",
+    ),
+    (
+        "function tg() { return 1; } var o = { m: tg }; var r = []; try { tg`x``y`; } catch (e) { r.push(e.message); } try { new tg`x`; } catch (e) { r.push(e.message); } try { o.m`x`.p(); } catch (e) { r.push(e.message); } print(r.join(' / '));",
+        "tg(...) is not a function / tg(...) is not a constructor / o.m(...).p is not a function",
+    ),
+];
+
+const NEW_TARGET: &[(&str, &str)] = &[
+    (
+        "function F() { return new.target; } print(F() === undefined, new F() === F);",
+        "true true",
+    ),
+    (
+        "function G() { var arrow = () => new.target; return arrow(); } print(G() === undefined, new G() === G);",
+        "true true",
+    ),
+    (
+        "function H() { return (() => () => new.target)()(); } print(new H() === H, H());",
+        "true undefined",
+    ),
+    (
+        "function P() { this.nt = new.target; } var p = new P(); print(p.nt === P, Reflect.construct(P, []).nt === P);",
+        "true true",
+    ),
+    (
+        "function A() { return new.target; } function B() {} var r = Reflect.construct(A, [], B); print(r === B);",
+        "true",
+    ),
+    (
+        "function C() { return new.target; } var Bound = C.bind(null); print(new Bound() === C);",
+        "true",
+    ),
+    (
+        "function D() { if (!new.target) return 'call'; this.x = 1; } print(D(), new D().x);",
+        "call 1",
+    ),
+    (
+        "function E() { return typeof new.target; } print(E(), typeof new E());",
+        "undefined object",
+    ),
+    (
+        "function* gen() { yield new.target; } print(gen().next().value);",
+        "undefined",
+    ),
+    (
+        "var o = { m() { return new.target; } }; print(o.m());",
+        "undefined",
+    ),
+];

@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-14: M7 feature 3a, `for`-`in`, object literals, optional chains, tagged templates
+
+- Plan: feature 3 (language semantics) is split into five sessions
+  (3a to 3e in the roadmap), ordered by the test262 tests that each
+  construct blocks: before the split, the compiler rejected about
+  1,920 `test/language/` tests at `class`, 1,710 at destructuring,
+  560 at `for`-`of` and 375 at `for`-`in`, and 1,420 tests of the
+  built-ins groups stopped at `for`-`in` (`propertyHelper.js`).
+- `js`: `for`-`in` (`vm/for_in.rs`, `ForInStart`/`ForInNext`) with
+  V8's choices where §14.7.5.9 leaves them: the keys of the object and
+  its prototypes are collected at the start, a key that
+  `[[HasProperty]]` no longer finds is skipped, added keys are not
+  visited (50 mutation and order cases equal to Node 22). The key list
+  is an internal heap object, reserved first and counted in the heap;
+  each key and each prototype walked costs a time step.
+- Getters, setters and spread in object literals, the run-time names
+  of methods and accessors with computed keys (`vm/literal.rs`),
+  optional chains, tagged templates (one frozen template object per
+  site and realm, cached in the code object) and `new.target`.
+- Review: no bugs; 1,500 probe cases equal to Node, also in GC stress
+  mode; 11 hostile scripts end by the time or heap limit. Fixed: V8's
+  messages for an assignment to a call in an update or a `for` head,
+  the callee text of a tagged template, and the key list of a
+  `for`-`in` left in a register after `break`. Backlog: reads, `in`
+  and `[[Set]]` along a long prototype chain are not charged per
+  prototype (a loop of failed reads on a chain of 100,000 objects ran
+  7 s past a 100 ms limit).
+- Runtime test262: 10,065 pass (was 8,429); 1,289 of the 1,428
+  built-ins tests that stopped at `for`-`in` pass. Parse-only
+  unchanged (41,882). Next: 3b, iteration and destructuring.
+
 ## 2026-10-10: M7 feature 2c, errors, `stack` and the rest of `Function`; end of feature 2
 
 - `js`: `AggregateError`, `cause`, `Error.prototype.toString`, and

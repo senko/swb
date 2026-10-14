@@ -583,6 +583,7 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         default: atom("default")?,
         next: atom("next")?,
         return_: atom("return")?,
+        raw: atom("raw")?,
     })
 }
 

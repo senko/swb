@@ -16,7 +16,10 @@ use swb_js_text::String16;
 
 use super::CResult;
 use super::function::{EXPR_WEIGHT, FunctionCompiler};
-use crate::bytecode::{Insn, Reg};
+use crate::bytecode::{
+    INVALID_TARGET_ASSIGN, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, Insn,
+    NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, Reg,
+};
 use crate::vm::number::number_to_string;
 
 /// How many nodes `may_write_locals` looks at before it gives up.
@@ -52,7 +55,9 @@ impl FunctionCompiler<'_> {
     fn expr_kind(&mut self, e: ExprId, kind: ExprKind, dst: Option<Reg>) -> CResult<Reg> {
         match kind {
             ExprKind::Identifier(ident) => self.load_ref(ident.reference, dst),
-            ExprKind::This(reference) => self.load_ref(reference, dst),
+            ExprKind::This(reference) | ExprKind::NewTarget(reference) => {
+                self.load_ref(reference, dst)
+            }
             ExprKind::Null => {
                 let t = self.target(dst)?;
                 self.emit(Insn::Null { dst: t });
@@ -118,27 +123,42 @@ impl FunctionCompiler<'_> {
                 self.expr(last, dst)
             }
             ExprKind::Member {
-                object, property, ..
+                object,
+                property,
+                optional,
             } => {
                 let t = self.target(dst)?;
                 let mark = self.mark();
                 let obj = self.expr(object, None)?;
+                if optional {
+                    self.chain_jump(obj)?;
+                }
                 let site = self.site(self.name_text(property));
-                self.position = self.name_position(e);
+                self.position = self.read_position(e);
                 self.emit(Insn::GetNamed { dst: t, obj, site });
                 self.release(mark);
                 Ok(t)
             }
-            ExprKind::Index { object, index, .. } => {
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            } => {
                 let t = self.target(dst)?;
                 let mark = self.mark();
                 if let Some(text) = self.constant_key(index) {
                     let obj = self.expr(object, None)?;
+                    if optional {
+                        self.chain_jump(obj)?;
+                    }
                     let site = self.site(text);
                     self.position = self.bracket_position(e);
                     self.emit(Insn::GetNamed { dst: t, obj, site });
                 } else {
                     let obj = self.expr_stable(object, &[index])?;
+                    if optional {
+                        self.chain_jump(obj)?;
+                    }
                     let key = self.expr(index, None)?;
                     self.position = self.bracket_position(e);
                     self.emit(Insn::GetIndex { dst: t, obj, key });
@@ -147,13 +167,26 @@ impl FunctionCompiler<'_> {
                 Ok(t)
             }
             ExprKind::Call {
-                callee, arguments, ..
-            } => self.call(callee, arguments, dst, false),
-            ExprKind::New { callee, arguments } => self.call(callee, arguments, dst, true),
+                callee,
+                arguments,
+                optional,
+            } => self.call(
+                callee,
+                CallArgs::List(arguments),
+                dst,
+                CallKind::Call { optional },
+            ),
+            ExprKind::New { callee, arguments } => {
+                self.call(callee, CallArgs::List(arguments), dst, CallKind::New)
+            }
+            ExprKind::TaggedTemplate { tag, template } => self.call(
+                tag,
+                CallArgs::Template(template),
+                dst,
+                CallKind::Call { optional: false },
+            ),
+            ExprKind::OptionalChain(inner) => self.optional_chain(inner, dst),
             ExprKind::Spread(_)
-            | ExprKind::OptionalChain(_)
-            | ExprKind::TaggedTemplate { .. }
-            | ExprKind::NewTarget(_)
             | ExprKind::BigInt(_)
             | ExprKind::Class(_)
             | ExprKind::Await(_)
@@ -472,7 +505,6 @@ impl FunctionCompiler<'_> {
                 | ExprKind::Spread(_)
                 | ExprKind::OptionalChain(_)
                 | ExprKind::TaggedTemplate { .. }
-                | ExprKind::NewTarget(_)
                 | ExprKind::BigInt(_)
                 | ExprKind::Class(_)
                 | ExprKind::Await(_)
@@ -485,6 +517,7 @@ impl FunctionCompiler<'_> {
                 | ExprKind::ImportMeta => return true,
                 ExprKind::Identifier(_)
                 | ExprKind::This(_)
+                | ExprKind::NewTarget(_)
                 | ExprKind::Null
                 | ExprKind::Boolean(_)
                 | ExprKind::Number(_)
@@ -548,17 +581,16 @@ impl FunctionCompiler<'_> {
             UnaryOp::Delete => {
                 let inner = self.unparen(argument);
                 match self.ast.expr(inner).kind {
-                    ExprKind::Member {
-                        object, property, ..
-                    } => {
-                        let obj = self.expr(object, None)?;
-                        let site = self.site(self.name_text(property));
-                        self.emit(Insn::DeleteNamed { dst: t, obj, site });
+                    ExprKind::Member { .. } | ExprKind::Index { .. } => {
+                        self.delete_property_of(inner, t, false)?;
                     }
-                    ExprKind::Index { object, index, .. } => {
-                        let obj = self.expr_stable(object, &[index])?;
-                        let key = self.expr(index, None)?;
-                        self.emit(Insn::DeleteIndex { dst: t, obj, key });
+                    ExprKind::OptionalChain(last)
+                        if matches!(
+                            self.ast.expr(last).kind,
+                            ExprKind::Member { .. } | ExprKind::Index { .. }
+                        ) =>
+                    {
+                        self.delete_property_of(last, t, true)?;
                     }
                     ExprKind::Identifier(ident) => {
                         let reference = self.reference(ident.reference);
@@ -885,8 +917,15 @@ impl FunctionCompiler<'_> {
         let t = self.target(dst)?;
         let mark = self.mark();
         let object = self.temp()?;
+        let start = self.position;
         self.emit(Insn::NewObject { dst: object });
-        for property in self.ast.properties(properties).to_vec() {
+        for (i, property) in self
+            .ast
+            .properties(properties)
+            .to_vec()
+            .into_iter()
+            .enumerate()
+        {
             self.position = property.span.start;
             let inner = self.mark();
             match property.kind {
@@ -904,6 +943,13 @@ impl FunctionCompiler<'_> {
                         self.expr(key, Some(k))?;
                         self.emit(Insn::ToKey { dst: k, src: k });
                         let v = self.expr(property.value, None)?;
+                        if self.is_anonymous_function(property.value) {
+                            self.emit(Insn::SetFunctionName {
+                                func: v,
+                                key: k,
+                                prefix: NAME_PREFIX_NONE,
+                            });
+                        }
                         self.emit(Insn::DefineIndex {
                             obj: object,
                             key: k,
@@ -919,9 +965,23 @@ impl FunctionCompiler<'_> {
                     });
                 }
                 PropertyKind::Getter | PropertyKind::Setter => {
-                    return Err(self.unsupported("getter or setter"));
+                    self.accessor_property(object, property)?;
                 }
-                PropertyKind::Spread => return Err(self.unsupported("object spread")),
+                PropertyKind::Spread => {
+                    let v = self.expr(property.value, None)?;
+                    // Chromium reports a getter that the copy calls at
+                    // the start of the literal for a first spread, else at
+                    // the spread's operand.
+                    self.position = if i == 0 {
+                        start
+                    } else {
+                        self.ast.expr(property.value).span.start
+                    };
+                    self.emit(Insn::CopyDataProperties {
+                        obj: object,
+                        src: v,
+                    });
+                }
             }
             self.release(inner);
         }
@@ -931,6 +991,73 @@ impl FunctionCompiler<'_> {
         });
         self.release(mark);
         Ok(t)
+    }
+
+    /// A getter or setter of an object literal (§15.4.5
+    /// `MethodDefinitionEvaluation`): the key, the function with the name
+    /// `get key` or `set key` (§10.2.9 `SetFunctionName`; at run time for
+    /// a computed key) and the accessor property.
+    fn accessor_property(&mut self, object: Reg, property: swb_js_syntax::Property) -> CResult<()> {
+        let getter = property.kind == PropertyKind::Getter;
+        let k = self.temp()?;
+        let computed = match property.key {
+            AstKey::Computed(key) => {
+                self.expr(key, Some(k))?;
+                self.emit(Insn::ToKey { dst: k, src: k });
+                true
+            }
+            key => {
+                let text = self
+                    .key_text(key)
+                    .ok_or(Self::internal("an accessor with a BigInt key"))?;
+                let prefix = if getter { "get " } else { "set " };
+                let mut name = String16::from(prefix);
+                name.push_str16(text.as_str16());
+                if let ExprKind::Function(function) = self.ast.expr(property.value).kind {
+                    self.session.inferred_names.insert(function, name);
+                }
+                let index = self.string_const(text);
+                self.emit(Insn::Const { dst: k, index });
+                false
+            }
+        };
+        let v = self.expr(property.value, None)?;
+        if computed {
+            let prefix = if getter {
+                NAME_PREFIX_GET
+            } else {
+                NAME_PREFIX_SET
+            };
+            self.emit(Insn::SetFunctionName {
+                func: v,
+                key: k,
+                prefix,
+            });
+        }
+        let insn = if getter {
+            Insn::DefineGetter {
+                obj: object,
+                key: k,
+                src: v,
+            }
+        } else {
+            Insn::DefineSetter {
+                obj: object,
+                key: k,
+                src: v,
+            }
+        };
+        self.emit(insn);
+        Ok(())
+    }
+
+    /// `IsAnonymousFunctionDefinition` (§8.4.3) for the function kinds that
+    /// compile: a function expression without a name or an arrow function.
+    pub(super) fn is_anonymous_function(&self, e: ExprId) -> bool {
+        matches!(
+            self.ast.expr(self.unparen(e)).kind,
+            ExprKind::Function(function) if self.ast.function(function).name.is_none()
+        )
     }
 
     /// The key text of a constant index expression (`o["x"]`, `o[0]`).
@@ -998,7 +1125,9 @@ impl FunctionCompiler<'_> {
                 // Annex B web compatibility: the call runs, then the
                 // assignment throws (Chromium's behaviour).
                 self.effect(target)?;
-                self.emit(Insn::ThrowInvalidAssign);
+                self.emit(Insn::ThrowInvalidAssign {
+                    context: INVALID_TARGET_ASSIGN,
+                });
                 self.target(dst)
             }
             _ => Err(Self::internal("an assignment to an invalid target")),
@@ -1132,6 +1261,56 @@ impl FunctionCompiler<'_> {
         Ok(t)
     }
 
+    /// `PutValue` of the value in `value` to a simple assignment target
+    /// that is evaluated now (a `for`-`in` target, §14.7.5.7 step 6.c).
+    pub(super) fn assign_to_target(&mut self, target: ExprId, value: Reg) -> CResult<()> {
+        let target = self.unparen(target);
+        let mark = self.mark();
+        match self.ast.expr(target).kind {
+            ExprKind::Identifier(ident) => self.store_ref(ident.reference, value)?,
+            ExprKind::Member {
+                object, property, ..
+            } => {
+                let obj = self.expr(object, None)?;
+                let site = self.site(self.name_text(property));
+                self.emit(Insn::SetNamed {
+                    obj,
+                    src: value,
+                    site,
+                });
+            }
+            ExprKind::Index { object, index, .. } => {
+                if let Some(text) = self.constant_key(index) {
+                    let obj = self.expr(object, None)?;
+                    let site = self.site(text);
+                    self.emit(Insn::SetNamed {
+                        obj,
+                        src: value,
+                        site,
+                    });
+                } else {
+                    let obj = self.expr_stable(object, &[index])?;
+                    let key = self.expr(index, None)?;
+                    self.emit(Insn::SetIndex {
+                        obj,
+                        key,
+                        src: value,
+                    });
+                }
+            }
+            ExprKind::Call { .. } => {
+                // Annex B web compatibility, as for `f() = v`.
+                self.effect(target)?;
+                self.emit(Insn::ThrowInvalidAssign {
+                    context: INVALID_TARGET_FOR,
+                });
+            }
+            _ => return Err(Self::internal("an assignment to an invalid target")),
+        }
+        self.release(mark);
+        Ok(())
+    }
+
     fn emit_get(&mut self, dst: Reg, obj: Reg, key: KeyReg) {
         match key {
             KeyReg::Site(site) => self.emit(Insn::GetNamed { dst, obj, site }),
@@ -1222,7 +1401,12 @@ impl FunctionCompiler<'_> {
             }
             ExprKind::Call { .. } => {
                 self.effect(target)?;
-                self.emit(Insn::ThrowInvalidAssign);
+                let context = if prefix {
+                    INVALID_TARGET_PREFIX
+                } else {
+                    INVALID_TARGET_POSTFIX
+                };
+                self.emit(Insn::ThrowInvalidAssign { context });
                 self.target(dst)
             }
             _ => Err(Self::internal("an update of an invalid target")),
@@ -1231,18 +1415,29 @@ impl FunctionCompiler<'_> {
 
     // --- Calls ---
 
-    /// A call or `new` (§13.3.6, §13.3.5): the callee, `this` and the
-    /// arguments in consecutive registers; the result in the callee's
-    /// register.
+    /// A call, `new` or a tagged template (§13.3.6, §13.3.5, §13.3.11):
+    /// the callee, `this` and the arguments in consecutive registers; the
+    /// result in the callee's register. A member callee gives `this`.
     fn call(
         &mut self,
         callee: ExprId,
-        arguments: List<ExprId>,
+        args: CallArgs,
         dst: Option<Reg>,
-        is_new: bool,
+        kind: CallKind,
     ) -> CResult<Reg> {
-        let args = self.ast.exprs(arguments).to_vec();
-        let Ok(argc) = u16::try_from(args.len()) else {
+        let is_new = kind == CallKind::New;
+        let (exprs, template) = match args {
+            CallArgs::List(list) => (self.ast.exprs(list).to_vec(), None),
+            CallArgs::Template(id) => {
+                let template = *self.ast.template(id);
+                (
+                    self.ast.exprs(template.expressions).to_vec(),
+                    Some(template),
+                )
+            }
+        };
+        let count = exprs.len() + usize::from(template.is_some());
+        let Ok(argc) = u16::try_from(count) else {
             return Err(super::CompileError::Script {
                 kind: crate::error::ThrowKind::SyntaxError,
                 message: TOO_MANY_ARGUMENTS.into(),
@@ -1251,56 +1446,48 @@ impl FunctionCompiler<'_> {
         };
         let call_position = if is_new {
             self.position
+        } else if template.is_some() {
+            self.template_position(callee, self.position)
         } else {
             self.callee_position(callee, self.position)
         };
-        let base = self.temps(2 + args.len())?;
+        let base = self.temps(2 + count)?;
         let this = base + 1;
         let target = self.unparen(callee);
-        match self.ast.expr(target).kind {
-            ExprKind::Member {
-                object, property, ..
-            } if !is_new => {
-                self.expr(object, Some(this))?;
-                let site = self.site(self.name_text(property));
-                self.position = self.name_position(target);
-                self.emit(Insn::GetNamed {
-                    dst: base,
-                    obj: this,
-                    site,
-                });
-            }
-            ExprKind::Index { object, index, .. } if !is_new => {
-                self.expr(object, Some(this))?;
-                if let Some(text) = self.constant_key(index) {
-                    let site = self.site(text);
-                    self.position = self.bracket_position(target);
-                    self.emit(Insn::GetNamed {
-                        dst: base,
-                        obj: this,
-                        site,
-                    });
-                } else {
-                    let mark = self.mark();
-                    let key = self.expr(index, None)?;
-                    self.position = self.bracket_position(target);
-                    self.emit(Insn::GetIndex {
-                        dst: base,
-                        obj: this,
-                        key,
-                    });
-                    self.release(mark);
-                }
-            }
-            _ => {
+        if is_new || !self.method_callee(target, base)? {
+            if let ExprKind::OptionalChain(inner) = self.ast.expr(target).kind
+                && !is_new
+                && matches!(
+                    self.ast.expr(inner).kind,
+                    ExprKind::Member { .. } | ExprKind::Index { .. }
+                )
+            {
+                // `(a?.b)()`: the chain keeps its reference, so `this` is
+                // `a` (§13.3.9.1); a short circuit calls `undefined`.
+                self.chain_exits.push(Vec::new());
+                let result = self.method_callee(inner, base);
+                let exits = self.chain_exits.pop().unwrap_or_default();
+                result?;
+                self.chain_end(exits, base);
+            } else {
                 self.expr(callee, Some(base))?;
                 if !is_new {
                     self.emit(Insn::Undefined { dst: this });
                 }
             }
         }
-        for (i, &argument) in args.iter().enumerate() {
-            self.expr(argument, Some(base + 2 + i as Reg))?;
+        if kind == (CallKind::Call { optional: true }) {
+            self.chain_jump(base)?;
+        }
+        let mut next = base + 2;
+        if let Some(template) = template {
+            let index = self.template_const(template);
+            self.emit(Insn::GetTemplate { dst: next, index });
+            next += 1;
+        }
+        for &argument in &exprs {
+            self.expr(argument, Some(next))?;
+            next += 1;
         }
         let text = self
             .render(callee, RENDER_DEPTH)
@@ -1326,6 +1513,195 @@ impl FunctionCompiler<'_> {
         }
     }
 
+    /// The callee `target` of a call if it is a member access: the
+    /// object into `base + 1` (`this`) and the function into `base`.
+    /// Returns false (and emits nothing) for any other callee.
+    fn method_callee(&mut self, target: ExprId, base: Reg) -> CResult<bool> {
+        let this = base + 1;
+        match self.ast.expr(target).kind {
+            ExprKind::Member {
+                object,
+                property,
+                optional,
+            } => {
+                self.expr(object, Some(this))?;
+                if optional {
+                    self.chain_jump(this)?;
+                }
+                let site = self.site(self.name_text(property));
+                self.position = self.read_position(target);
+                self.emit(Insn::GetNamed {
+                    dst: base,
+                    obj: this,
+                    site,
+                });
+            }
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            } => {
+                self.expr(object, Some(this))?;
+                if optional {
+                    self.chain_jump(this)?;
+                }
+                if let Some(text) = self.constant_key(index) {
+                    let site = self.site(text);
+                    self.position = self.bracket_position(target);
+                    self.emit(Insn::GetNamed {
+                        dst: base,
+                        obj: this,
+                        site,
+                    });
+                } else {
+                    let mark = self.mark();
+                    let key = self.expr(index, None)?;
+                    self.position = self.bracket_position(target);
+                    self.emit(Insn::GetIndex {
+                        dst: base,
+                        obj: this,
+                        key,
+                    });
+                    self.release(mark);
+                }
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
+    /// The position of the read of `a.b`: Chromium reports a read that
+    /// is a link of an optional chain at its `.`, any other at the name.
+    fn read_position(&self, member: ExprId) -> u32 {
+        if self.chain_links.contains(&member) {
+            self.dot_position(member)
+        } else {
+            self.name_position(member)
+        }
+    }
+
+    /// The constant of a tagged template's strings: one per site, as
+    /// each site has its own template object (§13.2.8.4).
+    fn template_const(&mut self, template: swb_js_syntax::Template) -> u32 {
+        let parts = self
+            .ast
+            .template_elements(template.quasis)
+            .iter()
+            .map(|element| {
+                let cooked = element.cooked.map(|id| self.ast.string(id).clone());
+                (cooked, self.ast.string(element.raw).clone())
+            })
+            .collect();
+        self.push_constant(super::ConstSpec::Template(parts))
+    }
+
+    // --- Optional chains ---
+
+    /// An optional chain (§13.3.9): the links with `?.` jump to the end
+    /// of the chain when their object (or callee) is `undefined` or
+    /// `null`; the chain's value is then `undefined`.
+    fn optional_chain(&mut self, inner: ExprId, dst: Option<Reg>) -> CResult<Reg> {
+        let t = self.target(dst)?;
+        let links = self.chain_links.len();
+        let mut link = inner;
+        loop {
+            self.chain_links.push(link);
+            link = match self.ast.expr(link).kind {
+                ExprKind::Member { object, .. } | ExprKind::Index { object, .. } => object,
+                ExprKind::Call { callee, .. } => callee,
+                _ => break,
+            };
+        }
+        self.chain_exits.push(Vec::new());
+        let result = self.expr(inner, Some(t));
+        let exits = self.chain_exits.pop().unwrap_or_default();
+        self.chain_links.truncate(links);
+        result?;
+        self.chain_end(exits, t);
+        Ok(t)
+    }
+
+    /// The short-circuit test of a `?.` link on the value in `register`.
+    fn chain_jump(&mut self, register: Reg) -> CResult<()> {
+        let at = self.emit(Insn::JumpIfNullish {
+            src: register,
+            offset: 0,
+        });
+        self.chain_exits
+            .last_mut()
+            .ok_or(Self::internal("an optional link outside a chain"))?
+            .push(at);
+        Ok(())
+    }
+
+    /// The end of a chain: the short circuits put `undefined` into
+    /// `result`.
+    fn chain_end(&mut self, exits: Vec<usize>, result: Reg) {
+        self.short_circuit(exits, Insn::Undefined { dst: result });
+    }
+
+    /// Patches `exits` to an instruction `insn` that the normal path
+    /// skips.
+    fn short_circuit(&mut self, exits: Vec<usize>, insn: Insn) {
+        if exits.is_empty() {
+            return;
+        }
+        let skip = self.emit(Insn::Jump { offset: 0 });
+        for exit in exits {
+            self.patch_here(exit);
+        }
+        self.emit(insn);
+        self.patch_here(skip);
+    }
+
+    /// `delete` of a property access into `t`. The access may be the
+    /// last link of an optional chain (`delete a?.b`, §13.5.1.2): the
+    /// result is `true` when the chain short-circuits.
+    fn delete_property_of(&mut self, target: ExprId, t: Reg, chain: bool) -> CResult<()> {
+        if chain {
+            self.chain_exits.push(Vec::new());
+            let result = self.delete_property_of(target, t, false);
+            let exits = self.chain_exits.pop().unwrap_or_default();
+            result?;
+            self.short_circuit(
+                exits,
+                Insn::Bool {
+                    dst: t,
+                    value: true,
+                },
+            );
+            return Ok(());
+        }
+        match self.ast.expr(target).kind {
+            ExprKind::Member {
+                object,
+                property,
+                optional,
+            } => {
+                let obj = self.expr(object, None)?;
+                if optional {
+                    self.chain_jump(obj)?;
+                }
+                let site = self.site(self.name_text(property));
+                self.emit(Insn::DeleteNamed { dst: t, obj, site });
+            }
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            } => {
+                let obj = self.expr_stable(object, &[index])?;
+                if optional {
+                    self.chain_jump(obj)?;
+                }
+                let key = self.expr(index, None)?;
+                self.emit(Insn::DeleteIndex { dst: t, obj, key });
+            }
+            _ => return Err(Self::internal("a delete of a non-property")),
+        }
+        Ok(())
+    }
+
     /// The text of a callee for "... is not a function" (V8 shows the
     /// expression).
     fn render(&self, e: ExprId, depth: u32) -> Option<String> {
@@ -1342,39 +1718,69 @@ impl FunctionCompiler<'_> {
             ExprKind::Boolean(value) => Some(value.to_string()),
             ExprKind::Number(value) => Some(number_to_string(value)),
             ExprKind::String(id) => Some(format!("\"{}\"", self.ast.string(id).to_string_lossy())),
-            ExprKind::Paren(inner) => self.render(inner, depth),
+            ExprKind::Paren(inner) | ExprKind::OptionalChain(inner) => self.render(inner, depth),
             ExprKind::Member {
-                object, property, ..
+                object,
+                property,
+                optional,
             } => Some(format!(
-                "{}.{}",
+                "{}{}{}",
                 self.render(object, depth - 1)
                     .unwrap_or_else(|| "(intermediate value)".to_owned()),
+                if optional { "?." } else { "." },
                 text(property)
             )),
-            ExprKind::Index { object, index, .. } => {
+            ExprKind::Index {
+                object,
+                index,
+                optional,
+            } => {
                 let object = self
                     .render(object, depth - 1)
                     .unwrap_or_else(|| "(intermediate value)".to_owned());
+                let (dot, link) = if optional { ("?.", "?.") } else { (".", "") };
                 match self.ast.expr(self.unparen(index)).kind {
                     ExprKind::String(id) => Some(format!(
-                        "{object}.{}",
+                        "{object}{dot}{}",
                         self.ast.string(id).to_string_lossy()
                     )),
                     ExprKind::Number(value) => {
-                        Some(format!("{object}[{}]", number_to_string(value)))
+                        Some(format!("{object}{link}[{}]", number_to_string(value)))
                     }
-                    ExprKind::Identifier(ident) => Some(format!("{object}[{}]", text(ident.name))),
+                    ExprKind::Identifier(ident) => {
+                        Some(format!("{object}{link}[{}]", text(ident.name)))
+                    }
                     _ => None,
                 }
             }
-            ExprKind::Call { callee, .. } => Some(format!(
-                "{}(...)",
-                self.render(callee, depth - 1)
-                    .unwrap_or_else(|| "(intermediate value)".to_owned())
-            )),
+            // V8 shows a tagged template as a call of its tag.
+            ExprKind::Call { callee, .. } | ExprKind::TaggedTemplate { tag: callee, .. } => {
+                Some(format!(
+                    "{}(...)",
+                    self.render(callee, depth - 1)
+                        .unwrap_or_else(|| "(intermediate value)".to_owned())
+                ))
+            }
             _ => None,
         }
     }
+}
+
+/// The arguments of a call: a list, or a tagged template (the template
+/// object and the substitutions).
+#[derive(Clone, Copy)]
+enum CallArgs {
+    List(List<ExprId>),
+    Template(swb_js_syntax::TemplateId),
+}
+
+/// What a call instruction does.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CallKind {
+    /// `[[Call]]`; `optional` for `f?.()`.
+    Call { optional: bool },
+    /// `new`.
+    New,
 }
 
 /// The key of a property assignment target.

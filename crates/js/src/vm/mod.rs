@@ -35,12 +35,14 @@
 
 mod call;
 pub(crate) mod convert;
+mod for_in;
 mod function;
 mod generator;
 mod global;
 pub(crate) mod internal;
 mod interp;
 mod iter;
+mod literal;
 mod messages;
 pub(crate) mod number;
 mod property;
@@ -255,6 +257,7 @@ pub(crate) struct Atoms {
     pub(crate) default: Gc<JsString>,
     pub(crate) next: Gc<JsString>,
     pub(crate) return_: Gc<JsString>,
+    pub(crate) raw: Gc<JsString>,
 }
 
 impl Atoms {
@@ -286,6 +289,7 @@ impl Atoms {
             self.default,
             self.next,
             self.return_,
+            self.raw,
         ] {
             tracer.string(atom);
         }

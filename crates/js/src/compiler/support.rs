@@ -4,17 +4,12 @@
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them.
 
-use swb_js_syntax::{
-    AssignTarget, ExprKind, PatternKind, PropertyKey, PropertyKind, Script, StmtKind,
-};
+use swb_js_syntax::{AssignTarget, ExprKind, PatternKind, PropertyKey, Script, StmtKind};
 
 /// The construct of an expression that the compiler does not support.
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
         ExprKind::Spread(_) => "spread",
-        ExprKind::OptionalChain(_) => "optional chaining",
-        ExprKind::TaggedTemplate { .. } => "tagged template",
-        ExprKind::NewTarget(_) => "new.target",
         ExprKind::BigInt(_) => "BigInt literal",
         ExprKind::Yield { delegate: true, .. } => "yield*",
         ExprKind::Assign {
@@ -36,7 +31,6 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
 /// The construct of a statement that the compiler does not support.
 pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
-        StmtKind::ForIn { .. } => "for-in",
         StmtKind::ForOf { is_await: true, .. } => "for await",
         StmtKind::ForOf { .. } => "for-of",
         StmtKind::With { .. } => "with",
@@ -82,9 +76,6 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         }
         if let ExprKind::Object(properties) = expr.kind {
             for property in ast.properties(properties) {
-                if property.kind == PropertyKind::Spread {
-                    note(property.span.start, "object spread");
-                }
                 if let PropertyKey::BigInt(_) = property.key {
                     note(property.span.start, "BigInt literal");
                 }

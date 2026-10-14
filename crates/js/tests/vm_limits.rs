@@ -248,7 +248,6 @@ fn constructs_outside_the_subset_do_not_compile() {
         // The parser accepts the forms of M7 feature 1a; the compiler
         // rejects them until feature 3.
         for (source, construct) in [
-            ("({ get x() { return 1; } })", "getter or setter"),
             ("var r = /a/;", "regular expression literal"),
             ("var [a] = [1];", "destructuring"),
             ("let {b} = {};", "destructuring"),
@@ -259,15 +258,12 @@ fn constructs_outside_the_subset_do_not_compile() {
             ("try {} catch ([e]) {}", "destructuring"),
             ("f(...a);", "spread"),
             ("[...a];", "spread"),
-            ("({...a});", "object spread"),
-            ("a?.b;", "optional chaining"),
-            ("a`x`;", "tagged template"),
-            ("function f() { return new.target; }", "new.target"),
             ("1n;", "BigInt literal"),
             ("({ 1n: 2 });", "BigInt literal"),
             ("function* g() { yield* a; }", "yield*"),
-            ("for (var k in {});", "for-in"),
             ("for (var k of []);", "for-of"),
+            ("for ([k] in {});", "destructuring"),
+            ("for (var [k] in {});", "destructuring"),
             ("with ({}) {}", "with"),
             // The forms of feature 1b.
             ("class A {}", "class"),

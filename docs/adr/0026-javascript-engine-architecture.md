@@ -748,6 +748,32 @@ where the first plan did not work:
 - `Function.prototype.toString` of a native (feature 2c) shows the
   name that the function got at creation, not its current `name`
   property, as V8 does.
+- `for`-`in` (feature 3a) follows V8 where §14.7.5.9 leaves a choice:
+  the loop collects the enumerable string keys of the object and its
+  prototypes when it starts (a key hides the same key of later
+  prototypes, also when it is not enumerable), and each step skips a key
+  that `[[HasProperty]]` no longer finds. Keys added during the loop
+  are not visited; a key made non-enumerable or a changed prototype
+  chain does not change the list (measured in Node.js 22). The list
+  lives in an internal iterator object in a register (traced, counted
+  in the heap size, reserved before it is built); the set of hidden keys
+  exists only when a prototype after the first object has an enumerable
+  key. A step walks the chain for its key at a time step per object: a
+  key deep in a long chain makes the loop quadratic, as in V8, but the
+  deadline holds.
+- Template objects (feature 3a, §13.2.8.4) are cached in the code
+  object by (site, realm), not in a realm table: they live as long as
+  the code that can reach them. The strings of each tagged template are
+  one constant of their own (one per site).
+- Optional chains (feature 3a) compile to `JumpIfNullish` at each `?.`
+  link, all to one exit that writes `undefined`; a call through a
+  parenthesized chain (`(a?.b)()`) keeps `this`. Chromium's positions:
+  a read inside a chain is at its `.`, a tagged template call at its
+  `` ` ``, a getter that object spread calls at the literal (first
+  property) or at the spread's operand.
+- The `name` of a function with a computed key (feature 3a) is set at
+  run time by an instruction that redefines the property (§10.2.9);
+  stack traces show it, as in V8 (`at [desc]`, `at get [desc]`).
 
 ## Consequences
 

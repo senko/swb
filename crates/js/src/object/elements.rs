@@ -236,6 +236,25 @@ impl Elements {
         }
     }
 
+    /// Calls `f` with each index in ascending order and whether its
+    /// element is enumerable.
+    pub(crate) fn each_key(&self, mut f: impl FnMut(u32, bool)) {
+        match self {
+            Elements::Dense { values, .. } => {
+                for (index, value) in values.iter().enumerate() {
+                    if !value.is_empty() {
+                        f(index as u32, true);
+                    }
+                }
+            }
+            Elements::Sparse(map) => {
+                for (&index, property) in map {
+                    f(index, property.enumerable());
+                }
+            }
+        }
+    }
+
     /// The bytes that the elements own.
     pub(crate) fn heap_size(&self) -> usize {
         match self {

@@ -63,6 +63,7 @@ feature Symbol.split
 feature Symbol.toPrimitive
 feature Symbol.toStringTag
 feature Symbol.unscopables
+feature template
 feature u180e
 
 # The groups of test/built-ins/ (M7 feature 2a):
@@ -84,6 +85,7 @@ dir test/built-ins/NativeErrors
 dir test/built-ins/AggregateError
 dir test/built-ins/Function
 dir test/built-ins/Array
+
 
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
@@ -135,6 +137,7 @@ dir test/language/expressions/logical-or
 dir test/language/expressions/modulus
 dir test/language/expressions/multiplication
 dir test/language/expressions/new
+dir test/language/expressions/new.target
 dir test/language/expressions/object
 dir test/language/expressions/optional-chaining
 dir test/language/expressions/postfix-decrement
@@ -146,6 +149,7 @@ dir test/language/expressions/right-shift
 dir test/language/expressions/strict-does-not-equals
 dir test/language/expressions/strict-equals
 dir test/language/expressions/subtraction
+dir test/language/expressions/tagged-template
 dir test/language/expressions/template-literal
 dir test/language/expressions/typeof
 dir test/language/expressions/unary-minus

@@ -295,6 +295,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         ObjectKind::StringWrapper(_) => "String",
         ObjectKind::Generator(_)
         | ObjectKind::ArrayIterator(_)
+        | ObjectKind::ForInIterator(_)
         | ObjectKind::Ordinary
         | ObjectKind::Host { .. }
         | ObjectKind::SymbolWrapper(_) => "Object",

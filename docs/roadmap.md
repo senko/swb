@@ -777,6 +777,113 @@ failures with a reason. Features, in this order:
    indirect `eval`, `with`, `new Function`, `new.target`, the Annex B
    function semantics. Tests: test262 `language/` without generators,
    `async` and modules.
+   `switch`, `arguments` and `this` in both modes work since the spike
+   and feature 1c. Measured before the split (2026-10-14, the test262
+   counts are tests, both modes as one): in `test/language/` (all
+   directories), the compiler rejects about 1,920 tests at `class`,
+   1,710 at destructuring, 560 at `for`-`of`, 375 at `for`-`in`, 315 at
+   destructuring assignment, 150 at default values, 115 at `with`, 90
+   at spread, 50 at accessors in literals, 50 at object spread, 45 at
+   `new Function`, 35 at tagged templates, 15 at optional chaining and
+   10 at `new.target`; 3,000 more tests skip on the class features;
+   370 fail because `eval` is not defined. In the built-ins groups of
+   the subset, about 1,420 tests stop at `for`-`in` and 105 at
+   `new Function`. `yield*` (43 tests) belongs to feature 7. Five
+   sessions, in this order; each removes its constructs from
+   `compiler/support.rs`, adds its test262 features to the subset and
+   updates the scores:
+   - 3a. `for`-`in` and the object literal: `for`-`in` with
+     EnumerateObjectProperties (§14.7.5.9; the order of
+     `for-in-order`, deleted and shadowed keys, keys added during the
+     loop, prototype chains, String objects, a `for`-`in` over
+     `null` and `undefined`), with an identifier or member target;
+     getters and setters in object literals; object spread
+     (CopyDataProperties, §7.3.25); the run-time names of methods and
+     accessors with computed keys (SetFunctionName with symbols and
+     the `get `/`set ` prefixes); optional chaining (calls keep
+     `this`; `delete` of a chain); tagged templates (the template
+     objects of §13.2.8.4, one per site and realm, frozen, with
+     `raw`); `new.target` in functions and arrows. A pattern as the
+     target of `for`-`in` stays rejected until 3b. Exit: the built-ins
+     groups run `propertyHelper.js` without the patched copy. Done
+     2026-10-14: all of the above. Where §14.7.5.9 leaves a choice,
+     `for`-`in` does what V8 does (measured in Node 22): it collects
+     the keys of the object and its prototypes at the start, skips a
+     key that `[[HasProperty]]` no longer finds, and does not visit
+     keys added during the loop. The key list is an internal heap
+     object, reserved before it is built and counted in the heap; each
+     key and each prototype walked costs a time step. Template objects
+     are cached in the code object per site and realm. Source positions
+     and callee texts of chains, tagged templates and spread follow
+     Chromium; an assignment to a call gives V8's message for its
+     context (assignment, prefix, postfix, `for` loop). Runtime
+     test262: 10,065 pass (was 8,429): the built-ins groups 1,341 more
+     (1,289 of the 1,428 tests that stopped at `for`-`in`; the other
+     139 need `Array.prototype` methods, `Date`, `RegExp`, `JSON`,
+     `String.prototype` methods or `new Function`), `test/language/`
+     295 more, two new groups (`expressions/new.target`,
+     `expressions/tagged-template`). Parse-only unchanged. 16 of the 84
+     BBC and Ars scripts compile; the others stop at destructuring (38),
+     regular expression literals (9), default values (9), spread (4),
+     `async` (4), classes (2) and `for`-`of` (2). Known failures: tests
+     that use `eval` or `new Function` (3e), `String.prototype` methods
+     (feature 5). Open: destructuring targets of `for`-`in` (3b); a
+     `for`-`in` with a key on each level of a long prototype chain takes
+     quadratic time, as in V8 (the time limit holds); 5,000 nested
+     `for`-`in` loops, `?.[0]` links or chained templates exceed the
+     compiler's recursion budget (`RangeError`; Node runs them);
+     `for`-`in` and spread on small objects are about 10x slower than
+     `node --jitless` (an enum cache keyed by shape and a clone path for
+     `{ ...o }`, feature 13).
+   - 3b. Iteration and destructuring: `for`-`of` with iterator closing
+     on `break`, `return`, `throw` and `continue` to an outer label
+     (§7.4.11, ADR 0026 section 5); spread in array literals, calls
+     and `new`; destructuring in declarations, parameters, `catch`
+     and the heads of `for`-`in` and `for`-`of`; destructuring
+     assignment with any target; default values (with the separate
+     scope of parameter expressions and the TDZ of later parameters);
+     array rest and object rest (CopyDataProperties with excluded
+     keys). The thrown values that the closing holds go through
+     `hold_error` (ADR 0026 section 15). Also: a non-simple parameter
+     list takes one register per parameter, not two (the open item of
+     1a); a fast path for `for`-`of` over arrays with the built-in
+     iterator, if a measurement shows the need.
+   - 3c. Classes without private names: declarations and expressions
+     (the inner name binding, the TDZ of the heritage), constructors
+     and the default constructors, derived constructors with
+     `super(...)` and the `this` TDZ, `super` properties in classes
+     and in object literal methods (home objects), methods, getters,
+     setters and static members with computed keys, public instance
+     and static fields (the order of initialization, computed keys
+     evaluated once), static blocks, the class-specific `TypeError`s
+     (calling a class, `super` twice, a heritage that is not a
+     constructor). `Function.prototype.toString` uses the class span.
+     Runner: the features `class`, `class-fields-public`,
+     `class-static-fields-public`, `class-static-block`, `super`.
+   - 3d. Private names: private fields, methods, getters and setters,
+     instance and static, the brand checks and their `TypeError`s,
+     `#x in o`, private names in nested classes and in `eval` inside a
+     class (with 3e, then a known failure). Each private name no longer
+     takes a register of the enclosing function (the open item of 1b):
+     the limit of about 64,500 per class goes away or becomes a
+     `SyntaxError` with V8's message. Runner: the private class
+     features.
+   - 3e. `eval`, `with` and `new Function`: direct and indirect `eval`
+     (PerformEval, EvalDeclarationInstantiation with its conflict
+     checks, var declarations of sloppy eval code in the caller's
+     variable environment, strict eval code in its own), the dynamic
+     environments of the scope analysis at run time (`with` object
+     environments with `@@unscopables`, the var scopes of sloppy
+     functions with a direct `eval`), the `Function` constructor
+     (CreateDynamicFunction for normal functions; the generator and
+     `async` forms come with feature 7), the run-time checks of Annex
+     B.3.2.2 for global block functions and of B.3.2.3 in eval code.
+     The global `eval` comes in this session; until then, the
+     `Function` constructor throws "not supported yet".
+   Exit of feature 3: no construct of feature 1 except generators,
+   `async`, modules, regular expressions and `BigInt` is rejected; each
+   session records its known failures with the feature that removes
+   them.
 4. Numbers (`implementer-hard` for the exact conversions, ADR 0026
    section 7). `Number`, `Math`, `parseInt`, `parseFloat`,
    StringToNumber, number-to-string in all radixes, `toFixed`,
@@ -872,6 +979,11 @@ not repeated here; the open items of each spike session are in M6 step
   No target script uses `.caller`; decide when one does.
 - `Error.prepareStackTrace` (V8) is not supported; a BBC script uses
   it only in an error path, behind a feature test.
+- Time charges along prototype chains (M7 3a): property reads, `in`
+  and `[[Set]]` do not charge a step per prototype. With a 100 ms
+  limit, `while (true) top.missing;` on a chain of 100,000 objects
+  ran 7 s; building such a chain with `o.k = v` is quadratic (each set
+  walks the chain for setters). The `for`-`in` walk is charged.
 
 ## Backlog from M5
 

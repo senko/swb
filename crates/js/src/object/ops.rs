@@ -13,7 +13,7 @@
 use crate::error::{Error, Result};
 use crate::heap::{Gc, Heap, RootSource};
 use crate::object::property::{Apply, validate_and_apply};
-use crate::object::{Object, ObjectKind, Property, PropertyDescriptor, ShapeKind};
+use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor, ShapeKind};
 use crate::string::PropertyKey;
 use crate::value::Value;
 
@@ -272,7 +272,7 @@ impl Heap {
         };
         if !new.is_default_data() {
             let elements = &self.object(object)?.elements;
-            if matches!(elements, crate::object::Elements::Dense { .. }) {
+            if matches!(elements, Elements::Dense { .. }) {
                 let estimate = elements.stored() * crate::object::elements::SPARSE_ENTRY_BYTES;
                 let (first, second) = new.slot_values();
                 let extra = [object.into(), first, second.unwrap_or_default()];
@@ -506,6 +506,59 @@ impl Heap {
             count = count.saturating_add(self.string(string)?.len());
         }
         Ok(count)
+    }
+
+    /// Calls `f` with each own string key of `object` (the keys of
+    /// [`Heap::own_property_keys`] without the symbols, in its order) and
+    /// whether the property is enumerable. Allocates nothing (for
+    /// `for`-`in`, `vm/for_in.rs`).
+    pub(crate) fn each_string_key(
+        &self,
+        object: Gc<Object>,
+        mut f: impl FnMut(PropertyKey, bool),
+    ) -> Result<()> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        let entries = shape.entries(&self.arenas.key_lists)?;
+        if let ObjectKind::StringWrapper(string) = record.kind {
+            for index in 0..self.string(string)?.len() {
+                f(PropertyKey::Index(index as u32), true);
+            }
+        }
+        record.elements.each_key(|index, enumerable| {
+            f(PropertyKey::Index(index), enumerable);
+        });
+        if let ObjectKind::Array { .. } = record.kind {
+            f(PropertyKey::String(self.names.length), false);
+        }
+        for entry in entries {
+            if !entry.flags.deleted() && !entry.key.is_symbol() {
+                f(entry.key, entry.flags.enumerable());
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether `object` has an own enumerable property with a string key
+    /// (stops at the first one it finds).
+    pub(crate) fn has_enumerable_string_key(&self, object: Gc<Object>) -> Result<bool> {
+        let record = self.object(object)?;
+        if let ObjectKind::StringWrapper(string) = record.kind
+            && !self.string(string)?.is_empty()
+        {
+            return Ok(true);
+        }
+        let found = match &record.elements {
+            Elements::Dense { count, .. } => *count > 0,
+            Elements::Sparse(map) => map.values().any(Property::enumerable),
+        };
+        if found {
+            return Ok(true);
+        }
+        let shape = self.arenas.shapes.get(record.shape)?;
+        Ok(shape.entries(&self.arenas.key_lists)?.iter().any(|entry| {
+            !entry.flags.deleted() && !entry.key.is_symbol() && entry.flags.enumerable()
+        }))
     }
 
     /// `[[OwnPropertyKeys]]` (§10.1.11.1): array indices in ascending order,
