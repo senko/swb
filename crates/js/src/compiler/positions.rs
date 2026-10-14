@@ -8,6 +8,12 @@
 //!   (`f()`, `a.b()`: the name), else at the `(` (`a[k]()`, `(f)()`,
 //!   `f()()`). A `new` expression is at the `new`.
 //! - A write to a property (`a.b = v`, `a.b += v`) is at the operator.
+//! - Destructuring: a value that an object pattern cannot destructure is
+//!   reported at the target of the first property (at the pattern if the
+//!   first key is computed or there is none); a value without an
+//!   iterator for an array pattern at the initializer, or at the `=` of
+//!   an assignment. The steps of `for`-`of` are at the loop's target; a
+//!   spread argument without an iterator is at the call.
 //! - Inside an optional chain, a property read `a?.b.c` is at the `.`
 //!   before the name; a tagged template call is at its `` ` ``.
 //!
@@ -82,6 +88,22 @@ impl FunctionCompiler<'_> {
     pub(super) fn operator_position(&self, target: ExprId, fallback: u32) -> u32 {
         let end = self.ast.expr(target).span.end;
         self.skip_trivia(end).unwrap_or(fallback)
+    }
+
+    /// The position of the first token at or after `offset`.
+    pub(super) fn token_position(&self, offset: u32) -> u32 {
+        self.skip_trivia(offset).unwrap_or(offset)
+    }
+
+    /// The position of a reference for the steps of a `for`-`of` loop
+    /// (Chromium reports them at the loop's target): the name of `a.b`,
+    /// else the start.
+    pub(super) fn target_position(&self, target: ExprId) -> u32 {
+        let target = self.unparen(target);
+        match self.ast.expr(target).kind {
+            ExprKind::Member { .. } => self.name_position(target),
+            _ => self.ast.expr(target).span.start,
+        }
     }
 
     /// The offset of the first `wanted` after `from`, skipping white space,

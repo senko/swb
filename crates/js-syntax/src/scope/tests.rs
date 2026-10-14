@@ -521,17 +521,18 @@ fn default_capture_limits() {
 fn parameter_expressions_have_their_own_scope() {
     // §10.2.11 step 28: the body's declarations get a scope of their own;
     // the default sees the parameters (with a TDZ for later ones), not
-    // the body's `var a`. Registers 0 to 2 receive the arguments.
+    // the body's `var a`. Registers 0 to 2 receive the arguments; `b`,
+    // a whole element that is not captured, keeps its argument's register.
     check(
         "function f(a, b = () => a + c, c) { var a; var d; let e; return a; }",
         "function 0 params [] registers 0
          ||scope 0 Script: f global Function
-         function 1 f parent 0 params [] registers 9
-         ||scope 1 Function: a cell r3 Parameter, b r4 Parameter, c cell r5 Parameter
-         ||scope 3 FunctionBody: a r6 Var, d r7 Var, e r8 Let
-         function 2 parent 1 params [] registers 0 captures [a<-r3 c<-r5]",
-        "f@9:=global a@11:=cell3 b@14:=r4 a@24:cap0! c@28:cap1! c@31:=cell5 a@40:=r6 \
-         d@47:=r7 e@54:=r8 a@64:r6",
+         function 1 f parent 0 params [] registers 8
+         ||scope 1 Function: a cell r3 Parameter, b r1 Parameter, c cell r4 Parameter
+         ||scope 3 FunctionBody: a r5 Var, d r6 Var, e r7 Let
+         function 2 parent 1 params [] registers 0 captures [a<-r3 c<-r4]",
+        "f@9:=global a@11:=cell3 b@14:=r1 a@24:cap0! c@28:cap1! c@31:=cell4 a@40:=r5 \
+         d@47:=r6 e@54:=r7 a@64:r5",
     );
     // Patterns without expressions: one scope; `var a` is the parameter.
     check(
@@ -548,10 +549,26 @@ fn parameter_expressions_have_their_own_scope() {
         "function f(a = 1) { var arguments; }",
         "function 0 params [] registers 0
          ||scope 0 Script: f global Function
-         function 1 f parent 0 params [] registers 4 arguments
-         ||scope 1 Function: a r1 Parameter, arguments r2 Arguments
-         ||scope 2 FunctionBody: arguments r3 Var",
-        "f@9:=global a@11:=r1 arguments@24:=r3",
+         function 1 f parent 0 params [] registers 3 arguments
+         ||scope 1 Function: a r0 Parameter, arguments r1 Arguments
+         ||scope 2 FunctionBody: arguments r2 Var",
+        "f@9:=global a@11:=r0 arguments@24:=r2",
+    );
+}
+
+#[test]
+fn whole_parameter_elements_share_their_argument_registers() {
+    // `a`, `b = 1` and `...d` keep the registers of their arguments; the
+    // pattern `[c]` and the captured `e` get registers of their own.
+    check(
+        "function f(a, b = 1, [c], e = () => e, ...d) { return a + b + c + d; }",
+        "function 0 params [] registers 0
+         ||scope 0 Script: f global Function
+         function 1 f parent 0 params [] registers 7
+         ||scope 1 Function: a r0 Parameter, b r1 Parameter, c r5 Parameter, e cell r6 Parameter, d r4 Parameter
+         function 2 parent 1 params [] registers 0 captures [e<-r6]",
+        "f@9:=global a@11:=r0 b@14:=r1 c@22:=r5 e@26:=cell6 e@36:cap0! d@42:=r4 a@54:r0 b@58:r1 c@62:r5 \
+         d@66:r4",
     );
 }
 
@@ -588,11 +605,11 @@ fn arrow_parameters_move_into_the_arrow() {
     check(
         "(a = function g() { return b; }, b) => a;",
         "function 0 params [] registers 0
-         function 1 g parent 2 params [] registers 1 captures [b<-r3]
+         function 1 g parent 2 params [] registers 1 captures [b<-r2]
          ||scope 1 FunctionName: g r0 FunctionName
-         function 2 parent 0 params [] registers 4
-         ||scope 3 Function: a r2 Parameter, b cell r3 Parameter",
-        "a@1:=r2 g@14:=r0 b@27:cap0! b@33:=cell3 a@39:r2",
+         function 2 parent 0 params [] registers 3
+         ||scope 3 Function: a r0 Parameter, b cell r2 Parameter",
+        "a@1:=r0 g@14:=r0 b@27:cap0! b@33:=cell2 a@39:r0",
     );
     // A direct `eval` in the parameters belongs to the arrow function: its
     // vars go into an environment outside the parameters, and the arrow

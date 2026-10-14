@@ -35,6 +35,7 @@
 
 mod call;
 pub(crate) mod convert;
+mod destructure;
 mod for_in;
 mod function;
 mod generator;

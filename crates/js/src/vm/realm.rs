@@ -53,6 +53,10 @@ pub(crate) enum Intrinsic {
     /// `%Array.prototype.values%` (§23.1.3.40), set when the built-in
     /// functions are installed; the `@@iterator` of arguments objects.
     ArrayPrototypeValues,
+    /// `%ArrayIteratorPrototype%.next` (§23.1.5.2.1), set when the
+    /// built-in functions are installed: the compiled iteration steps
+    /// recognize it (`IteratorCall`).
+    ArrayIteratorNext,
     /// `Error`, set when the built-in functions are installed (for
     /// `Error.stackTraceLimit`).
     ErrorConstructor,
@@ -64,7 +68,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 26;
+const INTRINSIC_COUNT: usize = 27;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -226,6 +230,7 @@ impl Runtime {
             Some(iterator_proto),
             Some(array_iterator_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
             None,
             None,
             None,

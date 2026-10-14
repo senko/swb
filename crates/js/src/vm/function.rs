@@ -220,7 +220,7 @@ impl Runtime {
         }));
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);
-        let length = Value::Int(compiled.param_count as i32);
+        let length = Value::Int(compiled.length as i32);
         self.define_function_properties(function, length, compiled.name.into())?;
         match compiled.kind {
             CodeKind::Normal => {

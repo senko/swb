@@ -245,25 +245,14 @@ fn global_declarations_conflict_across_scripts() {
 fn constructs_outside_the_subset_do_not_compile() {
     on_big_stack(|| {
         let mut rt = runtime(false);
-        // The parser accepts the forms of M7 feature 1a; the compiler
-        // rejects them until feature 3.
+        // The parser accepts the forms of M7 feature 1; the compiler
+        // rejects the ones of later features.
         for (source, construct) in [
             ("var r = /a/;", "regular expression literal"),
-            ("var [a] = [1];", "destructuring"),
-            ("let {b} = {};", "destructuring"),
-            ("[a] = [1];", "destructuring assignment"),
-            ("function f(a = 1) {}", "default value"),
-            ("function f(...a) {}", "rest element"),
-            ("(([a]) => a)", "destructuring"),
-            ("try {} catch ([e]) {}", "destructuring"),
-            ("f(...a);", "spread"),
-            ("[...a];", "spread"),
             ("1n;", "BigInt literal"),
             ("({ 1n: 2 });", "BigInt literal"),
+            ("var { 1n: a } = {};", "BigInt literal"),
             ("function* g() { yield* a; }", "yield*"),
-            ("for (var k of []);", "for-of"),
-            ("for ([k] in {});", "destructuring"),
-            ("for (var [k] in {});", "destructuring"),
             ("with ({}) {}", "with"),
             // The forms of feature 1b.
             ("class A {}", "class"),
@@ -273,7 +262,7 @@ fn constructs_outside_the_subset_do_not_compile() {
             ("x = { async m() {} };", "async function"),
             ("x = { m() { return super.x; } };", "super"),
             // The first construct in the source counts.
-            ("x = 1; for (k of a?.b);", "for-of"),
+            ("for (k of a?.b) x = 1n; with (a) {}", "BigInt literal"),
             ("x = async function () { await 1; };", "async function"),
             (
                 "x = async function () { for await (k of a); };",

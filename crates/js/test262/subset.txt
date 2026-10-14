@@ -87,9 +87,13 @@ dir test/built-ins/Function
 dir test/built-ins/Array
 
 
+# Added in M7 feature 3b: arguments-object/unmapped, destructuring/binding,
+# rest-parameters.
+
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
 dir test/language/arguments-object/mapped
+dir test/language/arguments-object/unmapped
 dir test/language/asi
 dir test/language/block-scope/leave
 dir test/language/block-scope/shadowing
@@ -97,6 +101,7 @@ dir test/language/block-scope/syntax
 dir test/language/comments
 dir test/language/comments/hashbang
 dir test/language/computed-property-names/object
+dir test/language/destructuring/binding
 dir test/language/directive-prologue
 dir test/language/expressions/addition
 dir test/language/expressions/array
@@ -169,6 +174,7 @@ dir test/language/literals/regexp
 dir test/language/literals/string
 dir test/language/punctuators
 dir test/language/reserved-words
+dir test/language/rest-parameters
 dir test/language/statementList
 dir test/language/statements/async-function
 dir test/language/statements/block

@@ -44,6 +44,7 @@ mod reflect;
 mod symbol;
 
 pub(crate) use error::error_header;
+pub(crate) use iterator::array_iterator_next_value;
 
 use crate::heap::Gc;
 use crate::object::Object;

@@ -53,7 +53,11 @@
 //!   [`BindingKind::Parameter`]) that the compiler initializes from them
 //!   (`IteratorBindingInitialization`, §10.2.11 step 25). With parameter
 //!   expressions, a parameter has a temporal dead zone until its element
-//!   has run ([`Binding::init_end`]).
+//!   has run ([`Binding::init_end`]). A parameter that is a whole element
+//!   (`a`, `a = 1`, `...a`) and not a cell has the register of its
+//!   argument: its TDZ needs no marker, as every reference with
+//!   `tdz_check` runs before the element; the compiler makes those
+//!   references throw.
 //! - A `var` of a [`ScopeKind::FunctionBody`] scope that has the name of
 //!   a parameter (or `arguments`) starts with the value of that binding
 //!   of the function scope, the others with `undefined` (§10.2.11 step

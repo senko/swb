@@ -258,3 +258,209 @@ fn stress_mode_agrees_on_the_new_paths() {
     assert_eq!(run(source, true), "301 302 x1 true 2 undefined 1");
     assert_eq!(run(source, false), "301 302 x1 true 2 undefined 1");
 }
+
+/// The result is a termination by the heap limit or the deadline.
+fn assert_terminated(result: &Result<Value, ScriptError>, source: &str) {
+    assert!(
+        matches!(
+            result,
+            Err(ScriptError::Terminated(
+                Termination::HeapLimit | Termination::TimeLimit
+            ))
+        ),
+        "{source}: {result:?}"
+    );
+}
+
+#[test]
+fn endless_iterators_end_at_a_limit() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 64 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        rt.eval(
+            "var endless = { [Symbol.iterator]() { return { next() { return { value: 1, done: false }; } }; } }; \
+             function* gen() { while (true) yield 1; } undefined;",
+        )
+        .unwrap();
+        let cases = [
+            "[...endless];",
+            "[...gen()];",
+            "(function () {})(...endless);",
+            "new Array(...gen());",
+            "var [...r] = endless;",
+            "var [a, ...r] = gen();",
+            "var r; [, ...r] = endless;",
+            "for (var x of endless) { }",
+            "for (var { y } of gen()) { }",
+            "while (true) { var [a, b] = endless; }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_terminated(&result, source);
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        assert_eq!(rt.eval("[...[1, 2]].length"), Ok(Value::Int(2)));
+    });
+}
+
+#[test]
+fn deeply_nested_patterns_compile_or_fail_cleanly() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let open = "[".repeat(10_000);
+        let close = "]".repeat(10_000);
+        let objects = "{a:".repeat(10_000);
+        let ends = "}".repeat(10_000);
+        let cases = [
+            format!("var {open}a{close} = 1;"),
+            format!("var {objects}b{ends} = 1;"),
+            format!("var a; ({open}a{close} = 1);"),
+            format!("var b; ({objects}b{ends} = 1);"),
+            format!("function f({open}a{close}) {{}}"),
+            format!("for (var {open}a{close} of []);"),
+            format!("try {{}} catch ({objects}b{ends}) {{}}"),
+        ];
+        for source in &cases {
+            let out = run_in(&mut rt, source);
+            assert!(out.contains("RangeError"), "{}", &out[..out.len().min(200)]);
+            assert_clean(&rt);
+        }
+        // Nesting that the parser takes compiles and runs.
+        let open = "[".repeat(1_000);
+        let close = "]".repeat(1_000);
+        let objects = "{a:".repeat(1_000);
+        let ends = "}".repeat(1_000);
+        let source = format!(
+            "var x = {open}7{close}; var {open}a{close} = x; \
+             var y = {objects}8{ends}; var {objects}b{ends} = y; print(a, b);"
+        );
+        assert_eq!(run_in(&mut rt, &source), "7 8");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn long_parameter_lists_with_defaults() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // V8's limit of the parameters of a function.
+        let params: Vec<String> = (0..100_000).map(|i| format!("p{i} = {i}")).collect();
+        let source = format!("var f = function ({}) {{ return 1; }};", params.join(","));
+        let out = run_in(&mut rt, &source);
+        assert!(
+            out.starts_with(
+                "SyntaxError: Too many parameters in function definition (only 65534 allowed)"
+            ),
+            "{}",
+            &out[..out.len().min(200)]
+        );
+        // One register per parameter: 60,000 parameters with defaults fit.
+        let params: Vec<String> = (0..60_000).map(|i| format!("p{i} = {i}")).collect();
+        let source = format!(
+            "var f = function ({}, ...rest) {{ return p59999 + arguments.length + rest.length; }}; \
+             print(f(), f.length, f(1));",
+            params.join(",")
+        );
+        assert_eq!(run_in(&mut rt, &source), "59999 0 60000");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn spread_of_a_huge_array() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 512 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        // Doubling by spread takes the bulk copy of arrays without holes.
+        let build = "var big = [0]; while (big.length * 2 <= 1e7) big = [...big, ...big]; \
+                     big = [...big, ...big.slice(0, 1e7 - big.length)]; big.length;";
+        assert_eq!(rt.eval(build), Ok(Value::Int(10_000_000)));
+        assert_eq!(rt.eval("[...big].length;"), Ok(Value::Int(10_000_000)));
+        // More arguments than the value stack holds: V8 also throws.
+        assert_eq!(
+            rt.eval("var m; try { (function () {})(...big); } catch (e) { m = e.message; } m === 'Maximum call stack size exceeded';"),
+            Ok(Value::Bool(true))
+        );
+        let cases = [
+            // Three more copies do not fit under the heap limit.
+            "var c = [...big, ...big, ...big];",
+            // With a hole, every element takes a step.
+            "delete big[5]; var d = [...big];",
+            "(function () {})(...big);",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_terminated(&result, source);
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn misbehaving_iterators_in_hot_loops() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        rt.eval(
+            "function make(next, ret) { var r = { next: next }; \
+             if (ret) Object.defineProperty(r, 'return', ret); \
+             return { [Symbol.iterator]() { return r; } }; } \
+             var value = () => ({ value: 1, done: false }); \
+             var cases = [make(() => { throw new Error('next'); }), make(() => 5), \
+             make(value, { value: () => { throw new Error('ret'); } }), make(value, { value: () => 5 }), \
+             make(value, { get() { throw new Error('getter'); } }), make(value, { value: 7 })]; undefined;",
+        )
+        .unwrap();
+        let loops = [
+            "while (true) { for (var c of cases) { try { for (var x of c) break; } catch (e) { } } }",
+            "while (true) { for (var c of cases) { try { for (var x of c) throw 1; } catch (e) { } } }",
+            "while (true) { for (var c of cases) { try { var [a] = c; } catch (e) { } } }",
+            "while (true) { for (var c of cases) { try { [...c]; } catch (e) { } } }",
+            "function* g() { for (var x of cases[3]) yield x; } \
+             while (true) { var i = g(); i.next(); try { i.return(1); } catch (e) { } }",
+        ];
+        for source in loops {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var out = []; for (var c of cases) { try { for (var x of c) break; out.push('ok'); } \
+                 catch (e) { out.push(e.message); } } print(out.join());"
+            ),
+            "next,Iterator result 5 is not an object,ret,Iterator result 5 is not an object,getter,number 7 is not a function"
+        );
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_iteration_and_destructuring() {
+    let source = "function* g() { try { yield 1; yield 2; } finally { log.push('fin'); } } var log = []; \
+        var r = [...[1, 2], ...g()]; for (var x of g()) break; var [a, , ...b] = [1, 2, 3, 4]; \
+        var { p, ...q } = { p: 1, q: 2, s: 3 }; function f(u, v = u + 1, ...w) { return u + v + w.length; } \
+        var o = {}; [o.a, { b: o.b = 5 }] = [6, {}]; \
+        print(r.join(), log.join(), a, b.join(), p, Object.keys(q).join(), f(1), f(...[1, 2, 3, 4]), o.a, o.b);";
+    let expected = "1,2,1,2 fin,fin 1 3,4 1 q,s 3 5 6 5";
+    assert_eq!(run(source, true), expected);
+    assert_eq!(run(source, false), expected);
+}

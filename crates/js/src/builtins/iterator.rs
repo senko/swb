@@ -28,7 +28,8 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         (true, true),
     )?;
     let array_iterator_proto = rt.intrinsic(realm, Intrinsic::ArrayIteratorPrototype)?;
-    super::method(rt, realm, array_iterator_proto, "next", 0, next)?;
+    let next = super::method(rt, realm, array_iterator_proto, "next", 0, next)?;
+    rt.set_intrinsic(realm, Intrinsic::ArrayIteratorNext, next);
     super::to_string_tag(rt, array_iterator_proto, "Array Iterator")?;
     install_array_methods(rt, realm)
 }
@@ -98,32 +99,48 @@ fn next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let Value::Object(iterator) = call.this() else {
         return Err(incompatible(rt, call.this()));
     };
-    let ObjectKind::ArrayIterator(state) = &rt.heap.object(iterator)?.kind else {
+    if !matches!(rt.heap.object(iterator)?.kind, ObjectKind::ArrayIterator(_)) {
         return Err(incompatible(rt, call.this()));
+    }
+    let value = array_iterator_next_value(rt, iterator)?;
+    let result = rt.iter_result(value.unwrap_or(Value::Undefined), value.is_none())?;
+    Ok(NativeReturn::Value(result.into()))
+}
+
+/// The value of the next step of the Array Iterator `iterator`, or `None`
+/// when it is finished: `next` without its result object. The compiled
+/// iteration steps call it for an Array Iterator whose `next` is the
+/// built-in one, which is not observable. The value is recorded in the
+/// current handle scope.
+pub(crate) fn array_iterator_next_value(
+    rt: &mut Runtime,
+    iterator: Gc<Object>,
+) -> VmResult<Option<Value>> {
+    let ObjectKind::ArrayIterator(state) = &rt.heap.object(iterator)?.kind else {
+        return Err(VmError::invariant(
+            "a step of an Array Iterator on another object",
+        ));
     };
     let (Some(target), index, kind) = (state.target, state.next_index, state.kind) else {
-        return finished(rt);
+        return Ok(None);
     };
     let step = array_iterator_step(rt, iterator, target, index, kind);
     if !matches!(step, Ok(Some(_))) {
         // Done, or `length` or an element threw: the iterator is finished.
         set_target(rt, iterator, None)?;
     }
-    match step? {
-        Some(result) => Ok(NativeReturn::Value(result.into())),
-        None => finished(rt),
-    }
+    step
 }
 
-/// One step of the closure of `CreateArrayIterator`: the result object,
-/// or `None` at the end of the array-like.
+/// One step of the closure of `CreateArrayIterator`: the value, or `None`
+/// at the end of the array-like.
 fn array_iterator_step(
     rt: &mut Runtime,
     iterator: Gc<Object>,
     target: Gc<Object>,
     index: f64,
     kind: IterationKind,
-) -> VmResult<Option<Gc<Object>>> {
+) -> VmResult<Option<Value>> {
     let length = rt.length_of_array_like(target)?;
     if index >= length {
         return Ok(None);
@@ -144,7 +161,7 @@ fn array_iterator_step(
             }
         }
     };
-    Ok(Some(rt.iter_result(result, false)?))
+    Ok(Some(result))
 }
 
 fn set_target(rt: &mut Runtime, iterator: Gc<Object>, target: Option<Gc<Object>>) -> VmResult<()> {
@@ -152,13 +169,6 @@ fn set_target(rt: &mut Runtime, iterator: Gc<Object>, target: Option<Gc<Object>>
         state.target = target;
     }
     Ok(())
-}
-
-/// `{ value: undefined, done: true }`.
-fn finished(rt: &mut Runtime) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(
-        rt.iter_result(Value::Undefined, true)?.into(),
-    ))
 }
 
 /// V8's `TypeError` for `next` on another receiver.

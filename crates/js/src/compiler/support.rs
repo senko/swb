@@ -4,18 +4,13 @@
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them.
 
-use swb_js_syntax::{AssignTarget, ExprKind, PatternKind, PropertyKey, Script, StmtKind};
+use swb_js_syntax::{ExprKind, PropertyKey, Script, StmtKind};
 
 /// The construct of an expression that the compiler does not support.
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
-        ExprKind::Spread(_) => "spread",
         ExprKind::BigInt(_) => "BigInt literal",
         ExprKind::Yield { delegate: true, .. } => "yield*",
-        ExprKind::Assign {
-            target: AssignTarget::Pattern(_),
-            ..
-        } => "destructuring assignment",
         ExprKind::Class(_) => "class",
         ExprKind::Await(_) => "await",
         ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } | ExprKind::SuperCall(_) => {
@@ -32,7 +27,6 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
 pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
         StmtKind::ForOf { is_await: true, .. } => "for await",
-        StmtKind::ForOf { .. } => "for-of",
         StmtKind::With { .. } => "with",
         StmtKind::Class(_) => "class",
         StmtKind::Import
@@ -40,19 +34,6 @@ pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
         | StmtKind::ExportDefault { .. }
         | StmtKind::ExportList => "module syntax",
         _ => return None,
-    })
-}
-
-/// The construct of a pattern other than a binding identifier.
-fn unsupported_pattern(kind: PatternKind) -> Option<&'static str> {
-    Some(match kind {
-        PatternKind::Identifier(_) => return None,
-        PatternKind::Default { .. } => "default value",
-        PatternKind::Rest(_) => "rest element",
-        PatternKind::Expr(_)
-        | PatternKind::Array(_)
-        | PatternKind::Object { .. }
-        | PatternKind::Hole => "destructuring",
     })
 }
 
@@ -86,12 +67,6 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         let stmt = ast.stmt(id);
         if let Some(construct) = unsupported_stmt(stmt.kind) {
             note(stmt.span.start, construct);
-        }
-    }
-    for id in ast.pattern_ids() {
-        let pattern = ast.pattern(id);
-        if let Some(construct) = unsupported_pattern(pattern.kind) {
-            note(pattern.span.start, construct);
         }
     }
     for id in ast.function_ids() {

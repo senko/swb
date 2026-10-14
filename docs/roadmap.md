@@ -777,8 +777,9 @@ failures with a reason. Features, in this order:
    indirect `eval`, `with`, `new Function`, `new.target`, the Annex B
    function semantics. Tests: test262 `language/` without generators,
    `async` and modules.
-   `switch`, `arguments` and `this` in both modes work since the spike
-   and feature 1c. Measured before the split (2026-10-14, the test262
+   `switch`, unmapped `arguments` and `this` in both modes work since
+   the spike and feature 1c; the mapped `arguments` object of 1c has
+   no aliasing yet (3e). Measured before the split (2026-10-14, the test262
    counts are tests, both modes as one): in `test/language/` (all
    directories), the compiler rejects about 1,920 tests at `class`,
    1,710 at destructuring, 560 at `for`-`of`, 375 at `for`-`in`, 315 at
@@ -847,7 +848,38 @@ failures with a reason. Features, in this order:
      `hold_error` (ADR 0026 section 15). Also: a non-simple parameter
      list takes one register per parameter, not two (the open item of
      1a); a fast path for `for`-`of` over arrays with the built-in
-     iterator, if a measurement shows the need.
+     iterator, if a measurement shows the need. Done 2026-10-14: all of
+     the above. `for`-`of` and array patterns close their iterator in an
+     implicit `finally` block of the existing completion machinery (also
+     on `continue` and `break` to outer labels and on the return of a
+     suspended generator); a failure of the iterator itself does not
+     close it. Iterator records live in three registers; the call of
+     `next` is a frame, so iterating a generator does not recurse in
+     Rust. The built-in Array Iterator steps without result objects, and
+     spread and array rest copy an array without holes in bulk (not
+     observable: a patched `@@iterator` or `next` is called). A
+     parameter that is a whole element (`a`, `a = 1`, `...a`) keeps its
+     argument's register: 60,000 parameters with defaults work, 100,000
+     give V8's `SyntaxError`. V8's messages for destructuring and
+     iteration, Chromium's positions. Runtime test262: 12,958 pass (was
+     10,065), the same in stress mode; new groups
+     `arguments-object/unmapped`, `destructuring/binding`,
+     `rest-parameters`. Parse-only unchanged. 38 of the 84 BBC and Ars
+     scripts compile (were 16); the others stop at `async` (20),
+     regular expression literals (15) and classes (11). Speed against
+     `node --jitless`: `for`-`of` over 1M elements 62 ms (23 ms),
+     `[...a]` of 1M elements 3 ms (1.4 ms), `f(...a)` of 100,000
+     elements 0.6 ms (0.06 ms), `var [p, q] = [i, 1]` about 6x (a fast
+     `GetIterator` for arrays, feature 13). Known failures: iteration
+     of strings (feature 5), mapped `arguments` aliasing (3e), `eval`
+     in parameter expressions (3e), a closure in a `catch` parameter
+     default sees the block's `let` (backlog). Open: positions of an
+     error from `return()` on `break` or `return`, and of array
+     patterns in parameters and loop heads, differ from Chromium; a
+     parameter with a pattern still takes two registers (33,000 such
+     parameters fail; V8 runs them); some "not iterable" messages give
+     the type (`object is not iterable`) where V8 renders the source
+     (`{} is not iterable`).
    - 3c. Classes without private names: declarations and expressions
      (the inner name binding, the TDZ of the heritage), constructors
      and the default constructors, derived constructors with
@@ -877,8 +909,10 @@ failures with a reason. Features, in this order:
      functions with a direct `eval`), the `Function` constructor
      (CreateDynamicFunction for normal functions; the generator and
      `async` forms come with feature 7), the run-time checks of Annex
-     B.3.2.2 for global block functions and of B.3.2.3 in eval code.
-     The global `eval` comes in this session; until then, the
+     B.3.2.2 for global block functions and of B.3.2.3 in eval code;
+     the aliasing of the mapped `arguments` object and the parameters
+     (§10.4.4, also through `eval`). The global `eval` comes in this
+     session; until then, the
      `Function` constructor throws "not supported yet".
    Exit of feature 3: no construct of feature 1 except generators,
    `async`, modules, regular expressions and `BigInt` is rejected; each
@@ -984,6 +1018,12 @@ not repeated here; the open items of each spike session are in M6 step
   limit, `while (true) top.missing;` on a chain of 100,000 objects
   ran 7 s; building such a chain with `o.k = v` is quadratic (each set
   walks the chain for setters). The `for`-`in` walk is charged.
+- `js-syntax` (M7 3b): the parameter of a `catch` clause and its block
+  share one scope, so a closure in a default of a parameter pattern
+  sees the block's lexical declarations (test262
+  `statements/try/scope-catch-block-lex-open.js`). A fix needs a
+  separate block scope and moves the early errors of §14.15.1 and
+  Annex B.3.4 that now rely on the shared scope.
 
 ## Backlog from M5
 

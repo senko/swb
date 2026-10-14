@@ -4,17 +4,25 @@
 //! `length` is a field of the object kind with a writable flag, not a
 //! stored property. Shrinking `length` costs at most the number of stored
 //! elements (memo 3.2).
+//!
+//! The bulk copy for spread ([`Heap::append_array_elements`]) appends the
+//! elements of an array without holes to another array, in place of the
+//! steps of an Array Iterator that run no script code.
 
 use crate::error::{Error, Result};
 use crate::heap::{Gc, Heap, RootSource};
 use crate::object::ops::length_value;
 use crate::object::property::{Apply, validate_and_apply};
-use crate::object::{Object, ObjectKind, Property, PropertyDescriptor};
+use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor};
 use crate::string::PropertyKey;
 use crate::value::Value;
 
 /// The message of the `RangeError` for an invalid array length.
 pub(crate) const INVALID_ARRAY_LENGTH: &str = "Invalid array length";
+
+/// The elements that [`Heap::append_array_elements`] copies per round
+/// (a fixed buffer, not one that the script sizes).
+const APPEND_CHUNK: usize = 256;
 
 /// `ToUint32` of the value of a `length` descriptor, with the check of
 /// `ArraySetLength` steps 3 to 5: the value must be an integer from 0 to
@@ -54,6 +62,103 @@ fn to_array_length(value: Value) -> Result<u32> {
 }
 
 impl Heap {
+    /// The length of an array whose elements are dense without holes
+    /// (every index below `length` holds a data value), with the
+    /// writable flag; `None` for another object or form.
+    fn hole_free_length(&self, array: Gc<Object>) -> Result<Option<(u32, bool)>> {
+        let record = self.object(array)?;
+        let ObjectKind::Array {
+            length,
+            length_writable,
+        } = record.kind
+        else {
+            return Ok(None);
+        };
+        Ok(match &record.elements {
+            Elements::Dense { values, count }
+                if values.len() == length as usize && *count == length =>
+            {
+                Some((length, length_writable))
+            }
+            _ => None,
+        })
+    }
+
+    /// Appends the elements of the array `source` from index `start` on
+    /// to the end of the array `target`, as `CreateDataProperty` at
+    /// `target.length`, `target.length + 1`, ... would. Only for the form
+    /// where reading `source` runs no script code and leaves no gap:
+    /// both arrays dense without holes, and `target.length` writable.
+    /// Returns the number of elements appended, or `None` (and changes
+    /// nothing) for any other form. Can collect.
+    pub(crate) fn append_array_elements(
+        &mut self,
+        target: Gc<Object>,
+        source: Gc<Object>,
+        start: u32,
+        roots: &dyn RootSource,
+    ) -> Result<Option<u32>> {
+        let Some((source_length, _)) = self.hole_free_length(source)? else {
+            return Ok(None);
+        };
+        let Some((target_length, true)) = self.hole_free_length(target)? else {
+            return Ok(None);
+        };
+        let count = source_length.saturating_sub(start);
+        let Some(new_length) = target_length
+            .checked_add(count)
+            .filter(|&length| length < u32::MAX)
+        else {
+            return Ok(None);
+        };
+        // The vector grows once: to the exact size for a large copy (a
+        // doubling would count up to twice the elements against the heap
+        // limit), else by doubling, so that many small copies stay linear.
+        let capacity = match &self.object(target)?.elements {
+            Elements::Dense { values, .. } => values.capacity(),
+            Elements::Sparse(_) => return Ok(None),
+        };
+        let needed = new_length as usize;
+        let grown = if needed <= capacity {
+            capacity
+        } else if count as usize >= capacity {
+            needed
+        } else {
+            needed.max(capacity * 2)
+        };
+        let bytes = (grown - capacity) * size_of::<Value>();
+        self.reserve_with(bytes, roots, &[target.into(), source.into()])?;
+        let before = self.object_bytes(target)?;
+        if let Elements::Dense { values, .. } = &mut self.object_mut(target)?.elements {
+            values.try_reserve_exact(grown - values.len())?;
+        }
+        let mut buffer = [Value::Undefined; APPEND_CHUNK];
+        let mut next = start as usize;
+        let end = source_length as usize;
+        while next < end {
+            let chunk = (end - next).min(APPEND_CHUNK);
+            let Elements::Dense { values, .. } = &self.object(source)?.elements else {
+                return Err(Error::invariant("the source of a bulk copy became sparse"));
+            };
+            let part = values
+                .get(next..next + chunk)
+                .ok_or(Error::invariant("a bulk copy outside the elements"))?;
+            let slots = buffer
+                .get_mut(..chunk)
+                .ok_or(Error::invariant("a bulk copy chunk outside the buffer"))?;
+            slots.copy_from_slice(part);
+            let Elements::Dense { values, count } = &mut self.object_mut(target)?.elements else {
+                return Err(Error::invariant("the target of a bulk copy became sparse"));
+            };
+            values.extend_from_slice(slots);
+            *count += chunk as u32;
+            next += chunk;
+        }
+        self.set_array_length_field(target, new_length, true)?;
+        self.charge_growth(target, before)?;
+        Ok(Some(count))
+    }
+
     /// `length` and its writable flag of an array.
     pub fn array_length(&self, array: Gc<Object>) -> Result<(u32, bool)> {
         match self.object(array)?.kind {

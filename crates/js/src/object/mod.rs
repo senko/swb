@@ -300,6 +300,15 @@ impl Heap {
         self.arenas.objects.get_mut(handle)
     }
 
+    /// The dense vector of an object's elements (holes are `Empty`), or
+    /// `None` when its elements are sparse.
+    pub(crate) fn dense_elements(&self, object: Gc<Object>) -> Result<Option<&[Value]>> {
+        Ok(match &self.object(object)?.elements {
+            Elements::Dense { values, .. } => Some(values),
+            Elements::Sparse(_) => None,
+        })
+    }
+
     /// The shape of a handle.
     pub fn shape(&self, handle: Gc<Shape>) -> Result<&Shape> {
         self.arenas.shapes.get(handle)

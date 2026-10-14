@@ -48,6 +48,7 @@ use swb_js_syntax::{
 };
 use swb_js_text::{RecursionBudget, Str16, String16};
 
+use super::pattern::{BindMode, PatternSource};
 use super::{Builder, CResult, CompileError, ConstSpec, Session};
 use crate::bytecode::{
     COMPLETION_JUMP, COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, CodeKind, GlobalDecl,
@@ -68,7 +69,7 @@ pub(super) const EXPR_WEIGHT: u32 = 1536;
 
 /// The kinds of statements that `break` or `continue` can target.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum BreakableKind {
+pub(super) enum BreakableKind {
     /// A loop: `break` and `continue`, with or without a label.
     Loop,
     /// A `switch`: `break` with or without a label.
@@ -78,18 +79,20 @@ enum BreakableKind {
 }
 
 /// A statement that `break` (and for loops `continue`) can target.
-struct Breakable {
+pub(super) struct Breakable {
     labels: Vec<NameId>,
     kind: BreakableKind,
     /// The number of enclosing `finally` blocks when the statement
     /// started: a jump to it crosses the blocks above this depth.
     finally_depth: usize,
-    breaks: Vec<usize>,
-    continues: Vec<usize>,
+    pub(super) breaks: Vec<usize>,
+    pub(super) continues: Vec<usize>,
 }
 
-/// A `finally` block while its `try` and `catch` parts compile.
-struct Finally {
+/// A `finally` block while its `try` and `catch` parts compile, or the
+/// implicit `finally` block that closes an iterator (the body of a
+/// `for`-`of` loop, an array pattern).
+pub(super) struct Finally {
     /// The register of the completion kind.
     kind: Reg,
     /// The register of the completion value.
@@ -99,6 +102,17 @@ struct Finally {
     /// The jump targets that pass through the block: (breakable, whether
     /// it is a `continue`). Target `k` has the kind `COMPLETION_JUMP + k`.
     targets: Vec<(usize, bool)>,
+}
+
+/// The code of a `finally` block.
+#[derive(Clone, Copy)]
+pub(super) enum FinallyBody {
+    /// The block of a `try` statement.
+    Block(StmtId),
+    /// `IteratorClose` of the iterator record at the register (ADR 0026
+    /// section 5: `for`-`of` and array patterns close their iterator on
+    /// every abrupt completion).
+    Close(Reg),
 }
 
 /// The compiler of one function.
@@ -124,8 +138,8 @@ pub(super) struct FunctionCompiler<'a> {
     first_temp: u32,
     next_reg: u32,
     max_reg: u32,
-    breakables: Vec<Breakable>,
-    pending_labels: Vec<NameId>,
+    pub(super) breakables: Vec<Breakable>,
+    pub(super) pending_labels: Vec<NameId>,
     /// The `finally` blocks around the code being compiled, innermost
     /// last.
     finallys: Vec<Finally>,
@@ -142,7 +156,7 @@ pub(super) struct FunctionCompiler<'a> {
     lines: Vec<(u32, u32)>,
     pub(super) call_names: Vec<(u32, u32)>,
     /// The register of the script's completion value.
-    completion: Option<Reg>,
+    pub(super) completion: Option<Reg>,
     /// The global declarations of a script.
     global_decls: Option<Vec<GlobalDecl>>,
     pub(super) strict: bool,
@@ -225,11 +239,14 @@ impl<'a> FunctionCompiler<'a> {
         };
         let name = self.function.name.map(|ident| self.name_text(ident.name));
         // A function with a direct `eval` has an `arguments` binding when
-        // §10.2.11 needs the object (the scope analysis adds it).
-        let uses_arguments = !is_script && self.fscope.arguments_binding.is_some();
+        // §10.2.11 needs the object (the scope analysis adds it). A rest
+        // parameter needs the extra arguments too.
+        let keeps_extra_args =
+            !is_script && (self.fscope.arguments_binding.is_some() || self.has_rest_parameter());
         let globals = self.globals_of_script(is_script);
         // Sorted by start, the outer of two ranges with the same start
         // first (the order that the verifier and the lookup expect).
+        let length = self.expected_argument_count();
         let mut handlers = self.handlers;
         handlers.sort_by_key(|h| (h.start, std::cmp::Reverse(h.end)));
         Ok(Builder {
@@ -240,10 +257,11 @@ impl<'a> FunctionCompiler<'a> {
             globals,
             register_count: self.max_reg,
             param_count: self.ast.patterns(self.function.params).len() as u32,
+            length,
             kind,
             this_mode,
             strict: self.strict,
-            uses_arguments,
+            keeps_extra_args,
             name,
             lines: self.lines,
             call_names: self.call_names,
@@ -365,7 +383,7 @@ impl<'a> FunctionCompiler<'a> {
     }
 
     /// A new temporary that holds `undefined`.
-    fn undefined_temp(&mut self) -> CResult<Reg> {
+    pub(super) fn undefined_temp(&mut self) -> CResult<Reg> {
         let t = self.temp()?;
         self.emit(Insn::Undefined { dst: t });
         Ok(t)
@@ -406,7 +424,7 @@ impl<'a> FunctionCompiler<'a> {
         self.patch(at, target);
     }
 
-    fn patch(&mut self, at: usize, target: usize) {
+    pub(super) fn patch(&mut self, at: usize, target: usize) {
         let offset = target as i64 - at as i64;
         if let Some(insn) = self.insns.get_mut(at) {
             insn.set_jump_offset(offset as i32);
@@ -536,8 +554,24 @@ impl<'a> FunctionCompiler<'a> {
 
     /// Scope entry: cells, TDZ markers, function declarations.
     pub(super) fn enter_scope(&mut self, scope: ScopeId) -> CResult<()> {
+        self.enter_scope_bindings(scope)?;
+        self.declare_functions(scope)
+    }
+
+    /// The cells and TDZ markers of a scope's bindings (scope entry
+    /// without the function declarations).
+    pub(super) fn enter_scope_bindings(&mut self, scope: ScopeId) -> CResult<()> {
         for &binding in self.scopes.bindings_of(scope) {
             let b = *self.scopes.binding(binding);
+            // Nothing reads the record of a dynamic environment yet (M7
+            // feature 3e), but closures in its reach capture its cell.
+            if let (BindingKind::DynamicEnv, Storage::Cell(r)) = (b.kind, b.storage) {
+                self.emit(Insn::NewCell {
+                    dst: r,
+                    empty: false,
+                });
+                continue;
+            }
             match b.kind {
                 // Set up by the prologue. The record of a dynamic
                 // environment: the dynamic lookups compile to their static
@@ -578,11 +612,11 @@ impl<'a> FunctionCompiler<'a> {
                 _ => {}
             }
         }
-        self.declare_functions(scope)
+        Ok(())
     }
 
     /// Creates the function declarations of a scope.
-    fn declare_functions(&mut self, scope: ScopeId) -> CResult<()> {
+    pub(super) fn declare_functions(&mut self, scope: ScopeId) -> CResult<()> {
         for &function in self.scopes.function_declarations(scope) {
             let Some(ident) = self.ast.function(function).name else {
                 return Err(Self::internal("a function declaration without a name"));
@@ -686,7 +720,11 @@ impl<'a> FunctionCompiler<'a> {
                 _ => {}
             }
         }
-        self.enter_scope(scope)?;
+        if self.has_simple_parameters() {
+            self.enter_scope(scope)?;
+        } else {
+            self.parameter_list(scope)?;
+        }
         if kind == CodeKind::Generator {
             self.emit(Insn::InitialYield);
         }
@@ -769,7 +807,14 @@ impl<'a> FunctionCompiler<'a> {
                 body,
                 scope,
             } => self.for_in(left, right, body, scope)?,
-            kind @ (StmtKind::ForOf { .. }
+            StmtKind::ForOf {
+                left,
+                right,
+                body,
+                scope,
+                is_await: false,
+            } => self.for_of(left, right, body, scope)?,
+            kind @ (StmtKind::ForOf { is_await: true, .. }
             | StmtKind::With { .. }
             | StmtKind::Import
             | StmtKind::ExportDeclaration(_)
@@ -804,12 +849,7 @@ impl<'a> FunctionCompiler<'a> {
                 consequent,
                 alternate,
             } => self.if_statement(test, consequent, alternate)?,
-            StmtKind::While { test, body } => {
-                let labels = std::mem::take(&mut self.pending_labels);
-                let top = self.here();
-                let exits = self.branch_false(test)?;
-                self.loop_body(labels, body, Some(top), exits, None)?;
-            }
+            StmtKind::While { test, body } => self.while_statement(test, body)?,
             StmtKind::DoWhile { body, test } => self.do_while(body, test)?,
             StmtKind::For {
                 init,
@@ -879,6 +919,14 @@ impl<'a> FunctionCompiler<'a> {
         Ok(())
     }
 
+    /// `while` (§14.7.3).
+    fn while_statement(&mut self, test: ExprId, body: StmtId) -> CResult<()> {
+        let labels = std::mem::take(&mut self.pending_labels);
+        let top = self.here();
+        let exits = self.branch_false(test)?;
+        self.loop_body(labels, body, Some(top), exits, None)
+    }
+
     /// `do ... while` (§14.7.2).
     fn do_while(&mut self, body: StmtId, test: ExprId) -> CResult<()> {
         let labels = std::mem::take(&mut self.pending_labels);
@@ -914,6 +962,7 @@ impl<'a> FunctionCompiler<'a> {
                 | StmtKind::DoWhile { .. }
                 | StmtKind::For { .. }
                 | StmtKind::ForIn { .. }
+                | StmtKind::ForOf { .. }
                 | StmtKind::Labeled { .. }
         ) {
             return self.stmt(body);
@@ -936,7 +985,18 @@ impl<'a> FunctionCompiler<'a> {
         init: Option<ExprId>,
     ) -> CResult<()> {
         let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind else {
-            return Err(self.unsupported("destructuring"));
+            let init = init.ok_or(Self::internal("a pattern declaration without a value"))?;
+            let mark = self.mark();
+            let value = self.temp()?;
+            self.expr(init, Some(value))?;
+            let mode = if kind == VariableKind::Var {
+                BindMode::Var
+            } else {
+                BindMode::Init
+            };
+            self.bind_pattern(target, value, mode, PatternSource::Expr(init))?;
+            self.release(mark);
+            return Ok(());
         };
         let reference = self.reference(ident.reference);
         let name = self.name_text(ident.name);
@@ -1073,11 +1133,16 @@ impl<'a> FunctionCompiler<'a> {
             offset: 0,
         });
         match (declaration, left) {
-            (Some((kind, target)), _) => self.for_in_binding(kind, target, key)?,
+            (Some((kind, target)), _) => self.for_in_binding(kind, target, key, scope)?,
             (None, ForHead::Target(AssignTarget::Simple(target))) => {
                 self.assign_to_target(target, key)?;
             }
-            (None, _) => return Err(self.unsupported("destructuring")),
+            (None, ForHead::Target(AssignTarget::Pattern(pattern))) => {
+                self.bind_pattern(pattern, key, BindMode::Assign, PatternSource::Nested)?;
+            }
+            (None, ForHead::Declaration(_)) => {
+                return Err(Self::internal("a for-in declaration without a binding"));
+            }
         }
         self.loop_body(labels, body, Some(top), vec![exit], None)?;
         // After a `break`, the register still holds the iterator and its
@@ -1092,9 +1157,10 @@ impl<'a> FunctionCompiler<'a> {
         kind: VariableKind,
         target: swb_js_syntax::PatternId,
         key: Reg,
+        scope: ScopeId,
     ) -> CResult<()> {
         let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(target).kind else {
-            return Err(self.unsupported("destructuring"));
+            return self.bind_head_pattern(kind, target, key, scope);
         };
         if kind == VariableKind::Var {
             return self.store_ref(ident.reference, key);
@@ -1156,7 +1222,7 @@ impl<'a> FunctionCompiler<'a> {
     }
 
     /// Starts a statement that `break` or `continue` can target.
-    fn push_breakable(&mut self, labels: Vec<NameId>, kind: BreakableKind) {
+    pub(super) fn push_breakable(&mut self, labels: Vec<NameId>, kind: BreakableKind) {
         self.breakables.push(Breakable {
             labels,
             kind,
@@ -1339,7 +1405,7 @@ impl<'a> FunctionCompiler<'a> {
             self.patch_here(skip);
         }
         if let Some(finalizer) = finalizer {
-            self.finally_block(start, finalizer)?;
+            self.finally_block(start, FinallyBody::Block(finalizer))?;
         }
         Ok(())
     }
@@ -1354,14 +1420,7 @@ impl<'a> FunctionCompiler<'a> {
         self.position = self.ast.stmt(clause.body).span.start;
         self.enter_scope(scope)?;
         if let Some(param) = clause.param {
-            let swb_js_syntax::PatternKind::Identifier(ident) = self.ast.pattern(param).kind else {
-                return Err(self.unsupported("destructuring"));
-            };
-            let binding = self
-                .reference(ident.reference)
-                .binding
-                .ok_or(Self::internal("a catch parameter without a binding"))?;
-            self.init_binding(binding, exception)?;
+            self.bind_pattern(param, exception, BindMode::Init, PatternSource::Catch)?;
         }
         for &statement in self.ast.stmts(body) {
             self.stmt(statement)?;
@@ -1370,9 +1429,25 @@ impl<'a> FunctionCompiler<'a> {
         Ok(())
     }
 
-    /// The `finally` block of a `try` statement whose code starts at
-    /// `start`, with its routes and its handler stub.
-    fn finally_block(&mut self, start: usize, finalizer: StmtId) -> CResult<()> {
+    /// Starts the implicit `finally` block that closes the iterator record
+    /// at `rec` (see [`FunctionCompiler::finally_block`]); the protected
+    /// code starts at the next instruction.
+    pub(super) fn push_close(&mut self) -> CResult<usize> {
+        let kind = self.temps(2)?;
+        self.finallys.push(Finally {
+            kind,
+            value: kind + 1,
+            entries: Vec::new(),
+            targets: Vec::new(),
+        });
+        Ok(self.here())
+    }
+
+    /// The `finally` block of the innermost entry of `finallys`, which
+    /// protects the code from `start`: the normal completion, the block,
+    /// its routes and its handler stub. The block starts at the position
+    /// of the next instruction (which sets the normal completion).
+    pub(super) fn finally_block(&mut self, start: usize, body: FinallyBody) -> CResult<()> {
         let finally = self.finallys.pop().ok_or(Self::internal("finally stack"))?;
         let (kind, value) = (finally.kind, finally.value);
         let end = self.here();
@@ -1384,7 +1459,12 @@ impl<'a> FunctionCompiler<'a> {
         for at in finally.entries {
             self.patch(at, entry);
         }
-        self.stmt(finalizer)?;
+        match body {
+            FinallyBody::Block(finalizer) => self.stmt(finalizer)?,
+            FinallyBody::Close(rec) => {
+                self.emit(Insn::IteratorClose { rec, kind });
+            }
+        }
         let end_finally = self.emit(Insn::EndFinally {
             kind,
             value,

@@ -2707,3 +2707,449 @@ const NEW_TARGET: &[(&str, &str)] = &[
         "undefined",
     ),
 ];
+
+// M7 feature 3b: iteration and destructuring. The iterator helper `it(n,
+// opts)` logs the protocol calls (`get`, `next`, `return`) of an
+// iterator of `n` values; `show` prints a label, the result or the thrown
+// value, and the log.
+
+#[test]
+fn for_of() {
+    check_cases(FOR_OF);
+}
+
+#[test]
+fn spread() {
+    check_cases(SPREAD);
+}
+
+#[test]
+fn destructuring() {
+    check_cases(DESTRUCTURING);
+}
+
+#[test]
+fn destructuring_assignment() {
+    check_cases(DESTRUCTURING_ASSIGNMENT);
+}
+
+#[test]
+fn parameters() {
+    check_cases(PARAMETERS);
+}
+
+#[test]
+fn destructuring_messages() {
+    check_cases(DESTRUCTURING_MESSAGES);
+}
+
+const FOR_OF: &[(&str, &str)] = &[
+    (
+        "var r = []; for (var x of [1, 2, 3]) r.push(x * 2); print(r.join(), x);",
+        "2,4,6 3",
+    ),
+    (
+        "var r = []; for (let x of [1, , 3]) r.push(x); print(r.join());",
+        "1,,3",
+    ),
+    (
+        "var fs = []; for (let x of [1, 2]) fs.push(() => x); for (const [a, b] of [[3, 4]]) fs.push(() => a + b); print(fs.map(f => f()).join());",
+        "1,2,7",
+    ),
+    (
+        "var r = []; a: for (var x of [1, 2, 3]) { for (var y of [10, 20]) { if (y === 20) continue a; if (x === 3) break a; r.push(x + y); } } print(r.join());",
+        "11,12",
+    ),
+    (
+        "var o = {}; var i = 0; for (o[i++] of ['a', 'b']); var a, b; for ([a, b] of [[1, 2]]); for ({ c: o.c } of [{ c: 3 }]); print(o[0], o[1], i, a, b, o.c);",
+        "a b 2 1 2 3",
+    ),
+    (
+        "function* g() { yield 1; yield 2; } var r = []; for (var v of g()) r.push(v); for (var w of [].values()) r.push(w); print(r.join());",
+        "1,2",
+    ),
+    (
+        "var a = [1, 2, 3]; var r = []; for (var x of a) { r.push(x); if (x === 1) a.push(4); if (x === 2) a.length = 3; } print(r.join());",
+        "1,2,3",
+    ),
+    (
+        "var r = []; (function () { for (var a of arguments) r.push(a); })(4, 5); print(r.join());",
+        "4,5",
+    ),
+    (
+        "try { for (const z of [1]) z = 2; } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError Assignment to constant variable.",
+    ),
+    (
+        "try { for (let q of [q]) ; } catch (e) { print(e.constructor.name, e.message); }",
+        "ReferenceError Cannot access 'q' before initialization",
+    ),
+    (
+        "function f() { for (var x of [5, 6]) return x; } print(f());",
+        "5",
+    ),
+    (
+        "var r = 0; for (var x of [1, 2]) { try { continue; } finally { r += x; } } print(r);",
+        "3",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('break', () => { for (var x of it(3)) if (x === 2) break; return x; }); show('continue', () => { for (var x of it(2)) continue; return x; }); show('return', () => { for (var x of it(3)) return x; }); show('throw', () => { for (var x of it(3)) throw 'body'; });",
+        "break 2 get,next,next,return\ncontinue 2 get,next,next,next\nreturn 1 get,next,return\nthrow threw body get,next,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('outer break', () => { a: for (var y of [1]) for (var x of it(3)) break a; return y; }); show('outer continue', () => { var n = 0; a: for (var y of [1, 2]) for (var x of it(3)) { n++; continue a; } return n; }); show('done', () => { for (var x of it(2)); return x; });",
+        "outer break 1 get,next,return\nouter continue 2 get,next,return,get,next,return\ndone 2 get,next,next,next",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('next throws', () => { for (var x of it(2, { nextThrows: true })); }); show('next prim', () => { for (var x of it(2, { nextPrim: true })); }); show('no return', () => { for (var x of it(2, { noReturn: true })) break; return 'ok'; });",
+        "next throws threw next-err get,next\nnext prim threw TypeError: Iterator result 1 is not an object get,next\nno return ok get,next",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('return throws, break', () => { for (var x of it(2, { returnThrows: true })) break; }); show('return throws, throw', () => { for (var x of it(2, { returnThrows: true })) throw 'body'; }); show('return prim, break', () => { for (var x of it(2, { returnPrim: true })) break; }); show('return prim, throw', () => { for (var x of it(2, { returnPrim: true })) throw 'body'; });",
+        "return throws, break threw return-err get,next,return\nreturn throws, throw threw body get,next,return\nreturn prim, break threw TypeError: Iterator result 5 is not an object get,next,return\nreturn prim, throw threw body get,next,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('finally', () => { for (var x of it(3)) { try { break; } finally { log.push('fin'); } } }); show('nested', () => { for (var x of it(2)) for (var y of it(2)) return x + y; });",
+        "finally undefined get,next,fin,return\nnested 2 get,next,get,next,return,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('gen return', () => { function* g() { for (var x of it(3)) yield x; } var i = g(); i.next(); return JSON_like(i.return(9)); }); function JSON_like(r) { return r.value + '/' + r.done; } show('gen throw', () => { function* g() { for (var x of it(3)) yield x; } var i = g(); i.next(); try { i.throw('t'); } catch (e) { log.push('caught ' + e); } });",
+        "gen return 9/true get,next,return\ngen throw undefined get,next,return,caught t",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('gen finally', () => { function* g() { try { yield 1; yield 2; } finally { log.push('gfin'); } } for (var v of g()) break; return v; }); show('gen in loop', () => { function* g() { for (var x of [1, 2]) yield x * 10; } var r = []; for (var v of g()) r.push(v); return r.join(); });",
+        "gen finally 1 gfin\ngen in loop 10,20 ",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('return getter throws, break', () => { var o = { [Symbol.iterator]() { return { next() { return { done: false }; }, get return() { throw 'getter'; } }; } }; for (var x of o) break; }); show('return getter throws, throw', () => { var o = { [Symbol.iterator]() { return { next() { return { done: false }; }, get return() { throw 'getter'; } }; } }; for (var x of o) throw 'body'; });",
+        "return getter throws, break threw getter \nreturn getter throws, throw threw body ",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('return null', () => { var o = { [Symbol.iterator]() { return { next() { return { done: false }; }, return: null }; } }; for (var x of o) break; return 'ok'; }); show('return not callable', () => { var o = { [Symbol.iterator]() { return { next() { return { done: false }; }, return: 5 }; } }; for (var x of o) break; });",
+        "return null ok \nreturn not callable threw TypeError: number 5 is not a function ",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('result getters', () => { var o = { [Symbol.iterator]() { var i = 0; return { next() { return { get done() { log.push('done'); return i++ > 0; }, get value() { log.push('value'); return 7; } }; } }; } }; for (var x of o); return x; }); show('next getter once', () => { var o = { [Symbol.iterator]() { return { get next() { log.push('get next'); return function () { return { done: true }; }; } }; } }; for (var x of o); return 'ok'; });",
+        "result getters 7 done,value,done\nnext getter once ok get next",
+    ),
+    (
+        "function f() { log.push('call'); } var log = []; try { for (f() of [1]); } catch (e) { print(e.constructor.name, e.message, log.join()); }",
+        "ReferenceError Invalid left-hand side in for-loop call",
+    ),
+    (
+        "var proto = Object.getPrototypeOf([][Symbol.iterator]()); var next = proto.next; var n = 0; proto.next = function () { n++; return next.call(this); }; var r = []; for (var x of [1, 2]) r.push(x); proto.next = next; print(r.join(), n);",
+        "1,2 3",
+    ),
+    (
+        "var orig = Array.prototype[Symbol.iterator]; var n = 0; Array.prototype[Symbol.iterator] = function () { n++; return orig.call(this); }; for (var x of [1]); Array.prototype[Symbol.iterator] = orig; print(n);",
+        "1",
+    ),
+];
+
+const SPREAD: &[(&str, &str)] = &[
+    (
+        "var a = [1, 2]; var b = [0, ...a, , ...a, 3]; print(b.length, b.join(), 3 in b, 4 in b);",
+        "7 0,1,2,,1,2,3 false true",
+    ),
+    (
+        "print([...[1, , 3]].hasOwnProperty(1), [...[]].length, [...[], ...[]].length);",
+        "true 0 0",
+    ),
+    (
+        "function f() { return arguments.length + ':' + Array.prototype.slice.call(arguments).join(); } print(f(...[1, 2], 3, ...[], ...[4]));",
+        "4:1,2,3,4",
+    ),
+    (
+        "function F(a, b) { this.s = a + b; this.t = new.target === F; } var o = new F(...[1, 2]); print(o.s, o.t);",
+        "3 true",
+    ),
+    (
+        "var o = { v: 1, m(...a) { return this.v + a.length; } }; var n = null; print(o.m(...[1, 2]), o?.m(...[1]), n?.m(...[1]), o['m'](...[3]));",
+        "3 2 undefined 2",
+    ),
+    (
+        "function* g() { yield 1; yield 2; } function sum() { var s = 0; for (var x of arguments) s += x; return s; } print([...g()].join(), sum(...g(), ...g()));",
+        "1,2 6",
+    ),
+    (
+        "var a = [1, 2, 3]; var it = a[Symbol.iterator](); it.next(); var o = { [Symbol.iterator]() { return it; } }; var r = [...o]; var n = it.next(); print(r.join(), n.done, n.value);",
+        "2,3 true undefined",
+    ),
+    (
+        "Array.prototype[1] = 'p'; var r = [...[0, , 2]]; delete Array.prototype[1]; print(r.join());",
+        "0,p,2",
+    ),
+    (
+        "var log = []; var a = [1, 2]; Object.defineProperty(a, 1, { get() { log.push('g'); return 9; } }); print([...a].join(), log.join());",
+        "1,9 g",
+    ),
+    (
+        "var a = ['x', 'y']; print([...a.keys()].join(), [...a.entries()].join());",
+        "0,1 0,x,1,y",
+    ),
+    (
+        "var proto = Object.getPrototypeOf([][Symbol.iterator]()); var next = proto.next; var n = 0; proto.next = function () { n++; return next.call(this); }; var r = [...[1, 2]]; function f() { return arguments.length; } var c = f(...[1, 2, 3]); proto.next = next; print(r.join(), c, n);",
+        "1,2 3 7",
+    ),
+    (
+        "var orig = Array.prototype[Symbol.iterator]; var n = 0; Array.prototype[Symbol.iterator] = function () { n++; return orig.call(this); }; var r = [...[1]]; Math_max = function () { return arguments.length; }; var c = Math_max(...[1, 2]); Array.prototype[Symbol.iterator] = orig; print(r.join(), c, n);",
+        "1 2 2",
+    ),
+    (
+        "var a = [1, 2]; a[Symbol.iterator] = function* () { yield 'own'; }; print([...a].join());",
+        "own",
+    ),
+    (
+        "var o = { [Symbol.iterator]() { var i = 0; return { next() { return { value: i, done: i++ > 2 }; } }; } }; print([...o].join(), [...o, ...o].length);",
+        "0,1,2 6",
+    ),
+    (
+        "try { var x = 5; x(...[1]); } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError x is not a function",
+    ),
+    (
+        "try { var y = () => 1; new y(...[1]); } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError y is not a constructor",
+    ),
+    (
+        "try { var o = {}; o.m(...[1]); } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError o.m is not a function",
+    ),
+    (
+        "function f() { return arguments.length + ':' + arguments[1]; } print(f(...[1, , 3]));",
+        "3:undefined",
+    ),
+];
+
+const DESTRUCTURING: &[(&str, &str)] = &[
+    (
+        "var [a, b = 5, ...c] = [1, undefined, 3, 4]; let [d, , e] = [6, 7, 8]; const [f = 9] = []; print(a, b, c.join(), d, e, f);",
+        "1 5 3,4 6 8 9",
+    ),
+    (
+        "var { p, q: { r = 7 } = {}, ...s } = { p: 1, t: 2, u: 3 }; print(p, r, Object.keys(s).join());",
+        "1 7 t,u",
+    ),
+    (
+        "var [a = 1, b = 2, c = 3] = [null, 0, undefined]; var { x = 1, y = 2 } = { x: null }; print(a, b, c, x, y);",
+        "null 0 3 null 2",
+    ),
+    (
+        "var n = 0; var [a = n++, b = n++] = [1]; var { [(n++, 'k')]: k = n } = {}; print(a, b, k, n);",
+        "1 0 2 2",
+    ),
+    (
+        "var [f = function () {}, g = () => 1] = []; var { h = function () {}, i: j = function () {} } = {}; print(f.name, g.name, h.name, j.name);",
+        "f g h j",
+    ),
+    (
+        "var [[a, b], { c: [d] }] = [[1, 2], { c: [3] }]; print(a, b, d);",
+        "1 2 3",
+    ),
+    (
+        "var [...[x, ...y]] = [1, 2, 3]; var [m, ...rest] = [1]; print(x, y.join(), m, rest.length);",
+        "1 2,3 1 0",
+    ),
+    (
+        "var { length, 0: first } = 'abc'; var { toString: t } = 5; var {} = 0; print(length, first, typeof t);",
+        "3 a function",
+    ),
+    (
+        "var s = Symbol('s'); var o = { a: 1 }; o[s] = 2; Object.defineProperty(o, 'h', { value: 3, enumerable: false }); var { ...r } = o; print(Object.keys(r).join(), r[s], 'h' in r);",
+        "a 2 false",
+    ),
+    (
+        "var p = { inherited: 1 }; var o = Object.create(p); o.own = 2; o[1] = 'one'; var { 1: one, ...r } = o; print(one, Object.keys(r).join(), Object.getPrototypeOf(r) === Object.prototype);",
+        "one own true",
+    ),
+    (
+        "var k = 'b'; var { a, [k]: b, ...r } = { a: 1, b: 2, c: 3, 1: 4 }; var { ...q } = 'xy'; print(a, b, Object.keys(r).join(), Object.keys(q).join());",
+        "1 2 1,c 0,1",
+    ),
+    (
+        "var log = []; var src = { get a() { log.push('a'); return 1; }, get b() { log.push('b'); return 2; } }; var { [(log.push('k1'), 'b')]: x, [(log.push('k2'), 'a')]: y } = src; print(x, y, log.join());",
+        "2 1 k1,b,k2,a",
+    ),
+    (
+        "var log = []; var { ...r } = { get g() { log.push('g'); return 1; } }; print(r.g, log.join(), Object.getOwnPropertyDescriptor(r, 'g').value);",
+        "1 g 1",
+    ),
+    (
+        "var fs = []; for (let [a, b] of [[1, 2], [3, 4]]) fs.push(() => a + b); for (const { v } of [{ v: 5 }]) fs.push(() => v); print(fs.map(f => f()).join());",
+        "3,7,5",
+    ),
+    (
+        "var r = []; for (var { length } in { abc: 1, de: 2 }) r.push(length); var a, b; for ({ length: a } in { xyz: 1 }); print(r.join(), a);",
+        "3,2 3",
+    ),
+    (
+        "try { throw { m: 'x', n: [1, 2] }; } catch ({ m, n: [, second] }) { print(m, second); }",
+        "x 2",
+    ),
+    (
+        "function* g() { var [a = yield 'y1', b = yield 'y2'] = []; return a + b; } var i = g(); print(i.next().value, i.next(10).value, i.next(20).value);",
+        "y1 y2 30",
+    ),
+    (
+        "var o = { m() { var [a = this] = []; return a === o; } }; function f() { var [a = arguments.length] = []; return a; } print(o.m(), f(1, 2));",
+        "true 2",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('partial', () => { var [a] = it(3); return a; }); show('full', () => { var [a, b, c] = it(2); return [a, b, c].join(); }); show('exact', () => { var [a, b] = it(2); return a + b; }); show('rest', () => { var [a, ...r] = it(3); return r.join(); });",
+        "partial 1 get,next,return\nfull 1,2, get,next,next,next\nexact 3 get,next,next,return\nrest 2,3 get,next,next,next,next",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('elision', () => { var [, , ] = it(3); return 'el'; }); show('empty', () => { var [] = it(3); return 'empty'; }); show('nested', () => { var [[a, b], c] = [it(3), 4]; return a + b + c; });",
+        "elision el get,next,next,return\nempty empty get,return\nnested 7 get,next,next,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('default throws', () => { var [a = (() => { throw 'dflt'; })()] = it(0); }); show('default throws, not done', () => { var [a, b = (() => { throw 'dflt'; })()] = it(5); });",
+        "default throws threw dflt get,next\ndefault throws, not done undefined get,next,next,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('next throws', () => { var [a] = it(3, { nextThrows: true }); }); show('return throws', () => { var [a] = it(3, { returnThrows: true }); }); show('return prim', () => { var [a] = it(3, { returnPrim: true }); });",
+        "next throws threw next-err get,next\nreturn throws threw return-err get,next,return\nreturn prim threw TypeError: Iterator result 5 is not an object get,next,return",
+    ),
+    (
+        "var log = []; function it(n, o) { o = o || {}; var i = 0; var r = { next() { log.push('next'); if (o.nextThrows) throw 'next-err'; if (o.nextPrim) return 1; i++; return { value: i, done: i > n }; } }; if (!o.noReturn) r.return = function () { log.push('return'); if (o.returnThrows) throw 'return-err'; if (o.returnPrim) return 5; return {}; }; return { [Symbol.iterator]() { log.push('get'); return r; } }; } function show(label, f) { log = []; try { var v = f(); print(label, v, log.join()); } catch (e) { print(label, 'threw', typeof e === 'object' && e ? e.constructor.name + ': ' + e.message : e, log.join()); } } show('gen return in pattern', () => { function* g() { var [a = yield 1, b] = it(3); } var i = g(); i.next(); i.return(5); return 'r'; });",
+        "gen return in pattern r get,next,next,return",
+    ),
+];
+
+const DESTRUCTURING_ASSIGNMENT: &[(&str, &str)] = &[
+    (
+        "var a, b; var r = ([a, b] = [1, 2]); var s = ({ a } = { a: 7 }); print(r.join(), a, b, s.a);",
+        "1,2 7 2 7",
+    ),
+    (
+        "var o = {}; [o.a, o['b'], o[1 + 1]] = [10, 20, 30]; ({ x: o.c, y: o.d = 'd' } = { x: 40 }); print(o.a, o.b, o[2], o.c, o.d);",
+        "10 20 30 40 d",
+    ),
+    (
+        "var o = {}; ({ a: o.a, ...o.rest } = { a: 1, b: 2, c: 3 }); var x, y; ({ x = 1, ...y } = { z: 2 }); print(o.a, Object.keys(o.rest).join(), x, Object.keys(y).join());",
+        "1 b,c 1 z",
+    ),
+    (
+        "var log = []; var o = { set x(v) { log.push('set ' + v); } }; var src = { get a() { log.push('get a'); return 1; }, get b() { log.push('get b'); return 2; } }; ({ a: (log.push('ref a'), o).x, b: (log.push('ref b'), o).x } = src); print(log.join());",
+        "ref a,get a,set 1,ref b,get b,set 2",
+    ),
+    (
+        "var log = []; var o = { set x(v) { log.push('set ' + v); } }; var src = { [Symbol.iterator]() { return { next() { log.push('next'); return { value: 1, done: false }; }, return() { log.push('return'); return {}; } }; } }; [(log.push('ref'), o).x, (log.push('ref2'), o).x] = src; print(log.join());",
+        "ref,next,set 1,ref2,next,set 1,return",
+    ),
+    (
+        "var log = []; var k = { toString() { log.push('key'); return 'p'; } }; var o = {}; var src = { [Symbol.iterator]() { return { next() { log.push('next'); return { value: 1, done: false }; }, return() { return {}; } }; } }; [o[k]] = src; print(o.p, log.join());",
+        "1 next,key",
+    ),
+    (
+        "var i, j, f; [i = function () {}] = []; ({ j = () => 0 } = {}); var o = {}; [o.k = function () {}] = []; print(i.name, j.name, o.k.name === '');",
+        "i j true",
+    ),
+    (
+        "var a, b, c; [a, [b, ...c]] = [1, [2, 3, 4]]; ({ x: [a] } = { x: [5] }); print(a, b, c.join());",
+        "5 2 3,4",
+    ),
+    ("var x = 1, y = 2; [x, y] = [y, x]; print(x, y);", "2 1"),
+    (
+        "var log = []; var o = { set x(v) { throw 'setter'; } }; var src = { [Symbol.iterator]() { return { next() { return { value: 1, done: false }; }, return() { log.push('return'); return {}; } }; } }; try { [o.x] = src; } catch (e) { print(e, log.join()); }",
+        "setter return",
+    ),
+    (
+        "(function () { 'use strict'; try { [undeclared_q] = [1]; } catch (e) { print(e.constructor.name, e.message); } })();",
+        "ReferenceError undeclared_q is not defined",
+    ),
+    (
+        "const c = 1; try { [c] = [2]; } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError Assignment to constant variable.",
+    ),
+];
+
+const PARAMETERS: &[(&str, &str)] = &[
+    (
+        "function f(x, y = x + 1, ...z) { return [x, y, z.length].join(); } print(f(1), f(1, 2, 3, 4), f.length);",
+        "1,2,0 1,2,2 1",
+    ),
+    (
+        "print(function (a, b = 1, c) {}.length, function (...a) {}.length, function ([a], { b }) {}.length, ((a, b) => 0).length, function (a, [b] = [], c) {}.length);",
+        "1 0 2 2 1",
+    ),
+    (
+        "var fn = (a, b, ...c) => c; print(fn().length, fn(1, 2, 3).join(), ((...args) => args)(1, 2, 3).join());",
+        "0 3 1,2,3",
+    ),
+    (
+        "function f(a, ...rest) { arguments[0] = 1; arguments[1] = 2; return a + ':' + rest.join() + ':' + arguments.length; } print(f(3, 4, 5));",
+        "3:4,5:3",
+    ),
+    (
+        "function f(...[a, b]) { return a + b; } function g(...{ length }) { return length; } print(f(1, 2, 3), g(1, 2, 3));",
+        "3 3",
+    ),
+    (
+        "function f(a = b, b) {} function g(a = a) {} function h(a = (b = 1), b) {} function k(a = typeof b, b) {} for (var t of [f, g, h, k]) { try { t(); } catch (e) { print(e.constructor.name, e.message); } }",
+        "ReferenceError Cannot access 'b' before initialization\nReferenceError Cannot access 'a' before initialization\nReferenceError Cannot access 'b' before initialization\nReferenceError Cannot access 'b' before initialization",
+    ),
+    (
+        "function f(a, b = a) { return b; } function g(a, h = () => a) { a = 5; return h(); } print(f(3), g(1));",
+        "3 5",
+    ),
+    (
+        "function f(a = 1, b) { a = 9; return arguments[0] + ':' + arguments.length; } print(f(undefined, 2));",
+        "undefined:2",
+    ),
+    (
+        "function f(a = 1) { var a; return a; } function g(a, h = () => a) { var a = 2; return h() + ':' + a; } function k(a = 1) { var arguments; return typeof arguments; } print(f(), g(1), k());",
+        "1 1:2 object",
+    ),
+    (
+        "function f({ a, b = 2 }, [c]) { return a + b + c; } print(f({ a: 1 }, [3]));",
+        "6",
+    ),
+    (
+        "var f = ([a, b] = [1, 2], { c } = { c: 3 }) => a + b + c; print(f(), f([10, 20]), f.length);",
+        "6 33 0",
+    ),
+    (
+        "function* g(a = 1, ...r) { yield a; yield r.length; } var it = g(undefined, 1, 2); print(it.next().value, it.next().value);",
+        "1 2",
+    ),
+    (
+        "function f(a, b = 2) { function a() {} return typeof a + b; } print(f(1));",
+        "function2",
+    ),
+    (
+        "function f([a]) { function a() {} return typeof a; } print(f([1]));",
+        "function",
+    ),
+    (
+        "var x = 'outer'; function f(a = () => x) { var x = 'inner'; return a(); } print(f());",
+        "outer",
+    ),
+    (
+        "function f(a, b = 1) { return arguments.length; } print(f(), f(1, 2, 3));",
+        "0 3",
+    ),
+];
+
+const DESTRUCTURING_MESSAGES: &[(&str, &str)] = &[
+    (
+        "var t = (f) => { try { f(); } catch (e) { print(e.constructor.name + ': ' + e.message); } }; var o = { u: undefined, p: 5, f() {} }; var nul = null; t(() => { var { a } = undefined; }); t(() => { var { a } = nul; }); t(() => { var {} = null; }); t(() => { var { [1]: a } = null; }); t(() => { var { ...r } = undefined; }); t(() => { var { a } = o.u; }); t(() => { var { a } = o['u']; }); t(() => { var { a } = o.f(); }); t(() => { var { 'b c': a } = undefined; }); t(() => { var { 1.5: a } = undefined; });",
+        "TypeError: Cannot destructure property 'a' of 'undefined' as it is undefined.\nTypeError: Cannot destructure property 'a' of 'nul' as it is null.\nTypeError: Cannot destructure 'null' as it is null.\nTypeError: Cannot destructure 'null' as it is null.\nTypeError: Cannot destructure 'undefined' as it is undefined.\nTypeError: Cannot destructure property 'a' of 'o.u' as it is undefined.\nTypeError: Cannot destructure property 'a' of 'o.u' as it is undefined.\nTypeError: Cannot destructure property 'a' of 'o.f(...)' as it is undefined.\nTypeError: Cannot destructure property 'b c' of 'undefined' as it is undefined.\nTypeError: Cannot destructure property '1.5' of 'undefined' as it is undefined.",
+    ),
+    (
+        "var t = (f) => { try { f(); } catch (e) { print(e.constructor.name + ': ' + e.message); } }; t(() => { (function ({ a }) {})(null); }); t(() => { (function ({}) {})(); }); t(() => { (({ b }) => 1)(); }); t(() => { var [{ y }] = [null]; }); t(() => { var [{}] = [undefined]; }); t(() => { for (const { a } of [null]); }); t(() => { try { throw undefined; } catch ({ a }) {} }); t(() => { var a; ({ a } = undefined); }); t(() => { for ({ z } of [undefined]); });",
+        "TypeError: Cannot destructure property 'a' of 'object null' as it is null.\nTypeError: Cannot destructure 'undefined' as it is undefined.\nTypeError: Cannot destructure property 'b' of 'undefined' as it is undefined.\nTypeError: Cannot read properties of null (reading 'y')\nTypeError: Cannot read properties of undefined\nTypeError: Cannot destructure property 'a' of '.for' as it is null.\nTypeError: Cannot destructure property 'a' of '.catch' as it is undefined.\nTypeError: Cannot destructure property 'a' of 'undefined' as it is undefined.\nTypeError: Cannot read properties of undefined (reading 'z')",
+    ),
+    (
+        "var t = (f) => { try { f(); } catch (e) { print(e.constructor.name + ': ' + e.message); } }; var o = { p: 5, u: undefined, f() {} }; var five = 5; t(() => { var [a] = five; }); t(() => { var [a] = o.p; }); t(() => { var [a] = undefined; }); t(() => { var [a] = true; }); t(() => { var a; [a] = five; }); t(() => { var [[x]] = [1]; }); t(() => { function g() { return 1; } var [a] = g(); }); t(() => { var [x] = o.f(); }); t(() => { try { throw null; } catch ([q]) {} });",
+        "TypeError: five is not iterable\nTypeError: number 5 is not iterable (cannot read property Symbol(Symbol.iterator))\nTypeError: undefined is not iterable\nTypeError: true is not iterable\nTypeError: number 5 is not iterable (cannot read property Symbol(Symbol.iterator))\nTypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))\nTypeError: g is not a function or its return value is not iterable\nTypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))\nTypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))",
+    ),
+    (
+        "var t = (f) => { try { f(); } catch (e) { print(e.constructor.name + ': ' + e.message); } }; var o = { p: 5, q: { r: 5 }, u: undefined, f() {} }; t(() => { for (var a of o.p); }); t(() => { for (var a of o.q.r); }); t(() => { for (var a of undefined); }); t(() => { function g() {} for (var a of g()); }); t(() => { for (var a of o.f()); }); t(() => [...o.p]); t(() => [...5]); t(() => [...o.u]); t(() => [...o.f()]); t(() => (function () {})(...o.p)); t(() => (function () {})(1, ...o.u)); t(() => (function () {})(...null));",
+        "TypeError: o.p is not iterable\nTypeError: o.q.r is not iterable\nTypeError: undefined is not iterable\nTypeError: g is not a function or its return value is not iterable\nTypeError: o.f is not a function or its return value is not iterable\nTypeError: o.p is not iterable\nTypeError: 5 is not iterable\nTypeError: o.u is not iterable\nTypeError: o.f is not a function or its return value is not iterable\nTypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\nTypeError: o.u is not iterable (cannot read property undefined)\nTypeError: null is not iterable (cannot read property null)",
+    ),
+    (
+        "var t = (f) => { try { f(); } catch (e) { print(e.constructor.name + ': ' + e.message); } }; var bad = { [Symbol.iterator]() { return { next: 5 }; } }; var nonext = { [Symbol.iterator]() { return {}; } }; var prim = { [Symbol.iterator]() { return 1; } }; var badResult = { [Symbol.iterator]() { return { next() { return 1; } }; } }; t(() => [...bad]); t(() => { var [a] = bad; }); t(() => { for (var a of bad); }); t(() => [...nonext]); t(() => { for (var a of nonext); }); t(() => [...prim]); t(() => { for (var a of badResult); });",
+        "TypeError: bad is not iterable\nTypeError: number 5 is not a function\nTypeError: number 5 is not a function\nTypeError: nonext is not iterable\nTypeError: undefined is not a function\nTypeError: Result of the Symbol.iterator method is not an object\nTypeError: Iterator result 1 is not an object",
+    ),
+];

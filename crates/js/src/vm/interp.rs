@@ -23,11 +23,13 @@
 //! runs the loop again at the handler. Terminations and internal errors
 //! skip the search.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::bytecode::{
     COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, Handler, INVALID_TARGET_FOR,
-    INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, Insn, RESUME_NEXT, RESUME_RETURN, RESUME_THROW,
+    INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, ITERATOR_PENDING, Insn, RESUME_NEXT,
+    RESUME_RETURN, RESUME_THROW,
 };
 use crate::object::{GetResult, ObjectKind};
 use crate::runtime::Runtime;
@@ -434,6 +436,11 @@ impl Runtime {
                         .map_or(Value::Undefined, |f| f.new_target);
                     put!(dst, new_target);
                 }
+                Insn::RestArguments { dst, start } => {
+                    save!();
+                    let array = tri!(self.with_scope(|rt| rt.rest_arguments(start as usize)));
+                    put!(dst, array);
+                }
 
                 // --- Globals ---
                 Insn::DeclareGlobals => {
@@ -668,7 +675,17 @@ impl Runtime {
                     };
                     let source = get!(src);
                     save!();
-                    tri!(self.with_scope(|rt| rt.copy_data_properties(object, source)));
+                    tri!(self.with_scope(|rt| rt.copy_data_properties(
+                        object,
+                        source,
+                        &HashSet::default()
+                    )));
+                }
+                Insn::CopyRest { dst, src, excluded } => {
+                    let (source, excluded) = (get!(src), get!(excluded));
+                    save!();
+                    let object = tri!(self.with_scope(|rt| rt.copy_rest(source, excluded)));
+                    put!(dst, object);
                 }
                 Insn::GetTemplate { dst, index } => {
                     let Some(code_object) = self.vm.frames.last().map(|f| f.code) else {
@@ -1030,6 +1047,112 @@ impl Runtime {
                         jump!(offset);
                     }
                 }
+                Insn::JumpIfNotUndefined { src, offset } => {
+                    if !matches!(get!(src), Value::Undefined) {
+                        jump!(offset);
+                    }
+                }
+
+                // --- Iteration ---
+                Insn::GetIterator { dst, src, hint } => {
+                    let value = get!(src);
+                    save!();
+                    let record =
+                        tri!(self.with_scope(|rt| rt.get_iterator_hinted(value, hint, &code)));
+                    put!(dst, record.iterator);
+                    put!(dst.saturating_add(1), record.next_method);
+                    put!(dst.saturating_add(2), Value::Bool(false));
+                }
+                Insn::IteratorCall { dst, rec } => {
+                    let state = rec.saturating_add(2);
+                    if !matches!(get!(state), Value::Bool(true)) {
+                        let iterator = get!(rec);
+                        let next = get!(rec.saturating_add(1));
+                        save!();
+                        if let Some(array_iterator) = self.builtin_array_step(iterator, next) {
+                            // A failed step leaves the record done.
+                            put!(state, Value::Bool(true));
+                            let step = tri!(self.with_scope(|rt| {
+                                crate::builtins::array_iterator_next_value(rt, array_iterator)
+                            }));
+                            if let Some(value) = step {
+                                put!(dst, value);
+                                put!(state, Value::Bool(false));
+                            }
+                        } else {
+                            put!(state, Value::Int(ITERATOR_PENDING));
+                            let restore_top = base + code.register_count as usize;
+                            let window = tri!(self.push_window(next, iterator, &[]));
+                            let site = CallSite {
+                                window,
+                                argc: 0,
+                                ret: ReturnTo::Register(dst),
+                                restore_top,
+                                construct: false,
+                                new_target: None,
+                            };
+                            match tri!(self.invoke(site)) {
+                                Step::Value(value) => {
+                                    self.vm.stack.truncate(restore_top);
+                                    put!(dst, value);
+                                }
+                                Step::Entered => reload!(),
+                                Step::NotCallable => {
+                                    self.vm.stack.truncate(restore_top);
+                                    tri!(Err(self.not_callable(next)));
+                                }
+                            }
+                        }
+                    }
+                }
+                Insn::IteratorValue { dst, rec, offset } => {
+                    let state = rec.saturating_add(2);
+                    match get!(state) {
+                        Value::Bool(true) => {
+                            put!(dst, Value::Undefined);
+                            jump!(offset);
+                        }
+                        Value::Int(ITERATOR_PENDING) => {
+                            let result = get!(dst);
+                            save!();
+                            let step = tri!(self.with_scope(|rt| rt.iterator_result_value(result)));
+                            if let Some(value) = step {
+                                put!(dst, value);
+                                put!(state, Value::Bool(false));
+                            } else {
+                                put!(state, Value::Bool(true));
+                                put!(dst, Value::Undefined);
+                                jump!(offset);
+                            }
+                        }
+                        // The built-in step put the value into `dst`.
+                        _ => {}
+                    }
+                }
+                Insn::SpreadArray { array, rec } => {
+                    let state = rec.saturating_add(2);
+                    if matches!(get!(state), Value::Bool(false))
+                        && let Value::Object(target) = get!(array)
+                        && let Some(iterator) =
+                            self.builtin_array_step(get!(rec), get!(rec.saturating_add(1)))
+                    {
+                        save!();
+                        if tri!(self.spread_array_iterator(target, iterator)) {
+                            put!(state, Value::Bool(true));
+                        }
+                    }
+                }
+                Insn::IteratorClose { rec, kind } => {
+                    let state = rec.saturating_add(2);
+                    if matches!(get!(state), Value::Bool(false)) {
+                        put!(state, Value::Bool(true));
+                        let iterator = get!(rec);
+                        let throw = matches!(get!(kind), Value::Int(COMPLETION_THROW));
+                        save!();
+                        tri!(self.close_iterator(iterator, throw));
+                    }
+                }
+
                 Insn::JumpIfNotLt { a, b, offset } => {
                     let r = compare!(
                         a,
@@ -1108,6 +1231,47 @@ impl Runtime {
                         }
                     }
                 }
+                Insn::CallSpread { callee } | Insn::NewSpread { callee } => {
+                    let construct = matches!(insn, Insn::NewSpread { .. });
+                    save!();
+                    if self.heap.gc_due() {
+                        tri!(self.heap.safepoint(&self.vm));
+                    }
+                    let function = get!(callee);
+                    let this = if construct {
+                        Value::Undefined
+                    } else {
+                        get!(callee.saturating_add(1))
+                    };
+                    let list = get!(callee.saturating_add(2));
+                    let restore_top = base + code.register_count as usize;
+                    let (window, argc) = tri!(self.push_spread_window(function, this, list));
+                    let site = CallSite {
+                        window,
+                        argc,
+                        ret: ReturnTo::Register(callee),
+                        restore_top,
+                        construct,
+                        new_target: None,
+                    };
+                    match tri!(self.invoke(site)) {
+                        Step::Value(value) => {
+                            self.vm.stack.truncate(restore_top);
+                            put!(callee, value);
+                        }
+                        Step::Entered => reload!(),
+                        Step::NotCallable => {
+                            self.vm.stack.truncate(restore_top);
+                            let what = if construct {
+                                "is not a constructor"
+                            } else {
+                                "is not a function"
+                            };
+                            let text = self.callee_text(&code, pc - 1);
+                            tri!(Err(VmError::type_error(format!("{text} {what}"))));
+                        }
+                    }
+                }
                 Insn::Return { src } => {
                     let value = get!(src);
                     save!();
@@ -1146,6 +1310,13 @@ impl Runtime {
                     tri!(Err(VmError::reference_error(invalid_target_message(
                         context
                     ))));
+                }
+                Insn::RequireObjectCoercible { src, form, message } => {
+                    let value = get!(src);
+                    if value.is_nullish() {
+                        let text = string_const!(message);
+                        tri!(Err(self.destructure_error(value, form, text)));
+                    }
                 }
                 Insn::EndFinally {
                     kind,

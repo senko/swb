@@ -225,7 +225,7 @@ impl Runtime {
             };
             (this, Value::Undefined)
         };
-        let extra_args = if compiled.uses_arguments && site.argc > params {
+        let extra_args = if compiled.keeps_extra_args && site.argc > params {
             self.vm
                 .stack
                 .get(window + params..window + site.argc)

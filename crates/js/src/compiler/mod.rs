@@ -22,6 +22,9 @@
 mod debug_names;
 mod expr;
 mod function;
+mod iterate;
+mod params;
+mod pattern;
 mod positions;
 mod support;
 
@@ -81,10 +84,11 @@ pub(crate) struct Builder {
     pub(crate) globals: Vec<GlobalDecl>,
     pub(crate) register_count: u32,
     pub(crate) param_count: u32,
+    pub(crate) length: u32,
     pub(crate) kind: CodeKind,
     pub(crate) this_mode: ThisMode,
     pub(crate) strict: bool,
-    pub(crate) uses_arguments: bool,
+    pub(crate) keeps_extra_args: bool,
     pub(crate) name: Option<String16>,
     pub(crate) lines: Vec<(u32, u32)>,
     pub(crate) call_names: Vec<(u32, u32)>,
@@ -319,10 +323,11 @@ fn finish_code(
         globals: builder.globals.into(),
         register_count: builder.register_count,
         param_count: builder.param_count,
+        length: builder.length,
         kind: builder.kind,
         this_mode: builder.this_mode,
         strict: builder.strict,
-        uses_arguments: builder.uses_arguments,
+        keeps_extra_args: builder.keeps_extra_args,
         name,
         debug_name,
         lines: builder.lines.into(),

@@ -17,8 +17,8 @@ use swb_js_text::String16;
 use super::CResult;
 use super::function::{EXPR_WEIGHT, FunctionCompiler};
 use crate::bytecode::{
-    INVALID_TARGET_ASSIGN, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, Insn,
-    NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, Reg,
+    INVALID_TARGET_ASSIGN, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX,
+    ITER_ARRAY_SPREAD, ITER_SPREAD, Insn, NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, Reg,
 };
 use crate::vm::number::number_to_string;
 
@@ -26,7 +26,7 @@ use crate::vm::number::number_to_string;
 const SCAN_LIMIT: usize = 32;
 
 /// The deepest callee that error messages render.
-const RENDER_DEPTH: u32 = 8;
+pub(super) const RENDER_DEPTH: u32 = 8;
 
 impl FunctionCompiler<'_> {
     /// The expression without parentheses.
@@ -186,8 +186,8 @@ impl FunctionCompiler<'_> {
                 CallKind::Call { optional: false },
             ),
             ExprKind::OptionalChain(inner) => self.optional_chain(inner, dst),
-            ExprKind::Spread(_)
-            | ExprKind::BigInt(_)
+            ExprKind::Spread(_) => Err(Self::internal("a spread outside a list")),
+            ExprKind::BigInt(_)
             | ExprKind::Class(_)
             | ExprKind::Await(_)
             | ExprKind::SuperMember { .. }
@@ -298,8 +298,7 @@ impl FunctionCompiler<'_> {
         match reference.resolution {
             Resolution::Register(r) => {
                 if reference.tdz_check {
-                    let name = self.name_const(name());
-                    self.emit(Insn::CheckTdz { src: r, name });
+                    self.check_register_tdz(&reference, r)?;
                 }
                 match dst {
                     Some(dst) if dst != r => {
@@ -358,7 +357,7 @@ impl FunctionCompiler<'_> {
             }
             Resolution::Register(r) => {
                 if reference.tdz_check {
-                    self.emit(Insn::CheckTdz { src: r, name });
+                    self.check_register_tdz(&reference, r)?;
                 }
                 if constant {
                     self.emit(Insn::ThrowConstAssign { name });
@@ -885,14 +884,7 @@ impl FunctionCompiler<'_> {
         let items = self.ast.exprs(elements).to_vec();
         self.emit(Insn::NewArray { dst: array });
         for item in items {
-            if self.ast.expr(item).kind == ExprKind::Hole {
-                self.emit(Insn::Hole { array });
-            } else {
-                let inner = self.mark();
-                let v = self.expr(item, None)?;
-                self.emit(Insn::Push { array, src: v });
-                self.release(inner);
-            }
+            self.array_element(array, item, ITER_ARRAY_SPREAD, None)?;
         }
         self.emit(Insn::Move { dst: t, src: array });
         self.release(mark);
@@ -900,7 +892,7 @@ impl FunctionCompiler<'_> {
     }
 
     /// The text of a literal property key.
-    fn key_text(&self, key: AstKey) -> Option<String16> {
+    pub(super) fn key_text(&self, key: AstKey) -> Option<String16> {
         match key {
             AstKey::Name(name) => Some(self.name_text(name)),
             AstKey::Number(value) => Some(String16::from(number_to_string(value).as_str())),
@@ -1078,8 +1070,11 @@ impl FunctionCompiler<'_> {
         value: ExprId,
         dst: Option<Reg>,
     ) -> CResult<Reg> {
-        let AssignTarget::Simple(target) = target else {
-            return Err(self.unsupported("destructuring assignment"));
+        let target = match target {
+            AssignTarget::Simple(target) => target,
+            AssignTarget::Pattern(pattern) => {
+                return self.destructuring_assignment(pattern, value, dst);
+            }
         };
         let raw_target = target;
         let target = self.unparen(target);
@@ -1311,14 +1306,14 @@ impl FunctionCompiler<'_> {
         Ok(())
     }
 
-    fn emit_get(&mut self, dst: Reg, obj: Reg, key: KeyReg) {
+    pub(super) fn emit_get(&mut self, dst: Reg, obj: Reg, key: KeyReg) {
         match key {
             KeyReg::Site(site) => self.emit(Insn::GetNamed { dst, obj, site }),
             KeyReg::Register(key) => self.emit(Insn::GetIndex { dst, obj, key }),
         };
     }
 
-    fn emit_put(&mut self, obj: Reg, key: KeyReg, src: Reg) {
+    pub(super) fn emit_put(&mut self, obj: Reg, key: KeyReg, src: Reg) {
         match key {
             KeyReg::Site(site) => self.emit(Insn::SetNamed { obj, src, site }),
             KeyReg::Register(key) => self.emit(Insn::SetIndex { obj, key, src }),
@@ -1451,7 +1446,11 @@ impl FunctionCompiler<'_> {
         } else {
             self.callee_position(callee, self.position)
         };
-        let base = self.temps(2 + count)?;
+        let spread = exprs
+            .iter()
+            .any(|&e| matches!(self.ast.expr(e).kind, ExprKind::Spread(_)));
+        // With spread, the arguments go into an array in `base + 2`.
+        let base = self.temps(2 + if spread { 1 } else { count })?;
         let this = base + 1;
         let target = self.unparen(callee);
         if is_new || !self.method_callee(target, base)? {
@@ -1485,19 +1484,27 @@ impl FunctionCompiler<'_> {
             self.emit(Insn::GetTemplate { dst: next, index });
             next += 1;
         }
-        for &argument in &exprs {
-            self.expr(argument, Some(next))?;
-            next += 1;
+        if spread {
+            self.emit(Insn::NewArray { dst: next });
+            for &argument in &exprs {
+                self.array_element(next, argument, ITER_SPREAD, Some(call_position))?;
+            }
+        } else {
+            for &argument in &exprs {
+                self.expr(argument, Some(next))?;
+                next += 1;
+            }
         }
         let text = self
             .render(callee, RENDER_DEPTH)
             .unwrap_or_else(|| "(intermediate value)".to_owned());
         let text = self.string_const(String16::from(text.as_str()));
         self.position = call_position;
-        let pc = if is_new {
-            self.emit(Insn::New { callee: base, argc })
-        } else {
-            self.emit(Insn::Call { callee: base, argc })
+        let pc = match (is_new, spread) {
+            (true, false) => self.emit(Insn::New { callee: base, argc }),
+            (false, false) => self.emit(Insn::Call { callee: base, argc }),
+            (true, true) => self.emit(Insn::NewSpread { callee: base }),
+            (false, true) => self.emit(Insn::CallSpread { callee: base }),
         };
         self.call_names.push((pc as u32, text));
         match dst {
@@ -1704,7 +1711,7 @@ impl FunctionCompiler<'_> {
 
     /// The text of a callee for "... is not a function" (V8 shows the
     /// expression).
-    fn render(&self, e: ExprId, depth: u32) -> Option<String> {
+    pub(super) fn render(&self, e: ExprId, depth: u32) -> Option<String> {
         if depth == 0 {
             return None;
         }
@@ -1791,7 +1798,7 @@ enum PropertyRef {
 
 /// A compiled property key: a site or a register.
 #[derive(Clone, Copy)]
-enum KeyReg {
+pub(super) enum KeyReg {
     Site(u32),
     Register(Reg),
 }

@@ -1,12 +1,14 @@
 //! The run-time parts of literals: accessors of object literals
 //! (§15.4.5), the names of functions with computed keys (§10.2.9
-//! `SetFunctionName`), object spread (§7.3.25 `CopyDataProperties`) and
-//! the template objects of tagged templates (§13.2.8.4
-//! `GetTemplateObject`).
+//! `SetFunctionName`), object spread and object rest (§7.3.25
+//! `CopyDataProperties`) and the template objects of tagged templates
+//! (§13.2.8.4 `GetTemplateObject`).
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use swb_js_text::String16;
+use swb_js_text::hash::BuildKeyedHasher;
 
 use crate::bytecode::{
     CodeObject, Constant, FunctionCode, NAME_PREFIX_GET, NAME_PREFIX_SET, TEMPLATE_ENTRY_BYTES,
@@ -91,15 +93,17 @@ impl Runtime {
         self.define(function, key, name.into(), false, false, true)
     }
 
-    /// `CopyDataProperties(target, source, « »)` (§7.3.25) for object
-    /// spread: each own enumerable key of `ToObject(source)` in the order
-    /// of `[[OwnPropertyKeys]]`, read with `[[Get]]` (a getter runs) and
+    /// `CopyDataProperties(target, source, excluded)` (§7.3.25) for
+    /// object spread and object rest: each own enumerable key of
+    /// `ToObject(source)` that is not in `excluded`, in the order of
+    /// `[[OwnPropertyKeys]]`, read with `[[Get]]` (a getter runs) and
     /// defined on `target`. `undefined` and `null` copy nothing. Runs
     /// inside a handle scope.
     pub(crate) fn copy_data_properties(
         &mut self,
         target: Gc<Object>,
         source: Value,
+        excluded: &HashSet<PropertyKey, BuildKeyedHasher>,
     ) -> VmResult<()> {
         if source.is_nullish() {
             return Ok(());
@@ -109,6 +113,9 @@ impl Runtime {
         let keys = self.own_keys(from)?;
         self.heap.record_keys(&keys);
         for key in keys {
+            if excluded.contains(&key) {
+                continue;
+            }
             self.with_scope(|rt| {
                 let Some(property) = rt.own_property(from, key)? else {
                     return Ok(());

@@ -1159,3 +1159,86 @@ TypeError: Cannot read properties of null (reading 'a')
 ",
     )]);
 }
+
+/// The positions of the forms of M7 feature 3b: `for`-`of`, spread,
+/// destructuring and parameters. Not in the list (swb differs): an error
+/// of `return` when `break` or `return` leaves a `for`-`of` loop (Chromium
+/// reports it at that statement; swb at the loop's target), and array
+/// patterns of parameters and loop heads.
+#[test]
+fn iteration_and_destructuring() {
+    check_script_cases(&[(
+        r"var five = 5, nul = null, o = { p: null };
+var throwing = { [Symbol.iterator]() { return { next() { throw new Error('next'); } }; } };
+var badResult = { [Symbol.iterator]() { return { next() { return 1; } }; } };
+try { for (var x of five) ; } catch (err) { print(err.stack); }
+try { for (var x
+  of five) ; } catch (err) { print(err.stack); }
+try { var { q } = nul; } catch (err) { print(err.stack); }
+try { var { 'x y': a2 } = nul; } catch (err) { print(err.stack); }
+try { var { ...r } = nul; } catch (err) { print(err.stack); }
+try { var [q2] = five; } catch (err) { print(err.stack); }
+try { var q3; [q3] = five; } catch (err) { print(err.stack); }
+try { [...five]; } catch (err) { print(err.stack); }
+try { (function () {})(...five); } catch (err) { print(err.stack); }
+try { new Array(1, ...five); } catch (err) { print(err.stack); }
+try { for (o.p of throwing) ; } catch (err) { print(err.stack); }
+try { for (var y of badResult) ; } catch (err) { print(err.stack); }
+try { var [z] = throwing; } catch (err) { print(err.stack); }
+try { var { a: { b } } = { a: null }; } catch (err) { print(err.stack); }
+try { (function ({ a }) {})(nul); } catch (err) { print(err.stack); }
+try { (function (a = nope) {})(); } catch (err) { print(err.stack); }
+try { (function (a = b, b) {})(); } catch (err) { print(err.stack); }
+try { var [d = nope] = []; } catch (err) { print(err.stack); }
+try {
+  var {
+    w
+  } = nul;
+} catch (err) { print(err.stack); }
+",
+        r"TypeError: five is not iterable
+    at t.js:4:21
+TypeError: five is not iterable
+    at t.js:6:6
+TypeError: Cannot destructure property 'q' of 'nul' as it is null.
+    at t.js:7:13
+TypeError: Cannot destructure property 'x y' of 'nul' as it is null.
+    at t.js:8:20
+TypeError: Cannot destructure 'nul' as it is null.
+    at t.js:9:16
+TypeError: five is not iterable
+    at t.js:10:18
+TypeError: number 5 is not iterable (cannot read property Symbol(Symbol.iterator))
+    at t.js:11:20
+TypeError: five is not iterable
+    at t.js:12:11
+TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
+    at t.js:13:23
+TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
+    at t.js:14:7
+Error: next
+    at Object.next (t.js:2:64)
+    at t.js:15:14
+TypeError: Iterator result 1 is not an object
+    at t.js:16:16
+Error: next
+    at Object.next (t.js:2:64)
+    at t.js:17:12
+TypeError: Cannot read properties of null (reading 'b')
+    at t.js:18:18
+TypeError: Cannot destructure property 'a' of 'object null' as it is null.
+    at t.js:19:20
+    at t.js:19:28
+ReferenceError: nope is not defined
+    at t.js:20:22
+    at t.js:20:31
+ReferenceError: Cannot access 'b' before initialization
+    at t.js:21:22
+    at t.js:21:31
+ReferenceError: nope is not defined
+    at t.js:22:16
+TypeError: Cannot destructure property 'w' of 'nul' as it is null.
+    at t.js:25:5
+",
+    )]);
+}

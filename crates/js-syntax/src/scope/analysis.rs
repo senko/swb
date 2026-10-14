@@ -106,7 +106,7 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     mark_direct_eval(ast, tree);
     mark_mapped_arguments(ast, tree);
     group_by_scope(tree);
-    assign_storage(tree, limits, eval_vars)?;
+    assign_storage(ast, tree, limits, eval_vars)?;
     finish_references(tree, &captures);
     finish_captures(ast, tree, &captures);
     mark_needs_tdz(tree);
@@ -536,6 +536,7 @@ fn prefix_sums(counts: &mut [usize]) -> Vec<usize> {
 /// tree with an explicit stack. Registers of a block are free again after
 /// the block, so sibling blocks share them.
 fn assign_storage(
+    ast: &Ast,
     tree: &mut ScopeTree,
     limits: &Limits,
     eval_vars: Option<Storage>,
@@ -558,6 +559,7 @@ fn assign_storage(
             }
         }
     }
+    share_argument_registers(ast, tree);
     let Some(root) = (!tree.scopes.is_empty()).then(|| ScopeId::from_index(0)) else {
         return Ok(());
     };
@@ -584,6 +586,43 @@ fn assign_storage(
         }
     }
     Ok(())
+}
+
+/// In a non-simple parameter list, a parameter that is a whole element
+/// (`a`, `a = 1`, `...a`) and lives in a register takes the register of
+/// its argument, so the list needs one register per element (not one for
+/// the argument and one for the binding). The binding has no
+/// uninitialized marker then: every reference with a TDZ check runs
+/// before the element (an earlier element or its own default; closures
+/// capture, so their bindings are cells), and the compiler makes such a
+/// load or store throw without a test.
+fn share_argument_registers(ast: &Ast, tree: &mut ScopeTree) {
+    for id in ast.function_ids() {
+        let f = tree.function(id);
+        if !f.params.is_empty() || f.needs_scope_description {
+            continue;
+        }
+        let function = ast.function(id);
+        for (position, &element) in ast.patterns(function.params).iter().enumerate() {
+            let target = match ast.pattern(element).kind {
+                PatternKind::Default { target, .. } | PatternKind::Rest(target) => target,
+                _ => element,
+            };
+            let PatternKind::Identifier(ident) = ast.pattern(target).kind else {
+                continue;
+            };
+            let Some(binding) = tree.reference(ident.reference).binding else {
+                continue;
+            };
+            let b = tree.binding(binding);
+            if b.kind != BindingKind::Parameter || b.captured || b.scope != function.scope {
+                continue;
+            }
+            if let (Ok(register), Some(b)) = (u16::try_from(position), tree.binding_mut(binding)) {
+                b.storage = Storage::Register(register);
+            }
+        }
+    }
 }
 
 /// The child scopes of each scope.

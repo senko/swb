@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-14: M7 feature 3b, iteration and destructuring
+
+- `js`: `for`-`of` with iterator closing (§7.4.11) on `break`,
+  `continue` and `break` to outer labels, `return`, throws and the
+  return of a suspended generator, through an implicit `finally` block
+  of the existing completion machinery (`compiler/iterate.rs`). A
+  failure of `next` does not close the iterator. Iterator records live
+  in three registers; `next` of script code runs as a frame. Spread in
+  array literals, calls, `new`, optional and member calls.
+- Destructuring in declarations, parameters, `catch`, loop heads and
+  assignments with the order of §13.15.5 (`compiler/pattern.rs`),
+  defaults with NamedEvaluation, array and object rest; parameters with
+  the TDZ of later parameters, rest, unmapped `arguments`, `length`
+  (`compiler/params.rs`). `js-syntax`: a parameter that is a whole
+  element keeps its argument's register (60,000 parameters with
+  defaults work).
+- Fast paths that are not observable: the built-in Array Iterator
+  steps without result objects; spread and array rest copy arrays
+  without holes in bulk (`[...a]` of 1M elements: 103 ms before, 3 ms;
+  `node --jitless` 1.4 ms).
+- Review: no bugs; about 300 probe cases equal to Node 22, also in GC
+  stress mode (iterator closing on every abrupt path, patched
+  iterators during a loop, generators suspended in loops and
+  defaults). Fixed: docs of the argument list limit and of the
+  iterator state after a failed step; a spread now releases its
+  iterator after the loop. Mapped `arguments` aliasing, which the
+  split had wrongly listed as done, moves to 3e; the shared scope of a
+  `catch` parameter and its block goes to the backlog.
+- Runtime test262: 12,958 pass (was 10,065), the same in stress mode;
+  parse-only unchanged (41,882). 38 of 84 target scripts compile (were
+  16). Next: 3c, classes.
+
 ## 2026-10-14: M7 feature 3a, `for`-`in`, object literals, optional chains, tagged templates
 
 - Plan: feature 3 (language semantics) is split into five sessions

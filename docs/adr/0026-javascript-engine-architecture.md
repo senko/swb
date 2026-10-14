@@ -774,6 +774,44 @@ where the first plan did not work:
 - The `name` of a function with a computed key (feature 3a) is set at
   run time by an instruction that redefines the property (§10.2.9);
   stack traces show it, as in V8 (`at [desc]`, `at get [desc]`).
+- Iterator records of compiled code (feature 3b) live in three
+  registers: the iterator, its `next` method and a state (not done,
+  done, or "a step is running"). A step is two instructions: the call of
+  `next` is an ordinary frame for script code (iterating a generator does
+  not recurse in Rust), and the second checks the result object (its
+  getters run through re-entry). A failure of the step leaves the state
+  at "a step is running", which counts as done, so that `IteratorClose`
+  skips it. `GetIterator` and the close
+  call `@@iterator` and `return` through re-entry.
+- `for`-`of` and array patterns close their iterator in an implicit
+  `finally` block of the existing machinery (one `IteratorClose`
+  instruction and the routes of `break`, `continue`, `return` and the
+  generator's return mode); the step of `for`-`of` is outside its handler
+  range. A thrown value that the close keeps is in the block's value
+  register, so no Rust code holds a thrown value while it closes an
+  iterator; `hold_error` stays for the natives.
+- The built-in Array Iterator (its `next` is recognized by identity) steps
+  without a result object. Spread and array rest copy an array without
+  holes in bulk when its iterator is that one and has not started: the
+  steps run no script code, so the copy is not observable (measured: the
+  spread of a 1M-element array took 103 ms with the steps, 3 ms with the
+  copy; `node --jitless` 1.4 ms). A spread call builds its argument list in an
+  array of its own, which the call copies onto the value stack (within
+  the stack's limit, 4M values by default; below 2^27 values, V8's
+  limit, also for a larger configured stack).
+- Parameter lists that are not simple (feature 3b): a parameter that is
+  a whole element (`a`, `a = 1`, `...a`) and not a cell keeps its
+  argument's register, so such a list needs one register per element
+  (60,000 parameters with defaults work; V8 allows 65,534). Its TDZ needs
+  no marker: every reference with a TDZ check runs before its element,
+  and the compiler makes it throw without a test. Elements with patterns
+  still take a register for the argument and one per bound name.
+- V8's messages for destructuring and iteration depend on the source
+  (`Cannot destructure property 'a' of 'x' as it is undefined.`,
+  `x is not iterable`, `.for`, `.catch`, `object null` for parameters):
+  the compiler renders the source text into a constant, and the
+  instruction picks the form; Chromium's positions (the first property's
+  target, the initializer, the loop's target) come from the compiler.
 
 ## Consequences
 

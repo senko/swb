@@ -88,6 +88,42 @@ pub(crate) const INVALID_TARGET_PREFIX: u32 = 1;
 pub(crate) const INVALID_TARGET_POSTFIX: u32 = 2;
 pub(crate) const INVALID_TARGET_FOR: u32 = 3;
 
+/// The forms of V8's message when [`Insn::GetIterator`] finds no
+/// iterator (the top four bits of its `hint`; the other bits are the
+/// constant index of a rendered source text, or [`HINT_NO_TEXT`]):
+/// `number 5 is not iterable (cannot read property
+/// Symbol(Symbol.iterator))`, `x is not iterable`, `f is not a function
+/// or its return value is not iterable`, for spread arguments `Spread
+/// syntax requires ...iterable[Symbol.iterator] to be a function` (`x is
+/// not iterable (cannot read property null)` for `undefined` and `null`),
+/// and for spread in an array literal `x is not iterable`, also when the
+/// iterator's `next` is not callable (V8 checks it there).
+pub(crate) const ITER_GENERIC: u32 = 0;
+pub(crate) const ITER_RENDERED: u32 = 1;
+pub(crate) const ITER_CALL: u32 = 2;
+pub(crate) const ITER_SPREAD: u32 = 3;
+pub(crate) const ITER_ARRAY_SPREAD: u32 = 4;
+/// The shift of the form in a `hint`.
+pub(crate) const HINT_SHIFT: u32 = 28;
+/// The text index of a `hint` without a rendered text.
+pub(crate) const HINT_NO_TEXT: u32 = (1 << HINT_SHIFT) - 1;
+
+/// The forms of V8's message for [`Insn::RequireObjectCoercible`]
+/// (`V` is `undefined` or `null`, `C` the constant text):
+/// `Cannot destructure C as it is V.`; `Cannot destructure C'V' as it
+/// is V.`; the same with `object null` for `null` (a parameter);
+/// `Cannot read properties of VC` (a nested pattern).
+pub(crate) const COERCIBLE_RENDERED: u16 = 0;
+pub(crate) const COERCIBLE_VALUE: u16 = 1;
+pub(crate) const COERCIBLE_PARAMETER: u16 = 2;
+pub(crate) const COERCIBLE_READ: u16 = 3;
+
+/// The state register of an iterator record in registers (`rec + 2`, see
+/// [`Insn::GetIterator`]) while `next` runs: the record counts as done for
+/// `IteratorClose` (a failure of the step does not close the iterator),
+/// and [`Insn::IteratorValue`] takes the result object from its `dst`.
+pub(crate) const ITERATOR_PENDING: i32 = 1;
+
 /// One instruction. `dst` is the register that receives the result.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Insn {
@@ -183,6 +219,12 @@ pub(crate) enum Insn {
     /// `dst` = `new.target` of the frame (`undefined` in a call).
     NewTarget {
         dst: Reg,
+    },
+    /// `dst` = a new array of the arguments from position `start` on (a
+    /// rest parameter, §10.2.11 step 25 with `CreateArrayFromList`).
+    RestArguments {
+        dst: Reg,
+        start: u32,
     },
 
     // --- Globals (by name; `name` is a string constant) ---
@@ -334,6 +376,16 @@ pub(crate) enum Insn {
     CopyDataProperties {
         obj: Reg,
         src: Reg,
+    },
+    /// The object of an object rest element (§8.6.2
+    /// `RestBindingInitialization`, §13.15.5.4): `dst` = a new ordinary
+    /// object with `CopyDataProperties(dst, src, excluded)`, where the
+    /// array in `excluded` holds the keys (values of `ToKey`) of the
+    /// pattern's other properties.
+    CopyRest {
+        dst: Reg,
+        src: Reg,
+        excluded: Reg,
     },
     /// `dst` = the template object of the template literal
     /// `constants[index]` (§13.2.8.4 `GetTemplateObject`): one frozen
@@ -528,6 +580,66 @@ pub(crate) enum Insn {
         iter: Reg,
         offset: i32,
     },
+    /// Jumps if `src` is not `undefined` (the default values of patterns
+    /// and parameters).
+    JumpIfNotUndefined {
+        src: Reg,
+        offset: i32,
+    },
+
+    // --- Iteration (§7.4; ADR 0026 section 5) ---
+    /// `GetIterator(src, sync)` (§7.4.3): an iterator record in three
+    /// registers: `dst` = the iterator, `dst + 1` = its `next` method,
+    /// `dst + 2` = the state, `false` (not done). The state is `true`
+    /// when the record is done, [`ITERATOR_PENDING`] while a step runs.
+    /// `hint` selects the message for a value that is not iterable
+    /// ([`ITER_GENERIC`] and the others).
+    GetIterator {
+        dst: Reg,
+        src: Reg,
+        hint: u32,
+    },
+    /// The call of `next` of `IteratorStepValue` (§7.4.10) on the record
+    /// at `rec`; nothing if the record is done. For an Array Iterator
+    /// whose `next` is the built-in one, the step runs here without a
+    /// result object: `dst` = the value, or the record is done. Otherwise
+    /// the state becomes [`ITERATOR_PENDING`] and `next` is called (as a
+    /// frame if it is script code); its result goes into `dst`.
+    IteratorCall {
+        dst: Reg,
+        rec: Reg,
+    },
+    /// The rest of `IteratorStepValue`: if the record is done, `dst` =
+    /// `undefined` and jumps by `offset`; after [`Insn::IteratorCall`] of
+    /// script code, checks the result object in `dst` and reads `done`
+    /// (done: the record is done, jumps) and `value` into `dst`. A
+    /// failure leaves the state at [`ITERATOR_PENDING`], which
+    /// `IteratorClose` treats as done.
+    IteratorValue {
+        dst: Reg,
+        rec: Reg,
+        offset: i32,
+    },
+    /// The bulk copy of a spread or an array rest: if the record at `rec`
+    /// is not done and steps a built-in Array Iterator (of values) over an
+    /// array without holes, appends the rest of that array to the array
+    /// `array` and makes the record and the iterator done, as the steps
+    /// would; otherwise nothing (the step loop that follows does the
+    /// work). The steps run no script code, so the copy is not observable.
+    SpreadArray {
+        array: Reg,
+        rec: Reg,
+    },
+    /// `IteratorClose` (§7.4.11) of the record at `rec` unless it is done
+    /// (it is done afterwards). `kind` holds a completion kind: after
+    /// [`COMPLETION_THROW`] the errors of `return` are dropped (the
+    /// thrown value stays in a register of the `finally` block); after
+    /// any other kind, they and a result that is not an object throw.
+    IteratorClose {
+        rec: Reg,
+        kind: Reg,
+    },
+
     /// Jumps unless `a < b` (a fused compare and branch for loops).
     JumpIfNotLt {
         a: Reg,
@@ -566,6 +678,18 @@ pub(crate) enum Insn {
         callee: Reg,
         argc: u16,
     },
+    /// A call with spread arguments (§13.3.8.1 `ArgumentListEvaluation`):
+    /// `this` in `callee + 1`, an array of the arguments in `callee + 2`
+    /// (made by the compiled code, so reading it is not observable); the
+    /// result goes into `callee`.
+    CallSpread {
+        callee: Reg,
+    },
+    /// `new callee(...)` with spread arguments, like
+    /// [`Insn::CallSpread`].
+    NewSpread {
+        callee: Reg,
+    },
     /// Returns the value of `src`.
     Return {
         src: Reg,
@@ -590,6 +714,15 @@ pub(crate) enum Insn {
     /// is one of the `INVALID_TARGET_*` constants.
     ThrowInvalidAssign {
         context: u32,
+    },
+    /// `RequireObjectCoercible(src)` (§7.2.1) of an object pattern: a
+    /// `TypeError` if `src` is `undefined` or `null`, with V8's message
+    /// of `form` ([`COERCIBLE_RENDERED`] and the others) and the text in
+    /// the string constant `message`.
+    RequireObjectCoercible {
+        src: Reg,
+        form: u16,
+        message: u32,
     },
 
     /// The end of a `finally` block: continues the completion in `kind`
@@ -636,6 +769,8 @@ impl Insn {
             | Insn::JumpIfNotNullish { offset, .. }
             | Insn::JumpIfNullish { offset, .. }
             | Insn::ForInNext { offset, .. }
+            | Insn::JumpIfNotUndefined { offset, .. }
+            | Insn::IteratorValue { offset, .. }
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
@@ -656,6 +791,8 @@ impl Insn {
             | Insn::JumpIfNotNullish { offset, .. }
             | Insn::JumpIfNullish { offset, .. }
             | Insn::ForInNext { offset, .. }
+            | Insn::JumpIfNotUndefined { offset, .. }
+            | Insn::IteratorValue { offset, .. }
             | Insn::JumpIfNotLt { offset, .. }
             | Insn::JumpIfNotLe { offset, .. }
             | Insn::JumpIfNotGt { offset, .. }
@@ -782,14 +919,20 @@ pub(crate) struct FunctionCode {
     pub(crate) globals: Box<[GlobalDecl]>,
     /// The size of the register window.
     pub(crate) register_count: u32,
-    /// The number of declared parameters (the `length` of the function).
+    /// The number of elements of the parameter list: the registers that
+    /// receive the arguments.
     pub(crate) param_count: u32,
+    /// The `length` of the function: the elements before the first one
+    /// with a default value or the rest parameter (§15.1.5
+    /// `ExpectedArgumentCount`).
+    pub(crate) length: u32,
     pub(crate) kind: CodeKind,
     pub(crate) this_mode: ThisMode,
     pub(crate) strict: bool,
-    /// Whether the code creates an `arguments` object (the frame keeps
-    /// the arguments beyond the declared parameters).
-    pub(crate) uses_arguments: bool,
+    /// Whether the frame keeps the arguments beyond the declared
+    /// parameters: the code creates an `arguments` object or has a rest
+    /// parameter.
+    pub(crate) keeps_extra_args: bool,
     /// The name of the function (the empty string for anonymous ones).
     pub(crate) name: Gc<JsString>,
     /// The name that stack traces show for a function without a name:
@@ -1064,6 +1207,21 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
                     return fail("call window outside the frame");
                 }
             }
+            Insn::CallSpread { callee } | Insn::NewSpread { callee } => {
+                if u32::from(callee) + 3 > registers {
+                    return fail("call window outside the frame");
+                }
+            }
+            // An iterator record takes three registers.
+            Insn::GetIterator { dst: rec, .. }
+            | Insn::IteratorCall { rec, .. }
+            | Insn::SpreadArray { rec, .. }
+            | Insn::IteratorValue { rec, .. }
+            | Insn::IteratorClose { rec, .. }
+                if u32::from(rec) + 3 > registers =>
+            {
+                return fail("iterator record outside the frame");
+            }
             Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
                 if code.kind != CodeKind::Generator =>
             {
@@ -1115,6 +1273,18 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         Insn::ThrowInvalidAssign { context } => {
             (context <= INVALID_TARGET_FOR, "invalid target context")
         }
+        Insn::GetIterator { hint, .. } => {
+            let text = hint & HINT_NO_TEXT;
+            (
+                hint >> HINT_SHIFT <= ITER_ARRAY_SPREAD
+                    && (text == HINT_NO_TEXT || code.string(text).is_some()),
+                "iterator hint",
+            )
+        }
+        Insn::RequireObjectCoercible { form, message, .. } => (
+            form <= COERCIBLE_READ && code.string(message).is_some(),
+            "destructuring message",
+        ),
         Insn::CheckTdz { name, .. }
         | Insn::GetGlobal { name, .. }
         | Insn::TypeofGlobal { name, .. }
@@ -1193,6 +1363,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::DeleteGlobal { dst, .. }
         | I::NewObject { dst }
         | I::NewArray { dst, .. }
+        | I::RestArguments { dst, .. }
         | I::Closure { dst, .. } => f(dst),
         I::MakeCell { reg } | I::CopyCell { reg } | I::Yield { reg } | I::Resume { reg, .. } => {
             f(reg);
@@ -1205,10 +1376,15 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Return { src }
         | I::Throw { src }
         | I::JumpIfNotNullish { src, .. }
-        | I::JumpIfNullish { src, .. } => f(src),
+        | I::JumpIfNullish { src, .. }
+        | I::JumpIfNotUndefined { src, .. }
+        | I::RequireObjectCoercible { src, .. } => f(src),
         I::JumpIfTrue { cond, .. } | I::JumpIfFalse { cond, .. } => f(cond),
         I::Hole { array } => f(array),
-        I::Call { callee, .. } | I::New { callee, .. } => f(callee),
+        I::Call { callee, .. }
+        | I::New { callee, .. }
+        | I::CallSpread { callee }
+        | I::NewSpread { callee } => f(callee),
         I::Move { dst, src }
         | I::LoadCell { dst, cell: src }
         | I::ToKey { dst, src }
@@ -1237,6 +1413,17 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         }
         | I::ForInStart { dst, src }
         | I::ForInNext { dst, iter: src, .. }
+        | I::GetIterator { dst, src, .. }
+        | I::IteratorCall { dst, rec: src }
+        | I::IteratorValue { dst, rec: src, .. }
+        | I::IteratorClose {
+            rec: dst,
+            kind: src,
+        }
+        | I::SpreadArray {
+            array: dst,
+            rec: src,
+        }
         | I::GetNamed { dst, obj: src, .. }
         | I::SetNamed { obj: dst, src, .. }
         | I::DeleteNamed { dst, obj: src, .. }
@@ -1256,6 +1443,11 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
             f(key);
         }
         I::SetIndex { obj, key, src }
+        | I::CopyRest {
+            dst: obj,
+            src: key,
+            excluded: src,
+        }
         | I::DefineIndex { obj, key, src }
         | I::DefineGetter { obj, key, src }
         | I::DefineSetter { obj, key, src } => {
@@ -1317,10 +1509,11 @@ mod tests {
             globals: Box::new([]),
             register_count: registers,
             param_count: 0,
+            length: 0,
             kind: CodeKind::Normal,
             this_mode: ThisMode::Strict,
             strict: true,
-            uses_arguments: false,
+            keeps_extra_args: false,
             name: Gc::new(0, 0),
             debug_name: Gc::new(0, 0),
             lines: Box::new([]),
