@@ -28,7 +28,7 @@ use super::{BindingKind, DynamicEnv, DynamicKind, DynamicLookup, IdMap, ScopeKin
 
 /// Whether a name can be found in a dynamic environment: identifiers can,
 /// the implicit names (`this`, `new.target`, `super`, the active function,
-/// `%env`) cannot. Private names never reach one: they occur only in
+/// `%env`, `%private`) cannot. Private names never reach one: they occur only in
 /// class code, which is strict, and resolve inside their class.
 pub(super) fn is_dynamic_name(name: NameId) -> bool {
     !matches!(
@@ -38,6 +38,7 @@ pub(super) fn is_dynamic_name(name: NameId) -> bool {
             | names::SUPER
             | names::ACTIVE_FUNCTION
             | names::DYNAMIC_ENV
+            | names::PRIVATE_ENV
     )
 }
 

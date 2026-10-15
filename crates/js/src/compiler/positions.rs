@@ -32,7 +32,12 @@ impl FunctionCompiler<'_> {
     pub(super) fn name_position(&self, member: ExprId) -> u32 {
         let node = self.ast.expr(member);
         let length = match node.kind {
-            ExprKind::Member { property, .. } | ExprKind::SuperMember { property, .. } => self
+            ExprKind::Member { property, .. }
+            | ExprKind::SuperMember { property, .. }
+            | ExprKind::PrivateMember {
+                name: swb_js_syntax::Ident { name: property, .. },
+                ..
+            } => self
                 .script
                 .names
                 .get(property)
@@ -48,11 +53,47 @@ impl FunctionCompiler<'_> {
     /// The position of the `.` of `a.b` (the first `.` after the object).
     pub(super) fn dot_position(&self, member: ExprId) -> u32 {
         let node = self.ast.expr(member);
-        let ExprKind::Member { object, .. } = node.kind else {
+        let (ExprKind::Member { object, .. } | ExprKind::PrivateMember { object, .. }) = node.kind
+        else {
             return node.span.start;
         };
         self.find_token(self.ast.expr(object).span.end, b'.')
             .unwrap_or(node.span.start)
+    }
+
+    /// The position of an access to a private member `a.#x` other than a
+    /// plain read: Chromium reports a field at the `.` (a compound
+    /// assignment, an update, a destructuring or `for`-`of` target) and a
+    /// method or accessor at the name.
+    pub(super) fn private_position(&self, member: ExprId) -> u32 {
+        let ExprKind::PrivateMember { name, .. } = self.ast.expr(member).kind else {
+            return self.ast.expr(member).span.start;
+        };
+        let field = self
+            .scopes
+            .private_name(name.reference)
+            .and_then(|binding| self.session.private_kinds.get(&binding))
+            .is_none_or(|&kind| kind == crate::bytecode::PrivateKind::Field);
+        if field {
+            self.dot_position(member)
+        } else {
+            self.name_position(member)
+        }
+    }
+
+    /// The position of a plain read of a private member: the name, or the
+    /// `?.` of an optional link (Chromium's).
+    pub(super) fn private_read_position(&self, member: ExprId) -> u32 {
+        match self.ast.expr(member).kind {
+            ExprKind::PrivateMember {
+                object,
+                optional: true,
+                ..
+            } => self
+                .find_token(self.ast.expr(object).span.end, b'?')
+                .unwrap_or(self.ast.expr(member).span.start),
+            _ => self.read_position(member),
+        }
     }
 
     /// The position of the `` ` `` that starts the template of a tagged
@@ -102,6 +143,7 @@ impl FunctionCompiler<'_> {
         let target = self.unparen(target);
         match self.ast.expr(target).kind {
             ExprKind::Member { .. } => self.name_position(target),
+            ExprKind::PrivateMember { .. } => self.private_position(target),
             _ => self.ast.expr(target).span.start,
         }
     }

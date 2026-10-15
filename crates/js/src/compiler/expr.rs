@@ -166,6 +166,43 @@ impl FunctionCompiler<'_> {
                 self.release(mark);
                 Ok(t)
             }
+            ExprKind::PrivateMember {
+                object,
+                name,
+                optional,
+            } => {
+                let t = self.target(dst)?;
+                let mark = self.mark();
+                let obj = self.expr(object, None)?;
+                if optional {
+                    self.chain_jump(obj)?;
+                }
+                let key = self.private_key(name)?;
+                self.position = self.private_read_position(e);
+                self.emit_get(t, obj, key);
+                self.release(mark);
+                Ok(t)
+            }
+            ExprKind::PrivateIn { name, object } => {
+                let t = self.target(dst)?;
+                let mark = self.mark();
+                let obj = self.expr(object, None)?;
+                let KeyReg::Private { env, index } = self.private_key(name)? else {
+                    return Err(Self::internal("a private key that is not private"));
+                };
+                // Chromium's position: the `in`.
+                let name_end =
+                    self.reference(name.reference).offset + self.name_text(name.name).len() as u32;
+                self.position = self.token_position(name_end);
+                self.emit(Insn::HasPrivate {
+                    dst: t,
+                    obj,
+                    env,
+                    index,
+                });
+                self.release(mark);
+                Ok(t)
+            }
             ExprKind::Call {
                 callee,
                 arguments,
@@ -192,8 +229,6 @@ impl FunctionCompiler<'_> {
             ExprKind::SuperCall(call) => self.super_call(call, dst),
             ExprKind::BigInt(_)
             | ExprKind::Await(_)
-            | ExprKind::PrivateMember { .. }
-            | ExprKind::PrivateIn { .. }
             | ExprKind::ImportCall { .. }
             | ExprKind::ImportMeta => {
                 Err(self
@@ -467,6 +502,7 @@ impl FunctionCompiler<'_> {
             | ExprKind::Function(_)
             | ExprKind::Member { .. }
             | ExprKind::Index { .. }
+            | ExprKind::PrivateMember { .. }
             | ExprKind::Binary { .. }
             | ExprKind::Call { .. }
             | ExprKind::New { .. } => true,
@@ -519,8 +555,6 @@ impl FunctionCompiler<'_> {
                 | ExprKind::SuperMember { .. }
                 | ExprKind::SuperIndex { .. }
                 | ExprKind::SuperCall(_)
-                | ExprKind::PrivateMember { .. }
-                | ExprKind::PrivateIn { .. }
                 | ExprKind::ImportCall { .. }
                 | ExprKind::ImportMeta => return true,
                 ExprKind::Identifier(_)
@@ -551,7 +585,9 @@ impl FunctionCompiler<'_> {
                 | ExprKind::Unary {
                     argument: inner, ..
                 }
-                | ExprKind::Member { object: inner, .. } => work.push(inner),
+                | ExprKind::Member { object: inner, .. }
+                | ExprKind::PrivateMember { object: inner, .. }
+                | ExprKind::PrivateIn { object: inner, .. } => work.push(inner),
                 ExprKind::Yield { argument, .. } => work.extend(argument),
                 ExprKind::Binary { left, right, .. }
                 | ExprKind::Logical { left, right, .. }
@@ -1145,6 +1181,24 @@ impl FunctionCompiler<'_> {
         {
             self.note_member_function(target, value);
         }
+        if let ExprKind::PrivateMember { object, name, .. } = self.ast.expr(target).kind {
+            // Chromium's positions: see `private_position`; a failed write
+            // to a field by `=` is at the operator.
+            let at = self.private_position(target);
+            let field = at != self.name_position(target);
+            let places = match op {
+                AssignOp::Assign if field => (at, places.1),
+                _ => (at, at),
+            };
+            return self.assign_property(
+                op,
+                object,
+                PropertyRef::Private(name),
+                value,
+                dst,
+                places,
+            );
+        }
         match self.ast.expr(target).kind {
             ExprKind::Identifier(ident) => {
                 self.position = places.1;
@@ -1268,6 +1322,10 @@ impl FunctionCompiler<'_> {
                 let obj = self.expr_stable(object, &[value])?;
                 (obj, KeyReg::Site(self.site(text)))
             }
+            PropertyRef::Private(name) => {
+                let obj = self.expr_stable(object, &[value])?;
+                (obj, self.private_key(name)?)
+            }
             PropertyRef::Computed(index) => {
                 let obj = self.expr_stable(object, &[index, value])?;
                 let k = if matches!(op, AssignOp::Assign) {
@@ -1330,27 +1388,27 @@ impl FunctionCompiler<'_> {
             AssignOp::Assign => {
                 self.expr(value, Some(t))?;
                 self.position = write_position;
-                self.emit_put_super(base, key, t);
+                self.emit_put_super(base, key, t)?;
             }
             AssignOp::Compound(binary) => {
                 self.key_once(key);
                 self.position = read_position;
-                self.emit_get_super(t, base, key);
+                self.emit_get_super(t, base, key)?;
                 let inner = self.mark();
                 let b = self.expr(value, None)?;
                 self.position = write_position;
                 self.emit(Self::binary_insn(binary, t, t, b));
                 self.release(inner);
-                self.emit_put_super(base, key, t);
+                self.emit_put_super(base, key, t)?;
             }
             AssignOp::Logical(logical) => {
                 self.key_once(key);
                 self.position = read_position;
-                self.emit_get_super(t, base, key);
+                self.emit_get_super(t, base, key)?;
                 let skip = self.emit(Self::logical_skip(logical, t));
                 self.expr(value, Some(t))?;
                 self.position = write_position;
-                self.emit_put_super(base, key, t);
+                self.emit_put_super(base, key, t)?;
                 self.patch_here(skip);
             }
         }
@@ -1397,7 +1455,12 @@ impl FunctionCompiler<'_> {
             }
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
                 let (base, key) = self.super_reference(target)?;
-                self.emit_put_super(base, key, value);
+                self.emit_put_super(base, key, value)?;
+            }
+            ExprKind::PrivateMember { object, name, .. } => {
+                let obj = self.expr(object, None)?;
+                let key = self.private_key(name)?;
+                self.emit_put(obj, key, value);
             }
             ExprKind::Call { .. } => {
                 // Annex B web compatibility, as for `f() = v`.
@@ -1416,6 +1479,12 @@ impl FunctionCompiler<'_> {
         match key {
             KeyReg::Site(site) => self.emit(Insn::GetNamed { dst, obj, site }),
             KeyReg::Register(key) => self.emit(Insn::GetIndex { dst, obj, key }),
+            KeyReg::Private { env, index } => self.emit(Insn::GetPrivate {
+                dst,
+                obj,
+                env,
+                index,
+            }),
         };
     }
 
@@ -1423,7 +1492,22 @@ impl FunctionCompiler<'_> {
         match key {
             KeyReg::Site(site) => self.emit(Insn::SetNamed { obj, src, site }),
             KeyReg::Register(key) => self.emit(Insn::SetIndex { obj, key, src }),
+            KeyReg::Private { env, index } => self.emit(Insn::SetPrivate {
+                obj,
+                src,
+                env,
+                index,
+            }),
         };
+    }
+
+    /// The key of a private name occurrence: the private environment of its
+    /// class (the register of a local binding, or a temporary) and the
+    /// name's index in it.
+    pub(super) fn private_key(&mut self, name: Ident) -> CResult<KeyReg> {
+        let index = self.private_index(name)?;
+        let env = self.load_ref(name.reference, None)?;
+        Ok(KeyReg::Private { env, index })
     }
 
     /// `++` and `--` (§13.4). With `discard`, the result is not needed.
@@ -1463,30 +1547,10 @@ impl FunctionCompiler<'_> {
                 }
                 Ok(t)
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } => {
+            ExprKind::Member { .. } | ExprKind::Index { .. } | ExprKind::PrivateMember { .. } => {
                 let t = self.target(dst)?;
                 let mark = self.mark();
-                let (obj, key) = match self.ast.expr(target).kind {
-                    ExprKind::Member {
-                        object, property, ..
-                    } => {
-                        let obj = self.expr(object, None)?;
-                        (obj, KeyReg::Site(self.site(self.name_text(property))))
-                    }
-                    ExprKind::Index { object, index, .. } => {
-                        if let Some(text) = self.constant_key(index) {
-                            let obj = self.expr(object, None)?;
-                            (obj, KeyReg::Site(self.site(text)))
-                        } else {
-                            let obj = self.expr_stable(object, &[index])?;
-                            let k = self.temp()?;
-                            self.expr(index, Some(k))?;
-                            self.emit(Insn::ToKey { dst: k, src: k });
-                            (obj, KeyReg::Register(k))
-                        }
-                    }
-                    _ => return Err(Self::internal("an update target")),
-                };
+                let (obj, key) = self.update_reference(target)?;
                 self.emit_get(t, obj, key);
                 if prefix || discard {
                     self.emit(step(t, t));
@@ -1505,15 +1569,15 @@ impl FunctionCompiler<'_> {
                 let mark = self.mark();
                 let (base, key) = self.super_reference(target)?;
                 self.key_once(key);
-                self.emit_get_super(t, base, key);
+                self.emit_get_super(t, base, key)?;
                 if prefix || discard {
                     self.emit(step(t, t));
-                    self.emit_put_super(base, key, t);
+                    self.emit_put_super(base, key, t)?;
                 } else {
                     self.emit(Insn::ToNumeric { dst: t, src: t });
                     let n = self.temp()?;
                     self.emit(step(n, t));
-                    self.emit_put_super(base, key, n);
+                    self.emit_put_super(base, key, n)?;
                 }
                 self.release(mark);
                 Ok(t)
@@ -1530,6 +1594,38 @@ impl FunctionCompiler<'_> {
             }
             _ => Err(Self::internal("an update of an invalid target")),
         }
+    }
+
+    /// The object and the key of a property that `++` or `--` updates
+    /// (the key converted once).
+    fn update_reference(&mut self, target: ExprId) -> CResult<(Reg, KeyReg)> {
+        Ok(match self.ast.expr(target).kind {
+            ExprKind::PrivateMember { object, name, .. } => {
+                let obj = self.expr(object, None)?;
+                let key = self.private_key(name)?;
+                self.position = self.private_position(target);
+                (obj, key)
+            }
+            ExprKind::Member {
+                object, property, ..
+            } => {
+                let obj = self.expr(object, None)?;
+                (obj, KeyReg::Site(self.site(self.name_text(property))))
+            }
+            ExprKind::Index { object, index, .. } => {
+                if let Some(text) = self.constant_key(index) {
+                    let obj = self.expr(object, None)?;
+                    (obj, KeyReg::Site(self.site(text)))
+                } else {
+                    let obj = self.expr_stable(object, &[index])?;
+                    let k = self.temp()?;
+                    self.expr(index, Some(k))?;
+                    self.emit(Insn::ToKey { dst: k, src: k });
+                    (obj, KeyReg::Register(k))
+                }
+            }
+            _ => return Err(Self::internal("an update target")),
+        })
     }
 
     // --- Calls ---
@@ -1582,7 +1678,9 @@ impl FunctionCompiler<'_> {
                 && !is_new
                 && matches!(
                     self.ast.expr(inner).kind,
-                    ExprKind::Member { .. } | ExprKind::Index { .. }
+                    ExprKind::Member { .. }
+                        | ExprKind::Index { .. }
+                        | ExprKind::PrivateMember { .. }
                 )
             {
                 // `(a?.b)()`: the chain keeps its reference, so `this` is
@@ -1696,6 +1794,21 @@ impl FunctionCompiler<'_> {
                     self.release(mark);
                 }
             }
+            ExprKind::PrivateMember {
+                object,
+                name,
+                optional,
+            } => {
+                self.expr(object, Some(this))?;
+                if optional {
+                    self.chain_jump(this)?;
+                }
+                let mark = self.mark();
+                let key = self.private_key(name)?;
+                self.position = self.private_read_position(target);
+                self.emit_get(base, this, key);
+                self.release(mark);
+            }
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
                 self.super_callee(target, base)?;
             }
@@ -1706,7 +1819,7 @@ impl FunctionCompiler<'_> {
 
     /// The position of the read of `a.b`: Chromium reports a read that
     /// is a link of an optional chain at its `.`, any other at the name.
-    fn read_position(&self, member: ExprId) -> u32 {
+    pub(super) fn read_position(&self, member: ExprId) -> u32 {
         if self.chain_links.contains(&member) {
             self.dot_position(member)
         } else {
@@ -1741,7 +1854,9 @@ impl FunctionCompiler<'_> {
         loop {
             self.chain_links.push(link);
             link = match self.ast.expr(link).kind {
-                ExprKind::Member { object, .. } | ExprKind::Index { object, .. } => object,
+                ExprKind::Member { object, .. }
+                | ExprKind::Index { object, .. }
+                | ExprKind::PrivateMember { object, .. } => object,
                 ExprKind::Call { callee, .. } => callee,
                 _ => break,
             };
@@ -1887,6 +2002,18 @@ impl FunctionCompiler<'_> {
                     _ => None,
                 }
             }
+            // V8 shows a private member as an index (`o[#x]`, `o?.[#x]`).
+            ExprKind::PrivateMember {
+                object,
+                name,
+                optional,
+            } => Some(format!(
+                "{}{}[{}]",
+                self.render(object, depth - 1)
+                    .unwrap_or_else(|| "(intermediate value)".to_owned()),
+                if optional { "?." } else { "" },
+                text(name.name)
+            )),
             ExprKind::SuperMember { property, .. } => {
                 Some(format!("(intermediate value).{}", text(property)))
             }
@@ -1937,11 +2064,14 @@ enum CallKind {
 enum PropertyRef {
     Named(String16),
     Computed(ExprId),
+    Private(Ident),
 }
 
-/// A compiled property key: a site or a register.
+/// A compiled property key: a site, a register, or a private name (its
+/// class's private environment in `env` and its index there).
 #[derive(Clone, Copy)]
 pub(super) enum KeyReg {
     Site(u32),
     Register(Reg),
+    Private { env: Reg, index: u32 },
 }

@@ -847,6 +847,7 @@ pub fn dump_scopes(script: &Script) -> String {
                     Storage::Global => "global".to_owned(),
                     Storage::Caller => "caller".to_owned(),
                     Storage::Import => "import".to_owned(),
+                    Storage::Private(index) => format!("private {index}"),
                 };
                 let _ = write!(
                     out,

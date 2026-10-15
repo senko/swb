@@ -579,6 +579,7 @@ impl<'a> FunctionCompiler<'a> {
             Storage::Unassigned => return Err(Self::internal("a binding without storage")),
             Storage::Caller => return Err(self.unsupported("eval code")),
             Storage::Import => return Err(self.unsupported("module")),
+            Storage::Private(_) => return Err(Self::internal("a store to a private name")),
         }
         Ok(())
     }
@@ -608,7 +609,11 @@ impl<'a> FunctionCompiler<'a> {
             let b = *self.scopes.binding(binding);
             // Nothing reads the record of a dynamic environment yet (M7
             // feature 3e), but closures in its reach capture its cell.
-            if let (BindingKind::DynamicEnv, Storage::Cell(r)) = (b.kind, b.storage) {
+            // The private environment of a class body: the class
+            // definition creates it right after the scope entry.
+            if let (BindingKind::DynamicEnv | BindingKind::PrivateEnvironment, Storage::Cell(r)) =
+                (b.kind, b.storage)
+            {
                 self.emit(Insn::NewCell {
                     dst: r,
                     empty: false,
@@ -627,7 +632,9 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::FunctionName
                 | BindingKind::DynamicEnv
                 | BindingKind::HomeObject
-                | BindingKind::ActiveFunction => continue,
+                | BindingKind::ActiveFunction
+                | BindingKind::PrivateName
+                | BindingKind::PrivateEnvironment => continue,
                 BindingKind::Import => return Err(self.unsupported("module")),
                 BindingKind::Var
                 | BindingKind::Function
@@ -637,7 +644,6 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::CatchParameter
                 | BindingKind::Class
                 | BindingKind::ClassName => {}
-                BindingKind::PrivateName => return Err(self.unsupported("private name")),
             }
             let lexical = b.kind.is_lexical();
             match b.storage {
@@ -1202,6 +1208,11 @@ impl<'a> FunctionCompiler<'a> {
         match (declaration, left) {
             (Some((kind, target)), _) => self.for_in_binding(kind, target, key, scope)?,
             (None, ForHead::Target(AssignTarget::Simple(target))) => {
+                // Chromium reports a write to a private member at its name.
+                let inner = self.unparen(target);
+                if let swb_js_syntax::ExprKind::PrivateMember { .. } = self.ast.expr(inner).kind {
+                    self.position = self.name_position(inner);
+                }
                 self.assign_to_target(target, key)?;
             }
             (None, ForHead::Target(AssignTarget::Pattern(pattern))) => {

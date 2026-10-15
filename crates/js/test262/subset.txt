@@ -19,9 +19,14 @@ feature array-grouping
 feature Array.prototype.values
 feature arrow-function
 feature class
+feature class-fields-private
+feature class-fields-private-in
 feature class-fields-public
+feature class-methods-private
 feature class-static-block
+feature class-static-fields-private
 feature class-static-fields-public
+feature class-static-methods-private
 feature coalesce-expression
 feature computed-property-names
 feature const
@@ -97,6 +102,9 @@ dir test/built-ins/Array
 # Added in M7 feature 3c: computed-property-names/class, expressions/super
 # (statements/class and expressions/class ran before, mostly skipped by the
 # class features).
+# Added in M7 feature 3d: the features of private names; their tests are in
+# groups that run already (statements/class, expressions/class,
+# expressions/in and others), so no new dir lines.
 
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object

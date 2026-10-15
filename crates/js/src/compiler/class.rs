@@ -21,6 +21,15 @@
 //! arguments to the parent without the array iterator (§15.7.14 step
 //! 14.a).
 //!
+//! Private names (§6.2.12): a class with private names creates its private
+//! environment when its body scope is entered, before the heritage
+//! (`NewPrivateEnv`, with the names of `private_names_const`); private
+//! methods and accessors go into it as their elements are evaluated, and
+//! the constructor owns it (`PrivateClass`). The initializer functions get
+//! it in their class slots for the private fields they define; every
+//! other use (`o.#x`, `#x in o`) reaches it through the class body's
+//! `%private` binding, which closures capture like other bindings.
+//!
 //! `super` properties: `this` (checked in a derived constructor), the key
 //! expression, then the home object's prototype (`SuperBase`) go into a
 //! pair of registers (base, `this`); `ToPropertyKey` runs in the access
@@ -28,8 +37,8 @@
 //! value).
 
 use swb_js_syntax::{
-    ClassElement, ClassElementKind, ClassId, ClassKey, ExprId, ExprKind, FunctionId, FunctionKind,
-    PropertyKey as AstKey, RefId, Resolution, SuperCallId,
+    BindingKind, ClassElement, ClassElementKind, ClassId, ClassKey, ExprId, ExprKind, FunctionId,
+    FunctionKind, PropertyKey as AstKey, RefId, Resolution, SuperCallId,
 };
 use swb_js_text::String16;
 
@@ -37,7 +46,8 @@ use super::expr::KeyReg;
 use super::function::FunctionCompiler;
 use super::{Builder, CResult, ConstSpec};
 use crate::bytecode::{
-    CodeKind, ITER_SPREAD, Insn, NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, Reg, ThisMode,
+    CodeKind, ITER_SPREAD, Insn, NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, PrivateKind,
+    Reg, ThisMode,
 };
 
 /// The name of the instance field initializer in stack traces (V8's).
@@ -84,6 +94,7 @@ impl FunctionCompiler<'_> {
         self.position = start;
         self.enter_scope(class.scope)?;
         self.enter_scope(class.body_scope)?;
+        let env = self.private_environment(id)?;
         // `parents` and `parents + 1`: the heritage's parents, then the
         // constructor and the prototype.
         let parents = self.temps(2)?;
@@ -107,6 +118,12 @@ impl FunctionCompiler<'_> {
             index,
         });
         let (function, prototype) = (parents, parents + 1);
+        if let Some(env) = env {
+            self.emit(Insn::PrivateClass {
+                env,
+                func: function,
+            });
+        }
         if let Some(key) = runtime_name {
             self.emit(Insn::SetFunctionName {
                 func: function,
@@ -125,7 +142,7 @@ impl FunctionCompiler<'_> {
             } else {
                 prototype
             };
-            self.class_element(element, target, keys)?;
+            self.class_element(element, target, keys, env)?;
         }
         self.position = start;
         if let Some(inner) = class.inner {
@@ -136,7 +153,7 @@ impl FunctionCompiler<'_> {
             self.init_binding(binding, function)?;
         }
         let keys = elements.iter().any(is_computed_field).then_some(keys);
-        self.class_initializers(&class, (function, prototype), keys)?;
+        self.class_initializers(&class, (function, prototype), keys, env)?;
         // The keys stay alive only in the initializer functions.
         if let Some(keys) = keys {
             self.emit(Insn::Undefined { dst: keys });
@@ -162,15 +179,99 @@ impl FunctionCompiler<'_> {
         self.push_constant(ConstSpec::DefaultConstructor(id))
     }
 
+    /// The private environment of a class with private names (§15.7.14
+    /// steps 6 and 7) in its binding; returns the register that holds it
+    /// during the definition.
+    fn private_environment(&mut self, id: ClassId) -> CResult<Option<Reg>> {
+        let body_scope = self.ast.class(id).body_scope;
+        let Some(binding) = self.scopes.private_environment(body_scope) else {
+            return Ok(None);
+        };
+        let index = self.private_names_const(id)?;
+        let t = match self.scopes.binding(binding).storage {
+            swb_js_syntax::Storage::Register(r) => r,
+            _ => self.temp()?,
+        };
+        self.emit(Insn::NewPrivateEnv { dst: t, index });
+        self.init_binding(binding, t)?;
+        Ok(Some(t))
+    }
+
+    /// The constant of a class's private names: each name with the kind
+    /// and placement of its element, in the order of their indices, and
+    /// the class's name for V8's messages.
+    fn private_names_const(&mut self, id: ClassId) -> CResult<u32> {
+        let class = *self.ast.class(id);
+        let count = self
+            .scopes
+            .bindings_of(class.body_scope)
+            .iter()
+            .filter(|&&b| self.scopes.binding(b).kind == BindingKind::PrivateName)
+            .count();
+        let mut names: Vec<Option<(String16, PrivateKind, bool)>> = vec![None; count];
+        let mut has_static_method = false;
+        for element in self.ast.class_elements(class.elements) {
+            let ClassKey::Private(ident) = element.key else {
+                continue;
+            };
+            let kind = match element.kind {
+                ClassElementKind::Field => PrivateKind::Field,
+                ClassElementKind::Method => PrivateKind::Method,
+                _ => PrivateKind::Accessor,
+            };
+            let index = self.private_index(ident)?;
+            has_static_method |= element.is_static
+                && kind != PrivateKind::Field
+                && self
+                    .scopes
+                    .private_name(ident.reference)
+                    .is_some_and(|binding| self.session.used_private_names.contains(&binding));
+            let slot = names
+                .get_mut(index as usize)
+                .ok_or(Self::internal("a private name outside its class"))?;
+            *slot = Some((self.name_text(ident.name), kind, element.is_static));
+        }
+        let names = names
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or(Self::internal("a private name without its element"))?;
+        // V8's name of the class in its messages: the name that
+        // `NamedEvaluation` gives does not count; an anonymous class whose
+        // static private methods or accessors are used is `.` (measured).
+        let class_name = match class.name {
+            Some(name) => self.name_text(name),
+            None if has_static_method => String16::from("."),
+            None => String16::from("anonymous"),
+        };
+        Ok(self.push_constant(ConstSpec::PrivateNames { class_name, names }))
+    }
+
+    /// The index of a private name occurrence in the private environment of
+    /// its class.
+    pub(super) fn private_index(&self, ident: swb_js_syntax::Ident) -> CResult<u32> {
+        // Eval code inside a class sees the names of the caller's classes
+        // (M7 feature 3e).
+        let binding = self
+            .scopes
+            .private_name(ident.reference)
+            .ok_or_else(|| self.unsupported("private name in eval code"))?;
+        match self.scopes.binding(binding).storage {
+            swb_js_syntax::Storage::Private(index) => Ok(index),
+            _ => Err(Self::internal("a private name without its index")),
+        }
+    }
+
     /// The initializer functions of a class (§15.7.14 steps 27 and 29):
     /// the instance one becomes `[[Fields]]` of the constructor, the
     /// static one runs now with the constructor as `this`. Both get the
-    /// array of computed field keys in `keys`, if there is one.
+    /// array of computed field keys in `keys`, if there is one, and the
+    /// private environment.
     fn class_initializers(
         &mut self,
         class: &swb_js_syntax::Class,
         (function, prototype): (Reg, Reg),
         keys: Option<Reg>,
+        env: Option<Reg>,
     ) -> CResult<()> {
         if let Some(init) = class.instance_init {
             let c = self.temp()?;
@@ -182,6 +283,9 @@ impl FunctionCompiler<'_> {
             });
             if let Some(keys) = keys {
                 self.emit(Insn::SetFieldKeys { func: c, keys });
+            }
+            if let Some(env) = env {
+                self.emit(Insn::SetPrivateEnv { func: c, env });
             }
             self.emit(Insn::SetClassFields {
                 func: function,
@@ -198,6 +302,9 @@ impl FunctionCompiler<'_> {
             });
             if let Some(keys) = keys {
                 self.emit(Insn::SetFieldKeys { func: window, keys });
+            }
+            if let Some(env) = env {
+                self.emit(Insn::SetPrivateEnv { func: window, env });
             }
             self.emit(Insn::Move {
                 dst: window + 1,
@@ -227,9 +334,16 @@ impl FunctionCompiler<'_> {
 
     /// `ClassElementEvaluation` (§15.7.14 step 23) of one element on
     /// `target` (the prototype or the constructor): methods and accessors
-    /// are defined; a computed field key is evaluated and appended to the
-    /// array in `keys`.
-    fn class_element(&mut self, element: &ClassElement, target: Reg, keys: Reg) -> CResult<()> {
+    /// are defined (private ones go into the private environment `env`); a
+    /// computed field key is evaluated and appended to the array in
+    /// `keys`.
+    fn class_element(
+        &mut self,
+        element: &ClassElement,
+        target: Reg,
+        keys: Reg,
+        env: Option<Reg>,
+    ) -> CResult<()> {
         self.position = element.span.start;
         let mark = self.mark();
         let member = match element.kind {
@@ -240,7 +354,13 @@ impl FunctionCompiler<'_> {
         };
         let key = match element.key {
             ClassKey::Property(key) => Some(key),
-            ClassKey::Private(_) => return Err(self.unsupported("private name")),
+            ClassKey::Private(ident) => {
+                if let Some((_, prefix_text)) = member {
+                    self.private_method(element, ident, (target, env), prefix_text)?;
+                }
+                self.release(mark);
+                return Ok(());
+            }
             ClassKey::StaticBlock => None,
         };
         match (member, key) {
@@ -282,6 +402,38 @@ impl FunctionCompiler<'_> {
             _ => {}
         }
         self.release(mark);
+        Ok(())
+    }
+
+    /// A private method, getter or setter (§15.4.4 `DefineMethod` and the
+    /// `PrivateElement` of §15.7.14 step 23): the closure, with the home
+    /// object in `home`, goes into the private environment `env`.
+    fn private_method(
+        &mut self,
+        element: &ClassElement,
+        ident: swb_js_syntax::Ident,
+        (home, env): (Reg, Option<Reg>),
+        prefix: &str,
+    ) -> CResult<()> {
+        let env = env.ok_or(Self::internal("a private method without its environment"))?;
+        let index = self.private_index(ident)?;
+        let value = element
+            .value
+            .ok_or(Self::internal("a method without a function"))?;
+        let ExprKind::Function(function) = self.ast.expr(value).kind else {
+            return Err(Self::internal("a method that is not a function"));
+        };
+        let mut name = String16::from(prefix);
+        name.push_str16(self.name_text(ident.name).as_str16());
+        self.session.inferred_names.insert(function, name);
+        self.position = self.ast.expr(value).span.start;
+        let src = self.method_closure(function, home, None)?;
+        self.position = element.span.start;
+        self.emit(match element.kind {
+            ClassElementKind::Getter => Insn::PrivateGetter { env, src, index },
+            ClassElementKind::Setter => Insn::PrivateSetter { env, src, index },
+            _ => Insn::PrivateMethod { env, src, index },
+        });
         Ok(())
     }
 
@@ -377,7 +529,7 @@ impl FunctionCompiler<'_> {
     /// `InitializeInstanceElements(this, F)` before the parameters.
     pub(super) fn base_constructor_fields(&mut self) -> CResult<()> {
         let class = *self.ast.class(self.own_class()?);
-        if class.instance_init.is_none() {
+        if class.instance_init.is_none() && !self.has_instance_private_methods(&class) {
             return Ok(());
         }
         let mark = self.mark();
@@ -394,6 +546,19 @@ impl FunctionCompiler<'_> {
         Ok(())
     }
 
+    /// Whether a class has instance private methods or accessors (its
+    /// instances get its brand).
+    fn has_instance_private_methods(&self, class: &swb_js_syntax::Class) -> bool {
+        self.ast
+            .class_elements(class.elements)
+            .iter()
+            .any(|element| {
+                !element.is_static
+                    && matches!(element.key, ClassKey::Private(_))
+                    && element.kind != ClassElementKind::Field
+            })
+    }
+
     /// The code of an initializer function: each field of its kind
     /// (instance or static) in order, with the static blocks
     /// (§15.7.14 step 29, §7.3.34 `InitializeInstanceElements`).
@@ -402,6 +567,22 @@ impl FunctionCompiler<'_> {
         let is_static = self.function.kind == FunctionKind::StaticInitializer;
         let this = self.temp()?;
         self.emit(Insn::This { dst: this });
+        let has_private_fields = self
+            .ast
+            .class_elements(class.elements)
+            .iter()
+            .any(|element| {
+                element.is_static == is_static
+                    && element.kind == ClassElementKind::Field
+                    && matches!(element.key, ClassKey::Private(_))
+            });
+        let env = if has_private_fields {
+            let env = self.temp()?;
+            self.emit(Insn::LoadPrivateEnv { dst: env });
+            Some(env)
+        } else {
+            None
+        };
         let mut next_key = 0u32;
         for element in self.ast.class_elements(class.elements).to_vec() {
             let index = is_computed_field(&element).then(|| {
@@ -414,7 +595,9 @@ impl FunctionCompiler<'_> {
             self.position = element.span.start;
             let mark = self.mark();
             match element.kind {
-                ClassElementKind::Field => self.field_definition(&element, this, index)?,
+                ClassElementKind::Field => {
+                    self.field_definition(&element, (this, env), index)?;
+                }
                 ClassElementKind::StaticBlock { body, scope } => {
                     self.enter_scope(scope)?;
                     for &statement in self.ast.stmts(body) {
@@ -429,11 +612,12 @@ impl FunctionCompiler<'_> {
     }
 
     /// `DefineField` (§7.3.33) of one field on `this`; `index` is the
-    /// position of a computed key in the class's key array.
+    /// position of a computed key in the class's key array; `env` holds
+    /// the private environment for a private field.
     fn field_definition(
         &mut self,
         element: &ClassElement,
-        this: Reg,
+        (this, env): (Reg, Option<Reg>),
         index: Option<u32>,
     ) -> CResult<()> {
         let v = self.temp()?;
@@ -476,7 +660,30 @@ impl FunctionCompiler<'_> {
                     site,
                 });
             }
-            (ClassKey::Private(_), None) => return Err(self.unsupported("private name")),
+            (ClassKey::Private(ident), None) => {
+                let env = env.ok_or(Self::internal("a private field without its environment"))?;
+                let name = self.name_text(ident.name);
+                match element.value {
+                    Some(value) => {
+                        self.expr_named(value, Some(v), name)?;
+                    }
+                    None => {
+                        self.emit(Insn::Undefined { dst: v });
+                    }
+                }
+                let index = self.private_index(ident)?;
+                // Chromium reports a field that is added twice at its
+                // initializer, or at its name without one.
+                self.position = element
+                    .value
+                    .map_or(element.span.start, |value| self.ast.expr(value).span.start);
+                self.emit(Insn::DefinePrivateField {
+                    obj: this,
+                    src: v,
+                    env,
+                    index,
+                });
+            }
             (ClassKey::StaticBlock, None) => {
                 return Err(Self::internal("a field without a key"));
             }
@@ -676,19 +883,23 @@ impl FunctionCompiler<'_> {
     }
 
     /// `GetValue` of a `super` reference into `dst`.
-    pub(super) fn emit_get_super(&mut self, dst: Reg, base: Reg, key: KeyReg) {
+    pub(super) fn emit_get_super(&mut self, dst: Reg, base: Reg, key: KeyReg) -> CResult<()> {
         match key {
             KeyReg::Site(site) => self.emit(Insn::GetSuperNamed { dst, base, site }),
             KeyReg::Register(key) => self.emit(Insn::GetSuper { dst, base, key }),
+            KeyReg::Private { .. } => return Err(Self::internal("a private super reference")),
         };
+        Ok(())
     }
 
     /// `PutValue` of `src` on a `super` reference.
-    pub(super) fn emit_put_super(&mut self, base: Reg, key: KeyReg, src: Reg) {
+    pub(super) fn emit_put_super(&mut self, base: Reg, key: KeyReg, src: Reg) -> CResult<()> {
         match key {
             KeyReg::Site(site) => self.emit(Insn::SetSuperNamed { base, src, site }),
             KeyReg::Register(key) => self.emit(Insn::SetSuper { base, key, src }),
+            KeyReg::Private { .. } => return Err(Self::internal("a private super reference")),
         };
+        Ok(())
     }
 
     /// Converts a computed key in place, for a reference that is read and
@@ -705,7 +916,7 @@ impl FunctionCompiler<'_> {
         let mark = self.mark();
         let (base, key) = self.super_reference(e)?;
         self.position = self.ast.expr(e).span.start;
-        self.emit_get_super(t, base, key);
+        self.emit_get_super(t, base, key)?;
         self.release(mark);
         Ok(t)
     }
@@ -719,7 +930,7 @@ impl FunctionCompiler<'_> {
             dst: base + 1,
             src: pair + 1,
         });
-        self.emit_get_super(base, pair, key);
+        self.emit_get_super(base, pair, key)?;
         self.release(mark);
         Ok(())
     }
@@ -749,7 +960,7 @@ impl FunctionCompiler<'_> {
             return false;
         };
         let binding = self.scopes.binding(binding);
-        binding.kind == swb_js_syntax::BindingKind::This
+        binding.kind == BindingKind::This
             && self
                 .ast
                 .function(self.scopes.scope(binding.scope).function)

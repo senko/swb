@@ -47,6 +47,7 @@ mod iter;
 mod literal;
 mod messages;
 pub(crate) mod number;
+pub(crate) mod private;
 mod property;
 mod realm;
 mod stack;
@@ -61,6 +62,7 @@ pub use function::{
     BoundFunction, Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
 };
 pub use generator::GeneratorState;
+pub use private::PrivateEnvironment;
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
 pub use stack::{ErrorData, StackFrame};

@@ -141,6 +141,7 @@ impl Tracer<'_> {
             |marks| &mut marks.symbols,
         ) && let Ok(Symbol {
             description: Some(description),
+            ..
         }) = self.arenas.symbols.get(symbol)
         {
             self.string(*description);

@@ -3,8 +3,8 @@
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
-//! M7 feature 3c, classes and `super` compile; private names (feature 3d)
-//! and `async` (feature 7) do not.
+//! M7 feature 3d, classes with private names and `super` compile; `async`
+//! (feature 7) does not.
 
 use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 
@@ -14,7 +14,6 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
         ExprKind::BigInt(_) => "BigInt literal",
         ExprKind::Yield { delegate: true, .. } => "yield*",
         ExprKind::Await(_) => "await",
-        ExprKind::PrivateMember { .. } | ExprKind::PrivateIn { .. } => "private name",
         ExprKind::ImportCall { .. } => "import()",
         ExprKind::ImportMeta => "import.meta",
         _ => return None,
@@ -68,12 +67,8 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
     }
     for id in ast.class_ids() {
         for element in ast.class_elements(ast.class(id).elements) {
-            match element.key {
-                ClassKey::Private(_) => note(element.span.start, "private name"),
-                ClassKey::Property(PropertyKey::BigInt(_)) => {
-                    note(element.span.start, "BigInt literal");
-                }
-                _ => {}
+            if let ClassKey::Property(PropertyKey::BigInt(_)) = element.key {
+                note(element.span.start, "BigInt literal");
             }
         }
     }

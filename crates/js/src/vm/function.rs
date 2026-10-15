@@ -55,6 +55,11 @@ pub(crate) struct ClassSlots {
     /// The computed field keys of a field initializer function: an
     /// internal array, evaluated when the class was defined.
     pub(crate) field_keys: Option<Gc<crate::object::Object>>,
+    /// The private environment of the class (`vm/private.rs`): of a field
+    /// initializer function, for its private fields; of a class
+    /// constructor whose class has instance private methods, for their
+    /// brand.
+    pub(crate) private: Option<Gc<crate::object::Object>>,
 }
 
 impl Closure {
@@ -64,7 +69,7 @@ impl Closure {
             tracer.cell(*cell);
         }
         if let Some(slots) = &self.class {
-            for object in [slots.home, slots.fields, slots.field_keys]
+            for object in [slots.home, slots.fields, slots.field_keys, slots.private]
                 .into_iter()
                 .flatten()
             {

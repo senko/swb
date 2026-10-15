@@ -919,6 +919,81 @@ pub(crate) enum Insn {
     /// Throws the `ReferenceError` of `delete super.x` (§13.5.1.2).
     ThrowSuperDelete,
 
+    // --- Private names (§6.2.12, §7.3.26 to §7.3.32) ---
+    /// `dst` = a new private environment with a new Private Name for each
+    /// name of the constant `constants[index]` (§15.7.14 steps 6 and 7).
+    NewPrivateEnv {
+        dst: Reg,
+        index: u32,
+    },
+    /// The private method `src` becomes the value of name `index` of the
+    /// private environment `env`.
+    PrivateMethod {
+        env: Reg,
+        src: Reg,
+        index: u32,
+    },
+    /// The getter `src` of the private accessor `index` of `env`.
+    PrivateGetter {
+        env: Reg,
+        src: Reg,
+        index: u32,
+    },
+    /// The setter `src` of the private accessor `index` of `env`.
+    PrivateSetter {
+        env: Reg,
+        src: Reg,
+        index: u32,
+    },
+    /// The class constructor `func` owns the private environment `env`:
+    /// static private methods check their receiver against it, and its
+    /// instances get the brand of the instance private methods.
+    PrivateClass {
+        env: Reg,
+        func: Reg,
+    },
+    /// The field initializer function `func` gets the private environment
+    /// `env` of its class (for [`Insn::LoadPrivateEnv`]).
+    SetPrivateEnv {
+        func: Reg,
+        env: Reg,
+    },
+    /// `dst` = the private environment of the running field initializer
+    /// function.
+    LoadPrivateEnv {
+        dst: Reg,
+    },
+    /// `dst` = `PrivateGet(obj, name)` (§7.3.31) with name `index` of the
+    /// private environment `env`; a getter runs as a call.
+    GetPrivate {
+        dst: Reg,
+        obj: Reg,
+        env: Reg,
+        index: u32,
+    },
+    /// `PrivateSet(obj, name, src)` (§7.3.32); a setter runs as a call.
+    SetPrivate {
+        obj: Reg,
+        src: Reg,
+        env: Reg,
+        index: u32,
+    },
+    /// `dst` = `#name in obj` (§13.10.1): a `TypeError` if `obj` is not an
+    /// object.
+    HasPrivate {
+        dst: Reg,
+        obj: Reg,
+        env: Reg,
+        index: u32,
+    },
+    /// `PrivateFieldAdd(obj, name, src)` (§7.3.28) of a field definition.
+    DefinePrivateField {
+        obj: Reg,
+        src: Reg,
+        env: Reg,
+        index: u32,
+    },
+
     /// Does nothing (`debugger`).
     Nop,
 }
@@ -991,6 +1066,43 @@ pub(crate) enum Constant {
     /// The strings of a tagged template (atoms): the cooked string of each
     /// part (`None` for an invalid escape) and its raw string.
     Template(Box<[TemplatePart]>),
+    /// The private names of a class body ([`Insn::NewPrivateEnv`]).
+    PrivateNames(Box<PrivateNames>),
+}
+
+/// The private names of a class body, in the order of the indices of the
+/// private name bindings.
+#[derive(Clone, Debug)]
+pub(crate) struct PrivateNames {
+    /// The name of the class in V8's messages about its private methods:
+    /// its binding identifier, else `.` if an expression uses one of its
+    /// static private methods or accessors, else `anonymous` (measured in
+    /// Node.js 22; the name that `NamedEvaluation` gives does not count).
+    pub(crate) class_name: Gc<JsString>,
+    /// The names.
+    pub(crate) names: Box<[PrivateNameSpec]>,
+}
+
+/// One private name of a class body.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PrivateNameSpec {
+    /// The name with its `#` (an atom): the `[[Description]]`.
+    pub(crate) description: Gc<JsString>,
+    /// What the class declares under the name.
+    pub(crate) kind: PrivateKind,
+    /// Whether the element is static.
+    pub(crate) is_static: bool,
+}
+
+/// The kinds of private elements (§6.2.10 `PrivateElement` `[[Kind]]`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PrivateKind {
+    /// A field: a value on each object that has it.
+    Field,
+    /// A method: one function for all objects of the class.
+    Method,
+    /// A getter, a setter, or both.
+    Accessor,
 }
 
 /// One string part of a tagged template's constant.
@@ -1206,6 +1318,9 @@ impl FunctionCode {
             .iter()
             .map(|constant| match constant {
                 Constant::Template(parts) => parts.len() * size_of::<TemplatePart>(),
+                Constant::PrivateNames(names) => {
+                    size_of::<PrivateNames>() + names.names.len() * size_of::<PrivateNameSpec>()
+                }
                 _ => 0,
             })
             .sum();
@@ -1261,7 +1376,7 @@ impl FunctionCode {
         let (_, constant) = *self.call_names.get(index)?;
         match self.constants.get(constant as usize)? {
             Constant::Value(value) => Some(*value),
-            Constant::Function(..) | Constant::Template(_) => None,
+            Constant::Function(..) | Constant::Template(_) | Constant::PrivateNames(_) => None,
         }
     }
 
@@ -1307,6 +1422,12 @@ impl GenericData for CodeObject {
                             tracer.string(cooked);
                         }
                         tracer.string(part.raw);
+                    }
+                }
+                Constant::PrivateNames(names) => {
+                    tracer.string(names.class_name);
+                    for name in &names.names {
+                        tracer.string(name.description);
                     }
                 }
             }
@@ -1356,7 +1477,7 @@ pub(crate) fn disassemble(code: &Rc<FunctionCode>, heap: &crate::heap::Heap) -> 
             .iter()
             .filter_map(|c| match c {
                 Constant::Function(_, child) => Some(Rc::clone(child)),
-                Constant::Value(_) | Constant::Template(_) => None,
+                Constant::Value(_) | Constant::Template(_) | Constant::PrivateNames(_) => None,
             })
             .collect();
         children.reverse();
@@ -1507,6 +1628,10 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
             matches!(constant(index), Some(Constant::Template(_))),
             "template constant index",
         ),
+        Insn::NewPrivateEnv { index, .. } => (
+            matches!(constant(index), Some(Constant::PrivateNames(_))),
+            "private names constant index",
+        ),
         Insn::SetFunctionName { prefix, .. } => (prefix <= NAME_PREFIX_SET, "function name prefix"),
         Insn::ThrowInvalidAssign { context } => {
             (context <= INVALID_TARGET_FOR, "invalid target context")
@@ -1612,7 +1737,45 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::CheckThis { src: dst }
         | I::CheckSuperOnce { src: dst }
         | I::SuperCall { callee: dst, .. }
-        | I::SuperCallSpread { callee: dst } => f(dst),
+        | I::SuperCallSpread { callee: dst }
+        | I::NewPrivateEnv { dst, .. }
+        | I::LoadPrivateEnv { dst } => f(dst),
+        I::PrivateMethod { env, src, .. }
+        | I::PrivateGetter { env, src, .. }
+        | I::PrivateSetter { env, src, .. }
+        | I::PrivateClass { env, func: src }
+        | I::SetPrivateEnv { func: src, env } => {
+            f(env);
+            f(src);
+        }
+        I::GetPrivate {
+            dst: a,
+            obj: b,
+            env,
+            ..
+        }
+        | I::SetPrivate {
+            obj: a,
+            src: b,
+            env,
+            ..
+        }
+        | I::HasPrivate {
+            dst: a,
+            obj: b,
+            env,
+            ..
+        }
+        | I::DefinePrivateField {
+            obj: a,
+            src: b,
+            env,
+            ..
+        } => {
+            f(a);
+            f(b);
+            f(env);
+        }
         I::MethodClosure { dst, home, .. } => {
             f(dst);
             f(home);

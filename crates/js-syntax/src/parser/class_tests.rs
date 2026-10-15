@@ -12,7 +12,7 @@ use std::time::Instant;
 use swb_js_text::{RecursionBudget, Str16};
 
 use super::parse_script;
-use super::tests::{assert_too_deep, check_ast, check_errors, error, on_engine_stack, parse};
+use super::tests::{assert_too_deep, check_ast, check_errors, on_engine_stack, parse};
 use crate::dump::{dump_references, dump_scopes};
 
 #[test]
@@ -320,8 +320,6 @@ fn hostile_wide_classes_are_linear() {
                 "class A {{ {} }}",
                 repeat_indexed("static { var v{i}; } ", n)
             ),
-            // Each private name takes a register of the enclosing
-            // function (at most 64,511 declared registers).
             format!(
                 "class A {{ {} {} }}",
                 repeat_indexed("#p{i}; ", 60_000),
@@ -357,11 +355,16 @@ fn hostile_wide_classes_are_linear() {
         for source in &sources {
             assert!(timed_parse(source) < 30.0);
         }
-        // 100,000 private names: past the register limit, a clean error.
-        let source = format!("class A {{ {} }}", repeat_indexed("#p{i}; ", n));
-        let start = Instant::now();
-        assert_eq!(error(&source), "Too many variables declared in a function");
-        assert!(start.elapsed().as_secs_f64() < 30.0);
+        // 100,000 private names take no registers (one private
+        // environment per class), as in V8.
+        let source = format!(
+            "class A {{ {} m() {{ return this.#p{}; }} }}",
+            repeat_indexed("#p{i}; ", n),
+            n - 1
+        );
+        assert!(timed_parse(&source) < 30.0);
+        let script = parse(&source).expect("100,000 private names");
+        assert!(dump_scopes(&script).starts_with("function 0 params [] registers 2\n"));
     });
 }
 
@@ -388,15 +391,15 @@ class A extends B {
         "function 0 params [] registers 2
   scope 0 Script: outer global Let, A global Class
   scope 1 Class: A cell r0 ClassName
-  scope 2 ClassBody: #p cell r1 PrivateName
+  scope 2 ClassBody: #p private 0 PrivateName, %private cell r1 PrivateEnvironment
 function 1 parent 0 params [] registers 0
-function 2 parent 0 params [] registers 3 captures [#p<-r1] this
+function 2 parent 0 params [] registers 3 captures [%private<-r1] this
   scope 4 Function: this r0 This
   scope 9 StaticBlock: v r1 Var, w r2 Let
   scope 10 StaticBlock: v r1 Var
-function 3 parent 0 params [x] registers 7 captures [#p<-r1] this
+function 3 parent 0 params [x] registers 7 captures [%private<-r1] this
   scope 5 Function: x r0 Parameter, f r1 Const, g r2 Const, this cell r3 This, new.target cell r4 NewTarget, %function cell r5 ActiveFunction, super cell r6 HomeObject
-function 4 parent 3 params [] registers 0 captures [this<-r3 super<-r6 #p<-c0 new.target<-r4]
+function 4 parent 3 params [] registers 0 captures [this<-r3 super<-r6 %private<-c0 new.target<-r4]
 function 5 parent 3 params [] registers 0 captures [this<-r3 new.target<-r4 %function<-r5]
 function 6 parent 0 params [] registers 0 captures [A<-r0]
 "
@@ -506,7 +509,10 @@ fn private_names_resolve_through_enclosing_classes() {
     assert!(references.contains("#y@64:cap1"), "{references}");
     assert!(references.contains("#x@70:cap0"), "{references}");
     let scopes = dump_scopes(&script);
-    assert!(scopes.contains("captures [#x<-c0 #y<-r1]"), "{scopes}");
+    assert!(
+        scopes.contains("captures [%private<-c0 %private<-r1]"),
+        "{scopes}"
+    );
 }
 
 const CLASS_ASYNC_ERRORS: &[(&str, &str)] = &[

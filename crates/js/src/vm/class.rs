@@ -270,6 +270,33 @@ impl Runtime {
         Ok(())
     }
 
+    /// Sets the private environment of a class constructor or field
+    /// initializer function.
+    pub(crate) fn set_private_env(&mut self, function: Value, env: Value) -> VmResult<()> {
+        let Value::Object(env) = env else {
+            return Err(VmError::invariant(
+                "a private environment that is not an object",
+            ));
+        };
+        self.class_slots_mut(function)?.private = Some(env);
+        Ok(())
+    }
+
+    /// The private environment of a class constructor or field initializer
+    /// function, if it has one.
+    pub(crate) fn private_env_of(&self, function: Value) -> VmResult<Option<Gc<Object>>> {
+        Ok(self.class_slots(function)?.and_then(|slots| slots.private))
+    }
+
+    /// The private environment of the running field initializer function.
+    pub(crate) fn running_private_env(&self) -> VmResult<Value> {
+        self.private_env_of(self.running_function())?
+            .map(Value::Object)
+            .ok_or(VmError::invariant(
+                "a field initializer without its private environment",
+            ))
+    }
+
     /// The instance field initializer of a class constructor, if any.
     pub(crate) fn fields_initializer(&self, function: Value) -> VmResult<Option<Gc<Object>>> {
         Ok(self.class_slots(function)?.and_then(|slots| slots.fields))

@@ -587,7 +587,11 @@ impl Heap {
         }
         let live = entries.iter().filter(|entry| !entry.flags.deleted());
         keys.extend(live.clone().filter(|e| !e.key.is_symbol()).map(|e| e.key));
-        keys.extend(live.filter(|e| e.key.is_symbol()).map(|e| e.key));
+        // Private Names are not properties (`private.rs`).
+        keys.extend(
+            live.filter(|e| e.key.is_symbol() && !self.is_private_key(e.key))
+                .map(|e| e.key),
+        );
         Ok(keys)
     }
 }

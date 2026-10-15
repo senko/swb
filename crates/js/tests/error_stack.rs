@@ -1375,3 +1375,81 @@ ReferenceError: Must call super constructor in derived class before accessing 't
 ",
     )]);
 }
+
+/// Private names (M7 feature 3d): private methods and accessors are frames
+/// without the class (`#m`, `get #g`), functions in private fields get the
+/// field's name, and V8's positions of the private name errors (measured
+/// in Node.js 22).
+#[test]
+fn private_name_frames() {
+    check_script_cases(&[(
+        r"class A {
+  #m() { return new Error('m'); }
+  get #g() { return new Error('g'); }
+  set #s(v) { this.e = new Error('s'); }
+  static #sm() { return new Error('sm'); }
+  #f = () => new Error('f');
+  #h = function () { return new Error('h'); };
+  static run(o) { o.#s = 1; return [o.#m(), o.#g, o.e, A.#sm(), o.#f(), o.#h()]; }
+  static t(o) { return o.#nope; }
+  #nope = 1;
+}
+for (var e of A.run(new A())) print(e.stack);
+try { A.t({}); } catch (e) { print(e.stack); }
+class R { constructor(o) { return o; } }
+class S extends R { #x = 1; #p() {} constructor(o) { super(o); } }
+var o = {};
+new S(o);
+try { new S(o); } catch (e) { print(e.stack); }
+class T extends R { #x = 1; }
+var p = {};
+new T(p);
+try { new T(p); } catch (e) { print(e.stack); }
+class W { static m(o) { return #x in o; } #x; }
+try { W.m(1); } catch (e) { print(e.stack); }
+class U { #a = 1; m() { return this.#a(); } }
+try { new U().m(); } catch (e) { print(e.stack); }
+",
+        r"Error: m
+    at #m (t.js:2:17)
+    at A.run (t.js:8:41)
+    at t.js:12:17
+Error: g
+    at get #g (t.js:3:21)
+    at A.run (t.js:8:47)
+    at t.js:12:17
+Error: s
+    at set #s (t.js:4:24)
+    at A.run (t.js:8:21)
+    at t.js:12:17
+Error: sm
+    at #sm (t.js:5:25)
+    at A.run (t.js:8:61)
+    at t.js:12:17
+Error: f
+    at #f (t.js:6:14)
+    at A.run (t.js:8:69)
+    at t.js:12:17
+Error: h
+    at #h (t.js:7:29)
+    at A.run (t.js:8:77)
+    at t.js:12:17
+TypeError: Cannot read private member #nope from an object whose class did not declare it
+    at A.t (t.js:9:26)
+    at t.js:13:9
+TypeError: Cannot initialize private methods of class S twice on the same object
+    at new S (t.js:15:54)
+    at t.js:18:7
+TypeError: Cannot initialize #x twice on the same object
+    at <instance_members_initializer> (t.js:19:26)
+    at new T (t.js:19:1)
+    at t.js:22:7
+TypeError: Cannot use 'in' operator to search for '#x' in 1
+    at W.m (t.js:23:35)
+    at t.js:24:9
+TypeError: this[#a] is not a function
+    at U.m (t.js:25:39)
+    at t.js:26:15
+",
+    )]);
+}

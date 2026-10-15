@@ -10,9 +10,12 @@
 //!    home object (`super`) and the active function (`%function`)
 //!    resolve to implicit bindings of the nearest non-arrow function
 //!    (§10.2.11), which are created on first use. Private names (`#x`)
-//!    resolve like other names: their bindings are in the class body
-//!    scopes. The walk counts the dynamic environments that it passes
-//!    before the binding ([`super::DynamicLookup`]).
+//!    resolve like other names to their bindings in the class body
+//!    scopes; the occurrence then uses the private environment binding
+//!    of that scope, and the private name is recorded beside it
+//!    ([`super::ScopeTree::private_name`]). The walk counts the dynamic
+//!    environments that it passes before the binding
+//!    ([`super::DynamicLookup`]).
 //! 3. Marks bindings that an inner function uses as captured, and adds
 //!    the binding to the captures of every function between the use and
 //!    the declaration (flat closures). Module code receives its imports
@@ -83,6 +86,7 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     block_functions::hoist_block_functions(ast, tree);
     dynamic::add_eval_references(ast, tree);
     dynamic::create_dynamic_envs(ast, tree);
+    add_private_environments(tree);
     let top_strict = ast
         .function_ids()
         .next()
@@ -101,6 +105,7 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     let first_new = dynamic::record_lookups(tree, &counts);
     let all = tree.references.len();
     resolver.resolve_references(ast, tree, first_new..all)?;
+    tree.private_refs.sort_unstable_by_key(|&(r, _)| r);
     dynamic::finish_outer_links(tree);
     let captures = resolver.captures;
     mark_direct_eval(ast, tree);
@@ -155,6 +160,27 @@ fn mark_var_arguments(ast: &Ast, tree: &mut ScopeTree) {
     }
 }
 
+/// Gives each class body scope with private names its private
+/// environment binding (see the module documentation of [`super`]).
+fn add_private_environments(tree: &mut ScopeTree) {
+    for index in 0..tree.bindings.len() {
+        let binding = tree.binding(BindingId::from_index(index));
+        if binding.kind != BindingKind::PrivateName {
+            continue;
+        }
+        let scope = binding.scope;
+        if tree.private_environment(scope).is_none() {
+            let start = tree.scope(scope).start;
+            tree.new_binding(
+                scope,
+                names::PRIVATE_ENV,
+                BindingKind::PrivateEnvironment,
+                start,
+            );
+        }
+    }
+}
+
 /// The state of steps 2 and 3.
 struct Resolver {
     /// The capture index of each (function, binding).
@@ -196,9 +222,19 @@ impl Resolver {
             if count > 0 {
                 self.counts.push((RefId::from_index(index), count));
             }
-            let Some(binding) = resolved else {
+            let Some(mut binding) = resolved else {
                 continue;
             };
+            // A private name resolves to the private environment of its
+            // class; the name is an index into it.
+            if tree.binding(binding).kind == BindingKind::PrivateName {
+                let scope = tree.binding(binding).scope;
+                let Some(env) = tree.private_environment(scope) else {
+                    continue;
+                };
+                tree.private_refs.push((RefId::from_index(index), binding));
+                binding = env;
+            }
             if let Some(r) = tree.references.get_mut(index) {
                 r.binding = Some(binding);
             }
@@ -667,9 +703,17 @@ fn enter_scope(
     let mut register = *slot;
     let mut has_cells = false;
     let mut per_iteration = false;
+    let mut private_names = 0;
     let bindings: Vec<BindingId> = tree.bindings_of(scope).to_vec();
     for id in bindings {
         let binding = tree.binding(id);
+        if binding.kind == BindingKind::PrivateName {
+            if let Some(b) = tree.binding_mut(id) {
+                b.storage = Storage::Private(private_names);
+            }
+            private_names += 1;
+            continue;
+        }
         let is_param = binding.kind == BindingKind::Parameter;
         let cell = binding.captured || all_cells || (mapped && is_param);
         let outside = match kind {
@@ -741,6 +785,9 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
                 };
                 let resolution = match binding.storage {
                     Storage::Global | Storage::Unassigned => Resolution::Global,
+                    // Occurrences of private names resolve to the private
+                    // environment instead.
+                    Storage::Private(_) => Resolution::Unresolved,
                     Storage::Caller => Resolution::Caller,
                     Storage::Import => captured(),
                     _ if user != owner => captured(),

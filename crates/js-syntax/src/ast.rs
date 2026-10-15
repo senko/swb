@@ -384,8 +384,9 @@ pub enum ExprKind {
     SuperCall(SuperCallId),
     /// `object.#name`, or `object?.#name` in an optional chain
     /// (§13.3.2). The identifier is a private name (its text starts with
-    /// `#`); it resolves to the private name binding
-    /// ([`crate::BindingKind::PrivateName`]) of a class body scope.
+    /// `#`); it resolves to the private environment of a class body scope,
+    /// and [`crate::ScopeTree::private_name`] gives its private name
+    /// binding ([`crate::BindingKind::PrivateName`]).
     PrivateMember {
         /// The object.
         object: ExprId,
@@ -1047,8 +1048,9 @@ impl FunctionKind {
 /// of the name, which the heritage, the computed keys and the methods
 /// see (immutable, uninitialized until the class is defined). Its child
 /// `body_scope` ([`crate::ScopeKind::ClassBody`]) holds the private names
-/// of the class ([`crate::BindingKind::PrivateName`]), created when the
-/// class definition starts. The heritage is evaluated in `scope` (it
+/// of the class ([`crate::BindingKind::PrivateName`]) and their private
+/// environment ([`crate::BindingKind::PrivateEnvironment`]), created when
+/// the class definition starts. The heritage is evaluated in `scope` (it
 /// cannot see the private names), the computed keys in `body_scope`; the
 /// scopes of the methods and of the initializer functions are children of
 /// `body_scope`.
@@ -1130,8 +1132,7 @@ pub enum ClassKey {
     /// A property name (as in object literals).
     Property(PropertyKey),
     /// A private name (`#name`; the text includes the `#`). The
-    /// occurrence resolves to the private name binding of the class body
-    /// scope.
+    /// occurrence resolves like the one of [`ExprKind::PrivateMember`].
     Private(Ident),
     /// No name: a static block.
     StaticBlock,

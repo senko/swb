@@ -33,12 +33,13 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use swb_js_syntax::{CaptureSource, ClassId, FunctionId, Script};
+use swb_js_syntax::{BindingId, CaptureSource, ClassId, FunctionId, Script};
 use swb_js_text::RecursionBudget;
 use swb_js_text::{Str16, String16};
 
 use crate::bytecode::{
-    CodeKind, CodeObject, Constant, FunctionCode, GlobalDecl, Insn, TemplatePart, ThisMode, verify,
+    CodeKind, CodeObject, Constant, FunctionCode, GlobalDecl, Insn, PrivateKind, PrivateNameSpec,
+    PrivateNames, TemplatePart, ThisMode, verify,
 };
 use crate::error::{Error, ThrowKind};
 use crate::heap::{Gc, Generic, Heap};
@@ -76,6 +77,12 @@ pub(crate) enum ConstSpec {
     DefaultConstructor(ClassId),
     /// The (cooked, raw) strings of a tagged template's parts.
     Template(Vec<(Option<String16>, String16)>),
+    /// The private names of a class body (see
+    /// [`crate::bytecode::PrivateNames`]): (name, kind, static).
+    PrivateNames {
+        class_name: String16,
+        names: Vec<(String16, PrivateKind, bool)>,
+    },
 }
 
 /// The compiled form of one function before materialization.
@@ -120,6 +127,11 @@ pub(crate) struct Session {
     pub(crate) default_constructors: HashMap<ClassId, Builder>,
     /// The class of each constructor and field initializer function.
     pub(crate) function_classes: HashMap<FunctionId, ClassId>,
+    /// The kind of each private name binding (for Chromium's positions).
+    pub(crate) private_kinds: HashMap<BindingId, PrivateKind>,
+    /// The private name bindings that an expression uses (`o.#x`,
+    /// `#x in o`), for V8's name of an anonymous class.
+    pub(crate) used_private_names: std::collections::HashSet<BindingId>,
 }
 
 impl Session {
@@ -133,6 +145,24 @@ impl Session {
                 .flatten()
             {
                 session.function_classes.insert(function, id);
+            }
+            for element in script.ast.class_elements(class.elements) {
+                let swb_js_syntax::ClassKey::Private(ident) = element.key else {
+                    continue;
+                };
+                if let Some(binding) = script.scopes.private_name(ident.reference) {
+                    let kind = match element.kind {
+                        swb_js_syntax::ClassElementKind::Field => PrivateKind::Field,
+                        swb_js_syntax::ClassElementKind::Method => PrivateKind::Method,
+                        _ => PrivateKind::Accessor,
+                    };
+                    session.private_kinds.insert(binding, kind);
+                }
+            }
+        }
+        for &(reference, binding) in script.scopes.private_references() {
+            if !script.scopes.reference(reference).declaration {
+                session.used_private_names.insert(binding);
             }
         }
         session
@@ -362,6 +392,20 @@ fn finish_code(
                     atoms.push(TemplatePart { cooked, raw });
                 }
                 Constant::Template(atoms.into())
+            }
+            ConstSpec::PrivateNames { class_name, names } => {
+                let mut specs = Vec::with_capacity(names.len());
+                for (name, kind, is_static) in names {
+                    specs.push(PrivateNameSpec {
+                        description: heap.intern(name.as_str16())?,
+                        kind: *kind,
+                        is_static: *is_static,
+                    });
+                }
+                Constant::PrivateNames(Box::new(PrivateNames {
+                    class_name: heap.intern(class_name.as_str16())?,
+                    names: specs.into(),
+                }))
             }
         });
     }

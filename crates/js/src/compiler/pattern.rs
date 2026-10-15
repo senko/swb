@@ -76,6 +76,13 @@ enum TargetRef {
     /// A `super` property: the super base and `this` in `base` and
     /// `base + 1`.
     Super { base: Reg, key: KeyReg },
+    /// A private member with its object in a register and the position
+    /// of its write (Chromium's, see `private_position`).
+    Private {
+        obj: Reg,
+        key: KeyReg,
+        position: u32,
+    },
     /// A call (Annex B web compatibility): it has run; the store throws.
     Call,
 }
@@ -112,7 +119,13 @@ impl FunctionCompiler<'_> {
                 }
                 BindMode::Var | BindMode::Assign => self.store_ref(ident.reference, value)?,
             },
-            PatternKind::Expr(target) => self.assign_to_target(target, value)?,
+            PatternKind::Expr(target) => {
+                let inner = self.unparen(target);
+                if let ExprKind::PrivateMember { .. } = self.ast.expr(inner).kind {
+                    self.position = self.private_position(inner);
+                }
+                self.assign_to_target(target, value)?;
+            }
             PatternKind::Object { properties, rest } => {
                 let properties = self.ast.pattern_properties(properties).to_vec();
                 self.object_pattern(&properties, rest, value, mode, source)?;
@@ -449,6 +462,16 @@ impl FunctionCompiler<'_> {
                 };
                 TargetRef::Property { obj, key }
             }
+            ExprKind::PrivateMember { object, name, .. } => {
+                let obj = self.temp()?;
+                self.expr(object, Some(obj))?;
+                let key = self.private_key(name)?;
+                TargetRef::Private {
+                    obj,
+                    key,
+                    position: self.private_position(target),
+                }
+            }
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
                 let (base, key) = self.super_reference(target)?;
                 TargetRef::Super { base, key }
@@ -470,7 +493,11 @@ impl FunctionCompiler<'_> {
         match reference {
             TargetRef::Binding(id) => self.store_ref(id, value)?,
             TargetRef::Property { obj, key } => self.emit_put(obj, key, value),
-            TargetRef::Super { base, key } => self.emit_put_super(base, key, value),
+            TargetRef::Super { base, key } => self.emit_put_super(base, key, value)?,
+            TargetRef::Private { obj, key, position } => {
+                self.position = position;
+                self.emit_put(obj, key, value);
+            }
             TargetRef::Call => {
                 self.emit(Insn::ThrowInvalidAssign {
                     context: INVALID_TARGET_ASSIGN,

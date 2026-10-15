@@ -4,6 +4,30 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 3d, private names
+
+- `js-syntax`: a class body with private names has one implicit
+  binding (`%private`) for its private environment; private names are
+  indices into it and take no register (the limit of about 64,500
+  private names per class from 1b is gone; 100,000 work, as in V8).
+- `js`: private fields, methods, getters and setters, instance and
+  static (`vm/private.rs`, `object/private.rs`): new Private Names for
+  each class evaluation, private fields as shape entries under private
+  symbols (not enumerated, not affected by freezing), one brand per
+  instance for the private methods (as in V8), the static ones checked
+  by the constructor's identity; `#x in o`, optional chains, calls
+  with `this`, updates, compound and logical assignment, destructuring
+  and loop targets, nested classes. V8's messages, stack frames
+  (`#m`, `get #g`) and positions.
+- Review: no findings; about 70 probe cases equal to Node 22, also in
+  GC stress mode, among them every key enumeration path (no private
+  symbol leaks), private fields on arrays, functions, bound functions,
+  String and error objects, and double stamping through a constructor
+  that returns another object.
+- Runtime test262: 18,550 pass (was 15,881), the same in stress mode;
+  parse-only unchanged (41,882). 39 of 84 target scripts compile; none
+  uses private names. Next: 3e, `eval`, `with` and `new Function`.
+
 ## 2026-10-15: M7 feature 3c, classes without private names
 
 - `js`: class declarations and expressions (`compiler/class.rs`,

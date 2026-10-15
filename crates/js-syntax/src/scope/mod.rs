@@ -90,7 +90,14 @@
 //!   ([`Binding::init_end`]: the end of the class). The private names of
 //!   a class body ([`BindingKind::PrivateName`]) are created when the
 //!   body scope is entered, before the heritage runs (§15.7.14 step 7);
-//!   a getter and a setter of one name share the binding.
+//!   a getter and a setter of one name share the binding. They take no
+//!   register: a class body with private names has one implicit binding
+//!   (name `%private`, kind [`BindingKind::PrivateEnvironment`]) that
+//!   holds the class's private environment, and each private name is an
+//!   index into it ([`Storage::Private`], in declaration order). A
+//!   private name occurrence resolves to the environment binding (so
+//!   closures capture one cell per class, not one per name), and
+//!   [`ScopeTree::private_name`] gives its private name binding.
 //!
 //! - Block-level function declarations (Annex B.3.2, B.3.3): a function
 //!   declaration in a block (also in a `switch` clause, an `if` clause or
@@ -258,8 +265,14 @@ pub enum BindingKind {
     /// strict), with a temporal dead zone until the class is defined.
     ClassName,
     /// A private name of a class body (its name includes the `#`): a new
-    /// Private Name for each evaluation of the class.
+    /// Private Name for each evaluation of the class. Its storage is an
+    /// index into the class's private environment ([`Storage::Private`]).
     PrivateName,
+    /// The private environment of a class body with private names
+    /// (implicit; its name is `%private`): created when the body scope is
+    /// entered, it holds a new Private Name for each private name of the
+    /// class (§15.7.14 steps 6 and 7).
+    PrivateEnvironment,
     /// The home object of a method, accessor, constructor or class
     /// initializer (implicit; its name is `super`): the object whose
     /// prototype `super` properties read (§10.2.11, §13.3.7).
@@ -325,6 +338,10 @@ pub enum Storage {
     /// An imported binding of a module: no storage in the frame (see
     /// [`BindingKind::Import`]).
     Import,
+    /// A private name: the index in the private environment of its class
+    /// body (the binding of kind [`BindingKind::PrivateEnvironment`] in the
+    /// same scope).
+    Private(u32),
 }
 
 /// A binding.
@@ -630,6 +647,10 @@ pub struct ScopeTree {
     dynamic_envs: Vec<DynamicEnv>,
     /// The dynamic lookups of references, sorted by reference.
     dynamic_lookups: Vec<(RefId, DynamicLookup)>,
+    /// The private name binding of each private name occurrence (whose
+    /// own binding is the private environment of the class), sorted by
+    /// reference.
+    pub(crate) private_refs: Vec<(RefId, BindingId)>,
     /// The kind of code.
     pub(crate) code: CodeKind,
     /// Module code: the binding of each import entry, in the order of
@@ -699,6 +720,30 @@ impl ScopeTree {
             .map(|&(_, lookup)| lookup)
     }
 
+    /// The private name binding ([`BindingKind::PrivateName`]) of a
+    /// private name occurrence (`#x` in `o.#x`, `#x in o` or a class
+    /// element); the occurrence itself resolves to the class's private
+    /// environment.
+    pub fn private_name(&self, id: RefId) -> Option<BindingId> {
+        self.private_refs
+            .binary_search_by_key(&id, |&(r, _)| r)
+            .ok()
+            .and_then(|index| self.private_refs.get(index))
+            .map(|&(_, binding)| binding)
+    }
+
+    /// All private name occurrences with their private name bindings,
+    /// sorted by occurrence.
+    pub fn private_references(&self) -> &[(RefId, BindingId)] {
+        &self.private_refs
+    }
+
+    /// The private environment binding of a class body scope, if the class
+    /// has private names.
+    pub fn private_environment(&self, scope: ScopeId) -> Option<BindingId> {
+        self.declared_in(scope, crate::interner::names::PRIVATE_ENV)
+    }
+
     /// The number of scopes.
     pub fn scope_count(&self) -> usize {
         self.scopes.len()
@@ -739,6 +784,7 @@ impl ScopeTree {
             + self.pattern_catch_scopes.capacity() * 8
             + bytes(&self.dynamic_envs)
             + bytes(&self.dynamic_lookups)
+            + bytes(&self.private_refs)
     }
 
     // --- Building (parser) ---

@@ -650,3 +650,124 @@ fn stress_mode_agrees_on_classes() {
     assert_eq!(run(source, true), expected);
     assert_eq!(run(source, false), expected);
 }
+
+// --- Private names (M7 feature 3d) ---
+
+#[test]
+fn classes_with_many_private_names() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // A private name takes no register (one private environment per
+        // class), so 100,000 of them work, as in V8.
+        let mut fields = String::from("class C {");
+        fields.extend((0..100_000).map(|i| format!(" #f{i} = {i};")));
+        fields.push_str(
+            " static last(o) { return o.#f99999 + o.#f0; } } var c = new C(); print(C.last(c), Object.keys(c).length);",
+        );
+        assert_eq!(run_in(&mut rt, &fields), "99999 0");
+        let mut methods = String::from("class M {");
+        methods.extend((0..100_000).map(|i| format!(" #m{i}() {{ return {i}; }}")));
+        methods.push_str(
+            " static last(o) { return o.#m99999() + (#m5 in o); } } print(M.last(new M()));",
+        );
+        assert_eq!(run_in(&mut rt, &methods), "100000");
+        let mut statics = String::from("class S {");
+        statics.extend(
+            (0..100_000)
+                .map(|i| format!(" static #s{i} = {i}; static get #g{i}() {{ return {i}; }}")),
+        );
+        statics.push_str(" static last() { return S.#s99999 + S.#g99999; } } print(S.last());");
+        assert_eq!(run_in(&mut rt, &statics), "199998");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn one_object_with_private_fields_of_many_classes() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // The return override stamps one object with a field of each of
+        // 10,000 classes; a chain of 4,000 derived classes gives one
+        // instance a field and a brand of each.
+        let source = "class R { constructor(o) { return o; } } var target = {}; var readers = []; \
+             for (var i = 0; i < 10000; i++) { var K = class extends R { #f = i; static read(o) { return o.#f; } }; new K(target); readers.push(K.read); } \
+             print(readers[0](target), readers[9999](target), Object.keys(target).length); \
+             var C = class { #base = 'b'; static b(o) { return o.#base; } }; var B0 = C; \
+             for (var i = 0; i < 4000; i++) C = class extends C { #f = i; #m() { return 1; } static get(o) { return o.#m() + o.#f; } }; \
+             var c = new C(); print(C.get(c), B0.b(c), Reflect.ownKeys(c).length);";
+        assert_eq!(run_in(&mut rt, source), "0 9999 0\n4001 b 0");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn private_class_bodies_in_a_hot_loop() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 64 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        // Each evaluation creates new Private Names and a new brand; the
+        // old ones are garbage.
+        assert_eq!(
+            rt.eval(
+                "var n = 0; for (var i = 0; i < 100000; i++) { const K = class { #a = i; #m() { return this.#a; } static #s = 1; \
+                 static get(o) { return o.#m() + K.#s; } }; n += K.get(new K()); } n;"
+            ),
+            Ok(Value::Double(5_000_050_000.0))
+        );
+        let cases = [
+            "var keep = []; while (true) { const K = class { #a = [1, 2, 3]; #m() {} static #s() {} }; keep.push(new K()); }",
+            "var keep = {}; class R { constructor(o) { return o; } } while (true) { new (class extends R { #f = 1; #g = 2; })(keep); }",
+        ];
+        // Live classes and stamped objects end at the heap limit or the
+        // deadline (each in a runtime of its own: a full heap stays full).
+        for source in cases {
+            let mut rt = runtime_with(config);
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_terminated(&result, source);
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn private_access_in_hot_loops_ends_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let build = "class P { #x = 1; #m() { return 1; } get #g() { return 2; } set #g(v) {} \
+             static loops(o, w) { if (w === 0) while (true) o.#x; if (w === 1) while (true) o.#m(); if (w === 2) while (true) #x in o; \
+             if (w === 3) while (true) o.#g = o.#g; if (w === 4) while (true) { try { ({}).#x; } catch (e) {} } \
+             if (w === 5) while (true) o.#x++; } } var p = new P(); undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        for w in 0..6 {
+            let source = format!("P.loops(p, {w});");
+            let (result, elapsed) = eval_with_deadline(&mut rt, &source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_private_names() {
+    let source = "class R { constructor(o) { return o; } } \
+        class A extends R { #a = [1, 2]; static #s = 's'; #m() { return this.#a.length; } get #g() { return A.#s; } \
+        static read(o) { return o.#m() + o.#g + (#a in o) + (#m in o); } } \
+        var objs = []; for (var i = 0; i < 50; i++) { var o = { k: i }; new A(o); objs.push(o); } \
+        var keys = 0; for (var o of objs) keys += Object.keys(o).length; \
+        print(A.read(objs[49]), keys, A.read(new A({})));";
+    let expected = "2struetrue 50 2struetrue";
+    assert_eq!(run(source, true), expected);
+    assert_eq!(run(source, false), expected);
+}

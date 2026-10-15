@@ -844,6 +844,42 @@ where the first plan did not work:
   registers; `ToPropertyKey` runs in the access, after `GetSuperBase`
   (the 2025 order). A `super` access charges the time countdown for the
   prototype chain that it walks.
+- Private names (feature 3d): a class body with private names has one
+  implicit binding (`%private`) that holds its private environment, an
+  internal object made when the body scope is entered (§15.7.14 steps 6
+  and 7): one new Private Name per name, and for a private method or
+  accessor its functions. A private name is an index into it (storage
+  `Private(i)` of the scope analysis), so a class takes one register
+  and closures capture one cell, whatever the number of its names
+  (100,000 work, as in V8; the limit of feature 1b is gone). A private
+  member access is one instruction with the environment register and the
+  index (`GetPrivate`, `SetPrivate`, `HasPrivate`); the field
+  initializers find the environment in their class slots.
+- A Private Name is a symbol with a private flag. Private fields are
+  ordinary entries of the object's shape and slots under that symbol:
+  instances share the shapes, the collector and the heap accounting see
+  them as properties, and the accesses work on every kind of object
+  (they read the shape directly, not the kind's internal methods), also
+  on frozen and non-extensible objects. `[[OwnPropertyKeys]]` leaves the
+  private symbols out (the only enumeration of symbol keys); the string
+  key enumerations skip all symbols already. No script can hold a
+  private symbol.
+- Private methods and accessors are not copied into each object: the
+  environment holds them, and an instance gets one entry, the brand of
+  the class evaluation (a private symbol), before its fields
+  (`InitializeInstanceElements`). This is not observable, because a class
+  adds all its instance methods at once (§7.3.34); V8 does the same, and
+  its messages show it ("Receiver must be an instance of class A",
+  "Cannot initialize private methods of class A twice on the same
+  object"). Static private methods and accessors belong to the class
+  constructor alone, so their check is the constructor's identity.
+- V8's messages name the class of an anonymous class `anonymous`, or
+  `.` when an expression uses one of its static private methods or
+  accessors; the compiler decides this and stores it with the names.
+  Chromium's positions of private member errors differ by kind: a field
+  at the name for a plain read, at the operator for `=`, at the `.` for
+  compound assignments, updates, destructuring and `for`-`of` targets; a
+  method or accessor always at the name; a call at the `(`.
 
 ## Consequences
 

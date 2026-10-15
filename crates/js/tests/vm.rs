@@ -3760,3 +3760,157 @@ const CLASS_EDGES: &[(&str, &str)] = &[
         "after true",
     ),
 ];
+
+// --- Private names (M7 feature 3d); expected outputs from Node.js 22 ---
+
+#[test]
+fn private_names() {
+    check_cases(PRIVATE_NAMES);
+}
+
+#[test]
+fn private_messages() {
+    check_cases(PRIVATE_MESSAGES);
+}
+
+#[test]
+fn private_edges() {
+    check_cases(PRIVATE_EDGES);
+}
+
+const PRIVATE_NAMES: &[(&str, &str)] = &[
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A { #x = 1; static #s = 's'; #m() { return this.#x; } get #g() { return this.#x + 1; } set #g(v) { this.#x = v; } static get(o) { return [o.#x, o.#m(), o.#g, A.#s].join(); } static set(o, v) { o.#g = v; return o.#x; } } t('basic', () => A.get(new A()) + ' ' + A.set(new A(), 7));",
+        "basic 1,1,2,s 7",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class O { #x = 'ox'; #y = 'oy'; static make() { return class I { #x = 'ix'; static read(o, i) { return [o.#y, i.#x, #x in o, #y in o, #x in i].join(); } static outer(o) { return o.#x; } }; } } var I = O.make(); t('nested', () => I.read(new O(), new I())); t('nested-shadow', () => I.outer(new O()));",
+        "nested oy,ix,false,true,true\nnested-shadow threw TypeError: Cannot read private member #x from an object whose class did not declare it",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class P { #v = 1; static #s = 10; static log = []; static { P.log.push(P.#s, new P().#v); } arrow() { return () => this.#v + 1; } nested() { const f = () => () => this.#v * 100; return f()(); } } t('static-block', () => P.log.join()); t('arrow', () => new P().arrow()()); t('nested-arrows', () => new P().nested());",
+        "static-block 10,1\narrow 2\nnested-arrows 100",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var made = []; for (var i = 0; i < 3; i++) made.push(class { #p = i; static get(o) { return o.#p; } }); t('loop', () => made[0].get(new made[0]()) + ',' + made[2].get(new made[2]())); t('loop-brands', () => made[0].get(new made[1]()));",
+        "loop 3,3\nloop-brands threw TypeError: Cannot read private member #p from an object whose class did not declare it",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class Base { hello() { return 'base'; } static sh() { return 'static base'; } } class Der extends Base { #m() { return super.hello() + '!'; } static #sm() { return super.sh() + '!'; } run() { return this.#m(); } static srun() { return Der.#sm(); } } t('super', () => new Der().run() + ' ' + Der.srun());",
+        "super base! static base!",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class G { *#gen() { yield 1; yield 2; } static all(o) { return [...o.#gen()].join(); } } t('generator', () => G.all(new G()));",
+        "generator 1,2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class T { #id = 'T1'; #who() { return this === undefined ? 'undefined' : this.#id; } static call(o) { return o.#who(); } static opt(o) { return o?.#who(); } static tag(o) { return o.#tag`x${1}y`; } #tag(strs, v) { return strs.raw.join('|') + v + this.#id; } static paren(o) { return (o.#who)(); } static optParen(o) { return (o?.#who)(); } } t('call', () => T.call(new T()) + ' ' + T.opt(new T()) + ' ' + T.opt(null)); t('tag', () => T.tag(new T())); t('paren', () => T.paren(new T()) + ' ' + T.optParen(new T()));",
+        "call T1 T1 undefined\ntag x|y1T1\nparen T1 T1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class F { #a = this.#m(); #b = this.#g; #m() { return 'm'; } get #g() { return 'g' + this.#a; } static show(o) { return o.#a + ' ' + o.#b; } } t('methods-before-fields', () => F.show(new F()));",
+        "methods-before-fields m gm",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class U { #n = 1; #s = 'a'; static run(o) { var r = [o.#n++, o.#n, ++o.#n, o.#n--, o.#n]; o.#n += 10; o.#s += 'b'; o.#n **= 2; o.#s ||= 'never'; o.#n &&= o.#n + 1; var u = new U(); u.#s = null; u.#s ??= 'filled'; return r.join() + ' ' + o.#n + ' ' + o.#s + ' ' + u.#s; } } t('update', () => U.run(new U()));",
+        "update 1,2,3,3,2 145 ab filled",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class D { #a; #b; #c; #d; static run(o) { [o.#a, ...o.#b] = [1, 2, 3]; ({ x: o.#c, y: o.#d = 'dflt' } = { x: 'cx' }); var log = []; for (o.#a of ['p', 'q']) log.push(o.#a); for (o.#b in { k1: 1, k2: 2 }) log.push(o.#b); return [o.#a, o.#b, o.#c, o.#d, log.join()].join(';'); } } t('destructuring', () => D.run(new D()));",
+        "destructuring q;k2;cx;dflt;p,q,k1,k2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class Acc { #v = 0; get #p() { return this.#v; } set #p(x) { this.#v = x * 2; } static get #sp() { return 'sp'; } static set #sp(x) { Acc.log = x; } static run(o) { o.#p = 5; o.#p += 1; Acc.#sp = 'set'; return [o.#p, Acc.#sp, Acc.log].join(); } } t('accessors', () => Acc.run(new Acc()));",
+        "accessors 22,sp,set",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class N { #m(a, b) { return a + b; } get #g() { return 1; } set #g(v) {} static #s() {} #f = () => 1; #c = class {}; static info(o) { return [o.#m.name, o.#m.length, o.#m.toString(), N.#s.name, o.#f.name, o.#c.name, typeof o.#m].join(' / '); } } t('names', () => N.info(new N()));",
+        "names #m / 2 / #m(a, b) { return a + b; } / #s / #f / #c / function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } function mk() { return class { #m() { return 1; } static call(o) { return o.#m(); } static has(o) { return #m in o; } }; } var K1 = mk(), K2 = mk(); t('brands', () => K1.call(new K1()) + ' ' + K1.has(new K2()) + ' ' + K2.has(new K2())); t('brands-call', () => K1.call(new K2())); class Sh { #m() {} static same(a, b) { return a.#m === b.#m; } } t('shared', () => Sh.same(new Sh(), new Sh()));",
+        "brands 1 false true\nbrands-call threw TypeError: Receiver must be an instance of class anonymous\nshared true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class B1 { constructor() { this.seen = typeof this.peek; } } class B2 extends B1 { #m() { return 'b2'; } peek() { return this.#m(); } constructor() { super(); this.after = this.#m(); } } t('derived', () => { var o = new B2(); return o.seen + ' ' + o.after; }); class B3 extends B1 { #f = 'f'; constructor() { var r; try { this.#f; } catch (e) { r = e.constructor.name; } super(); this.r = r + ' ' + this.#f; } } t('before-super', () => new B3().r);",
+        "derived function b2\nbefore-super ReferenceError f",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class SA { static #x = 1; static #m() { return 'm'; } static rx() { return this.#x; } static rm() { return this.#m(); } } class SB extends SA {} t('static', () => SA.rx() + SA.rm()); t('static-sub-field', () => SB.rx()); t('static-sub-method', () => SB.rm());",
+        "static 1m\nstatic-sub-field threw TypeError: Cannot read private member #x from an object whose class did not declare it\nstatic-sub-method threw TypeError: Receiver must be class SA",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class Q { #x = 1; static in(o) { return #x in o; } static inChain(o) { return #x in o && 'yes'; } } t('in', () => [Q.in(new Q()), Q.in({}), Q.in(Object.create(new Q())), Q.inChain(new Q())].join());",
+        "in true,false,false,yes",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class W { #x = 'wx'; static opt(o) { return o?.#x; } static deep(o) { return o?.a.#x; } static deeper(o) { return o?.a?.#x; } } t('optional', () => [W.opt(null), W.opt(undefined), W.opt(new W()), W.deep(null), W.deep({ a: new W() }), W.deeper({ a: null }), W.deeper({ a: new W() })].join());",
+        "optional ,,wx,,wx,,wx",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class Gx { #x = 1; *g() { yield this.#x; this.#x = 2; yield this.#x; } } t('in-generator', () => [...new Gx().g()].join());",
+        "in-generator 1,2",
+    ),
+];
+
+const PRIVATE_MESSAGES: &[(&str, &str)] = &[
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A { #x = 1; #m() {} get #g() { return 1; } set #s(v) {} static #sx = 2; static #sm() {} static get #sg() { return 3; } static set #ss(v) {} static rx(o) { return o.#x; } static wx(o) { o.#x = 5; } static rm(o) { return o.#m; } static wm(o) { o.#m = 1; } static rg(o) { return o.#g; } static wg(o) { o.#g = 1; } static rs(o) { return o.#s; } static ws(o) { o.#s = 1; } static rsx(o) { return o.#sx; } static rsm(o) { return o.#sm; } static wsm(o) { o.#sm = 1; } static wsg(o) { o.#sg = 1; } static rss(o) { return o.#ss; } static um(o) { o.#m++; } } var a = new A(); var o = {}; for (var k of ['rx', 'wx', 'rm', 'wm', 'rg', 'wg', 'rs', 'ws', 'rsx', 'rsm']) t(k, () => A[k](o)); for (var k of ['wm', 'wg', 'rs', 'um']) t(k + '-own', () => A[k](a)); for (var k of ['wsm', 'wsg', 'rss']) t(k + '-class', () => A[k](A));",
+        "rx threw TypeError: Cannot read private member #x from an object whose class did not declare it\nwx threw TypeError: Cannot write private member #x to an object whose class did not declare it\nrm threw TypeError: Receiver must be an instance of class A\nwm threw TypeError: Receiver must be an instance of class A\nrg threw TypeError: Receiver must be an instance of class A\nwg threw TypeError: Receiver must be an instance of class A\nrs threw TypeError: Receiver must be an instance of class A\nws threw TypeError: Receiver must be an instance of class A\nrsx threw TypeError: Cannot read private member #sx from an object whose class did not declare it\nrsm threw TypeError: Receiver must be class A\nwm-own threw TypeError: Private method '#m' is not writable\nwg-own threw TypeError: '#g' was defined without a setter\nrs-own threw TypeError: '#s' was defined without a getter\num-own threw TypeError: Private method '#m' is not writable\nwsm-class threw TypeError: Private method '#sm' is not writable\nwsg-class threw TypeError: '#sg' was defined without a setter\nrss-class threw TypeError: '#ss' was defined without a getter",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A { #x = 1; #m() {} static rx(o) { return o.#x; } static wx(o) { o.#x = 1; } static rm(o) { return o.#m; } static ix(o) { return #x in o; } static im(o) { return #m in o; } } for (var v of [null, undefined, 1, 'str', true, Symbol('sy')]) { t('rx', () => A.rx(v)); t('wx', () => A.wx(v)); t('rm', () => A.rm(v)); t('ix', () => A.ix(v)); t('im', () => A.im(v)); }",
+        "rx threw TypeError: Cannot read properties of null (reading '#x')\nwx threw TypeError: Cannot set properties of null (setting '#x')\nrm threw TypeError: Cannot read properties of null (reading 'A')\nix threw TypeError: Cannot use 'in' operator to search for '#x' in null\nim threw TypeError: Cannot use 'in' operator to search for 'A' in null\nrx threw TypeError: Cannot read properties of undefined (reading '#x')\nwx threw TypeError: Cannot set properties of undefined (setting '#x')\nrm threw TypeError: Cannot read properties of undefined (reading 'A')\nix threw TypeError: Cannot use 'in' operator to search for '#x' in undefined\nim threw TypeError: Cannot use 'in' operator to search for 'A' in undefined\nrx threw TypeError: Cannot read private member #x from an object whose class did not declare it\nwx threw TypeError: Cannot write private member #x to an object whose class did not declare it\nrm threw TypeError: Receiver must be an instance of class A\nix threw TypeError: Cannot use 'in' operator to search for '#x' in 1\nim threw TypeError: Cannot use 'in' operator to search for 'A' in 1\nrx threw TypeError: Cannot read private member #x from an object whose class did not declare it\nwx threw TypeError: Cannot write private member #x to an object whose class did not declare it\nrm threw TypeError: Receiver must be an instance of class A\nix threw TypeError: Cannot use 'in' operator to search for '#x' in str\nim threw TypeError: Cannot use 'in' operator to search for 'A' in str\nrx threw TypeError: Cannot read private member #x from an object whose class did not declare it\nwx threw TypeError: Cannot write private member #x to an object whose class did not declare it\nrm threw TypeError: Receiver must be an instance of class A\nix threw TypeError: Cannot use 'in' operator to search for '#x' in true\nim threw TypeError: Cannot use 'in' operator to search for 'A' in true\nrx threw TypeError: Cannot read private member #x from an object whose class did not declare it\nwx threw TypeError: Cannot write private member #x to an object whose class did not declare it\nrm threw TypeError: Receiver must be an instance of class A\nix threw TypeError: Cannot use 'in' operator to search for '#x' in Symbol(sy)\nim threw TypeError: Cannot use 'in' operator to search for 'A' in Symbol(sy)",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class R { constructor(o) { return o; } } class D extends R { #z = 1; } class E extends R { #q() {} } class F2 extends R { get #q() { return 1; } } class G extends R { #z = 1; #q() {} } var x = {}; new D(x); t('field-twice', () => new D(x)); new E(x); t('methods-twice', () => new E(x)); new F2(x); t('accessors-twice', () => new F2(x)); var y = {}; new G(y); t('both-twice', () => new G(y));",
+        "field-twice threw TypeError: Cannot initialize #z twice on the same object\nmethods-twice threw TypeError: Cannot initialize private methods of class E twice on the same object\naccessors-twice threw TypeError: Cannot initialize private methods of class F2 twice on the same object\nboth-twice threw TypeError: Cannot initialize private methods of class G twice on the same object",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var C1 = class { #m() {} static r(o) { return o.#m; } static i(o) { return #m in o; } static #s() {} static rs(o) { return o.#s; } }; t('dot', () => C1.r({})); t('dot-in', () => C1.i(1)); t('dot-static', () => C1.rs({})); var C2 = class { #m() {} static r(o) { return o.#m; } }; t('anonymous', () => C2.r({})); var C3 = class Named { #m() {} static r(o) { return o.#m; } }; t('named', () => C3.r({}));",
+        "dot threw TypeError: Receiver must be an instance of class .\ndot-in threw TypeError: Cannot use 'in' operator to search for '.' in 1\ndot-static threw TypeError: Receiver must be class .\nanonymous threw TypeError: Receiver must be an instance of class anonymous\nnamed threw TypeError: Receiver must be an instance of class Named",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class S { #f = 1; static callf(o) { return o.#f(); } static opt(o) { return o?.#f(); } static chain(o) { return o.a.#f(); } } t('call', () => S.callf(new S())); t('opt-call', () => S.opt(new S())); t('chain-call', () => S.chain({ a: new S() }));",
+        "call threw TypeError: o[#f] is not a function\nopt-call threw TypeError: o?.[#f] is not a function\nchain-call threw TypeError: o.a[#f] is not a function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A { #m() {} get #g() { return 1; } set #s(v) {} static #sm() {} static get #sg() { return 1; } static #sf = 1; static rm(o) { return o.#m; } static wm(o) { o.#m = 1; } static rg(o) { return o.#g; } static ws(o) { o.#s = 1; } static rsm(o) { return o.#sm; } static wsg(o) { o.#sg = 1; } static rsf(o) { return o.#sf; } static wsf(o) { o.#sf = 1; } static cm(o) { return o.#m(); } static um(o) { return o.#m++; } static dm(o) { [o.#m] = [1]; } } var D = class { #m() {} static #x() {} static rm(o) { return o.#m; } }; for (var v of [null, undefined]) for (var k of ['rm', 'wm', 'rg', 'ws', 'rsm', 'wsg', 'rsf', 'wsf', 'cm', 'um', 'dm']) t(k, () => A[k](v)); t('dot', () => D.rm(null));",
+        "rm threw TypeError: Cannot read properties of null (reading 'A')\nwm threw TypeError: Cannot read properties of null (reading 'A')\nrg threw TypeError: Cannot read properties of null (reading 'A')\nws threw TypeError: Cannot read properties of null (reading 'A')\nrsm threw TypeError: Receiver must be class A\nwsg threw TypeError: Receiver must be class A\nrsf threw TypeError: Cannot read properties of null (reading '#sf')\nwsf threw TypeError: Cannot set properties of null (setting '#sf')\ncm threw TypeError: Cannot read properties of null (reading 'A')\num threw TypeError: Cannot read properties of null (reading 'A')\ndm threw TypeError: Cannot read properties of null (reading 'A')\nrm threw TypeError: Cannot read properties of undefined (reading 'A')\nwm threw TypeError: Cannot read properties of undefined (reading 'A')\nrg threw TypeError: Cannot read properties of undefined (reading 'A')\nws threw TypeError: Cannot read properties of undefined (reading 'A')\nrsm threw TypeError: Receiver must be class A\nwsg threw TypeError: Receiver must be class A\nrsf threw TypeError: Cannot read properties of undefined (reading '#sf')\nwsf threw TypeError: Cannot set properties of undefined (setting '#sf')\ncm threw TypeError: Cannot read properties of undefined (reading 'A')\num threw TypeError: Cannot read properties of undefined (reading 'A')\ndm threw TypeError: Cannot read properties of undefined (reading 'A')\ndot threw TypeError: Cannot read properties of null (reading 'anonymous')",
+    ),
+];
+
+const PRIVATE_EDGES: &[(&str, &str)] = &[
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class NP { #a = 1; #m() {} get #g() { return 1; } static #s = 2; b = 2; } var np = new NP(); t('keys', () => Object.keys(np) + ' | ' + Object.getOwnPropertyNames(np) + ' | ' + Reflect.ownKeys(np).length + ' | ' + Object.getOwnPropertySymbols(np).length); t('for-in', () => { var keys = []; for (var k in np) keys.push(k); return keys.join(); }); t('spread', () => Object.keys({ ...np }).join()); t('assign', () => Object.keys(Object.assign({}, np)).join()); t('static-names', () => Object.getOwnPropertyNames(NP).join()); t('frozen', () => { Object.freeze(np); return Object.isFrozen(np) + ' ' + Object.isSealed(np); }); t('descriptors', () => Object.keys(Object.getOwnPropertyDescriptors(np)).join());",
+        "keys b | b | 1 | 0\nfor-in b\nspread b\nassign b\nstatic-names length,name,prototype\nfrozen true true\ndescriptors b",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class G { #a = 1; get #b() { return this.#a; } set #b(v) { this.#a = v; } static test(o) { o.#b = 7; o.#b += 1; o.#b++; return o.#b; } } t('frozen-write', () => { var g = new G(); Object.freeze(g); return G.test(g); });",
+        "frozen-write 9",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class R { constructor(o) { return o; } } class Stamp extends R { #tag = 'tag'; #m() { return 'm'; } static read(o) { return o.#tag + o.#m(); } static has(o) { return #tag in o && #m in o; } } var targets = [[], function () {}, Object.freeze({}), Object.seal([1]), Object.preventExtensions({}), new String('s'), Stamp]; for (var i = 0; i < targets.length; i++) t('stamp' + i, () => { new Stamp(targets[i]); return Stamp.read(targets[i]) + ' ' + Stamp.has(targets[i]) + ' ' + Object.keys(targets[i]).length; });",
+        "stamp0 tagm true 0\nstamp1 tagm true 0\nstamp2 tagm true 0\nstamp3 tagm true 1\nstamp4 tagm true 0\nstamp5 tagm true 1\nstamp6 tagm true 0",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class R { constructor(o) { return o; } } var arr = [1, 2, 3]; class S extends R { #x = 'sx'; static get(o) { return o.#x; } } new S(arr); t('array', () => S.get(arr) + ' ' + arr.length + ' ' + JSON_free(arr)); function JSON_free(a) { return a.join(); } arr.length = 0; t('array-shrunk', () => S.get(arr) + ' ' + arr.length);",
+        "array sx 3 1,2,3\narray-shrunk sx 0",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class R { constructor(o) { return o; } } class S extends R { #x = 1; static get(o) { return o.#x; } } var o = {}; new S(o); Object.setPrototypeOf(o, Array.prototype); t('proto-change', () => S.get(o) + ' ' + Array.isArray(o)); var p = {}; new S(p); p.a = 1; delete p.a; t('dictionary', () => S.get(p));",
+        "proto-change 1 false\ndictionary 1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class C { static #count = 0; #id; constructor() { this.#id = ++C.#count; } static ids(list) { return list.map(o => o.#id).join(); } } t('counter', () => C.ids([new C(), new C(), new C()]));",
+        "counter 1,2,3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class L { #x = 1; static f(o) { return [typeof o.#x, delete o.y, void o.#x].join(); } } t('typeof-void', () => L.f(new L()));",
+        "typeof-void number,true,",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class Outer { #o = 'outer'; m() { var self = this; return class Inner extends (class { constructor() { this.v = self.#o; } }) { #i = 'inner'; get() { return this.v + this.#i; } }; } } t('heritage-outer', () => new (new Outer().m())().get());",
+        "heritage-outer outerinner",
+    ),
+];

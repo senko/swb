@@ -430,7 +430,10 @@ impl Heap {
     /// A new symbol with a description.
     pub fn alloc_symbol(&mut self, description: Option<Gc<JsString>>) -> Result<Gc<Symbol>> {
         self.charge(Arena::<Symbol>::slot_size());
-        self.arenas.symbols.insert(Symbol { description })
+        self.arenas.symbols.insert(Symbol {
+            description,
+            private: false,
+        })
     }
 
     /// A new `BigInt`.

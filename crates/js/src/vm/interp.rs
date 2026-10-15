@@ -38,6 +38,7 @@ use crate::value::Value;
 use crate::vm::call::{CallSite, Step};
 use crate::vm::class::{DERIVED_RESULT, MemberKind, SUPER_DELETE, SUPER_TWICE, THIS_BEFORE_SUPER};
 use crate::vm::function::ClosureParts;
+use crate::vm::private::PrivateFunction;
 use crate::vm::property::{Lookup, SetOutcome};
 use crate::vm::{Intrinsic, ReturnTo, VmError, VmResult};
 
@@ -1464,6 +1465,9 @@ impl Runtime {
                 }
                 Insn::InitFields { this, func } => {
                     let (receiver, function) = (get!(this), get!(func));
+                    // The instance private methods first (§7.3.34 step 3).
+                    save!();
+                    tri!(self.add_private_brand(receiver, function));
                     if let Some(init) = tri!(self.fields_initializer(function)) {
                         call_accessor!(Value::Object(init), receiver, &[], ReturnTo::Discard);
                     }
@@ -1583,6 +1587,77 @@ impl Runtime {
                 }
                 Insn::ThrowSuperDelete => {
                     tri!(Err(VmError::reference_error(SUPER_DELETE)));
+                }
+
+                // --- Private names ---
+                Insn::NewPrivateEnv { dst, index } => {
+                    let Some(Constant::PrivateNames(names)) = code.constants.get(index as usize)
+                    else {
+                        return Err(VmError::invariant(
+                            "private names of a constant that is not one",
+                        ));
+                    };
+                    save!();
+                    let env = tri!(self.new_private_environment(names));
+                    put!(dst, env);
+                }
+                Insn::PrivateMethod { env, src, index }
+                | Insn::PrivateGetter { env, src, index }
+                | Insn::PrivateSetter { env, src, index } => {
+                    let which = match insn {
+                        Insn::PrivateGetter { .. } => PrivateFunction::Getter,
+                        Insn::PrivateSetter { .. } => PrivateFunction::Setter,
+                        _ => PrivateFunction::Method,
+                    };
+                    tri!(self.set_private_function(get!(env), index, get!(src), which));
+                }
+                Insn::PrivateClass { env, func } => {
+                    tri!(self.set_private_class(get!(env), get!(func)));
+                }
+                Insn::SetPrivateEnv { func, env } => {
+                    tri!(self.set_private_env(get!(func), get!(env)));
+                }
+                Insn::LoadPrivateEnv { dst } => {
+                    let env = tri!(self.running_private_env());
+                    put!(dst, env);
+                }
+                Insn::GetPrivate {
+                    dst,
+                    obj,
+                    env,
+                    index,
+                } => {
+                    let found = tri!(self.private_get(get!(obj), get!(env), index));
+                    lookup!(dst, found);
+                }
+                Insn::SetPrivate {
+                    obj,
+                    src,
+                    env,
+                    index,
+                } => {
+                    let value = get!(src);
+                    let outcome = tri!(self.private_set(get!(obj), get!(env), index, value));
+                    store!(outcome, value);
+                }
+                Insn::HasPrivate {
+                    dst,
+                    obj,
+                    env,
+                    index,
+                } => {
+                    let found = tri!(self.private_in(get!(obj), get!(env), index));
+                    put!(dst, Value::Bool(found));
+                }
+                Insn::DefinePrivateField {
+                    obj,
+                    src,
+                    env,
+                    index,
+                } => {
+                    let (object, value, env) = (get!(obj), get!(src), get!(env));
+                    save!();
+                    tri!(self.define_private_field(object, env, index, value));
                 }
                 Insn::Nop => {}
             }

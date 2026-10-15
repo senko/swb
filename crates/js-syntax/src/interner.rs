@@ -122,6 +122,9 @@ pub mod names {
         // (§16.2.3: "*default*"). Neither is an identifier.
         DYNAMIC_ENV = "%env",
         DEFAULT_EXPORT = "*default*",
+        // The implicit binding of a class body that holds the class's
+        // private environment (its Private Names); not an identifier.
+        PRIVATE_ENV = "%private",
     }
 
     /// The number of reserved words; their ids are `0..RESERVED_WORDS`.

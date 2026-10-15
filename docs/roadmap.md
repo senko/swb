@@ -929,7 +929,26 @@ failures with a reason. Features, in this order:
      takes a register of the enclosing function (the open item of 1b):
      the limit of about 64,500 per class goes away or becomes a
      `SyntaxError` with V8's message. Runner: the private class
-     features.
+     features. Done 2026-10-15: all of the above except private names in
+     `eval` code (3e). A class body with private names keeps its private
+     environment (an internal object made when the body scope is
+     entered) in one binding; private names are indices into it, so a
+     class takes one register whatever the number of its names (100,000
+     work; V8 has no limit either). Private Names are private symbols;
+     private fields are shape entries under them (shared shapes, traced
+     and counted; every object kind, also frozen and non-extensible
+     objects), and `[[OwnPropertyKeys]]` leaves them out. Private
+     methods and accessors live in the environment: an instance gets one
+     brand entry before its fields, and static ones are checked by the
+     constructor's identity, as in V8. V8's messages, frames and
+     positions. Runtime test262: 18,550 pass (was 15,881), the same in
+     stress mode; `statements/class` 1,263 more, `expressions/class`
+     1,194 more. Parse-only unchanged. 39 of the 84 BBC and Ars scripts
+     compile; none uses private names. Speed: a private field read costs
+     about 2.3x a public read net of the loop (`node --jitless`: 2x); a
+     private method call costs about the same as a public one. Known
+     failures: private names in `eval` code and the class tests that use
+     `eval` (3e), `Proxy` (feature 9).
    - 3e. `eval`, `with` and `new Function`: direct and indirect `eval`
      (PerformEval, EvalDeclarationInstantiation with its conflict
      checks, var declarations of sloppy eval code in the caller's
@@ -1054,6 +1073,14 @@ not repeated here; the open items of each spike session are in M6 step
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
   Annex B.3.4 that now rely on the shared scope.
+- Stack traces (M7 3c): a static method of an anonymous class is
+  `Function.m` in V8 and `m` in swb.
+- Termination (M7 3d): after a heap-limit termination, the runtime
+  cannot run `var keep = undefined;` to release the heap (each later
+  script terminates again). The host needs a way to drop a document's
+  globals; decide in the integration ADR.
+- `cargo doc` warns about intra-doc links in `js/src/object/ops.rs`
+  (`[[Get]]`, `[[Set]]`) and a private link in `js-syntax/src/dump.rs`.
 - Messages (M7 3c): "Cannot assign to read only property 'y' of object
   '#<Object>'" names every ordinary object `#<Object>`; V8 uses the
   constructor's name for instances of classes and functions (`#<K>`).

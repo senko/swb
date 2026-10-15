@@ -254,13 +254,15 @@ impl Runtime {
             PropertyKey::Index(index) => index.to_string(),
             PropertyKey::String(name) => self.clipped_text(name),
             PropertyKey::Symbol(symbol) => {
-                let description = self
-                    .heap
-                    .symbol(symbol)
-                    .ok()
+                let symbol = self.heap.symbol(symbol).ok();
+                let description = symbol
                     .and_then(|s| s.description)
                     .map(|d| self.clipped_text(d))
                     .unwrap_or_default();
+                // A Private Name shows as its name (`#x`).
+                if symbol.is_some_and(|s| s.private) {
+                    return description;
+                }
                 format!("Symbol({description})")
             }
         }

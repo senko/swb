@@ -143,6 +143,10 @@ impl From<Gc<Symbol>> for Value {
 pub struct Symbol {
     /// The `[[Description]]`: a string, or `None` for `undefined`.
     pub description: Option<Gc<JsString>>,
+    /// Whether the symbol is a Private Name (§6.2.12) of a class: a key
+    /// of private elements that no script can hold and no enumeration
+    /// lists (`object/private.rs`).
+    pub(crate) private: bool,
 }
 
 /// A `BigInt` (placeholder until M7 feature 10): sign and magnitude in
