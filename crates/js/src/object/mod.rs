@@ -7,6 +7,7 @@
 //! in [`ops`] (ordinary objects, §10.1) and [`array`] (array exotic
 //! objects, §10.4.2).
 
+mod arguments;
 mod array;
 mod elements;
 mod ops;
@@ -85,8 +86,9 @@ pub enum ObjectKind {
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
     Error(Option<Box<ErrorData>>),
-    /// An arguments object (`[[ParameterMap]]` absent: the unmapped form,
-    /// §10.4.4.6): ordinary otherwise.
+    /// An arguments object: unmapped (§10.4.4.6, ordinary otherwise) or
+    /// mapped (§10.4.4.7: its mapped elements hold the cells of their
+    /// parameters, `arguments.rs`).
     Arguments,
     /// The key iterator of a `for`-`in` loop (§14.7.5.9): internal, only
     /// a register of the loop holds it.

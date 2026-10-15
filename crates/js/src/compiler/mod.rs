@@ -261,6 +261,36 @@ pub(crate) fn compile_eval(
     compile_code(heap, script, (source, shared), budget, Some(input))
 }
 
+/// Compiles the source of a `Function` constructor call (parsed by
+/// `swb_js_syntax::parse_dynamic_function`) and returns the code of the
+/// function that it makes (`Script::dynamic_function`; not rooted). The
+/// script around the function is global code without declarations, so the
+/// function captures nothing; its code object is garbage after the call.
+pub(crate) fn compile_dynamic_function(
+    heap: &mut Heap,
+    script: &Script,
+    (source, origin): (Str16<'_>, Rc<str>),
+    budget: &mut RecursionBudget,
+) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
+    let function = script
+        .dynamic_function
+        .ok_or(CompileError::Heap(Error::invariant(
+            "a Function constructor source without its function",
+        )))?;
+    let shared = Rc::new(crate::bytecode::Source::dynamic_function(
+        source.to_string16(),
+        origin,
+    ));
+    let input = eval::EvalInput::default();
+    let initial = *budget;
+    let result =
+        compile_functions(script, source, budget, Some(input)).and_then(|(builders, session)| {
+            materialize(heap, script, builders, session, &shared, function)
+        });
+    *budget = initial;
+    result
+}
+
 fn compile_code(
     heap: &mut Heap,
     script: &Script,
@@ -269,8 +299,9 @@ fn compile_code(
     input: Option<eval::EvalInput>,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let initial = *budget;
-    let result = compile_functions(script, text, budget, input)
-        .and_then(|(builders, session)| materialize(heap, script, builders, session, &source));
+    let result = compile_functions(script, text, budget, input).and_then(|(builders, session)| {
+        materialize(heap, script, builders, session, &source, script.top)
+    });
     *budget = initial;
     result
 }
@@ -345,13 +376,15 @@ struct Done {
 }
 
 /// Creates the code objects in the heap, innermost functions first, in a
-/// no-GC region.
+/// no-GC region. Returns the code of `result` (the script, or the function
+/// of a `Function` constructor source).
 fn materialize(
     heap: &mut Heap,
     script: &Script,
     mut builders: Vec<Option<Builder>>,
     mut session: Session,
     source: &Rc<crate::bytecode::Source>,
+    result: FunctionId,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let depth = depths(script);
     let defaults = std::mem::take(&mut session.default_constructors);
@@ -385,7 +418,7 @@ fn materialize(
             }
         }
         done.functions
-            .get(script.top.index())
+            .get(result.index())
             .cloned()
             .flatten()
             .ok_or(CompileError::Heap(Error::invariant(

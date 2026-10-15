@@ -1,6 +1,7 @@
 //! The internal methods of ordinary objects that do not run script code
 //! (ECMA-262 §10.1), with the dispatch to array exotic objects
-//! (§10.4.2).
+//! (§10.4.2), String objects (§10.4.3) and mapped arguments objects
+//! (§10.4.4, `arguments.rs`).
 //!
 //! [[Get]] and [[Set]] walk the prototype chain in a loop. Where they
 //! meet an accessor, they return a request to call the getter or the
@@ -12,6 +13,7 @@
 
 use crate::error::{Error, Result};
 use crate::heap::{Gc, Heap, RootSource};
+use crate::object::elements::DenseWrite;
 use crate::object::property::{Apply, validate_and_apply};
 use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor, ShapeKind};
 use crate::string::PropertyKey;
@@ -130,7 +132,17 @@ impl Heap {
     ) -> Result<Option<Property>> {
         let record = self.object(object)?;
         match key {
-            PropertyKey::Index(index) => Ok(record.elements.get(index)),
+            PropertyKey::Index(index) => match record.elements.get(index) {
+                // §10.4.4.1: a mapped argument has its parameter's value
+                // (only mapped arguments objects store cells, `arguments.rs`).
+                Some(
+                    property @ Property::Data {
+                        value: Value::Cell(cell),
+                        ..
+                    },
+                ) => Ok(Some(self.mapped_property(property, cell)?)),
+                property => Ok(property),
+            },
             PropertyKey::String(name) if name == self.names.length => {
                 if let ObjectKind::Array {
                     length,
@@ -161,6 +173,9 @@ impl Heap {
         desc.check()?;
         if let Some(unit) = self.string_object_unit(object, key)? {
             return self.string_define_own_property(unit, &desc);
+        }
+        if let (PropertyKey::Index(index), Some(cell)) = (key, self.mapped_argument(object, key)?) {
+            return self.arguments_define_own_property(object, (index, cell), desc, roots);
         }
         match self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
@@ -398,7 +413,15 @@ impl Heap {
     fn set_own_fast(&mut self, object: Gc<Object>, key: PropertyKey, value: Value) -> Result<bool> {
         match key {
             PropertyKey::Index(index) => {
-                Ok(self.object_mut(object)?.elements.write_dense(index, value))
+                match self.object_mut(object)?.elements.write_dense(index, value) {
+                    DenseWrite::Done => Ok(true),
+                    // §10.4.4.4: a mapped argument writes its parameter.
+                    DenseWrite::Cell(cell) => {
+                        self.cell_mut(cell)?.value = value;
+                        Ok(true)
+                    }
+                    DenseWrite::NotApplicable => Ok(false),
+                }
             }
             PropertyKey::String(name)
                 if name == self.names.length

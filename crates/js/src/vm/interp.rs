@@ -436,9 +436,9 @@ impl Runtime {
                         .map_or(Value::Undefined, Value::Object);
                     put!(dst, callee);
                 }
-                Insn::Arguments { dst } => {
+                Insn::Arguments { dst, mapped } => {
                     save!();
-                    tri!(self.create_arguments(base + usize::from(dst)));
+                    tri!(self.create_arguments(base + usize::from(dst), mapped));
                 }
                 Insn::NewTarget { dst } => {
                     let new_target = self
@@ -494,6 +494,11 @@ impl Runtime {
                     save!();
                     let deletable = code.kind == crate::bytecode::CodeKind::Eval;
                     tri!(self.init_global_function(name, value, deletable));
+                }
+                Insn::BlockFunctionHoisted { dst, name } => {
+                    let name = string_const!(name);
+                    let hoisted = tri!(self.block_function_hoisted(name));
+                    put!(dst, Value::Bool(hoisted));
                 }
                 Insn::DeleteGlobal { dst, name } => {
                     let name = string_const!(name);

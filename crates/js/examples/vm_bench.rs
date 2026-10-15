@@ -84,6 +84,21 @@ const PROGRAMS: &[(&str, &str)] = &[
         "var arr = []; for (var i = 0; i < 1000000; i++) arr[i] = i;
          function run() { return arr.join().length; }",
     ),
+    (
+        "1M calls that read arguments",
+        "function f(a, b) { return arguments.length + arguments[0] + b; }
+         function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += f(i, 1); } return s; }",
+    ),
+    (
+        "1M calls that write mapped arguments",
+        "function f(a, b) { arguments[1] = a; return b + a; }
+         function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += f(i, 1); } return s; }",
+    ),
+    (
+        "1M calls of new Function code",
+        "var add = new Function('a', 'b', 'return a + b');
+         function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s = add(s, 1); } return s; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

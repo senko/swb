@@ -1,11 +1,10 @@
-//! `Function.prototype` (ECMA-262 §20.2.3): `call`, `apply`, `bind`,
-//! `toString` and `@@hasInstance`. `call` and `apply` return a deferred call (memo 1.2), so
-//! the called function runs as a script-to-script call of the
-//! interpreter loop, without Rust recursion. `bind` creates a bound
-//! function exotic object (§10.4.1); calls of bound functions are in
-//! `vm/call.rs`.
-
-use swb_js_syntax::messages::NOT_SUPPORTED;
+//! The `Function` constructor (ECMA-262 §20.2.1; the work is in
+//! `vm/create_function.rs`) and `Function.prototype` (§20.2.3): `call`,
+//! `apply`, `bind`, `toString` and `@@hasInstance`. `call` and `apply`
+//! return a deferred call (memo 1.2), so the called function runs as a
+//! script-to-script call of the interpreter loop, without Rust
+//! recursion. `bind` creates a bound function exotic object (§10.4.1);
+//! calls of bound functions are in `vm/call.rs`.
 
 use crate::object::ObjectKind;
 use crate::runtime::Runtime;
@@ -51,13 +50,17 @@ fn has_instance(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Bool(result)))
 }
 
-/// `Function(...)` (§20.2.1.1): creating functions from text is M7 (it
-/// needs the compiler at run time and the host's `eval` check).
-fn function_constructor(_: &mut Runtime, _: &NativeCall) -> VmResult<NativeReturn> {
-    Err(VmError::Raise {
-        kind: crate::error::ThrowKind::SyntaxError,
-        message: format!("{NOT_SUPPORTED} (Function constructor)").into(),
-    })
+/// `Function(...args)` and `new Function(...args)` (§20.2.1.1
+/// `CreateDynamicFunction` for a normal function, `vm/create_function.rs`):
+/// the prototype comes from `new.target` after the parse (step 30), so
+/// `class F extends Function` makes functions whose prototype is
+/// `F.prototype`. The host check `HostEnsureCanCompileStrings` (CSP) comes
+/// with the bindings.
+fn function_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let (code, compiled) = rt.dynamic_function_code(call)?;
+    let proto = rt.prototype_from(call, Intrinsic::FunctionPrototype)?;
+    let function = rt.new_dynamic_function((code, &compiled), proto, call.realm())?;
+    Ok(NativeReturn::Value(function.into()))
 }
 
 /// `Function.prototype.call(thisArg, ...args)` (§20.2.3.3). A receiver

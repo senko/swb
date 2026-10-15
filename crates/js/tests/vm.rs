@@ -3934,6 +3934,623 @@ fn with_statements() {
     check_cases(WITH_CASES);
 }
 
+/// The `Function` constructor (M7 feature 3f, §20.2.1.1
+/// CreateDynamicFunction): the source text, the separate checks of the
+/// parameters and the body with V8's messages, the global scope of the
+/// realm, `new.target` and subclasses, `with` and `eval` in the body.
+/// Expected outputs from Node.js 22.
+#[test]
+fn function_constructor() {
+    check_cases(FUNCTION_CONSTRUCTOR_CASES);
+}
+
+/// Mapped arguments objects (M7 feature 3f, §10.4.4): the aliasing of
+/// `arguments[i]` and the parameters, also through `eval` and closures,
+/// and the end of the mapping by `delete` and `defineProperty`. Expected
+/// outputs from Node.js 22.
+#[test]
+fn mapped_arguments() {
+    check_cases(MAPPED_ARGUMENTS_CASES);
+}
+
+/// Annex B.3.2.2 (M7 feature 3f): function declarations in blocks of
+/// sloppy scripts, with the global state that earlier scripts leave. A
+/// block function is hoisted into a global var only if no global lexical
+/// declaration has its name and `CanDeclareGlobalVar` allows it; it is
+/// never an error. Expected outputs from the specification and test262
+/// (V8 differs: it throws a `SyntaxError` for a global `let` or `const`
+/// of the name, and makes the var configurable).
+#[test]
+fn annex_b_global_block_functions() {
+    let mut failures = Vec::new();
+    for &(scripts, expected) in ANNEX_B_GLOBAL_CASES {
+        for stress in [false, true] {
+            let owned: Vec<String> = scripts.iter().map(|s| (*s).to_owned()).collect();
+            let actual = common::on_big_stack(move || {
+                let mut rt = common::runtime(stress);
+                let lines: Vec<String> = owned
+                    .iter()
+                    .map(|script| common::run_in(&mut rt, script))
+                    .filter(|out| !out.is_empty())
+                    .collect();
+                assert_eq!(rt.heap().stats().total_stale_roots, 0, "stale roots");
+                lines.join("\n")
+            });
+            if actual != expected {
+                failures.push(format!(
+                    "--- {scripts:?}\n(stress: {stress})\nexpected:\n{expected}\nactual:\n{actual}\n"
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+const ANNEX_B_GLOBAL_CASES: &[(&[&str], &str)] = &[
+    (
+        &["let f = 1;", "{ function f() { return 2; } } String(f)"],
+        "=> 1",
+    ),
+    (&["const c = 1;", "{ function c() {} } c"], "=> 1"),
+    (&["let m = 1;", "if (true) function m() {} m"], "=> 1"),
+    (
+        &["let n = 1;", "switch (1) { case 1: function n() {} } n"],
+        "=> 1",
+    ),
+    (
+        &[
+            "print(typeof g); { function g() { return 3; } } print(typeof g, g());",
+            "var d = Object.getOwnPropertyDescriptor(globalThis, 'g'); [d.writable, d.enumerable, d.configurable].join()",
+        ],
+        "undefined\nfunction 3\n=> true,true,false",
+    ),
+    (
+        &[
+            "Object.preventExtensions(globalThis); 0",
+            "print(typeof h); { function h() { return 3; } } print(typeof h);",
+        ],
+        "=> 0\nundefined\nundefined",
+    ),
+    (
+        &[
+            "globalThis.t1 = 1; Object.preventExtensions(globalThis); 0",
+            "{ function t1() { return 't'; } } t1()",
+        ],
+        "=> 0\n=> t",
+    ),
+    (
+        &[
+            "Object.defineProperty(globalThis, 'k', { value: 'x', writable: true, enumerable: false, configurable: true }); 0",
+            "{ function k() { return 'inner'; } } var d = Object.getOwnPropertyDescriptor(globalThis, 'k'); [typeof k, d.enumerable, d.configurable].join()",
+        ],
+        "=> 0\n=> function,false,true",
+    ),
+    (
+        &[
+            "Object.defineProperty(globalThis, 'u1', { value: 'ro', writable: false, configurable: false }); 0",
+            "{ function u1() {} } typeof u1",
+        ],
+        "=> 0\n=> string",
+    ),
+    (
+        &[
+            "var log = []; Object.defineProperty(globalThis, 'w1', { get() { return 'get'; }, set(v) { log.push(typeof v); }, configurable: true }); 0",
+            "{ function w1() {} } log.join() + ':' + w1",
+        ],
+        "=> 0\n=> function:get",
+    ),
+    (
+        &["{ function q() {} } typeof q", "let q = 5;", "typeof q"],
+        "=> function\nUncaught SyntaxError: Identifier 'q' has already been declared\n=> function",
+    ),
+    (
+        &[
+            "var s1 = 1;",
+            "{ function s1() { return 's1'; } } typeof s1",
+        ],
+        "=> function",
+    ),
+    (
+        &["'use strict'; { function x1() {} } typeof x1"],
+        "=> undefined",
+    ),
+    (
+        &["typeof y1 + ':' + (function () { { function y1() {} } return typeof y1; })()"],
+        "=> undefined:function",
+    ),
+];
+
+const FUNCTION_CONSTRUCTOR_CASES: &[(&str, &str)] = &[
+    (
+        "var f = new Function('a', 'b', 'return a + b'); [f(1, 2), f.name, f.length, typeof f.prototype, f.prototype.constructor === f].join()",
+        "=> 3,anonymous,2,object,true",
+    ),
+    ("Function('a,b', 'c', 'return a + b + c')(1, 2, 3)", "=> 6"),
+    ("Function().toString()", "=> function anonymous(\n) {\n\n}"),
+    (
+        "Function('a', 'b', 'return a').toString()",
+        "=> function anonymous(a,b\n) {\nreturn a\n}",
+    ),
+    ("Function('/*x*/a', '//c\\nreturn a')(4)", "=> 4"),
+    (
+        "[typeof Function('return typeof anonymous')(), Function('return typeof anonymous')()].join()",
+        "=> string,undefined",
+    ),
+    (
+        "Object.getPrototypeOf(Function()) === Function.prototype",
+        "=> true",
+    ),
+    (
+        "class F extends Function {} var ff = new F('a', 'return a * 2'); [Object.getPrototypeOf(ff) === F.prototype, ff(4), ff instanceof F, ff.name].join()",
+        "=> true,8,true,anonymous",
+    ),
+    (
+        "function P() {} P.prototype = null; var g = Reflect.construct(Function, ['return 1'], P); Object.getPrototypeOf(g) === Function.prototype",
+        "=> true",
+    ),
+    (
+        "function Q() {} var h = Reflect.construct(Function, ['return 2'], Q); [Object.getPrototypeOf(h) === Q.prototype, h()].join()",
+        "=> true,2",
+    ),
+    (
+        "Object.getOwnPropertyNames(Function('a', 'b', '').prototype).join()",
+        "=> constructor",
+    ),
+    (
+        "[Function('\"use strict\"; return this')(), Function('return this')() === globalThis].join()",
+        "=> ,true",
+    ),
+    (
+        "var x = 'global'; function scope() { var x = 'local'; return Function('return x')(); } scope()",
+        "=> global",
+    ),
+    (
+        "function scope2() { var y = 'local'; return Function('return typeof y')(); } scope2()",
+        "=> undefined",
+    ),
+    ("Function('a', 'a', 'return a')(1, 2)", "=> 2"),
+    ("Function('a', 'arguments[0] = 5; return a')(1)", "=> 5"),
+    (
+        "Function('a', '\"use strict\"; arguments[0] = 5; return a')(1)",
+        "=> 1",
+    ),
+    ("Function.call(null, 'a', 'return a + 1')(1)", "=> 2"),
+    ("Function.apply(null, ['a', 'return a + 2'])(1)", "=> 3"),
+    ("Function.bind(null, 'a')('return a + 3')(1)", "=> 4"),
+    ("[Function.length, Function.name].join()", "=> 1,Function"),
+    ("Function('return arguments.callee')().name", "=> anonymous"),
+    ("Function('a', 'with (a) { return b }')({ b: 7 })", "=> 7"),
+    (
+        "Function('a', 'eval(\"var q = a * 2\"); return q')(21)",
+        "=> 42",
+    ),
+    ("Function('a', 'return eval(\"a + 1\")')(1)", "=> 2"),
+    (
+        "var order = []; Function({ toString() { order.push(1); return 'a'; } }, { toString() { order.push(2); return 'b'; } }, { toString() { order.push(3); return 'return a'; } })(5); order.join()",
+        "=> 1,2,3",
+    ),
+    (
+        "try { Function({ toString() { throw new Error('ts'); } }, ''); } catch (e) { print(e.message); }",
+        "ts",
+    ),
+    (
+        "var errs = [['/*', '*/){'], ['a', 'return )'], ['a)', 'return 1'], ['a', '}'], ['a', 'return 1 }, function() {'], [')', ''], ['a =', ''], ['', '\"use strict\"; with (a) {}'], ['a,a', '\"use strict\";'], ['-->', ''], ['a, /*', '*/ b'], ['a', '/*'], ['`', '`'], ['a = `', '`){'], ['a', 'return 1 } function x() {'], ['a', '})(function(){'], ['a', '}); (function(){'], ['a b', ''], [',a', ''], ['a', 'super.x'], ['a', 'super()'], ['a', 'let a'], ['eval', '\"use strict\"'], ['a = 1', '\"use strict\"'], ['a', 'return %'], ['...a, b', '']]; for (var e of errs) { try { Function.apply(null, e); print('no error', e.join(' / ')); } catch (err) { print(err.name, err.message); } }",
+        "SyntaxError Unexpected end of arg string\nSyntaxError Unexpected token ')'\nSyntaxError Arg string terminates parameters early\nSyntaxError Unexpected token '}'\nSyntaxError Single function literal required\nSyntaxError Arg string terminates parameters early\nSyntaxError Unexpected token ')'\nSyntaxError Strict mode code may not include a with statement\nSyntaxError Duplicate parameter name not allowed in this context\nSyntaxError Unexpected token '--'\nSyntaxError Unexpected end of arg string\nSyntaxError Invalid or unexpected token\nSyntaxError Unexpected template string\nSyntaxError Unexpected end of arg string\nSyntaxError Unexpected token 'function'\nSyntaxError Single function literal required\nSyntaxError Single function literal required\nSyntaxError Arg string terminates parameters early\nSyntaxError Unexpected token ','\nSyntaxError 'super' keyword unexpected here\nSyntaxError 'super' keyword unexpected here\nSyntaxError Identifier 'a' has already been declared\nSyntaxError Unexpected eval or arguments in strict mode\nSyntaxError Illegal 'use strict' directive in function with non-simple parameter list\nSyntaxError Unexpected token '%'\nSyntaxError Rest parameter must be last formal parameter",
+    ),
+    (
+        "[Function('a //', 'return a')(3), Function('a', 'return a //')(4), Function('a', '-->\\nreturn a')(5), Function('a', '<!-- x\\nreturn a')(6), Function('\\n-->', '')(), Function('<!--', '')()].join()",
+        "=> 3,4,5,6,,",
+    ),
+    (
+        "[Function('a,', 'return a')(5), Function('...a', 'return a.length')(1, 2), Function('{a}', 'return a')({ a: 9 }), Function('[a] = [8]', 'return a')()].join()",
+        "=> 5,2,9,8",
+    ),
+    (
+        "[Function('yield', 'return yield')(7), Function('await', 'return await')(8), Function('return new.target')(), typeof new (Function('return new.target'))()].join()",
+        "=> 7,8,,function",
+    ),
+    (
+        "[Function('a', 'b = 1', 'return a').length, Function('a', 'b', '...c', '').length].join()",
+        "=> 1,2",
+    ),
+    (
+        "Function(' a', 'return a')(3) + Function('a', 'return a ')(4)",
+        "=> 7",
+    ),
+    (
+        "var fs2 = []; for (var i = 0; i < 50; i++) fs2.push(Function('return ' + i)); var sum = 0; for (var f of fs2) sum += f(); sum",
+        "=> 1225",
+    ),
+    (
+        "var made = Function('return function inner(a) { return a * 3 }')(); [made(2), made.name, made.toString()].join()",
+        "=> 6,inner,function inner(a) { return a * 3 }",
+    ),
+    ("Function('return () => arguments[0]')(9)()", "=> 9"),
+    (
+        "(function () { return Function('return typeof arguments')(); })()",
+        "=> object",
+    ),
+    (
+        "var obj = { m: Function('return this.v'), v: 11 }; obj.m()",
+        "=> 11",
+    ),
+    (
+        "Function('var v1 = 1; function f1() { return v1 + 1 } return f1()')() + ':' + typeof v1 + ':' + typeof f1",
+        "=> 2:undefined:undefined",
+    ),
+    (
+        "Function('{ function bf() { return 2 } } return bf()')()",
+        "=> 2",
+    ),
+    (
+        "Function('a', 'switch (a) { case 1: return \"one\"; default: return \"other\" }')(1)",
+        "=> one",
+    ),
+    (
+        "var s = ''; try { Function('a', 'throw a')('thrown'); } catch (e) { s = e; } s",
+        "=> thrown",
+    ),
+    (
+        "Function('try { null.x } catch (e) { return e.constructor === TypeError }')()",
+        "=> true",
+    ),
+    (
+        "Function('return [1, 2, 3].map(x => x * 2).join()')()",
+        "=> 2,4,6",
+    ),
+    (
+        "Function('class A { #p = 1; get() { return this.#p } } return new A().get()')()",
+        "=> 1",
+    ),
+    (
+        "Function('\"use strict\"; return typeof this')()",
+        "=> undefined",
+    ),
+    (
+        "Function('a', 'b', '\"use strict\"; return a + b')(2, 3)",
+        "=> 5",
+    ),
+];
+
+const MAPPED_ARGUMENTS_CASES: &[(&str, &str)] = &[
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { enumerable: false }); arguments[0] = 7; return [a, arguments[0], Object.keys(arguments).length].join(); } String(f(1))",
+        "=> 7,7,0",
+    ),
+    (
+        "function f(a, b) { a = 'x'; return Object.entries(Object.assign({}, arguments)).join(';'); } String(f(1, 2))",
+        "=> 0,x;1,2",
+    ),
+    (
+        "function f(a, b) { b = 9; return Array.prototype.indexOf.call(arguments, 9); } String(f(1, 2))",
+        "=> 1",
+    ),
+    (
+        "function g() { return [].join.call(arguments); } function f(a, b) { a = 5; return g.apply(null, arguments); } String(f(1, 2))",
+        "=> 5,2",
+    ),
+    (
+        "function g() { return [].join.call(arguments); } function f(a, b) { a = 5; return g(...arguments); } String(f(1, 2))",
+        "=> 5,2",
+    ),
+    (
+        "function f(a, b) { a = 3; var r = []; for (var v of arguments) r.push(v); return r.join(); } String(f(1, 2))",
+        "=> 3,2",
+    ),
+    (
+        "function f(a) { a = 4; var d = Object.getOwnPropertyDescriptors(arguments); return [d[0].value, d.length.value].join(); } String(f(1))",
+        "=> 4,1",
+    ),
+    (
+        "function f(a) { Object.freeze(arguments); return [Object.isFrozen(arguments), Object.isSealed(arguments)].join(); } String(f(1))",
+        "=> true,true",
+    ),
+    (
+        "function f(a) { Object.preventExtensions(arguments); a = 2; arguments[0] = 3; arguments[1] = 4; return [a, arguments[0], arguments[1]].join(); } String(f(1))",
+        "=> 3,3,",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { enumerable: false }); Object.defineProperty(arguments, '0', { value: 8 }); a = 9; return [arguments[0], a].join(); } String(f(1))",
+        "=> 9,9",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { enumerable: false, value: 2 }); a = 3; delete arguments[0]; a = 4; return [arguments[0], a, 0 in arguments].join(); } String(f(1))",
+        "=> ,4,false",
+    ),
+    (
+        "function f(a) { var o = Object.create(arguments); a = 2; return [o[0], 0 in o, o.hasOwnProperty(0)].join(); } String(f(1))",
+        "=> 2,true,false",
+    ),
+    (
+        "function f(a) { a = { k: 1 }; return arguments[0].k; } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a) { arguments[0] = function () { return 'fn'; }; return a(); } String(f(1))",
+        "=> fn",
+    ),
+    (
+        "function f(a) { var x = arguments; a = 2; return (function () { return x[0]; })(); } String(f(1))",
+        "=> 2",
+    ),
+    (
+        "function f(a, b, c) { arguments[2] = 3; c = 4; return [arguments[2], c, arguments.length].join(); } String(f(1, 2))",
+        "=> 3,4,2",
+    ),
+    (
+        "function f(a) { a = 5; return Reflect.get(arguments, 0); } String(f(1))",
+        "=> 5",
+    ),
+    (
+        "function f(a) { a = 5; return Reflect.getOwnPropertyDescriptor(arguments, 0).value; } String(f(1))",
+        "=> 5",
+    ),
+    (
+        "function f(a) { return Reflect.defineProperty(arguments, 0, { get: function () { return 'got'; } }) + ':' + arguments[0] + ':' + a; } String(f(1))",
+        "=> true:got:1",
+    ),
+    (
+        "function f(a) { Object.seal(arguments); a = 6; try { delete arguments[0]; } catch (e) {} return [arguments[0], a].join(); } String(f(1))",
+        "=> 6,6",
+    ),
+    (
+        "function f(a) { 'use strict'; return (function () { return arguments[0]; })(a); } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a, a) { arguments[0] = 'x'; arguments[1] = 'y'; return [a, arguments[0]].join(); } String(f(1, 2))",
+        "=> y,x",
+    ),
+    (
+        "function f(a, a, a) { a = 7; return [arguments[0], arguments[1], arguments[2]].join(); } String(f(1, 2, 3))",
+        "=> 1,2,7",
+    ),
+    (
+        "function f(x) { var g = function () { return arguments[0]; }; x = 2; return g(9); } String(f(1))",
+        "=> 9",
+    ),
+    (
+        "function f(x) { function x() {} return typeof arguments[0]; } String(f(1))",
+        "=> function",
+    ),
+    (
+        "var r = []; function f(x) { r.push(arguments); x = r.length; } f(1); f(2); [r[0][0], r[1][0]].join()",
+        "=> 1,2",
+    ),
+    (
+        "function f(a) { a = 2; return arguments[0]; } String(f(1))",
+        "=> 2",
+    ),
+    (
+        "function f(a) { arguments[0] = 2; return a; } String(f(1))",
+        "=> 2",
+    ),
+    (
+        "function f(a) { arguments[0] = 2; return a; } String(f())",
+        "=> undefined",
+    ),
+    (
+        "function f(a, b) { arguments[1] = 2; return [b, arguments.length]; } String(f(1))",
+        "=> ,1",
+    ),
+    (
+        "function f(a, b) { b = 5; return [arguments[1], arguments.length]; } String(f(1))",
+        "=> ,1",
+    ),
+    (
+        "function f(x) { eval('x = 5'); return arguments[0]; } String(f(1))",
+        "=> 5",
+    ),
+    (
+        "function f(x) { eval('arguments[0] = 6'); return x; } String(f(1))",
+        "=> 6",
+    ),
+    (
+        "function f(x) { var g = function () { x = 7; }; g(); return arguments[0]; } String(f(1))",
+        "=> 7",
+    ),
+    (
+        "function f(x) { var g = () => { arguments[0] = 8; }; g(); return x; } String(f(1))",
+        "=> 8",
+    ),
+    (
+        "function f(a, a) { a = 3; return [arguments[0], arguments[1]]; } String(f(1, 2))",
+        "=> 1,3",
+    ),
+    (
+        "function f(a, a) { arguments[0] = 9; arguments[1] = 10; return a; } String(f(1, 2))",
+        "=> 10",
+    ),
+    (
+        "function f(a) { delete arguments[0]; a = 2; return [arguments[0], 0 in arguments]; } String(f(1))",
+        "=> ,false",
+    ),
+    (
+        "function f(a) { delete arguments[0]; arguments[0] = 3; return [a, arguments[0]]; } String(f(1))",
+        "=> 1,3",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { get: function () { return 'g'; } }); a = 4; return [arguments[0], a]; } String(f(1))",
+        "=> g,4",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { Object.defineProperty(arguments, '0', { writable: false }); a = 4; return [arguments[0], a, d(arguments, 0)]; } String(f(1))",
+        "=> 1,4,1:false:true:true:undefined",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { a = 3; Object.defineProperty(arguments, '0', { writable: false }); a = 4; return [arguments[0], a, d(arguments, 0)]; } String(f(1))",
+        "=> 3,4,3:false:true:true:undefined",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { value: 5, writable: false }); a = 4; return [arguments[0], a]; } String(f(1))",
+        "=> 5,4",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { value: 5 }); return [arguments[0], a]; } String(f(1))",
+        "=> 5,5",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { Object.defineProperty(arguments, '0', { enumerable: false }); a = 6; return [arguments[0], a, d(arguments, 0)]; } String(f(1))",
+        "=> 6,6,6:true:false:true:undefined",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { Object.defineProperty(arguments, '0', { configurable: false }); a = 6; arguments[0] = 7; return [arguments[0], a, d(arguments, 0), delete arguments[0]]; } String(f(1))",
+        "=> 7,7,7:true:true:false:undefined,false",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { Object.freeze(arguments); a = 6; return [arguments[0], a, d(arguments, 0)]; } String(f(1))",
+        "=> 1,6,1:false:true:false:undefined",
+    ),
+    (
+        "function f(a) { a = 2; Object.freeze(arguments); a = 6; return [arguments[0], a]; } String(f(1))",
+        "=> 2,6",
+    ),
+    (
+        "function f(a) { Object.seal(arguments); a = 6; return [arguments[0], a]; } String(f(1))",
+        "=> 6,6",
+    ),
+    (
+        "function f(a) { 'use strict'; a = 2; return arguments[0]; } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a = 0) { a = 2; return arguments[0]; } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a, ...r) { a = 2; return arguments[0]; } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a) { a = 2; return [...arguments].join(); } String(f(1, 5))",
+        "=> 2,5",
+    ),
+    (
+        "function f(a, b) { a = 2; b = 3; return Array.prototype.slice.call(arguments).join(); } String(f(1, 5))",
+        "=> 2,3",
+    ),
+    (
+        "function f(a) { a = 2; return Object.keys(arguments).join() + ':' + Object.values(arguments).join(); } String(f(1))",
+        "=> 0:2",
+    ),
+    (
+        "function f(a) { a = 2; var s = ''; for (var k in arguments) s += k + '=' + arguments[k]; return s; } String(f(1))",
+        "=> 0=2",
+    ),
+    (
+        "function g() { return arguments; } function f(a) { var o = Object.create(arguments); a = 3; o[0] = 9; return [o[0], arguments[0], a]; } String(f(1))",
+        "=> 9,3,3",
+    ),
+    (
+        "function f(a) { arguments.length = 0; a = 3; return [arguments[0], arguments.length]; } String(f(1))",
+        "=> 3,0",
+    ),
+    (
+        "function f(a) { return arguments.callee === f; } String(f(1))",
+        "=> true",
+    ),
+    (
+        "function f(a) { function a() {} return typeof arguments[0]; } String(f(1))",
+        "=> function",
+    ),
+    (
+        "function f(a) { var a; return arguments[0]; } String(f(1))",
+        "=> 1",
+    ),
+    (
+        "function f(a) { var a = 3; return arguments[0]; } String(f(1))",
+        "=> 3",
+    ),
+    (
+        "function f(a) { a++; return arguments[0]; } String(f(1))",
+        "=> 2",
+    ),
+    (
+        "function f(a) { arguments[0]++; return a; } String(f(1))",
+        "=> 2",
+    ),
+    (
+        "function f(a) { arguments[0] += 5; return a; } String(f(1))",
+        "=> 6",
+    ),
+    (
+        "function f(a) { var args = arguments; return function () { a = 11; return args[0]; }; } String(f(1)())",
+        "=> 11",
+    ),
+    (
+        "function f(a) { var args = arguments; return function () { args[0] = 12; return a; }; } String(f(1)())",
+        "=> 12",
+    ),
+    (
+        "function f(a, b, c) { return Object.getOwnPropertyNames(arguments).join(); } String(f(1, 2))",
+        "=> 0,1,length,callee",
+    ),
+    (
+        "function f(a) { return Object.prototype.toString.call(arguments); } String(f(1))",
+        "=> [object Arguments]",
+    ),
+    (
+        "function f(a) { Reflect.set(arguments, 0, 13); return a; } String(f(1))",
+        "=> 13",
+    ),
+    (
+        "function f(a) { var o = {}; Reflect.set(arguments, 0, 14, o); return [a, o[0], arguments[0]]; } String(f(1))",
+        "=> 1,14,1",
+    ),
+    (
+        "function f(a) { Reflect.defineProperty(arguments, 0, { value: 15 }); return a; } String(f(1))",
+        "=> 15",
+    ),
+    (
+        "function f(a) { Reflect.deleteProperty(arguments, 0); a = 16; return [arguments[0], arguments.length]; } String(f(1))",
+        "=> ,1",
+    ),
+    (
+        "function f(a) { arguments[5] = 1; a = 17; return [arguments[0], arguments.length]; } String(f(1))",
+        "=> 17,1",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { value: 3, writable: false }); Object.defineProperty(arguments, '0', { value: 3 }); return 'same ' + a; } String(f(1))",
+        "=> same 3",
+    ),
+    (
+        "function f(a) { Object.defineProperty(arguments, '0', { writable: false, configurable: false }); try { Object.defineProperty(arguments, '0', { value: 20 }); } catch (e) { return e.constructor.name + ' ' + a; } } String(f(1))",
+        "=> TypeError 1",
+    ),
+    (
+        "function d(o, k) { var p = Object.getOwnPropertyDescriptor(o, k); return p ? [p.value, p.writable, p.enumerable, p.configurable, typeof p.get].join(':') : 'none'; } function f(a) { 'use strict'; return d(arguments, 'callee'); } String(f(1))",
+        "=> ::false:false:function",
+    ),
+    (
+        "var f = Function('a', 'a = 5; return arguments[0]'); String(f(1))",
+        "=> 5",
+    ),
+    (
+        "function f(a) { with ({}) { a = 21; } return arguments[0]; } String(f(1))",
+        "=> 21",
+    ),
+    (
+        "function f(a) { with (arguments) { 0; } eval('var a = 22'); return arguments[0]; } String(f(1))",
+        "=> 22",
+    ),
+    (
+        "function f(a) { var r = []; for (var i = 0; i < 3; i++) { arguments[0] = i; r.push(a); } return r.join(); } String(f(1))",
+        "=> 0,1,2",
+    ),
+    (
+        "function f(a) { return arguments; } var x = f(1, 2); x[0] = 5; String([x[0], x.length])",
+        "=> 5,2",
+    ),
+    (
+        "function f(a) { return function () { return a; }; } var g = f(1); String(g())",
+        "=> 1",
+    ),
+    (
+        "function f(a) { var args = arguments; a = 5; return () => args[0]; } String(f(1)())",
+        "=> 5",
+    ),
+];
+
 const DIRECT_CASES: &[(&str, &str)] = &[
     (
         "function f(a) { var x = 1; let y = 2; return eval('x + y + a'); } f(3)",

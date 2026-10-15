@@ -330,12 +330,17 @@ impl Runtime {
         Ok(())
     }
 
-    /// Creates the (unmapped) arguments object of the running frame
-    /// (§10.4.4.6 `CreateUnmappedArgumentsObject`; sloppy functions also get
-    /// `callee` as a data property) and stores it in the stack slot
-    /// `slot`. Called at function entry, before the parameters become
-    /// cells. The mapped object (§10.4.4.7) comes in M7.
-    pub(crate) fn create_arguments(&mut self, slot: usize) -> VmResult<()> {
+    /// Creates the arguments object of the running frame and stores it in
+    /// the stack slot `slot`: unmapped (§10.4.4.6
+    /// `CreateUnmappedArgumentsObject`; sloppy functions also get `callee`
+    /// as a data property, as the mapped form has it), or `mapped`
+    /// (§10.4.4.7 `CreateMappedArgumentsObject`). The unmapped object is
+    /// made at function entry before the parameters become cells; the
+    /// mapped one after, and it maps each index below the argument count
+    /// whose parameter register holds a cell (an earlier position of a
+    /// repeated name holds a plain value).
+    #[inline(never)]
+    pub(crate) fn create_arguments(&mut self, slot: usize, mapped: bool) -> VmResult<()> {
         let frame = self
             .vm
             .frames
@@ -371,8 +376,23 @@ impl Runtime {
                     .unwrap_or_default()
             };
             let key = PropertyKey::Index(index as u32);
-            self.heap
-                .create_data_property(object, key, value, &self.vm)?;
+            match value {
+                // A mapped parameter (§10.4.4.7 step 17): the element holds
+                // its cell. (An unmapped object is made before the
+                // parameters become cells; it would take the value.)
+                Value::Cell(cell) => {
+                    let current = self.heap.cell(cell)?.value;
+                    self.heap
+                        .create_data_property(object, key, current, &self.vm)?;
+                    if mapped {
+                        self.heap.map_argument(object, index as u32, cell)?;
+                    }
+                }
+                value => {
+                    self.heap
+                        .create_data_property(object, key, value, &self.vm)?;
+                }
+            }
         }
         let length = PropertyKey::String(self.heap.length_atom());
         self.define(

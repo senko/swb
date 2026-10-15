@@ -216,9 +216,13 @@ pub(crate) enum Insn {
     Callee {
         dst: Reg,
     },
-    /// `dst` = a new (unmapped) arguments object.
+    /// `dst` = a new arguments object: unmapped (§10.4.4.6), or mapped
+    /// (§10.4.4.7) to the parameters whose registers hold cells (the
+    /// parameter registers are cells already; with a repeated name only
+    /// the last position is).
     Arguments {
         dst: Reg,
+        mapped: bool,
     },
     /// `dst` = `new.target` of the frame (`undefined` in a call).
     NewTarget {
@@ -258,6 +262,15 @@ pub(crate) enum Insn {
     /// `CreateGlobalFunctionBinding` (§9.1.1.4.18) with the value of `src`.
     InitGlobalFunction {
         src: Reg,
+        name: u32,
+    },
+    /// `dst` = whether Annex B.3.2.2 hoists the function declarations in
+    /// blocks of a sloppy script into the global var `name` (see
+    /// `Runtime::block_function_hoisted`). The evaluation of such a
+    /// declaration is `SetGlobal` (`genv.SetMutableBinding(name, F,
+    /// false)`) behind a jump on it.
+    BlockFunctionHoisted {
+        dst: Reg,
         name: u32,
     },
     /// `dst` = `delete name` for a global name.
@@ -1268,6 +1281,10 @@ pub(crate) enum GlobalKind {
     Let,
     /// `const`: an immutable binding of the global lexical record.
     Const,
+    /// The var binding of a function declaration in a block that Annex
+    /// B.3.2.2 hoists: created only if no lexical declaration has the name
+    /// and `CanDeclareGlobalVar` allows it; never an error.
+    BlockFunction,
 }
 
 /// A global declaration of a script: the name (a string constant index)
@@ -1513,6 +1530,9 @@ pub(crate) struct Source {
     /// (file:1:5)`; the origin of eval code that eval code made names the
     /// outer origin instead of a position).
     pub(crate) origin: Option<Rc<str>>,
+    /// The source of a `Function` constructor call (see
+    /// [`FunctionCode::is_dynamic`]).
+    pub(crate) dynamic_function: bool,
     lines: std::cell::OnceCell<swb_js_syntax::LineIndex>,
 }
 
@@ -1523,6 +1543,7 @@ impl Source {
             text,
             name,
             origin: None,
+            dynamic_function: false,
             lines: std::cell::OnceCell::new(),
         }
     }
@@ -1533,7 +1554,17 @@ impl Source {
             text,
             name: Rc::from(format!("{origin}, <anonymous>")),
             origin: Some(origin),
+            dynamic_function: false,
             lines: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// The source of a `Function` constructor call with the origin of the
+    /// call (it shows in stack traces like eval code).
+    pub(crate) fn dynamic_function(text: String16, origin: Rc<str>) -> Self {
+        Source {
+            dynamic_function: true,
+            ..Source::eval_code(text, origin)
         }
     }
 
@@ -1593,14 +1624,25 @@ impl FunctionCode {
             + self.lines.len() * 8
             + self.handlers.len() * size_of::<Handler>()
             + self.call_names.len() * 8
-            // Only the script's code owns the source text for the heap
-            // limit; the functions share it.
-            + if matches!(self.kind, CodeKind::Script | CodeKind::Eval) {
+            // Only the script's code (or the function of a `Function`
+            // call) owns the source text for the heap limit; the
+            // functions share it.
+            + if self.is_dynamic() || matches!(self.kind, CodeKind::Script | CodeKind::Eval) {
                 self.source.text.len() * 2
             } else {
                 0
             }
             + self.eval.as_ref().map_or(0, |info| info.heap_size())
+    }
+
+    /// Whether this is the function that a `Function` constructor call
+    /// made (`CreateDynamicFunction`, §20.2.1.1.1; its source is
+    /// `(function anonymous(...`, so it starts at offset 1). It owns its
+    /// source for the heap limit (the script around it is garbage once the
+    /// function exists), and stack traces do not show its name `anonymous`
+    /// (V8).
+    pub(crate) fn is_dynamic(&self) -> bool {
+        self.source.dynamic_function && self.span.0 == 1
     }
 
     /// The source offset of the instruction at `pc`.
@@ -1963,6 +2005,7 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         | Insn::SetGlobal { name, .. }
         | Insn::InitGlobalLexical { name, .. }
         | Insn::InitGlobalFunction { name, .. }
+        | Insn::BlockFunctionHoisted { name, .. }
         | Insn::DeleteGlobal { name, .. }
         | Insn::FindBinding { name, .. }
         | Insn::GetBinding { name, .. }
@@ -2035,11 +2078,12 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::LoadCapture { dst, .. }
         | I::This { dst }
         | I::Callee { dst }
-        | I::Arguments { dst }
+        | I::Arguments { dst, .. }
         | I::NewTarget { dst }
         | I::GetTemplate { dst, .. }
         | I::GetGlobal { dst, .. }
         | I::TypeofGlobal { dst, .. }
+        | I::BlockFunctionHoisted { dst, .. }
         | I::DeleteGlobal { dst, .. }
         | I::NewObject { dst }
         | I::NewArray { dst, .. }

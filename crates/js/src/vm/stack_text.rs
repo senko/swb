@@ -14,7 +14,9 @@
 //!
 //! Eval code shows its origin as the script name (`eval at f (file:1:5),
 //! <anonymous>:1:1`), and its top level and its anonymous functions are
-//! named `eval`, as in V8.
+//! named `eval`, as in V8. So are the source and the function of a
+//! `Function` call: `at eval (eval at <anonymous> (file:1:9),
+//! <anonymous>:3:7)`.
 //!
 //! Deviations from Chromium: no lines for built-in functions
 //! (`at Array.forEach (<anonymous>)`, `at eval (<anonymous>)` for the
@@ -89,7 +91,13 @@ impl Runtime {
         let Some(function) = frame.function else {
             return location;
         };
-        let name = self.debug_name(function, &frame.compiled);
+        let mut name = self.debug_name(function, &frame.compiled);
+        if name.is_empty() && frame.compiled.source.origin.is_some() {
+            // V8 names the anonymous functions of eval code (and the
+            // functions of `Function` calls) `eval`, also in `new eval` and
+            // `Object.eval [as m]`.
+            name = String::from("eval");
+        }
         if frame.construct {
             let name = if name.is_empty() {
                 "<anonymous>"
@@ -107,21 +115,20 @@ impl Runtime {
         } else {
             self.method_call_name(frame.this, function, &name)
         };
-        if !described.is_empty() {
-            format!("{described} ({location})")
-        } else if frame.compiled.source.origin.is_some() {
-            // V8 names the anonymous functions of eval code `eval`.
-            format!("eval ({location})")
-        } else {
+        if described.is_empty() {
             location
+        } else {
+            format!("{described} ({location})")
         }
     }
 
     /// The name of a function in stack traces: its own `name` property if
-    /// that is a non-empty string, else the name in its code.
+    /// that is a non-empty string (but not the `anonymous` of a function
+    /// that `Function` made, which V8 does not show), else the name in its
+    /// code.
     fn debug_name(&self, function: Gc<Object>, code: &FunctionCode) -> String {
         match self.own_data_string(function, self.vm.atoms.name) {
-            Some(name) if !name.is_empty() => name,
+            Some(name) if !name.is_empty() && (name != "anonymous" || !code.is_dynamic()) => name,
             _ => self.code_name(code),
         }
     }
@@ -129,6 +136,12 @@ impl Runtime {
     /// The name in the code of a function (the `name` property does not
     /// count), else its debug name.
     pub(crate) fn code_name(&self, code: &FunctionCode) -> String {
+        if code.is_dynamic() {
+            // V8 shows a function that `Function` made without a name: as
+            // `eval` in its frames, as `<anonymous>` in the origin of eval
+            // code that it calls.
+            return String::new();
+        }
         let name = self.clipped_text(code.name);
         if name.is_empty() {
             self.clipped_text(code.debug_name)

@@ -1,11 +1,12 @@
 //! The global bindings (ECMA-262 §9.1.1.4 the global environment record,
-//! §16.1.7 `GlobalDeclarationInstantiation`).
+//! §16.1.7 `GlobalDeclarationInstantiation` with the changes of Annex
+//! B.3.2.2 for function declarations in blocks).
 
 use std::borrow::Cow;
 
 use crate::bytecode::{FunctionCode, GlobalKind};
 use crate::heap::Gc;
-use crate::object::{Property, PropertyDescriptor};
+use crate::object::{Object, Property, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
@@ -162,7 +163,8 @@ impl Runtime {
                     .ok_or(VmError::invariant("a global name that is not a string"))
             })
             .collect::<VmResult<_>>()?;
-        // Steps 3 to 6: conflicts with existing bindings.
+        // Steps 3 to 6: conflicts with existing bindings (the vars of
+        // Annex B.3.2.2 are not VarDeclaredNames and never conflict).
         for &(name, kind) in &names {
             let lexical_exists = self
                 .vm
@@ -178,6 +180,7 @@ impl Runtime {
                             .is_some_and(|p| !p.configurable())
                 }
                 GlobalKind::Var | GlobalKind::Function => lexical_exists,
+                GlobalKind::BlockFunction => false,
             };
             if redeclared {
                 return Err(VmError::Raise {
@@ -226,7 +229,15 @@ impl Runtime {
                         )));
                     }
                 }
-                GlobalKind::Let | GlobalKind::Const => {}
+                GlobalKind::Let | GlobalKind::Const | GlobalKind::BlockFunction => {}
+            }
+        }
+        // Annex B.3.2.2 (in place of step 12): the var bindings of the
+        // hoisted block functions, before all other bindings.
+        // `CreateGlobalVarBinding(F, false)` keeps an existing property.
+        for &(name, kind) in &names {
+            if kind == GlobalKind::BlockFunction && self.block_function_hoisted(name)? {
+                self.create_global_var(global, name)?;
             }
         }
         // Steps 15 and 17: lexical bindings, then `var` bindings
@@ -244,18 +255,52 @@ impl Runtime {
                         );
                     }
                 }
-                GlobalKind::Var => {
-                    let key = PropertyKey::String(name);
-                    if self.heap.get_own_property(global, key)?.is_none()
-                        && self.heap.is_extensible(global)?
-                    {
-                        let desc = PropertyDescriptor::data(Value::Undefined, true, true, false);
-                        self.heap.define_own_property(global, key, desc, &self.vm)?;
-                    }
-                }
-                GlobalKind::Function => {}
+                GlobalKind::Var => self.create_global_var(global, name)?,
+                GlobalKind::Function | GlobalKind::BlockFunction => {}
             }
         }
         Ok(())
+    }
+
+    /// `CreateGlobalVarBinding(name, false)` (§9.1.1.4.17): a
+    /// non-deletable property `undefined` unless the global object has the
+    /// property already or is not extensible.
+    fn create_global_var(&mut self, global: Gc<Object>, name: Gc<JsString>) -> VmResult<()> {
+        let key = PropertyKey::String(name);
+        if self.heap.get_own_property(global, key)?.is_none() && self.heap.is_extensible(global)? {
+            let desc = PropertyDescriptor::data(Value::Undefined, true, true, false);
+            self.heap.define_own_property(global, key, desc, &self.vm)?;
+        }
+        Ok(())
+    }
+
+    /// Whether Annex B.3.2.2 hoists a block function of a script into the
+    /// global var `name`: no lexical declaration has the name
+    /// (`HasLexicalDeclaration`) and `CanDeclareGlobalVar` is true.
+    ///
+    /// `DeclareGlobals` decides with it, and the evaluation of the
+    /// declaration (`SetBlockFunctionGlobal`) decides again instead of
+    /// keeping the first answer: no script can change it in between. A
+    /// global lexical binding cannot be removed, and a later script cannot
+    /// add one for a hoisted name (it is a var name then, and its property
+    /// is not configurable); a global object that is not extensible stays
+    /// so, and a property that was missing cannot be added to it; when the
+    /// script deletes the property of a hoisted function and then makes the
+    /// global object non-extensible, the answer changes, but the
+    /// specification's `SetMutableBinding` writes nothing then either.
+    /// Kept out of the interpreter loop, whose speed depends on its size.
+    #[inline(never)]
+    pub(crate) fn block_function_hoisted(&mut self, name: Gc<JsString>) -> VmResult<bool> {
+        let realm = self.current_realm();
+        let lexical = self
+            .vm
+            .realms
+            .get(realm as usize)
+            .is_some_and(|r| r.lexical.contains_key(&name));
+        if lexical {
+            return Ok(false);
+        }
+        let global = self.global_object(realm)?;
+        self.can_declare_global_var(global, name)
     }
 }

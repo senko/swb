@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 3f, `new Function`, Annex B.3.2.2 and mapped `arguments`; end of feature 3
+
+- `js-syntax`: `parse_dynamic_function` parses the source of a
+  `Function` call in V8's form `(function anonymous(P\n) {\nbody\n})`
+  once and checks with positions what the specification's separate
+  parses check, with V8's messages; `anonymous` is not bound. A
+  parameter list stops at the limit of 65,534.
+- `js`: the `Function` constructor (`vm/create_function.rs`): ToString
+  of the arguments, the text built under the heap check, parse and
+  compile charged like eval code, the function's code kept and the
+  script's dropped, the prototype from `new.target`. V8's stack frames.
+- Mapped arguments (`object/arguments.rs`): a mapped element holds its
+  parameter's cell; the internal methods follow §10.4.4. A first design
+  with a separate boxed map cost 17 % on calls that create the object;
+  this one costs nothing measurable.
+- Annex B.3.2.2: global block function vars are created only if no
+  lexical declaration has the name and `CanDeclareGlobalVar` allows it;
+  never an error. V8 throws a `SyntaxError` there; swb follows the spec
+  and test262.
+- Learned: the interpreter loop is sensitive to code size; an arm with
+  an inlined slow path made fib 6 % slower. Rare paths stay out of line.
+- Review: no findings except nits; about 70 parameter and body pairs of
+  `Function` (comment, string, template and line-terminator tricks)
+  accepted or rejected as in Node, about 90 mapped-arguments cases
+  equal to Node, also in GC stress mode.
+- Runtime test262: 20,639 pass (was 20,296), the same in stress mode;
+  parse-only unchanged (41,882). 39 of 84 target scripts compile; the
+  7 that use `Function` stop at regular expressions or `async`.
+- Feature 3 is complete (six sessions, 3a to 3f, 2026-10-14 and 15):
+  runtime test262 went from 8,429 to 20,639 passes; the compiler
+  rejects only `yield*`, `async`, `for await`, modules, `import()`,
+  `import.meta`, regular expression literals and `BigInt`. Next:
+  feature 4 (numbers); feature 8a (regular expressions) can run in
+  parallel, and with feature 7 (`async`) it unblocks the 45 target
+  scripts that do not compile.
+
 ## 2026-10-15: M7 feature 3e, `eval` and `with`
 
 - Plan: the last session of feature 3 is split in two; `new Function`,

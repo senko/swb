@@ -32,6 +32,16 @@ const DENSE_FILL: usize = 4;
 /// and the B-tree's share of node overhead).
 pub(crate) const SPARSE_ENTRY_BYTES: usize = 64;
 
+/// The result of [`Elements::write_dense`].
+pub(crate) enum DenseWrite {
+    /// The value is written.
+    Done,
+    /// The element is a mapped argument: write its cell.
+    Cell(crate::heap::Gc<crate::value::ValueCell>),
+    /// The fast path does not apply.
+    NotApplicable,
+}
+
 /// The elements of an object.
 pub(crate) enum Elements {
     Dense {
@@ -64,8 +74,24 @@ impl Elements {
     }
 
     /// Writes the value of an existing writable data element in the dense
-    /// vector. Returns false if the fast path does not apply.
-    pub(crate) fn write_dense(&mut self, index: u32, value: Value) -> bool {
+    /// vector. An element that holds a cell (a mapped argument,
+    /// `arguments.rs`) keeps it: the caller writes the cell.
+    pub(crate) fn write_dense(&mut self, index: u32, value: Value) -> DenseWrite {
+        if let Elements::Dense { values, .. } = self
+            && let Some(Value::Cell(cell)) = values.get(index as usize)
+        {
+            return DenseWrite::Cell(*cell);
+        }
+        if self.store_dense(index, value) {
+            DenseWrite::Done
+        } else {
+            DenseWrite::NotApplicable
+        }
+    }
+
+    /// Stores the value of an existing data element in the dense vector
+    /// (also over a cell). Returns false if the element is not there.
+    fn store_dense(&mut self, index: u32, value: Value) -> bool {
         if let Elements::Dense { values, .. } = self
             && let Some(slot) = values.get_mut(index as usize)
             && !slot.is_empty()
@@ -142,7 +168,7 @@ impl Elements {
         {
             return Err(Error::invariant("an Empty value stored as an element"));
         }
-        if property.is_default_data() && self.write_dense(index, property.slot_values().0) {
+        if property.is_default_data() && self.store_dense(index, property.slot_values().0) {
             return Ok(());
         }
         self.make_sparse()?.insert(index, property);

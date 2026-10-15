@@ -3,8 +3,11 @@
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
-//! M7 feature 3d, classes with private names and `super` compile, since
-//! 3e `with` and eval code; `async` (feature 7) and module code do not.
+//! the end of M7 feature 3 (3f), all of the syntax of feature 1 compiles
+//! except `yield*` and `async` functions, `await` and `for await`
+//! (feature 7), module code, `import()` and `import.meta` (feature 14),
+//! and `BigInt` literals (feature 10); regular expression literals
+//! (feature 8) are rejected where the compiler meets them (`expr.rs`).
 
 use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 

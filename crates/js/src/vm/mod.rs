@@ -36,6 +36,7 @@
 mod call;
 pub(crate) mod class;
 pub(crate) mod convert;
+mod create_function;
 mod destructure;
 pub(crate) mod env;
 mod eval;

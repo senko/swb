@@ -644,7 +644,7 @@ failures with a reason. Features, in this order:
      of feature 1 reached. Open: module top-level bindings are
      registers (about 64,500 at most) and imports are captures (65,535
      at most; feature 14); global Annex B vars are declared like `var`,
-     without the run-time checks of B.3.2.2 (feature 3).
+     without the run-time checks of B.3.2.2 (done in 3f).
 2. Fundamental objects (`implementer`). What the test262 harness and the
    language need first: `Object`, `Function` (`bind`, `call`, `apply`,
    `toString`), `Boolean`, `Symbol` with the well-known symbols, the
@@ -779,7 +779,7 @@ failures with a reason. Features, in this order:
    `async` and modules.
    `switch`, unmapped `arguments` and `this` in both modes work since
    the spike and feature 1c; the mapped `arguments` object of 1c has
-   no aliasing yet (3e). Measured before the split (2026-10-14, the test262
+   no aliasing yet (3f). Measured before the split (2026-10-14, the test262
    counts are tests, both modes as one): in `test/language/` (all
    directories), the compiler rejects about 1,920 tests at `class`,
    1,710 at destructuring, 560 at `for`-`of`, 375 at `for`-`in`, 315 at
@@ -997,7 +997,51 @@ failures with a reason. Features, in this order:
      Annex B.3.2.2 for global block functions, the aliasing of the
      mapped `arguments` object and the parameters (§10.4.4.7, also
      through `eval`). 3e was split in two on 2026-10-15: the remaining
-     work did not fit one session.
+     work did not fit one session. Done 2026-10-15: all of the above.
+     The `Function` constructor builds V8's source `(function
+     anonymous(P\n) {\nbody\n})` and parses it once; position checks
+     do the work of the spec's separate parses of parameters and body,
+     with V8's messages ("Arg string terminates parameters early",
+     "Unexpected end of arg string", "Single function literal
+     required"); `anonymous` is not bound; the parse and compile are
+     charged like eval code; the function owns its source for the heap
+     limit; the prototype comes from `new.target`. V8's stack frames
+     (`at eval (eval at <anonymous> (file:1:9), <anonymous>:3:7)`).
+     Mapped arguments objects keep the parameter's cell in each mapped
+     element, so the map costs no memory; reads, writes, `delete` and
+     `defineProperty` follow §10.4.4, also through `eval` and closures.
+     Annex B.3.2.2: the var of a global block function is created only
+     when no global lexical declaration has the name and
+     `CanDeclareGlobalVar` allows it, never with an error, and the
+     evaluation of the declaration checks again. Runtime test262:
+     20,639 pass (was 20,296), the same in stress mode;
+     `built-ins/Function` 127 more, the Annex B groups of eval and
+     global code 88 more, `arguments-object/mapped` 21 more; new groups
+     `annexB/built-ins/Function`, `expressions/this`. Parse-only
+     unchanged. 39 of 84 target scripts compile (unchanged); the 7 that
+     use the `Function` constructor stop earlier at regular expression
+     literals (5) or `async` (2), and their uses of it run as in Node.
+     Code without `arguments` runs as fast as before; 1M calls that
+     create an arguments object take 558 ms (`node --jitless` 50 ms;
+     feature 13). Deviations from V8 that follow the spec and test262: a
+     global `let` or `const` with a block function's name does not make
+     the script fail, and the hoisted var is not configurable. Known
+     failures: `GeneratorFunction` and `AsyncFunction` (feature 7),
+     `nativeFunctionMatcher.js` (feature 8), `Date` (feature 12). Open:
+     the parameters of a mapped function are limited by the register
+     limit (about 64,500); three rejected parameter and body pairs give
+     another `SyntaxError` message than V8 (`Function('/*', '*/')`:
+     "Unexpected token '}'", V8 "Unexpected end of arg string"); the
+     `Array.prototype` methods that write through `arguments`
+     (`reverse`, `sort`, `splice`, `fill`) are untested until feature 6
+     adds them.
+   Feature 3 is complete (2026-10-15, six sessions 3a to 3f): the VM
+   runs all syntax of feature 1 except `yield*`, `async`, `for await`,
+   modules, `import()`, `import.meta`, regular expression literals and
+   `BigInt` (features 7, 8, 10 and 14). Runtime test262 went from 8,429
+   to 20,639 passes; the target scripts that compile went from 3 of 84
+   (feature 1 parsed all of them) to 39; the others stop at `async`
+   (27) and regular expression literals (18).
    Exit of feature 3: no construct of feature 1 except generators,
    `async`, modules, regular expressions and `BigInt` is rejected; each
    session records its known failures with the feature that removes
@@ -1108,6 +1152,15 @@ not repeated here; the open items of each spike session are in M6 step
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
   Annex B.3.4 that now rely on the shared scope.
+- Arguments objects (M7 3f): creating one costs about 0.5 µs (`node
+  --jitless`: 0.05 µs); a cached shape for its named properties and a
+  bulk element store (feature 13).
+- `[[VarNames]]` (M7 3f, older): the global environment does not record
+  var names, so a later `let` of a name whose configurable property
+  existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws
+  a `SyntaxError`.
+- test262 groups `expressions/comma` and `expressions/concatenation`
+  meet the rule for `dir` lines and are not in the subset.
 - Time charges of closures (M7 3e, older than M7): creating a closure
   charges no step per capture. A loop that creates a closure with
   60,000 captures ran 1.85 s past a 100 ms limit. Fix together with

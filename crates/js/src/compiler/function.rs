@@ -261,13 +261,16 @@ impl<'a> FunctionCompiler<'a> {
         } else {
             ThisMode::Global
         };
+        // CreateDynamicFunction step 33: `SetFunctionName(F, "anonymous")`.
+        let dynamic = self.script.dynamic_function == Some(self.id);
         // Stack traces name the frames of eval code `eval` (V8).
         let name = self
             .function
             .name
             .map(|ident| self.name_text(ident.name))
             .or_else(|| super::class::initializer_name(self.function.kind))
-            .or_else(|| (kind == CodeKind::Eval).then(|| String16::from("eval")));
+            .or_else(|| (kind == CodeKind::Eval).then(|| String16::from("eval")))
+            .or_else(|| dynamic.then(|| String16::from("anonymous")));
         // A function with a direct `eval` has an `arguments` binding when
         // §10.2.11 needs the object (the scope analysis adds it). A rest
         // parameter needs the extra arguments too.
@@ -722,6 +725,24 @@ impl<'a> FunctionCompiler<'a> {
             Some(b) if self.scopes.binding(b).storage == Storage::Caller => {
                 self.init_var_env_binding(b, value, false)?;
             }
+            // Annex B.3.2.2: in a script (which has global declarations),
+            // only if `DeclareGlobals` hoisted the function, a decision at
+            // run time.
+            Some(b)
+                if self.scopes.binding(b).kind == BindingKind::BlockFunctionVar
+                    && self.scopes.binding(b).storage == Storage::Global
+                    && self.global_decls.is_some() =>
+            {
+                let name = self.name_const(self.scopes.binding(b).name);
+                let hoisted = self.temp()?;
+                self.emit(Insn::BlockFunctionHoisted { dst: hoisted, name });
+                let skip = self.emit(Insn::JumpIfFalse {
+                    cond: hoisted,
+                    offset: 0,
+                });
+                self.emit(Insn::SetGlobal { src: value, name });
+                self.patch_here(skip);
+            }
             _ => self.store_ref(target, value)?,
         }
         self.release(mark);
@@ -754,28 +775,38 @@ impl<'a> FunctionCompiler<'a> {
                 self.emit(Insn::DeclareGlobals);
             }
         }
-        // The arguments object, from the parameters before they become
-        // cells.
-        let arguments = match self.fscope.arguments_binding {
-            Some(binding) if self.scopes.binding(binding).kind == BindingKind::Arguments => {
-                let t = self.temp()?;
-                self.emit(Insn::Arguments { dst: t });
-                Some((binding, t))
-            }
-            _ => None,
-        };
+        // The arguments object: an unmapped one from the parameters before
+        // they become cells, a mapped one from their cells.
+        let arguments_binding = self
+            .fscope
+            .arguments_binding
+            .filter(|&b| self.scopes.binding(b).kind == BindingKind::Arguments);
+        let mapped = self.fscope.mapped_arguments;
+        let mut arguments = None;
+        if let Some(binding) = arguments_binding
+            && !mapped
+        {
+            let t = self.temp()?;
+            self.emit(Insn::Arguments { dst: t, mapped });
+            arguments = Some((binding, t));
+        }
         // Captured parameters (and all parameters of a function with a
         // mapped arguments object) become cells. A repeated name has one
-        // binding in the register of its last position.
-        let mut seen = Vec::new();
-        for &binding in &self.fscope.params {
-            if seen.contains(&binding) {
-                continue;
-            }
-            seen.push(binding);
-            if let Storage::Cell(r) = self.scopes.binding(binding).storage {
+        // binding in the register of its last position (the position that
+        // a mapped object maps), so a cell is made at that position only.
+        for (position, &binding) in self.fscope.params.iter().enumerate() {
+            if let Storage::Cell(r) = self.scopes.binding(binding).storage
+                && usize::from(r) == position
+            {
                 self.emit(Insn::MakeCell { reg: r });
             }
+        }
+        if let Some(binding) = arguments_binding
+            && mapped
+        {
+            let t = self.temp()?;
+            self.emit(Insn::Arguments { dst: t, mapped });
+            arguments = Some((binding, t));
         }
         // The function's own name (named function expressions).
         if let Some(parent) = self.scopes.scope(scope).parent
@@ -861,12 +892,9 @@ impl<'a> FunctionCompiler<'a> {
             if b.storage != Storage::Global {
                 continue;
             }
-            // An Annex B.3.2.2 var of a block function is declared like a
-            // `var`; B.3.2.2 skips it instead of failing when
-            // `CanDeclareGlobalVar` is false or another script has a
-            // lexical declaration of the name (M7 feature 3).
             let kind = match b.kind {
-                BindingKind::Var | BindingKind::BlockFunctionVar => GlobalKind::Var,
+                BindingKind::Var => GlobalKind::Var,
+                BindingKind::BlockFunctionVar => GlobalKind::BlockFunction,
                 BindingKind::Function => GlobalKind::Function,
                 BindingKind::Let | BindingKind::Class => GlobalKind::Let,
                 BindingKind::Const => GlobalKind::Const,

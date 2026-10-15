@@ -210,7 +210,15 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let function = self.begin_function(start);
         let mut parent_scope = self.scope;
         let mut name = None;
-        if self.at_identifier() {
+        if let Some(dynamic) = &mut self.dynamic
+            && dynamic.function.is_none()
+        {
+            // The function of a `Function` constructor source: its name
+            // `anonymous` is only text (CreateDynamicFunction binds no
+            // name; `SetFunctionName` gives the `name` property).
+            dynamic.function = Some(function);
+            self.advance()?;
+        } else if self.at_identifier() {
             let offset = self.token.start;
             let outer_generator = std::mem::replace(&mut self.ctx.generator, generator);
             let own_await = self.function_await_mode(is_async);
@@ -389,7 +397,17 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     /// The elements of a parameter list up to and including `)`.
     fn parse_param_elements(&mut self) -> PResult<()> {
+        let mut count = 0usize;
         while !self.at(TokenKind::RParen) {
+            // Stop at the limit, not after a list of millions (the text of
+            // a `Function` call can be that long).
+            count += 1;
+            if count > MAX_PARAMS {
+                return Err(ParseError::syntax(
+                    self.token.start,
+                    messages::TOO_MANY_PARAMETERS,
+                ));
+            }
             let start = self.token.start;
             let binding_mark = self.scopes.binding_mark();
             if self.eat(TokenKind::Ellipsis)? {
@@ -419,9 +437,19 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             let element = self.parse_binding_element(DeclKind::Param, Leaf::Top)?;
             self.scratch_patterns.push(element);
             self.scratch_param_marks.push((binding_mark, self.prev_end));
+            if !self.at(TokenKind::RParen)
+                && !self.at(TokenKind::Comma)
+                && self.in_dynamic_function()
+            {
+                // V8's error for parameter text that ends before its end.
+                return Err(self.dynamic_params_error());
+            }
             if !self.at(TokenKind::RParen) {
                 self.expect(TokenKind::Comma)?;
             }
+        }
+        if self.in_dynamic_function() {
+            self.check_dynamic_params_end()?;
         }
         self.advance()
     }

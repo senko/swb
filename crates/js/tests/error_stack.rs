@@ -1518,3 +1518,103 @@ SyntaxError: Unexpected token '}'
     at t.js:16:7",
     )]);
 }
+
+/// Functions that `Function` made (M7 feature 3f): V8 names them `eval`
+/// (`new eval`, `Object.eval`; a redefined `name` shows), with the origin
+/// of the `Function` call (`eval at <anonymous> (t.js:1:9)`), and line 1
+/// of their source starts with V8's `(function anonymous(`.
+#[test]
+fn function_constructor_frames() {
+    check_script_cases(&[(
+        r#"var f = new Function('a', 'b', 'throw new Error("x")');
+try { f(); } catch (e) { print(e.stack); }
+var g = Function('return new Error("y")');
+function outer() { return g(); }
+print(outer().stack);
+var h = Function('return (function inner() { return new Error("z") })()');
+print(h().stack);
+var k = Function('return eval("new Error(1)")');
+print(k().stack);
+var m = Function('a', 'return a.b.c');
+try { m({}); } catch (e) { print(e.stack); }
+var p = Function('a = null.x', '');
+try { p(); } catch (e) { print(e.stack); }
+var o = { m: Function('return new Error("b")') };
+print(o.m().stack);
+var C = Function('this.e = new Error("c")');
+print(new C().e.stack);
+function named() { return Function('return new Error("d")'); }
+print(named()().stack);
+print(Function('return (() => new Error("g"))()')().stack);
+print(eval('Function("return new Error(\'h\')")')().stack);
+print(Function('return Function("return new Error(\'i\')")')()().stack);
+var D = Function('return new Error("j")');
+Object.defineProperty(D, 'name', { value: 'renamed' });
+print(D().stack);
+print(D.call(1).stack);
+var anonEval = { m: eval('(function () { return new Error("k") })') };
+print(anonEval.m().stack);
+var E = eval('(function () { this.e = new Error("l") })');
+print(new E().e.stack);
+print(Function('return function anonymous() { return new Error("n") }')()().stack);
+print(Function('return function () { return new Error("o") }')()().stack);"#,
+        r"Error: x
+    at eval (eval at <anonymous> (t.js:1:9), <anonymous>:3:7)
+    at t.js:2:7
+Error: y
+    at eval (eval at <anonymous> (t.js:3:9), <anonymous>:3:8)
+    at outer (t.js:4:27)
+    at t.js:5:7
+Error: z
+    at inner (eval at <anonymous> (t.js:6:9), <anonymous>:3:35)
+    at eval (eval at <anonymous> (t.js:6:9), <anonymous>:3:52)
+    at t.js:7:7
+Error: 1
+    at eval (eval at <anonymous> (eval at <anonymous> (t.js:8:9)), <anonymous>:1:1)
+    at eval (eval at <anonymous> (t.js:8:9), <anonymous>:3:8)
+    at t.js:9:7
+TypeError: Cannot read properties of undefined (reading 'c')
+    at eval (eval at <anonymous> (t.js:10:9), <anonymous>:3:12)
+    at t.js:11:7
+TypeError: Cannot read properties of null (reading 'x')
+    at eval (eval at <anonymous> (t.js:12:9), <anonymous>:1:30)
+    at t.js:13:7
+Error: b
+    at Object.eval [as m] (eval at <anonymous> (t.js:14:14), <anonymous>:3:8)
+    at t.js:15:9
+Error: c
+    at new eval (eval at <anonymous> (t.js:16:9), <anonymous>:3:10)
+    at t.js:17:7
+Error: d
+    at eval (eval at named (t.js:18:27), <anonymous>:3:8)
+    at t.js:19:14
+Error: g
+    at eval (eval at <anonymous> (t.js:20:7), <anonymous>:3:15)
+    at eval (eval at <anonymous> (t.js:20:7), <anonymous>:3:30)
+    at t.js:20:50
+Error: h
+    at eval (eval at <anonymous> (eval at <anonymous> (t.js:21:7)), <anonymous>:3:8)
+    at t.js:21:50
+Error: i
+    at eval (eval at <anonymous> (eval at <anonymous> (t.js:22:7)), <anonymous>:3:8)
+    at t.js:22:63
+Error: j
+    at renamed (eval at <anonymous> (t.js:23:9), <anonymous>:3:8)
+    at t.js:25:7
+Error: j
+    at Number.renamed (eval at <anonymous> (t.js:23:9), <anonymous>:3:8)
+    at t.js:26:9
+Error: k
+    at Object.eval [as m] (eval at <anonymous> (t.js:27:21), <anonymous>:1:23)
+    at t.js:28:16
+Error: l
+    at new eval (eval at <anonymous> (t.js:29:9), <anonymous>:1:25)
+    at t.js:30:7
+Error: n
+    at anonymous (eval at <anonymous> (t.js:31:7), <anonymous>:3:38)
+    at t.js:31:74
+Error: o
+    at eval (eval at <anonymous> (t.js:32:7), <anonymous>:3:29)
+    at t.js:32:65",
+    )]);
+}

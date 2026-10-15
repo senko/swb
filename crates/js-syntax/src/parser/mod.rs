@@ -44,6 +44,8 @@ mod class_fix_tests;
 mod class_tests;
 mod classes;
 #[cfg(test)]
+mod dynamic_tests;
+#[cfg(test)]
 mod eval_tests;
 mod expressions;
 mod functions;
@@ -137,6 +139,9 @@ pub struct Script {
     pub top: FunctionId,
     /// For a module: its module records (§16.2.1.7.1 `ParseModule`).
     pub module: Option<ModuleRecord>,
+    /// For the source of a `Function` constructor call
+    /// ([`parse_dynamic_function`]): the function that it creates.
+    pub dynamic_function: Option<FunctionId>,
 }
 
 impl Script {
@@ -194,6 +199,44 @@ pub fn parse_eval(
         CodeKind::IndirectEval
     };
     run_parser!(source, budget, code, |parser| parser.parse_eval(context))
+}
+
+/// Parses the source text that `CreateDynamicFunction` (§20.2.1.1.1)
+/// assembles for a normal function: `(function anonymous(` P `\n) {\n`
+/// body `\n})`, where `params_end` is the offset of the `)` after P.
+/// The parentheses make the function an expression; positions on the first
+/// line count them, as in V8. [`Script::dynamic_function`] is the
+/// function; it has no binding of its name `anonymous`.
+///
+/// The specification parses the parameters and the body separately, so
+/// that neither can end the other's part early (`Function('/*', '*/){')`).
+/// The parse checks the same with positions: the parameter list must end
+/// at `params_end` (else V8's "Arg string terminates parameters early" or
+/// "Unexpected end of arg string"), and the script must be exactly the
+/// parenthesized function, whose body then ends at the final `}` (else
+/// "Single function literal required"). Neither part can contain a token
+/// that crosses into the other: the parts are separated by line
+/// terminators, which no string literal, regular expression or `//`
+/// comment crosses, and a template or `/*` comment that crossed would put
+/// the end of the parameters or of the function elsewhere.
+pub fn parse_dynamic_function(
+    source: Str16<'_>,
+    params_end: u32,
+    budget: &mut RecursionBudget,
+) -> Result<Script, ParseError> {
+    run_parser!(source, budget, CodeKind::IndirectEval, |parser| parser
+        .parse_dynamic_function(params_end))
+}
+
+/// The state of the parse of a `Function` constructor source
+/// ([`parse_dynamic_function`]).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct DynamicFunction {
+    /// The offset of the `)` that must end the parameter list.
+    params_end: u32,
+    /// The function, once its `function` keyword was parsed (the first
+    /// function of the source, at offset 1).
+    function: Option<FunctionId>,
 }
 
 /// [`parse_script`] with explicit analysis limits, for tests.
@@ -521,6 +564,8 @@ pub(crate) struct Parser<'a, 'b, U: CodeUnit> {
     module_code: bool,
     /// Whether the module's top level contains `await` (`[[HasTLA]]`).
     module_await: bool,
+    /// The parse of a `Function` constructor source.
+    dynamic: Option<DynamicFunction>,
 }
 
 impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
@@ -611,6 +656,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             module: module.then(Box::default),
             module_code: module,
             module_await: false,
+            dynamic: None,
         }
     }
 
@@ -650,6 +696,70 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
         self.finish(body, None)
     }
 
+    /// The source of a `Function` constructor call (see
+    /// [`parse_dynamic_function`]).
+    fn parse_dynamic_function(mut self, params_end: u32) -> PResult<Script> {
+        self.dynamic = Some(DynamicFunction {
+            params_end,
+            function: None,
+        });
+        self.token = self.lexer.next_token(Goal::RegExp)?;
+        let body = self.parse_statements(TokenKind::Eof, false)?;
+        let function = self.dynamic.and_then(|d| d.function);
+        let single = match self.ast.stmts(body) {
+            [statement] => match self.ast.stmt(*statement).kind {
+                crate::ast::StmtKind::Expr(expr) => match self.ast.expr(expr).kind {
+                    crate::ast::ExprKind::Paren(inner) => {
+                        let inner = self.ast.expr(inner).kind;
+                        matches!(inner, crate::ast::ExprKind::Function(f) if Some(f) == function)
+                    }
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        };
+        if !single {
+            return Err(ParseError::syntax(0, messages::SINGLE_FUNCTION_LITERAL));
+        }
+        let mut script = self.finish(body, None)?;
+        script.dynamic_function = function;
+        Ok(script)
+    }
+
+    /// Whether the function being parsed is the one of a `Function`
+    /// constructor source.
+    pub(super) fn in_dynamic_function(&self) -> bool {
+        self.dynamic
+            .is_some_and(|d| d.function == Some(self.ctx.function))
+    }
+
+    /// The check at the end of the parameters of a `Function` constructor
+    /// source: the current token must be the `)` at the end of the
+    /// parameter text.
+    pub(super) fn check_dynamic_params_end(&self) -> PResult<()> {
+        match self.dynamic {
+            Some(dynamic) if self.token.start != dynamic.params_end => {
+                Err(self.dynamic_params_error())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// The error for parameters of a `Function` constructor source that
+    /// end at the current token, which is not the `)` at the end of the
+    /// parameter text.
+    pub(super) fn dynamic_params_error(&self) -> ParseError {
+        let start = self.token.start;
+        let end = self.dynamic.map_or(0, |d| d.params_end);
+        let message = if start < end {
+            messages::ARG_STRING_TERMINATES_EARLY
+        } else {
+            messages::ARG_STRING_UNEXPECTED_END
+        };
+        ParseError::syntax(start, message)
+    }
+
     /// Fills in the top-level function, runs the scope analysis and
     /// returns the script.
     fn finish(mut self, body: List<StmtId>, module: Option<ModuleRecord>) -> PResult<Script> {
@@ -671,6 +781,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             names: self.lexer.into_interner(),
             top,
             module,
+            dynamic_function: None,
         })
     }
 

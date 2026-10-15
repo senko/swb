@@ -123,6 +123,15 @@ pub(crate) const STRICT_EIGHT_OR_NINE: &str = "\\8 and \\9 are not allowed in st
 /// Not measured: V8 allows about 4 million variables per function; swb
 /// has 16-bit register operands (ADR 0026 section 4).
 pub const TOO_MANY_VARIABLES: &str = "Too many variables declared in a function";
+/// The `Function` constructor: parameter text that ends before its end
+/// (`Function('a)', '')`).
+pub(crate) const ARG_STRING_TERMINATES_EARLY: &str = "Arg string terminates parameters early";
+/// The `Function` constructor: parameter text that runs into the body
+/// (`Function('/*', '*/){')`).
+pub(crate) const ARG_STRING_UNEXPECTED_END: &str = "Unexpected end of arg string";
+/// The `Function` constructor: a body that ends the function early
+/// (`Function('', '})(function(){')`).
+pub(crate) const SINGLE_FUNCTION_LITERAL: &str = "Single function literal required";
 /// Not measured: V8 has no such limit. A `RangeError` in swb.
 pub const TOO_MANY_CAPTURES: &str = "Too many captured variables in a script";
 pub(crate) const TOO_MANY_PARAMETERS: &str =

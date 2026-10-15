@@ -115,6 +115,13 @@ dir test/annexB/language/eval-code
 dir test/annexB/language/function-code
 dir test/annexB/language/global-code
 
+# Added in M7 feature 3f: the Function constructor (the HTML-like comments
+# of its source in Annex B, `this` of functions it makes); its other tests
+# are in groups that run already (built-ins/Function, the Annex B groups
+# of eval, function and global code, arguments-object).
+dir test/annexB/built-ins/Function
+dir test/language/expressions/this
+
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
 dir test/language/arguments-object/mapped

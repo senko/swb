@@ -135,6 +135,17 @@ build, Linux, Intel Core i5-13500, Node.js 22.11.
 | for loop over 1M elements | 129.9 | 16.4 | 7.92x |
 | join 1M elements | 133.4 | 66.1 | 2.02x |
 
+Programs added in M7 3f (2026-10-15, same machine):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| 1M calls that read arguments | 558 | 50 | 11.2x |
+| 1M calls that write mapped arguments | 510 | 65 | 7.8x |
+| 1M calls of new Function code | 87 | 17.5 | 5.0x |
+
+The cost of the first two is the creation of the arguments object
+(about 0.5 µs; a cached shape and a bulk element store are feature 13).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

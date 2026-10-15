@@ -2,7 +2,8 @@
 //! huge objects, long prototype chains and long String objects, object
 //! spread of huge objects, deep optional chains and tagged templates in
 //! hot loops; and of the later sessions of feature 3 (classes, private
-//! names, `eval` and `with`). A case ends with a result, an error or a termination at the
+//! names, `eval` and `with`, the `Function` constructor and mapped
+//! `arguments`). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -1013,6 +1014,176 @@ fn nested_eval_in_eval_code_is_bounded() {
             assert_clean(&rt);
         }
     });
+}
+
+#[test]
+fn function_constructor_with_huge_text_stays_under_the_heap_limit() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 256 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        // A body of 16 million code units: statements do not fit (the
+        // script ends at the heap limit before the tree exists), a string
+        // literal fits. Huge parameter text is charged the same way.
+        let cases = [
+            (
+                "var body = ' y;'; while (body.length < 16000000) body += body; Function('var y = 1;' + body);",
+                false,
+            ),
+            (
+                "var p = '1,'; while (p.length < 16000000) p += p; Function('a = [' + p + ']', '');",
+                false,
+            ),
+            (
+                "var big = 'x'; while (big.length < 16000000) big += big; Function('return \"' + big + '\"')().length;",
+                true,
+            ),
+        ];
+        for (source, fits) in cases {
+            let mut rt = runtime_with(config);
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(10));
+            if fits {
+                assert_eq!(result, Ok(Value::Int(16_777_216)), "{source}");
+            } else {
+                assert_eq!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::HeapLimit)),
+                    "{source}"
+                );
+            }
+            assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            assert_eq!(
+                rt.eval("Function('a', 'return a * 3')(2)"),
+                Ok(Value::Int(6))
+            );
+        }
+    });
+}
+
+#[test]
+fn function_constructor_code_is_garbage_after_the_call() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 32 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        // 100,000 functions with different bodies: the script around each
+        // is garbage at once, each function's code with the function.
+        assert_eq!(
+            rt.eval(
+                "var s = 0; for (var i = 0; i < 100000; i++) s += Function('a', 'var v' + i + ' = a; return v' + i + ' + ' + i)(1); s"
+            ),
+            Ok(Value::Double(5_000_050_000.0))
+        );
+        rt.collect();
+        let live = rt.heap().stats().live_bytes;
+        assert!(live < 8 << 20, "{live}");
+        // Functions that stay alive count their source against the limit.
+        let (result, _) = eval_with_deadline_of(
+            &mut rt,
+            "var big = 'x'; while (big.length < 1000000) big += big; var keep = []; while (true) keep.push(Function('return 1; // ' + big + keep.length));",
+            Duration::from_secs(10),
+        );
+        assert_eq!(result, Err(ScriptError::Terminated(Termination::HeapLimit)));
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn function_constructor_parameters_and_recursion_are_bounded() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // 100,000 parameters: V8's `SyntaxError` (also for 8 million,
+        // where the parse stops at the limit); 64,000 mapped parameters
+        // work (the parameter map has an entry per argument); 65,535 too
+        // many again.
+        let cases = [
+            (
+                "var p = []; for (var i = 0; i < 100000; i++) p.push('b' + i); try { Function(p.join(), ''); } catch (e) { e.message }",
+                "=> Too many parameters in function definition (only 65534 allowed)",
+            ),
+            (
+                "var p = 'a,'; while (p.length < 16000000) p += p; try { Function(p + 'z', ''); } catch (e) { e.message }",
+                "=> Too many parameters in function definition (only 65534 allowed)",
+            ),
+            (
+                "var p = []; for (var i = 0; i < 65535; i++) p.push('b' + i); try { Function(p.join(), 'return arguments'); } catch (e) { e.message }",
+                "=> Too many parameters in function definition (only 65534 allowed)",
+            ),
+            (
+                "var p = [], a = []; for (var i = 0; i < 64000; i++) { p.push('a' + i); a.push(i); } \
+                 var f = Function(p.join(), 'a0 = 5; arguments[63999] = 7; return [arguments[0], a63999, arguments.length].join()'); \
+                 f.apply(null, a)",
+                "=> 5,7,64000",
+            ),
+        ];
+        for (source, expected) in cases {
+            assert_eq!(run_in(&mut rt, source), expected, "{source}");
+            assert_clean(&rt);
+        }
+        // Recursion through functions that `Function` makes ends at the
+        // frame limit: each call is a frame of the interpreter loop.
+        let recursion = [
+            "var f = Function('f()'); f();",
+            "var g = Function('return Function(\"return g()\")()'); g();",
+            "var h = Function('a', 'return h.apply(null, arguments)'); h(1, 2);",
+        ];
+        for source in recursion {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+            assert_eq!(
+                result.map_err(|e| e.to_string()),
+                Err("Uncaught RangeError: Maximum call stack size exceeded".to_owned()),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(20), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn mapped_arguments_in_hot_loops_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let cases = [
+            "function f(a, b) { while (true) { arguments[0] = a + 1; a = arguments[0]; } } f(0, 1);",
+            "function g(a, b) { while (true) { delete arguments[1]; arguments[1] = b; Object.defineProperty(arguments, '0', { value: a }); b = arguments[1]; } } g(0, 1);",
+            "function h(a) { while (true) { eval('a++'); arguments[0]--; } } h(0);",
+            "function k(a) { var x = arguments; while (true) { x = (function (b) { return arguments; })(x); } } k(0);",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_function_constructor_and_arguments() {
+    let cases = [
+        "var fs = []; for (var i = 0; i < 20; i++) fs.push(new Function('a', 'b', 'return a * b + ' + i)); var t = 0; for (var f of fs) t += f(2, 3); t",
+        "function m(a, b) { var g = () => { a = b; arguments[1] = 'x'; }; g(); return [a, b, arguments[0], arguments[1]].join(); } m(1, 2)",
+        "function n(a) { Object.defineProperty(arguments, '0', { writable: false }); a = 9; return arguments[0] + ':' + a; } n(4)",
+        "class F extends Function {} var ff = new F('return 4'); ff() + (Object.getPrototypeOf(ff) === F.prototype)",
+    ];
+    for source in cases {
+        assert_eq!(run(source, false), run(source, true), "{source}");
+    }
 }
 
 /// Like [`eval_with_deadline`], with another deadline.

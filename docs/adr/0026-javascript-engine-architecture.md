@@ -936,6 +936,56 @@ where the first plan did not work:
   per process, and its cache starts at the size that the source needs,
   so a parse of a short eval string costs no table setup (12 µs per
   small eval before, 3 µs after).
+- The `Function` constructor (feature 3f, §20.2.1.1.1) builds V8's
+  source `(function anonymous(P\n) {\nbody\n})` (measured: positions on
+  the first line count the `(`; `toString` shows the text inside the
+  parentheses) and parses it once as global code, instead of the three
+  parses of the specification. The parse checks with positions what the
+  separate parses would find: the parameter list must end at the `)`
+  after P ("Arg string terminates parameters early" before it,
+  "Unexpected end of arg string" after it), and the script must be the
+  parenthesized function alone ("Single function literal required"), so
+  its body ends at the final `}`. A token cannot cross between the parts
+  without moving one of these ends, because the parts are separated by
+  line terminators. The name `anonymous` is not bound. The compile keeps
+  the code of the function, not of the script around it (garbage at
+  once); the function's code owns the source for the heap limit. The text
+  is built under the heap check (two bytes per unit) and parsed like eval
+  code. The prototype comes from `new.target` after the parse. V8 names
+  these functions `eval` in stack frames (also `new eval`,
+  `Object.eval [as m]`, as for all anonymous functions of eval code) and
+  `<anonymous>` in the origin of eval code they call; a redefined `name`
+  shows. A parameter list stops at 65,534 elements, so a parameter text
+  of millions of names fails at once.
+- Mapped arguments objects (feature 3f, §10.4.4): the element of a mapped
+  index holds the parameter's cell (`Value::Cell`, all parameters of such
+  a function are cells since 1c), so `[[ParameterMap]]` costs no memory
+  and no allocation. `[[GetOwnProperty]]` takes the cell's value, the
+  fast path of `[[Set]]` writes the cell, `[[DefineOwnProperty]]` follows
+  §10.4.4.2 and puts the cell back while the index stays mapped, and a
+  delete of the element is the end of the mapping. Only the creation of
+  the object stores cells, after the parameters became cells; an earlier
+  position of a repeated name holds a plain value, so only the last one is
+  mapped. A design with a separate map (a boxed list of cells) cost 17 %
+  on calls that create an arguments object; this one costs nothing
+  measurable (1M calls that read `arguments` 558 ms, before 564 ms;
+  `node --jitless` 50 ms: the object's creation is the cost, feature 13).
+- Annex B.3.2.2 (feature 3f): the vars of block functions of a script are
+  global declarations of their own kind. `DeclareGlobals` creates them
+  first (§16.1.7 step 12 as B.3.2.2 replaces it) when no global lexical
+  declaration has the name and `CanDeclareGlobalVar` allows it, and never
+  throws for them. The evaluation of such a declaration asks again
+  (`BlockFunctionHoisted`, then `SetGlobal`) instead of keeping the first
+  answer: no script can change it in between, except where swb has no
+  `[[VarNames]]` (a later `let` of a name whose property existed before
+  the hoisting is allowed). V8 differs from the specification and
+  test262: it throws a `SyntaxError` for a block function whose name has
+  a global `let` or `const`, and makes the var configurable.
+- The interpreter loop is sensitive to its size: a new arm whose slow
+  path was inlined (B.3.2.2 with a setter call) made `fib(27)` 6 % and a
+  property loop 5 % slower. Rare paths stay in `#[inline(never)]`
+  functions, and an instruction that may call a setter reuses an
+  existing arm.
 
 ## Consequences
 

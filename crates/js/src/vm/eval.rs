@@ -24,7 +24,7 @@ use std::rc::Rc;
 use swb_js_syntax::{
     BindingId, BindingKind, ErrorKind, EvalContext, ParseError, Resolution, Script, Storage,
 };
-use swb_js_text::{Str16, String16};
+use swb_js_text::{RecursionBudget, Str16, String16};
 
 use crate::bytecode::{
     EvalInfo, EvalName, EvalSite, EvalSlot, EvalVarEnv, EvalWalk, FunctionCode, Reg, find_eval_name,
@@ -259,13 +259,26 @@ impl Runtime {
     /// `RangeError` of too deep nesting) thrown at the call. The memory of
     /// the parse counts against the heap limit while the compile runs.
     fn parse_eval_code(&mut self, text: Str16<'_>, context: &EvalContext) -> VmResult<Script> {
+        self.parse_code(text, |source, budget| {
+            swb_js_syntax::parse_eval(source, context, budget)
+        })
+    }
+
+    /// Parses source text that a script made (eval code, the source of a
+    /// `Function` call) with `parse`; an early error is a `SyntaxError` (or
+    /// the `RangeError` of too deep nesting). The memory of the parse
+    /// counts against the heap limit while the compile runs.
+    pub(super) fn parse_code(
+        &mut self,
+        text: Str16<'_>,
+        parse: impl FnOnce(Str16<'_>, &mut RecursionBudget) -> Result<Script, ParseError>,
+    ) -> VmResult<Script> {
         // The tree of a source takes some bytes per code unit: a script
         // that evals a string too large for the heap ends before the
         // parse allocates the tree, not after.
         self.heap
             .reserve(text.len().saturating_mul(PARSE_BYTES_PER_UNIT), &self.vm)?;
-        let script =
-            swb_js_syntax::parse_eval(text, context, &mut self.budget).map_err(parse_failure)?;
+        let script = parse(text, &mut self.budget).map_err(parse_failure)?;
         self.charge_units(text.len())?;
         let size = script.ast.heap_size() + script.scopes.heap_size();
         self.heap.reserve(size, &self.vm)?;
@@ -361,7 +374,7 @@ impl Runtime {
     /// script and eval code; a caller in eval code shows its own origin
     /// instead of a position. At most 1,024 characters, so that nested
     /// eval code cannot grow it without bound.
-    fn eval_origin(&self) -> Rc<str> {
+    pub(super) fn eval_origin(&self) -> Rc<str> {
         let Some(frame) = self.vm.frames.last() else {
             return Rc::from("eval at <anonymous>");
         };
@@ -685,7 +698,7 @@ fn redeclared(rt: &Runtime, name: Gc<JsString>) -> VmError {
 }
 
 /// The error that a failed parse of eval code throws.
-fn parse_failure(error: ParseError) -> VmError {
+pub(super) fn parse_failure(error: ParseError) -> VmError {
     let mut message = error.message.into_owned();
     if let Some(construct) = error.unsupported {
         message.push_str(" (");
