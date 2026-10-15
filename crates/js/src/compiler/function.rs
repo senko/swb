@@ -155,11 +155,18 @@ pub(super) struct FunctionCompiler<'a> {
     pub(super) position: u32,
     lines: Vec<(u32, u32)>,
     pub(super) call_names: Vec<(u32, u32)>,
+    /// The strict ranges of sloppy code (class definitions).
+    pub(super) strict_ranges: Vec<(u32, u32)>,
     /// The register of the script's completion value.
     pub(super) completion: Option<Reg>,
     /// The global declarations of a script.
     global_decls: Option<Vec<GlobalDecl>>,
     pub(super) strict: bool,
+    /// A derived constructor: two registers for the check of its result
+    /// at each return.
+    derived_result: Option<(Reg, Reg)>,
+    /// The jumps of a derived constructor's returns to its epilogue.
+    pub(super) derived_exits: Vec<usize>,
 }
 
 impl<'a> FunctionCompiler<'a> {
@@ -201,9 +208,12 @@ impl<'a> FunctionCompiler<'a> {
             position: function.span.start,
             lines: Vec::new(),
             call_names: Vec::new(),
+            strict_ranges: Vec::new(),
             completion: None,
             global_decls: None,
             strict: function.strict,
+            derived_result: None,
+            derived_exits: Vec::new(),
         }
     }
 
@@ -219,9 +229,16 @@ impl<'a> FunctionCompiler<'a> {
             self.emit(Insn::Undefined { dst: completion });
             self.completion = Some(completion);
         }
+        if kind == CodeKind::DerivedConstructor {
+            let result = self.temps(2)?;
+            self.derived_result = Some((result, result + 1));
+        }
         self.prologue(kind)?;
         for &statement in self.ast.stmts(self.function.body) {
             self.stmt(statement)?;
+        }
+        if kind == CodeKind::Initializer {
+            self.initializer_body()?;
         }
         self.position = self.function.span.end;
         let result = if let Some(completion) = self.completion {
@@ -229,7 +246,10 @@ impl<'a> FunctionCompiler<'a> {
         } else {
             self.undefined_temp()?
         };
-        self.emit(Insn::Return { src: result });
+        self.emit_return(result);
+        if let Some(registers) = self.derived_result {
+            self.derived_epilogue(registers);
+        }
         let this_mode = if self.function.kind == FunctionKind::Arrow {
             ThisMode::Lexical
         } else if self.strict {
@@ -237,7 +257,11 @@ impl<'a> FunctionCompiler<'a> {
         } else {
             ThisMode::Global
         };
-        let name = self.function.name.map(|ident| self.name_text(ident.name));
+        let name = self
+            .function
+            .name
+            .map(|ident| self.name_text(ident.name))
+            .or_else(|| super::class::initializer_name(self.function.kind));
         // A function with a direct `eval` has an `arguments` binding when
         // §10.2.11 needs the object (the scope analysis adds it). A rest
         // parameter needs the extra arguments too.
@@ -247,6 +271,7 @@ impl<'a> FunctionCompiler<'a> {
         // Sorted by start, the outer of two ranges with the same start
         // first (the order that the verifier and the lookup expect).
         let length = self.expected_argument_count();
+        let span = self.source_span();
         let mut handlers = self.handlers;
         handlers.sort_by_key(|h| (h.start, std::cmp::Reverse(h.end)));
         Ok(Builder {
@@ -261,12 +286,13 @@ impl<'a> FunctionCompiler<'a> {
             kind,
             this_mode,
             strict: self.strict,
+            strict_ranges: self.strict_ranges,
             keeps_extra_args,
             name,
             lines: self.lines,
             call_names: self.call_names,
             handlers,
-            span: (self.function.span.start, self.function.span.end),
+            span,
         })
     }
 
@@ -283,15 +309,30 @@ impl<'a> FunctionCompiler<'a> {
             // Accessors of object literals are methods (§15.4.5): not
             // constructors, without `prototype`.
             FunctionKind::Method | FunctionKind::Getter | FunctionKind::Setter => CodeKind::Method,
-            FunctionKind::ClassConstructor
-            | FunctionKind::DerivedConstructor
-            | FunctionKind::InstanceInitializer
-            | FunctionKind::StaticInitializer => {
-                return Err(self.unsupported("class"));
+            FunctionKind::ClassConstructor => CodeKind::ClassConstructor,
+            FunctionKind::DerivedConstructor => CodeKind::DerivedConstructor,
+            FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer => {
+                CodeKind::Initializer
             }
             FunctionKind::Eval => return Err(self.unsupported("eval code")),
             FunctionKind::Module => return Err(self.unsupported("module")),
         })
+    }
+
+    /// The source range of the function for `Function.prototype.toString`:
+    /// a class constructor has the text of its class (§15.7.14 step 18 of
+    /// the 2025 text, `[[SourceText]]`).
+    fn source_span(&self) -> (u32, u32) {
+        let span = match self.session.function_classes.get(&self.id) {
+            Some(&class)
+                if self.function.kind != FunctionKind::InstanceInitializer
+                    && self.function.kind != FunctionKind::StaticInitializer =>
+            {
+                self.ast.class(class).span
+            }
+            _ => self.function.span,
+        };
+        (span.start, span.end)
     }
 
     /// The global declarations of the script (§16.1.7).
@@ -528,7 +569,9 @@ impl<'a> FunctionCompiler<'a> {
                 let name = self.name_const(b.name);
                 let insn = match b.kind {
                     BindingKind::Function => Insn::InitGlobalFunction { src, name },
-                    BindingKind::Let | BindingKind::Const => Insn::InitGlobalLexical { src, name },
+                    BindingKind::Let | BindingKind::Const | BindingKind::Class => {
+                        Insn::InitGlobalLexical { src, name }
+                    }
                     _ => Insn::SetGlobal { src, name },
                 };
                 self.emit(insn);
@@ -573,12 +616,10 @@ impl<'a> FunctionCompiler<'a> {
                 continue;
             }
             match b.kind {
-                // Set up by the prologue. The record of a dynamic
-                // environment: the dynamic lookups compile to their static
-                // fallbacks (see `load_ref`), so nothing reads it yet. The
-                // home object and the active function: only `super` reads
-                // them, which `support.rs` rejects; a method with a direct
-                // `eval` has them too (M7 feature 3 for all three).
+                // Set up by the prologue (the home object and the active
+                // function too). The record of a dynamic environment: the
+                // dynamic lookups compile to their static fallbacks (see
+                // `load_ref`), so nothing reads it yet (M7 feature 3e).
                 BindingKind::Parameter
                 | BindingKind::This
                 | BindingKind::NewTarget
@@ -593,10 +634,10 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::BlockFunctionVar
                 | BindingKind::Let
                 | BindingKind::Const
-                | BindingKind::CatchParameter => {}
-                BindingKind::Class | BindingKind::ClassName | BindingKind::PrivateName => {
-                    return Err(self.unsupported("class"));
-                }
+                | BindingKind::CatchParameter
+                | BindingKind::Class
+                | BindingKind::ClassName => {}
+                BindingKind::PrivateName => return Err(self.unsupported("private name")),
             }
             let lexical = b.kind.is_lexical();
             match b.storage {
@@ -668,6 +709,9 @@ impl<'a> FunctionCompiler<'a> {
     /// `GlobalDeclarationInstantiation` (§16.1.7).
     fn prologue(&mut self, kind: CodeKind) -> CResult<()> {
         let scope = self.function.scope;
+        if kind == CodeKind::ClassConstructor {
+            self.base_constructor_fields()?;
+        }
         if kind == CodeKind::Script {
             self.collect_globals(scope);
             if self.global_decls.as_ref().is_some_and(|g| !g.is_empty()) {
@@ -712,6 +756,12 @@ impl<'a> FunctionCompiler<'a> {
                 BindingKind::NewTarget => {
                     self.init_special(binding, Insn::NewTarget { dst: 0 })?;
                 }
+                BindingKind::HomeObject => {
+                    self.init_special(binding, Insn::HomeObject { dst: 0 })?;
+                }
+                BindingKind::ActiveFunction => {
+                    self.init_special(binding, Insn::Callee { dst: 0 })?;
+                }
                 BindingKind::Arguments => {
                     if let Some((_, t)) = arguments {
                         self.init_value(binding, t)?;
@@ -741,6 +791,7 @@ impl<'a> FunctionCompiler<'a> {
         let load = match load {
             Insn::Callee { .. } => Insn::Callee { dst: r },
             Insn::NewTarget { .. } => Insn::NewTarget { dst: r },
+            Insn::HomeObject { .. } => Insn::HomeObject { dst: r },
             _ => Insn::This { dst: r },
         };
         self.emit(load);
@@ -781,7 +832,7 @@ impl<'a> FunctionCompiler<'a> {
             let kind = match b.kind {
                 BindingKind::Var | BindingKind::BlockFunctionVar => GlobalKind::Var,
                 BindingKind::Function => GlobalKind::Function,
-                BindingKind::Let => GlobalKind::Let,
+                BindingKind::Let | BindingKind::Class => GlobalKind::Let,
                 BindingKind::Const => GlobalKind::Const,
                 _ => continue,
             };
@@ -814,13 +865,13 @@ impl<'a> FunctionCompiler<'a> {
                 scope,
                 is_await: false,
             } => self.for_of(left, right, body, scope)?,
+            StmtKind::Class(class) => self.class_declaration(class)?,
             kind @ (StmtKind::ForOf { is_await: true, .. }
             | StmtKind::With { .. }
             | StmtKind::Import
             | StmtKind::ExportDeclaration(_)
             | StmtKind::ExportDefault { .. }
-            | StmtKind::ExportList
-            | StmtKind::Class(_)) => {
+            | StmtKind::ExportList) => {
                 let construct = super::support::unsupported_stmt(kind).unwrap_or("statement");
                 return Err(self.unsupported(construct));
             }
@@ -893,6 +944,22 @@ impl<'a> FunctionCompiler<'a> {
         self.position = outer;
         self.leave(STMT_WEIGHT);
         Ok(())
+    }
+
+    /// A class declaration (§15.7.15 `BindingClassDeclarationEvaluation`):
+    /// the class, then its binding in the enclosing scope.
+    fn class_declaration(&mut self, id: swb_js_syntax::ClassId) -> CResult<()> {
+        let declaration = self
+            .ast
+            .class(id)
+            .declaration
+            .ok_or(Self::internal("a class declaration without a binding"))?;
+        let binding = self
+            .reference(declaration)
+            .binding
+            .ok_or(Self::internal("a class declaration without a binding"))?;
+        let t = self.class_definition(id, None, None)?;
+        self.init_binding(binding, t)
     }
 
     /// `if` (§14.6).
@@ -1288,7 +1355,12 @@ impl<'a> FunctionCompiler<'a> {
     /// `finally` block.
     pub(super) fn emit_return(&mut self, value: Reg) {
         let Some(finally) = self.finallys.last() else {
-            self.emit(Insn::Return { src: value });
+            match self.derived_result {
+                Some(registers) => self.derived_return(value, registers),
+                None => {
+                    self.emit(Insn::Return { src: value });
+                }
+            }
             return;
         };
         let (kind, register) = (finally.kind, finally.value);

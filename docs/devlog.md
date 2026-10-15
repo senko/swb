@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 3c, classes without private names
+
+- `js`: class declarations and expressions (`compiler/class.rs`,
+  `vm/class.rs`): the heritage with V8's `TypeError`s, the inner and
+  outer bindings with their dead zones, methods, accessors, static
+  members, generator methods, computed keys (once, in order), public
+  fields and static blocks through the parser's two initializer
+  functions, default constructors made by the compiler, `super(...)`
+  with the `this` binding and its checks, `super` properties in every
+  assignment form and in object literal methods (home objects in class
+  slots of the closure).
+- Derived constructors: `this` starts uninitialized; the result check
+  runs in an epilogue outside the handlers. Field initializers and
+  `super(...)` are frames, so long class chains need no Rust
+  recursion.
+- Stack traces and `Function.prototype.toString` follow V8 for
+  classes; `console.log` prints `[class A extends B]`.
+- Review: no bugs in the class machinery; about 280 probe cases equal
+  to Node 22, also in GC stress mode. Fixed: the heritage and computed
+  keys of a class in sloppy code ran as sloppy code (§11.2.2 says all
+  parts of a class are strict; `class C extends (x = Object) {}`
+  created a global). The code object now lists the instruction ranges
+  of class definitions in sloppy code, and the instructions whose
+  result depends on strictness check them. Backlog: V8 names instances
+  of classes `#<K>` in messages, swb `#<Object>`.
+- Runtime test262: 15,881 pass (was 12,958), the same in stress mode;
+  parse-only unchanged (41,882). 39 of 84 target scripts compile; none
+  stops at a class now. Next: 3d, private names.
+
 ## 2026-10-14: M7 feature 3b, iteration and destructuring
 
 - `js`: `for`-`of` with iterator closing (§7.4.11) on `break`,

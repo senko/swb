@@ -36,6 +36,8 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::call::{CallSite, Step};
+use crate::vm::class::{DERIVED_RESULT, MemberKind, SUPER_DELETE, SUPER_TWICE, THIS_BEFORE_SUPER};
+use crate::vm::function::ClosureParts;
 use crate::vm::property::{Lookup, SetOutcome};
 use crate::vm::{Intrinsic, ReturnTo, VmError, VmResult};
 
@@ -468,7 +470,7 @@ impl Runtime {
                     let name = string_const!(name);
                     let value = get!(src);
                     save!();
-                    let outcome = tri!(self.set_global(name, value, code.strict));
+                    let outcome = tri!(self.set_global(name, value, code.strict_at(pc - 1)));
                     store!(outcome, value);
                 }
                 Insn::InitGlobalLexical { src, name } => {
@@ -516,7 +518,7 @@ impl Runtime {
                     let target = get!(obj);
                     let value = get!(src);
                     save!();
-                    let outcome = tri!(self.put_value(target, key, value, code.strict));
+                    let outcome = tri!(self.put_value(target, key, value, code.strict_at(pc - 1)));
                     store!(outcome, value);
                 }
                 Insn::GetIndex { dst, obj, key } => {
@@ -557,23 +559,24 @@ impl Runtime {
                             Access::Write
                         ))),
                     };
-                    let outcome = tri!(self.put_value(target, key, value, code.strict));
+                    let outcome = tri!(self.put_value(target, key, value, code.strict_at(pc - 1)));
                     store!(outcome, value);
                 }
                 Insn::DeleteNamed { dst, obj, site } => {
                     let key = site!(site);
                     let target = get!(obj);
                     save!();
-                    let result = tri!(self.delete_property(target, key, code.strict));
+                    let result = tri!(self.delete_property(target, key, code.strict_at(pc - 1)));
                     put!(dst, Value::Bool(result));
                 }
                 Insn::DeleteIndex { dst, obj, key } => {
                     let target = get!(obj);
                     let key_value = get!(key);
                     save!();
+                    let strict = code.strict_at(pc - 1);
                     let result = tri!(self.with_scope(|rt| {
                         let key = rt.key_for_access(target, key_value, Access::Delete)?;
-                        rt.delete_property(target, key, code.strict)
+                        rt.delete_property(target, key, strict)
                     }));
                     put!(dst, Value::Bool(result));
                 }
@@ -1364,6 +1367,223 @@ impl Runtime {
                     Value::Int(RESUME_RETURN) => {}
                     _ => return Err(VmError::invariant("a resumption without a mode")),
                 },
+
+                // --- Classes and `super` ---
+                Insn::HomeObject { dst } => {
+                    let home = tri!(self.home_object());
+                    put!(dst, home);
+                }
+                Insn::MethodClosure { dst, home, index } => {
+                    let Value::Object(home) = get!(home) else {
+                        return Err(VmError::invariant("a home object that is not an object"));
+                    };
+                    let Some(Constant::Function(handle, compiled)) =
+                        code.constants.get(index as usize)
+                    else {
+                        return Err(VmError::invariant(
+                            "a closure of a constant that is not code",
+                        ));
+                    };
+                    let (handle, compiled) = (*handle, Rc::clone(compiled));
+                    let captures = tri!(self.collect_captures(base, &compiled));
+                    let realm = self.current_realm();
+                    save!();
+                    let scope = self.heap.open_scope();
+                    let parts = ClosureParts {
+                        function_proto: None,
+                        home: Some(home),
+                    };
+                    let function =
+                        tri!(self.new_closure_with(handle, &compiled, captures, realm, parts));
+                    put!(dst, Value::Object(function));
+                    tri!(self.heap.close_scope(scope));
+                }
+                Insn::ClassHeritage { dst, src } => {
+                    let superclass = get!(src);
+                    save!();
+                    let (proto_parent, constructor_parent) =
+                        tri!(self.with_scope(|rt| rt.class_heritage(superclass)));
+                    put!(dst, proto_parent);
+                    put!(dst.saturating_add(1), constructor_parent);
+                }
+                Insn::NewClass { dst, index } => {
+                    let parents = (get!(dst), get!(dst.saturating_add(1)));
+                    let Some(Constant::Function(handle, compiled)) =
+                        code.constants.get(index as usize)
+                    else {
+                        return Err(VmError::invariant("a class of a constant that is not code"));
+                    };
+                    let (handle, compiled) = (*handle, Rc::clone(compiled));
+                    let captures = tri!(self.collect_captures(base, &compiled));
+                    let realm = self.current_realm();
+                    save!();
+                    let scope = self.heap.open_scope();
+                    let (function, prototype) =
+                        tri!(self.new_class(parents, (handle, &compiled), captures, realm));
+                    put!(dst, Value::Object(function));
+                    put!(dst.saturating_add(1), Value::Object(prototype));
+                    tri!(self.heap.close_scope(scope));
+                }
+                Insn::DefineMethod { obj, key, src }
+                | Insn::DefineClassGetter { obj, key, src }
+                | Insn::DefineClassSetter { obj, key, src } => {
+                    let kind = match insn {
+                        Insn::DefineClassGetter { .. } => MemberKind::Getter,
+                        Insn::DefineClassSetter { .. } => MemberKind::Setter,
+                        _ => MemberKind::Method,
+                    };
+                    let (object, key, function) = (get!(obj), get!(key), get!(src));
+                    save!();
+                    tri!(self.with_scope(|rt| rt.define_class_member(object, key, function, kind)));
+                }
+                Insn::DefineField { obj, key, src } => {
+                    let (object, key, value) = (get!(obj), get!(key), get!(src));
+                    save!();
+                    tri!(self.with_scope(|rt| {
+                        let key = rt.key_from_converted(key)?;
+                        rt.define_field(object, key, value)
+                    }));
+                }
+                Insn::DefineFieldNamed { obj, src, site } => {
+                    let key = site!(site);
+                    let (object, value) = (get!(obj), get!(src));
+                    save!();
+                    tri!(self.with_scope(|rt| rt.define_field(object, key, value)));
+                }
+                Insn::FieldKey { dst, index } => {
+                    let key = tri!(self.field_key(index));
+                    put!(dst, key);
+                }
+                Insn::SetFieldKeys { func, keys } => {
+                    let (function, keys) = (get!(func), get!(keys));
+                    tri!(self.set_field_keys(function, keys));
+                }
+                Insn::SetClassFields { func, src } => {
+                    let (function, init) = (get!(func), get!(src));
+                    tri!(self.set_class_fields(function, init));
+                }
+                Insn::InitFields { this, func } => {
+                    let (receiver, function) = (get!(this), get!(func));
+                    if let Some(init) = tri!(self.fields_initializer(function)) {
+                        call_accessor!(Value::Object(init), receiver, &[], ReturnTo::Discard);
+                    }
+                }
+                Insn::SuperConstructor { dst, func } => {
+                    let parent = tri!(self.prototype_value(get!(func)));
+                    put!(dst, parent);
+                }
+                Insn::SuperCall { callee, .. } | Insn::SuperCallSpread { callee } => {
+                    save!();
+                    if self.heap.gc_due() {
+                        tri!(self.heap.safepoint(&self.vm));
+                    }
+                    let parent = get!(callee);
+                    let new_target = get!(callee.saturating_add(1));
+                    if !tri!(self.is_constructor(parent)) {
+                        let active = get!(callee.saturating_sub(1));
+                        tri!(Err(self.super_not_constructor(parent, active)));
+                    }
+                    let Value::Object(new_target) = new_target else {
+                        return Err(VmError::invariant("super() without new.target"));
+                    };
+                    let restore_top = base + code.register_count as usize;
+                    let (window, argc) = if let Insn::SuperCall { argc, .. } = insn {
+                        (base + usize::from(callee) + 2, usize::from(argc))
+                    } else {
+                        let list = get!(callee.saturating_add(2));
+                        tri!(self.push_spread_window(parent, new_target.into(), list))
+                    };
+                    let site = CallSite {
+                        window,
+                        argc,
+                        ret: ReturnTo::Register(callee),
+                        restore_top,
+                        construct: true,
+                        new_target: Some(new_target),
+                    };
+                    match tri!(self.invoke(site)) {
+                        Step::Value(value) => {
+                            self.vm.stack.truncate(restore_top);
+                            put!(callee, value);
+                        }
+                        Step::Entered => reload!(),
+                        Step::NotCallable => {
+                            self.vm.stack.truncate(restore_top);
+                            let active = get!(callee.saturating_sub(1));
+                            tri!(Err(self.super_not_constructor(parent, active)));
+                        }
+                    }
+                }
+                Insn::CheckThis { src } => {
+                    if get!(src).is_empty() {
+                        tri!(Err(VmError::reference_error(THIS_BEFORE_SUPER)));
+                    }
+                }
+                Insn::CheckSuperOnce { src } => {
+                    if !get!(src).is_empty() {
+                        tri!(Err(VmError::reference_error(SUPER_TWICE)));
+                    }
+                }
+                Insn::DerivedReturn { dst, this } => match get!(dst) {
+                    Value::Object(_) => {}
+                    Value::Undefined => {
+                        let this = get!(this);
+                        if this.is_empty() {
+                            tri!(Err(VmError::reference_error(THIS_BEFORE_SUPER)));
+                        }
+                        put!(dst, this);
+                    }
+                    // §10.2.2 step 12: the error belongs to the caller (V8's
+                    // stack trace has no line for the constructor), so the
+                    // frame goes first; the caller's pc is at its call.
+                    _ => {
+                        let Some(frame) = self.vm.frames.pop() else {
+                            return Err(VmError::invariant("a return without a frame"));
+                        };
+                        self.vm
+                            .stack
+                            .resize(frame.restore_top as usize, Value::Undefined);
+                        return Err(VmError::type_error(DERIVED_RESULT));
+                    }
+                },
+                Insn::SuperBase { dst, home } => {
+                    let parent = tri!(self.prototype_value(get!(home)));
+                    put!(dst, parent);
+                }
+                Insn::GetSuper { dst, base: b, key } => {
+                    let (target, this, key) = (get!(b), get!(b.saturating_add(1)), get!(key));
+                    save!();
+                    let key = tri!(self.with_scope(|rt| rt.to_property_key(key)));
+                    let found = tri!(self.super_get(target, key, this));
+                    lookup!(dst, found);
+                }
+                Insn::GetSuperNamed { dst, base: b, site } => {
+                    let key = site!(site);
+                    let (target, this) = (get!(b), get!(b.saturating_add(1)));
+                    save!();
+                    let found = tri!(self.super_get(target, key, this));
+                    lookup!(dst, found);
+                }
+                Insn::SetSuper { base: b, key, src } => {
+                    let (target, this, key) = (get!(b), get!(b.saturating_add(1)), get!(key));
+                    let value = get!(src);
+                    save!();
+                    let key = tri!(self.with_scope(|rt| rt.to_property_key(key)));
+                    let outcome =
+                        tri!(self.super_set(target, key, value, (this, code.strict_at(pc - 1))));
+                    store!(outcome, value);
+                }
+                Insn::SetSuperNamed { base: b, src, site } => {
+                    let key = site!(site);
+                    let (target, this, value) = (get!(b), get!(b.saturating_add(1)), get!(src));
+                    save!();
+                    let outcome =
+                        tri!(self.super_set(target, key, value, (this, code.strict_at(pc - 1))));
+                    store!(outcome, value);
+                }
+                Insn::ThrowSuperDelete => {
+                    tri!(Err(VmError::reference_error(SUPER_DELETE)));
+                }
                 Insn::Nop => {}
             }
         }

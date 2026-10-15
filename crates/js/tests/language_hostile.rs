@@ -464,3 +464,189 @@ fn stress_mode_agrees_on_iteration_and_destructuring() {
     assert_eq!(run(source, true), expected);
     assert_eq!(run(source, false), expected);
 }
+
+// --- Classes (M7 feature 3c) ---
+
+#[test]
+fn classes_with_many_members() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let mut methods = String::from("class M {");
+        methods.extend((0..100_000).map(|i| format!(" m{i}() {{ return {i}; }}")));
+        methods.push_str(
+            " } print(new M().m99999(), Object.getOwnPropertyNames(M.prototype).length);",
+        );
+        assert_eq!(run_in(&mut rt, &methods), "99999 100001");
+        let mut fields = String::from("class F {");
+        fields.extend((0..100_000).map(|i| format!(" f{i} = {i}; static s{i} = {i};")));
+        fields.push_str(" } var f = new F(); print(f.f99999, F.s99999, Object.keys(f).length);");
+        assert_eq!(run_in(&mut rt, &fields), "99999 99999 100000");
+        let mut computed = String::from("var n = 0; class K {");
+        for _ in 0..100_000 {
+            computed.push_str(" [n++] = n;");
+        }
+        computed.push_str(" } print(new K()[99999], n);");
+        assert_eq!(run_in(&mut rt, &computed), "100000 100000");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn a_long_chain_of_derived_classes() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Each level is a frame (the constructor) of the interpreter loop,
+        // not Rust recursion: 10,000 levels end with V8's `RangeError`.
+        let cases = [
+            "var C = class { x = 1; }; for (var i = 0; i < 10000; i++) C = class extends C { y = i; constructor() { super(); } }; \
+             try { new C(); } catch (e) { print(e.constructor.name, e.message); }",
+            "var D = class { x = 1; }; for (var i = 0; i < 10000; i++) D = class extends D { z = i; }; \
+             try { new D(); } catch (e) { print(e.constructor.name, e.message); }",
+        ];
+        for source in cases {
+            assert_eq!(
+                run_in(&mut rt, source),
+                "RangeError Maximum call stack size exceeded",
+                "{source}"
+            );
+            assert_clean(&rt);
+        }
+        // 4,000 levels fit.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var E = class { x = 1; }; for (var i = 0; i < 4000; i++) E = class extends E { ['k' + i] = i; constructor(...a) { super(...a); } }; \
+                 var e = new E(); print(e.x, e.k3999, Object.keys(e).length);"
+            ),
+            "1 4000 4001"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn class_definitions_in_a_hot_loop() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 64 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        let cases = [
+            "while (true) { var K = class extends Object { m() { return super.toString; } static s = 1; x = [1, 2]; static { this.t = 2; } }; new K().m(); }",
+            "var keep = []; while (true) keep.push(class { m() {} get g() { return 1; } static f = () => 1; });",
+            "var keep = []; class B { constructor() { keep.push(this); } } class D extends B { a = [1, 2, 3, 4, 5, 6, 7, 8]; } while (true) new D();",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_terminated(&result, source);
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            rt.eval("var keep = undefined;").unwrap();
+        }
+    });
+}
+
+#[test]
+fn computed_class_keys_that_throw_or_run_long() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var log = []; try { class C { [(log.push(1), 'a')]() {} [{ toString() { throw new Error('key'); } }]() {} [log.push(2)] = 1; } } \
+                 catch (e) { print(e.message, log.join(), typeof C); }"
+            ),
+            "key 1 undefined"
+        );
+        let cases = [
+            "class C1 { [{ toString() { while (true); } }]() {} }",
+            "class C2 { static [{ toString() { while (true); } }] = 1; }",
+            "class C3 { [{ toString() { for (;;) {} } }] = 1; }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn super_properties_through_a_long_prototype_chain() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let build = "var bottom = { found: 1 }; var top = bottom; for (var i = 0; i < 100000; i++) top = Object.create(top); \
+                     var o = { __proto__: top, read() { return super.found; }, miss() { while (true) super.missing; }, \
+                     write() { while (true) super.missing = 1; }, call() { while (true) super.hasOwnProperty('x'); } }; undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        assert_eq!(run_in(&mut rt, "print(o.read());"), "1");
+        for source in ["o.miss();", "o.write();", "o.call();"] {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn class_errors_leave_the_runtime_clean() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let cases = [
+            // The error of a primitive result belongs to the caller: the
+            // constructor's frame is gone before it is raised, also when
+            // that frame is the first one of a nested run.
+            (
+                "class A {} class B extends A { constructor() { super(); return 5; } } new B();",
+                "Uncaught TypeError: Derived constructors may only return object or undefined",
+            ),
+            (
+                "Reflect.construct(B, []);",
+                "Uncaught TypeError: Derived constructors may only return object or undefined",
+            ),
+            (
+                "[1].map(() => new B());",
+                "Uncaught TypeError: Derived constructors may only return object or undefined",
+            ),
+            (
+                "class N extends A { constructor() {} } new N();",
+                "Uncaught ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+            ),
+            (
+                "A();",
+                "Uncaught TypeError: Class constructor A cannot be invoked without 'new'",
+            ),
+        ];
+        for (source, expected) in cases {
+            assert_eq!(run_in(&mut rt, source), expected, "{source}");
+            assert_clean(&rt);
+        }
+        assert_eq!(run_in(&mut rt, "print(new A() instanceof A)"), "true");
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_classes() {
+    let source = "class A { a = 1; static s = 'S'; constructor(x) { this.x = x; } m() { return this.x + this.a; } get g() { return 'g'; } } \
+        class B extends A { b = this.a + 1; [Symbol.iterator] = () => 1; constructor() { super(5); } m() { return super.m() * 10 + this.b; } \
+        static { this.t = super.s + '!'; } } var b = new B(); var o = { __proto__: b, n() { return super.g; } }; \
+        class E extends Error {} var e = new E('boom'); \
+        print(b.m(), B.t, o.n(), b[Symbol.iterator].name, e instanceof E, e.message);";
+    let expected = "62 S! g [Symbol.iterator] true boom";
+    assert_eq!(run(source, true), expected);
+    assert_eq!(run(source, false), expected);
+}

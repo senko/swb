@@ -106,6 +106,15 @@ impl FunctionCompiler<'_> {
         }
     }
 
+    /// The `(` of a class constructor's parameter list, where V8 places
+    /// the code that its function runs before the body (the instance
+    /// fields): the first `(` after the start of the key `constructor`.
+    pub(super) fn parameters_position(&self, start: u32) -> u32 {
+        (start..start.saturating_add(64))
+            .find(|&at| self.text.get(at as usize) == Some(u16::from(b'(')))
+            .unwrap_or(start)
+    }
+
     /// The offset of the first `wanted` after `from`, skipping white space,
     /// comments, `)` and `?.`; `None` if something else comes first.
     fn find_token(&self, from: u32, wanted: u8) -> Option<u32> {

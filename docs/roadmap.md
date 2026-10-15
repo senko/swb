@@ -892,6 +892,36 @@ failures with a reason. Features, in this order:
      constructor). `Function.prototype.toString` uses the class span.
      Runner: the features `class`, `class-fields-public`,
      `class-static-fields-public`, `class-static-block`, `super`.
+     Done 2026-10-15: all of the above. A class definition compiles to
+     one instruction per step of §15.7.14 in the enclosing function;
+     fields are defined by the two initializer functions of the parser,
+     and computed field keys are evaluated at the definition into an
+     internal array. Closures of methods, class constructors and
+     initializers carry class slots (home object, `[[Fields]]`, the key
+     array). Base constructors define their fields at their start,
+     derived ones after `super(...)`, both as frames: 10,000 derived
+     levels end at the frame limit with V8's `RangeError`, without Rust
+     recursion. Default derived constructors pass their arguments
+     without the array iterator. The heritage and computed keys of a
+     class in sloppy code run as strict code (instruction ranges in the
+     code object). V8's messages and stack frames (`new C`, `C.m`,
+     `<instance_members_initializer>`, `<static_initializer>`);
+     `Function.prototype.toString` of a class gives its source. Runtime
+     test262: 15,881 pass (was 12,958), the same in stress mode; new
+     groups `computed-property-names/class`, `expressions/super`;
+     `statements/class` 1,396 more, `expressions/class` 1,222 more.
+     Parse-only unchanged. 39 of the 84 BBC and Ars scripts compile
+     (were 38); no script stops at a class now, the others stop at
+     `async` (27) and regular expression literals (18). Speed: `new C()`
+     with three fields 396 ms per million (`node --jitless` 62 ms), a
+     method call 128 ms (43 ms), the same as the equivalent function
+     constructors (object creation, feature 13). Known failures: tests
+     that use `eval` or `new Function` (3e), private names (3d), `async`
+     (feature 7), missing built-ins. Open: V8 reports the call of a
+     static initializer and a heritage error at the position of an
+     earlier statement, swb at the class and the heritage; when a
+     derived constructor runs off its end, V8 reports the position of
+     the last expression, swb the start of the last statement.
    - 3d. Private names: private fields, methods, getters and setters,
      instance and static, the brand checks and their `TypeError`s,
      `#x in o`, private names in nested classes and in `eval` inside a
@@ -1024,6 +1054,9 @@ not repeated here; the open items of each spike session are in M6 step
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
   Annex B.3.4 that now rely on the shared scope.
+- Messages (M7 3c): "Cannot assign to read only property 'y' of object
+  '#<Object>'" names every ordinary object `#<Object>`; V8 uses the
+  constructor's name for instances of classes and functions (`#<K>`).
 
 ## Backlog from M5
 

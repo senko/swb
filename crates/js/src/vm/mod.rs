@@ -34,6 +34,7 @@
 //! termination request of the host.
 
 mod call;
+pub(crate) mod class;
 pub(crate) mod convert;
 mod destructure;
 mod for_in;
@@ -387,9 +388,9 @@ mod tests {
     #[test]
     fn record_sizes() {
         assert_eq!(size_of::<Frame>(), 128);
-        assert_eq!(size_of::<FunctionCode>(), 176);
+        assert_eq!(size_of::<FunctionCode>(), 192);
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
         assert_eq!(size_of::<GeneratorState>(), 160);
-        assert_eq!(size_of::<Closure>(), 40);
+        assert_eq!(size_of::<Closure>(), 48);
     }
 }

@@ -224,6 +224,26 @@ impl Inspector<'_> {
             return None;
         }
         Some(match kind {
+            // Node.js shows a class with the name of its parent, if that
+            // has one.
+            ObjectKind::Function(closure) if closure.compiled.kind.is_class_constructor() => {
+                let name = rt
+                    .own_data_string(object, rt.vm.atoms.name)
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| "(anonymous)".to_owned());
+                let parent = rt
+                    .heap
+                    .get_prototype_of(object)
+                    .ok()
+                    .flatten()
+                    .filter(|&parent| rt.is_callable(parent.into()).unwrap_or(false))
+                    .and_then(|parent| rt.own_data_string(parent, rt.vm.atoms.name))
+                    .filter(|name| !name.is_empty());
+                match parent {
+                    Some(parent) => format!("[class {name} extends {parent}]"),
+                    None => format!("[class {name}]"),
+                }
+            }
             ObjectKind::Function(closure) => {
                 let kind = if closure.compiled.kind == crate::bytecode::CodeKind::Generator {
                     "GeneratorFunction"

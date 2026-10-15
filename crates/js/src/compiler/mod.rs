@@ -19,6 +19,7 @@
 //! recursion budget per level; left-associative chains of binary and
 //! logical operators are compiled in a loop.
 
+mod class;
 mod debug_names;
 mod expr;
 mod function;
@@ -32,7 +33,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use swb_js_syntax::{CaptureSource, FunctionId, Script};
+use swb_js_syntax::{CaptureSource, ClassId, FunctionId, Script};
 use swb_js_text::RecursionBudget;
 use swb_js_text::{Str16, String16};
 
@@ -70,6 +71,9 @@ pub(crate) enum ConstSpec {
     String(String16),
     Number(f64),
     Function(FunctionId),
+    /// The code of the default constructor of a class (made by the
+    /// compiler, [`Session::default_constructors`]).
+    DefaultConstructor(ClassId),
     /// The (cooked, raw) strings of a tagged template's parts.
     Template(Vec<(Option<String16>, String16)>),
 }
@@ -88,6 +92,8 @@ pub(crate) struct Builder {
     pub(crate) kind: CodeKind,
     pub(crate) this_mode: ThisMode,
     pub(crate) strict: bool,
+    /// See [`crate::bytecode::FunctionCode::strict_ranges`].
+    pub(crate) strict_ranges: Vec<(u32, u32)>,
     pub(crate) keeps_extra_args: bool,
     pub(crate) name: Option<String16>,
     pub(crate) lines: Vec<(u32, u32)>,
@@ -107,6 +113,30 @@ pub(crate) struct Session {
     /// functions assigned to members (`a.b = function () {}` gives
     /// `a.b`); they do not change the `name` property.
     pub(crate) debug_names: HashMap<FunctionId, String16>,
+    /// The names that `NamedEvaluation` gives anonymous classes.
+    pub(crate) class_names: HashMap<ClassId, String16>,
+    /// The code of the default constructors (classes without a
+    /// `constructor` method).
+    pub(crate) default_constructors: HashMap<ClassId, Builder>,
+    /// The class of each constructor and field initializer function.
+    pub(crate) function_classes: HashMap<FunctionId, ClassId>,
+}
+
+impl Session {
+    /// The session of a script: the classes of its class functions.
+    fn new(script: &Script) -> Self {
+        let mut session = Session::default();
+        for id in script.ast.class_ids() {
+            let class = script.ast.class(id);
+            for function in [class.constructor, class.instance_init, class.static_init]
+                .into_iter()
+                .flatten()
+            {
+                session.function_classes.insert(function, id);
+            }
+        }
+        session
+    }
 }
 
 /// Statistics of compiled code (for measurements).
@@ -170,7 +200,7 @@ pub(crate) fn compile_script(
         Rc::from(name),
     ));
     let result = compile_functions(script, text, budget)
-        .and_then(|(builders, session)| materialize(heap, script, builders, &session, &source));
+        .and_then(|(builders, session)| materialize(heap, script, builders, session, &source));
     *budget = initial;
     result
 }
@@ -188,7 +218,7 @@ fn compile_functions<'a>(
             offset,
         });
     }
-    let mut session = Session::default();
+    let mut session = Session::new(script);
     let mut builders = Vec::with_capacity(script.ast.function_count());
     for id in script.ast.function_ids() {
         let builder =
@@ -229,22 +259,39 @@ fn depths(script: &Script) -> Vec<u32> {
     depth.into_iter().map(Option::unwrap_or_default).collect()
 }
 
+/// The code objects made so far: by function, and the default
+/// constructors by class.
+struct Done {
+    functions: Vec<Option<(Gc<Generic>, Rc<FunctionCode>)>>,
+    defaults: HashMap<ClassId, (Gc<Generic>, Rc<FunctionCode>)>,
+}
+
 /// Creates the code objects in the heap, innermost functions first, in a
 /// no-GC region.
 fn materialize(
     heap: &mut Heap,
     script: &Script,
     mut builders: Vec<Option<Builder>>,
-    session: &Session,
+    mut session: Session,
     source: &Rc<crate::bytecode::Source>,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let depth = depths(script);
+    let defaults = std::mem::take(&mut session.default_constructors);
     let mut order: Vec<FunctionId> = script.ast.function_ids().collect();
     order.sort_by_key(|f| std::cmp::Reverse(depth.get(f.index()).copied().unwrap_or(0)));
     let saved = heap.no_gc_depth();
     heap.enter_no_gc();
-    let mut done: Vec<Option<(Gc<Generic>, Rc<FunctionCode>)>> = vec![None; builders.len()];
+    let mut done = Done {
+        functions: vec![None; builders.len()],
+        defaults: HashMap::with_capacity(defaults.len()),
+    };
     let result = (|| {
+        // The default constructors have no nested functions.
+        for (class, builder) in defaults {
+            let code = Rc::new(finish_code(heap, builder, (None, None), &done, source)?);
+            let handle = heap.alloc_generic(CodeObject::new(Rc::clone(&code)))?;
+            done.defaults.insert(class, (handle, code));
+        }
         for id in order {
             let builder = builders
                 .get_mut(id.index())
@@ -255,11 +302,12 @@ fn materialize(
             let code = finish_code(heap, builder, (name, debug_name), &done, source)?;
             let code = Rc::new(code);
             let handle = heap.alloc_generic(CodeObject::new(Rc::clone(&code)))?;
-            if let Some(slot) = done.get_mut(id.index()) {
+            if let Some(slot) = done.functions.get_mut(id.index()) {
                 *slot = Some((handle, code));
             }
         }
-        done.get(script.top.index())
+        done.functions
+            .get(script.top.index())
             .cloned()
             .flatten()
             .ok_or(CompileError::Heap(Error::invariant(
@@ -276,7 +324,7 @@ fn finish_code(
     heap: &mut Heap,
     builder: Builder,
     (inferred_name, debug_name): (Option<String16>, Option<String16>),
-    done: &[Option<(Gc<Generic>, Rc<FunctionCode>)>],
+    done: &Done,
     source: &Rc<crate::bytecode::Source>,
 ) -> CResult<FunctionCode> {
     let mut constants = Vec::with_capacity(builder.constants.len());
@@ -288,10 +336,19 @@ fn finish_code(
             ConstSpec::Number(x) => Constant::Value(Value::number(*x)),
             ConstSpec::Function(child) => {
                 let (handle, code) = done
+                    .functions
                     .get(child.index())
                     .cloned()
                     .flatten()
                     .ok_or(Error::invariant("a nested function without code"))?;
+                Constant::Function(handle, code)
+            }
+            ConstSpec::DefaultConstructor(class) => {
+                let (handle, code) = done
+                    .defaults
+                    .get(class)
+                    .cloned()
+                    .ok_or(Error::invariant("a default constructor without code"))?;
                 Constant::Function(handle, code)
             }
             ConstSpec::Template(parts) => {
@@ -327,6 +384,7 @@ fn finish_code(
         kind: builder.kind,
         this_mode: builder.this_mode,
         strict: builder.strict,
+        strict_ranges: builder.strict_ranges.into(),
         keeps_extra_args: builder.keeps_extra_args,
         name,
         debug_name,

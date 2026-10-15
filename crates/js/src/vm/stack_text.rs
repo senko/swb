@@ -93,7 +93,11 @@ impl Runtime {
             };
             return format!("new {name} ({location})");
         }
-        let described = if self.is_toplevel_receiver(frame.this) {
+        // V8 names the field initializers of a class without a receiver
+        // (`<instance_members_initializer>`, `<static_initializer>`).
+        let described = if self.is_toplevel_receiver(frame.this)
+            || frame.compiled.kind == CodeKind::Initializer
+        {
             name
         } else {
             self.method_call_name(frame.this, function, &name)
@@ -256,18 +260,9 @@ fn names_method(name: &str, method: &str) -> bool {
             .is_some_and(|rest| rest.ends_with('.') || rest.ends_with(' '))
 }
 
-/// Whether a function is a class constructor (its text starts with
-/// `class`).
+/// Whether a function is a class constructor.
 fn is_class(code: &FunctionCode) -> bool {
-    if code.kind != CodeKind::Normal {
-        return false;
-    }
-    let (start, _) = code.span;
-    code.source
-        .text
-        .as_str16()
-        .slice(start as usize, start as usize + 5)
-        .is_some_and(|text| text.eq_str("class"))
+    code.kind.is_class_constructor()
 }
 
 /// `file:line:column` of an offset in a code's script.

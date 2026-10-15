@@ -73,6 +73,9 @@ enum TargetRef {
     Binding(RefId),
     /// A property with its object in a register.
     Property { obj: Reg, key: KeyReg },
+    /// A `super` property: the super base and `this` in `base` and
+    /// `base + 1`.
+    Super { base: Reg, key: KeyReg },
     /// A call (Annex B web compatibility): it has run; the store throws.
     Call,
 }
@@ -446,6 +449,10 @@ impl FunctionCompiler<'_> {
                 };
                 TargetRef::Property { obj, key }
             }
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                let (base, key) = self.super_reference(target)?;
+                TargetRef::Super { base, key }
+            }
             ExprKind::Call { .. } => {
                 self.effect(target)?;
                 TargetRef::Call
@@ -463,6 +470,7 @@ impl FunctionCompiler<'_> {
         match reference {
             TargetRef::Binding(id) => self.store_ref(id, value)?,
             TargetRef::Property { obj, key } => self.emit_put(obj, key, value),
+            TargetRef::Super { base, key } => self.emit_put_super(base, key, value),
             TargetRef::Call => {
                 self.emit(Insn::ThrowInvalidAssign {
                     context: INVALID_TARGET_ASSIGN,

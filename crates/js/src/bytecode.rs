@@ -26,7 +26,11 @@
 //! - calls: `Call` and `New` take a window of consecutive registers
 //!   `callee, this, arg0, ...`; the result goes into the callee register;
 //! - errors, the end of a `finally` block, and the generator suspension
-//!   and resumption points.
+//!   and resumption points;
+//! - classes and `super`: the class definition (heritage, constructor and
+//!   prototype, methods, fields), `super(...)` with `new.target` in the
+//!   slot of `this`, the checks of a derived constructor's `this`, and
+//!   `super` properties on a pair of registers (the super base, `this`).
 //!
 //! Exceptions (ADR 0026 section 5): the handler table maps ranges of
 //! instructions to a handler and the register that receives the caught
@@ -755,6 +759,166 @@ pub(crate) enum Insn {
         offset: i32,
     },
 
+    // --- Classes (§15.7) and `super` (§13.3.7) ---
+    /// `dst` = the home object of the running function (`[[HomeObject]]`,
+    /// §10.2.5; `undefined` if it has none).
+    HomeObject {
+        dst: Reg,
+    },
+    /// `dst` = a new closure of the method code `constants[index]` whose
+    /// home object is the object in `home` (§15.4.4 `DefineMethod`).
+    MethodClosure {
+        dst: Reg,
+        home: Reg,
+        index: u32,
+    },
+    /// The heritage of a class (§15.7.14 step 8): from the value in `src`,
+    /// `dst` = the prototype's parent (an object or `null`) and `dst + 1`
+    /// = the constructor's parent; the `TypeError`s of a value that is not
+    /// a constructor or `null` and of a `prototype` that is not an object
+    /// or `null`.
+    ClassHeritage {
+        dst: Reg,
+        src: Reg,
+    },
+    /// Creates a class (§15.7.14 steps 9 to 17) with the constructor code
+    /// `constants[index]`: reads the parents from `dst` and `dst + 1`
+    /// (`Empty` in `dst`: a class without heritage), writes the
+    /// constructor into `dst` and its `prototype` object into `dst + 1`.
+    NewClass {
+        dst: Reg,
+        index: u32,
+    },
+    /// Defines the method `src` under the key in `key` (a value of
+    /// `ToKey` or a string constant) on `obj`: writable, not enumerable,
+    /// configurable (§10.2.8 `DefineMethodProperty`).
+    DefineMethod {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// Defines the getter `src` of a class: not enumerable, configurable.
+    DefineClassGetter {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// Defines the setter `src` of a class, like
+    /// [`Insn::DefineClassGetter`].
+    DefineClassSetter {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// `DefineField` (§7.3.33) of a field with the key in `key` (a value
+    /// of `ToKey`): `CreateDataPropertyOrThrow(obj, key, src)`.
+    DefineField {
+        obj: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// `DefineField` of a field with the key of `sites[site]`.
+    DefineFieldNamed {
+        obj: Reg,
+        src: Reg,
+        site: u32,
+    },
+    /// `dst` = element `index` of the computed field keys of the running
+    /// initializer function (evaluated when its class was defined).
+    FieldKey {
+        dst: Reg,
+        index: u32,
+    },
+    /// The initializer function `src` gets the array of its class's
+    /// computed field keys in `keys`.
+    SetFieldKeys {
+        func: Reg,
+        keys: Reg,
+    },
+    /// The class constructor `func` gets its instance field initializer
+    /// function `src` (`[[Fields]]`).
+    SetClassFields {
+        func: Reg,
+        src: Reg,
+    },
+    /// `InitializeInstanceElements(this, func)` (§7.3.34): calls the
+    /// field initializer function of the class constructor `func` with the
+    /// value of `this` as the receiver; nothing if it has none.
+    InitFields {
+        this: Reg,
+        func: Reg,
+    },
+    /// `dst` = `func.[[GetPrototypeOf]]()` (§13.3.7.2
+    /// `GetSuperConstructor`).
+    SuperConstructor {
+        dst: Reg,
+        func: Reg,
+    },
+    /// `super(...)` (§13.3.7.1): `Construct(callee, args, newTarget)` with
+    /// `newTarget` in `callee + 1` and `argc` arguments from `callee + 2`;
+    /// the active function is in `callee - 1` (for the message when the
+    /// callee is not a constructor). The result goes into `callee`.
+    SuperCall {
+        callee: Reg,
+        argc: u16,
+    },
+    /// `super(...)` with spread arguments: an array of the arguments in
+    /// `callee + 2`, like [`Insn::CallSpread`].
+    SuperCallSpread {
+        callee: Reg,
+    },
+    /// Throws the `ReferenceError` of a derived constructor's `this` before
+    /// `super(...)` if `src` holds `Empty`.
+    CheckThis {
+        src: Reg,
+    },
+    /// Throws the `ReferenceError` of a second `super(...)` call if `src`
+    /// (the `this` binding) does not hold `Empty`.
+    CheckSuperOnce {
+        src: Reg,
+    },
+    /// The result of a derived constructor (§10.2.2 steps 10 to 12): an
+    /// object in `dst` stays; `undefined` becomes the value of `this`
+    /// (which must be initialized); anything else is a `TypeError`.
+    DerivedReturn {
+        dst: Reg,
+        this: Reg,
+    },
+    /// `dst` = `home.[[GetPrototypeOf]]()` (§9.1.1.3.5 `GetSuperBase`):
+    /// an object or `null`.
+    SuperBase {
+        dst: Reg,
+        home: Reg,
+    },
+    /// `dst` = `base.[[Get]](ToPropertyKey(key), this)` with `this` in
+    /// `base + 1` (a `super` property, §13.3.7.3).
+    GetSuper {
+        dst: Reg,
+        base: Reg,
+        key: Reg,
+    },
+    /// [`Insn::GetSuper`] with the key of `sites[site]`.
+    GetSuperNamed {
+        dst: Reg,
+        base: Reg,
+        site: u32,
+    },
+    /// `base.[[Set]](ToPropertyKey(key), src, this)` with `this` in
+    /// `base + 1`; a failure throws in strict mode code.
+    SetSuper {
+        base: Reg,
+        key: Reg,
+        src: Reg,
+    },
+    /// [`Insn::SetSuper`] with the key of `sites[site]`.
+    SetSuperNamed {
+        base: Reg,
+        src: Reg,
+        site: u32,
+    },
+    /// Throws the `ReferenceError` of `delete super.x` (§13.5.1.2).
+    ThrowSuperDelete,
+
     /// Does nothing (`debugger`).
     Nop,
 }
@@ -812,6 +976,7 @@ impl Insn {
                 | Insn::Throw { .. }
                 | Insn::ThrowConstAssign { .. }
                 | Insn::ThrowInvalidAssign { .. }
+                | Insn::ThrowSuperDelete
         )
     }
 }
@@ -848,11 +1013,30 @@ pub(crate) enum CodeKind {
     Normal,
     /// An arrow function: lexical `this`, not a constructor.
     Arrow,
-    /// A method of an object literal: not a constructor.
+    /// A method of an object literal or a class: not a constructor.
     Method,
     /// A generator function: not a constructor; its `prototype` object
     /// inherits from the generator prototype.
     Generator,
+    /// The constructor of a class without heritage (§15.7.14): `new` only;
+    /// the class definition creates its `prototype`.
+    ClassConstructor,
+    /// The constructor of a derived class: `new` only; `this` is
+    /// uninitialized until `super(...)` returns.
+    DerivedConstructor,
+    /// The function that initializes the fields of a class (instance or
+    /// static, with the static blocks): called by the engine only.
+    Initializer,
+}
+
+impl CodeKind {
+    /// Whether the code is a class constructor (`[[IsClassConstructor]]`).
+    pub(crate) fn is_class_constructor(self) -> bool {
+        matches!(
+            self,
+            CodeKind::ClassConstructor | CodeKind::DerivedConstructor
+        )
+    }
 }
 
 /// How a function binds `this` (§10.2.1.2 `OrdinaryCallBindThis`).
@@ -929,6 +1113,11 @@ pub(crate) struct FunctionCode {
     pub(crate) kind: CodeKind,
     pub(crate) this_mode: ThisMode,
     pub(crate) strict: bool,
+    /// The instruction ranges `[start, end)` of sloppy code that are
+    /// strict mode code: the class definitions in it (§11.2.2: all parts
+    /// of a class are strict, also the heritage and computed keys that
+    /// the enclosing code evaluates). Sorted and disjoint.
+    pub(crate) strict_ranges: Box<[(u32, u32)]>,
     /// Whether the frame keeps the arguments beyond the declared
     /// parameters: the code creates an `arguments` object or has a rest
     /// parameter.
@@ -985,6 +1174,20 @@ impl Source {
 }
 
 impl FunctionCode {
+    /// Whether the instruction at `pc` is strict mode code.
+    pub(crate) fn strict_at(&self, pc: usize) -> bool {
+        if self.strict || self.strict_ranges.is_empty() {
+            return self.strict;
+        }
+        let after = self
+            .strict_ranges
+            .partition_point(|&(start, _)| start as usize <= pc);
+        after
+            .checked_sub(1)
+            .and_then(|i| self.strict_ranges.get(i))
+            .is_some_and(|&(_, end)| pc < end as usize)
+    }
+
     /// The source text of the function (the part of the script that
     /// `span` names), lossy for lone surrogates.
     pub(crate) fn source_text(&self) -> Option<String16> {
@@ -1191,6 +1394,16 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
             message: "the code can run past its end",
         });
     }
+    let mut previous_end = 0;
+    for &(start, end) in &code.strict_ranges {
+        if start < previous_end || end < start || end as usize > len {
+            return Err(VerifyError {
+                pc: start as usize,
+                message: "strict ranges",
+            });
+        }
+        previous_end = end;
+    }
     for (pc, insn) in code.insns.iter().enumerate() {
         let fail = |message| Err(VerifyError { pc, message });
         let mut ok = true;
@@ -1211,6 +1424,29 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
                 if u32::from(callee) + 3 > registers {
                     return fail("call window outside the frame");
                 }
+            }
+            // The active function is below the window.
+            Insn::SuperCall { callee, argc } => {
+                if callee == 0 || u32::from(callee) + 2 + u32::from(argc) > registers {
+                    return fail("call window outside the frame");
+                }
+            }
+            Insn::SuperCallSpread { callee } => {
+                if callee == 0 || u32::from(callee) + 3 > registers {
+                    return fail("call window outside the frame");
+                }
+            }
+            // Pairs of registers: the parents and the class, the super
+            // base and `this`.
+            Insn::ClassHeritage { dst: first, .. }
+            | Insn::NewClass { dst: first, .. }
+            | Insn::GetSuper { base: first, .. }
+            | Insn::GetSuperNamed { base: first, .. }
+            | Insn::SetSuper { base: first, .. }
+            | Insn::SetSuperNamed { base: first, .. }
+                if u32::from(first) + 2 > registers =>
+            {
+                return fail("register pair outside the frame");
             }
             // An iterator record takes three registers.
             Insn::GetIterator { dst: rec, .. }
@@ -1261,7 +1497,9 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
             matches!(constant(index), Some(Constant::Value(_))),
             "constant index",
         ),
-        Insn::Closure { index, .. } => (
+        Insn::Closure { index, .. }
+        | Insn::MethodClosure { index, .. }
+        | Insn::NewClass { index, .. } => (
             matches!(constant(index), Some(Constant::Function(..))),
             "function constant index",
         ),
@@ -1296,7 +1534,10 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         Insn::GetNamed { site, .. }
         | Insn::SetNamed { site, .. }
         | Insn::DeleteNamed { site, .. }
-        | Insn::DefineNamed { site, .. } => ((site as usize) < code.sites.len(), "site index"),
+        | Insn::DefineNamed { site, .. }
+        | Insn::DefineFieldNamed { site, .. }
+        | Insn::GetSuperNamed { site, .. }
+        | Insn::SetSuperNamed { site, .. } => ((site as usize) < code.sites.len(), "site index"),
         Insn::LoadCapture { index, .. } | Insn::StoreCapture { index, .. } => {
             ((index as usize) < code.captures.len(), "capture index")
         }
@@ -1364,7 +1605,18 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::NewObject { dst }
         | I::NewArray { dst, .. }
         | I::RestArguments { dst, .. }
-        | I::Closure { dst, .. } => f(dst),
+        | I::Closure { dst, .. }
+        | I::HomeObject { dst }
+        | I::NewClass { dst, .. }
+        | I::FieldKey { dst, .. }
+        | I::CheckThis { src: dst }
+        | I::CheckSuperOnce { src: dst }
+        | I::SuperCall { callee: dst, .. }
+        | I::SuperCallSpread { callee: dst } => f(dst),
+        I::MethodClosure { dst, home, .. } => {
+            f(dst);
+            f(home);
+        }
         I::MakeCell { reg } | I::CopyCell { reg } | I::Yield { reg } | I::Resume { reg, .. } => {
             f(reg);
         }
@@ -1386,6 +1638,22 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::CallSpread { callee }
         | I::NewSpread { callee } => f(callee),
         I::Move { dst, src }
+        | I::ClassHeritage { dst, src }
+        | I::SetFieldKeys {
+            func: dst,
+            keys: src,
+        }
+        | I::SetClassFields { func: dst, src }
+        | I::InitFields {
+            this: dst,
+            func: src,
+        }
+        | I::SuperConstructor { dst, func: src }
+        | I::DerivedReturn { dst, this: src }
+        | I::SuperBase { dst, home: src }
+        | I::GetSuperNamed { dst, base: src, .. }
+        | I::SetSuperNamed { base: dst, src, .. }
+        | I::DefineFieldNamed { obj: dst, src, .. }
         | I::LoadCell { dst, cell: src }
         | I::ToKey { dst, src }
         | I::Neg { dst, src }
@@ -1443,6 +1711,20 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
             f(key);
         }
         I::SetIndex { obj, key, src }
+        | I::GetSuper {
+            dst: obj,
+            base: key,
+            key: src,
+        }
+        | I::SetSuper {
+            base: obj,
+            key,
+            src,
+        }
+        | I::DefineMethod { obj, key, src }
+        | I::DefineClassGetter { obj, key, src }
+        | I::DefineClassSetter { obj, key, src }
+        | I::DefineField { obj, key, src }
         | I::CopyRest {
             dst: obj,
             src: key,
@@ -1484,6 +1766,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Jump { .. }
         | I::ThrowConstAssign { .. }
         | I::ThrowInvalidAssign { .. }
+        | I::ThrowSuperDelete
         | I::InitialYield
         | I::Nop => {}
     }
@@ -1513,6 +1796,7 @@ mod tests {
             kind: CodeKind::Normal,
             this_mode: ThisMode::Strict,
             strict: true,
+            strict_ranges: Box::new([]),
             keeps_extra_args: false,
             name: Gc::new(0, 0),
             debug_name: Gc::new(0, 0),
@@ -1521,6 +1805,33 @@ mod tests {
             call_names: Box::new([]),
             source: Rc::new(Source::new(String16::default(), Rc::from(""))),
             span: (0, 0),
+        }
+    }
+
+    #[test]
+    fn strict_ranges_mark_strict_code_in_sloppy_code() {
+        let mut sloppy = code(vec![Insn::Nop; 10], 1);
+        sloppy.strict = false;
+        sloppy.strict_ranges = Box::new([(2, 4), (6, 7)]);
+        let strict: Vec<usize> = (0..10).filter(|&pc| sloppy.strict_at(pc)).collect();
+        assert_eq!(strict, [2, 3, 6]);
+        sloppy.strict_ranges = Box::new([]);
+        assert!(!(0..10).any(|pc| sloppy.strict_at(pc)));
+        assert!(code(vec![Insn::Nop], 1).strict_at(0));
+    }
+
+    #[test]
+    fn verifier_checks_strict_ranges() {
+        let insns = vec![Insn::Nop, Insn::Nop, Insn::Return { src: 0 }];
+        for (ranges, ok) in [
+            (vec![(0, 1), (1, 3)], true),
+            (vec![(1, 2), (0, 1)], false),
+            (vec![(2, 1)], false),
+            (vec![(0, 4)], false),
+        ] {
+            let mut c = code(insns.clone(), 1);
+            c.strict_ranges = ranges.into();
+            assert_eq!(verify(&c).is_ok(), ok);
         }
     }
 

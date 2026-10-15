@@ -36,6 +36,25 @@ pub struct Closure {
     pub(crate) this_mode: ThisMode,
     /// The function's realm.
     pub(crate) realm: u32,
+    /// The internal slots of methods and classes; `None` for functions
+    /// that need none (no `super` property, not a class constructor or
+    /// field initializer).
+    pub(crate) class: Option<Box<ClassSlots>>,
+}
+
+/// The internal slots of a method, a class constructor or a field
+/// initializer function (§10.2, §15.7.14).
+#[derive(Debug, Default)]
+pub(crate) struct ClassSlots {
+    /// `[[HomeObject]]`: the object whose prototype `super` properties
+    /// read.
+    pub(crate) home: Option<Gc<crate::object::Object>>,
+    /// `[[Fields]]` of a class constructor: the function that defines the
+    /// instance fields.
+    pub(crate) fields: Option<Gc<crate::object::Object>>,
+    /// The computed field keys of a field initializer function: an
+    /// internal array, evaluated when the class was defined.
+    pub(crate) field_keys: Option<Gc<crate::object::Object>>,
 }
 
 impl Closure {
@@ -44,10 +63,20 @@ impl Closure {
         for cell in &self.captures {
             tracer.cell(*cell);
         }
+        if let Some(slots) = &self.class {
+            for object in [slots.home, slots.fields, slots.field_keys]
+                .into_iter()
+                .flatten()
+            {
+                tracer.object(object);
+            }
+        }
     }
 
     pub(crate) fn heap_size(&self) -> usize {
-        size_of::<Closure>() + self.captures.len() * size_of::<Gc<ValueCell>>()
+        size_of::<Closure>()
+            + self.captures.len() * size_of::<Gc<ValueCell>>()
+            + self.class.as_ref().map_or(0, |_| size_of::<ClassSlots>())
     }
 }
 
@@ -205,18 +234,47 @@ impl Runtime {
         captures: Box<[Gc<ValueCell>]>,
         realm: u32,
     ) -> VmResult<Gc<crate::object::Object>> {
-        let proto_kind = if compiled.kind == CodeKind::Generator {
-            Intrinsic::GeneratorFunctionPrototype
+        self.new_closure_with(code, compiled, captures, realm, ClosureParts::default())
+    }
+
+    /// [`Runtime::new_closure`] with a home object and, for a class
+    /// constructor, the prototype of the function object (the class's
+    /// heritage). A class constructor gets no `prototype` here; the class
+    /// definition makes it.
+    pub(crate) fn new_closure_with(
+        &mut self,
+        code: Gc<Generic>,
+        compiled: &Rc<FunctionCode>,
+        captures: Box<[Gc<ValueCell>]>,
+        realm: u32,
+        parts: ClosureParts,
+    ) -> VmResult<Gc<crate::object::Object>> {
+        let proto = if let Some(proto) = parts.function_proto {
+            proto
         } else {
-            Intrinsic::FunctionPrototype
+            let proto_kind = if compiled.kind == CodeKind::Generator {
+                Intrinsic::GeneratorFunctionPrototype
+            } else {
+                Intrinsic::FunctionPrototype
+            };
+            self.intrinsic(realm, proto_kind)?
         };
-        let proto = self.intrinsic(realm, proto_kind)?;
+        let needs_slots = parts.home.is_some()
+            || compiled.kind.is_class_constructor()
+            || compiled.kind == CodeKind::Initializer;
+        let class = needs_slots.then(|| {
+            Box::new(ClassSlots {
+                home: parts.home,
+                ..ClassSlots::default()
+            })
+        });
         let kind = ObjectKind::Function(Box::new(Closure {
             code,
             compiled: Rc::clone(compiled),
             captures,
             this_mode: compiled.this_mode,
             realm,
+            class,
         }));
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);
@@ -239,7 +297,12 @@ impl Runtime {
                 let key = PropertyKey::String(self.vm.atoms.prototype);
                 self.define(function, key, prototype.into(), true, false, false)?;
             }
-            CodeKind::Script | CodeKind::Arrow | CodeKind::Method => {}
+            CodeKind::Script
+            | CodeKind::Arrow
+            | CodeKind::Method
+            | CodeKind::ClassConstructor
+            | CodeKind::DerivedConstructor
+            | CodeKind::Initializer => {}
         }
         Ok(function)
     }
@@ -332,10 +395,23 @@ pub(crate) fn is_callable_kind(kind: &ObjectKind) -> bool {
     )
 }
 
+/// The optional parts of a new closure ([`Runtime::new_closure_with`]).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ClosureParts {
+    /// The prototype of the function object (default: the realm's
+    /// `%Function.prototype%` or `%GeneratorFunction.prototype%`).
+    pub(crate) function_proto: Option<Gc<crate::object::Object>>,
+    /// `[[HomeObject]]`.
+    pub(crate) home: Option<Gc<crate::object::Object>>,
+}
+
 /// Whether an object kind is a constructor (has `[[Construct]]`).
 pub(crate) fn is_constructor_kind(kind: &ObjectKind) -> bool {
     match kind {
-        ObjectKind::Function(closure) => closure.compiled.kind == CodeKind::Normal,
+        ObjectKind::Function(closure) => matches!(
+            closure.compiled.kind,
+            CodeKind::Normal | CodeKind::ClassConstructor | CodeKind::DerivedConstructor
+        ),
         ObjectKind::Native(native) => native.constructor,
         ObjectKind::Bound(bound) => bound.constructor,
         _ => false,

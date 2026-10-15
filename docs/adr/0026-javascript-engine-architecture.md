@@ -812,6 +812,38 @@ where the first plan did not work:
   the compiler renders the source text into a constant, and the
   instruction picks the form; Chromium's positions (the first property's
   target, the initializer, the loop's target) come from the compiler.
+- Classes (feature 3c): `ClassDefinitionEvaluation` compiles to one
+  instruction per step in the enclosing function (`ClassHeritage`,
+  `NewClass`, one definition per element). The fields of a class are
+  defined by the two initializer functions that the parser makes
+  (instance, and static with the static blocks); computed field keys are
+  evaluated at the definition into an internal array that both functions
+  read by index. Closures of methods, class constructors and initializers
+  carry a box of class slots (home object, `[[Fields]]`, the key array),
+  allocated with the closure; other closures have none (a closure record
+  is 48 bytes, was 40). A base constructor calls its field initializer at
+  its start and a derived one right after `super(...)` returns, both as
+  ordinary frames, so a chain of derived constructors costs no Rust
+  recursion (10,000 levels end at the frame limit). A default constructor
+  has code that the compiler makes; the derived one passes its arguments
+  through a rest array and a spread call, which reads the array directly
+  (not observable). All parts of a class are strict mode code
+  (§11.2.2), also the heritage and computed keys that sloppy code
+  evaluates: the code object of sloppy code lists the instruction
+  ranges of its class definitions, and the instructions whose result
+  depends on strictness (global and property assignment, `delete`,
+  `super` assignment) check that list, not only the code's flag.
+- A derived constructor starts with `this` = `Empty` in its `this`
+  binding (a register or cell, so arrows that call `super(...)` share
+  it); loads of it check. Its returns jump to an epilogue after the body,
+  which checks the result outside every handler range (the `TypeError` of
+  `return 0` is not catchable in the constructor); that `TypeError` is
+  raised after the frame is removed, so the stack trace has no line for
+  it, as in V8.
+- `super` properties keep the super base and `this` in a pair of
+  registers; `ToPropertyKey` runs in the access, after `GetSuperBase`
+  (the 2025 order). A `super` access charges the time countdown for the
+  prototype chain that it walks.
 
 ## Consequences
 

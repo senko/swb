@@ -13,7 +13,7 @@
 //! call or generator resumption becomes a frame whose result goes where
 //! the native call's result would have gone.
 
-use crate::bytecode::ThisMode;
+use crate::bytecode::{CodeKind, ThisMode};
 use crate::heap::Gc;
 use crate::object::{GetResult, Object, ObjectKind};
 use crate::runtime::Runtime;
@@ -213,9 +213,23 @@ impl Runtime {
             // The slot of `this` roots `new.target` while its `prototype`
             // is read (a getter can run script code), then the new object.
             self.set_stack_value(window - 1, new_target.into())?;
-            let this = self.construct_this(new_target, realm)?;
-            self.set_stack_value(window - 1, this.into())?;
-            (Value::Object(this), Value::Object(new_target))
+            if compiled.kind == CodeKind::DerivedConstructor {
+                // §10.2.2 step 6: `this` stays uninitialized until
+                // `super(...)` returns.
+                (Value::Empty, Value::Object(new_target))
+            } else {
+                let this = self.construct_this(new_target, realm)?;
+                self.set_stack_value(window - 1, this.into())?;
+                (Value::Object(this), Value::Object(new_target))
+            }
+        } else if compiled.kind.is_class_constructor() {
+            // §10.2.1 step 2: the error belongs to the caller's frame.
+            let name = self.name_text(compiled.name);
+            return Err(VmError::type_error(if name.is_empty() {
+                "Class constructors cannot be invoked without 'new'".to_owned()
+            } else {
+                format!("Class constructor {name} cannot be invoked without 'new'")
+            }));
         } else {
             let this = self.stack_value(window - 1)?;
             let this = match this_mode {
@@ -402,7 +416,14 @@ impl Runtime {
             .ok_or(VmError::invariant("return without a frame"))?;
         let mut value = value;
         if frame.construct && !matches!(value, Value::Object(_)) {
+            // A derived constructor's code checks its result itself
+            // (`DerivedReturn`), so its uninitialized `this` never gets here.
             value = frame.this;
+            if value.is_internal() {
+                return Err(VmError::invariant(
+                    "a derived constructor returned without an object",
+                ));
+            }
         }
         let scope = if let Some(generator) = frame.generator {
             // The registers of the frame still root `value`.

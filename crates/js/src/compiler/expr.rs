@@ -187,12 +187,11 @@ impl FunctionCompiler<'_> {
             ),
             ExprKind::OptionalChain(inner) => self.optional_chain(inner, dst),
             ExprKind::Spread(_) => Err(Self::internal("a spread outside a list")),
+            ExprKind::Class(class) => self.class_definition(class, dst, None),
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => self.super_load(e, dst),
+            ExprKind::SuperCall(call) => self.super_call(call, dst),
             ExprKind::BigInt(_)
-            | ExprKind::Class(_)
             | ExprKind::Await(_)
-            | ExprKind::SuperMember { .. }
-            | ExprKind::SuperIndex { .. }
-            | ExprKind::SuperCall(_)
             | ExprKind::PrivateMember { .. }
             | ExprKind::PrivateIn { .. }
             | ExprKind::ImportCall { .. }
@@ -266,6 +265,10 @@ impl FunctionCompiler<'_> {
             && self.ast.function(function).name.is_none()
         {
             self.session.inferred_names.insert(function, name);
+        } else if let ExprKind::Class(class) = self.ast.expr(inner).kind
+            && self.ast.class(class).name.is_none()
+        {
+            self.session.class_names.insert(class, name);
         } else {
             self.note_array_functions(inner, &name);
         }
@@ -300,6 +303,9 @@ impl FunctionCompiler<'_> {
                 if reference.tdz_check {
                     self.check_register_tdz(&reference, r)?;
                 }
+                if self.is_derived_this(&reference) {
+                    self.emit(Insn::CheckThis { src: r });
+                }
                 match dst {
                     Some(dst) if dst != r => {
                         self.emit(Insn::Move { dst, src: r });
@@ -333,6 +339,9 @@ impl FunctionCompiler<'_> {
     }
 
     fn check_tdz(&mut self, reference: &swb_js_syntax::Reference, register: Reg) {
+        if self.is_derived_this(reference) {
+            self.emit(Insn::CheckThis { src: register });
+        }
         if reference.tdz_check {
             let name = self.name_const(reference.name);
             self.emit(Insn::CheckTdz {
@@ -347,7 +356,7 @@ impl FunctionCompiler<'_> {
     pub(super) fn store_ref(&mut self, id: RefId, src: Reg) -> CResult<()> {
         let reference = self.reference(id);
         let kind = self.binding_kind(&reference);
-        let constant = kind == Some(BindingKind::Const)
+        let constant = matches!(kind, Some(BindingKind::Const | BindingKind::ClassName))
             || (kind == Some(BindingKind::FunctionName) && self.strict);
         let ignored = kind == Some(BindingKind::FunctionName) && !self.strict;
         let name = self.name_const(reference.name);
@@ -582,6 +591,13 @@ impl FunctionCompiler<'_> {
                 match self.ast.expr(inner).kind {
                     ExprKind::Member { .. } | ExprKind::Index { .. } => {
                         self.delete_property_of(inner, t, false)?;
+                    }
+                    ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                        self.super_delete(inner)?;
+                        self.emit(Insn::Bool {
+                            dst: t,
+                            value: true,
+                        });
                     }
                     ExprKind::OptionalChain(last)
                         if matches!(
@@ -921,7 +937,8 @@ impl FunctionCompiler<'_> {
             self.position = property.span.start;
             let inner = self.mark();
             match property.kind {
-                PropertyKind::Init | PropertyKind::Shorthand | PropertyKind::Method => {
+                PropertyKind::Method => self.literal_method(object, property)?,
+                PropertyKind::Init | PropertyKind::Shorthand => {
                     if let Some(text) = self.key_text(property.key) {
                         let v = self.expr_named(property.value, None, text.clone())?;
                         let site = self.site(text);
@@ -934,14 +951,7 @@ impl FunctionCompiler<'_> {
                         let k = self.temp()?;
                         self.expr(key, Some(k))?;
                         self.emit(Insn::ToKey { dst: k, src: k });
-                        let v = self.expr(property.value, None)?;
-                        if self.is_anonymous_function(property.value) {
-                            self.emit(Insn::SetFunctionName {
-                                func: v,
-                                key: k,
-                                prefix: NAME_PREFIX_NONE,
-                            });
-                        }
+                        let v = self.expr_named_by_key(property.value, None, k)?;
                         self.emit(Insn::DefineIndex {
                             obj: object,
                             key: k,
@@ -985,6 +995,44 @@ impl FunctionCompiler<'_> {
         Ok(t)
     }
 
+    /// A method of an object literal (§15.4.4 `DefineMethod`): its home
+    /// object is the literal.
+    fn literal_method(&mut self, object: Reg, property: swb_js_syntax::Property) -> CResult<()> {
+        let ExprKind::Function(function) = self.ast.expr(property.value).kind else {
+            return Err(Self::internal("a method that is not a function"));
+        };
+        if let Some(text) = self.key_text(property.key) {
+            self.session.inferred_names.insert(function, text.clone());
+            self.position = self.ast.expr(property.value).span.start;
+            let v = self.method_closure(function, object, None)?;
+            let site = self.site(text);
+            self.position = property.span.start;
+            self.emit(Insn::DefineNamed {
+                obj: object,
+                src: v,
+                site,
+            });
+        } else if let AstKey::Computed(key) = property.key {
+            let k = self.temp()?;
+            self.expr(key, Some(k))?;
+            self.emit(Insn::ToKey { dst: k, src: k });
+            self.position = self.ast.expr(property.value).span.start;
+            let v = self.method_closure(function, object, None)?;
+            self.emit(Insn::SetFunctionName {
+                func: v,
+                key: k,
+                prefix: NAME_PREFIX_NONE,
+            });
+            self.position = property.span.start;
+            self.emit(Insn::DefineIndex {
+                obj: object,
+                key: k,
+                src: v,
+            });
+        }
+        Ok(())
+    }
+
     /// A getter or setter of an object literal (§15.4.5
     /// `MethodDefinitionEvaluation`): the key, the function with the name
     /// `get key` or `set key` (§10.2.9 `SetFunctionName`; at run time for
@@ -1013,7 +1061,12 @@ impl FunctionCompiler<'_> {
                 false
             }
         };
-        let v = self.expr(property.value, None)?;
+        let ExprKind::Function(function) = self.ast.expr(property.value).kind else {
+            return Err(Self::internal("an accessor that is not a function"));
+        };
+        self.position = self.ast.expr(property.value).span.start;
+        let v = self.method_closure(function, object, None)?;
+        self.position = property.span.start;
         if computed {
             let prefix = if getter {
                 NAME_PREFIX_GET
@@ -1116,6 +1169,9 @@ impl FunctionCompiler<'_> {
                     places,
                 ),
             },
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                self.assign_super(op, target, value, dst, places)
+            }
             ExprKind::Call { .. } => {
                 // Annex B web compatibility: the call runs, then the
                 // assignment throws (Chromium's behaviour).
@@ -1256,6 +1312,52 @@ impl FunctionCompiler<'_> {
         Ok(t)
     }
 
+    /// An assignment to a `super` property (§13.15.2): the reference, the
+    /// value, `PutValue`; a compound assignment reads first with the key
+    /// converted once.
+    fn assign_super(
+        &mut self,
+        op: AssignOp,
+        target: ExprId,
+        value: ExprId,
+        dst: Option<Reg>,
+        (read_position, write_position): (u32, u32),
+    ) -> CResult<Reg> {
+        let t = self.target(dst)?;
+        let mark = self.mark();
+        let (base, key) = self.super_reference(target)?;
+        match op {
+            AssignOp::Assign => {
+                self.expr(value, Some(t))?;
+                self.position = write_position;
+                self.emit_put_super(base, key, t);
+            }
+            AssignOp::Compound(binary) => {
+                self.key_once(key);
+                self.position = read_position;
+                self.emit_get_super(t, base, key);
+                let inner = self.mark();
+                let b = self.expr(value, None)?;
+                self.position = write_position;
+                self.emit(Self::binary_insn(binary, t, t, b));
+                self.release(inner);
+                self.emit_put_super(base, key, t);
+            }
+            AssignOp::Logical(logical) => {
+                self.key_once(key);
+                self.position = read_position;
+                self.emit_get_super(t, base, key);
+                let skip = self.emit(Self::logical_skip(logical, t));
+                self.expr(value, Some(t))?;
+                self.position = write_position;
+                self.emit_put_super(base, key, t);
+                self.patch_here(skip);
+            }
+        }
+        self.release(mark);
+        Ok(t)
+    }
+
     /// `PutValue` of the value in `value` to a simple assignment target
     /// that is evaluated now (a `for`-`in` target, §14.7.5.7 step 6.c).
     pub(super) fn assign_to_target(&mut self, target: ExprId, value: Reg) -> CResult<()> {
@@ -1292,6 +1394,10 @@ impl FunctionCompiler<'_> {
                         src: value,
                     });
                 }
+            }
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                let (base, key) = self.super_reference(target)?;
+                self.emit_put_super(base, key, value);
             }
             ExprKind::Call { .. } => {
                 // Annex B web compatibility, as for `f() = v`.
@@ -1390,6 +1496,24 @@ impl FunctionCompiler<'_> {
                     let n = self.temp()?;
                     self.emit(step(n, t));
                     self.emit_put(obj, key, n);
+                }
+                self.release(mark);
+                Ok(t)
+            }
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                let t = self.target(dst)?;
+                let mark = self.mark();
+                let (base, key) = self.super_reference(target)?;
+                self.key_once(key);
+                self.emit_get_super(t, base, key);
+                if prefix || discard {
+                    self.emit(step(t, t));
+                    self.emit_put_super(base, key, t);
+                } else {
+                    self.emit(Insn::ToNumeric { dst: t, src: t });
+                    let n = self.temp()?;
+                    self.emit(step(n, t));
+                    self.emit_put_super(base, key, n);
                 }
                 self.release(mark);
                 Ok(t)
@@ -1571,6 +1695,9 @@ impl FunctionCompiler<'_> {
                     });
                     self.release(mark);
                 }
+            }
+            ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => {
+                self.super_callee(target, base)?;
             }
             _ => return Ok(false),
         }
@@ -1760,6 +1887,22 @@ impl FunctionCompiler<'_> {
                     _ => None,
                 }
             }
+            ExprKind::SuperMember { property, .. } => {
+                Some(format!("(intermediate value).{}", text(property)))
+            }
+            ExprKind::SuperIndex { index, .. } => match self.ast.expr(self.unparen(index)).kind {
+                ExprKind::String(id) => Some(format!(
+                    "(intermediate value).{}",
+                    self.ast.string(id).to_string_lossy()
+                )),
+                ExprKind::Number(value) => {
+                    Some(format!("(intermediate value)[{}]", number_to_string(value)))
+                }
+                _ => Some(format!(
+                    "(intermediate value)[{}]",
+                    self.render(index, depth - 1)?
+                )),
+            },
             // V8 shows a tagged template as a call of its tag.
             ExprKind::Call { callee, .. } | ExprKind::TaggedTemplate { tag: callee, .. } => {
                 Some(format!(

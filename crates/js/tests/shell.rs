@@ -226,7 +226,7 @@ fn mini_test262(name: &str) -> PathBuf {
         "/*---\nnegative:\n  phase: runtime\n  type: Test262Error\n---*/\nassert(false);\n",
     );
     write("skip.js", "/*---\nflags: [async]\n---*/\nthrow 1;\n");
-    write("unsupported.js", "/*---\n---*/\nclass C {}\n");
+    write("unsupported.js", "/*---\n---*/\nasync function f() {}\n");
     write(
         "strict.js",
         "/*---\nflags: [onlyStrict]\n---*/\nassert(this === undefined || true);\n",

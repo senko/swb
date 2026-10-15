@@ -3153,3 +3153,610 @@ const DESTRUCTURING_MESSAGES: &[(&str, &str)] = &[
         "TypeError: bad is not iterable\nTypeError: number 5 is not a function\nTypeError: number 5 is not a function\nTypeError: nonext is not iterable\nTypeError: undefined is not a function\nTypeError: Result of the Symbol.iterator method is not an object\nTypeError: Iterator result 1 is not an object",
     ),
 ];
+
+// --- Classes and `super` (M7 feature 3c); expected outputs from Node.js 22 ---
+
+#[test]
+fn classes() {
+    check_cases(CLASSES);
+}
+
+#[test]
+fn class_messages() {
+    check_cases(CLASS_MESSAGES);
+}
+
+#[test]
+fn class_edges() {
+    check_cases(CLASS_EDGES);
+}
+
+const CLASSES: &[(&str, &str)] = &[
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('order', () => { log = []; class C { [k('a')]() {} static [k('b')] = log.push('static init b'); [k('c')] = log.push('init c'); static { log.push('block'); } get [k('d')]() { return 1; } [k('e')] = log.push('init e'); } log.push('defined'); new C(); return log.join(); });",
+        "order key a,key b,key c,key d,key e,static init b,block,defined,init c,init e",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('names', () => { var s = Symbol('sym'); class C { a = function () {}; [s] = () => {}; static b = class {}; ['c' + 1] = function () {}; static [Symbol()] = function () {} } var c = new C(); return [c.a.name, c[s].name, C.b.name, c.c1.name].join('|'); });",
+        "names a|[sym]|b|c1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('fields-derived', () => { log = []; class A { x = log.push('A.x ' + this.constructor.name); constructor() { log.push('A ctor'); } } class B extends A { y = log.push('B.y'); constructor() { log.push('B before'); super(); log.push('B after ' + this.y); } } new B(); return log.join(); });",
+        "fields-derived B before,A.x B,A ctor,B.y,B after 4",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('tdz-heritage', () => { class C extends C {} });",
+        "tdz-heritage threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('tdz-name', () => { var D = class E { static x = E.name; }; return D.x; });",
+        "tdz-name E",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('inner-immutable', () => { class C { static m() { C = 1; } } C.m(); });",
+        "inner-immutable threw TypeError: Assignment to constant variable.",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('outer-mutable', () => { class C {} C = 5; return C; });",
+        "outer-mutable 5",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('tdz-outer', () => { new C(); class C {} });",
+        "tdz-outer threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('static-block', () => { var r; class C { static x = 1; static { var y = this.x + 1; r = y; } } return r; });",
+        "static-block 2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('static-this', () => { class C { static f = this; static g = () => this; } return C.f === C && C.g() === C; });",
+        "static-this true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-static', () => { class A { static m() { return 'A.m'; } } class B extends A { static m() { return super.m() + '+B'; } } return B.m(); });",
+        "super-static A.m+B",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-getter', () => { class A { get g() { return 'Ag' + this.v; } } class B extends A { v = 1; get g() { return super.g + '+B'; } } return new B().g; });",
+        "super-getter Ag1+B",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-set', () => { class A { set s(v) { this._s = v * 2; } } class B extends A { m() { super.s = 4; return this._s; } } return new B().m(); });",
+        "super-set 8",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-set-data', () => { class A {} A.prototype.x = 1; class B extends A { m() { super.x = 7; return this.hasOwnProperty('x') + ' ' + this.x + ' ' + A.prototype.x; } } return new B().m(); });",
+        "super-set-data true 7 1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-compound', () => { class A {} A.prototype.n = 10; class B extends A { m() { super.n += 5; super.n++; ++super['n']; super.n ??= 0; super.n ||= 3; return this.n; } } return new B().m(); });",
+        "super-compound 11",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-destructure', () => { class B { m() { [super.a, super['b']] = [1, 2]; ({ c: super.c } = { c: 3 }); for (super.d of [4]); for (super.e in { k: 1 }); return [this.a, this.b, this.c, this.d, this.e].join(); } } return new B().m(); });",
+        "super-destructure 1,2,3,4,k",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-field', () => { class A { m() { return 'Am'; } } class B extends A { f = super.m(); static s = super.name; } return new B().f + ' ' + B.s; });",
+        "super-field Am A",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-arrow', () => { class A { m() { return 'Am'; } } class B extends A { m() { return (() => super.m())(); } } return new B().m(); });",
+        "super-arrow Am",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-literal', () => { var p = { get g() { return 'pg' + this.v; }, set s(x) { this.r = x; } }; var o = { __proto__: p, v: 2, get g() { return super.g; }, set s(x) { super.s = x + 1; } }; o.s = 1; return o.g + ' ' + o.r; });",
+        "super-literal pg2 2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-call-arrow', () => { class A { constructor() { this.a = 1; } } class B extends A { constructor() { var f = () => super(); f(); this.b = 2; } } var b = new B(); return b.a + b.b; });",
+        "super-call-arrow 3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-twice-arrow', () => { class A {} class B extends A { constructor() { var f = () => super(); f(); f(); } } new B(); });",
+        "super-twice-arrow threw ReferenceError: Super constructor may only be called once",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('this-in-arrow-before', () => { class A {} class B extends A { constructor() { var f = () => this; f(); super(); } } new B(); });",
+        "this-in-arrow-before threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('new.target', () => { var r = []; class A { constructor() { r.push(new.target.name); } } class B extends A {} new A(); new B(); return r.join(); });",
+        "new.target A,B",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('default-args', () => { var got; class A { constructor(...a) { got = a.join(); } } class B extends A {} var saved = Array.prototype[Symbol.iterator]; Array.prototype[Symbol.iterator] = function () { throw new Error('iter'); }; try { new B(1, 2, 3); } finally { Array.prototype[Symbol.iterator] = saved; } return got; });",
+        "default-args 1,2,3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-boolean', () => { class B extends Boolean {} var b = new B(false); return (b instanceof B) + ' ' + b.valueOf() + ' ' + typeof b; });",
+        "extends-boolean true false object",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-object', () => { class O extends Object { constructor() { super(); } } var o = new O(); return Object.getPrototypeOf(o) === O.prototype; });",
+        "extends-object true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-array', () => { class A2 extends Array {} var a = new A2(3); return a.length + ' ' + (a instanceof A2) + ' ' + Array.isArray(a) + ' ' + (a.slice(0, 1) instanceof A2); });",
+        "extends-array 3 true true true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-error', () => { class E extends TypeError { constructor(m) { super(m); this.name = 'E'; } } var e = new E('x'); return e.name + ' ' + e.message + ' ' + (e instanceof TypeError) + ' ' + String(e); });",
+        "extends-error E x true E: x",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-null', () => { class N extends null {} return Object.getPrototypeOf(N.prototype) === null; });",
+        "extends-null true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-null-new', () => { class N extends null {} new N(); });",
+        "extends-null-new threw TypeError: Super constructor null of N is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('extends-null-ctor', () => { class N extends null { constructor() { return Object.create(N.prototype); } } return new N() instanceof N; });",
+        "extends-null-ctor true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('gen-method', () => { class G { *g() { yield 1; yield 2; } static *s() { yield 3; } } return [...new G().g(), ...G.s()].join(); });",
+        "gen-method 1,2,3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('method-props', () => { class C { m() {} static s() {} get g() { return 1; } } var d = Object.getOwnPropertyDescriptor(C.prototype, 'm'); var p = Object.getOwnPropertyDescriptor(C, 'prototype'); return [d.enumerable, d.writable, d.configurable, p.writable, p.enumerable, p.configurable, Object.keys(C.prototype).length, 'prototype' in C.prototype.m].join(); });",
+        "method-props false,true,true,false,false,false,0,false",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('keys-order', () => { class C { static b() {} static a = 1; static 1() {} static [Symbol.iterator]() {} } return Reflect.ownKeys(C).map(String).join(); });",
+        "keys-order 1,length,name,prototype,b,a,Symbol(Symbol.iterator)",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('frozen-this', () => { class A { constructor() { return Object.freeze({}); } } class B extends A { x = 1; } new B(); });",
+        "frozen-this threw TypeError: Cannot define property x, object is not extensible",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('loop', () => { var fs = []; for (let i = 0; i < 3; i++) { fs.push(class { static v = i; m() { return i; } }); } return fs.map(c => c.v + new c().m()).join(); });",
+        "loop 0,2,4",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('ctor-return-object', () => { class A { constructor() { return { o: 1 }; } } return new A().o; });",
+        "ctor-return-object 1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('base-return-prim', () => { class A { constructor() { return 1; } } return typeof new A(); });",
+        "base-return-prim object",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('derived-finally', () => { class A {} class B extends A { constructor() { try { return; } finally { super(); } } } return new B() instanceof B; });",
+        "derived-finally true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('class-expr-name', () => { var C = class Named {}; return C.name + ' ' + typeof Named; });",
+        "class-expr-name Named undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('static-name', () => { class C { static name = 'x'; } return C.name; });",
+        "static-name x",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('accessor-pair', () => { class C { get x() { return this._x; } set x(v) { this._x = v; } } var c = new C(); c.x = 3; return c.x + ' ' + typeof Object.getOwnPropertyDescriptor(C.prototype, 'x').set; });",
+        "accessor-pair 3 function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('computed-once', () => { var n = 0; class C { [n++] = n; [n++] = n; } var c = new C(); return n + ' ' + JSON_like(c); function JSON_like(o) { return Object.keys(o).map(k => k + ':' + o[k]).join(','); } });",
+        "computed-once 2 0:2,1:2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('key-throws', () => { class C { [{ toString() { throw new Error('key'); } }]() {} } });",
+        "key-throws threw Error: key",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-prop-null-base', () => { class C { static m() { return super.x; } } Object.setPrototypeOf(C, null); return C.m(); });",
+        "super-prop-null-base threw TypeError: Cannot read properties of null (reading 'x')",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-index-order', () => { log = []; var o = { __proto__: { set x(v) { log.push('set ' + v); } }, m() { super[{ toString() { log.push('tostring'); return 'x'; } }] = (log.push('rhs'), 1); } }; o.m(); return log.join(); });",
+        "super-index-order rhs,tostring,set 1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('this-before-super', () => { class A {} class B extends A { constructor() { this.x = 1; super(); } } new B(); });",
+        "this-before-super threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('super-prop-before-super', () => { class A {} class B extends A { constructor() { super.x; super(); } } new B(); });",
+        "super-prop-before-super threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('instanceof', () => { class A {} class B extends A {} return (new B() instanceof A) + ' ' + (B.__proto__ === A); });",
+        "instanceof true true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('call-apply', () => { class A {} A.call({}); });",
+        "call-apply threw TypeError: Class constructor A cannot be invoked without 'new'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('bind-new', () => { class A { constructor(x) { this.x = x; } } var B = A.bind(null, 5); return new B().x; });",
+        "bind-new 5",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('reflect-construct', () => { class A { constructor() { this.nt = new.target; } } function F() {} var o = Reflect.construct(A, [], F); return (o.nt === F) + ' ' + (Object.getPrototypeOf(o) === F.prototype); });",
+        "reflect-construct true true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('typeof-class', () => typeof class {});",
+        "typeof-class function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } var log = []; function k(v) { log.push('key ' + String(v)); return v; } t('arguments-ctor', () => { class A { constructor() { this.n = arguments.length; } } return new A(1, 2).n; });",
+        "arguments-ctor 2",
+    ),
+];
+
+const CLASS_MESSAGES: &[(&str, &str)] = &[
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('call', () => A());",
+        "call threw TypeError: Class constructor A cannot be invoked without 'new'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('call-anon', () => (class {})());",
+        "call-anon threw TypeError: Class constructors cannot be invoked without 'new'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('call-named-expr', () => { var Anon = class {}; Anon(); });",
+        "call-named-expr threw TypeError: Class constructor Anon cannot be invoked without 'new'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('extends-5', () => { class B extends 5 {} });",
+        "extends-5 threw TypeError: Class extends value 5 is not a constructor or null",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('extends-null-new', () => { class B extends null {}; return new B(); });",
+        "extends-null-new threw TypeError: Super constructor null of B is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('bad-proto', () => { function F() {} F.prototype = 3; class B extends F {} });",
+        "bad-proto threw TypeError: Class extends value does not have valid prototype property 3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('extends-object', () => { var o = {}; class B extends o {} });",
+        "extends-object threw TypeError: Class extends value #<Object> is not a constructor or null",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('extends-arrow', () => { class B extends (() => 1) {} });",
+        "extends-arrow threw TypeError: Class extends value () => 1 is not a constructor or null",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-twice', () => { class B extends A { constructor() { super(); super(); } } new B(); });",
+        "super-twice threw ReferenceError: Super constructor may only be called once",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('this-first', () => { class B extends A { constructor() { this.x = 1; } } new B(); });",
+        "this-first threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('no-super', () => { class B extends A { constructor() { } } new B(); });",
+        "no-super threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('return-1', () => { class B extends A { constructor() { return 1; } } new B(); });",
+        "return-1 threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('return-1-after', () => { class B extends A { constructor() { super(); return 1; } } new B(); });",
+        "return-1-after threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('return-undefined', () => { class B extends A { constructor() { return undefined; } } new B(); });",
+        "return-undefined threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('return-null', () => { class B extends A { constructor() { super(); return null; } } new B(); });",
+        "return-null threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('delete-super', () => { class B extends A { m() { delete super.x; } } new B().m(); });",
+        "delete-super threw ReferenceError: Unsupported reference to 'super'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('static-prototype-method', () => { class B { static ['prototype']() {} } });",
+        "static-prototype-method threw TypeError: Classes may not have a static property named 'prototype'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('static-prototype-field', () => { class B { static [String('prototype')] = 1; } });",
+        "static-prototype-field threw TypeError: Classes may not have a static property named 'prototype'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('static-prototype-getter', () => { class B { static get ['prototype']() {} } });",
+        "static-prototype-getter threw TypeError: Classes may not have a static property named 'prototype'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('parent-null', () => { class B extends A {} Object.setPrototypeOf(B, null); new B(); });",
+        "parent-null threw TypeError: Super constructor null of B is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('parent-object', () => { class B extends A {} Object.setPrototypeOf(B, {}); new B(); });",
+        "parent-object threw TypeError: Super constructor #<Object> of B is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('parent-arrow', () => { class B extends A {} Object.setPrototypeOf(B, () => 1); new B(); });",
+        "parent-arrow threw TypeError: Super constructor null of B is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('parent-anon-class', () => { var C = (0, class extends A {}); Object.setPrototypeOf(C, null); new C(); });",
+        "parent-anon-class threw TypeError: Super constructor null of anonymous class is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('parent-in-ctor', () => { class B extends A { constructor() { Object.setPrototypeOf(B, null); super(); } } new B(); });",
+        "parent-in-ctor threw TypeError: Super constructor null of B is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('tdz-extends', () => { class C extends C {} });",
+        "tdz-extends threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('tdz-extends-expr', () => { var x = class C extends C {}; });",
+        "tdz-extends-expr threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('assign-inner', () => { class C { m() { C = 1; } } new C().m(); });",
+        "assign-inner threw TypeError: Assignment to constant variable.",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('own-keys', () => Object.getOwnPropertyNames(class {}).join() + ' ' + Object.getOwnPropertyNames(class { static m() {} }).join());",
+        "own-keys length,name,prototype length,name,prototype,m",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('field-frozen', () => { var o = Object.freeze({}); class B { constructor() { return o; } } class D extends B { x = 1; } new D(); });",
+        "field-frozen threw TypeError: Cannot define property x, object is not extensible",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('field-redefine', () => { class B { constructor() { return Object.defineProperty({}, 'x', { value: 1 }); } } class D extends B { x = 2; } new D(); });",
+        "field-redefine threw TypeError: Cannot redefine property: x",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('field-symbol-nonext', () => { class B { constructor() { return Object.preventExtensions({}); } } class D extends B { [Symbol.iterator] = 2; } new D(); });",
+        "field-symbol-nonext threw TypeError: Cannot define property Symbol(Symbol.iterator), object is not extensible",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-null-get', () => { class B { m() { return super.x; } } Object.setPrototypeOf(B.prototype, null); return new B().m(); });",
+        "super-null-get threw TypeError: Cannot read properties of null (reading 'x')",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-null-set', () => { class B { m() { super.x = 1; } } Object.setPrototypeOf(B.prototype, null); return new B().m(); });",
+        "super-null-set threw TypeError: Cannot set properties of null (setting 'x')",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-not-fn', () => { class B { m() { return super.m2(); } } return new B().m(); });",
+        "super-not-fn threw TypeError: (intermediate value).m2 is not a function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-not-fn-sym', () => { class B { m() { return super[Symbol.iterator](); } } return new B().m(); });",
+        "super-not-fn-sym threw TypeError: (intermediate value)[Symbol.iterator] is not a function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-set-prim', () => { class B { m() { super.x = 1; } } B.prototype.m.call(5); });",
+        "super-set-prim threw TypeError: Cannot assign to read only property 'x' of number '5'",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-get-prim', () => { class B { m() { return super.x; } } return B.prototype.m.call(5); });",
+        "super-get-prim undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-frozen-this', () => { class B { m() { super.x = 1; } } var o = Object.freeze(new B()); o.m(); });",
+        "super-frozen-this threw TypeError: Cannot add property x, object is not extensible",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('literal-frozen', () => { var o = { m() { 'use strict'; super.x = 1; } }; Object.freeze(o); o.m(); });",
+        "literal-frozen threw TypeError: Cannot add property x, object is not extensible",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('literal-sloppy-frozen', () => { var o = { m() { super.x = 1; return Object.keys(this).length; } }; Object.freeze(o); return o.m(); });",
+        "literal-sloppy-frozen 1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('delete-key-first', () => { class B extends A { constructor() { super(); delete super[(() => { throw 1; })()]; } } new B(); });",
+        "delete-key-first threw Number: undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('arrow-this-before', () => { class B extends A { constructor() { (() => this)(); } } new B(); });",
+        "arrow-this-before threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('super-prop-before', () => { class B extends A { constructor() { super.x; } } new B(); });",
+        "super-prop-before threw ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('method-new', () => { class B { m() {} } return new B.prototype.m(); });",
+        "method-new threw TypeError: B.prototype.m is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('getter-new', () => { class B { get g() {} } return new (Object.getOwnPropertyDescriptor(B.prototype, 'g').get)(); });",
+        "getter-new threw TypeError: Object.getOwnPropertyDescriptor(...).get is not a constructor",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('toString', () => { class Q { static m() {} get g() { return 1; } *gen() {} ['x' + 1]() {} } return [Q, Q.m, Object.getOwnPropertyDescriptor(Q.prototype, 'g').get, Q.prototype.gen, Q.prototype.x1, class extends Q {}].join('\\n'); });",
+        "toString class Q { static m() {} get g() { return 1; } *gen() {} ['x' + 1]() {} }\nm() {}\nget g() { return 1; }\n*gen() {}\n['x' + 1]() {}\nclass extends Q {}",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('toString-default', () => String(class   Z   extends   A   {  }));",
+        "toString-default class   Z   extends   A   {  }",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('descriptors', () => { class C { m() {} get g() { return 1; } static s() {} } var d = Object.getOwnPropertyDescriptor(C.prototype, 'm'); var g = Object.getOwnPropertyDescriptor(C.prototype, 'g'); var c = Object.getOwnPropertyDescriptor(C.prototype, 'constructor'); var p = Object.getOwnPropertyDescriptor(C, 'prototype'); var n = Object.getOwnPropertyDescriptor(C, 'name'); return [d.writable, d.enumerable, d.configurable, g.enumerable, g.configurable, c.writable, c.enumerable, c.configurable, p.writable, p.enumerable, p.configurable, n.writable, n.configurable, C.length].join(); });",
+        "descriptors true,false,true,false,true,true,false,true,false,false,false,false,true,0",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('ctor-length', () => { class C { constructor(a, b = 1, ...c) {} } class D extends C {} return C.length + ' ' + D.length; });",
+        "ctor-length 1 0",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('name-sym-key', () => { var s = Symbol('sym'); var o = { [s]: class {} }; return o[s].name; });",
+        "name-sym-key [sym]",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('name-static-method', () => { var C = class { static name() {} }; return typeof C.name; });",
+        "name-static-method function",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('name-computed-static-field-sees-name', () => { var o = { ['n' + 1]: class { static x = this.name; } }; return o.n1.x; });",
+        "name-computed-static-field-sees-name n1",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} t('console', () => { console.log(class Kx {}, class extends Error {}, class {}); return 'ok'; });",
+        "[class Kx] [class (anonymous) extends Error] [class (anonymous)]\nconsole ok",
+    ),
+];
+
+const CLASS_EDGES: &[(&str, &str)] = &[
+    (
+        // All parts of a class are strict, also in sloppy code (§11.2.2).
+        "var r = []; function t(f) { try { f(); r.push('ok'); } catch (e) { r.push(e.name + ': ' + e.message); } } var o = Object.freeze({ a: 1 }); t(() => { class C extends (zz1 = Object) {} }); t(() => { class C { [(zz2 = 'a')]() {} } }); t(() => { class C extends (o.a = 2, Object) {} }); t(() => { class C { static [(o.a = 3, 'k')] = 1 } }); t(() => { class C { [delete o.a]() {} } }); t(() => { class C extends class extends (zz4 = Object) {} {} }); zz3 = 1; o.a = 9; r.push(typeof zz3, o.a, delete o.a); print(r.join(' | '));",
+        "ReferenceError: zz1 is not defined | ReferenceError: zz2 is not defined | TypeError: Cannot assign to read only property 'a' of object '#<Object>' | TypeError: Cannot assign to read only property 'a' of object '#<Object>' | TypeError: Cannot delete property 'a' of #<Object> | ReferenceError: zz4 is not defined | number | 1 | false",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('key-tdz', () => { class C { [C] = 1; } });",
+        "key-tdz threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('key-tdz-method', () => { class C { [C.name]() {} } });",
+        "key-tdz-method threw ReferenceError: Cannot access 'C' before initialization",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('accessor-merge', () => { class C { static get x() { return 1; } static set x(v) { this.y = v; } } C.x = 5; return C.x + ' ' + C.y; });",
+        "accessor-merge 1 5",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('default-name', () => { var { a = class {} } = {}; var [b = class {}] = []; return a.name + ' ' + b.name; });",
+        "default-name a b",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('param-default-name', () => { function f(c = class {}) { return c.name; } return f(); });",
+        "param-default-name c",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('assign-name', () => { var d; d = class {}; var e = (class {}); return d.name + ' ' + e.name; });",
+        "assign-name d e",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('logical-name', () => { var g; g ??= class {}; return g.name; });",
+        "logical-name g",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('closures-inner', () => { var fs = []; for (var i = 0; i < 2; i++) { class K { static f() { return K; } } fs.push(K); } return fs[0] !== fs[1] && fs[0].f() === fs[0]; });",
+        "closures-inner true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('block-class', () => { { class Q {} } return typeof Q; });",
+        "block-class undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('species', () => { class MA extends Array {} var m = new MA(1, 2, 3).slice(1); return (m instanceof MA) + ' ' + m.length; });",
+        "species true 2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('computed-literal-super', () => { var k = 'mm'; var o = { __proto__: { mm() { return 'p'; } }, [k]() { return super[k]() + '!'; } }; return o.mm(); });",
+        "computed-literal-super p!",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('class-getter-super', () => { class A { get v() { return 1; } } class B extends A { get v() { return super.v + 1; } static get w() { return super.name; } } return new B().v + ' ' + B.w; });",
+        "class-getter-super 2 A",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('arrow-in-field', () => { class A { m() { return 'A'; } } class B extends A { f = () => super.m() + this.constructor.name; } return new B().f(); });",
+        "arrow-in-field AB",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('static-arrow-super', () => { class A { static s() { return 'S'; } } class B extends A { static g = () => super.s(); } return B.g(); });",
+        "static-arrow-super S",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('this-in-static-block-arrow', () => { var r; class C { static { r = (() => this)(); } } return r === C; });",
+        "this-in-static-block-arrow true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('static-block-var', () => { var x = 'outer'; class C { static { var x = 'inner'; } } return x; });",
+        "static-block-var outer",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('field-shadow', () => { class A { constructor() { this.x = 'a'; } } class B extends A { x = 'b'; } return new B().x; });",
+        "field-shadow b",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('field-setter-not-called', () => { var called = false; class A { set x(v) { called = true; } } class B extends A { x = 1; } var b = new B(); return called + ' ' + b.hasOwnProperty('x'); });",
+        "field-setter-not-called false true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('super-in-arrow-default', () => { class A { m() { return 2; } } class B extends A { m(a = super.m()) { return a; } } return new B().m(); });",
+        "super-in-arrow-default 2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('super-eval-order', () => { var log = []; class A {} class B extends A { constructor() { super((log.push('arg'), 1)); log.push('after'); } } new B(); return log.join(); });",
+        "super-eval-order arg,after",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('new-target-default', () => { var nt; class A { constructor() { nt = new.target; } } class B extends A {} new B(); return nt === B; });",
+        "new-target-default true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('extends-expr', () => { function mk() { return class { hi() { return 'hi'; } }; } class B extends mk() {} return new B().hi(); });",
+        "extends-expr hi",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('class-in-cond', () => { var C = true ? class X {} : null; return C.name; });",
+        "class-in-cond X",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('proto-chain', () => { class A {} class B extends A {} return Object.getPrototypeOf(B) === A && Object.getPrototypeOf(B.prototype) === A.prototype; });",
+        "proto-chain true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('ctor-prop', () => { class A {} var d = Object.getOwnPropertyDescriptor(A.prototype, 'constructor'); return d.writable + ' ' + d.enumerable + ' ' + d.configurable; });",
+        "ctor-prop true false true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('sloppy-outer', () => { class A { m() { return typeof this; } } return A.prototype.m.call(5); });",
+        "sloppy-outer number",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('instance-of-default', () => { class A {} class B extends A {} class C extends B {} return new C() instanceof A; });",
+        "instance-of-default true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('getter-field-order', () => { var log = []; class C { static [(log.push('k1'), 'a')] = log.push('v1'); static [(log.push('k2'), 'b')] = log.push('v2'); } return log.join(); });",
+        "getter-field-order k1,k2,v1,v2",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('super-call-args-spread', () => { class A { constructor(...a) { this.a = a.join(); } } class B extends A { constructor() { super(...[1, 2], 3); } } return new B().a; });",
+        "super-call-args-spread 1,2,3",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('super-call-in-try', () => { class A {} class B extends A { constructor() { try { super(); } catch (e) {} } } return new B() instanceof B; });",
+        "super-call-in-try true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('super-call-then-throw-caught', () => { class A { constructor() { throw new Error('x'); } } class B extends A { constructor() { try { super(); } catch (e) { return {caught: true}; } } } return new B().caught; });",
+        "super-call-then-throw-caught true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } t('this-cell-ctor', () => { class A {} class B extends A { constructor() { var get = () => this; super(); this.ok = get() === this; } } return new B().ok; });",
+        "this-cell-ctor true",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} class B extends A { constructor() { super(); return 5; } } t('reflect', () => Reflect.construct(B, []));",
+        "reflect threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} class B extends A { constructor() { super(); return 5; } } t('map', () => [1].map(() => new B()));",
+        "map threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} class B extends A { constructor() { super(); return 5; } } t('nested-finally', () => { var r = []; try { try { new B(); } finally { r.push('f'); } } catch (e) { r.push(e.constructor.name); } return r.join(); });",
+        "nested-finally f,TypeError",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} class B extends A { constructor() { super(); return 5; } } t('bound', () => { var BB = B.bind(null); new BB(); });",
+        "bound threw TypeError: Derived constructors may only return object or undefined",
+    ),
+    (
+        "function t(label, f) { try { print(label, String(f())); } catch (e) { print(label, 'threw', e && e.constructor ? e.constructor.name + ': ' + e.message : e); } } class A {} class B extends A { constructor() { super(); return 5; } } t('after', () => { class C extends A { constructor() { super(); return 5; } } try { new C(); } catch (e) {} return new A() instanceof A; });",
+        "after true",
+    ),
+];

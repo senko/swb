@@ -1242,3 +1242,136 @@ TypeError: Cannot destructure property 'w' of 'nul' as it is null.
 ",
     )]);
 }
+
+/// Class frames (M7 feature 3c): `new C` for constructors (also default
+/// ones, at the class), `C.m` for static methods, the field initializers
+/// as `<instance_members_initializer>`, V8's positions of `super(...)`
+/// and of the checks of a derived constructor's result. V8 places the
+/// call of a static initializer and the error of a class heritage at the
+/// last position it recorded before the class (a statement before it);
+/// swb uses the class and the heritage, so those cases are not here.
+#[test]
+fn class_frames() {
+    check_script_cases(&[(
+        r"class A {
+  constructor() { this.e = new Error('a'); }
+  m() { return new Error('m'); }
+  static s() { return new Error('s'); }
+  get g() { return new Error('g'); }
+}
+print(new A().e.stack);
+print(new A().m().stack);
+print(A.s().stack);
+print(new A().g.stack);
+class B extends A {}
+print(new B().e.stack);
+class C extends A { constructor() { super(); this.c = new Error('c'); } }
+var c = new C();
+print(c.e.stack);
+print(c.c.stack);
+class D { x = new Error('field'); }
+print(new D().x.stack);
+class E { f = new Error('f'); constructor() { this.g = 1; } }
+print(new E().f.stack);
+class F extends A { m() { return super.m(); } static s() { return super.s(); } }
+print(new F().m().stack);
+print(F.s().stack);
+var G = class extends Error {};
+print(new G('sub').stack);
+class H extends Error { constructor(m) { super(m); } }
+print(new H('h').stack);
+try { A(); } catch (e) { print(e.stack); }
+try { new (class extends A { constructor() { } })(); } catch (e) { print(e.stack); }
+try { new (class extends A { constructor() { return 1; } })(); } catch (e) { print(e.stack); }
+try { new (class extends A { constructor() { if (1) return; } })(); } catch (e) { print(e.stack); }
+try { new (class extends A { constructor(a, b) { super(); super(); } })(); } catch (e) { print(e.stack); }
+try { new (class extends A { 'constructor' (a) { this.x; } })(); } catch (e) { print(e.stack); }
+class P { constructor(x) { throw new Error('p'); } }
+try { new (class Q extends P { constructor() { super(1, 2); } })(); } catch (e) { print(e.stack); }
+try { new (class R extends P { constructor(...a) { super(...a); } })(); } catch (e) { print(e.stack); }
+class U extends A { constructor() { super(); } m() { return super.nope(); } }
+try { new U().m(); } catch (e) { print(e.stack); }
+class V { x = 1; constructor(a) { throw new Error('v'); } }
+try { new V(); } catch (e) { print(e.stack); }
+function foo() {}
+try { new (class extends A { constructor() { foo(); } })(); } catch (e) { print(e.stack); }
+",
+        r"Error: a
+    at new A (t.js:2:28)
+    at t.js:7:7
+Error: m
+    at A.m (t.js:3:16)
+    at t.js:8:15
+Error: s
+    at A.s (t.js:4:23)
+    at t.js:9:9
+Error: g
+    at get g (t.js:5:20)
+    at t.js:10:15
+Error: a
+    at new A (t.js:2:28)
+    at new B (t.js:11:1)
+    at t.js:12:7
+Error: a
+    at new A (t.js:2:28)
+    at new C (t.js:13:37)
+    at t.js:14:9
+Error: c
+    at new C (t.js:13:55)
+    at t.js:14:9
+Error: field
+    at <instance_members_initializer> (t.js:17:15)
+    at new D (t.js:17:1)
+    at t.js:18:7
+Error: f
+    at <instance_members_initializer> (t.js:19:15)
+    at new E (t.js:19:42)
+    at t.js:20:7
+Error: m
+    at F.m (t.js:3:16)
+    at F.m (t.js:21:40)
+    at t.js:22:15
+Error: s
+    at F.s (t.js:4:23)
+    at F.s (t.js:21:73)
+    at t.js:23:9
+Error: sub
+    at t.js:25:7
+Error: h
+    at t.js:27:7
+TypeError: Class constructor A cannot be invoked without 'new'
+    at t.js:28:7
+ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor
+    at new <anonymous> (t.js:29:41)
+    at t.js:29:7
+TypeError: Derived constructors may only return object or undefined
+    at t.js:30:7
+ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor
+    at new <anonymous> (t.js:31:61)
+    at t.js:31:7
+ReferenceError: Super constructor may only be called once
+    at new <anonymous> (t.js:32:59)
+    at t.js:32:7
+ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor
+    at new <anonymous> (t.js:33:50)
+    at t.js:33:7
+Error: p
+    at new P (t.js:34:34)
+    at new Q (t.js:35:48)
+    at t.js:35:7
+Error: p
+    at new P (t.js:34:34)
+    at new R (t.js:36:52)
+    at t.js:36:7
+TypeError: (intermediate value).nope is not a function
+    at U.m (t.js:37:67)
+    at t.js:38:15
+Error: v
+    at new V (t.js:39:41)
+    at t.js:40:7
+ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor
+    at new <anonymous> (t.js:42:46)
+    at t.js:42:7
+",
+    )]);
+}

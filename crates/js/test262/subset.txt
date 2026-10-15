@@ -18,6 +18,10 @@ feature AggregateError
 feature array-grouping
 feature Array.prototype.values
 feature arrow-function
+feature class
+feature class-fields-public
+feature class-static-block
+feature class-static-fields-public
 feature coalesce-expression
 feature computed-property-names
 feature const
@@ -63,6 +67,7 @@ feature Symbol.split
 feature Symbol.toPrimitive
 feature Symbol.toStringTag
 feature Symbol.unscopables
+feature super
 feature template
 feature u180e
 
@@ -89,6 +94,9 @@ dir test/built-ins/Array
 
 # Added in M7 feature 3b: arguments-object/unmapped, destructuring/binding,
 # rest-parameters.
+# Added in M7 feature 3c: computed-property-names/class, expressions/super
+# (statements/class and expressions/class ran before, mostly skipped by the
+# class features).
 
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
@@ -100,6 +108,7 @@ dir test/language/block-scope/shadowing
 dir test/language/block-scope/syntax
 dir test/language/comments
 dir test/language/comments/hashbang
+dir test/language/computed-property-names/class
 dir test/language/computed-property-names/object
 dir test/language/destructuring/binding
 dir test/language/directive-prologue
@@ -154,6 +163,7 @@ dir test/language/expressions/right-shift
 dir test/language/expressions/strict-does-not-equals
 dir test/language/expressions/strict-equals
 dir test/language/expressions/subtraction
+dir test/language/expressions/super
 dir test/language/expressions/tagged-template
 dir test/language/expressions/template-literal
 dir test/language/expressions/typeof

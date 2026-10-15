@@ -2,20 +2,18 @@
 //! compile yet (M7 feature 3): a linear scan over the node tables of a
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
-//! construct in the source; the compile functions never see them.
+//! construct in the source; the compile functions never see them. Since
+//! M7 feature 3c, classes and `super` compile; private names (feature 3d)
+//! and `async` (feature 7) do not.
 
-use swb_js_syntax::{ExprKind, PropertyKey, Script, StmtKind};
+use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 
 /// The construct of an expression that the compiler does not support.
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
         ExprKind::BigInt(_) => "BigInt literal",
         ExprKind::Yield { delegate: true, .. } => "yield*",
-        ExprKind::Class(_) => "class",
         ExprKind::Await(_) => "await",
-        ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } | ExprKind::SuperCall(_) => {
-            "super"
-        }
         ExprKind::PrivateMember { .. } | ExprKind::PrivateIn { .. } => "private name",
         ExprKind::ImportCall { .. } => "import()",
         ExprKind::ImportMeta => "import.meta",
@@ -28,7 +26,6 @@ pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
         StmtKind::ForOf { is_await: true, .. } => "for await",
         StmtKind::With { .. } => "with",
-        StmtKind::Class(_) => "class",
         StmtKind::Import
         | StmtKind::ExportDeclaration(_)
         | StmtKind::ExportDefault { .. }
@@ -67,6 +64,17 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         let stmt = ast.stmt(id);
         if let Some(construct) = unsupported_stmt(stmt.kind) {
             note(stmt.span.start, construct);
+        }
+    }
+    for id in ast.class_ids() {
+        for element in ast.class_elements(ast.class(id).elements) {
+            match element.key {
+                ClassKey::Private(_) => note(element.span.start, "private name"),
+                ClassKey::Property(PropertyKey::BigInt(_)) => {
+                    note(element.span.start, "BigInt literal");
+                }
+                _ => {}
+            }
         }
     }
     for id in ast.function_ids() {
