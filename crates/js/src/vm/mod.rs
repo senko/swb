@@ -37,6 +37,8 @@ mod call;
 pub(crate) mod class;
 pub(crate) mod convert;
 mod destructure;
+pub(crate) mod env;
+mod eval;
 mod for_in;
 mod function;
 mod generator;
@@ -51,13 +53,15 @@ pub(crate) mod private;
 mod property;
 mod realm;
 mod stack;
-mod stack_text;
+pub(crate) mod stack_text;
 mod symbols;
 pub(crate) mod time;
 
 use std::borrow::Cow;
 use std::rc::Rc;
 
+pub use env::EnvRecord;
+pub(crate) use eval::eval_function;
 pub use function::{
     BoundFunction, Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
 };
@@ -390,7 +394,7 @@ mod tests {
     #[test]
     fn record_sizes() {
         assert_eq!(size_of::<Frame>(), 128);
-        assert_eq!(size_of::<FunctionCode>(), 192);
+        assert_eq!(size_of::<FunctionCode>(), 200);
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
         assert_eq!(size_of::<GeneratorState>(), 160);
         assert_eq!(size_of::<Closure>(), 48);

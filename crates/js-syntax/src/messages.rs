@@ -124,7 +124,7 @@ pub(crate) const STRICT_EIGHT_OR_NINE: &str = "\\8 and \\9 are not allowed in st
 /// has 16-bit register operands (ADR 0026 section 4).
 pub const TOO_MANY_VARIABLES: &str = "Too many variables declared in a function";
 /// Not measured: V8 has no such limit. A `RangeError` in swb.
-pub(crate) const TOO_MANY_CAPTURES: &str = "Too many captured variables in a script";
+pub const TOO_MANY_CAPTURES: &str = "Too many captured variables in a script";
 pub(crate) const TOO_MANY_PARAMETERS: &str =
     "Too many parameters in function definition (only 65534 allowed)";
 pub const TOO_MANY_ARGUMENTS: &str = "Too many arguments in function call (only 65535 allowed)";

@@ -1453,3 +1453,68 @@ TypeError: this[#a] is not a function
 ",
     )]);
 }
+
+/// The frames of eval code (M7 feature 3e): V8 names its top level and its
+/// anonymous functions `eval` and shows its origin (`eval at f (t.js:1:23)`,
+/// for nested eval code the outer origin) as the script name. (V8 also
+/// shows the global `eval` function of an indirect call as a frame; swb
+/// shows no built-in functions.)
+#[test]
+fn eval_frames() {
+    check_script_cases(&[(
+        r#"function f() { return eval('new Error("x").stack'); }
+print(f());
+function g() { return eval('\n  (function inner() { return new Error("y").stack; })()'); }
+print(g());
+print(eval('new Error("top").stack'));
+function h() { return eval('eval("new Error(\'nested\').stack")'); }
+print(h());
+try { eval('null.x'); } catch (e) { print(e.stack); }
+function thrower() { eval('throw new TypeError("t")'); }
+try { thrower(); } catch (e) { print(e.stack); }
+var o = { m() { return eval('new Error("m").stack'); } };
+print(o.m());
+print((() => eval('new Error("arrow").stack'))());
+function withFn() { with ({}) { return eval('new Error("w").stack'); } }
+print(withFn());
+try { eval('}'); } catch (e) { print(e.stack); }"#,
+        r"Error: x
+    at eval (eval at f (t.js:1:23), <anonymous>:1:1)
+    at f (t.js:1:23)
+    at t.js:2:7
+Error: y
+    at inner (eval at g (t.js:3:23), <anonymous>:2:30)
+    at eval (eval at g (t.js:3:23), <anonymous>:2:54)
+    at g (t.js:3:23)
+    at t.js:4:7
+Error: top
+    at eval (eval at <anonymous> (t.js:5:7), <anonymous>:1:1)
+    at t.js:5:7
+Error: nested
+    at eval (eval at <anonymous> (eval at h (t.js:6:23)), <anonymous>:1:1)
+    at eval (eval at h (t.js:6:23), <anonymous>:1:1)
+    at h (t.js:6:23)
+    at t.js:7:7
+TypeError: Cannot read properties of null (reading 'x')
+    at eval (eval at <anonymous> (t.js:8:7), <anonymous>:1:6)
+    at t.js:8:7
+TypeError: t
+    at eval (eval at thrower (t.js:9:22), <anonymous>:1:7)
+    at thrower (t.js:9:22)
+    at t.js:10:7
+Error: m
+    at eval (eval at m (t.js:11:24), <anonymous>:1:1)
+    at Object.m (t.js:11:24)
+    at t.js:12:9
+Error: arrow
+    at eval (eval at <anonymous> (t.js:13:14), <anonymous>:1:1)
+    at t.js:13:14
+    at t.js:13:47
+Error: w
+    at eval (eval at withFn (t.js:14:40), <anonymous>:1:1)
+    at withFn (t.js:14:40)
+    at t.js:15:7
+SyntaxError: Unexpected token '}'
+    at t.js:16:7",
+    )]);
+}

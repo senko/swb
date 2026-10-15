@@ -105,6 +105,15 @@ dir test/built-ins/Array
 # Added in M7 feature 3d: the features of private names; their tests are in
 # groups that run already (statements/class, expressions/class,
 # expressions/in and others), so no new dir lines.
+# Added in M7 feature 3e: eval code, and the Annex B semantics of function
+# declarations in blocks of eval, function and global code
+# (statements/with and global-code ran before, rejected or failing at
+# eval).
+dir test/language/eval-code/direct
+dir test/language/eval-code/indirect
+dir test/annexB/language/eval-code
+dir test/annexB/language/function-code
+dir test/annexB/language/global-code
 
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object

@@ -21,10 +21,14 @@
 //! one count per reference and one `env` reference per scope that has
 //! such references.
 
-use crate::ast::{Ast, FunctionId, FunctionKind, RefId, ScopeId};
+use crate::ast::{Ast, BindingId, FunctionId, FunctionKind, RefId, ScopeId};
+use crate::error::ParseError;
 use crate::interner::{NameId, names};
+use crate::messages;
 
-use super::{BindingKind, DynamicEnv, DynamicKind, DynamicLookup, IdMap, ScopeKind, ScopeTree};
+use super::{
+    BindingKind, CodeKind, DynamicEnv, DynamicKind, DynamicLookup, IdMap, ScopeKind, ScopeTree,
+};
 
 /// Whether a name can be found in a dynamic environment: identifiers can,
 /// the implicit names (`this`, `new.target`, `super`, the active function,
@@ -78,12 +82,126 @@ pub(super) fn create_dynamic_envs(ast: &Ast, tree: &mut ScopeTree) {
         };
         let entry = tree.scope(env.scope);
         let (start, parent) = (entry.start, entry.parent);
-        let outer =
-            parent.map(|parent| tree.push_reference(names::DYNAMIC_ENV, parent, start, false));
+        // The link belongs to the function of the environment's scope (the
+        // record is made there; a function's own scope must capture the
+        // record outside it), but resolves from the scope around it.
+        let outer = parent.map(|parent| {
+            let id = tree.push_reference(names::DYNAMIC_ENV, env.scope, start, false);
+            tree.resolve_start.push((id, parent));
+            id
+        });
         if let Some(env) = tree.dynamic_envs.get_mut(index) {
             env.outer = outer;
         }
     }
+}
+
+/// The references of [`ScopeTree::eval_outer_references`]: for each
+/// function with a direct `eval` (not script or eval code, whose names
+/// outside are global or the caller's), one reference per name declared
+/// in the scopes of the enclosing functions, and one to the innermost
+/// dynamic environment outside the function. The work is the number of
+/// bindings that each such function can see; their total is bounded by
+/// the capture limit, as each of them becomes at least one capture.
+pub(super) fn add_eval_outer_references(
+    ast: &Ast,
+    tree: &mut ScopeTree,
+    limit: usize,
+) -> Result<(), ParseError> {
+    let wanted: Vec<FunctionId> = ast
+        .function_ids()
+        .filter(|&id| {
+            tree.function(id).has_direct_eval
+                && !matches!(
+                    ast.function(id).kind,
+                    FunctionKind::Script | FunctionKind::Eval | FunctionKind::Module
+                )
+        })
+        .collect();
+    if wanted.is_empty() {
+        return Ok(());
+    }
+    // The bindings of each scope (the analysis groups them only later).
+    let mut by_scope: Vec<Vec<BindingId>> = vec![Vec::new(); tree.scopes.len()];
+    for (index, binding) in tree.bindings.iter().enumerate() {
+        if let Some(list) = by_scope.get_mut(binding.scope.index()) {
+            list.push(BindingId::from_index(index));
+        }
+    }
+    let mut total = 0usize;
+    for function in wanted {
+        let scope = ast.function(function).scope;
+        let start = tree.scope(scope).start;
+        let first = tree.eval_outer_refs.len() as u32;
+        let mut seen: std::collections::HashSet<NameId> = std::collections::HashSet::new();
+        let mut names = vec![names::DYNAMIC_ENV];
+        let mut current = tree.scope(scope).parent;
+        while let Some(outer) = current {
+            let entry = tree.scope(outer);
+            // A scope of the function itself (the name of a function
+            // expression) is in its own description.
+            let own = entry.function == function;
+            if entry.kind != ScopeKind::Script && !own {
+                for &binding in by_scope.get(outer.index()).map_or(&[][..], Vec::as_slice) {
+                    let b = tree.binding(binding);
+                    if eval_visible(b.kind) && seen.insert(b.name) {
+                        names.push(b.name);
+                    }
+                }
+            }
+            current = entry.parent;
+        }
+        total = total.saturating_add(names.len());
+        if total > limit {
+            return Err(ParseError::range(
+                ast.function(function).span.start,
+                messages::TOO_MANY_CAPTURES,
+            ));
+        }
+        let parent = tree.scope(scope).parent;
+        for name in names {
+            let id = tree.push_reference(name, scope, start, false);
+            tree.eval_outer_refs.push(id);
+            if let Some(parent) = parent {
+                tree.resolve_start.push((id, parent));
+            }
+        }
+        // The implicit bindings resolve from the function's own scope: in an
+        // arrow function they are the enclosing function's.
+        if !ast.function(function).kind.has_own_this() {
+            for name in [
+                names::THIS,
+                names::NEW_TARGET,
+                names::ARGUMENTS,
+                names::SUPER,
+                names::ACTIVE_FUNCTION,
+            ] {
+                if implicit_available(ast, function, name) {
+                    let id = tree.push_reference(name, scope, start, false);
+                    tree.eval_outer_refs.push(id);
+                }
+            }
+        }
+        let last = tree.eval_outer_refs.len() as u32;
+        tree.eval_outer.push((function, first, last));
+    }
+    Ok(())
+}
+
+/// Whether eval code can name a binding of this kind: identifiers and
+/// private names; not the implicit bindings (`this` and the others come
+/// through the function's own references, see [`add_eval_references`]).
+fn eval_visible(kind: BindingKind) -> bool {
+    !matches!(
+        kind,
+        BindingKind::This
+            | BindingKind::NewTarget
+            | BindingKind::HomeObject
+            | BindingKind::ActiveFunction
+            | BindingKind::DynamicEnv
+            | BindingKind::PrivateEnvironment
+            | BindingKind::Import
+    )
 }
 
 fn add_env(tree: &mut ScopeTree, scope: ScopeId, kind: DynamicKind) {
@@ -105,16 +223,19 @@ fn add_env(tree: &mut ScopeTree, scope: ScopeId, kind: DynamicKind) {
 }
 
 /// Drops the outer links that do not resolve to a dynamic environment
-/// (the outermost environment of a script or of eval code).
+/// (the outermost environment of a script). In direct eval code, a link
+/// that does not resolve inside the code stays: it names the innermost
+/// environment of the caller ([`crate::Resolution::Caller`]).
 pub(super) fn finish_outer_links(tree: &mut ScopeTree) {
     for index in 0..tree.dynamic_envs.len() {
         let Some(outer) = tree.dynamic_envs.get(index).and_then(|env| env.outer) else {
             continue;
         };
-        let resolved = tree
-            .reference(outer)
-            .binding
-            .is_some_and(|b| tree.binding(b).kind == BindingKind::DynamicEnv);
+        let binding = tree.reference(outer).binding;
+        let resolved = match binding {
+            Some(b) => tree.binding(b).kind == BindingKind::DynamicEnv,
+            None => tree.code == CodeKind::DirectEval,
+        };
         if !resolved && let Some(env) = tree.dynamic_envs.get_mut(index) {
             env.outer = None;
         }
@@ -159,32 +280,44 @@ pub(super) fn add_eval_references(ast: &Ast, tree: &mut ScopeTree) {
         if !tree.function(id).has_direct_eval {
             continue;
         }
-        let Some(owner) = this_function(ast, id) else {
-            continue;
-        };
-        let kind = ast.function(owner).kind;
         let scope = ast.function(id).scope;
         let start = tree.scope(scope).start;
-        let in_function = !matches!(kind, FunctionKind::Script | FunctionKind::Module);
-        let field = matches!(
-            kind,
-            FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer
-        );
-        let wanted = [
-            (names::THIS, true),
-            (names::NEW_TARGET, in_function),
-            (names::ARGUMENTS, in_function && !field),
-            (names::SUPER, kind.has_home_object()),
-            (
-                names::ACTIVE_FUNCTION,
-                kind == FunctionKind::DerivedConstructor,
-            ),
-        ];
-        for (name, needed) in wanted {
-            if needed {
+        for name in [
+            names::THIS,
+            names::NEW_TARGET,
+            names::ARGUMENTS,
+            names::SUPER,
+            names::ACTIVE_FUNCTION,
+        ] {
+            if implicit_available(ast, id, name) {
                 tree.push_reference(name, scope, start, false);
             }
         }
+    }
+}
+
+/// Whether eval code in function `id` can use the implicit binding `name`
+/// (§19.2.1.1 steps 5 to 11): `this` always; `new.target` and `arguments`
+/// in functions (`arguments` not in class field initializers); `super`
+/// properties in methods; `super(...)` in derived constructors. `false` in
+/// eval code, which takes them from its caller.
+fn implicit_available(ast: &Ast, id: FunctionId, name: NameId) -> bool {
+    let Some(owner) = this_function(ast, id) else {
+        return false;
+    };
+    let kind = ast.function(owner).kind;
+    let in_function = !matches!(kind, FunctionKind::Script | FunctionKind::Module);
+    let field = matches!(
+        kind,
+        FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer
+    );
+    match name {
+        names::THIS => true,
+        names::NEW_TARGET => in_function,
+        names::ARGUMENTS => in_function && !field,
+        names::SUPER => kind.has_home_object(),
+        names::ACTIVE_FUNCTION => kind == FunctionKind::DerivedConstructor,
+        _ => false,
     }
 }
 

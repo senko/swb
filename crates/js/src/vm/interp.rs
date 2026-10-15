@@ -85,8 +85,17 @@ impl Runtime {
                     Err(failure) => error = failure,
                 }
             }
+            // The offset is in the host's script: eval code has a source of
+            // its own, so the call of `eval` counts.
             if self.vm.error_offset.is_none()
-                && let Some(frame) = self.vm.frames.last()
+                && let Some(frame) = self
+                    .vm
+                    .frames
+                    .get(entry - 1..)
+                    .unwrap_or(&[])
+                    .iter()
+                    .rev()
+                    .find(|frame| frame.compiled.source.origin.is_none())
             {
                 let pc = (frame.pc as usize).saturating_sub(1);
                 self.vm.error_offset = frame.compiled.source_offset(pc);
@@ -483,7 +492,8 @@ impl Runtime {
                     let name = string_const!(name);
                     let value = get!(src);
                     save!();
-                    tri!(self.init_global_function(name, value));
+                    let deletable = code.kind == crate::bytecode::CodeKind::Eval;
+                    tri!(self.init_global_function(name, value, deletable));
                 }
                 Insn::DeleteGlobal { dst, name } => {
                     let name = string_const!(name);
@@ -1207,6 +1217,32 @@ impl Runtime {
                 }
 
                 // --- Calls ---
+                Insn::CallEval { callee, .. } | Insn::CallEvalSpread { callee } => {
+                    save!();
+                    if self.heap.gc_due() {
+                        tri!(self.heap.safepoint(&self.vm));
+                    }
+                    let (spread, argc) = match insn {
+                        Insn::CallEval { argc, .. } => (false, argc),
+                        _ => (true, 0),
+                    };
+                    let restore_top = base + code.register_count as usize;
+                    let call = (base, callee, argc, spread, restore_top);
+                    match tri!(self.call_eval(&code, pc - 1, call)) {
+                        Step::Value(value) => {
+                            self.vm.stack.truncate(restore_top);
+                            put!(callee, value);
+                        }
+                        Step::Entered => reload!(),
+                        Step::NotCallable => {
+                            self.vm.stack.truncate(restore_top);
+                            let text = self.callee_text(&code, pc - 1);
+                            tri!(Err(VmError::type_error(format!(
+                                "{text} is not a function"
+                            ))));
+                        }
+                    }
+                }
                 Insn::Call { callee, argc } | Insn::New { callee, argc } => {
                     let construct = matches!(insn, Insn::New { .. });
                     save!();
@@ -1659,13 +1695,71 @@ impl Runtime {
                     save!();
                     tri!(self.define_private_field(object, env, index, value));
                 }
+
+                // --- Dynamic environments ---
+                Insn::NewWithEnv { dst, obj, outer } => {
+                    let (value, outer) = (get!(obj), get!(outer));
+                    save!();
+                    let record = tri!(self.with_scope(|rt| rt.new_with_env(value, outer)));
+                    put!(dst, record);
+                }
+                Insn::NewVarEnv { dst, outer } => {
+                    let outer = get!(outer);
+                    let record = tri!(self.new_var_env(outer));
+                    put!(dst, record);
+                }
+                Insn::FindBinding {
+                    dst,
+                    env,
+                    count,
+                    name,
+                } => {
+                    let name = string_const!(name);
+                    let env = get!(env);
+                    save!();
+                    let record = tri!(self.find_binding(env, count, name));
+                    put!(dst, record);
+                }
+                Insn::GetBinding { dst, record, name } => {
+                    let name = string_const!(name);
+                    let record = get!(record);
+                    save!();
+                    let found = tri!(self.binding_value(record, name, code.strict_at(pc - 1)));
+                    lookup!(dst, found);
+                }
+                Insn::SetBinding { record, src, name } => {
+                    let name = string_const!(name);
+                    let (record, value) = (get!(record), get!(src));
+                    save!();
+                    let strict = code.strict_at(pc - 1);
+                    let outcome = tri!(self.set_binding_value(record, name, value, strict));
+                    store!(outcome, value);
+                }
+                Insn::DeleteBinding { dst, record, name } => {
+                    let name = string_const!(name);
+                    let record = get!(record);
+                    let deleted = tri!(self.delete_binding(record, name));
+                    put!(dst, Value::Bool(deleted));
+                }
+                Insn::WithBase { dst, record } => {
+                    let this = tri!(self.with_base_object(get!(record)));
+                    put!(dst, this);
+                }
+                Insn::SetVarBinding { record, src, name } => {
+                    let name = string_const!(name);
+                    let (Value::Object(record), value) = (get!(record), get!(src)) else {
+                        return Err(VmError::invariant("a var binding without a record"));
+                    };
+                    save!();
+                    tri!(self.set_var_binding(record, PropertyKey::String(name), value));
+                }
                 Insn::Nop => {}
             }
         }
     }
 
     /// The cell of capture `index` of the running function.
-    fn capture(&self, index: u32) -> VmResult<crate::heap::Gc<crate::value::ValueCell>> {
+    pub(crate) fn capture(&self, index: u32) -> VmResult<crate::heap::Gc<crate::value::ValueCell>> {
         let function = self
             .vm
             .frames
@@ -1686,7 +1780,7 @@ impl Runtime {
 
     /// The cells of a new closure, from the registers and captures of the
     /// running frame (flat closures, ADR 0026 section 3).
-    fn collect_captures(
+    pub(crate) fn collect_captures(
         &self,
         base: usize,
         code: &crate::bytecode::FunctionCode,

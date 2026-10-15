@@ -65,10 +65,13 @@ pub(crate) enum Intrinsic {
     /// The getter and setter of the `stack` accessor of error objects.
     StackGetter,
     StackSetter,
+    /// `%eval%` (§19.2.1), set when the built-in functions are installed:
+    /// a call `eval(...)` of it is a direct eval.
+    Eval,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 27;
+const INTRINSIC_COUNT: usize = 28;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -230,6 +233,7 @@ impl Runtime {
             Some(iterator_proto),
             Some(array_iterator_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
             None,
             None,
             None,

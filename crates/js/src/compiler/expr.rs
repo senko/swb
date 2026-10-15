@@ -323,14 +323,24 @@ impl FunctionCompiler<'_> {
 
     // --- Bindings ---
 
-    /// Loads the binding of an identifier occurrence.
-    ///
-    /// A reference with a dynamic lookup (`ScopeTree::dynamic_lookup`: in a
-    /// `with` body or in reach of a sloppy direct `eval`) compiles to its
-    /// static fallback only. That is correct while the VM has no `eval`
-    /// and the compiler rejects `with` (M7 feature 3 adds both): no
-    /// dynamic environment can hold a binding then.
+    /// Loads the binding of an identifier occurrence: through the dynamic
+    /// environments in its reach first (`compiler/dynamic.rs`), then from
+    /// its static binding.
     pub(super) fn load_ref(&mut self, id: RefId, dst: Option<Reg>) -> CResult<Reg> {
+        let Some(dynamic) = self.dynamic_of(id) else {
+            return self.load_static(id, dst);
+        };
+        let t = self.target(dst)?;
+        let mark = self.mark();
+        let rec = self.temp()?;
+        self.find_record(id, dynamic, rec)?;
+        self.load_found(id, Some(rec), t)?;
+        self.release(mark);
+        Ok(t)
+    }
+
+    /// Loads the static binding of an identifier occurrence.
+    pub(super) fn load_static(&mut self, id: RefId, dst: Option<Reg>) -> CResult<Reg> {
         let reference = self.reference(id);
         let name = || reference.name;
         match reference.resolution {
@@ -368,8 +378,7 @@ impl FunctionCompiler<'_> {
                 Ok(t)
             }
             Resolution::Unresolved => Err(Self::internal("an unresolved reference")),
-            // Only eval code has these, and nothing compiles eval code yet.
-            Resolution::Caller => Err(self.unsupported("eval code")),
+            Resolution::Caller => self.load_caller(id, dst),
         }
     }
 
@@ -386,9 +395,20 @@ impl FunctionCompiler<'_> {
         }
     }
 
-    /// `PutValue` on an identifier (an assignment, not a declaration):
-    /// checks the dead zone, rejects constants.
+    /// `PutValue` on an identifier (an assignment, not a declaration),
+    /// resolved now: through the dynamic environments in its reach, then
+    /// to its static binding.
     pub(super) fn store_ref(&mut self, id: RefId, src: Reg) -> CResult<()> {
+        let mark = self.mark();
+        let rec = self.prepare_dynamic(id)?;
+        self.store_found(id, src, rec)?;
+        self.release(mark);
+        Ok(())
+    }
+
+    /// `PutValue` on the static binding of an identifier: checks the dead
+    /// zone, rejects constants.
+    pub(super) fn store_static(&mut self, id: RefId, src: Reg) -> CResult<()> {
         let reference = self.reference(id);
         let kind = self.binding_kind(&reference);
         let constant = matches!(kind, Some(BindingKind::Const | BindingKind::ClassName))
@@ -436,7 +456,7 @@ impl FunctionCompiler<'_> {
                 }
             }
             Resolution::Unresolved => return Err(Self::internal("an unresolved reference")),
-            Resolution::Caller => return Err(self.unsupported("eval code")),
+            Resolution::Caller => return self.store_caller(id, src),
         }
         Ok(())
     }
@@ -448,6 +468,9 @@ impl FunctionCompiler<'_> {
         let Resolution::Register(r) = reference.resolution else {
             return None;
         };
+        if self.dynamic_of(id).is_some() {
+            return None;
+        }
         let plain = matches!(
             self.binding_kind(&reference),
             Some(
@@ -483,8 +506,12 @@ impl FunctionCompiler<'_> {
             };
         }
         let t = self.target(dst)?;
+        // The reference is resolved before the value (§13.15.2 step 1.a).
+        let mark = self.mark();
+        let rec = self.prepare_dynamic(id)?;
         self.expr_named(value, Some(t), name)?;
-        self.store_ref(id, t)?;
+        self.store_found(id, t, rec)?;
+        self.release(mark);
         Ok(t)
     }
 
@@ -521,7 +548,7 @@ impl FunctionCompiler<'_> {
                 matches!(
                     self.reference(reference).resolution,
                     Resolution::Register(_)
-                )
+                ) && self.dynamic_of(reference).is_none()
             }
             _ => false,
         };
@@ -643,18 +670,7 @@ impl FunctionCompiler<'_> {
                     {
                         self.delete_property_of(last, t, true)?;
                     }
-                    ExprKind::Identifier(ident) => {
-                        let reference = self.reference(ident.reference);
-                        if reference.resolution == Resolution::Global {
-                            let name = self.name_const(ident.name);
-                            self.emit(Insn::DeleteGlobal { dst: t, name });
-                        } else {
-                            self.emit(Insn::Bool {
-                                dst: t,
-                                value: false,
-                            });
-                        }
-                    }
+                    ExprKind::Identifier(ident) => self.delete_identifier(ident, t)?,
                     _ => {
                         self.effect(argument)?;
                         self.emit(Insn::Bool {
@@ -670,17 +686,11 @@ impl FunctionCompiler<'_> {
             }
             UnaryOp::Typeof => {
                 let inner = self.unparen(argument);
-                match self.ast.expr(inner).kind {
-                    ExprKind::Identifier(ident)
-                        if self.reference(ident.reference).resolution == Resolution::Global =>
-                    {
-                        let name = self.name_const(ident.name);
-                        self.emit(Insn::TypeofGlobal { dst: t, name });
-                    }
-                    _ => {
-                        let src = self.expr(argument, None)?;
-                        self.emit(Insn::Typeof { dst: t, src });
-                    }
+                if let ExprKind::Identifier(ident) = self.ast.expr(inner).kind {
+                    self.typeof_identifier(ident, t)?;
+                } else {
+                    let src = self.expr(argument, None)?;
+                    self.emit(Insn::Typeof { dst: t, src });
                 }
             }
             UnaryOp::Minus => {
@@ -706,6 +716,79 @@ impl FunctionCompiler<'_> {
         }
         self.release(mark);
         Ok(t)
+    }
+
+    /// `typeof name` into `t`: a global name that does not exist gives
+    /// `"undefined"` (§13.5.3.1 step 2); a dynamic name is looked up in
+    /// its records first.
+    fn typeof_identifier(&mut self, ident: Ident, t: Reg) -> CResult<()> {
+        let mark = self.mark();
+        let rec = self.prepare_dynamic(ident.reference)?;
+        let mut done = None;
+        if let Some(rec) = rec {
+            let name = self.name_const(ident.name);
+            let skip = self.emit(Insn::JumpIfNullish {
+                src: rec,
+                offset: 0,
+            });
+            self.emit(Insn::GetBinding {
+                dst: t,
+                record: rec,
+                name,
+            });
+            self.emit(Insn::Typeof { dst: t, src: t });
+            done = Some(self.emit(Insn::Jump { offset: 0 }));
+            self.patch_here(skip);
+        }
+        if self.is_global_name(ident.reference) {
+            let name = self.name_const(ident.name);
+            self.emit(Insn::TypeofGlobal { dst: t, name });
+        } else {
+            let src = self.load_static(ident.reference, None)?;
+            self.emit(Insn::Typeof { dst: t, src });
+        }
+        if let Some(done) = done {
+            self.patch_here(done);
+        }
+        self.release(mark);
+        Ok(())
+    }
+
+    /// `delete name` into `t` (§13.5.1.2 step 4, sloppy code only): a
+    /// binding of a dynamic environment first, a global property, or
+    /// `false` for a declared binding.
+    fn delete_identifier(&mut self, ident: Ident, t: Reg) -> CResult<()> {
+        let mark = self.mark();
+        let rec = self.prepare_dynamic(ident.reference)?;
+        let mut done = None;
+        if let Some(rec) = rec {
+            let name = self.name_const(ident.name);
+            let skip = self.emit(Insn::JumpIfNullish {
+                src: rec,
+                offset: 0,
+            });
+            self.emit(Insn::DeleteBinding {
+                dst: t,
+                record: rec,
+                name,
+            });
+            done = Some(self.emit(Insn::Jump { offset: 0 }));
+            self.patch_here(skip);
+        }
+        if self.is_global_name(ident.reference) {
+            let name = self.name_const(ident.name);
+            self.emit(Insn::DeleteGlobal { dst: t, name });
+        } else {
+            self.emit(Insn::Bool {
+                dst: t,
+                value: false,
+            });
+        }
+        if let Some(done) = done {
+            self.patch_here(done);
+        }
+        self.release(mark);
+        Ok(())
     }
 
     /// The instruction of a binary operator.
@@ -1268,21 +1351,27 @@ impl FunctionCompiler<'_> {
                     };
                 }
                 let t = self.target(dst)?;
-                self.load_ref(ident.reference, Some(t))?;
+                let outer = self.mark();
+                let rec = self.prepare_dynamic(ident.reference)?;
+                self.load_found(ident.reference, rec, t)?;
                 let mark = self.mark();
                 let b = self.expr(value, None)?;
                 self.emit(Self::binary_insn(binary, t, t, b));
                 self.release(mark);
-                self.store_ref(ident.reference, t)?;
+                self.store_found(ident.reference, t, rec)?;
+                self.release(outer);
                 Ok(t)
             }
             AssignOp::Logical(logical) => {
                 let t = self.target(dst)?;
-                self.load_ref(ident.reference, Some(t))?;
+                let outer = self.mark();
+                let rec = self.prepare_dynamic(ident.reference)?;
+                self.load_found(ident.reference, rec, t)?;
                 let skip = self.emit(Self::logical_skip(logical, t));
                 self.expr_named(value, Some(t), name)?;
-                self.store_ref(ident.reference, t)?;
+                self.store_found(ident.reference, t, rec)?;
                 self.patch_here(skip);
+                self.release(outer);
                 Ok(t)
             }
         }
@@ -1533,18 +1622,21 @@ impl FunctionCompiler<'_> {
                     return Ok(r);
                 }
                 let t = self.target(dst)?;
-                self.load_ref(ident.reference, Some(t))?;
+                let outer = self.mark();
+                let rec = self.prepare_dynamic(ident.reference)?;
+                self.load_found(ident.reference, rec, t)?;
                 if prefix || discard {
                     self.emit(step(t, t));
-                    self.store_ref(ident.reference, t)?;
+                    self.store_found(ident.reference, t, rec)?;
                 } else {
                     self.emit(Insn::ToNumeric { dst: t, src: t });
                     let mark = self.mark();
                     let n = self.temp()?;
                     self.emit(step(n, t));
-                    self.store_ref(ident.reference, n)?;
+                    self.store_found(ident.reference, n, rec)?;
                     self.release(mark);
                 }
+                self.release(outer);
                 Ok(t)
             }
             ExprKind::Member { .. } | ExprKind::Index { .. } | ExprKind::PrivateMember { .. } => {
@@ -1671,32 +1763,8 @@ impl FunctionCompiler<'_> {
             .any(|&e| matches!(self.ast.expr(e).kind, ExprKind::Spread(_)));
         // With spread, the arguments go into an array in `base + 2`.
         let base = self.temps(2 + if spread { 1 } else { count })?;
-        let this = base + 1;
         let target = self.unparen(callee);
-        if is_new || !self.method_callee(target, base)? {
-            if let ExprKind::OptionalChain(inner) = self.ast.expr(target).kind
-                && !is_new
-                && matches!(
-                    self.ast.expr(inner).kind,
-                    ExprKind::Member { .. }
-                        | ExprKind::Index { .. }
-                        | ExprKind::PrivateMember { .. }
-                )
-            {
-                // `(a?.b)()`: the chain keeps its reference, so `this` is
-                // `a` (§13.3.9.1); a short circuit calls `undefined`.
-                self.chain_exits.push(Vec::new());
-                let result = self.method_callee(inner, base);
-                let exits = self.chain_exits.pop().unwrap_or_default();
-                result?;
-                self.chain_end(exits, base);
-            } else {
-                self.expr(callee, Some(base))?;
-                if !is_new {
-                    self.emit(Insn::Undefined { dst: this });
-                }
-            }
-        }
+        self.callee_and_this(callee, target, base, is_new)?;
         if kind == (CallKind::Call { optional: true }) {
             self.chain_jump(base)?;
         }
@@ -1722,11 +1790,15 @@ impl FunctionCompiler<'_> {
             .unwrap_or_else(|| "(intermediate value)".to_owned());
         let text = self.string_const(String16::from(text.as_str()));
         self.position = call_position;
-        let pc = match (is_new, spread) {
-            (true, false) => self.emit(Insn::New { callee: base, argc }),
-            (false, false) => self.emit(Insn::Call { callee: base, argc }),
-            (true, true) => self.emit(Insn::NewSpread { callee: base }),
-            (false, true) => self.emit(Insn::CallSpread { callee: base }),
+        let pc = if kind == (CallKind::Call { optional: false }) && template.is_none() {
+            self.emit_call(target, base, argc, spread)?
+        } else {
+            match (is_new, spread) {
+                (true, false) => self.emit(Insn::New { callee: base, argc }),
+                (false, false) => self.emit(Insn::Call { callee: base, argc }),
+                (true, true) => self.emit(Insn::NewSpread { callee: base }),
+                (false, true) => self.emit(Insn::CallSpread { callee: base }),
+            }
         };
         self.call_names.push((pc as u32, text));
         match dst {
@@ -1740,6 +1812,70 @@ impl FunctionCompiler<'_> {
                 Ok(base)
             }
         }
+    }
+
+    /// The callee of a call into `base` and its `this` into `base + 1`
+    /// (§13.3.6.2 `EvaluateCall`): the object of a member access, the
+    /// object of a `with` statement that has the name, else `undefined`
+    /// (nothing for `new`).
+    fn callee_and_this(
+        &mut self,
+        callee: ExprId,
+        target: ExprId,
+        base: Reg,
+        is_new: bool,
+    ) -> CResult<()> {
+        if !is_new && self.method_callee(target, base)? {
+            return Ok(());
+        }
+        let this = base + 1;
+        match self.ast.expr(target).kind {
+            ExprKind::Identifier(ident)
+                if !is_new && self.dynamic_callee(ident.reference, base)? => {}
+            ExprKind::OptionalChain(inner)
+                if !is_new
+                    && matches!(
+                        self.ast.expr(inner).kind,
+                        ExprKind::Member { .. }
+                            | ExprKind::Index { .. }
+                            | ExprKind::PrivateMember { .. }
+                    ) =>
+            {
+                // `(a?.b)()`: the chain keeps its reference, so `this` is
+                // `a` (§13.3.9.1); a short circuit calls `undefined`.
+                self.chain_exits.push(Vec::new());
+                let result = self.method_callee(inner, base);
+                let exits = self.chain_exits.pop().unwrap_or_default();
+                result?;
+                self.chain_end(exits, base);
+            }
+            _ => {
+                self.expr(callee, Some(base))?;
+                if !is_new {
+                    self.emit(Insn::Undefined { dst: this });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// The call instruction of a plain call `f(...)` with its window at
+    /// `base`: `eval(...)` (also `(eval)(...)`) is a direct eval if the
+    /// callee is `%eval%` at run time (§13.3.6.1; the parser counted it
+    /// too).
+    fn emit_call(&mut self, target: ExprId, base: Reg, argc: u16, spread: bool) -> CResult<usize> {
+        let direct_eval = matches!(
+            self.ast.expr(target).kind,
+            ExprKind::Identifier(ident) if ident.name == swb_js_syntax::names::EVAL
+        );
+        let pc = match (direct_eval, spread) {
+            (false, false) => return Ok(self.emit(Insn::Call { callee: base, argc })),
+            (false, true) => return Ok(self.emit(Insn::CallSpread { callee: base })),
+            (true, false) => self.emit(Insn::CallEval { callee: base, argc }),
+            (true, true) => self.emit(Insn::CallEvalSpread { callee: base }),
+        };
+        self.note_eval_site(pc, target)?;
+        Ok(pc)
     }
 
     /// The callee `target` of a call if it is a member access: the

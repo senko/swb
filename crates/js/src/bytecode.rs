@@ -994,6 +994,78 @@ pub(crate) enum Insn {
         index: u32,
     },
 
+    // --- Dynamic environments (`vm/env.rs`, ADR 0026 "Dynamic scope") ---
+    /// `dst` = the record of a `with` statement for the value of `obj`
+    /// (`ToObject`, §14.11.2), linked to the record (or `undefined`) in
+    /// `outer`.
+    NewWithEnv {
+        dst: Reg,
+        obj: Reg,
+        outer: Reg,
+    },
+    /// `dst` = a new record for the vars of sloppy direct eval code, linked
+    /// to the record (or `undefined`) in `outer`.
+    NewVarEnv {
+        dst: Reg,
+        outer: Reg,
+    },
+    /// `dst` = the first of `count` records, from the one in `env` on, that
+    /// has a binding of the name constant `name` (`HasBinding`), or
+    /// `undefined`; [`crate::vm::env::ALL_RECORDS`] walks all records.
+    FindBinding {
+        dst: Reg,
+        env: Reg,
+        count: u16,
+        name: u32,
+    },
+    /// `dst` = `GetBindingValue` of the name `name` in the record in
+    /// `record`.
+    GetBinding {
+        dst: Reg,
+        record: Reg,
+        name: u32,
+    },
+    /// `SetMutableBinding` of the name `name` in the record in `record` to
+    /// the value of `src`.
+    SetBinding {
+        record: Reg,
+        src: Reg,
+        name: u32,
+    },
+    /// `dst` = `DeleteBinding` of the name `name` in the record in
+    /// `record`.
+    DeleteBinding {
+        dst: Reg,
+        record: Reg,
+        name: u32,
+    },
+    /// `dst` = `WithBaseObject` of the record in `record` (the `this` of a
+    /// call of a name that a `with` object has).
+    WithBase {
+        dst: Reg,
+        record: Reg,
+    },
+    /// The record of eval vars in `record` gets the binding `name` with
+    /// the value of `src` (a function declaration of eval code,
+    /// §19.2.1.3 step 17).
+    SetVarBinding {
+        record: Reg,
+        src: Reg,
+        name: u32,
+    },
+    /// A call `eval(...)` (§13.3.6.1): a direct eval if the callee is the
+    /// realm's `%eval%`, else an ordinary call; the window as in
+    /// [`Insn::Call`].
+    CallEval {
+        callee: Reg,
+        argc: u16,
+    },
+    /// [`Insn::CallEval`] with spread arguments (the window of
+    /// [`Insn::CallSpread`]).
+    CallEvalSpread {
+        callee: Reg,
+    },
+
     /// Does nothing (`debugger`).
     Nop,
 }
@@ -1120,6 +1192,11 @@ pub(crate) struct TemplatePart {
 pub(crate) enum CodeKind {
     /// The top-level code of a script.
     Script,
+    /// The top-level code of eval code (direct or indirect, §19.2.1): its
+    /// declarations were instantiated before it runs
+    /// (`EvalDeclarationInstantiation`, `vm/eval.rs`); its closure is
+    /// internal.
+    Eval,
     /// A function declaration or expression: a constructor with a
     /// `prototype` object.
     Normal,
@@ -1201,6 +1278,172 @@ pub(crate) struct GlobalDecl {
     pub(crate) kind: GlobalKind,
 }
 
+/// Where a binding that eval code can use lives, seen from the frame of
+/// the code that calls `eval` (`compiler/eval.rs`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum EvalSlot {
+    /// A cell whose handle is in a register of the frame.
+    Cell(Reg),
+    /// A cell that the running function captured.
+    Capture(u32),
+}
+
+/// A name that eval code can use (the scope description of ADR 0026
+/// "Dynamic scope"): a binding of a scope of the calling function, or of
+/// an enclosing function (then captured).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct EvalName {
+    /// The name (an atom).
+    pub(crate) name: Gc<JsString>,
+    /// The kind of the binding.
+    pub(crate) kind: swb_js_syntax::BindingKind,
+    /// Its cell.
+    pub(crate) slot: EvalSlot,
+    /// A private name: its index in the private environment in `slot`.
+    pub(crate) private: u32,
+    /// The dynamic records between the call and the binding (for the
+    /// names of enclosing functions: between the function and the
+    /// binding).
+    pub(crate) count: u32,
+    /// The `this` binding of a derived constructor (loads check it).
+    pub(crate) derived: bool,
+    /// For the names that eval code captured from its caller (the
+    /// description of eval code that calls `eval`): the results of the walk
+    /// of `EvalDeclarationInstantiation` at the first call (see
+    /// [`EvalWalk`]).
+    pub(crate) walk: EvalWalk,
+}
+
+/// What the walk of `EvalDeclarationInstantiation` (§19.2.1.3 step 3,
+/// Annex B.3.2.3 and B.3.4) finds for a name between a call of `eval`
+/// and its variable environment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EvalWalk {
+    /// A var of the name is a `SyntaxError`, and a block function of the
+    /// name is not hoisted (B.3.2.3 `bindingExists`): a binding of the name
+    /// between the call and the variable environment (a lexical
+    /// declaration; not a catch parameter, B.3.4).
+    pub(crate) conflict: bool,
+    /// The static binding of the name in the variable environment.
+    pub(crate) var_slot: Option<EvalSlot>,
+}
+
+/// A scope of a function that calls `eval`, in its scope description.
+#[derive(Debug)]
+pub(crate) struct EvalScope {
+    /// The enclosing scope of the same function.
+    pub(crate) parent: Option<u32>,
+    /// Its names, sorted by the handle of the name.
+    pub(crate) names: Box<[EvalName]>,
+    /// The cell of its dynamic record (`%env`), if it has one.
+    pub(crate) record: Option<EvalSlot>,
+}
+
+/// The variable environment of a call of `eval` (§19.2.1.1 step 16):
+/// where the vars of sloppy eval code go.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum EvalVarEnv {
+    /// Strict code: eval code declares nothing outside itself.
+    #[default]
+    None,
+    /// The global object.
+    Global,
+    /// A record of eval vars (its cell).
+    Record(EvalSlot),
+}
+
+/// The context of a call of `eval` that the parser needs (§19.2.1.1 steps
+/// 5 to 11).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EvalFlags {
+    pub(crate) strict: bool,
+    pub(crate) in_function: bool,
+    pub(crate) in_method: bool,
+    pub(crate) in_derived_constructor: bool,
+    pub(crate) in_class_field_initializer: bool,
+}
+
+/// A direct `eval` call of a function.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct EvalSite {
+    /// The `CallEval` instruction.
+    pub(crate) pc: u32,
+    /// The scope of the call.
+    pub(crate) scope: u32,
+    /// The scope that holds the static bindings of the variable
+    /// environment (its lexical declarations are between, §10.2.11 step
+    /// 30); `None` in eval code (the variable environment is the caller's).
+    pub(crate) var_scope: Option<u32>,
+    /// The call is in the parameters: the variable environment is a record
+    /// outside `var_scope`, whose bindings are all between (§10.2.11 step
+    /// 20).
+    pub(crate) params: bool,
+    pub(crate) var_env: EvalVarEnv,
+    pub(crate) flags: EvalFlags,
+}
+
+/// The scope description of a function that calls `eval` (ADR 0026
+/// "Dynamic scope"): its scopes, the names of enclosing functions that it
+/// captured for eval code, and its calls.
+#[derive(Debug)]
+pub(crate) struct EvalInfo {
+    pub(crate) scopes: Box<[EvalScope]>,
+    /// Sorted by the handle of the name.
+    pub(crate) outer: Box<[EvalName]>,
+    /// The cell of the innermost dynamic record outside the function.
+    pub(crate) outer_record: Option<EvalSlot>,
+    /// Eval code that calls `eval`: its names come from its caller, so the
+    /// walks of `EvalDeclarationInstantiation` go on there (the results
+    /// are in [`EvalName::walk`] of `outer`).
+    pub(crate) eval_code: bool,
+    /// Sorted by `pc`.
+    pub(crate) sites: Box<[EvalSite]>,
+}
+
+impl EvalInfo {
+    /// The call at `pc`.
+    pub(crate) fn site(&self, pc: usize) -> Option<&EvalSite> {
+        let index = self
+            .sites
+            .binary_search_by_key(&pc, |site| site.pc as usize)
+            .ok()?;
+        self.sites.get(index)
+    }
+
+    fn trace(&self, tracer: &mut Tracer<'_>) {
+        for scope in &self.scopes {
+            for name in &scope.names {
+                tracer.string(name.name);
+            }
+        }
+        for name in &self.outer {
+            tracer.string(name.name);
+        }
+    }
+
+    fn heap_size(&self) -> usize {
+        size_of::<EvalInfo>()
+            + self.scopes.len() * size_of::<EvalScope>()
+            + self
+                .scopes
+                .iter()
+                .map(|s| s.names.len() * size_of::<EvalName>())
+                .sum::<usize>()
+            + self.outer.len() * size_of::<EvalName>()
+            + self.sites.len() * size_of::<EvalSite>()
+    }
+}
+
+/// The names of a scope or of the outer list, sorted by handle: the one
+/// with `name`.
+pub(crate) fn find_eval_name(names: &[EvalName], name: Gc<JsString>) -> Option<&EvalName> {
+    let key = (name.index(), name.generation());
+    let index = names
+        .binary_search_by_key(&key, |n| (n.name.index(), n.name.generation()))
+        .ok()?;
+    names.get(index)
+}
+
 /// The compiled code of one function (or of a script), shared by all its
 /// closures and by all realms of a runtime. Immutable after the compile.
 #[derive(Debug)]
@@ -1252,6 +1495,8 @@ pub(crate) struct FunctionCode {
     /// `Function.prototype.toString`).
     pub(crate) source: Rc<Source>,
     pub(crate) span: (u32, u32),
+    /// The scope description of a function with a direct `eval`.
+    pub(crate) eval: Option<Box<EvalInfo>>,
 }
 
 /// The text of a script with its name, shared by all the functions of
@@ -1262,8 +1507,12 @@ pub(crate) struct Source {
     /// The text.
     pub(crate) text: String16,
     /// The name that stack traces show (a file name or URL; empty when
-    /// the host gave none).
+    /// the host gave none; for eval code, its origin and `<anonymous>`).
     pub(crate) name: Rc<str>,
+    /// Eval code: where it comes from, as V8 shows it (`eval at f
+    /// (file:1:5)`; the origin of eval code that eval code made names the
+    /// outer origin instead of a position).
+    pub(crate) origin: Option<Rc<str>>,
     lines: std::cell::OnceCell<swb_js_syntax::LineIndex>,
 }
 
@@ -1273,6 +1522,17 @@ impl Source {
         Source {
             text,
             name,
+            origin: None,
+            lines: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// The text of eval code with its origin.
+    pub(crate) fn eval_code(text: String16, origin: Rc<str>) -> Self {
+        Source {
+            text,
+            name: Rc::from(format!("{origin}, <anonymous>")),
+            origin: Some(origin),
             lines: std::cell::OnceCell::new(),
         }
     }
@@ -1335,11 +1595,12 @@ impl FunctionCode {
             + self.call_names.len() * 8
             // Only the script's code owns the source text for the heap
             // limit; the functions share it.
-            + if self.kind == CodeKind::Script {
+            + if matches!(self.kind, CodeKind::Script | CodeKind::Eval) {
                 self.source.text.len() * 2
             } else {
                 0
             }
+            + self.eval.as_ref().map_or(0, |info| info.heap_size())
     }
 
     /// The source offset of the instruction at `pc`.
@@ -1437,6 +1698,9 @@ impl GenericData for CodeObject {
         }
         tracer.string(code.name);
         tracer.string(code.debug_name);
+        if let Some(info) = &code.eval {
+            info.trace(tracer);
+        }
         for &object in self.templates.borrow().values() {
             tracer.object(object);
         }
@@ -1535,60 +1799,8 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
         if let Err(message) = check_tables(code, insn) {
             return fail(message);
         }
-        match *insn {
-            Insn::Call { callee, argc } | Insn::New { callee, argc } => {
-                if u32::from(callee) + 2 + u32::from(argc) > registers {
-                    return fail("call window outside the frame");
-                }
-            }
-            Insn::CallSpread { callee } | Insn::NewSpread { callee } => {
-                if u32::from(callee) + 3 > registers {
-                    return fail("call window outside the frame");
-                }
-            }
-            // The active function is below the window.
-            Insn::SuperCall { callee, argc } => {
-                if callee == 0 || u32::from(callee) + 2 + u32::from(argc) > registers {
-                    return fail("call window outside the frame");
-                }
-            }
-            Insn::SuperCallSpread { callee } => {
-                if callee == 0 || u32::from(callee) + 3 > registers {
-                    return fail("call window outside the frame");
-                }
-            }
-            // Pairs of registers: the parents and the class, the super
-            // base and `this`.
-            Insn::ClassHeritage { dst: first, .. }
-            | Insn::NewClass { dst: first, .. }
-            | Insn::GetSuper { base: first, .. }
-            | Insn::GetSuperNamed { base: first, .. }
-            | Insn::SetSuper { base: first, .. }
-            | Insn::SetSuperNamed { base: first, .. }
-                if u32::from(first) + 2 > registers =>
-            {
-                return fail("register pair outside the frame");
-            }
-            // An iterator record takes three registers.
-            Insn::GetIterator { dst: rec, .. }
-            | Insn::IteratorCall { rec, .. }
-            | Insn::SpreadArray { rec, .. }
-            | Insn::IteratorValue { rec, .. }
-            | Insn::IteratorClose { rec, .. }
-                if u32::from(rec) + 3 > registers =>
-            {
-                return fail("iterator record outside the frame");
-            }
-            Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
-                if code.kind != CodeKind::Generator =>
-            {
-                return fail("yield outside a generator");
-            }
-            // The resume mode goes into the register after `reg`.
-            Insn::Yield { reg } | Insn::Resume { reg, .. } if u32::from(reg) + 1 >= registers => {
-                return fail("resume mode register out of range");
-            }
-            _ => {}
+        if let Err(message) = check_layout(code, insn) {
+            return fail(message);
         }
         if let Some(offset) = insn.jump_offset() {
             let target = pc as i64 + i64::from(offset);
@@ -1605,7 +1817,104 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
             });
         }
     }
+    if let Some(info) = &code.eval {
+        verify_eval_info(code, info)?;
+    }
     verify_handlers(code)
+}
+
+/// The registers that an instruction uses beyond its operands: call
+/// windows, register pairs, iterator records, the resume mode; and the
+/// generator instructions only in generators.
+fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
+    let registers = code.register_count;
+    let window = |callee: Reg, args: u32| u32::from(callee) + 2 + args <= registers;
+    let ok = match *insn {
+        Insn::Call { callee, argc }
+        | Insn::New { callee, argc }
+        | Insn::CallEval { callee, argc } => window(callee, u32::from(argc)),
+        Insn::CallSpread { callee }
+        | Insn::NewSpread { callee }
+        | Insn::CallEvalSpread { callee } => window(callee, 1),
+        // The active function is below the window.
+        Insn::SuperCall { callee, argc } => callee != 0 && window(callee, u32::from(argc)),
+        Insn::SuperCallSpread { callee } => callee != 0 && window(callee, 1),
+        // Pairs of registers: the parents and the class, the super base
+        // and `this`.
+        Insn::ClassHeritage { dst: first, .. }
+        | Insn::NewClass { dst: first, .. }
+        | Insn::GetSuper { base: first, .. }
+        | Insn::GetSuperNamed { base: first, .. }
+        | Insn::SetSuper { base: first, .. }
+        | Insn::SetSuperNamed { base: first, .. }
+            if u32::from(first) + 2 > registers =>
+        {
+            return Err("register pair outside the frame");
+        }
+        // An iterator record takes three registers.
+        Insn::GetIterator { dst: rec, .. }
+        | Insn::IteratorCall { rec, .. }
+        | Insn::SpreadArray { rec, .. }
+        | Insn::IteratorValue { rec, .. }
+        | Insn::IteratorClose { rec, .. }
+            if u32::from(rec) + 3 > registers =>
+        {
+            return Err("iterator record outside the frame");
+        }
+        Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
+            if code.kind != CodeKind::Generator =>
+        {
+            return Err("yield outside a generator");
+        }
+        // The resume mode goes into the register after `reg`.
+        Insn::Yield { reg } | Insn::Resume { reg, .. } if u32::from(reg) + 1 >= registers => {
+            return Err("resume mode register out of range");
+        }
+        _ => true,
+    };
+    if ok {
+        Ok(())
+    } else {
+        Err("call window outside the frame")
+    }
+}
+
+/// The scope description of a function with a direct `eval`: slots inside
+/// the frame and the captures, scope links inside the table, calls at
+/// `CallEval` instructions.
+fn verify_eval_info(code: &FunctionCode, info: &EvalInfo) -> Result<(), VerifyError> {
+    let slot_ok = |slot: EvalSlot| match slot {
+        EvalSlot::Cell(r) => u32::from(r) < code.register_count,
+        EvalSlot::Capture(i) => (i as usize) < code.captures.len(),
+    };
+    let name_ok = |name: &EvalName| slot_ok(name.slot) && name.walk.var_slot.is_none_or(slot_ok);
+    let scope_ok = |index: Option<u32>| index.is_none_or(|i| (i as usize) < info.scopes.len());
+    let scopes_ok = info.scopes.iter().all(|scope| {
+        scope_ok(scope.parent)
+            && scope.names.iter().all(name_ok)
+            && scope.record.is_none_or(slot_ok)
+    });
+    let outer_ok = info.outer.iter().all(name_ok) && info.outer_record.is_none_or(slot_ok);
+    let sites_ok = info.sites.iter().all(|site| {
+        scope_ok(Some(site.scope))
+            && scope_ok(site.var_scope)
+            && matches!(
+                code.insns.get(site.pc as usize),
+                Some(Insn::CallEval { .. } | Insn::CallEvalSpread { .. })
+            )
+            && match site.var_env {
+                EvalVarEnv::Record(slot) => slot_ok(slot),
+                EvalVarEnv::None | EvalVarEnv::Global => true,
+            }
+    });
+    if scopes_ok && outer_ok && sites_ok {
+        Ok(())
+    } else {
+        Err(VerifyError {
+            pc: 0,
+            message: "eval scope description",
+        })
+    }
 }
 
 /// The constant, name, site and capture indices of an instruction: inside
@@ -1655,6 +1964,11 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         | Insn::InitGlobalLexical { name, .. }
         | Insn::InitGlobalFunction { name, .. }
         | Insn::DeleteGlobal { name, .. }
+        | Insn::FindBinding { name, .. }
+        | Insn::GetBinding { name, .. }
+        | Insn::SetBinding { name, .. }
+        | Insn::DeleteBinding { name, .. }
+        | Insn::SetVarBinding { name, .. }
         | Insn::ThrowConstAssign { name } => (code.string(name).is_some(), "name constant index"),
         Insn::GetNamed { site, .. }
         | Insn::SetNamed { site, .. }
@@ -1799,7 +2113,9 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         I::Call { callee, .. }
         | I::New { callee, .. }
         | I::CallSpread { callee }
-        | I::NewSpread { callee } => f(callee),
+        | I::NewSpread { callee }
+        | I::CallEval { callee, .. }
+        | I::CallEvalSpread { callee } => f(callee),
         I::Move { dst, src }
         | I::ClassHeritage { dst, src }
         | I::SetFieldKeys {
@@ -1862,9 +2178,29 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::JumpIfNotLt { a: dst, b: src, .. }
         | I::JumpIfNotLe { a: dst, b: src, .. }
         | I::JumpIfNotGt { a: dst, b: src, .. }
-        | I::JumpIfNotGe { a: dst, b: src, .. } => {
+        | I::JumpIfNotGe { a: dst, b: src, .. }
+        | I::NewVarEnv { dst, outer: src }
+        | I::FindBinding { dst, env: src, .. }
+        | I::GetBinding {
+            dst, record: src, ..
+        }
+        | I::SetBinding {
+            record: dst, src, ..
+        }
+        | I::DeleteBinding {
+            dst, record: src, ..
+        }
+        | I::WithBase { dst, record: src }
+        | I::SetVarBinding {
+            record: dst, src, ..
+        } => {
             f(dst);
             f(src);
+        }
+        I::NewWithEnv { dst, obj, outer } => {
+            f(dst);
+            f(obj);
+            f(outer);
         }
         I::GetIndex { dst, obj, key }
         | I::DeleteIndex { dst, obj, key }
@@ -1968,6 +2304,7 @@ mod tests {
             call_names: Box::new([]),
             source: Rc::new(Source::new(String16::default(), Rc::from(""))),
             span: (0, 0),
+            eval: None,
         }
     }
 

@@ -167,6 +167,8 @@ pub(super) struct FunctionCompiler<'a> {
     derived_result: Option<(Reg, Reg)>,
     /// The jumps of a derived constructor's returns to its epilogue.
     pub(super) derived_exits: Vec<usize>,
+    /// The direct `eval` calls: (instruction, scope of the call).
+    pub(super) eval_sites: Vec<(u32, ScopeId)>,
 }
 
 impl<'a> FunctionCompiler<'a> {
@@ -214,6 +216,7 @@ impl<'a> FunctionCompiler<'a> {
             strict: function.strict,
             derived_result: None,
             derived_exits: Vec::new(),
+            eval_sites: Vec::new(),
         }
     }
 
@@ -223,7 +226,8 @@ impl<'a> FunctionCompiler<'a> {
             return Err(self.too_many_variables());
         }
         let kind = self.code_kind()?;
-        let is_script = kind == CodeKind::Script;
+        // Script and eval code have a completion value (§16.1.6, §19.2.1.1).
+        let is_script = matches!(kind, CodeKind::Script | CodeKind::Eval);
         if is_script {
             let completion = self.temp()?;
             self.emit(Insn::Undefined { dst: completion });
@@ -250,18 +254,20 @@ impl<'a> FunctionCompiler<'a> {
         if let Some(registers) = self.derived_result {
             self.derived_epilogue(registers);
         }
-        let this_mode = if self.function.kind == FunctionKind::Arrow {
+        let this_mode = if matches!(self.function.kind, FunctionKind::Arrow | FunctionKind::Eval) {
             ThisMode::Lexical
         } else if self.strict {
             ThisMode::Strict
         } else {
             ThisMode::Global
         };
+        // Stack traces name the frames of eval code `eval` (V8).
         let name = self
             .function
             .name
             .map(|ident| self.name_text(ident.name))
-            .or_else(|| super::class::initializer_name(self.function.kind));
+            .or_else(|| super::class::initializer_name(self.function.kind))
+            .or_else(|| (kind == CodeKind::Eval).then(|| String16::from("eval")));
         // A function with a direct `eval` has an `arguments` binding when
         // §10.2.11 needs the object (the scope analysis adds it). A rest
         // parameter needs the extra arguments too.
@@ -272,13 +278,18 @@ impl<'a> FunctionCompiler<'a> {
         // first (the order that the verifier and the lookup expect).
         let length = self.expected_argument_count();
         let span = self.source_span();
+        let eval = self.eval_description()?;
+        let mut captures: Vec<_> = self.fscope.captures.iter().map(|c| c.source).collect();
+        if let Some(plan) = &self.session.caller {
+            captures.extend(plan.sources(self.script, self.id));
+        }
         let mut handlers = self.handlers;
         handlers.sort_by_key(|h| (h.start, std::cmp::Reverse(h.end)));
         Ok(Builder {
             insns: self.insns,
             constants: self.constants,
             sites: self.sites,
-            captures: self.fscope.captures.iter().map(|c| c.source).collect(),
+            captures,
             globals,
             register_count: self.max_reg,
             param_count: self.ast.patterns(self.function.params).len() as u32,
@@ -293,6 +304,7 @@ impl<'a> FunctionCompiler<'a> {
             call_names: self.call_names,
             handlers,
             span,
+            eval,
         })
     }
 
@@ -302,7 +314,12 @@ impl<'a> FunctionCompiler<'a> {
             return Err(self.unsupported("async function"));
         }
         Ok(match function.kind {
+            // Indirect eval code is global code with a top scope of its own.
+            FunctionKind::Script if self.scopes.scope(function.scope).kind == ScopeKind::Eval => {
+                CodeKind::Eval
+            }
             FunctionKind::Script => CodeKind::Script,
+            FunctionKind::Eval => CodeKind::Eval,
             _ if function.is_generator => CodeKind::Generator,
             FunctionKind::Normal => CodeKind::Normal,
             FunctionKind::Arrow => CodeKind::Arrow,
@@ -314,7 +331,6 @@ impl<'a> FunctionCompiler<'a> {
             FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer => {
                 CodeKind::Initializer
             }
-            FunctionKind::Eval => return Err(self.unsupported("eval code")),
             FunctionKind::Module => return Err(self.unsupported("module")),
         })
     }
@@ -577,7 +593,9 @@ impl<'a> FunctionCompiler<'a> {
                 self.emit(insn);
             }
             Storage::Unassigned => return Err(Self::internal("a binding without storage")),
-            Storage::Caller => return Err(self.unsupported("eval code")),
+            Storage::Caller => {
+                return self.init_var_env_binding(binding, src, b.kind == BindingKind::Function);
+            }
             Storage::Import => return Err(self.unsupported("module")),
             Storage::Private(_) => return Err(Self::internal("a store to a private name")),
         }
@@ -607,10 +625,10 @@ impl<'a> FunctionCompiler<'a> {
     pub(super) fn enter_scope_bindings(&mut self, scope: ScopeId) -> CResult<()> {
         for &binding in self.scopes.bindings_of(scope) {
             let b = *self.scopes.binding(binding);
-            // Nothing reads the record of a dynamic environment yet (M7
-            // feature 3e), but closures in its reach capture its cell.
-            // The private environment of a class body: the class
-            // definition creates it right after the scope entry.
+            // The record of a dynamic environment (made by the `with`
+            // statement or below) and the private environment of a class
+            // body (made by the class definition right after the scope
+            // entry) go into new cells.
             if let (BindingKind::DynamicEnv | BindingKind::PrivateEnvironment, Storage::Cell(r)) =
                 (b.kind, b.storage)
             {
@@ -622,9 +640,7 @@ impl<'a> FunctionCompiler<'a> {
             }
             match b.kind {
                 // Set up by the prologue (the home object and the active
-                // function too). The record of a dynamic environment: the
-                // dynamic lookups compile to their static fallbacks (see
-                // `load_ref`), so nothing reads it yet (M7 feature 3e).
+                // function too), or below (the record of eval vars).
                 BindingKind::Parameter
                 | BindingKind::This
                 | BindingKind::NewTarget
@@ -659,7 +675,7 @@ impl<'a> FunctionCompiler<'a> {
                 _ => {}
             }
         }
-        Ok(())
+        self.enter_var_record(scope)
     }
 
     /// Creates the function declarations of a scope.
@@ -691,9 +707,23 @@ impl<'a> FunctionCompiler<'a> {
         let Some(ident) = self.ast.function(function).name else {
             return Err(Self::internal("a function declaration without a name"));
         };
+        let var = self.reference(target).binding;
+        // Annex B.3.2.3 (and B.3.2.2 in indirect eval code): the var
+        // binding of eval code exists only if `EvalDeclarationInstantiation`
+        // created it.
+        if var.is_some_and(|b| self.skips_block_function(b)) {
+            return Ok(());
+        }
         let mark = self.mark();
         let value = self.load_ref(ident.reference, None)?;
-        self.store_ref(target, value)?;
+        match var {
+            // `genv.SetMutableBinding(F, fobj, false)`: the variable
+            // environment itself, not through the scopes between.
+            Some(b) if self.scopes.binding(b).storage == Storage::Caller => {
+                self.init_var_env_binding(b, value, false)?;
+            }
+            _ => self.store_ref(target, value)?,
+        }
         self.release(mark);
         Ok(())
     }
@@ -855,7 +885,19 @@ impl<'a> FunctionCompiler<'a> {
         let statement = *self.ast.stmt(id);
         let outer = std::mem::replace(&mut self.position, statement.span.start);
         let mark = self.mark();
-        match statement.kind {
+        if resets_completion(statement.kind) {
+            self.reset_completion();
+        }
+        self.stmt_kind(statement.kind)?;
+        self.release(mark);
+        self.position = outer;
+        self.leave(STMT_WEIGHT);
+        Ok(())
+    }
+
+    /// The code of one statement.
+    fn stmt_kind(&mut self, kind: StmtKind) -> CResult<()> {
+        match kind {
             StmtKind::Empty => {}
             StmtKind::Function(function) => self.block_function_var(function)?,
             StmtKind::ForIn {
@@ -872,8 +914,12 @@ impl<'a> FunctionCompiler<'a> {
                 is_await: false,
             } => self.for_of(left, right, body, scope)?,
             StmtKind::Class(class) => self.class_declaration(class)?,
+            StmtKind::With {
+                object,
+                body,
+                scope,
+            } => self.with_statement(object, body, scope)?,
             kind @ (StmtKind::ForOf { is_await: true, .. }
-            | StmtKind::With { .. }
             | StmtKind::Import
             | StmtKind::ExportDeclaration(_)
             | StmtKind::ExportDefault { .. }
@@ -898,7 +944,10 @@ impl<'a> FunctionCompiler<'a> {
             }
             StmtKind::Variables { kind, declarators } => {
                 for declarator in self.ast.declarators(declarators) {
+                    // The temporaries of one declarator are free after it.
+                    let mark = self.mark();
                     self.declarator(kind, declarator.target, declarator.init)?;
+                    self.release(mark);
                 }
             }
             StmtKind::If {
@@ -946,10 +995,15 @@ impl<'a> FunctionCompiler<'a> {
                 finalizer,
             } => self.try_statement(block, handler, finalizer)?,
         }
-        self.release(mark);
-        self.position = outer;
-        self.leave(STMT_WEIGHT);
         Ok(())
+    }
+
+    /// Sets the completion value of script and eval code to `undefined`
+    /// (§8.4 `UpdateEmpty`).
+    pub(super) fn reset_completion(&mut self) {
+        if let Some(completion) = self.completion {
+            self.emit(Insn::Undefined { dst: completion });
+        }
     }
 
     /// A class declaration (§15.7.15 `BindingClassDeclarationEvaluation`):
@@ -1501,6 +1555,8 @@ impl<'a> FunctionCompiler<'a> {
         };
         self.enter(STMT_WEIGHT)?;
         self.position = self.ast.stmt(clause.body).span.start;
+        // The value of the statement is the catch block's (§14.15.3).
+        self.reset_completion();
         self.enter_scope(scope)?;
         if let Some(param) = clause.param {
             self.bind_pattern(param, exception, BindMode::Init, PatternSource::Catch)?;
@@ -1543,7 +1599,24 @@ impl<'a> FunctionCompiler<'a> {
             self.patch(at, entry);
         }
         match body {
-            FinallyBody::Block(finalizer) => self.stmt(finalizer)?,
+            // A `finally` block that completes normally keeps the value of
+            // the `try` statement (§14.15.3): the completion value of
+            // script and eval code is saved around it.
+            FinallyBody::Block(finalizer) => match self.completion {
+                Some(completion) => {
+                    let saved = self.temp()?;
+                    self.emit(Insn::Move {
+                        dst: saved,
+                        src: completion,
+                    });
+                    self.stmt(finalizer)?;
+                    self.emit(Insn::Move {
+                        dst: completion,
+                        src: saved,
+                    });
+                }
+                None => self.stmt(finalizer)?,
+            },
             FinallyBody::Close(rec) => {
                 self.emit(Insn::IteratorClose { rec, kind });
             }
@@ -1584,4 +1657,20 @@ impl<'a> FunctionCompiler<'a> {
         self.patch_here(end_finally);
         Ok(())
     }
+}
+
+/// Whether a statement's value is `UpdateEmpty(C, undefined)` (§14.6 to
+/// §14.15): `undefined` unless a statement inside it produces a value.
+/// (`for`-`in` and `for`-`of` set it themselves.)
+fn resets_completion(kind: StmtKind) -> bool {
+    matches!(
+        kind,
+        StmtKind::If { .. }
+            | StmtKind::While { .. }
+            | StmtKind::DoWhile { .. }
+            | StmtKind::For { .. }
+            | StmtKind::Switch { .. }
+            | StmtKind::Try { .. }
+            | StmtKind::With { .. }
+    )
 }

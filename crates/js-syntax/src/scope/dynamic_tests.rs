@@ -270,3 +270,53 @@ fn hostile_dynamic_scopes_are_linear() {
         }
     });
 }
+
+/// The names that the eval references of `function` find, as
+/// `name:resolution`, sorted.
+fn eval_outer(source: &str, function: usize) -> String {
+    let script = analyze(source);
+    let tree = &script.scopes;
+    let mut parts: Vec<String> = tree
+        .eval_outer_references(FunctionId::from_index(function))
+        .iter()
+        .map(|&id| {
+            let reference = tree.reference(id);
+            format!(
+                "{}:{:?}",
+                script.name_text(reference.name),
+                reference.resolution
+            )
+        })
+        .collect();
+    parts.sort();
+    parts.join(" ")
+}
+
+#[test]
+fn functions_with_eval_capture_the_visible_names() {
+    // `inner` sees `a`, `b`, `inner` and `p` of `outer` (each once, the
+    // innermost of a name), not the global `g`, not `c` of a sibling
+    // block (its own `a` hides the outer one only in its scopes); the
+    // `%env` reference finds no record.
+    assert_eq!(
+        eval_outer(
+            "var g; function outer(p) { var a; let b; { let c; } \
+             function inner(a) { let own; eval('x'); } }",
+            2
+        ),
+        "%env:Global a:Capture(1) b:Capture(2) inner:Capture(3) p:Capture(0)"
+    );
+    // An arrow function also takes the implicit bindings of the enclosing
+    // function; a record outside it is found through `%env`.
+    assert_eq!(
+        eval_outer(
+            "function outer() { var v; with (o) { (() => eval('x'))(); } }",
+            2
+        ),
+        "%env:Capture(3) arguments:Capture(2) new.target:Capture(1) this:Capture(0) \
+         v:Capture(4)"
+    );
+    // Script and eval code have none: their outside is global (or the
+    // caller's).
+    assert_eq!(eval_outer("var a; eval('x');", 0), "");
+}

@@ -282,8 +282,8 @@ impl Runtime {
     }
 
     /// Compiles and runs a classic script in realm 0. Returns its
-    /// completion value (the value of the last expression statement that
-    /// ran; the completion rules of §16.1.6 are approximate until M7).
+    /// completion value (§16.1.6, with the `UpdateEmpty` rules of the
+    /// statements).
     ///
     /// Like [`Runtime::call`], a nested use (from a native function)
     /// charges the shared recursion budget; too deep a nesting is a

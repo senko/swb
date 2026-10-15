@@ -333,7 +333,7 @@ pub enum Storage {
     /// the caller's variable environment (an existing binding of the
     /// caller, or a new one in its per-call eval var object, or a global).
     /// The compiler accesses it through the caller's scope description
-    /// (M7 feature 3).
+    /// (`js` `compiler/eval.rs`).
     Caller,
     /// An imported binding of a module: no storage in the frame (see
     /// [`BindingKind::Import`]).
@@ -396,7 +396,8 @@ pub enum Resolution {
     /// code (or names a var-scoped declaration of sloppy eval code,
     /// [`Storage::Caller`]). The compiler resolves it against the scope
     /// description of the caller, including the caller's dynamic
-    /// environments (M7 feature 3). `this`, `new.target`, `super` and
+    /// environments (`js` `compiler/eval.rs`). `this`, `new.target`,
+    /// `super` and
     /// `arguments` of eval code resolve so too.
     Caller,
 }
@@ -647,6 +648,18 @@ pub struct ScopeTree {
     dynamic_envs: Vec<DynamicEnv>,
     /// The dynamic lookups of references, sorted by reference.
     dynamic_lookups: Vec<(RefId, DynamicLookup)>,
+    /// The references that resolve from another scope than their own,
+    /// sorted by reference: the outer links of dynamic environments and the
+    /// eval references of [`ScopeTree::eval_outer_references`] start at the
+    /// parent of their scope, but belong to the function of their scope
+    /// (which captures what they find).
+    resolve_start: Vec<(RefId, ScopeId)>,
+    /// Per function with a direct `eval` (in function order): the range of
+    /// its references in `eval_outer_refs`, from its scope to the names
+    /// that its eval code may use and that are declared outside it
+    /// ([`ScopeTree::eval_outer_references`]).
+    eval_outer: Vec<(FunctionId, u32, u32)>,
+    eval_outer_refs: Vec<RefId>,
     /// The private name binding of each private name occurrence (whose
     /// own binding is the private environment of the class), sorted by
     /// reference.
@@ -720,6 +733,44 @@ impl ScopeTree {
             .map(|&(_, lookup)| lookup)
     }
 
+    /// The references of a function with a direct `eval` to the names that
+    /// its eval code may use and that are declared outside the function
+    /// (in the scopes of enclosing functions; global names are found by
+    /// name anyway), one per name: each resolves like a reference from the
+    /// scope around the function, so the function captures every binding
+    /// that eval code can reach. One more reference (name `%env`) finds the
+    /// innermost dynamic environment outside the function. Arrow functions
+    /// also get the implicit bindings (`this`, `new.target`, `arguments`,
+    /// the home object, the active function) of the enclosing function
+    /// through the references of the function's own scope.
+    pub fn eval_outer_references(&self, function: FunctionId) -> &[RefId] {
+        let Ok(index) = self
+            .eval_outer
+            .binary_search_by_key(&function.index(), |&(f, _, _)| f.index())
+        else {
+            return &[];
+        };
+        let Some(&(_, start, end)) = self.eval_outer.get(index) else {
+            return &[];
+        };
+        self.eval_outer_refs
+            .get(start as usize..end as usize)
+            .unwrap_or(&[])
+    }
+
+    /// The scope where the resolution of a reference starts: its own, or
+    /// for the references of [`ScopeTree::eval_outer_references`] and the
+    /// outer links of dynamic environments, the parent of its scope.
+    pub(crate) fn resolve_start(&self, id: RefId) -> ScopeId {
+        match self.resolve_start.binary_search_by_key(&id, |&(r, _)| r) {
+            Ok(index) => self
+                .resolve_start
+                .get(index)
+                .map_or(self.reference(id).scope, |&(_, scope)| scope),
+            Err(_) => self.reference(id).scope,
+        }
+    }
+
     /// The private name binding ([`BindingKind::PrivateName`]) of a
     /// private name occurrence (`#x` in `o.#x`, `#x in o` or a class
     /// element); the occurrence itself resolves to the class's private
@@ -759,6 +810,16 @@ impl ScopeTree {
         self.references.len()
     }
 
+    /// The ids of all identifier occurrences, in order.
+    pub fn reference_ids(&self) -> impl Iterator<Item = RefId> + use<> {
+        (0..self.references.len()).map(RefId::from_index)
+    }
+
+    /// The ids of all scopes, in order.
+    pub fn scope_ids(&self) -> impl Iterator<Item = ScopeId> + use<> {
+        (0..self.scopes.len()).map(ScopeId::from_index)
+    }
+
     /// The approximate heap size in bytes.
     pub fn heap_size(&self) -> usize {
         fn bytes<T>(v: &Vec<T>) -> usize {
@@ -784,6 +845,9 @@ impl ScopeTree {
             + self.pattern_catch_scopes.capacity() * 8
             + bytes(&self.dynamic_envs)
             + bytes(&self.dynamic_lookups)
+            + bytes(&self.resolve_start)
+            + bytes(&self.eval_outer)
+            + bytes(&self.eval_outer_refs)
             + bytes(&self.private_refs)
     }
 

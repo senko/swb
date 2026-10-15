@@ -102,19 +102,21 @@ impl Runtime {
         Ok(())
     }
 
-    /// `CreateGlobalFunctionBinding` (§9.1.1.4.18).
+    /// `CreateGlobalFunctionBinding` (§9.1.1.4.18); `deletable` (`D`) for
+    /// the functions of eval code.
     pub(crate) fn init_global_function(
         &mut self,
         name: Gc<JsString>,
         value: Value,
+        deletable: bool,
     ) -> VmResult<()> {
         let global = self.global_object(self.current_realm())?;
         let key = PropertyKey::String(name);
         let existing = self.heap.get_own_property(global, key)?;
         let desc = match existing {
-            None => PropertyDescriptor::data(value, true, true, false),
+            None => PropertyDescriptor::data(value, true, true, deletable),
             Some(property) if property.configurable() => {
-                PropertyDescriptor::data(value, true, true, false)
+                PropertyDescriptor::data(value, true, true, deletable)
             }
             Some(_) => PropertyDescriptor::value(value),
         };

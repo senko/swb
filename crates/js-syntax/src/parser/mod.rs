@@ -544,7 +544,7 @@ impl<'a, 'b, U: CodeUnit> Parser<'a, 'b, U> {
             ),
         };
         let module = code == CodeKind::Module;
-        let lexer = Lexer::new(source, options, Interner::new());
+        let lexer = Lexer::new(source, options, Interner::for_source(source.len()));
         let mut ast = Ast::default();
         let mut scopes = ScopeTree::default();
         scopes.code = code;

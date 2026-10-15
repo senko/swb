@@ -132,8 +132,14 @@ pub mod names {
 }
 
 /// A table of names. Ids are dense, starting at 0.
+///
+/// The well-known names live in one table per process ([`WellKnown`]),
+/// so a new table (one per script, and one per call of `eval`) costs no
+/// hashing; the table of a script holds the other names, with ids after
+/// the well-known ones.
 #[derive(Debug)]
 pub struct Interner {
+    /// The names after the well-known ones.
     names: Vec<String16>,
     /// Name units (always the wide form, so that both widths of a source
     /// find the same entry) to id. The standard hasher has a random seed,
@@ -144,31 +150,87 @@ pub struct Interner {
     /// A direct-mapped cache in front of `ids`: the id of a recent name
     /// per [`cache_slot`], or `NO_ID`. A hit is checked against the name,
     /// so a collision only costs a lookup in `ids`. Most identifiers of a
-    /// script are repeated short names; the cache saves their hashing.
+    /// script are repeated short names; the cache saves their hashing. It
+    /// starts small and grows with the number of names.
     cache: Vec<u32>,
+}
+
+/// The well-known names with their ids (built once per process).
+#[derive(Debug)]
+struct WellKnown {
+    names: Vec<String16>,
+    ids: HashMap<Box<[u16]>, NameId>,
+    /// Per length below [`FILTER_LENGTHS`]: the ASCII code units that
+    /// start a well-known name of that length (a name outside the filter
+    /// needs no lookup in `ids`; one-letter names, common in minified
+    /// code, never do).
+    first_units: [u128; FILTER_LENGTHS],
+}
+
+/// The lengths that [`WellKnown::first_units`] covers (all well-known
+/// names are shorter).
+const FILTER_LENGTHS: usize = 16;
+
+impl WellKnown {
+    /// Whether `key` can be a well-known name.
+    fn may_have(&self, key: &[u16]) -> bool {
+        match (self.first_units.get(key.len()), key.first()) {
+            (Some(&mask), Some(&first)) if first < 128 => mask & (1u128 << first) != 0,
+            _ => false,
+        }
+    }
+}
+
+/// The table of the well-known names.
+fn well_known() -> &'static WellKnown {
+    static TABLE: std::sync::OnceLock<WellKnown> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let names: Vec<String16> = names::TEXTS.iter().map(|&t| String16::from(t)).collect();
+        let mut first_units = [0u128; FILTER_LENGTHS];
+        let mut ids = HashMap::new();
+        for (i, name) in names.iter().enumerate() {
+            let wide: Box<[u16]> = name.as_str16().units().collect();
+            if let (Some(mask), Some(&first)) = (first_units.get_mut(wide.len()), wide.first())
+                && first < 128
+            {
+                *mask |= 1u128 << first;
+            }
+            ids.insert(wide, NameId(i as u32));
+        }
+        WellKnown {
+            names,
+            ids,
+            first_units,
+        }
+    })
 }
 
 /// An empty slot of the cache.
 const NO_ID: u32 = u32::MAX;
 
-/// The number of cache slots (a power of two).
+/// The most cache slots (a power of two).
 const CACHE_SLOTS: usize = 4096;
+
+/// The first number of cache slots (a power of two).
+const FIRST_CACHE_SLOTS: usize = 64;
 
 /// The cache slot of a name: a multiplicative hash of its code units with
 /// the golden ratio as the factor, whose top bits select the slot
-/// (Fibonacci hashing; Knuth, TAOCP vol. 3, §6.4).
-fn cache_slot(name: Str16<'_>) -> usize {
-    fn hash(units: impl Iterator<Item = u64>) -> usize {
+/// (Fibonacci hashing; Knuth, TAOCP vol. 3, §6.4). `slots` is a power of
+/// two.
+fn cache_slot(name: Str16<'_>, slots: usize) -> usize {
+    fn hash(units: impl Iterator<Item = u64>) -> u64 {
         let mut hash: u64 = 0;
         for unit in units {
             hash = (hash ^ unit).wrapping_mul(0x9E37_79B9_7F4A_7C15);
         }
-        (hash >> 52) as usize & (CACHE_SLOTS - 1)
+        hash
     }
-    match name {
+    let hash = match name {
         Str16::Latin1(units) => hash(units.iter().map(|&u| u64::from(u))),
         Str16::Wide(units) => hash(units.iter().map(|&u| u64::from(u))),
-    }
+    };
+    (hash >> 52) as usize & (slots.max(1) - 1)
 }
 
 impl Default for Interner {
@@ -180,38 +242,48 @@ impl Default for Interner {
 impl Interner {
     /// A table with the well-known names of [`names`].
     pub fn new() -> Self {
-        let mut interner = Interner {
+        Self::for_source(0)
+    }
+
+    /// A table for a source of `len` code units: the cache starts at the
+    /// size that the source probably needs (a short eval string needs few
+    /// slots).
+    pub fn for_source(len: usize) -> Self {
+        let slots = (len / 4)
+            .next_power_of_two()
+            .clamp(FIRST_CACHE_SLOTS, CACHE_SLOTS);
+        Interner {
             names: Vec::new(),
             ids: HashMap::new(),
             scratch: Vec::new(),
-            cache: vec![NO_ID; CACHE_SLOTS],
-        };
-        for text in names::TEXTS {
-            interner.intern_str(text);
+            cache: vec![NO_ID; slots],
         }
-        interner
     }
 
     /// The id of a name; adds the name if it is new.
     pub fn intern(&mut self, name: Str16<'_>) -> NameId {
-        let slot = cache_slot(name);
+        let slot = cache_slot(name, self.cache.len());
         if let Some(&id) = self.cache.get(slot)
             && id != NO_ID
-            && self
-                .names
-                .get(id as usize)
-                .is_some_and(|known| known.as_str16() == name)
+            && self.get(NameId(id)).is_some_and(|known| known == name)
         {
             return NameId(id);
         }
         let id = self.intern_hashed(name);
+        // A larger cache once the table has many names (the cache only
+        // saves work, so it starts over empty).
+        let wanted = (self.names.len() * 2).next_power_of_two().min(CACHE_SLOTS);
+        if wanted > self.cache.len() {
+            self.cache = vec![NO_ID; wanted];
+        }
+        let slot = cache_slot(name, self.cache.len());
         if let Some(entry) = self.cache.get_mut(slot) {
             *entry = id.0;
         }
         id
     }
 
-    /// The id of a name from the hash table; adds the name if it is new.
+    /// The id of a name from the hash tables; adds the name if it is new.
     fn intern_hashed(&mut self, name: Str16<'_>) -> NameId {
         let key: &[u16] = match name {
             Str16::Wide(units) => units,
@@ -221,10 +293,16 @@ impl Interner {
                 &self.scratch
             }
         };
+        let base = well_known();
+        if base.may_have(key)
+            && let Some(&id) = base.ids.get(key)
+        {
+            return id;
+        }
         if let Some(&id) = self.ids.get(key) {
             return id;
         }
-        let id = NameId(self.names.len() as u32);
+        let id = NameId((base.names.len() + self.names.len()) as u32);
         self.ids.insert(key.into(), id);
         self.names.push(name.to_string16());
         id
@@ -238,18 +316,23 @@ impl Interner {
 
     /// The text of a name, or `None` for an id of another table.
     pub fn get(&self, id: NameId) -> Option<Str16<'_>> {
-        self.names.get(id.0 as usize).map(String16::as_str16)
+        let base = well_known();
+        let index = id.0 as usize;
+        match index.checked_sub(base.names.len()) {
+            None => base.names.get(index).map(String16::as_str16),
+            Some(own) => self.names.get(own).map(String16::as_str16),
+        }
     }
 
     /// The number of names.
     pub fn len(&self) -> usize {
-        self.names.len()
+        well_known().names.len() + self.names.len()
     }
 
     /// Whether the table has no names (never true: it has the well-known
     /// names).
     pub fn is_empty(&self) -> bool {
-        self.names.is_empty()
+        self.len() == 0
     }
 }
 

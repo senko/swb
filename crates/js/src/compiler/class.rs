@@ -249,12 +249,12 @@ impl FunctionCompiler<'_> {
     /// The index of a private name occurrence in the private environment of
     /// its class.
     pub(super) fn private_index(&self, ident: swb_js_syntax::Ident) -> CResult<u32> {
-        // Eval code inside a class sees the names of the caller's classes
-        // (M7 feature 3e).
-        let binding = self
-            .scopes
-            .private_name(ident.reference)
-            .ok_or_else(|| self.unsupported("private name in eval code"))?;
+        // Eval code inside a class sees the names of the caller's classes.
+        let Some(binding) = self.scopes.private_name(ident.reference) else {
+            return self
+                .caller_private_index(ident)
+                .ok_or(Self::internal("a private name without its class"));
+        };
         match self.scopes.binding(binding).storage {
             swb_js_syntax::Storage::Private(index) => Ok(index),
             _ => Err(Self::internal("a private name without its index")),
@@ -758,7 +758,7 @@ impl FunctionCompiler<'_> {
 
     /// Loads the `this` binding without the check of its initialization.
     fn load_this_raw(&mut self, id: RefId, dst: Reg) -> CResult<()> {
-        match self.reference(id).resolution {
+        match self.this_capture(id) {
             Resolution::Register(r) => self.emit(Insn::Move { dst, src: r }),
             Resolution::Cell(cell) => self.emit(Insn::LoadCell { dst, cell }),
             Resolution::Capture(index) => self.emit(Insn::LoadCapture { dst, index }),
@@ -769,13 +769,25 @@ impl FunctionCompiler<'_> {
 
     /// Initializes the `this` binding (`BindThisValue`, §9.1.1.3.1).
     fn store_this_raw(&mut self, id: RefId, src: Reg) -> CResult<()> {
-        match self.reference(id).resolution {
+        match self.this_capture(id) {
             Resolution::Register(r) => self.emit(Insn::Move { dst: r, src }),
             Resolution::Cell(cell) => self.emit(Insn::StoreCell { cell, src }),
             Resolution::Capture(index) => self.emit(Insn::StoreCapture { src, index }),
             _ => return Err(Self::internal("a this binding without storage")),
         };
         Ok(())
+    }
+
+    /// The storage of a `this` reference; in eval code, the capture of the
+    /// caller's binding.
+    fn this_capture(&self, id: RefId) -> Resolution {
+        match self.reference(id).resolution {
+            Resolution::Caller => self
+                .caller_access(id)
+                .and_then(|access| access.capture)
+                .map_or(Resolution::Unresolved, Resolution::Capture),
+            resolution => resolution,
+        }
     }
 
     /// A return of a derived constructor: the value goes into the result
@@ -957,6 +969,7 @@ impl FunctionCompiler<'_> {
     /// constructor's `this` binding (before `super(...)`).
     pub(super) fn is_derived_this(&self, reference: &swb_js_syntax::Reference) -> bool {
         let Some(binding) = reference.binding else {
+            // Eval code: `load_caller` checks the caller's binding.
             return false;
         };
         let binding = self.scopes.binding(binding);
@@ -1028,6 +1041,7 @@ pub(super) fn default_constructor(
         call_names: Vec::new(),
         handlers: Vec::new(),
         span: (class.span.start, class.span.end),
+        eval: None,
     }
 }
 

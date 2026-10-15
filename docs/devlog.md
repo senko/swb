@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 3e, `eval` and `with`
+
+- Plan: the last session of feature 3 is split in two; `new Function`,
+  Annex B.3.2.2 and mapped `arguments` move to 3f.
+- `js`: the global `eval` and direct `eval` calls (`vm/eval.rs`):
+  PerformEval with the early errors of the call site,
+  EvalDeclarationInstantiation (conflict checks, Annex B.3.2.3 and
+  B.3.4) in Rust before the eval code runs, the vars of sloppy eval
+  code in the caller's variable environment, eval code as a frame of
+  the interpreter loop. A function with a direct `eval` keeps a scope
+  description (`compiler/eval.rs`); its eval code captures the cells of
+  its caller like a closure; `this`, `new.target`, `super`,
+  `super(...)`, `arguments` and private names come from the caller.
+- `with` (`vm/env.rs`, `compiler/dynamic.rs`): object environment
+  records with `@@unscopables`, dynamic references with the analysis's
+  counts, the `with` object as `this` of calls; code outside their
+  reach is unchanged.
+- Exact completion values (`UpdateEmpty`); V8's stack frames of eval
+  code. `js-syntax`: functions with a direct `eval` capture every name
+  that eval code can reach; the well-known names live in one table per
+  process (a small eval took 12 µs, now 3 µs).
+- Review: no correctness bugs; about 200 probe cases equal to Node 22,
+  also in GC stress mode. Fixed: eval code with many functions that
+  call `eval`, inside a function with many names, cost functions x
+  names in one compile without a time or memory bound (500 functions
+  and 20,000 names ran 5 s past a 2 s deadline). The call now checks
+  the cost before the compile and throws the `RangeError` of the
+  capture limit past 2^20 captures; below it, a compile takes at most
+  0.6 s. A delta review found the same growth without a nested `eval`
+  (a cell that a function uses is captured by every function around
+  it: 250 levels and 60,000 names took 3.5 s); the capture plan itself
+  now stops at the limit. Documented: two deviations from V8 that
+  follow the spec. Backlog: closures charge no time per capture.
+- Runtime test262: 20,296 pass (was 18,550), the same in stress mode;
+  parse-only unchanged (41,882). 39 of 84 target scripts compile.
+  Next: 3f, `new Function`, Annex B.3.2.2 and mapped `arguments`.
+
 ## 2026-10-15: M7 feature 3d, private names
 
 - `js-syntax`: a class body with private names has one implicit

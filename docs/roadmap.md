@@ -789,8 +789,8 @@ failures with a reason. Features, in this order:
    10 at `new.target`; 3,000 more tests skip on the class features;
    370 fail because `eval` is not defined. In the built-ins groups of
    the subset, about 1,420 tests stop at `for`-`in` and 105 at
-   `new Function`. `yield*` (43 tests) belongs to feature 7. Five
-   sessions, in this order; each removes its constructs from
+   `new Function`. `yield*` (43 tests) belongs to feature 7. Six
+   sessions (five in the first plan), in this order; each removes its constructs from
    `compiler/support.rs`, adds its test262 features to the subset and
    updates the scores:
    - 3a. `for`-`in` and the object literal: `for`-`in` with
@@ -949,20 +949,55 @@ failures with a reason. Features, in this order:
      private method call costs about the same as a public one. Known
      failures: private names in `eval` code and the class tests that use
      `eval` (3e), `Proxy` (feature 9).
-   - 3e. `eval`, `with` and `new Function`: direct and indirect `eval`
-     (PerformEval, EvalDeclarationInstantiation with its conflict
-     checks, var declarations of sloppy eval code in the caller's
-     variable environment, strict eval code in its own), the dynamic
+   - 3e. `eval` and `with`: direct and indirect `eval` (PerformEval,
+     EvalDeclarationInstantiation with its conflict checks, var
+     declarations of sloppy eval code in the caller's variable
+     environment, strict eval code in its own), the dynamic
      environments of the scope analysis at run time (`with` object
      environments with `@@unscopables`, the var scopes of sloppy
-     functions with a direct `eval`), the `Function` constructor
-     (CreateDynamicFunction for normal functions; the generator and
-     `async` forms come with feature 7), the run-time checks of Annex
-     B.3.2.2 for global block functions and of B.3.2.3 in eval code;
-     the aliasing of the mapped `arguments` object and the parameters
-     (§10.4.4, also through `eval`). The global `eval` comes in this
-     session; until then, the
-     `Function` constructor throws "not supported yet".
+     functions with a direct `eval`), the run-time checks of Annex
+     B.3.2.3 in eval code, private names in eval code inside a class
+     (from 3d), `eval` in parameter expressions (from 3b). The global
+     `eval` comes in this session. Done 2026-10-15: all of the above.
+     PerformEval with the early errors of the call site,
+     EvalDeclarationInstantiation in Rust with its conflict checks and
+     Annex B.3.2.3 and B.3.4, the vars of sloppy eval code in the
+     caller's variable environment, `with` with `@@unscopables`, the
+     dynamic references of `with` bodies and of functions with a sloppy
+     direct `eval`, the caller's `this`, `new.target`, `super`,
+     `arguments` and private names in eval code, exact completion
+     values, V8's stack frames of eval code. A function with a direct
+     `eval` keeps a scope description; eval code captures the caller's
+     cells like a closure and runs as a frame (eval recursion ends at
+     the frame limit; compiled eval code is garbage after the call).
+     Code without `eval` or `with` compiles as before and runs as fast.
+     Runtime test262: 20,296 pass (was 18,550), the same in stress
+     mode; new groups `eval-code/direct`, `eval-code/indirect`,
+     `annexB/language/eval-code`, `annexB/language/function-code`,
+     `annexB/language/global-code`; `statements/with` 120 more.
+     Parse-only unchanged. 39 of 84 target scripts compile (unchanged);
+     3 use direct `eval`, 7 the `Function` constructor, and `with`
+     occurs only in `new Function` bodies. Known failures:
+     `statements/with` needs `parseInt` (feature 4); tests that use the
+     `Function` constructor (3f) or `async` (feature 7). Deviations from
+     V8 that follow the spec: an assignment or update in a `with` body
+     finds its record before the right side runs; `eval('var e')` in
+     `catch ({ e })` is allowed. Open: a caller's cell that a function
+     of eval code uses is captured by every function around it, and a
+     function that calls `eval` gets every name of the caller: a compile
+     past 2^20 such captures throws a `RangeError` (V8 has no limit),
+     below it a compile takes up to 0.6 s; the parse of eval code checks
+     8 bytes per code unit against the heap limit before the tree
+     exists, so dense code can allocate a few times that before the
+     exact check.
+   - 3f. `new Function`, Annex B.3.2.2 and mapped `arguments`: the
+     `Function` constructor (CreateDynamicFunction for normal
+     functions; the generator and `async` forms come with feature 7;
+     until 3f it throws "not supported yet"), the run-time checks of
+     Annex B.3.2.2 for global block functions, the aliasing of the
+     mapped `arguments` object and the parameters (§10.4.4.7, also
+     through `eval`). 3e was split in two on 2026-10-15: the remaining
+     work did not fit one session.
    Exit of feature 3: no construct of feature 1 except generators,
    `async`, modules, regular expressions and `BigInt` is rejected; each
    session records its known failures with the feature that removes
@@ -1073,6 +1108,20 @@ not repeated here; the open items of each spike session are in M6 step
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
   Annex B.3.4 that now rely on the shared scope.
+- Time charges of closures (M7 3e, older than M7): creating a closure
+  charges no step per capture. A loop that creates a closure with
+  60,000 captures ran 1.85 s past a 100 ms limit. Fix together with
+  the prototype-chain charges above (one step per 64 captures is
+  enough).
+- Global declarations (M7 3e): GlobalDeclarationInstantiation throws a
+  `SyntaxError` (V8's choice) where test262 wants a `TypeError`
+  (`global-code/script-decl-func-err-non-*.js`).
+- `null[key] op= v` converts the key before the null check (M7 3e,
+  `compound-assignment/S11.13.2_A7.*_T1`, about 30 tests).
+- The parse of scripts (`Runtime::compile`) has no heap check before
+  the tree exists; eval code has one since M7 3e.
+- Stack traces (M7 3e): V8 shows built-in frames (`at eval
+  (<anonymous>)`, `at Array.map`); swb does not (since 2c).
 - Stack traces (M7 3c): a static method of an anonymous class is
   `Function.m` in V8 and `m` in swb.
 - Termination (M7 3d): after a heap-limit termination, the runtime

@@ -297,6 +297,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::ArrayIterator(_)
         | ObjectKind::ForInIterator(_)
         | ObjectKind::PrivateEnvironment(_)
+        | ObjectKind::Environment(_)
         | ObjectKind::Ordinary
         | ObjectKind::Host { .. }
         | ObjectKind::SymbolWrapper(_) => "Object",

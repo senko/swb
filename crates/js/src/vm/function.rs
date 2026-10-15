@@ -303,6 +303,7 @@ impl Runtime {
                 self.define(function, key, prototype.into(), true, false, false)?;
             }
             CodeKind::Script
+            | CodeKind::Eval
             | CodeKind::Arrow
             | CodeKind::Method
             | CodeKind::ClassConstructor

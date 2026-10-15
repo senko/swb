@@ -276,7 +276,7 @@ fn direct_eval_makes_cells() {
          function 2 g parent 1 params [] registers 1
          ||scope 2 Function: z r0 Var",
         "f@9:=global eval@15:global~1 y@30:=cell0 g@42:=cell1 z@52:=r0 this@10:cell3 \
-         new.target@10:cell4 arguments@10:cell5 %env@10:global %env@15:cell2",
+         new.target@10:cell4 arguments@10:cell5 %env@10:global %env@10:global %env@15:cell2",
     );
 }
 
@@ -623,7 +623,8 @@ fn arrow_parameters_move_into_the_arrow() {
          function 2 parent 1 params [] registers 3 captures [this<-r0 new.target<-r1 arguments<-r2] eval
          ||scope 2 Function: z cell r1 Parameter, %env cell r2 DynamicEnv",
         "f@9:=global z@16:=cell1 eval@20:global~1 z@34:cell1 this@15:cap0 new.target@15:cap1 \
-         arguments@15:cap2~1 %env@15:global %env@20:cell2",
+         arguments@15:cap2~1 %env@15:global %env@15:global this@15:cap0 new.target@15:cap1 \
+         arguments@15:cap2~1 %env@20:cell2",
     );
     let script = analyze("function f() { (z = eval('x')) => z; }");
     let f = crate::ast::FunctionId::from_index(1);

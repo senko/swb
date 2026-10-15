@@ -880,6 +880,62 @@ where the first plan did not work:
   at the name for a plain read, at the operator for `=`, at the `.` for
   compound assignments, updates, destructuring and `for`-`of` targets; a
   method or accessor always at the name; a call at the `(`.
+- Dynamic environments (feature 3e): a record is an internal object
+  (`vm/env.rs`) that links to the next outer one: the record of a `with`
+  statement holds its binding object; the record of the vars that sloppy
+  direct eval code declares in a function is declarative, its bindings
+  are its own configurable properties (made at the entry of the var
+  scope, or of the parameter scope for an eval in the parameters). A
+  dynamic reference compiles to `FindBinding` over the analysis's count
+  of records, then the record's access or the static fallback; code
+  outside `with` bodies and eval reach is unchanged. An assignment finds
+  its record before it evaluates its right side, as §13.15.2 and test262
+  require (V8 looks again after the right side). In the same way, an
+  update `f++` in a `with` body whose `@@unscopables` getter deletes
+  `o.f` writes `NaN` to `o.f` (the spec); V8 leaves `o.f` undefined.
+- Direct eval (feature 3e): a function with a direct `eval` keeps a scope
+  description in its code (`EvalInfo`): its scopes with the cells of
+  their bindings, and the names of enclosing functions that it captured
+  for eval code (one analysis reference per visible name, resolved from
+  the scope around the function). At a call, the VM looks up the names
+  that the eval code uses (a binary search per scope; all names if the
+  eval code calls `eval` itself), and the eval code captures those cells
+  of the caller's frame like a closure; functions inside it capture them
+  from its frame. Unknown names are global with a dynamic check of the
+  caller's records. Eval code runs as a frame of the interpreter loop
+  (eval recursion ends at the frame limit) and its code object is
+  garbage after the frame. A caller's cell that a function of eval code
+  uses is also captured by every function around it, and eval code
+  whose functions call `eval` hands every name of the caller on to each
+  of them, so the captures can grow with depth x names. The plan of
+  these captures stops at the capture limit of a script (2^20 in all,
+  65,535 in one function) and the compile ends with its `RangeError`
+  (V8 has no such limit); for nested `eval`, the call checks the same
+  cost before the compile and charges and reserves it. One compile
+  stays below about 0.6 s.
+- `EvalDeclarationInstantiation` runs in Rust between the parse and the
+  run: the checks read the description (the scopes between the call and
+  the variable environment, with Annex B.3.4) and the global object; the
+  decisions of Annex B.3.2.3 go into the compile; the var bindings are
+  created after the compile, before any script code runs (so the order is
+  not observable); the eval code's prologue sets the function values.
+  The heap must have room for 8 bytes per code unit before the parse; the
+  exact size of the tree is checked after it.
+- Completion values (feature 3e): the statements whose value is
+  `UpdateEmpty(C, undefined)` set the completion register to `undefined`
+  when they start (and a `catch` block at its start); a `finally` block
+  saves and restores it.
+- Stack traces of eval code follow V8: its script name is its origin
+  (`eval at f (file:1:5), <anonymous>`, the outer origin for nested eval
+  code; at most 1,024 characters), its top level and its anonymous
+  functions are named `eval`.
+- The direct eval check is its own instruction (`CallEval`) whose slow
+  path is a function outside the interpreter loop: sharing the arm of
+  `Call` made call-heavy code 3 to 8 % slower.
+- The name table of the parser keeps the well-known names in one table
+  per process, and its cache starts at the size that the source needs,
+  so a parse of a short eval string costs no table setup (12 µs per
+  small eval before, 3 µs after).
 
 ## Consequences
 

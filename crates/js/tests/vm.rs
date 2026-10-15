@@ -3914,3 +3914,456 @@ const PRIVATE_EDGES: &[(&str, &str)] = &[
         "heritage-outer outerinner",
     ),
 ];
+
+/// Direct and indirect eval code (M7 feature 3e): the caller's bindings,
+/// the vars of sloppy eval code in the caller's variable environment, the
+/// checks of `EvalDeclarationInstantiation`, `this`, `new.target`, `super`
+/// and private names of the caller, completion values. Expected outputs
+/// from Node.js 22.
+#[test]
+fn direct_and_indirect_eval() {
+    check_cases(DIRECT_CASES);
+}
+
+/// `with` statements (M7 feature 3e): object environments with
+/// `@@unscopables`, assignments, calls with the object as `this`,
+/// closures, `typeof` and `delete`. Expected outputs from Node.js 22 (one
+/// difference, marked).
+#[test]
+fn with_statements() {
+    check_cases(WITH_CASES);
+}
+
+const DIRECT_CASES: &[(&str, &str)] = &[
+    (
+        "function f(a) { var x = 1; let y = 2; return eval('x + y + a'); } f(3)",
+        "=> 6",
+    ),
+    (
+        "function f() { eval('var z = 10'); return [z, typeof z, delete z, typeof z].join(); } f()",
+        "=> 10,number,true,undefined",
+    ),
+    (
+        "function f() { var x = 1; eval('x = 5'); return x; } f()",
+        "=> 5",
+    ),
+    (
+        "function f() { return [eval('this === globalThis'), eval('typeof arguments'), eval('arguments.length')].join(); } f(1, 2)",
+        "=> true,object,2",
+    ),
+    (
+        "function f() { eval('function h() { return 2; }'); return h(); } f()",
+        "=> 2",
+    ),
+    (
+        "function f(a) { var x = 4; return () => eval('a + x'); } f(3)()",
+        "=> 7",
+    ),
+    (
+        "[eval(42), eval(), typeof eval({}), eval('1 + 1')].join()",
+        "=> 42,,object,2",
+    ),
+    (
+        "var x = 'global'; var ev = eval; function k() { var x = 'local'; return [eval('x'), ev('x'), (0, eval)('x'), eval?.('x'), (eval)('x')].join(); } k()",
+        "=> local,global,global,global,local",
+    ),
+    (
+        "function s() { 'use strict'; eval('var q = 1'); return typeof q; } s()",
+        "=> undefined",
+    ),
+    (
+        "function t() { eval('\"use strict\"; var q = 1'); return typeof q; } t()",
+        "=> undefined",
+    ),
+    (
+        "eval('var gv = 7'); [gv, delete gv, typeof gv].join()",
+        "=> 7,true,undefined",
+    ),
+    (
+        "try { eval('let'); } catch (e) { print(e.name, e.message); } try { eval('}'); } catch (e) { print(e.name, e.message); }",
+        "ReferenceError let is not defined\nSyntaxError Unexpected token '}'",
+    ),
+    (
+        "function m() { { eval('var w2 = 2'); } return w2; } m()",
+        "=> 2",
+    ),
+    (
+        "try { (function () { let w = 1; eval('var w = 2'); })(); } catch (e) { print(e.name, e.message); }",
+        "SyntaxError Identifier 'w' has already been declared",
+    ),
+    (
+        "try { (function () { { let w = 1; eval('var w = 2'); } })(); } catch (e) { print(e.name, e.message); }",
+        "SyntaxError Identifier 'w' has already been declared",
+    ),
+    (
+        "(function () { try { throw 0; } catch (e) { eval('var e = 5'); print(e); } print(e); })()",
+        "5\nundefined",
+    ),
+    (
+        "var o = { m() { return eval('super.toString === Object.prototype.toString'); } }; o.m()",
+        "=> true",
+    ),
+    (
+        "class A { #p = 3; get() { return eval('this.#p + (#p in this ? 1 : 0)'); } } new A().get()",
+        "=> 4",
+    ),
+    (
+        "class B extends Object { constructor() { eval('super()'); this.q = 1; } } new B().q",
+        "=> 1",
+    ),
+    (
+        "class B2 extends Object { constructor() { try { eval('this'); } catch (e) { print(e.name); } super(); } } new B2(); 'ok'",
+        "ReferenceError\n=> ok",
+    ),
+    (
+        "function nt() { return eval('new.target'); } [new nt() === nt, nt() === undefined].join()",
+        "=> true,true",
+    ),
+    (
+        "function nt() { return (() => eval('new.target'))(); } [nt() === undefined, new nt() !== undefined].join()",
+        "=> true,true",
+    ),
+    (
+        "(function () { return eval('var a1 = 1; a1 + 1'); })()",
+        "=> 2",
+    ),
+    (
+        "(function () { eval('{ function bf() { return 1; } }'); return typeof bf; })()",
+        "=> function",
+    ),
+    (
+        "(function () { let bf2; eval('{ function bf2() { return 1; } }'); return typeof bf2; })()",
+        "=> undefined",
+    ),
+    (
+        "(function () { try { throw 0; } catch (bf3) { eval('{ function bf3() {} }'); } return typeof bf3; })()",
+        "=> function",
+    ),
+    (
+        "function cnt() { var n = 0; for (var i = 0; i < 3; i++) eval('n++'); return n; } cnt()",
+        "=> 3",
+    ),
+    ("eval('eval(\"1 + 2\")')", "=> 3"),
+    (
+        "function nest() { var a = 1; return eval('eval(\"a + 1\")'); } nest()",
+        "=> 2",
+    ),
+    (
+        "function nest2() { var a = 1; eval('var b = a + 1; eval(\"var c = b + 1\")'); return [b, c].join(); } nest2()",
+        "=> 2,3",
+    ),
+    (
+        "function nest3() { eval('let l = 1; eval(\"var l2 = l + 1\")'); return l2; } nest3()",
+        "=> 2",
+    ),
+    (
+        "function nest4() { try { eval('let l = 1; eval(\"var l = 2\")'); } catch (e) { return e.name; } } nest4()",
+        "=> SyntaxError",
+    ),
+    (
+        "function f1() { var a = 1; eval('var g = function () { return a + b; }; var b = 2;'); return g(); } f1()",
+        "=> 3",
+    ),
+    (
+        "function f2() { var fns = []; for (let i = 0; i < 3; i++) eval('fns.push(() => i)'); return fns.map(f => f()).join(); } f2()",
+        "=> 0,1,2",
+    ),
+    (
+        "function* gen() { var x = 1; yield eval('x + 1'); eval('var y = 5'); yield y; } [...gen()].join()",
+        "=> 2,5",
+    ),
+    (
+        "class C { x = eval('this.y = 3, this'); y = 1; } new C().y",
+        "=> 1",
+    ),
+    (
+        "try { eval('class D { x = eval(\"arguments\") }; new D()'); } catch (e) { print(e.name, e.message); }",
+        "SyntaxError 'arguments' is not allowed in class field initializer or static initialization block",
+    ),
+    (
+        "var obj = { m() { return (() => eval('super.k'))(); } }; Object.setPrototypeOf(obj, { k: 'proto' }); obj.m()",
+        "=> proto",
+    ),
+    ("eval('typeof undeclaredThing')", "=> undefined"),
+    (
+        "function p1(a, b = eval('var a = 9')) {} try { p1(1); } catch (e) { print(e.name, e.message); }",
+        "SyntaxError Identifier 'a' has already been declared",
+    ),
+    (
+        "function p2(a, b = () => a) { eval('var a = 7'); return [a, b()].join(); } p2(1)",
+        "=> 7,1",
+    ),
+    (
+        "var x = 'outside'; function p3(_ = () => x, __ = eval('var x = \"inside\"')) { return _(); } p3()",
+        "=> inside",
+    ),
+    (
+        "function st() { 'use strict'; return eval('this'); } st()",
+        "",
+    ),
+    (
+        "var ie = eval; [ie('\"use strict\"; var sx = 1; typeof sx'), typeof sx, ie('this') === globalThis].join()",
+        "=> number,undefined,true",
+    ),
+    (
+        "function shadowArgs() { eval('var arguments = 5'); return arguments; } shadowArgs()",
+        "=> 5",
+    ),
+    (
+        "function blockFn() { eval('if (true) { function bq() { return 2; } }'); return bq(); } blockFn()",
+        "=> 2",
+    ),
+    (
+        "var outerV = 1; function ov() { var r = eval('outerV'); eval('var outerV = 2'); return [r, outerV].join(); } [ov(), outerV].join()",
+        "=> 1,2,1",
+    ),
+    (
+        "function ev2() { return eval('let z = 1; const w = 2; z + w'); } ev2()",
+        "=> 3",
+    ),
+    (
+        "function tdz() { try { eval('zz'); } catch (e) { print(e.name, e.message); } let zz = 1; } tdz()",
+        "ReferenceError Cannot access 'zz' before initialization",
+    ),
+    (
+        "function constAssign() { const c = 1; try { eval('c = 2'); } catch (e) { print(e.name, e.message); } } constAssign()",
+        "TypeError Assignment to constant variable.",
+    ),
+    (
+        "var named = function nm() { eval('nm = 1'); return typeof nm; }; named()",
+        "=> function",
+    ),
+    (
+        "var named = function nm() { 'use strict'; try { eval('nm = 1'); } catch (e) { return e.name; } }; named()",
+        "=> TypeError",
+    ),
+    (
+        "function del() { var v = 1; eval('var w = 1'); return [delete v, delete w].join(); } del()",
+        "=> false,true",
+    ),
+    (
+        "[eval('var e1 = 1; e1;'), eval('/*c*/'), eval('')].join()",
+        "=> 1,,",
+    ),
+    (
+        "function recurse(n) { return n ? eval('recurse(n - 1)') : 'done'; } recurse(50)",
+        "=> done",
+    ),
+    (
+        "with ({ ev: eval }) { ev('typeof Object'); }",
+        "=> function",
+    ),
+    (
+        "with ({ eval: function (s) { return 'shadowed ' + s; } }) { eval('1'); }",
+        "=> shadowed 1",
+    ),
+    (
+        "function f() { eval('var fx = 1'); return function () { return fx; }; } f()()",
+        "=> 1",
+    ),
+    (
+        "function f() { var g = function () { return typeof late; }; var before = g(); eval('var late = 1'); return [before, g()].join(); } f()",
+        "=> undefined,number",
+    ),
+    (
+        "function f() { eval('var a = 1'); { let a = 2; eval('a = 3'); print(a); } return a; } f()",
+        "3\n=> 1",
+    ),
+    ("var x = 1; { let x = 2; eval('var y = x'); } y", "=> 2"),
+    (
+        "try { eval('let gl = 1'); print(typeof gl); } catch (e) { print(e.name); }",
+        "undefined",
+    ),
+    (
+        "let lex = 1; try { eval('var lex = 2'); } catch (e) { print(e.name, e.message); }",
+        "SyntaxError Identifier 'lex' has already been declared",
+    ),
+    (
+        "function f() { eval('var fn1 = 1; function fn1() {}'); return typeof fn1; } f()",
+        "=> number",
+    ),
+    (
+        "eval('function gfn() { return 3; }'); [gfn(), Object.getOwnPropertyDescriptor(globalThis, 'gfn').configurable].join()",
+        "=> 3,true",
+    ),
+    (
+        "Object.defineProperty(globalThis, 'nc', { value: 1, writable: false, configurable: false }); try { eval('function nc() {}'); } catch (e) { print(e.name); }",
+        "TypeError",
+    ),
+    (
+        "[eval('1; if (true) {}'), eval('1; {}'), eval('1; do { 2; break; } while(0)'), eval('1; try { 2 } finally { 3 }')].join()",
+        "=> ,1,2,2",
+    ),
+    (
+        "[eval('1; l: try { 2; break l; } finally { 3 }'), eval('1; try { throw 0 } catch (e) {}'), eval('1; switch (1) { case 1: }')].join()",
+        "=> 2,,",
+    ),
+    (
+        "[eval('1; var x;'), eval('1; function ff(){}'), eval('1; class CC {}'), eval('1; let qq = 2;'), eval('1; with({}) {}')].join()",
+        "=> 1,1,1,1,",
+    ),
+    (
+        "[eval('1; l: try { break l; } finally { 3 }'), eval('1; do { 2; if (true) break; } while(0)'), eval('1; do { 2; { break; } } while(0)')].join()",
+        "=> ,,2",
+    ),
+    (
+        "[eval('2; L: try { 2 } finally { 3; break L; }'), eval('1; if (false) 2;'), eval('5; while (false);'), eval('1; for (var i = 0; i < 2; i++) { if (i) {} else { 7 } }')].join()",
+        "=> 3,,,",
+    ),
+    (
+        "[eval('1; for (var k in {a: 1}) 2;'), eval('3; for (var k in {}) 2;'), eval('1; for (var v of [1]) {}')].join()",
+        "=> 2,,",
+    ),
+    ("1; if (true) {}", ""),
+    ("1; try { 2 } finally { 3 }", "=> 2"),
+];
+const WITH_CASES: &[(&str, &str)] = &[
+    (
+        "try { with (null) {} } catch (e) { print(e.constructor.name, e.message); }",
+        "TypeError Cannot convert undefined or null to object",
+    ),
+    (
+        "var o = { x: 1, f() { return this === o; } }; with (o) { print(x, f()); x = 2; } o.x",
+        "1 true\n=> 2",
+    ),
+    (
+        "var o = {}; with (o) { var y = 3; } [typeof y, o.y].join()",
+        "=> number,",
+    ),
+    ("with ({}) { z = 5 } z", "=> 5"),
+    (
+        "var u = { a: 1, [Symbol.unscopables]: { a: true } }; var a = 'outer'; with (u) a",
+        "=> outer",
+    ),
+    (
+        "var log = []; var u = { a: 1, b: 2 }; Object.defineProperty(u, Symbol.unscopables, { get() { log.push('u'); return { b: true }; } }); var a = 'oa', b = 'ob'; with (u) { print(a, b); } log.join()",
+        "1 ob\n=> u,u",
+    ),
+    (
+        "function g() { with ({ q: 1 }) { return function () { return q; }; } } g()()",
+        "=> 1",
+    ),
+    ("with ({ x: 1 }) { delete x; typeof x; }", "=> undefined"),
+    (
+        "var cnt = 0; var p = { get z() { cnt++; return 7; } }; with (p) { z; z; } cnt",
+        "=> 2",
+    ),
+    // The reference is resolved before the right side (§13.15.2, test262
+    // S11.13.1_A5_T1 and S11.13.2_A5.*): the write goes to the object
+    // although the right side deleted the property. V8 writes the global.
+    (
+        "var scope = { x: 1 }; var x = 0; with (scope) { x = (delete scope.x, 2); } [scope.x, x].join()",
+        "=> 2,0",
+    ),
+    (
+        "var q = { z: 1 }; with (q) { z += (delete q.z, 5); } q.z",
+        "=> 6",
+    ),
+    ("var r = { n: 1 }; with (r) { n++; ++n; } r.n", "=> 3"),
+    (
+        "with ({ f() { return this; } }) { [typeof f(), f().f === f].join(); }",
+        "=> object,true",
+    ),
+    (
+        "function* gw() { with ({ v: 1 }) { yield v; v = 2; yield v; } } [...gw()].join()",
+        "=> 1,2",
+    ),
+    (
+        "var closures = []; for (var i = 0; i < 3; i++) with ({ i: i * 10 }) closures.push(() => i); closures.map(c => c()).join()",
+        "=> 0,10,20",
+    ),
+    (
+        "function wv() { var w = { k: 1 }; with (w) { var k = 2; var m = 3; } return [w.k, k, m].join(); } wv()",
+        "=> 2,,3",
+    ),
+    (
+        "var chain = Object.create({ inherited: 'yes' }); with (chain) { print(inherited); inherited = 'no'; } [chain.inherited, Object.getPrototypeOf(chain).inherited].join()",
+        "yes\n=> no,yes",
+    ),
+    (
+        "var frozen = Object.freeze({ fz: 1 }); with (frozen) { fz = 2; } frozen.fz",
+        "=> 1",
+    ),
+    (
+        "function strictInner() { with ({ s: 1 }) { return (function () { 'use strict'; return s; })(); } } strictInner()",
+        "=> 1",
+    ),
+    (
+        "with ({ x1: 1 }) { var fd = function () { return x1; }; } fd()",
+        "=> 1",
+    ),
+    (
+        "with ({}) { function blockFn() { return 'bf'; } } blockFn()",
+        "=> bf",
+    ),
+    (
+        "var count = 0; var getterObj = { get g() { count++; return 5; } }; with (getterObj) { g; typeof g; g = 1; } count",
+        "=> 2",
+    ),
+    ("with ({ length: 3 }) { length; }", "=> 3"),
+    (
+        "with ('str') { [length, typeof valueOf].join(); }",
+        "=> 3,function",
+    ),
+    (
+        "try { with ({}) { notThere; } } catch (e) { print(e.name, e.message); }",
+        "ReferenceError notThere is not defined",
+    ),
+    ("with ({}) { notThere2 = 1; } typeof notThere2", "=> number"),
+    ("label: with ({}) { break label; } 'after'", "=> after"),
+    (
+        "[eval('with ({}) 5'), eval('with ({}) {}'), eval('1; with ({}) {}')].join()",
+        "=> 5,,",
+    ),
+    (
+        "var w = { m: 1 }; with (w) { with ({ m: 2 }) { print(m); } print(m); } m = 3; [w.m, typeof m].join()",
+        "2\n1\n=> 1,number",
+    ),
+    (
+        "function outer() { var v = 'local'; with ({}) { return (function () { return v; })(); } } outer()",
+        "=> local",
+    ),
+    (
+        "function outer() { var v = 'local'; with ({ v: 'obj' }) { return [v, (() => v)(), typeof v].join(); } } outer()",
+        "=> obj,obj,string",
+    ),
+    (
+        "var obj = { arguments: 'objargs' }; function fa() { with (obj) { return arguments; } } fa()",
+        "=> objargs",
+    ),
+    (
+        "var o2 = { x: 1 }; function sw(k) { with (o2) { switch (k) { case 1: return x; default: return 'd'; } } } [sw(1), sw(2)].join()",
+        "=> 1,d",
+    ),
+    (
+        "var t = { a: 1 }; with (t) { for (var k in { a: 0, b: 0 }) { } } [typeof k, t.k].join()",
+        "=> string,",
+    ),
+    (
+        "var t2 = { item: 0 }; with (t2) { for (item of [1, 2]) {} } [t2.item, typeof item].join()",
+        "=> 2,undefined",
+    ),
+    ("var t3 = { d: 0 }; with (t3) { [d] = [9]; } t3.d", "=> 9"),
+    (
+        "var t4 = {}; with (t4) { try { throw 1; } catch (e) { var caught = e; } } [caught, t4.caught].join()",
+        "=> 1,",
+    ),
+    ("with ({ ['x' + 'y']: 7 }) { xy * 2; }", "=> 14"),
+    (
+        "var o3 = { f: function () { return typeof this; } }; with (o3) { f(); }",
+        "=> object",
+    ),
+    (
+        "var o4 = {}; with (o4) { o4.late = 'late'; late; }",
+        "=> late",
+    ),
+    (
+        "var o5 = { v: 1 }; with (o5) { var fnv = () => v; } o5.v = 2; fnv()",
+        "=> 2",
+    ),
+    (
+        "var o6 = Object.create(null); o6.n = 'n'; with (o6) n",
+        "=> n",
+    ),
+    ("with ({ undefined: 'shadow' }) { undefined; }", "=> shadow"),
+];

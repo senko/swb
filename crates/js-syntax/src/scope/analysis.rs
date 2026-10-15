@@ -87,6 +87,7 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     dynamic::add_eval_references(ast, tree);
     dynamic::create_dynamic_envs(ast, tree);
     add_private_environments(tree);
+    dynamic::add_eval_outer_references(ast, tree, limits.total_captures)?;
     let top_strict = ast
         .function_ids()
         .next()
@@ -211,11 +212,12 @@ impl Resolver {
             if reference.dead {
                 continue;
             }
-            let cache_key = key(reference.scope, reference.name);
+            let start = tree.resolve_start(RefId::from_index(index));
+            let cache_key = key(start, reference.name);
             let (resolved, count) = if let Some(&cached) = cache.get(&cache_key) {
                 cached
             } else {
-                let found = resolve(ast, tree, reference.scope, reference.name);
+                let found = resolve(ast, tree, start, reference.name);
                 cache.insert(cache_key, found);
                 found
             };

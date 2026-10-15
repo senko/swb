@@ -12,8 +12,13 @@
 //! properties. The scan for the method name looks at a bounded number of
 //! properties.
 //!
+//! Eval code shows its origin as the script name (`eval at f (file:1:5),
+//! <anonymous>:1:1`), and its top level and its anonymous functions are
+//! named `eval`, as in V8.
+//!
 //! Deviations from Chromium: no lines for built-in functions
-//! (`at Array.forEach (<anonymous>)`), eval code and `async` frames; the
+//! (`at Array.forEach (<anonymous>)`, `at eval (<anonymous>)` for the
+//! global `eval` function) and `async` frames; the
 //! name of a function that a V8 heuristic infers from an assignment to a
 //! member (`o.p = function () {}`) is only the compiler's name.
 
@@ -102,10 +107,13 @@ impl Runtime {
         } else {
             self.method_call_name(frame.this, function, &name)
         };
-        if described.is_empty() {
-            location
-        } else {
+        if !described.is_empty() {
             format!("{described} ({location})")
+        } else if frame.compiled.source.origin.is_some() {
+            // V8 names the anonymous functions of eval code `eval`.
+            format!("eval ({location})")
+        } else {
+            location
         }
     }
 
@@ -120,7 +128,7 @@ impl Runtime {
 
     /// The name in the code of a function (the `name` property does not
     /// count), else its debug name.
-    fn code_name(&self, code: &FunctionCode) -> String {
+    pub(crate) fn code_name(&self, code: &FunctionCode) -> String {
         let name = self.clipped_text(code.name);
         if name.is_empty() {
             self.clipped_text(code.debug_name)
@@ -266,7 +274,7 @@ fn is_class(code: &FunctionCode) -> bool {
 }
 
 /// `file:line:column` of an offset in a code's script.
-fn frame_location(code: &FunctionCode, offset: Option<u32>) -> String {
+pub(crate) fn frame_location(code: &FunctionCode, offset: Option<u32>) -> String {
     let name: &str = &code.source.name;
     let name = if name.is_empty() { "<anonymous>" } else { name };
     let name: String = name.chars().take(1_024).collect();

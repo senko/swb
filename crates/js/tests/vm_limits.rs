@@ -253,7 +253,6 @@ fn constructs_outside_the_subset_do_not_compile() {
             ("({ 1n: 2 });", "BigInt literal"),
             ("var { 1n: a } = {};", "BigInt literal"),
             ("function* g() { yield* a; }", "yield*"),
-            ("with ({}) {}", "with"),
             // The forms of feature 1b that are not in feature 3d.
             ("class C { static async m() {} }", "async function"),
             ("class C { async #m() {} }", "async function"),

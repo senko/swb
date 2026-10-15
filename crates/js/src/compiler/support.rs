@@ -3,8 +3,8 @@
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
-//! M7 feature 3d, classes with private names and `super` compile; `async`
-//! (feature 7) does not.
+//! M7 feature 3d, classes with private names and `super` compile, since
+//! 3e `with` and eval code; `async` (feature 7) and module code do not.
 
 use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 
@@ -24,7 +24,6 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
 pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
         StmtKind::ForOf { is_await: true, .. } => "for await",
-        StmtKind::With { .. } => "with",
         StmtKind::Import
         | StmtKind::ExportDeclaration(_)
         | StmtKind::ExportDefault { .. }

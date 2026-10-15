@@ -9,6 +9,11 @@ use crate::vm::convert::exponentiate;
 use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
+    let eval = rt.new_builtin(realm, "eval", 1, crate::vm::eval_function, false)?;
+    super::global(rt, realm, "eval", eval.into())?;
+    if let Some(record) = rt.vm.realms.get_mut(realm as usize) {
+        record.set_intrinsic(Intrinsic::Eval, eval);
+    }
     let is_nan = rt.new_builtin(realm, "isNaN", 1, is_nan, false)?;
     super::global(rt, realm, "isNaN", is_nan.into())?;
     let is_finite = rt.new_builtin(realm, "isFinite", 1, is_finite, false)?;

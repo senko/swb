@@ -21,6 +21,8 @@
 
 mod class;
 mod debug_names;
+mod dynamic;
+pub(crate) mod eval;
 mod expr;
 mod function;
 mod iterate;
@@ -109,6 +111,8 @@ pub(crate) struct Builder {
     pub(crate) handlers: Vec<crate::bytecode::Handler>,
     /// The range of the function in the source.
     pub(crate) span: (u32, u32),
+    /// The scope description of a function with a direct `eval`.
+    pub(crate) eval: Option<eval::EvalSpec>,
 }
 
 /// State shared by the functions of one script: the names that
@@ -132,12 +136,20 @@ pub(crate) struct Session {
     /// The private name bindings that an expression uses (`o.#x`,
     /// `#x in o`), for V8's name of an anonymous class.
     pub(crate) used_private_names: std::collections::HashSet<BindingId>,
+    /// The scopes of each function with a direct `eval`.
+    pub(crate) eval_scopes: HashMap<FunctionId, Vec<swb_js_syntax::ScopeId>>,
+    /// Eval code: the captures of the caller's cells.
+    pub(crate) caller: Option<eval::CallerPlan>,
 }
 
 impl Session {
     /// The session of a script: the classes of its class functions.
-    fn new(script: &Script) -> Self {
-        let mut session = Session::default();
+    fn new(script: &Script, input: Option<eval::EvalInput>) -> Self {
+        let mut session = Session {
+            eval_scopes: Session::eval_scopes(script),
+            caller: input.map(|input| eval::CallerPlan::new(script, input)),
+            ..Session::default()
+        };
         for id in script.ast.class_ids() {
             let class = script.ast.class(id);
             for function in [class.constructor, class.instance_init, class.static_init]
@@ -223,13 +235,41 @@ pub(crate) fn compile_script(
     name: &str,
     budget: &mut RecursionBudget,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
-    let initial = *budget;
-    let text = source;
-    let source = Rc::new(crate::bytecode::Source::new(
+    let shared = Rc::new(crate::bytecode::Source::new(
         source.to_string16(),
         Rc::from(name),
     ));
-    let result = compile_functions(script, text, budget)
+    compile_code(heap, script, (source, shared), budget, None)
+}
+
+/// Compiles eval code (§19.2.1.1 `PerformEval`): its top-level function
+/// is eval code (`CodeKind::Eval`); direct eval code reaches the bindings
+/// of its caller through `input.caller` (`compiler/eval.rs`). `origin`
+/// names the call in stack traces. Like [`compile_script`], the code
+/// object is not rooted.
+pub(crate) fn compile_eval(
+    heap: &mut Heap,
+    script: &Script,
+    (source, origin): (Str16<'_>, Rc<str>),
+    budget: &mut RecursionBudget,
+    input: eval::EvalInput,
+) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
+    let shared = Rc::new(crate::bytecode::Source::eval_code(
+        source.to_string16(),
+        origin,
+    ));
+    compile_code(heap, script, (source, shared), budget, Some(input))
+}
+
+fn compile_code(
+    heap: &mut Heap,
+    script: &Script,
+    (text, source): (Str16<'_>, Rc<crate::bytecode::Source>),
+    budget: &mut RecursionBudget,
+    input: Option<eval::EvalInput>,
+) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
+    let initial = *budget;
+    let result = compile_functions(script, text, budget, input)
         .and_then(|(builders, session)| materialize(heap, script, builders, session, &source));
     *budget = initial;
     result
@@ -240,6 +280,7 @@ fn compile_functions<'a>(
     script: &'a Script,
     text: Str16<'a>,
     budget: &mut RecursionBudget,
+    input: Option<eval::EvalInput>,
 ) -> CResult<(Vec<Option<Builder>>, Session)> {
     if let Some((offset, construct)) = support::first_unsupported(script) {
         return Err(CompileError::Script {
@@ -248,7 +289,14 @@ fn compile_functions<'a>(
             offset,
         });
     }
-    let mut session = Session::new(script);
+    let mut session = Session::new(script, input);
+    if session.caller.as_ref().is_some_and(|plan| plan.overflow) {
+        return Err(CompileError::Script {
+            kind: ThrowKind::RangeError,
+            message: swb_js_syntax::messages::TOO_MANY_CAPTURES.into(),
+            offset: 0,
+        });
+    }
     let mut builders = Vec::with_capacity(script.ast.function_count());
     for id in script.ast.function_ids() {
         let builder =
@@ -437,6 +485,10 @@ fn finish_code(
         call_names: builder.call_names.into(),
         source: Rc::clone(source),
         span: builder.span,
+        eval: match builder.eval {
+            Some(spec) => Some(Box::new(eval::materialize_eval(heap, spec)?)),
+            None => None,
+        },
     };
     if let Err(failure) = verify(&code) {
         log::warn!(

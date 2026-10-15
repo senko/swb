@@ -30,7 +30,8 @@ use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Symbol, Value};
 use crate::vm::{
-    BoundFunction, Closure, ErrorData, GeneratorState, NativeFunction, PrivateEnvironment,
+    BoundFunction, Closure, EnvRecord, ErrorData, GeneratorState, NativeFunction,
+    PrivateEnvironment,
 };
 
 /// The kind of an object: which internal methods it has (§10.1, §10.4).
@@ -93,6 +94,10 @@ pub enum ObjectKind {
     /// The private environment of a class evaluation (§9.2): internal,
     /// only the class's `%private` binding and its functions hold it.
     PrivateEnvironment(Box<PrivateEnvironment>),
+    /// A dynamic environment record (`vm/env.rs`): the object record of a
+    /// `with` statement or the record of the vars of sloppy direct eval
+    /// code. Internal: only bindings `%env` hold it.
+    Environment(Box<EnvRecord>),
 }
 
 /// The state of a `for`-`in` loop: the object and the keys that the loop
@@ -150,6 +155,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::Arguments => "Arguments",
             ObjectKind::ForInIterator(_) => "ForInIterator",
             ObjectKind::PrivateEnvironment(_) => "PrivateEnvironment",
+            ObjectKind::Environment(_) => "Environment",
         };
         f.write_str(name)
     }
@@ -193,6 +199,7 @@ impl ObjectKind {
                 }
             }
             ObjectKind::PrivateEnvironment(env) => env.trace(tracer),
+            ObjectKind::Environment(env) => env.trace(tracer),
         }
     }
 
@@ -209,6 +216,7 @@ impl ObjectKind {
                 size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()
             }
             ObjectKind::PrivateEnvironment(env) => env.heap_size(),
+            ObjectKind::Environment(_) => size_of::<EnvRecord>(),
             _ => 0,
         }
     }

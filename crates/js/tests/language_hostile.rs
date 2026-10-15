@@ -1,7 +1,8 @@
 //! Hostile cases for the language forms of M7 feature 3a: `for`-`in` over
 //! huge objects, long prototype chains and long String objects, object
 //! spread of huge objects, deep optional chains and tagged templates in
-//! hot loops. A case ends with a result, an error or a termination at the
+//! hot loops; and of the later sessions of feature 3 (classes, private
+//! names, `eval` and `with`). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -770,4 +771,259 @@ fn stress_mode_agrees_on_private_names() {
     let expected = "2struetrue 50 2struetrue";
     assert_eq!(run(source, true), expected);
     assert_eq!(run(source, false), expected);
+}
+
+// --- `eval` and `with` (M7 feature 3e) ---
+
+#[test]
+fn eval_recursion_ends_at_the_frame_limit() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Eval code runs as frames of the interpreter loop: the recursion
+        // ends with the `RangeError` of the frame limit, without Rust
+        // recursion (the parse and the compile give their budget back).
+        let cases = [
+            "function f() { eval('f()'); } f();",
+            "function g(n) { return eval('g(n + 1)'); } g(0);",
+            "function h() { return eval('eval(\"h()\")'); } h();",
+            "var ie = eval; function k() { ie('k()'); } k();",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+            assert_eq!(
+                result.map_err(|e| e.to_string()),
+                Err("Uncaught RangeError: Maximum call stack size exceeded".to_owned()),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(20), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        assert_eq!(run_in(&mut rt, "eval('1 + 1')"), "=> 2");
+    });
+}
+
+#[test]
+fn compiled_eval_code_is_garbage_after_the_call() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 32 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        // 100,000 different strings in global code and in a function (the
+        // vars of the function's calls stay in its record until it
+        // returns; the code of each call is garbage).
+        assert_eq!(
+            rt.eval("var s = 0; for (var i = 0; i < 100000; i++) s += eval('(' + i + ' + 1)'); s"),
+            Ok(Value::Double(5_000_050_000.0))
+        );
+        assert_eq!(
+            rt.eval(
+                "function f() { var t = 0; for (var i = 0; i < 100000; i++) t += eval('var v' + i + ' = ' + i + '; v' + i); return t; } f()"
+            ),
+            Ok(Value::Double(4_999_950_000.0))
+        );
+        rt.collect();
+        let live = rt.heap().stats().live_bytes;
+        assert!(live < 8 << 20, "{live}");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn eval_of_huge_strings_stays_under_the_heap_limit() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 256 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        // 16 million code units of statements or of an array literal: the
+        // parse tree does not fit, so the script ends at the heap limit
+        // before the tree exists; a string literal of 16 million units
+        // fits.
+        let cases = [
+            (
+                "var body = ' y;'; while (body.length < 16000000) body += body; eval('var y = 1;' + body);",
+                false,
+            ),
+            (
+                "var arr = '1,'; while (arr.length < 16000000) arr += arr; eval('[' + arr + ']').length;",
+                false,
+            ),
+            (
+                "var big = 'x'; while (big.length < 16000000) big += big; eval('\"' + big + '\"').length;",
+                true,
+            ),
+        ];
+        for (source, fits) in cases {
+            let mut rt = runtime_with(config);
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(10));
+            if fits {
+                assert_eq!(result, Ok(Value::Int(16_777_216)), "{source}");
+            } else {
+                assert_eq!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::HeapLimit)),
+                    "{source}"
+                );
+            }
+            assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            assert_eq!(rt.eval("eval('2 * 3')"), Ok(Value::Int(6)));
+        }
+    });
+}
+
+#[test]
+fn with_lookups_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // A chain of 100,000 objects with getters: every lookup walks the
+        // chain for the name (a time step per object) and calls the getters
+        // that it finds.
+        let build = "var o = { bottom: 1 }; Object.defineProperty(o, 'g', { get: function () { return 1; } }); \
+                     for (var i = 0; i < 100000; i++) o = Object.create(o, { ['g' + i]: { get: function () { return i; } } }); undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        let cases = [
+            "var n = 0; with (o) { while (true) { n += g; typeof missing; } }",
+            "with (o) { while (true) { typeof missing; bottom = bottom; } }",
+            "function f() { with (o) { return () => { while (true) g0; }; } } f()();",
+            "while (true) { eval('missing'.length + ''); }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert_eq!(
+                result,
+                Err(ScriptError::Terminated(Termination::TimeLimit)),
+                "{source}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn deep_with_nesting_is_bounded() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // 10,000 nested `with` statements in one source exceed the
+        // recursion budget of the parser (a `RangeError`, as in V8); 1,000
+        // work, and so do 5,000 records on the frames of a recursion.
+        let nest = |n: usize| -> String {
+            let mut text = String::new();
+            for i in 0..n {
+                text += "with ({ k";
+                text += &i.to_string();
+                text += ": 0 }) ";
+            }
+            text
+        };
+        let deep = nest(10_000) + "k0;";
+        let Err(ScriptError::Compile { kind, .. }) = rt.eval(&deep) else {
+            panic!("10,000 nested with statements compiled");
+        };
+        assert_eq!(kind, swb_js::ThrowKind::RangeError);
+        let ok = nest(1_000) + "k0 + k999 + typeof nothing;";
+        assert_eq!(run_in(&mut rt, &ok), "=> 0undefined");
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "function deep(n) { with ({ d: n }) { return n ? deep(n - 1) : d; } } deep(5000)"
+            ),
+            "=> 0"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn nested_eval_in_eval_code_is_bounded() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Each function of eval code that calls `eval` captures every name
+        // of the caller: a function with 20,000 vars whose eval code holds
+        // many such functions would cost functions x 20,000 in one
+        // compile. Past the capture limit the eval throws a `RangeError`;
+        // below it, one compile stays far below a second.
+        let program = |functions: usize| -> String {
+            let mut text = String::from("function f() { ");
+            for i in 0..20_000 {
+                let i = i.to_string();
+                text += "var v";
+                text += &i;
+                text += " = ";
+                text += &i;
+                text += "; ";
+            }
+            text += "return eval('";
+            for _ in 0..functions {
+                text += "(function () { eval(0); }); ";
+            }
+            text += "1'); } f();";
+            text
+        };
+        // Without a nested `eval`: a cell that a function uses is also
+        // captured by every function around it (depth x names).
+        let nested = |depth: usize| -> String {
+            let mut text = String::from("function f() { ");
+            let mut uses = String::new();
+            for i in 0..20_000 {
+                let i = i.to_string();
+                text += "var v";
+                text += &i;
+                text += " = 1; ";
+                uses += "v";
+                uses += &i;
+                uses += "; ";
+            }
+            text += "return eval('";
+            text += &"(function () { ".repeat(depth);
+            text += &uses;
+            text += &" })();".repeat(depth);
+            text += " 7";
+            text += "'); } f();";
+            text
+        };
+        assert_eq!(rt.eval(&program(10)), Ok(Value::Int(1)));
+        assert_eq!(rt.eval(&nested(10)), Ok(Value::Int(7)));
+        let deep = nested(100);
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, &deep, Duration::from_secs(5));
+        assert_eq!(
+            result.map_err(|e| e.to_string()),
+            Err("Uncaught RangeError: Too many captured variables in a script".to_owned())
+        );
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert_clean(&rt);
+        for functions in [100, 3_000] {
+            let source = program(functions);
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, &source, Duration::from_secs(5));
+            assert_eq!(
+                result.map_err(|e| e.to_string()),
+                Err("Uncaught RangeError: Too many captured variables in a script".to_owned()),
+                "{functions} functions"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{functions}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+/// Like [`eval_with_deadline`], with another deadline.
+fn eval_with_deadline_of(
+    rt: &mut Runtime,
+    source: &str,
+    deadline: Duration,
+) -> (Result<Value, ScriptError>, Duration) {
+    let start = Instant::now();
+    rt.set_deadline(Some(start + deadline));
+    let result = rt.eval(source);
+    rt.set_deadline(None);
+    (result, start.elapsed())
 }
