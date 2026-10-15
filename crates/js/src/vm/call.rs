@@ -603,6 +603,22 @@ impl Runtime {
         Ok(())
     }
 
+    /// Replaces argument `index` of a native call (which must have been
+    /// passed), for a native that converts its arguments in place before
+    /// a second pass over them (`Math.hypot`); the value stack keeps the
+    /// new value rooted.
+    pub(crate) fn set_arg(
+        &mut self,
+        call: &NativeCall,
+        index: usize,
+        value: Value,
+    ) -> VmResult<()> {
+        if index >= call.argc {
+            return Err(VmError::invariant("an argument index outside the call"));
+        }
+        self.set_stack_value(call.start + index, value)
+    }
+
     /// Argument `index` of a native call (`undefined` if it was not
     /// passed).
     pub fn arg(&self, call: &NativeCall, index: usize) -> Value {

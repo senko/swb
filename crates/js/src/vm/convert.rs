@@ -15,7 +15,7 @@ use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
 use crate::vm::function::{is_callable_kind, is_constructor_kind};
-use crate::vm::number::{number_to_string, string_to_number};
+use crate::vm::number::number_to_string;
 use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
 
 /// The longest string (V8's limit: 2^29 − 24 code units).
@@ -241,7 +241,7 @@ impl Runtime {
             Value::Bool(b) => Ok(f64::from(u8::from(b))),
             Value::Int(i) => Ok(f64::from(i)),
             Value::Double(d) => Ok(d),
-            Value::String(s) => Ok(string_to_number(self.heap.string(s)?.as_str16())),
+            Value::String(s) => self.string_to_number(s),
             Value::Symbol(_) => Err(VmError::type_error(
                 "Cannot convert a Symbol value to a number",
             )),

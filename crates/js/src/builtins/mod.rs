@@ -9,9 +9,11 @@
 //! `@@unscopables`;
 //! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
-//! `Function` constructor is M7); `isNaN`, `isFinite`
-//! and `Math.pow`; `String`, `Number` and `Boolean` with their prototype
-//! methods; `Symbol` with the well-known symbols; and `%IteratorPrototype%`
+//! `Function` constructor is in `vm/create_function.rs`); the global
+//! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
+//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` and
+//! `Boolean` with their prototype methods `toString` and `valueOf`;
+//! `Symbol` with the well-known symbols; and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
@@ -36,6 +38,8 @@ mod function;
 mod global;
 mod integrity;
 mod iterator;
+mod math;
+mod number;
 mod object;
 mod object_iter;
 mod object_proto;
@@ -66,11 +70,13 @@ pub(crate) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
 fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     object::install(rt, realm)?;
     reflect::install(rt, realm)?;
-    global::install(rt, realm)?;
+    let (parse_int, parse_float) = global::install(rt, realm)?;
+    math::install(rt, realm)?;
     function::install(rt, realm)?;
     error::install(rt, realm)?;
     array::install(rt, realm)?;
     primitive::install(rt, realm)?;
+    number::install(rt, realm, parse_int, parse_float)?;
     boolean::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;

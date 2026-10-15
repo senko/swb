@@ -1,8 +1,8 @@
-//! Exact conversion of hexadecimal, octal and binary digit strings to
-//! numbers, for numeric literals (§12.9.3.3) and `StringToNumber`
-//! (§7.1.4.1.1).
+//! Exact conversion of digit strings in the radixes 2, 4, 8, 16 and 32 to
+//! numbers, for numeric literals (§12.9.3.3), `StringToNumber`
+//! (§7.1.4.1.1) and `parseInt` (§19.2.5).
 
-/// The exact value of a hexadecimal, octal or binary integer, rounded to a
+/// The exact value of an integer in a power-of-two radix, rounded to a
 /// double at the end. It keeps the first 64 significant bits, the number
 /// of bits after them, and whether any of those bits is set.
 pub struct RadixAccumulator {
@@ -13,7 +13,7 @@ pub struct RadixAccumulator {
 }
 
 impl RadixAccumulator {
-    /// An accumulator for digits of `radix` (2, 8 or 16).
+    /// An accumulator for digits of `radix` (2, 4, 8, 16 or 32).
     pub fn new(radix: u32) -> Self {
         RadixAccumulator {
             bits_per_digit: radix.trailing_zeros(),

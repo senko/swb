@@ -3,7 +3,9 @@
 //! spread of huge objects, deep optional chains and tagged templates in
 //! hot loops; and of the later sessions of feature 3 (classes, private
 //! names, `eval` and `with`, the `Function` constructor and mapped
-//! `arguments`). A case ends with a result, an error or a termination at the
+//! `arguments`); and of the number built-ins of feature 4 (long digit
+//! strings, the costly conversions in loops, `Math.max` over a million
+//! arguments). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -1197,4 +1199,157 @@ fn eval_with_deadline_of(
     let result = rt.eval(source);
     rt.set_deadline(None);
     (result, start.elapsed())
+}
+
+/// Runs `source` with a deadline and expects the time limit, at most
+/// `slack` after the deadline: a built-in that does much work per call
+/// must charge the time countdown for it.
+fn assert_ends_at_deadline(rt: &mut Runtime, source: &str, deadline: Duration, slack: Duration) {
+    let (result, elapsed) = eval_with_deadline_of(rt, source, deadline);
+    assert_eq!(
+        result,
+        Err(ScriptError::Terminated(Termination::TimeLimit)),
+        "{source}"
+    );
+    assert!(elapsed < deadline + slack, "{source}: {elapsed:?}");
+    assert_clean(rt);
+}
+
+/// A loop that parses 2^-1075 (the midpoint between 0 and `Number.MIN_VALUE`)
+/// written out in 752 decimal digits with `op` (`m` is the text): the
+/// slowest case of Rust's float parser, about 13 µs per call.
+fn midpoint_loop(op: &str) -> String {
+    format!("var m = '{FIVE_TO_1075}e-1075'; while (true) {op};")
+}
+
+/// 5^1075 in decimal.
+const FIVE_TO_1075: &str = "24703282292062327208828439643411068618252990130716238221279284125033775363510437593264991818081799618989828234772285886546332835517796989819938739800539093906315035659515570226392290858392449105184435931802849936536152500319370457678249219365623669863658480757001585769269903706311928279558551332927834338409351978015531246597263579574622766465272827220056374006485499977096599470454020828166226237857393450736339007967761930577506740176324673600968951340535537458516661134223766678604162159680461914467291840300530057530849048765391711386591646239524912623653881879636239373280423891018672348497668235089863388587925628302755995657524455507255189313690836254779186948667994968324049705821028513185451396213837722826145437693412532098591327667236328125";
+
+#[test]
+fn costly_number_conversions_in_loops_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Each call takes a few microseconds; without charges a time check
+        // would come only after 10,000 calls (tens of milliseconds).
+        let cases: [&str; 15] = [
+            "while (true) Number.MIN_VALUE.toString(2);",
+            "while (true) Number.MAX_VALUE.toString(3);",
+            "while (true) Number.MAX_VALUE.toString(2);",
+            "while (true) (2.2250738585072014e-308 * 1.37).toString(2);",
+            "while (true) (1e-300).toString(36);",
+            "var t = ''; for (var j = 0; j < 646; j++) t += '2'; while (true) parseInt(t, 3);",
+            &midpoint_loop("Number(m)"),
+            &midpoint_loop("parseFloat(m)"),
+            "while (true) Number.MIN_VALUE.toPrecision(100);",
+            "while (true) Number.MAX_VALUE.toPrecision(100);",
+            "while (true) Number.MIN_VALUE.toExponential(100);",
+            "while (true) (2.2250738585072014e-308).toExponential(100);",
+            "while (true) (1e20).toFixed(100);",
+            "while (true) Number.MIN_VALUE.toFixed(100);",
+            "while (true) Number.MAX_VALUE.toLocaleString();",
+        ];
+        for source in cases {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(20),
+                Duration::from_millis(40),
+            );
+        }
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "print(Number.MIN_VALUE.toString(2).length, Number.MAX_VALUE.toString(3).length)"
+            ),
+            "1076 647"
+        );
+    });
+}
+
+#[test]
+fn long_digit_strings_parse_in_bounded_memory_and_time() {
+    on_big_stack(|| {
+        let config = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 96 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(config);
+        // 16 M units each: ones, zeros, and zeros with a fraction point.
+        rt.eval(
+            "var d = '1'; for (var i = 0; i < 24; i++) d += d; \
+             var z = '0'; for (var i = 0; i < 24; i++) z += z; undefined;",
+        )
+        .unwrap();
+        let cases = [
+            ("parseInt(d)", f64::INFINITY),
+            ("parseInt(d, 16)", f64::INFINITY),
+            ("parseInt(d, 7)", f64::INFINITY),
+            ("parseInt(z, 36)", 0.0),
+            ("parseFloat(d)", f64::INFINITY),
+            ("parseFloat(z)", 0.0),
+            ("Number(d)", f64::INFINITY),
+            ("+z", 0.0),
+            ("Number(z + '1e-16777216')", 0.0),
+            ("Number('0.' + z + '1e16777217')", 1.0),
+            ("Number(d + 'e-16777215')", 1.111_111_111_111_111_2),
+            ("parseFloat('.' + z + '25e16777216')", 0.25),
+        ];
+        for (source, expected) in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(5));
+            let value = result.unwrap_or_else(|e| panic!("{source}: {e:?}"));
+            assert_eq!(value.as_number(), Some(expected), "{source}");
+            assert!(elapsed < Duration::from_secs(2), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        // A scan charges one step per 16 units, so a loop of them ends at
+        // the deadline.
+        for source in [
+            "while (true) parseInt(d);",
+            "while (true) parseFloat(z);",
+            "while (true) +d;",
+        ] {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(100),
+                Duration::from_millis(100),
+            );
+        }
+    });
+}
+
+#[test]
+fn math_max_over_a_million_arguments() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let build =
+            "var a = []; for (var i = 0; i < 1000000; i++) a.push(i % 1000 - 500); undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "print(Math.max.apply(null, a), Math.min.apply(null, a), Math.hypot.apply(null, a) > 0, Math.sumPrecise(a))"
+            ),
+            "499 -500 true -500000"
+        );
+        // Conversions that run script code, a million times.
+        let objects = "var o = []; for (var i = 0; i < 1000000; i++) o.push({ valueOf: function () { return 1; } }); \
+                       print(Math.max.apply(null, o), Math.hypot.apply(null, o));";
+        assert_eq!(run_in(&mut rt, objects), "1 1000");
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) Math.max.apply(null, a);",
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+        );
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) Math.hypot.apply(null, o);",
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+        );
+    });
 }

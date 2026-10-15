@@ -1049,12 +1049,51 @@ failures with a reason. Features, in this order:
 4. Numbers (`implementer-hard` for the exact conversions, ADR 0026
    section 7). `Number`, `Math`, `parseInt`, `parseFloat`,
    StringToNumber, number-to-string in all radixes, `toFixed`,
-   `toExponential`, `toPrecision`.
+   `toExponential`, `toPrecision`. Done 2026-10-15 in one session:
+   `Number` with its value properties and static functions
+   (`Number.parseFloat` and `Number.parseInt` are the global
+   functions); `toFixed`, `toExponential` and `toPrecision` exact on
+   multi-precision integers (a tie picks the larger value), with V8's
+   messages; `toString(radix)` with the radix 10 rule of §6.1.6.1.20
+   applied to the radix (the shortest digits that read back as the
+   number, the closest of them; Burger and Dybvig's algorithm in exact
+   arithmetic); `toLocaleString` as
+   Chromium's en-US default, arguments ignored (no ECMA-402);
+   `parseInt` (exact in all radixes), `parseFloat` and an exact
+   StringToNumber in one bounded pass (a 16-million-digit string needs
+   less than a kilobyte); all of
+   `Math` with `f16round` and `sumPrecise` (both in Chromium 148) and
+   `random` (xorshift128+, seeded per runtime). The number code is in
+   `js-text` (`number/`). Runtime test262: 21,621 pass (was 20,639),
+   the same in stress mode; new groups `built-ins/Number`, `Math`,
+   `parseInt`, `parseFloat`, `NaN`, `Infinity`, `undefined`;
+   `statements/with` 33 more. Parse-only unchanged. Known failures:
+   `String.fromCharCode` (3 tests, feature 5), `Date` (2, feature 12),
+   a `BigInt` literal (1, feature 10), `Float16Array` and
+   `byteConversionValues.js` (5 `f16round` tests skipped, feature 11).
+   Provenance: the first version of `toString(radix)` and of `parseInt`
+   in radixes that are not powers of two had the step structure of V8's
+   code; the owner decided to replace both with algorithms from the
+   literature (ADR 0026 section 15). Their output differs from
+   Chromium's by design: V8 gives other digits for 56 % of random
+   values in random radixes, and in 76 % of those its string does not
+   read back as the number; V8's `parseInt` differs for 21 % of random
+   strings of 1 to 800 digits. Other deviations from V8: the
+   transcendental `Math` functions use the
+   platform's libm and differ in the last bit for 1 to 15 % of
+   arguments (`atanh` 67 of 426); `Math.pow` and `**` differ in the
+   last bit for some arguments (V8: `10 ** -5` is
+   0.000009999999999999999). Speed: a call of `Math.floor` or
+   `parseInt` costs about 70 ns (`node --jitless` about 10 ns), the
+   cost of the call path (feature 13); `toFixed` about 290 ns.
 5. Strings and JSON (`implementer`). `String` without the regular
    expression methods, ropes, the string iterator, `normalize`, case
    mapping, the URI functions, `JSON` with its depth limit. Annex B:
    `escape`, `unescape`, `substr`, the HTML methods (`anchor` and
-   others), `trimLeft` and `trimRight`.
+   others), `trimLeft` and `trimRight`. With the string iterator, check
+   `Math.sumPrecise` of strings (Chromium: `''` gives -0, `'ab'` throws
+   "Type of 'Iterator value' must be 'number', found 'string'"; swb
+   throws "[object String] is not iterable" until then).
 6. Arrays and collections (`implementer`). `Array` with dense and sparse
    elements, the iterator helpers, `Map`, `Set` (with the ES2025 set
    methods).
@@ -1186,6 +1225,19 @@ not repeated here; the open items of each spike session are in M6 step
 - Messages (M7 3c): "Cannot assign to read only property 'y' of object
   '#<Object>'" names every ordinary object `#<Object>`; V8 uses the
   constructor's name for instances of classes and functions (`#<K>`).
+- Numbers (M7 4): the last bits of `Math.pow` and `**` (V8 has its own
+  pow) and of the transcendental functions (the platform's libm). If a
+  target depends on V8's results, write own code from the published
+  algorithms; it also gives the same results on all platforms.
+- Numbers (M7 4): `toFixed` computes on multi-precision integers for
+  each call (about 290 ns); a fast path for few digits (feature 13).
+  `Math.random()` costs about 185 ns a call (`node --jitless` 16 ns),
+  most of it outside the generator. `toString(radix)` on the
+  multi-precision path clones a number for each digit (`MAX_VALUE` in
+  radix 2: 7 µs).
+- Numbers (M7 4): the lexer gives the digits of a decimal literal to
+  Rust's float parser as one string, so a literal of 16 million digits
+  builds a 16 MB string; `js_text::number` parses without the copy.
 
 ## Backlog from M5
 

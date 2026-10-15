@@ -6,14 +6,15 @@
 //! This crate has the borrowed view ([`Str16`]) and the owned form
 //! ([`String16`]) of such text, the [`CodeUnit`] trait that the lexer and
 //! the regular expression matcher are generic over, and the Unicode data
-//! that the lexer needs ([`unicode`]), the exact radix-digit number
-//! conversion ([`RadixAccumulator`]) and a keyed hasher ([`hash`]). It
+//! that the lexer needs ([`unicode`]), the conversions between numbers
+//! and text ([`number`]: exact in all radixes, with multi-precision
+//! integers where doubles do not suffice) and a keyed hasher ([`hash`]). It
 //! also has the engine's shared [`RecursionBudget`], because every
 //! engine crate depends on this one.
 
 mod budget;
 pub mod hash;
-mod number;
+pub mod number;
 mod string16;
 pub mod unicode;
 

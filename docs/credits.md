@@ -149,6 +149,26 @@ Format: source, license (for code), what it influenced.
   only the memos.
 - Node.js `util.inspect`, measured as a black box — the output format of
   `console.log` (`js/src/builtins/console.rs`).
+- The number conversions of `js-text/src/number/` (M7 feature 4), written
+  from the literature, no code read or copied: G. L. Steele Jr. and
+  J. L. White, "How to Print Floating-Point Numbers Accurately", PLDI 1990
+  (exact fixed-format digit generation for `toFixed`, `toExponential`,
+  `toPrecision`); R. G. Burger and R. K. Dybvig, "Printing Floating-Point
+  Numbers Quickly and Accurately", PLDI 1996 (the free-format shortest
+  digit generation of `toString(radix)` in `shortest.rs`, with unequal
+  gaps at powers of two and inclusive ends for even mantissas; the first
+  digit place is taken from the value instead of the high end of the
+  range); W. D. Clinger, "How to Read Floating Point Numbers
+  Accurately", PLDI 1990 (the fast path of an exact integer times an exact
+  power of ten); D. E. Knuth, TAOCP vol. 2, §4.3.1 (the quotient estimate
+  of Algorithm D, for one-digit quotients); W. Kahan, "Further remarks on
+  reducing truncation errors", CACM 8(1), 1965 (compensated summation in
+  `Math.hypot`, with the arguments scaled by the largest one; the results
+  equal V8's in black-box runs); S. Vigna,
+  "Further scramblings of Marsaglia's xorshift generators", Journal of
+  Computational and Applied Mathematics 315, 2017 (xorshift128+ of
+  `Math.random`, `js/src/vm/random.rs`). `toLocaleString` and
+  `Math.sumPrecise` follow Chromium 148, measured (`just probe`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

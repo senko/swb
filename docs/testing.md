@@ -958,6 +958,39 @@ as `timeout: FILE (ENGINE)` and counts as a difference.
 
 `just jsbench [DIR]` is described in [performance.md](performance.md).
 
+### Number format table
+
+`crates/js-text/tests/data/number_formats.tsv` holds 4,724 outputs of
+`toFixed`, `toExponential` and `toPrecision` from Node.js 22, of
+`toString(radix)` (radixes other than 10) from
+`crates/js-text/tests/data/radix-reference.js`, and of `toLocaleString`
+from Chromium 148; `crates/js-text/tests/number_formats.rs` compares
+`js-text`'s formats with it. The radix reference is swb's definition
+(ADR 0026 section 15: the fewest significant digits that read back, the
+closest of them, on a tie the one whose digits form an even integer),
+written with `BigInt`
+as a search over the digit count, independent of the algorithm in
+`js-text`; it differs from Node.js in about a third of the cases. To
+write the table again:
+
+```
+just probe --json --case locale tools/probes/js-numbers.json > locale.json
+node crates/js-text/tests/data/gen-number-table.js locale.json crates/js-text/tests/data/number_formats.tsv
+```
+
+`crates/js-text/tests/data/parse_int_radix.tsv` holds 1,209 cases of
+`parseInt` in the radixes that are not 10 and not powers of two, with
+the exact value from the same reference (`Number` of a `BigInt`):
+random strings of 1 to 800 digits, leading zeros, signs, the ties at
+2^53 and the boundary to infinity. `crates/js-text/tests/parse_int_radix.rs`
+compares with it; `node crates/js-text/tests/data/gen-parse-int-table.js
+crates/js-text/tests/data/parse_int_radix.tsv` writes it again.
+
+The scripts take their random values from a fixed seed, so the same
+Node.js and Chromium versions give the same tables. The other cases of
+`js-numbers.json` show Chromium's `Math.sumPrecise`, `Math.f16round`,
+`toLocaleString` and the property order of `Math` and `Number`.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

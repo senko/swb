@@ -4,6 +4,54 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 4, numbers
+
+- `js-text`: `number/` with the parsers (StringToNumber, `parseFloat`,
+  `parseInt` in one pass: at most 800 kept significant digits and a
+  sticky digit, Clinger's fast path, then Rust's float parser), the
+  formats (`toFixed`, `toExponential`, `toPrecision` exact on
+  natural numbers of 32-bit limbs, a tie picks the larger value;
+  `toString(radix)` with the shortest digits that read back, the
+  closest of them; the en-US `toLocaleString`), the
+  exact sum of `Math.sumPrecise` (a 2,176-bit fixed-point accumulator)
+  and `Math.f16round`.
+- `js`: `builtins/number.rs`, `builtins/math.rs`, `parseInt` and
+  `parseFloat` in `global.rs`, `vm/random.rs` (xorshift128+). The time
+  charges grow with the digits made or scanned.
+- Tests: a table of 4,724 format cases (`js-text/tests/data/`, with
+  the scripts that write it: Node.js 22 for `toFixed`, `toExponential`
+  and `toPrecision`, Chromium 148 for `toLocaleString`, an own `BigInt`
+  reference for `toString(radix)`), a table of 1,209 `parseInt` cases,
+  property tests of the radix digits, case tables in
+  `tests/builtins_number.rs`, hostile tests of the conversions under
+  the time and heap limits.
+- Provenance: the review found that the first version of
+  `toString(radix)` and of `parseInt` in radixes that are not powers of
+  two followed the step structure of V8's code. The implementer's notes
+  said it was derived from black-box runs, but its first model in double
+  arithmetic already had V8's small details; most likely it came from
+  the model's memory of V8. The owner decided to rewrite both from the
+  literature. A new session that did not see the old code wrote them:
+  `toString(radix)` after Burger and Dybvig's free-format algorithm in
+  exact arithmetic (with one change: the first digit place comes from
+  the value, so that the result is the closest also for subnormals),
+  `parseInt` exact in all radixes. A `BigInt` reference written from the
+  definition by search gives the test expectations. Chromium differs
+  often, and V8's digits often do not read back as the number.
+- Reviews: the first review found no bugs; its nits were a time charge
+  for number scans about 4 times too low (now one step per 6 code
+  units, plus a charge for the parse of up to 800 decimal digits) and
+  the message of `Math.sumPrecise` for strings (until feature 5). The
+  review of the rewrite checked it against an own oracle in Python
+  (12,770 `toString` and 6,580 `parseInt` cases, all equal) and found
+  only nits in comments.
+- Learned: Chromium's `toLocaleString` rounds the shortest decimal
+  digits, not the exact value (`(1.0005).toLocaleString()` is "1.001").
+  `Math.hypot` with scaling by the largest value and Kahan's summation
+  gives V8's results.
+- Runtime test262: 21,621 pass (was 20,639), the same in stress mode;
+  parse-only unchanged (41,882).
+
 ## 2026-10-15: M7 feature 3f, `new Function`, Annex B.3.2.2 and mapped `arguments`; end of feature 3
 
 - `js-syntax`: `parse_dynamic_function` parses the source of a

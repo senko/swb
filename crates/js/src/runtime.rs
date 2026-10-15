@@ -178,6 +178,7 @@ impl Runtime {
             deadline: None,
             termination: TerminationHandle::default(),
             join_stack: Vec::new(),
+            random: crate::vm::random::RandomSource::new(),
         };
         let mut runtime = Runtime {
             heap,

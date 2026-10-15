@@ -122,6 +122,18 @@ dir test/annexB/language/global-code
 dir test/annexB/built-ins/Function
 dir test/language/expressions/this
 
+# Added in M7 feature 4: numbers. `Math.sumPrecise` is ECMA-262 2026;
+# Chromium 148 has it. The tests of `Math.f16round` have the feature
+# Float16Array, which comes with the typed arrays (feature 11).
+feature Math.sumPrecise
+dir test/built-ins/Number
+dir test/built-ins/Math
+dir test/built-ins/parseInt
+dir test/built-ins/parseFloat
+dir test/built-ins/NaN
+dir test/built-ins/Infinity
+dir test/built-ins/undefined
+
 # The dir lines were chosen from a run of all of test/language/ (`swb-js test262 --all`): groups with at least 5 passes and a pass rate of at least 30 % of the tests that ran.
 dir test/language/arguments-object
 dir test/language/arguments-object/mapped

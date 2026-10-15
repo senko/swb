@@ -52,6 +52,7 @@ mod messages;
 pub(crate) mod number;
 pub(crate) mod private;
 mod property;
+pub(crate) mod random;
 mod realm;
 mod stack;
 pub(crate) mod stack_text;
@@ -334,6 +335,8 @@ pub(crate) struct Vm {
     /// The arrays that `Array.prototype.join` is joining (V8's cycle
     /// detection: a nested join of one of them gives the empty string).
     pub(crate) join_stack: Vec<Gc<Object>>,
+    /// The generator of `Math.random`.
+    pub(crate) random: random::RandomSource,
 }
 
 impl RootSource for Vm {

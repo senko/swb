@@ -409,8 +409,9 @@ semantics:
   exact routine on multi-precision integers (vectors of limbs). A tie
   picks the larger value (§21.1.3). Rust's fixed-precision formatting
   rounds ties to even and is therefore not used. Where the
-  specification leaves the digits to the implementation (fractions in
-  radixes other than 10), swb matches Chromium's output, measured.
+  specification leaves the digits to the implementation (radixes other
+  than 10), swb applies the radix 10 rule to the radix (section 15, M7
+  feature 4), not Chromium's output.
 - String to number: own code checks the ECMAScript syntax
   (StringToNumber, §7.1.4.1.1; literals; `parseFloat`; JSON) and passes
   valid decimal text to Rust's float parser, which rounds correctly.
@@ -986,6 +987,93 @@ where the first plan did not work:
   property loop 5 % slower. Rare paths stay in `#[inline(never)]`
   functions, and an instruction that may call a setter reuses an
   existing arm.
+- Numbers (feature 4): the conversions are pure functions of `js-text`
+  (`number/`); the runtime only adds time charges. Text to number scans
+  once and keeps at most 800 significant digits (a "1" after them stands
+  for any later digit that is not 0, which cannot change the rounding)
+  and a clamped exponent, then calls Rust's float parser; up to 19 digits
+  with a power of ten of at most 22 take Clinger's fast path. So
+  `Number`, `parseFloat` and `parseInt` of 16 million digits allocate
+  under a kilobyte. Each scan charges one step per 6 code units (decimal
+  and hexadecimal digits take 1.3 to 1.8 ns per unit, measured), and a
+  text that may be decimal 3 steps per 2 of its first 800 units: Rust's
+  parser takes up to 13 µs for about 760 digits near a midpoint between
+  two doubles close to the subnormals. (The first version charged one
+  step per 16 units and nothing for the digits, 3.5 to 16 times less
+  than the cost.)
+- `toFixed`, `toExponential` and `toPrecision` with a digit count are
+  exact (multi-precision integers of 32-bit limbs, one quotient digit per
+  step), and charge about 5 time steps per output character (a digit
+  costs up to 60 ns).
+- `Number.prototype.toString(radix)` in radixes other than 10 prints the
+  digit string with the fewest significant digits whose exact value
+  rounds (to nearest, ties to even) to the double; of those the closest
+  to the double; of two equally close the one whose digits, read as an
+  integer in the radix, are even (note 2's "the one that is even"; in an
+  odd radix this is not the even last digit: `(1.5).toString(3)` ends in
+  …111, not …112). The digits are written out positionally, without
+  an exponent ("0." and zeros before small values, zeros after large
+  ones). Reason:
+  §6.1.6.1.20 leaves these digits to the implementation and says that
+  the algorithm should generalize the radix 10 rule (note 2); this is
+  that rule with the radix in place of 10. Provenance: the first
+  version followed the step structure of V8's code; the owner decided
+  on 2026-10-15 to replace it with an algorithm from the literature,
+  the free-format digit generation of Burger and Dybvig (PLDI 1996) in
+  exact arithmetic (`u128` for the exponents where it fits, else the
+  multi-precision naturals). One deviation from the paper: the first
+  digit place comes from the value, not from the high end of the
+  rounding range, so that the result is also the closest when the range
+  holds a power of the radix (subnormals with few bits, such as
+  `Number.MIN_VALUE.toString(14)`). Chromium differs often: Node.js 22
+  gives other digits for 38,689 of 50,000 random bit patterns and
+  17,736 of 50,000 `Math.random()` values (random radixes); in 43,068 of
+  these 56,425 cases V8's string does not read back as the double (for
+  example `(0.9491242655898582).toString(12)`: V8 "0.b48105a5524447",
+  which reads back as 0.9491242655898583; swb "0.b48105a5524446b"), in
+  10,501 it has as many digits but is farther from the double, in 2,856
+  it is longer. V8 prints `Number.MIN_VALUE.toString(3)` as 3^-677,
+  which reads back as 1e-323 (swb: 2 × 3^-678). A test table from a
+  `BigInt` reference written from the definition by search (not by the
+  algorithm) checks the output.
+  Cost: `Math.random().toString(36)` about 240 ns (Node.js `--jitless`
+  about 160 ns), `Number.MIN_VALUE.toString(2)` 2.3 µs (7.1 µs),
+  `Number.MAX_VALUE.toString(3)` 4.4 µs (2.4 µs); the charge is 12 steps
+  per eight output characters, the highest measured rate.
+- `parseInt` in the radixes that are not 10 and not powers of two gives
+  the exact value of the digit prefix rounded to the nearest double,
+  ties to even, as in the radixes 10 and 2^k. §19.2.5 allows an
+  approximated integer in these radixes; swb takes the exact one so that
+  all radixes follow one rule (owner decision of 2026-10-15, provenance
+  as above: written from the definition). The work is linear: leading
+  zeros are skipped; more than ⌈1024 / log2(radix)⌉ significant digits
+  are at least 2^1024 and give Infinity without arithmetic; fewer
+  accumulate exactly in at most about 1,030 bits, several digits per
+  limb step, and round once. 2^1024 − 2^970 rounds to Infinity (the tie
+  goes to the even 2^1024), one less to `MAX_VALUE`. Node.js 22 differs
+  for 21,285 of 100,000 random digit strings of 1 to 800 digits (all of
+  them finite; 66,495 strings are Infinity in both) and for 25,697 of
+  100,000 strings of 1 to 40 digits: for example
+  `parseInt('312040012022424233141333', 5)` is 39177157694427720 in
+  swb and 39177157694427710 in Node.js, and the value one below
+  2^1024 − 2^970 is Infinity in Node.js. The charge adds one step per
+  four code units (up to 700) to the scan.
+- `Number.prototype.toLocaleString` has no ECMA-402: it prints what
+  Chromium 148 prints for `navigator.language` en-US without arguments
+  (the shortest digits rounded half away from zero to three fraction
+  digits, groups of three with ",", "∞", "-0"), measured; the arguments
+  are ignored. A page that asks for another locale or for options gets
+  the en-US default.
+- `Math`: the transcendental functions are Rust's `f64` methods (glibc's
+  libm on Linux; `asinh`, `acosh` and `atanh` are formulas of Rust's
+  standard library). They differ from V8's in the last bit for about 1 to
+  15 % of random arguments (`atanh` most); test262 does not see this.
+  `hypot` matches V8 (Kahan summation scaled by the largest value).
+  `Math.random` is xorshift128+ seeded per runtime from the standard
+  library's random hash keys. `Math.sumPrecise` (ECMA-262 2026) and
+  `Math.f16round` are in, because Chromium 148 has them; the sum is a
+  fixed-point accumulator of 2,176 bits, so every addition is exact and
+  costs at most 34 limb operations.
 
 ## Consequences
 
