@@ -1,7 +1,9 @@
-"""`swbtools js-unicode-tables`: Unicode tables for the JavaScript lexer.
+"""`swbtools js-unicode-tables`: Unicode tables for the JavaScript engine.
 
-Writes `crates/js-text/src/unicode/tables.rs` from the Unicode Character
-Database (`ucd.py` downloads the files into `out/ucd/`):
+Writes three files in `crates/js-text/src/unicode/` from the Unicode
+Character Database (`ucd.py` downloads the files into `out/ucd/`):
+`case_tables.rs` (`js_case_tables.py`), `norm_tables.rs`
+(`js_norm_tables.py`) and `tables.rs`:
 
 - `ID_START`, `ID_CONTINUE`: the properties ID_Start and ID_Continue
   (ECMA-262 §12.7, UnicodeIDStart and UnicodeIDContinue).
@@ -13,6 +15,8 @@ The tables are sorted, disjoint ranges of code points.
 from pathlib import Path
 
 from swbtools import paths
+from swbtools.js_case_tables import generate_case_tables
+from swbtools.js_norm_tables import generate_norm_tables
 from swbtools.ucd import has_property, range_table, ranges, read_property, ucd_file
 
 VERSION = "17.0.0"
@@ -57,13 +61,32 @@ def tables_path() -> Path:
 
 
 def write_tables() -> int:
-    """Writes `tables.rs`. Returns the exit code."""
-    source = generate_tables(
-        ucd_file(FILES["DerivedCoreProperties"], VERSION),
-        ucd_file(FILES["DerivedGeneralCategory"], VERSION),
-    )
-    path = tables_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(source, encoding="utf-8")
-    print(f"wrote {path.relative_to(paths.repo_root())}")
+    """Writes the three table files and downloads `NormalizationTest.txt`
+    for the full normalization test. Returns the exit code."""
+    core = ucd_file(FILES["DerivedCoreProperties"], VERSION)
+    outputs = {
+        "tables.rs": generate_tables(core, ucd_file(FILES["DerivedGeneralCategory"], VERSION)),
+        "case_tables.rs": generate_case_tables(
+            ucd_file("ucd/UnicodeData.txt", VERSION),
+            ucd_file("ucd/SpecialCasing.txt", VERSION),
+            ucd_file("ucd/CaseFolding.txt", VERSION),
+            core,
+            VERSION,
+        ),
+        "norm_tables.rs": generate_norm_tables(
+            ucd_file("ucd/UnicodeData.txt", VERSION),
+            ucd_file("ucd/DerivedNormalizationProps.txt", VERSION),
+            VERSION,
+        ),
+    }
+    directory = tables_path().parent
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, source in outputs.items():
+        path = directory / name
+        path.write_text(source, encoding="utf-8")
+        print(f"wrote {path.relative_to(paths.repo_root())}")
+    # Not a table: the input of the ignored full-file test of
+    # `crates/js-text/tests/normalization.rs`.
+    test_file = ucd_file("ucd/NormalizationTest.txt", VERSION)
+    print(f"have {test_file.relative_to(paths.repo_root())}")
     return 0

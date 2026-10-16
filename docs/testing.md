@@ -76,7 +76,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
-| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs) from the UCD. |
+| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable) and `norm_tables.rs` (combining classes, decompositions, compositions, quick check) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt` and `DerivedNormalizationProps.txt` into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
 | `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
@@ -992,6 +992,32 @@ The scripts take their random values from a fixed seed, so the same
 Node.js and Chromium versions give the same tables. The other cases of
 `js-numbers.json` show Chromium's `Math.sumPrecise`, `Math.f16round`,
 `toLocaleString` and the property order of `Math` and `Number`.
+
+### Unicode string tests
+
+`tools/probes/js-unicode.json` has four cases for Chromium 148: `snippets`
+(134 expressions with their results and error messages, in the format of
+`js-strings.json`), `case-all` (`toLowerCase` and `toUpperCase` of every
+code point; one entry for each code point where one differs), `normalize-all`
+(the four forms of every code point) and the word lists of `localeCompare`
+(`collation-sorted`: 225 words in Chromium's order; `collation-words`: 600
+random pairs with the result). `crates/js/tests/data/gen-unicode-cases.js`
+turns the probe output into the data of `crates/js/tests/builtins_unicode.rs`:
+
+```
+just probe --json tools/probes/js-unicode.json > probe.json
+node crates/js/tests/data/gen-unicode-cases.js probe.json crates/js/tests/data
+```
+
+The case results (3,037 lines) are kept; the normalization results (567 KB)
+are a count and an FNV-1a hash. A difference shows with the probe output:
+run the `js` expression of the case in `swb-js` and compare the lines. The
+order of `localeCompare` is not Chromium's (ICU): the test counts the pairs
+of the sorted list that swb orders the other way (16 of 25,200).
+`NormalizationTest.txt` runs in `crates/js-text/tests/normalization.rs`: a
+committed sample always; the whole file with `cargo test -p swb-js-text
+--test normalization -- --ignored` (it reads `out/ucd/17.0.0/`, which
+`just tools js-unicode-tables` fills).
 
 ## Python tools: development
 

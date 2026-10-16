@@ -58,6 +58,7 @@ mod string_annexb;
 mod string_iter;
 mod string_replace;
 mod string_search;
+mod string_unicode;
 mod symbol;
 mod uri;
 

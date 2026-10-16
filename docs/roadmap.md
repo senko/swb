@@ -1192,6 +1192,40 @@ failures with a reason. Features, in this order:
      equivalent strings compare equal; ICU collation as in Chromium is
      not in scope), tables from the UCD 17 by `swbtools
      js-unicode-tables`.
+     Done 2026-10-16: the case functions (the Default Case Conversion
+     with `Final_Sigma`; a Latin-1 string of up to 16,384 units converts
+     in one pass without tables, and an unchanged string comes back as
+     the same string), `normalize` (UAX #15: fully expanded
+     decomposition tables, a stable sort of each run of marks, one-pass
+     composition, a quick check that returns the same string),
+     `localeCompare` (on the canonical decomposition: base letters by
+     simple case folding, then marks, then case with lowercase first,
+     then code points), tables from UCD 17.0.0 (`case_tables.rs`,
+     `norm_tables.rs`). All 1,114,112 code points give Chromium 148's
+     results for `toLowerCase`, `toUpperCase` and the four forms
+     (Chromium 148 has Unicode 17.0); `NormalizationTest.txt` passes in
+     full (20,034 lines; a sample is a test). `localeCompare` agrees
+     with Chromium on 600 random pairs of 225 Latin, Greek and Cyrillic
+     words, and orders 16 of the 25,200 pairs of Chromium's sorted list
+     the other way (all with Ђ). Known differences: the `toLocale`
+     forms ignore the locale (Chromium: `'I'.toLocaleLowerCase('tr')`
+     is `'ı'`); `localeCompare` ignores `locales` and `options`, orders
+     other scripts by code point, and does not ignore control
+     characters. Runtime test262: 23,222 pass (was 23,081), the same in
+     stress mode; `built-ins/String` 1,013 of 1,195, the rest wait for
+     `RegExp` (8b), `BigInt` (10) and `Array` (6). Speed against `node
+     --jitless`, 10-unit strings: `toLowerCase` 124 ns (24 ns),
+     `normalize('NFC')` 142 ns (43 ns), `localeCompare` 159 ns (40 ns).
+     The review found one bug: the one-pass Latin-1 path of the case
+     functions had no length check and no heap reservation (fixed: only
+     for short strings; longer ones take the sliced path). Also fixed:
+     the string builder of 5b and 5d reserved 4 bytes per unit, so a
+     result too long for a string ended at the heap limit where V8
+     throws a `RangeError`; the generator now also downloads
+     `NormalizationTest.txt`; `THIRD_PARTY_NOTICES.md` has the text of
+     the Unicode License v3.
+   Feature 5 is complete (2026-10-16): runtime test262 went from
+   21,621 to 23,222.
 6. Arrays and collections (`implementer`). `Array` with dense and sparse
    elements, the iterator helpers, `Map`, `Set` (with the ES2025 set
    methods).
@@ -1212,8 +1246,9 @@ failures with a reason. Features, in this order:
      `matchAll`), `RegExp.escape`, Annex B `RegExp.prototype.compile`;
      the legacy static properties (`RegExp.$1`) only if a target uses
      them. `builtins/string.rs` installs the methods of
-     `String.prototype` in V8's key order; add `match`, `matchAll` and
-     `search` at their places in it, and make `get_substitution`
+     `String.prototype` in V8's key order; add `match` and `matchAll`
+     between `localeCompare` and `normalize`, and `search` after
+     `replaceAll`, and make `get_substitution`
      (`string_replace.rs`, with captures and named captures) visible to
      the `RegExp` code.
 9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
@@ -1381,6 +1416,13 @@ not repeated here; the open items of each spike session are in M6 step
   prototype chain has no constructor
   (`Object.create(Object.create(null))`). Keys and sources in JSON
   messages are clipped at 1,024 units; V8's limit is not measured.
+- `localeCompare` (M7 5d): a small table of alphabet positions for the
+  extended Cyrillic letters (Ђ, Ѓ, Ї and others; ICU puts Ђ after д)
+  and for other scripts, which now go by code point. `locales` and
+  `options` (`sensitivity`, `numeric`) need `Intl.Collator`.
+- Case functions (M7 5d): `first_change` decodes every code point of a
+  wide string; a skip over runs of ASCII would speed up long wide
+  strings.
 - `encodeURI` checks the room for the worst case of the rest of its
   input, so near the length limit it throws "Invalid string length" up
   to about 36 KiB early (M7 5b).

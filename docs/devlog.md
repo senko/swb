@@ -4,6 +4,49 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-16: M7 feature 5d, Unicode string functions; end of feature 5
+
+- `js-text`: `unicode/case.rs` (the Default Case Conversion with the
+  full mappings and `Final_Sigma`, simple case folding), `normalize.rs`
+  (UAX #15: fully expanded decomposition tables, so nothing recurses; a
+  stable sort of each run of marks; one-pass composition; a quick
+  check), `collate.rs` (the order of `localeCompare`). The tables come
+  from UCD 17.0.0 through `swbtools js-unicode-tables`
+  (`js_case_tables.py`, `js_norm_tables.py`).
+- `js`: `builtins/string_unicode.rs`. The common case is short Latin-1
+  text: one pass without tables, and the same string back when nothing
+  changes. Long text converts in slices of 16,384 units, which check
+  the length limit, reserve heap and charge time.
+- `localeCompare`: the specification's requirements, and within them
+  an order close to Chromium's for Latin, Greek and Cyrillic: base
+  letters on the canonical decomposition by simple case folding, then
+  marks, then case with lowercase first, then code points. It agrees
+  with Chromium on 600 random word pairs, and on 25,184 of the 25,200
+  pairs of Chromium's sorted list (the others have Ђ). ICU's collation
+  is not in scope.
+- Measured: all 1,114,112 code points give Chromium 148's results for
+  the case functions and the four forms of `normalize` (Chromium 148
+  has Unicode 17.0); `NormalizationTest.txt` passes in full; a sample
+  of it is a test (Unicode License v3, text in
+  `THIRD_PARTY_NOTICES.md`).
+- Speed against `node --jitless`, 10-unit strings: `toLowerCase` 124 ns
+  (24 ns), `normalize('NFC')` 142 ns (43 ns), `localeCompare` 159 ns
+  (40 ns).
+- Review: one bug. The one-pass Latin-1 path of the case functions had
+  no length check and no heap reservation: `'ß'.repeat(3e8)
+  .toUpperCase()` made a string longer than V8's limit, and with a
+  300 MiB heap limit the process reached 719 MB. Fixed: that path is
+  only for strings of at most one slice. Also fixed: the string builder
+  of 5b reserved 4 bytes per unit without a cap, so a result too long
+  for a string ended at the heap limit where V8 throws `RangeError`
+  (now it reserves by the text's width, at most for the maximum
+  length, as `JSON.stringify` does since 5c); the generator downloads
+  `NormalizationTest.txt` for the full test, as the docs say; the
+  license text.
+- Runtime test262: 23,222 pass (was 23,081), the same in stress mode;
+  parse-only unchanged. Feature 5 took test262 from 21,621 to 23,222.
+- Next: feature 6 (arrays and collections).
+
 ## 2026-10-15: M7 feature 5c, `JSON`
 
 - `js`: `builtins/json.rs` (`parse`, `rawJSON`, `isRawJSON`,

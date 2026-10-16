@@ -1144,7 +1144,11 @@ where the first plan did not work:
   a time, without a list of positions. `GetSubstitution` takes captures
   and named captures, for `RegExp` (feature 8b). `Builder` (`string.rs`)
   is the copying builder: it checks the maximum length before a copy, the
-  heap limit at each doubling, and charges the copy.
+  heap limit at each doubling, and charges the copy. The heap check is
+  for the doubled text in bytes of its width (again when the text
+  becomes wide) and stops at the maximum length, so that a result too
+  long for a string is V8's `RangeError` and not the heap limit
+  (since 5d).
 - Search: a needle of fewer than 16 units uses a scan for the first unit
   and a comparison of the rest; a longer one the prefix-function search of
   Knuth, Morris and Pratt (linear; `lastIndexOf` over the mirrored
@@ -1228,6 +1232,65 @@ where the first plan did not work:
 - The test262 runner multiplies its time limit by 30 in `--stress` mode:
   `decodeURI/S15.1.3.1_A2.5_T1` makes a million calls and takes 3 s
   normally, 185 s with a collection at every safepoint.
+- Unicode strings (feature 5d: `js-text/src/unicode/case.rs`,
+  `normalize.rs`, `collate.rs`, `js/src/builtins/string_unicode.rs`).
+  The tables come from the UCD 17.0.0 (`swbtools js-unicode-tables`;
+  `case_tables.rs` 37 KB, `norm_tables.rs` 258 KB of source: sorted
+  ranges, runs `(first, last, step, delta)` for the case mappings and
+  one pool of fully expanded decompositions, so nothing recurses).
+  Chromium 148 uses Unicode 17.0: the 56 case pairs and the
+  compatibility mapping of U+A7F1 that 17.0 added are in its results.
+  `tools/probes/js-unicode.json` maps all 1,114,112 code points with
+  `toLowerCase` and `toUpperCase` (3,037 change) and with the four forms
+  of `normalize` (17,086 change): swb and Chromium have no difference,
+  and `NormalizationTest.txt` of 17.0.0 (20,034 lines) has no failure.
+  `crates/js/tests/builtins_unicode.rs` keeps the case results and the
+  digest of the normalization results, `crates/js-text/tests/
+  normalization.rs` runs a sample of the file (the whole file with
+  `--ignored`).
+- Case mapping is the Default Case Conversion: the unconditional
+  mappings of `SpecialCasing.txt` and `Final_Sigma`; no language-
+  sensitive mapping, so the `toLocale` forms ignore their argument.
+  Difference from Chromium: `'I'.toLocaleLowerCase('tr')` is `'ı'` there
+  and a malformed tag is a `RangeError`; swb has no `Intl`. A Latin-1
+  string is converted in one pass over the bytes without a table, and the
+  receiver itself comes back when nothing changes (also for `normalize`
+  of a string that is in the form: the quick check of UAX #15 §9.1 with
+  the No tables of the four forms and `NFC_QC=Maybe`; Latin-1 text in NFC
+  is always normalized). Sixteen thousand units at a time are converted;
+  between two slices the code checks V8's maximum length, reserves heap
+  memory by doubling and charges the time.
+- `normalize` sorts each run of non-starters by class with a stable sort
+  (`O(n log n)`; a million marks take 0.07 s) and composes in one pass
+  with one binary search per character; a text above V8's maximum length
+  is `RangeError: Invalid string length` (checked after each slice, so
+  the buffers never exceed the limit by more than one slice). Differences
+  from V8 that follow from the heap limit: a result of more than the heap
+  limit ends the script with the heap-limit termination before the
+  length limit applies.
+- The order of `localeCompare` (no `Intl`, no DUCET): the strings are
+  compared in NFD in four levels, each decided only if the earlier ones
+  are equal: (1) the base characters (marks left out) by simple case
+  folding, white space before punctuation and symbols before digits
+  before letters, the ASCII punctuation in Chromium's order, control
+  characters ignored, and `æ œ ß ø đ ł ħ ı` as their base letters;
+  (2) the marks at their positions (U+0300 to U+036F in Chromium's
+  order); (3) lower case before upper case; (4) the code points. The
+  specification's requirements hold: it is a total order on strings, and
+  canonically equivalent strings compare as 0 (levels 1 to 3 and the
+  NFD text of level 4 are equal), where Chromium also gives 0 for
+  strings that differ in ignorable characters. Agreement with Chromium
+  148 on 225 words in Latin, Greek and Cyrillic with accents, case and
+  punctuation: 600 random pairs 100 %; all 25,200 pairs in Chromium's
+  order 99.94 % (16 pairs, all with U+0402, which ICU sorts after
+  U+0434; swb sorts by code point after folding). Not done: other
+  scripts' order (by code point), digits of other scripts as numbers,
+  contractions, `locales` and `options` (`Intl.Collator`). The compare
+  reports its work to the time check every 32,768 code points.
+  Speed against `node --jitless` (calls of 10-unit strings): `toLowerCase`
+  and `toUpperCase`, half of them changing the text, 124 ns (24 ns, 5.2
+  times); `normalize('NFC')` of normalized text 142 ns (43 ns, 3.3 times);
+  `localeCompare` 159 ns (40 ns, 4 times).
 
 ## Consequences
 

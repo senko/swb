@@ -1,10 +1,18 @@
-//! Unicode character classes of the JavaScript lexical grammar (ECMA-262
-//! clause 12): white space, line terminators and identifier characters.
+//! Unicode data for the JavaScript engine: the character classes of the
+//! lexical grammar (ECMA-262 clause 12: white space, line terminators and
+//! identifier characters) here, case mapping in [`case`], normalization
+//! in [`normalize`] and the order of `localeCompare` in [`collate`].
 //!
-//! The tables in `tables.rs` are generated from the Unicode Character
-//! Database by `swbtools js-unicode-tables`. ASCII has fast paths that a
-//! test compares with the tables.
+//! The tables in `tables.rs`, `case_tables.rs` and `norm_tables.rs` are
+//! generated from the Unicode Character Database by `swbtools
+//! js-unicode-tables`. ASCII has fast paths that a test compares with the
+//! tables.
 
+pub mod case;
+mod case_tables;
+pub mod collate;
+mod norm_tables;
+pub mod normalize;
 mod tables;
 
 /// U+200C ZERO WIDTH NON-JOINER.

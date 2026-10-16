@@ -130,6 +130,18 @@ const PROGRAMS: &[(&str, &str)] = &[
         "string: replace, trim, padStart 300k calls",
         "function run() { var r = 0; for (var i = 0; i < 300000; i++) { r += ' x-y-z '.trim().replace('-', '+').padStart(8, '.').length; } return r; }",
     ),
+    (
+        "string: toLowerCase, toUpperCase 4M calls on 10 units",
+        "function run() { var a = 'Hello, Wor', b = 'hello, wor'; var r = 0; for (var i = 0; i < 1000000; i++) { r += a.toLowerCase().length + b.toLowerCase().length + a.toUpperCase().length + b.toUpperCase().length; } return r; }",
+    ),
+    (
+        "string: normalize('NFC') 2M calls on normalized text",
+        "function run() { var s = 'caf' + String.fromCharCode(233) + ' cr' + String.fromCharCode(232) + 'me'; var w = 'a' + String.fromCharCode(0x3b1, 0x3b2, 0x3b3, 0x44f); var r = 0; for (var i = 0; i < 1000000; i++) { r += s.normalize('NFC').length + w.normalize().length; } return r; }",
+    ),
+    (
+        "string: localeCompare 1M calls",
+        "function run() { var a = 'apple pie', b = 'Apple tart'; var r = 0; for (var i = 0; i < 1000000; i++) { r += a.localeCompare(b); } return r; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

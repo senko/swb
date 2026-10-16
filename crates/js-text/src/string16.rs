@@ -109,6 +109,33 @@ impl<'a> Str16<'a> {
         }
     }
 
+    /// The code point that starts at unit `index` and the index after it:
+    /// a surrogate pair is decoded, an unpaired surrogate is returned as
+    /// it is. `None` past the end.
+    pub fn code_point_at(self, index: usize) -> Option<(u32, usize)> {
+        let unit = self.get(index)?;
+        if is_lead_surrogate(unit)
+            && let Some(trail) = self.get(index + 1)
+            && is_trail_surrogate(trail)
+        {
+            return Some((combine_surrogates(unit, trail), index + 2));
+        }
+        Some((u32::from(unit), index + 1))
+    }
+
+    /// The code point that ends before unit `end` and the index where it
+    /// starts (the mirror of [`Str16::code_point_at`]). `None` at the start.
+    pub fn code_point_before(self, end: usize) -> Option<(u32, usize)> {
+        let last = self.get(end.checked_sub(1)?)?;
+        if is_trail_surrogate(last)
+            && let Some(lead) = end.checked_sub(2).and_then(|i| self.get(i))
+            && is_lead_surrogate(lead)
+        {
+            return Some((combine_surrogates(lead, last), end - 2));
+        }
+        Some((u32::from(last), end - 1))
+    }
+
     /// The units `start..end`, or `None` if the range is not inside the text.
     pub fn slice(self, start: usize, end: usize) -> Option<Str16<'a>> {
         match self {
@@ -299,6 +326,11 @@ impl String16 {
             Repr::Latin1(units) => units.capacity(),
             Repr::Wide(units) => units.capacity(),
         }
+    }
+
+    /// The text of these bytes, one code unit each (the narrow width).
+    pub fn from_latin1(bytes: Vec<u8>) -> Self {
+        String16(Repr::Latin1(bytes))
     }
 
     /// A copy of the code units, in the narrow width if possible.

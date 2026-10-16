@@ -202,6 +202,24 @@ Format: source, license (for code), what it influenced.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).
+- Unicode (M7 feature 5d, `js-text/src/unicode/case.rs`, `normalize.rs`,
+  `collate.rs`, `tools/swbtools/js_case_tables.py`, `js_norm_tables.py`),
+  written from the Unicode Standard 17.0 and no library read: chapter 3
+  (§3.13 Default Case Conversion with the context `Final_Sigma`, Table
+  3-17; §3.12 the conjoining Jamo behavior, the Hangul syllable
+  algorithms), UAX #15 "Unicode Normalization Forms" (decomposition,
+  canonical ordering, canonical composition, the quick check of §9.1),
+  UTS #10 (the order of the classes in the default collation table, as a
+  description only), and ECMA-262 §22.1.3.12, §22.1.3.15, §22.1.3.28 to
+  §22.1.3.31. The data are files of the Unicode Character Database
+  17.0.0 (https://www.unicode.org/Public/17.0.0/ucd/: `UnicodeData.txt`,
+  `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`,
+  `DerivedNormalizationProps.txt`) in the generated tables, and a sample
+  of `NormalizationTest.txt` as test data (Unicode License v3; see
+  `THIRD_PARTY_NOTICES.md`). The order of `localeCompare` (four levels
+  on the canonical decomposition, the ASCII punctuation order, the order
+  of the marks U+0300 to U+036F) is swb's own, measured against Chromium
+  148 (`tools/probes/js-unicode.json`).
 
 ## Projects
 

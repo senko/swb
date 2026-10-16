@@ -2064,3 +2064,106 @@ fn json_holds_up_under_the_stress_collector() {
     assert_eq!(run(source, true), normal);
     assert!(normal.starts_with("25 "), "{normal}");
 }
+
+// --- Unicode string methods (M7 feature 5d) ---
+
+#[test]
+fn a_million_combining_marks_are_sorted_and_composed_in_linear_time() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Marks of two classes alternate: the canonical ordering sorts a
+        // run of a million marks (not by insertion); the composition
+        // reads each mark once.
+        let source = "var m = 'a' + '\\u0301\\u0323'.repeat(500000); \
+                      var d = m.normalize('NFD'); var c = m.normalize('NFC'); \
+                      var k = ('a' + '\\u0323\\u0307'.repeat(500000)).normalize('NFC'); \
+                      print(m.length, d.length, d.charCodeAt(1).toString(16), d.charCodeAt(2).toString(16), \
+                            d.charCodeAt(d.length - 1).toString(16), c.length, k.length);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(
+            run_in(&mut rt, ""),
+            "1000001 1000001 323 323 301 1000000 1000000"
+        );
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert_clean(&rt);
+        // A loop over a long run ends at the deadline: the work is charged.
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) { d.normalize('NFC'); m.normalize('NFD'); }",
+            Duration::from_millis(100),
+            Duration::from_millis(600),
+        );
+    });
+}
+
+#[test]
+fn long_texts_of_expanding_characters() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var e = '\\u0390'.repeat(2000000).toUpperCase(); \
+                      var f = '\\ufdfa'.repeat(500000).normalize('NFKD'); \
+                      var g = '\\u0130'.repeat(1000000).toLowerCase(); \
+                      print(e.length, f.length, g.length, e.charCodeAt(5999999).toString(16), \
+                            g.charCodeAt(1999999).toString(16));";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "6000000 9000000 2000000 301 307");
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert_clean(&rt);
+        // The result must fit under the heap limit: the loop ends with a
+        // termination, and the heap is usable afterwards.
+        let mut small = runtime_with_limit(16);
+        let result = small
+            .eval("var s = '\\ufdfa'.repeat(1000000); s.normalize('NFKD'); print('not reached');");
+        assert_eq!(result, Err(ScriptError::Terminated(Termination::HeapLimit)));
+        assert_clean(&small);
+        let result = small.eval("var t = '\\u0390'.repeat(3000000); t.toUpperCase();");
+        assert_eq!(result, Err(ScriptError::Terminated(Termination::HeapLimit)));
+        assert_clean(&small);
+        assert_eq!(run_in(&mut small, "print('ab'.toUpperCase())"), "AB");
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) { e.toLowerCase(); f.normalize('NFKC'); }",
+            Duration::from_millis(100),
+            Duration::from_millis(800),
+        );
+    });
+}
+
+#[test]
+fn locale_compare_of_long_strings() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var s1 = 'a'.repeat(3000000), s2 = s1 + 'b'; \
+                      var w1 = 'e\\u0301'.repeat(1500000), w2 = w1 + '\\u00e9'; \
+                      print(s1.localeCompare(s2), s2.localeCompare(s1), s1.localeCompare(s1 + ''), \
+                            w1.localeCompare(w2), w2.localeCompare(w1), w1.localeCompare('\\u00e9'.repeat(1500000)), \
+                            ('x' + '\\u0300'.repeat(1000000)).localeCompare('x' + '\\u0301'.repeat(1000000)));";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "-1 1 0 -1 1 0 1");
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert_clean(&rt);
+        // Every comparison reads the strings up to the difference; a
+        // loop ends at the deadline.
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) { s1.localeCompare(s2); w1.localeCompare(w2); }",
+            Duration::from_millis(100),
+            Duration::from_millis(800),
+        );
+    });
+}
+
+#[test]
+fn unicode_methods_hold_up_under_the_stress_collector() {
+    let source = "var parts = []; for (var i = 0; i < 25; i++) { \
+                    var s = 'A\\u03a3b\\u0301\\u0323\\u00df' + 'x'.repeat(i * 1000); \
+                    parts.push(s.toLowerCase().length + s.toUpperCase().length + s.normalize('NFD').length \
+                      + s.normalize('NFKC').length + s.localeCompare(s + 'y') + s.toLocaleUpperCase().length); } \
+                  print(parts.length, parts[24], parts.join().length);";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("25 "), "{normal}");
+}

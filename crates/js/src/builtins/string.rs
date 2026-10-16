@@ -6,7 +6,8 @@
 //! `trimEnd`. The searches are in [`super::string_search`], `replace`,
 //! `replaceAll` and `split` in [`super::string_replace`], the iterator in
 //! [`super::string_iter`], Annex B in [`super::string_annexb`]. Case
-//! mapping, `normalize` and `localeCompare` are feature 5d.
+//! mapping, `normalize` and `localeCompare` are in
+//! [`super::string_unicode`].
 //!
 //! Every method starts with `RequireObjectCoercible(this)` and
 //! `ToString(this)` ([`Runtime::this_string`]), then converts its
@@ -54,7 +55,7 @@ pub(super) fn install(
     super::method(rt, realm, ctor, "fromCharCode", 1, from_char_code)?;
     super::method(rt, realm, ctor, "fromCodePoint", 1, from_code_point)?;
     super::method(rt, realm, ctor, "raw", 1, raw)?;
-    let methods: [(&str, u32, NativeFn); 38] = [
+    let methods: [(&str, u32, NativeFn); 44] = [
         ("anchor", 1, super::string_annexb::anchor),
         ("at", 1, at),
         ("big", 0, super::string_annexb::big),
@@ -74,6 +75,8 @@ pub(super) fn install(
         ("italics", 0, super::string_annexb::italics),
         ("lastIndexOf", 1, super::string_search::last_index_of),
         ("link", 1, super::string_annexb::link),
+        ("localeCompare", 1, super::string_unicode::locale_compare),
+        ("normalize", 0, super::string_unicode::normalize),
         ("padEnd", 1, pad_end),
         ("padStart", 1, pad_start),
         ("repeat", 1, repeat),
@@ -93,6 +96,18 @@ pub(super) fn install(
         ("trim", 0, trim),
         ("trimStart", 0, trim_start),
         ("trimEnd", 0, trim_end),
+        (
+            "toLocaleLowerCase",
+            0,
+            super::string_unicode::to_locale_lower_case,
+        ),
+        (
+            "toLocaleUpperCase",
+            0,
+            super::string_unicode::to_locale_upper_case,
+        ),
+        ("toLowerCase", 0, super::string_unicode::to_lower_case),
+        ("toUpperCase", 0, super::string_unicode::to_upper_case),
     ];
     for (name, length, func) in methods {
         let function = super::method(rt, realm, proto, name, length, func)?;
@@ -235,7 +250,10 @@ pub(super) fn clamp_index(index: f64, length: usize) -> usize {
 /// that appends many small pieces calls [`Builder::check`] itself.
 pub(super) struct Builder {
     text: String16,
+    /// The units that the last reservation covers.
     reserved: usize,
+    /// Whether the last reservation was for two bytes per unit.
+    reserved_wide: bool,
 }
 
 impl Builder {
@@ -244,20 +262,31 @@ impl Builder {
         Builder {
             text: String16::new(),
             reserved: RESERVE_FROM,
+            reserved_wide: false,
         }
     }
 
     /// Makes room for `extra` more code units: the maximum length, then
-    /// the heap limit (a safepoint when a doubling passes the reserved
-    /// size; the caller roots its handles).
+    /// the heap limit for the text after its next doubling, in bytes of
+    /// the text's width (a safepoint when a doubling passes the reserved
+    /// size or the text became wide; the caller roots its handles). The
+    /// reservation stops at the maximum length, so that a text too long
+    /// for a string is V8's `RangeError` and not the heap limit.
     pub(super) fn check(&mut self, rt: &mut Runtime, extra: usize) -> VmResult<()> {
         let total = self.text.len().saturating_add(extra);
         if total > MAX_STRING_LENGTH {
             return Err(VmError::range_error(INVALID_STRING_LENGTH));
         }
-        if total > self.reserved {
-            self.reserved = total.saturating_mul(2);
-            rt.heap.reserve(self.reserved.saturating_mul(2), &rt.vm)?;
+        let wide = !self.text.is_latin1();
+        let widened = wide && !self.reserved_wide && self.reserved > RESERVE_FROM;
+        if total > self.reserved || widened {
+            self.reserved = total
+                .saturating_mul(2)
+                .min(MAX_STRING_LENGTH)
+                .max(self.reserved);
+            self.reserved_wide = wide;
+            let unit_bytes = if wide { 2 } else { 1 };
+            rt.heap.reserve(self.reserved * unit_bytes, &rt.vm)?;
         }
         Ok(())
     }
@@ -294,6 +323,26 @@ impl Builder {
     /// the room ([`Builder::check`]).
     pub(super) fn push_text(&mut self, text: Str16<'_>) {
         self.text.push_str16(text);
+    }
+
+    /// The text built so far, for a conversion that appends to it; the
+    /// caller checked the room ([`Builder::check`]).
+    pub(super) fn text_mut(&mut self) -> &mut String16 {
+        &mut self.text
+    }
+
+    /// The number of code units built so far.
+    pub(super) fn len(&self) -> usize {
+        self.text.len()
+    }
+
+    /// The text, without a string (the heap memory is reserved as in
+    /// [`Builder::finish`]).
+    pub(super) fn into_text(self, rt: &mut Runtime) -> VmResult<String16> {
+        if self.text.len() >= RESERVE_FROM {
+            rt.heap.reserve(self.text.len() * 2, &rt.vm)?;
+        }
+        Ok(self.text)
     }
 
     /// Appends one code unit; the caller checked the room.
