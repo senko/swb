@@ -234,6 +234,10 @@ impl FunctionCompiler<'_> {
                 Err(self
                     .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
             }
+            ExprKind::Yield {
+                argument: Some(argument),
+                delegate: true,
+            } => self.yield_star(argument, self.ast.expr(e).span.start, dst),
             ExprKind::Yield { argument, .. } => {
                 // `t` receives the sent value, `t + 1` the resume mode.
                 let t = self.temps(2)?;

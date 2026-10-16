@@ -168,6 +168,17 @@ const PROGRAMS: &[(&str, &str)] = &[
          function run() { var s = 0; for (var r = 0; r < 5; r++) for (var v of data.values().map(function (x) { return x + 1; }).filter(function (x) { return x % 2 === 0; })) s += v; return s; }",
     ),
     (
+        "generator: for-of over 1M yielded values",
+        "function* count(n) { for (var i = 0; i < n; i++) yield i; }
+         function run() { var s = 0; for (var v of count(1000000)) s += v; return s; }",
+    ),
+    (
+        "generator: yield* chain of depth 10, 100k values",
+        "function* leaf(n) { for (var i = 0; i < n; i++) yield i; }
+         function* level(k, n) { if (k === 0) yield* leaf(n); else yield* level(k - 1, n); }
+         function run() { var s = 0; for (var v of level(10, 100000)) s += v; return s; }",
+    ),
+    (
         "array: 1M push, then 1M pop",
         "function run() { var a = []; for (var i = 0; i < 1000000; i++) a.push(i); var s = 0; while (a.length) s += a.pop(); return s; }",
     ),

@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 7a, generators complete
+
+- `yield*` compiles to a loop in the generator's code. `DelegateCall`
+  calls the delegate's `next`, `throw` or `return`, by the resume mode,
+  as an ordinary frame. `DelegateResult` reads `done`, and `value` only
+  when done. `YieldDelegate` gives the delegate's result object to the
+  caller unchanged.
+- The Chromium 148 probes fixed the details: `next` always gets one
+  argument, only `done` is read while the delegate runs, and the error
+  messages depend on the syntactic form of the operand.
+- A delegate generator resumes as a frame of the same interpreter loop,
+  so a chain of 100,000 delegating generators ends at the frame limit
+  with a catchable `RangeError`, as in Chromium.
+- `GeneratorFunction` uses the source building and parse of the
+  `Function` constructor with a `function*` prefix.
+  `%GeneratorPrototype%` has `constructor` now.
+- Speed: in an A/B run against the previous commit, an out-of-line
+  `DelegateCall` arm made an unrelated integer loop 25 % slower, so the
+  arm stays inline. The run also found an older heap accounting effect
+  (slot vectors counted with their whole capacity) that makes one string
+  row vary by 8 % (backlog).
+- Runtime test262: 26,277 (was 26,091), the same in stress mode;
+  parse-only unchanged.
+- Next: 7b, `Promise` and the job queue.
+
 ## 2026-10-16: tail calls for deferred and bound calls
 
 - The crash from the 6c review: `f = Function.prototype.call.bind(f)`

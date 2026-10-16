@@ -101,16 +101,28 @@ pub(crate) const INVALID_TARGET_FOR: u32 = 3;
 /// syntax requires ...iterable[Symbol.iterator] to be a function` (`x is
 /// not iterable (cannot read property null)` for `undefined` and `null`),
 /// and for spread in an array literal `x is not iterable`, also when the
-/// iterator's `next` is not callable (V8 checks it there).
+/// iterator's `next` is not callable (V8 checks it there); for the
+/// operand of `yield*` that is not a simple expression `yield*
+/// (intermediate value) is not iterable`.
 pub(crate) const ITER_GENERIC: u32 = 0;
 pub(crate) const ITER_RENDERED: u32 = 1;
 pub(crate) const ITER_CALL: u32 = 2;
 pub(crate) const ITER_SPREAD: u32 = 3;
 pub(crate) const ITER_ARRAY_SPREAD: u32 = 4;
+pub(crate) const ITER_YIELD_STAR: u32 = 5;
 /// The shift of the form in a `hint`.
 pub(crate) const HINT_SHIFT: u32 = 28;
 /// The text index of a `hint` without a rendered text.
 pub(crate) const HINT_NO_TEXT: u32 = (1 << HINT_SHIFT) - 1;
+
+/// The forms of V8's message for a `next`, `throw` or `return` method of
+/// a `yield*` delegate that is not callable ([`Insn::DelegateCall`]):
+/// `number 5 is not a function` when the operand of `yield*` is a simple
+/// expression (an identifier, `this`, a literal, a conditional or logical
+/// expression, an optional chain), else `yield* (intermediate value) is
+/// not iterable` (measured in Chromium 148).
+pub(crate) const DELEGATE_TYPED: u16 = 0;
+pub(crate) const DELEGATE_INTERMEDIATE: u16 = 1;
 
 /// The forms of V8's message for [`Insn::RequireObjectCoercible`]
 /// (`V` is `undefined` or `null`, `C` the constant text):
@@ -771,6 +783,35 @@ pub(crate) enum Insn {
         reg: Reg,
         offset: i32,
     },
+    /// The call of one step of `yield*` (§15.5.5 step 8): the delegate's
+    /// iterator is in `rec`, its `next` in `rec + 1`, the received value
+    /// in `rec + 2` and the resume mode in `rec + 3`. Calls `next(v)`, or
+    /// the iterator's `throw(v)` or `return(v)` (read with `GetMethod`);
+    /// the result goes into `rec + 2` (a script frame delivers it there).
+    /// In throw mode without a `throw` method, closes the iterator and
+    /// throws the protocol `TypeError`; in return mode without a `return`
+    /// method, jumps by `offset` with the value in `rec + 2`. `form`
+    /// selects V8's message for a method that is not callable
+    /// ([`DELEGATE_TYPED`], [`DELEGATE_INTERMEDIATE`]).
+    DelegateCall {
+        rec: Reg,
+        form: u16,
+        offset: i32,
+    },
+    /// The check of a `yield*` step's result in `rec + 2`: it must be an
+    /// object; if its `done` is true, `rec + 2` receives its `value`, a
+    /// throw mode in `rec + 3` becomes next mode (the delegate handled
+    /// the throw), and the instruction jumps by `offset`.
+    DelegateResult {
+        rec: Reg,
+        offset: i32,
+    },
+    /// `GeneratorYield` of the iterator result in `reg`, which the caller
+    /// of `next` receives as it is (§15.5.5 step 8.a.vii); on resume, as
+    /// [`Insn::Yield`].
+    YieldDelegate {
+        reg: Reg,
+    },
 
     // --- Classes (§15.7) and `super` (§13.3.7) ---
     /// `dst` = the home object of the running function (`[[HomeObject]]`,
@@ -1100,7 +1141,9 @@ impl Insn {
             | Insn::JumpIfNotGt { offset, .. }
             | Insn::JumpIfNotGe { offset, .. }
             | Insn::EndFinally { offset, .. }
-            | Insn::Resume { offset, .. } => Some(offset),
+            | Insn::Resume { offset, .. }
+            | Insn::DelegateCall { offset, .. }
+            | Insn::DelegateResult { offset, .. } => Some(offset),
             _ => None,
         }
     }
@@ -1122,7 +1165,9 @@ impl Insn {
             | Insn::JumpIfNotGt { offset, .. }
             | Insn::JumpIfNotGe { offset, .. }
             | Insn::EndFinally { offset, .. }
-            | Insn::Resume { offset, .. } => *offset = new,
+            | Insn::Resume { offset, .. }
+            | Insn::DelegateCall { offset, .. }
+            | Insn::DelegateResult { offset, .. } => *offset = new,
             _ => {}
         }
     }
@@ -1900,14 +1945,30 @@ fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         {
             return Err("iterator record outside the frame");
         }
-        Insn::InitialYield | Insn::Yield { .. } | Insn::Resume { .. }
+        Insn::InitialYield
+        | Insn::Yield { .. }
+        | Insn::Resume { .. }
+        | Insn::DelegateCall { .. }
+        | Insn::DelegateResult { .. }
+        | Insn::YieldDelegate { .. }
             if code.kind != CodeKind::Generator =>
         {
             return Err("yield outside a generator");
         }
         // The resume mode goes into the register after `reg`.
-        Insn::Yield { reg } | Insn::Resume { reg, .. } if u32::from(reg) + 1 >= registers => {
+        Insn::Yield { reg } | Insn::Resume { reg, .. } | Insn::YieldDelegate { reg }
+            if u32::from(reg) + 1 >= registers =>
+        {
             return Err("resume mode register out of range");
+        }
+        // A `yield*` record takes four registers.
+        Insn::DelegateCall { rec, form, .. }
+            if u32::from(rec) + 4 > registers || form > DELEGATE_INTERMEDIATE =>
+        {
+            return Err("yield* record outside the frame");
+        }
+        Insn::DelegateResult { rec, .. } if u32::from(rec) + 4 > registers => {
+            return Err("yield* record outside the frame");
         }
         _ => true,
     };
@@ -1987,7 +2048,7 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         Insn::GetIterator { hint, .. } => {
             let text = hint & HINT_NO_TEXT;
             (
-                hint >> HINT_SHIFT <= ITER_ARRAY_SPREAD
+                hint >> HINT_SHIFT <= ITER_YIELD_STAR
                     && (text == HINT_NO_TEXT || code.string(text).is_some()),
                 "iterator hint",
             )
@@ -2135,7 +2196,13 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
             f(dst);
             f(home);
         }
-        I::MakeCell { reg } | I::CopyCell { reg } | I::Yield { reg } | I::Resume { reg, .. } => {
+        I::MakeCell { reg }
+        | I::CopyCell { reg }
+        | I::Yield { reg }
+        | I::Resume { reg, .. }
+        | I::YieldDelegate { reg }
+        | I::DelegateCall { rec: reg, .. }
+        | I::DelegateResult { rec: reg, .. } => {
             f(reg);
         }
         I::CheckTdz { src, .. }

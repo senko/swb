@@ -401,24 +401,7 @@ impl Runtime {
     /// The native functions of the realm's intrinsics and the built-in
     /// objects (after the realm is a root).
     fn install_realm_functions(&mut self, realm: u32) -> VmResult<()> {
-        crate::builtins::install(self, realm)?;
-        self.scoped(|rt| {
-            let generator_proto = rt.intrinsic(realm, Intrinsic::GeneratorPrototype)?;
-            let methods: [(&str, crate::vm::NativeFn); 3] = [
-                ("next", crate::vm::generator::next),
-                ("return", crate::vm::generator::return_),
-                ("throw", crate::vm::generator::throw),
-            ];
-            for (name, func) in methods {
-                let function = rt.new_native_function(realm, name, 1, func)?;
-                let key = rt.heap.key_from_str(name)?;
-                rt.define(generator_proto, key, function.into(), true, false, true)?;
-            }
-            crate::builtins::to_string_tag(rt, generator_proto, "Generator")?;
-            let generator_function_proto =
-                rt.intrinsic(realm, Intrinsic::GeneratorFunctionPrototype)?;
-            crate::builtins::to_string_tag(rt, generator_function_proto, "GeneratorFunction")
-        })
+        crate::builtins::install(self, realm)
     }
 }
 

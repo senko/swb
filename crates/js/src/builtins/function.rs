@@ -6,10 +6,12 @@
 //! recursion. `bind` creates a bound function exotic object (§10.4.1);
 //! calls of bound functions are in `vm/call.rs`.
 
-use crate::object::ObjectKind;
+use crate::heap::Gc;
+use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
+use crate::vm::DynamicKind;
 use crate::vm::convert::to_integer_or_infinity;
 use crate::vm::{
     BoundFunction, Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown,
@@ -18,9 +20,10 @@ use crate::vm::{
 /// The longest name, in code units, that `bind` gives a bound function.
 const BOUND_NAME_LIMIT: usize = 1 << 15;
 
-pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
+/// Installs `Function` and `Function.prototype`; returns `Function`.
+pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<Gc<Object>> {
     let proto = rt.intrinsic(realm, Intrinsic::FunctionPrototype)?;
-    super::constructor(rt, realm, "Function", 1, function_constructor, proto)?;
+    let constructor = super::constructor(rt, realm, "Function", 1, function_constructor, proto)?;
     let methods: [(&str, u32, NativeFn); 4] = [
         ("apply", 2, apply),
         ("bind", 1, bind),
@@ -40,7 +43,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         (false, false),
     )?;
     rt.set_intrinsic(realm, Intrinsic::FunctionHasInstance, has_instance);
-    Ok(())
+    Ok(constructor)
 }
 
 /// `Function.prototype[@@hasInstance](V)` (§20.2.3.6):
@@ -57,7 +60,7 @@ fn has_instance(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `F.prototype`. The host check `HostEnsureCanCompileStrings` (CSP) comes
 /// with the bindings.
 fn function_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let (code, compiled) = rt.dynamic_function_code(call)?;
+    let (code, compiled) = rt.dynamic_function_code(call, DynamicKind::Normal)?;
     let proto = rt.prototype_from(call, Intrinsic::FunctionPrototype)?;
     let function = rt.new_dynamic_function((code, &compiled), proto, call.realm())?;
     Ok(NativeReturn::Value(function.into()))
@@ -126,11 +129,7 @@ fn bind(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 }
 
 /// The `length` of a bound function (§20.2.3.2 steps 5 to 7).
-fn bound_length(
-    rt: &mut Runtime,
-    target: crate::heap::Gc<crate::object::Object>,
-    arg_count: usize,
-) -> VmResult<Value> {
+fn bound_length(rt: &mut Runtime, target: Gc<Object>, arg_count: usize) -> VmResult<Value> {
     let key = PropertyKey::String(rt.heap.length_atom());
     if rt.own_property(target, key)?.is_none() {
         return Ok(Value::Int(0));
@@ -150,10 +149,7 @@ fn bound_length(
 
 /// The `name` of a bound function: `"bound "` and the name of the target
 /// (`SetFunctionName`, §10.2.9, with the prefix "bound").
-fn bound_name(
-    rt: &mut Runtime,
-    target: crate::heap::Gc<crate::object::Object>,
-) -> VmResult<crate::heap::Gc<crate::string::JsString>> {
+fn bound_name(rt: &mut Runtime, target: Gc<Object>) -> VmResult<Gc<crate::string::JsString>> {
     let key = PropertyKey::String(rt.vm.atoms.name);
     let name = match rt.get_value(target.into(), key)? {
         Value::String(name) => name,

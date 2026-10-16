@@ -1409,6 +1409,63 @@ impl Runtime {
                     Value::Int(RESUME_RETURN) => {}
                     _ => return Err(VmError::invariant("a resumption without a mode")),
                 },
+                Insn::DelegateCall { rec, form, offset } => {
+                    let iterator = get!(rec);
+                    let next = get!(rec.saturating_add(1));
+                    let received = get!(rec.saturating_add(2));
+                    let mode = get!(rec.saturating_add(3));
+                    save!();
+                    let method =
+                        tri!(self.with_scope(|rt| rt.delegate_method(iterator, next, mode, form)));
+                    // Nothing collects before the method is in the window.
+                    match method {
+                        None => jump!(offset),
+                        Some(method) => {
+                            let result = rec.saturating_add(2);
+                            let restore_top = base + code.register_count as usize;
+                            let window = tri!(self.push_window(method, iterator, &[received]));
+                            let site = CallSite {
+                                window,
+                                argc: 1,
+                                ret: ReturnTo::Register(result),
+                                restore_top,
+                                construct: false,
+                                new_target: None,
+                            };
+                            match tri!(self.invoke(site)) {
+                                Step::Value(value) => {
+                                    self.vm.stack.truncate(restore_top);
+                                    put!(result, value);
+                                }
+                                Step::Entered => reload!(),
+                                Step::NotCallable => {
+                                    self.vm.stack.truncate(restore_top);
+                                    tri!(Err(self.not_callable(method)));
+                                }
+                            }
+                        }
+                    }
+                }
+                Insn::DelegateResult { rec, offset } => {
+                    let result = get!(rec.saturating_add(2));
+                    save!();
+                    if let Some(value) = tri!(self.with_scope(|rt| rt.delegate_result(result))) {
+                        put!(rec.saturating_add(2), value);
+                        // A throw that the delegate handled continues
+                        // normally.
+                        if matches!(get!(rec.saturating_add(3)), Value::Int(RESUME_THROW)) {
+                            put!(rec.saturating_add(3), Value::Int(RESUME_NEXT));
+                        }
+                        jump!(offset);
+                    }
+                }
+                Insn::YieldDelegate { reg } => {
+                    save!();
+                    if let Some(value) = tri!(self.yield_delegate(reg)) {
+                        return Ok(value);
+                    }
+                    reload!();
+                }
 
                 // --- Classes and `super` ---
                 Insn::HomeObject { dst } => {

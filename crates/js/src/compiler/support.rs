@@ -4,8 +4,8 @@
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
 //! the end of M7 feature 3 (3f), all of the syntax of feature 1 compiles
-//! except `yield*` and `async` functions, `await` and `for await`
-//! (feature 7), module code, `import()` and `import.meta` (feature 14),
+//! except `async` functions, `await` and `for await` (feature 7; `yield*`
+//! compiles since 7a), module code, `import()` and `import.meta` (feature 14),
 //! and `BigInt` literals (feature 10); regular expression literals
 //! (feature 8) are rejected where the compiler meets them (`expr.rs`).
 
@@ -15,7 +15,6 @@ use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
         ExprKind::BigInt(_) => "BigInt literal",
-        ExprKind::Yield { delegate: true, .. } => "yield*",
         ExprKind::Await(_) => "await",
         ExprKind::ImportCall { .. } => "import()",
         ExprKind::ImportMeta => "import.meta",

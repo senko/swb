@@ -62,12 +62,16 @@ pub(crate) mod time;
 use std::borrow::Cow;
 use std::rc::Rc;
 
+pub(crate) use create_function::DynamicKind;
 pub use env::EnvRecord;
 pub(crate) use eval::eval_function;
 pub use function::{
     BoundFunction, Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
 };
 pub use generator::GeneratorState;
+pub(crate) use generator::{
+    next as generator_next, return_ as generator_return, throw as generator_throw,
+};
 pub use private::PrivateEnvironment;
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
@@ -267,6 +271,7 @@ pub(crate) struct Atoms {
     pub(crate) default: Gc<JsString>,
     pub(crate) next: Gc<JsString>,
     pub(crate) return_: Gc<JsString>,
+    pub(crate) throw_: Gc<JsString>,
     pub(crate) raw: Gc<JsString>,
 }
 
@@ -299,6 +304,7 @@ impl Atoms {
             self.default,
             self.next,
             self.return_,
+            self.throw_,
             self.raw,
         ] {
             tracer.string(atom);

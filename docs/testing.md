@@ -1119,6 +1119,41 @@ tests (`language_hostile.rs`) cover chains of 100,000 helpers, deeply
 nested `flatMap`, wide `Iterator.concat`, endless iterators with every
 consumer, re-entrant `next` and `return` and loops of throwing callbacks.
 
+### Generator tests
+
+`tools/probes/js-generators.json` has 251 snippets for Chromium 148 in the
+format of `js-iterators.json`, in five cases: the shape of
+`GeneratorFunction`, `%GeneratorFunction.prototype%`,
+`%GeneratorPrototype%` and of generator functions and methods (key order,
+attributes, `prototype` and its replacement, `new`), the `GeneratorFunction`
+constructor (source text, early errors, `new.target`, subclasses), the
+`next`, `return` and `throw` protocol of generators, `yield*` (the order of
+the `Get`s and calls on a logging delegate, the result object that passes
+through, the messages for each form of the operand, `throw` and `return`
+with and without the delegate's methods, re-entrant calls) and deep chains.
+`crates/js/tests/data/gen-generator-cases.js` turns the output into
+`generators_cases.js` and `.expected` (and `generators_cases_heavy.*`, the
+chains and recursions of thousands of generators, which run without the
+stress mode) for `crates/js/tests/generators.rs`:
+
+```
+just probe --json tools/probes/js-generators.json > probe.json
+node crates/js/tests/data/gen-generator-cases.js probe.json crates/js/tests/data
+```
+
+The script leaves out V8's third message form for some call operands
+("yield* (intermediate value)(intermediate value) is not iterable") and the
+recursion of 5,000 generators, which Chromium 148 ends with a `RangeError`
+and swb runs (see ADR 0026 section 15). `generators_gc.js` (delegates whose
+methods and result getters allocate and collect, delegates and received
+values that only a suspended generator holds, chains with collections at
+every level) has the output of Node.js 22 as expected output (`just
+jsdiff` compares). The hostile tests (`language_hostile.rs`) cover chains
+and recursions of 100,000 generators with `next`, `return`, `throw`,
+spread and `for`-`of`, delegates that throw or return non-objects in hot
+loops, re-entrant `next`, `throw` and `return` through a delegate, and
+endless delegates under the time and heap limits.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

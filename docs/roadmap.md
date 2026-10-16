@@ -1384,6 +1384,53 @@ failures with a reason. Features, in this order:
    `Promise`, the job queue and its host hooks, `async` functions, async
    generators, `for await`, async-from-sync iterators,
    `Array.fromAsync`.
+   Split 2026-10-16 into four sessions, one commit each. Generator
+   objects run since M6 (`vm/generator.rs`); `yield*`, `async` and
+   `Promise` do not exist. test262 skips 2,645 tests for the `async`
+   flag, 646 for `async-iteration` and 215 for `async-functions`, and
+   rejects 100 for `yield*` and 90 for `async function`; `Promise` (732
+   tests) and the groups of the generator, async function and async
+   generator objects are not in the subset yet. Of the 84 target
+   scripts, 39 compile; 27 stop at `async function` (the others at
+   regular expression literals, feature 8).
+   - 7a Generators complete: `yield*` (§15.5.5, the `next`, `throw` and
+     `return` protocol of the delegate and its closing rules), the
+     `GeneratorFunction` constructor (through 3f's
+     `CreateDynamicFunction`), `%GeneratorFunction.prototype%` and its
+     `prototype`, all of `%GeneratorPrototype%`.
+     Done 2026-10-17: `yield*` is a loop of three new instructions over
+     a record of four registers. The delegate's `next`, `throw` and
+     `return` run as ordinary frames, the delegate's result object
+     passes to the caller unchanged, and the messages are V8's, by the
+     form of the operand. `GeneratorFunction` uses
+     `CreateDynamicFunction` with a generator kind;
+     `%GeneratorFunction.prototype%` and `%GeneratorPrototype%` have
+     Chromium's key order. A chain of delegating generators costs
+     frames, not Rust stack: 100,000 levels end with a catchable
+     `RangeError`, as in Chromium 148. Runtime test262: 26,277 pass (was
+     26,091), the same in stress mode; new groups
+     `built-ins/GeneratorFunction` (20) and
+     `built-ins/GeneratorPrototype` (61); parse-only unchanged (41,882).
+     1M values through `for`-`of` over a generator take 340 ms
+     (`node --jitless` 46 ms). Open: V8's message form "(intermediate
+     value)(intermediate value)" for some call operands is not
+     reproduced.
+   - 7b `Promise` and the job queue: the constructor, `then`, `catch`,
+     `finally`, `resolve`, `reject`, `all`, `allSettled`, `any`, `race`,
+     `withResolvers`, `try`; the job queue (`HostEnqueuePromiseJob`)
+     with a host call that runs the jobs (the shell runs them after each
+     script), `HostPromiseRejectionTracker` with Chromium's report of an
+     unhandled rejection; the test262 runner's async tests (`$DONE`,
+     `doneprintHandle.js`, `asyncHelpers.js`, `promiseHelper.js`). The
+     browser's event loop comes with the engine integration (ADR 0025).
+   - 7c `async` functions: functions, arrows and methods, `await` as a
+     suspension of the frame (on the generator machinery), the
+     `AsyncFunction` constructor. Exit: the 27 target scripts that stop
+     at `async function` compile, or each that does not has a reason.
+   - 7d Async iteration: async generators (§27.6, the queue of
+     requests), `for await`, `yield*` in async generators,
+     `%AsyncFromSyncIteratorPrototype%`, `%AsyncIteratorPrototype%`,
+     `AsyncGeneratorFunction`, `Array.fromAsync`.
 8. Regular expressions (ADR 0026 section 10), in two parts:
    - 8a (`implementer-hard`, `js-regexp`): the pattern parser with
      Annex B, the compiler and the matcher, the `u`, `v`, `d`, `s`, `y`
@@ -1626,6 +1673,17 @@ not repeated here; the open items of each spike session are in M6 step
   `Iterator.prototype[Symbol.dispose]`; test262 feature
   `explicit-resource-management`) and `Error.isError`. Add them when a
   target uses them, or after M7.
+- Generators (M7 7a): a `for`-`of` step over a generator with the
+  built-in `next` makes a result object and reads `done` and `value`,
+  about 340 ns per step; the loop could take the value directly
+  (feature 13). Chromium ends a recursion of 5,000 generators through
+  `yield*` with a `RangeError`; swb runs it, because its frame limit is
+  10,000.
+- Heap accounting (found in M7 7a): `live_bytes` counts each arena's
+  slot vector with its whole capacity, so one live string at a high slot
+  after a burst of garbage can raise the collection threshold up to
+  10 times. The `toLowerCase` row of `vm_bench` has 1 or 7 collections
+  by this effect, and its time varies by about 8 %.
 
 ## Backlog from M5
 

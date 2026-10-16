@@ -1,0 +1,18 @@
+v1,v2,v3,v4,e4 next:undefined,next:t1,next:t2,next:t3,next:t4
+v2v3 next:undefined,next:a,next:b
+v2 next:undefined,next:x
+E next:undefined,throw:E
+{"value":{"returned":"R"},"done":true} next:undefined,return:R,fin
+The iterator does not provide a 'throw' method. next:undefined,return:undefined
+R1,2,3 true next:undefined
+number,number,number 4
+done value true
+l0,l1,l2,l3,l4 leaf012345678910
+100
+deep true
+true true
+1,r,2,3
+[1,{"a":1}] [2,{"a":2}] "s1" "s2" 1 
+2 b
+-19900
+Generator is already running

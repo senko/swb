@@ -31,15 +31,42 @@
 //! Spread does not close its iterator (§13.2.4.1 has no close): the loop
 //! appends each value to the array of the literal, or of the argument
 //! list of a call, which the call copies onto the value stack.
+//!
+//! `yield*` (§15.5.5,
+//! <https://tc39.es/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluation>)
+//! is a loop in the generator's code over a record of four registers
+//! (iterator, `next`, the received value, the resume mode). Each step
+//! calls the delegate's `next`, `throw` or `return` by the mode, as an
+//! ordinary frame for script code (a delegate generator resumes in the
+//! same interpreter loop), checks the result and yields the result object
+//! itself (`GeneratorYield`, no copy). The resumption writes the next
+//! received value and mode into the record. The layout:
+//!
+//! ```text
+//!       GetIterator rec <- operand
+//!       Undefined rec+2; Int rec+3 = next
+//!   T:  DelegateCall rec -> D       (return without a `return` method: to D)
+//!       DelegateResult rec -> D     (done: rec+2 = value, to D)
+//!       YieldDelegate rec+2
+//!       Jump T
+//!   D:  Resume rec+2 -> X           (next and throw: to X)
+//!       return path of rec+2        (return mode: the compiled return)
+//!   X:
+//! ```
+//!
+//! An async generator (M7 feature 7d) reuses the loop: it awaits the
+//! result after `DelegateCall` and before the return path, and yields the
+//! result's `value` with its own yield instead of `YieldDelegate`.
 
-use swb_js_syntax::{AssignTarget, ExprId, ExprKind, ForHead, ScopeId, StmtId, StmtKind};
+use swb_js_syntax::{AssignTarget, ExprId, ExprKind, ForHead, ScopeId, StmtId, StmtKind, UnaryOp};
 use swb_js_text::String16;
 
 use super::CResult;
 use super::function::{BreakableKind, FinallyBody, FunctionCompiler};
 use super::pattern::{BindMode, PatternSource};
 use crate::bytecode::{
-    HINT_NO_TEXT, HINT_SHIFT, ITER_CALL, ITER_GENERIC, ITER_RENDERED, ITER_SPREAD, Insn, Reg,
+    DELEGATE_INTERMEDIATE, DELEGATE_TYPED, HINT_NO_TEXT, HINT_SHIFT, ITER_CALL, ITER_GENERIC,
+    ITER_RENDERED, ITER_SPREAD, ITER_YIELD_STAR, Insn, RESUME_NEXT, Reg,
 };
 
 /// The most links of a member chain that a "not iterable" message
@@ -135,6 +162,136 @@ impl FunctionCompiler<'_> {
         self.emit(Insn::Undefined { dst: rec });
         self.emit(Insn::Undefined { dst: rec + 1 });
         Ok(())
+    }
+
+    /// `yield* operand` in a generator (§15.5.5); see the module
+    /// documentation. `start` is the position of the `yield` keyword,
+    /// where Chromium reports the errors of the loop.
+    pub(super) fn yield_star(
+        &mut self,
+        operand: ExprId,
+        start: u32,
+        dst: Option<Reg>,
+    ) -> CResult<Reg> {
+        let target = self.target(dst)?;
+        let mark = self.mark();
+        let rec = self.temps(4)?;
+        self.expr(operand, Some(rec))?;
+        self.position = start;
+        let typed = self.typed_delegate_message(operand);
+        let hint = if typed {
+            GENERIC_HINT
+        } else {
+            (ITER_YIELD_STAR << HINT_SHIFT) | HINT_NO_TEXT
+        };
+        self.emit(Insn::GetIterator {
+            dst: rec,
+            src: rec,
+            hint,
+        });
+        // §15.5.5 step 7: the first `next` receives `undefined`.
+        self.emit(Insn::Undefined { dst: rec + 2 });
+        self.emit(Insn::Int {
+            dst: rec + 3,
+            value: RESUME_NEXT,
+        });
+        let top = self.here();
+        let call = self.emit(Insn::DelegateCall {
+            rec,
+            form: if typed {
+                DELEGATE_TYPED
+            } else {
+                DELEGATE_INTERMEDIATE
+            },
+            offset: 0,
+        });
+        let result = self.emit(Insn::DelegateResult { rec, offset: 0 });
+        self.emit(Insn::YieldDelegate { reg: rec + 2 });
+        self.jump_back(top);
+        self.patch_here(call);
+        self.patch_here(result);
+        // A return completion takes the compiled return path, which runs
+        // the `finally` blocks around the `yield*`.
+        let resume = self.emit(Insn::Resume {
+            reg: rec + 2,
+            offset: 0,
+        });
+        self.emit_return(rec + 2);
+        self.patch_here(resume);
+        self.emit(Insn::Move {
+            dst: target,
+            src: rec + 2,
+        });
+        // Release the iterator now, not when the register is reused.
+        self.emit(Insn::Undefined { dst: rec });
+        self.emit(Insn::Undefined { dst: rec + 1 });
+        self.release(mark);
+        Ok(target)
+    }
+
+    /// Whether V8 words the errors of a `yield*` operand with the value's
+    /// type (`number 5 is not iterable ...`, `number 5 is not a function`)
+    /// rather than `yield* (intermediate value) is not iterable`: for an
+    /// identifier, `this`, a literal, a function or class expression, a
+    /// conditional or logical expression, an optional chain, `new.target`,
+    /// `import(...)` and `void` (measured in Chromium 148). The match lists
+    /// every kind, so that a new kind needs a decision here.
+    fn typed_delegate_message(&self, operand: ExprId) -> bool {
+        match self.ast.expr(self.unparen(operand)).kind {
+            ExprKind::Identifier(_)
+            | ExprKind::This(_)
+            | ExprKind::Null
+            | ExprKind::Boolean(_)
+            | ExprKind::Number(_)
+            | ExprKind::String(_)
+            | ExprKind::Template(_)
+            | ExprKind::RegExp { .. }
+            | ExprKind::BigInt(_)
+            | ExprKind::Array(_)
+            | ExprKind::Object(_)
+            | ExprKind::Function(_)
+            | ExprKind::Class(_)
+            | ExprKind::Logical { .. }
+            | ExprKind::Conditional { .. }
+            | ExprKind::OptionalChain(_)
+            | ExprKind::NewTarget(_)
+            | ExprKind::ImportCall { .. }
+            | ExprKind::ImportMeta
+            | ExprKind::Unary {
+                op: UnaryOp::Void,
+                ..
+            }
+            // Not an operand after `unparen`; the default form.
+            | ExprKind::Paren(_)
+            | ExprKind::Hole
+            | ExprKind::Spread(_) => true,
+            ExprKind::Unary {
+                op:
+                    UnaryOp::Delete
+                    | UnaryOp::Typeof
+                    | UnaryOp::Plus
+                    | UnaryOp::Minus
+                    | UnaryOp::BitNot
+                    | UnaryOp::Not,
+                ..
+            }
+            | ExprKind::Update { .. }
+            | ExprKind::Binary { .. }
+            | ExprKind::Assign { .. }
+            | ExprKind::Sequence(_)
+            | ExprKind::Member { .. }
+            | ExprKind::Index { .. }
+            | ExprKind::PrivateMember { .. }
+            | ExprKind::PrivateIn { .. }
+            | ExprKind::Call { .. }
+            | ExprKind::New { .. }
+            | ExprKind::TaggedTemplate { .. }
+            | ExprKind::SuperMember { .. }
+            | ExprKind::SuperIndex { .. }
+            | ExprKind::SuperCall(_)
+            | ExprKind::Yield { .. }
+            | ExprKind::Await(_) => false,
+        }
     }
 
     /// One element of an array literal or argument list into `array`: a

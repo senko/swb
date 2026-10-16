@@ -1,9 +1,12 @@
-//! The `Function` constructor (ECMA-262 §20.2.1.1,
+//! The `Function` and `GeneratorFunction` constructors (ECMA-262
+//! §20.2.1.1, §27.3.1.1,
 //! <https://tc39.es/ecma262/#sec-createdynamicfunction>): the source text
-//! of a normal function from the arguments, its parse and compile as global
-//! code of the constructor's realm, and the function object.
+//! of a normal or generator function from the arguments, its parse and
+//! compile as global code of the constructor's realm, and the function
+//! object.
 //!
-//! The source is `(function anonymous(P\n) {\nbody\n})`, as V8 builds it:
+//! The source is `(function anonymous(P\n) {\nbody\n})` (with
+//! `function*` for a generator), as V8 builds it:
 //! `Function.prototype.toString` shows the text between the parentheses
 //! (§20.2.1.1.1 step 16 `sourceString`), and positions on the first line
 //! count the `(` (measured in Node.js 22). The parse checks that the
@@ -14,8 +17,8 @@
 //! budget bounds the nesting. The script around the function is garbage
 //! once the function exists; the function's code owns the source.
 //!
-//! The generator and async forms (`GeneratorFunction`, `AsyncFunction`)
-//! come with M7 feature 7.
+//! The async forms (`AsyncFunction`, `AsyncGeneratorFunction`) come with
+//! M7 features 7c and 7d.
 
 use std::rc::Rc;
 
@@ -32,6 +35,16 @@ use crate::vm::{NativeCall, VmError, VmResult};
 
 /// The text before the parameters.
 const PREFIX: &str = "(function anonymous(";
+/// The text before the parameters of a generator function.
+const GENERATOR_PREFIX: &str = "(function* anonymous(";
+
+/// The kind of function that `CreateDynamicFunction` makes (§20.2.1.1.1
+/// `kind`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DynamicKind {
+    Normal,
+    Generator,
+}
 /// The text between the parameters and the body.
 const MIDDLE: &str = "\n) {\n";
 /// The text after the body.
@@ -45,18 +58,23 @@ struct Source {
 }
 
 impl Runtime {
-    /// The code of the function that `Function(...args)` creates
-    /// (§20.2.1.1.1 steps 1 to 29 for a normal function): `ToString` of
-    /// the parameter arguments, then of the body, the parse with its early
-    /// errors (a `SyntaxError` at the call), the compile. The code object is
-    /// recorded in the current handle scope.
+    /// The code of the function that `Function(...args)` or
+    /// `GeneratorFunction(...args)` creates (§20.2.1.1.1 steps 1 to 29):
+    /// `ToString` of the parameter arguments, then of the body, the parse
+    /// with its early errors (a `SyntaxError` at the call), the compile.
+    /// The code object is recorded in the current handle scope.
     pub(crate) fn dynamic_function_code(
         &mut self,
         call: &NativeCall,
+        kind: DynamicKind,
     ) -> VmResult<(Gc<Generic>, Rc<FunctionCode>)> {
         let argc = call.argc();
+        let prefix = match kind {
+            DynamicKind::Normal => PREFIX,
+            DynamicKind::Generator => GENERATOR_PREFIX,
+        };
         let mut text = Source {
-            text: String16::from(PREFIX),
+            text: String16::from(prefix),
             room: 0,
         };
         // Steps 9 to 11: the parameters, joined with commas.
@@ -122,10 +140,12 @@ impl Runtime {
         self.charge_units(units)
     }
 
-    /// The function object of `Function(...)` (§20.2.1.1.1 steps 30 to
-    /// 36): `OrdinaryFunctionCreate` with the prototype `proto` (from
-    /// `new.target`), in the realm of the constructor, with the name
-    /// `anonymous` and a `prototype` property (`MakeConstructor`).
+    /// The function object of `Function(...)` or `GeneratorFunction(...)`
+    /// (§20.2.1.1.1 steps 30 to 36): `OrdinaryFunctionCreate` with the
+    /// prototype `proto` (from `new.target`), in the realm of the
+    /// constructor, with the name `anonymous` and a `prototype` property
+    /// (`MakeConstructor` for a normal function; for a generator an object
+    /// that inherits from `%GeneratorPrototype%`, step 33).
     pub(crate) fn new_dynamic_function(
         &mut self,
         (code, compiled): (Gc<Generic>, &Rc<FunctionCode>),
@@ -142,11 +162,13 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use super::{MIDDLE, PREFIX, SUFFIX};
+    use super::{GENERATOR_PREFIX, MIDDLE, PREFIX, SUFFIX};
 
     #[test]
     fn the_source_has_the_form_of_v8() {
         let source = format!("{PREFIX}a,b{MIDDLE}return a{SUFFIX}");
         assert_eq!(source, "(function anonymous(a,b\n) {\nreturn a\n})");
+        let source = format!("{GENERATOR_PREFIX}a,b{MIDDLE}yield a{SUFFIX}");
+        assert_eq!(source, "(function* anonymous(a,b\n) {\nyield a\n})");
     }
 }

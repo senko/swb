@@ -212,6 +212,28 @@ callbacks). A user iterator costs a call of `next`, a result object and
 two property reads per element (480 ns). The other rows are within noise
 of the 6b numbers.
 
+Programs added in M7 7a (2026-10-17, same machine):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| generator: for-of over 1M yielded values | 340 | 45.7 | 7.4x |
+| generator: yield* chain of depth 10, 100k values | 177 | 53.6 | 3.3x |
+
+A step of `for`-`of` over a generator costs about 340 ns: the native call
+of `next`, the move of the frame's registers in and out, the result
+object and two property reads. A level of `yield*` adds about 150 ns per
+value (the resumption of the level, the call of the delegate's `next`
+as a frame and the read of `done`; the delegate's result object passes
+through without a copy). A step without the result object when `for`-`of`
+calls the built-in `next` of a generator is a backlog item for feature 13.
+The other rows are within noise of a build of the previous commit, measured
+alternately (three runs each, best of each), except `string: toLowerCase,
+toUpperCase 4M calls`, which takes 545 to 600 ms in both builds: its
+collection threshold depends on whether a live string happens to occupy a
+high slot of the string arena after a burst of garbage (the slot vector
+counts as live with its whole capacity), so the count of collections in the
+best run is 1 or 7.
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

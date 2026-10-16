@@ -1597,6 +1597,63 @@ where the first plan did not work:
   its shape for ordinary functions and natives, and the loop, marked
   cold, has its own dispatch: one dispatch for both paths made
   call-heavy rows of `vm_bench` 5 to 20 % slower.
+- `yield*` (feature 7a, `compiler/iterate.rs`, `vm/generator.rs`,
+  §15.5.5) is a loop of instructions in the generator's code over a
+  record of four registers: the iterator, its `next`, the received value
+  and the resume mode. `DelegateCall` takes the method by the mode (`next`
+  from the record; `throw` and `return` with `GetMethod` at each step, as
+  the specification says) and calls it as an ordinary frame with the
+  received value as its one argument (also the first `undefined`;
+  measured in Chromium 148). `DelegateResult` checks the result object and
+  reads `done`, and `value` only when it is done. `YieldDelegate` is
+  `GeneratorYield` of the result object itself: the caller of `next` gets
+  the delegate's object (Chromium: the same object, only `done` read). A
+  resumption writes the next value and mode into the record, so the loop
+  does not use the dispatch after a plain `yield`; when the delegate is
+  done in return mode, `Resume` takes the compiled return path (the
+  `finally` blocks run). Throw mode without a `throw` method closes the
+  delegate through re-entry (`IteratorClose` with a normal completion) and
+  throws V8's "The iterator does not provide a 'throw' method."; return
+  mode without a `return` method returns the received value. Async
+  generators (feature 7d) can reuse the loop: an `Await` after
+  `DelegateCall` and before the return path, and their own yield of the
+  result's `value` in place of `YieldDelegate`.
+- The depth rule of `yield*`: a delegate generator's `next`, `throw` and
+  `return` are the natives that return a resume request, so the delegate
+  resumes as a frame of the same interpreter loop. A chain of n
+  generators that delegate to each other costs n frames and no Rust stack;
+  the frame limit (10,000) ends a longer chain with a catchable
+  `RangeError: Maximum call stack size exceeded`, and the generators on
+  the way complete (Chromium 148: a recursion of 1,500 generators works,
+  one of 5,000 throws the error; a chain of 100,000 throws it in both, and
+  a `return` afterwards gives `{ value, done: true }` in both). A step does
+  not skip the result object, because the delegate's object is the result
+  of the outer `next`: it is made once, where the innermost generator
+  yields, and passes through every level. Getters of `throw`, `return`,
+  `done` and `value`, and the close of a delegate without `throw`, run
+  through re-entry and charge the recursion budget. The loop's backward
+  jump is a step of the time countdown and a safepoint; everything held
+  across a resume (the delegate, its `next`, the received value) is in the
+  record, which the suspended generator's saved window traces.
+- V8's messages for `yield*` depend on the form of the operand (measured
+  in Chromium 148): for an identifier, `this`, a literal, a function or
+  class expression, a conditional or logical expression, an optional
+  chain or `void`, the type of the value (`number 5 is not iterable
+  (cannot read property Symbol(Symbol.iterator))`, and for a `next`,
+  `throw` or `return` that is not callable `number 5 is not a function`);
+  for every other form `yield* (intermediate value) is not iterable` for
+  both. V8 has a third form for some call operands, "yield* (intermediate
+  value)(intermediate value) is not iterable"; swb gives the second form
+  there. The errors are at the `yield` keyword.
+- `GeneratorFunction` (feature 7a, `builtins/generator.rs`) is the
+  `CreateDynamicFunction` of 3f with the source `(function*
+  anonymous(P\n) {\nbody\n})`; its fallback prototype is
+  `%GeneratorFunction.prototype%` of the constructor's realm, and the new
+  function's own `prototype` inherits from `%GeneratorPrototype%`.
+  `GeneratorFunction` is not a global; its `[[Prototype]]` is `Function`.
+  A generator object's prototype is read from the function's `prototype`
+  after the parameters are bound (§15.5.2), with `%GeneratorPrototype%`
+  of the function's realm for a value that is not an object.
 
 ## Consequences
 

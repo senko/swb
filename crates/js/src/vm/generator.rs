@@ -21,18 +21,34 @@
 //! compiled return path, which runs the `finally` blocks. A generator
 //! that has not started or has completed handles the abrupt modes without
 //! running code (§27.5.3.4).
+//!
+//! `yield*` (§15.5.5,
+//! <https://tc39.es/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluation>)
+//! is a loop of instructions (`compiler/iterate.rs`); the parts here are
+//! the choice of the delegate's method by the resume mode, the result
+//! check and `GeneratorYield` (§27.5.3.7 with an iterator result: the
+//! result object goes to the caller of `next` as it is). The delegate's
+//! methods are called as frames of the interpreter loop, so a chain of
+//! generators that delegate to each other costs frames (bounded by the
+//! frame limit), not Rust stack. A delegate generator's result object is
+//! made once, where it yields, and passes through every level.
 
-use crate::bytecode::{RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
+use crate::bytecode::{DELEGATE_TYPED, RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
 use crate::heap::{Gc, Tracer};
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::call::Step;
+use crate::vm::iter::IteratorRecord;
 use crate::vm::{
     Frame, Intrinsic, NativeCall, NativeReturn, Resume, ResumeMode, ReturnTo, STACK_OVERFLOW,
     VmError, VmResult,
 };
+
+/// V8's message for the operand of `yield*` (or a method of its
+/// iterator) that fails when the operand is not a simple expression.
+pub(crate) const YIELD_STAR_NOT_ITERABLE: &str = "yield* (intermediate value) is not iterable";
 
 /// The state of a generator (§27.5.2 `[[GeneratorState]]`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -190,6 +206,103 @@ impl Runtime {
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
         self.heap.close_scope(scope)?;
         Ok(self.deliver(ret, result.into()))
+    }
+
+    /// `GeneratorYield(innerResult)` of `yield*` (§15.5.5 step 8.a.vii,
+    /// §27.5.3.7): suspends the running generator frame and delivers the
+    /// iterator result in `register` unchanged to the caller of `next`.
+    /// Returns the result if the caller is the host.
+    pub(crate) fn yield_delegate(&mut self, register: Reg) -> VmResult<Option<Value>> {
+        let frame = self
+            .vm
+            .frames
+            .last()
+            .ok_or(VmError::invariant("no frame"))?;
+        let generator = frame
+            .generator
+            .ok_or(VmError::invariant("yield outside a generator frame"))?;
+        let result = self
+            .vm
+            .stack
+            .get(frame.base as usize + usize::from(register))
+            .copied()
+            .ok_or(VmError::invariant("a register outside the stack"))?;
+        // The saved window roots the result until it is delivered; nothing
+        // allocates in between.
+        let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
+        Ok(self.deliver(ret, result))
+    }
+
+    /// The method that a step of `yield*` calls (§15.5.5 step 8) in the
+    /// resume `mode`: the record's `next`; the iterator's `throw`; or its
+    /// `return`, `None` when it has none (the `yield*` returns). In throw
+    /// mode without a `throw` method, the iterator is closed
+    /// (`IteratorClose` with a normal completion, step 8.b.iii) and the
+    /// result is V8's `TypeError`. A method that is not callable is a
+    /// `TypeError` in the message form `form`.
+    pub(crate) fn delegate_method(
+        &mut self,
+        iterator: Value,
+        next: Value,
+        mode: Value,
+        form: u16,
+    ) -> VmResult<Option<Value>> {
+        let method = match mode {
+            Value::Int(RESUME_NEXT) => next,
+            Value::Int(RESUME_THROW) => {
+                let key = PropertyKey::String(self.vm.atoms.throw_);
+                let method = self.get_value(iterator, key)?;
+                if method.is_nullish() {
+                    let record = IteratorRecord {
+                        iterator,
+                        next_method: next,
+                        done: false,
+                    };
+                    self.iterator_close(&record)?;
+                    return Err(VmError::type_error(
+                        "The iterator does not provide a 'throw' method.",
+                    ));
+                }
+                method
+            }
+            Value::Int(RESUME_RETURN) => {
+                let key = PropertyKey::String(self.vm.atoms.return_);
+                let method = self.get_value(iterator, key)?;
+                if method.is_nullish() {
+                    return Ok(None);
+                }
+                method
+            }
+            _ => return Err(VmError::invariant("a yield* step without a mode")),
+        };
+        if !self.is_callable(method)? {
+            return Err(if form == DELEGATE_TYPED {
+                self.not_callable(method)
+            } else {
+                VmError::type_error(YIELD_STAR_NOT_ITERABLE)
+            });
+        }
+        Ok(Some(method))
+    }
+
+    /// The check of a `yield*` step's result (§15.5.5 steps 8.a.iii to
+    /// 8.a.v and their copies for `throw` and `return`): `Some(value)` if
+    /// the result says done, `None` if the loop yields it. Getters of
+    /// `done` and `value` run through re-entry; the value is recorded in
+    /// the current handle scope.
+    pub(crate) fn delegate_result(&mut self, result: Value) -> VmResult<Option<Value>> {
+        if !matches!(result, Value::Object(_)) {
+            return Err(VmError::type_error(format!(
+                "Iterator result {} is not an object",
+                self.primitive_text(result)
+            )));
+        }
+        let done = self.get_value(result, PropertyKey::String(self.vm.atoms.done))?;
+        if !self.to_boolean(done)? {
+            return Ok(None);
+        }
+        let value = self.get_value(result, PropertyKey::String(self.vm.atoms.value))?;
+        Ok(Some(value))
     }
 
     /// Moves the top frame and its register window into the generator.

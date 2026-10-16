@@ -2861,3 +2861,193 @@ fn stress_mode_agrees_on_helpers() {
     assert_eq!(run(source, true), normal);
     assert!(normal.starts_with("15 "), "{normal}");
 }
+
+#[test]
+fn deep_yield_star_chains_end_with_a_catchable_error() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(256);
+        // A chain of 100,000 generators that each delegate to the next
+        // (made by a loop) and a recursion of 100,000 levels through
+        // `yield*`: every use that goes through the whole chain ends with
+        // the frame limit's `RangeError` (Chromium 148 too), never with a
+        // Rust stack overflow, and the runtime stays usable.
+        let chain = "function* leaf() { yield 1; yield 2; } var it = leaf(); \
+                     for (var i = 0; i < 100000; i++) { const inner = it; it = (function* () { yield* inner; })(); } ";
+        let recursion = "function* g(n) { if (n > 0) yield* g(n - 1); else yield 'bottom'; } var it = g(100000); ";
+        for setup in [chain, recursion] {
+            for use_it in [
+                "it.next()",
+                "(it.next(), it.return(5))",
+                "(it.next(), it.throw(5))",
+                "[...it]",
+                "(function () { for (var x of it) { } })()",
+                "it.return(5)",
+                "it.throw(5)",
+            ] {
+                let source = format!(
+                    "{setup} var r; try {{ r = JSON.stringify({use_it}); }} catch (e) {{ r = e && e.name ? e.name + ': ' + e.message : 'threw ' + e; }} r"
+                );
+                let (result, elapsed) =
+                    eval_with_deadline_of(&mut rt, &source, Duration::from_secs(20));
+                let Ok(value) = result else {
+                    panic!("{use_it}: {result:?}");
+                };
+                let text = rt.display(value);
+                assert!(
+                    text.contains("RangeError: Maximum call stack size exceeded")
+                        || text.contains("\"done\":true")
+                        || text.contains("threw 5"),
+                    "{use_it}: {text}"
+                );
+                assert!(elapsed < Duration::from_secs(10), "{use_it}: {elapsed:?}");
+                assert_clean(&rt);
+            }
+        }
+        // A generator that delegates to a new instance of itself.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "function* self() { yield* self(); } try { self().next(); } catch (e) { print(e.name, e.message); } \
+                 function* two() { yield* [1, 2]; } print([...two()].join());"
+            ),
+            "RangeError Maximum call stack size exceeded\n1,2"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn misbehaving_delegates_in_hot_loops() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        // Delegates whose methods throw, return non-objects, are not
+        // callable or are getters that throw: each `yield*` fails cleanly,
+        // over and over in a loop that ends at the deadline.
+        let delegates = [
+            "{ [Symbol.iterator]() { return this; }, next() { throw new Error('n'); } }",
+            "{ [Symbol.iterator]() { return this; }, next() { return 1; } }",
+            "{ [Symbol.iterator]() { return this; }, next: 5 }",
+            "{ [Symbol.iterator]() { return 5; } }",
+            "{ [Symbol.iterator]() { return this; }, get next() { throw 1; } }",
+            "{ [Symbol.iterator]() { return this; }, next() { return { get done() { throw 2; } }; } }",
+            "{ [Symbol.iterator]() { return this; }, next() { return { done: true, get value() { throw 3; } }; } }",
+        ];
+        for delegate in delegates {
+            let source = format!(
+                "var d = {delegate}; function* g() {{ yield* d; }} var n = 0; \
+                 while (true) {{ try {{ g().next(); }} catch (e) {{ n++; }} }}"
+            );
+            assert_ends_at_deadline(&mut rt, &source, DEADLINE, Duration::from_millis(500));
+            assert_clean(&rt);
+        }
+        // `throw` and `return` that misbehave, on one suspended generator
+        // after another.
+        let abrupt = [
+            (
+                "throw",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, throw() { return 1; } }",
+            ),
+            (
+                "throw",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, return() { return 1; } }",
+            ),
+            (
+                "throw",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, return() { throw 4; } }",
+            ),
+            (
+                "throw",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, throw: 5 }",
+            ),
+            (
+                "return",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, return() { return null; } }",
+            ),
+            (
+                "return",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, get return() { throw 6; } }",
+            ),
+            (
+                "return",
+                "{ [Symbol.iterator]() { return this; }, next() { return { done: false }; }, return() { return { done: false }; } }",
+            ),
+        ];
+        for (method, delegate) in abrupt {
+            let source = format!(
+                "var d = {delegate}; function* g() {{ yield* d; }} var n = 0; \
+                 while (true) {{ var it = g(); it.next(); try {{ it.{method}(0); }} catch (e) {{ n++; }} }}"
+            );
+            assert_ends_at_deadline(&mut rt, &source, DEADLINE, Duration::from_millis(500));
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn reentrant_next_through_a_delegate() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        // The delegate calls the delegating generator's `next`, `throw`
+        // and `return`: each is "Generator is already running", 100,000
+        // times, and the generator keeps working.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var o, bad = 0, i = 0; \
+                 var d = { [Symbol.iterator]() { return this; }, \
+                   next() { for (var m of ['next', 'throw', 'return']) { try { o[m](); } catch (e) { if (e.message === 'Generator is already running') bad++; } } \
+                     return { done: i >= 100000, value: i++ }; } }; \
+                 function* g() { return yield* d; } o = g(); var sum = 0; for (var x of o) sum += x; \
+                 print(sum, bad, JSON.stringify(o.next()));"
+            ),
+            "4999950000 300003 {\"done\":true}"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn endless_delegates_end_at_the_time_or_heap_limit() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        let endless = "var endless = { [Symbol.iterator]() { return this; }, next() { return { done: false, value: 1 }; } }; \
+                       function* forever() { while (true) yield 1; } \
+                       function* wrap(k, src) { if (k === 0) yield* src; else yield* wrap(k - 1, src); } ";
+        let cases = [
+            "[...(function* () { yield* endless; })()]",
+            "for (var x of (function* () { yield* endless; })()) { }",
+            "[...wrap(10, forever())]",
+            "for (var x of wrap(10, endless)) { }",
+            "var it = wrap(50, forever()); while (true) it.next();",
+            "(function* () { while (true) yield* [1, 2, 3]; })().toArray()",
+            "(function* () { while (true) yield* []; })().next()",
+            "(function* () { while (true) yield* ''; })().next()",
+            "while (true) wrap(10, endless).next();",
+            "Array.from(wrap(5, forever()))",
+            "new Set(wrap(5, (function* () { var i = 0; while (true) yield i++; })()))",
+        ];
+        for case in cases {
+            let source = format!("{endless}{case}");
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, &source, Duration::from_millis(300));
+            assert!(is_limit(&result), "{case}: {result:?}");
+            assert!(elapsed < Duration::from_secs(5), "{case}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_yield_star() {
+    let source = "var log = []; \
+                  function mk(n) { var i = 0; return { [Symbol.iterator]() { return this; }, next(v) { log.push('n' + (v && v.k)); return { done: i >= n, value: { n: i++ } }; }, \
+                    return(v) { log.push('r'); return { done: true, value: v }; }, throw(e) { log.push('t'); return { done: true, value: { n: -1 } }; } }; } \
+                  function* mid(k) { var r = yield* (k ? mid(k - 1) : mk(5)); return { n: r.n + 1 }; } \
+                  var a = []; var it = mid(5); var x; while (!(x = it.next({ k: a.length })).done) a.push(x.value.n); \
+                  var b = mid(3); b.next(); var c = b.throw(1); var d = mid(3); d.next(); var e = d.return({ n: 'R' }); \
+                  var GF = Object.getPrototypeOf(function* () {}).constructor; var f = [...GF('a', 'yield* a; yield* \"xy\"')([1, 2])]; \
+                  print(a.join(), x.value.n, JSON.stringify(c), JSON.stringify(e), f.join(), log.join());";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("0,1,2,3,4 "), "{normal}");
+}

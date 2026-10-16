@@ -7,7 +7,9 @@
 //! complete except `fromAsync` (`array*.rs`);
 //! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
-//! `Function` constructor is in `vm/create_function.rs`); the global
+//! `Function` constructor is in `vm/create_function.rs`);
+//! `GeneratorFunction`, its prototype and `%GeneratorPrototype%`
+//! (`generator.rs`; the generator objects run in `vm/generator.rs`); the global
 //! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
 //! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` with
 //! its statics and the prototype methods that need no `RegExp`, the string
@@ -46,6 +48,7 @@ mod console;
 mod descriptor;
 mod error;
 mod function;
+mod generator;
 mod global;
 mod integrity;
 mod iterator;
@@ -116,7 +119,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     reflect::install(rt, realm)?;
     let (parse_int, parse_float) = global::install(rt, realm)?;
     math::install(rt, realm)?;
-    function::install(rt, realm)?;
+    let function_constructor = function::install(rt, realm)?;
     error::install(rt, realm)?;
     array::install(rt, realm)?;
     primitive::install(rt, realm)?;
@@ -128,7 +131,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     map::install(rt, realm)?;
     set::install(rt, realm)?;
     json::install(rt, realm)?;
-    console::install(rt, realm)
+    console::install(rt, realm)?;
+    generator::install(rt, realm, function_constructor)
 }
 
 // --- Helpers for the definitions ---

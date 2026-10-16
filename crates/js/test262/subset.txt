@@ -309,3 +309,12 @@ dir test/built-ins/SetIteratorPrototype
 feature iterator-helpers
 feature iterator-sequencing
 dir test/built-ins/Iterator
+
+# Added in M7 feature 7a: `yield*`, `GeneratorFunction` and all of
+# `%GeneratorPrototype%`. The tests of `yield*` are in groups that run
+# already (expressions/yield, the generator groups of statements and
+# expressions, the method groups of classes and object literals); the
+# `async-iteration` and `cross-realm` tests stay skipped (features 7d and
+# 12).
+dir test/built-ins/GeneratorFunction
+dir test/built-ins/GeneratorPrototype

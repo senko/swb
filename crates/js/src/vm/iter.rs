@@ -27,7 +27,7 @@
 
 use crate::bytecode::{
     FunctionCode, HINT_NO_TEXT, HINT_SHIFT, ITER_ARRAY_SPREAD, ITER_CALL, ITER_RENDERED,
-    ITER_SPREAD,
+    ITER_SPREAD, ITER_YIELD_STAR,
 };
 use crate::heap::Gc;
 use crate::object::{IterationKind, Object, ObjectKind};
@@ -239,6 +239,7 @@ impl Runtime {
             (ITER_CALL, Some(text)) => {
                 format!("{text} is not a function or its return value is not iterable")
             }
+            (ITER_YIELD_STAR, _) => crate::vm::generator::YIELD_STAR_NOT_ITERABLE.to_owned(),
             _ => return self.not_iterable(value),
         };
         VmError::type_error(message)
