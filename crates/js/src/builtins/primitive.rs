@@ -12,10 +12,9 @@ use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::StringPrototype)?;
-    super::constructor(rt, realm, "String", 1, string, proto)?;
-    super::method(rt, realm, proto, "toString", 0, string_value_of)?;
-    super::method(rt, realm, proto, "valueOf", 0, string_value_of)?;
-    Ok(())
+    let ctor = super::constructor(rt, realm, "String", 1, string, proto)?;
+    rt.heap.record(ctor);
+    super::string::install(rt, realm, ctor, proto, string_value_of)
 }
 
 /// `String(value)` (§22.1.1.1): `ToString`, except that a symbol becomes

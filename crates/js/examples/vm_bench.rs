@@ -99,6 +99,22 @@ const PROGRAMS: &[(&str, &str)] = &[
         "var add = new Function('a', 'b', 'return a + b');
          function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s = add(s, 1); } return s; }",
     ),
+    (
+        "string: indexOf 1M calls",
+        "function run() { var h = 'the quick brown fox jumps over the lazy dog, again and again'; var r = 0; for (var i = 0; i < 1000000; i++) { r += h.indexOf('lazy') + h.indexOf('x', 30); } return r; }",
+    ),
+    (
+        "string: slice and charCodeAt 1M calls",
+        "function run() { var h = 'the quick brown fox jumps over the lazy dog'; var r = 0; for (var i = 0; i < 1000000; i++) { r += h.slice(4, 9).length + h.charCodeAt(i % 40); } return r; }",
+    ),
+    (
+        "string: split 100k times into 8 pieces",
+        "function run() { var h = 'a,bb,ccc,dddd,eeeee,ffffff,ggggggg,h'; var r = 0; for (var i = 0; i < 100000; i++) { r += h.split(',').length; } return r; }",
+    ),
+    (
+        "string: replace, trim, padStart 300k calls",
+        "function run() { var r = 0; for (var i = 0; i < 300000; i++) { r += ' x-y-z '.trim().replace('-', '+').padStart(8, '.').length; } return r; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

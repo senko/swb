@@ -42,7 +42,9 @@ Usage: swb-js test262 [OPTIONS] [PATH...]
                      file (needs a run of whole groups: no file or inner path)
   --stress           GC stress mode (slow; looks for rooting bugs)
   --jobs N           threads (default: the number of CPUs)
-  --time-limit MS    per run (default 10000)
+  --time-limit MS    per run (default 10000; 300000 with --stress, where a
+                     collection at every safepoint makes loops of a million
+                     calls slow)
   --heap-limit MIB   per run (default 256)
   --report FILE      write one line per test and mode (TSV) to FILE
   --top N            show the N most common failure messages (default 10)
@@ -103,6 +105,7 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
         paths: Vec::new(),
     };
     let mut scores_given = false;
+    let mut time_given = false;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         let mut value = |name: &str| iter.next().cloned().ok_or(format!("{name} needs a value"));
@@ -123,13 +126,19 @@ fn parse_args(args: &[String]) -> Result<Option<Args>, String> {
             "--update" => parsed.update = true,
             "--stress" => parsed.limits.stress = true,
             "--jobs" => parsed.jobs = number(value(arg)?, arg)?.max(1) as usize,
-            "--time-limit" => parsed.limits.time = Duration::from_millis(number(value(arg)?, arg)?),
+            "--time-limit" => {
+                parsed.limits.time = Duration::from_millis(number(value(arg)?, arg)?);
+                time_given = true;
+            }
             "--heap-limit" => parsed.limits.heap = (number(value(arg)?, arg)? as usize) << 20,
             "--report" => parsed.report = Some(value(arg)?),
             "--top" => parsed.top = number(value(arg)?, arg)? as usize,
             other if other.starts_with('-') => return Err(format!("unknown option {other}")),
             path => parsed.paths.push(path.trim_end_matches('/').to_owned()),
         }
+    }
+    if parsed.limits.stress && !time_given {
+        parsed.limits.time *= 30;
     }
     if parsed.parse_only && !scores_given {
         DEFAULT_PARSE_SCORES.clone_into(&mut parsed.scores);

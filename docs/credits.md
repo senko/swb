@@ -177,6 +177,17 @@ Format: source, license (for code), what it influenced.
   balanced tree and joins short adjacent leaves. The chunk size that
   grows with the length, the two-level edge merge and the in-place
   flatten are swb's own (after study memo 4.2); no code read or copied.
+- D. E. Knuth, J. H. Morris and V. R. Pratt, "Fast Pattern Matching in
+  Strings", SIAM Journal on Computing 6(2), 1977 — the prefix function
+  and the single pass of the search for needles of 16 or more code units
+  (`js/src/builtins/string_search.rs`, M7 feature 5b); `lastIndexOf`
+  runs it over the mirrored strings. Written from the paper's
+  description; the charge of the work to the time countdown is swb's own.
+  The URI functions, the padding, `split` and `GetSubstitution` follow
+  ECMA-262 §19.2.6, §22.1.3 and §B.2; the messages and the V8
+  quirks (`trimLeft` in the receiver message of `trimStart`, the
+  `RangeError` texts) were measured in Chromium 148 (`just probe`
+  `tools/probes/js-strings.json`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

@@ -1133,6 +1133,30 @@ failures with a reason. Features, in this order:
      create a `RegExp` and stay for 8b); the string iterator; the URI
      functions; Annex B `substr`, the HTML methods, `trimLeft`,
      `trimRight`, `escape`, `unescape`.
+     Done 2026-10-15: all of the above, with V8's messages measured in
+     Chromium 148 (318 cases in `tools/probes/js-strings.json`, also a
+     test). `GetSubstitution` takes captures and named captures, for
+     8b. `replace`, `replaceAll` and `split` look up `Symbol.replace`
+     and `Symbol.split` only on objects (test262 and Chromium 148;
+     Node.js 22 also on primitives). `repeat`, `padStart` and `padEnd`
+     make ropes by doubling. A needle of fewer than 16 units is found by
+     a scan for its first unit, a longer one by Knuth-Morris-Pratt; all
+     search, copy and URI work is charged to the time countdown.
+     `Math.sumPrecise` of strings now gives Chromium's results. Runtime
+     test262: 22,888 pass (was 21,621), the same in stress mode (whose
+     default time limit is now 30 times longer); new groups
+     `built-ins/String` 891 of 1,195, `StringIteratorPrototype` 7, the
+     URI functions 161 of 173, `annexB/built-ins/String` 105, `escape`
+     15, `unescape` 18. Parse-only unchanged. Known failures:
+     `RegExp` and the methods that use it (8b), case mapping,
+     `normalize` and `localeCompare` (5d; also 12 URI tests that call
+     `toUpperCase`), `BigInt` (10), `Array.prototype.lastIndexOf` (6).
+     Speed against `node --jitless`: `indexOf` 4.3 times slower,
+     `slice` with `charCodeAt` 7.3 times, `split` into 8 pieces 26
+     times (each piece goes through the general property definition;
+     feature 6). The review found one bug: a replacement template with
+     many `$<` was scanned once per `$<` without a time charge (fixed:
+     one charged scan per template).
    - 5c `JSON` (`implementer`): `parse` with the reviver, `stringify`
      with replacer, indentation, `toJSON`, well-formed output, V8's
      message for cycles and the depth limit; the source text access of
@@ -1164,7 +1188,11 @@ failures with a reason. Features, in this order:
      string methods that use it (`Symbol.match`, `replace`, `split`,
      `matchAll`), `RegExp.escape`, Annex B `RegExp.prototype.compile`;
      the legacy static properties (`RegExp.$1`) only if a target uses
-     them.
+     them. `builtins/string.rs` installs the methods of
+     `String.prototype` in V8's key order; add `match`, `matchAll` and
+     `search` at their places in it, and make `get_substitution`
+     (`string_replace.rs`, with captures and named captures) visible to
+     the `RegExp` code.
 9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
    invariant checks, `WeakMap`, `WeakSet` and their ephemeron marking,
    `WeakRef`, `FinalizationRegistry`, the kept-alive list.
@@ -1305,6 +1333,18 @@ not repeated here; the open items of each spike session are in M6 step
   appends of `'ab'`, `s[5]` ends at a heap limit of 13 MiB, where
   `parseInt(s)` (which collects) runs. Make the element read of the
   interpreter a safepoint, with the base in its register.
+- Strings (M7 5b): `split` is 26 times slower than `node --jitless`,
+  because each piece goes through the general property definition; a
+  bulk append to a dense array for natives (feature 6). `for`-`of` over
+  a string calls the generic `next` (a compiled path as for arrays), and
+  each string of one code unit is a new allocation (a table of the 256
+  Latin-1 ones; feature 13).
+- Messages (M7 5b): the message for an incompatible receiver shows
+  `#<Object>` where V8 shows `[object Array Iterator]` (the object text
+  does not read `Symbol.toStringTag`).
+- `encodeURI` checks the room for the worst case of the rest of its
+  input, so near the length limit it throws "Invalid string length" up
+  to about 36 KiB early (M7 5b).
 - Bound function names (M7 2a open item): the 32,768-unit limit can go
   now that `"bound " + name` is a rope; check V8 with very long names
   first.

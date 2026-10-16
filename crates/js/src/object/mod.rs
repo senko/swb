@@ -83,6 +83,8 @@ pub enum ObjectKind {
     /// An Array Iterator (§23.1.5): the array-like, the next index and
     /// the kind of its results.
     ArrayIterator(Box<ArrayIterator>),
+    /// A String Iterator (§22.1.5): the flat string and the next position.
+    StringIterator(Box<StringIterator>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
@@ -139,6 +141,15 @@ pub struct ArrayIterator {
     pub(crate) kind: IterationKind,
 }
 
+/// The state of a String Iterator (§22.1.5.1 `%StringIteratorPrototype%`).
+#[derive(Debug)]
+pub struct StringIterator {
+    /// The iterated string, flat; `None` once the iterator is exhausted.
+    pub(crate) string: Option<Gc<JsString>>,
+    /// The index of the next code unit.
+    pub(crate) position: usize,
+}
+
 impl fmt::Debug for ObjectKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
@@ -154,6 +165,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
+            ObjectKind::StringIterator(_) => "StringIterator",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
             ObjectKind::ForInIterator(_) => "ForInIterator",
@@ -195,6 +207,11 @@ impl ObjectKind {
                     tracer.object(target);
                 }
             }
+            ObjectKind::StringIterator(state) => {
+                if let Some(string) = state.string {
+                    tracer.string(string);
+                }
+            }
             ObjectKind::ForInIterator(state) => {
                 tracer.object(state.object);
                 for &key in &state.keys {
@@ -214,6 +231,7 @@ impl ObjectKind {
             ObjectKind::Bound(bound) => bound.heap_size(),
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
+            ObjectKind::StringIterator(_) => size_of::<StringIterator>(),
             ObjectKind::Error(Some(data)) => data.heap_size(),
             ObjectKind::ForInIterator(state) => {
                 size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()

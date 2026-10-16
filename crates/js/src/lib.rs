@@ -30,7 +30,7 @@ pub use heap::{
 };
 pub use object::{
     ArrayIterator, GetResult, IterationKind, Object, ObjectKind, Property, PropertyDescriptor,
-    SetResult, Shape,
+    SetResult, Shape, StringIterator,
 };
 pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Equality, Symbol, Value, ValueCell};

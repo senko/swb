@@ -11,8 +11,11 @@
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
 //! `Function` constructor is in `vm/create_function.rs`); the global
 //! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
-//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` and
-//! `Boolean` with their prototype methods `toString` and `valueOf`;
+//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` with
+//! its statics and the prototype methods that need no `RegExp`, the string
+//! iterator, the URI functions and Annex B (`string*.rs`, `uri.rs`; the
+//! case mapping, `normalize` and `localeCompare` are feature 5d, `match`,
+//! `matchAll` and `search` feature 8b); `Boolean`;
 //! `Symbol` with the well-known symbols; and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
@@ -45,7 +48,13 @@ mod object_iter;
 mod object_proto;
 mod primitive;
 mod reflect;
+mod string;
+mod string_annexb;
+mod string_iter;
+mod string_replace;
+mod string_search;
 mod symbol;
+mod uri;
 
 pub(crate) use error::error_header;
 pub(crate) use iterator::array_iterator_next_value;
@@ -76,6 +85,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     error::install(rt, realm)?;
     array::install(rt, realm)?;
     primitive::install(rt, realm)?;
+    uri::install(rt, realm)?;
     number::install(rt, realm, parse_int, parse_float)?;
     boolean::install(rt, realm)?;
     symbol::install(rt, realm)?;

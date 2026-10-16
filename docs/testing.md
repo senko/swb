@@ -906,7 +906,9 @@ another directory and `TEST262_URL` another repository.
   be none. A test file that cannot be read is a failure with the I/O
   message. Options: `--all` (all of `test/language/`, to choose the subset),
   `--report FILE` (one TSV line per test and mode), `--stress`, `--jobs`,
-  `--time-limit MS` (default 10000), `--heap-limit MIB` (default 256),
+  `--time-limit MS` (default 10000; with `--stress` 300000, because a
+  collection at every safepoint makes a loop of a million calls slow),
+  `--heap-limit MIB` (default 256),
   `--top N`.
 - The groups of `test/built-ins/` have three components
   (`test/built-ins/Array`); all others four.

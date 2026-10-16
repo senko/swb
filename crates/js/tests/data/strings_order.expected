@@ -1,0 +1,41 @@
+121ab | this,max,fill
+ab | this,max
+bcd | this,a,b
+bcd | this,a,b
+bc | this,a,b
+2 | this,s,p
+2 | this,s,p
+true | this,s,p
+true | this,s,p
+true | this,s,p
+a,b | this,lim,sep
+aXc | this,s,r
+aXcX | this,s,r
+abab | this,n
+b | this,i
+abcd | this,a,b
+98 | this,i
+98 | this,i
+<a name="q">ab</a> | this,v
+AB | a,b
+AB | a,b
+aXb | len.valueOf,get0,l0,s0,get1,l1
+a%20b | s
+A | s
+a%20b | s
+A | s
+R | get,call:true:abc:Z
+R:abc:Z | 
+S:abc:3 | 
+RA | 
+TypeError: String.prototype.replaceAll called with a non-global RegExp argument | 
+TypeError: String.prototype.replaceAll called on null or undefined | 
+aZc | 
+TypeError: First argument to String.prototype.startsWith must not be a regular expression | 
+aZc | cb
+a3babcabcca3babcabcc | 1,4
+2,0,3 | 
+1,2,false,true,undefined | 
+1,1,1,1,1,2 | 
+hel-l-o | 
+xxabb2 | 

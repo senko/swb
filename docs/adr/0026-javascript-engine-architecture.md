@@ -1130,6 +1130,39 @@ where the first plan did not work:
   0.29 s (no flatten), then 1,000,000 index reads 92 s → 0.61 s (one
   flatten); 1,000,000 single-character appends fit in a heap limit of
   3 MiB (the flat text is 1 MB).
+- Strings (feature 5b, `builtins/string*.rs`, `uri.rs`): the methods
+  follow the specification's order of conversions and V8's messages
+  (measured with `tools/probes/js-strings.json`). `repeat`, `padStart`
+  and `padEnd` build ropes by doubling with `concat` (`'ab'.repeat(2 **
+  28 - 12)` is a few nodes; V8 does the same), so only reading the code
+  units costs memory; the length is checked before anything is built.
+  `concat` is a chain of `concat`s. Substrings are flat copies, except the
+  whole string and the empty string. `replace`, `replaceAll` and `split`
+  dispatch only for an object argument (`GetMethod` of `@@replace`,
+  `@@split`; the primitive is not looked up: test262 and Chromium 148 agree),
+  as a deferred call. `replaceAll` and `split` find their matches one at
+  a time, without a list of positions. `GetSubstitution` takes captures
+  and named captures, for `RegExp` (feature 8b). `Builder` (`string.rs`)
+  is the copying builder: it checks the maximum length before a copy, the
+  heap limit at each doubling, and charges the copy.
+- Search: a needle of fewer than 16 units uses a scan for the first unit
+  and a comparison of the rest; a longer one the prefix-function search of
+  Knuth, Morris and Pratt (linear; `lastIndexOf` over the mirrored
+  strings). Work is charged in points (a scan step 1, a comparison 4; 64
+  points make a time step), also inside one call, so a hostile search
+  ends at the deadline (`while (true) h.indexOf(n)` with `'a' * 8M` and a
+  needle of 14 `a` and a `b`: 0.1 s limit, ends within 0.5 s). The
+  table of the prefix function checks the heap limit first.
+- The URI functions and `escape`/`unescape` work in chunks of 4,096 input
+  units; before a chunk the builder checks the largest output of the
+  chunk. A bad escape, a lone surrogate or invalid UTF-8 is `URIError:
+  URI malformed`.
+- `%StringIteratorPrototype%` is a new intrinsic and `ObjectKind::
+  StringIterator` (flat string, next index); `for`-`of` calls its `next`
+  through the generic path (no compiled fast path yet).
+- The test262 runner multiplies its time limit by 30 in `--stress` mode:
+  `decodeURI/S15.1.3.1_A2.5_T1` makes a million calls and takes 3 s
+  normally, 185 s with a collection at every safepoint.
 
 ## Consequences
 

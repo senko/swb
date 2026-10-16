@@ -47,6 +47,8 @@ pub(crate) enum Intrinsic {
     IteratorPrototype,
     /// `%ArrayIteratorPrototype%` (§23.1.5.2).
     ArrayIteratorPrototype,
+    /// `%StringIteratorPrototype%` (§22.1.5.1).
+    StringIteratorPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -71,7 +73,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 28;
+const INTRINSIC_COUNT: usize = 29;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -191,6 +193,7 @@ impl Runtime {
         let symbol_proto = heap.new_object(Some(object_proto))?;
         let iterator_proto = heap.new_object(Some(object_proto))?;
         let array_iterator_proto = heap.new_object(Some(iterator_proto))?;
+        let string_iterator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
@@ -232,6 +235,7 @@ impl Runtime {
             Some(throw_type_error),
             Some(iterator_proto),
             Some(array_iterator_proto),
+            Some(string_iterator_proto),
             // Set by `set_intrinsic` when the function exists.
             None,
             None,

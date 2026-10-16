@@ -313,7 +313,10 @@ impl Inspector<'_> {
         match kind {
             ObjectKind::Generator(_) => return "Object [Generator] ".to_owned(),
             ObjectKind::Arguments => return "[Arguments] ".to_owned(),
-            ObjectKind::Ordinary | ObjectKind::Array { .. } | ObjectKind::ArrayIterator(_) => {}
+            ObjectKind::Ordinary
+            | ObjectKind::Array { .. }
+            | ObjectKind::ArrayIterator(_)
+            | ObjectKind::StringIterator(_) => {}
             _ => return String::new(),
         }
         let rt = self.rt;

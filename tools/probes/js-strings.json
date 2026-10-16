@@ -1,0 +1,197 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "errors-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"String.prototype.trim.call(null)\", \"String.prototype.trimLeft.call(null)\", \"String.prototype.trimStart.call(null)\", \"String.prototype.at.call(undefined)\", \"String.prototype.charAt.call(null)\", \"String.prototype.charCodeAt.call(null)\", \"String.prototype.codePointAt.call(null)\", \"String.prototype.concat.call(null)\", \"String.prototype.endsWith.call(null)\", \"String.prototype.includes.call(null)\", \"String.prototype.indexOf.call(null)\", \"String.prototype.lastIndexOf.call(null)\", \"String.prototype.isWellFormed.call(null)\", \"String.prototype.toWellFormed.call(null)\", \"String.prototype.padStart.call(null)\", \"String.prototype.padEnd.call(null)\", \"String.prototype.repeat.call(null)\", \"String.prototype.slice.call(null)\", \"String.prototype.startsWith.call(null)\", \"String.prototype.substring.call(null)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"String.prototype.substr.call(null)\", \"String.prototype.replace.call(null)\", \"String.prototype.replaceAll.call(null)\", \"String.prototype.split.call(null)\", \"String.prototype.anchor.call(null)\", \"String.prototype.big.call(null)\", \"String.prototype.link.call(null)\", \"String.prototype.fontsize.call(null)\", \"String.prototype[Symbol.iterator].call(null)\", \"String.prototype.trimRight.call(null)\", \"String.prototype.trimEnd.call(null)\", \"String.prototype.match.call(null)\", \"String.prototype.toString.call({})\", \"String.prototype.valueOf.call(1)\", \"'a'.repeat(-1)\", \"'a'.repeat(-1.5)\", \"'a'.repeat(Infinity)\", \"'a'.repeat(-Infinity)\", \"'a'.repeat(-0.5)\", \"'a'.repeat(NaN)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-2",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"''.repeat(2**40)\", \"'a'.repeat(2**29)\", \"'a'.repeat(2**29-23)\", \"'ab'.repeat(2**28)\", \"''.repeat(Infinity).length\", \"''.repeat(-1)\", \"String.fromCodePoint(NaN)\", \"String.fromCodePoint(1.5)\", \"String.fromCodePoint(-1)\", \"String.fromCodePoint(0x110000)\", \"String.fromCodePoint('x')\", \"String.fromCodePoint(Infinity)\", \"String.fromCodePoint(undefined)\", \"String.fromCodePoint(null)\", \"String.fromCodePoint({})\", \"String.fromCodePoint(Symbol())\", \"String.fromCodePoint(-0).length\", \"String.fromCodePoint(1, 2, 0x110000)\", \"String.fromCodePoint(1e100)\", \"String.fromCharCode(Symbol())\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-3",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"String.fromCharCode(0x10041, -1, 65.9, '66', null).split('').map(c=>c.charCodeAt(0))\", \"decodeURI('%')\", \"decodeURIComponent('%E0%A4%A')\", \"decodeURI('%C0%80')\", \"decodeURI('%ED%A0%80')\", \"decodeURI('%F4%90%80%80')\", \"decodeURI('%80')\", \"decodeURI('%41%2')\", \"encodeURI('\\\\uD800')\", \"encodeURIComponent('\\\\uDC00x')\", \"encodeURI('\\\\uD800a')\", \"decodeURI(Symbol())\", \"encodeURI()\", \"decodeURI()\", \"'a'.startsWith(/a/)\", \"'a'.endsWith(/a/)\", \"'a'.includes(/a/)\", \"'a'.includes({[Symbol.match]: true})\", \"'/a/'.includes(Object.assign(/a/, {[Symbol.match]: false}))\", \"'a'.startsWith(Object.assign(()=>0,{[Symbol.match]: 1}))\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-4",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'a'.padStart(2**30)\", \"'a'.padEnd(2**30, 'b')\", \"'a'.padStart(2**29-24+1)\", \"'a'.padEnd(2**29-23, 'b')\", \"'a'.padStart(5, Symbol())\", \"'abc'.padStart(2**53)\", \"'abc'.padStart(Infinity, '')\", \"'abc'.padStart(Infinity)\", \"String.raw()\", \"String.raw({})\", \"String.raw(null)\", \"String.raw({raw: null})\", \"String.raw({raw: {}})\", \"String.raw({raw: {length: 2, 0: 'a', 1: 'b'}}, 1, 2, 3)\", \"String.raw({raw: 'abc'}, 1, 2, 3)\", \"String.raw({raw: {length: -1}})\", \"'a'.concat(Symbol())\", \"'a'.indexOf(Symbol())\", \"'a'.at(Symbol())\", \"'a'.codePointAt(1n)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-5",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'a'.slice(1n)\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.call({})\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.call(undefined)\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.call([][Symbol.iterator]())\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.call(1)\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.call('abc')\", \"Object.prototype.toString.call(''[Symbol.iterator]())\", \"Object.getPrototypeOf(Object.getPrototypeOf(''[Symbol.iterator]())) === Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))\", \"Reflect.ownKeys(Object.getPrototypeOf(''[Symbol.iterator]()))\", \"Object.getOwnPropertyDescriptor(Object.getPrototypeOf(''[Symbol.iterator]()), Symbol.toStringTag)\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.name\", \"Object.getPrototypeOf(''[Symbol.iterator]()).next.length\", \"'abc'.replaceAll('b')\", \"'abc'.replace('b')\", \"'abc'.replace()\", \"'abc'.replace('b', undefined)\", \"'abc'.replaceAll('', '-')\", \"'abc'.replace('', '-')\", \"'aaa'.replaceAll('aa', 'b')\", \"'abc'.replaceAll({[Symbol.replace]: (a, b) => 'X' + a + b}, 'Y')\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-6",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'abc'.replace({[Symbol.replace]: 5}, 'Y')\", \"'abc'.replace({[Symbol.replace]: null, toString(){return 'b'}}, 'Y')\", \"'abc'.replace({[Symbol.replace]: undefined, toString(){return 'b'}}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: 5}, 'Y')\", \"'abc'.split({[Symbol.split]: (a, b) => [a, b]}, 5)\", \"'abc'.split({[Symbol.split]: 5})\", \"'a,b'.split(',', -1)\", \"'a,b'.split(',', 2**32 + 1)\", \"'a,b'.split(',', 2**32)\", \"'a,b'.split(',', undefined)\", \"'a,b'.split(undefined)\", \"'a,b'.split(undefined, 0)\", \"'a,b'.split(',', 0)\", \"''.split('')\", \"''.split(',')\", \"'abc'.split('')\", \"'a,b,'.split(',')\", \"'\\\\uD83D\\\\uDE00x'.split('')\", \"'abc'.split(Symbol())\", \"'abc'.split('b', Symbol())\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-7",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'abc'.split(null)\", \"'abc'.replace('b', Symbol())\", \"'abc'.replace('b', () => Symbol())\", \"'abc'.replace('b', '$')\", \"'abc'.replace('b', '$$')\", \"'abc'.replace('b', '$&-$`-$\\\\'-$1-$<x>-$0-$01')\", \"'abc'.replace('b', (...a) => JSON.stringify(a))\", \"'abc'.replace('b', function () { return typeof this + (this === undefined) })\", \"'abc'.replace('b', function () { 'use strict'; return typeof this + (this === undefined) })\", \"'abc'.replaceAll('b', (...a) => JSON.stringify(a))\", \"'abcabc'.replaceAll('b', '$`|$\\\\'|$&')\", \"escape()\", \"escape('a b\\\\u00e9\\\\u0100+-*_./@')\", \"unescape('%u0041%41%u00e9%zz%u12%4')\", \"unescape('%')\", \"escape(Symbol())\", \"unescape(Symbol())\", \"'a'.anchor('\\\"x\\\"')\", \"'a'.anchor()\", \"'a'.fontcolor(1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-8",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'a'.link(Symbol())\", \"'a'.big()\", \"'a'.sup('x')\", \"''.sub.call(5)\", \"'abcdef'.substr(-3, 2)\", \"'abcdef'.substr(1)\", \"'abcdef'.substr(-100, 2)\", \"'abcdef'.substr(2, -1)\", \"'abcdef'.substr(NaN, Infinity)\", \"'abc'.substr(Symbol())\", \"String.prototype.substr.length\", \"String.prototype.substr.name\", \"String.prototype.trimLeft === String.prototype.trimStart\", \"String.prototype.trimRight === String.prototype.trimEnd\", \"String.prototype.trimLeft.name\", \"String.prototype.trimRight.name\", \"String.prototype.anchor.length\", \"String.prototype.fontsize.length\", \"String.prototype.link.length\", \"String.prototype.fontcolor.name\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-9",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"Reflect.ownKeys(String)\", \"Reflect.ownKeys(String.prototype)\", \"Math.sumPrecise('')\", \"Math.sumPrecise('ab')\", \"Math.sumPrecise(new String(''))\", \"Object.is(Math.sumPrecise(''), -0)\", \"[...'a\\\\uD83D\\\\uDE00\\\\uD83Dx\\\\uDE00']\", \"(([a, b]) => [a, b])('xy')\", \"String.prototype.at.length\", \"String.prototype.concat.length\", \"String.prototype.endsWith.length\", \"String.prototype.includes.length\", \"String.prototype.indexOf.length\", \"String.prototype.lastIndexOf.length\", \"String.prototype.padStart.length\", \"String.prototype.padEnd.length\", \"String.prototype.slice.length\", \"String.prototype.split.length\", \"String.prototype.replace.length\", \"String.prototype.replaceAll.length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-10",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"String.prototype.substring.length\", \"String.prototype.startsWith.length\", \"String.raw.length\", \"String.fromCharCode.length\", \"String.fromCodePoint.length\", \"String.prototype.codePointAt.length\", \"String.prototype.repeat.length\", \"String.prototype.trim.length\", \"String.prototype.isWellFormed.length\", \"encodeURI.length\", \"escape.length\", \"unescape.length\", \"decodeURIComponent.name\", \"Object.getOwnPropertyNames(globalThis).filter(k => /URI|escape/.test(k))\", \"'abc'.lastIndexOf('c', -Infinity)\", \"'abc'.lastIndexOf('a', -1)\", \"'abc'.lastIndexOf('', 99)\", \"'abc'.lastIndexOf('c', NaN)\", \"'abc'.lastIndexOf('b', undefined)\", \"'abc'.indexOf('', 99)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-11",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'abc'.indexOf('', -5)\", \"'abc'.includes('', 99)\", \"'abc'.startsWith('', 99)\", \"'abc'.endsWith('', 99)\", \"'abc'.endsWith('c', 3)\", \"'abc'.endsWith('b', 2)\", \"'abc'.endsWith('c', undefined)\", \"'abc'.endsWith('c', 0)\", \"'abc'.startsWith('b', 1)\", \"'abc'.startsWith('b', -1)\", \"'abc'.at(-1)\", \"'abc'.at(3)\", \"'abc'.at(-4)\", \"'abc'.at(NaN)\", \"'abc'.at(Infinity)\", \"'abc'.at(1.9)\", \"'abc'.charAt(-1)\", \"'abc'.charAt(1.9)\", \"'abc'.charCodeAt(5)\", \"'abc'.codePointAt(5)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-12",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'\\\\uD83D\\\\uDE00'.codePointAt(0)\", \"'\\\\uD83D\\\\uDE00'.codePointAt(1)\", \"'\\\\uD83D'.codePointAt(0)\", \"'abc'.slice(-2)\", \"'abc'.slice(1, -1)\", \"'abc'.slice(2, 1)\", \"'abc'.slice(NaN, Infinity)\", \"'abc'.substring(2, 0)\", \"'abc'.substring(NaN, 2)\", \"'abc'.substring(-5, 99)\", \"'\\\\uD800'.isWellFormed()\", \"'\\\\uD83D\\\\uDE00'.isWellFormed()\", \"'a\\\\uDC00b\\\\uD800'.toWellFormed().split('').map(c=>c.charCodeAt(0).toString(16))\", \"' \\\\t\\\\n\\\\v\\\\f\\\\r\\\\u00a0\\\\u1680\\\\u2000\\\\u200a\\\\u2028\\\\u2029\\\\u202f\\\\u205f\\\\u3000\\\\ufeffa\\\\u180e '.trim().length\", \"'\\\\u180e'.trim().length\", \"'\\\\u200b'.trim().length\", \"'\\\\u0085'.trim().length\", \"' a '.trimStart() + '|'\", \"' a '.trimEnd() + '|'\", \"'a-b'.padStart(8, '12')\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-13",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'abc'.padEnd(10, '12')\", \"'abc'.padEnd(10, '')\", \"'abc'.padStart(2)\", \"'abc'.padStart(6, undefined)\", \"'abc'.padStart(6, null)\", \"'abc'.concat(1, null, undefined, {})\", \"''.concat()\", \"'abc'.indexOf('c', 1.5)\", \"'abc'.indexOf('c', Infinity)\", \"Object.getOwnPropertyNames(String.prototype).length\", \"Object.getOwnPropertyNames(String).length\", \"String.fromCharCode()\", \"String.fromCharCode(65, 66)\", \"String.fromCodePoint()\", \"String.fromCodePoint(0x1F600).length\", \"String.fromCodePoint(65, 0x1F600, 66).length\", \"String.raw`a${1}b\\\\n${2}c`\", \"String.raw({raw: ['a','b','c']}, 1)\", \"String.raw({raw: ['a','b','c']}, 1, 2, 3)\", \"String.raw({raw: []}, 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-14",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"String.raw({raw: {length: 1, 0: 'x'}}, 1)\", \"typeof ''[Symbol.iterator]\", \"''[Symbol.iterator] === String.prototype[Symbol.iterator]\", \"String.prototype[Symbol.iterator].name\", \"String.prototype[Symbol.iterator].length\", \"(() => { var it = 'ab'[Symbol.iterator](); var r = [it.next(), it.next(), it.next(), it.next()]; return JSON.stringify(r) })()\", \"(() => { var it = 'ab'[Symbol.iterator](); return it[Symbol.iterator]() === it })()\", \"(() => { var it = new String('ab')[Symbol.iterator](); return it.next().value })()\", \"(() => { var o = { toString() { return 'xy' } }; var it = String.prototype[Symbol.iterator].call(o); return it.next().value })()\", \"(() => { var it = String.prototype[Symbol.iterator].call(12345); return it.next().value + it.next().value })()\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-heavy-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'a'.repeat(2**29-24).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-heavy-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'ab'.repeat(2**28-12).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "errors-heavy-2",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'a'.padStart(2**29-24, 'b').length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "uri-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"encodeURI('http://a.b/c d?e=f&g=h#i;,/?:@&=+$-_.!~*\\\\'()[]')\", \"encodeURIComponent('http://a.b/c d?e=f&g=h#i;,/?:@&=+$-_.!~*\\\\'()[]')\", \"encodeURI('\\\\u00e9\\\\u0100\\\\u07ff\\\\u0800\\\\uffff\\\\uD83D\\\\uDE00')\", \"decodeURI('%C3%A9%C4%80%DF%BF%E0%A0%80%EF%BF%BF%F0%9F%98%80')\", \"decodeURI('%3B%2F%3F%3A%40%26%3D%2B%24%2C%23%41')\", \"decodeURIComponent('%3B%2F%3F%3A%40%26%3D%2B%24%2C%23%41')\", \"decodeURI('%3b%2f%23')\", \"decodeURI('%e0%a0%80')\", \"decodeURI('%E0%80%80')\", \"decodeURI('%C1%BF')\", \"decodeURI('%F0%80%80%80')\", \"decodeURI('%F8%88%80%80%80')\", \"decodeURI('%F5%80%80%80')\", \"decodeURI('%ED%9F%BF')\", \"decodeURI('%ED%A0%80%ED%B0%80')\", \"decodeURI('%EF%BF%BE')\", \"decodeURI('%G0')\", \"decodeURI('%0')\", \"decodeURI('a%')\", \"decodeURIComponent('%E4%BD%A0%E5%A5%BD')\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "uri-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"escape('\\\\u00ff\\\\u0100\\\\uD83D\\\\uDE00')\", \"unescape('%u0041%u00e9%u12G4%E9%1')\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "dispatch-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v && typeof v === 'object') { try { return JSON.stringify(v) } catch (e) { return String(v) } } return String(v); }; for (const s of [\"'abc'.replaceAll({[Symbol.match]: true, flags: 'i', [Symbol.replace]: () => 'RA'}, 'Z')\", \"'abc'.replaceAll({[Symbol.match]: true, flags: undefined}, 'Z')\", \"'abc'.replaceAll({[Symbol.match]: true, flags: null}, 'Z')\", \"(() => { Number.prototype[Symbol.replace] = function () { return 'N'; }; try { return '1a1'.replace(1, 'x'); } finally { delete Number.prototype[Symbol.replace]; } })()\", \"(() => { String.prototype[Symbol.split] = function () { return 'S'; }; try { return 'a,b'.split(','); } finally { delete String.prototype[Symbol.split]; } })()\", \"(() => { Number.prototype[Symbol.split] = function () { return 'S'; }; try { return '1a1'.split(1); } finally { delete Number.prototype[Symbol.split]; } })()\", \"'abc'.replaceAll({[Symbol.replace]: 5}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: {}}, 'Y')\", \"'abc'.replace({[Symbol.replace]: {}}, 'Y')\", \"'abc'.split({[Symbol.split]: 'x'})\", \"'abc'.replaceAll(Object.assign(()=>1, {[Symbol.replace]: 7}), 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: 1n}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: 'str'}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: Symbol('x')}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: [1,2]}, 'Y')\", \"'abc'.replaceAll({[Symbol.replace]: null, toString() { return 'b' }}, '$&$&')\", \"'abc'.replace({[Symbol.replace]: 'str'}, 'Y')\", \"'abc'.replace({[Symbol.replace]: Symbol('x')}, 'Y')\", \"'abc'.split({[Symbol.split]: Symbol('x')})\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  }
+ ]
+}

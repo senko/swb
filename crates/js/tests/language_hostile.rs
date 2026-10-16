@@ -1517,3 +1517,344 @@ fn ropes_stay_alive_across_collections() {
         );
     }
 }
+
+// --- String built-ins (M7 feature 5b) ---
+
+/// A runtime with a heap limit in MiB and the test functions.
+fn runtime_with_limit(mebibytes: usize) -> Runtime {
+    runtime_with_tests(RuntimeConfig {
+        heap: HeapConfig {
+            limit: mebibytes << 20,
+            ..HeapConfig::default()
+        },
+        ..RuntimeConfig::default()
+    })
+}
+
+#[test]
+fn repeat_and_pad_to_the_length_limit_under_a_small_heap() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(16);
+        // The ropes of `repeat` and `padEnd` need a few nodes; the length
+        // limit is V8's RangeError, before anything is allocated.
+        let build = "var r = 'ab'.repeat(2 ** 28 - 12); var p = 'x'.padEnd(2 ** 29 - 24, 'yz'); \
+                     var q = 'q'.padStart(2 ** 29 - 24, 'abc'); \
+                     print(r.length, p.length, q.length); \
+                     var e = []; for (var f of [() => 'a'.repeat(2 ** 29 - 23), () => 'a'.padStart(2 ** 29 - 23), \
+                       () => 'ab'.repeat(2 ** 28), () => 'x'.padEnd(2 ** 53), () => r.concat(r), () => r + p]) \
+                       { try { f(); } catch (x) { e.push(x.name + ': ' + x.message); } } print(e.join('|'));";
+        assert_eq!(
+            run_in(&mut rt, build),
+            "536870888 536870888 536870888\n\
+             RangeError: Invalid string length|RangeError: Invalid string length|\
+             RangeError: Invalid string length|RangeError: Invalid string length|\
+             RangeError: Invalid string length|RangeError: Invalid string length"
+        );
+        // Every method that needs the code units flattens first; the flat
+        // text does not fit under the heap limit, so the script ends there.
+        let paths = [
+            "r.indexOf('x')",
+            "r.lastIndexOf('x')",
+            "r.includes('x')",
+            "r.startsWith('ab')",
+            "r.slice(1)",
+            "r.substring(1)",
+            "r.trim()",
+            "r.charAt(5)",
+            "r.at(5)",
+            "r.charCodeAt(5)",
+            "r.codePointAt(5)",
+            "r.split('x')",
+            "r.replace('x', 'y')",
+            "r.replaceAll('x', 'y')",
+            "r.isWellFormed()",
+            "r.toWellFormed()",
+            "encodeURIComponent(r)",
+            "decodeURI(r)",
+            "escape(r)",
+            "unescape(r)",
+            "[...r]",
+            "r.anchor('x')",
+            "String.raw({ raw: [r, r] }, 1)",
+        ];
+        for source in paths {
+            let result = rt.eval(source);
+            assert!(
+                matches!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::HeapLimit)
+                        | ScriptError::Uncaught { .. })
+                ),
+                "{source}: {result:?}"
+            );
+            assert_clean(&rt);
+        }
+        assert_eq!(
+            run_in(&mut rt, "print(r.length, 'ab'.repeat(3))"),
+            "536870888 ababab"
+        );
+    });
+}
+
+#[test]
+fn searches_in_long_strings_stay_linear() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // A needle of 1M units that almost matches at every position: the
+        // prefix-function search reads each unit once.
+        let source = "var h = 'a'.repeat(4000000); var n = 'a'.repeat(1000000) + 'b'; \
+                      print(h.indexOf(n), h.lastIndexOf(n), h.includes(n), h.startsWith(n), h.endsWith(n), \
+                            (h + 'b').indexOf(n), (h + 'b').lastIndexOf(n), h.split(n).length, h.replaceAll(n, 'x').length);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(
+            run_in(&mut rt, ""),
+            "-1 -1 false false false 3000000 3000000 1 4000000"
+        );
+        assert!(elapsed < Duration::from_secs(5), "{elapsed:?}");
+        assert_clean(&rt);
+        // A needle just under the length of the prefix-function search
+        // compares up to 15 units at each position; the loop ends at the
+        // deadline, because the comparisons are charged.
+        let build = "var h = 'a'.repeat(8000000); var n = 'a'.repeat(14) + 'b'; undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        for source in [
+            "while (true) h.indexOf(n);",
+            "while (true) h.lastIndexOf(n);",
+            "while (true) h.includes(n, 1);",
+            "while (true) h.split(n);",
+            "while (true) h.replaceAll(n, 'x');",
+        ] {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(100),
+                Duration::from_millis(400),
+            );
+        }
+        // Wide and narrow strings with a wide needle.
+        let wide = "var w = ('a\\u0100').repeat(3000000); var m = ('a\\u0100').repeat(500000) + 'b'; undefined;";
+        assert_eq!(run_in(&mut rt, wide), "");
+        assert_ends_at_deadline(
+            &mut rt,
+            "while (true) { w.indexOf(m); w.lastIndexOf(m); h.indexOf('\\u0100'); }",
+            Duration::from_millis(100),
+            Duration::from_millis(400),
+        );
+    });
+}
+
+#[test]
+fn split_into_a_million_pieces() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var s = 'ab,'.repeat(1000000); var p = s.split(','); var u = s.slice(0, 1000000).split(''); \
+                      print(p.length, p[0], p[999999], p[1000000] === '', u.length, u[999999]);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "1000001 ab ab true 1000000 a");
+        assert!(elapsed < Duration::from_secs(5), "{elapsed:?}");
+        assert_clean(&rt);
+        for source in [
+            "while (true) s.split(',');",
+            "while (true) s.split('');",
+            "while (true) s.split(',', 500000);",
+        ] {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(200),
+                Duration::from_millis(400),
+            );
+        }
+        // Under a small heap the pieces end the script at the limit.
+        let mut small = runtime_with_limit(24);
+        let build = "var s = 'ab,'.repeat(4000000); undefined;";
+        assert_eq!(run_in(&mut small, build), "");
+        for source in [
+            "s.split(',')",
+            "s.split('')",
+            "var a = s.split(','); var b = s.split(','); a.length + b.length",
+        ] {
+            assert_eq!(
+                small.eval(source),
+                Err(ScriptError::Terminated(Termination::HeapLimit)),
+                "{source}"
+            );
+            assert_clean(&small);
+        }
+        assert_eq!(run_in(&mut small, "print('x,y'.split(',').length)"), "2");
+    });
+}
+
+#[test]
+fn replace_all_with_many_matches() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var s = 'a'.repeat(2000000); \
+                      print(s.replaceAll('a', 'bc').length, s.replaceAll('', '-').length, \
+                            s.replaceAll('a', '$&$&').length, s.replaceAll('a', () => 'z').length);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "4000000 4000001 4000000 2000000");
+        assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
+        assert_clean(&rt);
+        // `$'` copies the tail for each match: quadratic output that the
+        // length limit, the heap limit or the deadline ends.
+        let quad = "var q = 'a'.repeat(200000); q.replaceAll('a', \"$'\");";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, quad, Duration::from_secs(5));
+        assert!(
+            matches!(
+                result,
+                Err(
+                    ScriptError::Terminated(Termination::TimeLimit | Termination::HeapLimit)
+                        | ScriptError::Uncaught { .. }
+                )
+            ),
+            "{result:?}"
+        );
+        assert!(elapsed < Duration::from_secs(5), "{elapsed:?}");
+        assert_clean(&rt);
+        // A template of many `$<` without a `>` is scanned once, not once
+        // per `$<`.
+        let named = "var t = '$<'.repeat(2000000); \
+                     print('a'.replace('a', t).length, 'xay'.replace('a', '[$<n>|$<|$&]'));";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, named, Duration::from_secs(5));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "4000000 x[$<n>|$<|a]y");
+        assert!(elapsed < Duration::from_secs(2), "{elapsed:?}");
+        assert_clean(&rt);
+        for source in [
+            "while (true) s.replaceAll('a', 'bc');",
+            "while (true) s.replaceAll('', 'x');",
+            "while (true) s.replace('a', 'x');",
+        ] {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(200),
+                Duration::from_millis(400),
+            );
+        }
+        // A callback that is called many times, and one that throws.
+        assert_ends_at_deadline(
+            &mut rt,
+            "var n = 0; while (true) s.replaceAll('a', function () { n++; return 'b'; });",
+            Duration::from_millis(200),
+            Duration::from_millis(400),
+        );
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "try { s.replaceAll('a', function () { throw new Error('stop'); }); } catch (e) { print(e.message); }"
+            ),
+            "stop"
+        );
+        assert_clean(&rt);
+        // The output passes the heap limit before the length limit.
+        let mut small = runtime_with_limit(24);
+        assert_eq!(
+            run_in(&mut small, "var s = 'a'.repeat(5000000); undefined;"),
+            ""
+        );
+        assert_eq!(
+            small.eval("s.replaceAll('a', 'bcdefgh')"),
+            Err(ScriptError::Terminated(Termination::HeapLimit))
+        );
+        assert_clean(&small);
+    });
+}
+
+#[test]
+fn uri_and_escape_functions_on_long_input() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var s = '\\u00e9\\u4f60\\ud83d\\ude00a '.repeat(500000); \
+                      var e = encodeURIComponent(s); var d = decodeURIComponent(e); \
+                      var x = escape(s); var u = unescape(x); \
+                      print(e.length, d === s, x.length, u === s);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "15500000 true 12500000 true");
+        assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
+        assert_clean(&rt);
+        for source in [
+            "while (true) encodeURIComponent(s);",
+            "while (true) decodeURIComponent(e);",
+            "while (true) escape(s);",
+            "while (true) unescape(x);",
+            "while (true) { try { decodeURI(e + '%'); } catch (err) { } }",
+        ] {
+            assert_ends_at_deadline(
+                &mut rt,
+                source,
+                Duration::from_millis(200),
+                Duration::from_millis(400),
+            );
+        }
+        // Malformed input of every kind is a URIError, at any length (twelve inputs, two of which become valid with the first letters of the filler: `%4a`, `%C3%aa`).
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var n = 0; for (var bad of ['%', '%4', '%G1', '%C3', '%C3%', '%C3%41', '%E0%80%80', '%ED%A0%80', '%F4%90%80%80', '%FF', '%80', '%F8%80%80%80%80']) \
+                 { try { decodeURIComponent(bad + 'a'.repeat(100000)); } catch (err) { if (err instanceof URIError) n++; } } print(n);"
+            ),
+            "10"
+        );
+        // The output of an encode passes the heap limit before the length
+        // limit.
+        let mut small = runtime_with_limit(24);
+        assert_eq!(
+            run_in(&mut small, "var s = '\\u4f60'.repeat(3000000); undefined;"),
+            ""
+        );
+        assert_eq!(
+            small.eval("encodeURIComponent(s)"),
+            Err(ScriptError::Terminated(Termination::HeapLimit))
+        );
+        assert_clean(&small);
+    });
+}
+
+#[test]
+fn string_raw_from_char_code_and_iteration_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        for source in [
+            "while (true) String.raw({ raw: { length: 2 ** 40 } });",
+            "var big = 'ab'.repeat(5000000); while (true) { for (var c of big) { } }",
+            "var big = 'ab'.repeat(5000000); while (true) { [...big]; }",
+            "var a = []; for (var i = 0; i < 1000000; i++) a.push(i); while (true) String.fromCharCode.apply(null, a);",
+            "var a = []; for (var i = 0; i < 1000000; i++) a.push(i % 1000); while (true) String.fromCodePoint.apply(null, a);",
+            "var s = ' '.repeat(5000000) + 'x' + ' '.repeat(5000000); while (true) s.trim();",
+            "var s = 'a\\ud800'.repeat(3000000); while (true) { s.isWellFormed(); s.toWellFormed(); }",
+        ] {
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, source, Duration::from_millis(300));
+            assert!(
+                matches!(
+                    result,
+                    Err(
+                        ScriptError::Terminated(Termination::TimeLimit | Termination::HeapLimit)
+                            | ScriptError::Uncaught { .. }
+                    )
+                ),
+                "{source}: {result:?}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn string_methods_hold_up_under_the_stress_collector() {
+    let source = "var parts = []; for (var i = 0; i < 40; i++) { \
+                    var s = ('xyz' + i + '\\u0100').repeat(30); \
+                    parts.push(s.replaceAll('y', function (m, p) { return '[' + p + ']'; }).split('z').join('Z').slice(5, 80).padEnd(100, '\\u0101') + \
+                      encodeURIComponent(s.slice(0, 10)) + escape(s.slice(0, 8)) + s.at(-1) + [...s.slice(0, 6)].join('.')); } \
+                  print(parts.length, parts[39].length, parts[0].slice(0, 30));";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("40 "), "{normal}");
+}

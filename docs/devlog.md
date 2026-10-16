@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 5b, `String`
+
+- `js`: `builtins/string.rs` (the statics, character access, `concat`,
+  `repeat`, `padStart`, `padEnd`, `slice`, `substring`, the trims,
+  `isWellFormed`, `toWellFormed`), `string_search.rs`,
+  `string_replace.rs` (`replace`, `replaceAll`, `split`,
+  `GetSubstitution`), `string_iter.rs`, `string_annexb.rs`, `uri.rs`.
+- Decisions:
+  - `replace`, `replaceAll` and `split` look up `Symbol.replace` and
+    `Symbol.split` only on objects, as test262 and Chromium 148 do
+    (Node.js 22 also looks them up on primitives).
+  - `GetSubstitution` is complete with captures and named captures, so
+    that 8b only adds the `RegExp` side.
+  - `repeat`, `padStart` and `padEnd` make ropes by doubling:
+    `'ab'.repeat(2 ** 28 - 12)` is a few nodes until its code units are
+    read.
+  - Searches: a needle of fewer than 16 units by a scan for its first
+    unit, a longer one by Knuth-Morris-Pratt; `lastIndexOf` runs the
+    same search on the mirrored strings. All search, copy and URI work
+    is charged to the time countdown.
+  - V8's messages and its quirks (the receiver message of `trimStart`
+    names `trimLeft`), measured in Chromium 148: 318 cases in
+    `tools/probes/js-strings.json`, which are also a test.
+- The test262 runner's default time limit in stress mode is now 30
+  times longer: `decodeURI/S15.1.3.1_A2.5_T1` takes 185 s with a
+  collection at every safepoint.
+- Review: one bug. `$<` in a replacement template scanned for `>` before
+  it checked for named captures, without a time charge, so a template of
+  many `$<` was quadratic (a 4-million-unit template ran 8 s past a
+  0.3 s deadline). Fixed: the spec's order, and one charged scan per
+  template that remembers the next `>`. Nits fixed: a time charge in
+  chunks for the quote scan of the HTML methods, docs.
+- Runtime test262: 22,888 pass (was 21,621), the same in stress mode;
+  parse-only unchanged. The remaining failures of the new groups wait
+  for `RegExp` (8b), case mapping and `normalize` (5d), `BigInt` (10)
+  and `Array.prototype.lastIndexOf` (6).
+
 ## 2026-10-15: M7 feature 5a, ropes
 
 - `js`: a string is flat text or a rope node (`string/rope.rs`: two
