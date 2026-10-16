@@ -1,0 +1,12 @@
+console.log(new Map([['a', { x: 1, y: [1, 2] }], [{ k: 1 }, new Set([1, 'two'])]]));
+console.log(new Map(), new Set());
+console.log({ m: new Map([[1, new Map([[2, new Map([[3, new Map([[4, 5]])]])]])]]) });
+var big = new Map(); for (var i = 0; i < 120; i++) big.set(i, 'v' + i);
+console.log(big);
+var s = new Set(); for (var i = 0; i < 101; i++) s.add(i);
+console.log(s);
+var c = new Map(); c.set('self', c); console.log(c);
+var e = new Map([[1, 2]]); e.extra = 'x'; console.log(e);
+console.log(new Set([[1, 2], { a: 1 }, 'str', null, undefined, -0, 1.5, Symbol('q')]));
+var long = new Map(); for (var i = 0; i < 6; i++) long.set('key number ' + i, 'a fairly long value text ' + i); console.log(long);
+console.log([new Map([[1, 2]]), new Set()], { s: new Set([1]) });

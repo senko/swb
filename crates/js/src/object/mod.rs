@@ -15,6 +15,7 @@ mod ops;
 mod private;
 mod property;
 mod shape;
+mod table;
 
 pub(crate) use array::{INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
@@ -22,6 +23,7 @@ pub use ops::{GetResult, SetResult};
 pub use property::{Property, PropertyDescriptor};
 pub(crate) use shape::KeyList;
 pub use shape::Shape;
+pub use table::{CollectionIterator, Table};
 
 pub(crate) use elements::Elements;
 pub(crate) use shape::{ShapeKind, Transition};
@@ -90,6 +92,16 @@ pub enum ObjectKind {
     ArrayIterator(Box<ArrayIterator>),
     /// A String Iterator (§22.1.5): the flat string and the next position.
     StringIterator(Box<StringIterator>),
+    /// A `Map` (`[[MapData]]`, §24.1): the ordered hash table
+    /// (`table.rs`).
+    Map(Box<Table>),
+    /// A `Set` (`[[SetData]]`, §24.2).
+    Set(Box<Table>),
+    /// A Map Iterator (§24.1.5): the map, the cursor in its table and the
+    /// kind of its results.
+    MapIterator(Box<CollectionIterator>),
+    /// A Set Iterator (§24.2.6).
+    SetIterator(Box<CollectionIterator>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
@@ -172,6 +184,10 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::RawJson => "RawJson",
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
             ObjectKind::StringIterator(_) => "StringIterator",
+            ObjectKind::Map(_) => "Map",
+            ObjectKind::Set(_) => "Set",
+            ObjectKind::MapIterator(_) => "MapIterator",
+            ObjectKind::SetIterator(_) => "SetIterator",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
             ObjectKind::ForInIterator(_) => "ForInIterator",
@@ -219,6 +235,12 @@ impl ObjectKind {
                     tracer.string(string);
                 }
             }
+            ObjectKind::Map(table) | ObjectKind::Set(table) => table.trace(tracer),
+            ObjectKind::MapIterator(state) | ObjectKind::SetIterator(state) => {
+                if let Some(table) = state.table {
+                    tracer.object(table);
+                }
+            }
             ObjectKind::ForInIterator(state) => {
                 tracer.object(state.object);
                 for &key in &state.keys {
@@ -239,6 +261,12 @@ impl ObjectKind {
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
             ObjectKind::StringIterator(_) => size_of::<StringIterator>(),
+            ObjectKind::Map(table) | ObjectKind::Set(table) => {
+                size_of::<Table>() + table.heap_size()
+            }
+            ObjectKind::MapIterator(_) | ObjectKind::SetIterator(_) => {
+                size_of::<CollectionIterator>()
+            }
             ObjectKind::Error(Some(data)) => data.heap_size(),
             ObjectKind::ForInIterator(state) => {
                 size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()

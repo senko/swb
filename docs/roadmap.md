@@ -1295,6 +1295,46 @@ failures with a reason. Features, in this order:
      the ES2025 set methods, `Map.prototype.getOrInsert` and
      `getOrInsertComputed` (in Chromium 148). `WeakMap` and `WeakSet`
      stay for feature 9.
+     Done 2026-10-16: an ordered hash table (`object/table.rs`): entries
+     in insertion order, an open-addressing index with a keyed hash
+     (SipHash for strings), compaction at half deleted entries that
+     corrects the positions of the live iterators and native loops, and
+     a list of the unfinished iterators that the collector does not
+     trace and the table prunes. `Map` and `Set` with the
+     specification's adder lookup, `Map.groupBy` (shared with
+     `Object.groupBy`), the ES2025 set methods with `GetSetRecord`,
+     `getOrInsert` and `getOrInsertComputed`, V8's messages and Chromium
+     148's key order (1,499 cases in `tools/probes/js-collections.json`,
+     1,490 of them a test, also in stress mode). A table stops at 2^24
+     entries with V8's `RangeError`; 200,000 inserts and deletes in a
+     table of 10 entries use less than 8 KiB; a million abandoned
+     iterators run under a heap limit of 24 MiB. Compiled `for`-`of` and
+     the natives that consume iterables step the built-in Array, Map and
+     Set iterators without a result object. `console.log` shows maps
+     and sets as Node.js does. Runtime test262: 25,672 pass (was
+     25,091), the same in stress mode; `Map`, `Set` and their iterator
+     prototypes 561 tests, no failure (skipped or unsupported: `WeakMap`
+     and `WeakSet` 20, feature 9; `BigInt` 26, feature 10; another realm
+     2). Speed against `node --jitless`: `set` and `get` of 100,000
+     integer keys 21 ms (8.8 ms), string keys 36 ms (12 ms); `for`-`of`
+     over a set 2 times slower, over a map with `[k, v]` 5 times (the
+     destructuring, feature 13). The review found two quadratic cases
+     while unfinished iterators block the compaction (until the next
+     collection): the LRU idiom `m.delete(m.keys().next().value)` scanned
+     the deleted entries at the start with each new iterator (400,000
+     steps: 13.7 s), and a key deleted and added again lengthened its
+     probe in the index at each step (3 million steps: more than 2
+     minutes). Fixed: scans start after the deleted entries at the start
+     (`head`), and a delete takes the entry out of the index (Knuth's
+     Algorithm R for linear probing); now 0.9 s for three forms of the
+     idiom at 400,000 steps each, and 2.1 s (`node --jitless` 0.15 s and
+     0.23 s). The review of that fix found a third case: a full iteration
+     per step walked the deleted entries in the middle (400,000 steps:
+     14 s). Fixed: a deleted entry holds a skip to a later position, with
+     path splitting as in union-find; now 0.43 s. Difference from
+     Chromium: `Map.groupBy` and `Object.groupBy` close the iterator of
+     an array when the callback throws, as the specification says (V8
+     does not call `return` there).
    - 6c Iterator helpers (`implementer`): the `Iterator` constructor,
      `Iterator.from`, `Iterator.concat` (in Chromium 148; `zip`,
      `zipKeyed`, `chunks`, `windows`, `join` and `includes` are not),
@@ -1509,6 +1549,19 @@ not repeated here; the open items of each spike session are in M6 step
   emptied with `shift` takes 4.1 s (`node --jitless` 0.59 s). A start
   offset in the dense vector would make `shift` O(1); breadth-first
   queues on pages use this pattern (M7 6a review; feature 13).
+- `Map` and `Set` (M7 6b): a string key costs about 100 ns per
+  operation, about 30 ns of it for the hash; a hash cached in
+  `JsString` would save that at 8 bytes per string. Array destructuring
+  (`for (const [k, v] of map)`) costs about 300 ns per pair, so that loop
+  is 5 times slower than `node --jitless`; a fast path for a dense array
+  with the built-in Array Iterator (feature 13). A table of 1 to 4
+  entries costs about 300 bytes. `console.log` of Map and Set iterators
+  shows them as ordinary objects (Node.js: `[Map Iterator] { 1, 2 }`),
+  and a Map without a prototype as `Map(1) {…}` (Node.js:
+  `[Map(1): null prototype] {…}`). A table of 2^24 entries with one
+  deleted grows its index to 2^26 slots on the next insert, and with the
+  default heap limit of 1 GiB that ends the script (Chromium adds the
+  entry).
 - `join` and `String` of arrays nested 500 deep end with a `RangeError`
   (400 work), because each level re-enters the interpreter through
   `ToPrimitive`, `toString` and `join`; V8 handles 1,000 (M7 6a).

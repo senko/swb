@@ -122,6 +122,33 @@ const PROGRAMS: &[(&str, &str)] = &[
          function run() { var s = data.slice().sort(function (a, b) { return a - b; }); return s[0] + s[99999]; }",
     ),
     (
+        "map: set and get of 100k integer keys",
+        "function run() { var m = new Map(); for (var i = 0; i < 100000; i++) m.set(i, i); var s = 0; for (var i = 0; i < 100000; i++) s += m.get(i); return s + m.size; }",
+    ),
+    (
+        "map: set and get of 100k string keys",
+        "var keys = []; for (var i = 0; i < 100000; i++) keys.push('key' + i);
+         function run() { var m = new Map(); for (var i = 0; i < 100000; i++) m.set(keys[i], i); var s = 0; for (var i = 0; i < 100000; i++) s += m.get(keys[i]); return s + m.size; }",
+    ),
+    (
+        "set: add and has of 100k integers",
+        "function run() { var m = new Set(); for (var i = 0; i < 100000; i++) m.add(i); var s = 0; for (var i = 0; i < 100000; i++) if (m.has(i)) s++; return s + m.size; }",
+    ),
+    (
+        "map: for-of over 100k entries, 5 times",
+        "var m = new Map(); for (var i = 0; i < 100000; i++) m.set(i, i);
+         function run() { var s = 0; for (var r = 0; r < 5; r++) for (var [k, v] of m) s += k + v; return s; }",
+    ),
+    (
+        "set: for-of over 100k values, 5 times",
+        "var m = new Set(); for (var i = 0; i < 100000; i++) m.add(i);
+         function run() { var s = 0; for (var r = 0; r < 5; r++) for (var v of m) s += v; return s; }",
+    ),
+    (
+        "map: 1M alternating inserts and deletes",
+        "function run() { var m = new Map(); for (var i = 0; i < 1000000; i++) { m.set(i, i); if (i > 10) m.delete(i - 10); } return m.size; }",
+    ),
+    (
         "array: 1M push, then 1M pop",
         "function run() { var a = []; for (var i = 0; i < 1000000; i++) a.push(i); var s = 0; while (a.length) s += a.pop(); return s; }",
     ),

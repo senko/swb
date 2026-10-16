@@ -210,6 +210,24 @@ Format: source, license (for code), what it influenced.
   methods follow ECMA-262 §23.1; the messages, the key order and the
   limits (the depth of `flat`) were measured in Chromium 148 (`just
   probe` `tools/probes/js-arrays.json`).
+- The ordered hash table of `Map` and `Set` (M7 feature 6b,
+  `js/src/object/table.rs`), written from ECMA-262 §24.1 and §24.2 (the
+  list of entries with empty entries for deleted keys) and from the
+  textbook descriptions of open addressing with linear probing (D. E.
+  Knuth, The Art of Computer Programming, vol. 3, §6.4, with its
+  Algorithm R for deletion) and of an ordered hash table as a dense array
+  of entries plus an index of positions (a common design; no engine code
+  read). The skips over deleted entries use path splitting from
+  union-find (R. E. Tarjan and J. van Leeuwen, "Worst-case analysis of
+  set union algorithms", Journal of the ACM 31(2), 1984). The compaction
+  that corrects the positions of live iterators, the list of cursors
+  with its pruning and the epoch of `clear` are swb's own. The hash of numbers and handles is
+  the keyed hasher of `js-text`; the hash of strings is the keyed
+  `SipHash` of the atom table (J.-P. Aumasson and D. J. Bernstein,
+  "SipHash: a fast short-input PRF", 2012, through Rust's standard
+  library). The set methods follow ECMA-262 §24.2.4; the messages, the key
+  order and the limit of 2^24 entries were measured in Chromium 148
+  (`just probe` `tools/probes/js-collections.json`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

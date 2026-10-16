@@ -1399,6 +1399,123 @@ where the first plan did not work:
   limit but cannot collect) ended a rope loop with 3 MB of live data at a
   limit of 13 MiB, because with a limit below the minimum threshold
   nothing collected before the check failed.
+- `Map` and `Set` (feature 6b, `object/table.rs`, `builtins/map.rs`,
+  `set.rs`, `set_methods.rs`, `collection.rs`): one table type for both
+  (`ObjectKind::Map` and `Set` hold a `Box<Table>`; a `Set` stores its
+  elements as keys and `undefined` as values). The table follows the
+  specification's list: `entries` is a vector in insertion order, a delete
+  sets the key to `Empty` and leaves the entry, `clear` empties the table.
+  `index` is open addressing with linear probing over entry positions
+  (`u32`; its length is a power of two and at least twice the number of
+  entries, deleted ones included; a free slot is `u32::MAX`). An entry
+  stores its 64-bit hash, which is compared before the key. Lookup,
+  insert and delete are O(1) on average; the index and the vector double
+  together, with a check of the heap limit before and a charge after (a
+  table never collects while it grows, like the dense builder). A delete
+  takes the entry out of the index with the deletion algorithm for linear
+  probing (Knuth, TAOCP vol. 3, §6.4, Algorithm R: later entries of the
+  run move back into the free slot), so the index holds only live
+  entries. Found in the review: when deleted entries stayed in the index,
+  a key deleted and added again while unfinished iterators blocked the
+  compaction made its probe longer at each step (`it = m.keys();
+  m.delete(i % 10); m.set(i % 10, 1)`: 3 million steps took more than 2
+  minutes, now 2.1 s; `node --jitless` 0.23 s).
+- The key and its hash. A caller prepares the key
+  (`Runtime::collection_key`): `-0` becomes `+0`, a double with an integer
+  value takes the integer form, a rope is flattened (a safepoint; the key
+  is rooted by the arguments or the handle scope, and the time is charged
+  per 64 units). `SameValueZero` then compares numbers by value (all NaNs
+  are equal), strings by content (both flat), symbols, objects and
+  `BigInt`s by handle (objects do not move) or limbs. The hash of a
+  number is the keyed hash of the bits of its `f64` value, of a symbol or
+  object the keyed hash of its handle (`swb_js_text::hash`, a key per
+  process), of a string the keyed `SipHash` of its code units
+  (`AtomTable::hash`, a key per heap; both widths agree), so content from
+  the network cannot choose collisions. `Heap::key_hash` is the function
+  that `WeakMap` and `WeakSet` (feature 9) reuse. Measured, a lookup costs
+  about 30 ns for an integer key and about 100 ns for a string key; a
+  cached hash in the string could save 30 ns (backlog).
+- Compaction. When at least half of the entries are deleted, and at least
+  as many as the iterators and native loops that hold positions, the
+  vector is rebuilt in place without them and the index for the live
+  entries (a delete does it when the table has 32 entries or more; an
+  insert does it instead of growing when the index is full). So the
+  memory is in proportion to the live entries and the iterators (200,000
+  inserts and deletes in a table with 10 live entries use under 8 KiB),
+  and the work of a compaction (entries plus positions) is paid by the
+  deletes that caused it. A table of 100,000 entries with 99,990 deleted
+  gives its memory back (a test checks a factor of 20).
+- Iteration. A position is an index into `entries`, kept in the table:
+  an unfinished Map or Set Iterator has a *cursor* in the table's list
+  (`ObjectKind::MapIterator` holds the table, the slot of its cursor and
+  the kind), and a native loop (`forEach`, the loops of the set methods)
+  pushes a position on the table's stack of loops. A compaction maps each
+  position to the number of live entries before it (a transient vector of
+  `u32` when there are positions). `clear` frees the vectors, bumps the
+  table's epoch and sets the loop positions to 0; a cursor from an older
+  epoch is at position 0 when it is next used, so `clear` costs nothing
+  per iterator. An iterator sees the entries added after it started and
+  skips the deleted ones; once it has returned `done` it stays done, and
+  its cursor is gone (the last cursor takes the slot, and its iterator's
+  slot is updated). Each entry looked at is a step of the time countdown.
+- The cursor list holds the handles of the iterators without tracing
+  them: the iterator points to its table, not the other way round, so an
+  abandoned iterator is garbage. A handle whose slot the collector freed
+  is stale (generation) and the list drops it at the next prune. The list
+  is pruned when an iterator is created and the list has doubled since
+  the last prune or a collection has run since; the prune keeps the live
+  cursors in order and gives their iterators the new slots. A delete or
+  an insert that finds its compaction blocked by the length of the list
+  prunes it too (at most once per collection). So the list
+  has at most the live iterators plus those made since the last
+  collection. A million iterators made and dropped in a loop run under a
+  heap limit of 24 MiB; the unit test counts the cursors after 200,000
+  dropped iterators. Until that collection the compaction waits, so the
+  deleted entries pile up; `head` counts the deleted entries at the start
+  of the vector, and every scan starts there. Found in the review: without
+  it, the LRU idiom (`m.set(i, i); if (m.size > 10)
+  m.delete(m.keys().next().value)`) scanned the whole deleted prefix with
+  each new iterator (400,000 steps: 13.7 s; now the three forms of the
+  idiom, 400,000 steps each, take 0.9 s together, `node --jitless` 0.15
+  s). Deleted entries further on hold a skip: the entry's hash field (no
+  longer needed once the entry is out of the index) holds a later
+  position up to which all entries are deleted, and each scan shortens
+  the path it walks (path splitting, as in union-find; Tarjan and van
+  Leeuwen, 1984). Entries do not become live again before a compaction, so a skip
+  stays valid while the vector grows. Found in the review of the fix: a
+  full iteration per step over a table whose deleted entries wait in the
+  middle walked all of them (`m.keys(); m.set(i, 1); m.delete(i); for
+  (const k of m) {}`: 400,000 steps 14 s, now 0.43 s; `node --jitless`
+  0.21 s for 1.6 million).
+- The set methods (`set_methods.rs`) follow §24.2.4 branch by branch:
+  `GetSetRecord` reads `size`, `has` and `keys` in that order with V8's
+  messages (`The .size property is NaN`, `'-1' is an invalid size`,
+  `string "has" is not a function`); a receiver with at most `size`
+  elements calls `has` for its own elements (`intersection` iterates the
+  smaller), otherwise they iterate `keys()`. `GetIteratorFromMethod`
+  checks at once that `next` is callable (V8 does; the specification's
+  first step would throw the same `TypeError`). `union` and
+  `symmetricDifference` call `keys()` first and copy the receiver after
+  it, `difference` copies first, as the steps say (a `keys()` that
+  changes the receiver is seen by the copy); a loop over the receiver
+  sees the elements that `has` adds and skips those it deletes, also
+  across a compaction. The result is a plain `Set` with
+  `%Set.prototype%`. V8 words a `return` that gives a non-object "return
+  called on non-object"; swb copies it for these methods only.
+- Limits. A table has at most 2^24 live entries; adding one more is
+  `RangeError: Map maximum size exceeded` (`Set maximum size exceeded`),
+  as in Chromium 148 (a `has` that adds an element at each call ends
+  there). The heap limit is checked before every growth. A `Map` or `Set`
+  constructor with the built-in adder changes the table directly (not
+  observable); the compiled `for`-`of` and the natives that consume an
+  iterable step a built-in Array, Map or Set Iterator without a result
+  object when its `next` is the built-in one (`Runtime::builtin_step`).
+- V8's messages for receivers print the constructor name found on the
+  prototype chain (`#<Map>` for `Map.prototype`, `#<Object>` for a Map
+  whose prototype is `Object.prototype`) and `[object Map Iterator]` for
+  iterators. `Map.prototype.getOrInsertComputed` words a callback that is
+  not a function "Map.prototype.getOrInsertComputed is not a function".
+  `Map.groupBy` shares `group_items` with `Object.groupBy`.
 
 ## Consequences
 

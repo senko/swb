@@ -102,6 +102,16 @@ impl Runtime {
         &mut self,
         record: &mut IteratorRecord,
     ) -> VmResult<Option<Value>> {
+        if let Some(builtin) = self.builtin_step(record.iterator, record.next_method) {
+            // The built-in `next` of an Array, Map or Set Iterator: the
+            // step without the result object.
+            self.tick()?;
+            let step = crate::builtins::builtin_iterator_next_value(self, builtin);
+            if !matches!(step, Ok(Some(_))) {
+                record.done = true;
+            }
+            return step;
+        }
         let Some(result) = self.iterator_step(record)? else {
             return Ok(None);
         };
@@ -254,6 +264,28 @@ impl Runtime {
             ObjectKind::ArrayIterator(_)
         );
         (builtin == next && is_array_iterator).then_some(iterator)
+    }
+
+    /// The built-in iterator of a record whose step can run without
+    /// calling `next`: an Array, Map or Set Iterator whose `next` is the
+    /// built-in method of its kind (of some realm). The step then does
+    /// what `next` does, except for the result object, which nothing can
+    /// observe ([`crate::builtins::builtin_iterator_next_value`]).
+    pub(crate) fn builtin_step(&self, iterator: Value, next: Value) -> Option<Gc<Object>> {
+        let (Value::Object(iterator), Value::Object(next)) = (iterator, next) else {
+            return None;
+        };
+        let ObjectKind::Native(native) = &self.heap.object(next).ok()?.kind else {
+            return None;
+        };
+        let which = match self.heap.object(iterator).ok()?.kind {
+            ObjectKind::ArrayIterator(_) => Intrinsic::ArrayIteratorNext,
+            ObjectKind::MapIterator(_) => Intrinsic::MapIteratorNext,
+            ObjectKind::SetIterator(_) => Intrinsic::SetIteratorNext,
+            _ => return None,
+        };
+        let builtin = self.intrinsic(native.realm, which).ok()?;
+        (builtin == next).then_some(iterator)
     }
 
     /// The rest of `IteratorStepValue` (§7.4.10) after `next` returned

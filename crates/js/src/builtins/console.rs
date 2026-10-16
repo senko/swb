@@ -4,7 +4,9 @@
 //!
 //! Strings print raw; other values print in Node.js's short form
 //! (`util.inspect` defaults): `[ 1, 2, 3 ]`, `{ a: 1, b: 'x' }`,
-//! `[Function: f]`, `[Number: 5]`, `<ref *1> { self: [Circular *1] }`.
+//! `[Function: f]`, `[Number: 5]`, `Map(1) { 1 => 2 }`, `Set(2) { 1, 2 }`,
+//! `<ref *1> { self: [Circular *1] }`. The iterators of `Map` and `Set` print as
+//! ordinary objects (`Object [Map Iterator] {}`; Node.js lists their entries).
 //! Formatting never runs script code: properties are read without
 //! calling getters (`[Getter]`), and no `toString` runs. Bounds: nesting
 //! depth 2 (deeper objects print as `[Object]` and `[Array]`), the first
@@ -155,6 +157,11 @@ impl Inspector<'_> {
             return "[Object]".to_owned();
         };
         let is_array = matches!(record.kind, ObjectKind::Array { .. });
+        let collection = match record.kind {
+            ObjectKind::Map(_) => Some("Map"),
+            ObjectKind::Set(_) => Some("Set"),
+            _ => None,
+        };
         let base = self
             .base(object, &record.kind)
             .map(|base| self.with_function_tag(object, &record.kind, base));
@@ -163,11 +170,17 @@ impl Inspector<'_> {
             if let Some(base) = base {
                 return base;
             }
-            return if is_array { "[Array]" } else { "[Object]" }.to_owned();
+            return match (is_array, collection) {
+                (true, _) => "[Array]".to_owned(),
+                (_, Some(name)) => format!("[{name}]"),
+                _ => "[Object]".to_owned(),
+            };
         }
         self.stack.push(object);
         let entries = if is_array {
             self.array_entries(object, depth, indent)
+        } else if collection.is_some() {
+            self.collection_entries(object, depth, indent)
         } else {
             self.property_entries(object, depth, indent, false)
         };
@@ -313,6 +326,25 @@ impl Inspector<'_> {
         match kind {
             ObjectKind::Generator(_) => return "Object [Generator] ".to_owned(),
             ObjectKind::Arguments => return "[Arguments] ".to_owned(),
+            // `Map(2) `, `Set(1) `, and `Foo(1) [Map] ` for a subclass.
+            ObjectKind::Map(table) | ObjectKind::Set(table) => {
+                let builtin = if matches!(kind, ObjectKind::Map(_)) {
+                    "Map"
+                } else {
+                    "Set"
+                };
+                let name = match self.rt.heap.get_prototype_of(object) {
+                    Ok(Some(proto)) => self.rt.chain_constructor_name(proto),
+                    _ => None,
+                }
+                .filter(|name| !name.is_empty());
+                return match name {
+                    Some(name) if name != builtin => {
+                        format!("{name}({}) [{builtin}] ", table.len())
+                    }
+                    _ => format!("{builtin}({}) ", table.len()),
+                };
+            }
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
             | ObjectKind::ArrayIterator(_)
@@ -407,6 +439,54 @@ impl Inspector<'_> {
         }
         flush(&mut entries, &mut holes);
         entries.extend(self.property_entries(array, depth, indent, true));
+        entries
+    }
+
+    /// The entries of a `Map` (`key => value`) or the elements of a `Set`
+    /// in order, at most 100, then the other enumerable properties.
+    fn collection_entries(
+        &mut self,
+        object: Gc<Object>,
+        depth: usize,
+        indent: usize,
+    ) -> Vec<String> {
+        let mut entries = Vec::new();
+        let is_map = matches!(
+            self.rt.heap.object(object).map(|o| &o.kind),
+            Ok(ObjectKind::Map(_))
+        );
+        let Ok(Some(table)) = self.rt.heap.table(object) else {
+            return entries;
+        };
+        let total = table.len();
+        let mut position = 0;
+        let mut live = Vec::new();
+        while let Some(entry) = table.entry(position) {
+            position += 1;
+            if entry.key.is_empty() {
+                continue;
+            }
+            if live.len() >= MAX_ENTRIES {
+                break;
+            }
+            live.push((entry.key, entry.value));
+        }
+        self.steps += position;
+        for (key, value) in live {
+            let key = self.value(key, depth + 1, indent + 2);
+            if is_map {
+                let value = self.value(value, depth + 1, indent + 2);
+                entries.push(format!("{key} => {value}"));
+            } else {
+                entries.push(key);
+            }
+        }
+        if total > MAX_ENTRIES {
+            let rest = total - MAX_ENTRIES;
+            let s = if rest == 1 { "" } else { "s" };
+            entries.push(format!("... {rest} more item{s}"));
+        }
+        entries.extend(self.property_entries(object, depth, indent, false));
         entries
     }
 

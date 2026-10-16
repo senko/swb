@@ -29,8 +29,8 @@ pub use heap::{
     Persistent, Root, RootSource, Tracer,
 };
 pub use object::{
-    ArrayIterator, GetResult, IterationKind, Object, ObjectKind, Property, PropertyDescriptor,
-    SetResult, Shape, StringIterator,
+    ArrayIterator, CollectionIterator, GetResult, IterationKind, Object, ObjectKind, Property,
+    PropertyDescriptor, SetResult, Shape, StringIterator, Table,
 };
 pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Equality, Symbol, Value, ValueCell};

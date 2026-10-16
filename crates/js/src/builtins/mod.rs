@@ -14,8 +14,9 @@
 //! iterator, the URI functions and Annex B (`string*.rs`, `uri.rs`; the
 //! case mapping, `normalize` and `localeCompare` are feature 5d, `match`,
 //! `matchAll` and `search` feature 8b); `Boolean`;
-//! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); and
-//! `%IteratorPrototype%`
+//! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
+//! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
+//! `set_methods.rs`, `collection.rs`); and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
@@ -40,6 +41,7 @@ mod array_search;
 mod array_sort;
 mod array_species;
 mod boolean;
+mod collection;
 mod console;
 mod descriptor;
 mod error;
@@ -51,6 +53,7 @@ mod json;
 mod json_parse;
 mod json_revive;
 mod json_stringify;
+mod map;
 mod math;
 mod number;
 mod object;
@@ -58,6 +61,8 @@ mod object_iter;
 mod object_proto;
 mod primitive;
 mod reflect;
+mod set;
+mod set_methods;
 mod string;
 mod string_annexb;
 mod string_iter;
@@ -81,6 +86,20 @@ use crate::vm::{
     WellKnown,
 };
 
+/// The next value of a built-in Array, Map or Set Iterator, or `None`
+/// when it is finished (`next` without its result object; see
+/// `Runtime::builtin_step`). The value is recorded in the current handle
+/// scope.
+pub(crate) fn builtin_iterator_next_value(
+    rt: &mut Runtime,
+    iterator: Gc<Object>,
+) -> VmResult<Option<Value>> {
+    match rt.heap.object(iterator)?.kind {
+        crate::object::ObjectKind::ArrayIterator(_) => array_iterator_next_value(rt, iterator),
+        _ => collection::collection_iterator_next_value(rt, iterator),
+    }
+}
+
 /// Installs the built-in objects of a realm (after its intrinsics exist
 /// and the realm is a root).
 pub(crate) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
@@ -101,6 +120,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     boolean::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
+    map::install(rt, realm)?;
+    set::install(rt, realm)?;
     json::install(rt, realm)?;
     console::install(rt, realm)
 }

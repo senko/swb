@@ -1,6 +1,7 @@
 //! `Object.fromEntries` (ECMA-262 §20.1.2.7) and `Object.groupBy`
 //! (§20.1.2.12 with `GroupBy`, §7.3.35, for property keys): the two
-//! functions of `Object` that consume an iterable.
+//! functions of `Object` that consume an iterable. `GroupBy`'s loop is
+//! [`group_items`], which `Map.groupBy` shares.
 //!
 //! Both read the iterable with the iterator operations of `vm/iter.rs`.
 //! A step runs in its own handle scope, so the loop does not grow its
@@ -67,20 +68,45 @@ fn add_entry(rt: &mut Runtime, object: Gc<Object>, item: Value) -> VmResult<()> 
 /// `Object.groupBy(items, callback)` (§20.1.2.12).
 pub(super) fn group_by(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let items = rt.arg(call, 0);
-    if items.is_nullish() {
-        return Err(VmError::type_error(
-            "Object.groupBy called on null or undefined",
-        ));
-    }
     let callback = rt.arg(call, 1);
+    let result = rt.heap.new_object(None)?;
+    rt.heap.record(result);
+    group_items(
+        rt,
+        "Object.groupBy",
+        items,
+        callback,
+        &mut |rt, key, value| {
+            let key = rt.key_arg(key)?;
+            add_to_group(rt, result, key, value)
+        },
+    )?;
+    Ok(NativeReturn::Value(result.into()))
+}
+
+/// `GroupBy` (§7.3.35) without the groups: calls `add(key, value)` for
+/// each element of the iterable `items`, with the result of
+/// `callback(value, index)` as the key. `name` is the function's name for
+/// the message of a null `items`. The caller builds its groups while the
+/// loop runs. An error after a value was taken closes the iterator.
+pub(super) fn group_items(
+    rt: &mut Runtime,
+    name: &str,
+    items: Value,
+    callback: Value,
+    add: &mut dyn FnMut(&mut Runtime, Value, Value) -> VmResult<()>,
+) -> VmResult<()> {
+    if items.is_nullish() {
+        return Err(VmError::type_error(format!(
+            "{name} called on null or undefined"
+        )));
+    }
     if !rt.is_callable(callback)? {
         return Err(VmError::type_error(format!(
             "{} is not a function",
             rt.describe_value(callback)
         )));
     }
-    let result = rt.heap.new_object(None)?;
-    rt.heap.record(result);
     let mut record = rt.get_iterator(items)?;
     let mut k = 0.0;
     loop {
@@ -92,28 +118,28 @@ pub(super) fn group_by(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRe
             let Some(value) = rt.iterator_step_value(&mut record)? else {
                 return Ok(false);
             };
-            match add_to_group(rt, result, callback, value, k) {
+            let step = rt
+                .call(callback, Value::Undefined, &[value, Value::number(k)])
+                .and_then(|key| add(rt, key, value));
+            match step {
                 Ok(()) => Ok(true),
                 Err(error) => Err(rt.iterator_close_after_error(&record, error)),
             }
         })?;
         if !more {
-            return Ok(NativeReturn::Value(result.into()));
+            return Ok(());
         }
         k += 1.0;
     }
 }
 
-/// One step of `GroupBy`: the key of `value`, then `AddValueToKeyedGroup`.
+/// `AddValueToKeyedGroup` (§7.3.34) for a property key.
 fn add_to_group(
     rt: &mut Runtime,
     result: Gc<Object>,
-    callback: Value,
+    key: PropertyKey,
     value: Value,
-    k: f64,
 ) -> VmResult<()> {
-    let key = rt.call(callback, Value::Undefined, &[value, Value::number(k)])?;
-    let key = rt.key_arg(key)?;
     let existing = rt.heap.get_own_property(result, key)?;
     let group = if let Some(Property::Data {
         value: Value::Object(group),

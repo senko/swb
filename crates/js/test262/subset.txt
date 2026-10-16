@@ -288,3 +288,15 @@ dir test/language/white-space
 feature json-parse-with-source
 feature well-formed-json-stringify
 dir test/built-ins/JSON
+
+# Added in M7 feature 6b: Map and Set with the ES2025 set methods and the
+# upsert methods of Map (Chromium 148 has them). The tests with WeakMap,
+# WeakSet and WeakRef stay skipped until feature 9.
+feature Map
+feature Set
+feature set-methods
+feature upsert
+dir test/built-ins/Map
+dir test/built-ins/Set
+dir test/built-ins/MapIteratorPrototype
+dir test/built-ins/SetIteratorPrototype

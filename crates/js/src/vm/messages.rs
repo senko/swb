@@ -287,6 +287,18 @@ impl Runtime {
             Ok(ObjectKind::NumberWrapper(_)) => "[object Number]".to_owned(),
             Ok(ObjectKind::BooleanWrapper(_)) => "[object Boolean]".to_owned(),
             Ok(ObjectKind::SymbolWrapper(_)) => "[object Symbol]".to_owned(),
+            // V8 names the constructor that the prototype chain gives
+            // (`Map.prototype` is `#<Map>`, a `Map` whose prototype is
+            // `Object.prototype` is `#<Object>`).
+            Ok(ObjectKind::Map(_) | ObjectKind::Set(_)) => format!(
+                "#<{}>",
+                self.chain_constructor_name(object)
+                    .unwrap_or_else(|| "Object".to_owned())
+            ),
+            Ok(ObjectKind::MapIterator(_)) => "[object Map Iterator]".to_owned(),
+            Ok(ObjectKind::SetIterator(_)) => "[object Set Iterator]".to_owned(),
+            Ok(ObjectKind::ArrayIterator(_)) => "[object Array Iterator]".to_owned(),
+            Ok(ObjectKind::StringIterator(_)) => "[object String Iterator]".to_owned(),
             Ok(ObjectKind::Function(closure)) => closure
                 .compiled
                 .source_text()
@@ -302,7 +314,28 @@ impl Runtime {
             Ok(_) if matches!(self.heap.get_prototype_of(object), Ok(None)) => {
                 "[object Object]".to_owned()
             }
+            // A prototype object names its own constructor
+            // (`Map.prototype` is `#<Map>`); other objects are `#<Object>`.
+            Ok(ObjectKind::Ordinary) => format!(
+                "#<{}>",
+                self.own_constructor_name(object)
+                    .unwrap_or_else(|| "Object".to_owned())
+            ),
             _ => "#<Object>".to_owned(),
+        }
+    }
+
+    /// The name of the function in the own data property `constructor`.
+    fn own_constructor_name(&self, object: Gc<Object>) -> Option<String> {
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        match self.heap.get_own_property(object, key) {
+            Ok(Some(Property::Data {
+                value: Value::Object(constructor),
+                ..
+            })) => self
+                .own_data_string(constructor, self.vm.atoms.name)
+                .filter(|name| !name.is_empty()),
+            _ => None,
         }
     }
 

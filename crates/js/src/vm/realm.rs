@@ -49,6 +49,13 @@ pub(crate) enum Intrinsic {
     ArrayIteratorPrototype,
     /// `%StringIteratorPrototype%` (§22.1.5.1).
     StringIteratorPrototype,
+    /// `%MapIteratorPrototype%` (§24.1.5.2) and `%SetIteratorPrototype%`
+    /// (§24.2.6.2).
+    MapIteratorPrototype,
+    SetIteratorPrototype,
+    /// `Map.prototype` and `Set.prototype`.
+    MapPrototype,
+    SetPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -59,6 +66,15 @@ pub(crate) enum Intrinsic {
     /// built-in functions are installed: the compiled iteration steps
     /// recognize it (`IteratorCall`).
     ArrayIteratorNext,
+    /// `%MapIteratorPrototype%.next` and `%SetIteratorPrototype%.next`,
+    /// set when the built-in functions are installed (the compiled
+    /// iteration steps recognize them), and `Map.prototype.set` and
+    /// `Set.prototype.add` (the constructors call the adder directly when
+    /// it is the built-in one).
+    MapIteratorNext,
+    SetIteratorNext,
+    MapPrototypeSet,
+    SetPrototypeAdd,
     /// `Error`, set when the built-in functions are installed (for
     /// `Error.stackTraceLimit`).
     ErrorConstructor,
@@ -77,7 +93,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 30;
+const INTRINSIC_COUNT: usize = 38;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -198,6 +214,10 @@ impl Runtime {
         let iterator_proto = heap.new_object(Some(object_proto))?;
         let array_iterator_proto = heap.new_object(Some(iterator_proto))?;
         let string_iterator_proto = heap.new_object(Some(iterator_proto))?;
+        let map_iterator_proto = heap.new_object(Some(iterator_proto))?;
+        let set_iterator_proto = heap.new_object(Some(iterator_proto))?;
+        let map_proto = heap.new_object(Some(object_proto))?;
+        let set_proto = heap.new_object(Some(object_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
@@ -240,7 +260,15 @@ impl Runtime {
             Some(iterator_proto),
             Some(array_iterator_proto),
             Some(string_iterator_proto),
+            Some(map_iterator_proto),
+            Some(set_iterator_proto),
+            Some(map_proto),
+            Some(set_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             None,

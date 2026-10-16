@@ -46,7 +46,7 @@ mod generator;
 mod global;
 pub(crate) mod internal;
 mod interp;
-mod iter;
+pub(crate) mod iter;
 mod literal;
 mod messages;
 pub(crate) mod number;

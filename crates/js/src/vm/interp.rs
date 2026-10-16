@@ -1088,11 +1088,11 @@ impl Runtime {
                         let iterator = get!(rec);
                         let next = get!(rec.saturating_add(1));
                         save!();
-                        if let Some(array_iterator) = self.builtin_array_step(iterator, next) {
+                        if let Some(builtin) = self.builtin_step(iterator, next) {
                             // A failed step leaves the record done.
                             put!(state, Value::Bool(true));
                             let step = tri!(self.with_scope(|rt| {
-                                crate::builtins::array_iterator_next_value(rt, array_iterator)
+                                crate::builtins::builtin_iterator_next_value(rt, builtin)
                             }));
                             if let Some(value) = step {
                                 put!(dst, value);

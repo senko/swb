@@ -170,6 +170,31 @@ and `pop` the interpreter's method calls. `join 1M elements` went from
 100,000 elements takes 4.1 s (`node --jitless` 0.59 s), on 200,000 about
 19 s (found in the 6a review; backlog).
 
+Programs added in M7 6b (2026-10-16, same machine; the keys are made
+outside the timed function):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| map: set and get of 100k integer keys | 21.4 | 8.8 | 2.4x |
+| map: set and get of 100k string keys | 36.2 | 12.2 | 3.0x |
+| set: add and has of 100k integers | 19.6 | 8.0 | 2.5x |
+| map: for-of over 100k entries, 5 times | 224 | 42.1 | 5.3x |
+| set: for-of over 100k values, 5 times | 19.9 | 9.7 | 2.1x |
+| map: 1M alternating inserts and deletes | 171 | 56.5 | 3.0x |
+
+About 75 ns of each call is the native call of the interpreter (a call of
+`Math.abs` costs the same, feature 13); the table itself takes about 30 ns
+for an integer key and about 100 ns for a string key (the keyed `SipHash`
+of the content and a comparison through two handles; a cached hash in the
+string is a backlog item). The iterator steps need no result object when
+`next` is the built-in one (`Runtime::builtin_step`), so `for (const v of
+set)` costs 40 ns per element. `for (const [k, v] of map)` costs 450 ns
+per entry: reading `e[0]` of the pair instead of destructuring it takes
+140 ns, of which 100 ns make the pair array; so the destructuring of the pair costs about 300 ns, as it
+does for any two-element array (it creates an Array Iterator). A shortcut
+for a dense array with the unmodified iterator is a backlog item for
+feature 13. The other rows are within noise of the 6a numbers.
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

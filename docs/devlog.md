@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-16: M7 feature 6b, `Map` and `Set`
+
+- One table type (`object/table.rs`): a vector of entries in insertion
+  order, where a delete leaves an empty entry, and an open-addressing
+  index of positions with the hash stored per entry. Compaction runs at
+  half deleted entries. The positions of the iterators live in the table
+  and compaction corrects them; `clear` uses an epoch, so it costs O(1)
+  per iterator. The list of unfinished iterators is weak: the collector
+  does not trace it, and the table drops the dead handles.
+- Hash: the keyed hasher of `js-text` for numbers and handles, the atom
+  table's SipHash for strings, so a page cannot choose collisions.
+  Feature 9 can reuse `Heap::key_hash` for `WeakMap`.
+- `Map`, `Set`, `Map.groupBy`, the seven ES2025 set methods,
+  `getOrInsert` and `getOrInsertComputed`, with V8's messages (1,490 of
+  1,499 measured cases are a test). Chromium has a limit of 2^24
+  entries; swb has the same limit and message.
+- `for`-`of` and the natives that consume iterables step the built-in
+  Array, Map and Set iterators without a result object.
+- Speed: `set` and `get` are 2 to 3 times slower than `node --jitless`,
+  most of it the native call (about 75 ns); `for (const [k, v] of map)`
+  5 times, because of the destructuring (feature 13).
+- Review: two quadratic cases while unfinished iterators block the
+  compaction. The LRU idiom (`m.delete(m.keys().next().value)` after
+  each `set`) scanned the deleted entries at the start with each new
+  iterator: 400,000 steps took 13.7 s. A key deleted and added again
+  lengthened its probe at each step, because deleted entries stayed in
+  the index: 3 million steps took more than 2 minutes. Fixed: a `head`
+  count of the deleted entries at the start, where every scan begins,
+  and deletion from the index with Knuth's Algorithm R (backward shift
+  for linear probing). Now 0.9 s and 2.1 s. The review of that fix
+  found a third case: a full iteration per step walked the deleted
+  entries in the middle (400,000 steps: 14 s). Fixed: a deleted entry
+  keeps, in its unused hash field, a skip to a later position, and each
+  scan shortens the path (path splitting, from union-find); now 0.43 s.
+  Both fixes had their own review.
+- Runtime test262: 25,672 pass (was 25,091), the same in stress mode;
+  the four new groups have no failures.
+- Next: 6c iterator helpers.
+
 ## 2026-10-16: M7 feature 6a, `Array`
 
 - Feature 6 is split into 6a `Array`, 6b `Map` and `Set`, 6c iterator

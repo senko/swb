@@ -1045,6 +1045,50 @@ Chromium loops over the length of a sparse array in the moving methods
 `arrays_gc.js` and `language_hostile.rs` with results checked against
 the specification's steps.
 
+### Collection tests
+
+`tools/probes/js-collections.json` has 1,499 snippets for Chromium 148 in
+the format of `js-arrays.json`; its `show` prints a `Map` as
+`Map{k=>v,...}` and a `Set` as `Set{v,...}`. The groups: the receiver
+messages of every `Map` and `Set` method with 14 kinds of receivers
+(including `Map.prototype`, `Set.prototype` and iterators of the other
+kind), the shape (key order, `length`, `name`, attributes, the shared
+function objects of `keys`, `values`, `entries` and `@@iterator`), the
+constructors (iterables, adders, subclasses, `Reflect.construct`), the
+keys (`-0`, `NaN`, integers and doubles, strings by content, objects,
+symbols), iteration while the table changes (`for`-`of`, `forEach`,
+`clear`, deletes that compact), `getOrInsert` and `getOrInsertComputed`,
+`Map.groupBy`, `GetSetRecord` with 55 bad arguments for each of the seven
+set methods, the set methods with logging arguments (the order of the
+reads, the branch that iterates the smaller set, a `has` or `keys` that
+changes the receiver) and small GC-heavy cases.
+`crates/js/tests/data/gen-collection-cases.js` turns the probe output
+into `collections_cases.js` and `.expected` (and `collections_cases_heavy.*`)
+for `crates/js/tests/builtins_collections.rs`:
+
+```
+just probe --json tools/probes/js-collections.json > probe.json
+node crates/js/tests/data/gen-collection-cases.js probe.json crates/js/tests/data
+```
+
+The script leaves out the snippets that need `Proxy`, `WeakMap` or
+`BigInt`, and two that run until Chromium's limit of 2^24 entries
+(`RangeError: Set maximum size exceeded`; the table unit test checks the
+limit with a smaller constant). `collections_gc.js` holds the cases with
+collections inside callbacks, adders, `has`, `keys` and `next`; its
+expected output is that of Node.js 22 (`just jsdiff` compares it).
+`collections_fuzz.js` runs random operations (inserts, deletes, `clear`,
+iterators advanced by a few steps, `forEach` and `for`-`of` that change
+the table, the set methods) and prints the length and a checksum of its
+trace, which are those of Node.js 22 (the seed is fixed).
+The hostile tests (`language_hostile.rs`) cover insert and delete churn
+under a heap limit of 24 MiB, millions of abandoned iterators, 100,000
+live iterators during a million table changes, tables that grow to the
+heap limit, keys that a weak hash would put in few buckets, and loops that
+add entries as they go. The table has unit tests in `object/table.rs`
+(order, `SameValueZero`, compaction with live iterators, `clear`, the
+pruning of the cursor list, memory after churn).
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

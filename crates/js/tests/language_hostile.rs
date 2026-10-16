@@ -2393,3 +2393,191 @@ fn unicode_methods_hold_up_under_the_stress_collector() {
     assert_eq!(run(source, true), normal);
     assert!(normal.starts_with("25 "), "{normal}");
 }
+
+#[test]
+fn collection_churn_keeps_the_memory_bounded() {
+    on_big_stack(|| {
+        // A million inserts and deletes of keys of every kind finish under
+        // a heap limit of 24 MiB: the table follows its live entries.
+        let mut rt = runtime_with_limit(24);
+        let cases = [
+            "var m = new Map(); for (var i = 0; i < 1000000; i++) { m.set(i, i); if (i >= 5) m.delete(i - 5); } m.size",
+            "var m = new Map(); for (var i = 0; i < 300000; i++) { m.set('key' + i, i); if (i >= 5) m.delete('key' + (i - 5)); } m.size",
+            "var s = new Set(); for (var i = 0; i < 1000000; i++) { s.add(i + 0.5); if (i >= 5) s.delete(i - 4.5); } s.size",
+            "var s = new Set(); for (var i = 0; i < 300000; i++) { var o = {}; s.add(o); s.delete(o); } s.size",
+            // With iterators in flight, the positions follow every compaction.
+            "var m = new Map(); var its = []; for (var j = 0; j < 20; j++) its.push(m.keys()); for (var i = 0; i < 500000; i++) { m.set(i, i); m.delete(i - 3); } its.length + m.size",
+            "var m = new Map(); for (var r = 0; r < 20; r++) { for (var i = 0; i < 20000; i++) m.set(i, i); m.clear(); } m.size",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+            assert!(result.is_ok(), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn abandoned_iterators_do_not_fill_the_heap() {
+    on_big_stack(|| {
+        // Millions of iterators, finished or not, over a table that
+        // lives: the heap limit of 24 MiB holds because the collector
+        // frees the iterators and the table prunes its list.
+        let mut rt = runtime_with_limit(24);
+        let cases = [
+            "var m = new Map([[1, 1], [2, 2]]); for (var i = 0; i < 1500000; i++) { var it = m.entries(); } 1",
+            "var m = new Map([[1, 1], [2, 2]]); for (var i = 0; i < 1000000; i++) { var it = m.keys(); it.next(); } 1",
+            "var s = new Set([1, 2, 3]); for (var i = 0; i < 1000000; i++) { for (var v of s) { break; } } 1",
+            "var s = new Set([1, 2, 3]); for (var i = 0; i < 500000; i++) { for (var v of s) { } s.forEach(function () { }); } 1",
+            // A table that changes while the iterators are made.
+            "var m = new Map(); for (var i = 0; i < 500000; i++) { var it = m.keys(); m.set(i, i); m.delete(i - 1); } m.size",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(30));
+            assert!(result.is_ok(), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(15), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn queues_and_churn_with_unfinished_iterators_stay_linear() {
+    on_big_stack(|| {
+        // Found in the 6b review: the unfinished iterators block the
+        // compaction until a collection, so the deleted entries pile up.
+        // Each new iterator starts after the deleted entries at the start
+        // (the LRU idiom), a delete takes the key out of the index (a key
+        // deleted and added again), and deleted entries further on hold
+        // skips (a full iteration per step). All three were quadratic:
+        // 400,000 steps of the first took 13.7 s, 3 million of the second
+        // over 2 minutes, 400,000 of the third 14 s.
+        let mut rt = runtime_with_limit(64);
+        let cases = [
+            "var m = new Map(); for (var i = 0; i < 300000; i++) { m.set(i, i); if (m.size > 10) m.delete(m.keys().next().value); } m.size",
+            "var s = new Set(); for (var i = 0; i < 300000; i++) { s.add(i); if (s.size > 10) { for (var v of s) { s.delete(v); break; } } } s.size",
+            "var m = new Map(); for (var i = 0; i < 10; i++) m.set(i, i); for (var i = 0; i < 1000000; i++) { var it = m.keys(); it.next(); m.delete(i % 10); m.set(i % 10, 1); } m.size",
+            // Deleted entries in the middle: a full iteration jumps over them.
+            "var m = new Map([[-1, 1]]); for (var i = 0; i < 300000; i++) { m.keys(); m.set(i, 1); m.delete(i); for (var k of m) { } } m.size",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(30));
+            assert!(result.is_ok(), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn many_live_iterators_make_no_quadratic_work() {
+    on_big_stack(|| {
+        // 100,000 iterators that stay alive, and a table that changes
+        // 500,000 times: a compaction costs its entries plus its iterators
+        // and runs only when the deleted entries are as many as the
+        // iterators, so the work stays linear.
+        let mut rt = runtime_with_limit(128);
+        let (result, elapsed) = eval_with_deadline_of(
+            &mut rt,
+            "var m = new Map([[0, 0]]); var its = []; for (var j = 0; j < 100000; j++) its.push(m.keys()); \
+             for (var i = 1; i < 500000; i++) { m.set(i, i); m.delete(i - 1); } \
+             var s = 0; for (var j = 0; j < its.length; j += 1000) s += its[j].next().value; s",
+            Duration::from_secs(30),
+        );
+        assert!(result.is_ok(), "{result:?}");
+        assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
+        assert_clean(&rt);
+        // Clearing is constant work, not one step per iterator.
+        let (result, elapsed) = eval_with_deadline_of(
+            &mut rt,
+            "var big = new Set(); for (var i = 0; i < 100000; i++) { big.add(i); } var its = []; \
+             for (var j = 0; j < 50000; j++) its.push(big.values()); \
+             for (var r = 0; r < 100000; r++) { big.clear(); big.add(r); } 1",
+            Duration::from_secs(30),
+        );
+        assert!(result.is_ok(), "{result:?}");
+        assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
+    });
+}
+
+#[test]
+fn collections_with_many_keys_end_at_the_heap_limit() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(32);
+        let cases = [
+            "var m = new Map(); for (var i = 0; ; i++) m.set(i, i);",
+            "var m = new Map(); for (var i = 0; ; i++) m.set('a long key to cost memory ' + i, {});",
+            "var s = new Set(); for (var i = 0; ; i++) s.add({});",
+            "var s = new Set(); for (var i = 0; ; i++) s.add(i + 0.25);",
+            "var big = []; for (var i = 0; i < 100000; i++) big.push(i); var s = new Set(big); while (true) { s = s.union(new Set(big.map(function (x) { return x + s.size; }))); }",
+            "var s = new Set([1]); while (true) { s = s.symmetricDifference({ size: 1, has: function () { return false; }, keys: function () { return { next: function () { return { value: Math.random(), done: false }; } }; } }); }",
+            "var m = Map.groupBy({ [Symbol.iterator]: function () { var i = 0; return { next: function () { return { value: i++, done: false }; } }; } }, function (x) { return x; });",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(10));
+            assert!(is_limit(&result), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn colliding_looking_keys_do_not_make_collections_slow() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(256);
+        // Keys that a weak hash puts in a few buckets: multiples of powers
+        // of two, doubles with equal low bits, strings with a common
+        // prefix and suffix, and many symbols.
+        let cases = [
+            "var m = new Map(); for (var i = 0; i < 200000; i++) m.set(i * 65536, i); var s = 0; for (var i = 0; i < 200000; i++) s += m.get(i * 65536); s",
+            "var m = new Map(); for (var i = 0; i < 200000; i++) m.set(i * 4294967296, i); var s = 0; for (var i = 0; i < 200000; i++) s += m.get(i * 4294967296); s",
+            "var m = new Set(); for (var i = 0; i < 200000; i++) m.add(i * 1.5e300); m.size",
+            "var m = new Set(); for (var i = 0; i < 100000; i++) m.add(-i * 8); m.size",
+            "var m = new Map(); for (var i = 0; i < 200000; i++) m.set('same prefix, same suffix ' + (100000 + i) + ' and the same end', i); m.size",
+            "var m = new Map(); for (var i = 0; i < 200000; i++) m.set(String.fromCharCode(i & 0xffff, i >> 16), i); m.size",
+            "var m = new Map(); for (var i = 0; i < 200000; i++) m.set(Symbol(), i); m.size",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(20));
+            assert!(result.is_ok(), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn collection_loops_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(256);
+        let cases = [
+            // Loops that add entries as they go never end by themselves.
+            "var m = new Map([[0, 0]]); m.forEach(function (v, k) { m.set(k + 1, 0); m.delete(k); });",
+            "var s = new Set([0]); for (var v of s) { s.add(v + 1); s.delete(v); }",
+            "var s = new Set([0]); s.forEach(function (v) { s.delete(v); s.add(v); });",
+            "var m = new Map([[0, 0]]); for (var e of m) { m.delete(e[0]); m.set(e[0], 0); }",
+            "var s = new Set([0]); while (true) { var r = s.union({ size: 0, has: function () { return false; }, keys: function () { return { next: function () { return { value: 1, done: false }; } }; } }); }",
+            "var s = new Set([1]); while (true) { s.isSupersetOf({ size: 0, has: function () { return true; }, keys: function () { return { next: function () { return { value: 1, done: false }; }, return: function () { return {}; } }; } }); }",
+            "var s = new Set(); for (var i = 0; i < 1000; i++) s.add(i); var o = { size: 1e9, has: function (v) { return true; }, keys: function () { return [][Symbol.iterator](); } }; while (true) { s.isSubsetOf(o); s.intersection(o); }",
+            // Long runs of deleted entries that iterators skip.
+            "var m = new Map(); for (var i = 0; i < 300000; i++) m.set(i, i); var its = []; for (var j = 0; j < 400000; j++) its.push(m.keys()); for (var i = 0; i < 299999; i++) m.delete(i); while (true) { for (var k = 0; k < its.length; k++) its[k].next(); }",
+        ];
+        for source in cases {
+            assert_ends_at_deadline(&mut rt, source, DEADLINE, Duration::from_millis(500));
+        }
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_collections() {
+    let source = "var m = new Map(); var its = []; for (var i = 0; i < 400; i++) { m.set('k' + (i % 150), { i: i }); if (i % 3 === 0) m.delete('k' + ((i * 7) % 150)); if (i % 50 === 0) its.push(m.entries()); } \
+                  var n = 0; for (var it of its) { for (var e of it) n += e[1].i; } \
+                  var s = new Set(m.keys()); var t = s.union(new Set(['x', 'y'])).difference(new Set(['k1', 'k2'])); \
+                  var g = Map.groupBy(m.keys(), function (k) { return k.length; }); \
+                  print(m.size, n, s.size, t.size, [...g.keys()].join(), g.get(3).length);";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("124 "), "{normal}");
+}
