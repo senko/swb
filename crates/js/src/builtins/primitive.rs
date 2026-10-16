@@ -32,6 +32,8 @@ fn string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         return Ok(NativeReturn::Value(text.into()));
     }
     rt.heap.record(text);
+    // The string of a String object is flat (`object/ops.rs`).
+    rt.flatten(text)?;
     let proto = rt.prototype_from(call, Intrinsic::StringPrototype)?;
     let length = rt.heap.string(text)?.len();
     let object = rt

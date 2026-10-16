@@ -115,7 +115,7 @@ fn join(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         Value::Undefined => String16::from(","),
         value => {
             let string = rt.to_string(value)?;
-            let units = rt.heap.string(string)?.as_str16().to_string16();
+            let units = rt.heap.copy_string(string)?;
             rt.charge_units(units.len())?;
             units
         }
@@ -152,9 +152,8 @@ fn join_elements(
             let element = rt.get_value(object.into(), key)?;
             if !element.is_nullish() {
                 let string = rt.to_string(element)?;
-                let piece = rt.heap.string(string)?.as_str16();
-                let units = piece.len();
-                text.push_str16(piece);
+                let units = rt.heap.string(string)?.len();
+                rt.heap.push_string(&mut text, string)?;
                 // The copy costs steps in proportion to its size.
                 rt.charge_units(units)?;
             }

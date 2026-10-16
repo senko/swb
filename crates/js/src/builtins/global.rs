@@ -48,9 +48,9 @@ fn is_finite(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// the rounding of its decimal digits.
 fn parse_float(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let string = rt.to_string(rt.arg(call, 0))?;
-    let text = rt.heap.string(string)?;
+    let text = rt.flat_text(string)?;
     let units = text.len();
-    let value = number::parse_float(text.as_str16());
+    let value = number::parse_float(text);
     rt.charge_number_scan(units)?;
     rt.charge_decimal_digits(units)?;
     Ok(NativeReturn::Value(Value::number(value)))
@@ -67,9 +67,9 @@ fn parse_int(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         Value::Undefined => 0,
         value => to_int32(rt.to_number(value)?),
     };
-    let text = rt.heap.string(string)?;
+    let text = rt.flat_text(string)?;
     let units = text.len();
-    let value = number::parse_int(text.as_str16(), radix);
+    let value = number::parse_int(text, radix);
     rt.charge_number_scan(units)?;
     if radix == 0 || radix == 10 {
         rt.charge_decimal_digits(units)?;

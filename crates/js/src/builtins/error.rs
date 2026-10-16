@@ -254,17 +254,25 @@ pub(crate) fn error_header(rt: &mut Runtime, this: Value) -> VmResult<Gc<JsStrin
         PropertyKey::String(rt.vm.atoms.message),
         rt.vm.atoms.empty,
     )?;
-    let name_text = rt.heap.string(name)?.as_str16();
-    let message_text = rt.heap.string(message)?.as_str16();
-    if name_text.is_empty() {
+    let (name_units, name_latin1) = {
+        let record = rt.heap.string(name)?;
+        (record.len(), record.is_latin1())
+    };
+    let message_record = rt.heap.string(message)?;
+    if name_units == 0 {
         return Ok(message);
     }
-    if message_text.is_empty() {
+    if message_record.is_empty() {
         return Ok(name);
     }
-    let mut text = name_text.to_string16();
+    let mut text = String16::try_with_capacity(
+        name_units + 2 + message_record.len(),
+        !(name_latin1 && message_record.is_latin1()),
+    )
+    .map_err(crate::error::Error::from)?;
+    rt.heap.push_string(&mut text, name)?;
     text.push_str16(String16::from(": ").as_str16());
-    text.push_str16(message_text);
+    rt.heap.push_string(&mut text, message)?;
     let units = text.len();
     let string = rt.heap.alloc_string(text)?;
     rt.heap.record(string);

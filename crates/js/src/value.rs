@@ -210,9 +210,7 @@ impl Heap {
             | (Value::Null, Value::Null)
             | (Value::Empty, Value::Empty) => true,
             (Value::Bool(x), Value::Bool(y)) => x == y,
-            (Value::String(x), Value::String(y)) => {
-                x == y || self.string(x)?.as_str16() == self.string(y)?.as_str16()
-            }
+            (Value::String(x), Value::String(y)) => self.strings_equal(x, y)?,
             (Value::Symbol(x), Value::Symbol(y)) => x == y,
             (Value::Object(x), Value::Object(y)) => x == y,
             (Value::Cell(x), Value::Cell(y)) => x == y,

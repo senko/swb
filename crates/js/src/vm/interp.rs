@@ -545,7 +545,7 @@ impl Runtime {
                         Value::Int(index) if index >= 0 => PropertyKey::Index(index as u32),
                         // Strings and symbols convert without script code.
                         Value::String(string) if !target.is_nullish() => {
-                            tri!(self.heap.key_from_string(string))
+                            tri!(self.string_key(string))
                         }
                         Value::Symbol(symbol) => PropertyKey::Symbol(symbol),
                         _ => tri!(self.with_scope(|rt| rt.key_for_access(
@@ -566,7 +566,7 @@ impl Runtime {
                         Value::Int(index) if index >= 0 => PropertyKey::Index(index as u32),
                         // Strings and symbols convert without script code.
                         Value::String(string) if !target.is_nullish() => {
-                            tri!(self.heap.key_from_string(string))
+                            tri!(self.string_key(string))
                         }
                         Value::Symbol(symbol) => PropertyKey::Symbol(symbol),
                         _ => tri!(self.with_scope(|rt| rt.key_for_access(

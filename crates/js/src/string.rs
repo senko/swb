@@ -1,11 +1,21 @@
 //! String values, interned strings (atoms) and property keys (ADR 0026
 //! section 7, memo 4.2).
 //!
-//! A string is flat: its code units in one of the two widths of
-//! `js-text`. Ropes come later. Property names are atoms: the atom table
-//! maps the content to the one string handle with that content. The
-//! table holds its entries weakly; the collector removes the dead ones.
-//! Its hash has a random key per heap, against collision floods.
+//! A string is flat (its code units in one of the two widths of
+//! `js-text`) or a rope: two child strings and the length, which a
+//! concatenation builds ([`rope`]). An operation that needs the code
+//! units flattens the rope in place first ([`Heap::flatten`],
+//! `Runtime::flatten`) and then reads the flat view ([`Heap::text`]).
+//! `length` and the width of a rope need no flatten. Property names are
+//! atoms: the atom table maps the content to the one string handle with
+//! that content. Atoms are always flat. The table holds its entries
+//! weakly; the collector removes the dead ones. Its hash has a random key
+//! per heap, against collision floods.
+//!
+//! [`Heap::flatten`]: crate::heap::Heap::flatten
+//! [`Heap::text`]: crate::heap::Heap::text
+
+pub(crate) mod rope;
 
 use std::collections::HashMap;
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, RandomState};
@@ -14,32 +24,87 @@ use swb_js_text::{Str16, String16};
 
 use crate::heap::{Arena, Gc, MarkBits};
 use crate::value::Symbol;
+use rope::Rope;
 
 /// A string value: immutable code units with UTF-16 semantics.
 pub struct JsString {
-    text: String16,
+    repr: Repr,
     /// Whether the string is in the atom table.
     atom: bool,
 }
 
+/// The two forms of a string.
+enum Repr {
+    /// The code units.
+    Flat(String16),
+    /// A concatenation that is not flattened yet.
+    Rope(Rope),
+}
+
 impl JsString {
     pub(crate) fn new(text: String16) -> Self {
-        JsString { text, atom: false }
+        JsString {
+            repr: Repr::Flat(text),
+            atom: false,
+        }
     }
 
-    /// The code units.
-    pub fn as_str16(&self) -> Str16<'_> {
-        self.text.as_str16()
+    pub(crate) fn rope(rope: Rope) -> Self {
+        JsString {
+            repr: Repr::Rope(rope),
+            atom: false,
+        }
+    }
+
+    /// The code units of a flat string; `None` for a rope (flatten it
+    /// first: `Heap::flatten`).
+    pub fn as_flat(&self) -> Option<Str16<'_>> {
+        match &self.repr {
+            Repr::Flat(text) => Some(text.as_str16()),
+            Repr::Rope(_) => None,
+        }
+    }
+
+    /// Whether the string is a rope (not flattened yet).
+    pub fn is_rope(&self) -> bool {
+        matches!(self.repr, Repr::Rope(_))
+    }
+
+    /// The parts of a rope.
+    pub(crate) fn as_rope(&self) -> Option<&Rope> {
+        match &self.repr {
+            Repr::Flat(_) => None,
+            Repr::Rope(rope) => Some(rope),
+        }
     }
 
     /// The number of code units.
     pub fn len(&self) -> usize {
-        self.text.len()
+        match &self.repr {
+            Repr::Flat(text) => text.len(),
+            Repr::Rope(rope) => rope.len(),
+        }
     }
 
     /// Whether the string has no code units.
     pub fn is_empty(&self) -> bool {
-        self.text.is_empty()
+        self.len() == 0
+    }
+
+    /// Whether all code units are below 256 (the narrow width).
+    pub fn is_latin1(&self) -> bool {
+        match &self.repr {
+            Repr::Flat(text) => text.is_latin1(),
+            Repr::Rope(rope) => rope.is_latin1(),
+        }
+    }
+
+    /// The depth of the rope: 0 for a flat string.
+    pub(crate) fn depth(&self) -> u16 {
+        match &self.repr {
+            Repr::Flat(_) => 0,
+            Repr::Rope(rope) => rope.depth(),
+        }
     }
 
     /// Whether the string is interned (an atom).
@@ -51,13 +116,24 @@ impl JsString {
         self.atom = true;
     }
 
-    /// The bytes that the code units occupy outside the slot.
+    /// Replaces a rope with its flat text (the same code units).
+    fn set_flat(&mut self, text: String16) {
+        self.repr = Repr::Flat(text);
+    }
+
+    /// Replaces a rope with another node of the same code units (a
+    /// rebalance).
+    fn set_rope(&mut self, rope: Rope) {
+        self.repr = Repr::Rope(rope);
+    }
+
+    /// The bytes that the code units occupy outside the slot (0 for a
+    /// rope: its node is the slot).
     pub(crate) fn heap_size(&self) -> usize {
-        let units = self.text.len();
-        if self.text.is_latin1() {
-            units
-        } else {
-            units * 2
+        match &self.repr {
+            Repr::Flat(text) if text.is_latin1() => text.len(),
+            Repr::Flat(text) => text.len() * 2,
+            Repr::Rope(_) => 0,
         }
     }
 }
@@ -206,7 +282,7 @@ impl AtomTable {
         let matches = |atom: &Gc<JsString>| {
             strings
                 .get(*atom)
-                .is_ok_and(|string| string.as_str16() == text)
+                .is_ok_and(|string| string.as_flat() == Some(text))
         };
         if let Some(atom) = self.primary.get(&hash).copied().filter(matches) {
             return Some(atom);

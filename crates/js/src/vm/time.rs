@@ -16,7 +16,7 @@ use std::time::Instant;
 
 use crate::error::Termination;
 use crate::runtime::Runtime;
-use crate::vm::{VmError, VmResult};
+use crate::vm::{Vm, VmResult};
 
 /// The countdown steps between two time checks. A check costs one read
 /// of an atomic flag and, with a deadline, one read of the clock (about
@@ -76,12 +76,7 @@ impl Runtime {
     /// used up.
     #[inline]
     pub(crate) fn charge(&mut self, steps: usize) -> VmResult<()> {
-        let steps = u32::try_from(steps).unwrap_or(u32::MAX);
-        if steps >= self.vm.countdown {
-            return self.check_time();
-        }
-        self.vm.countdown -= steps;
-        Ok(())
+        Ok(self.vm.charge(steps)?)
     }
 
     /// The cost of copying or scanning `units` code units: one step per
@@ -96,14 +91,34 @@ impl Runtime {
     /// deadline has passed. Restarts the countdown.
     #[cold]
     pub(crate) fn check_time(&mut self) -> VmResult<()> {
-        self.vm.countdown = TIME_CHECK_INTERVAL;
-        if self.vm.termination.take() {
-            return Err(VmError::Terminated(Termination::HostRequest));
+        Ok(self.vm.check_time()?)
+    }
+}
+
+impl Vm {
+    /// [`Runtime::charge`] on the VM alone, for work inside the heap that
+    /// reports its progress (a flatten) while the heap is borrowed.
+    #[inline]
+    pub(crate) fn charge(&mut self, steps: usize) -> Result<(), Termination> {
+        let steps = u32::try_from(steps).unwrap_or(u32::MAX);
+        if steps >= self.countdown {
+            return self.check_time();
         }
-        if let Some(deadline) = self.vm.deadline
+        self.countdown -= steps;
+        Ok(())
+    }
+
+    /// [`Runtime::check_time`] on the VM alone.
+    #[cold]
+    fn check_time(&mut self) -> Result<(), Termination> {
+        self.countdown = TIME_CHECK_INTERVAL;
+        if self.termination.take() {
+            return Err(Termination::HostRequest);
+        }
+        if let Some(deadline) = self.deadline
             && Instant::now() >= deadline
         {
-            return Err(VmError::Terminated(Termination::TimeLimit));
+            return Err(Termination::TimeLimit);
         }
         Ok(())
     }

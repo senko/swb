@@ -81,6 +81,11 @@ pub(crate) fn runtime(stress: bool) -> Runtime {
         },
         ..RuntimeConfig::default()
     };
+    runtime_with_tests(config)
+}
+
+/// A runtime with a given configuration and the test functions.
+pub(crate) fn runtime_with_tests(config: RuntimeConfig) -> Runtime {
     let mut rt = runtime_with(config);
     let output = Output::default();
     let sink = output.clone();

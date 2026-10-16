@@ -38,15 +38,11 @@ impl Runtime {
         let Ok(text) = self.heap.string(string) else {
             return String::new();
         };
-        let text = text.as_str16();
-        if text.len() <= limit {
-            return text.to_string_lossy();
+        let cut = text.len() > limit;
+        let mut out = self.heap.string_lossy(string, limit);
+        if cut {
+            out.push_str(CUT_MARK);
         }
-        let mut out = text
-            .slice(0, limit)
-            .map(swb_js_text::Str16::to_string_lossy)
-            .unwrap_or_default();
-        out.push_str(CUT_MARK);
         out
     }
 

@@ -116,7 +116,7 @@ pub(super) fn descriptive_string(rt: &mut Runtime, symbol: Gc<Symbol>) -> VmResu
     }
     let mut text = String16::from("Symbol(");
     if let Some(description) = description {
-        text.push_str16(rt.heap.string(description)?.as_str16());
+        rt.heap.push_string(&mut text, description)?;
     }
     text.push_str16(String16::from(")").as_str16());
     rt.charge_units(units)?;

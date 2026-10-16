@@ -169,6 +169,14 @@ Format: source, license (for code), what it influenced.
   Computational and Applied Mathematics 315, 2017 (xorshift128+ of
   `Math.random`, `js/src/vm/random.rs`). `toLocaleString` and
   `Math.sumPrecise` follow Chromium 148, measured (`just probe`).
+- H.-J. Boehm, R. Atkinson and M. Plass, "Ropes: an Alternative to
+  Strings", Software: Practice and Experience 25(12), 1995 — the ropes
+  of `js/src/string/rope.rs` (M7 feature 5a): concatenation nodes with
+  the length, short right parts copied into the leaf at the edge, a
+  depth limit with a rebalance that turns the leaves in order into a
+  balanced tree and joins short adjacent leaves. The chunk size that
+  grows with the length, the two-level edge merge and the in-place
+  flatten are swb's own (after study memo 4.2); no code read or copied.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

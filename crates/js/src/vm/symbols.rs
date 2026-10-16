@@ -105,6 +105,7 @@ impl Runtime {
     /// `Symbol.for` (§20.4.2.2): the registered symbol for `key`, created
     /// if needed. The caller roots `key`.
     pub(crate) fn symbol_for(&mut self, key: Gc<JsString>) -> VmResult<Gc<Symbol>> {
+        self.flatten_no_gc(key)?;
         let atom = self.heap.intern_string(key)?;
         if let Some(symbol) = self.vm.symbols.registry.get(&atom) {
             return Ok(*symbol);

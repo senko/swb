@@ -25,12 +25,13 @@
 
 use std::fmt::Write;
 
+#[cfg(test)]
 use swb_js_text::Str16;
 
 use crate::heap::Gc;
 use crate::object::{Object, ObjectKind, Property};
 use crate::runtime::Runtime;
-use crate::string::PropertyKey;
+use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult, WellKnown};
 
@@ -129,14 +130,11 @@ impl Inspector<'_> {
         }
         self.steps += 1;
         match value {
-            Value::String(string) => match self.rt.heap.string(string) {
-                Ok(text) => {
-                    let quoted = quote(text.as_str16());
-                    self.units += quoted.len();
-                    quoted
-                }
-                Err(_) => "''".to_owned(),
-            },
+            Value::String(string) => {
+                let quoted = quote_string(&self.rt.heap, string);
+                self.units += quoted.len();
+                quoted
+            }
             Value::Double(d) => format_number(d),
             Value::Object(object) => self.object(object, depth, indent),
             _ => self.rt.primitive_text(value),
@@ -263,10 +261,7 @@ impl Inspector<'_> {
             }
             ObjectKind::NumberWrapper(n) => format!("[Number: {}]", format_number(*n)),
             ObjectKind::BooleanWrapper(b) => format!("[Boolean: {b}]"),
-            ObjectKind::StringWrapper(s) => match rt.heap.string(*s) {
-                Ok(text) => format!("[String: {}]", quote(text.as_str16())),
-                Err(_) => "[String: '']".to_owned(),
-            },
+            ObjectKind::StringWrapper(s) => format!("[String: {}]", quote_string(&rt.heap, *s)),
             ObjectKind::SymbolWrapper(s) => {
                 format!("[Symbol: {}]", rt.key_text(PropertyKey::Symbol(*s)))
             }
@@ -496,7 +491,7 @@ impl Inspector<'_> {
                 // A long name is quoted, which cuts it (see the module
                 // documentation).
                 if string.len() > MAX_STRING {
-                    return quote(string.as_str16());
+                    return quote_string(&self.rt.heap, name);
                 }
                 let text = self.rt.name_text(name);
                 let mut chars = text.chars();
@@ -507,7 +502,7 @@ impl Inspector<'_> {
                 if plain {
                     text
                 } else {
-                    quote(string.as_str16())
+                    quote_string(&self.rt.heap, name)
                 }
             }
         }
@@ -522,8 +517,22 @@ const MAX_STRING: usize = 10_000;
 /// quotes if the text has a single quote and no double quote, or
 /// backquotes if it has both; control characters and lone surrogates
 /// escaped; at most [`MAX_STRING`] code units.
+#[cfg(test)]
 fn quote(text: Str16<'_>) -> String {
-    let has = |c: char| text.units().any(|u| u32::from(u) == c as u32);
+    quote_units(text.len(), || text.units())
+}
+
+/// [`quote`] of a script string (a rope is read leaf by leaf, without a
+/// flatten).
+fn quote_string(heap: &crate::heap::Heap, string: Gc<JsString>) -> String {
+    let len = heap.string(string).map_or(0, JsString::len);
+    quote_units(len, || heap.string_units(string))
+}
+
+/// [`quote`] of the `len` code units that `units` gives (each call gives
+/// them from the start).
+fn quote_units<I: Iterator<Item = u16>>(len: usize, units: impl Fn() -> I) -> String {
+    let has = |c: char| units().any(|u| u32::from(u) == c as u32);
     let quote = if !has('\'') {
         '\''
     } else if !has('"') {
@@ -535,7 +544,7 @@ fn quote(text: Str16<'_>) -> String {
     };
     let mut out = String::new();
     out.push(quote);
-    let mut units = text.units().take(MAX_STRING).peekable();
+    let mut units = units().take(MAX_STRING).peekable();
     while let Some(unit) = units.next() {
         let mut code = u32::from(unit);
         if (0xd800..0xdc00).contains(&code)
@@ -569,7 +578,7 @@ fn quote(text: Str16<'_>) -> String {
         }
     }
     out.push(quote);
-    let rest = text.len().saturating_sub(MAX_STRING);
+    let rest = len.saturating_sub(MAX_STRING);
     if rest > 0 {
         let s = if rest == 1 { "" } else { "s" };
         let _ = write!(out, "... {rest} more character{s}");

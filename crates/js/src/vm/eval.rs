@@ -176,7 +176,7 @@ impl Runtime {
             .last()
             .ok_or(VmError::invariant("eval without a frame"))?;
         let (base, realm) = (frame.base as usize, frame.realm);
-        let text = self.heap.string(string)?.as_str16().to_string16();
+        let text = self.heap.copy_string(string)?;
         let context = EvalContext {
             direct: true,
             strict: site.flags.strict,
@@ -228,7 +228,7 @@ impl Runtime {
         let Value::String(string) = argument else {
             return Ok(NativeReturn::Value(argument));
         };
-        let text = self.heap.string(string)?.as_str16().to_string16();
+        let text = self.heap.copy_string(string)?;
         let script = self.parse_eval_code(text.as_str16(), &EvalContext::default())?;
         let var_env = VarEnvironment {
             env: if script.ast.function(script.top).strict {
@@ -422,7 +422,7 @@ impl Runtime {
         let mut names = Vec::new();
         let mut take = |name: &EvalName| -> VmResult<()> {
             if name.kind == BindingKind::PrivateName {
-                names.push(self.heap.string(name.name)?.as_str16().to_string16());
+                names.push(self.heap.copy_string(name.name)?);
             }
             Ok(())
         };
@@ -490,7 +490,7 @@ impl Runtime {
         }
         self.charge(atoms.len())?;
         for atom in atoms {
-            let text = self.heap.string(atom)?.as_str16().to_string16();
+            let text = self.heap.copy_string(atom)?;
             let dynamic = is_dynamic_name(text.as_str16());
             let Some(mut entry) = describe(info, site, atom, dynamic) else {
                 continue;

@@ -7,23 +7,21 @@
 //! re-entry) record their intermediate results in the current handle
 //! scope, which the caller opened.
 
-use swb_js_text::{Str16, String16};
+use swb_js_text::Str16;
 
 use crate::heap::Gc;
 use crate::object::{INVALID_ARRAY_LENGTH, Object, ObjectKind};
 use crate::runtime::Runtime;
+use crate::string::rope::MAX_DEPTH;
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
 use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::number::number_to_string;
+use crate::vm::time::UNITS_PER_STEP;
 use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
 
 /// The longest string (V8's limit: 2^29 − 24 code units).
 pub(crate) const MAX_STRING_LENGTH: usize = (1 << 29) - 24;
-
-/// Concatenations of at least this many code units reserve their memory
-/// first (a safepoint).
-const RESERVE_FROM: usize = 1024;
 
 /// The preferred type of `ToPrimitive`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -283,12 +281,22 @@ impl Runtime {
         Ok(string)
     }
 
+    /// The property key of a string value (`Heap::key_from_string`); a
+    /// rope is flattened first with the time charged
+    /// ([`Runtime::flatten_no_gc`]: no collection).
+    pub(crate) fn string_key(&mut self, string: Gc<JsString>) -> VmResult<PropertyKey> {
+        if self.heap.string(string)?.is_rope() {
+            self.flatten_no_gc(string)?;
+        }
+        Ok(self.heap.key_from_string(string)?)
+    }
+
     /// `ToPropertyKey` (§7.1.19).
     pub(crate) fn to_property_key(&mut self, value: Value) -> VmResult<PropertyKey> {
         match value {
             Value::Int(i) if i >= 0 => return Ok(PropertyKey::Index(i as u32)),
             Value::Symbol(symbol) => return Ok(PropertyKey::Symbol(symbol)),
-            Value::String(string) => return Ok(self.heap.key_from_string(string)?),
+            Value::String(string) => return self.string_key(string),
             _ => {}
         }
         let primitive = self.to_primitive(value, Hint::String)?;
@@ -296,7 +304,7 @@ impl Runtime {
             return Ok(PropertyKey::Symbol(symbol));
         }
         let string = self.to_string(primitive)?;
-        Ok(self.heap.key_from_string(string)?)
+        self.string_key(string)
     }
 
     /// The key of a value that `ToKey` produced (no script code runs).
@@ -306,7 +314,7 @@ impl Runtime {
             Value::Double(d) if (0.0..4_294_967_295.0).contains(&d) && d.fract() == 0.0 => {
                 Ok(PropertyKey::Index(d as u32))
             }
-            Value::String(string) => Ok(self.heap.key_from_string(string)?),
+            Value::String(string) => self.string_key(string),
             Value::Symbol(symbol) => Ok(PropertyKey::Symbol(symbol)),
             _ => Err(VmError::invariant("a key register without a converted key")),
         }
@@ -340,7 +348,11 @@ impl Runtime {
                     "Cannot convert undefined or null to object",
                 ));
             }
-            Value::String(s) => (ObjectKind::StringWrapper(s), Intrinsic::StringPrototype),
+            Value::String(s) => {
+                // The string of a String object is flat (`object/ops.rs`).
+                self.flatten_no_gc(s)?;
+                (ObjectKind::StringWrapper(s), Intrinsic::StringPrototype)
+            }
             Value::Int(i) => (
                 ObjectKind::NumberWrapper(f64::from(i)),
                 Intrinsic::NumberPrototype,
@@ -462,9 +474,7 @@ impl Runtime {
             (px, py)
         };
         let less = if let (Value::String(a), Value::String(b)) = (px, py) {
-            let a = self.heap.string(a)?.as_str16();
-            let b = self.heap.string(b)?.as_str16();
-            Some(a.units().lt(b.units()))
+            Some(self.heap.compare_strings(a, b)? == std::cmp::Ordering::Less)
         } else {
             let (nx, ny) = if swapped {
                 let ny = self.to_number(py)?;
@@ -510,33 +520,89 @@ impl Runtime {
         Ok(number_op(op, x, y))
     }
 
-    /// The concatenation of two strings (flat; ropes come later). A long
-    /// result reserves its memory first: a safepoint, so both operands
-    /// must be rooted by the caller.
+    /// The concatenation of two strings (ADR 0026 section 7; the rules are
+    /// in `string/rope.rs`): a flat copy of a short result, otherwise a
+    /// rope. An operand at the depth limit of ropes is rebalanced first.
+    /// Never collects: every allocation is a node, a short leaf or a chunk
+    /// of a rebalance, which checks the heap limit.
     pub(crate) fn concat(&mut self, a: Gc<JsString>, b: Gc<JsString>) -> VmResult<Gc<JsString>> {
-        let len_a = self.heap.string(a)?.len();
-        let len_b = self.heap.string(b)?.len();
+        let (len_a, depth_a) = self.len_and_depth(a)?;
+        let (len_b, depth_b) = self.len_and_depth(b)?;
         if len_a == 0 {
             return Ok(b);
         }
         if len_b == 0 {
             return Ok(a);
         }
-        let total = len_a + len_b;
-        if total > MAX_STRING_LENGTH {
+        if len_a + len_b > MAX_STRING_LENGTH {
             return Err(VmError::range_error("Invalid string length"));
         }
-        if total >= RESERVE_FROM {
-            self.heap.reserve(total * 2, &self.vm)?;
+        if depth_a >= MAX_DEPTH {
+            self.rebalance(a)?;
         }
-        let mut text = String16::new();
-        push_units(&mut text, self.heap.string(a)?.as_str16());
-        push_units(&mut text, self.heap.string(b)?.as_str16());
-        let result = self.heap.alloc_string(text)?;
+        // `b` can be `a` (`s + s`), rebalanced just now.
+        if depth_b >= MAX_DEPTH && self.len_and_depth(b)?.1 >= MAX_DEPTH {
+            self.rebalance(b)?;
+        }
+        let done = self.heap.concat_strings(a, b)?;
         // Charged after the copy; the result is not rooted, so a check
         // that ends the script is the only thing that can follow.
-        self.charge_units(total)?;
-        Ok(result)
+        self.charge_units(done.copied)?;
+        Ok(done.string)
+    }
+
+    fn len_and_depth(&self, string: Gc<JsString>) -> VmResult<(usize, u16)> {
+        let string = self.heap.string(string)?;
+        Ok((string.len(), string.depth()))
+    }
+
+    /// Rebalances a rope in place (`Heap::rebalance_with`), with the time
+    /// charged during the work. No collection.
+    fn rebalance(&mut self, string: Gc<JsString>) -> VmResult<()> {
+        let vm = &mut self.vm;
+        self.heap
+            .rebalance_with(string, &mut |units| Ok(vm.charge(units / UNITS_PER_STEP)?))?;
+        Ok(())
+    }
+
+    /// Flattens a rope in place ([`Heap::flatten`]); nothing happens to a
+    /// flat string. A safepoint: it reserves the bytes of the flat text
+    /// first, so the caller roots `string` and every other handle that it
+    /// holds. The time is charged in proportion to the copy, during it.
+    ///
+    /// [`Heap::flatten`]: crate::heap::Heap::flatten
+    pub(crate) fn flatten(&mut self, string: Gc<JsString>) -> VmResult<()> {
+        let record = self.heap.string(string)?;
+        if !record.is_rope() {
+            return Ok(());
+        }
+        let bytes = record.len() * if record.is_latin1() { 1 } else { 2 };
+        self.heap.reserve(bytes, &self.vm)?;
+        let vm = &mut self.vm;
+        self.heap
+            .flatten_with(string, &mut |units| Ok(vm.charge(units / UNITS_PER_STEP)?))?;
+        Ok(())
+    }
+
+    /// [`Runtime::flatten`] without the reservation: no collection, so the
+    /// caller need not root anything; a flat text that does not fit under
+    /// the heap limit ends the script ([`Heap::flatten`]). For paths that
+    /// must not be a safepoint.
+    ///
+    /// [`Heap::flatten`]: crate::heap::Heap::flatten
+    pub(crate) fn flatten_no_gc(&mut self, string: Gc<JsString>) -> VmResult<()> {
+        let vm = &mut self.vm;
+        self.heap
+            .flatten_with(string, &mut |units| Ok(vm.charge(units / UNITS_PER_STEP)?))?;
+        Ok(())
+    }
+
+    /// The code units of a string: [`Runtime::flatten`] (a safepoint),
+    /// then the flat view. The view borrows the runtime; copy what must
+    /// outlive the next allocation.
+    pub(crate) fn flat_text(&mut self, string: Gc<JsString>) -> VmResult<Str16<'_>> {
+        self.flatten(string)?;
+        Ok(self.heap.text(string)?)
     }
 
     /// `x instanceof target` (§13.10.2 `InstanceofOperator`): the
@@ -667,10 +733,6 @@ fn same_type(a: Value, b: Value) -> bool {
             | (Value::BigInt(_), Value::BigInt(_))
             | (Value::Object(_), Value::Object(_))
     )
-}
-
-fn push_units(text: &mut String16, units: Str16<'_>) {
-    text.push_str16(units);
 }
 
 #[cfg(test)]

@@ -4,7 +4,8 @@
 //! 1. Mark: the roots (the caller's [`RootSource`], handle scopes,
 //!    persistent roots, the engine's atoms) go through the [`Tracer`],
 //!    which sets mark bits in bit vectors beside the arenas and pushes
-//!    things with children onto an explicit work list. No recursion. Large
+//!    things with children (rope nodes included) onto an explicit work
+//!    list. No recursion. Large
 //!    vectors (slots, dense and sparse elements, dictionaries) are marked
 //!    in parts of [`CHUNK`] entries, so that the work list stays short.
 //! 2. Weak tables (atoms, transitions, root shapes) drop the entries
@@ -76,13 +77,27 @@ impl Marks {
 /// marked, or a part of a large vector.
 enum Work {
     Object(u32),
-    Slots { object: u32, start: usize },
-    Dense { object: u32, start: usize },
-    Sparse { object: u32, start: u32 },
+    Slots {
+        object: u32,
+        start: usize,
+    },
+    Dense {
+        object: u32,
+        start: usize,
+    },
+    Sparse {
+        object: u32,
+        start: u32,
+    },
     Shape(u32),
-    Dictionary { shape: u32, start: usize },
+    Dictionary {
+        shape: u32,
+        start: usize,
+    },
     Cell(u32),
     Generic(u32),
+    /// A rope node: its two children.
+    Rope(u32),
 }
 
 /// Marks things during a collection. Root sources and generic data report
@@ -124,13 +139,16 @@ impl Tracer<'_> {
         }
     }
 
-    /// Marks a string.
+    /// Marks a string (and through the work list the children of a rope).
     pub fn string(&mut self, string: Gc<JsString>) {
-        self.mark(
+        if self.mark(
             string,
             |arenas| arenas.strings.contains(string),
             |marks| &mut marks.strings,
-        );
+        ) && self.arenas.strings.get(string).is_ok_and(JsString::is_rope)
+        {
+            self.work.push(Work::Rope(string.index()));
+        }
     }
 
     /// Marks a symbol and its description.
@@ -276,6 +294,12 @@ impl Tracer<'_> {
                 Work::Cell(index) => {
                     if let Some(cell) = arenas.cells.at(index) {
                         self.value(cell.value);
+                    }
+                }
+                Work::Rope(index) => {
+                    if let Some(rope) = arenas.strings.at(index).and_then(JsString::as_rope) {
+                        self.string(rope.left);
+                        self.string(rope.right);
                     }
                 }
                 Work::Generic(index) => {

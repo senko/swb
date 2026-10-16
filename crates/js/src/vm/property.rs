@@ -158,23 +158,29 @@ impl Runtime {
     }
 
     /// The own `length` and index properties of a string value (§10.4.3.5
-    /// `StringGetOwnProperty`).
+    /// `StringGetOwnProperty`). `length` reads a rope as it is; an index
+    /// flattens it (without a collection: the base is not always rooted),
+    /// once, so that a loop over the indices reads flat text.
     fn string_own_property(
         &mut self,
         string: Gc<JsString>,
         key: PropertyKey,
     ) -> VmResult<Option<Value>> {
-        let text = self.heap.string(string)?.as_str16();
+        let len = self.heap.string(string)?.len();
         match key {
             PropertyKey::Index(index) => {
-                let Some(unit) = text.get(index as usize) else {
+                if index as usize >= len {
+                    return Ok(None);
+                }
+                self.flatten_no_gc(string)?;
+                let Some(unit) = self.heap.text(string)?.get(index as usize) else {
                     return Ok(None);
                 };
                 let one = swb_js_text::String16::from_units(&[unit]);
                 Ok(Some(Value::String(self.heap.alloc_string(one)?)))
             }
             PropertyKey::String(name) if name == self.heap.length_atom() => {
-                Ok(Some(Value::number(text.len() as f64)))
+                Ok(Some(Value::number(len as f64)))
             }
             _ => Ok(None),
         }

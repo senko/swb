@@ -4,6 +4,48 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 5a, ropes
+
+- `js`: a string is flat text or a rope node (`string/rope.rs`: two
+  children, the length, the width and the depth). Decisions (ADR 0026
+  section 15):
+  - A result of at most 1,024 code units is a flat copy. The limit
+    comes from memory, not speed: 128 to 1,024 run at the same speed,
+    but after 2 million appends a collection keeps 27.6 MB with 256
+    and 7.3 MB with 1,024 (fewer string slots per append); 2,048 is
+    10 % slower.
+  - A short piece merges into the edge leaf of the other operand, one
+    or two levels down, so that appends, prepends and both in turn fill
+    leaves and do not make chains.
+  - At depth 256 the concatenation first rebalances the operand in
+    place into a balanced tree of its leaves. A flatten at the limit
+    would be quadratic for pieces too long to merge: 100,000 appends
+    of 1,000 units take 0.2 s.
+  - One access API: `Heap::text` after `Runtime::flatten` (a safepoint)
+    or `Runtime::flatten_no_gc` (for paths whose callers do not root
+    the string). The flatten is iterative, checks the heap limit before
+    it allocates, charges time while it copies and keeps the result in
+    the same string. Builders and messages copy or read a rope leaf by
+    leaf. Equality and order walk the leaves of both strings without a
+    flatten. Keys, atoms and the strings of `String` objects are flat.
+  - The collector marks the children of a rope through its work list.
+- Speed: 200,000 appends of `'ab'` 0.07 s (was 1.9 s; `node --jitless`
+  0.03 s), 2 million 0.57 s (was over two minutes), 1 million
+  alternating appends and prepends 0.35 s (was 19.6 s). An empty loop
+  over a global variable takes 0.33 s for 2 million iterations, most of
+  the rest of the gap (feature 13). `vm_bench`: the append case 23.8 →
+  2.1 ms; "new Error and read stack" 5 % slower from code layout.
+- Tests: 17 unit tests of the rope code, `tests/strings.rs` (24 cases
+  checked against Node.js 22, each also in stress mode; `length` does
+  not flatten, an index read flattens once), 5 hostile tests.
+- Review: no bugs; the GC safety of every flatten call checked, also
+  in stress mode with a small heap limit. Two items went to the
+  backlog: the comparisons of long strings charge no time, and an index
+  read of a rope cannot collect before its flatten, so it ends at a
+  heap limit where a collection would make room.
+- Runtime test262 unchanged at 21,621 (stress mode the same),
+  parse-only 41,882.
+
 ## 2026-10-15: M7 feature 4, numbers
 
 - `js-text`: `number/` with the parsers (StringToNumber, `parseFloat`,

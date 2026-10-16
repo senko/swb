@@ -47,7 +47,7 @@ impl Runtime {
     /// captured frames. Runs script code only for the first line.
     pub(crate) fn build_stack_text(&mut self, holder: Gc<Object>) -> VmResult<Gc<JsString>> {
         let header = crate::builtins::error_header(self, holder.into())?;
-        let mut text = self.heap.string(header)?.as_str16().to_string16();
+        let mut text = self.heap.copy_string(header)?;
         if let ObjectKind::Error(Some(data)) = &self.heap.object(holder)?.kind {
             self.append_frames(&mut text, &data.frames);
         }
@@ -77,7 +77,7 @@ impl Runtime {
             return Ok(Value::Undefined);
         };
         let header = crate::builtins::error_header(self, object.into())?;
-        let mut text = self.heap.string(header)?.as_str16().to_string16();
+        let mut text = self.heap.copy_string(header)?;
         self.append_frames(&mut text, &data.frames);
         let units = text.len();
         let string = self.heap.alloc_string(text)?;

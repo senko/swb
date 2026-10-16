@@ -197,9 +197,7 @@ impl Heap {
             return Ok(None);
         };
         match self.object(object)?.kind {
-            ObjectKind::StringWrapper(string) => {
-                Ok(self.string(string)?.as_str16().get(index as usize))
-            }
+            ObjectKind::StringWrapper(string) => Ok(self.text(string)?.get(index as usize)),
             _ => Ok(None),
         }
     }
@@ -217,8 +215,10 @@ impl Heap {
         }
         match desc.value {
             None => Ok(true),
-            Some(Value::String(string)) => Ok(self.string(string)?.as_str16().get(0) == Some(unit)
-                && self.string(string)?.len() == 1),
+            Some(Value::String(string)) => {
+                let text = self.string(string)?;
+                Ok(text.len() == 1 && text.as_flat().and_then(|t| t.get(0)) == Some(unit))
+            }
             Some(_) => Ok(false),
         }
     }

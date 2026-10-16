@@ -1074,6 +1074,62 @@ where the first plan did not work:
   `Math.f16round` are in, because Chromium 148 has them; the sum is a
   fixed-point accumulator of 2,176 bits, so every addition is exact and
   costs at most 34 limb operations.
+- Ropes (feature 5a, `string/rope.rs`): a concatenation whose result has
+  at most 1,024 code units (`FLAT_LIMIT`) is a flat copy; a longer one is
+  a node (two children, the length, the width flag, the depth). A short
+  flat piece is copied into a fresh leaf with the flat leaf at the edge of
+  the other operand, one or two levels down, while the two fit in 1,024
+  units, so appends, prepends and both in turn fill leaves instead of
+  making a chain of tiny ones. The limit is measured: 128, 256, 512 and
+  1,024 give the same speed in the append loops, but larger leaves mean
+  fewer slots per append and so less retained slot memory (2M appends of
+  `'ab'`: 27.6 MB live after a collection with 256, 7.3 MB with 1,024;
+  2,048 is 10 % slower).
+- Depth rule: at most 256 levels (`MAX_DEPTH`); a concatenation first
+  rebalances an operand at the limit, in place. The rebalance (after
+  Boehm, Atkinson and Plass) makes the leaves in order the leaves of a
+  balanced tree, keeps leaves of at least half a chunk, and joins runs of
+  shorter leaves into flat chunks of at least 1/64 of the length; the
+  result has at most about 320 leaves and a depth of about 10. A flatten
+  at the limit would copy the whole string each time: 100,000 appends of
+  1,000 units would copy O(n²) units; with the rebalance they take 0.2 s
+  (Node.js `--jitless`: 0.25 s). No collection runs during a
+  concatenation; each new chunk checks the heap limit.
+- Flatten: iterative over a fixed stack of `MAX_DEPTH + 1` handles (no
+  Rust recursion, no allocation besides the flat text); it checks the
+  heap limit before it allocates the text (exact capacity), reports its
+  work for the time countdown every 64K units, and stores the flat text
+  in the rope's own slot, so other holders see it and the children
+  become garbage. The collector marks the children of a rope through its
+  work list.
+- The access API: `Heap::text(s)` gives the flat view (a rope is an
+  internal error); `Runtime::flatten(s)` reserves the bytes first (a
+  safepoint: the caller roots its handles) and charges the time;
+  `Runtime::flatten_no_gc(s)` and `Heap::flatten(s)` do not collect, for
+  paths whose callers do not root the string (`ToNumber`, keys, index
+  reads, `ToObject`, `Symbol.for`); `Runtime::flat_text(s)` is flatten
+  then view. `Heap::push_string`, `copy_string`, `string_lossy` and
+  `string_units` copy or read a rope leaf by leaf without a flatten
+  (builders, messages, `console.log`). `length` and the width flag never
+  flatten. Keys and atoms flatten before interning, so atoms are flat; a
+  String object's string is flattened when the object is made. Equality
+  (`Heap::strings_equal`) and order (`Heap::compare_strings`) compare
+  the lengths first and then walk the leaves of both strings without a
+  flatten and without allocation.
+- The length limit stays V8's 2^29 − 24 code units (measured: a string
+  of that length concatenates, one unit more is "RangeError: Invalid
+  string length"). `s += s` reaches 2^28 units with a rope of a few
+  nodes and ends with that `RangeError`, as in Node.js; a read of its
+  code units then ends at the heap limit if the flat text does not fit.
+- Measured (release, top-level `var` loops, against `node --jitless`):
+  200,000 appends of `'ab'` 1.88 s → 0.07 s (Node.js 0.03 s); 2,000,000
+  appends 0.57 s (0.12 s; in a function 0.25 s; the empty loop over a
+  global variable alone takes 0.33 s); 200,000 prepends 1.74 s → 0.08 s;
+  1,000,000 alternating prepends and appends 19.6 s → 0.35 s (0.08 s);
+  1,000,000 appends of `'abc'`, then 1,000 reads of `length` 94 s →
+  0.29 s (no flatten), then 1,000,000 index reads 92 s → 0.61 s (one
+  flatten); 1,000,000 single-character appends fit in a heap limit of
+  3 MiB (the flat text is 1 MB).
 
 ## Consequences
 

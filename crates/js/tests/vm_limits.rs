@@ -373,18 +373,34 @@ fn the_heap_limit_ends_a_growing_script() {
             ..RuntimeConfig::default()
         };
         let mut rt = runtime_with(config);
-        // Doubling a string: the concatenation reserves first.
+        // Doubling a string makes a rope of a few nodes, so the length
+        // limit ends it, as in V8.
+        let error = rt
+            .eval("var s = 'x'; while (true) s = s + s;")
+            .expect_err("the doubling ends");
         assert_eq!(
-            rt.eval("var s = 'x'; while (true) s = s + s;"),
+            error.to_string(),
+            "Uncaught RangeError: Invalid string length"
+        );
+        // A character read flattens: the flat text passes the heap limit,
+        // which the flatten checks before it allocates.
+        assert_eq!(
+            rt.eval("(function () { var t = 'x'; while (true) { t = t + t; t[0]; } })()"),
             Err(ScriptError::Terminated(Termination::HeapLimit))
         );
-        // Allocating objects in a loop: a backward jump is a safepoint.
+        // Allocating objects in a loop: a backward jump is a safepoint. The
+        // array is a local, so it is garbage after the termination (a
+        // global that holds more than 90 % of the limit would end every
+        // later run at its first safepoint).
         assert_eq!(
-            rt.eval("var keep = []; var i = 0; while (true) { keep[i] = {i: i}; i++; }"),
+            rt.eval(
+                "(function () { var keep = []; var i = 0; \
+                 while (true) { keep[i] = {i: i}; i++; } })()"
+            ),
             Err(ScriptError::Terminated(Termination::HeapLimit))
         );
         // The runtime is usable after the garbage is gone.
-        assert_eq!(rt.eval("s = 0; keep = 0; 1 + 1"), Ok(Value::Int(2)));
+        assert_eq!(rt.eval("s = 0; 1 + 1"), Ok(Value::Int(2)));
         rt.collect();
         assert!(rt.heap().heap_size() < 4 << 20);
     });

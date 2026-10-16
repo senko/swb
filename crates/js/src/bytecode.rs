@@ -1766,10 +1766,7 @@ pub(crate) fn disassemble(code: &Rc<FunctionCode>, heap: &crate::heap::Heap) -> 
     let mut out = String::new();
     let mut work = vec![Rc::clone(code)];
     while let Some(code) = work.pop() {
-        let name = heap
-            .string(code.name)
-            .map(|s| s.as_str16().to_string_lossy())
-            .unwrap_or_default();
+        let name = heap.string_lossy(code.name, usize::MAX);
         let _ = writeln!(
             out,
             "function {name:?}: {:?}, {} registers, {} parameters",

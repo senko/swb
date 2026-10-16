@@ -274,6 +274,33 @@ impl String16 {
         String16(Repr::Latin1(Vec::new()))
     }
 
+    /// Empty text with room for `units` code units, in the wide width if
+    /// `wide`; the allocation error instead of an abort when the memory is
+    /// not available. Text made wide must receive at least one unit of 256
+    /// or above (two equal texts have the same width).
+    pub fn try_with_capacity(
+        units: usize,
+        wide: bool,
+    ) -> Result<Self, std::collections::TryReserveError> {
+        Ok(if wide {
+            let mut vector = Vec::new();
+            vector.try_reserve_exact(units)?;
+            String16(Repr::Wide(vector))
+        } else {
+            let mut vector = Vec::new();
+            vector.try_reserve_exact(units)?;
+            String16(Repr::Latin1(vector))
+        })
+    }
+
+    /// The number of code units that the text has room for.
+    pub fn capacity(&self) -> usize {
+        match &self.0 {
+            Repr::Latin1(units) => units.capacity(),
+            Repr::Wide(units) => units.capacity(),
+        }
+    }
+
     /// A copy of the code units, in the narrow width if possible.
     pub fn from_units(units: &[u16]) -> Self {
         Str16::Wide(units).to_string16()
@@ -431,6 +458,20 @@ mod tests {
         assert_eq!(Str16::Wide(&[0x61, 0x62]), Str16::Latin1(b"ab"));
         assert_ne!(Str16::Wide(&[0x61]), Str16::Latin1(b"ab"));
         assert!(Str16::Latin1(b"ab").eq_str("ab"));
+    }
+
+    #[test]
+    fn exact_capacity_in_both_widths() {
+        let mut narrow = String16::try_with_capacity(5, false).unwrap();
+        assert!(narrow.is_latin1() && narrow.capacity() >= 5);
+        narrow.push_str16(Str16::Latin1(b"abcde"));
+        assert_eq!(narrow, String16::from("abcde"));
+        let mut wide = String16::try_with_capacity(3, true).unwrap();
+        assert!(!wide.is_latin1());
+        wide.push_str16(Str16::Latin1(b"ab"));
+        wide.push(0x100);
+        assert_eq!(wide, String16::from("ab\u{100}"));
+        assert!(String16::try_with_capacity(usize::MAX, true).is_err());
     }
 
     #[test]

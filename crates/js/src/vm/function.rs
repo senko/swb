@@ -386,10 +386,7 @@ impl Runtime {
 
     /// The name text of a function name value, for messages.
     pub(crate) fn name_text(&self, name: Gc<JsString>) -> String {
-        self.heap
-            .string(name)
-            .map(|s| s.as_str16().to_string_lossy())
-            .unwrap_or_default()
+        self.heap.string_lossy(name, usize::MAX)
     }
 }
 

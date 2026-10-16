@@ -118,7 +118,7 @@ impl Runtime {
             source.room = total.max(source.room.saturating_mul(2));
             self.heap.reserve(source.room.saturating_mul(2), &self.vm)?;
         }
-        source.text.push_str16(self.heap.string(part)?.as_str16());
+        self.heap.push_string(&mut source.text, part)?;
         self.charge_units(units)
     }
 

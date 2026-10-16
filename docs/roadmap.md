@@ -1094,6 +1094,57 @@ failures with a reason. Features, in this order:
    `Math.sumPrecise` of strings (Chromium: `''` gives -0, `'ab'` throws
    "Type of 'Iterator value' must be 'number', found 'string'"; swb
    throws "[object String] is not iterable" until then).
+   Split 2026-10-15 into four sessions, one commit each. Only the
+   `String` constructor, `toString` and `valueOf` exist, and a loop of
+   200,000 `s += 'ab'` takes 2 s (Node.js 8 ms), so ropes come first and
+   the later sessions use their access API:
+   - 5a Ropes (`implementer-hard`, ADR 0026 section 7, memo 4.2): a
+     concatenation of long strings gives a rope; a depth limit and
+     rebalancing; an operation that needs the code units flattens the
+     rope and keeps the flat result in the same string; the collector
+     traces the children; heap accounting; one access API for the
+     existing call sites. Exit: the append loop above is linear.
+     Done 2026-10-15: a concatenation of more than 1,024 code units
+     makes a rope node; a short piece merges into the edge leaf of the
+     other operand; at depth 256 the operand is rebalanced in place
+     (its leaves joined into chunks of at least 1/64 of the length).
+     An operation that needs the code units flattens the rope in place
+     (iterative, heap limit checked first, time charged); `length`, the
+     width, equality and order need no flatten. Keys and atoms are
+     flat. 200,000 appends take 0.07 s (was 1.9 s; `node --jitless`
+     0.03 s), 2 million take 0.57 s (was over 120 s), 1 million
+     alternating appends and prepends 0.35 s (was 19.6 s); `s += s`
+     ends with V8's `RangeError` after 28 doublings. Runtime test262
+     unchanged at 21,621 (stress mode the same), parse-only 41,882.
+     The review found no bugs. Open: equality and order of long
+     strings charge no time, and an index read cannot collect before
+     its flatten (both backlog); the `vm_bench` case "new Error and read stack" is 5 % slower
+     (instructions +1 %, the rest instruction-cache misses from the
+     changed code layout).
+   - 5b `String` (`implementer`): `fromCharCode`, `fromCodePoint`,
+     `raw`; the methods of `String.prototype` without regular
+     expressions (`at`, `charAt`, `charCodeAt`, `codePointAt`, `concat`,
+     `endsWith`, `includes`, `indexOf`, `lastIndexOf`, `isWellFormed`,
+     `toWellFormed`, `padStart`, `padEnd`, `repeat`, `slice`,
+     `startsWith`, `substring`, `trim`, `trimStart`, `trimEnd`); `replace`,
+     `replaceAll` and `split` as the specification defines them (their
+     dispatch through `Symbol.replace` and `Symbol.split` is generic, so
+     8b only adds the `RegExp` side; `match`, `matchAll` and `search`
+     create a `RegExp` and stay for 8b); the string iterator; the URI
+     functions; Annex B `substr`, the HTML methods, `trimLeft`,
+     `trimRight`, `escape`, `unescape`.
+   - 5c `JSON` (`implementer`): `parse` with the reviver, `stringify`
+     with replacer, indentation, `toJSON`, well-formed output, V8's
+     message for cycles and the depth limit; the source text access of
+     `JSON.parse` (`rawJSON`, `isRawJSON`) if Chromium 148 has it.
+   - 5d Unicode (`implementer`): `toLowerCase`, `toUpperCase` and the
+     `toLocale` forms (full mappings, `SpecialCasing` without
+     conditions, final sigma; no `Intl`, so the default locale only),
+     `normalize` (NFC, NFD, NFKC, NFKD), `localeCompare` (the
+     specification's requirements: a total order, canonically
+     equivalent strings compare equal; ICU collation as in Chromium is
+     not in scope), tables from the UCD 17 by `swbtools
+     js-unicode-tables`.
 6. Arrays and collections (`implementer`). `Array` with dense and sparse
    elements, the iterator helpers, `Map`, `Set` (with the ES2025 set
    methods).
@@ -1238,6 +1289,25 @@ not repeated here; the open items of each spike session are in M6 step
 - Numbers (M7 4): the lexer gives the digits of a decimal literal to
   Rust's float parser as one string, so a literal of 16 million digits
   builds a 16 MB string; `js_text::number` parses without the copy.
+- Heap policy (M7 5a): the string arena keeps free slots in the middle
+  and counts them as live, and the collection threshold is twice the
+  live size. A workload that makes many small garbage strings keeps a
+  slot vector of several times its live data (2 million appends of
+  `'ab'` keep 7.3 MB after a collection for 4 MB of text). Compact the
+  free list or leave free slots out of the threshold.
+- Time charges of string comparisons (M7 5a, older): `strictly_equal`
+  and `compare_values` charge no time for long strings, flat or rope.
+  One comparison of two ropes of 2^28 units runs 0.1 to 0.5 s past the
+  deadline.
+- Index reads of ropes (M7 5a): `s[i]` flattens with
+  `flatten_no_gc`, because `string_own_property` has callers that do
+  not root the string, so it cannot collect first. After 2 million
+  appends of `'ab'`, `s[5]` ends at a heap limit of 13 MiB, where
+  `parseInt(s)` (which collects) runs. Make the element read of the
+  interpreter a safepoint, with the base in its register.
+- Bound function names (M7 2a open item): the 32,768-unit limit can go
+  now that `"bound " + name` is a rope; check V8 with very long names
+  first.
 
 ## Backlog from M5
 

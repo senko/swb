@@ -76,7 +76,7 @@ impl Runtime {
         if let Value::Symbol(symbol) = key {
             if let Some(description) = self.heap.symbol(symbol)?.description {
                 name.push(u16::from(b'['));
-                name.push_str16(self.heap.string(description)?.as_str16());
+                self.heap.push_string(&mut name, description)?;
                 name.push(u16::from(b']'));
             }
         } else {
@@ -84,7 +84,7 @@ impl Runtime {
             let Value::String(text) = self.heap.key_to_value(key)? else {
                 return Err(VmError::invariant("a string key without a string"));
             };
-            name.push_str16(self.heap.string(text)?.as_str16());
+            self.heap.push_string(&mut name, text)?;
         }
         // The copy of a long key is work in proportion to its length.
         self.charge_units(name.len())?;

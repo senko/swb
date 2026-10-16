@@ -71,7 +71,8 @@ pub enum ObjectKind {
     /// index properties come from the string and are not stored (the heap
     /// answers `[[HasProperty]]`, `[[Delete]]`, `[[OwnPropertyKeys]]`,
     /// `[[DefineOwnProperty]]` and `[[Set]]` for them; the VM reads the
-    /// characters, which are new strings).
+    /// characters, which are new strings). The string is flat: the code
+    /// that makes a String object flattens a rope first.
     StringWrapper(Gc<JsString>),
     /// A Number object (`[[NumberData]]`).
     NumberWrapper(f64),

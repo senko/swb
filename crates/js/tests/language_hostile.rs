@@ -5,7 +5,10 @@
 //! names, `eval` and `with`, the `Function` constructor and mapped
 //! `arguments`); and of the number built-ins of feature 4 (long digit
 //! strings, the costly conversions in loops, `Math.max` over a million
-//! arguments). A case ends with a result, an error or a termination at the
+//! arguments); and of the ropes of feature 5a (a million alternating
+//! appends and prepends, doubling to the length limit, flattens without
+//! room under the heap limit, rope keys in hot loops, ropes across
+//! collections). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -14,7 +17,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{on_big_stack, run, run_in, runtime, runtime_with};
+use common::{on_big_stack, run, run_in, runtime, runtime_with, runtime_with_tests};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(100);
@@ -1352,4 +1355,165 @@ fn math_max_over_a_million_arguments() {
             Duration::from_millis(100),
         );
     });
+}
+
+// --- Ropes (M7 feature 5a) ---
+
+#[test]
+fn a_million_alternating_appends_and_prepends_then_one_flatten() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let source = "var s = ''; for (var i = 0; i < 1000000; i++) s = i % 2 ? 'x' + s : s + 'y'; \
+                      print(s.length, s[0], s[499999], s[500000], s[999999]);";
+        let (result, elapsed) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(30));
+        assert_eq!(result, Ok(Value::Undefined), "{elapsed:?}");
+        assert_eq!(run_in(&mut rt, ""), "1000000 x x y y");
+        assert_clean(&rt);
+        // A rope of 2M units fits in a heap of 12 MiB (with the garbage of
+        // the loop): the leaves are full, so the memory per code unit stays
+        // bounded.
+        let small = RuntimeConfig {
+            heap: HeapConfig {
+                limit: 12 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        };
+        let mut rt = runtime_with(small);
+        let build =
+            "var s = ''; for (var i = 0; i < 2000000; i++) s = i % 2 ? 'x' + s : s + 'y'; s.length";
+        assert_eq!(rt.eval(build), Ok(Value::Int(2_000_000)));
+        assert_clean(&rt);
+    });
+}
+
+/// The string value of a global variable.
+fn global_string(rt: &mut Runtime, name: &str) -> swb_js::Gc<swb_js::JsString> {
+    match rt.eval(name) {
+        Ok(Value::String(string)) => string,
+        other => panic!("{name} is not a string: {other:?}"),
+    }
+}
+
+#[test]
+fn doubling_to_the_length_limit_and_flattens_without_room() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_tests(RuntimeConfig {
+            heap: HeapConfig {
+                limit: 16 << 20,
+                ..HeapConfig::default()
+            },
+            ..RuntimeConfig::default()
+        });
+        // The rope of 2^28 units is a few nodes; the next doubling is
+        // V8's RangeError.
+        let build = "var s = 'a'; var n = 0; try { for (;;) { s += s; n++; } } \
+                     catch (e) { print(n, s.length, e.name, e.message); }";
+        assert_eq!(
+            run_in(&mut rt, build),
+            "28 268435456 RangeError Invalid string length"
+        );
+        // Every path that needs the code units flattens first; the flat
+        // text does not fit, so the script ends at the heap limit (no
+        // allocation over the limit, no panic).
+        let paths = [
+            "s[0]",
+            "var o = {}; o[s] = 1;",
+            "s in {}",
+            "Number(s)",
+            "s * 1",
+            "parseInt(s)",
+            "parseFloat(s)",
+            "new String(s)",
+            "Object(s)",
+            "eval(s)",
+            "(0, eval)(s)",
+            "Function(s)",
+            "Symbol.for(s)",
+            "var o = {}; o[s + 'x'] = 1;",
+        ];
+        for source in paths {
+            assert_eq!(
+                rt.eval(source),
+                Err(ScriptError::Terminated(Termination::HeapLimit)),
+                "{source}"
+            );
+            assert_clean(&rt);
+            let s = global_string(&mut rt, "s");
+            assert!(rt.heap().string(s).unwrap().is_rope(), "{source}");
+        }
+        // Reading the rope without its code units still works.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "print(s.length, s === s, s === s + 'b', s < s + 'b', typeof s, String(s) === s, !!s)"
+            ),
+            "268435456 true false true string true true"
+        );
+        // Copies that a script sizes stay within the limit too.
+        for source in ["[s, s].join('')", "throw new Error(s)", "`${s}${s}`.length"] {
+            let result = rt.eval(source);
+            assert!(
+                matches!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::HeapLimit)
+                        | ScriptError::Uncaught { .. })
+                ),
+                "{source}: {result:?}"
+            );
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn rope_keys_in_hot_loops_end_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let build = "var big = ''; for (var i = 0; i < 100000; i++) big += 'abcdefghij'; \
+                     var r = ''; for (var i = 0; i < 1100; i++) r += 'r'; undefined;";
+        assert_eq!(run_in(&mut rt, build), "");
+        let cases = [
+            // A new rope of 1M units as a key each time: a flatten each.
+            "var o = {}; while (true) { o[big + 'x'] = 1; }",
+            "var o = {}; var i = 0; while (true) { o[big + i++] = 1; }",
+            // Short rope keys, many of them.
+            "var o = {}; var i = 0; while (true) { o[r + i++] = 1; }",
+            // Index reads that flatten a new rope each time.
+            "while (true) { (big + 'y')[5]; }",
+            // Rebalances: pieces too long to merge.
+            "var s = ''; while (true) { s = s + r; }",
+            "var s = ''; var i = 0; while (true) { s = i++ % 2 ? r + s : s + r; }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert!(
+                matches!(
+                    result,
+                    Err(ScriptError::Terminated(
+                        Termination::TimeLimit | Termination::HeapLimit
+                    ))
+                ),
+                "{source}: {result:?}"
+            );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn ropes_stay_alive_across_collections() {
+    for stress in [false, true] {
+        let source = "var keep = []; var s = ''; \
+                      for (var i = 0; i < 3000; i++) { s = i % 3 ? s + 'ab' : 'c' + s; if (i % 500 === 0) { keep.push(s); gc(); } } \
+                      var t = keep[5] + keep[3]; gc(); \
+                      print(s.length, keep.length, keep[5].length, t.length, t[0], t[t.length - 1], keep[1] === keep[1] + ''); \
+                      gc(); print(keep[5][1], s[s.length - 1]);";
+        assert_eq!(
+            run(source, stress),
+            "5000 6 4168 6669 c b true\nc b",
+            "stress: {stress}"
+        );
+    }
 }

@@ -52,7 +52,7 @@ fn names(heap: &Heap, object: Gc<Object>) -> Vec<String> {
         .into_iter()
         .map(|key| match key {
             PropertyKey::Index(index) => index.to_string(),
-            PropertyKey::String(atom) => heap.string(atom).unwrap().as_str16().to_string_lossy(),
+            PropertyKey::String(atom) => heap.text(atom).unwrap().to_string_lossy(),
             PropertyKey::Symbol(_) => "@@symbol".to_string(),
         })
         .collect()
@@ -689,7 +689,7 @@ fn stress_mode_with_handle_scopes() {
             let Value::String(s) = get(&mut heap, o, &format!("k{j}")) else {
                 panic!("a string value");
             };
-            let text = heap.string(s).unwrap().as_str16().to_string_lossy();
+            let text = heap.text(s).unwrap().to_string_lossy();
             assert_eq!(text, format!("v{i}.{j}"));
         }
     }

@@ -25,11 +25,13 @@ const DECIMAL_EXACT_UNITS: usize = 800;
 
 impl Runtime {
     /// `StringToNumber` (§7.1.4.1.1) of a string value, charged for the
-    /// scan of its text.
+    /// scan of its text. A rope is flattened without a collection (the
+    /// callers of `ToNumber` do not always root the string).
     pub(crate) fn string_to_number(&mut self, string: Gc<JsString>) -> VmResult<f64> {
-        let text = self.heap.string(string)?;
+        self.flatten_no_gc(string)?;
+        let text = self.heap.text(string)?;
         let units = text.len();
-        let value = swb_js_text::number::string_to_number(text.as_str16());
+        let value = swb_js_text::number::string_to_number(text);
         self.charge_number_scan(units)?;
         self.charge_decimal_digits(units)?;
         Ok(value)

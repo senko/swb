@@ -316,7 +316,7 @@ fn tag_text(rt: &mut Runtime, tag: Gc<crate::string::JsString>) -> VmResult<Valu
         rt.heap.reserve(tag_units * 4, &rt.vm)?;
     }
     let mut text = String16::from("[object ");
-    text.push_str16(rt.heap.string(tag)?.as_str16());
+    rt.heap.push_string(&mut text, tag)?;
     text.push_str16(String16::from("]").as_str16());
     rt.charge_units(tag_units)?;
     Ok(rt.heap.alloc_string(text)?.into())

@@ -410,13 +410,14 @@ impl Heap {
     }
 
     /// The atom with the content of `string`: the string itself if it
-    /// becomes the atom, or the existing atom.
+    /// becomes the atom, or the existing atom. A rope is flattened first
+    /// ([`Heap::flatten`]: no collection), so atoms are always flat.
     pub fn intern_string(&mut self, string: Gc<JsString>) -> Result<Gc<JsString>> {
-        let existing = self.string(string)?;
-        if existing.is_atom() {
+        if self.string(string)?.is_atom() {
             return Ok(string);
         }
-        let text = existing.as_str16();
+        self.flatten(string)?;
+        let text = self.text(string)?;
         let hash = self.atoms.hash(text);
         if let Some(atom) = self.atoms.find(hash, text, &self.arenas.strings) {
             return Ok(atom);
@@ -469,9 +470,11 @@ impl Heap {
         self.key_from_str16(String16::from(text).as_str16())
     }
 
-    /// The property key of a string value.
+    /// The property key of a string value. A rope is flattened first
+    /// ([`Heap::flatten`]: no collection).
     pub fn key_from_string(&mut self, string: Gc<JsString>) -> Result<PropertyKey> {
-        if let Some(index) = array_index(self.string(string)?.as_str16()) {
+        self.flatten(string)?;
+        if let Some(index) = array_index(self.text(string)?) {
             return Ok(PropertyKey::Index(index));
         }
         Ok(PropertyKey::String(self.intern_string(string)?))
@@ -555,7 +558,7 @@ mod tests {
         let Value::String(text) = heap.key_to_value(PropertyKey::Index(42)).unwrap() else {
             panic!("an index key gives a string");
         };
-        assert!(heap.string(text).unwrap().as_str16().eq_str("42"));
+        assert!(heap.text(text).unwrap().eq_str("42"));
         let s = heap.alloc_str("12").unwrap();
         assert_eq!(heap.key_from_string(s).unwrap(), PropertyKey::Index(12));
     }
