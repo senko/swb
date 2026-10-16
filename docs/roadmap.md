@@ -1372,6 +1372,14 @@ failures with a reason. Features, in this order:
      functions).
    Feature 6 is complete (2026-10-16): runtime test262 went from 23,222
    to 26,091.
+   Robustness fix after feature 6 (2026-10-16): a chain of natives that
+   call their argument, bound to each other (`f =
+   Function.prototype.call.bind(f)` 10,000 times, also `apply` and
+   `Reflect.apply`), recursed in Rust without a limit and aborted the
+   process (found in the 6c review). The deferred call of a native and
+   the call of a bound function's target are now tail calls in a loop
+   (ADR 0026 section 15): 200,000 levels take 0.2 s, as in Chromium
+   148, which also returns the result.
 7. Generators, promises, `async` (`implementer-hard`). Generator objects,
    `Promise`, the job queue and its host hooks, `async` functions, async
    generators, `for await`, async-from-sync iterators,
@@ -1569,9 +1577,13 @@ not repeated here; the open items of each spike session are in M6 step
 - `encodeURI` checks the room for the worst case of the rest of its
   input, so near the length limit it throws "Invalid string length" up
   to about 36 KiB early (M7 5b).
-- Bound function names (M7 2a open item): the 32,768-unit limit can go
-  now that `"bound " + name` is a rope; check V8 with very long names
-  first.
+- Bound function names (M7 2a open item): the 32,768-unit limit stops
+  the 5,462nd `bind` of a `bind` result with "Invalid string length";
+  Chromium 148 binds 100,000 times (measured 2026-10-16). Without the
+  limit, the names are ropes, but the rebalance at depth 256 gives each
+  rebalanced name its own flat copy, so 100,000 binds need 128 to 256 MiB
+  (O(n²/256) code units). A rope form that shares a repeated prefix, or
+  a name made when it is first read, would remove the limit.
 - `shift`, `unshift` and `splice(0, 1)` on a large dense array move the
   whole vector, at about 0.8 ns per element: a queue of 100,000 elements
   emptied with `shift` takes 4.1 s (`node --jitless` 0.59 s). A start
@@ -1590,12 +1602,6 @@ not repeated here; the open items of each spike session are in M6 step
   deleted grows its index to 2^26 slots on the next insert, and with the
   default heap limit of 1 GiB that ends the script (Chromium adds the
   entry).
-- Crash (M7 6c review, older than 6c): a chain of about 10,000 bound
-  functions (`f = Function.prototype.call.bind(f)` in a loop, then
-  `f()`) overflows the Rust stack and aborts the process; so does
-  `Iterator.from({next: prev.next.bind(prev)})` repeated 10,000 times.
-  The call of a bound function does not charge the recursion budget.
-  Fix in a small robustness task before feature 7, with a hostile test.
 - Iterator helpers (M7 6c): a helper over a user iterator costs about
   480 ns per element (the call of `next`, the result object, two reads;
   feature 13). A chain of helpers costs about 1 KiB of stack per level;

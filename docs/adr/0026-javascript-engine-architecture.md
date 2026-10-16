@@ -696,7 +696,9 @@ where the first plan did not work:
 - Bound functions (feature 2a): an object kind of its own. `bind`
   does not flatten a chain; a call walks the chain in a loop and
   collects the bound arguments, then calls the final target like a
-  deferred call, so a deep chain costs no Rust recursion. Natives can
+  deferred call, so a deep chain of bound functions costs no Rust
+  recursion (a chain that alternates bound functions and natives did
+  until the tail calls of the robustness fix after feature 6). Natives can
   end in a deferred `[[Construct]]` with an explicit `new.target`
   (`Reflect.construct`, bound constructors), as they can end in a
   deferred call.
@@ -1575,6 +1577,26 @@ where the first plan did not work:
   whose `constructor` on the chain is an accessor
   (`Iterator.prototype` and its heirs) is `[object TAG]` (V8 does not run
   getters in messages).
+- Tail calls (a robustness fix after feature 6, `vm/call.rs`). The
+  deferred call of a native (`NativeReturn::Call` and `Construct`) and
+  the call of a bound function's target are tail calls:
+  `invoke_tail_calls` runs them in a loop. The first pushes a window at
+  the top of the value stack; each later one truncates the stack to
+  below the previous window and pushes its own there, because the
+  values of the finished call are in Rust locals and nothing can collect
+  before they are in the new window. A frame that a tail call pushes
+  restores the stack to the original call's `restore_top`; a native
+  result drops the window. Each level is a step of the countdown and
+  charges the copy of its arguments: `call` passes on all but one of its
+  arguments, so `c.apply(c, args)` over a million copies of `c` would be
+  quadratic work that the countdown did not see. Before, each level recursed in Rust without a
+  frame and without a charge, so `f = Function.prototype.call.bind(f)`
+  10,000 times overflowed the stack (found in the 6c review); now
+  200,000 levels take 0.2 s (Chromium 148 returns the result for 100,000
+  levels of `call`, `apply`, `Reflect.apply` and `bind`). `invoke` keeps
+  its shape for ordinary functions and natives, and the loop, marked
+  cold, has its own dispatch: one dispatch for both paths made
+  call-heavy rows of `vm_bench` 5 to 20 % slower.
 
 ## Consequences
 

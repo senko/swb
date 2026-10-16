@@ -12,6 +12,13 @@
 //! A native function runs at once, with a handle scope open. Its deferred
 //! call or generator resumption becomes a frame whose result goes where
 //! the native call's result would have gone.
+//!
+//! A deferred call and the call of a bound function's target are tail
+//! calls: `invoke_tail_calls` runs them in a loop, in one window at the
+//! top of the value stack that each next tail call replaces. So a chain of
+//! them (`f = Function.prototype.call.bind(f)` repeated) costs neither
+//! Rust stack nor value stack in proportion to its length. Each level is
+//! a step of the time countdown and charges the copy of its arguments.
 
 use crate::bytecode::{CodeKind, ThisMode};
 use crate::heap::Gc;
@@ -37,6 +44,16 @@ pub(crate) enum Step {
     NotCallable,
 }
 
+/// A tail call: the deferred call of a native function or the call of a
+/// bound function's target.
+struct TailCall {
+    callee: Value,
+    this: Value,
+    args: Vec<Value>,
+    /// `new.target` of a `[[Construct]]`; `None` for `[[Call]]`.
+    new_target: Option<Gc<Object>>,
+}
+
 /// How a call was started.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallSite {
@@ -57,6 +74,23 @@ pub(crate) struct CallSite {
     pub(crate) new_target: Option<Gc<Object>>,
 }
 
+/// The result of a native function, checked: internal values (`Empty`,
+/// `Cell`) must not reach a script.
+fn native_value(value: Value) -> VmResult<Value> {
+    if value.is_internal() {
+        return Err(VmError::invariant("a native function returned Empty"));
+    }
+    Ok(value)
+}
+
+/// The `new.target` of a deferred `[[Construct]]`.
+fn object_new_target(new_target: Value) -> VmResult<Gc<Object>> {
+    match new_target {
+        Value::Object(object) => Ok(object),
+        _ => Err(VmError::invariant("new.target is not an object")),
+    }
+}
+
 impl Runtime {
     /// Starts the call described by `site` (§10.2.1 `[[Call]]`, §10.2.2
     /// `[[Construct]]` for ordinary functions, §10.3.1 for natives).
@@ -75,8 +109,118 @@ impl Runtime {
                 let (func, realm) = (native.func, native.realm);
                 self.call_native(function, func, realm, site)
             }
-            ObjectKind::Bound(_) => self.invoke_bound(function, site),
+            ObjectKind::Bound(_) => {
+                let call = self.invoke_bound(function, site)?;
+                self.invoke_tail_calls(site, call)
+            }
             _ => Ok(Step::NotCallable),
+        }
+    }
+
+    /// Runs a tail call (the deferred call of a native, the target of a
+    /// bound function) and the tail calls that follow it, in a loop. The
+    /// first one pushes a window at the top of the value stack; each later
+    /// one replaces it, because the values of the finished call are no
+    /// longer needed (a tail call's values are in Rust locals, and nothing
+    /// can collect until they are in the new window). A pushed frame
+    /// restores the stack to `site.restore_top` when it returns; a native
+    /// result drops the window here. A callee that is not callable is a
+    /// `TypeError` with its own description.
+    #[cold]
+    #[inline(never)]
+    fn invoke_tail_calls(&mut self, site: CallSite, mut call: TailCall) -> VmResult<Step> {
+        let mut tail_window: Option<usize> = None;
+        loop {
+            // Each level is a step of the countdown, and the copy of its
+            // arguments is charged: a native's deferred call can pass on
+            // all but one of its arguments, so a chain of `call`s over a
+            // long argument list would be quadratic work.
+            self.tick()?;
+            self.charge(call.args.len())?;
+            if let Some(window) = tail_window {
+                self.vm.stack.truncate(window - 2);
+            }
+            let window = self.push_window(call.callee, call.this, &call.args)?;
+            tail_window = Some(window);
+            let site = CallSite {
+                window,
+                argc: call.args.len(),
+                ret: site.ret,
+                restore_top: site.restore_top,
+                construct: call.new_target.is_some(),
+                new_target: call.new_target,
+            };
+            let not_callable = || {
+                let what = if site.construct {
+                    "a constructor"
+                } else {
+                    "a function"
+                };
+                (call.callee, what)
+            };
+            let Value::Object(function) = call.callee else {
+                let (callee, what) = not_callable();
+                return Err(VmError::type_error(format!(
+                    "{} is not {what}",
+                    self.describe_value(callee)
+                )));
+            };
+            let record = self.heap.object(function)?;
+            let callable = match &record.kind {
+                ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => {
+                    !site.construct || is_constructor_kind(&record.kind)
+                }
+                _ => false,
+            };
+            if !callable {
+                let (callee, what) = not_callable();
+                return Err(VmError::type_error(format!(
+                    "{} is not {what}",
+                    self.describe_value(callee)
+                )));
+            }
+            let step = match &record.kind {
+                ObjectKind::Native(native) => {
+                    let (func, realm) = (native.func, native.realm);
+                    match self.run_native(function, func, realm, site)? {
+                        NativeReturn::Value(value) => Step::Value(native_value(value)?),
+                        NativeReturn::Call { callee, this, args } => {
+                            call = TailCall {
+                                callee,
+                                this,
+                                args,
+                                new_target: None,
+                            };
+                            continue;
+                        }
+                        NativeReturn::Construct {
+                            callee,
+                            new_target,
+                            args,
+                        } => {
+                            call = TailCall {
+                                callee,
+                                this: Value::Undefined,
+                                args,
+                                new_target: Some(object_new_target(new_target)?),
+                            };
+                            continue;
+                        }
+                        NativeReturn::Resume(resume) => {
+                            self.resume_generator(resume, site.ret, site.restore_top)?
+                        }
+                    }
+                }
+                ObjectKind::Bound(_) => {
+                    call = self.invoke_bound(function, site)?;
+                    continue;
+                }
+                _ => self.enter_function(function, site)?,
+            };
+            if let Step::Value(_) = step {
+                self.vm.stack.truncate(window - 2);
+            }
+            return Ok(step);
         }
     }
 
@@ -84,9 +228,9 @@ impl Runtime {
     /// §10.4.1.2). A loop walks the chain of bound functions (a step of
     /// the countdown per level) and collects the bound arguments, the
     /// innermost first; then one call of the final target replaces the
-    /// recursion of the specification. The call goes through a new window
-    /// at the top of the value stack, as a deferred call does.
-    fn invoke_bound(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<Step> {
+    /// recursion of the specification. That call is a tail call of
+    /// [`Runtime::invoke`].
+    fn invoke_bound(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<TailCall> {
         let mut current = function;
         let mut new_target = site.new_target.unwrap_or(function);
         let mut bound_this = Value::Undefined;
@@ -115,8 +259,12 @@ impl Runtime {
                 .get(site.window..site.window + site.argc)
                 .ok_or(VmError::invariant("arguments outside the stack"))?,
         );
-        let nt = site.construct.then_some(Value::Object(new_target));
-        self.invoke_deferred(Value::Object(current), bound_this, &args, nt, site)
+        Ok(TailCall {
+            callee: Value::Object(current),
+            this: bound_this,
+            args,
+            new_target: site.construct.then_some(new_target),
+        })
     }
 
     /// The target, the bound `this` and the number of bound arguments of
@@ -141,51 +289,6 @@ impl Runtime {
             out.extend_from_slice(&bound.args);
         }
         Ok(())
-    }
-
-    /// Calls (or constructs, with `new_target`) `callee` through a new
-    /// window at the top of the value stack. The result of a frame that
-    /// this call pushes goes where `site` says.
-    fn invoke_deferred(
-        &mut self,
-        callee: Value,
-        this: Value,
-        args: &[Value],
-        new_target: Option<Value>,
-        site: CallSite,
-    ) -> VmResult<Step> {
-        let new_target = match new_target {
-            None => None,
-            Some(Value::Object(object)) => Some(object),
-            Some(_) => return Err(VmError::invariant("new.target is not an object")),
-        };
-        let window = self.push_window(callee, this, args)?;
-        let deferred = CallSite {
-            window,
-            argc: args.len(),
-            ret: site.ret,
-            restore_top: site.restore_top,
-            construct: new_target.is_some(),
-            new_target,
-        };
-        match self.invoke(deferred)? {
-            Step::Value(value) => {
-                self.vm.stack.truncate(window - 2);
-                Ok(Step::Value(value))
-            }
-            Step::NotCallable => {
-                let what = if new_target.is_some() {
-                    "a constructor"
-                } else {
-                    "a function"
-                };
-                Err(VmError::type_error(format!(
-                    "{} is not {what}",
-                    self.describe_value(callee)
-                )))
-            }
-            Step::Entered => Ok(Step::Entered),
-        }
     }
 
     /// Pushes the frame of a closure. A function entry is a step of the
@@ -330,6 +433,46 @@ impl Runtime {
         realm: u32,
         site: CallSite,
     ) -> VmResult<Step> {
+        match self.run_native(function, func, realm, site)? {
+            NativeReturn::Value(value) => Ok(Step::Value(native_value(value)?)),
+            NativeReturn::Call { callee, this, args } => self.invoke_tail_calls(
+                site,
+                TailCall {
+                    callee,
+                    this,
+                    args,
+                    new_target: None,
+                },
+            ),
+            NativeReturn::Construct {
+                callee,
+                new_target,
+                args,
+            } => self.invoke_tail_calls(
+                site,
+                TailCall {
+                    callee,
+                    this: Value::Undefined,
+                    args,
+                    new_target: Some(object_new_target(new_target)?),
+                },
+            ),
+            NativeReturn::Resume(resume) => {
+                self.resume_generator(resume, site.ret, site.restore_top)
+            }
+        }
+    }
+
+    /// Runs a native function with a handle scope open and returns what it
+    /// returned.
+    #[inline]
+    fn run_native(
+        &mut self,
+        function: Gc<Object>,
+        func: crate::vm::NativeFn,
+        realm: u32,
+        site: CallSite,
+    ) -> VmResult<NativeReturn> {
         let this = if site.construct {
             Value::Undefined
         } else {
@@ -358,25 +501,7 @@ impl Runtime {
             Ok(_) => self.heap.close_scope(scope)?,
             Err(_) => self.heap.close_scopes_to(depth),
         }
-        match result? {
-            NativeReturn::Value(value) => {
-                if value.is_internal() {
-                    return Err(VmError::invariant("a native function returned Empty"));
-                }
-                Ok(Step::Value(value))
-            }
-            NativeReturn::Call { callee, this, args } => {
-                self.invoke_deferred(callee, this, &args, None, site)
-            }
-            NativeReturn::Construct {
-                callee,
-                new_target,
-                args,
-            } => self.invoke_deferred(callee, Value::Undefined, &args, Some(new_target), site),
-            NativeReturn::Resume(resume) => {
-                self.resume_generator(resume, site.ret, site.restore_top)
-            }
-        }
+        result
     }
 
     /// Pushes `callee`, `this` and the arguments on top of the value

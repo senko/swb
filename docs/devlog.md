@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-16: tail calls for deferred and bound calls
+
+- The crash from the 6c review: `f = Function.prototype.call.bind(f)`
+  10,000 times, then `f()`, aborted the process with a Rust stack
+  overflow. Each level was a recursion `invoke` → `call_native` →
+  `invoke_deferred` → `invoke` → `invoke_bound` → `invoke_deferred`,
+  which pushed no frame and charged no recursion budget. Chromium 148
+  returns the result for 100,000 levels of `call`, `apply`,
+  `Reflect.apply` and `bind`.
+- Both recursive calls are tail calls, so `invoke_tail_calls` runs them
+  in a loop, in one window at the top of the value stack that each next
+  call replaces: no Rust stack and no value stack in proportion to the
+  chain. 200,000 levels take 0.2 s. `invoke` keeps its old shape for
+  ordinary functions and natives; the loop has its own dispatch. Each
+  level ticks and charges its argument copy: without that, `call` over a
+  million copies of `call` was quadratic work that the time limit did
+  not stop (found while testing the fix).
+- Speed: a first version, in which every call went through the loop's
+  dispatch, made call-heavy `vm_bench` rows 5 to 20 % slower. With the
+  separate cold loop, the mean change over all rows is +0.3 %.
+- The 32,768-unit limit of bound names stays: without it, 100,000 binds
+  need 128 to 256 MiB, because rope rebalancing copies (backlog).
+- Runtime test262 unchanged: 26,091, the same in stress mode.
+- Next: feature 7 (generators, promises, `async`).
+
 ## 2026-10-16: M7 feature 6c, iterator helpers; end of feature 6
 
 - The abstract `Iterator` constructor, `Iterator.from`,

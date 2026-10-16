@@ -2398,6 +2398,73 @@ fn unicode_methods_hold_up_under_the_stress_collector() {
 }
 
 #[test]
+fn chains_of_deferred_and_bound_calls_use_no_rust_recursion() {
+    on_big_stack(|| {
+        // A native that calls its argument (`call`, `apply`,
+        // `Reflect.apply`), bound to the previous function, 200,000 times.
+        // Each level was a Rust recursion without a charge (found in the
+        // 6c review: 10,000 levels overflowed the stack and aborted the
+        // process). The calls are tail calls now, in one window that each
+        // level replaces. Chromium 148 returns the result too.
+        let mut rt = runtime_with_limit(256);
+        let cases = [
+            "Function.prototype.call.bind(f)",
+            "Function.prototype.apply.bind(f)",
+            "Reflect.apply.bind(null, f, null, [])",
+            "Function.prototype.call.bind(f, null)",
+        ];
+        for make in cases {
+            let source = format!(
+                "var f = function () {{ return 7; }}; for (var i = 0; i < 200000; i++) f = {make}; f() + f()"
+            );
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, &source, Duration::from_secs(30));
+            assert_eq!(result, Ok(Value::Int(14)), "{make}");
+            assert!(elapsed < Duration::from_secs(10), "{make}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        // An error at the end of the chain, a non-constructor in a
+        // construct chain, and a generator resumed through tail calls.
+        let checks = [
+            (
+                "var g = function () { throw 3; }; for (var i = 0; i < 100000; i++) g = Function.prototype.call.bind(g); try { g(); 0 } catch (e) { e }",
+                Value::Int(3),
+            ),
+            (
+                "var c = function () { this.x = 1; }; for (var i = 0; i < 1000; i++) c = Reflect.construct.bind(null, c, []); try { c(); 0 } catch (e) { e instanceof TypeError ? 5 : 6 }",
+                Value::Int(5),
+            ),
+            (
+                "function* gen() { yield 4; } var it = gen(); Reflect.apply(Function.prototype.call, it.next, [it]).value",
+                Value::Int(4),
+            ),
+        ];
+        for (source, expected) in checks {
+            let (result, _) = eval_with_deadline_of(&mut rt, source, Duration::from_secs(30));
+            assert_eq!(result, Ok(expected), "{source}");
+            assert_clean(&rt);
+        }
+        // Endless or quadratic tail calls without frames end at the
+        // deadline: an argument list that contains itself, and `call`
+        // over a million copies of `call` (each level copies the rest).
+        let endless = [
+            "var a = [Reflect.apply, null, null]; a[2] = a; Reflect.apply(Reflect.apply, null, a)",
+            "var c = Function.prototype.call; var args = []; for (var i = 0; i < 1000000; i++) args.push(c); args.push(function () { return 5; }); c.apply(c, args)",
+        ];
+        for source in endless {
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, source, Duration::from_millis(500));
+            assert!(
+                matches!(result, Err(ScriptError::Terminated(Termination::TimeLimit))),
+                "{source}: {result:?}"
+            );
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
 fn collection_churn_keeps_the_memory_bounded() {
     on_big_stack(|| {
         // A million inserts and deletes of keys of every kind finish under
