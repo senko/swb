@@ -1,0 +1,9 @@
+var a = {}; try { JSON.stringify(a, function (k, v) { return {x: v}; }) } catch (e) { e.name + ': ' + e.message } => ok "RangeError: Maximum call stack size exceeded"
+var a = {toJSON: function () { return {self: a}; }}; try { JSON.stringify(a) } catch (e) { e.message } => ok "Maximum call stack size exceeded"
+try { JSON.parse('['.repeat(1e5) + ']'.repeat(1e5)); 'ok' } catch (e) { e.name + ': ' + e.message } => ok "ok"
+try { JSON.parse('{"a":'.repeat(1e5) + '1' + '}'.repeat(1e5)); 'ok' } catch (e) { e.name + ': ' + e.message } => ok "ok"
+try { JSON.parse('['.repeat(1e5)); 'ok' } catch (e) { e.name + ': ' + e.message } => ok "SyntaxError: Unexpected end of JSON input"
+try { JSON.parse('{"a":'.repeat(1e5)); 'ok' } catch (e) { e.name + ': ' + e.message } => ok "SyntaxError: Unexpected end of JSON input"
+try { JSON.parse('['.repeat(3e5) + ']'.repeat(3e5), function (k, v) { return v; }); 'ok' } catch (e) { e.name + ': ' + e.message } => ok "RangeError: Maximum call stack size exceeded"
+function mk(n) { var a = []; for (var i = 0; i < n; i++) a = [a]; return a; } try { JSON.stringify(mk(5e4)).length } catch (e) { e.name + ': ' + e.message } => ok 100002
+function mk(n) { var a = {}; for (var i = 0; i < n; i++) a = {a: a}; return a; } try { JSON.stringify(mk(5e4), null, 1).length } catch (e) { e.name + ': ' + e.message } => ok "RangeError: Maximum call stack size exceeded"

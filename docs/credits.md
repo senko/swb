@@ -188,6 +188,17 @@ Format: source, license (for code), what it influenced.
   quirks (`trimLeft` in the receiver message of `trimStart`, the
   `RangeError` texts) were measured in Chromium 148 (`just probe`
   `tools/probes/js-strings.json`).
+- JSON (M7 feature 5c, `js/src/builtins/json*.rs`), written from
+  ECMA-262 §25.5 and ECMA-404, no engine code read: the TC39 proposal
+  "JSON.parse source text access" (https://github.com/tc39/proposal-json-parse-with-source;
+  in Chromium 148) for `rawJSON`, `isRawJSON`, the parse
+  records and the `context` argument of the reviver. The messages of
+  `JSON.parse` and the circular structure error, the limits of
+  Chromium's recursion and the quirk of a `space` between 0 and 1 were
+  measured in Chromium 148 (`just probe` `tools/probes/js-json.json`).
+  The parser reads a decimal number with the fast path of Clinger
+  (above) when the mantissa is below 2^53 and the decimal exponent is
+  at most 22 in magnitude.
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

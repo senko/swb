@@ -301,6 +301,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Environment(_)
         | ObjectKind::Ordinary
         | ObjectKind::Host { .. }
+        | ObjectKind::RawJson
         | ObjectKind::SymbolWrapper(_) => "Object",
     }
 }

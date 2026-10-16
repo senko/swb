@@ -286,6 +286,11 @@ impl Runtime {
                     .unwrap_or_default();
                 format!("function {name}() {{ [native code] }}")
             }
+            // V8 shows an object without a prototype (no constructor to
+            // name) like this.
+            Ok(_) if matches!(self.heap.get_prototype_of(object), Ok(None)) => {
+                "[object Object]".to_owned()
+            }
             _ => "#<Object>".to_owned(),
         }
     }

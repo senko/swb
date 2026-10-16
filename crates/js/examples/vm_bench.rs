@@ -112,6 +112,21 @@ const PROGRAMS: &[(&str, &str)] = &[
         "function run() { var h = 'a,bb,ccc,dddd,eeeee,ffffff,ggggggg,h'; var r = 0; for (var i = 0; i < 100000; i++) { r += h.split(',').length; } return r; }",
     ),
     (
+        "JSON.parse of a 1 MB text",
+        r#"var text = (function () { var items = []; for (var i = 0; i < 5000; i++) items.push({ id: i, name: 'item ' + i, tags: ['alpha', 'beta', 'gamma'], price: i * 1.25 + 0.01, active: i % 2 === 0, note: null, nested: { x: i, y: [i, i + 1, i + 2], s: 'text with "escapes" and \n a break and \u00e9' } }); return JSON.stringify(items, null, 1); })();
+         function run() { return JSON.parse(text).length + text.length; }"#,
+    ),
+    (
+        "JSON.stringify of the 1 MB result",
+        r#"var value = (function () { var items = []; for (var i = 0; i < 5000; i++) items.push({ id: i, name: 'item ' + i, tags: ['alpha', 'beta', 'gamma'], price: i * 1.25 + 0.01, active: i % 2 === 0, note: null, nested: { x: i, y: [i, i + 1, i + 2], s: 'text with "escapes" and \n a break and \u00e9' } }); return JSON.parse(JSON.stringify(items, null, 1)); })();
+         function run() { return JSON.stringify(value, null, 1).length; }"#,
+    ),
+    (
+        "JSON.stringify of the result without indentation",
+        r#"var value = (function () { var items = []; for (var i = 0; i < 5000; i++) items.push({ id: i, name: 'item ' + i, tags: ['alpha', 'beta', 'gamma'], price: i * 1.25 + 0.01, active: i % 2 === 0, note: null, nested: { x: i, y: [i, i + 1, i + 2], s: 'text with "escapes" and \n a break and \u00e9' } }); return items; })();
+         function run() { return JSON.stringify(value).length; }"#,
+    ),
+    (
         "string: replace, trim, padStart 300k calls",
         "function run() { var r = 0; for (var i = 0; i < 300000; i++) { r += ' x-y-z '.trim().replace('-', '+').padStart(8, '.').length; } return r; }",
     ),

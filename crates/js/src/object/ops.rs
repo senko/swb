@@ -465,6 +465,65 @@ impl Heap {
         )
     }
 
+    /// `CreateDataProperty` (§7.3.5) for a builder of fresh objects (the
+    /// JSON parser): `object` is an ordinary, extensible object that the
+    /// caller made, so no property can reject the definition. A missing
+    /// property is added and an existing one gets the new value, as the
+    /// general definition does, without building and validating a
+    /// descriptor. Can collect.
+    pub(crate) fn create_fresh_data_property(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+        roots: &dyn RootSource,
+    ) -> Result<()> {
+        match self.get_own_property(object, key)? {
+            None => self.add_own_property(object, key, Property::data(value), roots),
+            Some(old) => self.replace_own_property(object, key, old, Property::data(value), roots),
+        }
+    }
+
+    /// Appends `value` to a fresh array whose elements are dense without
+    /// holes (the JSON parser's arrays): `CreateDataProperty(array,
+    /// length, value)`. Can collect.
+    pub(crate) fn push_fresh_element(
+        &mut self,
+        array: Gc<Object>,
+        value: Value,
+        roots: &dyn RootSource,
+    ) -> Result<()> {
+        let (length, _) = self.array_length(array)?;
+        if length == u32::MAX - 1 {
+            return Err(Error::range_error(super::INVALID_ARRAY_LENGTH));
+        }
+        self.add_own_property(
+            array,
+            PropertyKey::Index(length),
+            Property::data(value),
+            roots,
+        )?;
+        self.set_array_length_field(array, length + 1, true)
+    }
+
+    /// Makes room in a fresh object for `slots` more named properties
+    /// and `elements` more elements, so that a builder that knows about
+    /// the final size grows the buffers once. No collection.
+    pub(crate) fn presize(
+        &mut self,
+        object: Gc<Object>,
+        slots: usize,
+        elements: usize,
+    ) -> Result<()> {
+        let before = self.object_bytes(object)?;
+        let record = self.object_mut(object)?;
+        record.slots.try_reserve_exact(slots)?;
+        if let Elements::Dense { values, .. } = &mut record.elements {
+            values.try_reserve_exact(elements)?;
+        }
+        self.charge_growth(object, before)
+    }
+
     /// [[Delete]] (§10.1.10).
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         if self.string_object_unit(object, key)?.is_some() {

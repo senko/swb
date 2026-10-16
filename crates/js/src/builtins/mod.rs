@@ -16,7 +16,8 @@
 //! iterator, the URI functions and Annex B (`string*.rs`, `uri.rs`; the
 //! case mapping, `normalize` and `localeCompare` are feature 5d, `match`,
 //! `matchAll` and `search` feature 8b); `Boolean`;
-//! `Symbol` with the well-known symbols; and `%IteratorPrototype%`
+//! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); and
+//! `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
@@ -41,6 +42,10 @@ mod function;
 mod global;
 mod integrity;
 mod iterator;
+mod json;
+mod json_parse;
+mod json_revive;
+mod json_stringify;
 mod math;
 mod number;
 mod object;
@@ -90,6 +95,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     boolean::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
+    json::install(rt, realm)?;
     console::install(rt, realm)
 }
 

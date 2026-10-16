@@ -80,6 +80,9 @@ pub enum ObjectKind {
     BooleanWrapper(bool),
     /// A Symbol object (`[[SymbolData]]`).
     SymbolWrapper(Gc<Symbol>),
+    /// A raw JSON object (`[[IsRawJSON]]`, `JSON.rawJSON`): ordinary
+    /// otherwise.
+    RawJson,
     /// An Array Iterator (§23.1.5): the array-like, the next index and
     /// the kind of its results.
     ArrayIterator(Box<ArrayIterator>),
@@ -164,6 +167,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
+            ObjectKind::RawJson => "RawJson",
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
             ObjectKind::StringIterator(_) => "StringIterator",
             ObjectKind::Error(_) => "Error",
@@ -185,6 +189,7 @@ impl ObjectKind {
             | ObjectKind::Array { .. }
             | ObjectKind::NumberWrapper(_)
             | ObjectKind::BooleanWrapper(_)
+            | ObjectKind::RawJson
             | ObjectKind::Arguments => {}
             ObjectKind::Error(data) => {
                 if let Some(data) = data {

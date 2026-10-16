@@ -1,0 +1,48 @@
+{a:[1,"two!",{c:"three!",d:[true,null]}],e:"fé
+!",g:{h:{i:"j!"}}}
+0=1 1="two" c="three" 0=true 1=null d=obj 2=obj a=obj e="fé
+" i="j" h=obj g=obj =obj
+{a:1,c:["fresh",{n:1}],d:{x:1,y:50},z:"addeda"}
+[1,,"p50"]
+n:1.50 s:"a\tb" t:true z:null 0:-0 1:1e3 arr:- o:- :-
+0:1 1:undefined 2:3 :undefined
+{"a":"n1","b":["n2","n3"],"c":{"d":{"fresh":"n50","text":"xxxd"}}}
+{"c":4,"a":1,"b":{"c":3,"a":2}}
+{
+--"2": {
+----"2": 3,
+----"a": 4
+--},
+--"a": 1
+}
+[{"key":"0","big":50},"str1","plain"]
+{"a":[1,2,"inner"]}
+{"a":"A","b":"B","d":{"e":true}}
+[1,"gone",null]
+[7,"w50",false]
+{
+       "a": 1,
+       "b": [
+              2,
+              3
+       ]
+}
+{
+w50"a": 1,
+w50"b": [
+w50w502,
+w50w503
+w50]
+}
+{"big":12345678901234567890,"list":[12345678901234567890,"x",null]}
+RangeError: stop 50
+TypeError: no b
+SyntaxError: Unexpected token 'x', "{"a":[1,2,{"b":x}]}" is not valid JSON
+true
+300
+15951
+true
+{"a":{"v":1},"b":[{"v":1},{"v":1}]}
+7
+Converting circular structure to JSON|    --> starting at object with constructor 'Object'|    |     property 'next' -> object with constructor 'Object'
+807

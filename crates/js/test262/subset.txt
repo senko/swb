@@ -273,3 +273,11 @@ dir test/language/types/reference
 dir test/language/types/string
 dir test/language/types/undefined
 dir test/language/white-space
+
+# Added in M7 feature 5c: JSON, with the source text access of
+# `JSON.parse` (`rawJSON`, `isRawJSON`, the context argument of the
+# reviver; Chromium 148 has them). The tests with `Proxy` and `BigInt`
+# stay skipped until features 9 and 10.
+feature json-parse-with-source
+feature well-formed-json-stringify
+dir test/built-ins/JSON

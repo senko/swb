@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-15: M7 feature 5c, `JSON`
+
+- `js`: `builtins/json.rs` (`parse`, `rawJSON`, `isRawJSON`,
+  `Symbol.toStringTag`), `json_parse.rs` (the grammar of ECMA-404 and
+  V8's messages), `json_revive.rs` (`InternalizeJSONProperty` with
+  `context.source`), `json_stringify.rs`; `ObjectKind::RawJson`; heap
+  helpers for fresh objects (`create_fresh_data_property`,
+  `push_fresh_element`, `presize`).
+- No JSON walk recurses on the Rust stack: each is a loop over a vector
+  of open levels. Depth limits (ADR 0026 section 15): V8's `parse` has
+  none, so swb's has none (the heap and time limits end an absurd
+  text); `stringify` ends at 100,000 levels, 4,000 with a gap or a
+  replacer, the reviver walk at 4,000, with `RangeError: Maximum call
+  stack size exceeded`, so that a `toJSON` that makes a new object at
+  each level ends in an error that script can catch.
+- Measured in Chromium 148: 824 cases (`tools/probes/js-json.json`),
+  806 of them a test. They give the 17 families of `SyntaxError`
+  messages and when each is used, the context window (a source of at
+  most 20 units is shown whole, else 10 units on each side with
+  `...`), the cycle message, and the quirk that a `space` between 0 and
+  1 gives line breaks without indentation.
+- Speed: `parse` of a 1.4 MB text 5.8 ms (`node --jitless` 3.1 ms; was
+  9.4 ms before a cache of member names, size hints from the last
+  container at the same depth and fresh-property stores); `stringify`
+  5.0 ms (1.9 ms).
+- Review: no blocking bug. Fixed: the parse records of the reviver were
+  outside the heap accounting (20 million elements reached 1.8 GB RSS
+  at a 1 GiB limit; now the parse checks them every 1,024 records);
+  `stringify` reserved 4 bytes per output unit, so an output too long
+  for a string ended the script at the heap limit where V8 throws a
+  `RangeError` (now it reserves by the buffer's width, at most for the
+  maximum length); an error message copied the whole source (now only
+  a source of at most 20 units). A hostile test covers the records.
+- Runtime test262: 23,081 pass (was 22,888), the same in stress mode;
+  parse-only unchanged.
+
 ## 2026-10-15: M7 feature 5b, `String`
 
 - `js`: `builtins/string.rs` (the statics, character access, `concat`,

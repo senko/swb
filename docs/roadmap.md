@@ -1161,6 +1161,29 @@ failures with a reason. Features, in this order:
      with replacer, indentation, `toJSON`, well-formed output, V8's
      message for cycles and the depth limit; the source text access of
      `JSON.parse` (`rawJSON`, `isRawJSON`) if Chromium 148 has it.
+     Done 2026-10-15: `JSON.parse` with the reviver and the source text
+     access (`context.source`, `rawJSON`, `isRawJSON`, all in Chromium
+     148), `JSON.stringify` with all its arguments, V8's messages
+     (the `SyntaxError` texts with their context window, the cycle
+     message with the property path). The three walks are loops over a
+     vector of open levels. Depth limits from Chromium: `parse` has none,
+     as in V8; `stringify` ends at 100,000 levels (with a gap, a replacer
+     or a property list at 4,000) and the reviver walk at 4,000, with
+     V8's `RangeError`, where V8's recursion ends at 3,000 to 5,000.
+     806 of the 824 measured cases (`tools/probes/js-json.json`) are a
+     test; the others need `BigInt`, `Date`, `Proxy`, or show the known
+     deviation: the constructor name in the cycle message comes from the
+     prototype chain (V8: the function that made the object). Runtime
+     test262: 23,081 pass (was 22,888), the same in stress mode;
+     `built-ins/JSON` 137 of 166 (skipped: `Proxy` 18, `BigInt` 7,
+     another realm 1; failing: `Array.prototype.reverse` and `shift`,
+     feature 6; a regular expression literal, feature 8). Speed for a
+     1.4 MB text, against `node --jitless`: `parse` 5.8 ms (3.1),
+     `stringify` 5.0 ms (1.9). The review found no blocking bug; fixed:
+     the parse records of the reviver are checked against the heap
+     limit, `stringify` reserves by the buffer's width so that an output
+     too long for a string is V8's `RangeError`, an error message no
+     longer copies the whole source.
    - 5d Unicode (`implementer`): `toLowerCase`, `toUpperCase` and the
      `toLocale` forms (full mappings, `SpecialCasing` without
      conditions, final sigma; no `Intl`, so the default locale only),
@@ -1342,6 +1365,22 @@ not repeated here; the open items of each spike session are in M6 step
 - Messages (M7 5b): the message for an incompatible receiver shows
   `#<Object>` where V8 shows `[object Array Iterator]` (the object text
   does not read `Symbol.toStringTag`).
+- Numbers and JSON (M7 5c): `number_to_string` takes three formatting
+  passes; `json_stringify.rs` has a faster path for numbers of at most
+  15 digits (`short_decimal`). Move it into `js-text` and use it for
+  `Number.prototype.toString` too (about 3 times faster for prices and
+  coordinates); `POWERS_OF_TEN` is in both `json_parse.rs` and
+  `json_stringify.rs`.
+- JSON speed (M7 5c): `stringify` finds each member by its key (about
+  10 % of its time; a snapshot of keys and slots while the shape is
+  unchanged); `parse` spends most of its time on allocation (a `Vec`
+  per object and per string) and copies the source text out of the
+  heap once.
+- Messages (M7 5c): `object_text` shows `[object Object]` for an object
+  whose prototype is `null`; V8 also does so for an object whose
+  prototype chain has no constructor
+  (`Object.create(Object.create(null))`). Keys and sources in JSON
+  messages are clipped at 1,024 units; V8's limit is not measured.
 - `encodeURI` checks the room for the worst case of the rest of its
   input, so near the length limit it throws "Invalid string length" up
   to about 36 KiB early (M7 5b).

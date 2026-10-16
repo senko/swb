@@ -1160,6 +1160,71 @@ where the first plan did not work:
 - `%StringIteratorPrototype%` is a new intrinsic and `ObjectKind::
   StringIterator` (flat string, next index); `for`-`of` calls its `next`
   through the generic path (no compiled fast path yet).
+- JSON (feature 5c, `builtins/json*.rs`): no JSON operation recurses on
+  the Rust stack; each runs a loop over a vector of open levels, and the
+  code that it calls (`toJSON`, replacers, revivers, getters, `valueOf`)
+  runs through re-entry under the recursion budget. Depth limits, from
+  Chromium 148 (`tools/probes/js-json.json`, 824 cases, 806 of them a
+  test): V8's
+  `JSON.parse` has none (10 million nested arrays parse; so swb's parse
+  has none, and the heap and time limits end an absurd text); V8's
+  `JSON.stringify` has none for plain data (a million levels) but
+  recurses on its native stack with a gap, a replacer, a property list or
+  getters and ends at 3,256 to 5,157 levels with `RangeError: Maximum
+  call stack size exceeded`; the reviver walk ends at about 3,000 levels.
+  swb ends a stringify at 100,000 levels, with a gap or a replacer at
+  4,000, and a reviver walk at 4,000 (the same `RangeError`), so a
+  `toJSON` or replacer that makes a new object at each level ends in a
+  `RangeError` that script can catch, not in the heap limit, and a
+  pretty-printed structure cannot grow quadratically. The cycle check is
+  the vector of open objects, plus a hash set from depth 16, so it is
+  linear; the message of V8 for a cycle (`--> starting at object with
+  constructor 'A'`, the path with at most three lines in the middle
+  (the first two, `...`, the last), `--- property 'k' closes the circle`)
+  is made only when the cycle is found. The constructor name is the name
+  of the first `constructor` data property on the prototype chain above
+  the object (the own property is ignored), else a string `@@toStringTag`
+  if that name is `Object`; V8 uses the function that made the object
+  (two measured cases differ: `Foo.prototype.constructor = null` and an
+  inherited prototype that was not reset). The parser builds objects with
+  `CreateDataProperty` semantics through `Heap::create_fresh_data_property`
+  and `push_fresh_element` (no descriptor; a key that repeats keeps its
+  first position and takes the last value), reserves the buffers from the
+  size of the last object or array at the same depth (`Heap::presize`),
+  and keeps a cache of the 256 last member names of a parse (the names
+  are recorded in the handle scope, so the cache holds live atoms).
+  Numbers of at most 19 digits with a mantissa below 2^53 and a decimal
+  exponent of at most 22 are one multiplication or division (Clinger);
+  the others use the exact `StringToNumber`. With a reviver the parser
+  also makes the parse records (value, source range, members) that the
+  `context.source` of the source text access needs; they are outside the
+  heap, and the parse checks their size against the heap limit every
+  1,024 records. The serializer writes into one flat buffer that checks
+  V8's length limit and, at each doubling, the heap limit for the
+  doubled buffer in bytes of its width (one byte per unit until a unit
+  above 255 comes), at most for V8's maximum length, so that an output
+  too long for a string is V8's `RangeError` and not the heap limit
+  (with a heap limit below the size of the output, the heap limit ends
+  it first), reads a primitive in an own data
+  property of an ordinary object or array without a handle scope, and
+  caches the quoted text of the last 64 keys. A `space` between 0 and 1
+  gives line breaks without indentation, as in Chromium. A message built
+  by the parser holds Rust text, so an unpaired surrogate in the shown
+  source is U+FFFD (V8 keeps it); so is the token of a character outside
+  the BMP (`JSON.parse('😀')`: V8 shows its first surrogate). A number that is not an integer
+  and has at most 15 digits (a price, a coordinate) is written by a
+  division check (`short_decimal`: the smallest `k` with
+  `round(x * 10^k) / 10^k == x`), which gives the digits of
+  `Number::toString` (60 million random numbers compared) without the
+  three formatting passes of the general path; `Number.prototype.toString`
+  itself still takes them (backlog). Speed against `node --jitless` (a
+  1.4 MB text of 5,000 records): `JSON.parse` 5.8 ms (3.1, 1.9 times),
+  `JSON.stringify` with an indent of 1 5.2 ms (3.2, 1.6 times), compact
+  5.0 ms (1.9, 2.6 times). Differential checks against Chromium 148, not
+  kept in the repository (a generator of mutated texts, random
+  `stringify` calls and random revivers; `tools/probes/js-json.json`
+  has the fixed cases): 12,000 mutated texts, 16,000 `stringify` calls
+  and 12,000 `parse` calls with revivers gave no difference.
 - The test262 runner multiplies its time limit by 30 in `--stress` mode:
   `decodeURI/S15.1.3.1_A2.5_T1` makes a million calls and takes 3 s
   normally, 185 s with a collection at every safepoint.

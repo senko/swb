@@ -1858,3 +1858,209 @@ fn string_methods_hold_up_under_the_stress_collector() {
     assert_eq!(run(source, true), normal);
     assert!(normal.starts_with("40 "), "{normal}");
 }
+
+// --- JSON (M7 feature 5c) ---
+
+#[test]
+fn json_nesting_costs_no_rust_stack() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // 300,000 levels: parse (iterative), the reviver walk and stringify
+        // (limited to 100,000 levels, V8's RangeError), a walk down.
+        let script = "var t = '['.repeat(300000) + '1' + ']'.repeat(300000); \
+             var v = JSON.parse(t); var n = 0; for (var x = v; Array.isArray(x); x = x[0]) n++; print(n); \
+             var e = []; \
+             try { JSON.stringify(v); } catch (x) { e.push(x.name + ': ' + x.message); } \
+             try { JSON.parse(t, function (k, w) { return w; }); } catch (x) { e.push(x.name + ': ' + x.message); } \
+             try { JSON.parse('['.repeat(1000000)); } catch (x) { e.push(x.name + ': ' + x.message); } \
+             try { JSON.parse('{\"a\":'.repeat(200000)); } catch (x) { e.push(x.name + ': ' + x.message); } \
+             print(e.join('|')); \
+             var w = v; for (var i = 0; i < 250000; i++) w = w[0]; print(JSON.stringify(w).length); \
+             var calls = 0; var d = JSON.parse('['.repeat(3999) + ']'.repeat(3999), function (k, x) { calls++; return x; }); \
+             print(calls, JSON.stringify(d).length, JSON.stringify(d, null, 1).length); \
+             var f = []; \
+             for (var depth of [4000, 4001]) { \
+               var u = JSON.parse('['.repeat(depth) + ']'.repeat(depth)); \
+               try { JSON.parse('['.repeat(depth) + ']'.repeat(depth), function (k, x) { return x; }); f.push('ok'); } catch (x) { f.push(x.name); } \
+               try { JSON.stringify(u, null, 1); f.push('ok'); } catch (x) { f.push(x.name); } \
+               try { JSON.stringify(u, function (k, x) { return x; }); f.push('ok'); } catch (x) { f.push(x.name); } \
+               try { JSON.stringify(u, ['a']); f.push('ok'); } catch (x) { f.push(x.name); } \
+               try { JSON.stringify(u); f.push('ok'); } catch (x) { f.push(x.name); } \
+             } print(f.join());";
+        assert_eq!(
+            run_in(&mut rt, script),
+            "300000\n\
+             RangeError: Maximum call stack size exceeded|RangeError: Maximum call stack size exceeded|\
+             SyntaxError: Unexpected end of JSON input|SyntaxError: Unexpected end of JSON input\n\
+             100001\n\
+             3999 7998 15999998\n\
+             ok,ok,ok,ok,ok,RangeError,RangeError,RangeError,RangeError,ok"
+        );
+        assert_clean(&rt);
+        // A replacer or `toJSON` that makes a new object at every level
+        // ends with the RangeError, not with the heap limit.
+        let script = "var e = []; \
+             try { JSON.stringify({}, function (k, v) { return { x: v }; }); } catch (x) { e.push(x.name); } \
+             var a = { toJSON: function () { return { self: a }; } }; \
+             try { JSON.stringify(a); } catch (x) { e.push(x.name); } \
+             function r(k, v) { return JSON.parse('[1]', r); } \
+             try { JSON.parse('[1]', r); } catch (x) { e.push(x.name); } \
+             var o = { toJSON: function () { return JSON.stringify(o); } }; \
+             try { JSON.stringify(o); } catch (x) { e.push(x.name); } \
+             print(e.join());";
+        assert_eq!(
+            run_in(&mut rt, script),
+            "RangeError,RangeError,RangeError,RangeError"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn json_cycle_check_is_linear_in_deep_structures() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let script = "var chain = {}; var cur = chain; for (var i = 0; i < 90000; i++) { cur.next = {}; cur = cur.next; } \
+             print(JSON.stringify(chain).length); \
+             cur.back = chain; \
+             try { JSON.stringify(chain); } catch (e) { var lines = e.message.split('\\n'); print(lines.length, lines[3]); } \
+             cur.back = undefined; cur.again = chain.next; \
+             try { JSON.stringify(chain); } catch (e) { print(e.message.split('\\n').length); }";
+        let start = Instant::now();
+        assert_eq!(
+            run_in(&mut rt, script),
+            "810002\n7     |     property 'next' -> object with constructor 'Object'\n7"
+        );
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "{:?}",
+            start.elapsed()
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn json_long_strings_many_keys_and_huge_output() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let script = "var s = 'ab\\u00e9\"\\\\\\n'.repeat(2 ** 22); var j = JSON.stringify(s); \
+             print(s.length, j.length, JSON.parse(j) === s); \
+             var big = {}; for (var i = 0; i < 300000; i++) big['key' + i] = [i, 'v' + i]; \
+             var text = JSON.stringify(big); var back = JSON.parse(text, function (k, v) { return v; }); \
+             print(text.length, Object.keys(back).length, back.key299999[1]); \
+             var sp = JSON.stringify(big, null, 10); print(sp.length, JSON.stringify(JSON.parse(sp)) === text);";
+        let result = run_in(&mut rt, script);
+        assert!(
+            result.starts_with("25165824 37748738 true\n8966671 300000 v299999\n"),
+            "{result}"
+        );
+        assert_clean(&rt);
+        // Output that would pass the heap limit or V8's length limit ends
+        // before the allocation: a RangeError or the heap limit.
+        let script = "var inner = []; for (var i = 0; i < 100000; i++) inner.push(i); \
+             var v = inner; for (var i = 0; i < 3000; i++) v = [v]; \
+             JSON.stringify(v, null, 10);";
+        let result = rt.eval(script);
+        assert!(
+            matches!(
+                result,
+                Err(ScriptError::Terminated(Termination::HeapLimit) | ScriptError::Uncaught { .. })
+            ),
+            "{result:?}"
+        );
+        assert_clean(&rt);
+        let mut small = runtime_with_limit(32);
+        let script = "var s = 'x'.repeat(2 ** 26); var e = []; \
+             try { JSON.stringify([s, s, s, s, s, s, s, s]); } catch (x) { e.push(x.name); } e.join();";
+        let result = small.eval(script);
+        assert!(
+            matches!(
+                result,
+                Ok(_) | Err(ScriptError::Terminated(Termination::HeapLimit))
+            ),
+            "{result:?}"
+        );
+        assert_clean(&small);
+    });
+}
+
+#[test]
+fn json_work_ends_at_the_deadline() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let cases = [
+            // 4 billion holes, one step each.
+            "var a = []; a.length = 4294967295; JSON.stringify(a);",
+            // A text with a million members, parsed again and again.
+            "var parts = []; for (var i = 0; i < 1000000; i++) parts.push('\"k' + i + '\":' + i); \
+             var text = '{' + parts.join(',') + '}'; \
+             while (true) { JSON.parse(text, function (k, v) { return v; }); }",
+            "var big = {}; for (var i = 0; i < 500000; i++) big['k' + i] = i; \
+             while (true) { JSON.stringify(big, null, 2); }",
+            // A text that never ends, parsed again and again.
+            "var t = '[' + '1,'.repeat(1000000); while (true) { try { JSON.parse(t); } catch (e) { } }",
+        ];
+        for source in cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert!(
+                matches!(
+                    result,
+                    Err(ScriptError::Terminated(Termination::TimeLimit)
+                        | ScriptError::Uncaught { .. })
+                ),
+                "{source}: {result:?}"
+            );
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn json_revivers_that_change_the_holder() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let script = "var seen = 0; \
+             var a = JSON.parse('[' + '1,'.repeat(20000) + '1]', function (k, v) { \
+               seen++; if (k === '0') { this.length = 10; for (var i = 0; i < 5; i++) this.push(i); } return v; }); \
+             print(seen, a.length); \
+             var o = JSON.parse(JSON.stringify(Object.fromEntries(Array.from({ length: 3000 }, (_, i) => ['k' + i, i]))), \
+               function (k, v) { if (k === 'k0') { for (var i = 1; i < 3000; i += 2) delete this['k' + i]; this.extra = 1; } return v; }); \
+             print(Object.keys(o).length);";
+        let result = run_in(&mut rt, script);
+        // The array walk visits the 20,001 indices it found at the start;
+        // the object walk skips what the reviver deleted.
+        assert!(result.starts_with("20002 "), "{result}");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn json_parse_records_count_against_the_heap_limit() {
+    on_big_stack(|| {
+        // The array needs about 100 MiB of heap; the parse records of the
+        // reviver (outside the heap) are about 70 bytes more per value, so
+        // the parse with a reviver needs about 300 MiB.
+        let mut small = runtime_with_limit(128);
+        let script = "var t = '[' + '1,'.repeat(3000000) + '1]'; \
+                      var a = JSON.parse(t); print(a.length); \
+                      JSON.parse(t, function (k, v) { return v; });";
+        let result = small.eval(script);
+        assert_eq!(result, Err(ScriptError::Terminated(Termination::HeapLimit)));
+        assert_eq!(run_in(&mut small, ""), "3000001");
+        assert_clean(&small);
+    });
+}
+
+#[test]
+fn json_holds_up_under_the_stress_collector() {
+    let source = "var parts = []; for (var i = 0; i < 25; i++) { \
+                    var v = JSON.parse('{\"a\":[' + i + ',\"s' + i + '\",{\"b\":null}],\"c\":\"x\\\\u00e9\"}', \
+                      function (k, x, c) { return typeof x === 'string' ? x + (c.source || '').length : x; }); \
+                    parts.push(JSON.stringify(v, function (k, x) { return typeof x === 'number' ? x * 2 : x; }, i % 4)); } \
+                  print(parts.length, parts[24].length, parts[3].slice(0, 20));";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("25 "), "{normal}");
+}
