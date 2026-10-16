@@ -300,3 +300,12 @@ dir test/built-ins/Map
 dir test/built-ins/Set
 dir test/built-ins/MapIteratorPrototype
 dir test/built-ins/SetIteratorPrototype
+
+# Added in M7 feature 6c: iterator helpers and iterator sequencing
+# (`Iterator`, `Iterator.from`, `Iterator.concat`, the methods of
+# `Iterator.prototype`; Chromium 148 has them). `joint-iteration`,
+# `iterator-chunking`, `iterator-includes`, `Iterator.prototype.join` and
+# `explicit-resource-management` stay out: Chromium 148 does not have them.
+feature iterator-helpers
+feature iterator-sequencing
+dir test/built-ins/Iterator

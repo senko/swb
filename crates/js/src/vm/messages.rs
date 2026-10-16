@@ -299,6 +299,23 @@ impl Runtime {
             Ok(ObjectKind::SetIterator(_)) => "[object Set Iterator]".to_owned(),
             Ok(ObjectKind::ArrayIterator(_)) => "[object Array Iterator]".to_owned(),
             Ok(ObjectKind::StringIterator(_)) => "[object String Iterator]".to_owned(),
+            Ok(ObjectKind::Generator(_)) => "[object Generator]".to_owned(),
+            // V8 finds no constructor name when the `constructor` found
+            // on the chain is an accessor (`Iterator.prototype`); it
+            // shows the `@@toStringTag` data property, else "Object".
+            Ok(
+                ObjectKind::Ordinary
+                | ObjectKind::IteratorHelper(_)
+                | ObjectKind::WrapForValidIterator(_),
+            ) if self.constructor_is_accessor(object) => format!(
+                "[object {}]",
+                match self
+                    .chain_data_value_of(object, self.symbol_key(super::WellKnown::ToStringTag))
+                {
+                    Some(Value::String(tag)) => self.clipped_text(tag),
+                    _ => "Object".to_owned(),
+                }
+            ),
             Ok(ObjectKind::Function(closure)) => closure
                 .compiled
                 .source_text()
@@ -323,6 +340,22 @@ impl Runtime {
             ),
             _ => "#<Object>".to_owned(),
         }
+    }
+
+    /// Whether the first property `constructor` on the prototype chain
+    /// from `object` is an accessor (no getter runs).
+    fn constructor_is_accessor(&self, object: Gc<Object>) -> bool {
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        let mut current = Some(object);
+        for _ in 0..CHAIN_LIMIT {
+            let Some(object) = current else { return false };
+            match self.heap.get_own_property(object, key) {
+                Ok(Some(Property::Accessor { .. })) => return true,
+                Ok(Some(_)) => return false,
+                _ => current = self.heap.get_prototype_of(object).ok().flatten(),
+            }
+        }
+        false
     }
 
     /// The name of the function in the own data property `constructor`.

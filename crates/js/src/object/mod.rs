@@ -11,6 +11,7 @@ mod arguments;
 mod array;
 mod element_access;
 mod elements;
+mod iterator_helper;
 mod ops;
 mod private;
 mod property;
@@ -19,6 +20,8 @@ mod table;
 
 pub(crate) use array::{INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
+pub(crate) use iterator_helper::{HelperOp, HelperStatus};
+pub use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
 pub use property::{Property, PropertyDescriptor};
 pub(crate) use shape::KeyList;
@@ -102,6 +105,11 @@ pub enum ObjectKind {
     MapIterator(Box<CollectionIterator>),
     /// A Set Iterator (§24.2.6).
     SetIterator(Box<CollectionIterator>),
+    /// An iterator helper (§27.1.2.1): the variables of the closure and
+    /// its generator state.
+    IteratorHelper(Box<IteratorHelper>),
+    /// An object made by `Iterator.from` (`[[Iterated]]`, §27.1.3.2.1.1).
+    WrapForValidIterator(Box<WrappedIterator>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
@@ -188,6 +196,8 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::Set(_) => "Set",
             ObjectKind::MapIterator(_) => "MapIterator",
             ObjectKind::SetIterator(_) => "SetIterator",
+            ObjectKind::IteratorHelper(_) => "IteratorHelper",
+            ObjectKind::WrapForValidIterator(_) => "WrapForValidIterator",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
             ObjectKind::ForInIterator(_) => "ForInIterator",
@@ -241,6 +251,10 @@ impl ObjectKind {
                     tracer.object(table);
                 }
             }
+            ObjectKind::IteratorHelper(state) => state.trace(tracer),
+            ObjectKind::WrapForValidIterator(state) => {
+                iterator_helper::trace_record(&state.record, tracer);
+            }
             ObjectKind::ForInIterator(state) => {
                 tracer.object(state.object);
                 for &key in &state.keys {
@@ -267,6 +281,8 @@ impl ObjectKind {
             ObjectKind::MapIterator(_) | ObjectKind::SetIterator(_) => {
                 size_of::<CollectionIterator>()
             }
+            ObjectKind::IteratorHelper(state) => state.heap_size(),
+            ObjectKind::WrapForValidIterator(_) => size_of::<WrappedIterator>(),
             ObjectKind::Error(Some(data)) => data.heap_size(),
             ObjectKind::ForInIterator(state) => {
                 size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()

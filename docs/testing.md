@@ -1089,6 +1089,36 @@ add entries as they go. The table has unit tests in `object/table.rs`
 (order, `SameValueZero`, compaction with live iterators, `clear`, the
 pruning of the cursor list, memory after churn).
 
+### Iterator helper tests
+
+`tools/probes/js-iterators.json` has 499 snippets for Chromium 148 in the
+format of `js-collections.json`: the shape of `Iterator`, `Iterator.prototype`
+and the helper prototypes (key order, attributes, names, lengths), the
+constructor and subclasses, the accessors `constructor` and `@@toStringTag`,
+the receiver and argument messages of every method, the order of reads and
+closes on bad arguments, `return` in every state, re-entrant `next` and
+`return`, `flatMap` closing, `Iterator.from` and its wrapper,
+`Iterator.concat`, the consuming methods and chains of 1,000 and 100,000
+helpers. `crates/js/tests/data/gen-iterator-cases.js` turns the output into
+`iterators_cases.js` and `.expected` (and `iterators_cases_heavy.*`) for
+`crates/js/tests/builtins_iterators.rs`:
+
+```
+just probe --json tools/probes/js-iterators.json > probe.json
+node crates/js/tests/data/gen-iterator-cases.js probe.json crates/js/tests/data
+```
+
+The probe file leaves out what swb does differently (see ADR 0026 section
+15): `Symbol.dispose`, chains of 5,000 to 50,000 helpers, finite `take` and
+`drop` limits above 2^53 - 1, BigInt. `iterators_gc.js` (callbacks, user
+iterators and inner iterables that allocate and collect) and
+`iterators_misc.js` (patched `next`, subclasses, deep chains) have the
+output of Node.js 22 as expected output (`just jsdiff` compares; Node.js
+22 lacks `Iterator.concat`, so `iterators_gc.js` polyfills it). The hostile
+tests (`language_hostile.rs`) cover chains of 100,000 helpers, deeply
+nested `flatMap`, wide `Iterator.concat`, endless iterators with every
+consumer, re-entrant `next` and `return` and loops of throwing callbacks.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

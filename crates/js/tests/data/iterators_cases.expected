@@ -1,0 +1,484 @@
+Object.getOwnPropertyNames(Iterator) => ok ["length","name","prototype","from","concat"]
+Object.getOwnPropertySymbols(Iterator) => ok []
+Object.getOwnPropertyNames(Iterator.prototype) => ok ["constructor","reduce","toArray","forEach","some","every","find","map","filter","take","drop","flatMap"]
+Object.getOwnPropertySymbols(Iterator.prototype).filter(k => String(k) !== 'Symbol(Symbol.dispose)') => ok [Symbol(Symbol.iterator),Symbol(Symbol.toStringTag)]
+Reflect.ownKeys(Iterator.prototype).filter(k => String(k) !== 'Symbol(Symbol.dispose)').map(String) => ok ["constructor","reduce","toArray","forEach","some","every","find","map","filter","take","drop","flatMap","Symbol(Symbol.iterator)","Symbol(Symbol.toStringTag)"]
+Object.getOwnPropertyNames(Object.getPrototypeOf([].values().map(x => x))) => ok ["next","return"]
+Reflect.ownKeys(Object.getPrototypeOf([].values().map(x => x))).map(String) => ok ["next","return","Symbol(Symbol.toStringTag)"]
+Reflect.ownKeys(Object.getPrototypeOf(Iterator.from({next(){}}))).map(String) => ok ["next","return"]
+Object.getPrototypeOf(Iterator.from({next(){}})) === Iterator.prototype => ok false
+Object.getPrototypeOf(Object.getPrototypeOf(Iterator.from({next(){}}))) === Iterator.prototype => ok true
+Object.getPrototypeOf(Object.getPrototypeOf([].values().map(x => x))) === Iterator.prototype => ok true
+Iterator.length => ok 0
+Iterator.name => ok "Iterator"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator, 'prototype')) => ok "{\"value\":{},\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator, 'from')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator, 'concat')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor') && Object.keys(Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor')).join() => ok "get,set,enumerable,configurable"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor'), (k, v) => typeof v === 'function' ? 'fn:' + v.name + ':' + v.length : v) => ok "{\"get\":\"fn:get constructor:0\",\"set\":\"fn:set constructor:1\",\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag), (k, v) => typeof v === 'function' ? 'fn:' + v.name + ':' + v.length : v) => ok "{\"get\":\"fn:get [Symbol.toStringTag]:0\",\"set\":\"fn:set [Symbol.toStringTag]:1\",\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator.prototype, 'map')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Iterator.prototype, 'toArray')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.iterator).value.name => ok "[Symbol.iterator]"
+['map', 'filter', 'take', 'drop', 'flatMap', 'reduce', 'toArray', 'forEach', 'some', 'every', 'find'].map(n => n + ':' + Iterator.prototype[n].length + ':' + Iterator.prototype[n].name) => ok ["map:1:map","filter:1:filter","take:1:take","drop:1:drop","flatMap:1:flatMap","reduce:1:reduce","toArray:0:toArray","forEach:1:forEach","some:1:some","every:1:every","find:1:find"]
+['from', 'concat'].map(n => n + ':' + Iterator[n].length + ':' + Iterator[n].name) => ok ["from:1:from","concat:0:concat"]
+Iterator.prototype.map.hasOwnProperty('prototype') => ok false
+Iterator.from.hasOwnProperty('prototype') => ok false
+(() => { const p = Object.getPrototypeOf([].values().map(x => x)); return ['next', 'return'].map(n => n + ':' + p[n].length + ':' + p[n].name).join() })() => ok "next:0:next,return:0:return"
+(() => { const p = Object.getPrototypeOf(Iterator.from({next(){}})); return ['next', 'return'].map(n => n + ':' + p[n].length + ':' + p[n].name).join() })() => ok "next:0:next,return:0:return"
+(() => { const p = Object.getPrototypeOf([].values().map(x => x)); return JSON.stringify(Object.getOwnPropertyDescriptor(p, Symbol.toStringTag)) + JSON.stringify(Object.getOwnPropertyDescriptor(p, 'next')) })() => ok "{\"value\":\"Iterator Helper\",\"writable\":false,\"enumerable\":false,\"configurable\":true}{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+Object.prototype.toString.call([].values().map(x => x)) => ok "[object Iterator Helper]"
+String(Iterator.prototype[Symbol.toStringTag]) => ok "Iterator"
+Iterator.prototype.constructor === Iterator => ok true
+new Iterator() => err TypeError: Abstract class Iterator not directly constructable
+Iterator() => err TypeError: Constructor Iterator requires 'new'
+Iterator.call({}) => err TypeError: Constructor Iterator requires 'new'
+Reflect.construct(Iterator, [], Object) => ok {}
+(() => { class A extends Iterator {} ; const a = new A(); return [Object.getPrototypeOf(a) === A.prototype, a instanceof Iterator, typeof a.next, Object.prototype.toString.call(a)].join() })() => ok "true,true,undefined,[object Iterator]"
+(() => { class A extends Iterator {} ; return Object.getPrototypeOf(new A()) === A.prototype })() => ok true
+(() => { function F() {} F.prototype = null; const o = Reflect.construct(Iterator, [], F); return Object.getPrototypeOf(o) === Iterator.prototype })() => ok true
+(() => { const o = Reflect.construct(Iterator, [], Object); return Object.getPrototypeOf(o) === Object.prototype })() => ok true
+Iterator.prototype.map.call(undefined, x => x) => err TypeError: Iterator.prototype.map called on non-object
+Iterator.prototype.map.call(1, x => x) => err TypeError: Iterator.prototype.map called on non-object
+Iterator.prototype.map.call('abc', x => x) => err TypeError: Iterator.prototype.map called on non-object
+Iterator.prototype.map.call(null, x => x) => err TypeError: Iterator.prototype.map called on non-object
+Iterator.prototype.map.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.map.call({}, undefined) => err TypeError: undefined is not a function
+Iterator.prototype.map.call({}, {}) => err TypeError: object is not a function
+Iterator.prototype.map.call({}, x => x).next() => err TypeError: undefined is not a function
+Iterator.prototype.map.call({next: 5}, x => x).next() => err TypeError: number 5 is not a function
+Iterator.prototype.map.call({next: undefined}, x => x).next() => err TypeError: undefined is not a function
+Iterator.prototype.map.call({next() { return 5 }}, x => x).next() => err TypeError: Iterator result 5 is not an object
+Iterator.prototype.map.call({next() { return undefined }}, x => x).next() => err TypeError: Iterator result undefined is not an object
+Iterator.prototype.map.call({next() { return {done: true} }}, x => x).next() => ok {value:undefined,done:true}
+Iterator.prototype.filter.call(undefined, x => x) => err TypeError: Iterator.prototype.filter called on non-object
+Iterator.prototype.filter.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.take.call(undefined, 1) => err TypeError: Iterator.prototype.take called on non-object
+Iterator.prototype.take.call({}, NaN) => err RangeError: NaN must be positive
+Iterator.prototype.take.call({}, -1) => err RangeError: -1 must be positive
+Iterator.prototype.take.call({}, 'a') => err RangeError: a must be positive
+Iterator.prototype.take.call({}, undefined) => err RangeError: undefined must be positive
+Iterator.prototype.take.call({}, -0.5) => ok {}
+Iterator.prototype.take.call({}, Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+Iterator.prototype.take.call({}, -Infinity) => err RangeError: -Infinity must be positive
+Iterator.prototype.take.call({}, {valueOf() { throw new Error('vo') }}) => err Error: vo
+Iterator.prototype.drop.call(undefined, 1) => err TypeError: Iterator.prototype.drop called on non-object
+Iterator.prototype.drop.call({}, NaN) => err RangeError: NaN must be positive
+Iterator.prototype.drop.call({}, -1) => err RangeError: -1 must be positive
+Iterator.prototype.drop.call({}, -Infinity) => err RangeError: -Infinity must be positive
+Iterator.prototype.drop.call({}, undefined) => err RangeError: undefined must be positive
+Iterator.prototype.flatMap.call(undefined, x => x) => err TypeError: Iterator.prototype.flatMap called on non-object
+Iterator.prototype.flatMap.call({}, 1) => err TypeError: Iterator.prototype.flatMap is not a function
+Iterator.prototype.reduce.call(undefined, x => x) => err TypeError: Iterator.prototype.reduce called on non-object
+Iterator.prototype.reduce.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.reduce.call({next() { return {done: true} }}, (a, b) => a) => err TypeError: Reduce of a done iterator with no initial value
+Iterator.prototype.reduce.call({next() { return {done: true} }}, (a, b) => a, 7) => ok 7
+Iterator.prototype.reduce.call({next() { return {done: true} }}, (a, b) => a, undefined) => ok undefined
+Iterator.prototype.toArray.call(undefined) => err TypeError: Iterator.prototype.toArray called on non-object
+Iterator.prototype.toArray.call(1) => err TypeError: Iterator.prototype.toArray called on non-object
+Iterator.prototype.toArray.call({}) => err TypeError: undefined is not a function
+Iterator.prototype.toArray.call({next: 1}) => err TypeError: number 1 is not a function
+Iterator.prototype.toArray.call({next() { return 1 }}) => err TypeError: Iterator result 1 is not an object
+Iterator.prototype.forEach.call(undefined, x => x) => err TypeError: Iterator.prototype.forEach called on non-object
+Iterator.prototype.forEach.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.some.call(undefined, x => x) => err TypeError: Iterator.prototype.some called on non-object
+Iterator.prototype.some.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.every.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.find.call({}, 1) => err TypeError: number 1 is not a function
+Iterator.prototype.find.call(undefined, 1) => err TypeError: Iterator.prototype.find called on non-object
+Iterator.from() => err TypeError: Iterator.from called on non-object
+Iterator.from(undefined) => err TypeError: Iterator.from called on non-object
+Iterator.from(null) => err TypeError: Iterator.from called on non-object
+Iterator.from(5) => err TypeError: Iterator.from called on non-object
+Iterator.from(true) => err TypeError: Iterator.from called on non-object
+Iterator.from(Symbol()) => err TypeError: Iterator.from called on non-object
+Iterator.from({}) => ok {}
+Iterator.from({}).next() => err TypeError: undefined is not a function
+Iterator.from({next: 1}).next() => err TypeError: number 1 is not a function
+Iterator.from({[Symbol.iterator]: 1}) => err TypeError: '1' returned for property 'Symbol(Symbol.iterator)' of object '#<Object>' is not a function
+Iterator.from({[Symbol.iterator]() { return 1 }}) => err TypeError: #<Object> is not iterable
+Iterator.from({[Symbol.iterator]() { return null }}) => err TypeError: #<Object> is not iterable
+Iterator.from({[Symbol.iterator]: null, next() { return {done: true, value: 3} }}).next() => ok {done:true,value:3}
+Iterator.from({[Symbol.iterator]: undefined, next() { return {done: true, value: 3} }}).next() => ok {done:true,value:3}
+Iterator.from('abc').toArray() => ok ["a","b","c"]
+Iterator.from(new String('abc')).toArray() => ok ["a","b","c"]
+Iterator.from([1, 2, 3]).toArray() => ok [1,2,3]
+Iterator.from([1, 2, 3]) instanceof Iterator => ok true
+Iterator.from({next() { return {done: true} }}) instanceof Iterator => ok true
+Object.getPrototypeOf(Iterator.from({next() {}})) === Object.getPrototypeOf(Iterator.from({next() {}})) => ok true
+(() => { const it = [1].values(); return Iterator.from(it) === it })() => ok true
+(() => { const it = {next() {}, __proto__: Iterator.prototype}; return Iterator.from(it) === it })() => ok true
+(() => { const it = {next() {}}; return Iterator.from(it) === it })() => ok false
+(() => { const it = {next() { return {done: true, value: 5} }}; const w = Iterator.from(it); return [w.next().value, w.return().done, Object.keys(w).length] })() => ok [5,true,0]
+(() => { const w = Iterator.from({next() {}}); return w.return() })() => ok {value:undefined,done:true}
+(() => { const w = Iterator.from({next() {}, return: 5}); return w.return() })() => err TypeError: '5' returned for property 'return' of object '#<Object>' is not a function
+(() => { const w = Iterator.from({next() {}, return() { return 5 }}); return w.return() })() => ok 5
+(() => { const w = Iterator.from({next() {}, return: null}); return w.return() })() => ok {value:undefined,done:true}
+(() => { const w = Iterator.from({next() {}}); const p = Object.getPrototypeOf(w); return [p.next.call({}), 1] })() => err TypeError: Method %WrapForValidIteratorPrototype%.next called on incompatible receiver #<Object>
+(() => { const w = Iterator.from({next() {}}); const p = Object.getPrototypeOf(w); return p.return.call({}) })() => err TypeError: Method %WrapForValidIteratorPrototype%.return called on incompatible receiver #<Object>
+(() => { const w = Iterator.from({next() {}}); const p = Object.getPrototypeOf(w); return p.next.call(undefined) })() => err TypeError: Method %WrapForValidIteratorPrototype%.next called on incompatible receiver undefined
+(() => { const w = Iterator.from({next() {}}); const p = Object.getPrototypeOf(w); return p.next.call([].values()) })() => err TypeError: Method %WrapForValidIteratorPrototype%.next called on incompatible receiver [object Array Iterator]
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call({}) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver #<Object>
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.return.call({}) })() => err TypeError: Method Iterator Helper.prototype.return called on incompatible receiver #<Object>
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(undefined) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver undefined
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call([].values()) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Array Iterator]
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call((function*(){})()) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Generator]
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(Iterator.from({next(){}})) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Object]
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(5) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver 5
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(p) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Iterator Helper]
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call('x') })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver x
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(function () {}) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver function () {}
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(new Map) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver #<Map>
+(() => { const h = [1].values().map(x => x); const p = Object.getPrototypeOf(h); return p.next.call(Iterator.prototype) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Object]
+(() => { const log = []; const mk = (n, extra) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); return {}; }, ...extra}); const h = mk(3).map(x => x * 2); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); return {}; }}); const h = mk(3).map(x => x * 2); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","{\"value\":0,\"done\":false}","return","{\"done\":true}","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); return 5; }}); const h = mk(3).map(x => x * 2); log.push(JSON.stringify(h.next())); try { h.return() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","{\"value\":0,\"done\":false}","return","return called on non-object","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); throw new Error('R'); }}); const h = mk(3).map(x => x * 2); try { h.return() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["return","R","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); return {}; }}); const h = mk(3).map(x => { throw new Error('cb') }); try { h.next() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","return","cb","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= n, value: this.i++}; }, return() { log.push('return'); throw new Error('R') }}); const h = mk(3).map(x => { throw new Error('cb') }); try { h.next() } catch (e) { log.push(e.message) } return log; })() => ok ["next","return","cb"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); throw new Error('N') }, return() { log.push('return'); return {}; }}); const h = mk(3).map(x => x); try { h.next() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","N","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: false, get value() { throw new Error('V') }}; }, return() { log.push('return'); return {}; }}); const h = mk(3).map(x => x); try { h.next() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","V","{\"done\":true}"]
+(() => { const log = []; const mk = (n) => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {get done() { throw new Error('D') }}; }, return() { log.push('return'); return {}; }}); const h = mk(3).map(x => x); try { h.next() } catch (e) { log.push(e.message) } return log; })() => ok ["next","D"]
+(() => { const log = []; let h; const it = {__proto__: Iterator.prototype, next() { log.push('next'); return h.next(); }, return() { log.push('return'); return {}; }}; h = it.map(x => x); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","TypeError:Generator is already running"]
+(() => { const log = []; let h; const it = {__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}; }, return() { log.push('return'); return {}; }}; h = it.map(x => { try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } try { h.return() } catch (e) { log.push(e.constructor.name + ':' + e.message) } return x }); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","TypeError:Generator is already running","TypeError:Generator is already running","{\"value\":1,\"done\":false}"]
+(() => { const log = []; let h; const it = {__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}; }, return() { log.push('return'); return {}; }}; h = it.map(x => { h.next(); return x }); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","return","TypeError:Generator is already running","{\"done\":true}"]
+(() => { const log = []; let h; const it = {__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}; }, return() { log.push('return'); return {}; }}; h = it.map(x => { h.return(); return x }); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","return","TypeError:Generator is already running","{\"done\":true}"]
+(() => { const log = []; let h; const it = {__proto__: Iterator.prototype, next() { log.push('next'); if (h) h.return(); return {done: false, value: 1}; }, return() { log.push('return'); return {}; }}; h = it.map(x => x); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","TypeError:Generator is already running","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}; }, return() { log.push('return'); return {}; }}); try { mk().take(NaN) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["return","RangeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, return() { log.push('return'); return {}; }}); try { mk().take(NaN) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["return","RangeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => ({}); }}); try { mk().take(-1) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["get return","RangeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => ({}); }}); try { mk().map(5) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["get return","TypeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => ({}); }}); try { mk().take({valueOf() { log.push('valueOf'); throw new Error('x') }}) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["valueOf","get return","Error"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => ({}); }}); try { mk().reduce(5) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["get return","TypeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => ({}); }}); try { mk().forEach(5) } catch (e) { log.push(e.constructor.name) } try { mk().some(5) } catch (e) { log.push(e.constructor.name) } try { mk().flatMap(5) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["get return","TypeError","get return","TypeError","get return","TypeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, get next() { log.push('get next'); return () => ({done: false, value: 1}) }, get return() { log.push('get return'); return () => { log.push('call return'); return {} }; }}); try { mk().drop(NaN) } catch (e) { log.push(e.constructor.name) } return log; })() => ok ["get return","call return","RangeError"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, return() { log.push('return'); return 1 }}); try { mk().take(NaN) } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["return","RangeError:NaN must be positive"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, return() { log.push('return'); throw new Error('R') }}); try { mk().take(NaN) } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["return","RangeError:NaN must be positive"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, return() { log.push('return'); throw new Error('R') }}); try { mk().map(1) } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["return","TypeError:number 1 is not a function"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}}, return() { log.push('return'); return {} }}); const h = mk().take(2); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","{\"value\":1,\"done\":false}","next","{\"value\":1,\"done\":false}","return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}}, return() { log.push('return'); return {} }}); const h = mk().take(0); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, next() { log.push('next'); return {done: false, value: 1}}, return() { log.push('return'); return 3 }}); const h = mk().take(0); try { h.next() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["return","return called on non-object","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().take(Infinity); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","{\"value\":0,\"done\":false}","next","{\"value\":1,\"done\":false}","next","{\"value\":2,\"done\":false}","next","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().drop(2); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","next","next","{\"value\":2,\"done\":false}","next","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().drop(5); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","next","next","next","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().drop(Infinity); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","next","next","next","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().drop(1); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().drop(1); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","next","{\"value\":1,\"done\":false}","return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().filter((x, i) => { log.push('pred ' + x + ',' + i); return x % 2 == 0 }); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","pred 0,0","{\"value\":0,\"done\":false}","next","pred 1,1","next","pred 2,2","{\"value\":2,\"done\":false}","next","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().map(function (x, i) { log.push('map ' + x + ',' + i + ',' + arguments.length + ',' + typeof this); return x }); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","map 0,0,2,object","{\"value\":0,\"done\":false}","next","map 1,1,2,object","{\"value\":1,\"done\":false}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => { log.push('fm ' + x + ',' + i); return [x, x] }); for (let k = 0; k < 7; k++) log.push(JSON.stringify(h.next())); return log; })() => ok ["next","fm 0,0","{\"value\":0,\"done\":false}","{\"value\":0,\"done\":false}","next","fm 1,1","{\"value\":1,\"done\":false}","{\"value\":1,\"done\":false}","next","fm 2,2","{\"value\":2,\"done\":false}","{\"value\":2,\"done\":false}","next","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => 'ab'); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","return","TypeError:Iterator.prototype.flatMap called on non-object","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => 5); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","return","TypeError:Iterator.prototype.flatMap called on non-object","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => new String('ab')); try { log.push(JSON.stringify(h.next())); } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","{\"value\":\"a\",\"done\":false}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({next() { log.push('inner next'); return {done: false, value: 'v'} }, return() { log.push('inner return'); return {} }})); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","inner next","{\"value\":\"v\",\"done\":false}","inner return","return","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({next() { log.push('inner next'); return {done: false, value: 'v'} }, return() { log.push('inner return'); throw new Error('IR') }})); log.push(JSON.stringify(h.next())); try { h.return() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","inner next","{\"value\":\"v\",\"done\":false}","inner return","return","IR","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); throw new Error('OR') }}); const h = mk().flatMap((x, i) => ({next() { log.push('inner next'); return {done: false, value: 'v'} }, return() { log.push('inner return'); throw new Error('IR') }})); log.push(JSON.stringify(h.next())); try { h.return() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","inner next","{\"value\":\"v\",\"done\":false}","inner return","return","IR","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); throw new Error('OR') }}); const h = mk().flatMap((x, i) => ({next() { log.push('inner next'); return {done: false, value: 'v'} }, return() { log.push('inner return'); return {} }})); log.push(JSON.stringify(h.next())); try { h.return() } catch (e) { log.push(e.message) } return log; })() => ok ["next","inner next","{\"value\":\"v\",\"done\":false}","inner return","return","OR"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({next() { log.push('inner next'); throw new Error('IN') }, return() { log.push('inner return'); return {} }})); try { h.next() } catch (e) { log.push(e.message) } log.push(JSON.stringify(h.next())); return log; })() => ok ["next","inner next","return","IN","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({[Symbol.iterator]() { log.push('open'); return {next() { log.push('inner next'); return {done: true} }} }})); log.push(JSON.stringify(h.next())); return log; })() => ok ["next","open","inner next","next","open","inner next","next","open","inner next","next","{\"done\":true}"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({[Symbol.iterator]: 5})); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","return","TypeError:'5' returned for property 'Symbol(Symbol.iterator)' of object '#<Object>' is not a function"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => ({[Symbol.iterator]() { return 5 }})); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","return","TypeError:#<Object> is not iterable"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); const h = mk().flatMap((x, i) => [x]); log.push(h.toArray().join()); return log; })() => ok ["next","next","next","next","0,1,2"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); log.push(mk().some(x => x == 1)); log.push(mk().every(x => x < 1)); log.push(mk().find(x => x == 2)); log.push(mk().find(x => x == 7)); log.push(mk().reduce((a, b) => a + b)); log.push(mk().reduce((a, b, i) => a + '/' + b + i, 'i')); return log; })() => ok ["next","next","return",true,"next","next","return",false,"next","next","next","return",2,"next","next","next","next",undefined,"next","next","next","next",3,"next","next","next","next","i/00/11/22"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return 1 }}); try { mk().some(x => true) } catch (e) { log.push(e.constructor.name + ':' + e.message) } try { mk().find(x => true) } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","return","TypeError:return called on non-object","next","return","TypeError:return called on non-object"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); throw new Error('R') }}); try { mk().some(x => { throw new Error('cb') }) } catch (e) { log.push(e.constructor.name + ':' + e.message) } try { mk().forEach(x => { throw new Error('cb') }) } catch (e) { log.push(e.constructor.name + ':' + e.message) } try { mk().reduce((a, b) => { throw new Error('cb') }) } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log; })() => ok ["next","return","Error:cb","next","return","Error:cb","next","next","return","Error:cb"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); try { mk().reduce((a, b) => a + b) } catch (e) { log.push(e.message) } return log.join() })() => ok "next,next,next,next"
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); mk().forEach(function (x, i) { log.push(x + ':' + i + ':' + arguments.length + ':' + typeof this) }); return log; })() => ok ["next","0:0:2:object","next","1:1:2:object","next","2:2:2:object","next"]
+(() => { const log = []; const mk = () => ({__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: this.i >= 3, value: this.i++}}, return() { log.push('return'); return {} }}); log.push(String(mk().forEach(x => 1))); return log; })() => ok ["next","next","next","next","undefined"]
+(() => { const log = []; const h = [1, 2, 3].values().map(x => x * 2); log.push(h.next().value); log.push(Object.getPrototypeOf(h) === Object.getPrototypeOf([].values().filter(x => x))); log.push(Object.getPrototypeOf(h) === Object.getPrototypeOf(Iterator.concat([]))); log.push(h[Symbol.iterator]() === h); log.push([...h].join()); return log; })() => ok [2,true,true,true,"4,6"]
+(() => { const log = []; const mk = (name, n) => ({[Symbol.iterator]() { log.push('open ' + name); let i = 0; return {next() { log.push('next ' + name); return {done: i >= n, value: name + i++}}, return() { log.push('return ' + name); return {} }} }}); const h = Iterator.concat(mk('a', 2), mk('b', 1)); log.push('created'); for (const v of h) log.push(v); return log; })() => ok ["created","open a","next a","a0","next a","a1","next a","open b","next b","b0","next b"]
+(() => { const log = []; const mk = (name, n) => ({[Symbol.iterator]() { log.push('open ' + name); let i = 0; return {next() { log.push('next ' + name); return {done: i >= n, value: name + i++}}, return() { log.push('return ' + name); return {} }} }}); const h = Iterator.concat(mk('a', 2), mk('b', 1)); log.push(JSON.stringify(h.next())); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["open a","next a","{\"value\":\"a0\",\"done\":false}","return a","{\"done\":true}","{\"done\":true}"]
+(() => { const log = []; const mk = (name, n) => ({[Symbol.iterator]() { log.push('open ' + name); let i = 0; return {next() { log.push('next ' + name); return {done: i >= n, value: name + i++}}, return() { log.push('return ' + name); return {} }} }}); const h = Iterator.concat(mk('a', 2), mk('b', 1)); log.push(JSON.stringify(h.return())); log.push(JSON.stringify(h.next())); return log; })() => ok ["{\"done\":true}","{\"done\":true}"]
+(() => Iterator.concat(1))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat('abc'))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat({}))() => err TypeError: #<Object> is not iterable
+(() => Iterator.concat({[Symbol.iterator]: 1}))() => err TypeError: '1' returned for property 'Symbol(Symbol.iterator)' of object '#<Object>' is not a function
+(() => Iterator.concat({[Symbol.iterator]: null}))() => err TypeError: #<Object> is not iterable
+(() => Iterator.concat([], undefined))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat([1], [2], new Set([3])).toArray())() => ok [1,2,3]
+(() => Iterator.concat().toArray())() => ok []
+(() => { const h = Iterator.concat({[Symbol.iterator]() { return 5 }}); return h.next() })() => err TypeError: 5 is not iterable
+(() => { const h = Iterator.concat({[Symbol.iterator]() { return {} }}); return h.next() })() => err TypeError: undefined is not a function
+(() => { const h = Iterator.concat({[Symbol.iterator]() { return {next: 5} }}); return h.next() })() => err TypeError: number 5 is not a function
+(() => { const log = []; const o = {[Symbol.iterator]() { log.push('open'); return {next() { return {done: true}}} }}; const h = Iterator.concat(o, o); h.next(); h.next(); h.next(); return log })() => ok ["open","open"]
+(() => { const log = []; let h; const o = {[Symbol.iterator]() { log.push('open'); return {next() { h.next(); return {done: true}}} }}; h = Iterator.concat(o); try { h.next() } catch (e) { log.push(e.constructor.name + ':' + e.message) }; return log })() => ok ["open","TypeError:Generator is already running"]
+(() => { const log = []; const it = {next() { log.push('next'); return {done: false, value: 1}}, return() { log.push('return'); return {} }}; const h = Iterator.concat({[Symbol.iterator]() { return it }}); h.next(); h.return(); h.return(); h.next(); return log })() => ok ["next","return"]
+(() => { const log = []; const it = {next() { log.push('next'); return {done: false, value: 1}}, return() { log.push('return'); return 5 }}; const h = Iterator.concat({[Symbol.iterator]() { return it }}); h.next(); try { h.return() } catch (e) { log.push(e.constructor.name + ':' + e.message) } return log })() => ok ["next","return","TypeError:return called on non-object"]
+(() => { const log = []; const it = {next() { log.push('next'); return {done: false, value: 1}}, get return() { log.push('get return'); return undefined }}; const h = Iterator.concat({[Symbol.iterator]() { return it }}); h.next(); h.return(); return log })() => ok ["next","get return"]
+(() => { Iterator.prototype.constructor = 1 })() => err TypeError: Cannot assign to read only property 'constructor' of object '[object Object]'
+(() => { Iterator.prototype[Symbol.toStringTag] = 'x' })() => err TypeError: Cannot assign to read only property 'Symbol(Symbol.toStringTag)' of object '[object Object]'
+(() => { 'use strict'; Iterator.prototype.constructor = 1 })() => err TypeError: Cannot assign to read only property 'constructor' of object '[object Object]'
+(() => { const o = Object.create(Iterator.prototype); o.constructor = 5; return JSON.stringify(Object.getOwnPropertyDescriptor(o, 'constructor')) })() => ok "{\"value\":5,\"writable\":true,\"enumerable\":true,\"configurable\":true}"
+(() => { 'use strict'; const o = Object.create(Iterator.prototype); o.constructor = 5; return JSON.stringify(Object.getOwnPropertyDescriptor(o, 'constructor')) })() => ok "{\"value\":5,\"writable\":true,\"enumerable\":true,\"configurable\":true}"
+(() => { 'use strict'; const o = Object.create(Iterator.prototype); o[Symbol.toStringTag] = 'T'; return [JSON.stringify(Object.getOwnPropertyDescriptor(o, Symbol.toStringTag)), Object.prototype.toString.call(o)].join() })() => ok "{\"value\":\"T\",\"writable\":true,\"enumerable\":true,\"configurable\":true},[object T]"
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(1, 2) })() => err TypeError: set Iterator.prototype.constructor called on non-object
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(undefined, 2) })() => err TypeError: set Iterator.prototype.constructor called on non-object
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call('s', 2) })() => err TypeError: set Iterator.prototype.constructor called on non-object
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag).set.call(1, 2) })() => err TypeError: set Iterator.prototype[Symbol.toStringTag] called on non-object
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(Iterator.prototype, 2) })() => err TypeError: Cannot assign to read only property 'constructor' of object '[object Object]'
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag).set.call(Iterator.prototype, 2) })() => err TypeError: Cannot assign to read only property 'Symbol(Symbol.toStringTag)' of object '[object Object]'
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').get.call(1) === Iterator })() => ok true
+(() => { return Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag).get.call(undefined) })() => ok "Iterator"
+(() => { const o = Object.freeze({}); return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(o, 2) })() => err TypeError: Cannot define property constructor, object is not extensible
+(() => { const o = Object.preventExtensions({}); return Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(o, 2) })() => err TypeError: Cannot define property constructor, object is not extensible
+(() => { const o = Object.preventExtensions({}); return Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag).set.call(o, 2) })() => err TypeError: Cannot define property Symbol(Symbol.toStringTag), object is not extensible
+(() => { const o = {}; Object.defineProperty(o, 'constructor', {value: 1, writable: true, configurable: true, enumerable: false}); Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(o, 2); return JSON.stringify(Object.getOwnPropertyDescriptor(o, 'constructor')) })() => ok "{\"value\":2,\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+(() => { const o = {}; Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(o, 2); return JSON.stringify(Object.getOwnPropertyDescriptor(o, 'constructor')) })() => ok "{\"value\":2,\"writable\":true,\"enumerable\":true,\"configurable\":true}"
+(() => { const o = function () {}; Object.getOwnPropertyDescriptor(Iterator.prototype, 'constructor').set.call(o, 2); return o.constructor })() => ok 2
+(() => { class A extends Iterator {} ; return A.prototype.constructor === A })() => ok true
+(() => { class A extends Iterator { constructor() { super(); return 1 } } ; return typeof new A() })() => err TypeError: Derived constructors may only return object or undefined
+(() => { class A extends Iterator { } ; return Iterator.from(new A()) instanceof A })() => ok true
+(() => { const it = Iterator.from([1, 2]); return [it.next().value, it.toArray().join()].join() })() => ok "1,2"
+(() => { return new Map([[1, 2], [3, 4]]).entries().map(([k, v]) => k + v).toArray() })() => ok [3,7]
+(() => { return new Set([1, 2, 3]).values().filter(x => x > 1).take(1).toArray() })() => ok [2]
+(() => { return [1, 2, 3].values().drop(1).toArray() })() => ok [2,3]
+(() => { return 'abc'[Symbol.iterator]().map(x => x + x).toArray() })() => ok ["aa","bb","cc"]
+(() => { return (function* () { yield 1; yield 2; yield 3 })().map(x => x * 2).toArray() })() => ok [2,4,6]
+(() => { return (function* () { yield 1; yield 2; yield 3 })().flatMap(x => [x, x]).toArray() })() => ok [1,1,2,2,3,3]
+(() => { return [1, 2, 3].values().reduce((a, b) => a + b) })() => ok 6
+(() => { return [].values().reduce((a, b) => a + b, 0) })() => ok 0
+(() => { return [1, 2, 3].values().some(x => x == 2) })() => ok true
+(() => { return [1, 2, 3].values().every(x => x < 2) })() => ok false
+(() => { return [1, 2, 3].values().find(x => x > 1) })() => ok 2
+(() => { const it = [1, 2, 3].values(); it.take(1).toArray(); return it.next() })() => ok {value:2,done:false}
+(() => { const it = [1, 2, 3].values(); const h = it.take(1); h.next(); return [it.next(), h.next(), it.next()] })() => ok [{value:2,done:false},{value:undefined,done:true},{value:3,done:false}]
+(() => { const it = [1, 2, 3].values(); it.find(x => x == 1); return it.next() })() => ok {value:2,done:false}
+(() => { const it = [1, 2, 3].values(); it.some(x => x == 1); return it.next() })() => ok {value:2,done:false}
+(() => { const it = [1, 2, 3].values(); it.map(x => x).return(); return it.next() })() => ok {value:1,done:false}
+(() => { const it = [1, 2, 3].values(); const h = it.map(x => x); h.next(); h.return(); return it.next() })() => ok {value:2,done:false}
+(() => { return [1, 2, 3].values().take(Infinity).toArray() })() => ok [1,2,3]
+(() => { return [1, 2, 3].values().take(2 ** 40).toArray() })() => ok [1,2,3]
+(() => { return [1, 2, 3].values().drop(2 ** 40).toArray() })() => ok []
+(() => { return [1, 2, 3].values().drop(Infinity).toArray() })() => ok []
+(() => { return [1, 2, 3].values().take(1.9).toArray() })() => ok [1]
+(() => { return [1, 2, 3].values().take('2').toArray() })() => ok [1,2]
+(() => { return [1, 2, 3].values().take(true).toArray() })() => ok [1]
+(() => { return [1, 2, 3].values().take(null).toArray() })() => ok []
+(() => { return [1, 2, 3].values().drop(null).toArray() })() => ok [1,2,3]
+(() => { return [1, 2, 3].values().drop(-0.9).toArray() })() => ok [1,2,3]
+(() => { return [1, 2, 3].values().drop(1.9).toArray() })() => ok [2,3]
+(() => { return [1, 2, 3].values().drop({valueOf() { return 1 }}).toArray() })() => ok [2,3]
+(() => { return Iterator.prototype.take.call([1, 2, 3].values(), undefined) })() => err RangeError: undefined must be positive
+(() => { return Iterator.prototype.take.call([1, 2, 3].values()) })() => err RangeError: undefined must be positive
+(() => { return Iterator.zip })() => ok undefined
+(() => { return typeof Iterator.zipKeyed + typeof Iterator.range + typeof Iterator.prototype.chunks + typeof Iterator.prototype.windows + typeof Iterator.prototype.includes + typeof Iterator.prototype.join })() => ok "undefinedundefinedundefinedundefinedundefinedundefined"
+(() => { return Object.prototype.toString.call(Iterator.from({next() {}})) })() => ok "[object Iterator]"
+(() => { return Object.prototype.toString.call(Object.create(Iterator.prototype)) })() => ok "[object Iterator]"
+(() => { return Object.prototype.toString.call(Iterator.prototype) })() => ok "[object Iterator]"
+(() => { return Object.prototype.toString.call(Iterator) })() => ok "[object Function]"
+(() => { return String(Iterator) })() => ok "function Iterator() { [native code] }"
+(() => { return Iterator.from.toString() })() => ok "function from() { [native code] }"
+(() => { return [].values().map.name + ':' + [].values().map })() => ok "map:function map() { [native code] }"
+(() => { return Iterator.prototype.toArray.call({next() { return {done: true} }, __proto__: null}) })() => ok []
+(() => { return Iterator.prototype.toArray.call(function () {}) })() => err TypeError: undefined is not a function
+(() => { const f = function () {}; f.next = () => ({done: true}); return Iterator.prototype.toArray.call(f) })() => ok []
+(() => { return JSON.stringify([...[1, 2, 3].values().map(x => x).constructor.name]) })() => ok "[\"I\",\"t\",\"e\",\"r\",\"a\",\"t\",\"o\",\"r\"]"
+(() => { return [1, 2].values().map(x => x).constructor === Iterator })() => ok true
+(() => { return Iterator.prototype.map.call({next() {return {done: true}}}, function () {}).next.call({}) })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver #<Object>
+(() => { const h = Iterator.prototype.map.call({next() { return {done: false, value: 1} }, return: 5}, x => x); h.next(); return h.return() })() => err TypeError: number 5 is not a function
+(() => { const h = Iterator.prototype.map.call({next() { return {done: false, value: 1} }, return: 5}, x => x); return h.return() })() => err TypeError: number 5 is not a function
+(() => Iterator.prototype.some.call({next() { return {done: false, value: 1} }, return: 5}, x => true))() => err TypeError: number 5 is not a function
+(() => Iterator.prototype.some.call({next() { return {done: false, value: 1} }, return: null}, x => true))() => ok true
+(() => Iterator.prototype.take.call({next() { return {done: false, value: 1} }, return: 5}, 0).next())() => err TypeError: number 5 is not a function
+(() => Iterator.prototype.map.call({next() { return {done: false, value: 1} }, return: 5}, 1))() => err TypeError: number 1 is not a function
+(() => Iterator.prototype.take.call({}, {valueOf() { return NaN }}))() => err RangeError: #<Object> must be positive
+(() => Iterator.prototype.take.call({}, {}))() => err RangeError: #<Object> must be positive
+(() => Iterator.prototype.take.call({}, 'abc'))() => err RangeError: abc must be positive
+(() => Iterator.prototype.take.call({}, []).next)() => ok function next
+(() => Iterator.prototype.take.call({}, [5]).next)() => ok function next
+(() => Iterator.prototype.take.call({}, -5.5))() => err RangeError: -5.5 must be positive
+(() => Iterator.prototype.take.call({}, -1e100))() => err RangeError: -1e+100 must be positive
+(() => Iterator.prototype.drop.call({}, -0.1).next)() => ok function next
+(() => Iterator.prototype.drop.call({}, null).next)() => ok function next
+(() => Iterator.prototype.drop.call({}, ''))() => ok {}
+(() => Iterator.prototype.drop.call({}, ' '))() => ok {}
+(() => Iterator.prototype.drop.call({}, 'x'))() => err RangeError: x must be positive
+(() => Iterator.prototype.drop.call({}, false).next)() => ok function next
+(() => Iterator.prototype.drop.call({}, [NaN]))() => err RangeError: [object Array] must be positive
+(() => Iterator.prototype.drop.call({}, Infinity).next)() => ok function next
+(() => Iterator.prototype.drop.call({}, -1.5))() => err RangeError: -1.5 must be positive
+(() => Iterator.concat({[Symbol.iterator]() { return null }}).next())() => err TypeError: null is not iterable
+(() => Iterator.concat({[Symbol.iterator]() { return 'abc' }}).next())() => err TypeError: abc is not iterable
+(() => Iterator.concat({[Symbol.iterator]() { return undefined }}).next())() => err TypeError: undefined is not iterable
+(() => Iterator.concat({[Symbol.iterator]() { return function () {} }}).next())() => err TypeError: undefined is not a function
+(() => Iterator.concat([1], {}))() => err TypeError: #<Object> is not iterable
+(() => Iterator.concat(null))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat(undefined))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat(Symbol()))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat([1], 5))() => err TypeError: Iterator.concat called on non-object
+(() => Iterator.concat(function () {}))() => err TypeError: function () {} is not iterable
+(() => Iterator.concat(new String('x')).toArray())() => ok ["x"]
+(() => Iterator.concat([1, 2], 'ab'))() => err TypeError: Iterator.concat called on non-object
+(() => { const f = () => {}; f.next = () => ({done: true}); f[Symbol.iterator] = () => f; return Iterator.concat(f).toArray() })() => ok []
+(() => [1, 2, 3].values().flatMap(x => { const f = () => {}; let i = 0; f.next = () => ({done: i++ > 1, value: x}); return f }).toArray())() => ok [1,1,2,2,3,3]
+(() => [1, 2].values().flatMap(x => new Set([x, x * 10])).toArray())() => ok [1,10,2,20]
+(() => [1, 2].values().flatMap(x => new Map([[x, x]]).keys()).toArray())() => ok [1,2]
+(() => [1, 2].values().flatMap(x => ({[Symbol.iterator]: null, next() { return {done: true} }})).toArray())() => ok []
+(() => [1, 2].values().flatMap(x => ({[Symbol.iterator]: undefined, next() { return {done: true} }})).toArray())() => ok []
+(() => [1, 2].values().flatMap(x => ({[Symbol.iterator]: 0})).toArray())() => err TypeError: '0' returned for property 'Symbol(Symbol.iterator)' of object '#<Object>' is not a function
+(() => [1, 2].values().flatMap(x => undefined).toArray())() => err TypeError: Iterator.prototype.flatMap called on non-object
+(() => [1, 2].values().flatMap(x => null).toArray())() => err TypeError: Iterator.prototype.flatMap called on non-object
+(() => [1, 2].values().flatMap(x => Symbol()).toArray())() => err TypeError: Iterator.prototype.flatMap called on non-object
+(() => [1, 2].values().flatMap(x => true).toArray())() => err TypeError: Iterator.prototype.flatMap called on non-object
+(() => [1, 2].values().flatMap(function (x) { 'use strict'; return [typeof this] }).toArray())() => ok ["undefined","undefined"]
+(() => [1, 2].values().map(function (x) { 'use strict'; return typeof this }).toArray())() => ok ["undefined","undefined"]
+(() => [1, 2].values().map(function (x) { return typeof this }).toArray())() => ok ["object","object"]
+(() => [1, 2, 3].values().filter(function () { 'use strict'; return this === undefined }).toArray())() => ok [1,2,3]
+(() => [1, 2, 3].values().reduce(function () { 'use strict'; return this === undefined ? arguments.length : -1 }, 0))() => ok 3
+(() => { let n; [1].values().some(function () { 'use strict'; n = arguments.length; return true }); return n })() => ok 2
+(() => { let n; [1].values().every(function () { 'use strict'; n = arguments.length; return true }); return n })() => ok 2
+(() => { let n; [1].values().find(function () { 'use strict'; n = arguments.length; return true }); return n })() => ok 2
+(() => { let n; [1].values().forEach(function () { 'use strict'; n = arguments.length }); return n })() => ok 2
+(() => [[1, 2], [3, 4]].values().map(([a, b]) => a + b).toArray())() => ok [3,7]
+(() => Array.from([1, 2, 3].values().map(x => x * 2)))() => ok [2,4,6]
+(() => [...[1, 2, 3].values().map(x => x * 2)])() => ok [2,4,6]
+(() => { const r = []; for (const x of [1, 2, 3].values().map(x => x * 2)) r.push(x); return r })() => ok [2,4,6]
+(() => { const [a, b] = [1, 2, 3].values().map(x => x * 2); return [a, b] })() => ok [2,4]
+(() => { const r = []; for (const x of [1, 2, 3].values().map(x => x * 2)) { r.push(x); break } return r })() => ok [2]
+(() => { const log = []; const it = {__proto__: Iterator.prototype, i: 0, next() { return {done: false, value: this.i++} }, return() { log.push('ret'); return {} }}; for (const x of it.map(x => x)) { if (x > 1) break } return log })() => ok ["ret"]
+(() => { const log = []; const it = {__proto__: Iterator.prototype, i: 0, next() { return {done: false, value: this.i++} }, return() { log.push('ret'); return {} }}; const [a] = it.map(x => x); return log })() => ok ["ret"]
+(() => new Map([[1, 'a'], [2, 'b']]).entries().map(([k, v]) => v + k).toArray())() => ok ["a1","b2"]
+(() => new Map([[1, 'a'], [2, 'b']]).keys().filter(k => k > 1).toArray())() => ok [2]
+(() => new Set([1, 2, 3]).entries().map(([a, b]) => a + b).toArray())() => ok [2,4,6]
+(() => 'abc'[Symbol.iterator]().drop(1).toArray())() => ok ["b","c"]
+(() => [1, 2, 3].keys().map(x => x * 2).toArray())() => ok [0,2,4]
+(() => [1, 2, 3].entries().filter(([i, x]) => i > 0).toArray())() => ok [[1,2],[2,3]]
+(() => { const a = [1, 2, 3]; const h = a.values().map(x => x); h.next(); a.push(4); return h.toArray() })() => ok [2,3,4]
+(() => { const a = [1, 2, 3]; const h = a.values().map(x => x); h.next(); a.length = 0; return h.toArray() })() => ok []
+(() => { const a = [1, 2, 3]; const h = a.values().filter(x => { if (a.length < 20) a.push(x + 10); return x < 3 }); return h.toArray() })() => ok [1,2]
+(() => { const a = [1, 2, 3, 4, 5]; return a.values().take(3).toArray() })() => ok [1,2,3]
+(() => { const a = [1, 2, 3, 4, 5]; const t = a.values().take(3); return [t.next().value, t.next().value, t.next().value, t.next().done, a.values().next().value] })() => ok [1,2,3,true,1]
+(() => { const it = [1, 2, 3, 4, 5].values(); const t = it.take(2); t.toArray(); return it.next() })() => ok {value:3,done:false}
+(() => { const it = [1, 2, 3, 4, 5].values(); const t = it.drop(2); return [t.next(), it.next()] })() => ok [{value:3,done:false},{value:4,done:false}]
+(() => { const o = {next() { return {done: 1, value: 5} }}; return Iterator.prototype.toArray.call(o) })() => ok []
+(() => { const o = {next() { return {done: 'x', value: 5} }}; return Iterator.prototype.toArray.call(o) })() => ok []
+(() => { let i = 0; const o = {next() { return {value: i, done: ++i > 3} }}; return Iterator.prototype.toArray.call(o) })() => ok [0,1,2]
+(() => { let i = 0; const o = {next() { return {value: i, done: ++i > 3} }}; return Iterator.prototype.reduce.call(o, (a, b) => a + b) })() => ok 3
+(() => { let i = 0; const o = {next() { return i++ < 2 ? {value: i} : {done: true} }}; return Iterator.prototype.toArray.call(o) })() => ok [1,2]
+(() => { const log = []; const o = {get next() { log.push('get next'); return () => ({done: true}) }}; Iterator.prototype.toArray.call(o); Iterator.prototype.toArray.call(o); return log })() => ok ["get next","get next"]
+(() => { const log = []; const o = {get next() { log.push('get next'); return () => ({done: true}) }}; const h = Iterator.prototype.map.call(o, x => x); log.push('made'); h.next(); h.next(); return log })() => ok ["get next","made"]
+(() => { const log = []; const o = {get next() { log.push('get next'); return () => ({done: true}) }}; const h = Iterator.prototype.take.call(o, 1); log.push('made'); h.next(); h.next(); return log })() => ok ["get next","made"]
+(() => { const log = []; const o = {get next() { log.push('get next'); return () => ({done: true}) }}; const h = Iterator.from(o); log.push('made'); h.next(); h.next(); return log })() => ok ["get next","made"]
+(() => { const log = []; const o = {get [Symbol.iterator]() { log.push('get @@iterator'); return undefined }, get next() { log.push('get next'); return () => ({done: true}) }}; const h = Iterator.from(o); log.push('made'); h.next(); return log })() => ok ["get @@iterator","get next","made"]
+(() => { class A extends Iterator { next() { return {done: true} } } ; return new A().toArray() })() => ok []
+(() => { class A extends Iterator { i = 0; next() { return {done: this.i > 2, value: this.i++} } } ; return new A().map(x => x * 2).toArray() })() => ok [0,2,4]
+(() => { class A extends Iterator { i = 0; next() { return {done: this.i > 2, value: this.i++} } } ; const a = new A(); return Iterator.from(a) === a })() => ok true
+(() => { class A extends Iterator { } ; return Object.prototype.toString.call(new A()) })() => ok "[object Iterator]"
+(() => { class A extends Iterator { get [Symbol.toStringTag]() { return 'AAA' } } ; return Object.prototype.toString.call(new A()) })() => ok "[object AAA]"
+(() => Object.prototype.toString.call(Iterator.concat([])))() => ok "[object Iterator Helper]"
+(() => Object.prototype.toString.call([].values().map(x => x)))() => ok "[object Iterator Helper]"
+(() => String(Object.getOwnPropertyDescriptor(Iterator.prototype, Symbol.toStringTag).get.call()))() => ok "Iterator"
+(() => typeof globalThis.Iterator)() => ok "function"
+(() => JSON.stringify(Object.getOwnPropertyDescriptor(globalThis, 'Iterator')))() => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+(() => Iterator.prototype.hasOwnProperty('map'))() => ok true
+(() => Object.getPrototypeOf(Iterator) === Function.prototype)() => ok true
+(() => Object.getPrototypeOf(Iterator.prototype) === Object.prototype)() => ok true
+(() => Object.getPrototypeOf(Object.getPrototypeOf([].values())) === Iterator.prototype)() => ok true
+(() => Object.getPrototypeOf(Object.getPrototypeOf((function* () {})())) === Object.getPrototypeOf(Object.getPrototypeOf([].values())))() => ok false
+(() => (function* () {})() instanceof Iterator)() => ok true
+(() => new Map().entries() instanceof Iterator)() => ok true
+(() => Iterator.prototype.isPrototypeOf(new Set().values()))() => ok true
+(() => Iterator.prototype.isPrototypeOf('a'[Symbol.iterator]()))() => ok true
+(() => { const it = (function* () { yield 1; yield 2 })(); const h = it.map(x => x); h.next(); h.return(); return it.next() })() => ok {value:undefined,done:true}
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); const h = it.map(x => x); h.next(); h.return(); log.push(JSON.stringify(it.next())); return log })() => ok ["fin","{\"done\":true}"]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); for (const x of it.take(1)) { } return log })() => ok ["fin"]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); it.take(1).toArray(); return log })() => ok ["fin"]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); it.take(5).toArray(); return log })() => ok ["fin"]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); it.find(x => x == 1); return log })() => ok ["fin"]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); try { it.map(x => { throw 1 }).next() } catch (e) { log.push('caught ' + e) } return log })() => ok ["fin","caught 1"]
+(() => { const it = (function* () { yield 1; yield 2; yield 3 })(); const h = it.map(x => x * 2); return [h.next().value, h.next().value, h.next().value, h.next().done] })() => ok [2,4,6,true]
+(() => { function* g() { const x = yield 1; return x } const it = g(); const h = it.map(v => v); return [h.next(5), h.next(6)] })() => ok [{value:1,done:false},{value:undefined,done:true}]
+(() => { let r; const it = (function* () { r = yield 1; yield 2 })(); const h = it.map(v => v); h.next('ignored'); h.next('ignored2'); return r })() => ok undefined
+(() => { const log = []; const src = [1, 2, 3, 4, 5, 6].values(); const r = src.map(x => { log.push('m' + x); return x * 2 }).filter(x => { log.push('f' + x); return x % 4 == 0 }).take(2).toArray(); return [r, log] })() => ok [[4,8],["m1","f2","m2","f4","m3","f6","m4","f8"]]
+(() => { const log = []; const src = {__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: false, value: this.i++} }, return() { log.push('return'); return {} }}; const h = src.map(x => x).filter(x => true).take(2); h.toArray(); return log })() => ok ["next","next","return"]
+(() => { const log = []; const src = {__proto__: Iterator.prototype, i: 0, next() { log.push('next'); return {done: false, value: this.i++} }, return() { log.push('return'); return {} }}; const h = src.map(x => x).filter(x => true).drop(1); h.next(); h.return(); return log })() => ok ["next","next","return"]
+(() => { const log = []; const src = {__proto__: Iterator.prototype, i: 0, next() { log.push('next ' + arguments.length); return {done: false, value: this.i++} }, return() { log.push('return ' + arguments.length); return {} }}; const h = src.map(x => x); h.next(1, 2); h.return(3); return log })() => ok ["next 0","return 0"]
+(() => { const log = []; const src = {next() { log.push('next ' + arguments.length); return {done: false, value: 1} }, return() { log.push('return ' + arguments.length); return {} }}; const h = Iterator.from(src); h.next(1, 2); h.return(3); return log })() => ok ["next 0","return 0"]
+(() => { const log = []; const src = {next() { log.push('next ' + (this === src)); return {done: false, value: 1} }, return() { log.push('return ' + (this === src)); return {} }}; const h = Iterator.from(src); h.next(); h.return(); return log })() => ok ["next true","return true"]
+(() => { const log = []; const src = {next() { log.push('next'); return {done: false, value: 1} }, return() { log.push('return'); return {} }}; const h = Iterator.from(src); h.next(); h.next(); return [h.return(), log] })() => ok [{},["next","next","return"]]
+(() => { const it = [1, 2, 3].values(); const h = Iterator.from(it); return [h === it, h.next().value] })() => ok [true,1]
+(() => { const log = []; const mk = n => ({[Symbol.iterator]() { let i = 0; return {next() { return {done: i >= n, value: i++} }, return() { log.push('ret'); return {} }} }}); return [Iterator.concat(mk(2), mk(0), mk(3)).toArray(), log] })() => ok [[0,1,0,1,2],[]]
+(() => { const a = [1, 2]; return Iterator.concat(a, a).toArray() })() => ok [1,2,1,2]
+(() => { const r = []; for (const x of Iterator.concat([1, 2], new Set([3]), (function* () { yield 4; yield 5 })())) r.push(x); return r })() => ok [1,2,3,4,5]
+(() => { const h = Iterator.concat([1], [2]); return [h.next(), h.next(), h.next(), h.next()] })() => ok [{value:1,done:false},{value:2,done:false},{value:undefined,done:true},{value:undefined,done:true}]
+(() => { const log = []; const it = (function* () { try { yield 1; yield 2 } finally { log.push('fin') } })(); const h = Iterator.concat(it, [9]); h.next(); h.return(); return [log, h.next()] })() => ok [["fin"],{value:undefined,done:true}]
+(() => { const log = []; const mk = () => ({[Symbol.iterator]() { return {next() { return {done: false, value: 1} }, return() { log.push('ret'); return {} }} }}); const h = Iterator.concat(mk()).take(2); return [h.toArray(), log] })() => ok [[1,1],["ret"]]
+(() => [1, 2, 3].values().flatMap(x => [x, x + 10].values().flatMap(y => [y, -y])).toArray())() => ok [1,-1,11,-11,2,-2,12,-12,3,-3,13,-13]
+(() => { const log = []; const h = [1, 2].values().flatMap(x => { log.push('map' + x); return [x] }); h.next(); h.return(); return log })() => ok ["map1"]
+(() => Array.from({length: 1000}, (_, i) => i).values().map(x => x + 1).filter(x => x % 2).drop(10).take(200).reduce((a, b) => a + b, 0))() => ok 44000
+(() => Array.from({length: 1000}, (_, i) => i).values().toArray().length)() => ok 1000
+(() => { const a = Array.from({length: 100}, (_, i) => i); const it = a.values(); it.next(); return it.toArray().length })() => ok 99
+(() => { const a = [1, , 3]; return a.values().toArray() })() => ok [1,undefined,3]
+(() => { const a = [1, 2, 3]; a.x = 1; return a.keys().toArray() })() => ok [0,1,2]
+(() => { const a = [1, 2, 3]; return a.entries().toArray() })() => ok [[0,1],[1,2],[2,3]]
+(() => { const a = [1, 2, 3]; const it = a.values(); it.next(); it.next(); it.next(); it.next(); return it.toArray() })() => ok []
+(() => { const a = [1, 2, 3]; const it = a.values(); const t = it.toArray(); return [t, it.next()] })() => ok [[1,2,3],{value:undefined,done:true}]
+(() => { const a = {length: 3, 0: 'a', 1: 'b', 2: 'c'}; return Array.prototype.values.call(a).toArray() })() => ok ["a","b","c"]
+(() => { const a = [1, 2, 3]; Object.defineProperty(a, 1, {get() { return 'g' }}); return a.values().toArray() })() => ok [1,"g",3]
+(() => { const a = [1, 2, 3]; const out = []; a.values().forEach(x => { out.push(x); if (x == 1) a.push(4) }); return out })() => ok [1,2,3,4]
+(() => { let it = [1, 2, 3].values(); const h = it.map(x => x); const g = it.map(x => x); return [h.next().value, g.next().value, h.next().value] })() => ok [1,2,3]
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: n++} }}; const [a, ...rest] = o.map(x => x * x); return [a, rest] })() => ok [0,[1,4,9,16]]
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: n++} }}; return Math.max(...o.filter(x => x % 2)) })() => ok 3
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: n++} }}; return new Set(o.map(x => x % 2)).size })() => ok 2
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: n++} }}; return Object.fromEntries(o.map(x => ['k' + x, x])) })() => ok {k0:0,k1:1,k2:2,k3:3,k4:4}
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: [n, n++]} }}; return new Map(o).size })() => ok 5
+(() => { let n = 0; const o = {__proto__: Iterator.prototype, next() { return {done: n >= 5, value: n++} }}; return Array.from(o.map(x => x * 2), x => x + 1) })() => ok [1,3,5,7,9]
+(() => { const h = [1, 2, 3].values().map(x => x); return [Object.keys(h), Object.getOwnPropertyNames(h), JSON.stringify(h), typeof h.next, h.hasOwnProperty('next')] })() => ok [[],[],"{}","function",false]
+(() => { const h = [1, 2, 3].values().map(x => x); h.extra = 1; h.next = 5; return [h.extra, typeof h.next] })() => ok [1,"number"]
+(() => { const h = [1, 2, 3].values().map(x => x); return Object.isExtensible(h) && Object.isFrozen(Object.freeze(h)) })() => ok true
+(() => { const p = Object.getPrototypeOf([].values().map(x => x)); const h = Object.create(p); return h.next() })() => err TypeError: Method Iterator Helper.prototype.next called on incompatible receiver [object Iterator Helper]
+(() => { const p = Object.getPrototypeOf([].values().map(x => x)); const h = Object.create(p); return h.return() })() => err TypeError: Method Iterator Helper.prototype.return called on incompatible receiver [object Iterator Helper]
+(() => { const p = Object.getPrototypeOf(Iterator.from({next() {}})); const h = Object.create(p); return h.next() })() => err TypeError: Method %WrapForValidIteratorPrototype%.next called on incompatible receiver [object Object]
+(() => { const h = [1, 2, 3].values().map(x => x); const n = h.next; return n.call(h).value })() => ok 1
+(() => { const h = [1, 2, 3].values().map(x => x); const g = [4, 5].values().map(x => x); return h.next.call(g).value })() => ok 4
+(() => { const h = [1, 2, 3].values().map(x => x); return [h.next === [].values().filter(x => x).next, h.return === Iterator.concat().return] })() => ok [true,true]
+(() => { const a = [1, 2, 3].values().map(x => x); const b = Object.setPrototypeOf({}, Object.getPrototypeOf(a)); return typeof b.next })() => ok "function"
+(() => { const log = []; const h = [1, 2, 3].values().map(x => { log.push(x); return x }); h.next(); h.next(); h.return(); h.next(); return log })() => ok [1,2]
+(() => { const log = []; const h = [1, 2, 3].values().map(x => { log.push(x); if (x == 2) throw 'boom'; return x }); h.next(); try { h.next() } catch (e) { log.push(e) } log.push(h.next().done); return log })() => ok [1,2,"boom",true]
+(() => { const log = []; const h = [1, 2, 3].values().filter(x => { log.push(x); if (x == 2) throw 'boom'; return true }); try { h.toArray() } catch (e) { log.push(e) } return log })() => ok [1,2,"boom"]
+(() => { const h = [1, 2, 3].values().filter(x => { throw 'boom' }); try { h.next() } catch (e) { return [e, h.next()] } })() => ok ["boom",{value:undefined,done:true}]
+(() => { const h = [1, 2, 3].values().take(2); return [h.next().value, h.next().value, h.next().done, h.next().done] })() => ok [1,2,true,true]
+(() => { const h = [1, 2, 3].values().drop(2); return [h.next().value, h.next().done] })() => ok [3,true]
+(() => { const h = [1, 2, 3].values().drop(0); return h.toArray() })() => ok [1,2,3]
+(() => { const h = [1, 2, 3].values().take(0); return h.toArray() })() => ok []
+(() => { const h = [1, 2, 3].values().take(-0); return h.toArray() })() => ok []
+(() => { const h = [1, 2, 3].values().drop(-0); return h.toArray() })() => ok [1,2,3]
+(() => { const h = [1, 2, 3].values().take(0.5); return h.toArray() })() => ok []
+(() => { const h = [1, 2, 3].values().take(Number.MAX_SAFE_INTEGER); return h.toArray() })() => ok [1,2,3]
+(() => { const h = [1, 2, 3].values().drop(Number.MAX_SAFE_INTEGER); return h.toArray() })() => ok []
+(() => [1, 2, 3].values().flatMap(x => []).toArray())() => ok []
+(() => [1, 2, 3].values().flatMap(x => [[x]]).toArray())() => ok [[1],[2],[3]]
+(() => [1, 2, 3].values().flatMap((x, i) => [i]).toArray())() => ok [0,1,2]
+(() => [1, 2, 3].values().flatMap(x => new String('ab')).toArray())() => ok ["a","b","a","b","a","b"]
+(() => [1, 2, 3].values().filter((x, i) => i != 1).toArray())() => ok [1,3]
+(() => [1, 2, 3].values().map((x, i) => i).toArray())() => ok [0,1,2]
+(() => [5, 6, 7].values().forEach((x, i) => { if (i == 1) throw 'stop' }))() => err String: undefined
+(() => [5, 6, 7].values().some((x, i) => i == 1))() => ok true
+(() => [5, 6, 7].values().every((x, i) => i < 5))() => ok true
+(() => [5, 6, 7].values().find((x, i) => i == 2))() => ok 7
+(() => [5, 6, 7].values().reduce((a, x, i) => a + x * i, 100))() => ok 120
+(() => [5, 6, 7].values().reduce((a, x, i) => a + '|' + i))() => ok "5|1|2"
+(() => [].values().some(x => true))() => ok false
+(() => [].values().every(x => false))() => ok true
+(() => [].values().find(x => true))() => ok undefined
+(() => [].values().toArray())() => ok []
+(() => [].values().forEach(x => 1))() => ok undefined
+(() => [].values().map(x => 1).toArray())() => ok []
+(() => { class A extends Iterator { constructor() { super(); this.n = 0 } next() { return {done: this.n >= 3, value: this.n++} } } return [new A().toArray(), new A().map(x => x + 1).toArray(), Iterator.from(new A()).constructor === A] })() => ok [[0,1,2],[1,2,3],true]
+(() => { const log = []; const it = {__proto__: Iterator.prototype, next() { return {done: false, value: 1} }, return() { log.push('r'); return {} }}; it.take(3).toArray(); it.take(0).next(); const t = it.take(1); t.next(); t.next(); t.next(); return log })() => ok ["r","r","r"]
+(() => { const o = {[Symbol.iterator]() { return {next() { return {done: true} }} }}; return Iterator.from(o).toArray() })() => ok []
+(() => { const o = {[Symbol.iterator]() { return {next() { return {done: true} }} }}; return Iterator.from(o) instanceof Iterator })() => ok true
+(() => { const o = {[Symbol.iterator]() { return [1, 2].values() }}; return Iterator.from(o).toArray() })() => ok [1,2]
+(() => { const o = {[Symbol.iterator]() { return [1, 2].values() }}; return Object.getPrototypeOf(Iterator.from(o)) === Object.getPrototypeOf([].values()) })() => ok true
+(() => Iterator.from(new String('xy')).toArray())() => ok ["x","y"]
+(() => Iterator.from('xy').next())() => ok {value:"x",done:false}
+(() => Iterator.from('').next())() => ok {value:undefined,done:true}
+(() => { const s = new String('ab'); s[Symbol.iterator] = () => ({next() { return {done: true} }}); return Iterator.from(s).toArray() })() => ok []
+(() => { const old = String.prototype[Symbol.iterator]; String.prototype[Symbol.iterator] = undefined; try { return Iterator.from('abc') } finally { String.prototype[Symbol.iterator] = old } })() => err TypeError: abc is not iterable
+(() => Iterator.from(function () {}))() => ok {}
+(() => Iterator.from([]).map(x => x).toArray())() => ok []
+(() => Iterator.from({next() { return {done: true} }}).toArray())() => ok []
+(() => Iterator.from({next() { return {done: true} }}).map(x => x).toArray())() => ok []
+(() => Iterator.from({next: 5}).toArray())() => err TypeError: number 5 is not a function
+(() => Iterator.prototype.toArray.call({next() { return {done: true} }}, 1, 2, 3))() => ok []
+(() => delete Iterator.prototype.map)() => ok true

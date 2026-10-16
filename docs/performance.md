@@ -195,6 +195,23 @@ does for any two-element array (it creates an Array Iterator). A shortcut
 for a dense array with the unmodified iterator is a backlog item for
 feature 13. The other rows are within noise of the 6a numbers.
 
+Programs added in M7 6c (2026-10-16, same machine; the arrays are made
+outside the timed function):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| iterator: values().map().filter().toArray() of 100k, 5 times | 116 | 19.7 | 5.9x |
+| iterator: Iterator.from(user iterator).map().toArray() of 100k, 5 times | 241 | 26.0 | 9.3x |
+| iterator: take, drop, flatMap and reduce over 100k, 5 times | 352 | 51.7 | 6.8x |
+| iterator: for-of over map().filter() of 100k, 5 times | 117 | 20.9 | 5.6x |
+
+A step of a helper over a built-in iterator or another helper takes no
+result object, so the cost is the callbacks (about 65 ns each for the
+re-entry, as for `Array.prototype.map`; 230 ns per element with two
+callbacks). A user iterator costs a call of `next`, a result object and
+two property reads per element (480 ns). The other rows are within noise
+of the 6b numbers.
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

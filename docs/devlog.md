@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-16: M7 feature 6c, iterator helpers; end of feature 6
+
+- The abstract `Iterator` constructor, `Iterator.from`,
+  `Iterator.concat`, and the 11 methods of `Iterator.prototype`. Chromium
+  148 does not have `zip`, `chunks`, `windows`, `join` or `includes`, so
+  they are not in scope.
+- A helper is a native state machine with the generator states. The
+  closure variables of the specification are fields of the helper
+  object; `next` and `return` run one pass of the closure. A re-entrant
+  call throws "Generator is already running".
+- A step over a built-in iterator or another helper takes no result
+  object (6b's `builtin_step`). Each level of a helper chain charges 2
+  KiB of the recursion budget, so chains deeper than about 2,000 end
+  with a catchable `RangeError` (Chromium: about 5,000).
+- Measured in Chromium 148: 499 cases, all equal in swb. Found on the
+  way: V8 words a `return` that is not callable differently in helpers
+  and in `Iterator.from` wrappers; a `take` limit above 2^53 − 1 is a
+  `RangeError` in test262 but not in Chromium.
+- The implementer stopped a hung probe browser with `pkill -f chrom`,
+  which ended every Chrome process on the machine. CLAUDE.md now says:
+  stop only the processes you started, by PID.
+- Review: no blocking bug. Recorded: `return` through a helper chain
+  ends at about 400 levels (`next` at about 2,000), and two closing
+  details where swb follows the specification and Chromium does not.
+  Found, older than 6c: about 10,000 nested bound functions overflow
+  the Rust stack and abort the process (backlog, first item to fix).
+- Runtime test262: 26,091 pass (was 25,672), the same in stress mode;
+  `built-ins/Iterator` 415 pass, no failure. Feature 6 took test262
+  from 23,222 to 26,091.
+- Next: the bound-function crash, then feature 7 (generators,
+  promises, `async`).
+
 ## 2026-10-16: M7 feature 6b, `Map` and `Set`
 
 - One table type (`object/table.rs`): a vector of entries in insertion

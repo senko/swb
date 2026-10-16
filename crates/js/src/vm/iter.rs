@@ -267,8 +267,9 @@ impl Runtime {
     }
 
     /// The built-in iterator of a record whose step can run without
-    /// calling `next`: an Array, Map or Set Iterator whose `next` is the
-    /// built-in method of its kind (of some realm). The step then does
+    /// calling `next`: an Array, Map or Set Iterator or an iterator
+    /// helper whose `next` is the built-in method of its kind (of some
+    /// realm). The step then does
     /// what `next` does, except for the result object, which nothing can
     /// observe ([`crate::builtins::builtin_iterator_next_value`]).
     pub(crate) fn builtin_step(&self, iterator: Value, next: Value) -> Option<Gc<Object>> {
@@ -282,6 +283,7 @@ impl Runtime {
             ObjectKind::ArrayIterator(_) => Intrinsic::ArrayIteratorNext,
             ObjectKind::MapIterator(_) => Intrinsic::MapIteratorNext,
             ObjectKind::SetIterator(_) => Intrinsic::SetIteratorNext,
+            ObjectKind::IteratorHelper(_) => Intrinsic::IteratorHelperNext,
             _ => return None,
         };
         let builtin = self.intrinsic(native.realm, which).ok()?;

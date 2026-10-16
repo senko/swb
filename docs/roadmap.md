@@ -1344,6 +1344,34 @@ failures with a reason. Features, in this order:
      `%WrapForValidIteratorPrototype%`.
      `Iterator.prototype[Symbol.dispose]` waits for explicit resource
      management (backlog).
+     Done 2026-10-16: the abstract `Iterator` constructor with `from` and
+     `concat`, the `constructor` and `@@toStringTag` accessors and the 11
+     methods of `Iterator.prototype` in Chromium 148's key order,
+     `%IteratorHelperPrototype%` and `%WrapForValidIteratorPrototype%`.
+     The helpers are native state machines with the generator states;
+     the closure variables of the specification are fields of the helper
+     object, which the collector traces. A step over a built-in Array,
+     Map or Set iterator or over another helper takes no result object,
+     and `toArray` uses the dense builder. Each helper-to-helper step
+     charges 2 KiB of the recursion budget (measured 0.7 to 1.2 KiB of
+     stack per level), so chains deeper than about 2,000 helpers end
+     with a catchable `RangeError` (Chromium: 5,000 work, 10,000 fail).
+     499 cases in `tools/probes/js-iterators.json`, all a test, also in
+     stress mode. Runtime test262: 26,091 pass (was 25,672), the same in
+     stress mode; `built-ins/Iterator` 415 pass, no failure (7 need
+     `BigInt`, feature 10; the proposals that Chromium 148 lacks are
+     skipped). Speed against `node --jitless`, 100,000 elements:
+     `values().map().filter().toArray()` 5.9 times slower,
+     `Iterator.from` of a user iterator 9.3 times (the calls of its
+     `next`, feature 13). Differences from Chromium: no `Symbol.dispose`;
+     a finite `take` or `drop` limit above 2^53 − 1 throws `RangeError`
+     (test262; Chromium accepts it); `return` through a chain ends at
+     about 400 levels; two closing details where swb follows the
+     specification (ADR 0026 section 15). The review found no blocking
+     bug; it found a crash that existed before (backlog: bound
+     functions).
+   Feature 6 is complete (2026-10-16): runtime test262 went from 23,222
+   to 26,091.
 7. Generators, promises, `async` (`implementer-hard`). Generator objects,
    `Promise`, the job queue and its host hooks, `async` functions, async
    generators, `for await`, async-from-sync iterators,
@@ -1562,6 +1590,18 @@ not repeated here; the open items of each spike session are in M6 step
   deleted grows its index to 2^26 slots on the next insert, and with the
   default heap limit of 1 GiB that ends the script (Chromium adds the
   entry).
+- Crash (M7 6c review, older than 6c): a chain of about 10,000 bound
+  functions (`f = Function.prototype.call.bind(f)` in a loop, then
+  `f()`) overflows the Rust stack and aborts the process; so does
+  `Iterator.from({next: prev.next.bind(prev)})` repeated 10,000 times.
+  The call of a bound function does not charge the recursion budget.
+  Fix in a small robustness task before feature 7, with a hostile test.
+- Iterator helpers (M7 6c): a helper over a user iterator costs about
+  480 ns per element (the call of `next`, the result object, two reads;
+  feature 13). A chain of helpers costs about 1 KiB of stack per level;
+  smaller frames on that path would allow chains deeper than 2,000.
+  `console.log` does not show the `@@toStringTag` of a prototype
+  (Node.js: `Object [Iterator Helper] {}`).
 - `join` and `String` of arrays nested 500 deep end with a `RangeError`
   (400 work), because each level re-enters the interpreter through
   `ToPrimitive`, `toString` and `join`; V8 handles 1,000 (M7 6a).

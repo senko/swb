@@ -228,6 +228,13 @@ Format: source, license (for code), what it influenced.
   library). The set methods follow ECMA-262 §24.2.4; the messages, the key
   order and the limit of 2^24 entries were measured in Chromium 148
   (`just probe` `tools/probes/js-collections.json`).
+- The iterator helpers (M7 feature 6c, `js/src/builtins/iterator*.rs`,
+  `js/src/object/iterator_helper.rs`), written from ECMA-262 §27.1 and
+  the TC39 iterator sequencing proposal for `Iterator.concat`
+  (https://tc39.es/proposal-iterator-sequencing/). The state machines
+  that keep the closure variables in the helper object are swb's own;
+  the messages and the key order were measured in Chromium 148 (`just
+  probe` `tools/probes/js-iterators.json`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

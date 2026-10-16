@@ -1,0 +1,15 @@
+(() => { let it = [1].values(); for (let i = 0; i < 1000; i++) it = it.map(x => x); return it.next() })() => ok {value:1,done:false}
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.map(x => x); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.map(x => x); return it.return() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.map(x => x); return it.toArray() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.map(x => x); return 'created' })() => ok "created"
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.take(1); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.drop(0); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.filter(x => true); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = it.flatMap(x => [x]); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1].values(); for (let i = 0; i < 100000; i++) it = Iterator.from(it); return it.next() })() => ok {value:1,done:false}
+(() => { let it = {next() { return {done: false, value: 1} }}; for (let i = 0; i < 100000; i++) it = Iterator.from({next() { return it.next() }}); return it.next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1]; for (let i = 0; i < 100000; i++) it = [it]; return it.values().flatMap(x => x).next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1]; for (let i = 0; i < 100000; i++) it = [it]; let h = it.values(); const f = x => Array.isArray(x) ? x.values().flatMap(f) : [x]; return h.flatMap(f).next() })() => err RangeError: Maximum call stack size exceeded
+(() => { let it = [1]; for (let i = 0; i < 1000; i++) it = [it]; let h = it.values(); const f = x => Array.isArray(x) ? x.values().flatMap(f) : [x]; return h.flatMap(f).next() })() => ok {value:1,done:false}
+(() => { const a = []; for (let i = 0; i < 100000; i++) a.push([i]); return Iterator.concat(...a).toArray().length })() => ok 100000

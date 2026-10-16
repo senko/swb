@@ -56,6 +56,10 @@ pub(crate) enum Intrinsic {
     /// `Map.prototype` and `Set.prototype`.
     MapPrototype,
     SetPrototype,
+    /// `%IteratorHelperPrototype%` (§27.1.2.1) and
+    /// `%WrapForValidIteratorPrototype%` (§27.1.3.2.1.1).
+    IteratorHelperPrototype,
+    WrapForValidIteratorPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -90,10 +94,17 @@ pub(crate) enum Intrinsic {
     /// `%eval%` (§19.2.1), set when the built-in functions are installed:
     /// a call `eval(...)` of it is a direct eval.
     Eval,
+    /// `Iterator` (§27.1.3.1), set when the built-in functions are
+    /// installed.
+    IteratorConstructor,
+    /// `%IteratorHelperPrototype%.next` (§27.1.2.1.1), set when the
+    /// built-in functions are installed: the steps of iteration recognize
+    /// it like the `next` of the other built-in iterators.
+    IteratorHelperNext,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 38;
+const INTRINSIC_COUNT: usize = 42;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -218,6 +229,8 @@ impl Runtime {
         let set_iterator_proto = heap.new_object(Some(iterator_proto))?;
         let map_proto = heap.new_object(Some(object_proto))?;
         let set_proto = heap.new_object(Some(object_proto))?;
+        let helper_proto = heap.new_object(Some(iterator_proto))?;
+        let wrap_proto = heap.new_object(Some(iterator_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
@@ -264,7 +277,11 @@ impl Runtime {
             Some(set_iterator_proto),
             Some(map_proto),
             Some(set_proto),
+            Some(helper_proto),
+            Some(wrap_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
+            None,
             None,
             None,
             None,

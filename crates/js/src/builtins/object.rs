@@ -293,6 +293,8 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Set(_)
         | ObjectKind::MapIterator(_)
         | ObjectKind::SetIterator(_)
+        | ObjectKind::IteratorHelper(_)
+        | ObjectKind::WrapForValidIterator(_)
         | ObjectKind::ForInIterator(_)
         | ObjectKind::PrivateEnvironment(_)
         | ObjectKind::Environment(_)

@@ -11,7 +11,10 @@
 //! collections); and of the arrays of feature 6a (the moving methods on
 //! sparse lengths of 2^32 - 1 and 2^53 - 1, copies of huge sparse arrays,
 //! comparators that change the array or answer at random, deep `flat`, a
-//! growing `concat`). A case ends with a result, an error or a termination at the
+//! growing `concat`); and of the iterator helpers of feature 6c (chains of
+//! 100,000 helpers, deeply nested `flatMap`, wide `Iterator.concat`,
+//! endless iterators with `toArray` and the other consumers, re-entrant
+//! `next` and `return`). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -2580,4 +2583,214 @@ fn stress_mode_agrees_on_collections() {
     let normal = run(source, false);
     assert_eq!(run(source, true), normal);
     assert!(normal.starts_with("124 "), "{normal}");
+}
+
+// --- Iterator helpers (M7 feature 6c) ---
+
+#[test]
+fn deep_helper_chains_end_with_a_catchable_error() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(256);
+        // A chain of 100,000 helpers of each kind is made without
+        // recursion; the first `next`, `return` or `toArray` that goes
+        // through all of it ends with a `RangeError` (V8 does the same).
+        // The helpers that did start stay usable afterwards.
+        for (name, make) in [
+            ("map", "it = it.map(function (x) { return x; });"),
+            ("filter", "it = it.filter(function (x) { return true; });"),
+            ("take", "it = it.take(5);"),
+            ("drop", "it = it.drop(0);"),
+            ("flatMap", "it = it.flatMap(function (x) { return [x]; });"),
+        ] {
+            for use_it in ["it.next()", "it.return()", "it.toArray()", "it.next()"] {
+                let source = format!(
+                    "var it = [1, 2, 3].values(); for (var i = 0; i < 100000; i++) {{ {make} }} \
+                     var r; try {{ r = {use_it}; }} catch (e) {{ r = e.name + ': ' + e.message; }} String(r)"
+                );
+                let (result, elapsed) =
+                    eval_with_deadline_of(&mut rt, &source, Duration::from_secs(20));
+                assert!(
+                    result.is_ok() || is_limit(&result),
+                    "{name} {use_it}: {result:?}"
+                );
+                assert!(elapsed < Duration::from_secs(15), "{name}: {elapsed:?}");
+                assert_clean(&rt);
+            }
+        }
+        // The error is the stack error, and the runtime still works.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var it = [1].values(); for (var i = 0; i < 100000; i++) it = it.map(function (x) { return x; }); \
+                 try { it.next(); } catch (e) { print(e.name, e.message); } \
+                 print([1, 2].values().map(function (x) { return x * 2; }).toArray().join());"
+            ),
+            "RangeError Maximum call stack size exceeded\n2,4"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn flat_map_of_deeply_nested_iterators_and_wide_concats() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(256);
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var a = [1]; for (var i = 0; i < 100000; i++) a = [a]; \
+                 var f = function (x) { return Array.isArray(x) ? x.values().flatMap(f) : [x]; }; \
+                 try { a.values().flatMap(f).next(); } catch (e) { print(e.name, e.message); } \
+                 var g = function (x) { return x; }; var h = a.values(); \
+                 for (var i = 0; i < 100000; i++) h = h.flatMap(g); \
+                 try { h.next(); } catch (e) { print(e.name); } \
+                 var parts = []; for (var i = 0; i < 200000; i++) parts.push([i]); \
+                 print(Iterator.concat.apply(null, parts).toArray().length); \
+                 print(Iterator.concat.apply(null, parts).map(function (x) { return x; }).drop(199990).toArray().join());"
+            ),
+            "RangeError Maximum call stack size exceeded\nRangeError\n200000\n199990,199991,199992,199993,199994,199995,199996,199997,199998,199999"
+        );
+        assert_clean(&rt);
+        // Many arguments for `concat`: a result, or the limit of the
+        // stack for arguments.
+        let (result, _) = eval_with_deadline_of(
+            &mut rt,
+            "var parts = new Array(4000000).fill([1]); try { Iterator.concat.apply(null, parts).next(); } catch (e) { e.name }",
+            Duration::from_secs(20),
+        );
+        assert!(result.is_ok() || is_limit(&result), "{result:?}");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn endless_iterators_end_at_the_time_or_heap_limit() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        let endless = "var n = 0; var it = { __proto__: Iterator.prototype, next: function () { return { done: false, value: n++ }; } }; ";
+        let cases = [
+            "it.toArray()",
+            "it.take(Infinity).toArray()",
+            "it.take(Number.MAX_SAFE_INTEGER).toArray()",
+            "it.map(function (x) { return { x: x }; }).toArray()",
+            "it.drop(Infinity).next()",
+            "it.drop(Number.MAX_SAFE_INTEGER).next()",
+            "it.filter(function () { return false; }).next()",
+            "it.flatMap(function () { return []; }).next()",
+            "it.flatMap(function (x) { return [x, x]; }).toArray()",
+            "it.forEach(function () { })",
+            "it.some(function () { return false; })",
+            "it.every(function () { return true; })",
+            "it.find(function () { return false; })",
+            "it.reduce(function (a, b) { return a + b; }, 0)",
+            "Iterator.from(it).toArray()",
+            "Iterator.concat(it, it).toArray()",
+            "Iterator.concat({ [Symbol.iterator]: function () { return it; } }).map(function (x) { return [x]; }).toArray()",
+            "it.map(function (x) { return x; }).filter(function () { return true; }).drop(3).toArray()",
+        ];
+        for case in cases {
+            let source = format!("{endless}{case}");
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, &source, Duration::from_millis(300));
+            assert!(is_limit(&result), "{case}: {result:?}");
+            assert!(elapsed < Duration::from_secs(5), "{case}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        // The same over a built-in iterator that is never exhausted.
+        let (result, _) = eval_with_deadline_of(
+            &mut rt,
+            "var a = [1]; var it = a.values(); var h = it.map(function (x) { a.push(x); return x; }); h.toArray()",
+            Duration::from_millis(300),
+        );
+        assert!(is_limit(&result), "{result:?}");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn huge_counts_and_endless_empty_inner_iterators() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var a = [1, 2, 3]; \
+                 print(a.values().take(Infinity).toArray().join(), a.values().take(Number.MAX_SAFE_INTEGER).toArray().join(), \
+                       a.values().drop(Infinity).toArray().length, a.values().drop(Number.MAX_SAFE_INTEGER).toArray().length, \
+                       a.values().take(2 ** 52).drop(2 ** 52).toArray().length); \
+                 try { a.values().take(2 ** 53); } catch (e) { print(e.name); } \
+                 try { a.values().drop(1e300); } catch (e) { print(e.name); }"
+            ),
+            "1,2,3 1,2,3 0 0 0\nRangeError\nRangeError"
+        );
+        assert_clean(&rt);
+        // A finite source of empty inner iterables is a finite loop.
+        let (result, elapsed) = eval_with_deadline_of(
+            &mut rt,
+            "var big = new Array(300000).fill(0); big.values().flatMap(function () { return []; }).toArray().length",
+            Duration::from_secs(20),
+        );
+        assert_eq!(result, Ok(Value::Int(0)));
+        assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn reentrant_helpers_keep_their_state() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        // A `next` or `return` that runs inside the helper's own step is a
+        // `TypeError`, a hundred thousand times over, and the helper keeps
+        // working afterwards.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var h, bad = 0, calls = 0; \
+                 var it = { __proto__: Iterator.prototype, i: 0, \
+                   next: function () { calls++; try { h.next(); } catch (e) { bad++; } try { h.return(); } catch (e) { bad++; } return { done: this.i >= 100000, value: this.i++ }; }, \
+                   return: function () { try { h.next(); } catch (e) { bad++; } return {}; } }; \
+                 h = it.map(function (x) { try { h.next(); } catch (e) { bad++; } return x; }); \
+                 var sum = 0; for (var x of h) sum += x; \
+                 print(sum, bad, calls); \
+                 var g = it.take(1); g.next(); g.return(); print(bad);"
+            ),
+            "4999950000 300002 100001\n300002"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn helper_loops_end_at_the_deadline_with_throwing_callbacks() {
+    on_big_stack(|| {
+        let mut rt = runtime_with_limit(64);
+        // Callbacks that throw close the iterator; a `return` that never
+        // finishes quickly still ends at the deadline.
+        let cases = [
+            "while (true) { try { [1, 2].values().map(function () { throw 1; }).next(); } catch (e) { } }",
+            "while (true) { try { Iterator.prototype.take.call({ return: function () { return {}; } }, NaN); } catch (e) { } }",
+            "while (true) { [1, 2, 3].values().flatMap(function (x) { return [x]; }).return(); }",
+            "var it = { __proto__: Iterator.prototype, next: function () { return { done: false, value: 1 }; }, return: function () { return {}; } }; while (true) { var h = it.map(function (x) { return x; }); h.next(); h.return(); }",
+            "while (true) { Iterator.concat([1], [2], [3]).toArray(); }",
+            "while (true) { Iterator.from({ next: function () { return { done: true }; } }).toArray(); }",
+        ];
+        for source in cases {
+            assert_ends_at_deadline(&mut rt, source, DEADLINE, Duration::from_millis(500));
+        }
+    });
+}
+
+#[test]
+fn stress_mode_agrees_on_helpers() {
+    let source = "var log = []; \
+                  function mk(n) { var i = 0; return { __proto__: Iterator.prototype, next: function () { return { done: i >= n, value: { n: i++, s: 'v' + i } }; }, return: function () { log.push('r' + i); return {}; } }; } \
+                  var a = mk(40).map(function (o) { return { w: o, t: 'x' + o.n }; }).filter(function (m) { return m.w.n % 3 !== 0; }).drop(2).take(15).toArray(); \
+                  var b = mk(10).flatMap(function (o) { return mk(3).map(function (p) { return o.n * 10 + p.n; }); }).toArray(); \
+                  var c = Iterator.concat([1, 2], mk(3).map(function (o) { return o.s; }), new Set([9])).toArray(); \
+                  var d = mk(50).reduce(function (acc, o) { return { sum: acc.sum + o.n, last: o.s }; }, { sum: 0 }); \
+                  print(a.length, a[14].t, b.length, b[29], c.join(), d.sum, d.last, log.join());";
+    let normal = run(source, false);
+    assert_eq!(run(source, true), normal);
+    assert!(normal.starts_with("15 "), "{normal}");
 }

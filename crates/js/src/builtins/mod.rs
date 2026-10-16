@@ -49,6 +49,9 @@ mod function;
 mod global;
 mod integrity;
 mod iterator;
+mod iterator_consume;
+mod iterator_from;
+mod iterator_helper;
 mod json;
 mod json_parse;
 mod json_revive;
@@ -86,7 +89,8 @@ use crate::vm::{
     WellKnown,
 };
 
-/// The next value of a built-in Array, Map or Set Iterator, or `None`
+/// The next value of a built-in Array, Map or Set Iterator or an iterator
+/// helper, or `None`
 /// when it is finished (`next` without its result object; see
 /// `Runtime::builtin_step`). The value is recorded in the current handle
 /// scope.
@@ -96,6 +100,7 @@ pub(crate) fn builtin_iterator_next_value(
 ) -> VmResult<Option<Value>> {
     match rt.heap.object(iterator)?.kind {
         crate::object::ObjectKind::ArrayIterator(_) => array_iterator_next_value(rt, iterator),
+        crate::object::ObjectKind::IteratorHelper(_) => iterator_helper::next_value(rt, iterator),
         _ => collection::collection_iterator_next_value(rt, iterator),
     }
 }

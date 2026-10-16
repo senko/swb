@@ -149,6 +149,25 @@ const PROGRAMS: &[(&str, &str)] = &[
         "function run() { var m = new Map(); for (var i = 0; i < 1000000; i++) { m.set(i, i); if (i > 10) m.delete(i - 10); } return m.size; }",
     ),
     (
+        "iterator: values().map().filter().toArray() of 100k, 5 times",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         function run() { var n = 0; for (var r = 0; r < 5; r++) n += data.values().map(function (x) { return x + 1; }).filter(function (x) { return x % 2 === 0; }).toArray().length; return n; }",
+    ),
+    (
+        "iterator: Iterator.from(user iterator).map().toArray() of 100k, 5 times",
+        "function run() { var n = 0; for (var r = 0; r < 5; r++) { var i = 0; var it = { next: function () { return i < 100000 ? { value: i++, done: false } : { value: undefined, done: true }; } }; n += Iterator.from(it).map(function (x) { return x + 1; }).toArray().length; } return n; }",
+    ),
+    (
+        "iterator: take, drop, flatMap and reduce over 100k, 5 times",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         function run() { var n = 0; for (var r = 0; r < 5; r++) n += data.values().drop(10).take(90000).flatMap(function (x) { return [x, x]; }).reduce(function (a, b) { return a + b; }, 0) % 1000; return n; }",
+    ),
+    (
+        "iterator: for-of over map().filter() of 100k, 5 times",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         function run() { var s = 0; for (var r = 0; r < 5; r++) for (var v of data.values().map(function (x) { return x + 1; }).filter(function (x) { return x % 2 === 0; })) s += v; return s; }",
+    ),
+    (
         "array: 1M push, then 1M pop",
         "function run() { var a = []; for (var i = 0; i < 1000000; i++) a.push(i); var s = 0; while (a.length) s += a.pop(); return s; }",
     ),

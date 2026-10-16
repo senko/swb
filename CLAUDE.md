@@ -73,6 +73,9 @@ Rules for sub-agents:
   cases; do not write new probe scripts), the hostile-page set, and the
   persistent review worktree with its own target directory. Never build a
   tree with another tree's target directory.
+- Stop only the processes that you started, by their PID. Never use
+  `pkill` or `killall` with a name pattern: the owner's browsers and
+  tools run on the same machine.
 - Do not read the source code of other browsers or rendering engines
   (Chromium, Blink, WebKit, Gecko, Servo, Skia, Ladybird). Derive
   behaviour from the specifications and from black-box measurements in

@@ -1516,6 +1516,65 @@ where the first plan did not work:
   iterators. `Map.prototype.getOrInsertComputed` words a callback that is
   not a function "Map.prototype.getOrInsertComputed is not a function".
   `Map.groupBy` shares `group_items` with `Object.groupBy`.
+- Iterator helpers (feature 6c, `builtins/iterator*.rs`,
+  `object/iterator_helper.rs`). The specification writes each helper as an
+  abstract closure with `Yield`; swb stores the variables of the closure
+  in the object (`ObjectKind::IteratorHelper`, traced by the collector:
+  the underlying iterator and its `next`, the callback, the counter or
+  `remaining`, the inner iterator of `flatMap` and `concat`, the argument
+  pairs of `concat`) and runs one pass of the closure per `next`: a native
+  state machine with the states of a generator (suspended-start,
+  suspended-yield, executing, completed). A `next` or `return` while the
+  state is executing throws V8's `TypeError: Generator is already running`;
+  any step that returns or throws completes the helper. `return` before the
+  first `next` completes the helper and closes the underlying iterator
+  (`concat` has none open yet); at a yield it runs the `IfAbruptCloseIterator`
+  that follows the `Yield` (the inner iterator of `flatMap` first, and when
+  that fails the outer one with the failure). A callback that throws
+  closes the underlying iterator with its error; a failing `next` of the
+  underlying iterator does not. Argument checks close the iterator, as the
+  current specification says (a callback that is not callable, `ToNumber`
+  of the limit, NaN, negative integers and finite limits above 2^53 - 1;
+  V8 in Chromium 148 accepts the last). `drop` skips with `IteratorStep`
+  (it does not read `value`). V8's words are used for the messages
+  ("... called on non-object", "number 1 is not a function", "NaN must be
+  positive", "Reduce of a done iterator with no initial value",
+  "return called on non-object"). Two more differences from Chromium 148,
+  both where swb follows the specification and test262 does not decide
+  (found in the review): when the `next` of `Iterator.concat`'s current
+  iterator throws or returns a non-object, V8 calls that iterator's
+  `return` and swb does not (the proposal's `IteratorStepValue` does not
+  close); a `next` called from inside the underlying `return` of a
+  `take(0)` throws "Generator is already running" (the helper is
+  executing), where V8 gives no error.
+- No Rust recursion that grows with the data. A loop that skips values
+  (`filter`, `drop`, `flatMap` with empty inner iterators, `concat` with
+  empty iterables) runs in one native step with a handle scope per pass,
+  and ticks the time countdown for each step. Nesting is the one place
+  where a helper calls a helper: when the underlying iterator is a
+  built-in iterator or a helper with the built-in `next`
+  (`Runtime::builtin_step`), the step is a direct Rust call without a
+  result object, charged to the recursion budget (2 KiB per level;
+  measured 0.7 to 1.2 KiB of stack per level in a debug build); a chain of
+  more than about 2,000 helpers ends with
+  `RangeError: Maximum call stack size exceeded` (Chromium 148 handles
+  5,000 and fails at 10,000). A user-defined `next` goes through
+  `Runtime::call`, which charges 10 KiB, and so does `return` through a
+  chain: a `return` (or the close of an exhausted `take`) through about
+  400 levels ends with the same `RangeError`, and the helpers below that
+  level stay open (measured in the review: `next` through 2,038 `map`s,
+  `return` through about 400). `Iterator.from` returns an
+  object that inherits from `Iterator.prototype` unchanged, so a chain of
+  `from` calls does not nest; the wrapper's `next` and `return` are
+  deferred calls. `Iterator.concat` stores its arguments in the helper
+  while it reads them (no scope that grows with the count; the heap limit
+  is checked first). `toArray` uses the dense builder and copies the rest
+  of a built-in Array Iterator in one step.
+- Messages for receivers: `Method Iterator Helper.prototype.next called on
+  incompatible receiver [object Iterator Helper]`; the text of an object
+  whose `constructor` on the chain is an accessor
+  (`Iterator.prototype` and its heirs) is `[object TAG]` (V8 does not run
+  getters in messages).
 
 ## Consequences
 
