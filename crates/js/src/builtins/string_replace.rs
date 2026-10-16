@@ -33,6 +33,13 @@ use super::string::{Builder, string_result};
 /// The pieces of `split` between two checks of the heap limit.
 const SAFEPOINT_PIECES: usize = 256;
 
+/// The pieces that `split` makes room for before it has found them (the
+/// vector doubles after that).
+const SPLIT_CAPACITY: usize = 16;
+
+/// The most pieces that the split cache keeps.
+const SPLIT_CACHE_PIECES: usize = 64;
+
 /// The `TypeError` of a receiver that is `undefined` or `null`, in V8's
 /// words.
 fn require_coercible(call: &NativeCall, method: &str) -> VmResult<Value> {
@@ -441,7 +448,27 @@ pub(super) fn split(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         value => to_uint32(rt.to_number(value)?),
     } as usize;
     let separator_string = rt.to_string(separator)?;
-    let array = rt.new_array()?;
+    if let Some(cache) = &rt.vm.split_cache
+        && cache.subject == string
+        && cache.separator == separator_string
+        && cache.limit == limit
+        && !separator.is_undefined()
+    {
+        // The same strings give the same pieces: copy them into a new
+        // array in one step.
+        let pieces = cache.pieces;
+        let values = rt
+            .heap
+            .dense_elements(pieces)?
+            .map(<[Value]>::to_vec)
+            .ok_or(VmError::invariant("the split cache is not dense"))?;
+        rt.charge(values.len())?;
+        let array = rt.array_from_values(&values)?;
+        return Ok(NativeReturn::Value(array.into()));
+    }
+    // The dense builder (`object/element_access.rs`): the pieces are
+    // appended to the vector without the general property definition.
+    let array = rt.new_array_with_capacity(limit.min(SPLIT_CAPACITY))?;
     if limit == 0 {
         return Ok(NativeReturn::Value(array.into()));
     }
@@ -458,11 +485,43 @@ pub(super) fn split(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
     } else {
         split_at_separator(rt, array, string, separator_string, limit)?;
     }
+    remember_split(rt, string, separator_string, limit, array)?;
     Ok(NativeReturn::Value(array.into()))
 }
 
-/// Appends `piece` as element `index`.
+/// Keeps the pieces of a `split` with few pieces for the next `split` of
+/// the same strings (a loop that splits a constant string makes the same
+/// pieces each time). The cache holds a private copy, so changes of the
+/// returned array do not reach it.
+fn remember_split(
+    rt: &mut Runtime,
+    subject: Gc<JsString>,
+    separator: Gc<JsString>,
+    limit: usize,
+    array: Gc<Object>,
+) -> VmResult<()> {
+    let Some(values) = rt.heap.dense_elements(array)? else {
+        return Ok(());
+    };
+    if values.len() > SPLIT_CACHE_PIECES {
+        return Ok(());
+    }
+    let values = values.to_vec();
+    let pieces = rt.heap.new_array_from(None, &values, &rt.vm)?;
+    rt.vm.split_cache = Some(crate::vm::SplitCache {
+        subject,
+        separator,
+        limit,
+        pieces,
+    });
+    Ok(())
+}
+
+/// Appends `piece` as element `index` (the array has no holes).
 fn push_piece(rt: &mut Runtime, array: Gc<Object>, index: usize, piece: Value) -> VmResult<()> {
+    if rt.heap.push_element(array, piece)? {
+        return Ok(());
+    }
     rt.heap
         .create_data_property(array, PropertyKey::Index(index as u32), piece, &rt.vm)?;
     Ok(())

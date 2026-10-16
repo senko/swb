@@ -64,6 +64,10 @@ pub(crate) enum Intrinsic {
     ErrorConstructor,
     /// `Array`, set when the built-in functions are installed.
     ArrayConstructor,
+    /// The getter of `Array[@@species]` (§23.1.2.5), set when the
+    /// built-in functions are installed: `ArraySpeciesCreate` of an array
+    /// with the default `constructor` needs no call.
+    ArraySpeciesGetter,
     /// The getter and setter of the `stack` accessor of error objects.
     StackGetter,
     StackSetter,
@@ -73,7 +77,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 29;
+const INTRINSIC_COUNT: usize = 30;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -237,6 +241,7 @@ impl Runtime {
             Some(array_iterator_proto),
             Some(string_iterator_proto),
             // Set by `set_intrinsic` when the function exists.
+            None,
             None,
             None,
             None,

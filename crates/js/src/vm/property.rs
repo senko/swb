@@ -12,7 +12,8 @@
 
 use crate::heap::Gc;
 use crate::object::{
-    GetResult, INVALID_ARRAY_LENGTH, Object, ObjectKind, PropertyDescriptor, SetResult,
+    GetResult, INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE, Object, ObjectKind, PropertyDescriptor,
+    SetResult,
 };
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
@@ -270,6 +271,15 @@ impl Runtime {
             return Ok(value);
         }
         self.convert_array_length(value)
+            .map_err(|error| match error {
+                VmError::Raise { kind, message } if message == INVALID_ARRAY_LENGTH => {
+                    VmError::Raise {
+                        kind,
+                        message: INVALID_LENGTH_WRITE.into(),
+                    }
+                }
+                error => error,
+            })
     }
 
     /// `delete base[key]` (§13.5.1.2). A failure throws in strict mode

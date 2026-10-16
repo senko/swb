@@ -1,8 +1,8 @@
 //! Iteration objects (ECMA-262 §27.1.2, §23.1.5): `%IteratorPrototype%`
 //! with `@@iterator` (the `Iterator` constructor and the helper methods
 //! are feature 6), `%ArrayIteratorPrototype%` with `next` and
-//! `@@toStringTag`, and `Array.prototype.keys`, `values`, `entries` and
-//! `@@iterator`.
+//! `@@toStringTag`, and `Array.prototype.keys`, `values` and `entries`
+//! (`array.rs` installs them, with `@@iterator`).
 //!
 //! An Array Iterator works on any object with a `length` (arrays and
 //! array-likes). It reads `length` again at each step, so growth and
@@ -14,7 +14,7 @@ use crate::heap::Gc;
 use crate::object::{ArrayIterator, IterationKind, Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let iterator_proto = rt.intrinsic(realm, Intrinsic::IteratorPrototype)?;
@@ -30,28 +30,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let array_iterator_proto = rt.intrinsic(realm, Intrinsic::ArrayIteratorPrototype)?;
     let next = super::method(rt, realm, array_iterator_proto, "next", 0, next)?;
     rt.set_intrinsic(realm, Intrinsic::ArrayIteratorNext, next);
-    super::to_string_tag(rt, array_iterator_proto, "Array Iterator")?;
-    install_array_methods(rt, realm)
-}
-
-/// `Array.prototype.keys`, `values`, `entries` and `@@iterator` (the same
-/// function object as `values`, §23.1.3.40).
-fn install_array_methods(rt: &mut Runtime, realm: u32) -> VmResult<()> {
-    let proto = rt.intrinsic(realm, Intrinsic::ArrayPrototype)?;
-    let methods: [(&str, NativeFn); 3] = [("entries", entries), ("keys", keys), ("values", values)];
-    let mut values_function = None;
-    for (name, func) in methods {
-        let function = super::method(rt, realm, proto, name, 0, func)?;
-        if name == "values" {
-            values_function = Some(function);
-        }
-    }
-    if let Some(function) = values_function {
-        let key = rt.symbol_key(WellKnown::Iterator);
-        rt.define(proto, key, function.into(), true, false, true)?;
-        rt.set_intrinsic(realm, Intrinsic::ArrayPrototypeValues, function);
-    }
-    Ok(())
+    super::to_string_tag(rt, array_iterator_proto, "Array Iterator")
 }
 
 /// `%IteratorPrototype%[@@iterator]()` (§27.1.2.1): returns `this`.
@@ -63,15 +42,18 @@ fn iterator_iterator(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
     Ok(NativeReturn::Value(call.this()))
 }
 
-fn entries(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+/// `Array.prototype.entries()` (§23.1.3.5).
+pub(super) fn entries(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     create_array_iterator(rt, call, IterationKind::Entries)
 }
 
-fn keys(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+/// `Array.prototype.keys()` (§23.1.3.19).
+pub(super) fn keys(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     create_array_iterator(rt, call, IterationKind::Keys)
 }
 
-fn values(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+/// `Array.prototype.values()` (§23.1.3.40); also `@@iterator`.
+pub(super) fn values(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     create_array_iterator(rt, call, IterationKind::Values)
 }
 

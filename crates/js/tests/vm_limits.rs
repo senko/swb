@@ -604,10 +604,14 @@ fn endless_scripts_end_at_the_deadline() {
             "var x = 0; while (true) { try { x++; } catch (e) {} }",
             "function f() { f(); } for (;;) { try { f(); } catch (e) {} }",
             "function g() { return g(); } while (true) { try { g(); } catch (e) { continue; } }",
-            "var a = []; a.length = 4294967295; a.forEach(function () {})",
-            "var a = []; a.length = 4294967295; a.join('')",
-            "var a = []; a.length = 4294967295; a.map(function (x) { return x; })",
-            "var o = {length: 4294967295}; Array.prototype.forEach.call(o, function () {})",
+            // The `find` family calls its predicate for every index, holes
+            // included; the other loops skip holes (see `array_hostile`).
+            "var a = []; a.length = 4294967295; a.find(function () {})",
+            "var a = []; a.length = 4294967295; a.findLast(function () {})",
+            "var o = {length: 4294967295}; Array.prototype.findIndex.call(o, function () {})",
+            // A String object on the chain: each index takes the steps.
+            "var a = []; a.length = 4294967295; Object.setPrototypeOf(a, new String('x')); Array.prototype.forEach.call(a, function () {})",
+            "var a = []; a.length = 4294967295; Object.setPrototypeOf(a, new String('x')); Array.prototype.join.call(a, '')",
             "function* g() { while (true) yield 1; } var it = g(); while (true) it.next();",
             "var o = {}; defineAccessor(o, 'x', function () { return 1; }); while (true) o.x;",
             "function f() { return later(f); } while (true) { try { f(); } catch (e) {} }",

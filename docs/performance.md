@@ -146,6 +146,30 @@ Programs added in M7 3f (2026-10-15, same machine):
 The cost of the first two is the creation of the arguments object
 (about 0.5 µs; a cached shape and a bulk element store are feature 13).
 
+Programs added in M7 6a (2026-10-16, same machine; the arrays are made
+outside the timed function):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| string: split 100k times into 8 pieces | 20.2 (was 98.8) | 3.8 | 5.3x |
+| array: sort 100k integers (default order) | 15.5 | 19.0 | 0.82x |
+| array: sort 100k integers with (a, b) => a - b | 113 | 22.6 | 5.0x |
+| array: 1M push, then 1M pop | 198 | 38.6 | 5.1x |
+| array: indexOf on 100k elements, 200 times | 10.8 | 13.4 | 0.81x |
+| array: filter of 100k elements, 10 times | 103 | 11.2 | 9.2x |
+| array: reduce of 100k elements, 10 times | 96 | 8.2 | 11.7x |
+
+The split row repeats one constant string, which both engines cache
+(with 100 different strings: swb 86 ms, Node.js 19 ms). The callback rows
+(`filter`, `reduce`, the comparator `sort`, and `forEach`, 93 ms, was
+107) cost the re-entry of each call, about 65 ns (feature 13); `push`
+and `pop` the interpreter's method calls. `join 1M elements` went from
+131 to 106 ms.
+
+`shift` moves the whole dense vector: `while (h.length) h.shift()` on
+100,000 elements takes 4.1 s (`node --jitless` 0.59 s), on 200,000 about
+19 s (found in the 6a review; backlog).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

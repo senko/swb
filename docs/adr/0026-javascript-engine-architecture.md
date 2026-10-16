@@ -1291,6 +1291,114 @@ where the first plan did not work:
   and `toUpperCase`, half of them changing the text, 124 ns (24 ns, 5.2
   times); `normalize('NFC')` of normalized text 142 ns (43 ns, 3.3 times);
   `localeCompare` 159 ns (40 ns, 4 times).
+- Element access for natives (feature 6a, `object/element_access.rs`,
+  `builtins/array_access.rs`). An object has ordinary elements when its
+  index properties are exactly its stored elements and the internal
+  methods for index keys are the ordinary ones: every kind except String
+  objects and host objects (later also proxies and typed arrays); mapped
+  arguments objects qualify, because `[[GetOwnProperty]]` reads the cell.
+  Natives use three levels: (1) a dense array (`DenseArray`: an `Array`
+  with dense elements whose prototypes have ordinary elements and store
+  none, so a hole reads `undefined` and has no setter on its chain) may be
+  read and changed in its vector, where the steps cannot fail or run script
+  code (the method checks extensibility and a writable `length` as its
+  steps need them, and that `length` is still the value it read before the
+  conversions of its arguments); (2) a chain with ordinary elements takes
+  the specification's steps only at the indices where they can matter;
+  (3) any other chain takes the steps for every index, one time step each.
+  The check runs again after every step that can run script code
+  (callbacks, getters, `ToString`), so a callback that adds elements,
+  shrinks the array or puts a String object on the chain is seen at the
+  next index.
+- The rule for sparse loops: while the chain has ordinary elements,
+  `HasProperty(O, k)` has no effect and is true exactly where an object of
+  the chain stores `k`, and `DeletePropertyOrThrow(O, k)` has no effect
+  where O does not own `k`. So the loops that skip absent indices
+  (`forEach`, `map`, `filter`, `every`, `some`, `reduce`, `indexOf`,
+  `lastIndexOf`, `slice`, `concat`, `flat`, the collection of `sort`) go
+  from one stored index of the chain to the next (`Heap::search_chain`:
+  the nearest index of each object of the chain, so the cost is the number
+  of stored elements times the length of the chain); the loops that read
+  every index with `Get` (`includes`, `join`, `toReversed`, `toSorted`,
+  `toSpliced`, `with`, `Array.from` of an array-like) get a run of indices
+  without an element as one gap that reads `undefined` (`includes` matches
+  a gap only when it searches `undefined`; `join` adds its separators at
+  once; the copies append `undefined` in chunks, so their cost and memory
+  stay the length); the loops that delete visit the own indices; the moves
+  (`shift`, `unshift`, `splice`, `copyWithin`) visit the `i` where the
+  source has the property or the receiver owns the target; `reverse`
+  visits the pairs with an element. The `find` family calls its predicate
+  for every index (holes included), so it stays in proportion to the
+  length. Indices from 2^32 − 1 to 2^53 − 2 are named keys; the search
+  parses the named keys of an object only when the range reaches them.
+  Measured in Chromium 148: V8 loops over the length in these methods
+  (`a = []; a.length = 2 ** 32 - 1; a.reverse()` takes 37.5 s, `shift`,
+  `unshift(1)`, `splice`, `copyWithin` and `sort` more than 60 s,
+  `Array(2 ** 32 - 1).slice(0)` 40.6 s); swb takes under a millisecond.
+- The dense builder: `Heap::new_array_with_capacity` (one reservation),
+  `new_array_from` (`CreateArrayFromList` from a slice, one step),
+  `push_element` and `extend_elements` (append to an extensible array
+  without holes and with a writable `length`: no descriptor, no
+  validation; a full vector doubles after a check of the heap limit, so
+  appends never collect), and a fast path at the start of
+  `CreateDataProperty` for an index of an ordinary object or array with
+  dense elements that needs no growth. `split`, `Object.keys`, `values`,
+  `entries`, `getOwnPropertyNames`, the `Array` constructor, `of`, `from`,
+  `filter`, `concat` (`copy_dense` copies the vector of a dense source),
+  `slice`, `splice` and the copying methods use it. `split` also keeps its
+  last result (subject and separator strings by handle, at most 64
+  pieces, traced by the VM) and copies it for a repeated split of the same
+  strings: 100,000 splits of a constant string into 8 pieces take 20 ms
+  (were 99 ms; `node --jitless` 3.8 ms, which caches too; 100 different
+  strings: swb 86 ms, Node.js 19 ms).
+- `sort` and `toSorted` (`array_sort.rs`): the values go into an internal
+  array (no prototype, never reachable from script code), the sort orders
+  a permutation of `u32` indices, and only then are the values written
+  back with `Set` (or into the vector of a dense array) and the holes
+  deleted. The sort is binary insertion of runs of 16 (Knuth, TAOCP vol. 3,
+  §5.2.1) and a bottom-up merge of the runs that skips two runs whose
+  boundary is in order (Sedgewick and Wayne, "Algorithms", 4th ed., §2.2),
+  written from the textbook descriptions (not TimSort): stable, at most
+  about n⌈log2 n⌉ comparisons, every index checked, a permutation whatever
+  the comparator answers. Each insertion compares with the last element
+  of the sorted part first, so input that is in order costs n − 1
+  comparisons (found in the review: before, 8 sorted elements cost 13
+  comparator calls, V8 7). The comparator is called as `cmp(later,
+  earlier)`, and a negative result moves the later value first; this gives
+  Chromium's results for `() => -1` (reverses) and `() => 1` (keeps the
+  order) on the measured lengths. `undefined` values are counted and
+  appended (no comparison sees them). The default order compares integer
+  values (also integral doubles) by their decimal digits without strings,
+  other primitives through their strings made once (unobservable), and
+  objects with `ToString` at each comparison, as the specification does.
+  Speed against `node --jitless` (100,000 integers): default order 15 ms
+  (19 ms), with `(a, b) => a - b` 113 ms (23 ms; the cost is the re-entry of
+  each comparator call, about 65 ns, feature 13).
+- Limits of the array methods: `flat` keeps its open levels in a vector
+  and ends at 9,000 levels with V8's `RangeError` (V8: 8,000 levels work,
+  10,000 fail); a length above 2^32 − 1 for `ArrayCreate` is "Invalid
+  array length"; `unshift`, `splice`, `toSpliced` and `concat` throw
+  V8's `TypeError` "Invalid array length" above 2^53 − 1 (for `concat` V8
+  does not throw for a spreadable array-like of length 2^53 − 1 followed by
+  another item; swb follows the specification and test262). Also by the
+  specification: `[1].concat(a)` with `a.length = 2 ** 32 - 1` throws the
+  `RangeError` of the final `length` write (V8 returns an array of length
+  4294967295), and `Object.freeze([1]).sort()` throws the `TypeError` of
+  its write back (V8 returns the array; with two elements both throw). A
+  write of an
+  invalid `length` through `[[Set]]` (`a.length = -1`, `push`,
+  `Reflect.set`) has Chromium 148's message "Failed to set the 'length'
+  property on 'Array': Invalid array length" (Node.js 22: "Invalid array
+  length"); `Object.defineProperty` keeps the short one. `toLocaleString`
+  calls the elements' `toLocaleString` without arguments, as ECMA-262
+  says without ECMA-402 (Chromium passes `locales` and `options`).
+- Collections near the heap limit (found in 6a): a safepoint also
+  collects when the heap is within a fifth of the limit and a tenth of the
+  limit was allocated since the last collection. Paths that allocate
+  without a safepoint (a concatenation that rebalances a rope checks the
+  limit but cannot collect) ended a rope loop with 3 MB of live data at a
+  limit of 13 MiB, because with a limit below the minimum threshold
+  nothing collected before the check failed.
 
 ## Consequences
 

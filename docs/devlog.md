@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-16: M7 feature 6a, `Array`
+
+- Feature 6 is split into 6a `Array`, 6b `Map` and `Set`, 6c iterator
+  helpers (roadmap). Chromium 148 has `Map.prototype.getOrInsert` and
+  `Iterator.concat`, so they are in scope; it does not have
+  `Iterator.zip`, `chunks`, `windows`, `join` or `includes`.
+- `Array` is complete except `fromAsync` (feature 7): `from`, `of` and
+  every method of `Array.prototype`, in Chromium 148's key order and
+  with V8's messages (608 of 615 measured cases are a test).
+- The natives have an element access layer (`object/element_access.rs`,
+  `builtins/array_access.rs`): a dense array is read and changed in its
+  vector where no script can see the difference; a prototype chain of
+  ordinary objects lets the loops go from one stored index to the next;
+  anything else takes the specification's steps at every index. A
+  sparse array of length 2^32 − 1 now costs its stored elements in
+  `reverse`, `shift`, `splice`, `sort` and the searches; V8 loops for
+  37 s to minutes.
+- New arrays from natives use a dense builder. With it and a cache of
+  the last result, 100,000 splits into 8 pieces take 20 ms (were 99 ms).
+- `sort` is a stable merge sort of an index permutation, written from
+  Knuth and from Sedgewick and Wayne. 100,000 integers take 15 ms
+  (`node --jitless` 19 ms); with a comparator 113 ms (23 ms), because
+  each call from a native re-enters the interpreter (feature 13).
+- Found on the way: a rope loop could end at the heap limit with little
+  live data, because the rebalance cannot collect. A safepoint now also
+  collects near the limit; the cause is in the backlog.
+- Review: no correctness bug in about 1,200 cases of callbacks that
+  change the array and of receiver states, compared with Node.js 22.
+  Fixed: input in order cost more comparator calls than in V8 (now
+  n − 1). Recorded: two spec-conforming differences from V8 (`concat`
+  above 2^32 − 1, `sort` of a frozen one-element array); `shift` on a
+  large dense array moves the whole vector, 7 times slower than
+  `node --jitless` for a queue of 100,000 elements (backlog).
+- Runtime test262: 25,091 pass (was 23,222), the same in stress mode;
+  `built-ins/Array` 2,804 of 3,083 (was 966); parse-only unchanged.
+- Next: 6b `Map` and `Set`.
+
 ## 2026-10-16: M7 feature 5d, Unicode string functions; end of feature 5
 
 - `js-text`: `unicode/case.rs` (the Default Case Conversion with the

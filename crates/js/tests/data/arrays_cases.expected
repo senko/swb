@@ -1,0 +1,599 @@
+Array.prototype.at.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.at.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.concat.call(null) => err TypeError: Array.prototype.concat called on null or undefined
+Array.prototype.concat.call(undefined, () => 1) => err TypeError: Array.prototype.concat called on null or undefined
+Array.prototype.copyWithin.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.copyWithin.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.fill.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.fill.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.find.call(null) => err TypeError: Array.prototype.find called on null or undefined
+Array.prototype.find.call(undefined, () => 1) => err TypeError: Array.prototype.find called on null or undefined
+Array.prototype.findIndex.call(null) => err TypeError: Array.prototype.findIndex called on null or undefined
+Array.prototype.findIndex.call(undefined, () => 1) => err TypeError: Array.prototype.findIndex called on null or undefined
+Array.prototype.findLast.call(null) => err TypeError: Array.prototype.findLast called on null or undefined
+Array.prototype.findLast.call(undefined, () => 1) => err TypeError: Array.prototype.findLast called on null or undefined
+Array.prototype.findLastIndex.call(null) => err TypeError: Array.prototype.findLastIndex called on null or undefined
+Array.prototype.findLastIndex.call(undefined, () => 1) => err TypeError: Array.prototype.findLastIndex called on null or undefined
+Array.prototype.lastIndexOf.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.lastIndexOf.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.pop.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.pop.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.push.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.push.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.reverse.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.reverse.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.shift.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.shift.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.unshift.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.unshift.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.slice.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.slice.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.sort.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.sort.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.splice.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.splice.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.includes.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.includes.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.indexOf.call(null) => err TypeError: Array.prototype.indexOf called on null or undefined
+Array.prototype.indexOf.call(undefined, () => 1) => err TypeError: Array.prototype.indexOf called on null or undefined
+Array.prototype.join.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.join.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.keys.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.keys.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.entries.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.entries.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.values.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.values.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.forEach.call(null) => err TypeError: Array.prototype.forEach called on null or undefined
+Array.prototype.forEach.call(undefined, () => 1) => err TypeError: Array.prototype.forEach called on null or undefined
+Array.prototype.filter.call(null) => err TypeError: Array.prototype.filter called on null or undefined
+Array.prototype.filter.call(undefined, () => 1) => err TypeError: Array.prototype.filter called on null or undefined
+Array.prototype.flat.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.flat.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.flatMap.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.flatMap.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.map.call(null) => err TypeError: Array.prototype.map called on null or undefined
+Array.prototype.map.call(undefined, () => 1) => err TypeError: Array.prototype.map called on null or undefined
+Array.prototype.every.call(null) => err TypeError: Array.prototype.every called on null or undefined
+Array.prototype.every.call(undefined, () => 1) => err TypeError: Array.prototype.every called on null or undefined
+Array.prototype.some.call(null) => err TypeError: Array.prototype.some called on null or undefined
+Array.prototype.some.call(undefined, () => 1) => err TypeError: Array.prototype.some called on null or undefined
+Array.prototype.reduce.call(null) => err TypeError: Array.prototype.reduce called on null or undefined
+Array.prototype.reduce.call(undefined, () => 1) => err TypeError: Array.prototype.reduce called on null or undefined
+Array.prototype.reduceRight.call(null) => err TypeError: Array.prototype.reduceRight called on null or undefined
+Array.prototype.reduceRight.call(undefined, () => 1) => err TypeError: Array.prototype.reduceRight called on null or undefined
+Array.prototype.toReversed.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toReversed.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toSorted.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toSorted.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toSpliced.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toSpliced.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.with.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.with.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toLocaleString.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toLocaleString.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toString.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toString.call(undefined, () => 1) => err TypeError: Cannot convert undefined or null to object
+[1].find() => err TypeError: undefined is not a function
+[1].find(1) => err TypeError: number 1 is not a function
+[1].find({}) => err TypeError: object is not a function
+[].find('f') => err TypeError: string "f" is not a function
+Array.prototype.find.call({length: 0}, null) => err TypeError: object null is not a function
+[1].findIndex() => err TypeError: undefined is not a function
+[1].findIndex(1) => err TypeError: number 1 is not a function
+[1].findIndex({}) => err TypeError: object is not a function
+[].findIndex('f') => err TypeError: string "f" is not a function
+Array.prototype.findIndex.call({length: 0}, null) => err TypeError: object null is not a function
+[1].findLast() => err TypeError: undefined is not a function
+[1].findLast(1) => err TypeError: number 1 is not a function
+[1].findLast({}) => err TypeError: object is not a function
+[].findLast('f') => err TypeError: string "f" is not a function
+Array.prototype.findLast.call({length: 0}, null) => err TypeError: object null is not a function
+[1].findLastIndex() => err TypeError: undefined is not a function
+[1].findLastIndex(1) => err TypeError: number 1 is not a function
+[1].findLastIndex({}) => err TypeError: object is not a function
+[].findLastIndex('f') => err TypeError: string "f" is not a function
+Array.prototype.findLastIndex.call({length: 0}, null) => err TypeError: object null is not a function
+[1].forEach() => err TypeError: undefined is not a function
+[1].forEach(1) => err TypeError: number 1 is not a function
+[1].forEach({}) => err TypeError: object is not a function
+[].forEach('f') => err TypeError: string "f" is not a function
+Array.prototype.forEach.call({length: 0}, null) => err TypeError: object null is not a function
+[1].filter() => err TypeError: undefined is not a function
+[1].filter(1) => err TypeError: number 1 is not a function
+[1].filter({}) => err TypeError: object is not a function
+[].filter('f') => err TypeError: string "f" is not a function
+Array.prototype.filter.call({length: 0}, null) => err TypeError: object null is not a function
+[1].flatMap() => err TypeError: undefined is not a function
+[1].flatMap(1) => err TypeError: number 1 is not a function
+[1].flatMap({}) => err TypeError: object is not a function
+[].flatMap('f') => err TypeError: string "f" is not a function
+Array.prototype.flatMap.call({length: 0}, null) => err TypeError: object null is not a function
+[1].map() => err TypeError: undefined is not a function
+[1].map(1) => err TypeError: number 1 is not a function
+[1].map({}) => err TypeError: object is not a function
+[].map('f') => err TypeError: string "f" is not a function
+Array.prototype.map.call({length: 0}, null) => err TypeError: object null is not a function
+[1].every() => err TypeError: undefined is not a function
+[1].every(1) => err TypeError: number 1 is not a function
+[1].every({}) => err TypeError: object is not a function
+[].every('f') => err TypeError: string "f" is not a function
+Array.prototype.every.call({length: 0}, null) => err TypeError: object null is not a function
+[1].some() => err TypeError: undefined is not a function
+[1].some(1) => err TypeError: number 1 is not a function
+[1].some({}) => err TypeError: object is not a function
+[].some('f') => err TypeError: string "f" is not a function
+Array.prototype.some.call({length: 0}, null) => err TypeError: object null is not a function
+[1].reduce() => err TypeError: undefined is not a function
+[1].reduce(1) => err TypeError: number 1 is not a function
+[1].reduce({}) => err TypeError: object is not a function
+[].reduce('f') => err TypeError: string "f" is not a function
+Array.prototype.reduce.call({length: 0}, null) => err TypeError: object null is not a function
+[1].reduceRight() => err TypeError: undefined is not a function
+[1].reduceRight(1) => err TypeError: number 1 is not a function
+[1].reduceRight({}) => err TypeError: object is not a function
+[].reduceRight('f') => err TypeError: string "f" is not a function
+Array.prototype.reduceRight.call({length: 0}, null) => err TypeError: object null is not a function
+[].reduce((a, b) => a) => err TypeError: Reduce of empty array with no initial value
+[].reduceRight((a, b) => a) => err TypeError: Reduce of empty array with no initial value
+[, ,].reduce((a, b) => a) => err TypeError: Reduce of empty array with no initial value
+Array.prototype.reduce.call({length: 3}, (a, b) => a) => err TypeError: Reduce of empty array with no initial value
+[, 1, ,].reduce((a, b) => a + b) => ok 1
+[1, 2, 3].reduce((a, b) => a + b) => ok 6
+[1, 2, 3].reduce((a, b) => a + b, 10) => ok 16
+[1, 2, 3].reduceRight((a, b) => a + "" + b) => ok "321"
+[1, 2, 3].reduceRight((a, b) => a + "" + b, "x") => ok "x321"
+[1, 2, 3].reduce((a, b, i, o) => a + i + o.length, "") => ok "031323"
+[].sort(1) => err TypeError: The comparison function must be either a function or undefined: 1
+[].sort(null) => err TypeError: The comparison function must be either a function or undefined: null
+[].sort({}) => err TypeError: The comparison function must be either a function or undefined: #<Object>
+[].sort("a") => err TypeError: The comparison function must be either a function or undefined: a
+[].toSorted(1) => err TypeError: The comparison function must be either a function or undefined: 1
+[].toSorted(null) => err TypeError: The comparison function must be either a function or undefined: null
+Array.prototype.sort.call(null, 1) => err TypeError: The comparison function must be either a function or undefined: 1
+Array.prototype.sort.call(null) => err TypeError: Cannot convert undefined or null to object
+Array.prototype.toSorted.call(null, 1) => err TypeError: The comparison function must be either a function or undefined: 1
+Array.from([1], 1) => err TypeError: number 1 is not a function
+Array.from([1], null) => err TypeError: object null is not a function
+Array.from({length: 1}, {}) => err TypeError: object is not a function
+Array.from(null) => err TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+Array.from(undefined) => err TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+Array.from() => err TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+Array.from(1) => ok []
+Array.from(true) => ok []
+Array.from("ab", 1) => err TypeError: number 1 is not a function
+Array.from({[Symbol.iterator]: 1}) => err TypeError: %Array%.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+Array.from({[Symbol.iterator]() { return 1 }}) => err TypeError: Result of the Symbol.iterator method is not an object
+Array.from({[Symbol.iterator]() { return {} }}) => err TypeError: undefined is not a function
+Array.from({[Symbol.iterator]() { return {next: 1} }}) => err TypeError: number 1 is not a function
+Array.from({[Symbol.iterator]() { return {next() { return 1 }} }}) => err TypeError: Iterator result 1 is not an object
+Array.prototype.push.call({length: 2 ** 53 - 1}, 1) => err TypeError: Pushing 1 elements on an array-like of length 9007199254740991 is disallowed, as the total surpasses 2**53-1
+Array.prototype.push.call({length: 2 ** 53 - 2}, 1, 2) => err TypeError: Pushing 2 elements on an array-like of length 9007199254740990 is disallowed, as the total surpasses 2**53-1
+Array.prototype.push.call({length: 2 ** 53 - 1}) => ok 9007199254740991
+Array.prototype.unshift.call({length: 2 ** 53 - 1}, 1) => err TypeError: Invalid array length
+Array.prototype.unshift.call({length: 2 ** 53 - 2}, 1, 2) => err TypeError: Invalid array length
+Array.prototype.unshift.call({length: 2 ** 53 - 1}) => ok 9007199254740991
+Array.prototype.splice.call({length: 2 ** 53 - 1}, 0, 0, 1) => err TypeError: Invalid array length
+Array.prototype.splice.call({length: 2 ** 53 - 1}, 2 ** 53, 0, 1, 2) => err TypeError: Invalid array length
+Array.prototype.toSpliced.call({length: 2 ** 53 - 1}, 0, 0, 1) => err TypeError: Invalid array length
+Array.prototype.toSpliced.call({length: 2 ** 32 - 1}, 0, 0, 1) => err RangeError: Invalid array length
+Array.prototype.toReversed.call({length: 2 ** 32}) => err RangeError: Invalid array length
+Array.prototype.toSorted.call({length: 2 ** 32}) => err RangeError: Invalid array length
+Array.prototype.with.call({length: 2 ** 32}, 0, 1) => err RangeError: Invalid array length
+Array.prototype.slice.call({length: 2 ** 32}, 0) => err RangeError: Invalid array length
+Array.prototype.slice.call({length: 2 ** 53 - 1}, 2 ** 53 - 3).length => ok 2
+Array.prototype.splice.call({length: 2 ** 32 + 2}, 0) => err RangeError: Invalid array length
+Array.prototype.map.call({length: 2 ** 32}, x => x) => err RangeError: Invalid array length
+Array.from({length: 2 ** 32}) => err RangeError: Invalid array length
+Array.from({length: -1}) => ok []
+Array.of.call(function () { return {length: 0, __proto__: null} }, 1).length => ok 1
+Array(-1) => err RangeError: Invalid array length
+Array(1.5) => err RangeError: Invalid array length
+Array(2 ** 32) => err RangeError: Invalid array length
+Array(2 ** 32 - 1).length => ok 4294967295
+new Array(NaN) => err RangeError: Invalid array length
+Array("3") => ok ["3"]
+Array(3).length => ok 3
+Array(1, 2).length => ok 2
+[1, 2].with(2, 0) => err RangeError: Invalid index : 2
+[1, 2].with(-3, 0) => err RangeError: Invalid index : -3
+[1, 2].with(1.5, 0) => ok [1,0]
+[1, 2].with(-1, 0) => ok [1,0]
+[1, 2].with("1", 9) => ok [1,9]
+[1, 2].with(NaN, 9) => ok [9,2]
+[1, 2].with(Infinity, 9) => err RangeError: Invalid index : Infinity
+var a = [1, 2, 3]; a.length = 2 ** 32; a => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = [1, 2, 3]; a.length = -1; a => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = [1, 2, 3]; a.length = 1.5; a => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+Array.prototype.copyWithin.call({length: 2 ** 53 - 1, 0: 1}, 2 ** 53 - 2, 0, 1)[2 ** 53 - 2] => ok 1
+Array.prototype.fill.call({length: 2 ** 53 - 1}, 1, 2 ** 53 - 3)[2 ** 53 - 3] => ok 1
+Object.freeze([1, 2, 3]).push(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.seal([1, 2, 3]).push(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.preventExtensions([1, , 3]).push(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.freeze([1, 2, 3]).pop() => err TypeError: Cannot delete property '2' of [object Array]
+Object.seal([1, 2, 3]).pop() => err TypeError: Cannot delete property '2' of [object Array]
+Object.preventExtensions([1, , 3]).pop() => ok 3
+Object.freeze([1, 2, 3]).shift() => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).shift() => err TypeError: Cannot delete property '2' of [object Array]
+Object.preventExtensions([1, , 3]).shift() => err TypeError: Cannot add property 1, object is not extensible
+Object.freeze([1, 2, 3]).unshift(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.seal([1, 2, 3]).unshift(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.preventExtensions([1, , 3]).unshift(0) => err TypeError: Cannot add property 3, object is not extensible
+Object.freeze([1, 2, 3]).reverse() => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).reverse() => ok [3,2,1]
+Object.preventExtensions([1, , 3]).reverse() => ok [3,_,1]
+Object.freeze([1, 2, 3]).sort() => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).sort() => ok [1,2,3]
+Object.preventExtensions([1, , 3]).sort() => err TypeError: Cannot add property 1, object is not extensible
+Object.freeze([1, 2, 3]).splice(0, 1) => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).splice(0, 1) => err TypeError: Cannot delete property '2' of [object Array]
+Object.preventExtensions([1, , 3]).splice(0, 0, 9) => err TypeError: Cannot add property 3, object is not extensible
+Object.freeze([1, 2, 3]).fill(0) => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).fill(0) => ok [0,0,0]
+Object.preventExtensions([1, , 3]).fill(0) => err TypeError: Cannot add property 1, object is not extensible
+Object.freeze([1, 2, 3]).copyWithin(0, 1) => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Object.seal([1, 2, 3]).copyWithin(0, 1) => ok [2,3,3]
+Object.preventExtensions([1, , 3]).copyWithin(1, 2) => err TypeError: Cannot add property 1, object is not extensible
+var a = [1, 2, 3]; Object.defineProperty(a, "length", {writable: false}); a.pop() => err TypeError: Cannot assign to read only property 'length' of object '[object Array]'
+var a = [1, 2, 3]; Object.defineProperty(a, "length", {writable: false}); a.push(1) => err TypeError: Cannot assign to read only property 'length' of object '[object Array]'
+var a = [1, 2, 3]; Object.defineProperty(a, "length", {writable: false}); a.shift() => err TypeError: Cannot assign to read only property 'length' of object '[object Array]'
+var a = [1, 2, 3]; Object.defineProperty(a, "length", {writable: false}); a.splice(0, 1) => err TypeError: Cannot assign to read only property 'length' of object '[object Array]'
+var a = [1, 2, 3]; Object.defineProperty(a, "length", {writable: false}); a.reverse() => ok [3,2,1]
+var a = [1, 2, 3]; Object.defineProperty(a, 1, {configurable: false}); a.length = 0; a => ok [1,2]
+var a = [1, 2, 3]; Object.defineProperty(a, 1, {configurable: false}); a.shift() => ok 1
+var a = [1, 2, 3]; Object.defineProperty(a, 2, {configurable: false}); a.pop() => err TypeError: Cannot delete property '2' of [object Array]
+var a = [1, , 3]; Object.defineProperty(a, 0, {writable: false}); a.reverse() => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+Array.prototype.pop.call(Object.freeze({length: 1, 0: 1})) => err TypeError: Cannot delete property '0' of #<Object>
+Array.prototype.push.call("ab", 1) => err TypeError: Cannot assign to read only property 'length' of object '[object String]'
+Array.prototype.pop.call("ab") => err TypeError: Cannot delete property '1' of [object String]
+Array.prototype.reverse.call("ab") => err TypeError: Cannot assign to read only property '0' of object '[object String]'
+Array.prototype.sort.call("ba") => err TypeError: Cannot assign to read only property '0' of object '[object String]'
+Array.prototype.fill.call("ab", 1) => err TypeError: Cannot assign to read only property '0' of object '[object String]'
+Array.prototype.shift.call("") => err TypeError: Cannot assign to read only property 'length' of object '[object String]'
+Array.prototype.copyWithin.call("abc", 0, 1) => err TypeError: Cannot assign to read only property '0' of object '[object String]'
+Array.prototype.splice.call("abc", 1) => err TypeError: Cannot delete property '2' of [object String]
+[1, 2, 3].at(0) => ok 1
+[1, 2, 3].at(-1) => ok 3
+[1, 2, 3].at(3) => ok undefined
+[1, 2, 3].at(-4) => ok undefined
+[1, 2, 3].at("1") => ok 2
+[1, 2, 3].at() => ok 1
+[1, 2, 3].at(1.7) => ok 2
+[1, 2, 3].at(-0.5) => ok 1
+[, 1].at(0) => ok undefined
+Array.prototype.at.call("abc", -1) => ok "c"
+Array.prototype.at.call({length: 2 ** 53 + 5, [2 ** 53 - 2]: "x"}, -1) => ok "x"
+[1, 2, 3].with(0, 9) => ok [9,2,3]
+[1, , 3].with(0, 9) => ok [9,undefined,3]
+Array.prototype.with.call({length: 2, 1: "b"}, 0, "a") => ok ["a","b"]
+[1].concat(2, [3, [4]], "x") => ok [1,2,3,[4],"x"]
+[1, , 3].concat([, 5]) => ok [1,_,3,_,5]
+[].concat.call(1, 2) => ok [{},2]
+[].concat.call("ab", "c") => ok [{0:"a",1:"b"},"c"]
+[1].concat({length: 2, 0: "a", [Symbol.isConcatSpreadable]: true}) => ok [1,"a",_]
+var o = [1, 2]; o[Symbol.isConcatSpreadable] = false; [0].concat(o).length => ok 2
+[1].concat({[Symbol.isConcatSpreadable]: true}) => ok [1]
+[1].concat({[Symbol.isConcatSpreadable]: 0, length: 1}) => ok [1,{length:1}]
+Object.keys([0, , 2].concat([, 4])).join() => ok "0,2,4"
+[].concat([1, 2], [3]).length => ok 3
+(function () { return [].concat(arguments) })(1, 2).length => ok 1
+[1, 2, 3, 4, 5].copyWithin(0, 3) => ok [4,5,3,4,5]
+[1, 2, 3, 4, 5].copyWithin(1, 0) => ok [1,1,2,3,4]
+[1, 2, 3, 4, 5].copyWithin(-2, 0, 2) => ok [1,2,3,1,2]
+[1, 2, 3, 4, 5].copyWithin(0, -2, -1) => ok [4,2,3,4,5]
+[1, , 3, 4, 5].copyWithin(2, 0, 2) => ok [1,_,1,_,5]
+[1, 2, 3].copyWithin(1) => ok [1,1,2]
+[1, 2, 3, 4, 5].copyWithin(2, 1) => ok [1,2,2,3,4]
+[1, 2, 3].copyWithin(0, 1, NaN) => ok [1,2,3]
+[1, 2, 3].copyWithin("1", "0") => ok [1,1,2]
+Array.prototype.copyWithin.call({length: 5, 3: 1}, 0, 3) => ok {0:1,3:1,length:5}
+[1, 2, 3].fill(0) => ok [0,0,0]
+[1, 2, 3].fill(0, 1) => ok [1,0,0]
+[1, 2, 3].fill(0, -1) => ok [1,2,0]
+[1, 2, 3].fill(0, 1, 2) => ok [1,0,3]
+Array(3).fill() => ok [undefined,undefined,undefined]
+Array(3).fill(7, 5) => ok [_,_,_]
+[1, 2, 3].fill(0, NaN, NaN) => ok [1,2,3]
+Array.prototype.fill.call({length: 2}, "x") => ok {0:"x",1:"x",length:2}
+[1, 2, 3, 4].find(x => x > 2) => ok 3
+[1, 2, 3, 4].findIndex(x => x > 2) => ok 2
+[1, 2, 3, 4].findLast(x => x < 3) => ok 2
+[1, 2, 3, 4].findLastIndex(x => x < 3) => ok 1
+[1, 2].find(x => x > 5) => ok undefined
+[1, 2].findIndex(x => x > 5) => ok -1
+[1, 2].findLast(x => x > 5) => ok undefined
+[1, 2].findLastIndex(x => x > 5) => ok -1
+var c = []; [1, , 3].find((x, i) => { c.push(i + ":" + x); }); c.join() => ok "0:1,1:undefined,2:3"
+var c = []; [1, , 3].findLast((x, i) => { c.push(i + ":" + x); }); c.join() => ok "2:3,1:undefined,0:1"
+var c = []; [1, 2, 3].find(function (x) { c.push(this.v); }, {v: 7}); c.join() => ok "7,7,7"
+[1, 2, 3, 2].indexOf(2) => ok 1
+[1, 2, 3, 2].indexOf(2, 2) => ok 3
+[1, 2, 3, 2].indexOf(2, -1) => ok 3
+[1, 2, 3, 2].indexOf(2, -100) => ok 1
+[1, 2, 3, 2].indexOf(2, 100) => ok -1
+[1, 2, 3, 2].lastIndexOf(2) => ok 3
+[1, 2, 3, 2].lastIndexOf(2, 2) => ok 1
+[1, 2, 3, 2].lastIndexOf(2, -2) => ok 1
+[1, 2, 3, 2].lastIndexOf(2, -100) => ok -1
+[1, 2, 3, 2].lastIndexOf(2, 100) => ok 3
+[1, 2, 3, 2].lastIndexOf(2, undefined) => ok -1
+[1, 2, 3, 2].lastIndexOf(2, -0) => ok -1
+[2, 1].lastIndexOf(2, -0) => ok 0
+[NaN].indexOf(NaN) => ok -1
+[NaN].lastIndexOf(NaN) => ok -1
+[NaN].includes(NaN) => ok true
+[-0].indexOf(0) => ok 0
+[0].includes(-0) => ok true
+[, 1].indexOf(undefined) => ok -1
+[, 1].includes(undefined) => ok true
+[, 1].lastIndexOf(undefined) => ok -1
+[1, 2].includes(2, 2) => ok false
+[1, 2].includes(1, -1) => ok false
+[1, 2].includes(1, -5) => ok true
+["a"].indexOf("a") => ok 0
+[1].indexOf("1") => ok -1
+Array.prototype.indexOf.call("abc", "b") => ok 1
+Array.prototype.includes.call({length: 1, 0: NaN}, NaN) => ok true
+[1, 2, 3].indexOf(3, 1.9) => ok 2
+[1, 2, 3].includes(3, Infinity) => ok false
+[1, 2, 3].includes(1, -Infinity) => ok true
+[1, 2, 3].lastIndexOf(1, -Infinity) => ok -1
+[1, 2, 3].lastIndexOf(3, Infinity) => ok 2
+var a = [1, 2, 3]; [a.pop(), a] => ok [3,[1,2]]
+var a = []; [a.pop(), a.length] => ok [undefined,0]
+var a = [1, 2]; [a.push(3, 4), a] => ok [4,[1,2,3,4]]
+var a = [1, 2, 3]; [a.shift(), a] => ok [1,[2,3]]
+var a = []; [a.shift(), a.length] => ok [undefined,0]
+var a = [1, 2]; [a.unshift(0, 0.5), a] => ok [4,[0,0.5,1,2]]
+var a = [1, , 3]; [a.shift(), a, Object.keys(a).join()] => ok [1,[_,3],"1"]
+var a = [1, , 3]; [a.unshift(0), Object.keys(a).join()] => ok [4,"0,1,3"]
+var o = {length: 2, 0: "a", 1: "b"}; [Array.prototype.shift.call(o), o] => ok ["a",{0:"b",length:1}]
+var o = {length: "2", 1: "b"}; [Array.prototype.pop.call(o), o] => ok ["b",{length:1}]
+var o = {}; [Array.prototype.pop.call(o), o] => ok [undefined,{length:0}]
+var o = {length: 1.9}; [Array.prototype.push.call(o, "x"), o] => ok [2,{1:"x",length:2}]
+var o = {length: -5}; [Array.prototype.push.call(o), o] => ok [0,{length:0}]
+var o = {length: 3, 0: 1, 2: 3}; [Array.prototype.unshift.call(o, "a"), o] => ok [4,{0:"a",1:1,3:3,length:4}]
+[1, 2, 3].reverse() => ok [3,2,1]
+[1, 2, 3, 4].reverse() => ok [4,3,2,1]
+Object.keys([1, , 3, , ].reverse()).join() => ok "1,3"
+[].reverse() => ok []
+var o = {length: 3, 0: "a"}; Array.prototype.reverse.call(o); o => ok {2:"a",length:3}
+var o = {length: 4, 1: "b", 3: "d"}; Array.prototype.reverse.call(o); o => ok {0:"d",2:"b",length:4}
+[1, 2, 3, 4].slice(1, 3) => ok [2,3]
+[1, 2, 3, 4].slice(-2) => ok [3,4]
+[1, 2, 3, 4].slice(2, -1) => ok [3]
+[1, 2, 3].slice(5) => ok []
+[1, , 3].slice(0) => ok [1,_,3]
+Object.keys([1, , 3].slice(0)).join() => ok "0,2"
+[1, 2, 3].slice("1") => ok [2,3]
+[1, 2, 3].slice(NaN, NaN) => ok []
+Array.prototype.slice.call("abc", 1) => ok ["b","c"]
+Array.prototype.slice.call({length: 3, 1: "x"}) => ok [_,"x",_]
+var a = [1, 2, 3, 4]; [a.splice(1, 2), a] => ok [[2,3],[1,4]]
+var a = [1, 2, 3, 4]; [a.splice(1), a] => ok [[2,3,4],[1]]
+var a = [1, 2, 3, 4]; [a.splice(), a] => ok [[],[1,2,3,4]]
+var a = [1, 2, 3, 4]; [a.splice(undefined), a] => ok [[1,2,3,4],[]]
+var a = [1, 2, 3, 4]; [a.splice(-2, 1, "x", "y"), a] => ok [[3],[1,2,"x","y",4]]
+var a = [1, 2, 3]; [a.splice(1, 0, "x"), a] => ok [[],[1,"x",2,3]]
+var a = [1, 2, 3]; [a.splice(1, -1), a] => ok [[],[1,2,3]]
+var a = [1, 2, 3]; [a.splice(1, 99), a] => ok [[2,3],[1]]
+var a = [1, , 3, 4]; [a.splice(0, 2), a, Object.keys(a).join()] => ok [[1,_],[3,4],"0,1"]
+var a = [1, , 3, , 5]; [a.splice(1, 1, "x", "y"), Object.keys(a).join()] => ok [[_],"0,1,2,3,5"]
+var o = {length: 3, 0: 1, 1: 2, 2: 3}; [Array.prototype.splice.call(o, 1, 1), o] => ok [[2],{0:1,1:3,length:2}]
+[1, 2, 3].toReversed() => ok [3,2,1]
+[1, , 3].toReversed() => ok [3,undefined,1]
+Object.keys([1, , 3].toReversed()).join() => ok "0,1,2"
+Array.prototype.toReversed.call({length: 2, 0: "a"}) => ok [undefined,"a"]
+[3, 1, 2].toSorted() => ok [1,2,3]
+[3, , 1].toSorted() => ok [1,3,undefined]
+Object.keys([3, , 1].toSorted()).join() => ok "0,1,2"
+[3, 1, 2].toSorted((a, b) => b - a) => ok [3,2,1]
+var a = [3, 1]; a.toSorted(); a => ok [3,1]
+[1, 2, 3, 4].toSpliced(1, 2) => ok [1,4]
+[1, 2, 3].toSpliced(1, 0, "x") => ok [1,"x",2,3]
+[1, 2, 3].toSpliced() => ok [1,2,3]
+[1, 2, 3].toSpliced(1) => ok [1]
+[1, , 3].toSpliced(0, 0) => ok [1,undefined,3]
+Object.keys([1, , 3].toSpliced(0, 0)).join() => ok "0,1,2"
+[1, 2, 3].toSpliced(-1, 1, "a", "b") => ok [1,2,"a","b"]
+[1, null, undefined, 2].join() => ok "1,,,2"
+[1, 2].join("") => ok "12"
+[1, 2].join(undefined) => ok "1,2"
+[1, 2].join(null) => ok "1null2"
+[[1, 2], [3]].join(";") => ok "1,2;3"
+var a = [1]; a.push(a); a.join() => ok "1,"
+var a = [1, [2]]; a[1].push(a); String(a) => ok "1,2,"
+[].join() => ok ""
+Array(3).join("-") => ok "--"
+Array.prototype.join.call({length: 2, 0: "a"}, "+") => ok "a+"
+Array.prototype.join.call("abc") => ok "a,b,c"
+[1, 2].toString() => ok "1,2"
+Array.prototype.toString.call({join: () => "J"}) => ok "J"
+Array.prototype.toString.call({}) => ok "[object Object]"
+Array.prototype.toString.call(null) => err TypeError: Cannot convert undefined or null to object
+[1, "a", null, undefined, [2, 3]].toLocaleString() => ok "1,a,,,2,3"
+[{toLocaleString() { return "L" }}, 1].toLocaleString() => ok "L,1"
+[{toLocaleString: 1}].toLocaleString() => err TypeError: number 1 is not a function
+[1234.5, 0.5].toLocaleString() => ok "1,234.5,0.5"
+var a = [1]; a.push(a); a.toLocaleString() => ok "1,"
+[...["a", "b"].keys()] => ok [0,1]
+[...["a", , "b"].entries()].join(";") => ok "0,a;1,;2,b"
+[...["a", "b"].values()] => ok ["a","b"]
+[1, [2, [3, [4]]]].flat() => ok [1,2,[3,[4]]]
+[1, [2, [3, [4]]]].flat(2) => ok [1,2,3,[4]]
+[1, [2, [3, [4]]]].flat(Infinity) => ok [1,2,3,4]
+[1, [2, [3]]].flat(0) => ok [1,[2,[3]]]
+[1, [2, [3]]].flat(-1) => ok [1,[2,[3]]]
+[1, [2, [3]]].flat("1") => ok [1,2,[3]]
+[1, , [2, , 3]].flat() => ok [1,2,3]
+Object.keys([1, , [2, , 3]].flat()).join() => ok "0,1,2"
+[1, 2].flatMap(x => [x, x * 2]) => ok [1,2,2,4]
+[1, 2].flatMap(x => [[x]]) => ok [[1],[2]]
+[1, 2].flatMap(x => x) => ok [1,2]
+[1].flatMap(function () { return this.v }, {v: [5]}) => ok [5]
+[1, [2]].flat.call({length: 2, 0: [1], 1: {length: 1, 0: 2}}) => ok [1,{0:2,length:1}]
+[{length: 1, 0: "x", [Symbol.isConcatSpreadable]: true}].flat() => ok [{0:"x",length:1}]
+var c = []; [1, , 3].forEach((x, i, o) => c.push(i, x, o.length)); c.join() => ok "0,1,3,2,3,3"
+[1, 2, 3].map(x => x * 2) => ok [2,4,6]
+[1, , 3].map(x => x * 2) => ok [2,_,6]
+Object.keys([1, , 3].map(x => x)).join() => ok "0,2"
+[1, 2, 3, 4].filter(x => x % 2) => ok [1,3]
+[1, , 3].filter(() => true) => ok [1,3]
+[1, 2].every(x => x > 0) => ok true
+[1, 2].every(x => x > 1) => ok false
+[].every(() => false) => ok true
+[1, 2].some(x => x > 1) => ok true
+[].some(() => true) => ok false
+[, , ].some(() => true) => ok false
+Array.prototype.map.call("ab", x => x + x) => ok ["aa","bb"]
+Array.prototype.filter.call({length: 2, 0: 1, 1: 0}, x => x) => ok [1]
+var c = []; [1, 2, 3].forEach(function (x) { c.push(this === undefined) }); c.join() => ok "false,false,false"
+var c = []; [1].forEach(function () { "use strict"; c.push(typeof this) }, 5); c.join() => ok "number"
+var c = []; [1].forEach(function () { c.push(typeof this) }, 5); c.join() => ok "object"
+var a = [1, 2, 3]; var c = []; a.forEach(x => { c.push(x); if (x === 1) a.push(9); }); c.join() => ok "1,2,3"
+var a = [1, 2, 3]; var c = []; a.forEach(x => { c.push(x); a.pop(); }); c.join() => ok "1,2"
+var a = [1, , 3]; var c = []; a.forEach((x, i) => { c.push(x); a[1] = 7; }); c.join() => ok "1,7,3"
+var a = [1, 2, 3, 4]; a.map((x, i) => { a.length = 2; return x; }) => ok [1,2,_,_]
+var a = [1, 2, 3]; a.filter((x, i) => { a[i + 1] = 0; return true; }) => ok [1,0,0]
+var a = [3, 2, 1]; a.reduce((acc, x) => { a.shift(); return acc + x; }, 0) => ok 4
+var a = [1, , 3]; Array.prototype[1] = "p"; var r = a.map(x => x); delete Array.prototype[1]; r => ok [1,"p",3]
+var a = [1, , 3]; Object.prototype[1] = "q"; var r = [a.indexOf("q"), a.includes("q"), a.join()]; delete Object.prototype[1]; r => ok [1,true,"1,q,3"]
+var a = [1, , 3]; Object.setPrototypeOf(a, new String("xyz")); [Array.prototype.join.call(a), Array.prototype.indexOf.call(a, "y"), Array.prototype.includes.call(a, "y"), Array.prototype.lastIndexOf.call(a, "z")] => ok ["1,y,3",1,true,-1]
+var a = [1, , 3]; Object.setPrototypeOf(a, new String("xyz")); [Array.prototype.map.call(a, x => x), Array.prototype.slice.call(a), Array.prototype.toReversed.call(a)] => ok [[1,"y",3],[1,"y",3],[3,"y",1]]
+var a = [, , 3]; Object.setPrototypeOf(a, new String("xyz")); Array.prototype.reverse.call(a); [a.length, Object.keys(a).join(), a[0]] => err TypeError: Cannot assign to read only property '0' of object '[object Array]'
+var a = []; var p = []; p[5] = "p"; Object.setPrototypeOf(a, p); a.length = 8; [Array.prototype.indexOf.call(a, "p"), Array.prototype.lastIndexOf.call(a, "p"), Array.prototype.includes.call(a, undefined), Array.prototype.join.call(a)] => ok [5,5,true,",,,,,p,,"]
+var a = [0, , 2]; Object.defineProperty(a, 1, {get() { a.push("g"); return "x" }, configurable: true}); [a.map(v => v), a.length] => ok [[0,"x",2],4]
+var a = [0, , 2, , 4]; Array.prototype[3] = "P"; var r = [a.toSorted(), a.toReversed(), a.slice(), a.concat()]; delete Array.prototype[3]; r => ok [[0,2,4,"P",undefined],[4,"P",2,undefined,0],[0,_,2,"P",4],[0,_,2,"P",4]]
+var a = [5, , 1]; Array.prototype[1] = 3; a.sort(); delete Array.prototype[1]; [a, Object.keys(a).join()] => ok [[1,3,5],"0,1,2"]
+var a = [1, , 3]; Object.prototype[1] = "q"; var r = [a.reverse(), Object.keys(a).join()]; delete Object.prototype[1]; r => ok [[3,_,1],"0,2"]
+class A extends Array {}; var a = new A(1, 2, 3); [a.map(x => x) instanceof A, a.filter(x => 1) instanceof A, a.slice() instanceof A, a.splice(0, 1) instanceof A, a.concat() instanceof A, a.flat() instanceof A, a.flatMap(x => x) instanceof A] => ok [true,true,true,true,true,true,true]
+class A extends Array {}; var a = new A(1, 2, 3); [a.toReversed() instanceof A, a.toSorted() instanceof A, a.toSpliced(0) instanceof A, a.with(0, 1) instanceof A] => ok [false,false,false,false]
+var a = [1, 2]; a.constructor = {[Symbol.species]: function (n) { this.args = n; }}; var r = a.map(x => x); [r.args, r[0], r.length, Array.isArray(r)] => ok [2,1,undefined,false]
+var a = [1, 2]; a.constructor = {[Symbol.species]: null}; Array.isArray(a.map(x => x)) => ok true
+var a = [1, 2]; a.constructor = {[Symbol.species]: 1}; a.map(x => x) => err TypeError: object.constructor[Symbol.species] is not a constructor
+var a = [1, 2]; a.constructor = 1; a.map(x => x) => err TypeError: object.constructor[Symbol.species] is not a constructor
+var a = [1, 2]; a.constructor = undefined; a.map(x => x) => ok [1,2]
+var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.map(x => x) => err TypeError: Cannot define property 0, object is not extensible
+var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.slice() => err TypeError: Cannot define property 0, object is not extensible
+var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.filter(x => 1) => err TypeError: Cannot define property 0, object is not extensible
+var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.splice(0) => err TypeError: Cannot define property 0, object is not extensible
+var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.concat() => err TypeError: Cannot define property 0, object is not extensible
+Array.of(1, 2, 3) => ok [1,2,3]
+Array.of() => ok []
+Array.of(undefined) => ok [undefined]
+Array.of.call(Object, 1, 2) => ok {0:1,1:2,length:2}
+Array.of.call(function (n) { this.n = n }, "a", "b") => ok {0:"a",1:"b",n:2,length:2}
+Array.of.call(undefined, 1) => ok [1]
+Array.of.call(Math.max, 1) => ok [1]
+Array.of.call(function () { return Object.freeze({}) }, 1) => err TypeError: Cannot define property 0, object is not extensible
+Array.from("abc") => ok ["a","b","c"]
+Array.from("a\ud83d\ude00b").length => ok 3
+Array.from([1, , 3]) => ok [1,undefined,3]
+Array.from({length: 3, 1: "x"}) => ok [undefined,"x",undefined]
+Array.from({length: 2}, (x, i) => i * 2) => ok [0,2]
+Array.from([1, 2], function (x) { return x + this.d }, {d: 10}) => ok [11,12]
+Array.from.call(Object, [1, 2]) => ok {0:1,1:2,length:2}
+Array.from.call(Object, {length: 2, 0: "a"}) => ok {0:"a",1:undefined,length:2}
+Array.from.call(undefined, [1]) => ok [1]
+Array.from.call(function (n) { this.n = n }, {length: 2}) => ok {0:undefined,1:undefined,n:2,length:2}
+Array.from.call(function () { this.x = 1 }, [5]) => ok {0:5,x:1,length:1}
+Array.from({length: "2", 0: "a"}) => ok ["a",undefined]
+Array.from({length: 1.5, 0: "a"}) => ok ["a"]
+Array.from((function* () { yield 1; yield 2 })()) => ok [1,2]
+(function () { return Array.from(arguments) })(1, 2, 3) => ok [1,2,3]
+Array.from([1, 2].entries()) => ok [[0,1],[1,2]]
+Array.from([1, 2].keys()) => ok [0,1]
+var it = {[Symbol.iterator]() { var i = 0; return {next() { return {value: i++, done: i > 3}}, return() { throw 1 }}}}; Array.from(it) => ok [0,1,2]
+var log = []; var it = {[Symbol.iterator]() { return {next() { return {value: 1, done: false}}, return() { log.push("ret"); return {} }}}}; try { Array.from(it, () => { throw new Error("m") }) } catch (e) { log.push(e.message) }; log.join() => ok "ret,m"
+Array.from.call(function () { return Object.freeze([]) }, [1]) => err TypeError: Cannot define property 0, object is not extensible
+Array.from.call(function () { return Object.freeze([]) }, {length: 1, 0: 1}) => err TypeError: Cannot define property 0, object is not extensible
+Array.from({length: 1, 0: "a"}, undefined) => ok ["a"]
+Array.isArray([]) => ok true
+Array.isArray({}) => ok false
+Array.isArray(Array.prototype) => ok true
+Array.isArray() => ok false
+[3, 1, 2].sort() => ok [1,2,3]
+[10, 9, 1, 100, -1, 2e21, 1e-7].sort() => ok [-1,1,10,100,1e-7,2e+21,9]
+["b", "a", "B", "aa", ""].sort() => ok ["","B","a","aa","b"]
+[5, undefined, 1, , 3].sort() => ok [1,3,5,undefined,_]
+Object.keys([5, undefined, 1, , 3].sort()).join() => ok "0,1,2,3"
+[true, false, null, "null", undefined, NaN, 0, -0].sort() => ok [0,-0,NaN,false,null,"null",true,undefined]
+[3, 1, 2].sort(undefined) => ok [1,2,3]
+[3, 1, 2].sort((a, b) => b - a) => ok [3,2,1]
+[3, 1, 2].sort(() => 0) => ok [3,1,2]
+[3, 1, 2].sort(() => NaN) => ok [3,1,2]
+[3, 1, 2, 5, 4].sort(() => 1) => ok [3,1,2,5,4]
+[3, 1, 2, 5, 4].sort(() => -1) => ok [4,5,2,1,3]
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => -1) => ok [12,11,10,9,8,7,6,5,4,3,2,1]
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => 1) => ok [1,2,3,4,5,6,7,8,9,10,11,12]
+["10", 9, "8", 1].sort((a, b) => a - b) => ok [1,"8",9,"10"]
+var a = []; for (var i = 0; i < 30; i++) a.push({k: i % 3, i}); a.sort((x, y) => x.k - y.k).map(x => x.i).join() => ok "0,3,6,9,12,15,18,21,24,27,1,4,7,10,13,16,19,22,25,28,2,5,8,11,14,17,20,23,26,29"
+var a = []; for (var i = 0; i < 30; i++) a.push({k: i % 3, i}); a.toSorted((x, y) => y.k - x.k).map(x => x.i).join() => ok "2,5,8,11,14,17,20,23,26,29,1,4,7,10,13,16,19,22,25,28,0,3,6,9,12,15,18,21,24,27"
+Array.prototype.sort.call({0: "b", 1: "a", 3: "c", length: 5}) => ok {0:"a",1:"b",2:"c",length:5}
+var o = {0: "b", 1: "a", 3: "c", length: 5}; Array.prototype.sort.call(o); Object.keys(o).join() => ok "0,1,2,length"
+Array.prototype.toSorted.call({0: "b", 1: "a", 3: "c", length: 5}) => ok ["a","b","c",undefined,undefined]
+var a = [1, 2, 3]; a.sort((x, y) => { a.length = 0; return x - y; }); a => ok [1,2,3]
+var a = [3, 1, 2]; a.sort((x, y) => { a.push(9); return x - y; }); a.join() => ok "1,2,3,9,9,9"
+var a = [3, 1, 2]; a.sort((x, y) => { a[0] = 7; return x - y; }) => ok [1,2,3]
+var a = [3, 1, 2]; try { a.sort((x, y) => { throw new Error("cmp") }) } catch (e) { [e.message, a] } => ok ["cmp",[3,1,2]]
+var a = [3, 1, {toString() { throw new Error("ts") }}]; try { a.sort() } catch (e) { [e.message, a.length] } => ok ["ts",3]
+var n = 0; [3, 1, 2, 5, 4].sort((a, b) => { n++; return a - b; }); n <= 10 => ok true
+var a = [3, 1, 2]; a.sort((x, y) => x < y); a => ok [3,1,2]
+var a = [3, 1, 2]; a.sort((x, y) => ({valueOf() { return x - y }})); a => ok [1,2,3]
+[Symbol(), 1].sort() => err TypeError: Cannot convert a Symbol value to a string
+[Symbol()].sort() => ok [Symbol()]
+[1, Symbol()].sort((a, b) => 0).length => ok 2
+[,"a",,"b"].sort() => ok ["a","b",_,_]
+Object.keys([,"a",,"b"].sort()).join() => ok "0,1"
+[undefined, 3, , 1].sort((a, b) => a - b) => ok [1,3,undefined,_]
+var log = []; [3, 1, 2].sort((a, b) => { log.push(typeof a); return a - b; }); log.every(t => t === "number") => ok true
+[2, 1].sort(function () { "use strict"; return this === undefined ? -1 : 1; }) => ok [1,2]
+(function (a, b, c) { Array.prototype.sort.call(arguments); return [a, b, c].join(); })(3, 1, 2) => ok "1,2,3"
+[0.5, -0, 0, -1, 1e21].sort() => ok [-1,-0,0,0.5,1e+21]
+["\ud800", "\uffff", "\ud83d\ude00", "a"].sort().map(s => s.charCodeAt(0)).join() => ok "97,55296,55357,65535"
+[[2, "b"], [1, "a"]].sort() => ok [[1,"a"],[2,"b"]]
+[10, 1, 2].sort().concat([10, 1, 2].sort((a, b) => a - b)) => ok [1,10,2,1,2,10]
+(function (a, b, c) { Array.prototype.reverse.call(arguments); return [a, b, c].join(); })(1, 2, 3) => ok "3,2,1"
+(function (a, b, c) { Array.prototype.fill.call(arguments, 0, 1); return [a, b, c].join(); })(1, 2, 3) => ok "1,0,0"
+(function (a, b, c) { Array.prototype.splice.call(arguments, 0, 1); return [a, b, c, arguments.length].join(); })(1, 2, 3) => ok "2,3,3,2"
+(function (a, b, c) { Array.prototype.splice.call(arguments, 1, 0, 9); return [a, b, c, arguments.length].join(); })(1, 2, 3) => ok "1,9,2,4"
+(function (a, b, c) { Array.prototype.copyWithin.call(arguments, 0, 1); return [a, b, c].join(); })(1, 2, 3) => ok "2,3,3"
+(function (a, b, c) { Array.prototype.shift.call(arguments); return [a, b, c, arguments.length].join(); })(1, 2, 3) => ok "2,3,3,2"
+(function (a, b, c) { Array.prototype.unshift.call(arguments, 0); return [a, b, c, arguments.length].join(); })(1, 2, 3) => ok "0,1,2,4"
+(function (a, b) { Array.prototype.pop.call(arguments); arguments[1] = 9; return [a, b].join(); })(1, 2) => ok "1,2"
+(function (a, b) { "use strict"; Array.prototype.reverse.call(arguments); return [a, b].join(); })(1, 2) => ok "1,2"
+(function (a, b, c) { var r = Array.prototype.toSorted.call(arguments); return [r.join(), a, b, c].join(); })(3, 1, 2) => ok "1,2,3,3,1,2"
+(function () { return Array.prototype.slice.call(arguments, 1); })(1, 2, 3) => ok [2,3]
+(function () { return Array.prototype.map.call(arguments, x => x * 2); })(1, 2) => ok [2,4]
+Object.getOwnPropertyNames(Array.prototype).join() => ok "length,constructor,at,concat,copyWithin,fill,find,findIndex,findLast,findLastIndex,lastIndexOf,pop,push,reverse,shift,unshift,slice,sort,splice,includes,indexOf,join,keys,entries,values,forEach,filter,flat,flatMap,map,every,some,reduce,reduceRight,toReversed,toSorted,toSpliced,with,toLocaleString,toString"
+Object.getOwnPropertySymbols(Array.prototype).map(String).join() => ok "Symbol(Symbol.iterator),Symbol(Symbol.unscopables)"
+Object.getOwnPropertySymbols(Array).map(String).join() => ok "Symbol(Symbol.species)"
+Object.keys(Array.prototype[Symbol.unscopables]).join() => ok "at,copyWithin,entries,fill,find,findIndex,findLast,findLastIndex,flat,flatMap,includes,keys,toReversed,toSorted,toSpliced,values"
+Object.getPrototypeOf(Array.prototype[Symbol.unscopables]) => ok null
+Object.getOwnPropertyNames(Array.prototype).filter(k => typeof Array.prototype[k] === "function").map(k => k + ":" + Array.prototype[k].length).join() => ok "constructor:1,at:1,concat:1,copyWithin:2,fill:1,find:1,findIndex:1,findLast:1,findLastIndex:1,lastIndexOf:1,pop:0,push:1,reverse:0,shift:0,unshift:1,slice:2,sort:1,splice:2,includes:1,indexOf:1,join:1,keys:0,entries:0,values:0,forEach:1,filter:1,flat:0,flatMap:1,map:1,every:1,some:1,reduce:1,reduceRight:1,toReversed:0,toSorted:1,toSpliced:2,with:2,toLocaleString:0,toString:0"
+[Array.from.length, Array.of.length, Array.isArray.length, Array.length, Array.name] => ok [1,0,1,1,"Array"]
+Object.getOwnPropertyNames(Array.prototype).filter(k => typeof Array.prototype[k] === "function").map(k => Array.prototype[k].name).join() => ok "Array,at,concat,copyWithin,fill,find,findIndex,findLast,findLastIndex,lastIndexOf,pop,push,reverse,shift,unshift,slice,sort,splice,includes,indexOf,join,keys,entries,values,forEach,filter,flat,flatMap,map,every,some,reduce,reduceRight,toReversed,toSorted,toSpliced,with,toLocaleString,toString"
+JSON.stringify(Object.getOwnPropertyDescriptor(Array.prototype, "map")) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Array, "from")) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+Array.prototype[Symbol.iterator] === Array.prototype.values => ok true
+String(Array.prototype.toSorted) => ok "function toSorted() { [native code] }"
+String(Array.from) => ok "function from() { [native code] }"
+Array.prototype.concat.name + Array.prototype[Symbol.iterator].name => ok "concatvalues"
+new Array.prototype.map(x => x) => err TypeError: Array.prototype.map is not a constructor
+new Array.from([]) => err TypeError: Array.from is not a constructor
+Reflect.construct(Array.of, []).length => err TypeError: function of() { [native code] } is not a constructor
+var a = [1]; a.length = 2 ** 32; a => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = []; Object.defineProperty(a, "length", {value: -1}) => err RangeError: Invalid array length
+Object.defineProperty([], "length", {value: 2 ** 32}) => err RangeError: Invalid array length
+Reflect.set([], "length", -1) => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = [1, 2, 3]; a.length = "x" => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = []; a.length = {valueOf() { return -1 }} => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = []; a[2 ** 32 - 2] = 1; var c = 0; a.forEach(() => c++); [c, a.indexOf(1), a.lastIndexOf(1), a.includes(undefined), a.includes(2), a.length] => ok [1,4294967294,4294967294,true,false,4294967295]
+({length: 2 ** 53 - 1, 0: 1, __proto__: Array.prototype}).lastIndexOf(1, 5) => ok 0
+Array.prototype.indexOf.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1, 2 ** 53 - 10) => ok 9007199254740990
+Array.prototype.lastIndexOf.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1) => ok 9007199254740990
+Array.prototype.includes.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1, -5) => ok true
+Array.prototype.at.call({length: 2 ** 53 - 1, 9007199254740990: 1}, -1) => ok 1
+var o = {length: 2 ** 32 + 2, 4294967296: "x", 4294967295: "y"}; Array.prototype.pop.call(o); [o.length, o[4294967296], o[4294967295]] => ok [4294967297,"x","y"]
+var a = []; a[4294967294] = "x"; a.push("y") => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length
+var a = []; a.length = 4294967295; a.splice(4294967294, 0, 1) => err RangeError: Failed to set the 'length' property on 'Array': Invalid array length

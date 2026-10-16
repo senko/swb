@@ -112,6 +112,35 @@ const PROGRAMS: &[(&str, &str)] = &[
         "function run() { var h = 'a,bb,ccc,dddd,eeeee,ffffff,ggggggg,h'; var r = 0; for (var i = 0; i < 100000; i++) { r += h.split(',').length; } return r; }",
     ),
     (
+        "array: sort 100k integers (default order)",
+        "var data = (function () { var d = [], x = 1; for (var i = 0; i < 100000; i++) { x = (x * 1103515245 + 12345) % 2147483648; d.push(x | 0); } return d; })();
+         function run() { var s = data.slice().sort(); return s[0] + s[99999]; }",
+    ),
+    (
+        "array: sort 100k integers with (a, b) => a - b",
+        "var data = (function () { var d = [], x = 1; for (var i = 0; i < 100000; i++) { x = (x * 1103515245 + 12345) % 2147483648; d.push(x | 0); } return d; })();
+         function run() { var s = data.slice().sort(function (a, b) { return a - b; }); return s[0] + s[99999]; }",
+    ),
+    (
+        "array: 1M push, then 1M pop",
+        "function run() { var a = []; for (var i = 0; i < 1000000; i++) a.push(i); var s = 0; while (a.length) s += a.pop(); return s; }",
+    ),
+    (
+        "array: indexOf on 100k elements, 200 times",
+        "var arr = []; for (var i = 0; i < 100000; i++) arr.push(i);
+         function run() { var r = 0; for (var i = 0; i < 200; i++) r += arr.indexOf(99999 - (i % 10)); return r; }",
+    ),
+    (
+        "array: filter of 100k elements, 10 times",
+        "var arr = []; for (var i = 0; i < 100000; i++) arr.push(i);
+         function run() { var r = 0; for (var i = 0; i < 10; i++) r += arr.filter(function (x) { return x & 1; }).length; return r; }",
+    ),
+    (
+        "array: reduce of 100k elements, 10 times",
+        "var arr = []; for (var i = 0; i < 100000; i++) arr.push(i);
+         function run() { var r = 0; for (var i = 0; i < 10; i++) r += arr.reduce(function (a, b) { return a + b; }, 0); return r; }",
+    ),
+    (
         "JSON.parse of a 1 MB text",
         r#"var text = (function () { var items = []; for (var i = 0; i < 5000; i++) items.push({ id: i, name: 'item ' + i, tags: ['alpha', 'beta', 'gamma'], price: i * 1.25 + 0.01, active: i % 2 === 0, note: null, nested: { x: i, y: [i, i + 1, i + 2], s: 'text with "escapes" and \n a break and \u00e9' } }); return JSON.stringify(items, null, 1); })();
          function run() { return JSON.parse(text).length + text.length; }"#,
@@ -223,8 +252,9 @@ fn measure() {
     for source in [
         "for (;;) {}",
         "function f() { f(); } for (;;) { try { f(); } catch (e) {} }",
-        "var a = []; a.length = 4294967295; a.forEach(function () {})",
-        "var a = []; a.length = 4294967295; a.join('')",
+        // `find` visits every index (the other loops skip holes).
+        "var a = []; a.length = 4294967295; a.find(function () {})",
+        "var a = []; a.length = 4294967295; Object.setPrototypeOf(a, new String('x')); Array.prototype.join.call(a, '')",
     ] {
         let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");
         let limit = Duration::from_millis(100);

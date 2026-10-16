@@ -306,6 +306,16 @@ impl Atoms {
     }
 }
 
+/// The last result of `split`: the subject and separator strings (by
+/// handle; strings are immutable), the limit, and an internal array of the
+/// pieces, which a later `split` of the same strings copies.
+pub(crate) struct SplitCache {
+    pub(crate) subject: Gc<JsString>,
+    pub(crate) separator: Gc<JsString>,
+    pub(crate) limit: usize,
+    pub(crate) pieces: Gc<Object>,
+}
+
 /// The VM state outside the heap: the roots of the collector.
 pub(crate) struct Vm {
     /// The value stack: the register windows of all frames.
@@ -337,6 +347,9 @@ pub(crate) struct Vm {
     pub(crate) join_stack: Vec<Gc<Object>>,
     /// The generator of `Math.random`.
     pub(crate) random: random::RandomSource,
+    /// The last result of `String.prototype.split` with a string
+    /// separator (`builtins/string_replace.rs`).
+    pub(crate) split_cache: Option<SplitCache>,
 }
 
 impl RootSource for Vm {
@@ -355,6 +368,11 @@ impl RootSource for Vm {
         tracer.value(self.last_value);
         for object in &self.join_stack {
             tracer.object(*object);
+        }
+        if let Some(cache) = &self.split_cache {
+            tracer.string(cache.subject);
+            tracer.string(cache.separator);
+            tracer.object(cache.pieces);
         }
     }
 }

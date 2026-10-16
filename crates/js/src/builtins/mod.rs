@@ -3,10 +3,8 @@
 //! Implemented so far: `console.log`; `Object` (all static functions,
 //! `Object.prototype` with Annex B) and `Reflect`; the `Error`
 //! constructors, `AggregateError` and the V8 extensions
-//! `Error.captureStackTrace` and `Error.stackTraceLimit`; `Array` with
-//! `isArray`, `@@species`, `push`, `join`, `indexOf`, `slice`, `forEach`,
-//! `map`, `toString`, `keys`, `values`, `entries`, `@@iterator` and
-//! `@@unscopables`;
+//! `Error.captureStackTrace` and `Error.stackTraceLimit`; `Array`
+//! complete except `fromAsync` (`array*.rs`);
 //! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
 //! `Function` constructor is in `vm/create_function.rs`); the global
@@ -27,12 +25,19 @@
 //! through `toString`, and the key loops of `Object` that read getters)
 //! open a handle scope per element, so that their scope does not grow
 //! with the length of the array, and step the time countdown once per
-//! element, also over holes (ADR 0026 section 9). `Function.prototype.call`,
+//! visited element (ADR 0026 section 9; the array methods skip holes where
+//! nothing can observe it, `array_access.rs`). `Function.prototype.call`,
 //! `apply`, `Reflect.apply`, `Reflect.construct` and
 //! `Array.prototype.toString` end in a deferred call, without Rust
 //! recursion.
 
 mod array;
+mod array_access;
+mod array_copy;
+mod array_iteration;
+mod array_mutate;
+mod array_search;
+mod array_sort;
 mod array_species;
 mod boolean;
 mod console;
@@ -236,13 +241,7 @@ impl Runtime {
     /// A new array `[first, second]`; both values must be reachable or
     /// recorded by the caller.
     fn pair_array(&mut self, first: Value, second: Value) -> VmResult<Gc<Object>> {
-        let array = self.new_array()?;
-        for (index, value) in [first, second].into_iter().enumerate() {
-            let key = PropertyKey::Index(index as u32);
-            self.heap
-                .create_data_property(array, key, value, &self.vm)?;
-        }
-        Ok(array)
+        self.array_from_values(&[first, second])
     }
 
     /// `CreateListFromArrayLike` (§7.3.19) with the limit of the value

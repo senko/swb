@@ -122,6 +122,13 @@ impl Runtime {
         key: PropertyKey,
         value: Value,
     ) -> VmResult<()> {
+        // The dense builder's shortcut (`object/element_access.rs`) for
+        // the arrays that natives fill.
+        if let PropertyKey::Index(index) = key
+            && self.heap.store_dense(object, index, value)?
+        {
+            return Ok(());
+        }
         if self
             .heap
             .create_data_property(object, key, value, &self.vm)?

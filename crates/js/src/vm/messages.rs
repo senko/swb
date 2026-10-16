@@ -161,6 +161,17 @@ impl Runtime {
             }
             current = self.heap.get_prototype_of(object).ok().flatten();
         }
+        // An index at or above a read-only `length` of an extensible
+        // array: V8 names `length`.
+        if let (PropertyKey::Index(index), Ok((length, false))) =
+            (key, self.heap.array_length(target))
+            && index >= length
+            && self.heap.is_extensible(target).unwrap_or(false)
+        {
+            return VmError::type_error(
+                "Cannot assign to read only property 'length' of object '[object Array]'",
+            );
+        }
         VmError::type_error(format!(
             "Cannot add property {}, object is not extensible",
             self.key_text(key)

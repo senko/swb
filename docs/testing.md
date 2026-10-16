@@ -1019,6 +1019,32 @@ committed sample always; the whole file with `cargo test -p swb-js-text
 --test normalization -- --ignored` (it reads `out/ucd/17.0.0/`, which
 `just tools js-unicode-tables` fills).
 
+### Array tests
+
+`tools/probes/js-arrays.json` has 615 snippets for Chromium 148 in the
+format of `js-strings.json` (`SNIPPET => ok VALUE` or `=> err NAME:
+MESSAGE`; its `show` prints holes as `_`): the receiver and callback
+messages of every method, the length limits, frozen and sealed arrays,
+species, `Array.from` and `Array.of`, `sort`, mapped arguments, the key
+order, and the limits group (one snippet per case: `flat` depth, the
+`length` messages, array-likes of length 2^53 − 1).
+`crates/js/tests/data/gen-array-cases.js` turns the probe output into
+`arrays_cases.js` and `.expected` (and `arrays_cases_heavy.*`, the deep
+nesting cases, which run without the stress mode) for
+`crates/js/tests/builtins_array.rs`:
+
+```
+just probe --json tools/probes/js-arrays.json > probe.json
+node crates/js/tests/data/gen-array-cases.js probe.json crates/js/tests/data
+```
+
+The script leaves out the snippets that need `Proxy`, `BigInt` or
+`Array.fromAsync`, and three known differences (see the script).
+Chromium loops over the length of a sparse array in the moving methods
+(minutes for a length of 2^32 − 1), so these cases are in
+`arrays_gc.js` and `language_hostile.rs` with results checked against
+the specification's steps.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

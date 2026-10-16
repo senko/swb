@@ -54,11 +54,11 @@ fn endless_and_huge_inputs_end_at_the_deadline() {
             // `AggregateError` over an iterable that never ends.
             "new AggregateError(endless);",
             "while (true) new AggregateError([1, 2, 3]);",
-            // `indexOf` and `slice` over array-likes of length 2^53 - 1.
-            "Array.prototype.indexOf.call({ length: 9007199254740991 }, 'x');",
-            "Array.prototype.indexOf.call({ length: 9007199254740991 }, 'x', -9007199254740991);",
-            "Array.prototype.slice.call({ length: 4294967295 });",
-            "Array.prototype.slice.call({ length: 4294967295 }, 0, 4294967295);",
+            // The `find` family over array-likes of length 2^53 - 1 (it
+            // visits every index; `indexOf` and `slice` skip the holes,
+            // `array_hostile` in `language_hostile.rs`).
+            "Array.prototype.find.call({ length: 9007199254740991 }, function () {});",
+            "Array.prototype.findLastIndex.call({ length: 9007199254740991 }, function () {});",
             // Capturing stacks without end.
             "while (true) new Error('x');",
             "while (true) Error.captureStackTrace({});",

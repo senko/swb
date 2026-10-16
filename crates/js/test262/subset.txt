@@ -15,9 +15,15 @@ feature __getter__
 feature __proto__
 feature __setter__
 feature AggregateError
+feature array-find-from-last
 feature array-grouping
+feature Array.prototype.at
+feature Array.prototype.flat
+feature Array.prototype.flatMap
+feature Array.prototype.includes
 feature Array.prototype.values
 feature arrow-function
+feature change-array-by-copy
 feature class
 feature class-fields-private
 feature class-fields-private-in
@@ -57,6 +63,7 @@ feature Reflect.construct
 feature Reflect.set
 feature Reflect.setPrototypeOf
 feature rest-parameters
+feature stable-array-sort
 feature Symbol
 feature Symbol.asyncIterator
 feature Symbol.hasInstance

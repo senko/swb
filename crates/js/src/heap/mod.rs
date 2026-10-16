@@ -220,12 +220,21 @@ impl Heap {
         self.allocated = self.allocated.saturating_add(bytes);
     }
 
-    /// Whether a collection is due at the next safepoint.
+    /// Whether a collection is due at the next safepoint: past the
+    /// threshold, over the limit, or within a fifth of the limit with a
+    /// tenth of it allocated since the last collection. The last rule is
+    /// for the paths that allocate without a safepoint (a concatenation
+    /// that rebalances a rope checks the limit, but cannot collect): they
+    /// would otherwise end the script near the limit although a collection
+    /// would free enough (M7 6a: a rope loop with 3 MB of live data ended
+    /// at a limit of 13 MiB, the threshold being above the limit).
     #[inline]
     pub fn gc_due(&self) -> bool {
+        let limit = self.config.limit;
         self.config.stress
             || self.allocated > self.threshold()
-            || self.heap_size() > self.config.limit
+            || self.heap_size() > limit
+            || (self.heap_size() > limit - limit / 5 && self.allocated > limit / 10)
     }
 
     // --- Safepoints ---------------------------------------------------

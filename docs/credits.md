@@ -199,6 +199,17 @@ Format: source, license (for code), what it influenced.
   The parser reads a decimal number with the fast path of Clinger
   (above) when the mantissa is below 2^53 and the decimal exponent is
   at most 22 in magnitude.
+- The sort of `Array.prototype.sort` and `toSorted` (M7 feature 6a,
+  `js/src/builtins/array_sort.rs`), written from the textbook
+  descriptions, no engine code read: binary insertion (D. E. Knuth, The
+  Art of Computer Programming, vol. 3, §5.2.1) for runs of 16, then
+  bottom-up mergesort with the test that skips the merge of two runs in
+  order and insertion sort for small subarrays (R. Sedgewick and K. Wayne,
+  "Algorithms", 4th edition, §2.2). The comparisons of integers by their
+  decimal digits and the permutation of indices are swb's own. The
+  methods follow ECMA-262 §23.1; the messages, the key order and the
+  limits (the depth of `flat`) were measured in Chromium 148 (`just
+  probe` `tools/probes/js-arrays.json`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`).

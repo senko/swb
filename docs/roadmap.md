@@ -1229,6 +1229,81 @@ failures with a reason. Features, in this order:
 6. Arrays and collections (`implementer`). `Array` with dense and sparse
    elements, the iterator helpers, `Map`, `Set` (with the ES2025 set
    methods).
+   Split 2026-10-16 into three sessions, one commit each. Of `Array`,
+   only `isArray`, `push`, `join`, `indexOf`, `slice`, `forEach`, `map`,
+   `toString` and the iterator methods exist: `built-ins/Array` passes
+   981 of 3,083 tests, and `Map`, `Set`, `Iterator` and their iterator
+   prototypes (not in the subset yet) pass 11 of 1,263.
+   - 6a `Array` (`implementer-hard`, because it sets the element access
+     of the natives that later features use): `Array.from`, `Array.of`
+     and the rest of `Array.prototype`, with a stable `sort`; generic
+     over array-likes with a length up to 2^53 − 1; fast paths for dense
+     elements; on sparse elements, the methods visit only the present
+     indices where the result is the same; a bulk append to a dense
+     array for natives (`split` uses it). Keys in Chromium 148's order.
+     Done 2026-10-16: `Array.from` (iterables, array-likes, `this` as the
+     constructor), `Array.of` and all of `Array.prototype`, with V8's
+     messages and Chromium 148's key order (615 cases in
+     `tools/probes/js-arrays.json`, 608 of them a test, also in stress
+     mode). The element access of the natives
+     (`object/element_access.rs`) has three levels: a dense array whose
+     prototypes store no elements is read and changed in its vector where
+     the steps cannot fail; a prototype chain of ordinary objects
+     (everything but String objects and host objects; later also not
+     proxies) takes the steps only at the stored indices, also at named
+     keys from 2^32 − 1 to 2^53 − 2, and checks again after each
+     callback; any other chain takes the steps at every index. So with
+     `a = []; a.length = 2 ** 32 - 1`, `reverse`, `shift`, `unshift`,
+     `splice`, `copyWithin` and `sort` take less than a millisecond (V8:
+     37 s to minutes); the copying methods of such an array end at the
+     heap limit. The dense builder (one reservation, no property
+     definition) serves `split`, `Object.keys`, `values` and `entries`,
+     the constructor and the copying methods; `split` also keeps its last
+     result: 100,000 splits into 8 pieces take 20 ms (were 99 ms;
+     `node --jitless` 3.8 ms, also with a cache). `sort`: binary
+     insertion of runs and a bottom-up merge of an index permutation
+     (Knuth §5.2.1; Sedgewick and Wayne §2.2), stable, with the values
+     rooted while comparators run; 100,000 integers 15 ms (Node.js 19
+     ms), with a comparator 113 ms (23 ms; each call re-enters the
+     interpreter, feature 13). `flat` keeps its levels in a vector and
+     ends at 9,000 levels (V8 between 8,000 and 10,000). `reverse`,
+     `sort`, `splice` and `fill` write through mapped arguments (tested).
+     Runtime test262: 25,091 pass (was 23,222), the same in stress mode;
+     `built-ins/Array` 2,804 of 3,083 (was 966); parse-only unchanged.
+     Known failures: `RegExp` (8), `Date` (12), `Proxy` (9), typed arrays
+     and `ArrayBuffer` (11), `BigInt` (10), async tests and
+     `Array.fromAsync` (7), another realm. Differences from Chromium:
+     `concat` throws the specification's `TypeError` for a spreadable
+     array-like of length 2^53 − 1 followed by an item (V8 does not), and
+     the `RangeError` of the `length` write for a result above 2^32 − 1
+     (V8 returns length 4294967295); `Object.freeze([1]).sort()` throws
+     the specification's `TypeError` (V8 returns the array);
+     `toLocaleString` passes no arguments (no `Intl`); `join` of arrays
+     nested 500 deep ends with a `RangeError` (V8: 1,000 work; unchanged
+     since 5d). Also changed: an invalid `length` written with `[[Set]]`
+     gives Chromium 148's message ("Failed to set the 'length' property
+     on 'Array': Invalid array length"); a safepoint also collects near
+     the heap limit (a rope loop ended at a 13 MiB limit with 3 MB live,
+     already at 8b30241). The review found no correctness bug in about
+     1,200 cases of mutating callbacks and receiver states; fixed: sorted
+     input cost more comparator calls than in V8 (8 elements: 13 calls,
+     V8 7; now n − 1). Open: `shift` moves the whole dense vector
+     (backlog).
+   - 6b `Map` and `Set` (`implementer`): an ordered hash table (insertion
+     order, iteration that sees additions and skips deletions, a keyed
+     hash, compaction), `Map`, `Set`, their iterators, `Map.groupBy`,
+     the ES2025 set methods, `Map.prototype.getOrInsert` and
+     `getOrInsertComputed` (in Chromium 148). `WeakMap` and `WeakSet`
+     stay for feature 9.
+   - 6c Iterator helpers (`implementer`): the `Iterator` constructor,
+     `Iterator.from`, `Iterator.concat` (in Chromium 148; `zip`,
+     `zipKeyed`, `chunks`, `windows`, `join` and `includes` are not),
+     the methods of `Iterator.prototype` (`map`, `filter`, `take`,
+     `drop`, `flatMap`, `reduce`, `toArray`, `forEach`, `some`, `every`,
+     `find`), `%IteratorHelperPrototype%`,
+     `%WrapForValidIteratorPrototype%`.
+     `Iterator.prototype[Symbol.dispose]` waits for explicit resource
+     management (backlog).
 7. Generators, promises, `async` (`implementer-hard`). Generator objects,
    `Promise`, the job queue and its host hooks, `async` functions, async
    generators, `for await`, async-from-sync iterators,
@@ -1429,6 +1504,29 @@ not repeated here; the open items of each spike session are in M6 step
 - Bound function names (M7 2a open item): the 32,768-unit limit can go
   now that `"bound " + name` is a rope; check V8 with very long names
   first.
+- `shift`, `unshift` and `splice(0, 1)` on a large dense array move the
+  whole vector, at about 0.8 ns per element: a queue of 100,000 elements
+  emptied with `shift` takes 4.1 s (`node --jitless` 0.59 s). A start
+  offset in the dense vector would make `shift` O(1); breadth-first
+  queues on pages use this pattern (M7 6a review; feature 13).
+- `join` and `String` of arrays nested 500 deep end with a `RangeError`
+  (400 work), because each level re-enters the interpreter through
+  `ToPrimitive`, `toString` and `join`; V8 handles 1,000 (M7 6a).
+- Integer results of `|` (for example `(x * 1103515245 + 12345) %
+  2147483648 | 0`) are stored in arrays as doubles; check the bitwise
+  results of the interpreter (M7 6a; feature 13).
+- No-GC paths near the heap limit (M7 6a): the rope rebalance and other
+  paths reserve with `check_room` and cannot collect, so near the limit
+  they could end the script while garbage remains. Since 6a a safepoint
+  also collects near the limit, which hides the case; a safepoint
+  before the rebalance would remove it.
+- Built-ins of Chromium 148 that no M7 feature names (found 2026-10-16):
+  explicit resource management (`using`, `await using`,
+  `DisposableStack`, `AsyncDisposableStack`, `SuppressedError`,
+  `Symbol.dispose`, `Symbol.asyncDispose`,
+  `Iterator.prototype[Symbol.dispose]`; test262 feature
+  `explicit-resource-management`) and `Error.isError`. Add them when a
+  target uses them, or after M7.
 
 ## Backlog from M5
 

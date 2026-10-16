@@ -8,7 +8,10 @@
 //! arguments); and of the ropes of feature 5a (a million alternating
 //! appends and prepends, doubling to the length limit, flattens without
 //! room under the heap limit, rope keys in hot loops, ropes across
-//! collections). A case ends with a result, an error or a termination at the
+//! collections); and of the arrays of feature 6a (the moving methods on
+//! sparse lengths of 2^32 - 1 and 2^53 - 1, copies of huge sparse arrays,
+//! comparators that change the array or answer at random, deep `flat`, a
+//! growing `concat`). A case ends with a result, an error or a termination at the
 //! deadline or the heap limit; none may overflow the Rust stack, allocate
 //! outside the heap accounting in proportion to the script's data, or run
 //! past the deadline.
@@ -2152,6 +2155,229 @@ fn locale_compare_of_long_strings() {
             "while (true) { s1.localeCompare(s2); w1.localeCompare(w2); }",
             Duration::from_millis(100),
             Duration::from_millis(800),
+        );
+    });
+}
+
+// --- Arrays (M7 feature 6a) ---
+
+/// A termination at the time or the heap limit.
+fn is_limit(result: &Result<Value, ScriptError>) -> bool {
+    matches!(
+        result,
+        Err(ScriptError::Terminated(
+            Termination::TimeLimit | Termination::HeapLimit
+        ))
+    )
+}
+
+#[test]
+fn moving_methods_on_huge_sparse_lengths_cost_the_stored_elements() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let setup = "var a = []; a.length = 4294967295; a[3] = 'p'; a[4294967290] = 'q'; \
+                     var o = {length: 9007199254740991, 2: 'x', 9007199254740900: 'y'}; ";
+        let cases = [
+            ("a.reverse(); Object.keys(a).join()", "4,4294967291"),
+            (
+                "a.shift(); Object.keys(a).join() + ' ' + a.length",
+                "2,4294967289 4294967294",
+            ),
+            // The elements move, then the new length is a RangeError.
+            (
+                "var e; try { a.unshift(1, 2); } catch (x) { e = x.name; } e + ' ' + Object.keys(a).join() + ' ' + a.length",
+                "RangeError 0,1,5,4294967292 4294967295",
+            ),
+            (
+                "a.splice(1, 2); Object.keys(a).join() + ' ' + a.length",
+                "1,4294967288 4294967293",
+            ),
+            (
+                "var e; try { a.splice(1, 0, 'n'); } catch (x) { e = x.name; } e + ' ' + Object.keys(a).join() + ' ' + a.length",
+                "RangeError 1,4,4294967291 4294967295",
+            ),
+            (
+                "a.length = 4294967290; a.unshift(1, 2); Object.keys(a).join() + ' ' + a.length",
+                "0,1,5 4294967292",
+            ),
+            ("a.copyWithin(0, 3); Object.keys(a).join()", "0,4294967287"),
+            ("a.copyWithin(10, 0); Object.keys(a).join()", "3,13"),
+            (
+                "a.sort(); Object.keys(a).join() + ' ' + a[0] + a[1]",
+                "0,1 pq",
+            ),
+            (
+                "a.fill(0, 4294967290); Object.keys(a).join()",
+                "3,4294967290,4294967291,4294967292,4294967293,4294967294",
+            ),
+            (
+                "[a.indexOf('q'), a.lastIndexOf('p'), a.includes(undefined), a.includes('z'), a.join('').length].join()",
+                "4294967290,3,true,false,2",
+            ),
+            (
+                "var c = 0; a.forEach(function () { c++; }); a.map(String); a.filter(Boolean); a.some(Number); a.every(String); a.reduce(function (x) { return x; }); c",
+                "2",
+            ),
+            (
+                "Array.prototype.reverse.call(o); [o[9007199254740988], o[90], Object.keys(o).length].join()",
+                "x,y,3",
+            ),
+            (
+                "Array.prototype.shift.call(o); [o[1], o[9007199254740899], o.length].join()",
+                "x,y,9007199254740990",
+            ),
+            (
+                "Array.prototype.copyWithin.call(o, 0, 2, 3); [o[0], o[2]].join()",
+                "x,x",
+            ),
+            (
+                "Array.prototype.sort.call(o); [o[0], o[1], o.length].join()",
+                "x,y,9007199254740991",
+            ),
+            (
+                "[Array.prototype.lastIndexOf.call(o, 'x'), Array.prototype.indexOf.call(o, 'y'), Array.prototype.includes.call(o, 'y')].join()",
+                "2,9007199254740900,true",
+            ),
+        ];
+        for (source, expected) in cases {
+            let script = format!("{setup}print(eval({source:?}));");
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, &script, Duration::from_secs(10));
+            assert_eq!(result, Ok(Value::Undefined), "{source}");
+            assert_eq!(run_in(&mut rt, ""), expected, "{source}");
+            assert!(elapsed < Duration::from_secs(1), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        // A loop of them ends at the deadline.
+        assert_ends_at_deadline(
+            &mut rt,
+            "var b = []; b.length = 4294967295; b[7] = 1; while (true) { b.reverse(); b.shift(); b.unshift(0); }",
+            DEADLINE,
+            Duration::from_millis(500),
+        );
+    });
+}
+
+#[test]
+fn copies_of_huge_sparse_arrays_end_at_a_limit() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // These make an element for each hole: the heap limit or the
+        // deadline ends them (V8 runs for minutes).
+        for source in [
+            "Array(4294967295).toReversed()",
+            "Array(4294967295).toSorted()",
+            "Array(4294967295).with(0, 1)",
+            "Array(4294967295).toSpliced(0, 1)",
+            "Array(4294967295).fill(0)",
+            "Array.from({length: 4294967295})",
+            "Array.prototype.find.call({length: 9007199254740991}, function () {})",
+            "var a = Array(1000000).fill(1); while (true) a = a.concat(a);",
+            "var a = [1]; while (true) a.push.apply(a, a);",
+        ] {
+            let (result, elapsed) =
+                eval_with_deadline_of(&mut rt, source, Duration::from_millis(500));
+            assert!(is_limit(&result), "{source}: {result:?}");
+            assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+        }
+        // A result that would pass 2^32 - 1 elements is V8's RangeError.
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var r = []; for (var s of ['Array(4294967295).concat([1])', 'Array(4294967295).toSpliced(0, 0, 1)', \
+                 'Array.prototype.toReversed.call({length: 4294967296})']) { \
+                 try { eval(s); r.push('no error'); } catch (e) { r.push(e.name); } } print(r.join());"
+            ),
+            "RangeError,RangeError,RangeError"
+        );
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn comparators_that_change_the_array_or_lie() {
+    on_big_stack(|| {
+        for stress in [false, true] {
+            let mut rt = runtime(stress);
+            let cases = [
+                // The comparator empties, grows, freezes and reshapes the
+                // array; the sort writes its private copy back.
+                (
+                    "var a = [5, 3, 1, 4, 2]; a.sort(function (x, y) { a.length = 0; return x - y; }); a.join()",
+                    "1,2,3,4,5",
+                ),
+                (
+                    "var a = [5, 3, 1, 4, 2]; a.sort(function (x, y) { a[100] = x; return x - y; }); a.slice(0, 5).join() + ' ' + a.length",
+                    "1,2,3,4,5 101",
+                ),
+                (
+                    "var a = [5, 3, 1]; try { a.sort(function (x, y) { Object.freeze(a); return x - y; }); } catch (e) { print(e.name); } a.join()",
+                    "TypeError\n5,3,1",
+                ),
+                (
+                    "var a = [5, 3, 1]; a.sort(function (x, y) { Object.setPrototypeOf(a, {}); return x - y; }); Array.prototype.join.call(a)",
+                    "1,3,5",
+                ),
+                (
+                    "var a = [5, 3, 1]; try { a.sort(function () { throw 7; }); } catch (e) { print(e); } a.join()",
+                    "7\n5,3,1",
+                ),
+                // Inconsistent answers still give a permutation.
+                (
+                    "var a = []; for (var i = 0; i < 5000; i++) a.push(i); var n = 0; a.sort(function () { n = (n * 1103515245 + 12345) % 2147483648; return (n & 4) - 2; }); \
+                  var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; s + ' ' + a.length",
+                    "12497500 5000",
+                ),
+                (
+                    "var a = []; for (var i = 0; i < 3000; i++) a.push(i % 7); a.sort(function () { return NaN; }); a.slice(0, 8).join()",
+                    "0,1,2,3,4,5,6,0",
+                ),
+            ];
+            for (source, expected) in cases {
+                let (result, elapsed) = eval_with_deadline_of(
+                    &mut rt,
+                    &format!("print(eval({source:?}));"),
+                    Duration::from_secs(20),
+                );
+                assert_eq!(result, Ok(Value::Undefined), "{source}");
+                assert_eq!(run_in(&mut rt, ""), expected, "{source} (stress {stress})");
+                assert!(elapsed < Duration::from_secs(10), "{source}: {elapsed:?}");
+                assert_clean(&rt);
+            }
+        }
+        // A comparator loop ends at the deadline.
+        let mut rt = runtime(false);
+        assert_ends_at_deadline(
+            &mut rt,
+            "var a = []; for (var i = 0; i < 100000; i++) a.push(i % 1000); while (true) a.sort(function (x, y) { return y - x; });",
+            DEADLINE,
+            Duration::from_millis(500),
+        );
+    });
+}
+
+#[test]
+fn deep_flat_and_flat_map_use_no_rust_recursion() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        assert_eq!(
+            run_in(
+                &mut rt,
+                "var a = [1]; for (var i = 0; i < 100000; i++) a = [a]; \
+                 try { a.flat(Infinity); } catch (e) { print(e.name, e.message); } \
+                 print(a.flat(8000).flat(8000).length, a.flatMap(function (x) { return x; }).length); \
+                 var c = [1]; c.push(c); try { c.flat(Infinity); } catch (e) { print(e.name); }"
+            ),
+            "RangeError Maximum call stack size exceeded\n1 1\nRangeError"
+        );
+        assert_clean(&rt);
+        // Wide and deep: the time countdown ends it.
+        assert_ends_at_deadline(
+            &mut rt,
+            "var w = []; for (var i = 0; i < 1000; i++) w.push([i, [i, [i]]]); while (true) w.flat(Infinity);",
+            DEADLINE,
+            Duration::from_millis(500),
         );
     });
 }

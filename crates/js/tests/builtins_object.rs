@@ -233,7 +233,7 @@ true 3 true 1 true 6
 true 1 x
 false false true false false false true
 0,1,b,a true true true false
-RangeError Invalid array length",
+RangeError Failed to set the 'length' property on 'Array': Invalid array length",
     )]);
 }
 

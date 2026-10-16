@@ -1149,27 +1149,27 @@ const FIXES: &[(&str, &str)] = &[
     ),
     (
         "var a = [1, 2, 3]; a.length = 'abc'",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = -1",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = 1.5",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = 2 ** 32",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = undefined",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = NaN",
-        "Uncaught RangeError: Invalid array length",
+        "Uncaught RangeError: Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var a = [1, 2, 3]; a.length = {valueOf() { throw 7; }}",
@@ -1910,7 +1910,7 @@ const BUILTINS_ARRAYS: &[(&str, &str)] = &[
     ),
     (
         "var a = []; a.length = 4294967295; try { a.push(1); } catch (e) { print(e.name, e.message); }",
-        "RangeError Invalid array length",
+        "RangeError Failed to set the 'length' property on 'Array': Invalid array length",
     ),
     (
         "var sum = 0; [1, 2, 3].forEach(function (x, i, arr) { sum += x * i + arr.length; }); sum",

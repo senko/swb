@@ -1,16 +1,16 @@
-//! Cases for `Array[@@species]`, `ArraySpeciesCreate`, `Array.prototype[@@unscopables]`,
-//! `Array.prototype.indexOf`, `slice` and `map` (M7 feature 2c).
-//! The expected output of each case is the output of Node.js 22 for the same
-//! script (`print` joins `String` of its arguments). Each case also runs in
-//! the GC stress mode.
-//!
-//! Generated from a list of scripts and Node's output.
+//! Cases for `Array`: `Array[@@species]`, `ArraySpeciesCreate`,
+//! `Array.prototype[@@unscopables]`, `indexOf`, `slice` and `map` (M7
+//! feature 2c), and all of `Array` and `Array.prototype` (6a: the
+//! measured Chromium cases, collections in callbacks, sparse arrays).
+//! The expected output of the 2c cases is the output of Node.js 22 for the
+//! same script (`print` joins `String` of its arguments). Each case also
+//! runs in the GC stress mode.
 
 #![allow(clippy::too_many_lines, reason = "a test is a list of script cases")]
 
 mod common;
 
-use common::check_cases;
+use common::{check_cases, run};
 
 #[test]
 fn array_species_getter_and_unscopables() {
@@ -233,5 +233,62 @@ t(function () { return sp(function () { var o = {}; Object.defineProperty(o, '0'
 TypeError: Cannot define property 0, object is not extensible
 TypeError: Cannot redefine property: 0
 TypeError: Cannot redefine property: 0",
+    )]);
+}
+
+/// The snippets of `tools/probes/js-arrays.json` with Chromium 148's
+/// results (`data/arrays_cases.expected`; the script and the expected
+/// output are made by `data/gen-array-cases.js` from the output of `just
+/// probe`), normally and in the GC stress mode.
+#[test]
+fn chromium_cases() {
+    check_chromium(
+        include_str!("data/arrays_cases.js"),
+        include_str!("data/arrays_cases.expected"),
+        &[false, true],
+    );
+}
+
+/// The Chromium cases with loops of thousands of steps (deep nesting),
+/// without the stress mode.
+#[test]
+fn chromium_cases_heavy() {
+    check_chromium(
+        include_str!("data/arrays_cases_heavy.js"),
+        include_str!("data/arrays_cases_heavy.expected"),
+        &[false],
+    );
+}
+
+fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
+    for &stress in modes {
+        let actual = run(script, stress);
+        let failures: Vec<String> = actual
+            .lines()
+            .zip(expected.lines())
+            .filter(|(actual, expected)| actual != expected)
+            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
+            .collect();
+        assert_eq!(
+            actual.lines().count(),
+            expected.lines().count(),
+            "number of lines (stress: {stress})"
+        );
+        assert!(
+            failures.is_empty(),
+            "stress: {stress}\n{}",
+            failures.join("\n")
+        );
+    }
+}
+
+/// Collections inside comparators, callbacks, getters and iterators (the
+/// values being sorted or built stay alive), sparse arrays of length
+/// 2^32 - 1, and mapped arguments objects that the methods write through.
+#[test]
+fn collections_in_callbacks_and_sparse_arrays() {
+    check_cases(&[(
+        include_str!("data/arrays_gc.js"),
+        include_str!("data/arrays_gc.expected").trim_end_matches('\n'),
     )]);
 }

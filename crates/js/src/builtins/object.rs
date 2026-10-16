@@ -109,16 +109,15 @@ fn enumerable_own_properties(
     let object = rt.this_object_arg(call, 0)?;
     let keys = rt.own_keys(object)?;
     rt.heap.record_keys(&keys);
-    let result = rt.new_array()?;
-    let mut count = 0u32;
+    let result = rt.new_array_with_capacity(keys.len())?;
     for key in keys {
         rt.tick()?;
         if key.is_symbol() {
             continue;
         }
-        let added = rt.with_scope(|rt| {
+        rt.with_scope(|rt| {
             if !is_enumerable_own(rt, object, key)? {
-                return Ok(false);
+                return Ok(());
             }
             let item = match kind {
                 Kind::Keys => rt.heap.key_to_value(key)?,
@@ -129,11 +128,8 @@ fn enumerable_own_properties(
                     rt.pair_array(name, value)?.into()
                 }
             };
-            rt.heap
-                .create_data_property(result, PropertyKey::Index(count), item, &rt.vm)?;
-            Ok(true)
+            rt.push_value(result, item)
         })?;
-        count += u32::from(added);
     }
     Ok(NativeReturn::Value(result.into()))
 }
@@ -197,17 +193,14 @@ fn own_keys_of_type(rt: &mut Runtime, call: &NativeCall, symbols: bool) -> VmRes
     let object = rt.this_object_arg(call, 0)?;
     let keys = rt.own_keys(object)?;
     rt.heap.record_keys(&keys);
-    let result = rt.new_array()?;
-    let mut count = 0u32;
+    let result = rt.new_array_with_capacity(keys.len())?;
     for key in keys {
         rt.tick()?;
         if key.is_symbol() != symbols {
             continue;
         }
         let item = rt.heap.key_to_value(key)?;
-        rt.heap
-            .create_data_property(result, PropertyKey::Index(count), item, &rt.vm)?;
-        count += 1;
+        rt.push_value(result, item)?;
     }
     Ok(NativeReturn::Value(result.into()))
 }

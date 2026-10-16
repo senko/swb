@@ -103,6 +103,74 @@ impl Elements {
         false
     }
 
+    /// The smallest index in `from..end` that holds an element, and the
+    /// number of vector slots the search looked at (for the time charge).
+    pub(crate) fn next_index(&self, from: u32, end: u32) -> (Option<u32>, usize) {
+        if from >= end {
+            return (None, 0);
+        }
+        match self {
+            Elements::Dense { values, count } => {
+                if *count == 0 {
+                    return (None, 0);
+                }
+                let stop = (end as usize).min(values.len());
+                let Some(slice) = values.get(from as usize..stop) else {
+                    return (None, 0);
+                };
+                match slice.iter().position(|value| !value.is_empty()) {
+                    Some(offset) => (Some(from + offset as u32), offset + 1),
+                    None => (None, slice.len()),
+                }
+            }
+            Elements::Sparse(map) => (map.range(from..end).next().map(|(&index, _)| index), 1),
+        }
+    }
+
+    /// The largest index in `low..=from` that holds an element, and the
+    /// number of vector slots the search looked at.
+    pub(crate) fn prev_index(&self, from: u32, low: u32) -> (Option<u32>, usize) {
+        if from < low {
+            return (None, 0);
+        }
+        match self {
+            Elements::Dense { values, count } => {
+                if *count == 0 || values.is_empty() {
+                    return (None, 0);
+                }
+                let top = (from as usize).min(values.len() - 1);
+                if top < low as usize {
+                    return (None, 0);
+                }
+                let Some(slice) = values.get(low as usize..=top) else {
+                    return (None, 0);
+                };
+                match slice.iter().rposition(|value| !value.is_empty()) {
+                    Some(offset) => (Some(low + offset as u32), slice.len() - offset),
+                    None => (None, slice.len()),
+                }
+            }
+            Elements::Sparse(map) => (
+                map.range(low..=from).next_back().map(|(&index, _)| index),
+                1,
+            ),
+        }
+    }
+
+    /// Whether a dense vector of `len` slots may hold `count` elements
+    /// (the density rule).
+    pub(crate) fn dense_fits(len: usize, count: usize) -> bool {
+        len <= DENSE_MIN_LEN || len <= count.saturating_mul(DENSE_FILL)
+    }
+
+    /// The dense vector, if the elements are dense.
+    pub(crate) fn dense(&self) -> Option<&[Value]> {
+        match self {
+            Elements::Dense { values, .. } => Some(values),
+            Elements::Sparse(_) => None,
+        }
+    }
+
     /// The number of stored elements.
     pub(crate) fn stored(&self) -> usize {
         match self {

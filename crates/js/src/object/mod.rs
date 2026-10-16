@@ -9,13 +9,15 @@
 
 mod arguments;
 mod array;
+mod element_access;
 mod elements;
 mod ops;
 mod private;
 mod property;
 mod shape;
 
-pub(crate) use array::INVALID_ARRAY_LENGTH;
+pub(crate) use array::{INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE};
+pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub use ops::{GetResult, SetResult};
 pub use property::{Property, PropertyDescriptor};
 pub(crate) use shape::KeyList;

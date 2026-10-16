@@ -20,6 +20,21 @@ use crate::value::Value;
 /// The message of the `RangeError` for an invalid array length.
 pub(crate) const INVALID_ARRAY_LENGTH: &str = "Invalid array length";
 
+/// The message of the same `RangeError` when `[[Set]]` writes `length`
+/// (Chromium 148; `Object.defineProperty` keeps the short one).
+pub(crate) const INVALID_LENGTH_WRITE: &str =
+    "Failed to set the 'length' property on 'Array': Invalid array length";
+
+/// The error of a write of `length` with `[[Set]]`: an invalid length
+/// gets Chromium's longer message.
+pub(crate) fn length_write_error(error: Error) -> Error {
+    if error == Error::range_error(INVALID_ARRAY_LENGTH) {
+        Error::range_error(INVALID_LENGTH_WRITE)
+    } else {
+        error
+    }
+}
+
 /// The elements that [`Heap::append_array_elements`] copies per round
 /// (a fixed buffer, not one that the script sizes).
 const APPEND_CHUNK: usize = 256;

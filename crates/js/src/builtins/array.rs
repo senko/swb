@@ -1,50 +1,228 @@
-//! `Array` (ECMA-262 §23.1): the constructor, `Array.isArray`, and the
-//! prototype methods `push`, `join`, `indexOf`, `slice`, `forEach`, `map`
-//! and `toString`. The other methods are M7 feature 6.
+//! `Array` (ECMA-262 §23.1, <https://tc39.es/ecma262/#sec-array-objects>):
+//! the constructor, `Array.isArray`, `Array.from`, `Array.of`, the
+//! installation of `Array.prototype` in Chromium 148's key order, and the
+//! helpers that the method modules share. The methods are in
+//! `array_iteration.rs` (the callback methods), `array_search.rs`
+//! (searches, `at`, `join`), `array_mutate.rs` (the methods that change
+//! the receiver), `array_copy.rs` (the methods that make a new array) and
+//! `array_sort.rs`; the element loops are in `array_access.rs`.
 //!
 //! The methods are generic: they work on any object with a `length`
-//! (`LengthOfArrayLike`), test holes with `[[HasProperty]]` and read with
-//! `[[Get]]`, which can run getters (re-entry). Each step of their loops
-//! is a step of the time countdown, so a loop over 2^32 − 1 holes ends at
-//! the deadline.
-
-use swb_js_text::String16;
+//! (`LengthOfArrayLike`, up to 2^53 − 1; the indices from 2^32 − 1 on are
+//! ordinary string keys). They follow the specification's order of
+//! conversions, reads and writes, and V8's messages (measured in Chromium
+//! 148, `tools/probes/js-arrays.json`). Where the receiver is an array
+//! with dense elements and the result is the same, they work on the
+//! element vector; on sparse elements they visit only the stored indices
+//! (`array_access.rs`). Each visited index is a step of the time
+//! countdown.
 
 use crate::heap::Gc;
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::convert::{
-    MAX_SAFE_INTEGER, MAX_STRING_LENGTH, checked_array_length, to_integer_or_infinity,
-};
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
+use crate::vm::convert::{MAX_SAFE_INTEGER, checked_array_length, to_integer_or_infinity};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
-/// A joined text above this many code units reserves its memory in the
-/// heap's accounting at each doubling (the buffer is Rust memory until
-/// the string exists).
-const RESERVE_FROM: usize = 1 << 16;
+use super::array_access::{Flow, Item};
+
+/// The most elements that a method reserves before it has read them.
+pub(super) const INITIAL_CAPACITY: usize = 1 << 12;
+
+/// `Array.prototype`'s methods in Chromium 148's key order (after
+/// `length` and `constructor`), with their `length`.
+const METHODS: [(&str, u32, NativeFn); 38] = [
+    ("at", 1, super::array_search::at),
+    ("concat", 1, super::array_copy::concat),
+    ("copyWithin", 2, super::array_mutate::copy_within),
+    ("fill", 1, super::array_mutate::fill),
+    ("find", 1, super::array_iteration::find),
+    ("findIndex", 1, super::array_iteration::find_index),
+    ("findLast", 1, super::array_iteration::find_last),
+    ("findLastIndex", 1, super::array_iteration::find_last_index),
+    ("lastIndexOf", 1, super::array_search::last_index_of),
+    ("pop", 0, super::array_mutate::pop),
+    ("push", 1, super::array_mutate::push),
+    ("reverse", 0, super::array_mutate::reverse),
+    ("shift", 0, super::array_mutate::shift),
+    ("unshift", 1, super::array_mutate::unshift),
+    ("slice", 2, super::array_copy::slice),
+    ("sort", 1, super::array_sort::sort),
+    ("splice", 2, super::array_mutate::splice),
+    ("includes", 1, super::array_search::includes),
+    ("indexOf", 1, super::array_search::index_of),
+    ("join", 1, super::array_search::join),
+    ("keys", 0, super::iterator::keys),
+    ("entries", 0, super::iterator::entries),
+    ("values", 0, super::iterator::values),
+    ("forEach", 1, super::array_iteration::for_each),
+    ("filter", 1, super::array_iteration::filter),
+    ("flat", 0, super::array_copy::flat),
+    ("flatMap", 1, super::array_copy::flat_map),
+    ("map", 1, super::array_iteration::map),
+    ("every", 1, super::array_iteration::every),
+    ("some", 1, super::array_iteration::some),
+    ("reduce", 1, super::array_iteration::reduce),
+    ("reduceRight", 1, super::array_iteration::reduce_right),
+    ("toReversed", 0, super::array_copy::to_reversed),
+    ("toSorted", 1, super::array_sort::to_sorted),
+    ("toSpliced", 2, super::array_copy::to_spliced),
+    ("with", 2, super::array_copy::with),
+    ("toLocaleString", 0, super::array_search::to_locale_string),
+    ("toString", 0, super::array_search::to_string),
+];
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::ArrayPrototype)?;
     let array = super::constructor(rt, realm, "Array", 1, array_constructor, proto)?;
     rt.set_intrinsic(realm, Intrinsic::ArrayConstructor, array);
     super::method(rt, realm, array, "isArray", 1, is_array)?;
-    super::array_species::install(rt, realm, array, proto)?;
-    let methods: [(&str, u32, NativeFn); 7] = [
-        ("push", 1, push),
-        ("join", 1, join),
-        ("indexOf", 1, index_of),
-        ("slice", 2, slice),
-        ("forEach", 1, for_each),
-        ("map", 1, map),
-        ("toString", 0, to_string),
-    ];
-    for (name, length, func) in methods {
-        super::method(rt, realm, proto, name, length, func)?;
+    super::method(rt, realm, array, "from", 1, from)?;
+    // `Array.fromAsync` (in Chromium 148) comes here with async functions
+    // (M7 feature 7).
+    super::method(rt, realm, array, "of", 0, of)?;
+    super::array_species::install_species(rt, realm, array)?;
+    for (name, length, func) in METHODS {
+        let function = super::method(rt, realm, proto, name, length, func)?;
+        if name == "values" {
+            // §23.1.3.40: `@@iterator` is the same function object.
+            rt.set_intrinsic(realm, Intrinsic::ArrayPrototypeValues, function);
+        }
+    }
+    let values = rt.intrinsic(realm, Intrinsic::ArrayPrototypeValues)?;
+    let key = rt.symbol_key(WellKnown::Iterator);
+    rt.define(proto, key, values.into(), true, false, true)?;
+    super::array_species::install_unscopables(rt, proto)
+}
+
+// --- Helpers of the method modules ---
+
+/// `ToObject(this)` and `LengthOfArrayLike` (§7.3.18), the first steps
+/// of most methods. With `name`, a `null` or `undefined` receiver gets
+/// V8's message "Array.prototype.NAME called on null or undefined",
+/// otherwise "Cannot convert undefined or null to object".
+pub(super) fn receiver(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    name: Option<&str>,
+) -> VmResult<(Gc<Object>, f64)> {
+    let object = match name {
+        Some(name) => rt.this_object_of(call, &format!("Array.prototype.{name}"))?,
+        None => rt.this_object(call)?,
+    };
+    let length = rt.length_of_array_like(object)?;
+    Ok((object, length))
+}
+
+/// Argument `index` if it is callable, else V8's `TypeError` ("number 1
+/// is not a function").
+pub(super) fn callback_arg(rt: &mut Runtime, call: &NativeCall, index: usize) -> VmResult<Value> {
+    let callback = rt.arg(call, index);
+    if !rt.is_callable(callback)? {
+        return Err(rt.not_callable(callback));
+    }
+    Ok(callback)
+}
+
+/// A relative index argument of `slice` and the like (§23.1.3.28 steps 3
+/// to 5): `ToIntegerOrInfinity`, counted from the end if negative,
+/// clamped to `0..=length`; `default` for `undefined` where the step says
+/// so.
+pub(super) fn relative_index(
+    rt: &mut Runtime,
+    value: Value,
+    length: f64,
+    default: Option<f64>,
+) -> VmResult<f64> {
+    if let (Value::Undefined, Some(default)) = (value, default) {
+        return Ok(default);
+    }
+    let relative = to_integer_or_infinity(rt.to_number(value)?);
+    Ok(if relative < 0.0 {
+        (length + relative).max(0.0)
+    } else {
+        relative.min(length)
+    })
+}
+
+/// The `TypeError` of a result length above 2^53 − 1 (V8's message for
+/// `unshift`, `splice`, `toSpliced` and `concat`).
+pub(super) fn length_overflow() -> VmError {
+    VmError::type_error(crate::object::INVALID_ARRAY_LENGTH)
+}
+
+/// Checks that `length` does not pass 2^53 − 1.
+pub(super) fn check_safe_length(length: f64) -> VmResult<()> {
+    if length > MAX_SAFE_INTEGER {
+        return Err(length_overflow());
     }
     Ok(())
 }
+
+impl Runtime {
+    /// A new array of the current realm with room for `capacity` elements
+    /// (the dense builder, `object/element_access.rs`), recorded in the
+    /// current handle scope.
+    pub(super) fn new_array_with_capacity(&mut self, capacity: usize) -> VmResult<Gc<Object>> {
+        let proto = self.intrinsic(self.current_realm(), Intrinsic::ArrayPrototype)?;
+        let array = self
+            .heap
+            .new_array_with_capacity(Some(proto), capacity, &self.vm)?;
+        Ok(self.heap.record(array))
+    }
+
+    /// `CreateArrayFromList(values)` (§7.3.17) in the current realm, in one
+    /// step, recorded in the current handle scope. The values must be
+    /// alive (rooted by the caller); they stay alive during the
+    /// reservation.
+    pub(crate) fn array_from_values(&mut self, values: &[Value]) -> VmResult<Gc<Object>> {
+        let proto = self.intrinsic(self.current_realm(), Intrinsic::ArrayPrototype)?;
+        let array = self.heap.new_array_from(Some(proto), values, &self.vm)?;
+        Ok(self.heap.record(array))
+    }
+
+    /// Appends `value` to `array` (`CreateDataPropertyOrThrow(array,
+    /// length, value)` for an array that the native made): the dense
+    /// builder, or the general definition for another form.
+    pub(super) fn push_value(&mut self, array: Gc<Object>, value: Value) -> VmResult<()> {
+        if self.heap.push_element(array, value)? {
+            return Ok(());
+        }
+        let (length, _) = self.heap.array_length(array)?;
+        self.create_index(array, f64::from(length), value)
+    }
+
+    /// Whether `object` is an `Array` whose `constructor` is the `Array`
+    /// of the current realm and has the built-in `@@species`, so that
+    /// `ArraySpeciesCreate` gives a plain new array: then the method may
+    /// build its result with the dense builder. Reads only data
+    /// properties; any other form takes the specification's steps.
+    pub(super) fn default_species(&mut self, object: Gc<Object>) -> VmResult<bool> {
+        if !matches!(self.heap.object(object)?.kind, ObjectKind::Array { .. }) {
+            return Ok(false);
+        }
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        let constructor = match self.heap.get(object, key, object.into())? {
+            crate::object::GetResult::Value(value) => value,
+            crate::object::GetResult::CallGetter { .. } => return Ok(false),
+        };
+        let realm = self.current_realm();
+        let array = self.intrinsic(realm, Intrinsic::ArrayConstructor)?;
+        if constructor != Value::Object(array) {
+            return Ok(false);
+        }
+        let species = self.symbol_key(WellKnown::Species);
+        match self.heap.get_own_property(array, species)? {
+            Some(crate::object::Property::Accessor { get, .. }) => {
+                Ok(get == Value::Object(self.intrinsic(realm, Intrinsic::ArraySpeciesGetter)?))
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+// --- The constructor and the static functions ---
 
 /// `Array(...values)` (§23.1.1.1), with and without `new`.
 fn array_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
@@ -59,14 +237,9 @@ fn array_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
             return Ok(NativeReturn::Value(array.into()));
         }
     }
-    let array = rt.heap.new_array(Some(proto), 0)?;
-    rt.heap.record(array);
-    for i in 0..argc {
-        rt.tick()?;
-        let value = rt.arg(call, i);
-        rt.heap
-            .create_data_property(array, PropertyKey::Index(i as u32), value, &rt.vm)?;
-    }
+    let args: Vec<Value> = (0..argc).map(|i| rt.arg(call, i)).collect();
+    rt.charge(argc)?;
+    let array = rt.heap.new_array_from(Some(proto), &args, &rt.vm)?;
     Ok(NativeReturn::Value(array.into()))
 }
 
@@ -79,248 +252,166 @@ fn is_array(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Bool(result)))
 }
 
-/// `Array.prototype.push(...items)` (§23.1.3.23).
-fn push(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object(call)?;
-    let length = rt.length_of_array_like(object)?;
-    let count = call.argc();
-    if length + count as f64 > MAX_SAFE_INTEGER {
-        return Err(VmError::type_error(format!(
-            "Pushing {count} elements on an array-like of length {} is disallowed, as the total surpasses 2**53-1",
-            crate::vm::number::number_to_string(length)
-        )));
+/// `Array.of(...items)` (§23.1.2.3).
+fn of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let len = call.argc();
+    let constructor = call.this();
+    let realm_array = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayConstructor)?;
+    if constructor == Value::Object(realm_array) || !rt.is_constructor(constructor)? {
+        let args: Vec<Value> = (0..len).map(|i| rt.arg(call, i)).collect();
+        rt.charge(len)?;
+        let array = rt.array_from_values(&args)?;
+        return Ok(NativeReturn::Value(array.into()));
     }
-    for i in 0..count {
+    let result = rt.construct(constructor, &[Value::number(len as f64)])?;
+    let Value::Object(object) = result else {
+        return Err(VmError::invariant("a constructor returned a non-object"));
+    };
+    for k in 0..len {
         rt.tick()?;
-        let key = rt.index_key(length + i as f64)?;
-        let value = rt.arg(call, i);
-        rt.set_or_throw(object, key, value)?;
+        let value = rt.arg(call, k);
+        rt.create_index(object, k as f64, value)?;
     }
-    let new_length = Value::number(length + count as f64);
-    let key = PropertyKey::String(rt.heap.length_atom());
-    rt.set_or_throw(object, key, new_length)?;
-    Ok(NativeReturn::Value(new_length))
+    rt.set_length(object, len as f64)?;
+    Ok(NativeReturn::Value(result))
 }
 
-/// `Array.prototype.join(separator)` (§23.1.3.18). A receiver that is
-/// already being joined gives the empty string (V8's cycle detection; the
-/// specification would recurse without end).
-fn join(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object(call)?;
-    if rt.vm.join_stack.contains(&object) {
-        return Ok(NativeReturn::Value(rt.vm.atoms.empty.into()));
+/// The `TypeError` of an `@@iterator` that is not callable (V8's message).
+fn from_iterator_error() -> VmError {
+    VmError::type_error(
+        "%Array%.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function",
+    )
+}
+
+/// `Array.from(items, mapfn, thisArg)` (§23.1.2.1).
+fn from(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let constructor = call.this();
+    let items = rt.arg(call, 0);
+    let mapfn = rt.arg(call, 1);
+    let this_arg = rt.arg(call, 2);
+    let mapping = if mapfn.is_undefined() {
+        None
+    } else if rt.is_callable(mapfn)? {
+        Some(mapfn)
+    } else {
+        return Err(rt.not_callable(mapfn));
+    };
+    if items.is_nullish() {
+        return Err(rt.not_iterable(items));
     }
-    let length = rt.length_of_array_like(object)?;
-    let separator = match rt.arg(call, 0) {
-        Value::Undefined => String16::from(","),
-        value => {
-            let string = rt.to_string(value)?;
-            let units = rt.heap.copy_string(string)?;
-            rt.charge_units(units.len())?;
-            units
+    let key = rt.symbol_key(WellKnown::Iterator);
+    let method = rt.get_value(items, key)?;
+    let realm_array = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayConstructor)?;
+    let plain = constructor == Value::Object(realm_array) || !rt.is_constructor(constructor)?;
+    if !method.is_nullish() {
+        if !rt.is_callable(method)? {
+            return Err(from_iterator_error());
+        }
+        let target = if plain {
+            rt.new_array_with_capacity(0)?
+        } else {
+            match rt.construct(constructor, &[])? {
+                Value::Object(object) => object,
+                _ => return Err(VmError::invariant("a constructor returned a non-object")),
+            }
+        };
+        from_iterable(rt, target, items, method, mapping, this_arg)?;
+        return Ok(NativeReturn::Value(target.into()));
+    }
+    let array_like = rt.to_object(items)?;
+    rt.heap.record(array_like);
+    let len = rt.length_of_array_like(array_like)?;
+    let target = if plain {
+        checked_array_length(len)?;
+        // The vector grows while the loop runs: a getter can still throw
+        // before a long array-like is read.
+        rt.new_array_with_capacity((len as usize).min(INITIAL_CAPACITY))?
+    } else {
+        match rt.construct(constructor, &[Value::number(len)])? {
+            Value::Object(object) => object,
+            _ => return Err(VmError::invariant("a constructor returned a non-object")),
         }
     };
-    rt.vm.join_stack.push(object);
-    let result = join_elements(rt, object, length, &separator);
-    rt.vm.join_stack.pop();
-    let text = result?;
-    if text.len() >= RESERVE_FROM {
-        rt.heap.reserve(text.len() * 2, &rt.vm)?;
-    }
-    let string = rt.heap.alloc_string(text)?;
-    Ok(NativeReturn::Value(string.into()))
+    rt.for_index(array_like, 0.0, len, false, |rt, item| {
+        let (first, end, value) = match item {
+            Item::Value(index, value) => (index, index + 1.0, value),
+            Item::Gap(from, to) => (from, to, Value::Undefined),
+        };
+        for index in first as u64..end as u64 {
+            if index != first as u64 {
+                rt.tick()?;
+            }
+            let index = index as f64;
+            let mapped = match mapping {
+                Some(mapfn) => rt.call(mapfn, this_arg, &[value, Value::number(index)])?,
+                None => value,
+            };
+            if plain && rt.heap.push_element(target, mapped)? {
+                continue;
+            }
+            rt.create_index(target, index, mapped)?;
+        }
+        Ok(Flow::Continue)
+    })?;
+    rt.set_length(target, len)?;
+    Ok(NativeReturn::Value(target.into()))
 }
 
-/// The loop of `join`.
-fn join_elements(
+/// Steps 5.c to 5.e of `Array.from` for an iterable: the loop over the
+/// iterator, which closes the iterator when a step after `next` fails.
+fn from_iterable(
     rt: &mut Runtime,
-    object: Gc<Object>,
-    length: f64,
-    separator: &String16,
-) -> VmResult<String16> {
-    let mut text = String16::new();
-    let mut reserved = RESERVE_FROM;
+    target: Gc<Object>,
+    items: Value,
+    method: Value,
+    mapping: Option<Value>,
+    this_arg: Value,
+) -> VmResult<()> {
+    let mut record = rt.get_iterator_from_method(items, method)?;
+    let builtin = rt.builtin_array_step(record.iterator, record.next_method);
+    if let (Some(iterator), None) = (builtin, mapping)
+        && rt
+            .heap
+            .dense_array(target)?
+            .is_some_and(|state| state.hole_free() && state.writable())
+        && rt.spread_array_iterator(target, iterator)?
+    {
+        let (length, _) = rt.heap.array_length(target)?;
+        return rt.set_length(target, f64::from(length));
+    }
     let mut k = 0.0;
-    while k < length {
+    loop {
         rt.tick()?;
-        if k > 0.0 {
-            text.push_str16(separator.as_str16());
-            rt.charge_units(separator.len())?;
-        }
-        rt.with_scope(|rt| {
-            let key = rt.index_key(k)?;
-            let element = rt.get_value(object.into(), key)?;
-            if !element.is_nullish() {
-                let string = rt.to_string(element)?;
-                let units = rt.heap.string(string)?.len();
-                rt.heap.push_string(&mut text, string)?;
-                // The copy costs steps in proportion to its size.
-                rt.charge_units(units)?;
+        let done = rt.with_scope(|rt| {
+            if k >= MAX_SAFE_INTEGER {
+                let error = VmError::type_error(crate::object::INVALID_ARRAY_LENGTH);
+                return Err(rt.iterator_close_after_error(&record, error));
             }
-            Ok(())
-        })?;
-        if text.len() > MAX_STRING_LENGTH {
-            return Err(VmError::range_error("Invalid string length"));
-        }
-        if text.len() > reserved {
-            // The buffer counts against the heap limit before it is a
-            // string (checked at each doubling).
-            reserved = text.len() * 2;
-            rt.heap.reserve(reserved * 2, &rt.vm)?;
-        }
-        k += 1.0;
-    }
-    Ok(text)
-}
-
-/// `Array.prototype.forEach(callback, thisArg)` (§23.1.3.15).
-fn for_each(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_of(call, "Array.prototype.forEach")?;
-    let length = rt.length_of_array_like(object)?;
-    let callback = rt.arg(call, 0);
-    if !rt.is_callable(callback)? {
-        return Err(rt.not_callable(callback));
-    }
-    let this_arg = rt.arg(call, 1);
-    let mut k = 0.0;
-    while k < length {
-        rt.tick()?;
-        rt.with_scope(|rt| {
-            let key = rt.index_key(k)?;
-            if rt.has_property(object, key)? {
-                let value = rt.get_value(object.into(), key)?;
-                rt.call(
-                    callback,
-                    this_arg,
-                    &[value, Value::number(k), object.into()],
-                )?;
+            let next = match builtin {
+                Some(iterator) => super::array_iterator_next_value(rt, iterator)?,
+                None => rt.iterator_step_value(&mut record)?,
+            };
+            let Some(next) = next else {
+                return Ok(true);
+            };
+            let mapped = match mapping {
+                Some(mapfn) => match rt.call(mapfn, this_arg, &[next, Value::number(k)]) {
+                    Ok(value) => value,
+                    Err(error) => return Err(rt.iterator_close_after_error(&record, error)),
+                },
+                None => next,
+            };
+            if rt.heap.push_element(target, mapped)? {
+                return Ok(false);
             }
-            Ok(())
-        })?;
-        k += 1.0;
-    }
-    Ok(NativeReturn::Value(Value::Undefined))
-}
-
-/// `Array.prototype.map(callback, thisArg)` (§23.1.3.21).
-fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_of(call, "Array.prototype.map")?;
-    let length = rt.length_of_array_like(object)?;
-    let callback = rt.arg(call, 0);
-    if !rt.is_callable(callback)? {
-        return Err(rt.not_callable(callback));
-    }
-    let result = rt.array_species_create(object, length)?;
-    let this_arg = rt.arg(call, 1);
-    let mut k = 0.0;
-    while k < length {
-        rt.tick()?;
-        rt.with_scope(|rt| {
-            let key = rt.index_key(k)?;
-            if rt.has_property(object, key)? {
-                let value = rt.get_value(object.into(), key)?;
-                let mapped = rt.call(
-                    callback,
-                    this_arg,
-                    &[value, Value::number(k), object.into()],
-                )?;
-                rt.create_data_property_or_throw(result, key, mapped)?;
+            match rt.create_index(target, k, mapped) {
+                Ok(()) => Ok(false),
+                Err(error) => Err(rt.iterator_close_after_error(&record, error)),
             }
-            Ok(())
         })?;
-        k += 1.0;
-    }
-    Ok(NativeReturn::Value(result.into()))
-}
-
-/// `Array.prototype.toString()` (§23.1.3.36): calls `join` as a deferred
-/// call, or `Object.prototype.toString` if `join` is not callable.
-fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object(call)?;
-    let key = rt.heap.key_from_str("join")?;
-    let join = rt.get_value(object.into(), key)?;
-    if rt.is_callable(join)? {
-        return Ok(NativeReturn::Call {
-            callee: join,
-            this: object.into(),
-            args: Vec::new(),
-        });
-    }
-    let text = super::object::builtin_tag_text(rt, object.into())?;
-    Ok(NativeReturn::Value(text))
-}
-
-/// The start index of a range argument of `slice` and the like
-/// (§23.1.3.28 steps 4 to 7): a relative index clamped to `0..=length`.
-fn relative_index(rt: &mut Runtime, value: Value, length: f64, default: f64) -> VmResult<f64> {
-    if value.is_undefined() {
-        return Ok(default);
-    }
-    let relative = to_integer_or_infinity(rt.to_number(value)?);
-    Ok(if relative < 0.0 {
-        (length + relative).max(0.0)
-    } else {
-        relative.min(length)
-    })
-}
-
-/// `Array.prototype.slice(start, end)` (§23.1.3.28).
-fn slice(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object(call)?;
-    let length = rt.length_of_array_like(object)?;
-    let start = relative_index(rt, rt.arg(call, 0), length, 0.0)?;
-    let end = relative_index(rt, rt.arg(call, 1), length, length)?;
-    let count = (end - start).max(0.0);
-    let result = rt.array_species_create(object, count)?;
-    let mut k = start;
-    let mut n = 0.0;
-    while k < end {
-        rt.tick()?;
-        rt.with_scope(|rt| {
-            let from = rt.index_key(k)?;
-            if rt.has_property(object, from)? {
-                let value = rt.get_value(object.into(), from)?;
-                let to = rt.index_key(n)?;
-                rt.create_data_property_or_throw(result, to, value)?;
-            }
-            Ok(())
-        })?;
-        k += 1.0;
-        n += 1.0;
-    }
-    let key = PropertyKey::String(rt.heap.length_atom());
-    rt.set_or_throw(result, key, Value::number(n))?;
-    Ok(NativeReturn::Value(result.into()))
-}
-
-/// `Array.prototype.indexOf(searchElement, fromIndex)` (§23.1.3.17).
-fn index_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_of(call, "Array.prototype.indexOf")?;
-    let length = rt.length_of_array_like(object)?;
-    let not_found = NativeReturn::Value(Value::Int(-1));
-    if length == 0.0 {
-        return Ok(not_found);
-    }
-    let n = to_integer_or_infinity(rt.to_number(rt.arg(call, 1))?);
-    if n == f64::INFINITY {
-        return Ok(not_found);
-    }
-    let mut k = if n >= 0.0 { n } else { (length + n).max(0.0) };
-    let search = rt.arg(call, 0);
-    while k < length {
-        rt.tick()?;
-        let found = rt.with_scope(|rt| {
-            let key = rt.index_key(k)?;
-            if rt.has_property(object, key)? {
-                let element = rt.get_value(object.into(), key)?;
-                return rt.strictly_equal(search, element);
-            }
-            Ok(false)
-        })?;
-        if found {
-            return Ok(NativeReturn::Value(Value::number(k)));
+        if done {
+            return rt.set_length(target, k);
         }
         k += 1.0;
     }
-    Ok(not_found)
 }

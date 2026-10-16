@@ -399,9 +399,9 @@ impl Heap {
                     writable: false, ..
                 },
             ) => false,
-            Some(Property::Data { .. }) => {
-                self.define_own_property(target, key, PropertyDescriptor::value(value), roots)?
-            }
+            Some(Property::Data { .. }) => self
+                .define_own_property(target, key, PropertyDescriptor::value(value), roots)
+                .map_err(super::array::length_write_error)?,
             None => self.create_data_property(target, key, value, roots)?,
         };
         Ok(SetResult::Done(done))

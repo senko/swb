@@ -30,18 +30,18 @@ const UNSCOPABLES: [&str; 16] = [
     "values",
 ];
 
-/// Defines the `@@species` getter on `Array` and `@@unscopables` on
-/// `Array.prototype`.
-pub(super) fn install(
-    rt: &mut Runtime,
-    realm: u32,
-    array: Gc<Object>,
-    proto: Gc<Object>,
-) -> VmResult<()> {
+/// Defines the `@@species` getter on `Array`.
+pub(super) fn install_species(rt: &mut Runtime, realm: u32, array: Gc<Object>) -> VmResult<()> {
     let getter = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    rt.set_intrinsic(realm, Intrinsic::ArraySpeciesGetter, getter);
     let key = rt.symbol_key(WellKnown::Species);
     let desc = PropertyDescriptor::accessor(getter.into(), Value::Undefined, false, true);
     rt.define_own_property(array, key, desc)?;
+    Ok(())
+}
+
+/// Defines `@@unscopables` on `Array.prototype`.
+pub(super) fn install_unscopables(rt: &mut Runtime, proto: Gc<Object>) -> VmResult<()> {
     let unscopables = rt.heap.new_object(None)?;
     rt.heap.record(unscopables);
     for name in UNSCOPABLES {

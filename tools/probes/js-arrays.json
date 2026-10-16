@@ -1,0 +1,422 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "receivers-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.at.call(null)\",\"Array.prototype.at.call(undefined, () => 1)\",\"Array.prototype.concat.call(null)\",\"Array.prototype.concat.call(undefined, () => 1)\",\"Array.prototype.copyWithin.call(null)\",\"Array.prototype.copyWithin.call(undefined, () => 1)\",\"Array.prototype.fill.call(null)\",\"Array.prototype.fill.call(undefined, () => 1)\",\"Array.prototype.find.call(null)\",\"Array.prototype.find.call(undefined, () => 1)\",\"Array.prototype.findIndex.call(null)\",\"Array.prototype.findIndex.call(undefined, () => 1)\",\"Array.prototype.findLast.call(null)\",\"Array.prototype.findLast.call(undefined, () => 1)\",\"Array.prototype.findLastIndex.call(null)\",\"Array.prototype.findLastIndex.call(undefined, () => 1)\",\"Array.prototype.lastIndexOf.call(null)\",\"Array.prototype.lastIndexOf.call(undefined, () => 1)\",\"Array.prototype.pop.call(null)\",\"Array.prototype.pop.call(undefined, () => 1)\",\"Array.prototype.push.call(null)\",\"Array.prototype.push.call(undefined, () => 1)\",\"Array.prototype.reverse.call(null)\",\"Array.prototype.reverse.call(undefined, () => 1)\",\"Array.prototype.shift.call(null)\",\"Array.prototype.shift.call(undefined, () => 1)\",\"Array.prototype.unshift.call(null)\",\"Array.prototype.unshift.call(undefined, () => 1)\",\"Array.prototype.slice.call(null)\",\"Array.prototype.slice.call(undefined, () => 1)\",\"Array.prototype.sort.call(null)\",\"Array.prototype.sort.call(undefined, () => 1)\",\"Array.prototype.splice.call(null)\",\"Array.prototype.splice.call(undefined, () => 1)\",\"Array.prototype.includes.call(null)\",\"Array.prototype.includes.call(undefined, () => 1)\",\"Array.prototype.indexOf.call(null)\",\"Array.prototype.indexOf.call(undefined, () => 1)\",\"Array.prototype.join.call(null)\",\"Array.prototype.join.call(undefined, () => 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "receivers-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.keys.call(null)\",\"Array.prototype.keys.call(undefined, () => 1)\",\"Array.prototype.entries.call(null)\",\"Array.prototype.entries.call(undefined, () => 1)\",\"Array.prototype.values.call(null)\",\"Array.prototype.values.call(undefined, () => 1)\",\"Array.prototype.forEach.call(null)\",\"Array.prototype.forEach.call(undefined, () => 1)\",\"Array.prototype.filter.call(null)\",\"Array.prototype.filter.call(undefined, () => 1)\",\"Array.prototype.flat.call(null)\",\"Array.prototype.flat.call(undefined, () => 1)\",\"Array.prototype.flatMap.call(null)\",\"Array.prototype.flatMap.call(undefined, () => 1)\",\"Array.prototype.map.call(null)\",\"Array.prototype.map.call(undefined, () => 1)\",\"Array.prototype.every.call(null)\",\"Array.prototype.every.call(undefined, () => 1)\",\"Array.prototype.some.call(null)\",\"Array.prototype.some.call(undefined, () => 1)\",\"Array.prototype.reduce.call(null)\",\"Array.prototype.reduce.call(undefined, () => 1)\",\"Array.prototype.reduceRight.call(null)\",\"Array.prototype.reduceRight.call(undefined, () => 1)\",\"Array.prototype.toReversed.call(null)\",\"Array.prototype.toReversed.call(undefined, () => 1)\",\"Array.prototype.toSorted.call(null)\",\"Array.prototype.toSorted.call(undefined, () => 1)\",\"Array.prototype.toSpliced.call(null)\",\"Array.prototype.toSpliced.call(undefined, () => 1)\",\"Array.prototype.with.call(null)\",\"Array.prototype.with.call(undefined, () => 1)\",\"Array.prototype.toLocaleString.call(null)\",\"Array.prototype.toLocaleString.call(undefined, () => 1)\",\"Array.prototype.toString.call(null)\",\"Array.prototype.toString.call(undefined, () => 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "callbacks-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[1].find()\",\"[1].find(1)\",\"[1].find({})\",\"[].find('f')\",\"Array.prototype.find.call({length: 0}, null)\",\"[1].findIndex()\",\"[1].findIndex(1)\",\"[1].findIndex({})\",\"[].findIndex('f')\",\"Array.prototype.findIndex.call({length: 0}, null)\",\"[1].findLast()\",\"[1].findLast(1)\",\"[1].findLast({})\",\"[].findLast('f')\",\"Array.prototype.findLast.call({length: 0}, null)\",\"[1].findLastIndex()\",\"[1].findLastIndex(1)\",\"[1].findLastIndex({})\",\"[].findLastIndex('f')\",\"Array.prototype.findLastIndex.call({length: 0}, null)\",\"[1].forEach()\",\"[1].forEach(1)\",\"[1].forEach({})\",\"[].forEach('f')\",\"Array.prototype.forEach.call({length: 0}, null)\",\"[1].filter()\",\"[1].filter(1)\",\"[1].filter({})\",\"[].filter('f')\",\"Array.prototype.filter.call({length: 0}, null)\",\"[1].flatMap()\",\"[1].flatMap(1)\",\"[1].flatMap({})\",\"[].flatMap('f')\",\"Array.prototype.flatMap.call({length: 0}, null)\",\"[1].map()\",\"[1].map(1)\",\"[1].map({})\",\"[].map('f')\",\"Array.prototype.map.call({length: 0}, null)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "callbacks-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[1].every()\",\"[1].every(1)\",\"[1].every({})\",\"[].every('f')\",\"Array.prototype.every.call({length: 0}, null)\",\"[1].some()\",\"[1].some(1)\",\"[1].some({})\",\"[].some('f')\",\"Array.prototype.some.call({length: 0}, null)\",\"[1].reduce()\",\"[1].reduce(1)\",\"[1].reduce({})\",\"[].reduce('f')\",\"Array.prototype.reduce.call({length: 0}, null)\",\"[1].reduceRight()\",\"[1].reduceRight(1)\",\"[1].reduceRight({})\",\"[].reduceRight('f')\",\"Array.prototype.reduceRight.call({length: 0}, null)\",\"[].reduce((a, b) => a)\",\"[].reduceRight((a, b) => a)\",\"[, ,].reduce((a, b) => a)\",\"Array.prototype.reduce.call({length: 3}, (a, b) => a)\",\"[, 1, ,].reduce((a, b) => a + b)\",\"[1, 2, 3].reduce((a, b) => a + b)\",\"[1, 2, 3].reduce((a, b) => a + b, 10)\",\"[1, 2, 3].reduceRight((a, b) => a + \\\"\\\" + b)\",\"[1, 2, 3].reduceRight((a, b) => a + \\\"\\\" + b, \\\"x\\\")\",\"[1, 2, 3].reduce((a, b, i, o) => a + i + o.length, \\\"\\\")\",\"[].sort(1)\",\"[].sort(null)\",\"[].sort({})\",\"[].sort(\\\"a\\\")\",\"[].toSorted(1)\",\"[].toSorted(null)\",\"Array.prototype.sort.call(null, 1)\",\"Array.prototype.sort.call(null)\",\"Array.prototype.toSorted.call(null, 1)\",\"Array.from([1], 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "callbacks-2",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.from([1], null)\",\"Array.from({length: 1}, {})\",\"Array.from(null)\",\"Array.from(undefined)\",\"Array.from()\",\"Array.from(1)\",\"Array.from(true)\",\"Array.from(\\\"ab\\\", 1)\",\"Array.from({[Symbol.iterator]: 1})\",\"Array.from({[Symbol.iterator]() { return 1 }})\",\"Array.from({[Symbol.iterator]() { return {} }})\",\"Array.from({[Symbol.iterator]() { return {next: 1} }})\",\"Array.from({[Symbol.iterator]() { return {next() { return 1 }} }})\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "lengths-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.push.call({length: 2 ** 53 - 1}, 1)\",\"Array.prototype.push.call({length: 2 ** 53 - 2}, 1, 2)\",\"Array.prototype.push.call({length: 2 ** 53 - 1})\",\"Array.prototype.unshift.call({length: 2 ** 53 - 1}, 1)\",\"Array.prototype.unshift.call({length: 2 ** 53 - 2}, 1, 2)\",\"Array.prototype.unshift.call({length: 2 ** 53 - 1})\",\"Array.prototype.splice.call({length: 2 ** 53 - 1}, 0, 0, 1)\",\"Array.prototype.splice.call({length: 2 ** 53 - 1}, 2 ** 53, 0, 1, 2)\",\"Array.prototype.toSpliced.call({length: 2 ** 53 - 1}, 0, 0, 1)\",\"Array.prototype.toSpliced.call({length: 2 ** 32 - 1}, 0, 0, 1)\",\"Array.prototype.concat.call({length: 2 ** 53 - 1, [Symbol.isConcatSpreadable]: true}, [1])\",\"Array.prototype.concat.call([], {length: 2 ** 53 - 1, [Symbol.isConcatSpreadable]: true}, 1)\",\"Array.prototype.toReversed.call({length: 2 ** 32})\",\"Array.prototype.toSorted.call({length: 2 ** 32})\",\"Array.prototype.with.call({length: 2 ** 32}, 0, 1)\",\"Array.prototype.slice.call({length: 2 ** 32}, 0)\",\"Array.prototype.slice.call({length: 2 ** 53 - 1}, 2 ** 53 - 3).length\",\"Array.prototype.splice.call({length: 2 ** 32 + 2}, 0)\",\"Array.prototype.map.call({length: 2 ** 32}, x => x)\",\"Array.from({length: 2 ** 32})\",\"Array.from({length: -1})\",\"Array.of.call(function () { return {length: 0, __proto__: null} }, 1).length\",\"Array(-1)\",\"Array(1.5)\",\"Array(2 ** 32)\",\"Array(2 ** 32 - 1).length\",\"new Array(NaN)\",\"Array(\\\"3\\\")\",\"Array(3).length\",\"Array(1, 2).length\",\"[1, 2].with(2, 0)\",\"[1, 2].with(-3, 0)\",\"[1, 2].with(1.5, 0)\",\"[1, 2].with(-1, 0)\",\"[1, 2].with(\\\"1\\\", 9)\",\"[1, 2].with(NaN, 9)\",\"[1, 2].with(Infinity, 9)\",\"var a = [1, 2, 3]; a.length = 2 ** 32; a\",\"var a = [1, 2, 3]; a.length = -1; a\",\"var a = [1, 2, 3]; a.length = 1.5; a\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "lengths-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.copyWithin.call({length: 2 ** 53 - 1, 0: 1}, 2 ** 53 - 2, 0, 1)[2 ** 53 - 2]\",\"Array.prototype.fill.call({length: 2 ** 53 - 1}, 1, 2 ** 53 - 3)[2 ** 53 - 3]\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "frozen-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Object.freeze([1, 2, 3]).push(0)\",\"Object.seal([1, 2, 3]).push(0)\",\"Object.preventExtensions([1, , 3]).push(0)\",\"Object.freeze([1, 2, 3]).pop()\",\"Object.seal([1, 2, 3]).pop()\",\"Object.preventExtensions([1, , 3]).pop()\",\"Object.freeze([1, 2, 3]).shift()\",\"Object.seal([1, 2, 3]).shift()\",\"Object.preventExtensions([1, , 3]).shift()\",\"Object.freeze([1, 2, 3]).unshift(0)\",\"Object.seal([1, 2, 3]).unshift(0)\",\"Object.preventExtensions([1, , 3]).unshift(0)\",\"Object.freeze([1, 2, 3]).reverse()\",\"Object.seal([1, 2, 3]).reverse()\",\"Object.preventExtensions([1, , 3]).reverse()\",\"Object.freeze([1, 2, 3]).sort()\",\"Object.seal([1, 2, 3]).sort()\",\"Object.preventExtensions([1, , 3]).sort()\",\"Object.freeze([1, 2, 3]).splice(0, 1)\",\"Object.seal([1, 2, 3]).splice(0, 1)\",\"Object.preventExtensions([1, , 3]).splice(0, 0, 9)\",\"Object.freeze([1, 2, 3]).fill(0)\",\"Object.seal([1, 2, 3]).fill(0)\",\"Object.preventExtensions([1, , 3]).fill(0)\",\"Object.freeze([1, 2, 3]).copyWithin(0, 1)\",\"Object.seal([1, 2, 3]).copyWithin(0, 1)\",\"Object.preventExtensions([1, , 3]).copyWithin(1, 2)\",\"var a = [1, 2, 3]; Object.defineProperty(a, \\\"length\\\", {writable: false}); a.pop()\",\"var a = [1, 2, 3]; Object.defineProperty(a, \\\"length\\\", {writable: false}); a.push(1)\",\"var a = [1, 2, 3]; Object.defineProperty(a, \\\"length\\\", {writable: false}); a.shift()\",\"var a = [1, 2, 3]; Object.defineProperty(a, \\\"length\\\", {writable: false}); a.splice(0, 1)\",\"var a = [1, 2, 3]; Object.defineProperty(a, \\\"length\\\", {writable: false}); a.reverse()\",\"var a = [1, 2, 3]; Object.defineProperty(a, 1, {configurable: false}); a.length = 0; a\",\"var a = [1, 2, 3]; Object.defineProperty(a, 1, {configurable: false}); a.shift()\",\"var a = [1, 2, 3]; Object.defineProperty(a, 2, {configurable: false}); a.pop()\",\"var a = [1, , 3]; Object.defineProperty(a, 0, {writable: false}); a.reverse()\",\"Array.prototype.pop.call(Object.freeze({length: 1, 0: 1}))\",\"Array.prototype.push.call(\\\"ab\\\", 1)\",\"Array.prototype.pop.call(\\\"ab\\\")\",\"Array.prototype.reverse.call(\\\"ab\\\")\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "frozen-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.sort.call(\\\"ba\\\")\",\"Array.prototype.fill.call(\\\"ab\\\", 1)\",\"Array.prototype.shift.call(\\\"\\\")\",\"Array.prototype.copyWithin.call(\\\"abc\\\", 0, 1)\",\"Array.prototype.splice.call(\\\"abc\\\", 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[1, 2, 3].at(0)\",\"[1, 2, 3].at(-1)\",\"[1, 2, 3].at(3)\",\"[1, 2, 3].at(-4)\",\"[1, 2, 3].at(\\\"1\\\")\",\"[1, 2, 3].at()\",\"[1, 2, 3].at(1.7)\",\"[1, 2, 3].at(-0.5)\",\"[, 1].at(0)\",\"Array.prototype.at.call(\\\"abc\\\", -1)\",\"Array.prototype.at.call({length: 2 ** 53 + 5, [2 ** 53 - 2]: \\\"x\\\"}, -1)\",\"[1, 2, 3].with(0, 9)\",\"[1, , 3].with(0, 9)\",\"Array.prototype.with.call({length: 2, 1: \\\"b\\\"}, 0, \\\"a\\\")\",\"[1].concat(2, [3, [4]], \\\"x\\\")\",\"[1, , 3].concat([, 5])\",\"[].concat.call(1, 2)\",\"[].concat.call(\\\"ab\\\", \\\"c\\\")\",\"[1].concat({length: 2, 0: \\\"a\\\", [Symbol.isConcatSpreadable]: true})\",\"var o = [1, 2]; o[Symbol.isConcatSpreadable] = false; [0].concat(o).length\",\"[1].concat({[Symbol.isConcatSpreadable]: true})\",\"[1].concat({[Symbol.isConcatSpreadable]: 0, length: 1})\",\"Object.keys([0, , 2].concat([, 4])).join()\",\"[].concat([1, 2], [3]).length\",\"(function () { return [].concat(arguments) })(1, 2).length\",\"[1, 2, 3, 4, 5].copyWithin(0, 3)\",\"[1, 2, 3, 4, 5].copyWithin(1, 0)\",\"[1, 2, 3, 4, 5].copyWithin(-2, 0, 2)\",\"[1, 2, 3, 4, 5].copyWithin(0, -2, -1)\",\"[1, , 3, 4, 5].copyWithin(2, 0, 2)\",\"[1, 2, 3].copyWithin(1)\",\"[1, 2, 3, 4, 5].copyWithin(2, 1)\",\"[1, 2, 3].copyWithin(0, 1, NaN)\",\"[1, 2, 3].copyWithin(\\\"1\\\", \\\"0\\\")\",\"Array.prototype.copyWithin.call({length: 5, 3: 1}, 0, 3)\",\"[1, 2, 3].fill(0)\",\"[1, 2, 3].fill(0, 1)\",\"[1, 2, 3].fill(0, -1)\",\"[1, 2, 3].fill(0, 1, 2)\",\"Array(3).fill()\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array(3).fill(7, 5)\",\"[1, 2, 3].fill(0, NaN, NaN)\",\"Array.prototype.fill.call({length: 2}, \\\"x\\\")\",\"[1, 2, 3, 4].find(x => x > 2)\",\"[1, 2, 3, 4].findIndex(x => x > 2)\",\"[1, 2, 3, 4].findLast(x => x < 3)\",\"[1, 2, 3, 4].findLastIndex(x => x < 3)\",\"[1, 2].find(x => x > 5)\",\"[1, 2].findIndex(x => x > 5)\",\"[1, 2].findLast(x => x > 5)\",\"[1, 2].findLastIndex(x => x > 5)\",\"var c = []; [1, , 3].find((x, i) => { c.push(i + \\\":\\\" + x); }); c.join()\",\"var c = []; [1, , 3].findLast((x, i) => { c.push(i + \\\":\\\" + x); }); c.join()\",\"var c = []; [1, 2, 3].find(function (x) { c.push(this.v); }, {v: 7}); c.join()\",\"[1, 2, 3, 2].indexOf(2)\",\"[1, 2, 3, 2].indexOf(2, 2)\",\"[1, 2, 3, 2].indexOf(2, -1)\",\"[1, 2, 3, 2].indexOf(2, -100)\",\"[1, 2, 3, 2].indexOf(2, 100)\",\"[1, 2, 3, 2].lastIndexOf(2)\",\"[1, 2, 3, 2].lastIndexOf(2, 2)\",\"[1, 2, 3, 2].lastIndexOf(2, -2)\",\"[1, 2, 3, 2].lastIndexOf(2, -100)\",\"[1, 2, 3, 2].lastIndexOf(2, 100)\",\"[1, 2, 3, 2].lastIndexOf(2, undefined)\",\"[1, 2, 3, 2].lastIndexOf(2, -0)\",\"[2, 1].lastIndexOf(2, -0)\",\"[NaN].indexOf(NaN)\",\"[NaN].lastIndexOf(NaN)\",\"[NaN].includes(NaN)\",\"[-0].indexOf(0)\",\"[0].includes(-0)\",\"[, 1].indexOf(undefined)\",\"[, 1].includes(undefined)\",\"[, 1].lastIndexOf(undefined)\",\"[1, 2].includes(2, 2)\",\"[1, 2].includes(1, -1)\",\"[1, 2].includes(1, -5)\",\"[\\\"a\\\"].indexOf(\\\"a\\\")\",\"[1].indexOf(\\\"1\\\")\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-2",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.indexOf.call(\\\"abc\\\", \\\"b\\\")\",\"Array.prototype.includes.call({length: 1, 0: NaN}, NaN)\",\"[1, 2, 3].indexOf(3, 1.9)\",\"[1, 2, 3].includes(3, Infinity)\",\"[1, 2, 3].includes(1, -Infinity)\",\"[1, 2, 3].lastIndexOf(1, -Infinity)\",\"[1, 2, 3].lastIndexOf(3, Infinity)\",\"var a = [1, 2, 3]; [a.pop(), a]\",\"var a = []; [a.pop(), a.length]\",\"var a = [1, 2]; [a.push(3, 4), a]\",\"var a = [1, 2, 3]; [a.shift(), a]\",\"var a = []; [a.shift(), a.length]\",\"var a = [1, 2]; [a.unshift(0, 0.5), a]\",\"var a = [1, , 3]; [a.shift(), a, Object.keys(a).join()]\",\"var a = [1, , 3]; [a.unshift(0), Object.keys(a).join()]\",\"var o = {length: 2, 0: \\\"a\\\", 1: \\\"b\\\"}; [Array.prototype.shift.call(o), o]\",\"var o = {length: \\\"2\\\", 1: \\\"b\\\"}; [Array.prototype.pop.call(o), o]\",\"var o = {}; [Array.prototype.pop.call(o), o]\",\"var o = {length: 1.9}; [Array.prototype.push.call(o, \\\"x\\\"), o]\",\"var o = {length: -5}; [Array.prototype.push.call(o), o]\",\"var o = {length: 3, 0: 1, 2: 3}; [Array.prototype.unshift.call(o, \\\"a\\\"), o]\",\"[1, 2, 3].reverse()\",\"[1, 2, 3, 4].reverse()\",\"Object.keys([1, , 3, , ].reverse()).join()\",\"[].reverse()\",\"var o = {length: 3, 0: \\\"a\\\"}; Array.prototype.reverse.call(o); o\",\"var o = {length: 4, 1: \\\"b\\\", 3: \\\"d\\\"}; Array.prototype.reverse.call(o); o\",\"[1, 2, 3, 4].slice(1, 3)\",\"[1, 2, 3, 4].slice(-2)\",\"[1, 2, 3, 4].slice(2, -1)\",\"[1, 2, 3].slice(5)\",\"[1, , 3].slice(0)\",\"Object.keys([1, , 3].slice(0)).join()\",\"[1, 2, 3].slice(\\\"1\\\")\",\"[1, 2, 3].slice(NaN, NaN)\",\"Array.prototype.slice.call(\\\"abc\\\", 1)\",\"Array.prototype.slice.call({length: 3, 1: \\\"x\\\"})\",\"var a = [1, 2, 3, 4]; [a.splice(1, 2), a]\",\"var a = [1, 2, 3, 4]; [a.splice(1), a]\",\"var a = [1, 2, 3, 4]; [a.splice(), a]\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-3",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1, 2, 3, 4]; [a.splice(undefined), a]\",\"var a = [1, 2, 3, 4]; [a.splice(-2, 1, \\\"x\\\", \\\"y\\\"), a]\",\"var a = [1, 2, 3]; [a.splice(1, 0, \\\"x\\\"), a]\",\"var a = [1, 2, 3]; [a.splice(1, -1), a]\",\"var a = [1, 2, 3]; [a.splice(1, 99), a]\",\"var a = [1, , 3, 4]; [a.splice(0, 2), a, Object.keys(a).join()]\",\"var a = [1, , 3, , 5]; [a.splice(1, 1, \\\"x\\\", \\\"y\\\"), Object.keys(a).join()]\",\"var o = {length: 3, 0: 1, 1: 2, 2: 3}; [Array.prototype.splice.call(o, 1, 1), o]\",\"[1, 2, 3].toReversed()\",\"[1, , 3].toReversed()\",\"Object.keys([1, , 3].toReversed()).join()\",\"Array.prototype.toReversed.call({length: 2, 0: \\\"a\\\"})\",\"[3, 1, 2].toSorted()\",\"[3, , 1].toSorted()\",\"Object.keys([3, , 1].toSorted()).join()\",\"[3, 1, 2].toSorted((a, b) => b - a)\",\"var a = [3, 1]; a.toSorted(); a\",\"[1, 2, 3, 4].toSpliced(1, 2)\",\"[1, 2, 3].toSpliced(1, 0, \\\"x\\\")\",\"[1, 2, 3].toSpliced()\",\"[1, 2, 3].toSpliced(1)\",\"[1, , 3].toSpliced(0, 0)\",\"Object.keys([1, , 3].toSpliced(0, 0)).join()\",\"[1, 2, 3].toSpliced(-1, 1, \\\"a\\\", \\\"b\\\")\",\"[1, null, undefined, 2].join()\",\"[1, 2].join(\\\"\\\")\",\"[1, 2].join(undefined)\",\"[1, 2].join(null)\",\"[[1, 2], [3]].join(\\\";\\\")\",\"var a = [1]; a.push(a); a.join()\",\"var a = [1, [2]]; a[1].push(a); String(a)\",\"[].join()\",\"Array(3).join(\\\"-\\\")\",\"Array.prototype.join.call({length: 2, 0: \\\"a\\\"}, \\\"+\\\")\",\"Array.prototype.join.call(\\\"abc\\\")\",\"[1, 2].toString()\",\"Array.prototype.toString.call({join: () => \\\"J\\\"})\",\"Array.prototype.toString.call({})\",\"Array.prototype.toString.call(null)\",\"[1, \\\"a\\\", null, undefined, [2, 3]].toLocaleString()\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-4",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[{toLocaleString() { return \\\"L\\\" }}, 1].toLocaleString()\",\"[{toLocaleString: 1}].toLocaleString()\",\"[1234.5, 0.5].toLocaleString()\",\"var a = [1]; a.push(a); a.toLocaleString()\",\"[{toLocaleString(...args) { return args.length }}].toLocaleString(\\\"de\\\", {style: \\\"x\\\"})\",\"[...[\\\"a\\\", \\\"b\\\"].keys()]\",\"[...[\\\"a\\\", , \\\"b\\\"].entries()].join(\\\";\\\")\",\"[...[\\\"a\\\", \\\"b\\\"].values()]\",\"[1, [2, [3, [4]]]].flat()\",\"[1, [2, [3, [4]]]].flat(2)\",\"[1, [2, [3, [4]]]].flat(Infinity)\",\"[1, [2, [3]]].flat(0)\",\"[1, [2, [3]]].flat(-1)\",\"[1, [2, [3]]].flat(\\\"1\\\")\",\"[1, , [2, , 3]].flat()\",\"Object.keys([1, , [2, , 3]].flat()).join()\",\"[1, 2].flatMap(x => [x, x * 2])\",\"[1, 2].flatMap(x => [[x]])\",\"[1, 2].flatMap(x => x)\",\"[1].flatMap(function () { return this.v }, {v: [5]})\",\"[1, [2]].flat.call({length: 2, 0: [1], 1: {length: 1, 0: 2}})\",\"[{length: 1, 0: \\\"x\\\", [Symbol.isConcatSpreadable]: true}].flat()\",\"var c = []; [1, , 3].forEach((x, i, o) => c.push(i, x, o.length)); c.join()\",\"[1, 2, 3].map(x => x * 2)\",\"[1, , 3].map(x => x * 2)\",\"Object.keys([1, , 3].map(x => x)).join()\",\"[1, 2, 3, 4].filter(x => x % 2)\",\"[1, , 3].filter(() => true)\",\"[1, 2].every(x => x > 0)\",\"[1, 2].every(x => x > 1)\",\"[].every(() => false)\",\"[1, 2].some(x => x > 1)\",\"[].some(() => true)\",\"[, , ].some(() => true)\",\"Array.prototype.map.call(\\\"ab\\\", x => x + x)\",\"Array.prototype.filter.call({length: 2, 0: 1, 1: 0}, x => x)\",\"var c = []; [1, 2, 3].forEach(function (x) { c.push(this === undefined) }); c.join()\",\"var c = []; [1].forEach(function () { \\\"use strict\\\"; c.push(typeof this) }, 5); c.join()\",\"var c = []; [1].forEach(function () { c.push(typeof this) }, 5); c.join()\",\"var a = [1, 2, 3]; var c = []; a.forEach(x => { c.push(x); if (x === 1) a.push(9); }); c.join()\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "basics-5",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1, 2, 3]; var c = []; a.forEach(x => { c.push(x); a.pop(); }); c.join()\",\"var a = [1, , 3]; var c = []; a.forEach((x, i) => { c.push(x); a[1] = 7; }); c.join()\",\"var a = [1, 2, 3, 4]; a.map((x, i) => { a.length = 2; return x; })\",\"var a = [1, 2, 3]; a.filter((x, i) => { a[i + 1] = 0; return true; })\",\"var a = [3, 2, 1]; a.reduce((acc, x) => { a.shift(); return acc + x; }, 0)\",\"var a = [1, , 3]; Array.prototype[1] = \\\"p\\\"; var r = a.map(x => x); delete Array.prototype[1]; r\",\"var a = [1, , 3]; Object.prototype[1] = \\\"q\\\"; var r = [a.indexOf(\\\"q\\\"), a.includes(\\\"q\\\"), a.join()]; delete Object.prototype[1]; r\",\"var a = [1, , 3]; Object.setPrototypeOf(a, new String(\\\"xyz\\\")); [Array.prototype.join.call(a), Array.prototype.indexOf.call(a, \\\"y\\\"), Array.prototype.includes.call(a, \\\"y\\\"), Array.prototype.lastIndexOf.call(a, \\\"z\\\")]\",\"var a = [1, , 3]; Object.setPrototypeOf(a, new String(\\\"xyz\\\")); [Array.prototype.map.call(a, x => x), Array.prototype.slice.call(a), Array.prototype.toReversed.call(a)]\",\"var a = [, , 3]; Object.setPrototypeOf(a, new String(\\\"xyz\\\")); Array.prototype.reverse.call(a); [a.length, Object.keys(a).join(), a[0]]\",\"var a = []; var p = []; p[5] = \\\"p\\\"; Object.setPrototypeOf(a, p); a.length = 8; [Array.prototype.indexOf.call(a, \\\"p\\\"), Array.prototype.lastIndexOf.call(a, \\\"p\\\"), Array.prototype.includes.call(a, undefined), Array.prototype.join.call(a)]\",\"var a = [0, , 2]; Object.defineProperty(a, 1, {get() { a.push(\\\"g\\\"); return \\\"x\\\" }, configurable: true}); [a.map(v => v), a.length]\",\"var a = [0, , 2, , 4]; Array.prototype[3] = \\\"P\\\"; var r = [a.toSorted(), a.toReversed(), a.slice(), a.concat()]; delete Array.prototype[3]; r\",\"var a = [5, , 1]; Array.prototype[1] = 3; a.sort(); delete Array.prototype[1]; [a, Object.keys(a).join()]\",\"var a = [1, , 3]; Object.prototype[1] = \\\"q\\\"; var r = [a.reverse(), Object.keys(a).join()]; delete Object.prototype[1]; r\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "species-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"class A extends Array {}; var a = new A(1, 2, 3); [a.map(x => x) instanceof A, a.filter(x => 1) instanceof A, a.slice() instanceof A, a.splice(0, 1) instanceof A, a.concat() instanceof A, a.flat() instanceof A, a.flatMap(x => x) instanceof A]\",\"class A extends Array {}; var a = new A(1, 2, 3); [a.toReversed() instanceof A, a.toSorted() instanceof A, a.toSpliced(0) instanceof A, a.with(0, 1) instanceof A]\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function (n) { this.args = n; }}; var r = a.map(x => x); [r.args, r[0], r.length, Array.isArray(r)]\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: null}; Array.isArray(a.map(x => x))\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: 1}; a.map(x => x)\",\"var a = [1, 2]; a.constructor = 1; a.map(x => x)\",\"var a = [1, 2]; a.constructor = undefined; a.map(x => x)\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.map(x => x)\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.slice()\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.filter(x => 1)\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.splice(0)\",\"var a = [1, 2]; a.constructor = {[Symbol.species]: function () { return Object.freeze([]) }}; a.concat()\",\"Array.of(1, 2, 3)\",\"Array.of()\",\"Array.of(undefined)\",\"Array.of.call(Object, 1, 2)\",\"Array.of.call(function (n) { this.n = n }, \\\"a\\\", \\\"b\\\")\",\"Array.of.call(undefined, 1)\",\"Array.of.call(Math.max, 1)\",\"Array.of.call(function () { return Object.freeze({}) }, 1)\",\"Array.from(\\\"abc\\\")\",\"Array.from(\\\"a\\\\ud83d\\\\ude00b\\\").length\",\"Array.from([1, , 3])\",\"Array.from({length: 3, 1: \\\"x\\\"})\",\"Array.from({length: 2}, (x, i) => i * 2)\",\"Array.from([1, 2], function (x) { return x + this.d }, {d: 10})\",\"Array.from.call(Object, [1, 2])\",\"Array.from.call(Object, {length: 2, 0: \\\"a\\\"})\",\"Array.from.call(undefined, [1])\",\"Array.from.call(function (n) { this.n = n }, {length: 2})\",\"Array.from.call(function () { this.x = 1 }, [5])\",\"Array.from({length: \\\"2\\\", 0: \\\"a\\\"})\",\"Array.from({length: 1.5, 0: \\\"a\\\"})\",\"Array.from((function* () { yield 1; yield 2 })())\",\"(function () { return Array.from(arguments) })(1, 2, 3)\",\"Array.from([1, 2].entries())\",\"Array.from([1, 2].keys())\",\"var it = {[Symbol.iterator]() { var i = 0; return {next() { return {value: i++, done: i > 3}}, return() { throw 1 }}}}; Array.from(it)\",\"var log = []; var it = {[Symbol.iterator]() { return {next() { return {value: 1, done: false}}, return() { log.push(\\\"ret\\\"); return {} }}}}; try { Array.from(it, () => { throw new Error(\\\"m\\\") }) } catch (e) { log.push(e.message) }; log.join()\",\"Array.from.call(function () { return Object.freeze([]) }, [1])\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "species-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.from.call(function () { return Object.freeze([]) }, {length: 1, 0: 1})\",\"Array.from({length: 1, 0: \\\"a\\\"}, undefined)\",\"Array.isArray([])\",\"Array.isArray({})\",\"Array.isArray(Array.prototype)\",\"Array.isArray()\",\"Array.isArray(new Proxy([], {}))\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "sort-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[3, 1, 2].sort()\",\"[10, 9, 1, 100, -1, 2e21, 1e-7].sort()\",\"[\\\"b\\\", \\\"a\\\", \\\"B\\\", \\\"aa\\\", \\\"\\\"].sort()\",\"[5, undefined, 1, , 3].sort()\",\"Object.keys([5, undefined, 1, , 3].sort()).join()\",\"[true, false, null, \\\"null\\\", undefined, NaN, 0, -0].sort()\",\"[3, 1, 2].sort(undefined)\",\"[3, 1, 2].sort((a, b) => b - a)\",\"[3, 1, 2].sort(() => 0)\",\"[3, 1, 2].sort(() => NaN)\",\"[3, 1, 2, 5, 4].sort(() => 1)\",\"[3, 1, 2, 5, 4].sort(() => -1)\",\"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => -1)\",\"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => 1)\",\"[\\\"10\\\", 9, \\\"8\\\", 1].sort((a, b) => a - b)\",\"var a = []; for (var i = 0; i < 30; i++) a.push({k: i % 3, i}); a.sort((x, y) => x.k - y.k).map(x => x.i).join()\",\"var a = []; for (var i = 0; i < 30; i++) a.push({k: i % 3, i}); a.toSorted((x, y) => y.k - x.k).map(x => x.i).join()\",\"Array.prototype.sort.call({0: \\\"b\\\", 1: \\\"a\\\", 3: \\\"c\\\", length: 5})\",\"var o = {0: \\\"b\\\", 1: \\\"a\\\", 3: \\\"c\\\", length: 5}; Array.prototype.sort.call(o); Object.keys(o).join()\",\"Array.prototype.toSorted.call({0: \\\"b\\\", 1: \\\"a\\\", 3: \\\"c\\\", length: 5})\",\"var a = [1, 2, 3]; a.sort((x, y) => { a.length = 0; return x - y; }); a\",\"var a = [3, 1, 2]; a.sort((x, y) => { a.push(9); return x - y; }); a.join()\",\"var a = [3, 1, 2]; a.sort((x, y) => { a[0] = 7; return x - y; })\",\"var a = [3, 1, 2]; try { a.sort((x, y) => { throw new Error(\\\"cmp\\\") }) } catch (e) { [e.message, a] }\",\"var a = [3, 1, {toString() { throw new Error(\\\"ts\\\") }}]; try { a.sort() } catch (e) { [e.message, a.length] }\",\"var n = 0; [3, 1, 2, 5, 4].sort((a, b) => { n++; return a - b; }); n <= 10\",\"var a = [3, 1, 2]; a.sort((x, y) => x < y); a\",\"var a = [3, 1, 2]; a.sort((x, y) => ({valueOf() { return x - y }})); a\",\"var a = [2, 1]; a.sort((x, y) => 1n)\",\"[Symbol(), 1].sort()\",\"[Symbol()].sort()\",\"[1, Symbol()].sort((a, b) => 0).length\",\"[,\\\"a\\\",,\\\"b\\\"].sort()\",\"Object.keys([,\\\"a\\\",,\\\"b\\\"].sort()).join()\",\"[undefined, 3, , 1].sort((a, b) => a - b)\",\"var log = []; [3, 1, 2].sort((a, b) => { log.push(typeof a); return a - b; }); log.every(t => t === \\\"number\\\")\",\"[2, 1].sort(function () { \\\"use strict\\\"; return this === undefined ? -1 : 1; })\",\"(function (a, b, c) { Array.prototype.sort.call(arguments); return [a, b, c].join(); })(3, 1, 2)\",\"[0.5, -0, 0, -1, 1e21].sort()\",\"[\\\"\\\\ud800\\\", \\\"\\\\uffff\\\", \\\"\\\\ud83d\\\\ude00\\\", \\\"a\\\"].sort().map(s => s.charCodeAt(0)).join()\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "sort-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"[[2, \\\"b\\\"], [1, \\\"a\\\"]].sort()\",\"[10, 1, 2].sort().concat([10, 1, 2].sort((a, b) => a - b))\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "arguments-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"(function (a, b, c) { Array.prototype.reverse.call(arguments); return [a, b, c].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.fill.call(arguments, 0, 1); return [a, b, c].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.splice.call(arguments, 0, 1); return [a, b, c, arguments.length].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.splice.call(arguments, 1, 0, 9); return [a, b, c, arguments.length].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.copyWithin.call(arguments, 0, 1); return [a, b, c].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.shift.call(arguments); return [a, b, c, arguments.length].join(); })(1, 2, 3)\",\"(function (a, b, c) { Array.prototype.unshift.call(arguments, 0); return [a, b, c, arguments.length].join(); })(1, 2, 3)\",\"(function (a, b) { Array.prototype.pop.call(arguments); arguments[1] = 9; return [a, b].join(); })(1, 2)\",\"(function (a, b) { \\\"use strict\\\"; Array.prototype.reverse.call(arguments); return [a, b].join(); })(1, 2)\",\"(function (a, b, c) { var r = Array.prototype.toSorted.call(arguments); return [r.join(), a, b, c].join(); })(3, 1, 2)\",\"(function () { return Array.prototype.slice.call(arguments, 1); })(1, 2, 3)\",\"(function () { return Array.prototype.map.call(arguments, x => x * 2); })(1, 2)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "order-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Object.getOwnPropertyNames(Array.prototype).join()\",\"Object.getOwnPropertySymbols(Array.prototype).map(String).join()\",\"Object.getOwnPropertyNames(Array).join()\",\"Object.getOwnPropertySymbols(Array).map(String).join()\",\"Object.keys(Array.prototype[Symbol.unscopables]).join()\",\"Object.getPrototypeOf(Array.prototype[Symbol.unscopables])\",\"Object.getOwnPropertyNames(Array.prototype).filter(k => typeof Array.prototype[k] === \\\"function\\\").map(k => k + \\\":\\\" + Array.prototype[k].length).join()\",\"[Array.from.length, Array.of.length, Array.isArray.length, Array.length, Array.name]\",\"Object.getOwnPropertyNames(Array.prototype).filter(k => typeof Array.prototype[k] === \\\"function\\\").map(k => Array.prototype[k].name).join()\",\"JSON.stringify(Object.getOwnPropertyDescriptor(Array.prototype, \\\"map\\\"))\",\"JSON.stringify(Object.getOwnPropertyDescriptor(Array, \\\"from\\\"))\",\"Array.prototype[Symbol.iterator] === Array.prototype.values\",\"String(Array.prototype.toSorted)\",\"String(Array.from)\",\"Array.prototype.concat.name + Array.prototype[Symbol.iterator].name\",\"new Array.prototype.map(x => x)\",\"new Array.from([])\",\"Reflect.construct(Array.of, []).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; a.length = 2 ** 32; a\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-1",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = []; Object.defineProperty(a, \\\"length\\\", {value: -1})\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-2",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Object.defineProperty([], \\\"length\\\", {value: 2 ** 32})\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-3",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Reflect.set([], \\\"length\\\", -1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-4",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1, 2, 3]; a.length = \\\"x\\\"\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-5",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = []; a.length = {valueOf() { return -1 }}\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-6",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 1000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-7",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 2000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-8",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 3000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-9",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 4000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-10",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 6000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-11",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 8000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-12",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 10000; i++) a = [a]; a.flat(Infinity).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-13",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 3000; i++) a = [a]; a.flat(2999).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-14",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 100000; i++) a = [a]; String(a).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-15",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = [1]; for (var i = 0; i < 1000; i++) a = [a]; String(a).length\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-16",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = []; a[2 ** 32 - 2] = 1; var c = 0; a.forEach(() => c++); [c, a.indexOf(1), a.lastIndexOf(1), a.includes(undefined), a.includes(2), a.length]\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-17",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"({length: 2 ** 53 - 1, 0: 1, __proto__: Array.prototype}).lastIndexOf(1, 5)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-18",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.indexOf.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1, 2 ** 53 - 10)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-19",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.lastIndexOf.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-20",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.includes.call({length: 2 ** 53 - 1, 9007199254740990: 1}, 1, -5)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-21",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"Array.prototype.at.call({length: 2 ** 53 - 1, 9007199254740990: 1}, -1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-22",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var o = {length: 2 ** 32 + 2, 4294967296: \\\"x\\\", 4294967295: \\\"y\\\"}; Array.prototype.pop.call(o); [o.length, o[4294967296], o[4294967295]]\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-23",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = []; a[4294967294] = \\\"x\\\"; a.push(\\\"y\\\")\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "limits-24",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (typeof v === 'bigint') return v + 'n'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); return '[' + p.join(',') + ']'; } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return '{' + p.join(',') + '}'; } return String(v); }; for (const s of [\"var a = []; a.length = 4294967295; a.splice(4294967294, 0, 1)\"]) { let r; try { r = 'ok ' + show((0, eval)(s)); } catch (e) { r = 'err ' + (e && e.constructor && e.constructor.name) + ': ' + (e && e.message); } out.push(s + ' => ' + r); } return out; })()"
+    }
+   ]
+  }
+ ]
+}

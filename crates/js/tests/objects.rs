@@ -545,7 +545,7 @@ fn array_set_length_checks_the_value() {
             heap.set(a, length, bad, a.into(), &NoRoots),
             Err(Error::Throw {
                 kind: ThrowKind::RangeError,
-                message: "Invalid array length"
+                message: "Failed to set the 'length' property on 'Array': Invalid array length"
             }),
             "{bad:?}"
         );

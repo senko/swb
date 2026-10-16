@@ -593,7 +593,7 @@ new Array(-1);
 RangeError: Invalid array length
     at t.js:37:7
 o.a.length = -1;
-RangeError: Invalid array length
+RangeError: Failed to set the 'length' property on 'Array': Invalid array length
     at t.js:38:18
 (function(){ 'use strict'; undefinedVar2 = 1; })();
 ReferenceError: undefinedVar2 is not defined
