@@ -17,13 +17,12 @@ const path = require('path');
 const [input, outDir] = process.argv.slice(2);
 const probe = JSON.parse(fs.readFileSync(input, 'utf8'));
 
-// Snippets with these parts need: a RegExp (feature 8b), BigInt (10), JSON
-// (5c), the methods of case mapping, normalize and the regular expression
-// methods (5d, 8b: the list of keys of String.prototype), or a message for
-// an Array Iterator receiver that names its tag (backlog).
+// Snippets with these parts need: BigInt (feature 10), JSON (5c), the
+// methods of case mapping and normalize (5d: the list of keys of
+// String.prototype), or a message for an Array Iterator receiver that names
+// its tag (backlog).
 const EXCLUDED = [
-  '/a/', '1n', 'JSON', 'getOwnPropertyNames', 'Reflect.ownKeys(String.prototype)',
-  'String.prototype.match.call', '.filter(', 'next.call([][Symbol.iterator]())',
+  '1n', 'JSON', 'getOwnPropertyNames', '.filter(', 'next.call([][Symbol.iterator]())',
 ];
 
 const lines = [];

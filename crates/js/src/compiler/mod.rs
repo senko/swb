@@ -85,6 +85,8 @@ pub(crate) enum ConstSpec {
         class_name: String16,
         names: Vec<(String16, PrivateKind, bool)>,
     },
+    /// A regular expression literal: the pattern text and the flags.
+    RegExp(String16, swb_js_regexp::Flags),
 }
 
 /// The compiled form of one function before materialization.
@@ -429,6 +431,20 @@ fn materialize(
     result
 }
 
+/// The constant of a regular expression literal: the pattern as an atom;
+/// the program is compiled at the first evaluation.
+fn regexp_constant(
+    heap: &mut Heap,
+    pattern: &String16,
+    flags: swb_js_regexp::Flags,
+) -> CResult<Constant> {
+    Ok(Constant::RegExp(Box::new(crate::bytecode::RegExpLiteral {
+        source: heap.intern(pattern.as_str16())?,
+        flags,
+        program: std::cell::RefCell::new(None),
+    })))
+}
+
 /// Turns a builder into code: atoms for the texts, code objects for the
 /// nested functions, keys for the sites; then verifies it.
 fn finish_code(
@@ -488,6 +504,7 @@ fn finish_code(
                     names: specs.into(),
                 }))
             }
+            ConstSpec::RegExp(pattern, flags) => regexp_constant(heap, pattern, *flags)?,
         });
     }
     let mut sites = Vec::with_capacity(builder.sites.len());

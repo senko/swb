@@ -34,6 +34,8 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "nativeErrors.js",
     "asyncHelpers.js",
     "promiseHelper.js",
+    "regExpUtils.js",
+    "compareIterator.js",
 ];
 
 /// The harness file of the tests with the flag `async`: `$DONE` prints

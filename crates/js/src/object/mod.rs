@@ -15,6 +15,7 @@ mod iterator_helper;
 mod ops;
 mod private;
 mod property;
+mod regexp;
 mod shape;
 mod table;
 
@@ -24,6 +25,8 @@ pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
 pub use property::{Property, PropertyDescriptor};
+pub(crate) use regexp::{LastMatch, RegExpRealm, RegExpShapes, program_share};
+pub(crate) use regexp::{RegExpData, RegExpStringIterator};
 pub(crate) use shape::KeyList;
 pub use shape::Shape;
 pub use table::{CollectionIterator, Table};
@@ -108,6 +111,11 @@ pub enum ObjectKind {
     /// An iterator helper (§27.1.2.1): the variables of the closure and
     /// its generator state.
     IteratorHelper(Box<IteratorHelper>),
+    /// A `RegExp` object (§22.2.3.1 `RegExpAlloc`): its internal slots
+    /// and the compiled program (`regexp.rs`).
+    RegExp(Box<RegExpData>),
+    /// A `RegExp` String Iterator (§22.2.9.1).
+    RegExpStringIterator(Box<RegExpStringIterator>),
     /// An object made by `Iterator.from` (`[[Iterated]]`, §27.1.3.2.1.1).
     WrapForValidIterator(Box<WrappedIterator>),
     /// An Async-from-Sync Iterator (`[[SyncIteratorRecord]]`, §27.1.6):
@@ -206,6 +214,8 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::MapIterator(_) => "MapIterator",
             ObjectKind::SetIterator(_) => "SetIterator",
             ObjectKind::IteratorHelper(_) => "IteratorHelper",
+            ObjectKind::RegExp(_) => "RegExp",
+            ObjectKind::RegExpStringIterator(_) => "RegExpStringIterator",
             ObjectKind::WrapForValidIterator(_) => "WrapForValidIterator",
             ObjectKind::AsyncFromSyncIterator(_) => "AsyncFromSyncIterator",
             ObjectKind::ArrayFromAsync(_) => "ArrayFromAsync",
@@ -260,6 +270,8 @@ impl ObjectKind {
                 }
             }
             ObjectKind::IteratorHelper(state) => state.trace(tracer),
+            ObjectKind::RegExp(data) => data.trace(tracer),
+            ObjectKind::RegExpStringIterator(state) => state.trace(tracer),
             ObjectKind::WrapForValidIterator(state) | ObjectKind::AsyncFromSyncIterator(state) => {
                 iterator_helper::trace_record(&state.record, tracer);
             }
@@ -292,6 +304,8 @@ impl ObjectKind {
                 size_of::<CollectionIterator>()
             }
             ObjectKind::IteratorHelper(state) => state.heap_size(),
+            ObjectKind::RegExp(data) => data.heap_size(),
+            ObjectKind::RegExpStringIterator(_) => size_of::<RegExpStringIterator>(),
             ObjectKind::WrapForValidIterator(_) | ObjectKind::AsyncFromSyncIterator(_) => {
                 size_of::<WrappedIterator>()
             }

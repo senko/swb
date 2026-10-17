@@ -299,6 +299,13 @@ impl Runtime {
             Ok(ObjectKind::SetIterator(_)) => "[object Set Iterator]".to_owned(),
             Ok(ObjectKind::ArrayIterator(_)) => "[object Array Iterator]".to_owned(),
             Ok(ObjectKind::StringIterator(_)) => "[object String Iterator]".to_owned(),
+            Ok(ObjectKind::RegExp(_)) => "[object RegExp]".to_owned(),
+            Ok(ObjectKind::RegExpStringIterator(_)) => "[object RegExp String Iterator]".to_owned(),
+            // V8 shows `RegExp.prototype` and the objects that inherit
+            // from it without a constructor name (measured).
+            Ok(ObjectKind::Ordinary) if self.inherits_regexp_prototype(object) => {
+                "[object Object]".to_owned()
+            }
             Ok(ObjectKind::Generator(state)) => match state.kind {
                 super::generator::GeneratorKind::AsyncGenerator(_) => {
                     "[object AsyncGenerator]".to_owned()
@@ -346,6 +353,26 @@ impl Runtime {
             ),
             _ => "#<Object>".to_owned(),
         }
+    }
+
+    /// Whether `object` is `%RegExp.prototype%` of a realm or inherits
+    /// from it.
+    fn inherits_regexp_prototype(&self, object: Gc<Object>) -> bool {
+        let prototypes: Vec<Gc<Object>> = self
+            .vm
+            .realms
+            .iter()
+            .filter_map(|realm| realm.intrinsic(super::Intrinsic::RegExpPrototype))
+            .collect();
+        let mut current = Some(object);
+        for _ in 0..CHAIN_LIMIT {
+            let Some(object) = current else { return false };
+            if prototypes.contains(&object) {
+                return true;
+            }
+            current = self.heap.get_prototype_of(object).ok().flatten();
+        }
+        false
     }
 
     /// Whether the first property `constructor` on the prototype chain

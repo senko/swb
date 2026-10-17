@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 8b, the `RegExp` built-in
+
+- Regular expression literals compile. A literal is compiled at its
+  first evaluation and the program stays in the literal's constant;
+  each evaluation makes a new object. All 84 target scripts compile now
+  (were 46). Without a DOM, 56 of them run to the end; the others stop
+  at host objects (`window`, `document`), typed arrays or `Date`.
+- `RegExp` has the constructor, `exec`, `test`, `toString`, `source`,
+  the flags, `compile`, `RegExp.escape`, the five symbol methods with
+  the RegExp String Iterator, and the legacy static properties
+  (`RegExp.$1` and the others) as V8 has them. `String.prototype` has
+  `match`, `matchAll` and `search`, in V8's key order.
+- The matcher runs in slices of 32,768 steps. Between two slices the
+  time check and a safepoint run, so catastrophic backtracking stops at
+  the deadline, and a collection during a match changes nothing. A
+  backtrack stack beyond 256 MiB, or beyond the room under the heap
+  limit, is V8's `RangeError` "Maximum call stack size exceeded".
+  Chromium throws it at about ten million loop iterations, swb at about
+  four million, because a choice point is larger (backlog).
+- The global loops of `match`, `replace` and `split` run natively when
+  the `RegExp` object, `RegExp.prototype` and `RegExp` keep their
+  recorded shapes. Then no skipped step can be observed.
+- 453 snippets give Chromium 148's output, also in stress mode. swb
+  follows the specification, not V8, in the read order of `flags` and
+  for a RegExp String Iterator after its `exec` throws.
+- test262 runtime: 34,707 (was 32,805), the same in stress mode;
+  `built-ins/RegExp` 1,333 pass, 1 fail (needs `Date`), 531 unsupported
+  (`\p{...}`, 8c). Parse-only unchanged (42,240).
+- Speed against `node --jitless`: a global `replace` 0.5 times, `exec`
+  loops 2 times, `split` 3 times, `match` 7 times, `matchAll` 16 times;
+  all linear.
+- Review: about 200 more snippets measured in Chromium, all the same
+  apart from the documented differences. Fixed: `@@split` took its fast
+  path before it converted `limit`, so a `valueOf` of the limit that
+  replaced `exec` was not seen; an object limit now takes the spec
+  path. The heap accounting of shared programs, the time limit in all
+  symbol methods and 10M-unit inputs had no findings.
+- Next: 8c, the code point sets of `\p{...}`.
+
 ## 2026-10-17: M7 feature 8a, the regular expression engine
 
 - Feature 8 is split into three sessions: 8a the engine, 8b the

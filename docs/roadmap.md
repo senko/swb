@@ -1569,6 +1569,25 @@ failures with a reason. Features, in this order:
      and `normalize`, and `search` after `replaceAll`. Exit: no target
      script stops at a regular expression literal, or each that does
      has a reason.
+     Done 2026-10-17: a literal is compiled at its first evaluation and
+     the program is kept in the literal's constant; each evaluation makes
+     a new object. The constructor, `exec` with the `d` indices and
+     `groups`, `test`, `toString`, `source`, the flags, the five symbol
+     methods with the RegExp String Iterator, `match`, `matchAll` and
+     `search` of `String.prototype`, `RegExp.escape`, Annex B `compile`
+     and the legacy static properties as V8 has them. A match runs in
+     slices of 32,768 steps with the time check and a safepoint between
+     two slices. A backtrack stack beyond 256 MiB, or beyond the room
+     under the heap limit, is V8's `RangeError` "Maximum call stack size
+     exceeded" (at about 4M iterations of a loop; Chromium about 10M;
+     backlog). The global loops of `match`, `replace` and `split` run
+     natively when the `RegExp` object, `RegExp.prototype` and `RegExp`
+     keep their recorded shapes, so the steps they skip cannot be
+     observed. 453 snippets measured in Chromium 148 give the same
+     output, also in stress mode. test262 runtime: 34,707 pass (was
+     32,805), the same in stress mode; 531 `\p{...}` tests are
+     unsupported until 8c; parse-only unchanged (42,240). All 84 target
+     scripts compile (were 46).
    - 8c Unicode data (`implementer`; `js-text`, `js-regexp`): the code
      point sets of `\p{...}`, generated from the Unicode Character
      Database 17.0.0 (the version of the test262 property tests and of
@@ -1881,6 +1900,38 @@ not repeated here; the open items of each spike session are in M6 step
     the class is not in the cache (more than 16 ranges, or a new set):
     30,000 such classes take about 1.3 s to compile
     (docs/performance.md).
+- The `RegExp` built-in (M7 8b):
+  - Speed against `node --jitless`: `matchAll` 16x and literal
+    evaluation 7.8x slower. Iterator results and exec results use the
+    general object creation; a shaped iterator result for all built-in
+    iterators would help (feature 13). One-character strings are
+    allocated each time (V8 keeps them): `match` with `g` 7x.
+  - `new RegExp(str)` in a loop compiles each time; V8 keeps a cache by
+    source and flags.
+  - The matcher uses 32 bytes per choice point, and `(?:a|b)*` takes two
+    per iteration: the `RangeError` comes at about 4M iterations
+    (Chromium about 10M), and earlier under a small heap limit. A
+    smaller choice point, or one per iteration, would match Chromium
+    without a larger bound.
+  - Error messages that quote a pattern with lone surrogates show
+    U+FFFD (the messages are Rust strings).
+  - V8 rejects a literal of 100,000 characters as "Regular expression
+    too large"; swb compiles it.
+  - `console.log` of a RegExp String Iterator and of other built-in
+    iterators prints `{}`; Node.js prints `Object [RegExp String
+    Iterator] {}`.
+  - `replace` and `split` with a non-callable `Symbol.replace` or
+    `Symbol.split` give the generic message; measure Chromium's.
+  - A call of `next` on a RegExp String Iterator from inside its own
+    `exec` runs; not measured in V8.
+  - The realm checks of the legacy RegExp features proposal are not
+    modelled (V8 does not have them; no cross-realm tests in the
+    runner).
+  - Not RegExp, seen in the 8b review and not checked: after a
+    collection, 300 strings made by `'a'.repeat(1000) + i` still counted
+    235 KB (about 0.8 KB each). The note does not say if the strings
+    were still reachable. Repeat the case and find out what the count
+    holds.
 
 ## Backlog from M5
 

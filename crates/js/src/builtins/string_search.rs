@@ -300,8 +300,8 @@ impl Runtime {
         find(hay, needle, from, &mut meter)
     }
 
-    /// `IsRegExp(argument)` (§7.2.8). `RegExp` objects (feature 8b) will
-    /// answer through their internal slot after `@@match`.
+    /// `IsRegExp(argument)` (§7.2.8): `@@match`, else whether the object
+    /// has `[[RegExpMatcher]]`.
     pub(super) fn is_regexp(&mut self, argument: Value) -> VmResult<bool> {
         if !matches!(argument, Value::Object(_)) {
             return Ok(false);
@@ -311,7 +311,7 @@ impl Runtime {
         if !matcher.is_undefined() {
             return self.to_boolean(matcher);
         }
-        Ok(false)
+        Ok(self.regexp_data(argument)?.is_some())
     }
 
     /// `ToString` of the search string of `includes`, `startsWith` and

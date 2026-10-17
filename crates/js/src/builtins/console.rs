@@ -279,6 +279,27 @@ impl Inspector<'_> {
             ObjectKind::SymbolWrapper(s) => {
                 format!("[Symbol: {}]", rt.key_text(PropertyKey::Symbol(*s)))
             }
+            // `/source/flags`, with the name of a subclass before it.
+            ObjectKind::RegExp(data) => {
+                let source = match rt.heap.text(data.source) {
+                    Ok(text) if !text.is_empty() => {
+                        super::regexp::escape_pattern_text(text, data.regex.flags())
+                            .to_string_lossy()
+                    }
+                    _ => "(?:)".to_owned(),
+                };
+                let flags: String = data.regex.flags().letters().collect();
+                let name = match rt.heap.get_prototype_of(object) {
+                    Ok(Some(proto)) => rt.chain_constructor_name(proto),
+                    _ => None,
+                };
+                match name {
+                    Some(name) if !name.is_empty() && name != "RegExp" => {
+                        format!("{name} /{source}/{flags}")
+                    }
+                    _ => format!("/{source}/{flags}"),
+                }
+            }
             ObjectKind::Error(_) => {
                 // Without a `stack` property (M7), Node.js shows
                 // `[Name: message]`.
@@ -356,7 +377,8 @@ impl Inspector<'_> {
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
             | ObjectKind::ArrayIterator(_)
-            | ObjectKind::StringIterator(_) => {}
+            | ObjectKind::StringIterator(_)
+            | ObjectKind::RegExpStringIterator(_) => {}
             _ => return String::new(),
         }
         let rt = self.rt;

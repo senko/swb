@@ -277,6 +277,52 @@ const PROGRAMS: &[(&str, &str)] = &[
         "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
          function run() { return Array.fromAsync(data).then(function (a) { return a.length; }); }",
     ),
+    (
+        "regexp: test 300k times",
+        "function run() { var r = /a+b/; var n = 0; for (var i = 0; i < 300000; i++) if (r.test('xxaab')) n++; return n; }",
+    ),
+    (
+        "regexp: exec with groups 300k times",
+        "function run() { var r = /(\\w+)@(\\w+)\\.com/; var n = 0; for (var i = 0; i < 300000; i++) n += r.exec('mail: joe@example.com')[1].length; return n; }",
+    ),
+    (
+        "regexp: 300k evaluations of a literal",
+        "function run() { var n = 0; for (var i = 0; i < 300000; i++) n += /a/g.lastIndex; return n; }",
+    ),
+    (
+        "regexp: 300k replace of a short string",
+        "function run() { var n = 0; for (var i = 0; i < 300000; i++) n += 'hello world'.replace(/o/g, '0').length; return n; }",
+    ),
+    (
+        "regexp: global replace, 1M matches in 3M units",
+        "var s = 'ab,'.repeat(1000000);
+         function run() { return s.replace(/,/g, ';').length; }",
+    ),
+    (
+        "regexp: global replace with $1, 1M matches",
+        "var s = 'ab,'.repeat(1000000);
+         function run() { return s.replace(/(b),/g, '$1;').length; }",
+    ),
+    (
+        "regexp: global replace with a function, 1M matches",
+        "var s = 'ab,'.repeat(1000000);
+         function run() { return s.replace(/,/g, function () { return ';'; }).length; }",
+    ),
+    (
+        "regexp: split 3M units into 1M pieces",
+        "var s = 'ab,'.repeat(1000000);
+         function run() { return s.split(/,/).length; }",
+    ),
+    (
+        "regexp: match with g, 1M matches",
+        "var s = 'ab,'.repeat(1000000);
+         function run() { return s.match(/b/g).length; }",
+    ),
+    (
+        "regexp: matchAll, 300k matches",
+        "var s = 'ab,'.repeat(300000);
+         function run() { var n = 0; for (var m of s.matchAll(/b/g)) n++; return n; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).
@@ -361,6 +407,8 @@ fn measure() {
         // `find` visits every index (the other loops skip holes).
         "var a = []; a.length = 4294967295; a.find(function () {})",
         "var a = []; a.length = 4294967295; Object.setPrototypeOf(a, new String('x')); Array.prototype.join.call(a, '')",
+        // Catastrophic backtracking: the matcher runs in slices.
+        "/(a*)*b/.test('a'.repeat(40))",
     ] {
         let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");
         let limit = Duration::from_millis(100);

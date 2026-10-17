@@ -1981,6 +1981,91 @@ where the first plan did not work:
   can treat it as the engine's "not supported yet". The tables of names
   (`js-text/src/unicode/property_names.rs`) index the canonical values,
   for the sets of 8c.
+- The `RegExp` built-in (feature 8b, `builtins/regexp*.rs`,
+  `builtins/string_match.rs`, `object/regexp.rs`): a `RegExp` object is
+  `ObjectKind::RegExp` with `[[OriginalSource]]` and the compiled program
+  in an `Rc`; `[[OriginalFlags]]` are the program's flags, because they
+  are only read through their letters. Each holder of a program counts
+  its share in the heap (bytes divided by the holders), so the sum is the
+  program's size. A regular expression literal is an instruction
+  `NewRegExp` (it shares the out-of-line arm of `GetTemplate`) with a
+  constant that keeps the pattern atom and, after the first evaluation,
+  the program: each evaluation makes a new object, the compile happens
+  once. The errors of `Regex::new` become V8's `SyntaxError`s ("Invalid
+  flags supplied to RegExp constructor 'F'", "Invalid regular expression:
+  /P/F: reason"); `Error::Unsupported` becomes a `SyntaxError` whose
+  message ends in "not supported yet", which the test262 runner counts as
+  unsupported. Messages that quote a pattern with lone surrogates show
+  U+FFFD for them (the messages are Rust strings).
+- The match (`regexp_exec.rs`): `RegExpBuiltinExec` reads and converts
+  `lastIndex` before it reads the program and the flags, so a `valueOf`
+  that calls `compile` changes both for the running match (Chromium 148
+  agrees). The matcher runs in slices of 32,768 steps; between two slices
+  the driver charges the countdown (four matcher steps per step), runs a
+  safepoint (a collection changes nothing: the input is rooted, positions
+  are indices, the program is an `Rc`) and gives the matcher the bytes
+  that the heap limit still allows, at most 256 MiB. Beyond that the
+  match fails with V8's `RangeError` "Maximum call stack size exceeded".
+  The bound is lower than Chromium's: with `^(?:a|b)*c` on
+  `'ab'.repeat(n) + '!'`, Chromium 148 matches up to n = 4,000,000 and
+  fails at 5,000,000, and swb fails from n = 2,000,000 (1,000,000 is
+  fine), because each loop iteration takes two choice points of 32
+  bytes (review; backlog). When the heap limit was the
+  smaller bound, the driver collects once and starts the match again
+  before it fails, so garbage does not cause the error. The VM keeps the
+  matcher's vectors for the next match (`Matcher::reset`) while they are
+  small. A match start inside a surrogate pair with `u` or `v` reports
+  the pair's start as `index` (the matcher of 8a; V8 does the same).
+- `RegExpExec` with the built-in `exec` runs no call and returns the
+  captures (`Exec::Match`); the symbol methods read `0`, `length`,
+  `index`, the captures and `groups` of such a result from the captures,
+  because a result array that no script has seen cannot observe the
+  reads. Result arrays and new `RegExp` objects of `%RegExp%` are made
+  with the shapes that the realm recorded at the first one (no property
+  definitions). The `groups` object of duplicate names has one property
+  per name in the order of first appearance with the value of the group
+  that matched (§22.2.7.2 step 33).
+- Fast paths (`regexp_fast.rs`): the realm records the shape of a new
+  `RegExp` object, the shapes of `%RegExp.prototype%` and `%RegExp%`, and
+  the slots of `exec`, `flags`, the flag getters, `constructor`, the
+  symbol methods and `@@species`. When the object and both of these are
+  as recorded, `Get(R, "flags")` is the program's flags without the eight
+  getter calls, `Get(R, "exec")` is the built-in `exec`, `lastIndex` is
+  slot 0, and `SpeciesConstructor` is `%RegExp%`. `@@split` of such an
+  object without `y` then searches each next match from the current
+  position with the object's own program instead of making the sticky
+  splitter and trying every position (the same matches: the attempt at a
+  position is the same; matches at or after the end are ignored, as the
+  loop of the specification never tries them; the legacy statics get the
+  last match the splitter would have found). `@@replace` with a template
+  appends each replacement as its match is found while all results are
+  built-in matches (the reads and `GetSubstitution` run no script code);
+  with a replacer function, or once a script's `exec` gave a result, the
+  results are kept until the loop ends (built-in matches as spans in a
+  vector charged to the heap, other results in an internal array), as
+  the specification orders the calls.
+- The legacy static properties follow V8 (measured), not the legacy
+  features proposal: accessors with a getter and a setter each
+  (non-enumerable, configurable), getters for any receiver, every
+  successful match of any `RegExp` object (subclasses included) updates
+  them, only `input` and `$_` can be set, and `input` is the subject of
+  the last match until a script sets it; `compile` works on objects of
+  subclasses too. The test262 feature `legacy-regexp` stays out of the
+  subset (18 of its tests check the proposal's TypeErrors). The getter
+  `flags` reads `hasIndices`, `global`, `ignoreCase`, `multiline`,
+  `dotAll`, `unicode`, `unicodeSets`, `sticky` as §22.2.6.4 says (V8
+  reads `sticky` before `unicodeSets`). V8 rejects a literal pattern of
+  100,000 characters as too large; swb compiles it (the limits of 8a).
+- `%RegExpStringIteratorPrototype%.next` follows the generator of
+  `CreateRegExpStringIterator`: a throw from `exec` (or from the reads
+  after it) completes the iterator, so the next call returns `done`. V8
+  (Node.js 22, measured) keeps the iterator going.
+- Speed (vm_bench, against `node --jitless`): a global `replace` with a
+  template takes 0.5 times V8's interpreter, with captures or a function
+  3 to 5 times, `split` 3 times, `match` with `g` 7 times (V8 caches
+  one-character strings), the loops of `exec` and `test` 2 to 3 times,
+  `matchAll` 16 times (a result array and an iterator result per step);
+  all are linear in the input (docs/performance.md).
 
 ## Consequences
 

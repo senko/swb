@@ -17,11 +17,11 @@
 //! objects run in `vm/async_generator.rs` and `vm/async_iteration.rs`); the
 //! global
 //! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
-//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` with
-//! its statics and the prototype methods that need no `RegExp`, the string
-//! iterator, the URI functions and Annex B (`string*.rs`, `uri.rs`; the
-//! case mapping, `normalize` and `localeCompare` are feature 5d, `match`,
-//! `matchAll` and `search` feature 8b); `Boolean`;
+//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String`
+//! complete, with the string iterator, the URI functions and Annex B
+//! (`string*.rs`, `uri.rs`); `RegExp` with the legacy static properties,
+//! Annex B `compile` and `%RegExpStringIteratorPrototype%`
+//! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`;
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `Promise` (`promise.rs`,
@@ -80,11 +80,17 @@ mod primitive;
 mod promise;
 mod promise_combinators;
 mod reflect;
+mod regexp;
+mod regexp_exec;
+mod regexp_fast;
+mod regexp_legacy;
+mod regexp_symbol;
 mod set;
 mod set_methods;
 mod string;
 mod string_annexb;
 mod string_iter;
+mod string_match;
 mod string_replace;
 mod string_search;
 mod string_unicode;
@@ -137,6 +143,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     error::install(rt, realm)?;
     array::install(rt, realm)?;
     primitive::install(rt, realm)?;
+    regexp::install(rt, realm)?;
     uri::install(rt, realm)?;
     number::install(rt, realm, parse_int, parse_float)?;
     boolean::install(rt, realm)?;

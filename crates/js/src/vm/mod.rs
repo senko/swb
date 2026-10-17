@@ -283,6 +283,13 @@ pub(crate) struct Atoms {
     pub(crate) throw_: Gc<JsString>,
     pub(crate) raw: Gc<JsString>,
     pub(crate) then: Gc<JsString>,
+    pub(crate) last_index: Gc<JsString>,
+    pub(crate) index: Gc<JsString>,
+    pub(crate) input: Gc<JsString>,
+    pub(crate) groups: Gc<JsString>,
+    pub(crate) flags: Gc<JsString>,
+    pub(crate) source: Gc<JsString>,
+    pub(crate) exec: Gc<JsString>,
 }
 
 impl Atoms {
@@ -317,6 +324,13 @@ impl Atoms {
             self.throw_,
             self.raw,
             self.then,
+            self.last_index,
+            self.index,
+            self.input,
+            self.groups,
+            self.flags,
+            self.source,
+            self.exec,
         ] {
             tracer.string(atom);
         }
@@ -369,6 +383,9 @@ pub(crate) struct Vm {
     pub(crate) split_cache: Option<SplitCache>,
     /// The job queue and the rejection tracker (`jobs.rs`).
     pub(crate) jobs: jobs::JobQueue,
+    /// The state of the last regular expression match, whose vectors the
+    /// next match reuses (`builtins/regexp_exec.rs`).
+    pub(crate) regexp_matcher: Option<swb_js_regexp::Matcher>,
 }
 
 impl RootSource for Vm {

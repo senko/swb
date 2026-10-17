@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -894,8 +894,9 @@ another directory and `TEST262_URL` another repository.
   `includes` in the test's order (each file once; the runner reads each
   file once per run). The accepted files are `propertyHelper.js`,
   `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js`,
-  `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js` and
-  `promiseHelper.js` (`HARNESS_INCLUDES` in `run.rs`). A test with the
+  `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js`,
+  `promiseHelper.js`, `regExpUtils.js` and `compareIterator.js`
+  (`HARNESS_INCLUDES` in `run.rs`). A test with the
   flag `async` gets `doneprintHandle.js` before its includes; the runner
   runs the jobs after the test (as the shell does) and passes it only when
   it printed `Test262:AsyncTestComplete` and no
@@ -1070,6 +1071,59 @@ single characters in `\q{...}` with `iv`, and the script value
 every regular expression literal of the target scripts:
 `SWB_TARGET_SCRIPTS=out/bbc-js:out/ars-js cargo test -p swb-js-syntax
 --test target_regexps -- --ignored --nocapture`.
+
+### RegExp built-in tests
+
+`tools/probes/js-regexp-builtin.json` has 458 snippets for Chromium 148
+in the format of `js-collections.json` (its `show` also prints a regular
+expression as `re(source,flags,lastIndex)`, the named properties of an
+array after its elements and an object without prototype with `N`).
+The snippets are in `crates/js/tests/data/regexp-builtin-snippets.txt`,
+one per line in groups (`## name`); a group whose name ends in `-heavy`
+has large inputs. The groups: the legacy static properties (attributes,
+names, values after each kind of match, the setters), the messages of
+receivers and arguments, the shape of `RegExp`, `RegExp.prototype` and
+`%RegExpStringIteratorPrototype%` (keys, attributes, names, lengths), the
+constructor (`RegExp(re)` returning its argument, `IsRegExp` objects,
+the order of the reads and conversions, subclasses, `new.target`),
+`source` and `toString` with the escapes, `flags` and its reads, `exec`
+(result keys, `d` indices, duplicate named groups, `lastIndex` in every
+form, surrogate pairs, a `valueOf` that calls `compile`), `test`,
+`match`, `search`, `replace` (templates, named references, replacer
+functions, a script's `exec` with odd results and getters), `split`
+(limits, captures, species constructors, sticky and empty matches),
+`matchAll`, `RegExp.escape`, `compile`, literals, and the heavy group
+(the backtrack stack bound, global loops over a million units).
+`crates/js/tests/data/gen-regexp-builtin-cases.js` makes the probe file
+from the snippets and, from its output, `regexp_builtin_cases.js` and
+`.expected` (and `regexp_builtin_cases_heavy.*`) for
+`crates/js/tests/builtins_regexp.rs`:
+
+```
+node crates/js/tests/data/gen-regexp-builtin-cases.js probe \
+  crates/js/tests/data/regexp-builtin-snippets.txt tools/probes/js-regexp-builtin.json
+just probe --json tools/probes/js-regexp-builtin.json > probe.json
+node crates/js/tests/data/gen-regexp-builtin-cases.js cases probe.json crates/js/tests/data
+```
+
+Chromium runs each probe case in its own page; swb-js runs all snippets
+in one realm, so a snippet must not depend on the matches of an earlier
+group (the legacy static properties) or change shared built-ins. The
+script leaves out the snippets with `Proxy`, `BigInt` or `\p{...}` and
+two where swb follows the specification (V8 reads `sticky` before
+`unicodeSets` in `flags`, and a RegExp String Iterator goes on after its
+`exec` threw); 453 remain. `regexp_gc.js` has
+regular expressions, results, collected results of a script's `exec` and
+iterators with collections in callbacks, getters, `exec` and `valueOf`
+(the expected output is that of Node.js 22). The hostile tests in
+`regexp_hostile.rs` cover global `replace`, `split` and `match` on ten
+million units, a million empty matches in `matchAll` and `replace`,
+catastrophic backtracking at the deadline (also inside the symbol
+methods) and at a termination request, backtrack stacks beyond V8's
+bound and at a small heap limit (a `RangeError`), the collected matches
+of a replacer function at the heap limit, collections between the
+slices of a match in the stress mode, a `valueOf` of `lastIndex` that
+calls `compile`, and 5,000 literals in one script.
 
 ### Array tests
 

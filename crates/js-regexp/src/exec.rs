@@ -218,6 +218,33 @@ impl Matcher {
         }
     }
 
+    /// Makes the state that of [`Matcher::new`]`(regex, start)` and keeps
+    /// the vectors, so that a loop over the matches of one input (a global
+    /// `replace`) allocates them once. The generation counter keeps
+    /// growing, so the marks of the undo log stay valid.
+    pub fn reset(&mut self, regex: &Regex, start: usize) {
+        let slot_count = regex.program.slot_count as usize;
+        self.slots.clear();
+        self.slots.resize(slot_count, UNSET);
+        if self.logged.len() != slot_count {
+            self.logged.clear();
+            self.logged.resize(slot_count, 0);
+        }
+        self.phase = Phase::New;
+        self.start = u32::try_from(start).unwrap_or(u32::MAX);
+        self.pc = 0;
+        self.pos = 0;
+        self.stack.clear();
+        self.undo.clear();
+        self.partial = None;
+        self.input_len = 0;
+        self.steps = 0;
+        self.memory_limit = 0;
+        self.over_limit = false;
+        self.backtracking = false;
+        self.fixed_bytes = slot_count * (size_of::<u32>() + size_of::<u64>());
+    }
+
     /// The bytes that the state uses on the heap (the backtrack stack, the
     /// undo log and the slots), for the caller's heap accounting.
     pub fn heap_bytes(&self) -> usize {

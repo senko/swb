@@ -248,7 +248,6 @@ fn constructs_outside_the_subset_do_not_compile() {
         // The parser accepts the forms of M7 feature 1; the compiler
         // rejects the ones of later features.
         for (source, construct) in [
-            ("var r = /a/;", "regular expression literal"),
             ("1n;", "BigInt literal"),
             ("({ 1n: 2 });", "BigInt literal"),
             ("var { 1n: a } = {};", "BigInt literal"),

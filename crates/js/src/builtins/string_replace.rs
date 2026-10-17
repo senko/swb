@@ -4,8 +4,8 @@
 //!
 //! The three methods dispatch on an object argument first: `GetMethod`
 //! of `@@replace` or `@@split`, called as a deferred call (no Rust
-//! recursion) with the receiver and the other argument. `RegExp`
-//! (feature 8b) only has to provide those methods. Without such a method,
+//! recursion) with the receiver and the other argument (`RegExp` objects
+//! have them, `regexp_symbol.rs`). Without such a method,
 //! the argument is converted to a string and the search is the plain
 //! `StringIndexOf` of [`super::string_search`].
 //!
@@ -590,8 +590,8 @@ fn split_at_separator(
 
 #[cfg(test)]
 mod tests {
-    //! `GetSubstitution` with captures and named captures, which the
-    //! `RegExp` methods of feature 8b will call; the expected texts are
+    //! `GetSubstitution` with captures and named captures, as the
+    //! `RegExp` methods call it; the expected texts are
     //! those of `'1abc2'.replace(/(b)(z)?/, template)` and the same with
     //! `(?<n>b)(?<m>z)?` in Node.js 22.
 

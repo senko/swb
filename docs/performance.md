@@ -364,6 +364,39 @@ classes still pay for their case closure: 20,000 distinct classes of the
 last form take 1.35 s (67 µs each; the closure of a range of 3,800
 characters walks about 300 changed characters).
 
+### The `RegExp` built-in
+
+The `regexp:` rows of `vm_bench` (best of 5, release, against `node
+--jitless`, 2026-10-17, M7 8b):
+
+| Program | swb (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| `test` 300k times | 51.5 | 17.7 | 2.9x |
+| `exec` with groups 300k times | 201.8 | 107.7 | 1.9x |
+| 300k evaluations of a literal | 31.1 | 4.0 | 7.8x |
+| 300k `replace` of a short string | 172.0 | 28.4 | 6.1x |
+| global `replace`, 1M matches in 3M units | 53.1 | 98.2 | 0.5x |
+| global `replace` with `$1`, 1M matches | 217.0 | 77.1 | 2.8x |
+| global `replace` with a function, 1M matches | 225.9 | 48.2 | 4.7x |
+| `split` of 3M units into 1M pieces | 118.7 | 39.0 | 3.0x |
+| `match` with `g`, 1M matches | 114.0 | 16.0 | 7.1x |
+| `matchAll`, 300k matches | 164.3 | 10.3 | 16x |
+
+All rows are linear in the input. The global loops of `match` and
+`replace` and the `split` of an unchanged `RegExp` run the matcher in a
+native loop (`builtins/regexp_fast.rs`); the other paths take the steps
+of the specification, with the captures instead of result arrays when
+`exec` is the built-in one. Before the shapes of result arrays and `RegExp`
+objects were kept in the realm, the literal row took 59 ms and `exec`
+with groups 304 ms (the property definitions); before the shortcut of the
+`flags` getter, a short `replace` took 233 ms. The remaining cost is
+general: each match allocates its strings (V8 keeps one-character strings
+in a cache, which the `match` row profits from), and each step of
+`matchAll` makes a result array and an iterator result object through the
+general property definition. Catastrophic backtracking
+(`/(a*)*b/.test('a'.repeat(40))`) ends 0.05 ms after a deadline of 100 ms
+(the "time limit" lines of `vm_bench`).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

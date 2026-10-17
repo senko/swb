@@ -186,6 +186,7 @@ impl Runtime {
             join_stack: Vec::new(),
             random: crate::vm::random::RandomSource::new(),
             split_cache: None,
+            regexp_matcher: None,
             jobs: crate::vm::jobs::JobQueue::default(),
         };
         let mut runtime = Runtime {
@@ -732,6 +733,13 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         throw_: atom("throw")?,
         raw: atom("raw")?,
         then: atom("then")?,
+        last_index: atom("lastIndex")?,
+        index: atom("index")?,
+        input: atom("input")?,
+        groups: atom("groups")?,
+        flags: atom("flags")?,
+        source: atom("source")?,
+        exec: atom("exec")?,
     })
 }
 

@@ -8,7 +8,8 @@
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
-# asyncHelpers.js or promiseHelper.js, or have the flags module or
+# asyncHelpers.js, promiseHelper.js, regExpUtils.js or compareIterator.js,
+# or have the flags module or
 # CanBlockIsTrue, or use $262.createRealm, $262.agent or
 # $262.detachArrayBuffer. Tests with the flag async get doneprintHandle.js
 # and pass when they print Test262:AsyncTestComplete.
@@ -361,3 +362,23 @@ dir test/built-ins/AsyncGeneratorFunction
 dir test/built-ins/AsyncGeneratorPrototype
 dir test/built-ins/AsyncFromSyncIteratorPrototype
 dir test/built-ins/AsyncIteratorPrototype
+
+# Added in M7 feature 8b: the RegExp built-in and the string methods that
+# take a regular expression. The tests of `\p{...}` run: until 8c they are
+# unsupported (the pattern fails with "not supported yet") or check only
+# the syntax. The tests of legacy-regexp stay skipped: they check the
+# receiver and subclass rules of the legacy features proposal, which V8
+# (and swb, ADR 0026 section 15) do not have.
+feature regexp-unicode-property-escapes
+feature regexp-dotall
+feature regexp-lookbehind
+feature regexp-named-groups
+feature regexp-match-indices
+feature regexp-v-flag
+feature regexp-duplicate-named-groups
+feature regexp-modifiers
+feature String.prototype.matchAll
+feature RegExp.escape
+dir test/built-ins/RegExp
+dir test/built-ins/RegExpStringIteratorPrototype
+dir test/annexB/built-ins/RegExp

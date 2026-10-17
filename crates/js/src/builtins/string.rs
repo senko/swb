@@ -1,10 +1,11 @@
-//! `String` statics and the prototype methods that need no regular
-//! expression (ECMA-262 §22.1.2, §22.1.3): `fromCharCode`,
+//! `String` statics and the prototype methods (ECMA-262 §22.1.2,
+//! §22.1.3): `fromCharCode`,
 //! `fromCodePoint`, `raw`, and `at`, `charAt`, `charCodeAt`,
 //! `codePointAt`, `concat`, `isWellFormed`, `toWellFormed`, `padStart`,
 //! `padEnd`, `repeat`, `slice`, `substring`, `trim`, `trimStart` and
 //! `trimEnd`. The searches are in [`super::string_search`], `replace`,
-//! `replaceAll` and `split` in [`super::string_replace`], the iterator in
+//! `replaceAll` and `split` in [`super::string_replace`], `match`,
+//! `matchAll` and `search` in [`super::string_match`], the iterator in
 //! [`super::string_iter`], Annex B in [`super::string_annexb`]. Case
 //! mapping, `normalize` and `localeCompare` are in
 //! [`super::string_unicode`].
@@ -43,8 +44,7 @@ pub(super) const INVALID_STRING_LENGTH: &str = "Invalid string length";
 const RESERVE_FROM: usize = 1 << 16;
 
 /// Installs the properties of `String` and `String.prototype` in the
-/// order of V8's `Reflect.ownKeys` (the methods of other features are
-/// installed after these; see the backlog).
+/// order of V8's `Reflect.ownKeys`.
 pub(super) fn install(
     rt: &mut Runtime,
     realm: u32,
@@ -55,7 +55,7 @@ pub(super) fn install(
     super::method(rt, realm, ctor, "fromCharCode", 1, from_char_code)?;
     super::method(rt, realm, ctor, "fromCodePoint", 1, from_code_point)?;
     super::method(rt, realm, ctor, "raw", 1, raw)?;
-    let methods: [(&str, u32, NativeFn); 44] = [
+    let methods: [(&str, u32, NativeFn); 47] = [
         ("anchor", 1, super::string_annexb::anchor),
         ("at", 1, at),
         ("big", 0, super::string_annexb::big),
@@ -76,12 +76,15 @@ pub(super) fn install(
         ("lastIndexOf", 1, super::string_search::last_index_of),
         ("link", 1, super::string_annexb::link),
         ("localeCompare", 1, super::string_unicode::locale_compare),
+        ("match", 1, super::string_match::match_),
+        ("matchAll", 1, super::string_match::match_all),
         ("normalize", 0, super::string_unicode::normalize),
         ("padEnd", 1, pad_end),
         ("padStart", 1, pad_start),
         ("repeat", 1, repeat),
         ("replace", 2, super::string_replace::replace),
         ("replaceAll", 2, super::string_replace::replace_all),
+        ("search", 1, super::string_match::search),
         ("slice", 2, slice),
         ("small", 0, super::string_annexb::small),
         ("split", 2, super::string_replace::split),

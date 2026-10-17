@@ -429,6 +429,13 @@ pub(crate) enum Insn {
         dst: Reg,
         index: u32,
     },
+    /// `dst` = a new `RegExp` object for the regular expression literal
+    /// `constants[index]` (§13.2.7.3: each evaluation makes a new object;
+    /// the compiled pattern is cached in the constant).
+    NewRegExp {
+        dst: Reg,
+        index: u32,
+    },
 
     // --- Binary operators: dst = a op b ---
     Add {
@@ -1314,6 +1321,21 @@ pub(crate) enum Constant {
     Template(Box<[TemplatePart]>),
     /// The private names of a class body ([`Insn::NewPrivateEnv`]).
     PrivateNames(Box<PrivateNames>),
+    /// A regular expression literal ([`Insn::NewRegExp`]).
+    RegExp(Box<RegExpLiteral>),
+}
+
+/// A regular expression literal: the pattern text (an atom), the flags,
+/// and the program, compiled at the first evaluation and shared by the
+/// objects that the literal makes.
+#[derive(Clone, Debug)]
+pub(crate) struct RegExpLiteral {
+    /// The source text between the slashes (`[[OriginalSource]]`).
+    pub(crate) source: Gc<JsString>,
+    /// The flags (checked by the front end).
+    pub(crate) flags: swb_js_regexp::Flags,
+    /// The compiled pattern, once the literal has been evaluated.
+    pub(crate) program: RefCell<Option<Rc<swb_js_regexp::Regex>>>,
 }
 
 /// The private names of a class body, in the order of the indices of the
@@ -1786,6 +1808,14 @@ impl FunctionCode {
                 Constant::PrivateNames(names) => {
                     size_of::<PrivateNames>() + names.names.len() * size_of::<PrivateNameSpec>()
                 }
+                Constant::RegExp(literal) => {
+                    size_of::<RegExpLiteral>()
+                        + literal
+                            .program
+                            .borrow()
+                            .as_ref()
+                            .map_or(0, crate::object::program_share)
+                }
                 _ => 0,
             })
             .sum();
@@ -1853,7 +1883,10 @@ impl FunctionCode {
         let (_, constant) = *self.call_names.get(index)?;
         match self.constants.get(constant as usize)? {
             Constant::Value(value) => Some(*value),
-            Constant::Function(..) | Constant::Template(_) | Constant::PrivateNames(_) => None,
+            Constant::Function(..)
+            | Constant::Template(_)
+            | Constant::PrivateNames(_)
+            | Constant::RegExp(_) => None,
         }
     }
 
@@ -1907,6 +1940,7 @@ impl GenericData for CodeObject {
                         tracer.string(name.description);
                     }
                 }
+                Constant::RegExp(literal) => tracer.string(literal.source),
             }
         }
         for key in &code.sites {
@@ -1954,7 +1988,10 @@ pub(crate) fn disassemble(code: &Rc<FunctionCode>, heap: &crate::heap::Heap) -> 
             .iter()
             .filter_map(|c| match c {
                 Constant::Function(_, child) => Some(Rc::clone(child)),
-                Constant::Value(_) | Constant::Template(_) | Constant::PrivateNames(_) => None,
+                Constant::Value(_)
+                | Constant::Template(_)
+                | Constant::PrivateNames(_)
+                | Constant::RegExp(_) => None,
             })
             .collect();
         children.reverse();
@@ -2222,6 +2259,10 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
             matches!(constant(index), Some(Constant::Template(_))),
             "template constant index",
         ),
+        Insn::NewRegExp { index, .. } => (
+            matches!(constant(index), Some(Constant::RegExp(_))),
+            "regular expression constant index",
+        ),
         Insn::NewPrivateEnv { index, .. } => (
             matches!(constant(index), Some(Constant::PrivateNames(_))),
             "private names constant index",
@@ -2324,6 +2365,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Arguments { dst, .. }
         | I::NewTarget { dst }
         | I::GetTemplate { dst, .. }
+        | I::NewRegExp { dst, .. }
         | I::GetGlobal { dst, .. }
         | I::TypeofGlobal { dst, .. }
         | I::BlockFunctionHoisted { dst, .. }

@@ -286,7 +286,9 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         ObjectKind::BooleanWrapper(_) => "Boolean",
         ObjectKind::NumberWrapper(_) => "Number",
         ObjectKind::StringWrapper(_) => "String",
-        ObjectKind::Generator(_)
+        ObjectKind::RegExp(_) => "RegExp",
+        ObjectKind::RegExpStringIterator(_)
+        | ObjectKind::Generator(_)
         | ObjectKind::ArrayIterator(_)
         | ObjectKind::StringIterator(_)
         | ObjectKind::Map(_)

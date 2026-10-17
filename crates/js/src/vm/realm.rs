@@ -71,6 +71,10 @@ pub(crate) enum Intrinsic {
     AsyncFromSyncIteratorPrototype,
     AsyncGeneratorPrototype,
     AsyncGeneratorFunctionPrototype,
+    /// `%RegExp.prototype%` (§22.2.6) and `%RegExpStringIteratorPrototype%`
+    /// (§22.2.9.2).
+    RegExpPrototype,
+    RegExpStringIteratorPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -116,10 +120,18 @@ pub(crate) enum Intrinsic {
     /// (§27.2.4.9), set when the built-in functions are installed.
     PromiseConstructor,
     PromiseSpeciesGetter,
+    /// `%RegExp%` (§22.2.4), `%RegExp.prototype.exec%` (§22.2.6.2) and the
+    /// getter of `RegExp[@@species]` (§22.2.5.2), set when the built-in
+    /// functions are installed: `RegExpExec` calls the built-in `exec`
+    /// without a call, and the fast paths of `builtins/regexp_fast.rs`
+    /// check them.
+    RegExpConstructor,
+    RegExpExec,
+    RegExpSpeciesGetter,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 50;
+const INTRINSIC_COUNT: usize = 55;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -140,6 +152,9 @@ pub(crate) struct Realm {
     /// The global `let` and `const` bindings, by atom (a handle-keyed
     /// map: the keys are atoms, whose handles a script cannot choose).
     pub(crate) lexical: HandleMap<Gc<JsString>, LexicalBinding>,
+    /// The state of the `RegExp` built-ins: the last match for the legacy
+    /// static properties and the shapes of the fast paths.
+    pub(crate) regexp: crate::object::RegExpRealm,
 }
 
 impl Realm {
@@ -152,6 +167,7 @@ impl Realm {
             tracer.string(*name);
             tracer.value(binding.value);
         }
+        self.regexp.trace(tracer);
     }
 
     /// Replaces an intrinsic (for objects that exist only after the
@@ -256,6 +272,8 @@ impl Runtime {
         let async_from_sync_proto = heap.new_object(Some(async_iterator_proto))?;
         let async_generator_proto = heap.new_object(Some(async_iterator_proto))?;
         let async_generator_function_proto = heap.new_object(Some(function_proto))?;
+        let regexp_proto = heap.new_object(Some(object_proto))?;
+        let regexp_string_iterator_proto = heap.new_object(Some(iterator_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -312,6 +330,8 @@ impl Runtime {
             async_from_sync_proto,
             async_generator_proto,
             async_generator_function_proto,
+            regexp_proto,
+            regexp_string_iterator_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);
@@ -320,6 +340,7 @@ impl Runtime {
             global,
             intrinsics,
             lexical: HandleMap::default(),
+            regexp: crate::object::RegExpRealm::default(),
         };
         Ok(realm)
     }

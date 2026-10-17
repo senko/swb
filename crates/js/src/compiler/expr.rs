@@ -81,7 +81,13 @@ impl FunctionCompiler<'_> {
                 Ok(t)
             }
             ExprKind::Template(id) => self.template(id, dst),
-            ExprKind::RegExp { .. } => Err(self.unsupported("regular expression literal")),
+            ExprKind::RegExp { pattern, flags } => {
+                let t = self.target(dst)?;
+                let text = self.ast.string(pattern).clone();
+                let index = self.push_constant(super::ConstSpec::RegExp(text, flags));
+                self.emit(Insn::NewRegExp { dst: t, index });
+                Ok(t)
+            }
             ExprKind::Array(elements) => self.array(elements, dst),
             ExprKind::Hole => Err(Self::internal("a hole outside an array literal")),
             ExprKind::Object(properties) => self.object(properties, dst),

@@ -706,19 +706,21 @@ impl Runtime {
                     let object = tri!(self.with_scope(|rt| rt.copy_rest(source, excluded)));
                     put!(dst, object);
                 }
-                Insn::GetTemplate { dst, index } => {
+                // Template objects and regular expression literals share
+                // one arm (the loop's code size, ADR 0026 section 15).
+                Insn::GetTemplate { dst, index } | Insn::NewRegExp { dst, index } => {
                     let Some(code_object) = self.vm.frames.last().map(|f| f.code) else {
                         return Err(VmError::invariant("no frame"));
                     };
                     let realm = self.current_realm();
+                    let regexp = matches!(insn, Insn::NewRegExp { .. });
                     save!();
-                    let template = tri!(self.with_scope(|rt| rt.template_object(
-                        code_object,
-                        &code,
-                        index,
-                        realm
-                    )));
-                    put!(dst, template);
+                    let object = tri!(self.with_scope(|rt| if regexp {
+                        rt.regexp_literal(&code, index, realm)
+                    } else {
+                        rt.template_object(code_object, &code, index, realm)
+                    }));
+                    put!(dst, object);
                 }
 
                 // --- Arithmetic ---

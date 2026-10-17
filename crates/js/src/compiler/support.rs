@@ -5,8 +5,7 @@
 //! construct in the source; the compile functions never see them. Since
 //! the end of M7 feature 7, all of the syntax of feature 1 compiles
 //! except module code, `import()` and `import.meta` (feature 14),
-//! and `BigInt` literals (feature 10); regular expression literals
-//! (feature 8) are rejected where the compiler meets them (`expr.rs`).
+//! and `BigInt` literals (feature 10).
 
 use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
 

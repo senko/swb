@@ -316,6 +316,32 @@ mod tests {
         );
     }
 
+    /// Runs a matcher in slices of one step until it has a result.
+    fn run_to_end(matcher: &mut Matcher, regex: &Regex, input: Str16<'_>) -> Outcome {
+        loop {
+            match matcher.run(regex, input, 1, 1 << 20).expect("no limit") {
+                Outcome::Pending => {}
+                outcome => return outcome,
+            }
+        }
+    }
+
+    #[test]
+    fn a_reset_matcher_matches_like_a_new_one() {
+        let other = Regex::new(Str16::Latin1(b"x(y)(z)(w)|q"), Flags::empty()).expect("valid");
+        let regex = Regex::new(Str16::Latin1(b"(a+)(b)?|(?=c)"), Flags::empty()).expect("valid");
+        let mut matcher = Matcher::new(&other, 0);
+        let first = run_to_end(&mut matcher, &other, Str16::Latin1(b"--xyzw"));
+        assert!(matches!(first, Outcome::Match(_)));
+        let input = Str16::Latin1(b"-aab-aac");
+        for start in 0..=input.len() + 1 {
+            matcher.reset(&regex, start);
+            let reused = run_to_end(&mut matcher, &regex, input);
+            let fresh = run_to_end(&mut Matcher::new(&regex, start), &regex, input);
+            assert_eq!(reused, fresh, "start {start}");
+        }
+    }
+
     #[test]
     fn compiled_regex_reports_its_groups() {
         let re = Regex::new(Str16::Latin1(b"(?<a>x)|(?<a>y)(z)"), Flags::empty()).expect("valid");
