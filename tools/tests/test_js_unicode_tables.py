@@ -151,3 +151,146 @@ def test_generate_property_names(tmp_path):
 def test_the_committed_property_names_name_the_generator_version():
     header = (tables_path().parent / "property_names.rs").read_text(encoding="utf-8")
     assert f"Character Database {VERSION}" in header.split("\n\n", 1)[0]
+
+
+def test_range_and_sequence_encoding_round_trips():
+    from swbtools.js_property_sets import (
+        decode_ranges,
+        decode_sequences,
+        encode_ranges,
+        encode_sequences,
+        leb128,
+        merge,
+        read_leb128,
+    )
+
+    for number in (0, 1, 127, 128, 300, 0x10FFFF):
+        assert read_leb128(leb128(number), 0) == (number, len(leb128(number)))
+    assert leb128(300) == bytes([0xAC, 0x02])
+    ranges = [(0, 0), (5, 9), (0x80, 0x3FFF), (0x10FFFF, 0x10FFFF)]
+    # gap 0, length 0; gap 4, length 4; gap 0x76, length 0x3F7F; ...
+    assert encode_ranges(ranges[:2]) == bytes([0, 0, 4, 4])
+    assert decode_ranges(encode_ranges(ranges)) == ranges
+    assert decode_ranges(b"") == []
+    sequences = [(0x1F1ED, 0x1F1F7), (0x23, 0xFE0F, 0x20E3)]
+    assert decode_sequences(encode_sequences(sequences)) == sorted(sequences)
+    assert merge([(5, 6), (1, 2), (3, 4), (10, 10)]) == [(1, 6), (10, 10)]
+    try:
+        encode_ranges([(5, 6), (6, 7)])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("overlapping ranges must be rejected")
+
+
+def test_group_members():
+    from swbtools.js_property_sets import group_members
+
+    names = ["C", "Cc", "Cn", "L", "LC", "Ll", "Lu", "Lt", "Zs"]
+    members = group_members(names)
+    assert members[names.index("C")] == [names.index("Cc"), names.index("Cn")]
+    assert members[names.index("L")] == [names.index(n) for n in ("Ll", "Lu", "Lt")]
+    assert members[names.index("LC")] == [names.index(n) for n in ("Lu", "Ll", "Lt")]
+    assert members[names.index("Lu")] == [names.index("Lu")]
+
+
+def test_generate_property_data(tmp_path):
+    from swbtools.js_property_names import BINARY, SPECIAL_BINARY, STRING_PROPERTIES
+    from swbtools.js_property_sets import (
+        FILES,
+        decode_ranges,
+        decode_sequences,
+        generate_property_data,
+    )
+
+    files = {key: tmp_path / key for key in FILES}
+    files["DerivedGeneralCategory"].write_text(
+        "# @missing: 0000..10FFFF; Cn\n0041..005A ; Lu\n0061..007A ; Ll\n0030 ; Nd\n"
+    )
+    files["Scripts"].write_text(
+        "# @missing: 0000..10FFFF; Unknown\n0041..005A ; Latin\n0061..007A ; Latin\n"
+        "0391..03A1 ; Greek\n0300 ; Inherited\n"
+    )
+    files["ScriptExtensions"].write_text("0300 ; Grek Latn\n0041 ; Grek\n")
+    names = [name for name in BINARY if name not in SPECIAL_BINARY]
+    files["PropList"].write_text("".join(f"0041..0042 ; {name}\n" for name in names))
+    for key in ("DerivedCoreProperties", "DerivedNormalizationProps"):
+        files[key].write_text("")
+    files["DerivedBinaryProperties"].write_text("")
+    files["emoji-data"].write_text("")
+    files["emoji-sequences"].write_text(
+        "231A..231B ; Basic_Emoji ; watch\n"
+        "1F5D3 FE0F ; Basic_Emoji ; calendar\n"
+        "0023 FE0F 20E3 ; Emoji_Keycap_Sequence ; keycap\n"
+        "1F44D 1F3FD ; RGI_Emoji_Modifier_Sequence ; thumbs\n"
+        "1F1ED 1F1F7 ; RGI_Emoji_Flag_Sequence ; flag\n"
+        "1F3F4 E0067 E007F ; RGI_Emoji_Tag_Sequence ; tag\n"
+    )
+    files["emoji-zwj-sequences"].write_text("1F468 200D 1F469 ; RGI_Emoji_ZWJ_Sequence ; couple\n")
+    categories = ["Ll", "Lu", "L", "Nd", "Cn"]
+    scripts = [
+        ["Latn", "Latin"],
+        ["Grek", "Greek"],
+        ["Zinh", "Inherited", "Qaai"],
+        ["Zzzz", "Unknown"],
+    ]
+    source = generate_property_data(files, categories, scripts, "17.0.0")
+    assert "Do not edit." in source
+    assert "pub(super) static GENERAL_CATEGORY_MEMBERS: [&[u8]; 5]" in source
+    assert "    &[1, 0],\n" in source or "    &[0, 1],\n" in source
+    assert f"pub(super) static BINARY_OFFSETS: [u32; {len(BINARY) + 1}]" in source
+    assert f"STRING_SEQUENCES_OFFSETS: [u32; {len(STRING_PROPERTIES) + 1}]" in source
+    # Decode the data back from the source.
+    import re
+
+    body = source.split('pub(super) static DATA: &[u8] = b"\\\n', 1)[1].split('";', 1)[0]
+    data = bytes(int(h, 16) for h in re.findall(r"\\x([0-9A-F]{2})", body))
+
+    def offsets(name):
+        text = source.split(f"static {name}: [u32;", 1)[1].split("];", 1)[0]
+        return [int(n) for n in re.findall(r"\d+", text.split("= [", 1)[1])]
+
+    def item(table, index):
+        o = offsets(table)
+        return data[o[index] : o[index + 1]]
+
+    assert decode_ranges(item("GENERAL_CATEGORY_OFFSETS", 1)) == [(0x41, 0x5A)]
+    assert decode_ranges(item("GENERAL_CATEGORY_OFFSETS", 2)) == []  # a group has no data
+    assert decode_ranges(item("SCRIPT_OFFSETS", 0)) == [(0x41, 0x5A), (0x61, 0x7A)]
+    # Script_Extensions: U+0300 is extended to Greek and Latin, U+0041 is Greek only.
+    assert decode_ranges(item("SCRIPT_EXTENSIONS_OFFSETS", 1)) == [
+        (0x41, 0x41),
+        (0x300, 0x300),
+        (0x391, 0x3A1),
+    ]
+    assert decode_ranges(item("SCRIPT_EXTENSIONS_OFFSETS", 0)) == [
+        (0x42, 0x5A),
+        (0x61, 0x7A),
+        (0x300, 0x300),
+    ]
+    assert decode_ranges(item("SCRIPT_EXTENSIONS_OFFSETS", 2)) == []
+    assert decode_ranges(item("BINARY_OFFSETS", BINARY.index("Dash"))) == [(0x41, 0x42)]
+    assert decode_ranges(item("BINARY_OFFSETS", BINARY.index("Any"))) == []
+    assert decode_ranges(item("STRING_CODE_POINTS_OFFSETS", 0)) == [(0x231A, 0x231B)]
+    assert decode_sequences(item("STRING_SEQUENCES_OFFSETS", 0)) == [(0x1F5D3, 0xFE0F)]
+    assert decode_sequences(item("STRING_SEQUENCES_OFFSETS", 5)) == [(0x1F468, 0x200D, 0x1F469)]
+    assert item("STRING_SEQUENCES_OFFSETS", 6) == b""  # RGI_Emoji: the code computes it
+
+
+def test_property_data_needs_every_binary_property(tmp_path):
+    import pytest
+
+    from swbtools.js_property_sets import FILES, generate_property_data
+
+    files = {key: tmp_path / key for key in FILES}
+    for path in files.values():
+        path.write_text("")
+    files["DerivedGeneralCategory"].write_text("# @missing: 0000..10FFFF; Cn\n")
+    files["Scripts"].write_text("# @missing: 0000..10FFFF; Unknown\n")
+    with pytest.raises(ValueError, match="no data for the binary property"):
+        generate_property_data(files, ["Cn"], [["Zzzz", "Unknown"]], "17.0.0")
+
+
+def test_the_committed_property_data_names_the_generator_version():
+    header = (tables_path().parent / "property_data.rs").read_text(encoding="utf-8")
+    assert f"Character Database\n//! {VERSION} (" in header.split("\n\n", 1)[0]

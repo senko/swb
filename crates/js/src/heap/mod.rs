@@ -61,7 +61,8 @@ pub struct HeapConfig {
     pub min_threshold: usize,
     /// The threshold is the live size after a collection times this.
     pub growth_factor: usize,
-    /// Collect at every safepoint and reservation (finds rooting bugs).
+    /// Collect at every reservation and at the safepoints of
+    /// [`Heap::safepoint`]'s stress schedule (finds rooting bugs).
     pub stress: bool,
 }
 
@@ -144,8 +145,18 @@ pub struct Heap {
     allocated: usize,
     /// Depth of the regions in which collections are not allowed.
     no_gc: u32,
+    /// The safepoints seen in the stress mode.
+    stress_safepoints: u64,
     stats: GcStats,
 }
+
+/// The stress mode collects at each of the first `2^STRESS_ALL`
+/// safepoints, then at `2^STRESS_PER_OCTAVE` safepoints in each doubling
+/// of the count: a loop of a million iterations (the generated property
+/// escape tests of test262) still collects in every part of the loop, but
+/// about ten times less often.
+const STRESS_ALL: u32 = 16;
+const STRESS_PER_OCTAVE: u32 = 14;
 
 impl Heap {
     /// An empty heap.
@@ -179,6 +190,7 @@ impl Heap {
             live_bytes: 0,
             allocated: 0,
             no_gc: 0,
+            stress_safepoints: 0,
             stats: GcStats::default(),
         }
     }
@@ -230,11 +242,29 @@ impl Heap {
     /// at a limit of 13 MiB, the threshold being above the limit).
     #[inline]
     pub fn gc_due(&self) -> bool {
+        self.config.stress || self.due_by_size()
+    }
+
+    /// [`Heap::gc_due`] without the stress mode.
+    #[inline]
+    fn due_by_size(&self) -> bool {
         let limit = self.config.limit;
-        self.config.stress
-            || self.allocated > self.threshold()
+        self.allocated > self.threshold()
             || self.heap_size() > limit
             || (self.heap_size() > limit - limit / 5 && self.allocated > limit / 10)
+    }
+
+    /// Counts a safepoint of the stress mode and returns whether the
+    /// stress schedule collects at it (see [`STRESS_ALL`]).
+    fn stress_turn(&mut self) -> bool {
+        let seen = self.stress_safepoints;
+        self.stress_safepoints = seen.saturating_add(1);
+        if seen < 1 << STRESS_ALL {
+            return true;
+        }
+        let octave = u64::BITS - 1 - seen.leading_zeros();
+        let step = 1u64 << (octave - STRESS_PER_OCTAVE);
+        seen.is_multiple_of(step)
     }
 
     // --- Safepoints ---------------------------------------------------
@@ -252,6 +282,9 @@ impl Heap {
             return Ok(false);
         }
         if !self.gc_due() {
+            return Ok(false);
+        }
+        if self.config.stress && !self.stress_turn() && !self.due_by_size() {
             return Ok(false);
         }
         self.collect(roots);
@@ -608,5 +641,24 @@ mod tests {
         heap.collect(&NoRoots);
         assert!(heap.generic::<Code>(code).is_err());
         assert!(!heap.is_live_string(s));
+    }
+
+    /// The stress mode collects at every safepoint of the first 2^16,
+    /// then at 2^14 in each doubling of the count.
+    #[test]
+    fn the_stress_mode_backs_off_in_long_runs() {
+        let mut heap = Heap::new(HeapConfig {
+            stress: true,
+            ..HeapConfig::default()
+        });
+        let collections_at = |count: u64, heap: &mut Heap| {
+            while heap.stress_safepoints < count {
+                heap.safepoint(&NoRoots).unwrap();
+            }
+            heap.stats().collections
+        };
+        assert_eq!(collections_at(1 << 16, &mut heap), 1 << 16);
+        assert_eq!(collections_at(1 << 17, &mut heap), (1 << 16) + (1 << 14));
+        assert_eq!(collections_at(1 << 18, &mut heap), (1 << 16) + (2 << 14));
     }
 }

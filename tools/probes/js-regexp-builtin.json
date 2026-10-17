@@ -176,6 +176,15 @@
    ]
   },
   {
+   "name": "properties-0",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const $out = []; const show = v => { if (typeof v === 'string') return JSON.stringify(v); if (typeof v === 'symbol') return String(v); if (typeof v === 'function') return 'function ' + v.name; if (typeof v === 'number' && Object.is(v, -0)) return '-0'; if (v instanceof RegExp) return 're(' + v.source + ',' + v.flags + ',' + show(v.lastIndex) + ')'; if (Array.isArray(v)) { if (v.length > 50) return 'Array(' + v.length + ')'; const p = []; for (let i = 0; i < v.length; i++) p.push(i in v ? show(v[i]) : '_'); const extra = Object.keys(v).filter((k) => !/^\\d+$/.test(k)).map((k) => k + ':' + show(v[k])); return '[' + p.join(',') + ']' + (extra.length ? '{' + extra.join(',') + '}' : ''); } if (v && typeof v === 'object') { const p = []; for (const k of Object.keys(v)) p.push(k + ':' + show(v[k])); return (Object.getPrototypeOf(v) === null ? 'N' : '') + '{' + p.join(',') + '}'; } return String(v); }; const SNIPPETS = [\"'aé1 b'.replace(/\\\\p{L}/gu, '_')\",\"'aé1 b'.replace(/\\\\P{L}/gu, '_')\",\"'Hello Wörld'.match(/\\\\p{Lu}/gu)\",\"'Hello Wörld'.match(/\\\\p{Lu}/giu)\",\"'Hello Wörld'.match(/\\\\p{Lu}/giv)\",\"'Hello Wörld'.match(/\\\\P{Lu}/giv)\",\"'Hello World'.match(/[\\\\p{L}--\\\\p{Lu}]/gv)\",\"'Hello World'.match(/[\\\\p{L}--\\\\p{Lu}]/giv)\",\"'aαа'.match(/\\\\p{Script=Greek}/u)[0]\",\"'aαа'.match(/\\\\p{sc=Cyrl}/u).index\",\"'xـ'.match(/\\\\p{scx=Arab}/u).index\",\"'xـ'.match(/\\\\p{sc=Arab}/u)\",\"[...'a1١b'.matchAll(/\\\\p{Nd}/gu)].map(m => m[0] + m.index)\",\"'x\\\\u{1F600}y'.match(/\\\\p{Emoji}/u)[0].length\",\"'x\\\\u{1F468}‍\\\\u{1F469}‍\\\\u{1F467}y'.match(/\\\\p{RGI_Emoji}/v)[0].length\",\"'x\\\\u{1F468}‍\\\\u{1F469}‍\\\\u{1F467}y'.match(/\\\\p{Emoji}/gu).length\",\"'a\\\\u{1F1ED}\\\\u{1F1F7}b'.replace(/\\\\p{RGI_Emoji_Flag_Sequence}/v, '[$&]')\",\"'1️⃣'.match(/^\\\\p{Emoji_Keycap_Sequence}$/v) !== null\",\"'a,b;c d'.split(/\\\\p{P}|\\\\p{Z}/u)\",\"/\\\\p{Lu}/u.test('a')\",\"/\\\\p{Lu}/iu.test('a')\",\"/[^\\\\p{Lu}]/iu.test('A')\",\"/[^\\\\p{Lu}]/iv.test('A')\",\"/\\\\p{Any}/su.test('\\\\n')\",\"/^\\\\p{Assigned}$/u.test('͸')\",\"/\\\\p{L}/u.source\",\"new RegExp('\\\\\\\\p{Script_Extensions=Latin}', 'u').test('ͣ')\",\"new RegExp('\\\\\\\\p{Foo}', 'u')\",\"new RegExp('\\\\\\\\P{RGI_Emoji}', 'v')\",\"new RegExp('[^\\\\\\\\p{RGI_Emoji}]', 'v')\",\"new RegExp('\\\\\\\\p{RGI_Emoji}', 'u')\",\"/\\\\p{L}/.test('p{L}')\"]; for (const s of SNIPPETS) { let r; try { r = \"ok \" + show((0, eval)(s)); } catch (e) { r = \"err \" + (e && e.constructor && e.constructor.name) + \": \" + (e && e.message); } $out.push(s + \" => \" + r); } return $out; })()"
+    }
+   ]
+  },
+  {
    "name": "limits-heavy-0",
    "html": "<!DOCTYPE html><p>x</p>",
    "measure": [

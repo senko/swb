@@ -256,6 +256,20 @@ Format: source, license (for code), what it influenced.
   on the canonical decomposition, the ASCII punctuation order, the order
   of the marks U+0300 to U+036F) is swb's own, measured against Chromium
   148 (`tools/probes/js-unicode.json`).
+- Unicode property sets of regular expressions (M7 feature 8c,
+  `js-text/src/unicode/property_sets.rs`, `tools/swbtools/js_property_sets.py`),
+  written from ECMA-262 §22.2.2.9 (`CompileToCharSet`), UAX #44 (the
+  format of the data files) and UTS #51 (the emoji sequence files). The
+  data are files of the Unicode Character Database 17.0.0
+  (https://www.unicode.org/Public/17.0.0/ucd/: `DerivedGeneralCategory.txt`,
+  `Scripts.txt`, `ScriptExtensions.txt`, `PropList.txt`,
+  `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`,
+  `DerivedBinaryProperties.txt`, `emoji/emoji-data.txt`) and of the emoji
+  data 17.0.0 (https://www.unicode.org/Public/17.0.0/emoji/:
+  `emoji-sequences.txt`, `emoji-zwj-sequences.txt`) in the generated
+  table (Unicode License v3; see `THIRD_PARTY_NOTICES.md`). No library
+  was read; test262's generated property tests and Chromium 148 probes
+  checked the result.
 
 ## Projects
 

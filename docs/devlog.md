@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 8c, Unicode property sets; end of feature 8
+
+- `\p{...}` and `\P{...}` have their code point sets. A generator in
+  `tools/swbtools` writes the sets of General_Category (with the
+  groups), Script, Script_Extensions, the binary properties of ECMA-262
+  table 66 and the properties of strings of table 67 from the UCD and
+  emoji files 17.0.0. They are delta-encoded ranges in `js-text`, about
+  82 KB of the binary, decoded when a pattern uses them.
+- The parser builds each set once per property, `\P` and `i`, and keeps
+  one node for repeated escapes, so 10,000 `\p{L}` with `iu` compile in
+  1 to 2 ms. The set-node cache of 8a has no per-set limit now; a tree
+  holds at most 2^22 set ranges.
+- With `v` and `i` a lone General_Category value such as `\p{Lu}` is
+  case folded as in Chromium. The spec text leaves it unfolded, but it
+  folds `\p{gc=Lu}`, the same value; this looks like an omission in the
+  text.
+- The review found that `\p{RGI_Emoji}` (about 3,800 strings) was an
+  alternation tried at every position: a million characters took 43 s.
+  Classes with more than 8 strings and the properties of strings now
+  compile to a trie with a sorted table per node, and the prefix scan
+  skips positions that cannot start a string: 5 ms. A node where a
+  string ends tries the longer strings first, so the order of the spec
+  stays. Lookbehind uses a trie of the reversed strings. A delta review
+  compared the trie with the alternation in the spec order in 36,960
+  matches and found no difference.
+- 299 probe cases with `\p` give Chromium 148's results, except six
+  cases of `\p{ASCII}` with `iv` and U+017F (ſ) or U+212A (Kelvin
+  sign): the spec folds them into the set, Chromium does not. Chromium
+  agrees with Unicode 17.0.0 on all property sets of the cases.
+  test262 runtime: 35,233 (was 34,707), the same in stress mode;
+  `built-ins/RegExp` has 1,854 passes and 1 failure (needs `Date`).
+- The stress mode now collects at every safepoint only for the first
+  65,536 of a run, then less often. The generated property tests loop a
+  million times, and the stress run of test262 took 75 minutes; now it
+  takes about 10.
+- Feature 8 summary: test262 runtime 32,775 → 35,233; target scripts
+  that compile 46 → 84.
+- Next: feature 9, Proxy and the weak collections.
+
 ## 2026-10-17: M7 feature 8b, the `RegExp` built-in
 
 - Regular expression literals compile. A literal is compiled at its

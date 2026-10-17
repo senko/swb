@@ -23,6 +23,9 @@ fn cases() -> Vec<(&'static str, &'static str, &'static str, String, u32)> {
         "x".repeat(100_000),
         " ".repeat(1_000)
     );
+    let emoji = "Text \u{1F600} and \u{1F44D}\u{1F3FD} and \u{1F1ED}\u{1F1F7} and \
+                 \u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467} 1\u{FE0F}\u{20E3} end. "
+        .repeat(2_000);
     vec![
         ("trim", "^\\s+|\\s+$", "g", spaces, 20),
         ("query", "([^&=]+)=([^&]*)", "g", query, 20),
@@ -66,6 +69,8 @@ fn cases() -> Vec<(&'static str, &'static str, &'static str, String, u32)> {
             "cost $12, then $345, and 678 ".repeat(5_000),
             20,
         ),
+        ("emoji", "\\p{RGI_Emoji}", "gv", emoji.clone(), 5),
+        ("emoji-iv", "\\p{RGI_Emoji}", "giv", emoji, 5),
     ]
 }
 

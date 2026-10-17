@@ -23,12 +23,12 @@ const path = require('path');
 const PER_CASE = 60;
 
 // Snippets with these parts need features that swb does not have yet
-// (Proxy: feature 9; BigInt: 10; `\p{...}`: 8c) or show a deliberate
+// (Proxy: feature 9; BigInt: 10) or show a deliberate
 // difference (docs/adr/0026: section 15, M7 8b): V8's getter `flags`
 // reads `sticky` before `unicodeSets`, and a RegExp String Iterator goes
 // on after its `exec` threw (the specification's generator completes).
 const EXCLUDED = [
-  'Proxy', '1n', '\\p{', '\\P{', "'unicodeSets', 'sticky'].forEach",
+  'Proxy', '1n', "'unicodeSets', 'sticky'].forEach",
   "if (n == 2) throw new Error('x')",
 ];
 

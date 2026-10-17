@@ -460,6 +460,39 @@ var r = /(\w)/g; r.test('ab'); r.test('ab'); [RegExp.$1, RegExp.leftContext]
 [...'abc'.matchAll(/(.)/g)].length; [RegExp.$1, RegExp.leftContext]
 'x'.match(/(?<n>x)/); RegExp.$1
 'aaa'.match(/a/g); RegExp.lastMatch + RegExp.leftContext.length
+## properties
+'aé1 b'.replace(/\p{L}/gu, '_')
+'aé1 b'.replace(/\P{L}/gu, '_')
+'Hello Wörld'.match(/\p{Lu}/gu)
+'Hello Wörld'.match(/\p{Lu}/giu)
+'Hello Wörld'.match(/\p{Lu}/giv)
+'Hello Wörld'.match(/\P{Lu}/giv)
+'Hello World'.match(/[\p{L}--\p{Lu}]/gv)
+'Hello World'.match(/[\p{L}--\p{Lu}]/giv)
+'aαа'.match(/\p{Script=Greek}/u)[0]
+'aαа'.match(/\p{sc=Cyrl}/u).index
+'xـ'.match(/\p{scx=Arab}/u).index
+'xـ'.match(/\p{sc=Arab}/u)
+[...'a1١b'.matchAll(/\p{Nd}/gu)].map(m => m[0] + m.index)
+'x\u{1F600}y'.match(/\p{Emoji}/u)[0].length
+'x\u{1F468}‍\u{1F469}‍\u{1F467}y'.match(/\p{RGI_Emoji}/v)[0].length
+'x\u{1F468}‍\u{1F469}‍\u{1F467}y'.match(/\p{Emoji}/gu).length
+'a\u{1F1ED}\u{1F1F7}b'.replace(/\p{RGI_Emoji_Flag_Sequence}/v, '[$&]')
+'1️⃣'.match(/^\p{Emoji_Keycap_Sequence}$/v) !== null
+'a,b;c d'.split(/\p{P}|\p{Z}/u)
+/\p{Lu}/u.test('a')
+/\p{Lu}/iu.test('a')
+/[^\p{Lu}]/iu.test('A')
+/[^\p{Lu}]/iv.test('A')
+/\p{Any}/su.test('\n')
+/^\p{Assigned}$/u.test('͸')
+/\p{L}/u.source
+new RegExp('\\p{Script_Extensions=Latin}', 'u').test('ͣ')
+new RegExp('\\p{Foo}', 'u')
+new RegExp('\\P{RGI_Emoji}', 'v')
+new RegExp('[^\\p{RGI_Emoji}]', 'v')
+new RegExp('\\p{RGI_Emoji}', 'u')
+/\p{L}/.test('p{L}')
 ## limits-heavy
 /^(?:a|b)*c/.exec('ab'.repeat(250000))
 var e; try { /^(?:a|b)*c/.exec('a'.repeat(2e7)); } catch (x) { e = x; } [e instanceof RangeError, e.message]

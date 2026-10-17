@@ -496,7 +496,12 @@ not yet rooted. Buffers grow with fallible reservation (`try_reserve`).
 
 **Stress mode.** A runtime option collects at every safepoint. A subset
 of the tests and test262 runs use it, because rooting errors appear only
-when a collection runs at the wrong time.
+when a collection runs at the wrong time. After the first 65,536
+safepoints of a run, it collects at 16,384 safepoints in each doubling
+of the count (M7 8c: the generated property escape tests of test262 loop
+a million times, and a collection at each safepoint made the stress run
+take 75 minutes; it now takes about 10). Reservations still collect each
+time.
 
 ### 9. Limits
 
@@ -1952,7 +1957,7 @@ where the first plan did not work:
   (`Error::message` writes `Invalid regular expression: /P/F: REASON`
   with the pattern unescaped, as V8 does for both literals and the
   constructor), `InvalidFlags` (the constructor's message, "Invalid flags
-  supplied to RegExp constructor 'F'", is 8b's), `Unsupported`,
+  supplied to RegExp constructor 'F'", is 8b's),
   `MemoryLimit`, `StepLimit` (only `Regex::exec`, the helper for tests
   and tools) and `InputChanged`. The order of errors follows V8 where
   measured (the first error from the left; unknown `\k` names at the
@@ -1973,14 +1978,103 @@ where the first plan did not work:
   some atoms after the group (`(?i:x)\w` with `u` matches "xſ",
   `(?i:[a])[a]` with `v` matches "aA"); swb applies it only inside the
   group, as §22.2.2 says.
-- `\p{...}` and `\P{...}` until 8c: the names and values are checked
-  (ECMA-262 tables 65 to 67 and `PropertyValueAliases.txt`; also
+- `\p{...}` and `\P{...}` (feature 8c). The names and values are checked
+  as in 8a (ECMA-262 tables 65 to 67 and `PropertyValueAliases.txt`; also
   `WSpace`, which `PropertyAliases.txt` lists and V8 accepts, though
-  table 66 leaves it out), so literals with them parse, but
-  `Regex::new` returns `Error::Unsupported` rather than a wrong set; 8b
-  can treat it as the engine's "not supported yet". The tables of names
-  (`js-text/src/unicode/property_names.rs`) index the canonical values,
-  for the sets of 8c.
+  table 66 leaves it out). The sets come from the Unicode Character
+  Database 17.0.0, the version of the names, of test262's generated
+  tests and of the other tables; `swbtools js-unicode-tables` writes them
+  to `js-text/src/unicode/property_data.rs` (generator
+  `tools/swbtools/js_property_sets.py`, test
+  `tools/tests/test_js_unicode_tables.py`). Files: `DerivedGeneralCategory.txt`,
+  `Scripts.txt`, `ScriptExtensions.txt`, `PropList.txt`,
+  `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`
+  (`Changes_When_NFKC_Casefolded`), `DerivedBinaryProperties.txt`
+  (`Bidi_Mirrored`), `ucd/emoji/emoji-data.txt`, and
+  `emoji/emoji-sequences.txt` and `emoji/emoji-zwj-sequences.txt` of the
+  17.0.0 emoji data (UTS #51). Data: a set is a list of ranges, each as
+  two LEB128 numbers (the gap from the previous range and the length
+  minus one); all sets are one byte string of 76,118 bytes plus offset
+  tables (about 2 KB), which `js-text/src/unicode/property_sets.rs`
+  decodes on use. `General_Category` has one set for each of its 30
+  values that is not a group; `L`, `LC`, `M`, `N`, `P`, `S`, `Z` and `C`
+  unite those at decode time. `Script_Extensions` has a set per script
+  (the explicit entries replace the `Script` value of their code points).
+  `ASCII`, `Any` and `Assigned` (the complement of `Cn`) have no data.
+  A property of strings has its single code points as a set and its
+  sequences as length-prefixed lists of code points; `RGI_Emoji` is the
+  union of the other six (`emoji-sequences.txt` says so) and has no data.
+- The parser builds a property set once for each property, `\P` and `i`
+  and keeps it (`property_sets`), and keeps the node of `\p{...}` outside
+  a class by the same key (`property_nodes`): 10,000 `\p{L}` with `iu`
+  compile in 1 ms and share one set. The cache of set nodes (8a: sets of
+  at most 16 ranges) now has no limit per set; it holds at most 2^18
+  ranges in the keys. A tree may have at most 2^22 ranges in all its
+  sets (8 bytes each); beyond that the pattern is "too large" (a class
+  `[\p{L}x]` with a thousand different `x` has a thousand different
+  sets). `check_literal` builds no set.
+- Case-insensitive property sets: with `u` the set goes through the case
+  closure like any class. With `v` and `i` the set is first folded
+  (`MaybeSimpleCaseFolding`) and `\P{...}` is the complement among the
+  fixed points of the folding (`CharacterComplement`), and the strings of
+  a property of strings are folded code point by code point. A deliberate
+  difference from §22.2.2.9, which leaves a lone `General_Category` value
+  (`\p{Lu}`, not `\p{gc=Lu}`) unfolded: Chromium 148 folds it like every
+  other property (`/\P{Lu}/iv` does not match "A", `/[\p{Lu}&&\p{Ll}]/iv`
+  matches "a"; the cases are in `tools/probes/js-regexp.json`), and no
+  test262 test tells the two apart. The draft of 2026 still has the text.
+  swb follows Chromium here, unlike the other differences in this
+  section, because the text gives `\p{Lu}` and `\p{gc=Lu}` different
+  sets with `iv` although they name the same property value, and the
+  folding of `v` exists to make complements and set operations
+  consistent with `i`. This looks like an omission in the text.
+- `\p{ASCII}` with `iv` matches U+017F and U+212A, because their folds
+  `s` and `k` are in the folded set, and `\P{ASCII}`, `[^\p{ASCII}]`,
+  `[\p{Lu}--\p{ASCII}]` and `[\p{L}&&\p{ASCII}]` follow from that
+  (MaybeSimpleCaseFolding and `AllCharacters`, §22.2.2.9). swb follows
+  the spec here. Chromium 148 gives the opposite result on
+  `/\p{ASCII}/iv.test("\u017f")` and on five more cases (`KNOWN` in
+  `cases.rs`; the cases are in the probe file). The review of 8c found
+  this difference.
+- `\p{sc=Hrkt}` and `\p{scx=Hrkt}` (and `Katakana_Or_Hiragana`) are
+  accepted and match nothing: no code point has this value in the
+  UCD 17.0.0.
+- Strings of a class with `v` (`\q{...}`, a property of strings, and the
+  results of `&&`, `--` and union) with more than 8 strings compile to a
+  trie, `Node::Strings` in the tree and one `Inst::Switch` per trie node
+  in the program (a sorted table of (code point, target) found by binary
+  search, in `Program::tables`). A short list keeps the alternation of
+  sequences. The alternation tried every string at every position:
+  `/\p{RGI_Emoji}/v.test("a".repeat(1e6))` took 43 s (3,800 strings).
+  Order: the spec tries the strings from the longest to the shortest.
+  All strings that match at one position are prefixes of each other, so
+  they lie on one path of the trie; the trie goes down as far as the
+  input allows, and a node where a string ends has a `Fork` before its
+  `Switch`, a choice point that is taken only after everything deeper
+  failed. That is the order of the alternation, also when a later part of
+  the pattern fails and the matcher backtracks into the strings. A step
+  is one `Switch` or one `Fork`; the choice points are those forks, and
+  the matcher state is unchanged (the resumable matcher and the undo log
+  need nothing new). With `i` the strings are folded when the trie is
+  built and the `Switch` folds the input character (`Canonicalize`, the
+  simple case folding, as the sets do). A lookbehind builds the trie from
+  the reversed strings and reads the input backward (the strings that end
+  at a position are suffixes of each other, the same argument). The
+  prefix scan takes the first characters of the strings, so a position
+  that cannot start a match is skipped. A tree may have at most 2^23
+  characters in all its string lists. The strings of a property are
+  decoded, folded and sorted once for each property and `i` and shared
+  (`Arc`) by its occurrences; one occurrence compiles in about 2 ms and
+  20 of them in 11 ms; a pattern with about 750 of them is "too large".
+  A pattern like `\p{RGI_Emoji}+x` over 200,000 emoji is still quadratic
+  (each start position scans to the end), as in any backtracking matcher;
+  the caller's step limit and time check stop it.
+  `Error::Unsupported` is gone.
+- Chromium 148 agrees with Unicode 17.0.0 on all 264 probe cases with
+  `\p{...}` (151 matches, 110 patterns, 3 literals), so there is no
+  `KNOWN` entry for the Unicode version. test262's 613 tests of
+  `built-ins/RegExp/property-escapes` and its tests of
+  `unicodeSets/generated` pass; the largest take 0.5 s.
 - The `RegExp` built-in (feature 8b, `builtins/regexp*.rs`,
   `builtins/string_match.rs`, `object/regexp.rs`): a `RegExp` object is
   `ObjectKind::RegExp` with `[[OriginalSource]]` and the compiled program
@@ -1993,9 +2087,7 @@ where the first plan did not work:
   the program: each evaluation makes a new object, the compile happens
   once. The errors of `Regex::new` become V8's `SyntaxError`s ("Invalid
   flags supplied to RegExp constructor 'F'", "Invalid regular expression:
-  /P/F: reason"); `Error::Unsupported` becomes a `SyntaxError` whose
-  message ends in "not supported yet", which the test262 runner counts as
-  unsupported. Messages that quote a pattern with lone surrogates show
+  /P/F: reason"). Messages that quote a pattern with lone surrogates show
   U+FFFD for them (the messages are Rust strings).
 - The match (`regexp_exec.rs`): `RegExpBuiltinExec` reads and converts
   `lastIndex` before it reads the program and the flags, so a `valueOf`

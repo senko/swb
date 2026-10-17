@@ -20,9 +20,11 @@ mod class;
 mod cursor;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use swb_js_text::Str16;
-use swb_js_text::unicode::{self, property};
+use swb_js_text::unicode::property::{self, Property};
+use swb_js_text::unicode::{self, property_sets};
 
 use crate::Flags;
 use crate::ast::{Assertion, Ast, INFINITE, Node, NodeId};
@@ -39,8 +41,22 @@ pub(crate) const MAX_NESTING: usize = 32_768;
 /// The most nodes a tree may have.
 pub(crate) const MAX_NODES: usize = 1 << 22;
 
-/// The largest set (in ranges) whose node the parser caches.
-const MAX_CACHED_RANGES: usize = 16;
+/// The most ranges in all the sets whose nodes the parser caches.
+const MAX_CACHED_RANGES: usize = 1 << 18;
+/// The most ranges in all the sets of a tree (8 bytes each).
+const MAX_SET_RANGES: usize = 1 << 22;
+
+/// The most strings of a class that the parser compiles as an alternation
+/// of sequences; a class with more strings becomes a trie
+/// ([`Node::Strings`]).
+const MAX_LINEAR_STRINGS: usize = 8;
+
+/// The most characters in all string lists of a pattern (a limit on
+/// memory and on the size of the program).
+const MAX_STRING_CHARS: usize = 1 << 23;
+
+/// A property as `\p` and `\P` use it: the property, `\P` and the `i` flag.
+type PropertyKey = (Property, bool, bool);
 
 type Result<T> = std::result::Result<T, SyntaxKind>;
 
@@ -162,6 +178,16 @@ struct Parser<'a> {
     /// the `i` flag: the case closure is costly and the same escapes and
     /// classes repeat.
     set_nodes: HashMap<(CharSet, bool, bool), Node>,
+    /// The ranges in the keys of `set_nodes`.
+    cached_ranges: usize,
+    /// The set of each property already seen, by the property, `\P` and
+    /// the `i` flag.
+    property_sets: HashMap<PropertyKey, CharSet>,
+    /// The strings of each property of strings already seen, by the
+    /// property and the `i` flag: decoded, folded (with `i`), sorted.
+    property_string_lists: HashMap<(Property, bool), Arc<[Vec<u32>]>>,
+    /// The node of each property outside a class already seen (same key).
+    property_nodes: HashMap<PropertyKey, Node>,
     /// Only check the early errors: no nodes and no sets.
     validate: bool,
 }
@@ -188,6 +214,10 @@ impl<'a> Parser<'a> {
             references: HashMap::new(),
             duplicate_name: false,
             set_nodes: HashMap::new(),
+            cached_ranges: 0,
+            property_sets: HashMap::new(),
+            property_string_lists: HashMap::new(),
+            property_nodes: HashMap::new(),
             validate,
         }
     }
@@ -695,8 +725,8 @@ impl<'a> Parser<'a> {
             }
             0x70 | 0x50 if self.unicode => {
                 self.c.skip(1);
-                let (set, _) = self.property(c == 0x50, false)?;
-                self.set_node(set, false)?
+                let property = self.property(c == 0x50, false)?;
+                self.property_atom(property, c == 0x50)?
             }
             _ => {
                 let ch = self.character_escape(false)?;
@@ -1000,10 +1030,8 @@ impl<'a> Parser<'a> {
     }
 
     /// After `\p` or `\P`: `{name=value}` or `{name}`. Checks the names
-    /// (§22.2.1.1) and returns the set and whether it has strings. The
-    /// code point sets come in M7 feature 8c: the set is empty, and the
-    /// compiler rejects the pattern.
-    fn property(&mut self, negate: bool, in_class: bool) -> Result<(CharSet, bool)> {
+    /// (§22.2.1.1) and returns the property.
+    fn property(&mut self, negate: bool, in_class: bool) -> Result<Property> {
         let error = if in_class {
             SyntaxKind::InvalidClassPropertyName
         } else {
@@ -1036,13 +1064,93 @@ impl<'a> Parser<'a> {
             return Err(error);
         }
         let found = property::lookup(&name, value.as_deref()).ok_or(error)?;
-        let strings = found.has_strings();
-        if strings && (!self.sets || negate) {
+        if found.has_strings() && (!self.sets || negate) {
             return Err(error);
         }
-        self.ast.uses_properties = true;
-        let set = CharSet::new();
-        Ok((if negate { self.complement(&set) } else { set }, strings))
+        Ok(found)
+    }
+
+    /// The characters and strings of `\p{...}` or `\P{...}` (§22.2.2.9):
+    /// the set of the property with `MaybeSimpleCaseFolding` (with `v` and
+    /// `i`), or its complement (`CharacterComplement`, for `\P`). The
+    /// strings are those of a property of strings. The sets of the
+    /// properties are built once per pattern and kept.
+    ///
+    /// Deliberate difference from §22.2.2.9, which leaves a lone
+    /// `General_Category` value (`\p{Lu}`) unfolded: Chromium 148 folds it
+    /// like every other property (`/\P{Lu}/iv` does not match `A`), and so
+    /// does swb.
+    fn property_value(&mut self, property: Property, negate: bool) -> CharSet {
+        if self.validate {
+            return CharSet::new();
+        }
+        let key = (property, negate, self.mods.ignore_case);
+        if let Some(set) = self.property_sets.get(&key) {
+            return set.clone();
+        }
+        let mut set = CharSet::from_ranges(property_sets::ranges(property));
+        set = self.maybe_fold(set);
+        if negate {
+            set = self.complement(&set);
+        }
+        set.shrink_to_fit();
+        self.property_sets.insert(key, set.clone());
+        set
+    }
+
+    /// The strings of a property of strings (with `v`): sorted, without
+    /// duplicates, and case folded with `i` (`MaybeSimpleCaseFolding`).
+    /// Decoding and folding them costs milliseconds, so they are kept.
+    fn property_strings(&mut self, property: Property) -> Arc<[Vec<u32>]> {
+        if self.validate {
+            return Arc::from(Vec::new());
+        }
+        let fold = self.sets && self.mods.ignore_case;
+        if let Some(list) = self.property_string_lists.get(&(property, fold)) {
+            return Arc::clone(list);
+        }
+        let mut strings = property_sets::strings(property);
+        if fold {
+            for string in &mut strings {
+                for c in string.iter_mut() {
+                    *c = charset::canonicalize(CaseMode::Fold, *c);
+                }
+            }
+            strings.sort_unstable();
+            strings.dedup();
+        }
+        let list: Arc<[Vec<u32>]> = strings.into();
+        self.property_string_lists
+            .insert((property, fold), Arc::clone(&list));
+        list
+    }
+
+    /// The node of `\p{...}` or `\P{...}` outside a class. The node of
+    /// a property without strings is kept: the case closure of a large
+    /// set costs milliseconds.
+    fn property_atom(&mut self, property: Property, negate: bool) -> Result<NodeId> {
+        if self.validate {
+            return self.node(Node::Empty);
+        }
+        if property.has_strings() {
+            let chars = self.property_value(property, negate);
+            let strings = self.property_strings(property);
+            if strings.len() > MAX_LINEAR_STRINGS {
+                return self.strings_node(chars, strings);
+            }
+            return self.class_set_node(class::ClassSet {
+                chars,
+                strings: strings.iter().cloned().collect(),
+            });
+        }
+        let key = (property, negate, self.mods.ignore_case);
+        if let Some(node) = self.property_nodes.get(&key) {
+            return self.node(node.clone());
+        }
+        let set = self.property_value(property, negate);
+        let id = self.set_node(set, false)?;
+        self.property_nodes.insert(key, self.ast.node(id).clone());
+        Ok(id)
     }
 
     /// The node of one character: with `i`, the set of characters that
@@ -1064,22 +1172,21 @@ impl<'a> Parser<'a> {
         if self.validate {
             return Ok(0);
         }
-        // Sets of a few ranges only: the cache keeps a copy of the key.
-        let key = (set.ranges().len() <= MAX_CACHED_RANGES)
-            .then(|| (set.clone(), invert, self.mods.ignore_case));
-        if let Some(node) = key.as_ref().and_then(|k| self.set_nodes.get(k)) {
+        let key = (set, invert, self.mods.ignore_case);
+        if let Some(node) = self.set_nodes.get(&key) {
             return self.node(node.clone());
         }
         let mut closed = if self.mods.ignore_case {
-            charset::case_closure(self.case_mode(), &set)
+            charset::case_closure(self.case_mode(), &key.0)
         } else {
-            set
+            key.0.clone()
         };
         if invert {
             closed = closed.complement(self.max_char());
         }
         let id = self.special_set(closed)?;
-        if let Some(key) = key {
+        if self.cached_ranges + key.0.ranges().len() <= MAX_CACHED_RANGES {
+            self.cached_ranges += key.0.ranges().len();
             self.set_nodes.insert(key, self.ast.node(id).clone());
         }
         Ok(id)
@@ -1097,7 +1204,9 @@ impl<'a> Parser<'a> {
         if set.ranges() == [(0, 0x09), (0x0B, 0x0C), (0x0E, 0x2027), (0x202A, max)] {
             return self.node(Node::AnyButLineTerminator);
         }
-        if self.ast.nodes.len() >= MAX_NODES {
+        if self.ast.nodes.len() >= MAX_NODES
+            || self.ast.set_ranges + set.ranges().len() > MAX_SET_RANGES
+        {
             return Err(SyntaxKind::TooLarge);
         }
         let mut set = set;

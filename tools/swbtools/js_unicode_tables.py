@@ -1,10 +1,10 @@
 """`swbtools js-unicode-tables`: Unicode tables for the JavaScript engine.
 
-Writes four files in `crates/js-text/src/unicode/` from the Unicode
+Writes five files in `crates/js-text/src/unicode/` from the Unicode
 Character Database (`ucd.py` downloads the files into `out/ucd/`):
 `case_tables.rs` (`js_case_tables.py`), `norm_tables.rs`
-(`js_norm_tables.py`), `property_names.rs` (`js_property_names.py`) and
-`tables.rs`:
+(`js_norm_tables.py`), `property_names.rs` (`js_property_names.py`),
+`property_data.rs` (`js_property_sets.py`) and `tables.rs`:
 
 - `ID_START`, `ID_CONTINUE`: the properties ID_Start and ID_Continue
   (ECMA-262 §12.7, UnicodeIDStart and UnicodeIDContinue).
@@ -18,7 +18,9 @@ from pathlib import Path
 from swbtools import paths
 from swbtools.js_case_tables import generate_case_tables
 from swbtools.js_norm_tables import generate_norm_tables
-from swbtools.js_property_names import generate_property_names
+from swbtools.js_property_names import generate_property_names, value_aliases
+from swbtools.js_property_sets import FILES as SET_FILES
+from swbtools.js_property_sets import generate_property_data
 from swbtools.ucd import has_property, range_table, ranges, read_property, ucd_file
 
 VERSION = "17.0.0"
@@ -63,7 +65,7 @@ def tables_path() -> Path:
 
 
 def write_tables() -> int:
-    """Writes the four table files and downloads `NormalizationTest.txt`
+    """Writes the five table files and downloads `NormalizationTest.txt`
     for the full normalization test. Returns the exit code."""
     core = ucd_file(FILES["DerivedCoreProperties"], VERSION)
     outputs = {
@@ -86,6 +88,13 @@ def write_tables() -> int:
             VERSION,
         ),
     }
+    values = ucd_file("ucd/PropertyValueAliases.txt", VERSION)
+    outputs["property_data.rs"] = generate_property_data(
+        {name: ucd_file(path, VERSION) for name, path in SET_FILES.items()},
+        [row[0] for row in value_aliases(values, "gc")],
+        value_aliases(values, "sc"),
+        VERSION,
+    )
     directory = tables_path().parent
     directory.mkdir(parents=True, exist_ok=True)
     for name, source in outputs.items():

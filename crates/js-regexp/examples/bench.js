@@ -6,6 +6,8 @@ const words = 'The quick brown fox jumps over the lazy dog, again and again. '.r
 const query = 'a=1&bb=22&ccc=333&dddd=4444&'.repeat(2000);
 const html = '<div class="story"><a href="/news/123">Headline</a></div>\n'.repeat(2000);
 const spaces = ' '.repeat(1000) + 'x'.repeat(100000) + ' '.repeat(1000);
+const EMOJI = ('Text \u{1F600} and \u{1F44D}\u{1F3FD} and \u{1F1ED}\u{1F1F7} and ' +
+  '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467} 1\u{FE0F}\u{20E3} end. ').repeat(2000);
 
 const cases = [
   ['trim', '^\\s+|\\s+$', 'g', spaces, 20],
@@ -20,6 +22,8 @@ const cases = [
   ['redos', '^(\\w+\\s?)*$', '', 'aaaa '.repeat(4) + '!', 50],
   ['backref', '(\\w+)\\s\\1', 'g', 'hello hello world world '.repeat(5000), 20],
   ['lookbehind', '(?<=\\$)\\d+', 'g', 'cost $12, then $345, and 678 '.repeat(5000), 20],
+  ['emoji', '\\p{RGI_Emoji}', 'gv', EMOJI, 5],
+  ['emoji-iv', '\\p{RGI_Emoji}', 'giv', EMOJI, 5],
 ];
 
 console.log('case'.padEnd(12), 'matches'.padStart(10), 'ms'.padStart(10));

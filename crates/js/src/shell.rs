@@ -22,7 +22,7 @@ pub(crate) const STACK_SIZE: usize = 8 << 20;
 pub(crate) struct Options {
     /// The heap limit in bytes (the engine default if `None`).
     pub(crate) heap_limit: Option<usize>,
-    /// Collect at every safepoint.
+    /// The GC stress mode (`HeapConfig::stress`).
     pub(crate) stress: bool,
     /// The time limit of each run.
     pub(crate) time_limit: Option<Duration>,

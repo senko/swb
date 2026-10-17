@@ -2,12 +2,13 @@
 //! lexical grammar (ECMA-262 clause 12: white space, line terminators and
 //! identifier characters) here, case mapping in [`case`], normalization
 //! in [`normalize`], the order of `localeCompare` in [`collate`] and the
-//! names of the properties of regular expressions in [`property`].
+//! names of the properties of regular expressions in [`property`] and
+//! their code point sets in [`property_sets`].
 //!
-//! The tables in `tables.rs`, `case_tables.rs`, `norm_tables.rs` and
-//! `property_names.rs` are generated from the Unicode Character Database
-//! by `swbtools js-unicode-tables`. ASCII has fast paths that a test
-//! compares with the tables.
+//! The tables in `tables.rs`, `case_tables.rs`, `norm_tables.rs`,
+//! `property_names.rs` and `property_data.rs` are generated from the
+//! Unicode Character Database by `swbtools js-unicode-tables`. ASCII has
+//! fast paths that a test compares with the tables.
 
 pub mod case;
 mod case_tables;
@@ -15,7 +16,9 @@ pub mod collate;
 mod norm_tables;
 pub mod normalize;
 pub mod property;
+mod property_data;
 mod property_names;
+pub mod property_sets;
 mod tables;
 
 /// U+200C ZERO WIDTH NON-JOINER.

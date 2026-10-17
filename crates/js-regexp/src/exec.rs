@@ -617,6 +617,36 @@ impl Matcher {
         }
     }
 
+    /// `Inst::Switch`: follows the edge of a trie node for the next
+    /// character.
+    fn switch<U: CodeUnit>(
+        &mut self,
+        program: &Program,
+        input: &Input<'_, U>,
+        table: u32,
+        back: bool,
+        fold: bool,
+    ) -> Step {
+        let target = input.read(self.pos as usize, back).and_then(|(c, p)| {
+            let c = if fold {
+                charset::canonicalize(CaseMode::Fold, c)
+            } else {
+                c
+            };
+            let entries = program.tables.get(table as usize)?;
+            let i = entries.binary_search_by_key(&c, |e| e.0).ok()?;
+            Some((entries.get(i)?.1, p))
+        });
+        match target {
+            Some((pc, p)) => {
+                self.pc = pc;
+                self.pos = p as u32;
+                Step::Next
+            }
+            None => Step::Fail,
+        }
+    }
+
     /// Runs one instruction.
     fn step<U: CodeUnit>(
         &mut self,
@@ -652,6 +682,7 @@ impl Matcher {
                 budget,
                 memory_limit,
             )?,
+            Inst::Switch { table, back, fold } => self.switch(program, input, table, back, fold),
             Inst::Assert(a) if self.assert(input, a) => next(self),
             Inst::Assert(_) => Step::Fail,
             Inst::Fork { alt } => {

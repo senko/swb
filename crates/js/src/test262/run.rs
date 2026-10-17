@@ -110,7 +110,7 @@ pub(crate) enum Status {
 pub(crate) struct Limits {
     pub(crate) time: Duration,
     pub(crate) heap: usize,
-    /// The GC stress mode (a collection at every safepoint).
+    /// The GC stress mode (`HeapConfig::stress`).
     pub(crate) stress: bool,
 }
 

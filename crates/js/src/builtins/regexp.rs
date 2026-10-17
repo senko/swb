@@ -15,8 +15,7 @@
 //!
 //! Deliberate differences from Chromium 148: the getter `flags` reads
 //! `unicodeSets` before `sticky`, as §22.2.6.4 says (V8 reads `sticky`
-//! first); a pattern with `\p{...}` fails with "not supported yet" until
-//! M7 feature 8c; messages that quote a pattern with lone surrogates show
+//! first); messages that quote a pattern with lone surrogates show
 //! U+FFFD for them.
 
 use std::rc::Rc;
@@ -210,7 +209,6 @@ impl Runtime {
                 "Invalid regular expression: /{pattern}/{flags}: {}",
                 kind.message()
             )),
-            // The engine's "not supported yet" (`\p{...}` until 8c).
             other => syntax_error(format!(
                 "Invalid regular expression: /{pattern}/{flags}: {other}"
             )),

@@ -102,12 +102,17 @@ fn split_limit_runs_before_exec() {
     ]);
 }
 
-/// A pattern with `\p{...}` fails with the engine's "not supported yet"
-/// until M7 feature 8c (test262 counts such tests as unsupported).
+/// Property escapes work in a literal and through the constructor, and
+/// `v` allows properties of strings (the Chromium cases have more).
 #[test]
-fn property_escapes_are_not_supported_yet() {
-    let out = run("new RegExp('\\\\p{L}', 'u')", false);
-    assert!(out.contains("not supported yet"), "{out}");
-    let out = run("/\\p{L}/u.test('a')", false);
-    assert!(out.contains("not supported yet"), "{out}");
+fn property_escapes_match() {
+    let out = run(
+        "print(new RegExp('\\\\p{L}+', 'u').exec('12h\\u00e9llo')[0]); \
+         print(/\\p{Lu}/u.test('a'), /\\p{Lu}/iu.test('a')); \
+         print(/\\p{RGI_Emoji}/v.test('\\u{1F1ED}\\u{1F1F7}'));",
+        false,
+    );
+    assert_eq!(out, "h\u{e9}llo\nfalse true\ntrue", "{out}");
+    let out = run("new RegExp('\\\\p{Foo}', 'u')", false);
+    assert!(out.contains("Invalid property name"), "{out}");
 }

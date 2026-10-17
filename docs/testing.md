@@ -76,7 +76,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
-| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable), `norm_tables.rs` (combining classes, decompositions, compositions, quick check) and `property_names.rs` (the names and aliases of the properties of `\p{...}`) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`, `PropertyAliases.txt` and `PropertyValueAliases.txt` into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. |
+| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable), `norm_tables.rs` (combining classes, decompositions, compositions, quick check), `property_names.rs` (the names and aliases of the properties of `\p{...}`) and `property_data.rs` (their code point sets and the emoji strings, `js_property_sets.py`) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`, `PropertyAliases.txt`, `PropertyValueAliases.txt`, `DerivedGeneralCategory.txt`, `Scripts.txt`, `ScriptExtensions.txt`, `PropList.txt`, `DerivedBinaryProperties.txt`, `emoji-data.txt`, `emoji-sequences.txt` and `emoji-zwj-sequences.txt` (the last two from the `emoji/` directory of 17.0.0) into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. The generated files are formatted by `just fmt` (the committed `case_tables.rs`, `norm_tables.rs` and `property_names.rs` differ from the raw output only in formatting; `property_data.rs` is stable under `rustfmt`). |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
 | `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
@@ -867,7 +867,8 @@ The shell `swb-js` is a binary of the `js` crate (ADR 0026 section 13).
 scripts in one global scope. `print` and `console.log` write to stdout.
 `$262` has `evalScript`, `gc` and `global`; `createRealm`,
 `detachArrayBuffer` and `agent` are not available. Options:
-`--heap-limit MIB`, `--stress` (GC at every safepoint), `--time-limit MS`,
+`--heap-limit MIB`, `--stress` (GC at every safepoint, fewer after the
+first 65,536; ADR 0026 section 8), `--time-limit MS`,
 `--disassemble` (bytecode listing), `--compile-only`. The promise jobs
 run after each script, under the same time limit. A promise that was
 rejected without a handler and still has none after the jobs is
@@ -918,8 +919,8 @@ another directory and `TEST262_URL` another repository.
   be none. A test file that cannot be read is a failure with the I/O
   message. Options: `--all` (all of `test/language/`, to choose the subset),
   `--report FILE` (one TSV line per test and mode), `--stress`, `--jobs`,
-  `--time-limit MS` (default 10000; with `--stress` 300000, because a
-  collection at every safepoint makes a loop of a million calls slow),
+  `--time-limit MS` (default 10000; with `--stress` 300000, because the
+  collections make a loop of a million calls slow),
   `--heap-limit MIB` (default 256),
   `--top N`.
 - The groups of `test/built-ins/` have three components
@@ -1033,9 +1034,9 @@ committed sample always; the whole file with `cargo test -p swb-js-text
 
 `tools/probes/js-regexp.json` has the cases of
 `crates/js-regexp/tests/data/regexp-cases.js` for Chromium 148 in three
-lists: `exec` (475 matches: `new RegExp(pattern, flags + "d").exec(input)`
+lists: `exec` (660 matches: `new RegExp(pattern, flags + "d").exec(input)`
 from a `lastIndex`, with the index, the capture indices and the group
-names), `syntax` (491 patterns for `new RegExp`: "ok" or the message)
+names), `syntax` (503 patterns for `new RegExp`: "ok" or the message)
 and `literals` (46 literal source texts parsed with `new Function`).
 `crates/js-regexp/tests/data/gen-regexp-cases.js` makes the probe file
 and, from its output, `regexp_cases.json` (strings with lone surrogates
@@ -1052,9 +1053,14 @@ node crates/js-regexp/tests/data/gen-regexp-cases.js cases probe.json \
 `crates/js-regexp/tests/cases.rs` runs the parser and the matcher
 directly on each case: each match also in slices of one step (the
 resumed matcher) and, for Latin-1 inputs, on the one-byte width; each
-pattern through both `check_literal` (no tree) and `Regex::new`. Cases
-with `\p{...}` compile to `Error::Unsupported` until M7 8c and are
-counted, not compared. `crates/js-regexp/tests/hostile.rs` has the limits:
+pattern through both `check_literal` (no tree) and `Regex::new`. 299 of
+the cases have `\p{...}` or `\P{...}` (186 matches, 110 patterns, 3
+literals: General_Category, Script, Script_Extensions, binary properties
+and properties of strings, with `u`, `v`, `i`, negation, `&&` and `--`;
+`\p{Lu}` with `iv` against Chromium; 33 of the matches test the trie of
+the strings of a property: the longest string first and shorter ones after
+a failing tail, flags, keycaps, `iv`, lookbehind, classes with `\q{...}`
+of more than 8 strings). `crates/js-regexp/tests/hostile.rs` has the limits:
 nesting 100,000 deep, `a{0,4294967295}`, `(?:a?){1000000}`, a million
 alternatives, inputs of 10,000,000 units, catastrophic patterns that run
 in slices of 100,000 steps (each call does at most its steps and returns
@@ -1062,11 +1068,18 @@ within 0.5 s, the popping of choice points included), a backtrack stack
 at the memory limit, slots and undo log inside the limit, and the cases
 that were quadratic or large (classes of 100,000 characters with `v`,
 `\q{...}` with 100,000 alternatives, 20,000 duplicate group names with
-references, `\W` 50,000 times with `iu`, 100,000 classes with `i`) with
-generous time and `heap_bytes()` bounds. `cases.rs` has a list `KNOWN`
+references, `\W` 50,000 times with `iu`, 100,000 classes with `i`, 10,000 times
+`\p{L}`, `\P{L}`, `\p{Any}`, `[\p{L}--\p{Lu}]` with `u`, `v`, `iu` and `iv`,
+60 different properties three times each, `\p{RGI_Emoji}` 20 and 100,000
+times, `\p{RGI_Emoji}` with `v` and `iv` over a million units of `a` and
+200,000 emoji (a trie, not one attempt per string), `\p{RGI_Emoji}+x` over
+200,000 emoji in slices, `[\p{RGI_Emoji}--\q{...}]` and lookbehinds with
+many strings, 20,000 different classes with `\p{L}`, a literal check of 100,000
+property escapes) with generous time and `heap_bytes()` bounds. `cases.rs` has a list `KNOWN`
 of cases where swb differs from Chromium on purpose (the case folding of
-single characters in `\q{...}` with `iv`, and the script value
-`Hrkt`).
+single characters in `\q{...}` with `iv`, the script value `Hrkt`, and
+six cases of `\p{ASCII}` with `iv` and U+017F or U+212A). `bench.rs` has
+two rows with `\p{RGI_Emoji}`.
 `crates/js-syntax/tests/target_regexps.rs` (ignored) compiles and runs
 every regular expression literal of the target scripts:
 `SWB_TARGET_SCRIPTS=out/bbc-js:out/ars-js cargo test -p swb-js-syntax
@@ -1074,7 +1087,7 @@ every regular expression literal of the target scripts:
 
 ### RegExp built-in tests
 
-`tools/probes/js-regexp-builtin.json` has 458 snippets for Chromium 148
+`tools/probes/js-regexp-builtin.json` has 490 snippets for Chromium 148
 in the format of `js-collections.json` (its `show` also prints a regular
 expression as `re(source,flags,lastIndex)`, the named properties of an
 array after its elements and an object without prototype with `N`).
@@ -1092,7 +1105,9 @@ form, surrogate pairs, a `valueOf` that calls `compile`), `test`,
 `match`, `search`, `replace` (templates, named references, replacer
 functions, a script's `exec` with odd results and getters), `split`
 (limits, captures, species constructors, sticky and empty matches),
-`matchAll`, `RegExp.escape`, `compile`, literals, and the heavy group
+`matchAll`, `RegExp.escape`, `compile`, literals, property escapes
+(`\p{...}` with `u`, `v` and `i`, properties of strings, errors), and
+the heavy group
 (the backtrack stack bound, global loops over a million units).
 `crates/js/tests/data/gen-regexp-builtin-cases.js` makes the probe file
 from the snippets and, from its output, `regexp_builtin_cases.js` and
@@ -1109,10 +1124,10 @@ node crates/js/tests/data/gen-regexp-builtin-cases.js cases probe.json crates/js
 Chromium runs each probe case in its own page; swb-js runs all snippets
 in one realm, so a snippet must not depend on the matches of an earlier
 group (the legacy static properties) or change shared built-ins. The
-script leaves out the snippets with `Proxy`, `BigInt` or `\p{...}` and
+script leaves out the snippets with `Proxy` or `BigInt` and
 two where swb follows the specification (V8 reads `sticky` before
 `unicodeSets` in `flags`, and a RegExp String Iterator goes on after its
-`exec` threw); 453 remain. `regexp_gc.js` has
+`exec` threw); 487 remain. `regexp_gc.js` has
 regular expressions, results, collected results of a script's `exec` and
 iterators with collections in callbacks, getters, `exec` and `valueOf`
 (the expected output is that of Node.js 22). The hostile tests in

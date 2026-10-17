@@ -54,19 +54,18 @@ struct Compiler<'a> {
     /// The next free slot.
     next_slot: u32,
     alternations: Vec<(u32, Vec<u32>)>,
+    tables: Vec<Box<[(u32, u32)]>>,
 }
 
 /// Compiles a parsed pattern.
 pub(crate) fn compile(ast: &Ast, flags: Flags) -> Result<Program, Error> {
-    if ast.uses_properties {
-        return Err(Error::Unsupported("Unicode property escapes"));
-    }
     let unicode = flags.contains(Flags::UNICODE) || flags.contains(Flags::UNICODE_SETS);
     let mut compiler = Compiler {
         ast,
         insts: Vec::new(),
         next_slot: (ast.group_count + 1) * 2 + ast.group_count,
         alternations: Vec::new(),
+        tables: Vec::new(),
     };
     compiler.run(ast.root)?;
     compiler.emit(Inst::Match)?;
@@ -79,6 +78,7 @@ pub(crate) fn compile(ast: &Ast, flags: Flags) -> Result<Program, Error> {
             .iter()
             .map(|l| l.clone().into_boxed_slice())
             .collect(),
+        tables: compiler.tables,
         group_count: ast.group_count,
         slot_count: compiler.next_slot,
         unicode,
@@ -219,6 +219,7 @@ impl Compiler<'_> {
             Node::Assert(a) => {
                 self.emit(Inst::Assert(*a))?;
             }
+            Node::Strings { list, fold } => self.strings(*list, *fold, back)?,
             Node::Backref { list, ignore_case } => {
                 self.emit(Inst::Backref {
                     list: *list,
@@ -297,6 +298,84 @@ impl Compiler<'_> {
                 back,
                 tasks,
             )?,
+        }
+        Ok(())
+    }
+
+    /// Compiles a list of strings as a trie (see [`Trie`]): an
+    /// [`Inst::Switch`] per node with children, preceded by a fork to the
+    /// end if a string ends at the node.
+    ///
+    /// The strings that match at one position are prefixes of each other
+    /// (suffixes, when reading backward), so they lie on one path of the
+    /// trie. The alternatives of a class with strings are tried from the
+    /// longest string to the shortest (`CompileAtom`, §22.2.2.7, and the
+    /// order of `CompileToCharSet`, §22.2.2.9). The trie goes down as far
+    /// as the input allows first, and the fork at a node where a string
+    /// ends is a choice point that is taken only after everything deeper
+    /// failed: the same order, also when a later part of the pattern
+    /// fails and the matcher backtracks into the strings. A lookbehind
+    /// reads the strings from their ends, so its trie holds the reversed
+    /// strings.
+    fn strings(&mut self, list: u32, fold: bool, back: bool) -> Result<(), Error> {
+        let ast = self.ast;
+        let Some(strings) = ast.string_lists.get(list as usize) else {
+            return Ok(());
+        };
+        let trie = Trie::new(strings, fold, back);
+        let mut pcs = vec![0u32; trie.nodes.len()];
+        let mut table_ids = vec![0u32; trie.nodes.len()];
+        let mut forks = Vec::new();
+        let mut stack = vec![0usize];
+        while let Some(n) = stack.pop() {
+            let Some(node) = trie.nodes.get(n) else {
+                continue;
+            };
+            if node.edges.is_empty() {
+                continue;
+            }
+            if let Some(pc) = pcs.get_mut(n) {
+                *pc = self.pc();
+            }
+            if node.accept {
+                forks.push(self.emit(Inst::Fork { alt: 0 })?);
+            }
+            let table = self.tables.len() as u32;
+            self.tables.push(Box::new([]));
+            if let Some(id) = table_ids.get_mut(n) {
+                *id = table;
+            }
+            self.emit(Inst::Switch { table, back, fold })?;
+            stack.extend(node.edges.iter().rev().map(|e| e.1 as usize));
+        }
+        let end = self.pc();
+        for fork in forks {
+            self.patch(fork, end);
+        }
+        for (n, node) in trie.nodes.iter().enumerate() {
+            if node.edges.is_empty() {
+                continue;
+            }
+            let entries: Box<[(u32, u32)]> = node
+                .edges
+                .iter()
+                .map(|&(c, child)| {
+                    let leaf = trie
+                        .nodes
+                        .get(child as usize)
+                        .is_none_or(|t| t.edges.is_empty());
+                    let target = if leaf {
+                        end
+                    } else {
+                        pcs.get(child as usize).copied().unwrap_or(end)
+                    };
+                    (c, target)
+                })
+                .collect();
+            let id = table_ids.get(n).copied().unwrap_or(0) as usize;
+            if let Some(slot) = self.tables.get_mut(id) {
+                *slot = entries;
+            }
         }
         Ok(())
     }
@@ -392,6 +471,78 @@ impl Compiler<'_> {
     }
 }
 
+/// A node of the trie of a list of strings.
+struct TrieNode {
+    /// A string ends here.
+    accept: bool,
+    /// (character, index of the child node), sorted by character.
+    edges: Vec<(u32, u32)>,
+}
+
+/// The trie of a list of strings. The node 0 is the root.
+struct Trie {
+    nodes: Vec<TrieNode>,
+}
+
+impl Trie {
+    /// With `fold`, the strings are case folded (the matcher folds the
+    /// input); with `back`, they are reversed.
+    fn new(strings: &[Vec<u32>], fold: bool, back: bool) -> Trie {
+        let mut keys: Vec<Vec<u32>> = strings
+            .iter()
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                let mut key: Vec<u32> = s
+                    .iter()
+                    .map(|&c| {
+                        if fold {
+                            charset::canonicalize(charset::CaseMode::Fold, c)
+                        } else {
+                            c
+                        }
+                    })
+                    .collect();
+                if back {
+                    key.reverse();
+                }
+                key
+            })
+            .collect();
+        // In sorted order, a new edge of a node never comes before the
+        // edges that it has.
+        keys.sort_unstable();
+        keys.dedup();
+        let mut nodes = vec![TrieNode {
+            accept: false,
+            edges: Vec::new(),
+        }];
+        for key in &keys {
+            let mut at = 0usize;
+            for &c in key {
+                let last = nodes.get(at).and_then(|n| n.edges.last().copied());
+                at = match last {
+                    Some((x, child)) if x == c => child as usize,
+                    _ => {
+                        let child = nodes.len();
+                        nodes.push(TrieNode {
+                            accept: false,
+                            edges: Vec::new(),
+                        });
+                        if let Some(node) = nodes.get_mut(at) {
+                            node.edges.push((c, child as u32));
+                        }
+                        child
+                    }
+                };
+            }
+            if let Some(node) = nodes.get_mut(at) {
+                node.accept = true;
+            }
+        }
+        Trie { nodes }
+    }
+}
+
 /// The fields of [`Node::Repeat`].
 struct Repeat {
     min: u32,
@@ -430,6 +581,15 @@ fn prefix(ast: &Ast) -> Option<Prefix> {
                 work.push(first);
             }
             Node::Alt(items) => work.extend(items.iter().copied()),
+            Node::Strings { list, fold } => {
+                let strings = ast.string_lists.get(*list as usize)?;
+                let mut firsts =
+                    CharSet::from_ranges(strings.iter().filter_map(|s| s.first()).map(|&c| (c, c)));
+                if *fold {
+                    firsts = charset::case_closure(charset::CaseMode::Fold, &firsts);
+                }
+                set.add(&firsts);
+            }
             _ => return None,
         }
     }
@@ -440,4 +600,36 @@ fn prefix(ast: &Ast) -> Option<Prefix> {
         return None;
     }
     Some(Prefix::Set(SetData::new(set.ranges())))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trie_shares_prefixes_and_marks_ends() {
+        let strings = vec![
+            vec![1, 2, 3],
+            vec![1, 2],
+            vec![1, 5],
+            vec![4, 2],
+            vec![1, 2],
+        ];
+        let trie = Trie::new(&strings, false, false);
+        // root, 1, 1-2, 1-2-3, 1-5, 4, 4-2
+        assert_eq!(trie.nodes.len(), 7);
+        let root = &trie.nodes[0];
+        assert_eq!(root.edges.iter().map(|e| e.0).collect::<Vec<_>>(), [1, 4]);
+        let one_two = &trie.nodes[trie.nodes[1].edges[0].1 as usize];
+        assert!(one_two.accept && !one_two.edges.is_empty());
+        assert!(!trie.nodes[1].accept);
+    }
+
+    #[test]
+    fn trie_reverses_and_folds() {
+        let trie = Trie::new(&[vec![0x41, 0x42], vec![0x61, 0x62]], true, true);
+        // Folded to "ab" (one string), reversed: b, a.
+        assert_eq!(trie.nodes.len(), 3);
+        assert_eq!(trie.nodes[0].edges[0].0, 0x62);
+    }
 }

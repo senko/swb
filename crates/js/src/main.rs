@@ -33,7 +33,7 @@ Usage:
 Options:
   -e CODE               run CODE (before the files, if both are given)
   --heap-limit MIB      heap limit in MiB (default 1024)
-  --stress              collect garbage at every safepoint
+  --stress              collect garbage at the safepoints (stress mode)
   --time-limit MS       end a run after MS milliseconds
   --disassemble         print the bytecode of each script before it runs
   --compile-only        compile only (with --disassemble: list, do not run)

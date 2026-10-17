@@ -11,6 +11,8 @@
 //! with `i` becomes the set of characters it matches, `^` with `m` is a
 //! line start, and so on.
 
+use std::sync::Arc;
+
 use crate::charset::CharSet;
 
 /// The index of a node.
@@ -48,6 +50,13 @@ pub(crate) enum Node {
     AnyButLineTerminator,
     /// Every character.
     Any,
+    /// One of many strings of a class with `v` (the empty string of
+    /// `\q{...|}` can be one of them), the list with this index of
+    /// [`Ast::string_lists`]. The
+    /// compiler makes a trie of them. With `fold` (the `i` flag), the
+    /// input is compared by its simple case folding and the strings are
+    /// folded.
+    Strings { list: u32, fold: bool },
     /// A zero-width assertion.
     Assert(Assertion),
     /// A backreference to the groups (by number, from 1) in the list with
@@ -98,15 +107,18 @@ pub(crate) struct Ast {
     /// The character sets of [`Node::Set`]: the input characters that
     /// match, after case closure and complement.
     pub(crate) sets: Vec<CharSet>,
+    /// The string lists of [`Node::Strings`].
+    pub(crate) string_lists: Vec<Arc<[Vec<u32>]>>,
+    /// The characters in all of [`Ast::string_lists`] (a limit on memory).
+    pub(crate) string_chars: usize,
     /// The group lists of [`Node::Backref`].
     pub(crate) backref_lists: Vec<Vec<u32>>,
     /// The number of capture groups.
     pub(crate) group_count: u32,
     /// The name of each capture group (index 0 is group 1), as UTF-16.
     pub(crate) group_names: Vec<Option<Vec<u16>>>,
-    /// Whether the pattern has `\p{...}` or `\P{...}` (their sets come in
-    /// M7 feature 8c).
-    pub(crate) uses_properties: bool,
+    /// The number of ranges in all of [`Ast::sets`] (a limit on memory).
+    pub(crate) set_ranges: usize,
 }
 
 impl Ast {
@@ -136,8 +148,18 @@ impl Ast {
     /// Adds a set and returns its node.
     pub(crate) fn push_set(&mut self, set: CharSet) -> NodeId {
         let index = self.sets.len() as u32;
+        self.set_ranges += set.ranges().len();
         self.sets.push(set);
         self.push(Node::Set(index))
+    }
+
+    /// Adds a list of strings and returns the node that matches one of
+    /// them. The list can have the empty string.
+    pub(crate) fn push_strings(&mut self, strings: Arc<[Vec<u32>]>, fold: bool) -> NodeId {
+        let list = self.string_lists.len() as u32;
+        self.string_chars += strings.iter().map(Vec::len).sum::<usize>();
+        self.string_lists.push(strings);
+        self.push(Node::Strings { list, fold })
     }
 
     fn analyze(&self, node: &Node) -> Info {
@@ -152,6 +174,14 @@ impl Ast {
         match node {
             Node::Empty | Node::Assert(_) | Node::Look { .. } => EMPTY,
             Node::Char(_) | Node::Set(_) | Node::Any | Node::AnyButLineTerminator => CHAR,
+            Node::Strings { list, .. } => Info {
+                min_len: self
+                    .string_lists
+                    .get(*list as usize)
+                    .and_then(|l| l.iter().map(Vec::len).min())
+                    .map_or(0, |n| n as u32),
+                zero_width: false,
+            },
             Node::Backref { .. } => Info {
                 min_len: 0,
                 zero_width: false,

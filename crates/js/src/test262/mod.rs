@@ -42,9 +42,8 @@ Usage: swb-js test262 [OPTIONS] [PATH...]
                      file (needs a run of whole groups: no file or inner path)
   --stress           GC stress mode (slow; looks for rooting bugs)
   --jobs N           threads (default: the number of CPUs)
-  --time-limit MS    per run (default 10000; 300000 with --stress, where a
-                     collection at every safepoint makes loops of a million
-                     calls slow)
+  --time-limit MS    per run (default 10000; 300000 with --stress, where
+                     the collections make loops of a million calls slow)
   --heap-limit MIB   per run (default 256)
   --report FILE      write one line per test and mode (TSV) to FILE
   --top N            show the N most common failure messages (default 10)

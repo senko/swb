@@ -12,10 +12,6 @@
 //! compiler (`compile.rs`) emits instructions (`program.rs`) and the
 //! matcher (`exec.rs`) follows ECMA-262 §22.2.2 with a backtrack stack and
 //! an undo log. None of them recurses in Rust.
-//!
-//! Not yet supported: the code point sets of `\p{...}` and `\P{...}` (M7
-//! feature 8c). Patterns with them parse (their names are checked), but
-//! [`Regex::new`] returns [`Error::Unsupported`].
 
 mod ast;
 mod charset;
@@ -135,8 +131,7 @@ pub struct Regex {
 impl Regex {
     /// Parses and compiles a pattern (§22.2.3.3, `RegExpInitialize` steps 10
     /// to 16). The errors are [`Error::Syntax`] (a `SyntaxError`, also for
-    /// the limits on captures, nesting and program size) and
-    /// [`Error::Unsupported`].
+    /// the limits on captures, nesting and program size).
     pub fn new(pattern: Str16<'_>, flags: Flags) -> Result<Regex, Error> {
         let ast = parser::parse(pattern, flags).map_err(Error::Syntax)?;
         let program = compile::compile(&ast, flags)?;

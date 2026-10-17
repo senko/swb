@@ -1596,6 +1596,27 @@ failures with a reason. Features, in this order:
      with case folding of property sets in `v` mode with `i`. (The
      simple case folding of `u` and `v` with `i` came with 8a.) Tests: test262
      `built-ins/RegExp/property-escapes` and `unicodeSets`.
+     Done 2026-10-17: a generator writes the sets of General_Category
+     (with the groups), Script, Script_Extensions, the binary properties
+     and the properties of strings from the UCD and emoji files 17.0.0,
+     as delta-encoded ranges in `js-text` (about 82 KB in the binary).
+     The parser builds each set once per property, `\P` and `i`, so
+     10,000 `\p{L}` with `iu` compile in 1 to 2 ms. With `v` and `i` a
+     lone General_Category value such as `\p{Lu}` is case folded as in
+     Chromium, although the spec text leaves it unfolded (ADR 0026
+     section 15). Classes with more than 8 strings and the properties of
+     strings compile to a trie with a sorted table per node: after the
+     review, `/\p{RGI_Emoji}/v` over a million characters takes 5 ms
+     (was 43 s). 299 probe cases with `\p` give Chromium 148's results,
+     except six cases of `\p{ASCII}` with `iv` and U+017F or U+212A,
+     where swb follows the spec. test262 runtime: 35,233 pass (was 34,707), the same in stress mode;
+     `built-ins/RegExp` 1,854 pass, 1 fail (needs `Date`); parse-only
+     unchanged (42,240). The stress mode now collects less often after
+     the first 65,536 safepoints of a run: the generated property tests
+     loop a million times, and the stress run took 75 minutes (now
+     about 10).
+     Feature 8 done 2026-10-17: test262 runtime 32,775 → 35,233; the
+     target scripts that compile 46 → 84.
 9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
    invariant checks, `WeakMap`, `WeakSet` and their ephemeron marking,
    `WeakRef`, `FinalizationRegistry`, the kept-alive list.
@@ -1932,6 +1953,19 @@ not repeated here; the open items of each spike session are in M6 step
     235 KB (about 0.8 KB each). The note does not say if the strings
     were still reachable. Repeat the case and find out what the count
     holds.
+- Unicode property sets (M7 8c):
+  - The lone General_Category value with `v` and `i` (ADR 0026 section
+    15): check whether the spec text is a known editorial error, and
+    follow the text if it is changed.
+  - The emoji ZWJ sequences take 25 KB of the 76 KB of data; a small
+    dictionary for U+200D and U+FE0F would save about 7 KB.
+  - A class such as `[\p{L}]` costs about 10 µs (union and hash); a
+    cache for one-item classes would skip that.
+  - A class with a property of strings, such as `[\p{RGI_Emoji}x]`,
+    builds its strings in a `BTreeSet<Vec<u32>>`, about 1 ms per
+    occurrence; a sorted vector would be faster.
+  - The trie of a string list is built again for each occurrence (about
+    0.3 ms for `\p{RGI_Emoji}`); a cache per list would skip that.
 
 ## Backlog from M5
 

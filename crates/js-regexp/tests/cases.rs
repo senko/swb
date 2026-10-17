@@ -39,6 +39,34 @@ const KNOWN: &[(&str, &str)] = &[
         "/\\p{scx=Katakana_Or_Hiragana}/u",
         "Katakana_Or_Hiragana is a Script value (spec)",
     ),
+    // `\p{ASCII}` with `iv`: §22.2.2.9 applies MaybeSimpleCaseFolding to the
+    // set, so U+017F and U+212A (which fold to `s` and `k`) match it, and
+    // CharacterComplement uses AllCharacters (the fixed points of the
+    // folding) for `\P{ASCII}`, `[^...]` and `--`. Chromium 148 does not.
+    (
+        "/\\p{ASCII}/iv \"\u{17f}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
+    (
+        "/\\P{ASCII}/iv \"\u{17f}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
+    (
+        "/[^\\p{ASCII}]/iv \"\u{17f}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
+    (
+        "/[\\p{Lu}--\\p{ASCII}]/iv \"\u{212a}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
+    (
+        "/[\\p{L}&&\\p{ASCII}]/iv \"\u{17f}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
+    (
+        "/[\\p{L}&&\\p{ASCII}]/iv \"\u{212a}\"",
+        "ASCII with iv: MaybeSimpleCaseFolding (spec)",
+    ),
 ];
 
 /// A string of the data file: a JSON string, or an array of code units
@@ -120,7 +148,6 @@ fn result_of(
 fn exec_matches_chromium() {
     let data = data();
     let mut failures = Vec::new();
-    let mut unsupported = 0;
     let cases = data["exec"].as_array().expect("exec cases");
     for case in cases {
         let pattern = units(&case["pattern"]);
@@ -131,10 +158,6 @@ fn exec_matches_chromium() {
         let flags = parse_flags(Str16::Latin1(flag_text.as_bytes())).expect("valid flags");
         let regex = match Regex::new(text(&pattern), flags) {
             Ok(regex) => regex,
-            Err(Error::Unsupported(_)) => {
-                unsupported += 1;
-                continue;
-            }
             Err(error) => {
                 if expected.get("error").is_none() && !known(&key) {
                     failures.push(format!("{key}: compile error {error}"));
@@ -163,7 +186,6 @@ fn exec_matches_chromium() {
             failures.push(format!("{key}: got {actual}, Chromium {wanted}"));
         }
     }
-    assert!(unsupported < 20, "{unsupported} cases need property sets");
     assert!(
         failures.is_empty(),
         "{} of {} cases differ:\n{}",
@@ -201,7 +223,7 @@ fn syntax_errors_match_chromium() {
         // The full parse that builds the tree finds the same errors.
         if let Ok(flags) = parse_flags(text(&flag_units)) {
             let compiled = match Regex::new(text(&pattern), flags) {
-                Ok(_) | Err(Error::Unsupported(_)) => "ok".to_string(),
+                Ok(_) => "ok".to_string(),
                 Err(error) => format!(
                     "SyntaxError: {}",
                     error.message(text(&pattern), text(&flag_units))

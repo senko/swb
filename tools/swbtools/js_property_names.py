@@ -18,7 +18,7 @@ accepts it, and so does swb. Names match exactly (case, `_` and `-`
 matter; no `Is` prefix).
 
 The tables map each accepted name to the index of its canonical name, so
-that the code point sets (M7 feature 8c) can use the same indices.
+that the code point sets (`js_property_sets.py`) use the same indices.
 """
 
 from pathlib import Path

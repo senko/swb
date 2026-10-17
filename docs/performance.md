@@ -364,6 +364,39 @@ classes still pay for their case closure: 20,000 distinct classes of the
 last form take 1.35 s (67 µs each; the closure of a range of 3,800
 characters walks about 300 changed characters).
 
+Property escapes (M7 8c, release, wall time of `swb-js -e` minus 2 ms of
+start-up): the data of all sets is 76 KB of delta-encoded ranges plus
+2 KB of offsets, about 82 KB with the decoder in `swb-js`. A set is
+decoded on use (`\p{L}` unites five values). The parser keeps the set and, outside a class,
+the node of each property by property, `\P` and `i`: 10,000 times `\p{L}`,
+`\P{L}` or `\p{Any}` with `iu` or `iv` compile in 1 to 2 ms and share one
+set; 10,000 literals `/\p{L}/u` evaluated in a loop 5 ms. A class pays
+for the union and the hash of its set: 10,000 times `[\p{L}--\p{Lu}]`
+with `v` or `iv` 80 to 100 ms and 10,000 times `[\p{L}\d]` with `iu`
+96 ms (about 10 µs each); 20 different properties 50 times each in
+classes with `iv` 11 ms. One `\p{RGI_Emoji}` (about 3,800 strings)
+takes 1 to 2 ms with `v` and 2 ms with `iv`; 20 of them 14 ms before and
+11 to 12 ms after the cache of the decoded and folded strings of a
+property (about 0.3 ms for each further occurrence); 200 of them with
+`iv` 86 ms. Matching 1.1 MB of text with `/\p{L}+/gu` takes 24 ms.
+
+Match time of `\p{RGI_Emoji}` (M7 8c fix round, release): the strings were
+an alternation that tried all 3,800 strings at every position, about
+43 µs per position. They are now a trie (one `Switch` per node, a few
+steps per position) and the prefix scan skips positions that cannot
+start a string.
+
+| Case | Before | After |
+|---|---|---|
+| `/\p{RGI_Emoji}/v.test("a".repeat(1e6))` | 43 s | 5 ms (the prefix scan) |
+| `/\p{RGI_Emoji}*b/v.test("a".repeat(1e6))` (no prefix scan) | 43 s | 33 ms |
+| `/\p{RGI_Emoji}+/iv.test("\u{1F600}".repeat(2e5))` | not measured | 18 ms |
+| `bench` example, `\p{RGI_Emoji}` with `gv` over 110k units, 10,000 matches | 1,154 ms, 501M steps | 0.85 ms, 128k steps |
+| `bench`, same with `giv` | 1,160 ms | 0.88 ms |
+| `/\p{RGI_Emoji}+x/v.test("\u{1F600}".repeat(2e5))` | runs until the limit | runs until the limit (quadratic) |
+
+The other `bench` rows are within noise of the numbers before.
+
 ### The `RegExp` built-in
 
 The `regexp:` rows of `vm_bench` (best of 5, release, against `node

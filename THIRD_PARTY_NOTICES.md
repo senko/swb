@@ -250,7 +250,8 @@ Fonts in the fixtures:
 The tables of the JavaScript engine (`crates/js-text/src/unicode/`) and of
 line breaking (`crates/text/src/linebreak/tables.rs`) are generated from
 files of the Unicode Character Database 17.0.0
-(https://www.unicode.org/Public/17.0.0/ucd/), and
+(https://www.unicode.org/Public/17.0.0/ucd/, and, for the emoji sequences
+of the sets of `\p{...}`, https://www.unicode.org/Public/17.0.0/emoji/), and
 `crates/js-text/tests/data/normalization_sample.txt` is a sample of its
 `NormalizationTest.txt`. The header of each file says:
 

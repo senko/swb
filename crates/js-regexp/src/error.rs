@@ -119,10 +119,6 @@ pub enum Error {
     /// ([`Error::message`]).
     #[error("{}", .0.message())]
     Syntax(SyntaxKind),
-    /// The pattern is valid but uses something that the engine does not
-    /// support yet: the code point sets of `\p{...}` (M7 feature 8c).
-    #[error("{0} not supported yet")]
-    Unsupported(&'static str),
     /// The backtrack stack of a match needs more memory than the caller
     /// allows.
     #[error("Regular expression backtracking exceeded the memory limit")]

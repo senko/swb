@@ -4,8 +4,9 @@
 //! an explicit stack.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
-use super::{MAX_NESTING, Parser, Result};
+use super::{MAX_LINEAR_STRINGS, MAX_NESTING, MAX_STRING_CHARS, Parser, Result};
 use crate::ast::NodeId;
 use crate::charset::CharSet;
 use crate::error::SyntaxKind;
@@ -19,9 +20,9 @@ enum ClassAtom {
 /// A `CharSet` of the `v` flag: single characters and strings of other
 /// lengths (§22.2.2.1).
 #[derive(Clone, Debug, Default)]
-struct ClassSet {
-    chars: CharSet,
-    strings: BTreeSet<Vec<u32>>,
+pub(super) struct ClassSet {
+    pub(super) chars: CharSet,
+    pub(super) strings: BTreeSet<Vec<u32>>,
 }
 
 impl ClassSet {
@@ -241,7 +242,9 @@ impl Parser<'_> {
             }
             0x70 | 0x50 if self.unicode => {
                 self.c.skip(1);
-                Ok(ClassAtom::Set(self.property(e == 0x50, true)?.0))
+                let property = self.property(e == 0x50, true)?;
+                let set = self.property_value(property, e == 0x50);
+                Ok(ClassAtom::Set(set))
             }
             _ => Ok(ClassAtom::Char(self.character_escape(true)?)),
         }
@@ -299,12 +302,19 @@ impl Parser<'_> {
             if self.c.is(0, b'\\') && is_class_escape(self.c.unit(1)) {
                 let e = self.c.unit(1).expect("checked");
                 self.c.skip(2);
-                let (chars, may) = if e == 0x70 || e == 0x50 {
-                    self.property(e == 0x50, true)?
+                let (value, may) = if e == 0x70 || e == 0x50 {
+                    let property = self.property(e == 0x50, true)?;
+                    let chars = self.property_value(property, e == 0x50);
+                    let strings = if property.has_strings() {
+                        self.property_strings(property).iter().cloned().collect()
+                    } else {
+                        BTreeSet::new()
+                    };
+                    (ClassSet { chars, strings }, property.has_strings())
                 } else {
-                    (self.class_escape(e), false)
+                    (ClassSet::chars(self.class_escape(e)), false)
                 };
-                frame.apply(ClassSet::chars(chars), may, false);
+                frame.apply(value, may, false);
                 self.no_range_after(frame)?;
                 continue;
             }
@@ -451,15 +461,50 @@ impl Parser<'_> {
         }
     }
 
+    /// The node of a class with `v` and many strings: one [`Node::Strings`]
+    /// for all strings (a trie, see `Compiler::strings`), then the single
+    /// characters, then the empty string if it is a member (the order of
+    /// `class_set_node`).
+    pub(super) fn strings_node(
+        &mut self,
+        chars: CharSet,
+        strings: Arc<[Vec<u32>]>,
+    ) -> Result<NodeId> {
+        let empty = strings.iter().any(Vec::is_empty);
+        if self.ast.string_chars + strings.iter().map(Vec::len).sum::<usize>() > MAX_STRING_CHARS {
+            return Err(SyntaxKind::TooLarge);
+        }
+        let mut alternatives = vec![self.node_strings(strings)?];
+        if !chars.is_empty() {
+            alternatives.push(self.set_node(chars, false)?);
+        }
+        if empty {
+            alternatives.push(self.node(crate::ast::Node::Empty)?);
+        }
+        self.alternatives(alternatives)
+    }
+
+    fn node_strings(&mut self, strings: Arc<[Vec<u32>]>) -> Result<NodeId> {
+        if self.ast.nodes.len() >= super::MAX_NODES {
+            return Err(SyntaxKind::TooLarge);
+        }
+        let fold = self.mods.ignore_case;
+        Ok(self.ast.push_strings(strings, fold))
+    }
+
     /// The node of a class with `v` (`CompileAtom`, §22.2.2.7): the strings
     /// from the longest to the shortest, then the single characters, then
     /// the empty string.
-    fn class_set_node(&mut self, value: ClassSet) -> Result<NodeId> {
+    pub(super) fn class_set_node(&mut self, value: ClassSet) -> Result<NodeId> {
         if self.validate {
             return Ok(0);
         }
         if value.strings.is_empty() {
             return self.set_node(value.chars, false);
+        }
+        if value.strings.len() > MAX_LINEAR_STRINGS {
+            let strings: Vec<Vec<u32>> = value.strings.into_iter().collect();
+            return self.strings_node(value.chars, strings.into());
         }
         let mut strings: Vec<Vec<u32>> = value.strings.into_iter().collect();
         strings.sort_by_key(|s| std::cmp::Reverse(s.len()));

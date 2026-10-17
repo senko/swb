@@ -40,6 +40,11 @@ pub(crate) enum Inst {
         min: u32,
         max: u32,
     },
+    /// Reads one character and continues at the target that the table
+    /// `table` of [`Program::tables`] gives for it (a trie node of a list
+    /// of strings; with `fold` the character is first case folded);
+    /// fails if the table has no entry.
+    Switch { table: u32, back: bool, fold: bool },
     /// A zero-width assertion.
     Assert(Assertion),
     /// Continues at the next instruction; on failure at `alt`.
@@ -147,6 +152,9 @@ pub(crate) struct Program {
     pub(crate) insts: Vec<Inst>,
     pub(crate) sets: Vec<SetData>,
     pub(crate) backref_lists: Vec<Box<[u32]>>,
+    /// The tables of [`Inst::Switch`]: (character, program position),
+    /// sorted by character.
+    pub(crate) tables: Vec<Box<[(u32, u32)]>>,
     /// The number of capture groups (without the whole match).
     pub(crate) group_count: u32,
     /// All slots: 2 per capture group and 2 for the whole match, then one
@@ -179,11 +187,16 @@ impl Program {
             + self.backref_lists.capacity() * size_of::<Box<[u32]>>();
         let sets: usize = self.sets.iter().map(|s| s.ranges.len() * 8).sum();
         let lists: usize = self.backref_lists.iter().map(|l| l.len() * 4).sum();
+        let tables: usize = self
+            .tables
+            .iter()
+            .map(|t| size_of::<Box<[(u32, u32)]>>() + t.len() * 8)
+            .sum();
         let prefix = match &self.prefix {
             Some(Prefix::Set(s)) => size_of::<SetData>() + s.ranges.len() * 8,
             _ => 0,
         };
-        insts + table + sets + lists + prefix
+        insts + table + sets + lists + tables + prefix
     }
 }
 

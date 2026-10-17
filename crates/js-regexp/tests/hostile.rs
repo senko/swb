@@ -5,6 +5,7 @@
 //! 2 MiB stack of a test thread, which also shows that nothing recurses
 //! with the nesting.
 
+use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
 use swb_js_regexp::{Error, Flags, Matcher, Outcome, Regex, SyntaxKind, check_literal};
@@ -322,4 +323,244 @@ fn slots_and_undo_log_count_against_the_memory_limit() {
     let result = matcher.run(&regex, input.as_str16(), u32::MAX, limit);
     assert_eq!(result, Err(Error::MemoryLimit));
     assert!(matcher.heap_bytes() <= limit, "{}", matcher.heap_bytes());
+}
+
+/// Compiles a pattern, checks the time and `heap_bytes()` and returns the
+/// regex.
+fn compile_within(pattern: &str, flags: &str, seconds: u64, heap: usize) -> Regex {
+    let start = Instant::now();
+    let regex = compile(pattern, flags_of(flags)).expect("valid");
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < Duration::from_secs(seconds),
+        "{flags} {:?}: {elapsed:?}",
+        pattern.chars().take(40).collect::<String>()
+    );
+    assert!(regex.heap_bytes() < heap, "{flags}: {}", regex.heap_bytes());
+    regex
+}
+
+#[test]
+fn repeated_property_escapes_share_their_sets() {
+    // Each occurrence needs the node of a set of hundreds of ranges and,
+    // with `i`, its case closure.
+    for (pattern, flags) in [
+        ("\\p{L}", "iu"),
+        ("\\P{L}", "iu"),
+        ("\\p{L}", "iv"),
+        ("\\P{L}", "iv"),
+        ("\\p{Any}", "iu"),
+        ("\\p{Any}", "v"),
+        ("\\p{Script=Latin}", "iu"),
+        ("[\\p{L}--\\p{Lu}]", "v"),
+        ("[\\p{L}--\\p{Lu}]", "iv"),
+        ("[\\p{L}\\d]", "iu"),
+    ] {
+        let regex = compile_within(&pattern.repeat(10_000), flags, 3, 4 << 20);
+        let input = if pattern.contains("Latin") {
+            "a"
+        } else {
+            "\u{4e2d}"
+        }
+        .repeat(10_000);
+        let found = first_match_in(&regex, &input);
+        let expected = (pattern != "\\P{L}" && !pattern.contains("--")).then_some((0, 10_000));
+        if let Some(expected) = expected {
+            assert_eq!(found, Some(expected), "{flags} {pattern}");
+        }
+    }
+}
+
+#[test]
+fn many_distinct_properties_in_one_pattern() {
+    // Many General_Category values, binary properties and scripts, each
+    // three times, as atoms and in classes.
+    let names = [
+        "L",
+        "Lu",
+        "Ll",
+        "Lt",
+        "LC",
+        "Lm",
+        "Lo",
+        "M",
+        "Mn",
+        "Mc",
+        "Me",
+        "N",
+        "Nd",
+        "Nl",
+        "No",
+        "P",
+        "Pc",
+        "Pd",
+        "Ps",
+        "Pe",
+        "Pi",
+        "Pf",
+        "Po",
+        "S",
+        "Sm",
+        "Sc",
+        "Sk",
+        "So",
+        "Z",
+        "Zs",
+        "Zl",
+        "Zp",
+        "C",
+        "Cc",
+        "Cf",
+        "Cs",
+        "Co",
+        "Cn",
+        "Alphabetic",
+        "Any",
+        "ASCII",
+        "Assigned",
+        "Cased",
+        "Emoji",
+        "ID_Start",
+        "ID_Continue",
+        "Lowercase",
+        "Uppercase",
+        "White_Space",
+        "Script=Latin",
+        "Script=Greek",
+        "Script=Cyrillic",
+        "Script=Han",
+        "Script=Arabic",
+        "scx=Latn",
+        "scx=Zyyy",
+        "scx=Arab",
+        "Extended_Pictographic",
+        "Bidi_Mirrored",
+        "Math",
+    ];
+    let mut pattern = String::new();
+    for round in 0..3 {
+        for name in names {
+            let neg = if round == 1 { 'P' } else { 'p' };
+            let _ = write!(pattern, "\\{neg}{{{name}}}|[\\{neg}{{{name}}}\\d]|");
+        }
+    }
+    pattern.push('x');
+    for flags in ["u", "iu", "v", "iv"] {
+        let regex = compile_within(&pattern, flags, 3, 16 << 20);
+        assert_eq!(first_match_in(&regex, "\u{4e2d}"), Some((0, 1)), "{flags}");
+    }
+}
+
+#[test]
+fn properties_of_strings_in_large_patterns() {
+    // About 3,800 strings each; the tree stays inside its limit.
+    let regex = compile_within(&"\\p{RGI_Emoji}".repeat(20), "v", 3, 32 << 20);
+    let flags = "\u{1F1ED}\u{1F1F7}".repeat(20);
+    assert_eq!(first_match_in(&regex, &flags), Some((0, 80)));
+    // Beyond the node limit: an error, not memory without bound.
+    let start = Instant::now();
+    let result = compile(&"\\p{RGI_Emoji}".repeat(100_000), flags_of("iv"));
+    assert!(
+        matches!(result, Err(Error::Syntax(SyntaxKind::TooLarge))),
+        "{:?}",
+        result.map(|r| r.heap_bytes())
+    );
+    assert!(start.elapsed() < Duration::from_secs(10));
+}
+
+#[test]
+fn properties_of_strings_cost_the_length_of_a_string_per_position() {
+    // The strings are a trie: a position costs a few steps, not one
+    // attempt per string (3,800 for RGI_Emoji). Before the trie, 1M units
+    // took 43 s.
+    let letters = "a".repeat(1_000_000);
+    for flags in ["v", "iv"] {
+        let start = Instant::now();
+        // The prefix scan skips the positions...
+        let regex = compile_within("\\p{RGI_Emoji}", flags, 2, 8 << 20);
+        assert_eq!(first_match_in(&regex, &letters), None, "{flags}");
+        // ...and here every position runs the trie.
+        let regex = compile_within("\\p{RGI_Emoji}*b", flags, 2, 8 << 20);
+        assert_eq!(first_match_in(&regex, &letters), None, "{flags}");
+        let emoji = "\u{1F600}".repeat(200_000);
+        let regex = compile_within("\\p{RGI_Emoji}+", flags, 2, 8 << 20);
+        assert_eq!(
+            first_match_in(&regex, &emoji),
+            Some((0, 400_000)),
+            "{flags}"
+        );
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}".repeat(40_000);
+        assert_eq!(
+            first_match_in(&regex, &family),
+            Some((0, 320_000)),
+            "{flags}"
+        );
+        assert!(start.elapsed() < Duration::from_secs(10), "{flags}");
+    }
+}
+
+#[test]
+fn properties_of_strings_with_a_failing_tail_run_in_slices() {
+    // `\p{RGI_Emoji}+x` over 200,000 emoji is quadratic (every start
+    // position scans to the end): the caller's step limit stops it, and
+    // every call stays short.
+    let emoji = s16(&"\u{1F600}".repeat(200_000));
+    let regex = compile_within("\\p{RGI_Emoji}+x", "v", 2, 8 << 20);
+    let outcome = run_in_slices(&regex, emoji.as_str16(), 100_000, 50);
+    assert_eq!(outcome, None, "50 calls do not finish");
+    // The same on a smaller input finishes.
+    let emoji = s16(&"\u{1F600}".repeat(2_000));
+    let outcome = run_in_slices(&regex, emoji.as_str16(), 1 << 20, 100);
+    assert_eq!(outcome, Some(Outcome::NoMatch));
+}
+
+#[test]
+fn class_strings_and_lookbehind_with_many_strings() {
+    let start = Instant::now();
+    let emoji = "\u{1F600}".repeat(200_000);
+    // A difference with strings, which the parser builds from sets.
+    let regex = compile_within("[\\p{RGI_Emoji}--\\q{ab|cd|ef}]+", "v", 2, 8 << 20);
+    assert_eq!(first_match_in(&regex, &emoji), Some((0, 400_000)));
+    let regex = compile_within("[\\p{RGI_Emoji}--\\q{ab|cd|ef}]+", "iv", 2, 8 << 20);
+    assert_eq!(first_match_in(&regex, &emoji), Some((0, 400_000)));
+    // Many strings of `\q{...}` in a lookbehind (the reversed trie).
+    let words: Vec<String> = (0..2_000).map(|i| format!("w{i}x")).collect();
+    let pattern = format!("(?<=[\\q{{{}}}])y", words.join("|"));
+    let regex = compile_within(&pattern, "v", 2, 8 << 20);
+    let input = format!("{}w1999xy", "w".repeat(100_000));
+    assert_eq!(
+        first_match_in(&regex, &input),
+        Some((input.len() - 1, input.len()))
+    );
+    // A lookbehind with `\p{RGI_Emoji}` over a long input.
+    let regex = compile_within("(?<=\\p{RGI_Emoji}+)b", "v", 2, 8 << 20);
+    let input = format!("{}b", "\u{1F600}".repeat(100_000));
+    assert_eq!(first_match_in(&regex, &input), Some((200_000, 200_001)));
+    assert!(start.elapsed() < Duration::from_secs(10));
+}
+
+#[test]
+fn distinct_large_sets_stay_inside_the_set_limit() {
+    // Each class unites `\p{L}` (hundreds of ranges) with another
+    // character: no two sets are the same.
+    let mut pattern = String::new();
+    for c in spread_chars(20_000) {
+        let _ = write!(pattern, "[\\p{{L}}{c}]");
+    }
+    let start = Instant::now();
+    let result = compile(&pattern, flags_of("v"));
+    // Either it fits in the limit or it is "too large".
+    match result {
+        Ok(regex) => assert!(regex.heap_bytes() < 128 << 20, "{}", regex.heap_bytes()),
+        Err(error) => assert_eq!(error, Error::Syntax(SyntaxKind::TooLarge)),
+    }
+    assert!(start.elapsed() < Duration::from_secs(10));
+}
+
+#[test]
+fn property_escapes_in_a_literal_check_build_no_sets() {
+    let pattern = "\\p{L}[\\p{Lu}--\\p{Ll}]\\P{Script=Greek}".repeat(100_000);
+    let start = Instant::now();
+    assert!(check_literal(s16(&pattern).as_str16(), Str16::Latin1(b"iv")).is_ok());
+    assert!(start.elapsed() < Duration::from_secs(3));
 }
