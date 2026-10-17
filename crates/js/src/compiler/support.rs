@@ -3,10 +3,8 @@
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
-//! the end of M7 feature 3 (3f), all of the syntax of feature 1 compiles
-//! except async generators and `for await` (feature 7d; `yield*` compiles
-//! since 7a, async functions and `await` since 7c), module code,
-//! `import()` and `import.meta` (feature 14),
+//! the end of M7 feature 7, all of the syntax of feature 1 compiles
+//! except module code, `import()` and `import.meta` (feature 14),
 //! and `BigInt` literals (feature 10); regular expression literals
 //! (feature 8) are rejected where the compiler meets them (`expr.rs`).
 
@@ -25,7 +23,6 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
 /// The construct of a statement that the compiler does not support.
 pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
     Some(match kind {
-        StmtKind::ForOf { is_await: true, .. } => "for await",
         StmtKind::Import
         | StmtKind::ExportDeclaration(_)
         | StmtKind::ExportDefault { .. }
@@ -71,12 +68,6 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
             if let ClassKey::Property(PropertyKey::BigInt(_)) = element.key {
                 note(element.span.start, "BigInt literal");
             }
-        }
-    }
-    for id in ast.function_ids() {
-        let function = ast.function(id);
-        if function.is_async && function.is_generator {
-            note(function.span.start, "async generator");
         }
     }
     first

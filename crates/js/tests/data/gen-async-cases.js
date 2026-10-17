@@ -29,12 +29,7 @@ const definitions = JSON.parse(
 //   `at async Promise.all (index 0)` and the function that awaits the
 //   result); swb shows no lines for built-in functions and follows only
 //   `await` (backlog).
-// - The source text of an async generator method and `async *` forms need
-//   async generators (feature 7d).
-const EXCLUDED = [
-  (snippet) => snippet.includes('await Promise.all([s_aa()])'),
-  (snippet) => snippet.includes('async *') || snippet.includes('async function*'),
-];
+const EXCLUDED = [(snippet) => snippet.includes('await Promise.all([s_aa()])')];
 
 // The runner of the probe file: everything before the list of snippets.
 const js = definitions.cases[0].measure[0].js;

@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn unsupported_constructs_are_counted_apart() {
-        let results = run("/*---\n---*/", "async function* f() {}");
+        let results = run("/*---\n---*/", "import('m');");
         assert!(matches!(combine(&results), Status::Unsupported(_)));
     }
 

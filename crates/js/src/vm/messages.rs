@@ -299,15 +299,21 @@ impl Runtime {
             Ok(ObjectKind::SetIterator(_)) => "[object Set Iterator]".to_owned(),
             Ok(ObjectKind::ArrayIterator(_)) => "[object Array Iterator]".to_owned(),
             Ok(ObjectKind::StringIterator(_)) => "[object String Iterator]".to_owned(),
-            Ok(ObjectKind::Generator(_)) => "[object Generator]".to_owned(),
+            Ok(ObjectKind::Generator(state)) => match state.kind {
+                super::generator::GeneratorKind::AsyncGenerator(_) => {
+                    "[object AsyncGenerator]".to_owned()
+                }
+                _ => "[object Generator]".to_owned(),
+            },
             // V8 finds no constructor name when the `constructor` found
-            // on the chain is an accessor (`Iterator.prototype`); it
-            // shows the `@@toStringTag` data property, else "Object".
+            // on the chain is an accessor (`Iterator.prototype`) or not a
+            // function (`%AsyncGeneratorPrototype%.constructor`); it shows
+            // the `@@toStringTag` data property, else "Object".
             Ok(
                 ObjectKind::Ordinary
                 | ObjectKind::IteratorHelper(_)
                 | ObjectKind::WrapForValidIterator(_),
-            ) if self.constructor_is_accessor(object) => format!(
+            ) if self.constructor_is_not_a_function(object) => format!(
                 "[object {}]",
                 match self
                     .chain_data_value_of(object, self.symbol_key(super::WellKnown::ToStringTag))
@@ -343,15 +349,18 @@ impl Runtime {
     }
 
     /// Whether the first property `constructor` on the prototype chain
-    /// from `object` is an accessor (no getter runs).
-    fn constructor_is_accessor(&self, object: Gc<Object>) -> bool {
+    /// from `object` is an accessor or a value that is not a function (no
+    /// getter runs).
+    fn constructor_is_not_a_function(&self, object: Gc<Object>) -> bool {
         let key = PropertyKey::String(self.vm.atoms.constructor);
         let mut current = Some(object);
         for _ in 0..CHAIN_LIMIT {
             let Some(object) = current else { return false };
             match self.heap.get_own_property(object, key) {
                 Ok(Some(Property::Accessor { .. })) => return true,
-                Ok(Some(_)) => return false,
+                Ok(Some(Property::Data { value, .. })) => {
+                    return !self.is_callable(value).unwrap_or(true);
+                }
                 _ => current = self.heap.get_prototype_of(object).ok().flatten(),
             }
         }

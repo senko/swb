@@ -1468,6 +1468,34 @@ failures with a reason. Features, in this order:
      requests), `for await`, `yield*` in async generators,
      `%AsyncFromSyncIteratorPrototype%`, `%AsyncIteratorPrototype%`,
      `AsyncGeneratorFunction`, `Array.fromAsync`.
+     Done 2026-10-17: async generators are generator objects with the
+     queue of requests of §27.6. `next`, `return` and `throw` resume the
+     frame in the caller's interpreter loop, and the frame gives the
+     request's promise to the caller when it suspends. `yield` awaits its
+     operand, the value of a return request is awaited before the frame
+     resumes, and the end of the body completes the request and drains
+     the queue. `for await` and `yield*` in async generators are the
+     loops of 7a with awaits and an awaited close; sync iterables go
+     through the Async-from-Sync Iterator, with the 2023 close on a
+     rejected value. `Array.fromAsync` is a state machine of internal
+     reactions. A chain of 100,000 `yield*` levels ends with a
+     `RangeError`; a million values through `for await` and a million
+     queued requests run without Rust recursion. 329 Chromium 148 cases
+     give the same output, also in stress mode. swb follows the
+     specification where V8 differs: a rejected return value at `yield*`
+     and four error paths of `Array.fromAsync`. Runtime test262: 32,775
+     pass (was 27,701), the same in stress mode; new groups for async
+     generator statements and expressions, `for-await-of` and four
+     built-in objects; 4,835 async-flag tests pass (were 886); parse-only
+     unchanged (41,882). No target script stops at an async generator or
+     `for await`; 46 of 84 compile, the other 38 stop at regular
+     expression literals (feature 8).
+   Feature 7 done 2026-10-17: generators complete, promises and the job
+   queue, async functions, async iteration. Runtime test262 went from
+   26,091 to 32,775 passes. The runner skipped all 2,645 async-flag tests
+   before 7b; with the new groups in the subset, 4,835 pass now. Of the
+   84 target scripts, 39 compiled before 7a and 46 now; none stops at
+   `async`, `await`, async generators or `for await`.
 8. Regular expressions (ADR 0026 section 10), in two parts:
    - 8a (`implementer-hard`, `js-regexp`): the pattern parser with
      Annex B, the compiler and the matcher, the `u`, `v`, `d`, `s`, `y`
@@ -1756,6 +1784,19 @@ not repeated here; the open items of each spike session are in M6 step
   - For the engine integration ADR: a termination at the tick inside
     the resume of an async function drops that job, so the function
     stays suspended for good.
+- Async iteration (M7 7d):
+  - Messages of `for await` for operands that swb does not render
+    (`{}`, `1 + 2`, `(0, 5)`): V8 renders the expression; swb says
+    `undefined is not a function`.
+  - `%AsyncIteratorPrototype%[Symbol.asyncDispose]` (Chromium 148) waits
+    for explicit resource management (see above).
+  - Speed: 5.5 to 9.3 times slower than `node --jitless` (100k values
+    through `for await` over an async generator 81 ms, Node.js 15 ms):
+    two jobs and 3 to 4 allocations per step (feature 13).
+  - `fib(27)` in `vm_bench` became 8 % slower with 7d although it runs
+    3 % fewer machine instructions; four layouts of the interpreter
+    change gave +7 to +13 %. Check the code alignment of the interpreter
+    loop in feature 13.
 
 ## Backlog from M5
 

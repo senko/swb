@@ -283,6 +283,7 @@ impl Runtime {
             let proto_kind = match compiled.kind {
                 CodeKind::Generator => Intrinsic::GeneratorFunctionPrototype,
                 CodeKind::Async => Intrinsic::AsyncFunctionPrototype,
+                CodeKind::AsyncGenerator => Intrinsic::AsyncGeneratorFunctionPrototype,
                 _ => Intrinsic::FunctionPrototype,
             };
             self.intrinsic(realm, proto_kind)?
@@ -318,8 +319,13 @@ impl Runtime {
                 let key = PropertyKey::String(self.vm.atoms.prototype);
                 self.define(function, key, prototype.into(), true, false, false)?;
             }
-            CodeKind::Generator => {
-                let generator_proto = self.intrinsic(realm, Intrinsic::GeneratorPrototype)?;
+            CodeKind::Generator | CodeKind::AsyncGenerator => {
+                let which = if compiled.kind == CodeKind::Generator {
+                    Intrinsic::GeneratorPrototype
+                } else {
+                    Intrinsic::AsyncGeneratorPrototype
+                };
+                let generator_proto = self.intrinsic(realm, which)?;
                 let prototype = self.heap.new_object(Some(generator_proto))?;
                 self.heap.record(prototype);
                 let key = PropertyKey::String(self.vm.atoms.prototype);

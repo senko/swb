@@ -41,16 +41,30 @@ use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::value::Value;
 use crate::vm::call::Step;
-use crate::vm::generator::{GeneratorState, GeneratorStatus};
+use crate::vm::generator::{GeneratorKind, GeneratorState, GeneratorStatus};
 use crate::vm::{Intrinsic, ReactionKind, Resume, ResumeMode, ReturnTo, VmError, VmResult};
 
 impl Runtime {
-    /// Runs `AsyncStart`, `Await` or `AsyncReject` for the interpreter
-    /// loop (the pc is saved). Returns a value for the host when the top
-    /// frame's result goes there.
+    /// Runs `AsyncStart`, `Await` or `AsyncReject`, or one of the
+    /// instructions of async generators and async iteration
+    /// (`async_generator.rs`, `async_iteration.rs`), for the interpreter
+    /// loop (the pc is saved; the loop reloads the top frame afterwards).
+    /// Returns a value for the host when the top frame's result goes
+    /// there.
     #[inline(never)]
     pub(crate) fn async_instruction(&mut self, insn: Insn) -> VmResult<Option<Value>> {
         match insn {
+            Insn::AsyncYield { reg } => self.async_yield(reg, false),
+            Insn::AsyncYieldDelegate { reg } => self.async_yield(reg, true),
+            Insn::GetAsyncIterator { .. }
+            | Insn::AsyncIteratorCall { .. }
+            | Insn::AsyncClose { .. }
+            | Insn::AsyncCloseEnd { .. }
+            | Insn::AsyncDelegateCall { .. }
+            | Insn::AsyncDelegateResult { .. } => {
+                self.async_iteration_instruction(insn)?;
+                Ok(None)
+            }
             Insn::AsyncStart => {
                 self.async_start()?;
                 Ok(None)
@@ -87,13 +101,10 @@ impl Runtime {
             .realm;
         self.with_scope(|rt| {
             let promise = rt.new_promise(realm)?;
-            let state = GeneratorState {
-                status: GeneratorStatus::Executing,
-                frame: None,
-                registers: Vec::new(),
-                resume_register: None,
-                promise: Some(promise),
-            };
+            let state = GeneratorState::new(
+                GeneratorStatus::Executing,
+                GeneratorKind::AsyncFunction(promise),
+            );
             let object = rt
                 .heap
                 .new_object_with_kind(None, ObjectKind::Generator(Box::new(state)))?;
@@ -106,25 +117,39 @@ impl Runtime {
         })
     }
 
-    /// The generator object and result promise of the running async
-    /// function's frame.
-    fn running_async(&self) -> VmResult<(Gc<Object>, Gc<Object>)> {
-        let generator = self
-            .vm
+    /// The generator object of the running async function's or async
+    /// generator's frame.
+    pub(crate) fn running_generator(&self) -> VmResult<Gc<Object>> {
+        self.vm
             .frames
             .last()
             .and_then(|frame| frame.generator)
-            .ok_or(VmError::invariant("await outside an async function frame"))?;
-        let promise = self.async_promise(generator)?;
-        Ok((generator, promise))
+            .ok_or(VmError::invariant("await outside an async function frame"))
     }
 
     /// The result promise of an async function's generator object; `None`
-    /// for the object of a generator.
+    /// for the object of a generator or an async generator.
     pub(crate) fn async_promise_of(&self, generator: Gc<Object>) -> VmResult<Option<Gc<Object>>> {
         match &self.heap.object(generator)?.kind {
-            ObjectKind::Generator(state) => Ok(state.promise),
+            ObjectKind::Generator(state) => Ok(match state.kind {
+                GeneratorKind::AsyncFunction(promise) => Some(promise),
+                GeneratorKind::Sync | GeneratorKind::AsyncGenerator(_) => None,
+            }),
             _ => Err(VmError::invariant("a generator frame without a generator")),
+        }
+    }
+
+    /// What a suspension of the frame of `generator` delivers to the frame's
+    /// caller: an async function's result promise; for an async generator
+    /// the promise of the call that resumed it, if a call did.
+    fn suspension_result(&mut self, generator: Gc<Object>) -> VmResult<Value> {
+        match &mut self.generator_state(generator)?.kind {
+            GeneratorKind::AsyncFunction(promise) => Ok(Value::Object(*promise)),
+            GeneratorKind::AsyncGenerator(data) => Ok(data
+                .caller_promise
+                .take()
+                .map_or(Value::Undefined, Value::Object)),
+            GeneratorKind::Sync => Err(VmError::invariant("await in a generator")),
         }
     }
 
@@ -139,7 +164,7 @@ impl Runtime {
     /// `PromiseResolve` (a `constructor` getter that throws) throws at the
     /// `await`, before the suspension.
     fn await_value(&mut self, register: Reg) -> VmResult<Option<Value>> {
-        let (generator, result) = self.running_async()?;
+        let generator = self.running_generator()?;
         let frame = self
             .vm
             .frames
@@ -161,8 +186,9 @@ impl Runtime {
         })?;
         // The reaction roots the generator object; the object roots the
         // result promise.
+        let result = self.suspension_result(generator)?;
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
-        Ok(self.deliver(ret, result.into()))
+        Ok(self.deliver(ret, result))
     }
 
     /// The end of a running async function's body (§27.7.5.2 steps 3.e
@@ -202,7 +228,10 @@ impl Runtime {
 
     /// `AsyncReject`: the body threw `value` and nothing in it caught it.
     fn async_reject(&mut self, value: Value) -> VmResult<Option<Value>> {
-        let (generator, _) = self.running_async()?;
+        let generator = self.running_generator()?;
+        if self.async_promise_of(generator)?.is_none() {
+            return self.async_generator_complete(generator, Err(value));
+        }
         self.async_return(generator, value, true)
     }
 }
@@ -213,7 +242,7 @@ impl Runtime {
 /// job at the host level, so the frame runs in a fresh interpreter loop
 /// with no frame below it. The reaction has no capability; the result is
 /// ignored. A termination or an engine error passes through.
-fn async_resume(
+pub(crate) fn async_resume(
     rt: &mut Runtime,
     data: Value,
     kind: ReactionKind,

@@ -1,0 +1,9 @@
+var R = (p, t) => p.then(r => log.push(t + ' ' + show(r)), e => log.push(t + ' rejected ' + err(e))); => ok undefined
+ticks = 5000; async function* hy1() { for (var i = 0; i < 1000; i++) yield i; } (async () => { var s = 0; for await (var v of hy1()) s += v; return s; })() => ok Promise | fulfilled 499500
+ticks = 40000; var hy2 = Array.from({ length: 10000 }, (_, i) => i); (async () => { var s = 0; for await (var v of hy2) s += v; return s; })().then(v => log.push('sum ' + v)) => ok Promise | sum 49995000; fulfilled 1
+ticks = 40000; Array.fromAsync({ length: 10000 }).then(a => a.length) => ok Promise | fulfilled 10000
+ticks = 60000; Array.fromAsync(Array.from({ length: 10000 }, (_, i) => i), x => x * 2).then(a => a[9999]) => ok Promise | fulfilled 19998
+ticks = 30000; async function* hy3() { yield 1; } var hy3i = hy3(); var hy3p = []; for (var i = 0; i < 10000; i++) hy3p.push(hy3i.next()); Promise.all(hy3p).then(r => [r[0].value, r[1].done, r.length]) => ok Promise | fulfilled [1,true,10000]
+ticks = 6000; async function* hy4(n) { if (n > 0) yield* hy4(n - 1); else yield 'bottom'; } hy4(1000).next() => ok Promise | fulfilled {value:"bottom",done:false}
+ticks = 20000; async function* hy6(n) { if (n > 0) yield* hy6(n - 1); else yield 'bottom'; } hy6(100000).next().then(r => show(r), e => err(e)) => ok Promise | fulfilled "RangeError: Maximum call stack size exceeded"
+ticks = 8000; async function* hy7(n) { if (n > 0) yield* hy7(n - 1); else { yield 'a'; yield 'b'; } } (async () => { var s = []; for await (var v of hy7(500)) s.push(v); return s; })() => ok Promise | fulfilled ["a","b"]

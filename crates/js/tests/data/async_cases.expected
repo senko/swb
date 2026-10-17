@@ -28,9 +28,11 @@ String(async  ( a , b )  =>  { return  a }) => ok "async  ( a , b )  =>  { retur
 ({ async m() { await 1; } }).m.toString() => ok "async m() { await 1; }"
 ({ async 'quoted'() {} }).quoted.toString() => ok "async 'quoted'() {}"
 class SH13 { static async s() {} } SH13.s.toString() => ok "async s() {}"
+class SH14 { async *g() {} } typeof SH14 => ok "function"
 String(async /* c */ function /* d */ sh15 () {}) => ok "async /* c */ function /* d */ sh15 () {}"
 var sh16 = async function () {}; [sh16() instanceof Promise, Object.getPrototypeOf(sh16()) === Promise.prototype, sh16() === sh16()] => ok [true,true,false]
 var sh17 = (async () => {})(); [sh17.constructor === Promise, Object.prototype.toString.call(sh17)] => ok [true,"[object Promise]"]
+var sh18 = Object.getPrototypeOf(async function* () {}); [sh18 === AF, Object.getPrototypeOf(sh18) === Function.prototype] => ok [false,true]
 new (async function () {}) => err TypeError: (intermediate value) is not a constructor
 async function sh19() {} new sh19() => err TypeError: sh19 is not a constructor
 new (async () => {}) => err TypeError: (intermediate value) is not a constructor
@@ -100,6 +102,7 @@ async function er14() { class C { [await 1]() {} } } => ok undefined
 async function er15() { class C { x = await 1; } } => err SyntaxError: Unexpected number
 async function er16() { class C { static { await 1; } } } => err SyntaxError: Unexpected reserved word
 ({ async get x() {} }) => err SyntaxError: Unexpected identifier 'x'
+({ async *[Symbol.iterator]() {} })[Symbol.iterator].name => ok "[Symbol.iterator]"
 class ER17 { async constructor() {} } => err SyntaxError: Class constructor may not be an async method
 async function er18() { arguments = 1; } => ok undefined
 async function er19() { 'use strict'; eval = 1; } => err SyntaxError: Unexpected eval or arguments in strict mode

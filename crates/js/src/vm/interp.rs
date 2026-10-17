@@ -1467,11 +1467,21 @@ impl Runtime {
                     reload!();
                 }
 
-                // --- Async functions ---
-                // One arm for the three, out of line, so that the loop's
-                // code grows little (measured: separate inline arms made
+                // --- Async functions, async generators, async iteration ---
+                // One arm for all, out of line, so that the loop's code
+                // grows little (measured: separate inline arms made
                 // unrelated call rows of `vm_bench` up to 5 % slower).
-                Insn::AsyncStart | Insn::Await { .. } | Insn::AsyncReject { .. } => {
+                Insn::AsyncStart
+                | Insn::Await { .. }
+                | Insn::AsyncReject { .. }
+                | Insn::AsyncYield { .. }
+                | Insn::AsyncYieldDelegate { .. }
+                | Insn::GetAsyncIterator { .. }
+                | Insn::AsyncIteratorCall { .. }
+                | Insn::AsyncClose { .. }
+                | Insn::AsyncCloseEnd { .. }
+                | Insn::AsyncDelegateCall { .. }
+                | Insn::AsyncDelegateResult { .. } => {
                     save!();
                     if let Some(value) = tri!(self.async_instruction(insn)) {
                         return Ok(value);

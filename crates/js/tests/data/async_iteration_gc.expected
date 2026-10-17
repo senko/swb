@@ -1,0 +1,19 @@
+sync done
+stopper finally
+stopper finally
+request 0 {"value":"gen1:1:2","done":false}
+return {"value":"stopped","done":true}
+throw thrown
+sync 1,2,caught third
+request 1 {"value":"gen1:2:2","done":false}
+fromAsync like x {"y":1} z
+request 2 {"value":"renamed:3:2","done":false}
+loop 0,1,2,3,closed
+request 3 {"value":"renamed:4:2","done":false}
+fromAsync a0,b1,c2
+delegate {"value":"i1","done":false} {"value":"i2:sent1","done":false} {"value":"s1","done":false} {"value":"s2","done":false} {"value":"inner done|undefined","done":false} {"done":true}
+request 4 {"value":"renamed:5:2","done":false}
+counter finally 5 second
+request 5 {"value":"done renamed","done":true}
+request 6 {"done":true}
+request 7 {"done":true}

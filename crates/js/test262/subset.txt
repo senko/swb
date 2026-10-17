@@ -343,3 +343,21 @@ dir test/built-ins/Promise
 # skipped until 7d.
 feature async-functions
 dir test/built-ins/AsyncFunction
+
+# Added in M7 feature 7d: async generators (declarations, expressions,
+# methods), the queue of requests, `for await`, `yield*` in async
+# generators, the Async-from-Sync Iterator, `AsyncGeneratorFunction` and
+# `Array.fromAsync`. The new groups are the async generator groups of
+# statements and expressions, statements/for-await-of and the built-in
+# groups below; many `async-iteration` tests are in groups that run
+# already (the method groups of classes and object literals, yield,
+# await).
+feature async-iteration
+feature Array.fromAsync
+dir test/language/expressions/async-generator
+dir test/language/statements/async-generator
+dir test/language/statements/for-await-of
+dir test/built-ins/AsyncGeneratorFunction
+dir test/built-ins/AsyncGeneratorPrototype
+dir test/built-ins/AsyncFromSyncIteratorPrototype
+dir test/built-ins/AsyncIteratorPrototype

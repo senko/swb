@@ -64,6 +64,13 @@ pub(crate) enum Intrinsic {
     PromisePrototype,
     /// `%AsyncFunction.prototype%` (§27.7.3).
     AsyncFunctionPrototype,
+    /// `%AsyncIteratorPrototype%` (§27.1.3), `%AsyncFromSyncIteratorPrototype%`
+    /// (§27.1.6.2), `%AsyncGeneratorPrototype%` (§27.6.1) and
+    /// `%AsyncGeneratorFunction.prototype%` (§27.4.3).
+    AsyncIteratorPrototype,
+    AsyncFromSyncIteratorPrototype,
+    AsyncGeneratorPrototype,
+    AsyncGeneratorFunctionPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -112,7 +119,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 46;
+const INTRINSIC_COUNT: usize = 50;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -209,6 +216,7 @@ impl Runtime {
     /// Creates the realm's objects: the prototypes, `%ThrowTypeError%` and
     /// the global object, without their properties. `index` is the index
     /// that the realm will have.
+    #[allow(clippy::too_many_lines, reason = "one line per intrinsic")]
     fn create_realm_objects(&mut self, index: u32) -> VmResult<Realm> {
         let heap = &mut self.heap;
         let object_proto = heap.new_object(None)?;
@@ -244,6 +252,10 @@ impl Runtime {
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let async_function_proto = heap.new_object(Some(function_proto))?;
+        let async_iterator_proto = heap.new_object(Some(object_proto))?;
+        let async_from_sync_proto = heap.new_object(Some(async_iterator_proto))?;
+        let async_generator_proto = heap.new_object(Some(async_iterator_proto))?;
+        let async_generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -296,6 +308,10 @@ impl Runtime {
             wrap_proto,
             promise_proto,
             async_function_proto,
+            async_iterator_proto,
+            async_from_sync_proto,
+            async_generator_proto,
+            async_generator_function_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

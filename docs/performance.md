@@ -287,6 +287,36 @@ line): `string: indexOf` +6 %, the `sort` with a comparator +3 %, `new
 Function` code +4 %, `toLowerCase` +4 % (the effect above), `Promise.all`
 -4 %, `sum 10M integers in a try` -3 %, `throw and catch` -3 %.
 
+Programs added in M7 7d (2026-10-17, same machine); the time includes the
+jobs:
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| async: for await over an async generator of 100k values | 81.0 | 14.7 | 5.5x |
+| async: for await over an array of 100k values | 73.8 | 10.7 | 6.9x |
+| async: Array.fromAsync of 100k values | 67.2 | 7.2 | 9.3x |
+
+A step of `for await` over an async generator takes 810 ns: the call of
+`next` (the request's promise, the queue, the resumption of the
+generator's frame), the iterator result, the resolution of the request,
+the `await` of the request's promise and two jobs. Over an array, the
+Async-from-Sync Iterator steps the built-in Array Iterator without its
+result object (as `for`-`of` does; 112 ms before that shortcut), and the
+rest is the wrapper promise of the value, the continuation that builds
+the result and two jobs. `Array.fromAsync` has the same costs without the
+frame. Feature 13 works on the promise and job costs.
+The other rows against a build of the previous commit, measured
+alternately (four runs each, the median of each): the mean change is
++0.3 %. Rows beyond 3 %: `fib(27)` +8 %, `sum 10M integers in a try` +7 %,
+`throw TypeError 1M times` +5 %, `localeCompare` +5 %, `string: indexOf`
+-9 %. None of them runs a new instruction; `fib(22)` runs 3 % fewer
+machine instructions than at the previous commit (cachegrind, startup
+included), so these are layout effects of the interpreter loop. Three
+variants (the new instructions at the end of `Insn`, the arm at the end
+of the loop's `match`, `CodeKind::AsyncGenerator` at the end of its
+enum) moved `fib(27)` between +7 % and +13 %; the first is kept, the
+other two are not.
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

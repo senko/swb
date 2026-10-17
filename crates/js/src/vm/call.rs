@@ -27,6 +27,7 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::function::is_constructor_kind;
+use crate::vm::generator::GeneratorKind;
 use crate::vm::{
     Frame, Intrinsic, NativeCall, NativeReturn, REENTRY_WEIGHT, ReturnTo, STACK_OVERFLOW, VmError,
     VmResult,
@@ -565,16 +566,22 @@ impl Runtime {
     }
 
     /// [`Runtime::return_from_frame`] of a generator's frame (the result
-    /// is `{ value, done: true }`) or an async function's frame (the value
-    /// resolves the result promise, `async_function.rs`).
+    /// is `{ value, done: true }`), an async function's frame (the value
+    /// resolves the result promise, `async_function.rs`) or an async
+    /// generator's frame (the value completes the head request,
+    /// `async_generator.rs`).
     #[inline(never)]
     fn return_from_generator(
         &mut self,
         generator: Gc<Object>,
         value: Value,
     ) -> VmResult<Option<Value>> {
-        if self.async_promise_of(generator)?.is_some() {
-            return self.async_return(generator, value, false);
+        match self.generator_state(generator)?.kind {
+            GeneratorKind::Sync => {}
+            GeneratorKind::AsyncFunction(_) => return self.async_return(generator, value, false),
+            GeneratorKind::AsyncGenerator(_) => {
+                return self.async_generator_complete(generator, Ok(value));
+            }
         }
         // The registers of the frame still root `value`.
         let scope = self.heap.open_scope();
@@ -625,6 +632,7 @@ impl Runtime {
                 // A failure here is an engine bug; the error that is
                 // unwinding already ends the script.
                 let _ = self.complete_generator(generator);
+                let _ = self.abandon_async_generator(generator);
             }
             self.vm
                 .stack

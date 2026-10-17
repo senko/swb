@@ -36,6 +36,7 @@ pub use object::{
 pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Equality, Symbol, Value, ValueCell};
 
+pub use builtins::FromAsync;
 pub use compiler::CompileStats;
 pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
 pub use swb_js_text::RecursionBudget;

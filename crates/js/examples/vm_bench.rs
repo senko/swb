@@ -260,6 +260,23 @@ const PROGRAMS: &[(&str, &str)] = &[
          async function all() { var t = 0; for (var k = 0; k < 100; k++) t += await d(1000); return t; }
          function run() { return all(); }",
     ),
+    (
+        "async: for await over an async generator of 100k values",
+        "async function* values(n) { for (var i = 0; i < n; i++) yield i; }
+         async function sum() { var s = 0; for await (var v of values(100000)) s += v; return s; }
+         function run() { return sum(); }",
+    ),
+    (
+        "async: for await over an array of 100k values",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         async function sum() { var s = 0; for await (var v of data) s += v; return s; }
+         function run() { return sum(); }",
+    ),
+    (
+        "async: Array.fromAsync of 100k values",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         function run() { return Array.fromAsync(data).then(function (a) { return a.length; }); }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

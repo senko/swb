@@ -79,8 +79,14 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     rt.set_intrinsic(realm, Intrinsic::ArrayConstructor, array);
     super::method(rt, realm, array, "isArray", 1, is_array)?;
     super::method(rt, realm, array, "from", 1, from)?;
-    // `Array.fromAsync` (in Chromium 148) comes here with async functions
-    // (M7 feature 7).
+    super::method(
+        rt,
+        realm,
+        array,
+        "fromAsync",
+        1,
+        super::array_from_async::from_async,
+    )?;
     super::method(rt, realm, array, "of", 0, of)?;
     super::array_species::install_species(rt, realm, array)?;
     for (name, length, func) in METHODS {

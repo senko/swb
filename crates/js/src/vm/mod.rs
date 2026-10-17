@@ -21,7 +21,8 @@
 //! the job queue and the rejection tracker (`jobs.rs`), and the value
 //! that the host reads last. Suspended generator frames are
 //! traced through their generator objects, and so are the frames of
-//! async functions that wait at an `await` (`async_function.rs`).
+//! async functions that wait at an `await` (`async_function.rs`) and of
+//! async generators with their queues of requests (`async_generator.rs`).
 //!
 //! Exceptions (ADR 0026 section 5): an instruction that fails leaves the
 //! loop with the error; [`Runtime::run_frames`] searches the handler
@@ -36,6 +37,8 @@
 //! termination request of the host.
 
 mod async_function;
+pub(crate) mod async_generator;
+pub(crate) mod async_iteration;
 mod call;
 pub(crate) mod class;
 pub(crate) mod convert;
@@ -45,7 +48,7 @@ pub(crate) mod env;
 mod eval;
 mod for_in;
 mod function;
-mod generator;
+pub(crate) mod generator;
 mod global;
 pub(crate) mod internal;
 mod interp;

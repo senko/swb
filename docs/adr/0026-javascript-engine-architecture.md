@@ -1797,6 +1797,85 @@ where the first plan did not work:
   `%AsyncFunction.prototype%` of the constructor's realm. Async
   generators, `for await` and `yield*` in them stay "not supported yet
   (async generator)" and "(for await)" until 7d.
+- Async generators (feature 7d, `vm/async_generator.rs`, §27.6) are
+  generator objects: the state's kind says what runs in the object (a
+  generator, an async function with its result promise, or an async
+  generator with a boxed record of `[[AsyncGeneratorState]]`, the queue of
+  requests and the promise for the caller), so the state stays at 176
+  bytes. A call runs the prologue and stops at `InitialYield`, as for a
+  generator, so an error in the parameters throws to the caller; one
+  handler over the body after `InitialYield` (`AsyncReject`) completes the
+  generator with the throw. `yield v` is `Await` of `v` and `AsyncYield`
+  (`AsyncGeneratorYield`): the head request is resolved with `{ value,
+  done: false }`, then the frame continues with the next request or
+  suspends. `return v` awaits `v` (§14.10.1).
+- `next`, `return` and `throw` make the request's promise (the intrinsic
+  capability of 7b), append the request and, when the generator is
+  suspended, return a resume request, so the frame runs in the caller's
+  interpreter loop (no Rust recursion); the frame delivers the request's
+  promise to the caller when it next suspends or completes. The value of
+  a return request at a `yield` is awaited before the frame resumes
+  (`AsyncGeneratorUnwrapYieldResumption`): a continuation resumes it in
+  return mode, or in throw mode when the promise rejects, and the frame
+  takes the compiled return path as after a generator's `yield`. This is
+  not observable: the generator is "executing" during that await in both
+  forms, and a `PromiseResolve` that throws resumes in throw mode at the
+  `yield`. The end of the body completes the head request and drains the
+  queue while the frame is still on the stack (as for async functions);
+  `AsyncGeneratorAwaitReturn` is a continuation that goes on with the
+  drain. The queue is part of the object's heap size, so requests that
+  pile up end at the heap limit. A termination removes the frame and
+  completes the generator, also when it comes during a drain that a job
+  started (7d review); the waiting requests are dropped and their
+  promises stay pending.
+- `for await` and `yield*` in async generators are the loops of `for`-`of`
+  and `yield*` with awaits (`compiler/iterate.rs`): `GetAsyncIterator`
+  (`GetIterator` with kind async, wrapping a sync iterator),
+  `AsyncIteratorCall`, `Await` and `IteratorValue` per step, and a close
+  in the implicit `finally` block that awaits the result of `return`
+  (`AsyncClose`, `Await`, `AsyncCloseEnd`; after a throw completion the
+  errors of `return` are dropped, `AsyncIteratorClose` §7.4.13). An async
+  `yield*` keeps a record of six registers (the four of 7a and an
+  `Await` pair): `AsyncDelegateCall` calls `next`, `throw` or `return`
+  (without `throw`: `return`, for the close before the protocol error;
+  without `return`: the received value is awaited), `AsyncDelegateResult`
+  checks the awaited result, `AsyncYieldDelegate` yields its `value`. The
+  eight new instructions share the one out-of-line arm of the async
+  instructions; the calls of `next` and of the delegate's methods push
+  frames from there (the arm reloads the top frame).
+- The Async-from-Sync Iterator (§27.1.6) is an internal object kind with
+  the sync record; its `next`, `return` and `throw` are natives that call
+  the sync method and resolve their promise through `PerformPromiseThen`
+  with internal continuations (`unwrap`, and the close of the sync
+  iterator when a value rejects, the 2023 change, which Chromium 148 has
+  and Node.js 22 does not). `vm/promise.rs` did not change.
+- `Array.fromAsync` (`builtins/array_from_async.rs`, §23.1.2.2 of the
+  2026 draft) is a state machine in an internal object kind: each `Await`
+  is `PromiseResolve` and an internal reaction whose job runs the next
+  step, so a million elements cost no Rust stack. Chromium 148 differs in
+  its error paths (it closes the iterator also when `next` fails, closes
+  an Async-from-Sync Iterator twice, and calls `return` again in every
+  job when the close fails, never settling the promise). It also
+  fulfills when the `length` of the result object cannot be set (a
+  constructor that returns a frozen object), where `Set(A, "length",
+  len, true)` throws. swb follows the specification and V8's messages.
+- V8's messages and the job order are measured in Chromium 148
+  (`tools/probes/js-async-iteration.json`, 341 snippets, 329 kept as
+  tests): for example `5 is not async iterable` (V8 renders any operand;
+  swb renders identifiers, literals, member chains and calls), `f(...) is
+  not a function or its return value is not async iterable`, `yield*
+  (intermediate value) is not async iterable`, `Result of the
+  Symbol.asyncIterator method is not an object`, `Method
+  [AsyncGenerator].prototype.next called on incompatible receiver X` (a
+  rejection), `The iterator does not provide a 'throw' method.`. When the
+  value of a return request at a `yield*` rejects, V8 resumes the delegate
+  with `next(reason)`; the specification gives it a throw completion
+  (swb calls `throw`).
+- Async stack traces follow async generators too: when the outermost
+  frame is an async generator, the function that awaits the promise of
+  its head request follows as `at async f`, as in Chromium. V8 also shows
+  the frame of the built-in `next` (`at g.next`); swb shows no lines for
+  built-in functions.
 
 ## Consequences
 

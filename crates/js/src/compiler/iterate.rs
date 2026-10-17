@@ -54,9 +54,37 @@
 //!   X:
 //! ```
 //!
-//! An async generator (M7 feature 7d) reuses the loop: it awaits the
-//! result after `DelegateCall` and before the return path, and yields the
-//! result's `value` with its own yield instead of `YieldDelegate`.
+//! `for await` (§14.7.5.7 with iteratorKind async) has the layout of
+//! `for`-`of` with `GetAsyncIterator`, a step of `AsyncIteratorCall` and
+//! an `Await` of the result before `IteratorValue`, and a close that
+//! awaits the result of `return` (`AsyncIteratorClose`, §7.4.13):
+//!
+//! ```text
+//!   B:  Int kind = normal
+//!       AsyncClose rec, kind -> t -> E   (done, no `return`: to E)
+//!       Await t
+//!       AsyncCloseEnd t, kind            (drops the outcome after a throw)
+//!   E:  EndFinally kind value -> X
+//! ```
+//!
+//! `yield*` in an async generator is the same loop over a record of six
+//! registers (the last two are the pair of an `Await`): each step awaits
+//! the delegate's result, and the generator yields the result's `value`
+//! (`AsyncGeneratorYield`, which awaits the value of a return request
+//! before the resumption):
+//!
+//! ```text
+//!       GetAsyncIterator rec <- operand
+//!       Undefined rec+2; Int rec+3 = next
+//!   T:  AsyncDelegateCall rec        (the result into rec+4)
+//!       Await rec+4
+//!       AsyncDelegateResult rec -> D (done: rec+2 = value, to D)
+//!       AsyncYieldDelegate rec+2
+//!       Jump T
+//!   D:  Resume rec+2 -> X
+//!       return path of rec+2
+//!   X:
+//! ```
 
 use swb_js_syntax::{AssignTarget, ExprId, ExprKind, ForHead, ScopeId, StmtId, StmtKind, UnaryOp};
 use swb_js_text::String16;
@@ -65,8 +93,8 @@ use super::CResult;
 use super::function::{BreakableKind, FinallyBody, FunctionCompiler};
 use super::pattern::{BindMode, PatternSource};
 use crate::bytecode::{
-    DELEGATE_INTERMEDIATE, DELEGATE_TYPED, HINT_NO_TEXT, HINT_SHIFT, ITER_CALL, ITER_GENERIC,
-    ITER_RENDERED, ITER_SPREAD, ITER_YIELD_STAR, Insn, RESUME_NEXT, Reg,
+    CodeKind, DELEGATE_INTERMEDIATE, DELEGATE_TYPED, HINT_NO_TEXT, HINT_SHIFT, ITER_CALL,
+    ITER_GENERIC, ITER_RENDERED, ITER_SPREAD, ITER_YIELD_STAR, Insn, RESUME_NEXT, Reg,
 };
 
 /// The most links of a member chain that a "not iterable" message
@@ -77,14 +105,16 @@ const RENDER_LINKS: usize = 8;
 pub(super) const GENERIC_HINT: u32 = (ITER_GENERIC << HINT_SHIFT) | HINT_NO_TEXT;
 
 impl FunctionCompiler<'_> {
-    /// `for (left of right) body` (§14.7.5.6 `ForIn/OfHeadEvaluation`,
-    /// §14.7.5.7 `ForIn/OfBodyEvaluation`); see the module documentation.
+    /// `for (left of right) body` and `for await (left of right) body`
+    /// (§14.7.5.6 `ForIn/OfHeadEvaluation`, §14.7.5.7
+    /// `ForIn/OfBodyEvaluation`); see the module documentation.
     pub(super) fn for_of(
         &mut self,
         left: ForHead,
         right: ExprId,
         body: StmtId,
         scope: ScopeId,
+        is_await: bool,
     ) -> CResult<()> {
         let labels = std::mem::take(&mut self.pending_labels);
         let declaration = match left {
@@ -109,12 +139,25 @@ impl FunctionCompiler<'_> {
         self.expr(right, Some(rec))?;
         self.position = self.ast.expr(right).span.start;
         let hint = self.iteration_hint(right, ITER_RENDERED, true);
-        self.emit(Insn::GetIterator {
-            dst: rec,
-            src: rec,
-            hint,
-        });
-        let value = self.temp()?;
+        if is_await {
+            self.emit(Insn::GetAsyncIterator {
+                dst: rec,
+                src: rec,
+                hint,
+            });
+        } else {
+            self.emit(Insn::GetIterator {
+                dst: rec,
+                src: rec,
+                hint,
+            });
+        }
+        // The value, and the mode of an `Await` of the step's result.
+        let value = if is_await {
+            self.temps(2)?
+        } else {
+            self.temp()?
+        };
         // Chromium reports the steps at the loop's target.
         self.position = match left {
             ForHead::Declaration(_) => declaration.map_or(self.position, |(_, target)| {
@@ -124,7 +167,12 @@ impl FunctionCompiler<'_> {
             ForHead::Target(AssignTarget::Pattern(pattern)) => self.ast.pattern(pattern).span.start,
         };
         let top = self.here();
-        self.emit(Insn::IteratorCall { dst: value, rec });
+        if is_await {
+            self.emit(Insn::AsyncIteratorCall { dst: value, rec });
+            self.emit_await(value);
+        } else {
+            self.emit(Insn::IteratorCall { dst: value, rec });
+        }
         let exit = self.emit(Insn::IteratorValue {
             dst: value,
             rec,
@@ -153,7 +201,12 @@ impl FunctionCompiler<'_> {
         // `finally_block` starts with the normal completion, which is
         // where `break` goes: it closes the iterator.
         let close = self.here();
-        self.finally_block(start, FinallyBody::Close(rec))?;
+        let body = if is_await {
+            FinallyBody::AsyncClose(rec)
+        } else {
+            FinallyBody::Close(rec)
+        };
+        self.finally_block(start, body)?;
         for at in breakable.breaks {
             self.patch(at, close);
         }
@@ -173,6 +226,9 @@ impl FunctionCompiler<'_> {
         start: u32,
         dst: Option<Reg>,
     ) -> CResult<Reg> {
+        if self.kind == CodeKind::AsyncGenerator {
+            return self.async_yield_star(operand, start, dst);
+        }
         let target = self.target(dst)?;
         let mark = self.mark();
         let rec = self.temps(4)?;
@@ -223,6 +279,63 @@ impl FunctionCompiler<'_> {
             src: rec + 2,
         });
         // Release the iterator now, not when the register is reused.
+        self.emit(Insn::Undefined { dst: rec });
+        self.emit(Insn::Undefined { dst: rec + 1 });
+        self.release(mark);
+        Ok(target)
+    }
+
+    /// `yield* operand` in an async generator (§15.5.5 with genKind
+    /// async); see the module documentation. V8 words the errors of the
+    /// operand as for a generator, with `async iterable`; a method of the
+    /// delegate that is not callable gets the value's type in every form
+    /// (measured in Chromium 148).
+    fn async_yield_star(&mut self, operand: ExprId, start: u32, dst: Option<Reg>) -> CResult<Reg> {
+        let target = self.target(dst)?;
+        let mark = self.mark();
+        let rec = self.temps(6)?;
+        self.expr(operand, Some(rec))?;
+        self.position = start;
+        let typed = self.typed_delegate_message(operand);
+        let hint = if typed {
+            GENERIC_HINT
+        } else {
+            (ITER_YIELD_STAR << HINT_SHIFT) | HINT_NO_TEXT
+        };
+        self.emit(Insn::GetAsyncIterator {
+            dst: rec,
+            src: rec,
+            hint,
+        });
+        self.emit(Insn::Undefined { dst: rec + 2 });
+        self.emit(Insn::Int {
+            dst: rec + 3,
+            value: RESUME_NEXT,
+        });
+        let top = self.here();
+        self.emit(Insn::AsyncDelegateCall {
+            rec,
+            form: if typed {
+                DELEGATE_TYPED
+            } else {
+                DELEGATE_INTERMEDIATE
+            },
+        });
+        self.emit(Insn::Await { reg: rec + 4 });
+        let result = self.emit(Insn::AsyncDelegateResult { rec, offset: 0 });
+        self.emit(Insn::AsyncYieldDelegate { reg: rec + 2 });
+        self.jump_back(top);
+        self.patch_here(result);
+        let resume = self.emit(Insn::Resume {
+            reg: rec + 2,
+            offset: 0,
+        });
+        self.emit_return(rec + 2);
+        self.patch_here(resume);
+        self.emit(Insn::Move {
+            dst: target,
+            src: rec + 2,
+        });
         self.emit(Insn::Undefined { dst: rec });
         self.emit(Insn::Undefined { dst: rec + 1 });
         self.release(mark);

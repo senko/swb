@@ -1237,11 +1237,10 @@ just probe --json tools/probes/js-async.json > probe.json
 node crates/js/tests/data/gen-async-cases.js probe.json crates/js/tests/data
 ```
 
-`crates/js/tests/async_functions.rs` runs `async_cases.js` (264 snippets,
+`crates/js/tests/async_functions.rs` runs `async_cases.js` (267 snippets,
 normal and stress mode) and `async_cases_heavy.js` (11, normal mode).
-The script leaves out four snippets: three need async generators (feature
-7d) and one shows V8's `at async Promise.all (index 0)` line (swb has no
-lines for built-in functions). `async_gc.js` (suspended frames that hold
+The script leaves out one snippet, which shows V8's `at async Promise.all
+(index 0)` line (swb has no lines for built-in functions). `async_gc.js` (suspended frames that hold
 registers, `arguments`, cells, `finally` state and iterators while the
 functions allocate and collect) has the output of Node.js 22 as expected
 output (`just jsdiff`). The file also tests the full text of `stack` with
@@ -1254,6 +1253,64 @@ suspended resumes in a later task. The hostile tests in
 rejection, as in Chromium), chains of 100,000 functions that await each
 other, endless `await` loops at the deadline and sets of suspended
 functions that grow to the heap limit.
+
+### Async iteration tests
+
+`tools/probes/js-async-iteration.json` has 341 snippets for Chromium 148
+in seven cases, with the runner of `js-async.json`: the shape of async
+generator functions and methods (prototype chains, `prototype`, key order
+and descriptors of `%AsyncGeneratorFunction.prototype%`,
+`%AsyncGeneratorPrototype%`, `%AsyncIteratorPrototype%`,
+`AsyncGeneratorFunction` and its source text, `Array.fromAsync`), the
+queue of requests (several `next` calls before the first settles;
+`return` and `throw` on generators that are suspended at the start, at a
+`yield`, executing, awaiting and completed; `return` of a promise, a
+rejected promise and a thenable; a `constructor` getter; the job order of
+each), `for await` (over async generators, sync iterables of promises
+with a rejecting one and the close of the sync iterator, objects with
+`Symbol.asyncIterator`; `break`, `return`, `throw` and labels with the
+awaited close; `return` methods that throw, reject or give a non-object;
+results that are not objects; destructuring and lexical bindings),
+`yield*` in async generators (async and sync delegates, `throw` and
+`return` forwarded or missing, the messages by the form of the operand),
+`Array.fromAsync` (iterables, array-likes, async iterables, the mapping
+function and `thisArg`, `this` constructors, errors and the close of the
+iterator), the async frames of `stack`, and long loops, queues and
+`yield*` chains. The case files are made as for the async functions:
+
+```
+just probe --json tools/probes/js-async-iteration.json > probe.json
+node crates/js/tests/data/gen-async-iteration-cases.js probe.json crates/js/tests/data
+```
+
+`crates/js/tests/async_iteration.rs` runs `async_iteration_cases.js` (320
+snippets, normal and stress mode) and `async_iteration_cases_heavy.js` (9,
+normal mode). The script leaves out 12 snippets where swb follows the
+specification or has its own limits, with the reasons in
+`gen-async-iteration-cases.js`: V8 resumes a `yield*` delegate with
+`next(reason)` when a return value rejects, closes iterators in more error
+paths of `Array.fromAsync`, shows the frames of built-in `next` methods,
+renders every operand of `for await` in its message, and ends a chain of
+5,000 delegating generators. The probe file leaves out the cases where
+Chromium's `Array.fromAsync` never settles (a `return` that throws or
+rejects during the close; V8 calls it again in every job) and runs no
+endless loops. `async_iteration_gc.js` (frames, queues, loop records,
+Async-from-Sync Iterators and `Array.fromAsync` states that are held only
+by generator objects and reactions while the code allocates and
+collects) has the output of Node.js 22 as expected output (`just
+jsdiff`). The file also tests that unreachable async generators
+(suspended at the start, at a `yield` with waiting requests, at an
+`await` that no one can settle) are collected, `next` called from the
+host, terminations (an endless `for await` loop ends at the deadline, no
+handler or `finally` block runs, a generator suspended during the
+termination resumes later, one whose frame was removed is completed),
+and the single close of `Array.fromAsync` when `return` throws. The
+hostile tests in `async_iteration_hostile.rs` cover a chain of 100,000
+`yield*` levels (a `RangeError` rejection at the frame limit) and a chain
+of 4,000, `for await` over a million values (an async generator, an
+array, an async iterator), a queue of a million requests, `Array.fromAsync`
+over a million values, endless async iteration at the deadline and
+queues and frames that grow to the heap limit.
 
 ## Python tools: development
 

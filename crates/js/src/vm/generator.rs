@@ -34,14 +34,17 @@
 //! made once, where it yields, and passes through every level.
 //!
 //! Async functions (`async_function.rs`) suspend their frames at `await`
-//! in an internal generator object with the same state and resumption.
+//! in an internal generator object with the same state and resumption;
+//! async generators (`async_generator.rs`) are generator objects with a
+//! queue of requests.
 
-use crate::bytecode::{DELEGATE_TYPED, RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
+use crate::bytecode::{CodeKind, DELEGATE_TYPED, RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
 use crate::heap::{Gc, Tracer};
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
+use crate::vm::async_generator::{AsyncGenerator, AsyncGeneratorState};
 use crate::vm::call::Step;
 use crate::vm::iter::IteratorRecord;
 use crate::vm::{
@@ -73,13 +76,35 @@ pub struct GeneratorState {
     pub(crate) registers: Vec<Value>,
     /// The register that receives the value of `next(v)`.
     pub(crate) resume_register: Option<Reg>,
-    /// The result promise of an async function (`vm/async_function.rs`),
-    /// whose frame waits in this object at an `await`; `None` for a
-    /// generator.
-    pub(crate) promise: Option<Gc<Object>>,
+    /// What runs in the object: a generator, an async function or an
+    /// async generator.
+    pub(crate) kind: GeneratorKind,
+}
+
+/// The kind of code whose frame a generator object keeps.
+pub(crate) enum GeneratorKind {
+    /// A generator (§27.5).
+    Sync,
+    /// An async function (`vm/async_function.rs`), whose frame waits in
+    /// the object at an `await`: its result promise.
+    AsyncFunction(Gc<Object>),
+    /// An async generator (`vm/async_generator.rs`): its state and its
+    /// queue of requests.
+    AsyncGenerator(Box<AsyncGenerator>),
 }
 
 impl GeneratorState {
+    /// A new state without a frame.
+    pub(crate) fn new(status: GeneratorStatus, kind: GeneratorKind) -> Self {
+        GeneratorState {
+            status,
+            frame: None,
+            registers: Vec::new(),
+            resume_register: None,
+            kind,
+        }
+    }
+
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         if let Some(frame) = &self.frame {
             frame.trace(tracer);
@@ -87,18 +112,25 @@ impl GeneratorState {
         for value in &self.registers {
             tracer.value(*value);
         }
-        if let Some(promise) = self.promise {
-            tracer.object(promise);
+        match &self.kind {
+            GeneratorKind::Sync => {}
+            GeneratorKind::AsyncFunction(promise) => tracer.object(*promise),
+            GeneratorKind::AsyncGenerator(generator) => generator.trace(tracer),
         }
     }
 
     pub(crate) fn heap_size(&self) -> usize {
+        let queue = match &self.kind {
+            GeneratorKind::AsyncGenerator(generator) => generator.heap_size(),
+            GeneratorKind::Sync | GeneratorKind::AsyncFunction(_) => 0,
+        };
         size_of::<GeneratorState>()
             + self.registers.capacity() * size_of::<Value>()
             + self
                 .frame
                 .as_ref()
                 .map_or(0, |f| f.extra_args.capacity() * size_of::<Value>())
+            + queue
     }
 }
 
@@ -132,13 +164,16 @@ fn resume_request(
         {
             object
         }
-        other => {
-            return Err(VmError::type_error(format!(
-                "Method [Generator].prototype.{method} called on incompatible receiver {}",
-                rt.primitive_text(other)
-            )));
-        }
+        other => return Err(incompatible_receiver(rt, "Generator", method, other)),
     };
+    if !matches!(rt.generator_state(generator)?.kind, GeneratorKind::Sync) {
+        return Err(incompatible_receiver(
+            rt,
+            "Generator",
+            method,
+            generator.into(),
+        ));
+    }
     let value = rt.arg(call, 0);
     Ok(NativeReturn::Resume(Resume {
         generator,
@@ -147,8 +182,25 @@ fn resume_request(
     }))
 }
 
+/// V8's `TypeError` for a method of `[class].prototype` called on a value
+/// that is not of its class.
+pub(crate) fn incompatible_receiver(
+    rt: &Runtime,
+    class: &str,
+    method: &str,
+    value: Value,
+) -> VmError {
+    VmError::type_error(format!(
+        "Method [{class}].prototype.{method} called on incompatible receiver {}",
+        rt.primitive_text(value)
+    ))
+}
+
 impl Runtime {
-    fn generator_state(&mut self, generator: Gc<Object>) -> VmResult<&mut GeneratorState> {
+    pub(crate) fn generator_state(
+        &mut self,
+        generator: Gc<Object>,
+    ) -> VmResult<&mut GeneratorState> {
         match &mut self.heap.object_mut(generator)?.kind {
             ObjectKind::Generator(state) => Ok(state),
             _ => Err(VmError::invariant("a generator frame without a generator")),
@@ -159,7 +211,8 @@ impl Runtime {
     /// generator function (with the function's `prototype` as its
     /// prototype, §10.1.13 `OrdinaryCreateFromConstructor`), suspends the
     /// frame in it and delivers it to the caller. Returns the object if the
-    /// caller is the host.
+    /// caller is the host. An async generator (§15.6.2) gets its queue and
+    /// `%AsyncGeneratorPrototype%` as the fallback prototype.
     pub(crate) fn initial_yield(&mut self) -> VmResult<Option<Value>> {
         let frame = self
             .vm
@@ -170,18 +223,19 @@ impl Runtime {
         let function = frame
             .function
             .ok_or(VmError::invariant("a generator frame without a function"))?;
+        let is_async = frame.compiled.kind == CodeKind::AsyncGenerator;
         let key = PropertyKey::String(self.vm.atoms.prototype);
         let proto = match self.heap.get(function, key, function.into())? {
             crate::object::GetResult::Value(Value::Object(proto)) => proto,
+            _ if is_async => self.intrinsic(realm, Intrinsic::AsyncGeneratorPrototype)?,
             _ => self.intrinsic(realm, Intrinsic::GeneratorPrototype)?,
         };
-        let state = GeneratorState {
-            status: GeneratorStatus::SuspendedStart,
-            frame: None,
-            registers: Vec::new(),
-            resume_register: None,
-            promise: None,
+        let kind = if is_async {
+            GeneratorKind::AsyncGenerator(Box::default())
+        } else {
+            GeneratorKind::Sync
         };
+        let state = GeneratorState::new(GeneratorStatus::SuspendedStart, kind);
         let generator = self
             .heap
             .new_object_with_kind(Some(proto), ObjectKind::Generator(Box::new(state)))?;
@@ -351,6 +405,7 @@ impl Runtime {
     /// with the value and the mode in its registers. The frame's result
     /// goes to `ret`; the stack returns to `restore_top`. The value is
     /// rooted by the caller (it is an argument of the native call).
+    #[inline(never)]
     pub(crate) fn resume_generator(
         &mut self,
         resume: Resume,
@@ -395,6 +450,9 @@ impl Runtime {
         vm.stack.extend_from_slice(&state.registers);
         state.registers.clear();
         state.status = GeneratorStatus::Executing;
+        if let GeneratorKind::AsyncGenerator(generator) = &mut state.kind {
+            generator.state = AsyncGeneratorState::Executing;
+        }
         if status == GeneratorStatus::SuspendedYield
             && let Some(register) = state.resume_register
         {

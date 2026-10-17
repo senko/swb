@@ -4,6 +4,46 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 7d, async iteration; end of feature 7
+
+- Async generators are generator objects with the queue of requests of
+  §27.6. `next`, `return` and `throw` make the request's promise, append
+  the request and resume a suspended generator in the caller's
+  interpreter loop; the frame gives the promise to the caller when it
+  next suspends. A chain of 100,000 delegating generators ends with a
+  `RangeError` at the frame limit, without Rust recursion.
+- `yield` awaits its operand and resolves the head request; more waiting
+  requests continue the frame at once. The value of a return request is
+  awaited before the frame resumes, so the `yield` code is that of a
+  sync generator. The end of the body completes the request and drains
+  the queue.
+- `for await` and `yield*` in async generators are the loops of 7a with
+  awaits and an awaited close. Sync iterables go through the
+  Async-from-Sync Iterator, which closes the sync iterator when a value
+  rejects (the 2023 change; Chromium 148 has it, Node.js 22 does not).
+  `Array.fromAsync` is a state machine of internal reactions.
+- 329 Chromium 148 cases give the same output, also in stress mode. swb
+  follows the specification where V8 differs: a rejected return value at
+  `yield*` (V8 calls the delegate's `next`) and four error paths of
+  `Array.fromAsync` (V8 closes the iterator more often, calls `return`
+  in every job without end when the close fails, and ignores a `length`
+  that it cannot set).
+- Eight new instructions share the out-of-line arm of 7c. Unrelated
+  `vm_bench` rows moved by up to 9 % in both directions (mean +0.3 %);
+  `fib(27)` is 8 % slower although it runs 3 % fewer machine
+  instructions. Four layouts gave the same effect (backlog, feature 13).
+- Review: no blocking finding; about 230 more cases measured in
+  Chromium. Fixed: a termination during a drain of the queue that a job
+  started left the generator draining, so later requests stayed pending;
+  now it completes the generator, as when a termination removes a frame.
+- Runtime test262: 32,775 (was 27,701), the same in stress mode;
+  parse-only unchanged. 4,835 async-flag tests pass (were 886).
+- Target scripts: no script stops at an async generator or `for await`;
+  46 of 84 compile, the other 38 stop at regular expression literals.
+- Feature 7 is complete: runtime test262 went from 26,091 to 32,775
+  passes.
+- Next: feature 8, regular expressions.
+
 ## 2026-10-17: M7 feature 7c, `async` functions
 
 - Async functions, arrows and methods run on the generator machinery.

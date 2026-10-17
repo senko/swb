@@ -4,14 +4,18 @@
 //! `Object.prototype` with Annex B) and `Reflect`; the `Error`
 //! constructors, `AggregateError` and the V8 extensions
 //! `Error.captureStackTrace` and `Error.stackTraceLimit`; `Array`
-//! complete except `fromAsync` (`array*.rs`);
+//! complete (`array*.rs`; `Array.fromAsync` in `array_from_async.rs`);
 //! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
 //! `Function` constructor is in `vm/create_function.rs`);
 //! `GeneratorFunction`, its prototype and `%GeneratorPrototype%`
 //! (`generator.rs`; the generator objects run in `vm/generator.rs`);
 //! `AsyncFunction` and its prototype (`async_function.rs`; async
-//! functions run in `vm/async_function.rs`); the global
+//! functions run in `vm/async_function.rs`); `AsyncGeneratorFunction`,
+//! its prototype, `%AsyncGeneratorPrototype%`, `%AsyncIteratorPrototype%`
+//! and `%AsyncFromSyncIteratorPrototype%` (`async_generator.rs`; the
+//! objects run in `vm/async_generator.rs` and `vm/async_iteration.rs`); the
+//! global
 //! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
 //! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` with
 //! its statics and the prototype methods that need no `RegExp`, the string
@@ -41,12 +45,14 @@
 mod array;
 mod array_access;
 mod array_copy;
+mod array_from_async;
 mod array_iteration;
 mod array_mutate;
 mod array_search;
 mod array_sort;
 mod array_species;
 mod async_function;
+mod async_generator;
 mod boolean;
 mod collection;
 mod console;
@@ -85,6 +91,7 @@ mod string_unicode;
 mod symbol;
 mod uri;
 
+pub use array_from_async::FromAsync;
 pub(crate) use error::error_header;
 pub(crate) use iterator::array_iterator_next_value;
 
@@ -141,7 +148,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     console::install(rt, realm)?;
     promise::install(rt, realm)?;
     generator::install(rt, realm, function_constructor)?;
-    async_function::install(rt, realm, function_constructor)
+    async_function::install(rt, realm, function_constructor)?;
+    async_generator::install(rt, realm, function_constructor)
 }
 
 // --- Helpers for the definitions ---

@@ -186,18 +186,20 @@ impl Runtime {
 
     /// The async frames of a stack (Chromium's async stack traces,
     /// measured in Chromium 148): when the outermost frame is an async
-    /// function, the function that waits for its promise in an `await`
-    /// (the promise's only reaction) follows as `at async g (...)` at the
-    /// position of that `await`, then the function that waits for `g`, up
-    /// to `limit` frames in all. A promise with no reaction, more than one,
-    /// or one of another kind (a `then`, a resolution with the promise)
-    /// ends the list. No script code runs.
+    /// function or an async generator, the function that waits for its
+    /// promise (an async generator's: the promise of the request at the
+    /// head of its queue) in an `await` (the promise's only reaction)
+    /// follows as `at async g (...)` at the position of that `await`, then
+    /// the function that waits for `g`, up to `limit` frames in all. A
+    /// promise with no reaction, more than one, or one of another kind (a
+    /// `then`, a resolution with the promise) ends the list. No script
+    /// code runs.
     fn append_async_frames(&self, frames: &mut Vec<StackFrame>, limit: usize) -> VmResult<()> {
         let Some(mut generator) = self.vm.frames.first().and_then(|frame| frame.generator) else {
             return Ok(());
         };
         while frames.len() < limit {
-            let Some(promise) = self.async_promise_of(generator)? else {
+            let Some(promise) = self.awaited_promise_of(generator)? else {
                 return Ok(());
             };
             let crate::vm::promise::Reactions::One(reaction) =
@@ -214,7 +216,12 @@ impl Runtime {
             let ObjectKind::Generator(state) = &self.heap.object(waiting)?.kind else {
                 return Ok(());
             };
-            let (Some(_), Some(frame)) = (state.promise, &state.frame) else {
+            let (
+                crate::vm::generator::GeneratorKind::AsyncFunction(_)
+                | crate::vm::generator::GeneratorKind::AsyncGenerator(_),
+                Some(frame),
+            ) = (&state.kind, &state.frame)
+            else {
                 return Ok(());
             };
             frames.push(StackFrame {

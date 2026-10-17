@@ -17,8 +17,9 @@ use swb_js_text::String16;
 use super::CResult;
 use super::function::{EXPR_WEIGHT, FunctionCompiler};
 use crate::bytecode::{
-    INVALID_TARGET_ASSIGN, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX,
-    ITER_ARRAY_SPREAD, ITER_SPREAD, Insn, NAME_PREFIX_GET, NAME_PREFIX_NONE, NAME_PREFIX_SET, Reg,
+    CodeKind, INVALID_TARGET_ASSIGN, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX,
+    INVALID_TARGET_PREFIX, ITER_ARRAY_SPREAD, ITER_SPREAD, Insn, NAME_PREFIX_GET, NAME_PREFIX_NONE,
+    NAME_PREFIX_SET, Reg,
 };
 use crate::vm::number::number_to_string;
 
@@ -247,7 +248,15 @@ impl FunctionCompiler<'_> {
                         self.emit(Insn::Undefined { dst: t });
                     }
                 }
-                self.emit(Insn::Yield { reg: t });
+                if self.kind == CodeKind::AsyncGenerator {
+                    // §27.6.3.8 via `Yield`: `AsyncGeneratorYield(?
+                    // Await(value))`; the value of a return request is
+                    // awaited before the resumption.
+                    self.emit_await(t);
+                    self.emit(Insn::AsyncYield { reg: t });
+                } else {
+                    self.emit(Insn::Yield { reg: t });
+                }
                 // `next` skips the return path; `throw` throws here, inside
                 // the handler ranges of the `yield`.
                 let resume = self.emit(Insn::Resume { reg: t, offset: 0 });
@@ -273,8 +282,7 @@ impl FunctionCompiler<'_> {
     fn await_expr(&mut self, argument: ExprId, dst: Option<Reg>) -> CResult<Reg> {
         let t = self.temps(2)?;
         self.expr(argument, Some(t))?;
-        self.emit(Insn::Await { reg: t });
-        self.emit(Insn::Resume { reg: t, offset: 1 });
+        self.emit_await(t);
         self.release(u32::from(t) + 1);
         match dst {
             Some(dst) => {
@@ -283,6 +291,13 @@ impl FunctionCompiler<'_> {
             }
             None => Ok(t),
         }
+    }
+
+    /// `Await` of the value in `t` (a temporary pair): afterwards `t` holds
+    /// the value of the fulfilled promise; a rejection throws here.
+    pub(super) fn emit_await(&mut self, t: Reg) {
+        self.emit(Insn::Await { reg: t });
+        self.emit(Insn::Resume { reg: t, offset: 1 });
     }
 
     /// Compiles `e` for its effects.

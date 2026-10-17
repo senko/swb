@@ -259,6 +259,7 @@ impl Inspector<'_> {
                 let kind = match closure.compiled.kind {
                     crate::bytecode::CodeKind::Generator => "GeneratorFunction",
                     crate::bytecode::CodeKind::Async => "AsyncFunction",
+                    crate::bytecode::CodeKind::AsyncGenerator => "AsyncGeneratorFunction",
                     _ => "Function",
                 };
                 match rt.own_data_string(object, rt.vm.atoms.name) {
@@ -324,7 +325,14 @@ impl Inspector<'_> {
     /// property is listed anyway).
     fn prefix(&self, object: Gc<Object>, kind: &ObjectKind) -> String {
         match kind {
-            ObjectKind::Generator(_) => return "Object [Generator] ".to_owned(),
+            ObjectKind::Generator(state) => {
+                return match state.kind {
+                    crate::vm::generator::GeneratorKind::AsyncGenerator(_) => {
+                        "Object [AsyncGenerator] ".to_owned()
+                    }
+                    _ => "Object [Generator] ".to_owned(),
+                };
+            }
             ObjectKind::Arguments => return "[Arguments] ".to_owned(),
             // `Map(2) `, `Set(1) `, and `Foo(1) [Map] ` for a subclass.
             ObjectKind::Map(table) | ObjectKind::Set(table) => {

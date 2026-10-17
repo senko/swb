@@ -141,7 +141,7 @@ impl Runtime {
 
     /// The `TypeError` for a result of `next` or `return` that is not an
     /// object (V8's wording).
-    fn iterator_result_error(&self, result: Value) -> VmError {
+    pub(crate) fn iterator_result_error(&self, result: Value) -> VmError {
         VmError::type_error(format!(
             "Iterator result {} is not an object",
             self.primitive_text(result)

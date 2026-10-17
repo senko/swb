@@ -115,6 +115,12 @@ pub(crate) const HINT_SHIFT: u32 = 28;
 /// The text index of a `hint` without a rendered text.
 pub(crate) const HINT_NO_TEXT: u32 = (1 << HINT_SHIFT) - 1;
 
+/// The states of an async `yield*` step in its mode register (`rec + 3`)
+/// besides the resume modes ([`Insn::AsyncDelegateCall`]): the close of a
+/// delegate without `throw`, and a return mode without a `return` method.
+pub(crate) const DELEGATE_CLOSE: i32 = 3;
+pub(crate) const DELEGATE_RETURN_MISSING: i32 = 4;
+
 /// The forms of V8's message for a `next`, `throw` or `return` method of
 /// a `yield*` delegate that is not callable ([`Insn::DelegateCall`]):
 /// `number 5 is not a function` when the operand of `yield*` is a simple
@@ -828,7 +834,10 @@ pub(crate) enum Insn {
     },
     /// The handler of the whole async function (§27.7.5.2
     /// `AsyncBlockStart` step 3.h): rejects the result promise with the
-    /// value in `src` and returns the promise.
+    /// value in `src` and returns the promise. In an async generator
+    /// (§27.6.3.2 `AsyncGeneratorStart`): completes the generator with the
+    /// throw completion, rejects the request at the head of its queue and
+    /// drains the queue.
     AsyncReject {
         src: Reg,
     },
@@ -1142,6 +1151,88 @@ pub(crate) enum Insn {
 
     /// Does nothing (`debugger`).
     Nop,
+
+    // --- Async iteration ---
+    /// `GetIterator(src, async)` (§7.4.3): an iterator record in three
+    /// registers, as [`Insn::GetIterator`]; a sync iterator is wrapped in
+    /// an Async-from-Sync Iterator (§27.1.6.1).
+    GetAsyncIterator {
+        dst: Reg,
+        src: Reg,
+        hint: u32,
+    },
+    /// The call of `next` of a `for await` step (§14.7.5.7 step 6.a) on
+    /// the record at `rec`: the state becomes [`ITERATOR_PENDING`] and
+    /// `next` is called (as a frame if it is script code); its result goes
+    /// into `dst`. An [`Insn::Await`] of `dst` and an
+    /// [`Insn::IteratorValue`] follow.
+    AsyncIteratorCall {
+        dst: Reg,
+        rec: Reg,
+    },
+    /// `AsyncGeneratorYield` (§27.6.3.8) of the value in `reg`, which an
+    /// `Await` before it has awaited: resolves the request at the head of
+    /// the queue with `{ value, done: false }`, then continues with the
+    /// next request, or suspends the generator. On resume, `reg` receives
+    /// the value and `reg + 1` the mode, as after [`Insn::Yield`]; the
+    /// value of a return request is awaited first (§27.6.3.7), and a
+    /// rejection resumes in throw mode.
+    AsyncYield {
+        reg: Reg,
+    },
+    /// `AsyncGeneratorYield(? IteratorValue(innerResult))` of `yield*` in
+    /// an async generator (§15.5.5 step 8.a.vi): reads the `value` of the
+    /// iterator result in `reg`, then works as [`Insn::AsyncYield`].
+    AsyncYieldDelegate {
+        reg: Reg,
+    },
+    /// The start of `AsyncIteratorClose` (§7.4.13) of the record at `rec`
+    /// with the completion kind in `kind`: if the record is not done, it
+    /// becomes done, and `return` is read and called (through re-entry);
+    /// its result goes into `dst` for the [`Insn::Await`] that follows.
+    /// Jumps by `offset` (past the await) when the record is done, when the
+    /// iterator has no `return` method, or after a throw completion when
+    /// the read or the call fails (the error is dropped).
+    AsyncClose {
+        rec: Reg,
+        kind: Reg,
+        dst: Reg,
+        offset: i32,
+    },
+    /// The end of `AsyncIteratorClose` after the await of the result of
+    /// `return` in `reg` (the mode in `reg + 1`): after a throw completion
+    /// in `kind` nothing; else a rejection throws, and a result that is
+    /// not an object is a `TypeError`.
+    AsyncCloseEnd {
+        reg: Reg,
+        kind: Reg,
+    },
+    /// One step of `yield*` in an async generator (§15.5.5 step 8 with
+    /// genKind async) on a record of six registers: the iterator, its
+    /// `next`, the received value, the resume mode, and the pair of an
+    /// [`Insn::Await`] (value and mode). Calls `next(v)`, `throw(v)` or
+    /// `return(v)` by the mode (as a frame if it is script code); the
+    /// result goes into `rec + 4`. In throw mode without a `throw` method,
+    /// calls `return()` instead, for the close before the protocol error
+    /// ([`DELEGATE_CLOSE`] in `rec + 3`; without `return`, throws the
+    /// error); in return mode without a `return` method, the received
+    /// value goes into `rec + 4` ([`DELEGATE_RETURN_MISSING`]). `form`
+    /// selects V8's message for a `return` that is not callable, as for
+    /// [`Insn::DelegateCall`].
+    AsyncDelegateCall {
+        rec: Reg,
+        form: u16,
+    },
+    /// The rest of an async `yield*` step after the await of `rec + 4`: a
+    /// rejection throws; the result must be an object; if it is done (or
+    /// the delegate has no `return` method), `rec + 2` receives the value
+    /// and the instruction jumps by `offset` (to the [`Insn::Resume`] at
+    /// the loop's end); else `rec + 2` receives the result object. After
+    /// the close of [`DELEGATE_CLOSE`], throws V8's protocol `TypeError`.
+    AsyncDelegateResult {
+        rec: Reg,
+        offset: i32,
+    },
 }
 
 impl Insn {
@@ -1163,6 +1254,8 @@ impl Insn {
             | Insn::EndFinally { offset, .. }
             | Insn::Resume { offset, .. }
             | Insn::DelegateCall { offset, .. }
+            | Insn::AsyncClose { offset, .. }
+            | Insn::AsyncDelegateResult { offset, .. }
             | Insn::DelegateResult { offset, .. } => Some(offset),
             _ => None,
         }
@@ -1187,6 +1280,8 @@ impl Insn {
             | Insn::EndFinally { offset, .. }
             | Insn::Resume { offset, .. }
             | Insn::DelegateCall { offset, .. }
+            | Insn::AsyncClose { offset, .. }
+            | Insn::AsyncDelegateResult { offset, .. }
             | Insn::DelegateResult { offset, .. } => *offset = new,
             _ => {}
         }
@@ -1290,6 +1385,9 @@ pub(crate) enum CodeKind {
     /// constructor, no `prototype`; the function object inherits from
     /// `%AsyncFunction.prototype%`.
     Async,
+    /// An async generator function or method (§15.6): not a constructor;
+    /// its `prototype` object inherits from `%AsyncGeneratorPrototype%`.
+    AsyncGenerator,
     /// The constructor of a class without heritage (§15.7.14): `new` only;
     /// the class definition creates its `prototype`.
     ClassConstructor,
@@ -1302,6 +1400,12 @@ pub(crate) enum CodeKind {
 }
 
 impl CodeKind {
+    /// Whether the code is an async function or an async generator (the
+    /// code that can `await`).
+    pub(crate) fn is_async(self) -> bool {
+        matches!(self, CodeKind::Async | CodeKind::AsyncGenerator)
+    }
+
     /// Whether the code is a class constructor (`[[IsClassConstructor]]`).
     pub(crate) fn is_class_constructor(self) -> bool {
         matches!(
@@ -1908,7 +2012,7 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
         if let Err(message) = check_tables(code, insn) {
             return fail(message);
         }
-        if let Err(message) = check_layout(code, insn) {
+        if let Err(message) = check_code_kind(code, insn).and_then(|()| check_layout(code, insn)) {
             return fail(message);
         }
         if let Some(offset) = insn.jump_offset() {
@@ -1932,9 +2036,56 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
     verify_handlers(code)
 }
 
+/// The instructions of generators and async code appear only in such
+/// code.
+fn check_code_kind(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
+    match *insn {
+        Insn::InitialYield
+            if !matches!(code.kind, CodeKind::Generator | CodeKind::AsyncGenerator) =>
+        {
+            Err("yield outside a generator")
+        }
+        Insn::Yield { .. }
+        | Insn::DelegateCall { .. }
+        | Insn::DelegateResult { .. }
+        | Insn::YieldDelegate { .. }
+            if code.kind != CodeKind::Generator =>
+        {
+            Err("yield outside a generator")
+        }
+        Insn::AsyncYield { .. }
+        | Insn::AsyncYieldDelegate { .. }
+        | Insn::AsyncDelegateCall { .. }
+        | Insn::AsyncDelegateResult { .. }
+            if code.kind != CodeKind::AsyncGenerator =>
+        {
+            Err("yield outside an async generator")
+        }
+        Insn::AsyncStart if code.kind != CodeKind::Async => Err("await outside an async function"),
+        Insn::Await { .. }
+        | Insn::AsyncReject { .. }
+        | Insn::GetAsyncIterator { .. }
+        | Insn::AsyncIteratorCall { .. }
+        | Insn::AsyncClose { .. }
+        | Insn::AsyncCloseEnd { .. }
+            if !code.kind.is_async() =>
+        {
+            Err("await outside an async function")
+        }
+        Insn::Resume { .. }
+            if !matches!(
+                code.kind,
+                CodeKind::Generator | CodeKind::Async | CodeKind::AsyncGenerator
+            ) =>
+        {
+            Err("a resumption outside a generator or async function")
+        }
+        _ => Ok(()),
+    }
+}
+
 /// The registers that an instruction uses beyond its operands: call
-/// windows, register pairs, iterator records, the resume mode; and the
-/// generator instructions only in generators.
+/// windows, register pairs, iterator records, the resume mode.
 fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
     let registers = code.register_count;
     let window = |callee: Reg, args: u32| u32::from(callee) + 2 + args <= registers;
@@ -1962,7 +2113,10 @@ fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         }
         // An iterator record takes three registers.
         Insn::GetIterator { dst: rec, .. }
+        | Insn::GetAsyncIterator { dst: rec, .. }
         | Insn::IteratorCall { rec, .. }
+        | Insn::AsyncIteratorCall { rec, .. }
+        | Insn::AsyncClose { rec, .. }
         | Insn::SpreadArray { rec, .. }
         | Insn::IteratorValue { rec, .. }
         | Insn::IteratorClose { rec, .. }
@@ -1970,31 +2124,27 @@ fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         {
             return Err("iterator record outside the frame");
         }
-        Insn::InitialYield
-        | Insn::Yield { .. }
-        | Insn::DelegateCall { .. }
-        | Insn::DelegateResult { .. }
-        | Insn::YieldDelegate { .. }
-            if code.kind != CodeKind::Generator =>
-        {
-            return Err("yield outside a generator");
-        }
-        Insn::AsyncStart | Insn::Await { .. } | Insn::AsyncReject { .. }
-            if code.kind != CodeKind::Async =>
-        {
-            return Err("await outside an async function");
-        }
-        Insn::Resume { .. } if !matches!(code.kind, CodeKind::Generator | CodeKind::Async) => {
-            return Err("a resumption outside a generator or async function");
-        }
         // The resume mode goes into the register after `reg`.
         Insn::Yield { reg }
         | Insn::Resume { reg, .. }
         | Insn::YieldDelegate { reg }
         | Insn::Await { reg }
+        | Insn::AsyncYield { reg }
+        | Insn::AsyncYieldDelegate { reg }
+        | Insn::AsyncCloseEnd { reg, .. }
+        | Insn::AsyncClose { dst: reg, .. }
             if u32::from(reg) + 1 >= registers =>
         {
             return Err("resume mode register out of range");
+        }
+        // An async `yield*` record takes six registers.
+        Insn::AsyncDelegateCall { rec, form }
+            if u32::from(rec) + 6 > registers || form > DELEGATE_INTERMEDIATE =>
+        {
+            return Err("yield* record outside the frame");
+        }
+        Insn::AsyncDelegateResult { rec, .. } if u32::from(rec) + 6 > registers => {
+            return Err("yield* record outside the frame");
         }
         // A `yield*` record takes four registers.
         Insn::DelegateCall { rec, form, .. }
@@ -2238,8 +2388,17 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Resume { reg, .. }
         | I::YieldDelegate { reg }
         | I::DelegateCall { rec: reg, .. }
-        | I::DelegateResult { rec: reg, .. } => {
+        | I::DelegateResult { rec: reg, .. }
+        | I::AsyncYield { reg }
+        | I::AsyncYieldDelegate { reg }
+        | I::AsyncDelegateCall { rec: reg, .. }
+        | I::AsyncDelegateResult { rec: reg, .. } => {
             f(reg);
+        }
+        I::AsyncClose { rec, kind, dst, .. } => {
+            f(rec);
+            f(kind);
+            f(dst);
         }
         I::CheckTdz { src, .. }
         | I::StoreCapture { src, .. }
@@ -2306,6 +2465,12 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::ForInStart { dst, src }
         | I::ForInNext { dst, iter: src, .. }
         | I::GetIterator { dst, src, .. }
+        | I::GetAsyncIterator { dst, src, .. }
+        | I::AsyncIteratorCall { dst, rec: src }
+        | I::AsyncCloseEnd {
+            reg: dst,
+            kind: src,
+        }
         | I::IteratorCall { dst, rec: src }
         | I::IteratorValue { dst, rec: src, .. }
         | I::IteratorClose {

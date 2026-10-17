@@ -116,6 +116,9 @@ pub(super) enum FinallyBody {
     /// section 5: `for`-`of` and array patterns close their iterator on
     /// every abrupt completion).
     Close(Reg),
+    /// `AsyncIteratorClose` of the iterator record at the register (`for
+    /// await`): the result of `return` is awaited.
+    AsyncClose(Reg),
 }
 
 /// The compiler of one function.
@@ -172,6 +175,8 @@ pub(super) struct FunctionCompiler<'a> {
     pub(super) derived_exits: Vec<usize>,
     /// The direct `eval` calls: (instruction, scope of the call).
     pub(super) eval_sites: Vec<(u32, ScopeId)>,
+    /// The kind of the code (set when `compile` starts).
+    pub(super) kind: CodeKind,
 }
 
 impl<'a> FunctionCompiler<'a> {
@@ -220,6 +225,7 @@ impl<'a> FunctionCompiler<'a> {
             derived_result: None,
             derived_exits: Vec::new(),
             eval_sites: Vec::new(),
+            kind: CodeKind::Normal,
         }
     }
 
@@ -229,6 +235,7 @@ impl<'a> FunctionCompiler<'a> {
             return Err(self.too_many_variables());
         }
         let kind = self.code_kind()?;
+        self.kind = kind;
         // Script and eval code have a completion value (§16.1.6, §19.2.1.1).
         let is_script = matches!(kind, CodeKind::Script | CodeKind::Eval);
         if is_script {
@@ -243,8 +250,13 @@ impl<'a> FunctionCompiler<'a> {
         if kind == CodeKind::Async {
             self.emit(Insn::AsyncStart);
         }
-        let body_start = self.here();
+        let mut body_start = self.here();
         self.prologue(kind)?;
+        // An async generator's parameters throw to the caller (§15.6.2);
+        // its body after `InitialYield` rejects requests.
+        if kind == CodeKind::AsyncGenerator {
+            body_start = self.here();
+        }
         for &statement in self.ast.stmts(self.function.body) {
             self.stmt(statement)?;
         }
@@ -261,7 +273,7 @@ impl<'a> FunctionCompiler<'a> {
         if let Some(registers) = self.derived_result {
             self.derived_epilogue(registers);
         }
-        if kind == CodeKind::Async {
+        if kind.is_async() {
             self.async_epilogue(body_start)?;
         }
         let this_mode = if matches!(self.function.kind, FunctionKind::Arrow | FunctionKind::Eval) {
@@ -323,9 +335,6 @@ impl<'a> FunctionCompiler<'a> {
 
     fn code_kind(&self) -> CResult<CodeKind> {
         let function = self.function;
-        if function.is_async && function.is_generator {
-            return Err(self.unsupported("async generator"));
-        }
         Ok(match function.kind {
             // Indirect eval code is global code with a top scope of its own.
             FunctionKind::Script if self.scopes.scope(function.scope).kind == ScopeKind::Eval => {
@@ -333,6 +342,7 @@ impl<'a> FunctionCompiler<'a> {
             }
             FunctionKind::Script => CodeKind::Script,
             FunctionKind::Eval => CodeKind::Eval,
+            _ if function.is_generator && function.is_async => CodeKind::AsyncGenerator,
             _ if function.is_generator => CodeKind::Generator,
             _ if function.is_async => CodeKind::Async,
             FunctionKind::Normal => CodeKind::Normal,
@@ -853,7 +863,7 @@ impl<'a> FunctionCompiler<'a> {
         } else {
             self.parameter_list(scope)?;
         }
-        if kind == CodeKind::Generator {
+        if matches!(kind, CodeKind::Generator | CodeKind::AsyncGenerator) {
             self.emit(Insn::InitialYield);
         }
         Ok(())
@@ -862,7 +872,10 @@ impl<'a> FunctionCompiler<'a> {
     /// The handler of an async function's whole code after `AsyncStart`
     /// (the parameters and the body, §15.8.4 step 3 and §27.7.5.2 step
     /// 3.h): a throw that nothing in it catches rejects the result
-    /// promise. `start` is the first instruction after `AsyncStart`.
+    /// promise. `start` is the first instruction after `AsyncStart`. In
+    /// an async generator the handler covers the body after `InitialYield`
+    /// (§27.6.3.2): the throw rejects the request at the head of the
+    /// queue.
     fn async_epilogue(&mut self, start: usize) -> CResult<()> {
         let reason = self.temp()?;
         let target = self.emit(Insn::AsyncReject { src: reason });
@@ -966,16 +979,15 @@ impl<'a> FunctionCompiler<'a> {
                 right,
                 body,
                 scope,
-                is_await: false,
-            } => self.for_of(left, right, body, scope)?,
+                is_await,
+            } => self.for_of(left, right, body, scope, is_await)?,
             StmtKind::Class(class) => self.class_declaration(class)?,
             StmtKind::With {
                 object,
                 body,
                 scope,
             } => self.with_statement(object, body, scope)?,
-            kind @ (StmtKind::ForOf { is_await: true, .. }
-            | StmtKind::Import
+            kind @ (StmtKind::Import
             | StmtKind::ExportDeclaration(_)
             | StmtKind::ExportDefault { .. }
             | StmtKind::ExportList) => {
@@ -1028,13 +1040,7 @@ impl<'a> FunctionCompiler<'a> {
                 let target = self.find_breakable(label, true)?;
                 self.jump_to(target, true);
             }
-            StmtKind::Return(argument) => {
-                let value = match argument {
-                    Some(e) => self.expr(e, None)?,
-                    None => self.undefined_temp()?,
-                };
-                self.emit_return(value);
-            }
+            StmtKind::Return(argument) => self.return_statement(argument)?,
             StmtKind::Throw(e) => {
                 let value = self.expr(e, None)?;
                 self.emit(Insn::Throw { src: value });
@@ -1050,6 +1056,22 @@ impl<'a> FunctionCompiler<'a> {
                 finalizer,
             } => self.try_statement(block, handler, finalizer)?,
         }
+        Ok(())
+    }
+
+    /// `return` (§14.10.1): an async generator awaits the value first.
+    fn return_statement(&mut self, argument: Option<ExprId>) -> CResult<()> {
+        let value = match argument {
+            Some(e) if self.kind == CodeKind::AsyncGenerator => {
+                let t = self.temps(2)?;
+                self.expr(e, Some(t))?;
+                self.emit_await(t);
+                t
+            }
+            Some(e) => self.expr(e, None)?,
+            None => self.undefined_temp()?,
+        };
+        self.emit_return(value);
         Ok(())
     }
 
@@ -1674,6 +1696,18 @@ impl<'a> FunctionCompiler<'a> {
             },
             FinallyBody::Close(rec) => {
                 self.emit(Insn::IteratorClose { rec, kind });
+            }
+            FinallyBody::AsyncClose(rec) => {
+                let t = self.temps(2)?;
+                let close = self.emit(Insn::AsyncClose {
+                    rec,
+                    kind,
+                    dst: t,
+                    offset: 0,
+                });
+                self.emit(Insn::Await { reg: t });
+                self.emit(Insn::AsyncCloseEnd { reg: t, kind });
+                self.patch_here(close);
             }
         }
         let end_finally = self.emit(Insn::EndFinally {

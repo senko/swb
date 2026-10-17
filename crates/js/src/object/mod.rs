@@ -110,6 +110,12 @@ pub enum ObjectKind {
     IteratorHelper(Box<IteratorHelper>),
     /// An object made by `Iterator.from` (`[[Iterated]]`, §27.1.3.2.1.1).
     WrapForValidIterator(Box<WrappedIterator>),
+    /// An Async-from-Sync Iterator (`[[SyncIteratorRecord]]`, §27.1.6):
+    /// internal, only the records of async iteration hold it.
+    AsyncFromSyncIterator(Box<WrappedIterator>),
+    /// The variables of a running `Array.fromAsync` (internal, the data of
+    /// its reactions; `builtins/array_from_async.rs`).
+    ArrayFromAsync(Box<crate::builtins::FromAsync>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
@@ -201,6 +207,8 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::SetIterator(_) => "SetIterator",
             ObjectKind::IteratorHelper(_) => "IteratorHelper",
             ObjectKind::WrapForValidIterator(_) => "WrapForValidIterator",
+            ObjectKind::AsyncFromSyncIterator(_) => "AsyncFromSyncIterator",
+            ObjectKind::ArrayFromAsync(_) => "ArrayFromAsync",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
             ObjectKind::Promise(_) => "Promise",
@@ -252,7 +260,7 @@ impl ObjectKind {
                 }
             }
             ObjectKind::IteratorHelper(state) => state.trace(tracer),
-            ObjectKind::WrapForValidIterator(state) => {
+            ObjectKind::WrapForValidIterator(state) | ObjectKind::AsyncFromSyncIterator(state) => {
                 iterator_helper::trace_record(&state.record, tracer);
             }
             ObjectKind::ForInIterator(state) => {
@@ -264,6 +272,7 @@ impl ObjectKind {
             ObjectKind::PrivateEnvironment(env) => env.trace(tracer),
             ObjectKind::Environment(env) => env.trace(tracer),
             ObjectKind::Promise(state) => state.trace(tracer),
+            ObjectKind::ArrayFromAsync(state) => state.trace(tracer),
         }
     }
 
@@ -283,7 +292,9 @@ impl ObjectKind {
                 size_of::<CollectionIterator>()
             }
             ObjectKind::IteratorHelper(state) => state.heap_size(),
-            ObjectKind::WrapForValidIterator(_) => size_of::<WrappedIterator>(),
+            ObjectKind::WrapForValidIterator(_) | ObjectKind::AsyncFromSyncIterator(_) => {
+                size_of::<WrappedIterator>()
+            }
             ObjectKind::Error(Some(data)) => data.heap_size(),
             ObjectKind::ForInIterator(state) => {
                 size_of::<ForInIterator>() + state.keys.len() * size_of::<PropertyKey>()
@@ -291,6 +302,7 @@ impl ObjectKind {
             ObjectKind::PrivateEnvironment(env) => env.heap_size(),
             ObjectKind::Environment(_) => size_of::<EnvRecord>(),
             ObjectKind::Promise(state) => state.heap_size(),
+            ObjectKind::ArrayFromAsync(_) => size_of::<crate::builtins::FromAsync>(),
             _ => 0,
         }
     }
