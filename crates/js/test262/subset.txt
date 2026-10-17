@@ -333,3 +333,13 @@ feature Promise.prototype.finally
 feature promise-with-resolvers
 feature promise-try
 dir test/built-ins/Promise
+
+# Added in M7 feature 7c: async functions, async arrow functions, async
+# methods, `await` and `AsyncFunction`. Most of their tests are in groups
+# that run already (expressions/async-function, async-arrow-function,
+# await, statements/async-function, the method groups of classes and
+# object literals); the new group is built-ins/AsyncFunction. Tests that
+# also need async generators or `for await` (`async-iteration`) stay
+# skipped until 7d.
+feature async-functions
+dir test/built-ins/AsyncFunction

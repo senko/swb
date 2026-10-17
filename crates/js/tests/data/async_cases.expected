@@ -1,0 +1,272 @@
+async function sh1(a, b) {} [typeof sh1, sh1.name, sh1.length, typeof sh1.prototype, 'prototype' in sh1, Object.getPrototypeOf(sh1) === Function.prototype] => ok ["function","sh1",2,"undefined",false,false]
+var AF = Object.getPrototypeOf(async function () {}); [AF === Function.prototype, Object.getPrototypeOf(AF) === Function.prototype, Reflect.ownKeys(AF).map(String)] => ok [false,true,["constructor","Symbol(Symbol.toStringTag)"]]
+var AFC = AF.constructor; [AFC.name, AFC.length, Object.getPrototypeOf(AFC) === Function, Reflect.ownKeys(AFC).map(String), typeof globalThis.AsyncFunction, AFC === Function] => ok ["AsyncFunction",1,true,["length","name","prototype"],"undefined",false]
+JSON.stringify(Object.getOwnPropertyDescriptor(AFC, 'prototype'), (k, v) => k === 'value' ? v === AF : v) => ok "{\"value\":true,\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+JSON.stringify(Object.getOwnPropertyDescriptor(AFC, 'length')) => ok "{\"value\":1,\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(AFC, 'name')) => ok "{\"value\":\"AsyncFunction\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(AF, 'constructor'), (k, v) => k === 'value' ? v === AFC : v) => ok "{\"value\":true,\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(AF, Symbol.toStringTag)) => ok "{\"value\":\"AsyncFunction\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+[Object.prototype.toString.call(async function () {}), Object.prototype.toString.call(async () => {}), Object.prototype.toString.call(AF), String(AF[Symbol.toStringTag])] => ok ["[object AsyncFunction]","[object AsyncFunction]","[object AsyncFunction]","AsyncFunction"]
+[AF.hasOwnProperty('prototype'), AF.hasOwnProperty('call'), typeof AF.call, AF.call === Function.prototype.call] => ok [false,false,"function",true]
+Reflect.ownKeys(async function () {}).map(String) => ok ["length","name"]
+Reflect.ownKeys(async () => {}).map(String) => ok ["length","name"]
+Reflect.ownKeys({ async m() {} }.m).map(String) => ok ["length","name"]
+class SH2 { async m() {} static async s() {} async ['c' + 1]() {} } [SH2.prototype.m.name, SH2.s.name, SH2.prototype.c1.name, Reflect.ownKeys(SH2.prototype.m).map(String).join(), 'prototype' in SH2.s] => ok ["m","s","c1","length,name",false]
+class SH3 { async #p() {} static async #q() {} get p() { return this.#p; } static get q() { return SH3.#q; } } [new SH3().p.name, SH3.q.name, Object.getPrototypeOf(SH3.q) === AF] => ok ["#p","#q",true]
+var sh4 = async () => {}; var sh5 = async x => x; [sh4.name, sh4.length, sh5.name, sh5.length, 'prototype' in sh4] => ok ["sh4",0,"sh5",1,false]
+var sh6 = { async ['k']() {}, async 5() {}, async [Symbol.iterator]() {} }; [sh6.k.name, sh6[5].name, sh6[Symbol.iterator].name] => ok ["k","5","[Symbol.iterator]"]
+async function sh7(a, b = 1, ...c) {} async function sh8(...a) {} async function sh9({ a }, [b]) {} [sh7.length, sh8.length, sh9.length] => ok [1,0,2]
+[(async function () {}).hasOwnProperty('caller'), (async function () {}).hasOwnProperty('arguments'), (async () => {}).hasOwnProperty('caller')] => ok [false,false,false]
+(async function () { 'use strict'; }).caller => err TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them
+(async function () {}).arguments => err TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them
+var sh10 = async function named() {}; [sh10.name, Object.getOwnPropertyDescriptor(sh10, 'name').configurable] => ok ["named",true]
+var sh11 = { f: async function () {}, g: async () => {} }; [sh11.f.name, sh11.g.name] => ok ["f","g"]
+String(async function sh12(a) { await a; }) => ok "async function sh12(a) { await a; }"
+String(async (a) => a) => ok "async (a) => a"
+String(async a => a) => ok "async a => a"
+String(async  ( a , b )  =>  { return  a }) => ok "async  ( a , b )  =>  { return  a }"
+({ async m() { await 1; } }).m.toString() => ok "async m() { await 1; }"
+({ async 'quoted'() {} }).quoted.toString() => ok "async 'quoted'() {}"
+class SH13 { static async s() {} } SH13.s.toString() => ok "async s() {}"
+String(async /* c */ function /* d */ sh15 () {}) => ok "async /* c */ function /* d */ sh15 () {}"
+var sh16 = async function () {}; [sh16() instanceof Promise, Object.getPrototypeOf(sh16()) === Promise.prototype, sh16() === sh16()] => ok [true,true,false]
+var sh17 = (async () => {})(); [sh17.constructor === Promise, Object.prototype.toString.call(sh17)] => ok [true,"[object Promise]"]
+new (async function () {}) => err TypeError: (intermediate value) is not a constructor
+async function sh19() {} new sh19() => err TypeError: sh19 is not a constructor
+new (async () => {}) => err TypeError: (intermediate value) is not a constructor
+var sh20 = { async m() {} }; new sh20.m() => err TypeError: sh20.m is not a constructor
+Reflect.construct(function () {}, [], async function () {}) => err TypeError: async function () {} is not a constructor
+class SH21 extends (async function () {}) {} => err TypeError: Class extends value async function () {} is not a constructor or null
+async function sh22() {} sh22.prototype = {}; new sh22() => err TypeError: sh22 is not a constructor
+var sh23 = (async function () {}).bind(null); [sh23.name, typeof sh23.prototype, sh23() instanceof Promise] => ok ["bound ","undefined",true]
+new ((async function () {}).bind(null)) => err TypeError: (intermediate value).bind(...) is not a constructor
+AFC() => ok function anonymous
+String(AFC()) => ok "async function anonymous(\n) {\n\n}"
+String(AFC('a', 'b', 'return a + b')) => ok "async function anonymous(a,b\n) {\nreturn a + b\n}"
+String(AFC('a, b', '', 'await a')) => ok "async function anonymous(a, b,\n) {\nawait a\n}"
+String(new AFC('x', 'return await x')) => ok "async function anonymous(x\n) {\nreturn await x\n}"
+AFC('a', 'b', 'return a + b')(1, 2) => ok Promise | fulfilled 3
+AFC('return await 5')() => ok Promise | fulfilled 5
+AFC('...a', 'return a.length')(1, 2, 3) => ok Promise | fulfilled 3
+[Object.getPrototypeOf(AFC('')) === AF, AFC('').name, AFC('').length, AFC('a', 'b', '').length, 'prototype' in AFC('')] => ok [true,"anonymous",0,2,false]
+AFC('return this').call(7) => ok Promise | fulfilled {}
+AFC('"use strict"; return this').call(7) => ok Promise | fulfilled 7
+AFC('return typeof arguments')(1) => ok Promise | fulfilled "object"
+class SH24 extends AFC {} var sh24 = new SH24('return 1'); [Object.getPrototypeOf(sh24) === SH24.prototype, sh24 instanceof AFC, Object.getPrototypeOf(SH24.prototype) === AF] => ok [true,true,true]
+var sh25 = Reflect.construct(AFC, ['return 1'], Array); [Object.getPrototypeOf(sh25) === Array.prototype] => ok [true]
+function SH26() {} SH26.prototype = 5; Object.getPrototypeOf(Reflect.construct(AFC, [''], SH26)) === AF => ok true
+AFC.call({}, 'return 2')() => ok Promise | fulfilled 2
+Function.prototype.toString.call(AFC) => ok "function AsyncFunction() { [native code] }"
+AFC.toString() => ok "function AsyncFunction() { [native code] }"
+Object.getOwnPropertyNames(AF.constructor.prototype).join() => ok "constructor"
+var AF = Object.getPrototypeOf(async function () {}); var AFC = AF.constructor; typeof AFC => ok "function"
+AFC('await') => err SyntaxError: Unexpected token '}'
+AFC('a = await 1', '') => err SyntaxError: Illegal await-expression in formal parameters of async function
+AFC('await', '') => err SyntaxError: Unexpected reserved word
+AFC('yield 1') => err SyntaxError: Unexpected number
+AFC('}') => err SyntaxError: Unexpected token '}'
+AFC('/*', '*/){') => err SyntaxError: Unexpected end of arg string
+AFC('a', 'a', '"use strict";') => err SyntaxError: Duplicate parameter name not allowed in this context
+AFC('super()') => err SyntaxError: 'super' keyword unexpected here
+AFC('super.x') => err SyntaxError: 'super' keyword unexpected here
+AFC('return', '') => err SyntaxError: Unexpected token 'return'
+AFC('a', 'let a;') => err SyntaxError: Identifier 'a' has already been declared
+AFC('new.target')() => ok Promise | fulfilled undefined
+AFC('await new.target')() => ok Promise | fulfilled undefined
+AFC('(a = 1', ') => {}') => err SyntaxError: Unexpected token '('
+AFC({ toString() { throw new Error('ts'); } }, '') => err Error: ts
+AFC('', { toString() { throw new Error('body'); } }) => err Error: body
+async function er1() { var await; } => err SyntaxError: Unexpected reserved word
+async function er2(await) {} => err SyntaxError: Unexpected reserved word
+async (await) => 1 => err SyntaxError: 'await' is not a valid identifier name in an async function
+async function er3() { function g(a = await 1) {} } => err SyntaxError: Unexpected number
+function er4() { await 1; } => err SyntaxError: await is only valid in async functions and the top level bodies of modules
+async function er5() { function g() { await 1; } } => err SyntaxError: await is only valid in async functions and the top level bodies of modules
+async function er6() { yield 1; } => err SyntaxError: Unexpected number
+async function er7() { 'use strict'; var yield; } => err SyntaxError: Unexpected strict mode reserved word
+(async function er8() { var await; }) => err SyntaxError: Unexpected reserved word
+(async function await() {}) => err SyntaxError: Unexpected reserved word
+async function er9(a = await 1) {} => err SyntaxError: Illegal await-expression in formal parameters of async function
+async (a = await 1) => a => err SyntaxError: missing ) after argument list
+async () => { var x = async function () { await 1; }; await: 1; } => err SyntaxError: Unexpected token ':'
+var await = 5; await => ok 5
+(function () { var await = 7; return await; })() => ok 7
+var async = 3; async => ok 3
+var er10 = async => async; er10(4) => ok 4
+var er11 = async
+function er12() {} => ok undefined
+async function er13() { return await; } => err SyntaxError: Unexpected token ';'
+async function er14() { class C { [await 1]() {} } } => ok undefined
+async function er15() { class C { x = await 1; } } => err SyntaxError: Unexpected number
+async function er16() { class C { static { await 1; } } } => err SyntaxError: Unexpected reserved word
+({ async get x() {} }) => err SyntaxError: Unexpected identifier 'x'
+class ER17 { async constructor() {} } => err SyntaxError: Class constructor may not be an async method
+async function er18() { arguments = 1; } => ok undefined
+async function er19() { 'use strict'; eval = 1; } => err SyntaxError: Unexpected eval or arguments in strict mode
+async function er20() { delete await 1; } => ok undefined
+async function er21() { await 1 ** 2; } => err SyntaxError: Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence
+(async () => (-await 3) ** 2)() => ok Promise | fulfilled 9
+async function er22() { throw new Error('x'); } er22() => ok Promise | rejected Error: x
+async function er23() { null.x; } er23() => ok Promise | rejected TypeError: Cannot read properties of null (reading 'x')
+async function er24(a = undeclared24) {} er24() => ok Promise | rejected ReferenceError: undeclared24 is not defined
+async function er25({ a }) {} er25() => ok Promise | rejected TypeError: Cannot destructure property 'a' of 'undefined' as it is undefined.
+async function er26([a]) {} er26(5) => ok Promise | rejected TypeError: number 5 is not iterable (cannot read property Symbol(Symbol.iterator))
+var er27 = async (a = (() => { throw new RangeError('param'); })()) => {}; er27() => ok Promise | rejected RangeError: param
+async function er28() { await Promise.reject(1); } er28() => ok Promise | rejected value 1
+async function er29() { await Promise.reject(new TypeError('r')); log.push('not reached'); } er29() => ok Promise | rejected TypeError: r
+async function er30() { try { await Promise.reject(new Error('r')); } catch (e) { log.push('caught ' + e.message); return 'c'; } } er30() => ok Promise | caught r; fulfilled "c"
+async function er31() { try { await 1; throw 2; } finally { log.push('fin'); } } er31() => ok Promise | fin; rejected value 2
+async function er32() { try { return await Promise.reject(3); } catch (e) { return 'caught ' + e; } } er32() => ok Promise | fulfilled "caught 3"
+async function er33() { try { return Promise.reject(3); } catch (e) { return 'caught ' + e; } } er33() => ok Promise | rejected value 3
+async function er34() { try { await 1; return 'try'; } finally { await 2; log.push('fin'); } } er34() => ok Promise | fin; fulfilled "try"
+async function er35() { try { throw 1; } finally { return await 2; } } er35() => ok Promise | fulfilled 2
+async function er36() { try { await Promise.reject(1); } catch (e) { await Promise.reject(e + 1); } } er36() => ok Promise | rejected value 2
+async function er37() { try { await Promise.reject(1); } catch (e) { try { await Promise.reject(e + 1); } catch (f) { return f; } } } er37() => ok Promise | fulfilled 2
+async function er38() { try { await 1; } finally { throw new Error('fin'); } } er38() => ok Promise | rejected Error: fin
+(async () => { await { then(f, r) { r(new Error('th')); } }; })() => ok Promise | rejected Error: th
+(async () => { await { get then() { throw new Error('get'); } }; })() => ok Promise | rejected Error: get
+(async () => { await { then() { throw new Error('in then'); } }; })() => ok Promise | rejected Error: in then
+(async () => { await { then(f) { f(1); throw new Error('after'); } }; return 'ok'; })() => ok Promise | fulfilled "ok"
+(async () => { var p = Promise.resolve(1); Object.defineProperty(p, 'constructor', { get() { throw new Error('ctor'); } }); await p; })() => ok Promise | rejected Error: ctor
+(async () => { var p = Promise.resolve(1); Object.defineProperty(p, 'constructor', { get() { log.push('ctor'); return Object; } }); log.push(await p); })(); log.push('sync') => ok 2 | ctor; sync; ctor; 1
+var er39 = async () => { log.push('start'); throw new Error('e'); }; var p39 = er39(); log.push('after'); p39.catch(e => log.push('caught ' + e.message)) => ok Promise | start; after; caught e; fulfilled 3
+async function er40() { return er40.caller; } er40() => ok Promise | rejected TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them
+async function er41() { undefinedFunction41(); } er41() => ok Promise | rejected ReferenceError: undefinedFunction41 is not defined
+(async () => { for (var x of 5) {} })() => ok Promise | rejected TypeError: 5 is not iterable
+(async () => { var [a] = null; })() => ok Promise | rejected TypeError: null is not iterable
+(async () => { await null.x; })() => ok Promise | rejected TypeError: Cannot read properties of null (reading 'x')
+(async function () { 'use strict'; undeclared42 = 1; })() => ok Promise | rejected ReferenceError: undeclared42 is not defined
+(async () => { new.target; }) => err SyntaxError: new.target expression is not allowed here
+(async () => { super.x; }) => err SyntaxError: 'super' keyword unexpected here
+({ async m() { return super.toString === Object.prototype.toString; } }).m() => ok Promise | fulfilled true
+(async () => { throw Symbol('s'); })() => ok Promise | rejected value Symbol(s)
+(async () => { throw undefined; })() => ok Promise | rejected value undefined
+async function o1() { log.push('f1'); await undefined; log.push('f2'); await null; log.push('f3'); } o1(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')); log.push('sync') => ok 2 | f1; sync; f2; b1; f3; b2; b3; b4
+(async () => { log.push('a0'); await Promise.resolve(); log.push('a1'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a0; a1; b1; b2; b3; fulfilled 5
+(async () => { await new Promise(r => r()); log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a; b1; b2; b3; fulfilled 4
+(async () => { await { then(r) { log.push('then'); r(); } }; log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | then; b1; a; b2; b3; b4; fulfilled 6
+(async () => { await Promise.resolve({ then(r) { log.push('then'); r(); } }); log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | then; b1; a; b2; b3; b4; b5; fulfilled 7
+class OS1 extends Promise {} (async () => { await OS1.resolve(); log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; b2; a; b3; b4; b5; fulfilled 6
+class OS2 extends Promise { constructor(e) { log.push('ctor'); super(e); } } var os2 = OS2.resolve(); log.push('made'); (async () => { await os2; log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')); log.push('sync') => ok 3 | ctor; made; sync; ctor; b1; b2; a; b3; b4; b5
+var pp1 = Promise.resolve(); pp1.then = function (a, b) { log.push('patched then'); return Promise.prototype.then.call(this, a, b); }; (async () => { await pp1; log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a; b1; b2; b3; fulfilled 4
+var pp2 = Promise.resolve(); Object.defineProperty(pp2, 'constructor', { get() { log.push('get ctor'); return Promise; } }); (async () => { await pp2; log.push('a'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')); log.push('sync') => ok 2 | get ctor; sync; a; b1; b2; b3
+(async () => { return Promise.resolve(); })().then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; b2; a; b3; b4; b5; fulfilled 6
+(async () => { return await Promise.resolve(); })().then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; a; b2; b3; b4; b5; fulfilled 6
+(async () => { return 1; })().then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a; b1; b2; b3; fulfilled 4
+(async () => {})().then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a; b1; b2; b3; fulfilled 4
+(async () => { return { then(r) { log.push('then'); r(4); } }; })().then(v => log.push('a' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | then; b1; a4; b2; b3; b4; fulfilled 6
+(async () => { return { get then() { log.push('get then'); } }; })().then(v => log.push('a')); log.push('sync') => ok 2 | get then; sync; a
+(async () => { await 0; return { get then() { log.push('get then'); } }; })().then(v => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')); log.push('sync') => ok 1 | sync; get then; b1; a; b2; b3
+(async () => { throw 1; })().catch(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | a; b1; b2; b3; fulfilled 4
+(async () => { await Promise.reject(1); })().catch(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; a; b2; b3; b4; fulfilled 5
+async function oa() { for (let i = 0; i < 3; i++) { log.push('a' + i); await 0; } } async function ob() { for (let i = 0; i < 3; i++) { log.push('b' + i); await 0; } } oa(); ob(); log.push('sync') => ok 3 | a0; b0; sync; a1; b1; a2; b2
+async function oi() { log.push('i1'); await 0; log.push('i2'); return 'r'; } async function oo() { log.push('o1'); const v = await oi(); log.push('o2 ' + v); } oo(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')); log.push('sync') => ok 3 | o1; i1; sync; i2; b1; o2 r; b2; b3; b4; b5
+async function or1(n) { log.push('in ' + n); if (n < 3) await or1(n + 1); log.push('out ' + n); } or1(0); log.push('sync') => ok 6 | in 0; in 1; in 2; in 3; out 3; sync; out 2; out 1; out 0
+async function or2(n) { log.push('in ' + n); await 0; if (n < 2) await or2(n + 1); log.push('out ' + n); return n; } or2(0); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')).then(() => log.push('b7')).then(() => log.push('b8')) => ok Promise | in 0; in 1; b1; in 2; b2; out 2; b3; out 1; b4; out 0; b5; b6; b7; b8; fulfilled 14
+var res3; var pend3 = new Promise(r => { res3 = r; }); (async () => { log.push('w'); log.push('got ' + await pend3); })(); Promise.resolve().then(() => { log.push('r'); res3(7); }).then(() => log.push('after')) => ok Promise | w; r; got 7; after; fulfilled 4
+var rej4; var pend4 = new Promise((_, r) => { rej4 = r; }); (async () => { try { await pend4; } catch (e) { log.push('caught ' + e); } })(); Promise.resolve().then(() => rej4(8)) => ok Promise | caught 8; fulfilled undefined
+var p5 = Promise.resolve(1); (async () => { log.push('x' + await p5); })(); (async () => { log.push('y' + await p5); })(); p5.then(() => log.push('z')) => ok Promise | x1; y1; z; fulfilled 3
+async function oargs() { await 0; return arguments.length + ':' + arguments[1]; } oargs(1, 2, 3) => ok Promise | fulfilled "3:2"
+async function omap(a) { arguments[0] = 9; await 0; return a; } omap(1) => ok Promise | fulfilled 9
+async function omap2(a) { 'use strict'; arguments[0] = 9; await 0; return a + ':' + arguments[0]; } omap2(1) => ok Promise | fulfilled "1:9"
+var ot = { m() { return (async () => { await 0; return this === ot; })(); } }; ot.m() => ok Promise | fulfilled true
+(async function () { return this === globalThis; })() => ok Promise | fulfilled true
+(async function () { 'use strict'; return this; })() => ok Promise | fulfilled undefined
+(async function () { 'use strict'; return this; }).call(5) => ok Promise | fulfilled 5
+(async function () { await 0; return typeof this; }).call(5) => ok Promise | fulfilled "object"
+class OSA { m() { return 'A'; } } class OSB extends OSA { async m() { await 0; return super.m() + 'B'; } } new OSB().m() => ok Promise | fulfilled "AB"
+var oproto = { x() { return 'px'; } }; var oobj = { __proto__: oproto, async x() { await 0; return super.x(); } }; oobj.x() => ok Promise | fulfilled "px"
+class OSC { static s() { return 'S'; } } class OSD extends OSC { static async s() { await 0; return super.s() + 'D'; } } OSD.s() => ok Promise | fulfilled "SD"
+class OSE { m() { return 'E'; } } class OSF extends OSE { m() { return (async () => { await 0; return super.m() + 'F'; })(); } } new OSF().m() => ok Promise | fulfilled "EF"
+function ONT() { this.p = (async () => { await 0; return new.target === ONT; })(); } new ONT().p => ok Promise | fulfilled true
+class OPV { #v = 4; async m() { await 0; return this.#v; } async #pm() { return 'pm'; } n() { return this.#pm(); } } Promise.all([new OPV().m(), new OPV().n()]) => ok Promise | fulfilled [4,"pm"]
+(async () => { var { a = await Promise.resolve(5) } = {}; return a; })() => ok Promise | fulfilled 5
+(async () => { var [x = await 6, y = await 7] = [undefined, 8]; return x + ':' + y; })() => ok Promise | fulfilled "6:8"
+(async ({ a = 1 } = {}) => a)() => ok Promise | fulfilled 1
+(async () => `x${await 1}y${await Promise.resolve(2)}z`)() => ok Promise | fulfilled "x1y2z"
+var it1 = { [Symbol.iterator]() { return { i: 0, next() { return { value: this.i++, done: false }; }, return() { log.push('closed'); return {}; } }; } }; (async () => { for (var x of it1) { await x; if (x === 2) break; } return x; })() => ok Promise | closed; fulfilled 2
+var it2 = { [Symbol.iterator]() { return { i: 0, next() { return { value: this.i++, done: false }; }, return() { log.push('closed'); return {}; } }; } }; (async () => { for (var x of it2) { await x; if (x === 1) throw new Error('out'); } })() => ok Promise | closed; rejected Error: out
+var it3 = { [Symbol.iterator]() { return { i: 0, next() { return { value: this.i++, done: this.i > 3 }; }, return() { log.push('closed'); return {}; } }; } }; (async () => { var s = 0; for (var x of it3) s += await x; return s; })() => ok Promise | fulfilled 3
+var it4 = { [Symbol.iterator]() { return { next() { return { value: 1, done: false }; }, return() { log.push('closed'); return {}; } }; } }; (async () => { for (var x of it4) { return await 'early'; } })() => ok Promise | closed; fulfilled "early"
+var it5 = { [Symbol.iterator]() { return { next() { return { value: Promise.reject(9), done: false }; }, return() { log.push('closed'); return {}; } }; } }; (async () => { for (var x of it5) { await x; } })() => ok Promise | closed; rejected value 9
+(async () => { var s = 0; for (var i = 0; i < 5; i++) s += await i; return s; })() => ok Promise | fulfilled 10
+(async () => { var i = 0; while (await (i < 3)) { log.push(i++); } return i; })() => ok Promise | 0; 1; 2; fulfilled 3
+(async () => { var i = 0; do { log.push(i); } while (await ++i < 3); return i; })() => ok Promise | 0; 1; 2; fulfilled 3
+(async () => { switch (await 2) { case await 1: return 'one'; case await 2: return 'two'; } })() => ok Promise | fulfilled "two"
+(async () => Math.max(await 1, await 2, 3))() => ok Promise | fulfilled 3
+(async () => await 1 + await 2)() => ok Promise | fulfilled 3
+(async () => typeof await 0)() => ok Promise | fulfilled "number"
+(async () => -await 3)() => ok Promise | fulfilled -3
+(async () => (await 2) ** 2)() => ok Promise | fulfilled 4
+(async () => [await 1, ...[await 2, 3], await Promise.resolve(4)])() => ok Promise | fulfilled [1,2,3,4]
+(async () => ({ a: await 1, [await 'k']: 2, ...(await { s: 3 }) }))() => ok Promise | fulfilled {a:1,k:2,s:3}
+(async () => (await 0) ? 'y' : await 'n')() => ok Promise | fulfilled "n"
+(async () => (await null) ?? await 'dflt')() => ok Promise | fulfilled "dflt"
+(async () => { var o = { f(x) { return x * 2; } }; return o.f(await 4); })() => ok Promise | fulfilled 8
+(async () => { var o = { v: 0 }; o.v += await 5; o[await 'w'] = await 6; return o.v + ':' + o.w; })() => ok Promise | fulfilled "5:6"
+(async () => { var a = await 1, b = await 2; let c = await 3; const d = await 4; return a + b + c + d; })() => ok Promise | fulfilled 10
+(async () => { label: { await 0; break label; } return 'after label'; })() => ok Promise | fulfilled "after label"
+(async () => { try { await 0; return 'r'; } finally { log.push('fin1'); } })() => ok Promise | fin1; fulfilled "r"
+(async () => { for (var i = 0; i < 3; i++) { try { await i; if (i === 1) continue; log.push('body ' + i); } finally { log.push('fin ' + i); } } })() => ok Promise | body 0; fin 0; fin 1; body 2; fin 2; fulfilled undefined
+(async () => { function* g() { yield 1; yield 2; } var r = []; for (var v of g()) r.push(await v); return r; })() => ok Promise | fulfilled [1,2]
+(async () => { var g = (function* () { var x = yield 1; log.push('got ' + x); })(); g.next(); await 0; g.next(await 'v'); })() => ok Promise | got v; fulfilled undefined
+Promise.all([1, 2, 3].map(async x => { await 0; return x * 2; })) => ok Promise | fulfilled [2,4,6]
+var o2 = { v: 3, async m() { await 0; return this.v; } }; o2.m() => ok Promise | fulfilled 3
+var oacc = { get x() { return (async () => { await 0; return 'getter'; })(); } }; oacc.x => ok Promise | fulfilled "getter"
+(async () => { var f = async () => { await 0; return 'inner'; }; return await f(); })() => ok Promise | fulfilled "inner"
+(async () => { var r = await (async () => { throw new Error('inner'); })().catch(e => 'c ' + e.message); return r; })() => ok Promise | fulfilled "c inner"
+var ofc = async function fact(n) { return n <= 1 ? 1 : n * await fact(n - 1); }; ofc(10) => ok Promise | fulfilled 3628800
+(async () => { eval('var ev = 3'); await 0; return ev; })() => ok Promise | fulfilled 3
+(async () => { await 0; return eval('typeof arguments'); })() => ok Promise | fulfilled "undefined"
+(async () => { var x = 1; await 0; return (0, eval)('typeof x'); })() => ok Promise | fulfilled "undefined"
+(async function () { 'use strict'; await 0; return eval('this'); })() => ok Promise | fulfilled undefined
+var ow = { async m() { await 0; with ({ z: 5 }) { return z; } } }; ow.m() => ok Promise | fulfilled 5
+var oc = 0; var ocp = (async () => { oc++; await 0; oc++; })(); log.push(oc); ocp.then(() => log.push(oc)) => ok Promise | 1; 2; fulfilled 2
+async function odup() { return 1; } var od1 = odup(), od2 = odup(); [od1 === od2, od1 instanceof Promise] => ok [false,true]
+var ores; (async () => { ores = 'set'; })(); ores => ok "set"
+(async () => { await 1; await 2; await 3; log.push('3 awaits'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; b2; 3 awaits; b3; b4; fulfilled 5
+(async () => { var p = Promise.resolve(); for (var i = 0; i < 3; i++) await p; log.push('loop'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; b2; loop; b3; b4; fulfilled 5
+(async () => { await Promise.all([1, 2]); log.push('all'); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; all; b2; b3; b4; b5; fulfilled 6
+(async () => { log.push(await (async () => 'nested')()); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | nested; b1; b2; b3; b4; fulfilled 5
+(async () => { log.push(await (async () => { await 0; return 'nested2'; })()); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; nested2; b2; b3; b4; b5; fulfilled 6
+(async () => { log.push(await (async () => Promise.resolve('nested3'))()); })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')) => ok Promise | b1; b2; nested3; b3; b4; b5; b6; fulfilled 7
+async function oe1() { await 0; throw new Error('late'); } oe1().catch(e => log.push('caught ' + e.message)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | b1; caught late; b2; b3; fulfilled 4
+(async () => { try { await (async () => { await 0; throw new Error('deep'); })(); } catch (e) { log.push('caught ' + e.message); } })(); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; caught deep; b2; b3; b4; fulfilled 5
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_a() { return new Error('x'); } s_a().then(e => log.push(st(e))) => ok Promise | at s_a; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_b() { await 0; return new Error('x'); } s_b().then(e => log.push(st(e))) => ok Promise | at s_b; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_c() { await 0; return new Error('x'); } async function s_d() { return await s_c(); } s_d().then(e => log.push(st(e))) => ok Promise | at s_c / at async s_d; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_e() { await 0; throw new Error('x'); } async function s_f() { await s_e(); } async function s_g() { await s_f(); } s_g().catch(e => log.push(st(e))) => ok Promise | at s_e / at async s_f / at async s_g; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_h() { throw new Error('x'); } async function s_i() { await s_h(); } s_i().catch(e => log.push(st(e))) => ok Promise | at s_h / at s_i; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_j() { await 0; throw new Error('x'); } async function s_k() { var p = s_j(); await 0; await p; } s_k().catch(e => log.push(st(e))) => ok Promise | at s_j; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_l() { await 0; throw new Error('x'); } function s_m() { return s_l(); } s_m().catch(e => log.push(st(e))) => ok Promise | at s_l; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_n() { await 0; throw new Error('x'); } async function s_o() { return s_n(); } async function s_p() { await s_o(); } s_p().catch(e => log.push(st(e))) => ok Promise | at s_n; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); var s_q = { async s_r() { await 0; return new Error('x'); } }; async function s_s() { return await s_q.s_r(); } s_s().then(e => log.push(st(e))) => ok Promise | at async s_s; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_t() { await 0; return new Error('x').stack.split('\n').length; } s_t() => ok Promise | fulfilled 2
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_u() { await 0; return new Error('x'); } async function s_v() { return await s_u(); } async function s_w() { return await s_v(); } s_w().then(e => log.push(e.stack.split('\n').length)) => ok Promise | 4; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_x() { await null; return new Error('x'); } async function s_y() { try { return await s_x(); } finally { } } s_y().then(e => log.push(st(e))) => ok Promise | at s_x / at async s_y; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); var s_z = async () => { await 0; return new Error('x'); }; var s_z2 = async () => await s_z(); s_z2().then(e => log.push(st(e))) => ok Promise | at s_z / at async s_z2; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ac() { await 0; return new Error('x'); } async function s_ad() { return s_ac().then(e => e); } async function s_ae() { return await s_ad(); } s_ae().then(e => log.push(st(e))) => ok Promise | at s_ac; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); class S_C { async s_m() { await 0; return new Error('x'); } } async function s_af() { return await new S_C().s_m(); } s_af().then(e => log.push(st(e))) => ok Promise | at S_C.s_m / at async s_af; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ag() { await 0; return new Error('x'); } async function s_ah() { return await s_ag(); } Error.stackTraceLimit = 1; var p_ah = s_ah(); Error.stackTraceLimit = 10; p_ah.then(e => log.push(st(e))) => ok Promise | at s_ag / at async s_ah; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); class S_D { async s_m() { await 0; return new Error('x'); } async s_n() { return await this.s_m(); } } new S_D().s_n().then(e => log.push(st(e))) => ok Promise | at S_D.s_m / at async S_D.s_n; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ai() { await 0; Error.stackTraceLimit = 2; var e = new Error('x'); Error.stackTraceLimit = 10; return e; } async function s_aj() { return await s_ai(); } async function s_ak() { return await s_aj(); } s_ak().then(e => log.push(st(e))) => ok Promise | at s_ai / at async s_aj; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_al() { await 0; Error.stackTraceLimit = 1; var e = new Error('x'); Error.stackTraceLimit = 10; return e; } async function s_am() { return await s_al(); } s_am().then(e => log.push(st(e))) => ok Promise | at s_al; fulfilled 1
+var stl = e => e.stack.split('\n').slice(1).filter(l => l.includes(' s_')).map(l => l.trim()).map(l => l.slice(0, l.indexOf('(') + 1) + l.slice(l.lastIndexOf('<anonymous>:') + 12)).join(' / '); async function s_an() { await 0; return new Error('x'); }
+async function s_ao() {
+  var v =  await   s_an();
+  return v; } s_ao().then(e => log.push(stl(e))) => ok Promise | at s_an (1:235) / at async s_ao (3:12); fulfilled 1
+var stl = e => e.stack.split('\n').slice(1).filter(l => l.includes(' s_')).map(l => l.trim()).map(l => l.slice(0, l.indexOf('(') + 1) + l.slice(l.lastIndexOf('<anonymous>:') + 12)).join(' / '); async function s_ap() { await 0; return new Error('x'); }
+async function s_aq() { return (await s_ap()); }
+async function s_ar() { try { await 1; } finally { return await s_aq(); } } s_ar().then(e => log.push(stl(e))) => ok Promise | at s_ap (1:235) / at async s_aq (2:33) / at async s_ar (3:59); fulfilled 1
+var stl = e => e.stack.split('\n').slice(1).filter(l => l.includes(' s_')).map(l => l.trim()).map(l => l.slice(0, l.indexOf('(') + 1) + l.slice(l.lastIndexOf('<anonymous>:') + 12)).join(' / '); var s_ba = { async s_bb() { await 0; return new Error('x'); } };
+var s_bc = async () => {
+ await s_ba.s_bb(); return await s_ba.s_bb(); }; s_bc().then(e => log.push(stl(e))) => ok Promise | at async s_bc (3:28); fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_as() { await 0; throw new Error('x'); } async function s_at() { await s_as(); } s_at().catch(e => log.push(st(e))) => ok Promise | at s_as / at async s_at; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_au() { await 0; var o = {}; Error.captureStackTrace(o); return o; } async function s_av() { return await s_au(); } s_av().then(o => log.push(st(o))) => ok Promise | at s_au / at async s_av; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_aw() { await 0; return new Error('x'); } async function s_ax() { var p = s_aw(); var q = p.then(e => e); await p; return q; } s_ax().then(e => log.push(st(e))) => ok Promise | at s_aw; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ay() { await 0; return new Error('x'); } async function s_az() { var p = s_ay(); var a = (async () => await p)(); await p; return a; } s_az().then(e => log.push(st(e))) => ok Promise | at s_ay; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ca() { await 0; return new Error('x'); } function s_cb() { return s_ca(); } async function s_cc() { return await s_cb(); } s_cc().then(e => log.push(st(e))) => ok Promise | at s_ca / at async s_cc; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_cd() { await 0; return s_ce(); } function s_ce() { return new Error('x'); } async function s_cf() { return await s_cd(); } s_cf().then(e => log.push(st(e))) => ok Promise | at s_ce / at s_cd / at async s_cf; fulfilled 1
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_ci() { return { get then() { log.push('getter: ' + st(new Error('g'))); } }; } s_ci() => ok Promise | getter: at s_ci; getter: ; fulfilled {then:undefined}
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_cj() { await 0; return { get then() { log.push('getter: ' + st(new Error('g'))); } }; } async function s_ck() { await s_cj(); } s_ck() => ok Promise | getter: at s_cj / at async s_ck; fulfilled undefined
+var st = e => e.stack.split('\n').slice(1).map(l => l.trim()).map(l => l.indexOf(' (') < 0 ? l : l.slice(0, l.indexOf(' ('))).filter(l => l.includes(' s_') || l.includes('S_')).join(' / '); async function s_cg() { await 0; return new Error('x'); } async function s_ch() { await 0; return await s_cg(); } s_ch().then(e => log.push(st(e))) => ok Promise | at s_cg / at async s_ch; fulfilled 1

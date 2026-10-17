@@ -227,13 +227,11 @@ impl FunctionCompiler<'_> {
             ExprKind::Class(class) => self.class_definition(class, dst, None),
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => self.super_load(e, dst),
             ExprKind::SuperCall(call) => self.super_call(call, dst),
-            ExprKind::BigInt(_)
-            | ExprKind::Await(_)
-            | ExprKind::ImportCall { .. }
-            | ExprKind::ImportMeta => {
+            ExprKind::BigInt(_) | ExprKind::ImportCall { .. } | ExprKind::ImportMeta => {
                 Err(self
                     .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
             }
+            ExprKind::Await(argument) => self.await_expr(argument, dst),
             ExprKind::Yield {
                 argument: Some(argument),
                 delegate: true,
@@ -264,6 +262,26 @@ impl FunctionCompiler<'_> {
                     None => Ok(t),
                 }
             }
+        }
+    }
+
+    /// `await argument` (§15.8.5, §27.7.5.3 Await): the value goes into
+    /// `t`; the resumption writes the result into `t` and the mode into
+    /// `t + 1`, and `Resume` throws a rejection at the `await` (inside its
+    /// handler ranges) or continues. The instructions map to the `await`
+    /// keyword, where Chromium shows a waiting function in a stack.
+    fn await_expr(&mut self, argument: ExprId, dst: Option<Reg>) -> CResult<Reg> {
+        let t = self.temps(2)?;
+        self.expr(argument, Some(t))?;
+        self.emit(Insn::Await { reg: t });
+        self.emit(Insn::Resume { reg: t, offset: 1 });
+        self.release(u32::from(t) + 1);
+        match dst {
+            Some(dst) => {
+                self.emit(Insn::Move { dst, src: t });
+                Ok(dst)
+            }
+            None => Ok(t),
         }
     }
 
@@ -582,7 +600,6 @@ impl FunctionCompiler<'_> {
                 | ExprKind::TaggedTemplate { .. }
                 | ExprKind::BigInt(_)
                 | ExprKind::Class(_)
-                | ExprKind::Await(_)
                 | ExprKind::SuperMember { .. }
                 | ExprKind::SuperIndex { .. }
                 | ExprKind::SuperCall(_)
@@ -620,6 +637,7 @@ impl FunctionCompiler<'_> {
                 | ExprKind::PrivateMember { object: inner, .. }
                 | ExprKind::PrivateIn { object: inner, .. } => work.push(inner),
                 ExprKind::Yield { argument, .. } => work.extend(argument),
+                ExprKind::Await(argument) => work.push(argument),
                 ExprKind::Binary { left, right, .. }
                 | ExprKind::Logical { left, right, .. }
                 | ExprKind::Index {

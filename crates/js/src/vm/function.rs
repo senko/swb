@@ -280,10 +280,10 @@ impl Runtime {
         let proto = if let Some(proto) = parts.function_proto {
             proto
         } else {
-            let proto_kind = if compiled.kind == CodeKind::Generator {
-                Intrinsic::GeneratorFunctionPrototype
-            } else {
-                Intrinsic::FunctionPrototype
+            let proto_kind = match compiled.kind {
+                CodeKind::Generator => Intrinsic::GeneratorFunctionPrototype,
+                CodeKind::Async => Intrinsic::AsyncFunctionPrototype,
+                _ => Intrinsic::FunctionPrototype,
             };
             self.intrinsic(realm, proto_kind)?
         };
@@ -329,6 +329,7 @@ impl Runtime {
             | CodeKind::Eval
             | CodeKind::Arrow
             | CodeKind::Method
+            | CodeKind::Async
             | CodeKind::ClassConstructor
             | CodeKind::DerivedConstructor
             | CodeKind::Initializer => {}
@@ -471,7 +472,8 @@ pub(crate) fn is_callable_kind(kind: &ObjectKind) -> bool {
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ClosureParts {
     /// The prototype of the function object (default: the realm's
-    /// `%Function.prototype%` or `%GeneratorFunction.prototype%`).
+    /// `%Function.prototype%`, `%GeneratorFunction.prototype%` or
+    /// `%AsyncFunction.prototype%`).
     pub(crate) function_proto: Option<Gc<crate::object::Object>>,
     /// `[[HomeObject]]`.
     pub(crate) home: Option<Gc<crate::object::Object>>,

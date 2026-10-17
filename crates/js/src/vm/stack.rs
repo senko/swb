@@ -50,6 +50,9 @@ pub struct StackFrame {
     pub(crate) this: Value,
     /// Whether the frame runs a `[[Construct]]`.
     pub(crate) construct: bool,
+    /// Whether the frame is an async function that waits for the
+    /// function below it (`at async f (...)`).
+    pub(crate) is_async: bool,
 }
 
 /// The stack of an error object: the captured frames until the text is
@@ -79,6 +82,15 @@ impl ErrorData {
     pub(crate) fn heap_size(&self) -> usize {
         size_of::<ErrorData>() + self.frames.len() * size_of::<StackFrame>()
     }
+}
+
+/// The source offset of the call or throw in a frame (its first
+/// instruction before it ran).
+fn frame_offset(frame: &crate::vm::Frame) -> Option<u32> {
+    (frame.pc as usize)
+        .checked_sub(1)
+        .and_then(|pc| frame.compiled.source_offset(pc))
+        .or_else(|| frame.compiled.source_offset(0))
 }
 
 /// The receiver of a frame as the caller passed it. An arrow function
@@ -138,7 +150,7 @@ impl Runtime {
                 .unwrap_or(0);
         }
         let take = limit.min(end);
-        let frames: Box<[StackFrame]> = self
+        let mut frames: Vec<StackFrame> = self
             .vm
             .frames
             .get(end - take..end)
@@ -149,14 +161,17 @@ impl Runtime {
                 function: frame.function,
                 code: frame.code,
                 compiled: Rc::clone(&frame.compiled),
-                offset: (frame.pc as usize)
-                    .checked_sub(1)
-                    .and_then(|pc| frame.compiled.source_offset(pc))
-                    .or_else(|| frame.compiled.source_offset(0)),
+                offset: frame_offset(frame),
                 this: receiver_of(frame, &self.vm.stack),
                 construct: frame.construct,
+                is_async: false,
             })
             .collect();
+        // The async frames continue a stack that reaches its bottom.
+        if take == end && end > 0 {
+            self.append_async_frames(&mut frames, limit)?;
+        }
+        let frames = frames.into_boxed_slice();
         self.charge(frames.len())?;
         let data = Box::new(ErrorData {
             frames,
@@ -167,6 +182,53 @@ impl Runtime {
         // not counted these bytes yet.
         self.heap.charge(data.heap_size());
         Ok(Some(data))
+    }
+
+    /// The async frames of a stack (Chromium's async stack traces,
+    /// measured in Chromium 148): when the outermost frame is an async
+    /// function, the function that waits for its promise in an `await`
+    /// (the promise's only reaction) follows as `at async g (...)` at the
+    /// position of that `await`, then the function that waits for `g`, up
+    /// to `limit` frames in all. A promise with no reaction, more than one,
+    /// or one of another kind (a `then`, a resolution with the promise)
+    /// ends the list. No script code runs.
+    fn append_async_frames(&self, frames: &mut Vec<StackFrame>, limit: usize) -> VmResult<()> {
+        let Some(mut generator) = self.vm.frames.first().and_then(|frame| frame.generator) else {
+            return Ok(());
+        };
+        while frames.len() < limit {
+            let Some(promise) = self.async_promise_of(generator)? else {
+                return Ok(());
+            };
+            let crate::vm::promise::Reactions::One(reaction) =
+                &self.promise_state(promise)?.reactions
+            else {
+                return Ok(());
+            };
+            let crate::vm::promise::Handler::Internal(continuation) = reaction.on_fulfilled else {
+                return Ok(());
+            };
+            let Value::Object(waiting) = continuation.data else {
+                return Ok(());
+            };
+            let ObjectKind::Generator(state) = &self.heap.object(waiting)?.kind else {
+                return Ok(());
+            };
+            let (Some(_), Some(frame)) = (state.promise, &state.frame) else {
+                return Ok(());
+            };
+            frames.push(StackFrame {
+                function: frame.function,
+                code: frame.code,
+                compiled: Rc::clone(&frame.compiled),
+                offset: frame_offset(frame),
+                this: frame.this,
+                construct: false,
+                is_async: true,
+            });
+            generator = waiting;
+        }
+        Ok(())
     }
 
     /// Gives a new error object (one without properties) its `stack`: the

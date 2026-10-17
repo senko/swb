@@ -244,3 +244,110 @@ fn a_termination_in_a_job_skips_catch_handlers() {
         assert_clean(&rt);
     });
 }
+
+// --- Async functions (M7 feature 7c) ---
+
+#[test]
+fn async_recursion_100000_deep_ends_with_a_range_error() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        // Each call runs synchronously until its first `await`, so the
+        // recursion costs frames: the frame limit ends it with the
+        // RangeError, which rejects the innermost promise; every level
+        // above awaits the rejection (Chromium 148 rejects too).
+        let (out, _) = run_with_deadline(
+            &mut rt,
+            "var depth = 0; async function f(n) { depth++; if (n) await f(n - 1); return n; } \
+             f(100000).then(v => print('value', v), e => print(e.constructor.name, e.message, depth > 1000)); \
+             undefined",
+            Duration::from_secs(60),
+        );
+        assert_eq!(out, "RangeError Maximum call stack size exceeded true");
+        assert_clean(&rt);
+        // With an `await` before the recursive call, each level starts
+        // from a job: no frame recursion, the result arrives.
+        let (out, _) = run_with_deadline(
+            &mut rt,
+            "async function g(n) { await null; return n ? 1 + await g(n - 1) : 0; } \
+             g(100000).then(v => print(v)); undefined",
+            Duration::from_secs(60),
+        );
+        assert_eq!(out, "100000");
+        assert_clean(&rt);
+    });
+}
+
+#[test]
+fn a_chain_of_100000_async_functions_awaiting_each_other() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        for (source, expected) in [
+            // The first promise settles last: the settlement passes
+            // through 100,000 suspended functions, one job each.
+            (
+                "var r; var first = new Promise(x => { r = x; }); var p = first; \
+                 for (let i = 0; i < 100000; i++) { const q = p; p = (async () => (await q) + 1)(); } \
+                 r(0); p.then(v => print(v)); undefined",
+                "100000",
+            ),
+            // Each function returns the promise of the previous one (a
+            // thenable job per level) from a `try` with a `finally`.
+            (
+                "var p = Promise.resolve(0); \
+                 for (let i = 0; i < 100000; i++) { const q = p; p = (async () => { try { return q; } finally { } })(); } \
+                 p.then(v => print('returned', v)); undefined",
+                "returned 0",
+            ),
+        ] {
+            let (out, _) = run_with_deadline(&mut rt, source, Duration::from_secs(60));
+            assert_eq!(out, expected, "{source}");
+            assert_clean(&rt);
+        }
+    });
+}
+
+#[test]
+fn endless_await_loops_end_at_the_deadline() {
+    on_big_stack(|| {
+        let cases = [
+            "(async () => { for (;;) await 0; })();",
+            "(async () => { for (;;) await { then(r) { r(); } }; })();",
+            "async function f() { await null; f(); } f();",
+            "(async () => { for (;;) { try { await Promise.reject(1); } catch (e) {} } })();",
+        ];
+        for source in cases {
+            let mut rt = runtime(false);
+            let (out, elapsed) = run_with_deadline(&mut rt, source, Duration::from_millis(100));
+            assert!(out.contains("time limit"), "{source}: {out}");
+            assert!(elapsed < Duration::from_secs(2), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            rt.clear_jobs();
+            assert_eq!(run_in(&mut rt, "1 + 1"), "=> 2");
+        }
+    });
+}
+
+#[test]
+fn growing_sets_of_suspended_functions_end_at_the_heap_limit() {
+    on_big_stack(|| {
+        let cases = [
+            // Suspended functions that wait for promises in a global array.
+            "var keep = []; for (;;) { const p = new Promise(() => {}); keep.push(p); \
+             (async () => { var a = [1, 2, 3]; await p; })(); }",
+            // One function whose frame grows across awaits.
+            "(async () => { var a = []; for (;;) { a.push(new Array(100)); await null; } })();",
+            // Awaits that start more async calls than they finish.
+            "async function f() { await null; f(); f(); } f();",
+        ];
+        for source in cases {
+            let mut rt = runtime_with_limit(32);
+            let (out, elapsed) = run_with_deadline(&mut rt, source, Duration::from_secs(60));
+            assert!(out.contains("heap limit"), "{source}: {out}");
+            assert!(elapsed < Duration::from_secs(30), "{source}: {elapsed:?}");
+            assert_clean(&rt);
+            rt.clear_jobs();
+            rt.collect();
+            assert_eq!(run_in(&mut rt, "1 + 1"), "=> 2");
+        }
+    });
+}

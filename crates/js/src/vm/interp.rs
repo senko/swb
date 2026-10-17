@@ -1467,6 +1467,18 @@ impl Runtime {
                     reload!();
                 }
 
+                // --- Async functions ---
+                // One arm for the three, out of line, so that the loop's
+                // code grows little (measured: separate inline arms made
+                // unrelated call rows of `vm_bench` up to 5 % slower).
+                Insn::AsyncStart | Insn::Await { .. } | Insn::AsyncReject { .. } => {
+                    save!();
+                    if let Some(value) = tri!(self.async_instruction(insn)) {
+                        return Ok(value);
+                    }
+                    reload!();
+                }
+
                 // --- Classes and `super` ---
                 Insn::HomeObject { dst } => {
                     let home = tri!(self.home_object());

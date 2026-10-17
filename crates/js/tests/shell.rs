@@ -268,7 +268,7 @@ fn mini_test262(name: &str) -> PathBuf {
         "async.js",
         "/*---\nflags: [async]\n---*/\nPromise.resolve(2).then(v => assert.sameValue(v, 2)).then($DONE, $DONE);\n",
     );
-    write("unsupported.js", "/*---\n---*/\nasync function f() {}\n");
+    write("unsupported.js", "/*---\n---*/\nasync function* f() {}\n");
     write(
         "strict.js",
         "/*---\nflags: [onlyStrict]\n---*/\nassert(this === undefined || true);\n",

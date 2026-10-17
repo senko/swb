@@ -32,6 +32,9 @@
 //! generators that delegate to each other costs frames (bounded by the
 //! frame limit), not Rust stack. A delegate generator's result object is
 //! made once, where it yields, and passes through every level.
+//!
+//! Async functions (`async_function.rs`) suspend their frames at `await`
+//! in an internal generator object with the same state and resumption.
 
 use crate::bytecode::{DELEGATE_TYPED, RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
 use crate::heap::{Gc, Tracer};
@@ -70,6 +73,10 @@ pub struct GeneratorState {
     pub(crate) registers: Vec<Value>,
     /// The register that receives the value of `next(v)`.
     pub(crate) resume_register: Option<Reg>,
+    /// The result promise of an async function (`vm/async_function.rs`),
+    /// whose frame waits in this object at an `await`; `None` for a
+    /// generator.
+    pub(crate) promise: Option<Gc<Object>>,
 }
 
 impl GeneratorState {
@@ -79,6 +86,9 @@ impl GeneratorState {
         }
         for value in &self.registers {
             tracer.value(*value);
+        }
+        if let Some(promise) = self.promise {
+            tracer.object(promise);
         }
     }
 
@@ -170,6 +180,7 @@ impl Runtime {
             frame: None,
             registers: Vec::new(),
             resume_register: None,
+            promise: None,
         };
         let generator = self
             .heap
@@ -307,7 +318,7 @@ impl Runtime {
 
     /// Moves the top frame and its register window into the generator.
     /// Returns where the frame's result was to go.
-    fn suspend_top(
+    pub(crate) fn suspend_top(
         &mut self,
         generator: Gc<Object>,
         resume_register: Option<Reg>,

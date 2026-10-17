@@ -550,16 +550,9 @@ impl Runtime {
                 ));
             }
         }
-        let scope = if let Some(generator) = frame.generator {
-            // The registers of the frame still root `value`.
-            let scope = self.heap.open_scope();
-            let result = self.iter_result(value, true)?;
-            value = self.heap.record(result).into();
-            self.complete_generator(generator)?;
-            Some(scope)
-        } else {
-            None
-        };
+        if let Some(generator) = frame.generator {
+            return self.return_from_generator(generator, value);
+        }
         let frame = self
             .vm
             .frames
@@ -568,10 +561,36 @@ impl Runtime {
         self.vm
             .stack
             .resize(frame.restore_top as usize, Value::Undefined);
-        if let Some(scope) = scope {
-            self.heap.close_scope(scope)?;
-        }
         Ok(self.deliver(frame.ret, value))
+    }
+
+    /// [`Runtime::return_from_frame`] of a generator's frame (the result
+    /// is `{ value, done: true }`) or an async function's frame (the value
+    /// resolves the result promise, `async_function.rs`).
+    #[inline(never)]
+    fn return_from_generator(
+        &mut self,
+        generator: Gc<Object>,
+        value: Value,
+    ) -> VmResult<Option<Value>> {
+        if self.async_promise_of(generator)?.is_some() {
+            return self.async_return(generator, value, false);
+        }
+        // The registers of the frame still root `value`.
+        let scope = self.heap.open_scope();
+        let result = self.iter_result(value, true)?;
+        self.heap.record(result);
+        self.complete_generator(generator)?;
+        let frame = self
+            .vm
+            .frames
+            .pop()
+            .ok_or(VmError::invariant("return without a frame"))?;
+        self.vm
+            .stack
+            .resize(frame.restore_top as usize, Value::Undefined);
+        self.heap.close_scope(scope)?;
+        Ok(self.deliver(frame.ret, result.into()))
     }
 
     /// Delivers the result of a frame: into a register of the frame below,

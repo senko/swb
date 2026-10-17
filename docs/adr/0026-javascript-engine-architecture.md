@@ -1743,6 +1743,60 @@ where the first plan did not work:
   re-entry: `new Promise` nested in executors ends at about 400 levels
   with the `RangeError` that rejects the innermost promise (Chromium 148:
   3,000 levels work, 10,000 fail).
+- Async functions (feature 7c, `vm/async_function.rs`,
+  `builtins/async_function.rs`, §15.8, §27.7) run on the generator
+  machinery: one code kind (`CodeKind::Async`) for functions, arrows and
+  methods (`this`, `arguments`, `super` and `new.target` follow the form,
+  as for the other kinds), not constructors, without `prototype`. The
+  first instruction, `AsyncStart`, makes the result promise (the intrinsic
+  capability of 7b: no script sees its functions) and an internal
+  generator object without a prototype that holds it; the frame roots
+  that object while it runs. The parameters and the body run at once
+  until the first `await`.
+- `await` is an `Await` instruction followed by the `Resume` dispatch of
+  `yield`: `PromiseResolve(%Promise%, v)` of the function's realm, then
+  `then_internal` with a continuation whose data is the generator
+  object, then the frame moves into the object and the caller gets the
+  result promise (at the first `await`; later ones return to the job).
+  The job of the reaction resumes the frame at the host level, so
+  a chain of async functions that await each other costs no Rust stack.
+  A native promise with the default `constructor` costs one job, a
+  non-promise one, a thenable two (the thenable job, then the reaction),
+  a promise of a subclass three (measured in Chromium 148, the same in
+  swb). A `return` of a native promise settles the result one job later
+  than `return await` of it, and two jobs later than a `return` of a
+  value. Nothing in `vm/promise.rs` changed. The interpreter has one arm
+  for `AsyncStart`, `Await` and `AsyncReject` that calls one function
+  out of line; separate arms made unrelated call rows of `vm_bench` up to
+  5 % slower (layout effects, measured in four variants).
+- The end of the body: a return resolves the result promise
+  (`return_from_frame`, whose generator part is now out of line), with
+  the frame still on the stack (the specification removes the frame
+  first; Chromium 148 shows the function in the stack of an error that
+  a `then` getter of the returned value makes, measured). A throw that
+  nothing catches reaches one handler that the compiler puts around all
+  the code after `AsyncStart` (`AsyncReject`, at the end of the code),
+  which rejects the promise; so does a throw in the parameters. The
+  handler table does the work, so a `try` around the body costs nothing.
+  A termination skips the handler (section 5): a running function's frame
+  goes and its object completes, the promise stays pending; a suspended
+  one stays suspended and resumes when its promise settles in a later
+  task. A function that waits for a promise that no one can settle is
+  garbage once that promise is: only the reaction refers to its object.
+- Async stack traces (Chromium's `at async f (file:line:column)`,
+  measured in Chromium 148): when the outermost frame of the stack is an
+  async function, the capture follows its result promise to the only
+  reaction, and when that is the `await` of another async function, adds
+  that function at the position of its `await`, then the one that awaits
+  it, within `Error.stackTraceLimit`. Two reactions, a `then` or a
+  resolution with the promise end the list, as in Chromium. V8 also
+  follows `Promise.all` (`at async Promise.all (index 0)` and the
+  function that awaits it); swb does not (no lines for built-ins).
+- `AsyncFunction` is the `CreateDynamicFunction` of 3f with the source
+  `(async function anonymous(P\n) {\nbody\n})`; its fallback prototype is
+  `%AsyncFunction.prototype%` of the constructor's realm. Async
+  generators, `for await` and `yield*` in them stay "not supported yet
+  (async generator)" and "(for await)" until 7d.
 
 ## Consequences
 

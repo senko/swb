@@ -1,0 +1,11 @@
+async function hd1(n) { if (n) await hd1(n - 1); return n; } ticks = 1100; hd1(1000) => ok Promise | fulfilled 1000
+async function hd2(n) { if (n) await hd2(n - 1); return n; } ticks = 5100; hd2(5000) => ok Promise | fulfilled 5000
+async function hd3(n) { if (n) await hd3(n - 1); return n; } ticks = 100100; hd3(100000) => ok Promise | rejected RangeError: Maximum call stack size exceeded
+async function hd4(n) { if (n) return 1 + await hd4(n - 1); return 0; } ticks = 3100; hd4(3000) => ok Promise | fulfilled 3000
+var hd6c = 0; async function hd6(n) { hd6c++; if (n) await hd6(n - 1); } ticks = 100100; hd6(100000).catch(e => [e.constructor.name, hd6c > 1000]) => ok Promise | fulfilled ["RangeError",true]
+async function hd5(n) { await 0; if (n) return 1 + await hd5(n - 1); return 0; } ticks = 25000; hd5(10000) => ok Promise | fulfilled 10000
+var rf6; var first6 = new Promise(r => { rf6 = r; }); var p6 = first6; for (let i = 0; i < 100000; i++) { const q = p6; p6 = (async () => (await q) + 1)(); } rf6(0); ticks = 100010; p6 => ok Promise | fulfilled 100000
+var p7 = Promise.resolve(0); for (let i = 0; i < 100000; i++) { const q = p7; p7 = (async () => (await q) + 1)(); } ticks = 100010; p7 => ok Promise | fulfilled 100000
+var n8 = 0; ticks = 10010; (async () => { for (var i = 0; i < 10000; i++) { await 0; n8++; } return n8; })() => ok Promise | fulfilled 10000
+ticks = 10010; (async () => { var s = 0; for (var i = 0; i < 10000; i++) s += await i; return s; })() => ok Promise | fulfilled 49995000
+var c9 = 0; var ps9 = []; for (let i = 0; i < 10000; i++) ps9.push((async () => { await 0; c9++; })()); ticks = 20; Promise.all(ps9).then(() => c9) => ok Promise | fulfilled 10000

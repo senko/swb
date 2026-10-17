@@ -9,7 +9,9 @@
 //! `@@hasInstance` and the restricted `caller` and `arguments` (the
 //! `Function` constructor is in `vm/create_function.rs`);
 //! `GeneratorFunction`, its prototype and `%GeneratorPrototype%`
-//! (`generator.rs`; the generator objects run in `vm/generator.rs`); the global
+//! (`generator.rs`; the generator objects run in `vm/generator.rs`);
+//! `AsyncFunction` and its prototype (`async_function.rs`; async
+//! functions run in `vm/async_function.rs`); the global
 //! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
 //! `Number` and `Math` complete (`number.rs`, `math.rs`); `String` with
 //! its statics and the prototype methods that need no `RegExp`, the string
@@ -44,6 +46,7 @@ mod array_mutate;
 mod array_search;
 mod array_sort;
 mod array_species;
+mod async_function;
 mod boolean;
 mod collection;
 mod console;
@@ -137,7 +140,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     json::install(rt, realm)?;
     console::install(rt, realm)?;
     promise::install(rt, realm)?;
-    generator::install(rt, realm, function_constructor)
+    generator::install(rt, realm, function_constructor)?;
+    async_function::install(rt, realm, function_constructor)
 }
 
 // --- Helpers for the definitions ---

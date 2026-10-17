@@ -62,6 +62,8 @@ pub(crate) enum Intrinsic {
     WrapForValidIteratorPrototype,
     /// `%Promise.prototype%` (§27.2.5).
     PromisePrototype,
+    /// `%AsyncFunction.prototype%` (§27.7.3).
+    AsyncFunctionPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -110,7 +112,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 45;
+const INTRINSIC_COUNT: usize = 46;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -241,6 +243,7 @@ impl Runtime {
         let promise_proto = heap.new_object(Some(object_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
+        let async_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -292,6 +295,7 @@ impl Runtime {
             helper_proto,
             wrap_proto,
             promise_proto,
+            async_function_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

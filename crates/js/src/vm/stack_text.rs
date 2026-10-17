@@ -18,9 +18,14 @@
 //! `Function` call: `at eval (eval at <anonymous> (file:1:9),
 //! <anonymous>:3:7)`.
 //!
+//! An async function that waits in an `await` for the function below it
+//! has the line `async f (file:line:column)` at the position of the
+//! `await` (`stack.rs` finds these frames).
+//!
 //! Deviations from Chromium: no lines for built-in functions
 //! (`at Array.forEach (<anonymous>)`, `at eval (<anonymous>)` for the
-//! global `eval` function) and `async` frames; the
+//! global `eval` function, `at async Promise.all (index 0)`, after which
+//! V8 continues with the function that awaits the combined promise); the
 //! name of a function that a V8 heuristic infers from an assignment to a
 //! member (`o.p = function () {}`) is only the compiler's name.
 
@@ -85,8 +90,18 @@ impl Runtime {
         Ok(string.into())
     }
 
-    /// One frame line, without the leading `    at `.
+    /// One frame line, without the leading `    at `; an async frame has
+    /// the prefix `async `.
     pub(crate) fn frame_line(&self, frame: &StackFrame) -> String {
+        let line = self.frame_line_text(frame);
+        if frame.is_async {
+            format!("async {line}")
+        } else {
+            line
+        }
+    }
+
+    fn frame_line_text(&self, frame: &StackFrame) -> String {
         let location = frame_location(&frame.compiled, frame.offset);
         let Some(function) = frame.function else {
             return location;

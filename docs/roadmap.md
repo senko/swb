@@ -1445,6 +1445,25 @@ failures with a reason. Features, in this order:
      suspension of the frame (on the generator machinery), the
      `AsyncFunction` constructor. Exit: the 27 target scripts that stop
      at `async function` compile, or each that does not has a reason.
+     Done 2026-10-17: async functions, arrows and methods run on the
+     generator machinery. The first instruction makes the result promise
+     and an internal generator object. `await` is `PromiseResolve` and
+     an internal reaction that resumes the frame from a job: one job for
+     a native promise, as in Chromium 148, and no Rust stack for a chain
+     of awaiting functions. One handler over the whole code rejects the
+     promise on a throw, also in the parameters; a termination never
+     becomes a rejection. `AsyncFunction` uses `CreateDynamicFunction`
+     with an async kind. Stack traces show the awaiting functions
+     (`at async f`), as in Chromium. 275 Chromium 148 cases (shape,
+     messages, job order, stacks) give the same output, also in stress
+     mode. Runtime test262: 27,701 pass (was 26,919), the same in stress
+     mode; new group `built-ins/AsyncFunction` (16); 886 async-flag
+     tests pass (were 359); parse-only unchanged (41,882). Of the 27
+     target scripts that stopped at `async function`, 7 compile, 19 stop
+     at regular expression literals (feature 8) and 1 at an async
+     generator (7d); 46 of 84 compile. 100k `await`s take 18 ms
+     (`node --jitless` 5 ms). Open: async stack traces do not follow
+     `Promise.all`.
    - 7d Async iteration: async generators (§27.6, the queue of
      requests), `for await`, `yield*` in async generators,
      `%AsyncFromSyncIteratorPrototype%`, `%AsyncIteratorPrototype%`,
@@ -1726,6 +1745,17 @@ not repeated here; the open items of each spike session are in M6 step
     the report and no `unhandledrejection` event. The realm of a job is
     stored but not used (one realm). The incumbent settings object of
     HostMakeJobCallback is not modeled.
+- Async functions (M7 7c):
+  - Stack traces follow the `await` of an async function, but not
+    `Promise.all`: V8's line `at async Promise.all (index N)` is
+    missing. They also stop at a `then` and at `Promise.race`: for
+    `await Promise.race([a()])`, Chromium shows `at a`, `at async b`;
+    swb shows only `at a` (7c review).
+  - Speed: 3.6 to 6.7 times slower than `node --jitless` (100k `await`s
+    18 ms, Node.js 5 ms; feature 13).
+  - For the engine integration ADR: a termination at the tick inside
+    the resume of an async function drops that job, so the function
+    stays suspended for good.
 
 ## Backlog from M5
 

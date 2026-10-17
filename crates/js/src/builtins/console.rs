@@ -256,10 +256,10 @@ impl Inspector<'_> {
                 }
             }
             ObjectKind::Function(closure) => {
-                let kind = if closure.compiled.kind == crate::bytecode::CodeKind::Generator {
-                    "GeneratorFunction"
-                } else {
-                    "Function"
+                let kind = match closure.compiled.kind {
+                    crate::bytecode::CodeKind::Generator => "GeneratorFunction",
+                    crate::bytecode::CodeKind::Async => "AsyncFunction",
+                    _ => "Function",
                 };
                 match rt.own_data_string(object, rt.vm.atoms.name) {
                     Some(name) if !name.is_empty() => format!("[{kind}: {name}]"),

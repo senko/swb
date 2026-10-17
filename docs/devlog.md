@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 7c, `async` functions
+
+- Async functions, arrows and methods run on the generator machinery.
+  The first instruction makes the result promise and an internal
+  generator object that no script sees; the body runs at once until the
+  first `await`.
+- `await` is `PromiseResolve(%Promise%)` and an internal reaction on the
+  promise. The frame moves into the generator object, and the caller
+  gets the result promise. The reaction's job resumes the frame at the
+  host level, so a chain of awaiting functions costs no Rust stack. The
+  job order is that of Chromium 148: one job for a native promise or a
+  value, two for a thenable, three for a promise of a subclass.
+  `vm/promise.rs` did not change.
+- One handler over the whole code of the function rejects the promise
+  on a throw, also in the parameters. A termination never becomes a
+  rejection; a suspended function stays suspended and can resume in a
+  later task. A function that waits for a promise that no one can
+  settle is garbage.
+- `return` resolves the promise while the frame is still on the stack,
+  because Chromium 148 shows the function in the stack of an error that
+  a `then` getter makes. Stack traces show the awaiting functions
+  (`at async f`) at their `await`, as in Chromium; V8's lines for
+  `Promise.all` are missing.
+- 275 Chromium 148 cases give the same output, also in stress mode.
+  Runtime test262: 27,701 (was 26,919), the same in stress mode;
+  parse-only unchanged. 886 async-flag tests pass.
+- Speed: four layouts of the new interpreter arms moved unrelated
+  `vm_bench` rows by 3 to 6 % in both directions. One out-of-line arm
+  for the three instructions keeps the mean change at +0.2 %.
+- Target scripts: 46 of 84 compile (were 39); 37 stop at regular
+  expression literals and one at an async generator.
+- Next: 7d, async iteration.
+
 ## 2026-10-17: M7 feature 7b, `Promise` and the job queue
 
 - A promise is an object kind: state, result, `[[PromiseIsHandled]]`

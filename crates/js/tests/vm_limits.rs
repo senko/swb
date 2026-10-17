@@ -252,18 +252,17 @@ fn constructs_outside_the_subset_do_not_compile() {
             ("1n;", "BigInt literal"),
             ("({ 1n: 2 });", "BigInt literal"),
             ("var { 1n: a } = {};", "BigInt literal"),
-            // The forms of feature 1b that are not in feature 3d.
-            ("class C { static async m() {} }", "async function"),
-            ("class C { async #m() {} }", "async function"),
-            ("async function f() {}", "async function"),
-            ("x = async () => 1;", "async function"),
-            ("x = { async m() {} };", "async function"),
+            // The async iteration forms of feature 1b (M7 feature 7d).
+            ("class C { static async *m() {} }", "async generator"),
+            ("class C { async *#m() {} }", "async generator"),
+            ("async function* f() {}", "async generator"),
+            ("x = { async *m() {} };", "async generator"),
+            ("x = async function* () { yield* a; };", "async generator"),
             // The first construct in the source counts.
             ("for (k of a?.b) x = 1n; with (a) {}", "BigInt literal"),
-            ("x = async function () { await 1; };", "async function"),
             (
                 "x = async function () { for await (k of a); };",
-                "async function",
+                "for await",
             ),
         ] {
             let Err(ScriptError::Compile { kind, message, .. }) = rt.eval(source) else {

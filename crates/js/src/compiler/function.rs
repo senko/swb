@@ -11,8 +11,11 @@
 //! arguments object (before the parameters become cells), the cells of
 //! captured parameters, the bindings of the function's own name, `this`
 //! and the declarations, then the function declarations. A generator
-//! stops there (`InitialYield`). The script's prologue declares its
-//! global bindings (§16.1.7).
+//! stops there (`InitialYield`). An async function starts with
+//! `AsyncStart`, and one handler covers all of its code after it: a throw
+//! that nothing catches rejects the function's promise (`AsyncReject` at
+//! the end of the code). The script's prologue declares its global
+//! bindings (§16.1.7).
 //!
 //! `try` (§14.15, ADR 0026 section 5, memo 1.4): the handler table maps
 //! the `try` block to the `catch` code, and the `try` and `catch` code to
@@ -237,6 +240,10 @@ impl<'a> FunctionCompiler<'a> {
             let result = self.temps(2)?;
             self.derived_result = Some((result, result + 1));
         }
+        if kind == CodeKind::Async {
+            self.emit(Insn::AsyncStart);
+        }
+        let body_start = self.here();
         self.prologue(kind)?;
         for &statement in self.ast.stmts(self.function.body) {
             self.stmt(statement)?;
@@ -253,6 +260,9 @@ impl<'a> FunctionCompiler<'a> {
         self.emit_return(result);
         if let Some(registers) = self.derived_result {
             self.derived_epilogue(registers);
+        }
+        if kind == CodeKind::Async {
+            self.async_epilogue(body_start)?;
         }
         let this_mode = if matches!(self.function.kind, FunctionKind::Arrow | FunctionKind::Eval) {
             ThisMode::Lexical
@@ -313,8 +323,8 @@ impl<'a> FunctionCompiler<'a> {
 
     fn code_kind(&self) -> CResult<CodeKind> {
         let function = self.function;
-        if function.is_async {
-            return Err(self.unsupported("async function"));
+        if function.is_async && function.is_generator {
+            return Err(self.unsupported("async generator"));
         }
         Ok(match function.kind {
             // Indirect eval code is global code with a top scope of its own.
@@ -324,6 +334,7 @@ impl<'a> FunctionCompiler<'a> {
             FunctionKind::Script => CodeKind::Script,
             FunctionKind::Eval => CodeKind::Eval,
             _ if function.is_generator => CodeKind::Generator,
+            _ if function.is_async => CodeKind::Async,
             FunctionKind::Normal => CodeKind::Normal,
             FunctionKind::Arrow => CodeKind::Arrow,
             // Accessors of object literals are methods (§15.4.5): not
@@ -845,6 +856,22 @@ impl<'a> FunctionCompiler<'a> {
         if kind == CodeKind::Generator {
             self.emit(Insn::InitialYield);
         }
+        Ok(())
+    }
+
+    /// The handler of an async function's whole code after `AsyncStart`
+    /// (the parameters and the body, §15.8.4 step 3 and §27.7.5.2 step
+    /// 3.h): a throw that nothing in it catches rejects the result
+    /// promise. `start` is the first instruction after `AsyncStart`.
+    fn async_epilogue(&mut self, start: usize) -> CResult<()> {
+        let reason = self.temp()?;
+        let target = self.emit(Insn::AsyncReject { src: reason });
+        self.handlers.push(Handler {
+            start: start as u32,
+            end: target as u32,
+            target: target as u32,
+            register: reason,
+        });
         Ok(())
     }
 

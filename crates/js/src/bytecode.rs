@@ -813,6 +813,26 @@ pub(crate) enum Insn {
         reg: Reg,
     },
 
+    // --- Async functions ---
+    /// The first instruction of an async function (§15.8.4
+    /// `EvaluateAsyncFunctionBody` step 1): creates the result promise and
+    /// the object that keeps the frame while it waits at an `await`.
+    AsyncStart,
+    /// `await` of the value in `reg` (§27.7.5.3 Await): suspends the frame
+    /// until the promise of the value settles, and gives the result
+    /// promise to the caller. On resume, `reg` receives the value or the
+    /// reason and `reg + 1` the mode ([`RESUME_NEXT`] or [`RESUME_THROW`]);
+    /// a [`Insn::Resume`] follows.
+    Await {
+        reg: Reg,
+    },
+    /// The handler of the whole async function (§27.7.5.2
+    /// `AsyncBlockStart` step 3.h): rejects the result promise with the
+    /// value in `src` and returns the promise.
+    AsyncReject {
+        src: Reg,
+    },
+
     // --- Classes (§15.7) and `super` (§13.3.7) ---
     /// `dst` = the home object of the running function (`[[HomeObject]]`,
     /// §10.2.5; `undefined` if it has none).
@@ -1178,6 +1198,7 @@ impl Insn {
             self,
             Insn::Jump { .. }
                 | Insn::Return { .. }
+                | Insn::AsyncReject { .. }
                 | Insn::Throw { .. }
                 | Insn::ThrowConstAssign { .. }
                 | Insn::ThrowInvalidAssign { .. }
@@ -1265,6 +1286,10 @@ pub(crate) enum CodeKind {
     /// A generator function: not a constructor; its `prototype` object
     /// inherits from the generator prototype.
     Generator,
+    /// An async function, arrow function or method (§15.8): not a
+    /// constructor, no `prototype`; the function object inherits from
+    /// `%AsyncFunction.prototype%`.
+    Async,
     /// The constructor of a class without heritage (§15.7.14): `new` only;
     /// the class definition creates its `prototype`.
     ClassConstructor,
@@ -1947,7 +1972,6 @@ fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         }
         Insn::InitialYield
         | Insn::Yield { .. }
-        | Insn::Resume { .. }
         | Insn::DelegateCall { .. }
         | Insn::DelegateResult { .. }
         | Insn::YieldDelegate { .. }
@@ -1955,8 +1979,19 @@ fn check_layout(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         {
             return Err("yield outside a generator");
         }
+        Insn::AsyncStart | Insn::Await { .. } | Insn::AsyncReject { .. }
+            if code.kind != CodeKind::Async =>
+        {
+            return Err("await outside an async function");
+        }
+        Insn::Resume { .. } if !matches!(code.kind, CodeKind::Generator | CodeKind::Async) => {
+            return Err("a resumption outside a generator or async function");
+        }
         // The resume mode goes into the register after `reg`.
-        Insn::Yield { reg } | Insn::Resume { reg, .. } | Insn::YieldDelegate { reg }
+        Insn::Yield { reg }
+        | Insn::Resume { reg, .. }
+        | Insn::YieldDelegate { reg }
+        | Insn::Await { reg }
             if u32::from(reg) + 1 >= registers =>
         {
             return Err("resume mode register out of range");
@@ -2199,6 +2234,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         I::MakeCell { reg }
         | I::CopyCell { reg }
         | I::Yield { reg }
+        | I::Await { reg }
         | I::Resume { reg, .. }
         | I::YieldDelegate { reg }
         | I::DelegateCall { rec: reg, .. }
@@ -2211,6 +2247,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::InitGlobalLexical { src, .. }
         | I::InitGlobalFunction { src, .. }
         | I::Return { src }
+        | I::AsyncReject { src }
         | I::Throw { src }
         | I::JumpIfNotNullish { src, .. }
         | I::JumpIfNullish { src, .. }
@@ -2375,6 +2412,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::ThrowInvalidAssign { .. }
         | I::ThrowSuperDelete
         | I::InitialYield
+        | I::AsyncStart
         | I::Nop => {}
     }
 }

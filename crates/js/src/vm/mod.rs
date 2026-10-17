@@ -20,7 +20,8 @@
 //! records, the realms with their intrinsics and global lexical bindings,
 //! the job queue and the rejection tracker (`jobs.rs`), and the value
 //! that the host reads last. Suspended generator frames are
-//! traced through their generator objects.
+//! traced through their generator objects, and so are the frames of
+//! async functions that wait at an `await` (`async_function.rs`).
 //!
 //! Exceptions (ADR 0026 section 5): an instruction that fails leaves the
 //! loop with the error; [`Runtime::run_frames`] searches the handler
@@ -34,6 +35,7 @@
 //! time check compares the clock with the host's deadline and reads the
 //! termination request of the host.
 
+mod async_function;
 mod call;
 pub(crate) mod class;
 pub(crate) mod convert;
@@ -437,7 +439,7 @@ mod tests {
         assert_eq!(size_of::<Frame>(), 128);
         assert_eq!(size_of::<FunctionCode>(), 200);
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
-        assert_eq!(size_of::<GeneratorState>(), 160);
+        assert_eq!(size_of::<GeneratorState>(), 176);
         assert_eq!(size_of::<Closure>(), 48);
         assert_eq!(size_of::<PromiseState>(), 88);
         assert_eq!(size_of::<promise::Reaction>(), 64);

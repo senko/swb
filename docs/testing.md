@@ -1211,6 +1211,50 @@ limit of 64 MiB), endless job loops at the deadline, queues, reaction
 lists and rejection lists that grow to the heap limit, recursive
 executors and a termination that skips the `catch` handlers.
 
+### Async function tests
+
+`tools/probes/js-async.json` has 279 snippets for Chromium 148 in five
+cases, with the runner of `js-promises.json` (it waits with a chain of
+`then` jobs): the shape of async functions, arrows and methods
+(prototypes, no `prototype`, `length`, `name`, the source text, not
+constructors), `AsyncFunction` and `%AsyncFunction.prototype%` (key
+order, descriptors, the source that the constructor builds, `new.target`,
+subclasses), the messages (the early errors of `await` and of the
+constructor's source, throws before the first `await`, in the
+parameters, rejections caught in `try`, `catch` and `finally`, thenables
+that throw, a `constructor` getter that throws), the order of the jobs
+(an `await` of a native promise, a thenable, a subclass and a
+non-promise; `return` and `return await`; two functions that interleave;
+functions that await each other; re-entrant calls), `arguments`, `this`
+in async arrows, `super` in async methods, `await` in loops, `for`-`of`
+(with the closing of the iterator), destructuring defaults, template
+literals and the other operators, the async frames of `stack` (`at async
+f`, their positions and `Error.stackTraceLimit`), and recursion and chains
+of 100,000 functions. The case files are made as for the promises:
+
+```
+just probe --json tools/probes/js-async.json > probe.json
+node crates/js/tests/data/gen-async-cases.js probe.json crates/js/tests/data
+```
+
+`crates/js/tests/async_functions.rs` runs `async_cases.js` (264 snippets,
+normal and stress mode) and `async_cases_heavy.js` (11, normal mode).
+The script leaves out four snippets: three need async generators (feature
+7d) and one shows V8's `at async Promise.all (index 0)` line (swb has no
+lines for built-in functions). `async_gc.js` (suspended frames that hold
+registers, `arguments`, cells, `finally` state and iterators while the
+functions allocate and collect) has the output of Node.js 22 as expected
+output (`just jsdiff`). The file also tests the full text of `stack` with
+async frames, that a suspended function waiting for a promise that no
+one can settle is collected, a call of an async function from the host,
+and terminations: an endless `await` loop ends at the deadline, the
+result promise stays pending, no handler runs, and a function that was
+suspended resumes in a later task. The hostile tests in
+`promises_hostile.rs` cover async recursion 100,000 deep (a `RangeError`
+rejection, as in Chromium), chains of 100,000 functions that await each
+other, endless `await` loops at the deadline and sets of suspended
+functions that grow to the heap limit.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

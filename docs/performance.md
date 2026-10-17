@@ -262,6 +262,31 @@ rows beyond 3 % are the `toLowerCase` row (-7 %, the effect above), two
 JSON rows (-4 % and -5 %, 0.3 ms), `localeCompare` (-3 %) and `throw new
 Error 10 frames deep` (+3.1 %).
 
+Programs added in M7 7c (2026-10-17, same machine); the time includes the
+jobs:
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| async: 100k await in a loop | 17.7 | 4.9 | 3.6x |
+| async: 100k calls of an async function | 23.6 | 3.5 | 6.7x |
+| async: recursion of depth 1000, 100 times | 41.1 | 8.6 | 4.8x |
+
+An `await` of a number in a loop takes 177 ns (the new promise of
+`PromiseResolve`, the reaction, the job, the resumption of the frame); a
+call of an async function that returns at once 236 ns, about as much as a
+call of a function that returns `Promise.resolve(x)`: the result promise
+and the internal generator object (176 bytes of state) are most of it.
+The other rows against a build of the previous commit, measured
+alternately: the mean change is +0.2 % (two runs each). Four variants of
+the interpreter arms and of the return path were measured; each moved a
+different handful of rows by 3 to 6 % in both directions (layout
+effects; the variant with separate inline arms made `fib(27)` 4 % and the
+closure row 4 % slower). The one kept (one out-of-line arm for the three
+async instructions, the generator part of `return_from_frame` out of
+line): `string: indexOf` +6 %, the `sort` with a comparator +3 %, `new
+Function` code +4 %, `toLowerCase` +4 % (the effect above), `Promise.all`
+-4 %, `sum 10M integers in a try` -3 %, `throw and catch` -3 %.
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

@@ -244,6 +244,22 @@ const PROGRAMS: &[(&str, &str)] = &[
         "promise: 100k Promise.resolve(i).then",
         "function run() { var n = 0; for (var i = 0; i < 100000; i++) Promise.resolve(i).then(function (v) { n += v; }); return Promise.resolve().then(function () { return n; }); }",
     ),
+    (
+        "async: 100k await in a loop",
+        "async function loop() { var s = 0; for (var i = 0; i < 100000; i++) s += await i; return s; }
+         function run() { return loop(); }",
+    ),
+    (
+        "async: 100k calls of an async function",
+        "async function f(x) { return x + 1; }
+         function run() { var p; for (var i = 0; i < 100000; i++) p = f(i); return p; }",
+    ),
+    (
+        "async: recursion of depth 1000, 100 times",
+        "async function d(n) { if (n) await d(n - 1); return n; }
+         async function all() { var t = 0; for (var k = 0; k < 100; k++) t += await d(1000); return t; }
+         function run() { return all(); }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).
