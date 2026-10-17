@@ -1423,6 +1423,24 @@ failures with a reason. Features, in this order:
      unhandled rejection; the test262 runner's async tests (`$DONE`,
      `doneprintHandle.js`, `asyncHelpers.js`, `promiseHelper.js`). The
      browser's event loop comes with the engine integration (ADR 0025).
+     Done 2026-10-17: a promise is an object kind with reaction pairs.
+     A handler is a function or an internal continuation, which is how
+     7c attaches `await`. `NewPromiseCapability(%Promise%)` makes only
+     the promise when no script can see its resolving functions. The
+     job queue is a FIFO of the runtime; it is a GC root and counts as
+     live heap. `Runtime::run_jobs` drains it; the shell calls it after
+     each script. Each job is a step of the countdown with a safepoint
+     after it, and a termination in a job reaches the host as a
+     termination. The shell reports an unhandled rejection as
+     `Uncaught (in promise) ...` and exits with 1. 256 Chromium 148
+     cases (shape, messages, job order) give the same output, also in
+     stress mode. A million `then` calls, 100,000 nested resolutions and
+     `Promise.all` over a million elements run without Rust recursion.
+     Runtime test262: 26,919 pass (was 26,277), the same in stress mode;
+     the new group `built-ins/Promise` has 635 passes, 359 of them async
+     tests; parse-only unchanged (41,882). 100k `then` steps take 29 ms
+     (`node --jitless` 4 ms). Open: nested executors stop at about 400
+     levels (Chromium 3,000).
    - 7c `async` functions: functions, arrows and methods, `await` as a
      suspension of the frame (on the generator machinery), the
      `AsyncFunction` constructor. Exit: the 27 target scripts that stop
@@ -1683,7 +1701,31 @@ not repeated here; the open items of each spike session are in M6 step
   slot vector with its whole capacity, so one live string at a high slot
   after a burst of garbage can raise the collection threshold up to
   10 times. The `toLowerCase` row of `vm_bench` has 1 or 7 collections
-  by this effect, and its time varies by about 8 %.
+  by this effect, and its time varies by about 8 %. With a heap limit
+  of 64 MiB, 240,000 objects that become garbage stop a later
+  allocation of 12 arrays of 250,000 elements, which fits without them
+  (M7 7b review).
+- Promises (M7 7b):
+  - An executor runs through a re-entry of the interpreter (10 KiB of
+    the recursion budget), so `new Promise` nested in executors settles
+    about 400 levels; Chromium 148 settles 3,000. Deeper levels reject
+    with a `RangeError`. A frame-based call of the executor would remove
+    the limit.
+  - V8 names `Object.create(Promise.prototype)` `#<Promise>` in
+    messages, by the constructor on the prototype chain; swb says
+    `#<Object>`. Check the rule on more receivers (class instances)
+    before a change of `object_text`.
+  - Speed: 7 to 9 times slower than `node --jitless`, mostly the native
+    call from script, closures with a `prototype` and the job. A
+    `Promise.all` element takes about 450 bytes at the peak, 3 times
+    Node.js (feature 13).
+  - test262 `built-ins/Promise/try/avoids-wrap*.js` test a 2026 change
+    that Chromium 148 does not have; check again when Chromium has it.
+  - For the engine integration ADR: the tracker reports only "unhandled
+    at take"; there is no `rejectionhandled` for a handler added after
+    the report and no `unhandledrejection` event. The realm of a job is
+    stored but not used (one realm). The incumbent settings object of
+    HostMakeJobCallback is not modeled.
 
 ## Backlog from M5
 

@@ -39,7 +39,7 @@ use crate::string::{JsString, PropertyKey};
 use crate::value::{Symbol, Value};
 use crate::vm::{
     BoundFunction, Closure, EnvRecord, ErrorData, GeneratorState, NativeFunction,
-    PrivateEnvironment,
+    PrivateEnvironment, PromiseState,
 };
 
 /// The kind of an object: which internal methods it has (§10.1, §10.4).
@@ -118,6 +118,9 @@ pub enum ObjectKind {
     /// mapped (§10.4.4.7: its mapped elements hold the cells of their
     /// parameters, `arguments.rs`).
     Arguments,
+    /// A promise (§27.2.6): its state, result and reactions
+    /// (`vm/promise.rs`).
+    Promise(Box<PromiseState>),
     /// The key iterator of a `for`-`in` loop (§14.7.5.9): internal, only
     /// a register of the loop holds it.
     ForInIterator(Box<ForInIterator>),
@@ -200,6 +203,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::WrapForValidIterator(_) => "WrapForValidIterator",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
+            ObjectKind::Promise(_) => "Promise",
             ObjectKind::ForInIterator(_) => "ForInIterator",
             ObjectKind::PrivateEnvironment(_) => "PrivateEnvironment",
             ObjectKind::Environment(_) => "Environment",
@@ -224,11 +228,7 @@ impl ObjectKind {
                     data.trace(tracer);
                 }
             }
-            ObjectKind::Native(native) => {
-                if let Some(name) = native.name {
-                    tracer.string(name);
-                }
-            }
+            ObjectKind::Native(native) => native.trace(tracer),
             ObjectKind::Host { data, .. } => tracer.generic(*data),
             ObjectKind::Function(closure) => closure.trace(tracer),
             ObjectKind::Bound(bound) => bound.trace(tracer),
@@ -263,6 +263,7 @@ impl ObjectKind {
             }
             ObjectKind::PrivateEnvironment(env) => env.trace(tracer),
             ObjectKind::Environment(env) => env.trace(tracer),
+            ObjectKind::Promise(state) => state.trace(tracer),
         }
     }
 
@@ -270,7 +271,7 @@ impl ObjectKind {
     pub(crate) fn heap_size(&self) -> usize {
         match self {
             ObjectKind::Function(closure) => closure.heap_size(),
-            ObjectKind::Native(_) => size_of::<NativeFunction>(),
+            ObjectKind::Native(native) => native.heap_size(),
             ObjectKind::Bound(bound) => bound.heap_size(),
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
@@ -289,6 +290,7 @@ impl ObjectKind {
             }
             ObjectKind::PrivateEnvironment(env) => env.heap_size(),
             ObjectKind::Environment(_) => size_of::<EnvRecord>(),
+            ObjectKind::Promise(state) => state.heap_size(),
             _ => 0,
         }
     }

@@ -7,9 +7,11 @@
 #
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
-# fnGlobalObject.js, nans.js, decimalToHexString.js or nativeErrors.js, or have the flags
-# module, async or CanBlockIsTrue, or use $262.createRealm, $262.agent or
-# $262.detachArrayBuffer.
+# fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
+# asyncHelpers.js or promiseHelper.js, or have the flags module or
+# CanBlockIsTrue, or use $262.createRealm, $262.agent or
+# $262.detachArrayBuffer. Tests with the flag async get doneprintHandle.js
+# and pass when they print Test262:AsyncTestComplete.
 
 feature __getter__
 feature __proto__
@@ -318,3 +320,16 @@ dir test/built-ins/Iterator
 # 12).
 dir test/built-ins/GeneratorFunction
 dir test/built-ins/GeneratorPrototype
+
+# Added in M7 feature 7b: `Promise`, the job queue and the async tests
+# (the flag `async`; the tests of other groups that need `async`
+# functions or async generators stay skipped by their features until 7c
+# and 7d). `await-dictionary` (`Promise.allKeyed`) stays out: Chromium
+# 148 does not have it.
+feature Promise
+feature Promise.allSettled
+feature Promise.any
+feature Promise.prototype.finally
+feature promise-with-resolvers
+feature promise-try
+dir test/built-ins/Promise

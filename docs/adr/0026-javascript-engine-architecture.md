@@ -1654,6 +1654,95 @@ where the first plan did not work:
   A generator object's prototype is read from the function's `prototype`
   after the parameters are bound (§15.5.2), with `%GeneratorPrototype%`
   of the function's realm for a value that is not an object.
+- Promises (feature 7b, `vm/promise.rs`, `builtins/promise.rs`,
+  `builtins/promise_combinators.rs`, §27.2) are an object kind with the
+  state, the result, `[[PromiseIsHandled]]` and the reactions.
+  `PerformPromiseThen` adds the fulfill and the reject reaction together,
+  so a promise keeps one list of reaction pairs that share the capability;
+  a single pair (the usual case) needs no vector. A handler is `empty`, a
+  function, or an internal continuation: a Rust function and a value,
+  which the job calls with the kind of the settlement and the value. `await`
+  (7c) and async generators (7d) attach continuations, so they need no
+  function objects and no change of the promise code; the host's "react
+  to a promise" of WebIDL is the same path (`Runtime::react_to_promise`).
+- `NewPromiseCapability(%Promise%)` whose resolving functions no script
+  can reach (`then`, `Promise.resolve`, `reject`, `try`, the
+  `PromiseResolve` of `finally`) is the promise alone: the engine resolves
+  it without the executor and the two functions. This is not observable:
+  `Construct(%Promise%, executor)` reads only the `prototype` of `%Promise%`,
+  which is not writable and not configurable, and the engine resolves such a
+  promise once (one of the two reactions of one `then` runs once).
+  Subclasses, `withResolvers` and the combinators (whose resolving
+  functions `then` receives) get the functions. A promise species that is
+  `%Promise%` with its built-in `@@species` getter is recognized without
+  calling the getter.
+- Built-in functions with internal slots (`CreateBuiltinFunction` with
+  `additionalInternalSlotsList`): a native function has a list of slots
+  (empty for the others), traced by the collector. A record that two
+  functions share (`[[AlreadyResolved]]` of the resolving functions, the
+  `alreadyCalled` of `allSettled`) is a cell in a slot. A combinator keeps
+  the records that its element functions share (the list of values or
+  errors, the capability, `remainingElementsCount`) in one internal array
+  per call, so an element function has two slots (the state and its
+  index, which becomes `undefined` when it was called) and no Rust vector
+  has a size that a script chooses. These functions get `length` and
+  `name` without the checks of `[[DefineOwnProperty]]` (they are new):
+  `new Promise` took 1.4 µs with the checks, 1.2 µs without.
+- The job queue (`vm/jobs.rs`, §9.5): one FIFO queue per runtime of
+  `NewPromiseReactionJob` and `NewPromiseResolveThenableJob` with their
+  realm (`GetFunctionRealm` of the handler or of `then`; `None` for an
+  empty handler). The queue is a root; its bytes count as live heap memory
+  (`RootSource::extra_bytes`) and each job is charged when it is enqueued,
+  so a queue that grows without end ends at the heap limit. A queue
+  that becomes empty with room for more than 1,024 jobs frees its
+  memory, and each take of the rejection list makes a new list, so a
+  burst does not stay counted for the life of the runtime (7b review).
+  `Runtime::run_jobs` runs the jobs until the queue is empty, only when no
+  frame is on the stack (a native that calls it does nothing). Each job is
+  a step of the countdown, runs in a handle scope of its own (the job's
+  values are recorded there when it leaves the queue), and a safepoint
+  follows it, so a loop of jobs that run no script code still collects.
+  The handlers run through re-entry from the host level, so a chain of
+  jobs costs no Rust stack. A thrown value that no capability takes (a
+  capability function of a subclass that throws) ends the drain with
+  `ScriptError::Uncaught`; the other jobs stay in the queue for the next
+  call. A termination inside a job ends the drain as a termination, never
+  as a rejection (section 5): the job that ran is gone, the others stay in
+  the queue until the host runs them or drops them (`clear_jobs`).
+- The rejection tracker (§27.2.1.9): "reject" appends the promise to a
+  list (HTML's "about-to-be-notified rejected promises list", which also
+  holds its promises strongly); "handle" is the `[[PromiseIsHandled]]`
+  flag that `PerformPromiseThen` sets. The list drops the handled promises
+  when it has doubled since the last prune and when the host takes it
+  (`take_unhandled_rejections`), so both operations cost O(1) amortized.
+  The promises that the host took stay alive until it takes the next list.
+- `swb-js` runs the jobs after each script under the script's deadline and
+  reports each unhandled rejection on stderr as the console of Chromium
+  shows it: `Uncaught (in promise) TypeError: message` and the lines of the
+  error's `stack` (its text once a script read it), or the value for
+  other reasons (`Uncaught (in promise) 42`). The form comes from the
+  DevTools console of Chromium; the probe tool reads no console, so it is
+  not measured. An unhandled rejection ends the run with exit code 1 after
+  all of them are reported, like an uncaught error (Node.js 22 exits with
+  1 too). The test262 runner ignores unhandled rejections.
+- V8's messages and the job order are measured in Chromium 148
+  (`tools/probes/js-promises.json`, 257 snippets, one left out of the
+  tests): for example `Promise resolver #<Object> is not a function`, `Chaining cycle
+  detected for promise #<Promise>`, `Promise executor has already been
+  invoked with non-undefined arguments`, `Promise resolve or reject
+  function is not callable`, `The .constructor property is not an
+  object`, `PromiseResolve called on non-object`, `resolve is not a
+  function` (GetPromiseResolve), and `AggregateError: All promises were
+  rejected` with own `stack`, `message` and `errors`. Chromium 148 has the
+  `Promise.try` of ES2025 (the capability first, a promise result is
+  wrapped); the two newer test262 tests `try/avoids-wrap*.js` expect the
+  2026 change and fail.
+- Limits: everything after a settlement runs as jobs (chains of `then`,
+  resolution with promises and thenables, `finally`, the combinators), so
+  a million-step chain costs no Rust recursion. An executor runs through
+  re-entry: `new Promise` nested in executors ends at about 400 levels
+  with the `RangeError` that rejects the innermost promise (Chromium 148:
+  3,000 levels work, 10,000 fail).
 
 ## Consequences
 

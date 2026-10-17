@@ -470,7 +470,8 @@ impl Heap {
         live += self.atoms.bytes()
             + self.transitions.capacity() * size_of::<(crate::object::Transition, Gc<Shape>)>()
             + self.root_shapes.capacity() * size_of::<(Option<Gc<Object>>, Gc<Shape>)>()
-            + self.roots.bytes();
+            + self.roots.bytes()
+            + roots.extra_bytes();
 
         self.live_bytes = live;
         self.allocated = 0;

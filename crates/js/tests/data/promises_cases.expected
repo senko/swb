@@ -1,0 +1,248 @@
+Reflect.ownKeys(Promise).map(String) => ok ["length","name","prototype","all","allSettled","any","race","resolve","reject","withResolvers","try","Symbol(Symbol.species)"]
+Reflect.ownKeys(Promise.prototype).map(String) => ok ["constructor","then","catch","finally","Symbol(Symbol.toStringTag)"]
+[Promise.length, Promise.name, typeof Promise] => ok [1,"Promise","function"]
+['all', 'allSettled', 'any', 'race', 'reject', 'resolve', 'withResolvers', 'try'].map(k => { const d = Object.getOwnPropertyDescriptor(Promise, k); return k + ':' + d.value.name + ':' + d.value.length + ':' + d.writable + d.enumerable + d.configurable; }) => ok ["all:all:1:truefalsetrue","allSettled:allSettled:1:truefalsetrue","any:any:1:truefalsetrue","race:race:1:truefalsetrue","reject:reject:1:truefalsetrue","resolve:resolve:1:truefalsetrue","withResolvers:withResolvers:0:truefalsetrue","try:try:1:truefalsetrue"]
+['then', 'catch', 'finally'].map(k => { const d = Object.getOwnPropertyDescriptor(Promise.prototype, k); return k + ':' + d.value.name + ':' + d.value.length + ':' + d.writable + d.enumerable + d.configurable; }) => ok ["then:then:2:truefalsetrue","catch:catch:1:truefalsetrue","finally:finally:1:truefalsetrue"]
+JSON.stringify(Object.getOwnPropertyDescriptor(Promise, 'prototype'), (k, v) => k === 'value' ? typeof v : v) => ok "{\"value\":\"object\",\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Promise, 'length')) => ok "{\"value\":1,\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Promise, 'name')) => ok "{\"value\":\"Promise\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Promise.prototype, 'constructor'), (k, v) => k === 'value' ? v === Promise : v) => ok "{\"value\":true,\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(Promise.prototype, Symbol.toStringTag)) => ok "{\"value\":\"Promise\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+(() => { const d = Object.getOwnPropertyDescriptor(Promise, Symbol.species); return [typeof d.get, d.get.name, d.get.length, d.set, d.enumerable, d.configurable]; })() => ok ["function","get [Symbol.species]",0,undefined,false,true]
+[Promise[Symbol.species] === Promise, Object.getOwnPropertyDescriptor(Promise, Symbol.species).get.call(5)] => ok [true,5]
+[Object.getPrototypeOf(Promise) === Function.prototype, Object.getPrototypeOf(Promise.prototype) === Object.prototype] => ok [true,true]
+[Object.prototype.toString.call(Promise.prototype), Object.prototype.toString.call(Promise.resolve()), String(Promise.resolve())] => ok ["[object Promise]","[object Promise]","[object Promise]"]
+[typeof Promise.prototype.then.prototype, typeof Promise.resolve.prototype, Object.getOwnPropertyNames(Promise.prototype.then).join()] => ok ["undefined","undefined","length,name"]
+new Promise.prototype.then() => err TypeError: Promise.prototype.then is not a constructor
+new Promise.resolve(1) => err TypeError: Promise.resolve is not a constructor
+Promise.prototype.then.toString() => ok "function then() { [native code] }"
+Object.getOwnPropertyDescriptor(Promise, Symbol.species).get.toString() => ok "function get [Symbol.species]() { [native code] }"
+var rf; new Promise((a, b) => { rf = [a, b]; }); rf.map(f => [f.name, f.length, typeof f.prototype, Object.getPrototypeOf(f) === Function.prototype, Object.isExtensible(f), Reflect.ownKeys(f).map(String).join('/')].join()) => ok [",1,undefined,true,true,length/name",",1,undefined,true,true,length/name"]
+rf.map(f => JSON.stringify([Object.getOwnPropertyDescriptor(f, 'length'), Object.getOwnPropertyDescriptor(f, 'name')])) => ok ["[{\"value\":1,\"writable\":false,\"enumerable\":false,\"configurable\":true},{\"value\":\"\",\"writable\":false,\"enumerable\":false,\"configurable\":true}]","[{\"value\":1,\"writable\":false,\"enumerable\":false,\"configurable\":true},{\"value\":\"\",\"writable\":false,\"enumerable\":false,\"configurable\":true}]"]
+rf[0].toString() => ok "function () { [native code] }"
+new rf[0]() => err TypeError: rf[0] is not a constructor
+Reflect.construct(function () {}, [], rf[1]) => err TypeError: function () { [native code] } is not a constructor
+rf[0] === rf[1] => ok false
+var ex; class P2 extends Promise { constructor(e) { ex = e; super(e); } } P2.resolve(1); [ex.name, ex.length, typeof ex.prototype, Object.isExtensible(ex), Reflect.ownKeys(ex).map(String).join('/')].join() => ok ",2,undefined,true,length/name"
+new ex(() => {}) => err TypeError: ex is not a constructor
+var fsa = []; var CA = function (e) { e(() => {}, () => {}); }; CA.resolve = v => ({ then(f, r) { fsa.push(f, r); } }); Promise.all.call(CA, [1]); [fsa[0].name, fsa[0].length, typeof fsa[0].prototype, Reflect.ownKeys(fsa[0]).map(String).join('/'), Object.isExtensible(fsa[0])].join() => ok ",1,undefined,length/name,true"
+var fss = []; var CS = function (e) { e(() => {}, () => {}); }; CS.resolve = v => ({ then(f, r) { fss.push(f, r); } }); Promise.allSettled.call(CS, [1]); fss.map(f => [f.name, f.length, typeof f.prototype].join()) => ok [",1,undefined",",1,undefined"]
+var fsn = []; var CN = function (e) { e(() => {}, () => {}); }; CN.resolve = v => ({ then(f, r) { fsn.push(f, r); } }); Promise.any.call(CN, [1]); [fsn[1].name, fsn[1].length, typeof fsn[1].prototype].join() => ok ",1,undefined"
+var fsr = []; var CR = function (e) { e(function res() {}, function rej() {}); }; CR.resolve = v => ({ then(f, r) { fsr.push(f, r); } }); Promise.race.call(CR, [1]); fsr.map(f => f.name) => ok ["res","rej"]
+var fsf; var pf = Promise.resolve(); pf.then = function (a, b) { fsf = [a, b]; }; pf.finally(() => {}); fsf.map(f => [f.name, f.length, typeof f.prototype, Reflect.ownKeys(f).map(String).join('/')].join()) => ok [",1,undefined,length/name",",1,undefined,length/name"]
+var q1 = Promise.resolve(); q1.then = function (f) { log.push([f.name, f.length, f(), typeof f.prototype].join()); }; var pf2 = Promise.resolve(5); var fsf2; pf2.then = function (a, b) { fsf2 = [a, b]; }; pf2.finally(() => q1); fsf2[0](7) => ok undefined | ,0,7,undefined
+var q2 = Promise.resolve(); q2.then = function (f) { try { f(); } catch (e) { log.push([f.name, f.length, 'threw ' + show(e)].join()); } }; var pf3 = Promise.resolve(5); var fsf3; pf3.then = function (a, b) { fsf3 = [a, b]; }; pf3.finally(() => q2); fsf3[1](8) => ok undefined | ,0,threw 8
+var fsf4; var pf4 = Promise.resolve(); pf4.then = function (a, b) { fsf4 = [a, b]; return 'r'; }; [pf4.finally(5), fsf4[0], fsf4[1]] => ok ["r",5,5]
+var w = Promise.withResolvers(); [Object.keys(w).join(), w.promise instanceof Promise, typeof w.resolve, typeof w.reject, w.resolve.length, w.reject.name === ''] => ok ["promise,resolve,reject",true,"function","function",1,true]
+var w2 = Promise.withResolvers(); w2.resolve(3); w2.reject(4); w2.promise => ok Promise | fulfilled 3
+Promise() => err TypeError: Promise constructor cannot be invoked without 'new'
+Promise(() => {}) => err TypeError: Promise constructor cannot be invoked without 'new'
+new Promise() => err TypeError: Promise resolver undefined is not a function
+new Promise(1) => err TypeError: Promise resolver 1 is not a function
+new Promise('x') => err TypeError: Promise resolver x is not a function
+new Promise({}) => err TypeError: Promise resolver #<Object> is not a function
+new Promise(null) => err TypeError: Promise resolver null is not a function
+new Promise(Symbol('s')) => err TypeError: Promise resolver Symbol(s) is not a function
+new Promise([1, 2]) => err TypeError: Promise resolver [object Array] is not a function
+new Promise(new Map()) => err TypeError: Promise resolver #<Map> is not a function
+new Promise(Promise.resolve()) => err TypeError: Promise resolver #<Promise> is not a function
+Promise.prototype.then.call(1) => err TypeError: Method Promise.prototype.then called on incompatible receiver 1
+Promise.prototype.then.call('s') => err TypeError: Method Promise.prototype.then called on incompatible receiver s
+Promise.prototype.then.call(undefined) => err TypeError: Method Promise.prototype.then called on incompatible receiver undefined
+Promise.prototype.then.call(null) => err TypeError: Method Promise.prototype.then called on incompatible receiver null
+Promise.prototype.then.call({}) => err TypeError: Method Promise.prototype.then called on incompatible receiver #<Object>
+Promise.prototype.then.call([]) => err TypeError: Method Promise.prototype.then called on incompatible receiver [object Array]
+Promise.prototype.then.call(Promise) => err TypeError: Method Promise.prototype.then called on incompatible receiver function Promise() { [native code] }
+Promise.prototype.then.call(Promise.prototype) => err TypeError: Method Promise.prototype.then called on incompatible receiver #<Promise>
+Promise.prototype.then.call({ then() {} }) => err TypeError: Method Promise.prototype.then called on incompatible receiver #<Object>
+Promise.prototype.catch.call(undefined) => err TypeError: Cannot read properties of undefined (reading 'then')
+Promise.prototype.catch.call(null) => err TypeError: Cannot read properties of null (reading 'then')
+Promise.prototype.catch.call(1) => err TypeError: undefined is not a function
+Promise.prototype.catch.call({}) => err TypeError: undefined is not a function
+Promise.prototype.catch.call({ then: 1 }) => err TypeError: number 1 is not a function
+Promise.prototype.catch.call({ then(a, b) { return [String(a), typeof b, arguments.length]; } }, 5) => ok ["undefined","number",2]
+Promise.prototype.finally.call(1) => err TypeError: Promise.prototype.finally called on non-object
+Promise.prototype.finally.call(undefined) => err TypeError: Promise.prototype.finally called on non-object
+Promise.prototype.finally.call({}) => err TypeError: undefined is not a function
+Promise.prototype.finally.call({ then(a, b) { return [a, b, arguments.length]; } }, 1) => ok [1,1,2]
+Promise.prototype.finally.call({ then(a, b) { return [typeof a, typeof b, a === b]; } }, () => {}) => ok ["function","function",false]
+Promise.resolve.call(1) => err TypeError: PromiseResolve called on non-object
+Promise.resolve.call(undefined) => err TypeError: PromiseResolve called on non-object
+Promise.resolve.call({}) => err TypeError: #<Object> is not a constructor
+Promise.resolve.call(() => {}) => err TypeError: () => {} is not a constructor
+Promise.resolve.call(Math.max) => err TypeError: function max() { [native code] } is not a constructor
+Promise.reject.call(1) => err TypeError: PromiseReject called on non-object
+Promise.reject.call(undefined) => err TypeError: PromiseReject called on non-object
+Promise.reject.call({}) => err TypeError: #<Object> is not a constructor
+Promise.all.call(1) => err TypeError: Promise.all called on non-object
+Promise.all.call(undefined) => err TypeError: Promise.all called on non-object
+Promise.all.call({}) => err TypeError: #<Object> is not a constructor
+Promise.allSettled.call(1) => err TypeError: Promise.allSettled called on non-object
+Promise.any.call(1) => err TypeError: Promise.any called on non-object
+Promise.race.call(1) => err TypeError: Promise.race called on non-object
+Promise.race.call({}) => err TypeError: #<Object> is not a constructor
+Promise.withResolvers.call(1) => err TypeError: Promise.withResolvers called on non-object
+Promise.withResolvers.call({}) => err TypeError: #<Object> is not a constructor
+Promise.try.call(1) => err TypeError: Promise.try called on non-object
+Promise.try.call(undefined) => err TypeError: Promise.try called on non-object
+Promise.try.call({}) => err TypeError: #<Object> is not a constructor
+Promise.try(1) => ok Promise | rejected TypeError: number 1 is not a function
+Promise.try() => ok Promise | rejected TypeError: undefined is not a function
+Promise.try({}) => ok Promise | rejected TypeError: object is not a function
+Promise.all(1) => ok Promise | rejected TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.all() => ok Promise | rejected TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.all(null) => ok Promise | rejected TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.all({}) => ok Promise | rejected TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.allSettled(1) => ok Promise | rejected TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.any(1) => ok Promise | rejected TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.race(1) => ok Promise | rejected TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.all({ [Symbol.iterator]: 1 }) => ok Promise | rejected TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+Promise.all({ [Symbol.iterator]() { return 1; } }) => ok Promise | rejected TypeError: Result of the Symbol.iterator method is not an object
+Promise.all.call(function (e) { e(); }) => err TypeError: Promise resolve or reject function is not callable
+Promise.all.call(function (e) {}) => err TypeError: Promise resolve or reject function is not callable
+Promise.all.call(function (e) { e(1, 2); }) => err TypeError: Promise resolve or reject function is not callable
+Promise.all.call(function (e) { e(() => {}, 1); }) => err TypeError: Promise resolve or reject function is not callable
+Promise.all.call(function (e) { e(1, () => {}); }) => err TypeError: Promise resolve or reject function is not callable
+Promise.all.call(function (e) { e(() => {}, () => {}); e(() => {}, () => {}); }) => err TypeError: Promise executor has already been invoked with non-undefined arguments
+Promise.all.call(function (e) { e(undefined, undefined); e(() => {}, () => {}); }, []) instanceof Object => ok true
+Promise.all.call(function (e) { e(() => {}, undefined); e(() => {}, () => {}); }) => err TypeError: Promise executor has already been invoked with non-undefined arguments
+Promise.all.call(function (e) { e(undefined, () => {}); e(() => {}, () => {}); }) => err TypeError: Promise executor has already been invoked with non-undefined arguments
+Promise.resolve.call(function (e) { e(() => {}, () => {}); return {}; }, 1) => ok {}
+Promise.resolve.call(function (e) { e(() => {}, () => {}); return 1; }, 1) => ok {}
+var r1; var p1 = new Promise(r => { r1 = r; }); r1(p1); p1 => ok Promise | rejected TypeError: Chaining cycle detected for promise #<Promise>
+var p2 = Promise.resolve().then(() => p2); p2 => ok Promise | rejected TypeError: Chaining cycle detected for promise #<Promise>
+var w3 = Promise.withResolvers(); w3.resolve(w3.promise); w3.promise => ok Promise | rejected TypeError: Chaining cycle detected for promise #<Promise>
+class Q1 extends Promise {} var r2; var q3 = new Q1(r => { r2 = r; }); r2(q3); q3 => ok Promise | rejected TypeError: Chaining cycle detected for promise #<Q1>
+Promise.resolve({ get then() { throw new Error('bad then'); } }) => ok Promise | rejected Error: bad then
+Promise.resolve({ get then() { throw 7; } }) => ok Promise | rejected value 7
+Promise.resolve({ then() { throw new TypeError('in then'); } }) => ok Promise | rejected TypeError: in then
+Promise.resolve({ then(f) { f(1); throw 2; } }) => ok Promise | fulfilled 1
+Promise.resolve({ then: 5 }) => ok Promise | fulfilled {then:5}
+Promise.resolve({ then: null }) => ok Promise | fulfilled {then:null}
+new Promise(() => { throw 5; }) => ok Promise | rejected value 5
+new Promise(r => { r(1); throw new Error('ignored'); }) => ok Promise | fulfilled 1
+new Promise((r, j) => { j(1); r(2); }) => ok Promise | rejected value 1
+new Promise((r, j) => { r(1); j(2); }) => ok Promise | fulfilled 1
+var ra, ja; var p4 = new Promise((a, b) => { ra = a; ja = b; }); [ra(1), ja(2), ra(3)] => ok [undefined,undefined,undefined]
+p4 => ok Promise | fulfilled 1
+Promise.any([]) => ok Promise | rejected AggregateError: All promises were rejected errors=[]
+Promise.any([Promise.reject(1), Promise.reject(new Error('two'))]) => ok Promise | rejected AggregateError: All promises were rejected errors=[1,Error: two]
+Promise.any([]).catch(e => log.push(JSON.stringify(Object.getOwnPropertyDescriptor(e, 'errors'), (k, v) => k === 'value' ? show(v) : v), Object.getOwnPropertyNames(e).join(), Object.getPrototypeOf(e) === AggregateError.prototype, typeof e.stack)) => ok Promise | {"value":"[]","writable":true,"enumerable":false,"configurable":true}; stack,message,errors; true; string; fulfilled 4
+Promise.any([Promise.reject(1)]).catch(e => log.push(e.message, e.errors.length, Object.prototype.hasOwnProperty.call(e, 'message'))) => ok Promise | All promises were rejected; 1; true; fulfilled 3
+var CG = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; CG.resolve = 1; Promise.all.call(CG, []) => ok {} | reject TypeError: resolve is not a function
+var CG2 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; CG2.resolve = undefined; Promise.race.call(CG2, []) => ok {} | reject TypeError: resolve is not a function
+var CG3 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; Object.defineProperty(CG3, 'resolve', { get() { throw new Error('get resolve'); } }); Promise.any.call(CG3, []) => ok {} | reject Error: get resolve
+var CG4 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; CG4.resolve = Promise.resolve; Promise.allSettled.call(CG4, 1) => ok {} | reject TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+var pc = Promise.resolve(1); pc.constructor = undefined; pc.then() instanceof Promise => ok true
+var pc2 = Promise.resolve(1); pc2.constructor = 1; pc2.then() => err TypeError: The .constructor property is not an object
+var pc3 = Promise.resolve(1); pc3.constructor = 'x'; pc3.finally() => err TypeError: The .constructor property is not an object
+var pc4 = Promise.resolve(1); pc4.constructor = { [Symbol.species]: 1 }; pc4.then() => err TypeError: object.constructor[Symbol.species] is not a constructor
+var pc5 = Promise.resolve(1); pc5.constructor = { [Symbol.species]: null }; pc5.then() instanceof Promise => ok true
+var pc6 = Promise.resolve(1); pc6.constructor = { [Symbol.species]: () => {} }; pc6.then() => err TypeError: object.constructor[Symbol.species] is not a constructor
+var pc7 = Promise.resolve(1); pc7.constructor = { [Symbol.species]: () => {} }; pc7.finally() => err TypeError: object.constructor[Symbol.species] is not a constructor
+var pc8 = Promise.resolve(1); pc8.constructor = { [Symbol.species]: function (e) { e(1, 2); } }; pc8.then() => err TypeError: Promise resolve or reject function is not callable
+var pc9 = Promise.resolve(1); pc9.constructor = { [Symbol.species]: function (e) { log.push('species ' + e.length); e(v => log.push('res ' + show(v)), e => log.push('rej')); } }; pc9.then(v => v + 1) => ok {} | species 2; res 2
+var pd = Promise.resolve(1); Object.defineProperty(pd, 'constructor', { get() { throw new Error('ctor getter'); } }); pd.then() => err Error: ctor getter
+var pe = Promise.resolve(1); pe.constructor = { get [Symbol.species]() { throw new RangeError('species getter'); } }; pe.then() => err RangeError: species getter
+Promise.resolve().then(() => log.push('a1')).then(() => log.push('a2')).then(() => log.push('a3')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')); log.push('sync') => ok 1 | sync; a1; b1; a2; b2; a3; b3
+new Promise(r => r(Promise.resolve())).then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; b2; a; b3; b4; fulfilled 5
+Promise.resolve().then(() => Promise.resolve()).then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; b2; b3; a; b4; b5; fulfilled 6
+Promise.resolve().then(() => ({ then(f) { log.push('then'); f(); } })).then(() => log.push('a')); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')) => ok Promise | b1; then; b2; a; b3; b4; b5; fulfilled 7
+new Promise(r => r({ then(f) { log.push('then'); f(1); } })).then(v => log.push('a' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | then; b1; a1; b2; b3; b4; fulfilled 6
+Promise.resolve({ then(f) { log.push('then'); f(1); } }).then(v => log.push('a' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | then; b1; a1; b2; b3; b4; fulfilled 6
+var th = { get then() { log.push('get then'); return f => { log.push('call then'); f(2); }; } }; Promise.resolve(th).then(v => log.push('v' + v)); log.push('sync') => ok 2 | get then; sync; call then; v2
+var th2 = { then() { log.push(this === th2, arguments.length, typeof arguments[0], typeof arguments[1]); } }; Promise.resolve(th2); log.push('sync') => ok 1 | sync; true; 2; function; function
+var th3 = { then(a, b) { log.push(a.length, b.length, a.name === '', a === b); } }; new Promise(r => r(th3)) => ok Promise | 1; 1; true; false
+var s1 = Promise.resolve(1); log.push('x'); s1.then(v => log.push('s' + v)); Promise.resolve().then(() => log.push('n')) => ok Promise | x; s1; n; fulfilled 3
+var rr; var pend = new Promise(r => { rr = r; }); pend.then(v => log.push('p' + v)); Promise.resolve().then(() => { log.push('r'); rr(1); }).then(() => log.push('after')) => ok Promise | r; p1; after; fulfilled 3
+Promise.reject(1).then(v => log.push('f')).catch(e => log.push('c' + e)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')) => ok Promise | b1; c1; b2; b3; fulfilled 4
+Promise.resolve(3).then(5, 6).then(v => log.push('v' + v)) => ok Promise | v3; fulfilled 1
+Promise.reject(3).then(5, 6).then(v => log.push('v' + v), e => log.push('e' + e)) => ok Promise | e3; fulfilled 1
+Promise.resolve(1).then(function () { log.push(arguments.length, typeof this); }) => ok Promise | 1; object; fulfilled undefined
+Promise.resolve(1).then(function () { 'use strict'; log.push(String(this)); }) => ok Promise | undefined; fulfilled undefined
+new Promise(function () { 'use strict'; log.push(String(this), arguments.length); }) => ok Promise | undefined; 2
+new Promise(function () { log.push(this === globalThis); }) => ok Promise | true
+Promise.resolve(1).finally(() => log.push('fin')).then(v => log.push('v' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')) => ok Promise | fin; b1; b2; b3; v1; b4; b5; b6; fulfilled 8
+Promise.reject(1).finally(() => log.push('fin')).catch(v => log.push('c' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')) => ok Promise | fin; b1; b2; b3; c1; b4; b5; b6; fulfilled 8
+Promise.resolve(1).finally(function () { log.push(arguments.length, typeof this); }) => ok Promise | 0; object; fulfilled 1
+Promise.resolve(1).finally(() => 2) => ok Promise | fulfilled 1
+Promise.resolve(1).finally(() => { throw 3; }) => ok Promise | rejected value 3
+Promise.resolve(1).finally(() => Promise.reject(4)) => ok Promise | rejected value 4
+Promise.reject(1).finally(() => 2) => ok Promise | rejected value 1
+Promise.reject(1).finally(() => Promise.resolve(2)) => ok Promise | rejected value 1
+Promise.resolve(1).finally() => ok Promise | fulfilled 1
+Promise.reject(1).finally(5) => ok Promise | rejected value 1
+class SP extends Promise { constructor(e) { log.push('SP'); super(e); } } var sp = SP.resolve(1).finally(() => log.push('fin')); log.push('sync'); sp instanceof SP => ok true | SP; SP; sync; fin; SP; SP; SP
+Promise.all([1, Promise.resolve(2), { then(f) { f(3); } }]).then(v => log.push(show(v))); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')).then(() => log.push('b7')).then(() => log.push('b8')) => ok Promise | b1; b2; [1,2,3]; b3; b4; b5; b6; b7; b8; fulfilled 9
+Promise.allSettled([1, Promise.reject(2), { then(f, r) { r(3); } }]).then(v => log.push(show(v))); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')).then(() => log.push('b7')).then(() => log.push('b8')) => ok Promise | b1; b2; [{status:"fulfilled",value:1},{status:"rejected",reason:2},{status:"rejected",reason:3}]; b3; b4; b5; b6; b7; b8; fulfilled 9
+Promise.any([Promise.reject(1), Promise.resolve(2), 3]).then(v => log.push('any ' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')) => ok Promise | b1; any 2; b2; b3; b4; b5; b6; fulfilled 7
+Promise.race([new Promise(() => {}), Promise.resolve(2), 3]).then(v => log.push('race ' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')).then(() => log.push('b5')).then(() => log.push('b6')) => ok Promise | b1; race 2; b2; b3; b4; b5; b6; fulfilled 7
+Promise.race([]) => ok Promise
+Promise.all([]) => ok Promise | fulfilled []
+Promise.allSettled([]) => ok Promise | fulfilled []
+Promise.all('ab') => ok Promise | fulfilled ["a","b"]
+Promise.all(new Set([1, 2])) => ok Promise | fulfilled [1,2]
+Promise.allSettled([1, Promise.reject(2)]) => ok Promise | fulfilled [{status:"fulfilled",value:1},{status:"rejected",reason:2}]
+Promise.all([1, Promise.reject(2), Promise.reject(3)]) => ok Promise | rejected value 2
+Promise.race([Promise.reject(1), Promise.resolve(2)]) => ok Promise | rejected value 1
+var C3 = function (e) { log.push('C3'); e(v => log.push('res ' + show(v)), e => log.push('rej ' + err(e))); }; Object.defineProperty(C3, 'resolve', { get() { log.push('get resolve'); return v => ({ then(a, b) { log.push('then ' + v); a(v * 10); } }); } }); Promise.all.call(C3, { [Symbol.iterator]() { log.push('iter'); return [1, 2][Symbol.iterator](); } }) => ok {} | C3; get resolve; iter; then 1; then 2; res [10,20]
+var C4 = function (e) { e(v => log.push('res ' + show(v)), e => log.push('rej ' + err(e))); }; C4.resolve = v => ({ then(a, b) { a(v); a(v + 1); b(0); } }); Promise.all.call(C4, [1, 2]) => ok {} | rej value 0; rej value 0; res [1,2]
+var C5 = function (e) { e(v => log.push('res ' + show(v)), e => log.push('rej ' + err(e))); }; C5.resolve = v => ({ then(a, b) { b(v); a(v); } }); Promise.allSettled.call(C5, [1, 2]) => ok {} | res [{status:"rejected",reason:1},{status:"rejected",reason:2}]
+var C6 = function (e) { e(v => log.push('res ' + show(v)), e => log.push('rej ' + err(e))); }; C6.resolve = v => ({ then(a, b) { b(v); b(v + 1); } }); Promise.any.call(C6, [1, 2]) => ok {} | rej AggregateError: All promises were rejected errors=[1,2]
+var C7 = function (e) { e(v => log.push('res ' + show(v)), e => log.push('rej ' + err(e))); }; var fs7 = []; C7.resolve = v => ({ then(a, b) { fs7.push(a); } }); Promise.all.call(C7, [1, 2, 3]); fs7[2]('c'); fs7[0]('a'); log.push('mid'); fs7[1]('b'); fs7[1]('x') => ok undefined | mid; res ["a","b","c"]
+var it1 = { [Symbol.iterator]() { return { next() { return { done: false, value: 1 }; }, return() { log.push('return'); return {}; } }; } }; var C8 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; C8.resolve = function () { throw new Error('boom'); }; Promise.all.call(C8, it1) => ok {} | return; reject Error: boom
+var it2 = { [Symbol.iterator]() { return { next() { throw new Error('next'); }, return() { log.push('return'); return {}; } }; } }; Promise.all(it2) => ok Promise | rejected Error: next
+var it3 = { [Symbol.iterator]() { return { next() { return { get done() { throw new Error('done'); } }; }, return() { log.push('return'); } }; } }; Promise.race(it3) => ok Promise | rejected Error: done
+var it4 = { [Symbol.iterator]() { return { next() { return { done: false, get value() { throw new Error('value'); } }; }, return() { log.push('return'); } }; } }; Promise.any(it4) => ok Promise | rejected Error: value
+var it5 = { [Symbol.iterator]() { return { next() { return { done: false, value: { then: 1 } }; }, return() { log.push('return'); return {}; } }; } }; var C9 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; C9.resolve = v => v; Promise.all.call(C9, it5) => ok {} | return; reject TypeError: number 1 is not a function
+var it6 = { [Symbol.iterator]() { return { next() { return { done: false, value: 1 }; }, return() { log.push('return'); throw new Error('return threw'); } }; } }; var C10 = function (e) { e(() => {}, x => log.push('reject ' + err(x))); }; C10.resolve = function () { throw new Error('first'); }; Promise.race.call(C10, it6) => ok {} | return; reject Error: first
+var it7 = { [Symbol.iterator]() { let n = 0; return { next() { log.push('next'); return { done: n++ > 1, value: n }; }, return() { log.push('return'); } }; } }; Promise.all(it7) => ok Promise | next; next; next; fulfilled [1,2]
+var p5 = Promise.resolve(1); Promise.resolve(p5) === p5 => ok true
+class S2 extends Promise {} var s2 = S2.resolve(1); [Promise.resolve(s2) === s2, S2.resolve(s2) === s2, s2 instanceof S2, s2.then(() => {}) instanceof S2, S2.reject(1).catch(() => {}) instanceof S2, s2.finally() instanceof S2] => ok [false,true,true,true,true,true]
+var p6 = Promise.resolve(1); Object.defineProperty(p6, 'constructor', { get() { log.push('ctor'); return Promise; } }); Promise.resolve(p6) === p6 => ok true | ctor
+var p7 = Promise.resolve(1); p7.constructor = Object; Promise.resolve(p7) === p7 => ok false
+var p8 = Promise.resolve(); var n8 = 0; Object.defineProperty(p8, 'constructor', { get() { log.push('ctor'); return Promise; } }); p8.then(); log.push('then'); p8.catch(); log.push('catch'); p8.finally(); log.push('finally') => ok 7 | ctor; then; ctor; catch; ctor; ctor; finally
+class S3 extends Promise {} [S3.withResolvers().promise instanceof S3, S3.try(() => 1) instanceof S3, S3.all([]) instanceof S3, S3.race([]) instanceof S3, S3.any([1]) instanceof S3, S3.allSettled([]) instanceof S3] => ok [true,true,true,true,true,true]
+class S4 extends Promise { constructor(e) { log.push('S4'); super(e); } static get [Symbol.species]() { return Promise; } } var s4 = S4.resolve(1); log.push('then'); var t4 = s4.then(); [t4 instanceof S4, t4 instanceof Promise] => ok [false,true] | S4; then
+class S5 extends Promise { constructor(e) { super(e); log.push('S5'); } } new S5(r => r(1)).then(v => log.push('v' + v)) => ok Promise | S5; S5; S5; v1; fulfilled 4
+var S6 = function (e) { log.push('S6'); return new Promise(e); }; Promise.resolve.call(S6, 1) instanceof Promise => ok true | S6
+Promise.try((a, b) => a + b, 1, 2) => ok Promise | fulfilled 3
+Promise.try(() => { throw 1; }) => ok Promise | rejected value 1
+Promise.try(() => Promise.resolve(4)) => ok Promise | fulfilled 4
+Promise.try(function () { 'use strict'; log.push(String(this), arguments.length); }) => ok Promise | undefined; 0; fulfilled undefined
+Promise.try(() => log.push('cb')); log.push('after') => ok 2 | cb; after
+var ts = Promise.resolve(); Promise.try(() => ts) === ts => ok false
+class T1 extends Promise { constructor(e) { log.push('ctor'); super(e); } } var t1 = T1.resolve(); log.push('try'); [T1.try(() => { log.push('cb'); return t1; }) === t1, T1.try(() => { log.push('cb2'); return 1; }) instanceof T1] => ok [false,true] | ctor; try; ctor; cb; ctor; cb2; ctor
+Promise.try.call(function () { throw new Error('C'); }, () => log.push('cb')) => err Error: C
+class T2 extends Promise { constructor(e) { log.push('ctor'); super(e); } } T2.try(() => { log.push('cb'); throw 1; }) instanceof T2 => ok true | ctor; cb
+var tp = Promise.resolve(1); Object.defineProperty(tp, 'constructor', { get() { log.push('ctor get'); return Promise; } }); Promise.try(() => tp) === tp => ok false | ctor get
+Promise.reject(1) => ok Promise | rejected value 1
+Promise.reject(Promise.resolve(1)) => ok Promise | rejected value Promise
+Promise.resolve(Promise.reject(1)) => ok Promise | rejected value 1
+Promise.resolve(1).then(v => { throw v + 1; }).catch(e => e + 1) => ok Promise | fulfilled 3
+Promise.resolve(1).then(v => log.push('t1')).then(v => log.push('t2' + v)); Promise.resolve(1).then(() => log.push('u1')) => ok Promise | t1; u1; t21; fulfilled 2
+var p9 = Promise.resolve(1); p9.then(() => log.push('h1')); p9.then(() => log.push('h2')); p9.then(() => log.push('h3')) => ok Promise | h1; h2; h3; fulfilled 3
+var r10; var p10 = new Promise(r => { r10 = r; }); p10.then(() => log.push('h1')); p10.then(() => log.push('h2')); r10(); p10.then(() => log.push('h3')); log.push('sync') => ok 1 | sync; h1; h2; h3
+var j11; var p11 = new Promise((_, j) => { j11 = j; }); p11.catch(() => log.push('c1')); p11.then(null, () => log.push('c2')); j11(); log.push('sync') => ok 1 | sync; c1; c2
+var thn = { then(f) { Promise.resolve().then(() => { log.push('inner'); f('x'); }); } }; Promise.resolve(thn).then(v => log.push('v ' + v)); Promise.resolve().then(() => log.push('b1')).then(() => log.push('b2')).then(() => log.push('b3')).then(() => log.push('b4')) => ok Promise | b1; inner; b2; v x; b3; b4; fulfilled 6
+var r12; var p12 = new Promise(r => { r12 = r; }); r12({ then(f) { log.push('then'); f(p12); } }); p12 => ok Promise | then; rejected TypeError: Chaining cycle detected for promise #<Promise>
+var p13 = Promise.resolve(); p13.then = function (a, b) { log.push('own then'); return Promise.prototype.then.call(this, a, b); }; new Promise(r => r(p13)).then(() => log.push('done')) => ok Promise | own then; done; fulfilled 2
+var p14 = Promise.resolve(2); Promise.all([p14]).then(v => log.push(show(v))); p14.then = function (a, b) { log.push('patched'); return Promise.prototype.then.call(this, a, b); } => ok function  | [2]
+var p15 = Promise.resolve(2); p15.then = function (a, b) { log.push('patched'); return Promise.prototype.then.call(this, a, b); }; Promise.all([p15]).then(v => log.push(show(v))) => ok Promise | patched; [2]; fulfilled 2
+Promise.all([Promise.resolve(1), 2]).then(v => log.push(Array.isArray(v), Object.getPrototypeOf(v) === Array.prototype, v.length)) => ok Promise | true; true; 2; fulfilled 3
+Promise.allSettled([1, Promise.reject(2)]).then(v => log.push(v.map(o => Object.keys(o).join('/') + ':' + (Object.getPrototypeOf(o) === Object.prototype)).join())) => ok Promise | status/value:true,status/reason:true; fulfilled 1
+var aw = Promise.withResolvers(); aw.promise.then(v => log.push('w ' + v)); aw.resolve('ok'); log.push('sync') => ok 1 | sync; w ok
+var p16 = Promise.reject(1); p16.catch(() => {}); p16 => ok Promise | rejected value 1
+var o17 = {}; Promise.resolve(o17).then(v => log.push(v === o17)) => ok Promise | true; fulfilled 1
+var f18 = function () {}; f18.then = v => v('fn'); Promise.resolve(f18) => ok Promise | fulfilled "fn"
+var x1 = Promise.resolve(); Object.defineProperty(x1, 'constructor', { get() { log.push('get'); return Promise; } }); new Promise(r => { r(x1); log.push('after r'); }); log.push('sync') => ok 2 | after r; sync; get
+var x2 = Promise.resolve(); Object.defineProperty(x2, 'constructor', { get() { log.push('get'); return Promise; } }); Promise.try(() => { log.push('cb'); return x2; }); log.push('sync') => ok 2 | cb; sync; get
+var x3 = Promise.resolve(); Object.defineProperty(x3, 'constructor', { get() { log.push('get'); return Promise; } }); Promise.resolve().then(() => { log.push('h'); return x3; }); log.push('sync') => ok 1 | sync; h; get
+var x4 = Promise.resolve(); Object.defineProperty(x4, 'then', { get() { log.push('get then'); return Promise.prototype.then; } }); Object.defineProperty(x4, 'constructor', { get() { log.push('get ctor'); return Promise; } }); new Promise(r => { r(x4); log.push('after r'); }); log.push('sync') => ok 3 | get then; after r; sync; get ctor
+class T3 extends Promise { constructor(e) { log.push('ctor'); super(e); } } var t3 = T3.resolve(); log.push('A'); new Promise(r => { r(t3); log.push('after r'); }); log.push('sync') => ok 4 | ctor; A; after r; sync; ctor
+class T4 extends Promise { constructor(e) { log.push('ctor'); super(e); } } var t4 = T4.resolve(); log.push('A'); Promise.try(() => t4); log.push('sync') => ok 3 | ctor; A; sync; ctor
+class T5 extends Promise { constructor(e) { log.push('ctor'); super(e); } } var t5 = T5.resolve(); log.push('A'); Promise.resolve(t5); log.push('sync') => ok 3 | ctor; A; sync; ctor
+var x6 = Promise.resolve(); Object.defineProperty(x6, 'constructor', { get() { log.push('get'); return Promise; } }); Promise.withResolvers().resolve(x6); log.push('sync') => ok 1 | sync; get
+var x7 = Promise.resolve(); var w7 = Promise.withResolvers(); Object.defineProperty(x7, 'constructor', { get() { log.push('get'); return Promise; } }); w7.resolve(x7); log.push('sync') => ok 1 | sync; get
+var x8 = Promise.resolve(); Object.defineProperty(x8, 'constructor', { get() { log.push('get'); return Promise; } }); Promise.reject(x8).catch(() => {}); log.push('sync') => ok 1 | sync
+var x9 = Promise.resolve(); Object.defineProperty(x9, 'constructor', { get() { log.push('get'); return Promise; } }); Promise.all([x9]); log.push('sync') => ok 3 | get; get; sync

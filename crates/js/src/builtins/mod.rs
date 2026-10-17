@@ -18,7 +18,9 @@
 //! `matchAll` and `search` feature 8b); `Boolean`;
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
-//! `set_methods.rs`, `collection.rs`); and `%IteratorPrototype%`
+//! `set_methods.rs`, `collection.rs`); `Promise` (`promise.rs`,
+//! `promise_combinators.rs`; the promise objects and jobs are in
+//! `vm/promise.rs` and `vm/jobs.rs`); and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
 //! has the `name` and `length` of the specification; methods and
 //! constructors are writable, non-enumerable and configurable properties
@@ -66,6 +68,8 @@ mod object;
 mod object_iter;
 mod object_proto;
 mod primitive;
+mod promise;
+mod promise_combinators;
 mod reflect;
 mod set;
 mod set_methods;
@@ -132,6 +136,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     set::install(rt, realm)?;
     json::install(rt, realm)?;
     console::install(rt, realm)?;
+    promise::install(rt, realm)?;
     generator::install(rt, realm, function_constructor)
 }
 

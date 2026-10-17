@@ -129,6 +129,29 @@ pub struct NativeFunction {
     /// the nameless intrinsics). `Function.prototype.toString` shows it
     /// even after a script redefines the `name` property.
     pub(crate) name: Option<Gc<JsString>>,
+    /// The internal slots of a built-in function that the specification
+    /// creates with state (§10.3.4 `CreateBuiltinFunction` with
+    /// `additionalInternalSlotsList`: the resolving functions of a promise,
+    /// the element functions of `Promise.all`, the closures of
+    /// `Promise.prototype.finally`). Empty for the others; the collector
+    /// traces them. A slot may hold a cell (`Value::Cell`) for a record that
+    /// two functions share; the native code that owns the slots reads it.
+    pub(crate) slots: Box<[Value]>,
+}
+
+impl NativeFunction {
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        if let Some(name) = self.name {
+            tracer.string(name);
+        }
+        for value in &self.slots {
+            tracer.value(*value);
+        }
+    }
+
+    pub(crate) fn heap_size(&self) -> usize {
+        size_of::<NativeFunction>() + self.slots.len() * size_of::<Value>()
+    }
 }
 
 /// The arguments of a native call. The callee, `this` and the arguments
@@ -344,10 +367,56 @@ impl Runtime {
             realm,
             constructor,
             name: Some(name),
+            slots: Box::default(),
         }));
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);
         self.define_function_properties(function, Value::Int(length as i32), name.into())?;
+        Ok(function)
+    }
+
+    /// `CreateBuiltinFunction(steps, length, "", slots)` (§10.3.4) in
+    /// `realm`: an anonymous native function that is not a constructor,
+    /// with internal slots. The values of `slots` must be rooted by the
+    /// caller; the function is recorded in the current handle scope.
+    pub(crate) fn new_builtin_with_slots(
+        &mut self,
+        realm: u32,
+        length: u32,
+        func: NativeFn,
+        slots: Box<[Value]>,
+    ) -> VmResult<Gc<crate::object::Object>> {
+        let proto = self.intrinsic(realm, Intrinsic::FunctionPrototype)?;
+        let name = self.vm.atoms.empty;
+        let kind = ObjectKind::Native(Box::new(NativeFunction {
+            func,
+            realm,
+            constructor: false,
+            name: Some(name),
+            slots,
+        }));
+        let function = self.heap.new_object_with_kind(Some(proto), kind)?;
+        self.heap.record(function);
+        // The object is new and has no property: add `length` and `name`
+        // without the checks of `[[DefineOwnProperty]]` (these functions are
+        // made per promise and per element of the combinators).
+        self.heap.presize(function, 2, 0)?;
+        let fixed = |value| crate::object::Property::Data {
+            value,
+            writable: false,
+            enumerable: false,
+            configurable: true,
+        };
+        let length_key = PropertyKey::String(self.heap.length_atom());
+        self.heap.add_named(
+            function,
+            length_key,
+            fixed(Value::Int(length as i32)),
+            &self.vm,
+        )?;
+        let name_key = PropertyKey::String(self.vm.atoms.name);
+        self.heap
+            .add_named(function, name_key, fixed(name.into()), &self.vm)?;
         Ok(function)
     }
 

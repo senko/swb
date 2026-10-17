@@ -42,9 +42,12 @@ Options:
 print(...) and console.log(...) write to stdout. $262 has evalScript(src),
 gc() and global; createRealm, detachArrayBuffer and agent are not available.
 
+The promise jobs run after each script. A promise rejected without a
+handler is reported as Uncaught (in promise) Name: message on stderr.
+
 Exit codes: 0 success; 1 uncaught error (Uncaught Name: message and the
-position on stderr); 2 compile error; 3 termination (time or heap limit);
-64 bad command line.
+position on stderr) or unhandled rejection; 2 compile error; 3 termination
+(time or heap limit); 64 bad command line.
 ";
 
 fn main() -> ExitCode {
@@ -241,7 +244,18 @@ fn run_script(
         return Ok(());
     }
     match shell::run(rt, &command.options, source, name) {
-        Ok(_) => Ok(()),
-        Err(error) => Err(fail(&error)),
+        Ok(_) => {}
+        Err(error) => return Err(fail(&error)),
     }
+    // An unhandled rejection ends the run like an uncaught error (exit
+    // code 1; Node.js does the same), after all of them are reported.
+    let rejections = shell::unhandled_rejections(rt);
+    if rejections.is_empty() {
+        return Ok(());
+    }
+    let _ = out.borrow_mut().flush();
+    for report in rejections {
+        eprintln!("{report}");
+    }
+    Err(1)
 }

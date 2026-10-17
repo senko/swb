@@ -86,7 +86,7 @@ impl Runtime {
     }
 
     /// One frame line, without the leading `    at `.
-    fn frame_line(&self, frame: &StackFrame) -> String {
+    pub(crate) fn frame_line(&self, frame: &StackFrame) -> String {
         let location = frame_location(&frame.compiled, frame.offset);
         let Some(function) = frame.function else {
             return location;

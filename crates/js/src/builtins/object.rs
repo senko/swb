@@ -298,6 +298,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::ForInIterator(_)
         | ObjectKind::PrivateEnvironment(_)
         | ObjectKind::Environment(_)
+        | ObjectKind::Promise(_)
         | ObjectKind::Ordinary
         | ObjectKind::Host { .. }
         | ObjectKind::RawJson

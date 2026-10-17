@@ -60,6 +60,8 @@ pub(crate) enum Intrinsic {
     /// `%WrapForValidIteratorPrototype%` (§27.1.3.2.1.1).
     IteratorHelperPrototype,
     WrapForValidIteratorPrototype,
+    /// `%Promise.prototype%` (§27.2.5).
+    PromisePrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -101,10 +103,14 @@ pub(crate) enum Intrinsic {
     /// built-in functions are installed: the steps of iteration recognize
     /// it like the `next` of the other built-in iterators.
     IteratorHelperNext,
+    /// `%Promise%` (§27.2.3) and the getter of `Promise[@@species]`
+    /// (§27.2.4.9), set when the built-in functions are installed.
+    PromiseConstructor,
+    PromiseSpeciesGetter,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 42;
+const INTRINSIC_COUNT: usize = 45;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -211,6 +217,7 @@ impl Runtime {
                 realm: index,
                 constructor: false,
                 name: None,
+                slots: Box::default(),
             })),
         )?;
         let array_proto = heap.new_array(Some(object_proto), 0)?;
@@ -231,6 +238,7 @@ impl Runtime {
         let set_proto = heap.new_object(Some(object_proto))?;
         let helper_proto = heap.new_object(Some(iterator_proto))?;
         let wrap_proto = heap.new_object(Some(iterator_proto))?;
+        let promise_proto = heap.new_object(Some(object_proto))?;
         let generator_proto = heap.new_object(Some(iterator_proto))?;
         let generator_function_proto = heap.new_object(Some(function_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
@@ -248,54 +256,46 @@ impl Runtime {
                 realm: index,
                 constructor: false,
                 name: None,
+                slots: Box::default(),
             })),
         )?;
         let global = heap.new_object(Some(object_proto))?;
-        let intrinsics = [
-            Some(object_proto),
-            Some(function_proto),
-            Some(array_proto),
-            Some(string_proto),
-            Some(number_proto),
-            Some(boolean_proto),
-            Some(symbol_proto),
-            Some(generator_proto),
-            Some(generator_function_proto),
-            Some(error_proto),
-            Some(type_error_proto),
-            Some(range_error_proto),
-            Some(reference_error_proto),
-            Some(syntax_error_proto),
-            Some(eval_error_proto),
-            Some(uri_error_proto),
-            Some(aggregate_error_proto),
-            Some(throw_type_error),
-            Some(iterator_proto),
-            Some(array_iterator_proto),
-            Some(string_iterator_proto),
-            Some(map_iterator_proto),
-            Some(set_iterator_proto),
-            Some(map_proto),
-            Some(set_proto),
-            Some(helper_proto),
-            Some(wrap_proto),
-            // Set by `set_intrinsic` when the function exists.
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
+        // The intrinsics in declaration order; the others are set by
+        // `set_intrinsic` when their function exists.
+        let mut intrinsics = [None; INTRINSIC_COUNT];
+        let created = [
+            object_proto,
+            function_proto,
+            array_proto,
+            string_proto,
+            number_proto,
+            boolean_proto,
+            symbol_proto,
+            generator_proto,
+            generator_function_proto,
+            error_proto,
+            type_error_proto,
+            range_error_proto,
+            reference_error_proto,
+            syntax_error_proto,
+            eval_error_proto,
+            uri_error_proto,
+            aggregate_error_proto,
+            throw_type_error,
+            iterator_proto,
+            array_iterator_proto,
+            string_iterator_proto,
+            map_iterator_proto,
+            set_iterator_proto,
+            map_proto,
+            set_proto,
+            helper_proto,
+            wrap_proto,
+            promise_proto,
         ];
+        for (slot, object) in intrinsics.iter_mut().zip(created) {
+            *slot = Some(object);
+        }
         let realm = Realm {
             global,
             intrinsics,

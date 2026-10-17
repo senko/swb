@@ -234,6 +234,34 @@ high slot of the string arena after a burst of garbage (the slot vector
 counts as live with its whole capacity), so the count of collections in the
 best run is 1 or 7.
 
+Programs added in M7 7b (2026-10-17, same machine). A promise program
+returns a promise; its time includes the jobs (`Runtime::run_jobs`; in
+Node.js, `await run()`):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| promise: chain of 100k then | 29.3 | 4.0 | 7.3x |
+| promise: Promise.all of 100k values | 52.9 | 7.8 | 6.8x |
+| promise: 100k Promise.resolve(i).then | 80.6 | 9.2 | 8.8x |
+
+Measured parts, per call: `Promise.resolve(i)` 160 ns, `then` on a
+pending promise 195 ns, a job that calls a function 90 ns more than one
+with an empty handler (195 ns for `then` and its job), a closure with a
+`prototype` (the handler of the last row) 390 ns, `new Promise(executor)`
+with a new closure 1.2 µs (1.4 µs before `length` and `name` of the
+resolving functions skipped the checks of `[[DefineOwnProperty]]`). Most of
+it is the native call from script code (about 100 ns, as for
+`Object.keys`), the allocations of the promise and its state, and the
+closures; feature 13 works on these. Memory: `Promise.all` over a million
+values needs a heap limit between 384 and 512 MiB (about 450 bytes per
+element at the peak: the element function, the result promise of `then`,
+the job and the lists), Node.js 22 an old space between 128 and 192 MiB.
+The other rows are within noise of a build of the previous commit, measured
+alternately (four runs each, the median of each; mean change +0.03 %); the
+rows beyond 3 % are the `toLowerCase` row (-7 %, the effect above), two
+JSON rows (-4 % and -5 %, 0.3 ms), `localeCompare` (-3 %) and `throw new
+Error 10 frames deep` (+3.1 %).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

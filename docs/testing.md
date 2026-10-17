@@ -868,10 +868,16 @@ scripts in one global scope. `print` and `console.log` write to stdout.
 `$262` has `evalScript`, `gc` and `global`; `createRealm`,
 `detachArrayBuffer` and `agent` are not available. Options:
 `--heap-limit MIB`, `--stress` (GC at every safepoint), `--time-limit MS`,
-`--disassemble` (bytecode listing), `--compile-only`. Exit codes: 0
-success; 1 uncaught error (`Uncaught TypeError: message` and
-`    at FILE:LINE:COLUMN` on stderr); 2 compile error; 3 termination (time
-or heap limit); 64 bad command line.
+`--disassemble` (bytecode listing), `--compile-only`. The promise jobs
+run after each script, under the same time limit. A promise that was
+rejected without a handler and still has none after the jobs is
+reported on stderr as Chromium's console shows it, `Uncaught (in
+promise) TypeError: message` and the lines of the error's stack (`Uncaught
+(in promise) 42` for other values), and ends the run with exit code 1,
+after all of them are reported (Node.js 22 also exits with 1). Exit
+codes: 0 success; 1 uncaught error (`Uncaught TypeError: message` and
+`    at FILE:LINE:COLUMN` on stderr) or unhandled rejection; 2 compile
+error; 3 termination (time or heap limit); 64 bad command line.
 
 ### test262
 
@@ -888,9 +894,14 @@ another directory and `TEST262_URL` another repository.
   `includes` in the test's order (each file once; the runner reads each
   file once per run). The accepted files are `propertyHelper.js`,
   `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js`,
-  `decimalToHexString.js` and `nativeErrors.js` (`HARNESS_INCLUDES` in
-  `run.rs`). A test is
-  skipped if it needs another harness file, has the flag `module`, `async`
+  `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js` and
+  `promiseHelper.js` (`HARNESS_INCLUDES` in `run.rs`). A test with the
+  flag `async` gets `doneprintHandle.js` before its includes; the runner
+  runs the jobs after the test (as the shell does) and passes it only when
+  it printed `Test262:AsyncTestComplete` and no
+  `Test262:AsyncTestFailure:` line. A promise rejected without a handler
+  does not fail a test. A test is
+  skipped if it needs another harness file, has the flag `module`
   or `CanBlockIsTrue`, has a
   feature outside the list, uses `$262.createRealm`, `$262.agent` or
   `$262.detachArrayBuffer`, or expects an error in the `resolution` phase.
@@ -1153,6 +1164,52 @@ and recursions of 100,000 generators with `next`, `return`, `throw`,
 spread and `for`-`of`, delegates that throw or return non-objects in hot
 loops, re-entrant `next`, `throw` and `return` through a delegate, and
 endless delegates under the time and heap limits.
+
+### Promise tests
+
+`tools/probes/js-promises.json` has 257 snippets for Chromium 148 in four
+cases: the shape of `Promise`, `Promise.prototype` and of the functions
+that the engine makes (resolving functions, the executor of
+`NewPromiseCapability`, the element functions of the combinators, the
+closures of `finally`), the messages (the constructor, the receiver
+checks, `NewPromiseCapability`, `GetPromiseResolve`, `SpeciesConstructor`,
+the self-resolution, `AggregateError`), the order of the jobs (chains,
+`then` on settled promises, resolution with promises and thenables,
+getters of `then`, `finally`, the combinators, subclasses, the `Get`s of
+`constructor`, `Promise.try`) and chains of thousands of promises. The
+probe's pages have JavaScript disabled, so no timer runs; only the jobs of
+promises do. The runner of the file therefore uses promises alone: it
+evaluates each snippet with an indirect eval, attaches handlers to a
+promise result, lets a chain of `ticks` jobs run (50 by default; a
+snippet sets more) and records the result and the lines that the snippet
+and its jobs pushed to `log`, in order. `just probe` awaits the runner's
+promise. The same runner works unchanged in swb-js, where the harness of
+the tests runs the jobs after the script.
+`crates/js/tests/data/gen-promise-cases.js` turns the output into
+`promises_cases.js` and `.expected` (and `promises_cases_heavy.*`, the
+long chains, which run without the stress mode) for
+`crates/js/tests/promises.rs`:
+
+```
+just probe --json tools/probes/js-promises.json > probe.json
+node crates/js/tests/data/gen-promise-cases.js probe.json crates/js/tests/data
+```
+
+The script leaves out one snippet where swb names an object differently
+in a message (see the script). `promises_gc.js` (executors, handlers,
+thenables, `finally` callbacks, subclasses and the combinators that
+allocate and collect while only the queue or the reactions of pending
+promises hold their values) has the output of Node.js 22 as expected
+output (`just jsdiff` compares; Node.js 22 lacks `Promise.try`, so the
+file has a fallback for it). `promises.rs` also tests the embedding API:
+the order of the drain, the rejection tracker, host reactions, an error
+and a termination inside a job. The hostile tests (`promises_hostile.rs`)
+cover a chain of a million `then` calls, promises resolved with promises
+100,000 levels deep, thenables that resolve with thenables, `Promise.all`,
+`allSettled`, `any` and `race` over a million elements (and under a heap
+limit of 64 MiB), endless job loops at the deadline, queues, reaction
+lists and rejection lists that grow to the heap limit, recursive
+executors and a termination that skips the `catch` handlers.
 
 ## Python tools: development
 

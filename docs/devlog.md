@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 7b, `Promise` and the job queue
+
+- A promise is an object kind: state, result, `[[PromiseIsHandled]]`
+  and reaction pairs. The fulfill and reject reactions of one `then`
+  share their capability, and a single pair needs no vector. A handler
+  is empty, a function or an internal continuation, so `await` (7c)
+  attaches to a promise without function objects.
+- `NewPromiseCapability(%Promise%)` whose resolving functions no script
+  sees (`then`, `Promise.resolve`) makes only the promise. Subclasses,
+  `withResolvers` and the combinators get real resolving functions.
+  Built-in functions have internal slots now; each combinator call keeps
+  its shared state in one internal array.
+- The job queue is a FIFO of the runtime. It is a GC root and counts as
+  live heap, so a queue that grows without end stops at the heap limit.
+  `run_jobs` drains it with a tick and a safepoint per job. A
+  termination ends the drain as a termination and leaves the other jobs
+  in the queue.
+- The probe pages cannot run timers, so the runner of the probe file
+  waits with a chain of `then` jobs; the same runner runs in swb-js.
+  256 Chromium 148 cases (shape, messages, job order) give the same
+  output, also in stress mode. Chromium 148 has the ES2025
+  `Promise.try`, so two newer test262 tests fail.
+- The shell runs the jobs after each script. It reports an unhandled
+  rejection as `Uncaught (in promise) Error: message` with the stack and
+  exits with 1. The test262 runner runs the async tests (`$DONE`).
+- Runtime test262: 26,919 (was 26,277), the same in stress mode;
+  `built-ins/Promise` 635 pass; parse-only unchanged.
+- Speed: 100k `then` steps take 29 ms (`node --jitless` 4 ms). Most of
+  the cost is the native call and the closures (feature 13). Nested
+  executors run through re-entry and stop at about 400 levels (Chromium
+  3,000; backlog).
+- Next: 7c, `async` functions.
+
 ## 2026-10-17: M7 feature 7a, generators complete
 
 - `yield*` compiles to a loop in the generator's code. `DelegateCall`

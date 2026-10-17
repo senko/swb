@@ -116,7 +116,10 @@ pub(crate) fn run_in(rt: &mut Runtime, source: &str) -> String {
 
 /// Like [`run_in`], with the script name that stack traces show.
 pub(crate) fn run_in_named(rt: &mut Runtime, source: &str, name: &str) -> String {
-    let result = rt.eval_named(source, name);
+    // The promise jobs run after the script, as in the shell.
+    let result = rt
+        .eval_named(source, name)
+        .and_then(|value| rt.run_jobs().map(|()| value));
     let mut lines = rt.host_data_mut::<Output>().unwrap().take();
     match result {
         Ok(value) => {

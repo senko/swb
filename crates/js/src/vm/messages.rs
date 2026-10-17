@@ -290,7 +290,7 @@ impl Runtime {
             // V8 names the constructor that the prototype chain gives
             // (`Map.prototype` is `#<Map>`, a `Map` whose prototype is
             // `Object.prototype` is `#<Object>`).
-            Ok(ObjectKind::Map(_) | ObjectKind::Set(_)) => format!(
+            Ok(ObjectKind::Map(_) | ObjectKind::Set(_) | ObjectKind::Promise(_)) => format!(
                 "#<{}>",
                 self.chain_constructor_name(object)
                     .unwrap_or_else(|| "Object".to_owned())

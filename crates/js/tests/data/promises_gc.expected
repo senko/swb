@@ -1,0 +1,24 @@
+script end
+rejected Error: then getter
+subclass try 42
+pending 0 late
+pending 1 late
+pending 2 late
+pending 3 late
+pending 4 late
+getter from getter
+finally threw TypeError: in finally
+any AggregateError: All promises were rejected 1,2
+race race
+subclass all 1,2
+withResolvers resolved
+cycle TypeError: Chaining cycle detected for promise #<Promise>
+thenable thenable
+all 0,1,2,3,4,5,6,7,8,9
+allSettled ffffffffffr
+finally value kept
+finally reason Error: boom
+subclass 10
+chain 20 s20
+nested deep
+loop 200

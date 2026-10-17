@@ -357,7 +357,11 @@ fn run_file(
         }
         Ok(source) => {
             let meta = parse_meta(&source);
-            let text = match harness.text_for(&meta.includes) {
+            let mut includes = meta.includes.clone();
+            if meta.flags.iter().any(|flag| flag == "async") {
+                includes.insert(0, run::ASYNC_HARNESS.to_owned());
+            }
+            let text = match harness.text_for(&includes) {
                 Ok(text) => text,
                 // A file the plan accepts but that is missing: the test
                 // fails (the plan skips the others).

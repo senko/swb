@@ -18,7 +18,8 @@
 //!
 //! The VM is the root source of the heap: the value stack, the frame
 //! records, the realms with their intrinsics and global lexical bindings,
-//! and the value that the host reads last. Suspended generator frames are
+//! the job queue and the rejection tracker (`jobs.rs`), and the value
+//! that the host reads last. Suspended generator frames are
 //! traced through their generator objects.
 //!
 //! Exceptions (ADR 0026 section 5): an instruction that fails leaves the
@@ -47,10 +48,12 @@ mod global;
 pub(crate) mod internal;
 mod interp;
 pub(crate) mod iter;
+pub(crate) mod jobs;
 mod literal;
 mod messages;
 pub(crate) mod number;
 pub(crate) mod private;
+pub(crate) mod promise;
 mod property;
 pub(crate) mod random;
 mod realm;
@@ -73,6 +76,7 @@ pub(crate) use generator::{
     next as generator_next, return_ as generator_return, throw as generator_throw,
 };
 pub use private::PrivateEnvironment;
+pub use promise::{Continuation, ContinuationFn, PromiseState, PromiseStatus, ReactionKind};
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, error_prototype};
 pub use stack::{ErrorData, StackFrame};
@@ -273,6 +277,7 @@ pub(crate) struct Atoms {
     pub(crate) return_: Gc<JsString>,
     pub(crate) throw_: Gc<JsString>,
     pub(crate) raw: Gc<JsString>,
+    pub(crate) then: Gc<JsString>,
 }
 
 impl Atoms {
@@ -306,6 +311,7 @@ impl Atoms {
             self.return_,
             self.throw_,
             self.raw,
+            self.then,
         ] {
             tracer.string(atom);
         }
@@ -356,6 +362,8 @@ pub(crate) struct Vm {
     /// The last result of `String.prototype.split` with a string
     /// separator (`builtins/string_replace.rs`).
     pub(crate) split_cache: Option<SplitCache>,
+    /// The job queue and the rejection tracker (`jobs.rs`).
+    pub(crate) jobs: jobs::JobQueue,
 }
 
 impl RootSource for Vm {
@@ -380,6 +388,11 @@ impl RootSource for Vm {
             tracer.string(cache.separator);
             tracer.object(cache.pieces);
         }
+        self.jobs.trace(tracer);
+    }
+
+    fn extra_bytes(&self) -> usize {
+        self.jobs.bytes()
     }
 }
 
@@ -426,5 +439,8 @@ mod tests {
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
         assert_eq!(size_of::<GeneratorState>(), 160);
         assert_eq!(size_of::<Closure>(), 48);
+        assert_eq!(size_of::<PromiseState>(), 88);
+        assert_eq!(size_of::<promise::Reaction>(), 64);
+        assert_eq!(size_of::<jobs::QueuedJob>(), 72);
     }
 }

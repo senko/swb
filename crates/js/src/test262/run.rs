@@ -32,7 +32,20 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "nans.js",
     "decimalToHexString.js",
     "nativeErrors.js",
+    "asyncHelpers.js",
+    "promiseHelper.js",
 ];
+
+/// The harness file of the tests with the flag `async`: `$DONE` prints
+/// `Test262:AsyncTestComplete` or `Test262:AsyncTestFailure:...` with
+/// `print` (test262's INTERPRETING.md).
+pub(crate) const ASYNC_HARNESS: &str = "doneprintHandle.js";
+
+/// The line that an async test prints when it passes.
+const ASYNC_COMPLETE: &str = "Test262:AsyncTestComplete";
+
+/// The start of the line that an async test prints when it fails.
+const ASYNC_FAILURE: &str = "Test262:AsyncTestFailure:";
 
 /// What to do with a test.
 #[derive(Debug, PartialEq)]
@@ -46,7 +59,7 @@ pub(crate) enum Plan {
 /// Decides whether and how a test runs (the skip rules).
 pub(crate) fn plan(meta: &Meta, source: &str, features: &BTreeSet<String>) -> Plan {
     let has = |flag: &str| meta.flags.iter().any(|f| f == flag);
-    for flag in ["module", "async", "CanBlockIsTrue"] {
+    for flag in ["module", "CanBlockIsTrue"] {
         if has(flag) {
             return Plan::Skip(format!("flag {flag}"));
         }
@@ -122,13 +135,34 @@ pub(crate) fn run_mode(
         stress: limits.stress,
         time_limit: Some(limits.time),
     };
-    let sink: shell::Output = Rc::new(std::cell::RefCell::new(std::io::sink()));
+    let printed = Rc::new(std::cell::RefCell::new(Vec::<u8>::new()));
+    let sink: shell::Output = printed.clone();
     let mut rt = match shell::new_runtime(&options, sink) {
         Ok(rt) => rt,
         Err(error) => return Status::Fail(format!("runtime: {error}")),
     };
     let result = shell::run(&mut rt, &options, &text, "");
-    judge(&rt, meta, result.map(|_| ()))
+    // test262 does not fail a test for a rejection without a handler.
+    drop(rt.take_unhandled_rejections());
+    let status = judge(&rt, meta, result.map(|_| ()));
+    if status == Status::Pass && meta.flags.iter().any(|f| f == "async") && meta.negative.is_none()
+    {
+        return judge_async(&String::from_utf8_lossy(&printed.borrow()));
+    }
+    status
+}
+
+/// The result of an async test that ran without an uncaught error: what
+/// `$DONE` printed (test262's INTERPRETING.md, "flags: async").
+fn judge_async(printed: &str) -> Status {
+    if let Some(line) = printed.lines().find(|line| line.starts_with(ASYNC_FAILURE)) {
+        return Status::Fail(normalise(line));
+    }
+    if printed.lines().any(|line| line == ASYNC_COMPLETE) {
+        Status::Pass
+    } else {
+        Status::Fail("the async test did not call $DONE".to_owned())
+    }
 }
 
 /// Compares the result of a run with the expectation of the test.
@@ -331,10 +365,6 @@ mod tests {
             Plan::Skip("flag module".into())
         );
         assert_eq!(
-            skip("/*---\nflags: [async]\n---*/", ""),
-            Plan::Skip("flag async".into())
-        );
-        assert_eq!(
             skip("/*---\nflags: [CanBlockIsTrue]\n---*/", ""),
             Plan::Skip("flag CanBlockIsTrue".into())
         );
@@ -471,8 +501,43 @@ mod tests {
 
     #[test]
     fn skipped_tests_do_not_run() {
-        let results = run("/*---\nflags: [async]\n---*/", "throw 1;");
-        assert_eq!(combine(&results), Status::Skipped("flag async".into()));
+        let results = run("/*---\nflags: [module]\n---*/", "throw 1;");
+        assert_eq!(combine(&results), Status::Skipped("flag module".into()));
+    }
+
+    const ASYNC_HARNESS: &str = "function Test262Error(m) { this.message = m; }\n\
+        function $DONE(e) { print(e ? 'Test262:AsyncTestFailure:' + e : 'Test262:AsyncTestComplete'); }";
+
+    fn run_async(body: &str) -> Status {
+        let source = format!("/*---\nflags: [async]\n---*/\n{body}");
+        combine(&run_test(
+            ASYNC_HARNESS,
+            &parse_meta(&source),
+            &source,
+            &BTreeSet::new(),
+            LIMITS,
+        ))
+    }
+
+    #[test]
+    fn async_tests_pass_only_when_done_reports_completion() {
+        assert_eq!(
+            run_async("Promise.resolve().then(() => $DONE());"),
+            Status::Pass
+        );
+        assert!(matches!(
+            run_async("Promise.resolve().then(() => $DONE('boom'));"),
+            Status::Fail(message) if message.contains("AsyncTestFailure")
+        ));
+        // Neither line: the jobs never called `$DONE`.
+        assert!(matches!(
+            run_async("new Promise(() => {}).then(() => $DONE());"),
+            Status::Fail(_)
+        ));
+        // A synchronous error fails as before.
+        assert!(matches!(run_async("throw 1;"), Status::Fail(_)));
+        // A rejection without a handler does not fail a test.
+        assert_eq!(run_async("Promise.reject(1); $DONE();"), Status::Pass);
     }
 
     #[test]

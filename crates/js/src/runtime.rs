@@ -19,6 +19,12 @@
 //!
 //! Output: `console.log` writes its lines to the console sink of the
 //! host ([`Runtime::set_console`]); without one, the lines are dropped.
+//!
+//! Jobs (ADR 0026 section 12): promise jobs wait in the runtime's queue
+//! until the host runs them with [`Runtime::run_jobs`] (the HTML microtask
+//! checkpoint; the shell after each script). After a drain, the host takes
+//! the promises that were rejected without a handler
+//! ([`Runtime::take_unhandled_rejections`]).
 
 use std::any::Any;
 use std::borrow::Cow;
@@ -180,6 +186,7 @@ impl Runtime {
             join_stack: Vec::new(),
             random: crate::vm::random::RandomSource::new(),
             split_cache: None,
+            jobs: crate::vm::jobs::JobQueue::default(),
         };
         let mut runtime = Runtime {
             heap,
@@ -553,6 +560,143 @@ impl Runtime {
     pub fn display(&self, value: Value) -> String {
         self.primitive_text(value)
     }
+
+    /// The text of a thrown value or a rejection reason without running
+    /// script code: `Name: message` for an object with a `message` data
+    /// property (the `name` found as a data property, else `Error`), the
+    /// text of other values as [`Runtime::display`] gives it, then a line
+    /// `    at ...` for each frame that an error object captured (the
+    /// lines of its `stack`).
+    pub fn error_report(&self, value: Value) -> String {
+        let (name, message) = self.describe_exception(value);
+        let mut text = if name.is_empty() {
+            message
+        } else if message.is_empty() {
+            name
+        } else {
+            format!("{name}: {message}")
+        };
+        if let Value::Object(object) = value
+            && let Ok(crate::object::ObjectKind::Error(Some(data))) =
+                self.heap.object(object).map(|o| &o.kind)
+        {
+            // After the first read of `stack`, the frames are gone and
+            // its text (header included) is what Chromium's console shows.
+            if let Value::String(stack) = data.stack {
+                return self.heap.string_lossy(stack, usize::MAX);
+            }
+            for frame in &data.frames {
+                text.push_str("\n    at ");
+                text.push_str(&self.frame_line(frame));
+            }
+        }
+        text
+    }
+
+    // --- Jobs (ADR 0026 section 12) ---
+
+    /// Runs the jobs of the queue in order until it is empty (the
+    /// microtask checkpoint of HTML calls it; the `swb-js` shell after each
+    /// script). Jobs that the running jobs enqueue run too. Does nothing
+    /// while script code is running (a native function that calls it).
+    ///
+    /// Each job is a step of the time countdown and runs under the
+    /// deadline. An error ends the run: an exception that no promise took
+    /// (a capability function of a subclass that throws) is
+    /// [`ScriptError::Uncaught`], and the remaining jobs stay in the queue
+    /// for the next call; a termination ends it as
+    /// [`ScriptError::Terminated`] (never a rejection): the job that was
+    /// running is gone, the others stay in the queue until the host runs
+    /// them or drops them ([`Runtime::clear_jobs`]).
+    pub fn run_jobs(&mut self) -> Result<(), ScriptError> {
+        if !self.vm.frames.is_empty() {
+            return Ok(());
+        }
+        while self.vm.jobs.len() > 0 {
+            if let Err(error) = self.tick() {
+                return self.finish(Err(error)).map(|_| ());
+            }
+            self.vm.error_offset = None;
+            let start = self.run_start();
+            let scope = self.heap.open_scope();
+            let Some((job, realm)) = self.next_job() else {
+                break;
+            };
+            match self.run_job(job, realm) {
+                Ok(()) => self
+                    .heap
+                    .close_scope(scope)
+                    .map_err(|e| finish_error(e.into()))?,
+                Err(error) => {
+                    self.restore_run_start(&start);
+                    return self.finish(Err(error)).map(|_| ());
+                }
+            }
+            // A safepoint between two jobs: a loop of jobs that run no
+            // script code still collects.
+            self.heap
+                .safepoint(&self.vm)
+                .map_err(|e| finish_error(e.into()))?;
+        }
+        Ok(())
+    }
+
+    /// The number of jobs in the queue.
+    pub fn pending_jobs(&self) -> usize {
+        self.vm.jobs.len()
+    }
+
+    /// Drops the jobs of the queue (for a host that stops running the
+    /// scripts of a document, for example after a termination).
+    pub fn clear_jobs(&mut self) {
+        self.drop_jobs();
+    }
+
+    /// The promises that were rejected while no handler was attached and
+    /// still have none (`HostPromiseRejectionTracker`, §27.2.1.9), in the
+    /// order of their rejection; the tracker's list starts again empty.
+    /// Call it after [`Runtime::run_jobs`]. The promises stay alive until
+    /// the next call.
+    pub fn take_unhandled_rejections(&mut self) -> Vec<Value> {
+        self.take_rejections()
+            .into_iter()
+            .map(Value::Object)
+            .collect()
+    }
+
+    /// The state and the result of a promise (`undefined` while pending);
+    /// `None` for a value that is not a promise.
+    pub fn promise_settlement(&self, value: Value) -> Option<(crate::vm::PromiseStatus, Value)> {
+        let Value::Object(object) = value else {
+            return None;
+        };
+        match &self.heap.object(object).ok()?.kind {
+            crate::object::ObjectKind::Promise(state) => Some((state.status, state.result)),
+            _ => None,
+        }
+    }
+
+    /// Attaches a host reaction to a promise (the "react to a
+    /// promise" of Web IDL): when it settles, a job calls `func` with `data`, the
+    /// kind of the settlement and the value. `data` stays alive with the
+    /// promise. Returns false (and attaches nothing) for a value that is
+    /// not a promise. An exception from `func` reaches the host from
+    /// [`Runtime::run_jobs`].
+    pub fn react_to_promise(
+        &mut self,
+        promise: Value,
+        func: crate::vm::ContinuationFn,
+        data: Value,
+    ) -> Result<bool, ScriptError> {
+        let promise = match self.as_promise(promise) {
+            Ok(Some(promise)) => promise,
+            Ok(None) => return Ok(false),
+            Err(error) => return Err(finish_error(error)),
+        };
+        self.then_internal(promise, func, data)
+            .map_err(finish_error)?;
+        Ok(true)
+    }
 }
 
 /// Creates the atoms of the VM.
@@ -587,6 +731,7 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         return_: atom("return")?,
         throw_: atom("throw")?,
         raw: atom("raw")?,
+        then: atom("then")?,
     })
 }
 

@@ -1,0 +1,8 @@
+var p = Promise.resolve(0); for (var i = 0; i < 10000; i++) p = p.then(v => v + 1); ticks = 10010; p => ok Promise | fulfilled 10000
+var p = Promise.resolve(0); for (var i = 0; i < 1000; i++) { const q = p; p = new Promise(r => r(q)); } ticks = 3100; p => ok Promise | fulfilled 0
+var p = Promise.resolve(0); for (var i = 0; i < 1000; i++) { const q = p; p = Promise.resolve().then(() => q); } ticks = 4100; p => ok Promise | fulfilled 0
+Promise.all(Array.from({ length: 10000 }, (_, i) => i)).then(v => v.length) => ok Promise | fulfilled 10000
+Promise.allSettled(Array.from({ length: 10000 }, (_, i) => i)).then(v => v.length) => ok Promise | fulfilled 10000
+Promise.any(Array.from({ length: 10000 }, (_, i) => Promise.reject(i))).catch(e => e.errors.length) => ok Promise | fulfilled 10000
+Promise.race(Array.from({ length: 10000 }, (_, i) => i)) => ok Promise | fulfilled 0
+var n = 0; function f() { if (++n < 5000) Promise.resolve().then(f); else log.push(n); } f(); ticks = 5010 => ok 5010 | 5000

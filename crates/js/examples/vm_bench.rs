@@ -228,6 +228,22 @@ const PROGRAMS: &[(&str, &str)] = &[
         "string: localeCompare 1M calls",
         "function run() { var a = 'apple pie', b = 'Apple tart'; var r = 0; for (var i = 0; i < 1000000; i++) { r += a.localeCompare(b); } return r; }",
     ),
+    // The promise programs return a promise; the time includes the jobs
+    // (`Runtime::run_jobs`; in Node.js, `await run()`).
+    (
+        "promise: chain of 100k then",
+        "function inc(v) { return v + 1; }
+         function run() { var p = Promise.resolve(0); for (var i = 0; i < 100000; i++) p = p.then(inc); return p; }",
+    ),
+    (
+        "promise: Promise.all of 100k values",
+        "var data = []; for (var i = 0; i < 100000; i++) data.push(i);
+         function run() { return Promise.all(data).then(function (v) { return v.length; }); }",
+    ),
+    (
+        "promise: 100k Promise.resolve(i).then",
+        "function run() { var n = 0; for (var i = 0; i < 100000; i++) Promise.resolve(i).then(function (v) { n += v; }); return Promise.resolve().then(function () { return n; }); }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).
@@ -337,6 +353,12 @@ fn measure() {
             let before = rt.heap().stats();
             let start = Instant::now();
             result = rt.eval("run()").expect("the program runs");
+            if let Some((_, value)) = rt.promise_settlement(result) {
+                rt.run_jobs().expect("the jobs run");
+                result = rt
+                    .promise_settlement(result)
+                    .map_or(value, |(_, value)| value);
+            }
             let elapsed = start.elapsed();
             if elapsed < best {
                 best = elapsed;
@@ -355,12 +377,14 @@ fn measure() {
     }
 }
 
-/// Prints the programs as a Node.js script with the same timing.
+/// Prints the programs as a Node.js script with the same timing (a
+/// program that returns a promise is awaited, so its jobs count).
 fn print_js() {
-    println!("const results = [];");
+    println!("(async function () {{");
     for (name, source) in PROGRAMS {
         println!(
-            "(function () {{ {source}\n let best = Infinity; let r; for (let k = 0; k < 5; k++) {{ const t = process.hrtime.bigint(); r = run(); const ms = Number(process.hrtime.bigint() - t) / 1e6; if (ms < best) best = ms; }} console.log({name:?} + ': ' + best.toFixed(1) + ' ms (result ' + r + ')'); }})();"
+            "await (async function () {{ {source}\n let best = Infinity; let r; for (let k = 0; k < 5; k++) {{ const t = process.hrtime.bigint(); r = run(); if (r instanceof Promise) r = await r; const ms = Number(process.hrtime.bigint() - t) / 1e6; if (ms < best) best = ms; }} console.log({name:?} + ': ' + best.toFixed(1) + ' ms (result ' + r + ')'); }})();"
         );
     }
+    println!("}})();");
 }

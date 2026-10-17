@@ -105,6 +105,39 @@ fn thrown_values_are_reported() {
 }
 
 #[test]
+fn jobs_run_after_each_script() {
+    let out = shell(&[
+        "-e",
+        "Promise.resolve().then(() => print('job')); print('script');",
+    ]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "script\njob\n");
+}
+
+#[test]
+fn unhandled_rejections_are_reported_and_exit_1() {
+    let dir = temp_dir("rejection");
+    let file = dir.join("r.js");
+    std::fs::write(
+        &file,
+        "function f() { return Promise.reject(new TypeError('no')); }\nf();\n\
+         Promise.reject(42);\nPromise.reject(1).catch(() => print('handled'));\n",
+    )
+    .unwrap();
+    let out = shell(&[file.to_str().unwrap()]);
+    assert_eq!(code(&out), 1);
+    assert_eq!(text(&out.stdout), "handled\n");
+    let path = file.to_str().unwrap();
+    assert_eq!(
+        text(&out.stderr),
+        format!(
+            "Uncaught (in promise) TypeError: no\n    at f ({path}:1:38)\n    at {path}:2:1\n\
+             Uncaught (in promise) 42\n"
+        )
+    );
+}
+
+#[test]
 fn compile_error_exits_2() {
     let out = shell(&["-e", "var 1;"]);
     assert_eq!(code(&out), 2);
@@ -206,6 +239,11 @@ fn mini_test262(name: &str) -> PathBuf {
          assert.sameValue = function (a, b, m) { if (a !== b) throw new Test262Error(m); };",
     )
     .unwrap();
+    std::fs::write(
+        harness.join("doneprintHandle.js"),
+        "function $DONE(e) { print(e ? 'Test262:AsyncTestFailure:' + e : 'Test262:AsyncTestComplete'); }",
+    )
+    .unwrap();
     let tests = dir.join("test/language/mini/group");
     std::fs::create_dir_all(&tests).unwrap();
     let write = |name: &str, body: &str| std::fs::write(tests.join(name), body).unwrap();
@@ -225,7 +263,11 @@ fn mini_test262(name: &str) -> PathBuf {
         "neg_runtime.js",
         "/*---\nnegative:\n  phase: runtime\n  type: Test262Error\n---*/\nassert(false);\n",
     );
-    write("skip.js", "/*---\nflags: [async]\n---*/\nthrow 1;\n");
+    write("skip.js", "/*---\nflags: [module]\n---*/\nthrow 1;\n");
+    write(
+        "async.js",
+        "/*---\nflags: [async]\n---*/\nPromise.resolve(2).then(v => assert.sameValue(v, 2)).then($DONE, $DONE);\n",
+    );
     write("unsupported.js", "/*---\n---*/\nasync function f() {}\n");
     write(
         "strict.js",
@@ -255,10 +297,11 @@ fn test262_runner_counts_and_ratchets() {
     };
     let out = run(&[]);
     let stdout = text(&out.stdout);
-    // pass, neg, neg_runtime, strict pass; fail; unsupported; skipped.
+    // pass, neg, neg_runtime, strict, async pass; fail; unsupported;
+    // skipped.
     assert!(
         stdout.contains("test/language/mini/group")
-            && stdout.contains("total: 4 pass, 1 fail, 1 unsupported, 1 skipped (7 tests)"),
+            && stdout.contains("total: 5 pass, 1 fail, 1 unsupported, 1 skipped (8 tests)"),
         "{stdout}\n{}",
         text(&out.stderr)
     );
@@ -268,15 +311,15 @@ fn test262_runner_counts_and_ratchets() {
     assert_eq!(code(&run(&["--update"])), 0);
     let written = std::fs::read_to_string(&scores).unwrap();
     assert!(
-        written.contains("\"test/language/mini/group\": 4"),
+        written.contains("\"test/language/mini/group\": 5"),
         "{written}"
     );
     assert_eq!(code(&run(&[])), 0);
     // A recorded count above the current one is a regression.
-    std::fs::write(&scores, "{\"test/language/mini/group\": 5}").unwrap();
+    std::fs::write(&scores, "{\"test/language/mini/group\": 6}").unwrap();
     let out = run(&[]);
     assert_eq!(code(&out), 1);
-    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 4 < 5"));
+    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 5 < 6"));
     // A path argument runs only that test; a group is not judged by a part.
     let out = run(&["test/language/mini/group/pass.js"]);
     assert!(text(&out.stdout).contains("total: 1 pass, 0 fail, 0 unsupported, 0 skipped"));
@@ -287,7 +330,7 @@ fn test262_runner_counts_and_ratchets() {
     assert!(text(&out.stderr).contains("--update needs a run of whole groups"));
     assert_eq!(
         std::fs::read_to_string(&scores).unwrap(),
-        "{\"test/language/mini/group\": 5}"
+        "{\"test/language/mini/group\": 6}"
     );
     // A run that finds no tests fails.
     let out = run(&["test/language/zzz"]);
@@ -355,7 +398,7 @@ fn unreadable_test_file_is_a_failure() {
     ]);
     let stdout = text(&out.stdout);
     assert!(stdout.contains("cannot read"), "{stdout}");
-    assert!(stdout.contains("4 pass, 2 fail"), "{stdout}");
+    assert!(stdout.contains("5 pass, 2 fail"), "{stdout}");
 }
 
 #[test]

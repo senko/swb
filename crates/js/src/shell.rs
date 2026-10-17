@@ -109,8 +109,10 @@ fn eval_script(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     }
 }
 
-/// Runs a script under the time limit of the options. `name` is the
-/// script name that stack traces show.
+/// Runs a script and then the jobs that it enqueued (the promise jobs,
+/// ADR 0026 section 12), both under the time limit of the options. `name`
+/// is the script name that stack traces show. The unhandled rejections
+/// stay in the runtime's tracker ([`unhandled_rejections`]).
 pub(crate) fn run(
     rt: &mut Runtime,
     options: &Options,
@@ -118,7 +120,25 @@ pub(crate) fn run(
     name: &str,
 ) -> Result<Value, ScriptError> {
     rt.set_deadline(options.time_limit.map(|limit| Instant::now() + limit));
-    rt.eval_named(source, name)
+    let value = rt.eval_named(source, name)?;
+    rt.run_jobs()?;
+    Ok(value)
+}
+
+/// The reports of the promises that were rejected without a handler and
+/// still have none, in Chromium's console form: `Uncaught (in promise)
+/// Error: message` and the lines of the error's stack, or `Uncaught (in
+/// promise) 42` for other values.
+pub(crate) fn unhandled_rejections(rt: &mut Runtime) -> Vec<String> {
+    rt.take_unhandled_rejections()
+        .into_iter()
+        .map(|promise| {
+            let reason = rt
+                .promise_settlement(promise)
+                .map_or(Value::Undefined, |(_, reason)| reason);
+            truncate(format!("Uncaught (in promise) {}", rt.error_report(reason)))
+        })
+        .collect()
 }
 
 /// The text of an error as the shell prints it: `Uncaught TypeError:

@@ -70,6 +70,12 @@ impl From<PropertyKey> for Root {
 pub trait RootSource {
     /// Reports every root handle to the tracer.
     fn trace_roots(&self, tracer: &mut Tracer<'_>);
+
+    /// The bytes outside the heap that the source holds for scripts and
+    /// that count as live heap memory (the VM's job queue).
+    fn extra_bytes(&self) -> usize {
+        0
+    }
 }
 
 /// No roots outside the heap.
