@@ -2158,6 +2158,100 @@ where the first plan did not work:
   one-character strings), the loops of `exec` and `test` 2 to 3 times,
   `matchAll` 16 times (a result array and an iterator result per step);
   all are linear in the input (docs/performance.md).
+- Proxy (feature 9a, `object/proxy.rs`, `vm/proxy.rs`, `builtins/proxy.rs`,
+  §10.5, §28.2): `ObjectKind::Proxy` holds `[[ProxyTarget]]` and
+  `[[ProxyHandler]]` (both `None` after revocation) and whether the proxy
+  has `[[Call]]` and `[[Construct]]`, fixed by ProxyCreate. A proxy stores
+  no properties; its shape is the root shape of `null`. Only the entries of
+  private names go into it, because private fields work on proxies without
+  traps (`PrivateFieldAdd`). `Proxy` is a constructor without `prototype`;
+  the revoke function keeps the proxy in a native slot.
+- Dispatch: the heap's internal methods stay the ordinary ones and run no
+  script code. Its three walks along a prototype chain (`[[Get]]`,
+  `[[Set]]`, `[[HasProperty]]`) look at the kind of each object they visit
+  (a compare on the record that the walk loads anyway) and return
+  `GetResult::Generic`, `SetResult::Generic` or `None` when they meet a
+  proxy, or when the receiver of a `[[Set]]` is one, before anything has
+  happened. The caller then runs the generic path of `vm/proxy.rs` from the
+  start: the same walk over the runtime's internal methods, and the
+  proxy's methods at a proxy. The runtime's internal methods
+  (`own_property`, `define_own_property`, `define_or_throw`, `own_keys`,
+  `has_property`, `get_with_receiver`, `set_with_receiver`,
+  `delete_generic`, `get_prototype_of`, `set_prototype_of`,
+  `is_extensible`, `prevent_extensions`) dispatch a proxy at their start,
+  so the natives and the interpreter reach the traps through them. The
+  heap's methods that change an object refuse a proxy with an internal
+  error, so a call site that the review missed ends the script instead of
+  writing into the proxy. Proxies do not have ordinary elements
+  (`element_access.rs`): a chain with a proxy makes the natives take the
+  specification's steps, and the dense shortcut checks every prototype, so
+  a proxy on the chain of an array or of `Array.prototype` stops it (the
+  realm flag "no prototype of an array has indexed properties" of section
+  6 was never built; the chain walk does its work). The pristine-shape
+  checks of the `RegExp` fast paths cannot meet a proxy: a proxy is not a
+  `RegExp` object, and a proxy as the prototype of `RegExp.prototype`
+  changes the recorded shape.
+- `[[Call]]` and `[[Construct]]` of a proxy without a trap are tail calls of
+  the target in the loop of `invoke_tail_calls`, and a trap is a tail call
+  of the trap with `(target, this, argArray)`, so a chain of a million
+  callable proxies costs no Rust stack (Chromium 148 calls through 100,000).
+  Only the result check of a `construct` trap needs re-entry. `IsArray` and
+  `GetFunctionRealm` (a revoked proxy is V8's TypeError "Cannot perform
+  'undefined' on a proxy that has been revoked") are loops.
+- Recursion: every other internal method of a proxy is one level of Rust
+  recursion when it forwards to a target, and charges `PROXY_WEIGHT`
+  (2 KiB; measured per level at most 960 bytes in a debug build and 752 in
+  a release build) and a time step; a trap call charges the weight of a
+  re-entry. A chain of a million proxies ends with V8's `RangeError`
+  "Maximum call stack size exceeded" after about 2,000 levels, also in the
+  debug build on a thread with 8 MiB (`proxy_hostile.rs`).
+- Errors where the `false` comes from: the generic `[[Set]]`,
+  `[[DefineOwnProperty]]`, `[[Delete]]` and `[[PreventExtensions]]` take a
+  `throw` flag (strict assignment, `DefinePropertyOrThrow`, strict
+  `delete`, `Object.freeze`) and raise the `TypeError` at the point that
+  returns `false`, as V8 does: a falsish trap names the trap ("'set' on
+  proxy: trap returned falsish for property 'x'"), a target that refuses
+  gives its own message ("Cannot assign to read only property 'x' of object
+  '#<Object>'", "Cannot define property x, object is not extensible").
+  Nothing observable happens between that point and the throw of the
+  specification. The texts of all invariant errors are V8's, measured in
+  Chromium 148 (`tools/probes/js-proxy.json`); V8 shows a proxy in messages
+  as its target (`#<Map>`, `[object RegExp]`).
+- `[[OwnPropertyKeys]]`: CreateListFromArrayLike grows the list with a heap
+  check at each doubling (a `length` of 2^32 − 1 ends at the time or heap
+  limit), and the duplicate check and the checks against the target's keys
+  use one hash set with the keyed hasher, so a million keys against a
+  non-extensible target with a million properties are linear.
+- `for`-`in` over a chain with a proxy follows V8 (measured): the walk calls
+  `ownKeys` and then `getPrototypeOf` of each proxy and keeps all its string
+  keys; each step asks the proxy's `getOwnPropertyDescriptor` and visits the
+  key if it is enumerable, or walks on with `getPrototypeOf` when the proxy
+  does not have it. swb has no cache of `for`-`in` keys: each loop collects
+  its own.
+- Rooting: a proxy method records the target, the handler, the key, the
+  receiver, the values of descriptors and its results in the caller's
+  handle scope; the interpreter's paths into the generic methods are
+  out-of-line functions that open a scope (the hot arms gained one call).
+  The trap names are atoms of the VM. A read of a global name whose
+  global object has a proxy on its prototype chain runs the traps without
+  the frame's pc saved, so an error inside such a trap has the position of
+  the last saved pc in its stack trace.
+- `console.log` of the shell shows the innermost target of a proxy without
+  running a trap, and a revoked proxy as `<Revoked Proxy>`; Node.js 22
+  unwraps one level and runs the traps of an inner proxy.
+- Two differences from Chromium 148, where swb follows the specification
+  (`KNOWN` in `gen-proxy-cases.js`): in a `with` body V8 omits the second
+  `HasProperty` of GetBindingValue and SetMutableBinding (§9.1.1.2.5,
+  §9.1.1.2.6), and V8 resolves the target of an assignment after its right
+  side (the case of feature 3e, here visible through a `has` trap).
+- Speed: `vm_bench` has five proxy rows; a read without a trap takes about
+  90 ns, with a `get` trap about 200 ns (`node --jitless`: 16 and 28 ns,
+  V8's built-ins for proxies are native code). On the ordinary paths a
+  heap walk compares the object kind of each record that it already
+  loads. Callgrind counts 0.3 % more instructions for the mixed programs
+  and 1.2 % more for `fib` and the `new Function` loop; the rows of
+  `vm_bench` that moved by more than 3 % move between builds (code
+  layout, docs/performance.md).
 
 ## Consequences
 

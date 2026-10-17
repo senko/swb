@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 use super::json_parse::{RecKind, Records};
 use crate::heap::{Gc, HandleScope};
-use crate::object::{Object, ObjectKind};
+use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
@@ -144,11 +144,14 @@ pub(super) fn internalize(
                 // §25.5.1.1 steps 2.d.iii and 2.e.iii: an `undefined`
                 // result deletes the property, another one defines it;
                 // neither can fail the walk.
+                let (object, key) = (level.object, level.current);
                 if result.is_undefined() {
-                    rt.heap.delete(level.object, level.current)?;
+                    rt.delete_generic(object, key, false)?;
+                } else if rt.heap.is_proxy(object)? {
+                    let desc = crate::object::PropertyDescriptor::data(result, true, true, true);
+                    rt.define_generic(object, key, desc, false)?;
                 } else {
-                    rt.heap
-                        .create_data_property(level.object, level.current, result, &rt.vm)?;
+                    rt.heap.create_data_property(object, key, result, &rt.vm)?;
                 }
                 step = next_member(rt, &mut stack, &records, reviver)?;
             }
@@ -231,9 +234,22 @@ fn call_reviver(
 /// indices below the length it has now; for another object, its
 /// enumerable own string keys (`EnumerableOwnProperties(object, key)`).
 fn list_members(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Members> {
-    if matches!(rt.heap.object(object)?.kind, ObjectKind::Array { .. }) {
+    if rt.is_array(object.into())? {
         let length = rt.length_of_array_like(object)?;
         return Ok(Members::Elements(length));
+    }
+    if rt.heap.is_proxy(object)? {
+        // `[[OwnPropertyKeys]]` and `[[GetOwnProperty]]` through the traps.
+        let own = rt.own_keys(object)?;
+        rt.heap.record_keys(&own);
+        let mut keys = Vec::new();
+        for key in own {
+            rt.tick()?;
+            if !key.is_symbol() && rt.own_enumerable(object, key)? {
+                keys.push(key);
+            }
+        }
+        return Ok(Members::Keys(keys));
     }
     let bound = rt.heap.own_key_bound(object)?;
     rt.charge(bound)?;

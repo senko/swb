@@ -23,7 +23,7 @@ use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::{VmError, VmResult};
+use crate::vm::VmResult;
 
 /// The slots or keys that a search looks at per time step.
 const SLOTS_PER_STEP: usize = 16;
@@ -176,14 +176,8 @@ impl Runtime {
 
     /// `DeletePropertyOrThrow(object, key)` (§7.3.10, V8's message).
     pub(super) fn delete_or_throw(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<()> {
-        if self.heap.delete(object, key)? {
-            return Ok(());
-        }
-        Err(VmError::type_error(format!(
-            "Cannot delete property '{}' of {}",
-            self.key_text(key),
-            self.object_text(object)
-        )))
+        self.delete_generic(object, key, true)?;
+        Ok(())
     }
 
     /// `CreateDataPropertyOrThrow(object, ToString(k), value)`.

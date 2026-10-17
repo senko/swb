@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -896,8 +896,8 @@ another directory and `TEST262_URL` another repository.
   file once per run). The accepted files are `propertyHelper.js`,
   `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js`,
   `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js`,
-  `promiseHelper.js`, `regExpUtils.js` and `compareIterator.js`
-  (`HARNESS_INCLUDES` in `run.rs`). A test with the
+  `promiseHelper.js`, `regExpUtils.js`, `compareIterator.js` and
+  `proxyTrapsHelper.js` (`HARNESS_INCLUDES` in `run.rs`). A test with the
   flag `async` gets `doneprintHandle.js` before its includes; the runner
   runs the jobs after the test (as the shell does) and passes it only when
   it printed `Test262:AsyncTestComplete` and no
@@ -1421,6 +1421,62 @@ of 4,000, `for await` over a million values (an async generator, an
 array, an async iterator), a queue of a million requests, `Array.fromAsync`
 over a million values, endless async iteration at the deadline and
 queues and frames that grow to the heap limit.
+
+### Proxy tests
+
+`tools/probes/js-proxy.json` has 672 snippets for Chromium 148 in 31
+cases, made from `crates/js/tests/data/proxy-snippets.txt` by
+`crates/js/tests/data/gen-proxy-cases.js` (the format of
+`js-regexp-builtin.json`, with a prelude). The prelude defines
+`tracer(log, name, target)`: a proxy whose handler is itself a proxy that
+logs each trap it is asked for, with its key, and forwards it with
+`Reflect`, so a snippet shows which internal methods an operation calls
+and in which order. The groups: the shape of `Proxy` and
+`Proxy.revocable`, the errors of `new Proxy`, every operation on a revoked
+proxy, traps that are not callable, each of the 13 traps with every
+invariant violation and V8's message, the trap order of `Object`,
+`Reflect`, `JSON` (`stringify`, the `parse` reviver), `for`-`in`, `with`,
+destructuring, spread, `instanceof`, `Function.prototype.bind`, the
+`Array` methods with a proxy `this` and with a proxy on the prototype
+chain of arrays, `IsArray`, `ArraySpeciesCreate`, `IsConcatSpreadable`,
+`Object.prototype.toString` and `Function.prototype.toString` of proxies,
+the uses of the target scripts (the reactive store and the `with` scope of
+ars-js/s06.js, the lazy forwarding object and the `apply` trap of
+bbc-js/s2.js, the module namespace of bbc-js/s56.js and s57.js), traps
+that allocate, chains of 100 to 1,000,000 proxies and `ownKeys` results of
+100,000 keys. The case files:
+
+```
+node crates/js/tests/data/gen-proxy-cases.js probe \
+  crates/js/tests/data/proxy-snippets.txt tools/probes/js-proxy.json
+just probe --json tools/probes/js-proxy.json > probe.json
+node crates/js/tests/data/gen-proxy-cases.js cases probe.json crates/js/tests/data
+```
+
+`crates/js/tests/builtins_proxy.rs` runs `proxy_cases.js` (653 snippets,
+normal and stress mode) and `proxy_cases_heavy.js` (9, normal mode, on an
+8 MiB thread). The script leaves out the snippets with `Date` or `WeakMap`
+and the five of `KNOWN` in `gen-proxy-cases.js`: in a `with` body V8 skips
+the second `HasProperty` of GetBindingValue and SetMutableBinding and
+resolves an assignment's target after its right side (swb follows the
+specification), and V8 words a `construct` trap that is not callable "is
+not a function". `proxy_gc.js` (traps that allocate and collect while the
+engine holds targets, handlers, keys, descriptors and results) and
+`proxy_console.js` (`console.log` shows the target and runs no trap; a
+revoked proxy is `<Revoked Proxy>`) have the output of Node.js 22 as
+expected output. The hostile tests in `proxy_hostile.rs` (on an 8 MiB
+thread, in the debug build of `cargo test`) cover a chain of a million
+proxies with every internal method (V8's `RangeError`; `IsArray` and
+`[[Call]]` are loops and work), traps that call their own proxy or revoke
+it, `getPrototypeOf` traps that make `instanceof`, `for`-`in` and
+`isPrototypeOf` endless (the deadline), `ownKeys` results of a huge
+`length` (the deadline or the heap limit), a million keys against a
+non-extensible target with a million properties and the duplicate check
+over a million keys (linear), and trap results that grow to the heap
+limit. The test262 subset has `feature Proxy`, `feature
+proxy-missing-checks` and the group `test/built-ins/Proxy`; the tests that
+include `proxyTrapsHelper.js` run (the tests with `$262.createRealm` stay
+skipped).
 
 ## Python tools: development
 

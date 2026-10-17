@@ -290,6 +290,17 @@ pub(crate) enum Apply {
     Update(Property),
 }
 
+/// `IsCompatiblePropertyDescriptor(extensible, desc, current)` (§10.1.6.2):
+/// `ValidateAndApplyPropertyDescriptor` without an object.
+pub(crate) fn validate_and_apply_descriptor(
+    heap: &Heap,
+    extensible: bool,
+    desc: &PropertyDescriptor,
+    current: Option<Property>,
+) -> Result<bool> {
+    Ok(validate_and_apply(heap, extensible, desc, current)? != Apply::Reject)
+}
+
 /// `ValidateAndApplyPropertyDescriptor` (§10.1.6.3), without the writes:
 /// it returns the decision, and the caller applies it to its storage.
 pub(crate) fn validate_and_apply(

@@ -323,6 +323,26 @@ const PROGRAMS: &[(&str, &str)] = &[
         "var s = 'ab,'.repeat(300000);
          function run() { var n = 0; for (var m of s.matchAll(/b/g)) n++; return n; }",
     ),
+    (
+        "proxy: 1M reads without a trap",
+        "function run() { var p = new Proxy({ x: 1 }, {}); var s = 0; for (var i = 0; i < 1000000; i++) s += p.x; return s; }",
+    ),
+    (
+        "proxy: 1M reads with a get trap",
+        "function run() { var p = new Proxy({ x: 1 }, { get: function (t, k) { return t[k]; } }); var s = 0; for (var i = 0; i < 1000000; i++) s += p.x; return s; }",
+    ),
+    (
+        "proxy: 1M writes with a set trap",
+        "function run() { var p = new Proxy({ x: 1 }, { set: function (t, k, v) { t[k] = v; return true; } }); for (var i = 0; i < 1000000; i++) p.x = i; return p.x; }",
+    ),
+    (
+        "proxy: 100k Object.keys with an ownKeys trap",
+        "function run() { var p = new Proxy({ a: 1, b: 2, c: 3 }, { ownKeys: function (t) { return Reflect.ownKeys(t); } }); var n = 0; for (var i = 0; i < 100000; i++) n += Object.keys(p).length; return n; }",
+    ),
+    (
+        "proxy: 1M calls with an apply trap",
+        "function run() { var p = new Proxy(function (a) { return a; }, { apply: function (t, s, a) { return a[0]; } }); var n = 0; for (var i = 0; i < 1000000; i++) n += p(1); return n; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

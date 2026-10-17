@@ -740,6 +740,15 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
         flags: atom("flags")?,
         source: atom("source")?,
         exec: atom("exec")?,
+        traps: {
+            let mut traps = Vec::with_capacity(crate::vm::proxy::TRAP_COUNT);
+            for trap in crate::vm::proxy::Trap::ALL {
+                traps.push(atom(trap.name())?);
+            }
+            traps
+                .try_into()
+                .map_err(|_| Error::invariant("the trap names are not complete"))?
+        },
     })
 }
 

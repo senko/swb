@@ -79,6 +79,7 @@ mod object_proto;
 mod primitive;
 mod promise;
 mod promise_combinators;
+mod proxy;
 mod reflect;
 mod regexp;
 mod regexp_exec;
@@ -137,6 +138,7 @@ pub(crate) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
 fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     object::install(rt, realm)?;
     reflect::install(rt, realm)?;
+    proxy::install(rt, realm)?;
     let (parse_int, parse_float) = global::install(rt, realm)?;
     math::install(rt, realm)?;
     let function_constructor = function::install(rt, realm)?;
@@ -255,10 +257,15 @@ impl Runtime {
             target => target,
         };
         let key = PropertyKey::String(self.vm.atoms.prototype);
-        match self.get_value(target, key)? {
-            Value::Object(proto) => Ok(proto),
-            _ => self.intrinsic(call.realm(), fallback),
+        if let Value::Object(proto) = self.get_value(target, key)? {
+            return Ok(proto);
         }
+        // `GetFunctionRealm` (a revoked proxy throws).
+        let realm = match target {
+            Value::Object(target) => self.function_realm_checked(target)?,
+            _ => None,
+        };
+        self.intrinsic(realm.unwrap_or(call.realm()), fallback)
     }
 
     /// `ToObject(this)`, recorded in the native's handle scope.
@@ -339,7 +346,7 @@ impl Runtime {
     }
 
     /// `LengthOfArrayLike` (§7.3.18): `ToLength(Get(object, "length"))`.
-    fn length_of_array_like(&mut self, object: Gc<Object>) -> VmResult<f64> {
+    pub(crate) fn length_of_array_like(&mut self, object: Gc<Object>) -> VmResult<f64> {
         if let Ok((length, _)) = self.heap.array_length(object) {
             return Ok(f64::from(length));
         }
@@ -351,7 +358,7 @@ impl Runtime {
     /// The property key of an index `k` (an integer, 0 ≤ k < 2^53),
     /// recorded in the current handle scope (a key above the array
     /// indices is an atom, which the scope keeps alive).
-    fn index_key(&mut self, k: f64) -> VmResult<PropertyKey> {
+    pub(crate) fn index_key(&mut self, k: f64) -> VmResult<PropertyKey> {
         if k < f64::from(crate::string::MAX_ARRAY_LENGTH) {
             return Ok(PropertyKey::Index(k as u32));
         }

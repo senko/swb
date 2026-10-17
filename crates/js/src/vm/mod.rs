@@ -60,6 +60,7 @@ pub(crate) mod number;
 pub(crate) mod private;
 pub(crate) mod promise;
 mod property;
+pub(crate) mod proxy;
 pub(crate) mod random;
 mod realm;
 mod stack;
@@ -290,6 +291,8 @@ pub(crate) struct Atoms {
     pub(crate) flags: Gc<JsString>,
     pub(crate) source: Gc<JsString>,
     pub(crate) exec: Gc<JsString>,
+    /// The names of the traps of a proxy handler, by [`proxy::Trap`].
+    pub(crate) traps: [Gc<JsString>; proxy::TRAP_COUNT],
 }
 
 impl Atoms {
@@ -332,6 +335,9 @@ impl Atoms {
             self.source,
             self.exec,
         ] {
+            tracer.string(atom);
+        }
+        for &atom in &self.traps {
             tracer.string(atom);
         }
     }

@@ -468,10 +468,11 @@ impl Runtime {
 
 /// Whether an object kind is callable (has `[[Call]]`).
 pub(crate) fn is_callable_kind(kind: &ObjectKind) -> bool {
-    matches!(
-        kind,
-        ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_)
-    )
+    match kind {
+        ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => true,
+        ObjectKind::Proxy(data) => data.callable,
+        _ => false,
+    }
 }
 
 /// The optional parts of a new closure ([`Runtime::new_closure_with`]).
@@ -494,6 +495,7 @@ pub(crate) fn is_constructor_kind(kind: &ObjectKind) -> bool {
         ),
         ObjectKind::Native(native) => native.constructor,
         ObjectKind::Bound(bound) => bound.constructor,
+        ObjectKind::Proxy(data) => data.constructor,
         _ => false,
     }
 }

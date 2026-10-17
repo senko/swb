@@ -103,7 +103,7 @@ impl Runtime {
         };
         Ok(match self.heap.get(array, PropertyKey::Index(0), list)? {
             crate::object::GetResult::Value(value) => value,
-            crate::object::GetResult::CallGetter { .. } => {
+            crate::object::GetResult::CallGetter { .. } | crate::object::GetResult::Generic => {
                 return Err(VmError::invariant("a getter in spread arguments"));
             }
         })

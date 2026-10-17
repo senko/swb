@@ -25,7 +25,7 @@ impl Runtime {
     /// `ToPropertyDescriptor` (§6.2.6.5). Reads the fields in the order of
     /// the specification; getters of the descriptor object run through
     /// re-entry. Every value is recorded in the current handle scope.
-    pub(super) fn parse_property_descriptor(
+    pub(crate) fn parse_property_descriptor(
         &mut self,
         value: Value,
     ) -> VmResult<PropertyDescriptor> {
@@ -113,6 +113,37 @@ impl Runtime {
             ]),
         }
         for (name, value) in fields {
+            let key = self.heap.key_from_str(name)?;
+            self.heap.record(key);
+            self.heap
+                .create_data_property(object, key, value, &self.vm)?;
+        }
+        Ok(object.into())
+    }
+
+    /// `FromPropertyDescriptor` (§6.2.6.4) of a descriptor whose fields
+    /// may be absent (the argument of a proxy's `defineProperty` trap): a
+    /// new object with the fields that it has, in the order of the
+    /// specification, recorded in the current handle scope.
+    pub(crate) fn partial_descriptor_object(
+        &mut self,
+        desc: &PropertyDescriptor,
+    ) -> VmResult<Value> {
+        let proto = self.intrinsic(self.current_realm(), Intrinsic::ObjectPrototype)?;
+        let object = self.heap.new_object(Some(proto))?;
+        self.heap.record(object);
+        let fields = [
+            ("value", desc.value),
+            ("writable", desc.writable.map(Value::Bool)),
+            ("get", desc.get),
+            ("set", desc.set),
+            ("enumerable", desc.enumerable.map(Value::Bool)),
+            ("configurable", desc.configurable.map(Value::Bool)),
+        ];
+        for (name, value) in fields {
+            let Some(value) = value else {
+                continue;
+            };
             let key = self.heap.key_from_str(name)?;
             self.heap.record(key);
             self.heap

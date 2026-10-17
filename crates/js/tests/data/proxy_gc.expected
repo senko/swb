@@ -1,0 +1,13 @@
+got a1 got zzundefined
+got c3! true false true a,c
+{"a":"got a1","c":"got c3!"}
+a,c
+{"a":{"value":1,"writable":true,"enumerable":true,"configurable":true},"c":{"value":"3!","writable":true,"enumerable":true,"configurable":true}}
+{"a":"got a1","c":"got c3!"}
+{"a":"got a1","c":"got c3!"}
+function function g
+leaf
+2000 key1999
+1
+TypeError Cannot perform 'get' on a proxy that has been revoked
+6 3+4 2,6,10

@@ -5,12 +5,13 @@
 //! Rust recursion. The list of arguments is limited by the value stack.
 
 use crate::heap::Gc;
-use crate::object::{Object, SetResult};
+use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::Lookup;
 use crate::vm::internal::ProtoSet;
+use crate::vm::proxy::SetDone;
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
@@ -58,8 +59,10 @@ fn target(rt: &Runtime, call: &NativeCall, name: &str) -> VmResult<Gc<Object>> {
     }
 }
 
-/// The text "X, which is a Y" of V8's message for `Reflect.apply`.
-fn not_a_function(rt: &Runtime, value: Value) -> VmError {
+/// V8's message for `Reflect.apply`, `Function.prototype.apply` and
+/// `call` on a value that is not callable ("X was called on Y, which is
+/// a Z and not a function").
+pub(super) fn not_a_function_of(rt: &Runtime, method: &str, value: Value) -> VmError {
     let kind = match value {
         Value::Null => None,
         Value::Undefined => Some("undefined"),
@@ -76,7 +79,7 @@ fn not_a_function(rt: &Runtime, value: Value) -> VmError {
         Some(kind) => format!("a {kind}"),
     };
     VmError::type_error(format!(
-        "Function.prototype.apply was called on {}, which is {which} and not a function",
+        "{method} was called on {}, which is {which} and not a function",
         rt.primitive_text(value)
     ))
 }
@@ -85,7 +88,7 @@ fn not_a_function(rt: &Runtime, value: Value) -> VmError {
 fn apply(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let callee = rt.arg(call, 0);
     if !rt.is_callable(callee)? {
-        return Err(not_a_function(rt, callee));
+        return Err(not_a_function_of(rt, "Function.prototype.apply", callee));
     }
     let args = rt.list_from_array_like(rt.arg(call, 2))?;
     Ok(NativeReturn::Call {
@@ -135,7 +138,7 @@ fn define_property(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
 fn delete_property(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = target(rt, call, "deleteProperty")?;
     let key = rt.key_arg(rt.arg(call, 1))?;
-    ok(rt.heap.delete(object, key)?)
+    ok(rt.delete_generic(object, key, false)?)
 }
 
 /// `Reflect.get(target, propertyKey [, receiver])` (§28.1.5).
@@ -168,7 +171,7 @@ fn get_own_property_descriptor(rt: &mut Runtime, call: &NativeCall) -> VmResult<
 /// `Reflect.getPrototypeOf(target)` (§28.1.8).
 fn get_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = target(rt, call, "getPrototypeOf")?;
-    let proto = rt.heap.get_prototype_of(object)?;
+    let proto = rt.get_prototype_of(object)?;
     Ok(NativeReturn::Value(proto.map_or(Value::Null, Value::from)))
 }
 
@@ -182,7 +185,7 @@ fn has(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Reflect.isExtensible(target)` (§28.1.10).
 fn is_extensible(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = target(rt, call, "isExtensible")?;
-    ok(rt.heap.is_extensible(object)?)
+    ok(rt.is_extensible(object)?)
 }
 
 /// `Reflect.ownKeys(target)` (§28.1.11).
@@ -203,7 +206,7 @@ fn own_keys(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Reflect.preventExtensions(target)` (§28.1.12).
 fn prevent_extensions(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = target(rt, call, "preventExtensions")?;
-    ok(rt.heap.prevent_extensions(object)?)
+    ok(rt.prevent_extensions(object, false)?)
 }
 
 /// `Reflect.set(target, propertyKey, V [, receiver])` (§28.1.13).
@@ -215,10 +218,10 @@ fn set(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     } else {
         object.into()
     };
-    let value = rt.array_length_operand(receiver, key, rt.arg(call, 2))?;
-    match rt.heap.set(object, key, value, receiver, &rt.vm)? {
-        SetResult::Done(done) => ok(done),
-        SetResult::CallSetter { setter, receiver } => {
+    let value = rt.arg(call, 2);
+    match rt.set_with_receiver(object, key, value, receiver, false)? {
+        SetDone::Done(done) => ok(done),
+        SetDone::Setter { setter, receiver } => {
             rt.call(setter, receiver, &[value])?;
             ok(true)
         }

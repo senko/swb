@@ -74,6 +74,13 @@ fn function_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeR
     reason = "the signature of native functions"
 )]
 fn call(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    if !rt.is_callable(call.this())? {
+        return Err(super::reflect::not_a_function_of(
+            rt,
+            "Function.prototype.call",
+            call.this(),
+        ));
+    }
     let args = (1..call.argc()).map(|i| rt.arg(call, i)).collect();
     Ok(NativeReturn::Call {
         callee: call.this(),
@@ -85,6 +92,14 @@ fn call(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Function.prototype.apply(thisArg, argArray)` (§20.2.3.1) with
 /// `CreateListFromArrayLike` (§7.3.19).
 fn apply(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    // Step 2: the check comes before `CreateListFromArrayLike`.
+    if !rt.is_callable(call.this())? {
+        return Err(super::reflect::not_a_function_of(
+            rt,
+            "Function.prototype.apply",
+            call.this(),
+        ));
+    }
     let this_arg = rt.arg(call, 0);
     let args = match rt.arg(call, 1) {
         Value::Undefined | Value::Null => Vec::new(),
@@ -110,7 +125,7 @@ fn bind(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let bound_args: Box<[Value]> = (1..call.argc()).map(|i| rt.arg(call, i)).collect();
     let arg_count = bound_args.len();
     let constructor = rt.is_constructor(call.this())?;
-    let proto = rt.heap.get_prototype_of(target)?;
+    let proto = rt.get_prototype_of(target)?;
     let kind = ObjectKind::Bound(Box::new(BoundFunction {
         target,
         this: rt.arg(call, 0),
@@ -189,6 +204,10 @@ fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
             swb_js_text::String16::from(format!("function {name}() {{ [native code] }}").as_str())
         }
         ObjectKind::Bound(_) => swb_js_text::String16::from("function () { [native code] }"),
+        // A callable proxy (also a revoked one): V8's text.
+        ObjectKind::Proxy(data) if data.callable => {
+            swb_js_text::String16::from("function () { [native code] }")
+        }
         _ => return Err(not_a_function()),
     };
     let units = text.len();

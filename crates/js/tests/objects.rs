@@ -36,7 +36,9 @@ fn get(heap: &mut Heap, object: Gc<Object>, name: &str) -> Value {
     let key = key(heap, name);
     match heap.get(object, key, object.into()).unwrap() {
         GetResult::Value(value) => value,
-        other @ GetResult::CallGetter { .. } => panic!("expected a value, got {other:?}"),
+        other @ (GetResult::CallGetter { .. } | GetResult::Generic) => {
+            panic!("expected a value, got {other:?}")
+        }
     }
 }
 

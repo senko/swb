@@ -15,6 +15,7 @@ mod iterator_helper;
 mod ops;
 mod private;
 mod property;
+mod proxy;
 mod regexp;
 mod shape;
 mod table;
@@ -24,7 +25,9 @@ pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
+pub(crate) use property::validate_and_apply_descriptor;
 pub use property::{Property, PropertyDescriptor};
+pub(crate) use proxy::ProxyData;
 pub(crate) use regexp::{LastMatch, RegExpRealm, RegExpShapes, program_share};
 pub(crate) use regexp::{RegExpData, RegExpStringIterator};
 pub(crate) use shape::KeyList;
@@ -145,6 +148,9 @@ pub enum ObjectKind {
     /// `with` statement or the record of the vars of sloppy direct eval
     /// code. Internal: only bindings `%env` hold it.
     Environment(Box<EnvRecord>),
+    /// A Proxy exotic object (§10.5): its target and handler (`proxy.rs`;
+    /// the internal methods are in `vm/proxy.rs`).
+    Proxy(Box<ProxyData>),
 }
 
 /// The state of a `for`-`in` loop: the object and the keys that the loop
@@ -225,6 +231,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::ForInIterator(_) => "ForInIterator",
             ObjectKind::PrivateEnvironment(_) => "PrivateEnvironment",
             ObjectKind::Environment(_) => "Environment",
+            ObjectKind::Proxy(_) => "Proxy",
         };
         f.write_str(name)
     }
@@ -285,6 +292,7 @@ impl ObjectKind {
             ObjectKind::Environment(env) => env.trace(tracer),
             ObjectKind::Promise(state) => state.trace(tracer),
             ObjectKind::ArrayFromAsync(state) => state.trace(tracer),
+            ObjectKind::Proxy(data) => data.trace(tracer),
         }
     }
 
@@ -317,6 +325,7 @@ impl ObjectKind {
             ObjectKind::Environment(_) => size_of::<EnvRecord>(),
             ObjectKind::Promise(state) => state.heap_size(),
             ObjectKind::ArrayFromAsync(_) => size_of::<crate::builtins::FromAsync>(),
+            ObjectKind::Proxy(_) => size_of::<ProxyData>(),
             _ => 0,
         }
     }

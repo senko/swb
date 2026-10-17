@@ -42,8 +42,7 @@ pub(super) fn install(
 fn has_own_property(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let key = rt.key_arg(rt.arg(call, 0))?;
     let object = rt.this_object(call)?;
-    let own = rt.heap.string_object_unit(object, key)?.is_some()
-        || rt.heap.get_own_property(object, key)?.is_some();
+    let own = rt.has_own_property(object, key)?;
     Ok(NativeReturn::Value(Value::Bool(own)))
 }
 
@@ -54,13 +53,13 @@ fn is_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
         return Ok(NativeReturn::Value(Value::Bool(false)));
     };
     let this = rt.this_object(call)?;
-    let mut current = rt.heap.get_prototype_of(value)?;
+    let mut current = rt.get_prototype_of(value)?;
     while let Some(proto) = current {
         rt.tick()?;
         if proto == this {
             return Ok(NativeReturn::Value(Value::Bool(true)));
         }
-        current = rt.heap.get_prototype_of(proto)?;
+        current = rt.get_prototype_of(proto)?;
     }
     Ok(NativeReturn::Value(Value::Bool(false)))
 }
@@ -69,11 +68,7 @@ fn is_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
 fn property_is_enumerable(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let key = rt.key_arg(rt.arg(call, 0))?;
     let object = rt.this_object(call)?;
-    let enumerable = rt.heap.string_object_unit(object, key)?.is_some()
-        || rt
-            .heap
-            .get_own_property(object, key)?
-            .is_some_and(|property| property.enumerable());
+    let enumerable = rt.own_enumerable(object, key)?;
     Ok(NativeReturn::Value(Value::Bool(enumerable)))
 }
 
@@ -114,7 +109,7 @@ fn value_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `get Object.prototype.__proto__` (§B.2.2.1.1).
 fn proto_getter(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = rt.this_object(call)?;
-    let proto = rt.heap.get_prototype_of(object)?;
+    let proto = rt.get_prototype_of(object)?;
     Ok(NativeReturn::Value(proto.map_or(Value::Null, Value::from)))
 }
 
@@ -210,7 +205,7 @@ fn lookup_accessor_half(
             };
             return Ok(NativeReturn::Value(result));
         }
-        match rt.heap.get_prototype_of(object)? {
+        match rt.get_prototype_of(object)? {
             Some(proto) => object = proto,
             None => return Ok(NativeReturn::Value(Value::Undefined)),
         }

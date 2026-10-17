@@ -1,0 +1,11 @@
+{ a: 1, b: [ 1, 2 ] }
+[ 1, 2, 3 ]
+[Function: f]
+[class A]
+Map(1) { 1 => 2 }
+<Revoked Proxy>
+<Revoked Proxy>
+[ { a: 1 } ]
+{ p: [ 1 ] }
+<ref *1> { name: 'self', me: [Circular *1] }
+traps: 0

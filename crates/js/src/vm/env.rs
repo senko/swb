@@ -141,11 +141,14 @@ impl Runtime {
     }
 
     /// `HasProperty` with a time step for each object of the prototype
-    /// chain.
+    /// chain (a proxy on the chain takes the generic path).
     fn has_property_charged(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
         let mut current = object;
         loop {
             self.tick()?;
+            if self.heap.is_proxy(current)? {
+                return self.with_scope(|rt| rt.has_generic(current, key));
+            }
             if self.heap.get_own_property(current, key)?.is_some()
                 || self.heap.string_object_unit(current, key)?.is_some()
             {
@@ -223,7 +226,7 @@ impl Runtime {
         let record = env_object(record)?;
         let key = PropertyKey::String(name);
         let object = self.env_parts(record)?.object.unwrap_or(record);
-        Ok(self.heap.delete(object, key)?)
+        self.with_scope(|rt| rt.delete_generic(object, key, false))
     }
 
     /// `WithBaseObject` (§9.1.1.2.10): the binding object of a `with`

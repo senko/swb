@@ -687,13 +687,15 @@ impl Runtime {
                 self.primitive_text(proto)
             )));
         };
-        let mut current = self.heap.get_prototype_of(object)?;
+        // A proxy's `getPrototypeOf` trap can make the chain endless; each
+        // step is a step of the countdown.
+        let mut current = self.get_prototype_of(object)?;
         while let Some(p) = current {
             if p == proto {
                 return Ok(true);
             }
             self.tick()?;
-            current = self.heap.get_prototype_of(p)?;
+            current = self.get_prototype_of(p)?;
         }
         Ok(false)
     }

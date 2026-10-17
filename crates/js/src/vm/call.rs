@@ -26,7 +26,7 @@ use crate::object::{GetResult, Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::function::is_constructor_kind;
+use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::generator::GeneratorKind;
 use crate::vm::{
     Frame, Intrinsic, NativeCall, NativeReturn, REENTRY_WEIGHT, ReturnTo, STACK_OVERFLOW, VmError,
@@ -53,6 +53,16 @@ struct TailCall {
     args: Vec<Value>,
     /// `new.target` of a `[[Construct]]`; `None` for `[[Call]]`.
     new_target: Option<Gc<Object>>,
+}
+
+/// What a call of a proxy does next.
+enum ProxyStep {
+    /// A tail call of the target or of the trap.
+    Tail(TailCall),
+    /// The result of a `construct` trap.
+    Value(Value),
+    /// The trap is not callable.
+    NotCallable,
 }
 
 /// How a call was started.
@@ -114,8 +124,86 @@ impl Runtime {
                 let call = self.invoke_bound(function, site)?;
                 self.invoke_tail_calls(site, call)
             }
+            ObjectKind::Proxy(_) => self.invoke_proxy_step(function, site),
             _ => Ok(Step::NotCallable),
         }
+    }
+
+    /// [`Runtime::invoke`] of a proxy (out of line: the arm of the common
+    /// kinds stays small).
+    #[cold]
+    #[inline(never)]
+    fn invoke_proxy_step(&mut self, proxy: Gc<Object>, site: CallSite) -> VmResult<Step> {
+        if !site.construct && !is_callable_kind(&self.heap.object(proxy)?.kind) {
+            return Ok(Step::NotCallable);
+        }
+        match self.invoke_proxy(proxy, site)? {
+            ProxyStep::Tail(call) => self.invoke_tail_calls(site, call),
+            ProxyStep::Value(value) => Ok(Step::Value(value)),
+            ProxyStep::NotCallable => Ok(Step::NotCallable),
+        }
+    }
+
+    /// [`Runtime::invoke_proxy`] in the loop of tail calls: the step, or the
+    /// next tail call; a trap that is not callable is the `TypeError` of
+    /// `callee`.
+    fn tail_proxy(
+        &mut self,
+        proxy: Gc<Object>,
+        site: CallSite,
+        callee: Value,
+    ) -> VmResult<Result<Step, TailCall>> {
+        match self.invoke_proxy(proxy, site)? {
+            ProxyStep::Tail(next) => Ok(Err(next)),
+            ProxyStep::Value(value) => Ok(Ok(Step::Value(value))),
+            ProxyStep::NotCallable => {
+                let what = if site.construct {
+                    "a constructor"
+                } else {
+                    "a function"
+                };
+                Err(VmError::type_error(format!(
+                    "{} is not {what}",
+                    self.describe_value(callee)
+                )))
+            }
+        }
+    }
+
+    /// `[[Call]]` and `[[Construct]]` of a proxy (§10.5.12, §10.5.13): the
+    /// call of the target or of the trap as a tail call, or the checked
+    /// result of a `construct` trap (which ran through re-entry). The
+    /// arguments are in the window of `site`.
+    fn invoke_proxy(&mut self, proxy: Gc<Object>, site: CallSite) -> VmResult<ProxyStep> {
+        let args = self
+            .vm
+            .stack
+            .get(site.window..site.window + site.argc)
+            .ok_or(VmError::invariant("arguments outside the stack"))?
+            .to_vec();
+        if site.construct {
+            let new_target = site.new_target.unwrap_or(proxy);
+            return Ok(match self.proxy_construct(proxy, &args, new_target)? {
+                None => ProxyStep::NotCallable,
+                Some(Ok(object)) => ProxyStep::Value(object),
+                Some(Err((callee, args, new_target))) => ProxyStep::Tail(TailCall {
+                    callee,
+                    this: Value::Undefined,
+                    args,
+                    new_target: Some(new_target),
+                }),
+            });
+        }
+        let this = self.stack_value(site.window - 1)?;
+        Ok(match self.proxy_call_parts(proxy, this, &args)? {
+            None => ProxyStep::NotCallable,
+            Some((callee, this, args)) => ProxyStep::Tail(TailCall {
+                callee,
+                this,
+                args,
+                new_target: None,
+            }),
+        })
     }
 
     /// Runs a tail call (the deferred call of a native, the target of a
@@ -168,8 +256,12 @@ impl Runtime {
             };
             let record = self.heap.object(function)?;
             let callable = match &record.kind {
-                ObjectKind::Function(_) | ObjectKind::Native(_) | ObjectKind::Bound(_) => {
-                    !site.construct || is_constructor_kind(&record.kind)
+                ObjectKind::Function(_)
+                | ObjectKind::Native(_)
+                | ObjectKind::Bound(_)
+                | ObjectKind::Proxy(_) => {
+                    is_callable_kind(&record.kind)
+                        && (!site.construct || is_constructor_kind(&record.kind))
                 }
                 _ => false,
             };
@@ -216,6 +308,13 @@ impl Runtime {
                     call = self.invoke_bound(function, site)?;
                     continue;
                 }
+                ObjectKind::Proxy(_) => match self.tail_proxy(function, site, call.callee)? {
+                    Ok(step) => step,
+                    Err(next) => {
+                        call = next;
+                        continue;
+                    }
+                },
                 _ => self.enter_function(function, site)?,
             };
             if let Step::Value(_) = step {
@@ -390,11 +489,18 @@ impl Runtime {
                     _ => None,
                 }
             }
+            // A proxy on the chain of `new.target` (or `new.target` itself).
+            GetResult::Generic => {
+                match self.with_scope(|rt| rt.get_value(new_target.into(), key))? {
+                    Value::Object(proto) => Some(proto),
+                    _ => None,
+                }
+            }
         };
         let proto = if let Some(proto) = proto {
             proto
         } else {
-            let realm = self.function_realm(new_target).unwrap_or(realm);
+            let realm = self.function_realm_checked(new_target)?.unwrap_or(realm);
             self.intrinsic(realm, Intrinsic::ObjectPrototype)?
         };
         Ok(self.heap.new_object(Some(proto))?)
@@ -408,7 +514,29 @@ impl Runtime {
                 ObjectKind::Function(closure) => return Some(closure.realm),
                 ObjectKind::Native(native) => return Some(native.realm),
                 ObjectKind::Bound(bound) => current = bound.target,
+                // §7.3.24 step 4: the realm of the target (a revoked proxy
+                // throws there; callers fall back to the current realm).
+                ObjectKind::Proxy(data) => current = data.target?,
                 _ => return None,
+            }
+        }
+    }
+
+    /// `GetFunctionRealm` (§7.3.24) with its error: a revoked proxy on the
+    /// way is a `TypeError`.
+    pub(crate) fn function_realm_checked(&self, function: Gc<Object>) -> VmResult<Option<u32>> {
+        let mut current = function;
+        loop {
+            match &self.heap.object(current)?.kind {
+                ObjectKind::Function(closure) => return Ok(Some(closure.realm)),
+                ObjectKind::Native(native) => return Ok(Some(native.realm)),
+                ObjectKind::Bound(bound) => current = bound.target,
+                ObjectKind::Proxy(data) => match (data.target, data.handler) {
+                    (Some(target), Some(_)) => current = target,
+                    // V8 names no operation here (measured).
+                    _ => return Err(crate::vm::proxy::revoked_error("undefined")),
+                },
+                _ => return Ok(None),
             }
         }
     }

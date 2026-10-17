@@ -281,6 +281,13 @@ impl Runtime {
         if self.vm.realms.iter().any(|realm| realm.global == object) {
             return "[object Object]".to_owned();
         }
+        // V8 shows a proxy as its target (measured in Chromium 148).
+        if let Ok(ObjectKind::Proxy(_)) = self.heap.object(object).map(|o| &o.kind) {
+            return match self.proxy_innermost(object) {
+                Some(target) => self.object_text(target),
+                None => "#<Object>".to_owned(),
+            };
+        }
         match self.heap.object(object).map(|o| &o.kind) {
             Ok(ObjectKind::Array { .. }) => "[object Array]".to_owned(),
             Ok(ObjectKind::StringWrapper(_)) => "[object String]".to_owned(),

@@ -8,8 +8,8 @@
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
-# asyncHelpers.js, promiseHelper.js, regExpUtils.js or compareIterator.js,
-# or have the flags module or
+# asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js
+# or proxyTrapsHelper.js, or have the flags module or
 # CanBlockIsTrue, or use $262.createRealm, $262.agent or
 # $262.detachArrayBuffer. Tests with the flag async get doneprintHandle.js
 # and pass when they print Test262:AsyncTestComplete.
@@ -382,3 +382,16 @@ feature RegExp.escape
 dir test/built-ins/RegExp
 dir test/built-ins/RegExpStringIteratorPrototype
 dir test/annexB/built-ins/RegExp
+
+# Added in M7 feature 9a: Proxy with all invariant checks, revocable
+# proxies, callable and constructor proxies. The tests with `Proxy` in
+# the groups that run already (Object, Reflect, Array, JSON, the language
+# groups) run now too. `proxy-missing-checks` names the three invariant
+# checks that ES2020 added to `getOwnPropertyDescriptor`, `defineProperty`
+# and `deleteProperty` (a non-writable report for a writable target
+# property, a non-extensible target); they are in the specification and
+# Chromium 148 has them (tools/probes/js-proxy.json), so they run. The
+# tests that need `$262.createRealm` stay skipped.
+feature Proxy
+feature proxy-missing-checks
+dir test/built-ins/Proxy

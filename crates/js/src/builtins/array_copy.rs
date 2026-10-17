@@ -37,18 +37,15 @@ const FLAT_DEPTH_LIMIT: usize = 9_000;
 
 /// `IsConcatSpreadable(O)` (§23.1.3.1.1).
 fn is_concat_spreadable(rt: &mut Runtime, value: Value) -> VmResult<bool> {
-    let Value::Object(object) = value else {
+    if !matches!(value, Value::Object(_)) {
         return Ok(false);
-    };
+    }
     let key = rt.symbol_key(WellKnown::IsConcatSpreadable);
     let spreadable = rt.get_value(value, key)?;
     if !spreadable.is_undefined() {
         return rt.to_boolean(spreadable);
     }
-    Ok(matches!(
-        rt.heap.object(object)?.kind,
-        crate::object::ObjectKind::Array { .. }
-    ))
+    rt.is_array(value)
 }
 
 /// `Array.prototype.concat(...items)` (§23.1.3.1).
@@ -328,16 +325,9 @@ fn flatten_into_array(
                     &[element, Value::number(k), source.into()],
                 )?;
             }
+            // `IsArray` sees through proxies (a revoked one throws).
             let nested = match element {
-                Value::Object(inner)
-                    if depth > 0.0
-                        && matches!(
-                            rt.heap.object(inner)?.kind,
-                            crate::object::ObjectKind::Array { .. }
-                        ) =>
-                {
-                    Some(inner)
-                }
+                Value::Object(inner) if depth > 0.0 && rt.is_array(element)? => Some(inner),
                 _ => None,
             };
             if nested.is_none() {

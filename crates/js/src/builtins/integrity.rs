@@ -21,10 +21,12 @@ enum Level {
 }
 
 impl Runtime {
-    /// `SetIntegrityLevel` (§7.3.15) for the objects that exist: the
-    /// `[[PreventExtensions]]` of these kinds cannot fail.
+    /// `SetIntegrityLevel` (§7.3.15); a `false` result of
+    /// `[[PreventExtensions]]` (a proxy's trap) is V8's `TypeError`.
     fn set_integrity_level(&mut self, object: Gc<Object>, level: Level) -> VmResult<()> {
-        self.heap.prevent_extensions(object)?;
+        if !self.prevent_extensions(object, true)? {
+            return Err(VmError::type_error("Cannot prevent extensions"));
+        }
         let keys = self.own_keys(object)?;
         self.heap.record_keys(&keys);
         for key in keys {
@@ -35,7 +37,7 @@ impl Runtime {
                     ..PropertyDescriptor::default()
                 },
                 Level::Frozen => {
-                    let Some(current) = self.heap.get_own_property(object, key)? else {
+                    let Some(current) = self.own_property_stored(object, key)? else {
                         // A character of a String object is already fixed.
                         continue;
                     };
@@ -56,13 +58,14 @@ impl Runtime {
 
     /// `TestIntegrityLevel` (§7.3.16).
     fn test_integrity_level(&mut self, object: Gc<Object>, level: Level) -> VmResult<bool> {
-        if self.heap.is_extensible(object)? {
+        if self.is_extensible(object)? {
             return Ok(false);
         }
         let keys = self.own_keys(object)?;
+        self.heap.record_keys(&keys);
         for key in keys {
             self.tick()?;
-            let Some(property) = self.heap.get_own_property(object, key)? else {
+            let Some(property) = self.own_property_stored(object, key)? else {
                 continue;
             };
             let writable = matches!(property, Property::Data { writable: true, .. });
@@ -114,7 +117,7 @@ fn test_level(rt: &mut Runtime, call: &NativeCall, level: Level) -> VmResult<Nat
 pub(super) fn prevent_extensions(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let value = rt.arg(call, 0);
     if let Value::Object(object) = value
-        && !rt.heap.prevent_extensions(object)?
+        && !rt.prevent_extensions(object, true)?
     {
         return Err(VmError::type_error("Cannot prevent extensions"));
     }
@@ -124,7 +127,7 @@ pub(super) fn prevent_extensions(rt: &mut Runtime, call: &NativeCall) -> VmResul
 /// `Object.isExtensible(O)` (§20.1.2.16).
 pub(super) fn is_extensible(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let result = match rt.arg(call, 0) {
-        Value::Object(object) => rt.heap.is_extensible(object)?,
+        Value::Object(object) => rt.is_extensible(object)?,
         _ => false,
     };
     Ok(NativeReturn::Value(Value::Bool(result)))

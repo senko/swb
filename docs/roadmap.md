@@ -1620,6 +1620,62 @@ failures with a reason. Features, in this order:
 9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
    invariant checks, `WeakMap`, `WeakSet` and their ephemeron marking,
    `WeakRef`, `FinalizationRegistry`, the kept-alive list.
+   Split 2026-10-17 into two sessions, one commit each. test262 has 311
+   tests in `built-ins/Proxy`, 141 in `WeakMap`, 85 in `WeakSet`, 29 in
+   `WeakRef` and 47 in `FinalizationRegistry`; in the current subset,
+   123 tests are skipped for the feature `Proxy` and 21 fail with
+   "Proxy is not defined". No test needs a forced collection. Target
+   scripts: 4 use `new Proxy` (ars-js/s06.js, a reactive store with
+   `get`, `set`, `has` and `ownKeys`; bbc-js/s2.js, a lazy object that
+   forwards all 13 traps, and an `apply` trap on a function;
+   bbc-js/s56.js and s57.js, a module namespace with `get` and
+   `ownKeys`), 14 use `WeakMap`, 6 `WeakSet`, none `WeakRef` or
+   `FinalizationRegistry`.
+   - 9a Proxy (`implementer-hard`; `js`): `Proxy` and
+     `Proxy.revocable`, the 13 internal methods of §10.5 with all
+     invariant checks, callable and constructor proxies, revocation.
+     Every path that reads an object through its internal methods must
+     see a proxy: property access in the interpreter, `in`, `delete`,
+     `instanceof`, `for-in` (EnumerateObjectProperties through
+     `ownKeys` and `getOwnPropertyDescriptor`), spread, destructuring,
+     `Object`, `Reflect`, `IsArray`, the `Array` methods and the native
+     element access, `JSON`, `Function.prototype.toString`,
+     `Object.prototype.toString`, `typeof`. Trap recursion charges the
+     recursion budget (ADR 0026 section 9), so a chain of proxies of
+     any length does not overflow the Rust stack. The shell's
+     `console.log` shows a proxy without running its traps, as Node
+     does. Tests: `built-ins/Proxy` and the tests with the feature
+     `Proxy` (the harness file `proxyTrapsHelper.js`), probe cases for
+     the uses of the target scripts, hostile cases.
+     Done 2026-10-17: `Proxy` and `Proxy.revocable`; a proxy object kind
+     with its target, its handler and the `[[Call]]` and `[[Construct]]`
+     of its target. The heap stays free of script code: its walks for
+     `[[Get]]`, `[[Set]]` and `[[HasProperty]]` stop at a proxy before
+     any effect, and the runtime then runs the 13 methods of §10.5
+     (`vm/proxy.rs`) in the spec order, with every invariant check and
+     V8's messages. Heap methods that change objects refuse a proxy.
+     `[[Call]]` and `[[Construct]]` without a trap are tail calls; the
+     other methods charge 2 KiB of the recursion budget per level, so a
+     chain of a million proxies gives V8's `RangeError`, also in the
+     debug build on an 8 MiB thread. The duplicate and invariant checks
+     of `ownKeys` use a hash set (linear for a million keys). `for-in`
+     over proxies follows the order measured in Chromium. 672 snippets
+     give Chromium 148's output, also in stress mode, except five where
+     swb follows the spec (four `with` cases) or has its own message.
+     test262 runtime: 35,666 pass (was 35,233), the same in stress mode;
+     `built-ins/Proxy` 273 pass, 0 fail (36 cross-realm tests skipped);
+     parse-only unchanged (42,240). A proxy read takes 90 ns without a
+     trap and 200 ns with one (`node --jitless`: 16 and 28 ns).
+   - 9b Weak collections (`implementer-hard`; `js`, the heap): `WeakMap`
+     and `WeakSet` with the upsert methods and symbols as keys
+     (`symbols-as-weakmap-keys`); ephemeron marking, linear in the
+     number of entries also for long chains of ephemerons; `WeakRef`
+     with the kept-alive list (AddToKeptObjects, ClearKeptObjects at the
+     end of each job); `FinalizationRegistry` with `register` and
+     `unregister`, and cleanup as a host job, never during a
+     collection. Tests: the four `built-ins` directories, unit tests of
+     the collector (chains of ephemerons, values that reference their
+     keys, stress mode), hostile cases.
 10. `BigInt` (`implementer-hard`).
 11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
     `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
@@ -1966,6 +2022,30 @@ not repeated here; the open items of each spike session are in M6 step
     occurrence; a sorted vector would be faster.
   - The trie of a string list is built again for each occurrence (about
     0.3 ms for `\p{RGI_Emoji}`); a cache per list would skip that.
+- Proxy (M7 9a):
+  - Destructuring: the compiler resolves a keyed `var` binding target
+    after `GetV`; the spec resolves the binding first (test262
+    `keyed-destructuring-property-reference-target-evaluation-order-with-bindings.js`,
+    which a `with` proxy makes observable).
+  - A global read through a proxy on the prototype chain of the global
+    object runs the traps without saving the pc, so the stack positions
+    of errors in those traps are wrong.
+  - A `construct` trap that is not callable: V8's message is "is not a
+    function", swb's "is not a constructor".
+  - A sloppy assignment to an undeclared name skips the `has` trap of a
+    proxy on the prototype chain of the global object
+    (`vm/global.rs`); ResolveBinding calls HasProperty first, and the
+    strict path does.
+  - A chain of about 2,000 proxies, or 1,500 with a script `get` trap,
+    gives the `RangeError`. Measure Chromium's limit.
+  - Speed: proxy operations are 5 to 8 times slower than in
+    `node --jitless`. Possible: a cached "no trap" per handler shape, no
+    handle scope per read.
+  - `vm_bench` runs all programs in one runtime, so a change in the
+    number of objects of a realm moves collections between rows (the
+    `exec` row). Consider a new runtime per program.
+  - Remove `Proxy` from the EXCLUDED lists of the older probe generators
+    at their next re-probe (1 snippet in `js-arrays.json`).
 
 ## Backlog from M5
 

@@ -518,6 +518,12 @@ impl Runtime {
                             GetResult::CallGetter { getter, receiver } => {
                                 call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
                             }
+                            // A proxy on the chain (out of line; a getter
+                            // runs through re-entry).
+                            GetResult::Generic => {
+                                save!();
+                                put!(dst, tri!(self.get_generic_value(object, key, target)));
+                            }
                         }
                     } else if let Value::Object(_) = target {
                         // An index: String objects have their own.

@@ -10,8 +10,8 @@
 //! (§10.1), none of which runs script code except a getter or setter of
 //! an accessor element. All object kinds have them except String objects
 //! (the characters are index properties that are not stored) and host
-//! objects (their class can answer the internal methods); proxies and
-//! typed arrays will not either. Mapped arguments objects have them: the
+//! objects (their class can answer the internal methods) and proxies (their
+//! traps answer them); typed arrays will not either. Mapped arguments objects have them: the
 //! element of a mapped index holds the parameter's cell, which
 //! `[[GetOwnProperty]]` reads.
 //!
@@ -97,7 +97,10 @@ impl DenseArray {
 /// Whether the index properties of an object of this kind are exactly its
 /// stored elements (see the module documentation).
 fn ordinary_elements(kind: &ObjectKind) -> bool {
-    !matches!(kind, ObjectKind::StringWrapper(_) | ObjectKind::Host { .. })
+    !matches!(
+        kind,
+        ObjectKind::StringWrapper(_) | ObjectKind::Host { .. } | ObjectKind::Proxy(_)
+    )
 }
 
 /// The integer that `text` is the canonical decimal form of, if it is at

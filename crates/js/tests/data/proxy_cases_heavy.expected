@@ -1,0 +1,9 @@
+let p = {}; for (let i = 0; i < 1000000; i++) p = new Proxy(p, {}); try { p.x; 'no error'; } catch (e) { e.constructor.name + ': ' + e.message; } => ok "RangeError: Maximum call stack size exceeded"
+let p = function () { return 1; }; for (let i = 0; i < 100000; i++) p = new Proxy(p, {}); try { String(p()); } catch (e) { e.constructor.name + ': ' + e.message; } => ok "1"
+let p = {}; for (let i = 0; i < 100; i++) p = new Proxy(p, {}); p.y = 2; p.y => ok 2
+let p = {}; for (let i = 0; i < 1000; i++) p = new Proxy(p, {}); 'z' in p => ok false
+const keys = []; for (let i = 0; i < 100000; i++) keys.push('k' + i); const t = {}; for (const k of keys) t[k] = 1; Object.preventExtensions(t); Reflect.ownKeys(new Proxy(t, { ownKeys() { return keys; } })).length => ok 100000
+const keys = []; for (let i = 0; i < 100000; i++) keys.push('k' + i); Reflect.ownKeys(new Proxy({}, { ownKeys() { return keys; } })).length => ok 100000
+const keys = []; for (let i = 0; i < 100000; i++) keys.push('k' + i); keys.push('k5'); try { Reflect.ownKeys(new Proxy({}, { ownKeys() { return keys; } })); } catch (e) { e.message } => ok "'ownKeys' on proxy: trap returned duplicate entries"
+const p = new Proxy({}, { get(t, k, r) { return r[k]; } }); try { p.x; } catch (e) { e.constructor.name + ': ' + e.message } => ok "RangeError: Maximum call stack size exceeded"
+const r = Proxy.revocable({}, { get(t, k) { return r.proxy[k]; } }); try { r.proxy.x; } catch (e) { e.constructor.name + ': ' + e.message } => ok "RangeError: Maximum call stack size exceeded"

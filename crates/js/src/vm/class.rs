@@ -160,6 +160,11 @@ impl Runtime {
                 "a field of a value that is not an object",
             ));
         };
+        if self.heap.is_proxy(object)? {
+            // `this` of a derived class whose parent's `[[Construct]]`
+            // returned a proxy.
+            return self.with_scope(|rt| rt.create_data_property_or_throw(object, key, value));
+        }
         if self
             .heap
             .create_data_property(object, key, value, &self.vm)?
@@ -398,6 +403,9 @@ impl Runtime {
                 )),
             }),
             crate::object::SetResult::Done(_) => Ok(SetOutcome::Done),
+            crate::object::SetResult::Generic => {
+                self.with_scope(|rt| Ok(rt.set_generic(object, key, value, this, strict)?.into()))
+            }
         }
     }
 

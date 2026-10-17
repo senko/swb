@@ -430,6 +430,61 @@ general property definition. Catastrophic backtracking
 (`/(a*)*b/.test('a'.repeat(40))`) ends 0.05 ms after a deadline of 100 ms
 (the "time limit" lines of `vm_bench`).
 
+### Proxy
+
+The `proxy:` rows of `vm_bench` (best of 5, release, against `node
+--jitless`, 2026-10-17, M7 9a):
+
+| Program | swb (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| 1M reads without a trap | 89.0 | 16.5 | 5.4x |
+| 1M reads with a `get` trap | 201.1 | 27.5 | 7.3x |
+| 1M writes with a `set` trap | 182.1 | 25.9 | 7.0x |
+| 100k `Object.keys` with an `ownKeys` trap | 125.5 | 79.8 | 1.6x |
+| 1M calls with an `apply` trap | 220.9 | 26.6 | 8.3x |
+
+A read through a proxy leaves the heap's walk, opens a handle scope,
+records the target, the handler and the key, reads the trap from the
+handler (`[[Get]]` on the handler) and, with a trap, calls it through
+re-entry (about 65 ns); V8 has native built-ins for the internal methods
+of proxies. The trap names are atoms of the VM (reading them by name took
+128 ns per read without a trap). A call through an `apply` trap makes the
+argument array and is a tail call of the trap.
+
+The other rows, before (ad32583) and after, each the best of two runs of
+`vm_bench` alternating between the two builds: these moved by more than
+3 %.
+
+| Program | before (ms) | after (ms) | change |
+|---|---|---|---|
+| fib(27) | 62.1 | 66.9 | +7.7 % |
+| sum 10M integers in a try | 135.9 | 142.0 | +4.5 % |
+| new Error and read stack, 100k times | 323.9 | 335.6 | +3.6 % |
+| 1M calls that read arguments | 560.0 | 578.3 | +3.3 % |
+| 1M calls of new Function code | 89.7 | 98.1 | +9.4 % |
+| regexp: test 300k times | 51.1 | 54.9 | +7.4 % |
+| regexp: exec with groups 300k times | 194.8 | 223.6 | +14.8 % |
+| throw TypeError 1M times | 439.4 | 420.4 | −4.3 % |
+| iterator: take, drop, flatMap and reduce | 365.7 | 342.8 | −6.3 % |
+| string: toLowerCase, toUpperCase 4M calls | 557.4 | 506.0 | −9.2 % |
+| async: for await over an array of 100k values | 75.2 | 69.5 | −7.6 % |
+| regexp: global replace, 1M matches in 3M units | 59.2 | 55.0 | −7.1 % |
+
+Nine more rows were 3 to 6 % faster. The rows that move change from
+build to build: in the builds of this work, the regular expression
+rows `split` and `match` with `g` were 15 % slower in some and 5 %
+faster in others, and `fib(27)` between 0 and +8 %. The same programs as
+scripts of `swb-js` show no difference for `exec`, `split` and `match`,
+and callgrind counts the same instructions within 1.2 % for `fib(22)`
+and the `new Function` loop (+0.3 % for a mix of the `regexp`, property
+and call programs), so the moves are effects of code placement, not of
+work. The `exec` row also collects once more after the change (24 ms):
+the realm has a few more objects, so the collections fall elsewhere.
+The ordinary paths do one compare more per object of a prototype walk
+(the kind of the record that the walk loads anyway) and one more lookup
+of the object in a few runtime internal methods (`own_property`,
+`define_own_property`).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

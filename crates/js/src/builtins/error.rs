@@ -193,7 +193,8 @@ fn install_message_and_cause(
     }
     if let Value::Object(options) = options {
         let key = rt.heap.key_from_str("cause")?;
-        if rt.heap.has_property(options, key)? {
+        rt.heap.record(key);
+        if rt.has_property(options, key)? {
             let cause = rt.get_value(options.into(), key)?;
             rt.define(object, key, cause, true, false, true)?;
         }

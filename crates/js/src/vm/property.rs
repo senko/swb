@@ -18,7 +18,17 @@ use crate::object::{
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
+use crate::vm::proxy::SetDone;
 use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
+
+impl From<SetDone> for SetOutcome {
+    fn from(done: SetDone) -> Self {
+        match done {
+            SetDone::Done(_) => SetOutcome::Done,
+            SetDone::Setter { setter, receiver } => SetOutcome::Setter { setter, receiver },
+        }
+    }
+}
 
 /// The result of a property read.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -38,12 +48,14 @@ pub(crate) enum SetOutcome {
     Setter { setter: Value, receiver: Value },
 }
 
-impl From<GetResult> for Lookup {
-    fn from(result: GetResult) -> Self {
-        match result {
-            GetResult::Value(value) => Lookup::Value(value),
-            GetResult::CallGetter { getter, receiver } => Lookup::Getter { getter, receiver },
-        }
+/// The lookup of an ordinary heap walk. Callers take the generic path for
+/// [`GetResult::Generic`] before they convert, so a proxy that reaches this
+/// is an internal error, never an empty object.
+fn ordinary_lookup(result: GetResult) -> VmResult<Lookup> {
+    match result {
+        GetResult::Value(value) => Ok(Lookup::Value(value)),
+        GetResult::CallGetter { getter, receiver } => Ok(Lookup::Getter { getter, receiver }),
+        GetResult::Generic => Err(VmError::invariant("an ordinary lookup that met a proxy")),
     }
 }
 
@@ -57,6 +69,9 @@ impl Runtime {
     /// countdown for the keys, then lists them (the heap checks that the
     /// list fits under the limit before it allocates).
     pub(crate) fn own_keys(&mut self, object: Gc<Object>) -> VmResult<Vec<PropertyKey>> {
+        if self.heap.is_proxy(object)? {
+            return self.proxy_own_keys(object);
+        }
         let bound = self.heap.own_key_bound(object)?;
         self.charge(bound)?;
         Ok(self.heap.own_property_keys(object)?)
@@ -87,6 +102,9 @@ impl Runtime {
             return Ok(Lookup::Value(value));
         }
         let found = self.heap.get(object, key, receiver)?;
+        if found == GetResult::Generic {
+            return self.get_generic_scoped(object, key, receiver);
+        }
         if let (PropertyKey::Index(_), GetResult::Value(Value::Undefined)) = (key, found)
             // An own property with the value `undefined` ends the lookup.
             && self.heap.get_own_property(object, key)?.is_none()
@@ -102,7 +120,50 @@ impl Runtime {
                 current = self.heap.get_prototype_of(proto)?;
             }
         }
-        Ok(found.into())
+        ordinary_lookup(found)
+    }
+
+    /// The value of [`Runtime::get_generic`], with a getter called through
+    /// re-entry, in a handle scope of its own (for the interpreter's fast
+    /// path of named reads, which has none open).
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn get_generic_value(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        receiver: Value,
+    ) -> VmResult<Value> {
+        self.with_scope(|rt| match rt.get_generic(object, key, receiver)? {
+            Lookup::Value(value) => Ok(value),
+            Lookup::Getter { getter, receiver } => rt.call(getter, receiver, &[]),
+        })
+    }
+
+    /// [`Runtime::delete_generic`] of a proxy in a handle scope of its own,
+    /// out of line.
+    #[cold]
+    #[inline(never)]
+    fn delete_proxy_scoped(
+        &mut self,
+        proxy: Gc<Object>,
+        key: PropertyKey,
+        strict: bool,
+    ) -> VmResult<bool> {
+        self.with_scope(|rt| rt.delete_generic(proxy, key, strict))
+    }
+
+    /// [`Runtime::get_generic`] in a handle scope of its own (for the
+    /// interpreter, which has none open).
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn get_generic_scoped(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        receiver: Value,
+    ) -> VmResult<Lookup> {
+        self.with_scope(|rt| rt.get_generic(object, key, receiver))
     }
 
     /// The index properties of a String object (§10.4.3.5
@@ -124,9 +185,12 @@ impl Runtime {
     }
 
     /// `HasProperty` (§7.3.12); the heap knows the index properties of
-    /// String objects.
+    /// String objects, a chain with a proxy takes the generic path.
     pub(crate) fn has_property(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
-        Ok(self.heap.has_property(object, key)?)
+        match self.heap.has_property_fast(object, key)? {
+            Some(found) => Ok(found),
+            None => self.has_generic_scoped(object, key),
+        }
     }
 
     /// `base[key]` for a primitive base (§6.2.5.5 `GetValue` with `ToObject`,
@@ -149,13 +213,16 @@ impl Runtime {
             Value::Bool(_) => Intrinsic::BooleanPrototype,
             Value::Symbol(_) => Intrinsic::SymbolPrototype,
             Value::BigInt(_) => Intrinsic::ObjectPrototype,
-            Value::Object(object) => return Ok(self.heap.get(object, key, base)?.into()),
+            Value::Object(object) => return self.get_with_receiver(object, key, base),
             Value::Empty | Value::Cell(_) => {
                 return Err(VmError::invariant("a property read of an internal value"));
             }
         };
         let proto = self.intrinsic(realm, proto)?;
-        Ok(self.heap.get(proto, key, base)?.into())
+        match self.heap.get(proto, key, base)? {
+            GetResult::Generic => self.get_generic_scoped(proto, key, base),
+            found => ordinary_lookup(found),
+        }
     }
 
     /// The own `length` and index properties of a string value (§10.4.3.5
@@ -236,6 +303,7 @@ impl Runtime {
                     }
                     SetResult::Done(_) if strict => Err(self.cannot_create(base, key)),
                     SetResult::Done(_) => Ok(SetOutcome::Done),
+                    SetResult::Generic => self.set_generic_scoped(proto, key, value, base, strict),
                 };
             }
         };
@@ -245,6 +313,53 @@ impl Runtime {
             }
             SetResult::Done(false) if strict => Err(self.failed_write(target, key)),
             SetResult::Done(_) => Ok(SetOutcome::Done),
+            SetResult::Generic => self.set_generic_scoped(target, key, value, base, strict),
+        }
+    }
+
+    /// [`Runtime::set_generic`] in a handle scope of its own, out of line
+    /// (the interpreter has no scope open).
+    #[cold]
+    #[inline(never)]
+    fn set_generic_scoped(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+        receiver: Value,
+        strict: bool,
+    ) -> VmResult<SetOutcome> {
+        self.with_scope(|rt| Ok(rt.set_generic(object, key, value, receiver, strict)?.into()))
+    }
+
+    /// [`Runtime::has_generic`] in a handle scope of its own, out of line.
+    #[cold]
+    #[inline(never)]
+    fn has_generic_scoped(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
+        self.with_scope(|rt| rt.has_generic(object, key))
+    }
+
+    /// `O.[[Set]](P, V, Receiver)` for any object: the heap's walk, or the
+    /// generic path when the chain or the receiver has a proxy. With
+    /// `throw`, a `false` result is a `TypeError` with V8's wording.
+    pub(crate) fn set_with_receiver(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+        receiver: Value,
+        throw: bool,
+    ) -> VmResult<SetDone> {
+        let value = self.array_length_operand(receiver, key, value)?;
+        match self.heap.set(object, key, value, receiver, &self.vm)? {
+            SetResult::CallSetter { setter, receiver } => Ok(SetDone::Setter { setter, receiver }),
+            // The walk from `object` found the read-only property.
+            SetResult::Done(false) if throw => match receiver {
+                Value::Object(_) => Err(self.failed_write(object, key)),
+                _ => Err(self.cannot_create(receiver, key)),
+            },
+            SetResult::Done(done) => Ok(SetDone::Done(done)),
+            SetResult::Generic => self.set_generic(object, key, value, receiver, throw),
         }
     }
 
@@ -291,6 +406,9 @@ impl Runtime {
         strict: bool,
     ) -> VmResult<bool> {
         let deleted = match base {
+            Value::Object(object) if self.heap.is_proxy(object)? => {
+                self.delete_proxy_scoped(object, key, strict)?
+            }
             Value::Object(object) => {
                 let deleted = self.heap.delete(object, key)?;
                 if !deleted && strict {

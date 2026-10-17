@@ -144,6 +144,11 @@ impl Inspector<'_> {
     }
 
     fn object(&mut self, object: Gc<Object>, depth: usize, indent: usize) -> String {
+        // A proxy shows its target, without running a trap (Node.js does
+        // the same).
+        let Some(object) = self.rt.proxy_innermost(object) else {
+            return "<Revoked Proxy>".to_owned();
+        };
         if self.stack.contains(&object) {
             let index = if let Some(index) = self.circular.iter().position(|&o| o == object) {
                 index

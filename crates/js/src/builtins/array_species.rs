@@ -2,7 +2,7 @@
 //! (§23.1.2.5) and `Array.prototype[@@unscopables]` (§23.1.3.41).
 
 use crate::heap::Gc;
-use crate::object::{Object, ObjectKind, PropertyDescriptor};
+use crate::object::{Object, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -80,7 +80,7 @@ impl Runtime {
         original: Gc<Object>,
         length: f64,
     ) -> VmResult<Gc<Object>> {
-        if !matches!(self.heap.object(original)?.kind, ObjectKind::Array { .. }) {
+        if !self.is_array(original.into())? {
             return self.array_create(length);
         }
         let key = PropertyKey::String(self.vm.atoms.constructor);

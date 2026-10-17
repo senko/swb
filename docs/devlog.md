@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 9a, Proxy
+
+- Feature 9 is split into 9a (`Proxy`) and 9b (the weak collections).
+  Four target scripts use `new Proxy`: a reactive store on Ars, a lazy
+  object that forwards all 13 traps and a module namespace on BBC.
+- Proxy objects have the 13 internal methods of §10.5 with every
+  invariant check and V8's messages, and `Proxy.revocable`. The heap
+  stays free of script code: its prototype walks stop at a proxy before
+  any effect, and the runtime takes the generic path (`vm/proxy.rs`).
+  Heap methods that change objects refuse a proxy, so a missed call
+  site gives an internal error, not a wrong write.
+- Calls through a proxy without a trap are tail calls. The other proxy
+  levels charge the shared recursion budget (2 KiB per level, measured
+  at most 960 B), so a chain of a million proxies gives a `RangeError`,
+  not a stack overflow.
+- swb follows V8 where the spec leaves the order to the implementation
+  (`for-in` over proxies) and where V8 throws (the error names the trap
+  or the target that returned `false`). It follows the spec in two
+  orders of `with` that V8 does not.
+- test262 runtime: 35,233 → 35,666, the same in stress mode;
+  `built-ins/Proxy` 273 pass, 0 fail. 672 snippets give Chromium 148's
+  output except five (KNOWN). Hostile tests: chains, traps that call
+  themselves, endless prototype chains through traps, a million keys.
+- The review found no defect. It checked about 130 paths that read
+  objects and called every built-in function with five kinds of proxy
+  (5,940 calls, also in stress mode): no internal error. Its nits: a
+  conversion that read an unexpected proxy as an empty object is now an
+  internal error, and one record lookup less per new property. Two
+  spec details of globals and the chain limit went to the backlog.
+- Next: 9b, the weak collections.
+
 ## 2026-10-17: M7 feature 8c, Unicode property sets; end of feature 8
 
 - `\p{...}` and `\P{...}` have their code point sets. A generator in

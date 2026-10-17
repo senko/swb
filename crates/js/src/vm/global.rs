@@ -51,8 +51,37 @@ impl Runtime {
                 }));
             }
             current = self.heap.get_prototype_of(object)?;
+            // The global object is not a proxy; a prototype can be.
+            if let Some(proto) = current
+                && self.heap.is_proxy(proto)?
+            {
+                return self.global_through_proxy(global, proto, key);
+            }
         }
         Ok(None)
+    }
+
+    /// The rest of a global read whose walk met a proxy on the prototype
+    /// chain of the global object: `HasBinding` (the proxy's
+    /// `[[HasProperty]]`), then `GetBindingValue` of the object record
+    /// (`HasProperty` and `Get` of the global object, §9.1.1.2.6).
+    #[cold]
+    #[inline(never)]
+    fn global_through_proxy(
+        &mut self,
+        global: Gc<Object>,
+        proxy: Gc<Object>,
+        key: PropertyKey,
+    ) -> VmResult<Option<Lookup>> {
+        self.with_scope(|rt| {
+            if !rt.has_generic(proxy, key)? {
+                return Ok(None);
+            }
+            if !rt.has_property(global, key)? {
+                return Ok(Some(Lookup::Value(Value::Undefined)));
+            }
+            Ok(Some(rt.get_with_receiver(global, key, global.into())?))
+        })
     }
 
     /// `PutValue` on a global name (§9.1.1.4.5 `SetMutableBinding`; an
@@ -81,7 +110,7 @@ impl Runtime {
         }
         let global = record.global;
         let key = PropertyKey::String(name);
-        if strict && !self.heap.has_property(global, key)? {
+        if strict && !self.has_property(global, key)? {
             let text = self.name_text(name);
             return Err(VmError::reference_error(format!("{text} is not defined")));
         }

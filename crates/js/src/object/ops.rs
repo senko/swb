@@ -32,6 +32,10 @@ pub enum GetResult {
         /// The `this` value of the call.
         receiver: Value,
     },
+    /// The walk met a proxy, whose internal methods run script code: the
+    /// runtime takes the generic path from the start (nothing happened
+    /// yet).
+    Generic,
 }
 
 /// The result of [[Set]].
@@ -48,6 +52,9 @@ pub enum SetResult {
         /// The `this` value of the call.
         receiver: Value,
     },
+    /// The walk met a proxy, or the receiver is one: the runtime takes the
+    /// generic path from the start (nothing was written).
+    Generic,
 }
 
 /// The Number value of an array length.
@@ -57,6 +64,7 @@ pub(crate) fn length_value(length: u32) -> Value {
 
 impl Heap {
     /// `[[GetPrototypeOf]]` (§10.1.1).
+    #[inline]
     pub fn get_prototype_of(&self, object: Gc<Object>) -> Result<Option<Gc<Object>>> {
         let record = self.object(object)?;
         Ok(self.arenas.shapes.get(record.shape)?.proto)
@@ -82,6 +90,9 @@ impl Heap {
         proto: Option<Gc<Object>>,
     ) -> Result<(bool, usize)> {
         let record = self.object(object)?;
+        if let ObjectKind::Proxy(_) = record.kind {
+            return Err(Error::invariant("a heap [[SetPrototypeOf]] of a proxy"));
+        }
         let shape = self.arenas.shapes.get(record.shape)?;
         if shape.proto == proto {
             return Ok((true, 0));
@@ -89,8 +100,9 @@ impl Heap {
         if !record.extensible {
             return Ok((false, 0));
         }
-        // Step 8: no cycles. All kinds so far use the ordinary
-        // [[GetPrototypeOf]], so the walk goes to the end of the chain.
+        // Step 8: no cycles. The walk ends at a proxy (its
+        // [[GetPrototypeOf]] is not the ordinary one): a proxy has no
+        // prototype in its shape.
         let mut current = proto;
         let mut steps = 0;
         while let Some(p) = current {
@@ -119,18 +131,28 @@ impl Heap {
 
     /// `[[PreventExtensions]]` (§10.1.4).
     pub fn prevent_extensions(&mut self, object: Gc<Object>) -> Result<bool> {
-        self.object_mut(object)?.extensible = false;
+        let record = self.object_mut(object)?;
+        if let ObjectKind::Proxy(_) = record.kind {
+            return Err(Error::invariant("a heap [[PreventExtensions]] of a proxy"));
+        }
+        record.extensible = false;
         Ok(true)
     }
 
     /// `[[GetOwnProperty]]` (§10.1.5; for arrays also the `length`
     /// property, §10.4.2).
+    #[inline]
     pub fn get_own_property(
         &self,
         object: Gc<Object>,
         key: PropertyKey,
     ) -> Result<Option<Property>> {
-        let record = self.object(object)?;
+        self.own_property_of(self.object(object)?, key)
+    }
+
+    /// [`Heap::get_own_property`] of an object record.
+    #[inline]
+    fn own_property_of(&self, record: &Object, key: PropertyKey) -> Result<Option<Property>> {
         match key {
             PropertyKey::Index(index) => match record.elements.get(index) {
                 // §10.4.4.1: a mapped argument has its parameter's value
@@ -179,6 +201,9 @@ impl Heap {
         }
         match self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
+            ObjectKind::Proxy(_) => {
+                Err(Error::invariant("a heap [[DefineOwnProperty]] of a proxy"))
+            }
             _ => self.ordinary_define_own_property(object, key, desc, roots),
         }
     }
@@ -193,10 +218,15 @@ impl Heap {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> Result<Option<u16>> {
+        self.string_unit_of(self.object(object)?, key)
+    }
+
+    /// [`Heap::string_object_unit`] of an object record.
+    fn string_unit_of(&self, record: &Object, key: PropertyKey) -> Result<Option<u16>> {
         let PropertyKey::Index(index) = key else {
             return Ok(None);
         };
-        match self.object(object)?.kind {
+        match record.kind {
             ObjectKind::StringWrapper(string) => Ok(self.text(string)?.get(index as usize)),
             _ => Ok(None),
         }
@@ -299,18 +329,35 @@ impl Heap {
         self.charge_growth(object, before)
     }
 
-    /// `[[HasProperty]]` (§10.1.7).
+    /// `[[HasProperty]]` (§10.1.7). A proxy on the chain is an internal
+    /// error: the runtime's `has_property` answers for proxies.
     pub fn has_property(&self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
+        self.has_property_fast(object, key)?.ok_or(Error::invariant(
+            "a heap [[HasProperty]] that meets a proxy",
+        ))
+    }
+
+    /// `[[HasProperty]]` (§10.1.7), or `None` when the walk meets a proxy
+    /// (the runtime then takes the generic path).
+    pub(crate) fn has_property_fast(
+        &self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> Result<Option<bool>> {
         let mut current = object;
         loop {
-            if self.get_own_property(current, key)?.is_some()
-                || self.string_object_unit(current, key)?.is_some()
-            {
-                return Ok(true);
+            let record = self.object(current)?;
+            if let ObjectKind::Proxy(_) = record.kind {
+                return Ok(None);
             }
-            match self.get_prototype_of(current)? {
+            if self.own_property_of(record, key)?.is_some()
+                || self.string_unit_of(record, key)?.is_some()
+            {
+                return Ok(Some(true));
+            }
+            match self.arenas.shapes.get(record.shape)?.proto {
                 Some(proto) => current = proto,
-                None => return Ok(false),
+                None => return Ok(Some(false)),
             }
         }
     }
@@ -320,7 +367,11 @@ impl Heap {
     pub fn get(&self, object: Gc<Object>, key: PropertyKey, receiver: Value) -> Result<GetResult> {
         let mut current = object;
         loop {
-            match self.get_own_property(current, key)? {
+            let record = self.object(current)?;
+            if let ObjectKind::Proxy(_) = record.kind {
+                return Ok(GetResult::Generic);
+            }
+            match self.own_property_of(record, key)? {
                 Some(Property::Data { value, .. }) => return Ok(GetResult::Value(value)),
                 Some(Property::Accessor { get, .. }) => {
                     if get.is_undefined() {
@@ -331,7 +382,7 @@ impl Heap {
                         receiver,
                     });
                 }
-                None => match self.get_prototype_of(current)? {
+                None => match self.arenas.shapes.get(record.shape)?.proto {
                     Some(proto) => current = proto,
                     None => return Ok(GetResult::Value(Value::Undefined)),
                 },
@@ -359,11 +410,16 @@ impl Heap {
         // over the prototype chain.
         let mut current = object;
         loop {
-            if self.string_object_unit(current, key)?.is_some() {
-                // A character of a String object: not writable.
-                return Ok(SetResult::Done(false));
+            let record = self.object(current)?;
+            match record.kind {
+                ObjectKind::Proxy(_) => return Ok(SetResult::Generic),
+                ObjectKind::StringWrapper(_) if self.string_unit_of(record, key)?.is_some() => {
+                    // A character of a String object: not writable.
+                    return Ok(SetResult::Done(false));
+                }
+                _ => {}
             }
-            match self.get_own_property(current, key)? {
+            match self.own_property_of(record, key)? {
                 Some(Property::Data { writable, .. }) => {
                     if !writable {
                         return Ok(SetResult::Done(false));
@@ -379,7 +435,7 @@ impl Heap {
                         receiver,
                     });
                 }
-                None => match self.get_prototype_of(current)? {
+                None => match self.arenas.shapes.get(record.shape)?.proto {
                     Some(proto) => current = proto,
                     None => break,
                 },
@@ -389,10 +445,16 @@ impl Heap {
         let Value::Object(target) = receiver else {
             return Ok(SetResult::Done(false));
         };
-        if self.string_object_unit(target, key)?.is_some() {
+        let record = self.object(target)?;
+        if let ObjectKind::Proxy(_) = record.kind {
+            // A proxy receiver: its [[GetOwnProperty]] and
+            // [[DefineOwnProperty]] run traps.
+            return Ok(SetResult::Generic);
+        }
+        if self.string_unit_of(record, key)?.is_some() {
             return Ok(SetResult::Done(false));
         }
-        let done = match self.get_own_property(target, key)? {
+        let done = match self.own_property_of(record, key)? {
             Some(
                 Property::Accessor { .. }
                 | Property::Data {
@@ -526,7 +588,11 @@ impl Heap {
 
     /// [[Delete]] (§10.1.10).
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
-        if self.string_object_unit(object, key)?.is_some() {
+        let record = self.object(object)?;
+        if let ObjectKind::Proxy(_) = record.kind {
+            return Err(Error::invariant("a heap [[Delete]] of a proxy"));
+        }
+        if self.string_unit_of(record, key)?.is_some() {
             return Ok(false);
         }
         let Some(current) = self.get_own_property(object, key)? else {

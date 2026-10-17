@@ -326,7 +326,7 @@ fn read_replacer(rt: &mut Runtime, replacer: Value) -> VmResult<(Option<Value>, 
     if rt.is_callable(replacer)? {
         return Ok((Some(replacer), None));
     }
-    if !matches!(rt.heap.object(object)?.kind, ObjectKind::Array { .. }) {
+    if !rt.is_array(object.into())? {
         return Ok((None, None));
     }
     let length = rt.length_of_array_like(object)?;
@@ -755,9 +755,17 @@ impl Serializer {
         if self.stack.len() >= self.max_depth {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }
-        let is_array = matches!(rt.heap.object(object)?.kind, ObjectKind::Array { .. });
+        let is_array = rt.is_array(object.into())?;
         let members = if is_array {
-            let (length, _) = rt.heap.array_length(object)?;
+            let length = match rt.heap.array_length(object) {
+                Ok((length, _)) => length,
+                // A proxy of an array: `LengthOfArrayLike` through its
+                // traps (a length beyond the array indices would end at
+                // the time limit long before the last of them).
+                Err(_) => rt
+                    .length_of_array_like(object)?
+                    .min(f64::from(u32::MAX - 1)) as u32,
+            };
             Members::Elements { length, next: 0 }
         } else if let Some(list) = &self.list {
             Members::Properties {
@@ -957,6 +965,20 @@ fn key_string(rt: &mut Runtime, key: PropertyKey, made: &mut Option<Value>) -> V
 /// `EnumerableOwnProperties(object, key)` as far as it matters here:
 /// the enumerable own string keys, in `[[OwnPropertyKeys]]` order, rooted.
 fn enumerable_keys(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Keys> {
+    if rt.heap.is_proxy(object)? {
+        // `[[OwnPropertyKeys]]`, then `[[GetOwnProperty]]` of each string
+        // key, all before the first `Get` (§7.3.23).
+        let own = rt.own_keys(object)?;
+        rt.heap.record_keys(&own);
+        let mut keys = Vec::new();
+        for key in own {
+            rt.tick()?;
+            if !key.is_symbol() && rt.own_enumerable(object, key)? {
+                keys.push(key);
+            }
+        }
+        return Ok(Keys::Own(keys));
+    }
     let bound = rt.heap.own_key_bound(object)?;
     rt.charge(bound)?;
     rt.heap

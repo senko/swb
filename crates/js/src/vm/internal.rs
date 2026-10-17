@@ -8,7 +8,8 @@
 //! prototype of `%Object.prototype%` (§10.4.7) and the error messages
 //! (V8's wording) of the failing `DefinePropertyOrThrow` and
 //! `[[SetPrototypeOf]]`. The result of a read is recorded in the current
-//! handle scope.
+//! handle scope. Each method dispatches a proxy to its internal method
+//! (`proxy.rs`).
 
 use crate::heap::Gc;
 use crate::object::{INVALID_ARRAY_LENGTH, Object, ObjectKind, Property, PropertyDescriptor};
@@ -29,6 +30,8 @@ pub(crate) enum ProtoSet {
     Cycle,
     /// The object is an immutable prototype object (§10.4.7).
     Immutable,
+    /// The `setPrototypeOf` trap of a proxy returned a falsish value.
+    TrapFalse,
 }
 
 impl Runtime {
@@ -40,6 +43,9 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<Option<Property>> {
+        if self.heap.is_proxy(object)? {
+            return self.proxy_get_own_property(object, key);
+        }
         if let Some(unit) = self.heap.string_object_unit(object, key)? {
             let text = swb_js_text::String16::from_units(&[unit]);
             let character = self.heap.alloc_string(text)?;
@@ -64,6 +70,9 @@ impl Runtime {
         key: PropertyKey,
         mut desc: PropertyDescriptor,
     ) -> VmResult<bool> {
+        if self.heap.is_proxy(object)? {
+            return self.define_generic(object, key, desc, false);
+        }
         if let Some(value @ (Value::String(_) | Value::Object(_))) = desc.value
             && key == PropertyKey::String(self.heap.length_atom())
             && matches!(self.heap.object(object)?.kind, ObjectKind::Array { .. })
@@ -96,6 +105,10 @@ impl Runtime {
         key: PropertyKey,
         desc: PropertyDescriptor,
     ) -> VmResult<()> {
+        if self.heap.is_proxy(object)? {
+            self.define_generic(object, key, desc, true)?;
+            return Ok(());
+        }
         let before = self.heap.array_length(object).ok();
         if self.define_own_property(object, key, desc)? {
             return Ok(());
@@ -127,6 +140,11 @@ impl Runtime {
         if let PropertyKey::Index(index) = key
             && self.heap.store_dense(object, index, value)?
         {
+            return Ok(());
+        }
+        if self.heap.is_proxy(object)? {
+            let desc = PropertyDescriptor::data(value, true, true, true);
+            self.define_generic(object, key, desc, true)?;
             return Ok(());
         }
         if self
@@ -184,6 +202,9 @@ impl Runtime {
         object: Gc<Object>,
         proto: Option<Gc<Object>>,
     ) -> VmResult<ProtoSet> {
+        if self.heap.is_proxy(object)? {
+            return self.proxy_set_prototype_of(object, proto);
+        }
         if self.is_immutable_prototype(object) {
             // SetImmutablePrototype (§10.4.7.2).
             let same = self.heap.get_prototype_of(object)? == proto;
@@ -212,6 +233,9 @@ impl Runtime {
             ProtoSet::Immutable => VmError::type_error(
                 "Immutable prototype object 'Object.prototype' cannot have their prototype set",
             ),
+            ProtoSet::TrapFalse => {
+                VmError::type_error("'setPrototypeOf' on proxy: trap returned falsish")
+            }
             ProtoSet::Cycle | ProtoSet::Done => VmError::type_error("Cyclic __proto__ value"),
         }
     }

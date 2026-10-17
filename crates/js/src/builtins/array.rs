@@ -211,7 +211,9 @@ impl Runtime {
         let key = PropertyKey::String(self.vm.atoms.constructor);
         let constructor = match self.heap.get(object, key, object.into())? {
             crate::object::GetResult::Value(value) => value,
-            crate::object::GetResult::CallGetter { .. } => return Ok(false),
+            crate::object::GetResult::CallGetter { .. } | crate::object::GetResult::Generic => {
+                return Ok(false);
+            }
         };
         let realm = self.current_realm();
         let array = self.intrinsic(realm, Intrinsic::ArrayConstructor)?;
@@ -249,12 +251,9 @@ fn array_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
     Ok(NativeReturn::Value(array.into()))
 }
 
-/// `Array.isArray(arg)` (§23.1.2.2; no proxies yet).
+/// `Array.isArray(arg)` (§23.1.2.2): `IsArray`, through proxies.
 fn is_array(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let result = match rt.arg(call, 0) {
-        Value::Object(object) => matches!(rt.heap.object(object)?.kind, ObjectKind::Array { .. }),
-        _ => false,
-    };
+    let result = rt.is_array(rt.arg(call, 0))?;
     Ok(NativeReturn::Value(Value::Bool(result)))
 }
 

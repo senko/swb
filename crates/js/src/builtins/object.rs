@@ -11,11 +11,11 @@
 use swb_js_text::String16;
 
 use crate::heap::Gc;
-use crate::object::{Object, ObjectKind};
+use crate::object::ObjectKind;
 use crate::runtime::Runtime;
-use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::internal::ProtoSet;
+use crate::vm::proxy::revoked_error;
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
@@ -88,18 +88,6 @@ enum Kind {
     Entries,
 }
 
-/// Whether the own property `key` exists and is enumerable, without
-/// allocating the character of a String object.
-fn is_enumerable_own(rt: &mut Runtime, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
-    if rt.heap.string_object_unit(object, key)?.is_some() {
-        return Ok(true);
-    }
-    Ok(rt
-        .heap
-        .get_own_property(object, key)?
-        .is_some_and(|property| property.enumerable()))
-}
-
 /// `EnumerableOwnProperties(O, kind)` (§7.3.23) as an array.
 fn enumerable_own_properties(
     rt: &mut Runtime,
@@ -116,7 +104,7 @@ fn enumerable_own_properties(
             continue;
         }
         rt.with_scope(|rt| {
-            if !is_enumerable_own(rt, object, key)? {
+            if !rt.own_enumerable(object, key)? {
                 return Ok(());
             }
             let item = match kind {
@@ -208,7 +196,7 @@ fn own_keys_of_type(rt: &mut Runtime, call: &NativeCall, symbols: bool) -> VmRes
 /// `Object.getPrototypeOf(O)` (§20.1.2.12).
 fn get_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = rt.this_object_arg(call, 0)?;
-    let proto = rt.heap.get_prototype_of(object)?;
+    let proto = rt.get_prototype_of(object)?;
     Ok(NativeReturn::Value(proto.map_or(Value::Null, Value::from)))
 }
 
@@ -235,6 +223,10 @@ fn set_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
     };
     match rt.set_prototype_of(object, proto)? {
         ProtoSet::Done => Ok(NativeReturn::Value(target)),
+        // V8's words for `Object.setPrototypeOf`.
+        ProtoSet::TrapFalse => Err(VmError::type_error(
+            "'setPrototypeOf' on proxy: trap returned falsish for property 'undefined'",
+        )),
         why => Err(rt.set_prototype_failure(object, why)),
     }
 }
@@ -243,8 +235,7 @@ fn set_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
 fn has_own(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = rt.this_object_arg(call, 0)?;
     let key = rt.key_arg(rt.arg(call, 1))?;
-    let own = rt.heap.string_object_unit(object, key)?.is_some()
-        || rt.heap.get_own_property(object, key)?.is_some();
+    let own = rt.has_own_property(object, key)?;
     Ok(NativeReturn::Value(Value::Bool(own)))
 }
 
@@ -265,7 +256,24 @@ pub(super) fn builtin_tag_text(rt: &mut Runtime, value: Value) -> VmResult<Value
         _ => {
             let object = rt.to_object(value)?;
             rt.heap.record(object);
-            let builtin = builtin_tag(&rt.heap.object(object)?.kind);
+            let builtin = match &rt.heap.object(object)?.kind {
+                // Steps 4 and 5 (`IsArray` through proxies), then the
+                // `[[Call]]` of step 8; a proxy has no other slot.
+                ObjectKind::Proxy(data) => {
+                    let callable = data.callable;
+                    if rt
+                        .is_array(value)
+                        .map_err(|_| revoked_error("Object.prototype.toString"))?
+                    {
+                        "Array"
+                    } else if callable {
+                        "Function"
+                    } else {
+                        "Object"
+                    }
+                }
+                kind => builtin_tag(kind),
+            };
             let key = rt.symbol_key(WellKnown::ToStringTag);
             if let Value::String(tag) = rt.get_value(object.into(), key)? {
                 return tag_text(rt, tag);
@@ -306,7 +314,8 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Ordinary
         | ObjectKind::Host { .. }
         | ObjectKind::RawJson
-        | ObjectKind::SymbolWrapper(_) => "Object",
+        | ObjectKind::SymbolWrapper(_)
+        | ObjectKind::Proxy(_) => "Object",
     }
 }
 
