@@ -1876,6 +1876,111 @@ where the first plan did not work:
   its head request follows as `at async f`, as in Chromium. V8 also shows
   the frame of the built-in `next` (`at g.next`); swb shows no lines for
   built-in functions.
+- Regular expressions (feature 8a, `js-regexp`): the parser builds the
+  tree bottom-up with an explicit stack of open groups and classes, so
+  no part of the engine recurses with the pattern; the tree is a vector
+  in which children precede their parents, and the analyses (shortest
+  length, zero width) are computed as nodes are added. The modifiers
+  `(?ims-ims:...)` and the case closure of `i` are resolved into the
+  leaves: a class becomes the set of input characters it matches (for
+  each character whose canonical form is the canonical form of a member,
+  computed from the list of characters that the mapping changes), so the
+  matcher compares no case at run time except in backreferences. Without
+  `u` and `v`, Canonicalize is the toUppercase rule (`js-text`); with
+  them it is simple case folding, which `js-text` already had (5d), so
+  `u` and `v` with `i` work for all characters now (with
+  MaybeSimpleCaseFolding and the two extra word characters); 8c only adds
+  the property sets. Annex B.1.2.9 parses twice when a pattern has a
+  group name; a scan before the parse finds group names and counts the
+  capture groups (which a decimal escape of the web grammar needs), so
+  one parse with the right parameters is enough. Duplicate group names:
+  each group is checked against the previous group of its name only (the
+  first and last of three groups can only both participate if a
+  neighbouring pair can), in O(log depth) from the positions of the open
+  groups and their current alternatives; the error comes when the
+  group closes (V8 reports an unterminated group first). All `\k<name>`
+  references to one name share one list of groups, so a pattern with N
+  groups of a name and N references costs O(N) memory. Classes and
+  escapes are built once: a set of up to 16 ranges maps to one tree node
+  per (set, invert, `i`), so `\W` repeated a million times with `iu` runs
+  its case closure once; the sets in the tree have no spare capacity. A
+  class with `v` collects the ranges of its union operands and merges
+  them once when it closes (merging after each operand was quadratic).
+- The program: Rust enum instructions with `u32` jump targets (at most
+  24 bytes each), the sets with a bitmap of the first 256 characters, and
+  the slots: two per capture, one start position per open group, and
+  the registers of loops (counter and iteration start) and lookarounds.
+  A quantifier over one character test without captures is one `Repeat`
+  instruction (it gives back one character per backtrack, or takes one
+  more if lazy); `*` and `?` over other atoms need no counter; counted
+  loops have `LoopInit`/`LoopHead`/`LoopTail` with the empty check only
+  when the atom can match empty and the capture reset only when it has
+  groups (§22.2.2.3.1). An atom that only matches the empty string runs
+  at most once (`(?:){4294967296}` is instant; V8 is too). Counts above
+  2^32 - 2 count as unbounded. A lookbehind compiles its body backward;
+  a capture closes from its recorded start to the current position in
+  either direction. The search skips start positions whose character is
+  not in the set of first characters, when every match starts with one.
+- The matcher API is resumable: `Matcher::new(regex, start)` and
+  `Matcher::run(regex, input, steps, memory_limit)`, which returns
+  `Match`, `NoMatch` or `Pending` after at most `steps` steps
+  (instructions, characters of a `Repeat` loop or a backreference
+  compare, restored choice points); an instruction that runs out of
+  steps keeps its progress in the state and goes on in the next call, so
+  each call does bounded work (popping a choice point is a step too: a
+  call that runs out of steps while it pops continues in the next call).
+  The caller passes the input again on each
+  call (positions are code-unit indices; the matcher checks that the
+  length did not change), so 8b can run the time check and the heap
+  check between calls without a borrow of the input. A start inside a
+  surrogate pair with `u` or `v` moves to the pair (§22.2.7.2; V8 does
+  the same). Choice points have a generation number; a slot is logged in
+  the undo log only once per choice point, so loops without choice
+  points do not grow the log. `heap_bytes` of the program and of the
+  matcher state are for the heap accounting of 8b.
+- Limits: at most 32,767 capture groups ("Too many captures", as V8),
+  nesting of groups and classes at most 32,768 deep, at most 2^22 tree
+  nodes and 2^22 instructions ("Regular expression too large"; V8 accepts
+  1,000,000 nested `(?:` but not 100,000 nested lookaheads). The
+  backtrack stack and the undo log stop at the caller's memory limit
+  (`Error::MemoryLimit`): the check runs before a vector doubles, with
+  the size after the growth, and the limit also covers the capture slots
+  and their undo markers (12 bytes per slot). `check_literal` runs the parser without
+  building the tree or any set, so a 10 MB literal costs no memory beyond
+  the parser's stacks.
+- Errors: `Error::Syntax(SyntaxKind)` with V8's reason
+  (`Error::message` writes `Invalid regular expression: /P/F: REASON`
+  with the pattern unescaped, as V8 does for both literals and the
+  constructor), `InvalidFlags` (the constructor's message, "Invalid flags
+  supplied to RegExp constructor 'F'", is 8b's), `Unsupported`,
+  `MemoryLimit`, `StepLimit` (only `Regex::exec`, the helper for tests
+  and tools) and `InputChanged`. The order of errors follows V8 where
+  measured (the first error from the left; unknown `\k` names at the
+  end): `^{`, `${` and `\B{` with `u` or `v` are "Lone quantifier
+  brackets" (a `{` after an assertion is not its quantifier), a class
+  with `v` that ends after `-` is "Unterminated character class", and a
+  duplicate group name is reported when the group closes. Two differences
+  from Chromium 148 are deliberate, because swb follows the
+  specification (`KNOWN` in `crates/js-regexp/tests/cases.rs`): the
+  single-character alternatives of `\q{...}` fold with `iv`
+  (§22.2.2.9 applies MaybeSimpleCaseFolding to the whole
+  ClassStringDisjunction; Chromium folds only the strings of other
+  lengths, so `[\q{a|bc}]` does not match "A" there), and `\p{sc=Hrkt}`,
+  `\p{scx=Hrkt}` and the long name `Katakana_Or_Hiragana` are accepted
+  (§22.2.2.9.8 takes every value of `PropertyValueAliases.txt`; Chromium
+  says "Invalid property name"). The delta review measured a third
+  difference: in Chromium the `i` of a modifier group also applies to
+  some atoms after the group (`(?i:x)\w` with `u` matches "xſ",
+  `(?i:[a])[a]` with `v` matches "aA"); swb applies it only inside the
+  group, as §22.2.2 says.
+- `\p{...}` and `\P{...}` until 8c: the names and values are checked
+  (ECMA-262 tables 65 to 67 and `PropertyValueAliases.txt`; also
+  `WSpace`, which `PropertyAliases.txt` lists and V8 accepts, though
+  table 66 leaves it out), so literals with them parse, but
+  `Regex::new` returns `Error::Unsupported` rather than a wrong set; 8b
+  can treat it as the engine's "not supported yet". The tables of names
+  (`js-text/src/unicode/property_names.rs`) index the canonical values,
+  for the sets of 8c.
 
 ## Consequences
 

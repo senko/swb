@@ -14,3 +14,7 @@ workspace = true
 [dependencies]
 swb-js-text.workspace = true
 thiserror.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

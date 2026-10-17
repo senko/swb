@@ -1,18 +1,21 @@
 //! Unicode data for the JavaScript engine: the character classes of the
 //! lexical grammar (ECMA-262 clause 12: white space, line terminators and
 //! identifier characters) here, case mapping in [`case`], normalization
-//! in [`normalize`] and the order of `localeCompare` in [`collate`].
+//! in [`normalize`], the order of `localeCompare` in [`collate`] and the
+//! names of the properties of regular expressions in [`property`].
 //!
-//! The tables in `tables.rs`, `case_tables.rs` and `norm_tables.rs` are
-//! generated from the Unicode Character Database by `swbtools
-//! js-unicode-tables`. ASCII has fast paths that a test compares with the
-//! tables.
+//! The tables in `tables.rs`, `case_tables.rs`, `norm_tables.rs` and
+//! `property_names.rs` are generated from the Unicode Character Database
+//! by `swbtools js-unicode-tables`. ASCII has fast paths that a test
+//! compares with the tables.
 
 pub mod case;
 mod case_tables;
 pub mod collate;
 mod norm_tables;
 pub mod normalize;
+pub mod property;
+mod property_names;
 mod tables;
 
 /// U+200C ZERO WIDTH NON-JOINER.
@@ -79,6 +82,12 @@ pub fn is_whitespace(cp: u32) -> bool {
         0..0x80 => false,
         _ => in_ranges(&tables::SPACE_SEPARATORS, cp),
     }
+}
+
+/// The code points of `General_Category` Zs as sorted, disjoint ranges
+/// (part of `WhiteSpace`; the class `\s` of regular expressions).
+pub fn space_separators() -> &'static [(u32, u32)] {
+    &tables::SPACE_SEPARATORS
 }
 
 /// `LineTerminator` (§12.3): LF, CR, U+2028 and U+2029.

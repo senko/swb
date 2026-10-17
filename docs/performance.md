@@ -317,6 +317,53 @@ of the loop's `match`, `CodeKind::AsyncGenerator` at the end of its
 enum) moved `fib(27)` between +7 % and +13 %; the first is kept, the
 other two are not.
 
+### Regular expressions
+
+`cargo run --release -p swb-js-regexp --example bench`
+(`crates/js-regexp/examples/bench.rs`) times the matcher alone: typical
+patterns of the target scripts and patterns that backtrack much, each
+finding all matches over its input like a global `exec` loop (a new
+`Matcher` per match, as `exec` makes one), averaged over the runs; it
+also prints the steps of the matcher.
+`node --jitless crates/js-regexp/examples/bench.js` runs the same cases
+in V8's regular expression interpreter (no native code), which is the
+fair comparison for an interpreter; without `--jitless` V8 compiles hot
+patterns to machine code. 2026-10-17, M7 8a, same machine, Node.js 22.11:
+
+| Case | Input | swb (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|---|
+| trim `^\s+\|\s+$` /g | 102 KB, 2 matches | 0.064 | 0.061 | 1.0x |
+| query `([^&=]+)=([^&]*)` /g | 56 KB, 8,000 | 0.899 | 0.848 | 1.1x |
+| word `\b(?:fox\|dog)\b` /gi | 126 KB, 4,000 | 0.322 | 0.462 | 0.7x |
+| class `[A-Z]` /g | 126 KB, 2,000 | 0.151 | 0.436 | 0.3x |
+| tag `<a href="([^"]*)">(.*?)</a>` /g | 118 KB, 2,000 | 0.620 | 0.386 | 1.6x |
+| literal `Headline` /g | 118 KB, 2,000 | 0.145 | 0.124 | 1.2x |
+| alternation `(?:quick\|lazy\|again)\s(\w+)` /g | 126 KB, 6,000 | 0.700 | 0.927 | 0.8x |
+| dot-star `o.*z` /g | 126 KB, 1 | 0.131 | 0.040 | 3.3x |
+| nested `(a+)+b` | 22 `a`, no match | 291.8 | 152.7 | 1.9x |
+| redos `^(\w+\s?)*$` | 21 units, no match | 0.462 | 0.347 | 1.3x |
+| backref `(\w+)\s\1` /g | 120 KB, 10,000 | 0.804 | 1.567 | 0.5x |
+| lookbehind `(?<=\$)\d+` /g | 145 KB, 10,000 | 0.774 | 2.230 | 0.3x |
+
+The search skips start positions whose character cannot start a match
+(the set of first characters, after zero-width terms); without that,
+`trim` took 1.1 ms and `lookbehind` 1.7 ms. A loop over one character
+test without captures (`\w+`, `.*`, `[^&]*`) is one instruction that gives
+back one character per backtrack. `nested` is exponential in both engines
+(88 million steps in swb, 3.3 ns per step); the time check of the
+caller stops such a match (ADR 0026 section 9).
+
+Pattern compile cost (release, one `Regex::new`): a class with `v` of
+100,000 distinct characters 6.7 ms (35 s before the fix of the review
+round: each element copied the set), `\q{...}` with 100,000 alternatives
+6.7 ms, 50,000 nested `[x]` with `iv` 5.5 ms, 20,000 duplicate group names
+with 20,000 `\k<a>` 6.3 ms and 3 MB (3.1 GB), `\W` 50,000 times with `iu`
+9 ms (5.4 s), 1,000,000 times 0.19 s and 100 MB peak (107 s, 10 GB), and
+100,000 identical classes `[Ā-ကa-z]` with `i` 9.8 ms (5.6 s). Different
+classes still pay for their case closure: 20,000 distinct classes of the
+last form take 1.35 s (67 µs each; the closure of a range of 3,800
+characters walks about 300 changed characters).
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

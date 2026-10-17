@@ -793,6 +793,16 @@ fn regular_expression_errors() {
         // Flags cannot contain escapes; Chromium reports a flag error.
         ("/a/\\u0067", flags),
         ("/a/g\\u0067", flags),
+        // The early errors of the pattern (§13.2.7.2), with V8's messages.
+        ("/(/", "Invalid regular expression: /(/: Unterminated group"),
+        (
+            "/a{2,1}/u",
+            "Invalid regular expression: /a{2,1}/u: numbers out of order in {} quantifier",
+        ),
+        (
+            "/[^\\q{ab}]/v",
+            "Invalid regular expression: /[^\\q{ab}]/v: Negated character class may contain strings",
+        ),
     ] {
         let error = error_with(source, Goal::RegExp);
         assert_eq!(

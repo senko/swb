@@ -132,7 +132,7 @@
   "test/language/keywords": 25,
   "test/language/line-terminators": 41,
   "test/language/literals/numeric": 157,
-  "test/language/literals/regexp": 39,
+  "test/language/literals/regexp": 69,
   "test/language/literals/string": 73,
   "test/language/punctuators": 11,
   "test/language/reserved-words": 26,

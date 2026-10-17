@@ -54,7 +54,7 @@ impl<U: CodeUnit> Lexer<'_, U> {
         let pattern = U::view(self.slice(start + 1, body_end));
         let flags_text = U::view(self.slice(flags_start, self.pos));
         let flags = swb_js_regexp::check_literal(pattern, flags_text)
-            .map_err(|error| SyntaxError::new(start as u32, error.to_string()))?;
+            .map_err(|error| SyntaxError::new(start as u32, error.message(pattern, flags_text)))?;
         if self.peek() == Some(0x5C) {
             // An escape after the flags would start an identifier, which
             // can never follow a regular expression literal directly.

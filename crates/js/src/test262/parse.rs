@@ -57,15 +57,8 @@ fn plan(meta: &Meta, skipped: &BTreeSet<String>) -> Result<&'static [Mode], Stri
     })
 }
 
-/// Whether a test is about regular expression syntax, whose early errors
-/// come with M7 feature 8a.
-fn is_regexp_test(path: &str, meta: &Meta) -> bool {
-    path.to_ascii_lowercase().contains("regexp")
-        || meta.features.iter().any(|f| f.starts_with("regexp"))
-}
-
 /// Parses one test in one mode and judges the result.
-fn run_mode(path: &str, meta: &Meta, source: &str, mode: Mode) -> Status {
+fn run_mode(meta: &Meta, source: &str, mode: Mode) -> Status {
     let raw = meta.flags.iter().any(|f| f == "raw");
     let text = if mode == Mode::Strict && !raw {
         format!("\"use strict\";\n{source}")
@@ -97,10 +90,6 @@ fn run_mode(path: &str, meta: &Meta, source: &str, mode: Mode) -> Status {
             }
         }
         Err(error) => Status::Fail(format!("{error}").chars().take(110).collect()),
-        Ok(_) if expects_error && is_regexp_test(path, meta) => Status::Fail(
-            "expected SyntaxError (regular expression syntax, M7 feature 8a), but it parsed"
-                .to_owned(),
-        ),
         Ok(_) if expects_error => Status::Fail("expected SyntaxError, but it parsed".to_owned()),
         Ok(_) => Status::Pass,
     }
@@ -108,7 +97,6 @@ fn run_mode(path: &str, meta: &Meta, source: &str, mode: Mode) -> Status {
 
 /// Parses a test in all of its modes; a panic is a failure.
 pub(super) fn run_test(
-    path: &str,
     meta: &Meta,
     source: &str,
     skipped: &BTreeSet<String>,
@@ -124,7 +112,7 @@ pub(super) fn run_test(
             Mode::Strict => "strict",
             Mode::Module => "module",
         };
-        let status = catch_unwind(AssertUnwindSafe(|| run_mode(path, meta, source, mode)))
+        let status = catch_unwind(AssertUnwindSafe(|| run_mode(meta, source, mode)))
             .unwrap_or_else(|_| Status::Fail("panic".to_owned()));
         results.push((label, status));
     }
@@ -140,12 +128,7 @@ mod tests {
     fn run(front: &str, body: &str) -> Status {
         let source = format!("{front}\n{body}");
         let skipped = parse_skip_list("feature later # a comment\n");
-        combine(&run_test(
-            "test/language/x.js",
-            &parse_meta(&source),
-            &source,
-            &skipped,
-        ))
+        combine(&run_test(&parse_meta(&source), &source, &skipped))
     }
 
     #[test]

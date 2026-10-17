@@ -1,9 +1,10 @@
 """`swbtools js-unicode-tables`: Unicode tables for the JavaScript engine.
 
-Writes three files in `crates/js-text/src/unicode/` from the Unicode
+Writes four files in `crates/js-text/src/unicode/` from the Unicode
 Character Database (`ucd.py` downloads the files into `out/ucd/`):
 `case_tables.rs` (`js_case_tables.py`), `norm_tables.rs`
-(`js_norm_tables.py`) and `tables.rs`:
+(`js_norm_tables.py`), `property_names.rs` (`js_property_names.py`) and
+`tables.rs`:
 
 - `ID_START`, `ID_CONTINUE`: the properties ID_Start and ID_Continue
   (ECMA-262 §12.7, UnicodeIDStart and UnicodeIDContinue).
@@ -17,6 +18,7 @@ from pathlib import Path
 from swbtools import paths
 from swbtools.js_case_tables import generate_case_tables
 from swbtools.js_norm_tables import generate_norm_tables
+from swbtools.js_property_names import generate_property_names
 from swbtools.ucd import has_property, range_table, ranges, read_property, ucd_file
 
 VERSION = "17.0.0"
@@ -61,7 +63,7 @@ def tables_path() -> Path:
 
 
 def write_tables() -> int:
-    """Writes the three table files and downloads `NormalizationTest.txt`
+    """Writes the four table files and downloads `NormalizationTest.txt`
     for the full normalization test. Returns the exit code."""
     core = ucd_file(FILES["DerivedCoreProperties"], VERSION)
     outputs = {
@@ -76,6 +78,11 @@ def write_tables() -> int:
         "norm_tables.rs": generate_norm_tables(
             ucd_file("ucd/UnicodeData.txt", VERSION),
             ucd_file("ucd/DerivedNormalizationProps.txt", VERSION),
+            VERSION,
+        ),
+        "property_names.rs": generate_property_names(
+            ucd_file("ucd/PropertyAliases.txt", VERSION),
+            ucd_file("ucd/PropertyValueAliases.txt", VERSION),
             VERSION,
         ),
     }

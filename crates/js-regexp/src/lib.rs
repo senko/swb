@@ -1,10 +1,34 @@
 //! Regular expressions for the JavaScript engine (ADR 0026 section 10):
 //! pattern parser, compiler and backtracking matcher.
 //!
-//! Pattern parsing is not implemented yet (M7 feature 8a):
-//! [`check_literal`] checks the flags only.
+//! - [`check_literal`] checks a regular expression literal for the
+//!   front end (§13.2.7.2, `IsValidRegularExpressionLiteral`).
+//! - [`Regex::new`] parses and compiles a pattern into a program that is a
+//!   plain Rust value.
+//! - [`Matcher`] runs a program on an input in slices of steps, so that
+//!   the caller can run its time check between them.
+//!
+//! The parser builds a tree (`ast.rs`) with an explicit stack, the
+//! compiler (`compile.rs`) emits instructions (`program.rs`) and the
+//! matcher (`exec.rs`) follows ECMA-262 §22.2.2 with a backtrack stack and
+//! an undo log. None of them recurses in Rust.
+//!
+//! Not yet supported: the code point sets of `\p{...}` and `\P{...}` (M7
+//! feature 8c). Patterns with them parse (their names are checked), but
+//! [`Regex::new`] returns [`Error::Unsupported`].
+
+mod ast;
+mod charset;
+mod compile;
+mod error;
+mod exec;
+mod parser;
+mod program;
 
 use swb_js_text::Str16;
+
+pub use error::{Error, SyntaxKind};
+pub use exec::Matcher;
 
 /// The flags of a regular expression (§22.2.6.4: `d`, `g`, `i`, `m`, `s`,
 /// `u`, `v`, `y`).
@@ -71,17 +95,8 @@ impl Flags {
     }
 }
 
-/// An error in a regular expression.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// An unknown flag letter, a letter twice, or both `u` and `v`.
-    #[error("Invalid regular expression flags")]
-    InvalidFlags,
-}
-
 /// Parses the flags of a regular expression: only the letters of
-/// [`Flags`], none twice, and not both `u` and `v` (§22.2.3.1,
+/// [`Flags`], none twice, and not both `u` and `v` (§22.2.3.3,
 /// `RegExpInitialize`; §13.2.7.2, `IsValidRegularExpressionLiteral`).
 pub fn parse_flags(text: Str16<'_>) -> Result<Flags, Error> {
     let mut flags = Flags::empty();
@@ -99,11 +114,145 @@ pub fn parse_flags(text: Str16<'_>) -> Result<Flags, Error> {
 }
 
 /// Checks a regular expression literal (§13.2.7.2,
-/// `IsValidRegularExpressionLiteral`) and returns its flags. It accepts any
-/// pattern until M7 feature 8a.
+/// `IsValidRegularExpressionLiteral`): the flags and the early errors of
+/// the pattern (§22.2.1.1). Returns the flags. [`Error::message`] gives the
+/// message of the `SyntaxError`.
 pub fn check_literal(pattern: Str16<'_>, flags: Str16<'_>) -> Result<Flags, Error> {
-    let _ = pattern;
-    parse_flags(flags)
+    let flags = parse_flags(flags)?;
+    parser::validate(pattern, flags).map_err(Error::Syntax)?;
+    Ok(flags)
+}
+
+/// A compiled regular expression. It owns its program and keeps no
+/// reference to the pattern text.
+#[derive(Clone, Debug)]
+pub struct Regex {
+    program: program::Program,
+    flags: Flags,
+    group_names: Box<[Option<Box<[u16]>>]>,
+}
+
+impl Regex {
+    /// Parses and compiles a pattern (§22.2.3.3, `RegExpInitialize` steps 10
+    /// to 16). The errors are [`Error::Syntax`] (a `SyntaxError`, also for
+    /// the limits on captures, nesting and program size) and
+    /// [`Error::Unsupported`].
+    pub fn new(pattern: Str16<'_>, flags: Flags) -> Result<Regex, Error> {
+        let ast = parser::parse(pattern, flags).map_err(Error::Syntax)?;
+        let program = compile::compile(&ast, flags)?;
+        let group_names = ast
+            .group_names
+            .into_iter()
+            .map(|name| name.map(Vec::into_boxed_slice))
+            .collect();
+        Ok(Regex {
+            program,
+            flags,
+            group_names,
+        })
+    }
+
+    /// The flags.
+    pub fn flags(&self) -> Flags {
+        self.flags
+    }
+
+    /// The number of capture groups, without the whole match
+    /// (`[[CapturingGroupsCount]]`).
+    pub fn group_count(&self) -> usize {
+        self.program.group_count as usize
+    }
+
+    /// The name of each capture group as UTF-16, in order (index 0 is
+    /// group 1); `None` for a group without a name. Duplicate names
+    /// (in different alternatives) appear once for each group.
+    pub fn group_names(&self) -> &[Option<Box<[u16]>>] {
+        &self.group_names
+    }
+
+    /// Whether some group has a name (the result then has `groups`).
+    pub fn has_named_groups(&self) -> bool {
+        self.group_names.iter().any(Option::is_some)
+    }
+
+    /// The approximate number of bytes that the compiled program uses on
+    /// the heap.
+    pub fn heap_bytes(&self) -> usize {
+        self.program.heap_bytes()
+            + self
+                .group_names
+                .iter()
+                .map(|n| 16 + n.as_ref().map_or(0, |n| n.len() * 2))
+                .sum::<usize>()
+    }
+
+    /// Runs a match from `start` to its end, with at most `max_steps`
+    /// steps (then [`Error::StepLimit`]) and the memory limit. For tests
+    /// and tools; the engine uses [`Matcher`] with its time check.
+    pub fn exec(
+        &self,
+        input: Str16<'_>,
+        start: usize,
+        max_steps: u64,
+        memory_limit: usize,
+    ) -> Result<Option<Captures>, Error> {
+        let mut matcher = Matcher::new(self, start);
+        let mut left = max_steps;
+        loop {
+            let slice = left.min(1 << 20) as u32;
+            match matcher.run(self, input, slice, memory_limit)? {
+                Outcome::Match(captures) => return Ok(Some(captures)),
+                Outcome::NoMatch => return Ok(None),
+                Outcome::Pending => {
+                    left -= u64::from(slice);
+                    if left == 0 {
+                        return Err(Error::StepLimit);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The capture groups of a match: start and end (code-unit indices) of
+/// the whole match (index 0) and of each group, or `None` for a group that
+/// did not take part.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Captures {
+    spans: Vec<Option<(usize, usize)>>,
+}
+
+impl Captures {
+    /// The span of group `index` (0 is the whole match).
+    pub fn get(&self, index: usize) -> Option<(usize, usize)> {
+        self.spans.get(index).copied().flatten()
+    }
+
+    /// The number of entries: the group count plus one.
+    pub fn len(&self) -> usize {
+        self.spans.len()
+    }
+
+    /// Whether there are no entries (never: the whole match is entry 0).
+    pub fn is_empty(&self) -> bool {
+        self.spans.is_empty()
+    }
+
+    /// The spans in order.
+    pub fn spans(&self) -> &[Option<(usize, usize)>] {
+        &self.spans
+    }
+}
+
+/// The result of a call to [`Matcher::run`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// The first match from the start position.
+    Match(Captures),
+    /// No match from the start position (or, with `y`, at it).
+    NoMatch,
+    /// The steps ran out; call again with the same input.
+    Pending,
 }
 
 #[cfg(test)]
@@ -153,8 +302,32 @@ mod tests {
     }
 
     #[test]
-    fn pattern_is_not_checked_yet() {
+    fn literal_patterns_are_checked() {
         let pattern = Str16::Latin1(b"(unclosed[");
-        assert!(check_literal(pattern, Str16::Latin1(b"g")).is_ok());
+        let error = check_literal(pattern, Str16::Latin1(b"g")).expect_err("unterminated");
+        assert_eq!(
+            error.message(pattern, Str16::Latin1(b"g")),
+            "Invalid regular expression: /(unclosed[/g: Unterminated character class"
+        );
+        assert!(check_literal(Str16::Latin1(b"a(b)c"), Str16::Latin1(b"gi")).is_ok());
+        assert_eq!(
+            check_literal(Str16::Latin1(b"a"), Str16::Latin1(b"gg")),
+            Err(Error::InvalidFlags)
+        );
+    }
+
+    #[test]
+    fn compiled_regex_reports_its_groups() {
+        let re = Regex::new(Str16::Latin1(b"(?<a>x)|(?<a>y)(z)"), Flags::empty()).expect("valid");
+        assert_eq!(re.group_count(), 3);
+        let names: Vec<Option<&[u16]>> = re.group_names().iter().map(|n| n.as_deref()).collect();
+        assert_eq!(names, [Some(&[0x61u16][..]), Some(&[0x61][..]), None]);
+        assert!(re.has_named_groups());
+        assert!(re.heap_bytes() > 0);
+        let m = re
+            .exec(Str16::Latin1(b"--yz"), 0, 1000, 1 << 20)
+            .expect("no limit")
+            .expect("a match");
+        assert_eq!(m.spans(), &[Some((2, 4)), None, Some((2, 3)), Some((3, 4))]);
     }
 }

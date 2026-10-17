@@ -353,7 +353,7 @@ fn run_file(
     match read_test(&args.dir, path) {
         Ok(source) if args.parse_only => {
             let meta = parse_meta(&source);
-            parse::run_test(path, &meta, &source, &subset.features)
+            parse::run_test(&meta, &source, &subset.features)
         }
         Ok(source) => {
             let meta = parse_meta(&source);

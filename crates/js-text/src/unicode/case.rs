@@ -111,6 +111,58 @@ pub fn simple_fold(cp: u32) -> u32 {
     run_delta(&t::FOLD_RUNS, cp).map_or(cp, |d| apply(cp, d))
 }
 
+/// The code points of a run table that the table maps, with their
+/// mappings.
+fn run_changes(runs: &'static [(u32, u32, u8, i32)]) -> impl Iterator<Item = (u32, u32)> {
+    runs.iter().flat_map(|&(first, last, step, delta)| {
+        (first..=last)
+            .step_by(usize::from(step))
+            .map(move |cp| (cp, apply(cp, delta)))
+    })
+}
+
+/// Every code point whose simple case folding (`CaseFolding.txt`, status
+/// C and S) is another code point, with that folding, in code point
+/// order. Regular expressions with `u` or `v` and `i` use it to build the
+/// sets of characters that match a class (§22.2.2.7.3, Canonicalize).
+pub fn simple_fold_changes() -> impl Iterator<Item = (u32, u32)> {
+    let ascii = (0x41..=0x5A).map(|cp| (cp, cp + 32));
+    ascii.chain(run_changes(&t::FOLD_RUNS).filter(|&(cp, _)| cp >= 0x80))
+}
+
+/// `Canonicalize` of a regular expression without `u` and `v` but with
+/// `i` (ECMA-262 §22.2.2.7.3,
+/// <https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch>): the
+/// full uppercase mapping of the code unit, unless that is not exactly one
+/// code unit or maps a unit at or above 128 to one below 128.
+pub fn regexp_canonicalize(unit: u16) -> u16 {
+    let cp = u32::from(unit);
+    if cp < 0x80 {
+        return if (0x61..=0x7A).contains(&cp) {
+            unit - 32
+        } else {
+            unit
+        };
+    }
+    let (mapped, len) = upper_full(cp);
+    if len != 1 || mapped[0] < 0x80 {
+        return unit;
+    }
+    u16::try_from(mapped[0]).unwrap_or(unit)
+}
+
+/// Every code unit that [`regexp_canonicalize`] changes, with its
+/// canonical unit, in code unit order.
+pub fn regexp_canonicalize_changes() -> impl Iterator<Item = (u16, u16)> {
+    let ascii = (0x61..=0x7A).map(|u: u16| (u, u - 32));
+    let others = run_changes(&t::UPPER_RUNS).filter_map(|(cp, _)| {
+        let unit = u16::try_from(cp).ok().filter(|&u| u >= 0x80)?;
+        let canonical = regexp_canonicalize(unit);
+        (canonical != unit).then_some((unit, canonical))
+    });
+    ascii.chain(others)
+}
+
 /// Whether `cp` has the property `Cased`.
 fn is_cased(cp: u32) -> bool {
     if cp < 0x80 {
@@ -512,6 +564,48 @@ mod tests {
                 "{cp:#x}"
             );
         }
+    }
+
+    #[test]
+    fn regexp_canonicalize_follows_the_rules() {
+        let c = |u: u32| u32::from(regexp_canonicalize(u as u16));
+        assert_eq!(c(0x61), 0x41);
+        assert_eq!(c(0x41), 0x41);
+        assert_eq!(c(0xE5), 0xC5);
+        assert_eq!(c(0x17F), 0x17F, "ſ maps to S: non-ASCII to ASCII");
+        assert_eq!(c(0x131), 0x131, "ı maps to I");
+        assert_eq!(c(0xDF), 0xDF, "ß maps to SS");
+        assert_eq!(c(0x1F80), 0x1F80, "the full mapping has two code points");
+        assert_eq!(c(0x3C2), 0x3A3);
+        assert_eq!(c(0x212A), 0x212A, "already upper case");
+        assert_eq!(c(0xFF), 0x178);
+        assert_eq!(c(0xD800), 0xD800);
+    }
+
+    #[test]
+    fn change_lists_match_the_functions() {
+        let changes: Vec<(u16, u16)> = regexp_canonicalize_changes().collect();
+        assert!(changes.windows(2).all(|w| w[0].0 < w[1].0));
+        let mut listed = changes.iter().peekable();
+        for unit in 0..=u16::MAX {
+            let canonical = regexp_canonicalize(unit);
+            if canonical == unit {
+                assert!(listed.peek().is_none_or(|&&(u, _)| u != unit));
+            } else {
+                assert_eq!(listed.next(), Some(&(unit, canonical)));
+            }
+        }
+        assert!(listed.next().is_none());
+        let folds: Vec<(u32, u32)> = simple_fold_changes().collect();
+        assert!(folds.windows(2).all(|w| w[0].0 < w[1].0));
+        let mut listed = folds.iter().peekable();
+        for cp in 0..=0x0010_FFFF {
+            let folded = simple_fold(cp);
+            if folded != cp {
+                assert_eq!(listed.next(), Some(&(cp, folded)), "{cp:#x}");
+            }
+        }
+        assert!(listed.next().is_none());
     }
 
     #[test]

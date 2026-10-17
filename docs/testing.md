@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -76,7 +76,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
-| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable) and `norm_tables.rs` (combining classes, decompositions, compositions, quick check) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt` and `DerivedNormalizationProps.txt` into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. |
+| `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable), `norm_tables.rs` (combining classes, decompositions, compositions, quick check) and `property_names.rs` (the names and aliases of the properties of `\p{...}`) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`, `PropertyAliases.txt` and `PropertyValueAliases.txt` into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
 | `just snapshot DIR`          |                                        | Writes swb's rendering of all fixtures and layout tests to `DIR` (`tools/snapshot.sh`; no Python packages, no Chromium). |
@@ -947,9 +947,7 @@ all of `test/language/`, `test/built-ins/` and `test/annexB/`.
   (the proposals of test262's `features.txt` and the features
   standardized after ECMA-262 2025).
 - "not supported yet" (the constructs of later M7 features) counts as
-  unsupported, apart from failures. A negative test of regular expression
-  syntax that parses fails with the cause "regular expression syntax, M7
-  feature 8a", so the table of failure causes shows their count.
+  unsupported, apart from failures.
 - Scores: `crates/js/test262/parse-scores.json`, with the same ratchet:
   the run fails if the pass count of a group that it covers completely
   went down. `--update` writes the counts of all groups of the run (and
@@ -1029,6 +1027,49 @@ of the sorted list that swb orders the other way (16 of 25,200).
 committed sample always; the whole file with `cargo test -p swb-js-text
 --test normalization -- --ignored` (it reads `out/ucd/17.0.0/`, which
 `just tools js-unicode-tables` fills).
+
+### Regular expression tests
+
+`tools/probes/js-regexp.json` has the cases of
+`crates/js-regexp/tests/data/regexp-cases.js` for Chromium 148 in three
+lists: `exec` (475 matches: `new RegExp(pattern, flags + "d").exec(input)`
+from a `lastIndex`, with the index, the capture indices and the group
+names), `syntax` (491 patterns for `new RegExp`: "ok" or the message)
+and `literals` (46 literal source texts parsed with `new Function`).
+`crates/js-regexp/tests/data/gen-regexp-cases.js` makes the probe file
+and, from its output, `regexp_cases.json` (strings with lone surrogates
+are arrays of code units):
+
+```
+node crates/js-regexp/tests/data/gen-regexp-cases.js probe \
+  crates/js-regexp/tests/data/regexp-cases.js tools/probes/js-regexp.json
+just probe --json tools/probes/js-regexp.json > probe.json
+node crates/js-regexp/tests/data/gen-regexp-cases.js cases probe.json \
+  crates/js-regexp/tests/data/regexp_cases.json
+```
+
+`crates/js-regexp/tests/cases.rs` runs the parser and the matcher
+directly on each case: each match also in slices of one step (the
+resumed matcher) and, for Latin-1 inputs, on the one-byte width; each
+pattern through both `check_literal` (no tree) and `Regex::new`. Cases
+with `\p{...}` compile to `Error::Unsupported` until M7 8c and are
+counted, not compared. `crates/js-regexp/tests/hostile.rs` has the limits:
+nesting 100,000 deep, `a{0,4294967295}`, `(?:a?){1000000}`, a million
+alternatives, inputs of 10,000,000 units, catastrophic patterns that run
+in slices of 100,000 steps (each call does at most its steps and returns
+within 0.5 s, the popping of choice points included), a backtrack stack
+at the memory limit, slots and undo log inside the limit, and the cases
+that were quadratic or large (classes of 100,000 characters with `v`,
+`\q{...}` with 100,000 alternatives, 20,000 duplicate group names with
+references, `\W` 50,000 times with `iu`, 100,000 classes with `i`) with
+generous time and `heap_bytes()` bounds. `cases.rs` has a list `KNOWN`
+of cases where swb differs from Chromium on purpose (the case folding of
+single characters in `\q{...}` with `iv`, and the script value
+`Hrkt`).
+`crates/js-syntax/tests/target_regexps.rs` (ignored) compiles and runs
+every regular expression literal of the target scripts:
+`SWB_TARGET_SCRIPTS=out/bbc-js:out/ars-js cargo test -p swb-js-syntax
+--test target_regexps -- --ignored --nocapture`.
 
 ### Array tests
 

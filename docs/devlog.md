@@ -4,6 +4,48 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-17: M7 feature 8a, the regular expression engine
+
+- Feature 8 is split into three sessions: 8a the engine, 8b the
+  `RegExp` built-in and the string methods, 8c the Unicode property
+  sets.
+- `js-regexp` parses patterns in the grammar of `u` and `v` and in the
+  web grammar of Annex B.1.2, with all early errors and V8's messages.
+  The parser keeps open groups and nested classes on an explicit stack;
+  the check of a literal builds no tree.
+- The compiler emits a backtracking program: enum instructions, counter
+  registers for counted quantifiers, one-instruction loops for atoms of
+  one character, backward code for lookbehinds. The matcher is a loop
+  with a backtrack stack and an undo log.
+- The matcher stops after a given number of steps and continues on the
+  next call with the same state. 8b runs the time check and the heap
+  check between two calls, without a borrow of the input string. The
+  backtrack memory stops at a limit that the caller gives.
+- Case-insensitive matching canonicalizes classes at compile time: the
+  toUppercase rule without `u`, simple case folding with `u` and `v`.
+  `\p{...}` names are checked from tables generated from UCD 17.0.0;
+  their code point sets come in 8c.
+- 475 matches, 491 patterns and 46 literals give Chromium 148's
+  results, also in one-step slices, apart from seven cases where swb
+  follows the specification and Chromium does not (`\q{...}` with `iv`,
+  the script value `Hrkt`). test262 parse-only: 42,240 (was 41,882);
+  runtime: 32,805 (was 32,775), the same in stress mode. All 84 target
+  scripts parse, and their 1,142 literals compile.
+- Review: the matcher gave Chromium's results on about 690,000 cases.
+  Three kinds of pattern made one compile take seconds to minutes and
+  up to 10 GB: a `v` class of 100,000 characters (35 s), 20,000
+  `\k<name>` of a duplicate name (3.1 GB), a million `\W` with `iu`
+  (107 s). A class now merges its ranges once, the references of one
+  name share one group list, and the parser keeps one node for each
+  small set. All three now take milliseconds. Also fixed: backtracking
+  counts each popped frame as a step, and the undo log checks the memory
+  limit before it grows. The delta review found no bug; one message
+  difference and a modifier difference in Chromium went to the backlog
+  and the ADR.
+- Speed: most benchmark patterns take 0.3 to 1.5 times the time of
+  `node --jitless`.
+- Next: 8b, the `RegExp` built-in.
+
 ## 2026-10-17: M7 feature 7d, async iteration; end of feature 7
 
 - Async generators are generator objects with the queue of requests of

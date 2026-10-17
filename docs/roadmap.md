@@ -1496,24 +1496,87 @@ failures with a reason. Features, in this order:
    before 7b; with the new groups in the subset, 4,835 pass now. Of the
    84 target scripts, 39 compiled before 7a and 46 now; none stops at
    `async`, `await`, async generators or `for await`.
-8. Regular expressions (ADR 0026 section 10), in two parts:
-   - 8a (`implementer-hard`, `js-regexp`): the pattern parser with
-     Annex B, the compiler and the matcher, the `u`, `v`, `d`, `s`, `y`
-     flags, lookbehind, named groups, Unicode properties and case
-     folding (tables in `js-text`), and the early errors of regular
-     expression literals in `js-syntax`. Because `js-regexp` is a
-     separate crate, 8a may run in parallel with features 2 to 7; its
-     changes to `js-text` and `js-syntax` merge between features.
-   - 8b (`implementer`, `js`, after 5 and 8a): the `RegExp` built-in, the
-     string methods that use it (`Symbol.match`, `replace`, `split`,
-     `matchAll`), `RegExp.escape`, Annex B `RegExp.prototype.compile`;
-     the legacy static properties (`RegExp.$1`) only if a target uses
-     them. `builtins/string.rs` installs the methods of
-     `String.prototype` in V8's key order; add `match` and `matchAll`
-     between `localeCompare` and `normalize`, and `search` after
-     `replaceAll`, and make `get_substitution`
-     (`string_replace.rs`, with captures and named captures) visible to
-     the `RegExp` code.
+8. Regular expressions (ADR 0026 section 10, memo 5.1).
+   Split 2026-10-17 into three sessions, one commit each. `js-regexp`
+   checks only the flags, and `compiler/support.rs` rejects regular
+   expression literals: 38 of the 84 target scripts stop there. test262
+   has 1,879 tests in `built-ins/RegExp` (613 of them property escapes),
+   240 in `language/literals/regexp` (parse-only: 73 pass), 339 for the
+   string methods that take a regular expression and 62 in
+   `annexB/built-ins/RegExp`. bbc-js/s3.js reads `RegExp.$1`; no target
+   script uses `\p{...}`, lookbehind or the `v` flag.
+   - 8a The engine (`implementer-hard`; `js-regexp`, `js-syntax`): the
+     pattern parser for the Unicode grammar and for the web grammar of
+     Annex B.1.2, with all early errors (also the property names and
+     values of §22.2.2.9), named groups (duplicates in different
+     alternatives), modifiers (`(?i:...)`) and the class syntax of the
+     `v` flag; the tree and its analyses; the compiler to a backtracking
+     program with counter registers; the matcher as a loop with an
+     explicit backtrack stack and an undo log, which follows §22.2.2
+     exactly (capture reset and empty check per iteration, lookahead,
+     lookbehind in backward direction, backreferences, the `i`, `m`,
+     `s`, `u`, `v` and `y` semantics, both string widths, code points in
+     `u` and `v` mode). Case-insensitive matching without `u` and `v`
+     (Canonicalize with toUppercase, the tables of 5d). A time-step
+     callback, the backtrack stack within a memory limit, caps on
+     nesting, program size and capture count. The early errors of
+     regular expression literals in `js-syntax`. The code point sets of
+     `\p{...}` and the simple case folding of `u` and `v` with `i` come
+     in 8c. Tests: unit tests, match results measured in Chromium 148
+     through the probe tool, parse-only test262.
+     Done 2026-10-17: the parser covers both grammars with all early
+     errors and V8's messages; it keeps open groups and nested `v`
+     classes on an explicit stack, and `check_literal` checks without
+     building the tree. The compiler emits enum instructions with
+     counter registers, one-instruction loops for one-character atoms
+     and backward code for lookbehinds. The matcher stops after a given
+     number of steps and continues on the next call, so 8b can run the
+     time and heap checks between calls; its backtrack memory stops at
+     the caller's limit. Case-insensitive matching canonicalizes classes
+     at compile time in both modes: with `u` and `v` it already uses the
+     simple case folding of 5d, so 8c needs only the property sets.
+     `\p{...}` names and values are checked from tables generated from
+     UCD 17.0.0; `Regex::new` rejects a pattern with `\p{...}` as not
+     supported until 8c. 475 matches, 491 patterns and 46 literals give
+     Chromium 148's results, also when a match runs in one-step slices,
+     apart from seven cases where swb follows the specification (ADR 0026
+     section 15). The review found three kinds of pattern whose compile
+     took seconds to minutes and up to 10 GB (large `v` classes, many
+     `\k<name>` of a duplicate name, many `\W` with `iu`); they now take
+     milliseconds.
+     test262 parse-only: 42,240 pass (was 41,882; all of
+     `built-ins/RegExp` and `language/literals/regexp`); runtime: 32,805
+     (was 32,775; negative literal tests), the same in stress mode. All
+     84 target scripts parse, and their 1,142 literals compile. Most
+     benchmark patterns run at 0.3 to 1.5 times the time of
+     `node --jitless`.
+   - 8b The `RegExp` built-in (`implementer-hard`; `js`): literals and
+     the constructor (`RegExpCreate`, `RegExpInitialize`, `IsRegExp`,
+     species), `lastIndex`, `exec` and `RegExpBuiltinExec` with the `d`
+     indices and `groups`, `test`, `toString`, `source` with its escapes,
+     the flag getters and `flags`, `Symbol.match`, `Symbol.matchAll` with
+     `%RegExpStringIteratorPrototype%`, `Symbol.replace`, `Symbol.search`,
+     `Symbol.split`, and the string methods that dispatch to them
+     (`match`, `matchAll`, `replace`, `replaceAll`, `search`, `split`;
+     `get_substitution` of 5b takes the captures and named captures),
+     `RegExp.escape`, Annex B `RegExp.prototype.compile` and the legacy
+     static properties (`RegExp.$1` to `$9`, `input`, `lastMatch`,
+     `lastParen`, `leftContext`, `rightContext`, with their aliases),
+     measured in Chromium. A match runs within the time and heap limits
+     of the script, and a collection during a match changes nothing.
+     `builtins/string.rs` installs the methods of `String.prototype` in
+     V8's key order; add `match` and `matchAll` between `localeCompare`
+     and `normalize`, and `search` after `replaceAll`. Exit: no target
+     script stops at a regular expression literal, or each that does
+     has a reason.
+   - 8c Unicode data (`implementer`; `js-text`, `js-regexp`): the code
+     point sets of `\p{...}`, generated from the Unicode Character
+     Database 17.0.0 (the version of the test262 property tests and of
+     the 5d tables): General_Category, Script, Script_Extensions, the
+     binary properties and the properties of strings of the `v` flag,
+     with case folding of property sets in `v` mode with `i`. (The
+     simple case folding of `u` and `v` with `i` came with 8a.) Tests: test262
+     `built-ins/RegExp/property-escapes` and `unicodeSets`.
 9. Proxy and weak collections (`implementer-hard`). `Proxy` with all
    invariant checks, `WeakMap`, `WeakSet` and their ephemeron marking,
    `WeakRef`, `FinalizationRegistry`, the kept-alive list.
@@ -1797,6 +1860,27 @@ not repeated here; the open items of each spike session are in M6 step
     3 % fewer machine instructions; four layouts of the interpreter
     change gave +7 to +13 %. Check the code alignment of the interpreter
     loop in feature 13.
+- Regular expressions (M7 8a):
+  - `Matcher::new` allocates the capture and counter vectors for each
+    match; the global loops of 8b (`replace`, `matchAll`, `split`) could
+    reuse them.
+  - Each plain character is a tree node, so a pattern of more than 4M
+    characters is "too large" (V8 accepts at least 1M). Runs of plain
+    characters could be one node.
+  - An alternation of single characters (`a|b|c`) could compile to one
+    set (a million alternatives give 3M instructions).
+  - Nesting stops at 32,768 levels; V8 accepts 1,000,000 nested `(?:`.
+  - No memoization and no linear-time fallback (ADR 0026 section 10).
+  - Messages: a `-` right after a range in a `v` class gives "Invalid
+    character in character class"; Chromium gives "Invalid character
+    class" (`[a-b-c]`, `[a-b-\w]`) or, at the end of the pattern,
+    "Unterminated character class" (`[a-b-`). Both reject. Add the
+    cases and the modifier cases of ADR 0026 section 15 to the probe
+    file.
+  - The case closure of a class with `i` costs about 40 to 70 µs when
+    the class is not in the cache (more than 16 ranges, or a new set):
+    30,000 such classes take about 1.3 s to compile
+    (docs/performance.md).
 
 ## Backlog from M5
 

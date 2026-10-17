@@ -2740,6 +2740,8 @@ dependencies = [
 name = "swb-js-regexp"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "serde_json",
  "swb-js-text",
  "thiserror 2.0.21",
 ]

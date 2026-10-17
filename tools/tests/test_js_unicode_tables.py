@@ -115,3 +115,39 @@ def test_the_committed_case_and_normalization_tables_name_the_generator_version(
     for name in ("case_tables.rs", "norm_tables.rs"):
         header = (directory / name).read_text(encoding="utf-8").split("\n\n", 1)[0]
         assert f"//! {VERSION} (" in header
+
+
+def test_generate_property_names(tmp_path):
+    from swbtools.js_property_names import BINARY, SPECIAL_BINARY, generate_property_names
+
+    aliases = tmp_path / "PropertyAliases.txt"
+    lines = ["gc ; General_Category", "sc ; Script", "scx ; Script_Extensions"]
+    lines += [f"{name} ; {name}" for name in BINARY if name not in SPECIAL_BINARY]
+    lines = [line for line in lines if line != "White_Space ; White_Space"]
+    lines += ["WSpace ; White_Space ; space", "CE ; Composition_Exclusion"]
+    aliases.write_text("# comment\n" + "\n".join(lines) + "\n", encoding="utf-8")
+    values = tmp_path / "PropertyValueAliases.txt"
+    values.write_text(
+        "gc ; Lu ; Uppercase_Letter\n"
+        "gc ; P ; Punctuation ; punct # Pc | Pd\n"
+        "sc ; Latn ; Latin\n"
+        "sc ; Zinh ; Inherited ; Qaai\n"
+        "lb ; AL ; Alphabetic\n",
+        encoding="utf-8",
+    )
+    source = generate_property_names(aliases, values, "17.0.0")
+    assert "Do not edit." in source
+    assert 'pub(super) static GENERAL_CATEGORIES: [&str; 2] = [\n    "Lu",\n    "P",\n];' in source
+    assert '    ("punct", 1),\n' in source
+    assert '    ("Qaai", 1),\n' in source
+    assert '    ("Zinh", 1),\n' in source
+    assert '("WSpace", ' in source
+    assert '("space", ' in source
+    assert "Composition_Exclusion" not in source
+    assert '"AL"' not in source
+    assert '("ASCII", 0),' in source
+
+
+def test_the_committed_property_names_name_the_generator_version():
+    header = (tables_path().parent / "property_names.rs").read_text(encoding="utf-8")
+    assert f"Character Database {VERSION}" in header.split("\n\n", 1)[0]

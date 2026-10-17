@@ -35,8 +35,8 @@
 //! The entries: scripts ([`parse_script`]), modules ([`parse_module`],
 //! with [`modules`]) and eval code ([`parse_eval`], whose early errors
 //! depend on the call site, [`EvalContext`]). The parser covers the whole
-//! ES2025 grammar except the early errors of regular expression literals
-//! (M7 feature 8a).
+//! ES2025 grammar; the lexer checks regular expression literals with
+//! `swb-js-regexp`.
 
 #[cfg(test)]
 mod class_fix_tests;
