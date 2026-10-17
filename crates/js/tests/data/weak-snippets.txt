@@ -1,0 +1,342 @@
+# Snippets for the weak collections (M7 feature 9b), measured in Chromium
+# 148 with tools/probes/js-weak.json (made from this file by
+# gen-weak-cases.js). One snippet per line; `## NAME` starts a group.
+# Nothing here depends on when a collection runs: a WeakRef read in the
+# same synchronous run keeps its target, and no cleanup callback can run
+# before the snippet ends. The collector cases are in crates/js/tests/weak.rs.
+
+## shape
+typeof WeakMap + ' ' + typeof WeakSet + ' ' + typeof WeakRef + ' ' + typeof FinalizationRegistry
+WeakMap.length + ' ' + WeakMap.name + ' ' + WeakSet.length + ' ' + WeakSet.name
+WeakRef.length + ' ' + WeakRef.name + ' ' + FinalizationRegistry.length + ' ' + FinalizationRegistry.name
+Object.getOwnPropertyNames(WeakMap).join()
+Object.getOwnPropertyNames(WeakSet).join()
+Object.getOwnPropertyNames(WeakRef).join()
+Object.getOwnPropertyNames(FinalizationRegistry).join()
+Reflect.ownKeys(WeakMap.prototype).map(String).join()
+Reflect.ownKeys(WeakSet.prototype).map(String).join()
+Reflect.ownKeys(WeakRef.prototype).map(String).join()
+Reflect.ownKeys(FinalizationRegistry.prototype).map(String).join()
+Object.getPrototypeOf(WeakMap) === Function.prototype && Object.getPrototypeOf(WeakRef) === Function.prototype
+Object.getPrototypeOf(WeakMap.prototype) === Object.prototype && Object.getPrototypeOf(FinalizationRegistry.prototype) === Object.prototype
+[WeakMap, WeakSet, WeakRef, FinalizationRegistry].map(C => C.prototype.constructor === C).join()
+['get', 'set', 'has', 'delete', 'getOrInsert', 'getOrInsertComputed'].map(k => WeakMap.prototype[k].name + '/' + WeakMap.prototype[k].length).join()
+['add', 'has', 'delete'].map(k => WeakSet.prototype[k].name + '/' + WeakSet.prototype[k].length).join()
+WeakRef.prototype.deref.name + '/' + WeakRef.prototype.deref.length
+['register', 'unregister'].map(k => FinalizationRegistry.prototype[k].name + '/' + FinalizationRegistry.prototype[k].length).join()
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakMap, 'prototype'))
+JSON.stringify(Object.getOwnPropertyDescriptor(FinalizationRegistry, 'prototype'))
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakMap.prototype, 'get'))
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakRef.prototype, 'deref'))
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakMap.prototype, Symbol.toStringTag))
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakSet.prototype, Symbol.toStringTag))
+JSON.stringify(Object.getOwnPropertyDescriptor(WeakRef.prototype, Symbol.toStringTag))
+JSON.stringify(Object.getOwnPropertyDescriptor(FinalizationRegistry.prototype, Symbol.toStringTag))
+JSON.stringify(Object.getOwnPropertyDescriptor(globalThis, 'WeakMap'))
+JSON.stringify(Object.getOwnPropertyDescriptor(globalThis, 'FinalizationRegistry'))
+Object.prototype.toString.call(new WeakMap())
+Object.prototype.toString.call(new WeakSet())
+Object.prototype.toString.call(new WeakRef({}))
+Object.prototype.toString.call(new FinalizationRegistry(() => {}))
+Object.prototype.toString.call(WeakMap.prototype)
+String(new WeakMap()) + ' ' + String(new WeakRef({}))
+String(WeakMap)
+String(WeakRef)
+String(FinalizationRegistry.prototype.register)
+/native code/.test(String(WeakMap))
+'size' in WeakMap.prototype
+'clear' in WeakMap.prototype
+'cleanupSome' in FinalizationRegistry.prototype
+'keys' in WeakSet.prototype
+Symbol.iterator in WeakMap.prototype
+Object.isExtensible(new WeakMap()) && Object.isExtensible(new WeakRef({})) && Object.isExtensible(new FinalizationRegistry(() => {}))
+Object.keys(new WeakMap([[{}, 1]])).length
+JSON.stringify(new WeakMap([[{}, 1]]))
+JSON.stringify(new WeakRef({ a: 1 }))
+new WeakMap().constructor === WeakMap
+typeof new WeakRef({}).deref
+
+## constructors
+WeakMap()
+WeakSet()
+WeakRef({})
+FinalizationRegistry(() => {})
+WeakMap.call(new WeakMap())
+new WeakMap(undefined) instanceof WeakMap
+new WeakMap(null) instanceof WeakMap
+new WeakSet(null) instanceof WeakSet
+new WeakMap(1)
+new WeakMap({})
+new WeakMap('ab')
+new WeakMap([1])
+new WeakMap([null])
+new WeakMap(['ab'])
+new WeakMap([[1, 2]])
+new WeakMap([['x', 2]])
+new WeakMap([[null, 2]])
+new WeakMap([[undefined, 2]])
+new WeakMap([[Symbol.for('r'), 2]])
+new WeakMap([[{}, 2]]) instanceof WeakMap
+const k = {}; new WeakMap([[k, 2]]).get(k)
+const k = {}; new WeakMap([[k, 1], [k, 2]]).get(k)
+const k = {}; new WeakMap([[k]]).has(k) + ' ' + new WeakMap([[k]]).get(k)
+const k = {}; new WeakMap([{ 0: k, 1: 'v' }]).get(k)
+const k = {}; new WeakMap(new Map([[k, 3]])).get(k)
+const k = {}; new WeakMap([[k, 1, 2, 3]]).get(k)
+const a = {}, b = {}; const m = new WeakMap([[a, 1], [b, 2]]); m.get(a) + m.get(b)
+new WeakSet(1)
+new WeakSet([1])
+new WeakSet(['a'])
+new WeakSet([Symbol.for('r')])
+const a = {}, b = {}; const s = new WeakSet([a, b, a]); s.has(a) + ' ' + s.has(b) + ' ' + s.has({})
+const s = Symbol('d'); new WeakSet([s]).has(s)
+new WeakSet(new Set([1]))
+new WeakRef()
+new WeakRef(1)
+new WeakRef('x')
+new WeakRef(null)
+new WeakRef(undefined)
+new WeakRef(true)
+new WeakRef(Symbol.for('r'))
+new FinalizationRegistry()
+new FinalizationRegistry(1)
+new FinalizationRegistry({})
+new FinalizationRegistry('f')
+new FinalizationRegistry(null)
+new FinalizationRegistry(class {}) instanceof FinalizationRegistry
+new FinalizationRegistry(() => {}) instanceof FinalizationRegistry
+new FinalizationRegistry(new Proxy(function () {}, {})) instanceof FinalizationRegistry
+Object.getPrototypeOf(Reflect.construct(WeakMap, [], Array)) === Array.prototype
+Object.getPrototypeOf(Reflect.construct(WeakSet, [], Array)) === Array.prototype
+Object.getPrototypeOf(Reflect.construct(WeakRef, [{}], Array)) === Array.prototype
+Object.getPrototypeOf(Reflect.construct(FinalizationRegistry, [() => {}], Array)) === Array.prototype
+function F() {} F.prototype = 1; Object.getPrototypeOf(Reflect.construct(WeakMap, [], F)) === WeakMap.prototype
+function F() {} F.prototype = null; Object.getPrototypeOf(Reflect.construct(WeakRef, [{}], F)) === WeakRef.prototype
+const log = []; function F() {} const P = new Proxy(F, { get(t, k) { log.push(String(k)); return t[k]; } }); Reflect.construct(WeakMap, [[]], P); log.join()
+const log = []; function F() {} const P = new Proxy(F, { get(t, k) { log.push(String(k)); return t[k]; } }); try { Reflect.construct(WeakRef, [1], P); } catch (e) { log.push(e.constructor.name); } log.join()
+const log = []; function F() {} const P = new Proxy(F, { get(t, k) { log.push(String(k)); return t[k]; } }); try { Reflect.construct(FinalizationRegistry, [1], P); } catch (e) { log.push(e.constructor.name); } log.join()
+class M extends WeakMap {} const m = new M(); (m instanceof M) + ' ' + (m instanceof WeakMap)
+class M extends WeakMap { constructor() { super(); this.x = 1; } } new M().x
+class R extends WeakRef { constructor(t) { super(t); } } const o = {}; new R(o).deref() === o
+class F extends FinalizationRegistry {} new F(() => {}) instanceof FinalizationRegistry
+const log = []; class M extends WeakMap { set(k, v) { log.push(v); return super.set(k, v); } } new M([[{}, 1], [{}, 2]]); log.join()
+const log = []; class S extends WeakSet { add(v) { log.push(typeof v); return super.add(v); } } new S([{}, Symbol()]); log.join()
+const log = []; class M extends WeakMap { set(k, v) { log.push(v); } } new M([[1, 'a'], [2, 'b']]); log.join()
+const orig = WeakMap.prototype.set; WeakMap.prototype.set = 5; try { new WeakMap([]); } finally { WeakMap.prototype.set = orig; }
+const orig = WeakMap.prototype.set; WeakMap.prototype.set = 5; try { new WeakMap() instanceof WeakMap; } finally { WeakMap.prototype.set = orig; }
+const orig = WeakSet.prototype.add; WeakSet.prototype.add = {}; try { new WeakSet([]); } finally { WeakSet.prototype.add = orig; }
+const orig = WeakSet.prototype.add; let n = 0; Object.defineProperty(WeakSet.prototype, 'add', { get() { n++; return orig; }, configurable: true }); try { new WeakSet([{}, {}]); n; } finally { Object.defineProperty(WeakSet.prototype, 'add', { value: orig, writable: true, configurable: true }); }
+const orig = WeakMap.prototype.set; Object.defineProperty(WeakMap.prototype, 'set', { get() { throw new Error('get set'); }, configurable: true }); try { new WeakMap([]); } finally { Object.defineProperty(WeakMap.prototype, 'set', { value: orig, writable: true, configurable: true }); }
+const log = []; const it = { [Symbol.iterator]() { return { next() { return { value: [1, 2], done: false }; }, return() { log.push('return'); return {}; } }; } }; try { new WeakMap(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const it = { [Symbol.iterator]() { return { next() { return { value: 1, done: false }; }, return() { log.push('return'); return {}; } }; } }; try { new WeakMap(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const it = { [Symbol.iterator]() { return { next() { return { value: 1, done: false }; }, return() { log.push('return'); return {}; } }; } }; try { new WeakSet(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const it = { [Symbol.iterator]() { return { next() { return { value: { get 0() { throw new Error('zero'); } }, done: false }; }, return() { log.push('return'); return {}; } }; } }; try { new WeakMap(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const it = { [Symbol.iterator]() { return { next() { throw new Error('next'); }, return() { log.push('return'); return {}; } }; } }; try { new WeakMap(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const it = { [Symbol.iterator]() { return { next() { return { get value() { throw new Error('value'); }, done: false }; }, return() { log.push('return'); return {}; } }; } }; try { new WeakSet(it); } catch (e) { log.push(e.message); } log.join()
+const log = []; const k = {}; const entry = { get 0() { log.push('0'); return k; }, get 1() { log.push('1'); return 'v'; } }; new WeakMap([entry]).get(k) + ' ' + log.join()
+new WeakMap({ [Symbol.iterator]: 1 })
+new WeakSet({ [Symbol.iterator]() { return 1; } })
+
+## methods
+const m = new WeakMap(); const k = {}; m.set(k, 1) === m
+const m = new WeakMap(); const k = {}; m.set(k, 1); m.get(k) + ' ' + m.has(k) + ' ' + m.has({})
+const m = new WeakMap(); const k = {}; m.set(k, 1); m.set(k, 2); m.get(k)
+const m = new WeakMap(); const k = {}; m.set(k, 1); [m.delete(k), m.delete(k), m.has(k), m.get(k)].join()
+const m = new WeakMap(); const k = {}; m.set(k); m.has(k) + ' ' + m.get(k)
+const m = new WeakMap(); m.get({})
+new WeakMap().get(1)
+new WeakMap().get('x')
+new WeakMap().get(null)
+new WeakMap().get()
+new WeakMap().has(1)
+new WeakMap().has(Symbol.for('x'))
+new WeakMap().delete(1)
+new WeakMap().delete(Symbol.for('x'))
+new WeakMap().set(1, 2)
+new WeakMap().set('x', 2)
+new WeakMap().set(null, 2)
+new WeakMap().set(undefined, 2)
+new WeakMap().set()
+new WeakMap().set(true, 2)
+new WeakMap().set(1.5, 2)
+new WeakMap().set(Symbol.for('x'), 2)
+const m = new WeakMap(); const f = function () {}; m.set(f, 1).get(f)
+const m = new WeakMap(); const a = []; m.set(a, 'arr').get(a)
+const m = new WeakMap(); m.set(m, m).get(m) === m
+const m = new WeakMap(); const k = Object.freeze({}); m.set(k, 1).get(k)
+const m = new WeakMap(); const k = Object.preventExtensions({}); m.set(k, 1); m.has(k)
+const m = new WeakMap(); const k = new Map(); m.set(k, 1).has(k) + ' ' + m.has(new Map())
+const m = new WeakMap(); const k1 = {}, k2 = {}; m.set(k1, 'a').set(k2, 'b'); m.get(k1) + m.get(k2)
+const m = new WeakMap(); for (let i = 0; i < 1000; i++) m.set({}, i); m.has({})
+const m = new WeakMap(); const keys = []; for (let i = 0; i < 1000; i++) { const k = {}; keys.push(k); m.set(k, i); } let s = 0; for (const k of keys) s += m.get(k); s
+const m = new WeakMap(); const keys = []; for (let i = 0; i < 1000; i++) { const k = {}; keys.push(k); m.set(k, i); } for (let i = 0; i < 1000; i += 2) m.delete(keys[i]); let s = 0; for (const k of keys) if (m.has(k)) s += m.get(k); s
+const s = new WeakSet(); const k = {}; s.add(k) === s
+const s = new WeakSet(); const k = {}; s.add(k); s.add(k); [s.has(k), s.delete(k), s.has(k), s.delete(k)].join()
+new WeakSet().add(1)
+new WeakSet().add('x')
+new WeakSet().add(null)
+new WeakSet().add()
+new WeakSet().add(Symbol.for('x'))
+new WeakSet().has(1)
+new WeakSet().delete('x')
+new WeakSet().has(Symbol.for('x'))
+const o = {}; const r = new WeakRef(o); r.deref() === o
+const o = {}; const r = new WeakRef(o); r.deref() === r.deref()
+const r = new WeakRef(function f() {}); typeof r.deref()
+const o = {}; new WeakRef(o) === new WeakRef(o)
+const o = {}; const r = new WeakRef(o); r.deref.call(new WeakRef(r)) === r
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, undefined)
+const fr = new FinalizationRegistry(() => {}); fr.register({})
+const fr = new FinalizationRegistry(() => {}); fr.register()
+const fr = new FinalizationRegistry(() => {}); fr.register(1, 2)
+const fr = new FinalizationRegistry(() => {}); fr.register('x', 2)
+const fr = new FinalizationRegistry(() => {}); fr.register(null, 2)
+const fr = new FinalizationRegistry(() => {}); fr.register(Symbol.for('x'), 2)
+const fr = new FinalizationRegistry(() => {}); const o = {}; fr.register(o, o)
+const fr = new FinalizationRegistry(() => {}); const s = Symbol(); fr.register(s, s)
+const fr = new FinalizationRegistry(() => {}); const o = {}; fr.register(o, 1, o)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, 1)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, 'tok')
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, null)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, Symbol.for('t'))
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, Symbol('t'))
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, undefined)
+const fr = new FinalizationRegistry(() => {}); fr.register(1, 1, 1)
+const fr = new FinalizationRegistry(() => {}); const o = {}; fr.register(o, o, 1)
+const fr = new FinalizationRegistry(() => {}); const t = {}; fr.register({}, 1, t); [fr.unregister(t), fr.unregister(t)].join()
+const fr = new FinalizationRegistry(() => {}); const t = {}; fr.register({}, 1, t); fr.register({}, 2, t); [fr.unregister(t), fr.unregister(t)].join()
+const fr = new FinalizationRegistry(() => {}); const t = Symbol(); fr.register({}, 1, t); fr.unregister(t)
+const fr = new FinalizationRegistry(() => {}); fr.unregister({})
+const fr = new FinalizationRegistry(() => {}); fr.unregister(1)
+const fr = new FinalizationRegistry(() => {}); fr.unregister('x')
+const fr = new FinalizationRegistry(() => {}); fr.unregister()
+const fr = new FinalizationRegistry(() => {}); fr.unregister(Symbol.for('x'))
+const fr = new FinalizationRegistry(() => {}); const t = {}; fr.register({}, 1); fr.unregister(t)
+const fr = new FinalizationRegistry(() => {}); const o = {}; fr.register(o, 1, o); fr.register(o, 2, o); fr.unregister(o)
+const fr = new FinalizationRegistry(() => {}); const o = {}; fr.register(o, 1); fr.register(o, 1); 'ok'
+const a = new FinalizationRegistry(() => {}), b = new FinalizationRegistry(() => {}); const t = {}; a.register({}, 1, t); [b.unregister(t), a.unregister(t)].join()
+
+## receivers
+WeakMap.prototype.get.call({}, {})
+WeakMap.prototype.get.call(new Map(), {})
+WeakMap.prototype.get.call(1, {})
+WeakMap.prototype.get.call(undefined, {})
+WeakMap.prototype.set.call(new WeakSet(), {}, 1)
+WeakMap.prototype.has.call(WeakMap.prototype, {})
+WeakMap.prototype.delete.call(null, {})
+WeakMap.prototype.getOrInsert.call({}, {}, 1)
+WeakMap.prototype.getOrInsertComputed.call({}, {}, () => 1)
+WeakMap.prototype.set.call({}, 1, 1)
+WeakMap.prototype.get.call(new Proxy(new WeakMap(), {}), {})
+WeakSet.prototype.add.call(new WeakMap(), {})
+WeakSet.prototype.has.call(1, {})
+WeakSet.prototype.delete.call(new Set(), {})
+WeakSet.prototype.add.call('s', {})
+WeakRef.prototype.deref.call({})
+WeakRef.prototype.deref.call(new WeakMap())
+WeakRef.prototype.deref.call(1)
+WeakRef.prototype.deref.call(WeakRef.prototype)
+FinalizationRegistry.prototype.register.call({}, {})
+FinalizationRegistry.prototype.register.call(undefined, {})
+FinalizationRegistry.prototype.unregister.call({}, {})
+FinalizationRegistry.prototype.unregister.call(new WeakRef({}), {})
+FinalizationRegistry.prototype.register.call({}, 1)
+FinalizationRegistry.prototype.unregister.call({}, 1)
+
+## upsert
+const m = new WeakMap(); const k = {}; m.getOrInsert(k, 1) + ' ' + m.getOrInsert(k, 2) + ' ' + m.get(k)
+const m = new WeakMap(); const k = {}; m.set(k, 'old'); m.getOrInsert(k, 'new')
+const m = new WeakMap(); const k = {}; m.getOrInsert(k) + ' ' + m.has(k)
+new WeakMap().getOrInsert(1, 2)
+new WeakMap().getOrInsert(Symbol.for('x'), 2)
+const s = Symbol('u'); const m = new WeakMap(); m.getOrInsert(s, 5) + m.get(s)
+const m = new WeakMap(); const k = {}; m.getOrInsertComputed(k, () => 1) + ' ' + m.getOrInsertComputed(k, () => 2)
+const m = new WeakMap(); const k = {}; let seen; m.getOrInsertComputed(k, (...a) => { seen = a.length + ' ' + (a[0] === k); return 3; }); seen
+const m = new WeakMap(); const k = {}; let n = 0; m.getOrInsertComputed(k, () => ++n); m.getOrInsertComputed(k, () => ++n); n
+const m = new WeakMap(); const k = {}; let self; m.getOrInsertComputed(k, function () { self = this; return 1; }); self === undefined
+new WeakMap().getOrInsertComputed({}, 1)
+new WeakMap().getOrInsertComputed({})
+new WeakMap().getOrInsertComputed(1, 1)
+new WeakMap().getOrInsertComputed(1, () => 1)
+new WeakMap().getOrInsertComputed(Symbol.for('x'), () => 1)
+const m = new WeakMap(); const k = {}; m.set(k, 1); m.getOrInsertComputed(k, 5)
+const m = new WeakMap(); let called = false; try { m.getOrInsertComputed(1, () => { called = true; }); } catch (e) { called += ' ' + e.message; } called
+const m = new WeakMap(); const k = {}; const r = m.getOrInsertComputed(k, () => { m.set(k, 'inner'); return 'outer'; }); r + ' ' + m.get(k)
+const m = new WeakMap(); const k = {}; m.set(k, 'a'); const r = m.getOrInsertComputed({}, () => { m.delete(k); return 'b'; }); r + ' ' + m.has(k)
+const m = new WeakMap(); const k = {}; try { m.getOrInsertComputed(k, () => { throw new Error('cb'); }); } catch (e) { e.message + ' ' + m.has(k); }
+const m = new WeakMap(); const k = {}; const r = m.getOrInsertComputed(k, () => { for (let i = 0; i < 100; i++) m.set({}, i); return 'many'; }); r + ' ' + m.get(k)
+const m = new WeakMap(); const k = {}; m.getOrInsertComputed(k, () => m.getOrInsertComputed(k, () => 'deep')) + ' ' + m.get(k)
+const m = new WeakMap(); const k = {}; m.getOrInsertComputed(k, () => undefined); m.has(k)
+const m = new WeakMap(); const p = new Proxy({}, {}); m.getOrInsertComputed(p, (x) => x === p)
+
+## symbols
+const s = Symbol('a'); const m = new WeakMap(); m.set(s, 1).get(s)
+const s = Symbol(); const m = new WeakMap(); m.set(s, 1); m.has(s) + ' ' + m.has(Symbol())
+const s = Symbol('a'); const m = new WeakMap(); m.set(s, 1); m.delete(s) + ' ' + m.has(s)
+const m = new WeakMap(); m.set(Symbol.iterator, 1).get(Symbol.iterator)
+const m = new WeakMap(); m.set(Symbol.asyncIterator, 'ai'); m.has(Symbol.asyncIterator)
+const m = new WeakMap(); m.set(Symbol.hasInstance, 1); m.set(Symbol.toPrimitive, 2); m.get(Symbol.hasInstance) + m.get(Symbol.toPrimitive)
+const m = new WeakMap(); m.set(Symbol.for('x'), 1)
+const m = new WeakMap(); m.set(Symbol.for(''), 1)
+const m = new WeakMap(); m.set(Symbol.for('Symbol.iterator'), 1)
+const s = new WeakSet(); s.add(Symbol.iterator).has(Symbol.iterator)
+const s = new WeakSet(); const x = Symbol('x'); s.add(x).has(x)
+const s = new WeakSet(); s.add(Symbol.for('w'))
+const s = Symbol('r'); new WeakRef(s).deref() === s
+new WeakRef(Symbol.iterator).deref() === Symbol.iterator
+typeof new WeakRef(Symbol('t')).deref()
+new WeakRef(Symbol.for('w'))
+const fr = new FinalizationRegistry(() => {}); fr.register(Symbol('t'), 1)
+const fr = new FinalizationRegistry(() => {}); fr.register(Symbol.iterator, 1)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, Symbol.iterator)
+const fr = new FinalizationRegistry(() => {}); fr.register({}, 1, Symbol.iterator); fr.unregister(Symbol.iterator)
+const fr = new FinalizationRegistry(() => {}); fr.unregister(Symbol.iterator)
+const m = new WeakMap(); const s = Symbol('a'); m.set(Object(s), 1); m.has(s) + ' ' + m.has(Object(s))
+const m = new WeakMap(); const s = Symbol.for('x'); m.set(Object(s), 1); 'ok'
+const m = new WeakMap(); const s = Symbol.for('x'); m.get(s) + ' ' + m.has(s) + ' ' + m.delete(s)
+new WeakSet().delete(Symbol.iterator)
+const m = new WeakMap(); m.set(Symbol.unscopables, 1); m.set(Symbol.matchAll, 2); m.set(Symbol.species, 3); [Symbol.unscopables, Symbol.matchAll, Symbol.species].map(s => m.get(s)).join()
+
+## proxies
+const p = new Proxy({}, {}); const m = new WeakMap(); m.set(p, 1).get(p)
+const t = {}; const p = new Proxy(t, {}); const m = new WeakMap(); m.set(t, 'target'); m.get(p) + ' ' + m.has(p)
+const r = Proxy.revocable({}, {}); r.revoke(); const m = new WeakMap(); m.set(r.proxy, 1).get(r.proxy)
+const r = Proxy.revocable({}, {}); r.revoke(); new WeakSet([r.proxy]).has(r.proxy)
+const r = Proxy.revocable({}, {}); r.revoke(); typeof new WeakRef(r.proxy).deref()
+const r = Proxy.revocable({}, {}); r.revoke(); const fr = new FinalizationRegistry(() => {}); fr.register(r.proxy, 1, r.proxy); fr.unregister(r.proxy)
+const log = []; const p = new Proxy({}, new Proxy({}, { get(_, k) { log.push(String(k)); } })); const m = new WeakMap(); m.set(p, 1); m.get(p); m.has(p); m.delete(p); log.length
+const p = new Proxy(function () {}, {}); new FinalizationRegistry(p) instanceof FinalizationRegistry
+const m = new WeakMap(); const p = new Proxy(m, {}); m.set.call(p, {}, 1)
+
+## targets
+const k = Object.seal({}), h = Object.seal({}); const m = new WeakMap([[k, 2], [h, 3]]); m.get(k) + ' ' + m.get(h) + ' ' + m.has({})
+const te = new WeakMap(); te.get = te.get; te.has = te.has; te.set = te.set; const o = {}; te.set(o, { facade: o }); te.has(o) + ' ' + (te.get(o).facade === o)
+const pu = WeakMap.prototype; const b = f => Function.prototype.call.bind(f); const set = b(pu.set), get = b(pu.get), has = b(pu.has); const m = new WeakMap(); const o = {}; set(m, o, 1); get(m, o) + ' ' + has(m, o)
+const Ng = { set: WeakMap.prototype.set, get: WeakMap.prototype.get }; const m = new WeakMap(); const k = {}; Ng.set.call(m, k, 'v'); Ng.get.call(m, k)
+let n = function (e) { if ('function' != typeof WeakMap) return null; var t = new WeakMap, r = new WeakMap; return (n = function (e) { return e ? r : t; })(e); }; const c = n(true); const mod = {}; c.set(mod, { default: mod }); (n(true) === c) + ' ' + (n(false) !== c) + ' ' + c.has(mod)
+const u = new WeakMap(); let d = 0; const p = e => { let t = u.get(e); if (t) return t; t = ++d + '~'; u.set(e, t); return t; }; const a = {}, b = []; [p(a), p(b), p(a)].join()
+const A = new WeakMap(); const T = Promise.resolve(); const o = Promise.resolve(1); const e = A.set.bind(A, o, T); e(); A.get(o) === T
+const s = new WeakSet(); const c = (e) => s.has(e); const err = new Error('x'); s.add(err); c(err) + ' ' + c(new Error('x'))
+const t = new WeakSet(); const r = e => { if (e && typeof e === 'object') { if (t.has(e)) return; if (!('toJSON' in e)) { t.add(e); const n = Array.isArray(e) ? [] : {}; for (const [k, v] of Object.entries(e)) { const i = r(v); if (i !== undefined) n[k] = i; } t.delete(e); return n; } } return e; }; const o = { a: 1, b: { c: 2 } }; o.b.self = o; JSON.stringify(r(o))
+const e = { a: 1 }; e.self = e; const t = new WeakSet(); JSON.stringify(e, (k, n) => { if (typeof n === 'object' && n !== null) { if (t.has(n)) return '[Circular]'; t.add(n); } return n; })
+const r = new WeakMap(); function a(e, t) { if (!t) return e; let n = r.get(t); n || (n = t.map(x => x.toLowerCase()), r.set(t, n)); return n.indexOf(e.toLowerCase()); } const locales = ['en-GB', 'cy']; a('CY', locales) + ' ' + (r.get(locales) === r.get(locales))
+const n = new WeakMap(); function t(e, t) { return n.get(e) && n.get(e).get(t); } const target = {}; n.set(target, new Map([['k', new Map([['p', 'meta']])]])); t(target, 'k').get('p') + ' ' + t({}, 'k')
+const g = typeof WeakMap !== 'undefined' ? new WeakMap() : null; const y = function () { g.set(this, { id: 1 }); }; const inst = new y(); g.get(inst).id
+const Ni = new WeakMap(); const tgt = { x: 1 }; const prox = new Proxy(tgt, {}); Ni.set(tgt, prox); (Ni.get(tgt) === prox) + ' ' + Ni.has(prox)
+const Me = (t) => Object.prototype.toString.call(t).slice(8, -1); [Me(new WeakMap()), Me(new WeakSet()), Me(new WeakRef({})), Me(new FinalizationRegistry(() => {}))].join()
+const l8 = typeof WeakMap === 'function' ? WeakMap : Map; const m = new l8(); const k = {}; m.set(k, 1); m.get(k)
+const oL = typeof WeakSet === 'function' ? WeakSet : Set; const s = new oL(); const k = {}; s.add(k); s.has(k)
+const ke = new WeakMap(); const el = { id: 'slot' }; ke.set(el, { refresh: 0 }); ke.get(el).refresh++; ke.get(el).refresh
+const b$3 = new WeakMap(); const me = {}; b$3.set(me, () => 'cb'); b$3.get(me)()
+const Me = new WeakSet(); const Oe = {}; Me.has(Oe) || Me.add(Oe); Me.has(Oe) || Me.add(Oe); Me.delete(Oe) + ' ' + Me.has(Oe)
+const qe = new WeakMap(); const t = {}; let deps = qe.get(t); if (!deps) qe.set(t, deps = new Map()); deps.set('x', new Set([1])); qe.get(t).get('x').size
+
+## heavy
+const m = new WeakMap(); const keys = []; for (let i = 0; i < 200000; i++) { const k = {}; keys.push(k); m.set(k, i); } let s = 0; for (let i = 0; i < keys.length; i += 1000) s += m.get(keys[i]); s
+const m = new WeakMap(); for (let i = 0; i < 300000; i++) m.set({}, i); 'done'
+const s = new WeakSet(); for (let i = 0; i < 300000; i++) s.add({}); 'done'
+const fr = new FinalizationRegistry(() => {}); for (let i = 0; i < 100000; i++) fr.register({}, i); 'done'
+const fr = new FinalizationRegistry(() => {}); const ts = []; for (let i = 0; i < 50000; i++) { const t = {}; ts.push(t); fr.register({}, i, t); } let n = 0; for (const t of ts) n += fr.unregister(t); n
+const rs = []; for (let i = 0; i < 100000; i++) rs.push(new WeakRef({ i })); rs.filter(r => r.deref() !== undefined).length
+const m = new WeakMap(); let k = {}; const first = k; for (let i = 0; i < 100000; i++) { const next = {}; m.set(k, next); k = next; } let n = 0; for (let c = first; m.has(c); c = m.get(c)) n++; n

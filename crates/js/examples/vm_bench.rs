@@ -145,6 +145,11 @@ const PROGRAMS: &[(&str, &str)] = &[
          function run() { var s = 0; for (var r = 0; r < 5; r++) for (var v of m) s += v; return s; }",
     ),
     (
+        "weakmap: set and get of 100k object keys",
+        "var keys = []; for (var i = 0; i < 100000; i++) keys.push({ i: i });
+         function run() { var m = new WeakMap(); for (var i = 0; i < 100000; i++) m.set(keys[i], i); var s = 0; for (var i = 0; i < 100000; i++) s += m.get(keys[i]); return s; }",
+    ),
+    (
         "map: 1M alternating inserts and deletes",
         "function run() { var m = new Map(); for (var i = 0; i < 1000000; i++) { m.set(i, i); if (i > 10) m.delete(i - 10); } return m.size; }",
     ),

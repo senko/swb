@@ -315,7 +315,11 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Host { .. }
         | ObjectKind::RawJson
         | ObjectKind::SymbolWrapper(_)
-        | ObjectKind::Proxy(_) => "Object",
+        | ObjectKind::Proxy(_)
+        | ObjectKind::WeakMap(_)
+        | ObjectKind::WeakSet(_)
+        | ObjectKind::WeakRef(_)
+        | ObjectKind::FinalizationRegistry(_) => "Object",
     }
 }
 

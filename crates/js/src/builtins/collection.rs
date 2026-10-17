@@ -1,9 +1,10 @@
 //! What `Map` and `Set` share (ECMA-262 §24.1, §24.2,
 //! <https://tc39.es/ecma262/#sec-keyed-collections>): the key
 //! canonicalization, the receiver checks with V8's messages, the
-//! constructors' loop (`AddEntriesFromIterable`, §24.1.1.2), `forEach`, the
-//! iterator objects (`CreateMapIterator`, `CreateSetIterator`, the `next`
-//! methods) and `@@species`.
+//! constructors' loop (`AddEntriesFromIterable`, §24.1.1.2, which `WeakMap`
+//! and `WeakSet` share), `forEach`, the iterator objects
+//! (`CreateMapIterator`, `CreateSetIterator`, the `next` methods) and
+//! `@@species`.
 //!
 //! The table is in `object/table.rs`. A native loop over a table
 //! (`forEach`, the set methods) registers its position with the table, so
@@ -34,13 +35,6 @@ impl Which {
         }
     }
 
-    fn prototype(self) -> Intrinsic {
-        match self {
-            Which::Map => Intrinsic::MapPrototype,
-            Which::Set => Intrinsic::SetPrototype,
-        }
-    }
-
     fn iterator_prototype(self) -> Intrinsic {
         match self {
             Which::Map => Intrinsic::MapIteratorPrototype,
@@ -48,12 +42,37 @@ impl Which {
         }
     }
 
-    fn adder(self) -> (&'static str, Intrinsic) {
+    fn spec(self) -> Collection {
         match self {
-            Which::Map => ("set", Intrinsic::MapPrototypeSet),
-            Which::Set => ("add", Intrinsic::SetPrototypeAdd),
+            Which::Map => Collection {
+                name: "Map",
+                prototype: Intrinsic::MapPrototype,
+                adder: ("set", Intrinsic::MapPrototypeSet),
+                entries: true,
+                weak: false,
+            },
+            Which::Set => Collection {
+                name: "Set",
+                prototype: Intrinsic::SetPrototype,
+                adder: ("add", Intrinsic::SetPrototypeAdd),
+                entries: false,
+                weak: false,
+            },
         }
     }
+}
+
+/// What a collection constructor needs to know about its collection.
+#[derive(Clone, Copy)]
+pub(super) struct Collection {
+    pub(super) name: &'static str,
+    pub(super) prototype: Intrinsic,
+    /// The name of the adder method and its built-in function.
+    pub(super) adder: (&'static str, Intrinsic),
+    /// Whether the items are entries (`Map`, `WeakMap`).
+    pub(super) entries: bool,
+    /// Whether the collection is weak (`WeakMap`, `WeakSet`).
+    pub(super) weak: bool,
 }
 
 impl Runtime {
@@ -257,20 +276,34 @@ pub(super) fn construct(
     call: &NativeCall,
     which: Which,
 ) -> VmResult<NativeReturn> {
+    construct_collection(rt, call, which.spec())
+}
+
+/// The constructors of `Map`, `Set` (§24.1.1.1, §24.2.2.1), `WeakMap` and
+/// `WeakSet` (§24.3.1.1, §24.4.1.1): the same steps with their adder.
+pub(super) fn construct_collection(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    spec: Collection,
+) -> VmResult<NativeReturn> {
     if call.new_target().is_undefined() {
         return Err(VmError::type_error(format!(
             "Constructor {} requires 'new'",
-            which.name()
+            spec.name
         )));
     }
-    let proto = rt.prototype_from(call, which.prototype())?;
-    let collection = rt.heap.new_collection(Some(proto), which == Which::Map)?;
+    let proto = rt.prototype_from(call, spec.prototype)?;
+    let collection = if spec.weak {
+        rt.heap.new_weak_collection(Some(proto), spec.entries)?
+    } else {
+        rt.heap.new_collection(Some(proto), spec.entries)?
+    };
     rt.heap.record(collection);
     let iterable = rt.arg(call, 0);
     if iterable.is_nullish() {
         return Ok(NativeReturn::Value(collection.into()));
     }
-    let (name, builtin) = which.adder();
+    let (name, builtin) = spec.adder;
     let key = rt.heap.key_from_str(name)?;
     let adder = rt.get_value(collection.into(), key)?;
     if !rt.is_callable(adder)? {
@@ -287,7 +320,7 @@ pub(super) fn construct(
             let Some(item) = rt.iterator_step_value(&mut record)? else {
                 return Ok(false);
             };
-            match add_item(rt, collection, which, adder, direct, item) {
+            match add_item(rt, collection, spec, adder, direct, item) {
                 Ok(()) => Ok(true),
                 Err(error) => Err(rt.iterator_close_after_error(&record, error)),
             }
@@ -304,12 +337,12 @@ pub(super) fn construct(
 fn add_item(
     rt: &mut Runtime,
     collection: Gc<Object>,
-    which: Which,
+    spec: Collection,
     adder: Value,
     direct: bool,
     item: Value,
 ) -> VmResult<()> {
-    let (key, value) = if which == Which::Map {
+    let (key, value) = if spec.entries {
         if !matches!(item, Value::Object(_)) {
             return Err(VmError::type_error(format!(
                 "Iterator value {} is not an entry object",
@@ -322,11 +355,15 @@ fn add_item(
     } else {
         (item, Value::Undefined)
     };
-    if direct {
+    if direct && spec.weak {
+        let key = rt.weak_key_or_throw(key, spec.entries)?;
+        rt.charge(1)?;
+        rt.heap.weak_put(collection, key, value)?;
+    } else if direct {
         let key = rt.collection_key(key)?;
         rt.charge(1)?;
         rt.heap.collection_put(collection, key, value)?;
-    } else if which == Which::Map {
+    } else if spec.entries {
         rt.call(adder, collection.into(), &[key, value])?;
     } else {
         rt.call(adder, collection.into(), &[key])?;

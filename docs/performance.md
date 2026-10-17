@@ -485,6 +485,36 @@ The ordinary paths do one compare more per object of a prototype walk
 of the object in a few runtime internal methods (`own_property`,
 `define_own_property`).
 
+### Weak collections
+
+The `weakmap:` row of `vm_bench` (best of 5, release, 2026-10-18, M7 9b):
+`set` and `get` of 100,000 object keys take 32.4 ms (`node --jitless`
+10.3 ms, 3.1x; the `Map` row with integer keys: 21.2 ms and 8.8 ms). The
+key is the handle of the object, hashed with the keyed hasher, in the
+table of `Map`.
+
+The collector without weak collections: the first marking phase has no
+ephemeron check (the second phase is a separate instance of the drain),
+and the drain no longer dispatches on the kind of an ordinary object or
+an array (they have no payload to trace; with the four new kinds, the
+match on the kind had added about 5 instructions per marked object).
+Callgrind counts, before (3a0f0ec) and after: `Heap::collect` in a script that collects 2.25 million objects five times
+2,600 → 2,284 million instructions (−12 %); in `heap_bench` 3,154 → 2,918
+million (−7.5 %). The pause of `heap_bench` for one million reachable
+objects is 16.7 to 17.1 ms before and 17.7 to 18.1 ms after (three runs
+each); the half-reachable case is the same (13.1 to 13.2 ms).
+
+The rows of `vm_bench` that moved by more than 3 % (best of two runs
+alternating between the two builds) all run the same number of
+instructions within 0.5 % (callgrind, the programs as `swb-js` scripts):
+`set: for-of` +12 % (+0.01 % instructions), `join 1M elements` +8 %
+(−0.5 %), `toLowerCase, toUpperCase` +8 % (−0.5 %), `regexp: test` +10 %
+(0.0 %), `forEach over 1M elements` +6 % (+0.1 %), `closure counter`
++4 % (0.0 %); others moved by 3 to 6 % in both directions. These are
+effects of code placement.
+
+### BBC scripts (M6 spike)
+
 The BBC scripts (the 60 scripts of the target page):
 
 | Measure | Value |

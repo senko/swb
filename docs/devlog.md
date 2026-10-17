@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 9b, weak collections; end of feature 9
+
+- `WeakMap`, `WeakSet`, `WeakRef` and `FinalizationRegistry`. The weak
+  tables reuse the hash table of `Map` with handle keys; symbols that
+  are not registered are keys too.
+- The collector marks `WeakMap` entries as ephemerons in a second
+  phase, only when a `WeakMap` is live. Each entry is visited once, and
+  a value whose key is not marked yet waits in a list under the key
+  until the key is marked, so long chains cost linear time in any
+  order. The sweep removes dead entries, clears dead `WeakRef` targets
+  and moves the cells of dead targets to the registry's pending list
+  before any slot is freed.
+- A first version checked for waiting values at every mark and made
+  collections 10 % more expensive for heaps without `WeakMap`s. The
+  check now exists only in the second phase, and the drain skips the
+  kind dispatch for plain objects: collections execute 7 to 12 % fewer
+  instructions than before.
+- `ClearKeptObjects` runs at the end of `run_jobs`, once per microtask
+  checkpoint as HTML does. Cleanup callbacks run in a host task
+  (`run_finalization_cleanup`), never during a collection, and a
+  registry that script dropped calls nothing.
+- test262 runtime: 35,666 → 36,000, the same in stress mode; no failure
+  in the four groups. 318 snippets give Chromium 148's results, with no
+  difference from the spec.
+- The review found no defect. It checked that every mark of a key in
+  the second phase wakes its waiting values, the sweep order, rooting
+  in callbacks that collect, and 47 more snippets in Chromium. Its nits:
+  `register` now reserves its memory before it stores the cell, and the
+  docs say that the host clears the kept set also after a script that
+  threw. The unbudgeted side memory of the marking went to the backlog.
+- Feature 9 is done: test262 runtime 35,233 → 36,000.
+- Next: feature 10, `BigInt`.
+
 ## 2026-10-17: M7 feature 9a, Proxy
 
 - Feature 9 is split into 9a (`Proxy`) and 9b (the weak collections).

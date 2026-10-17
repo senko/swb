@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -1477,6 +1477,62 @@ limit. The test262 subset has `feature Proxy`, `feature
 proxy-missing-checks` and the group `test/built-ins/Proxy`; the tests that
 include `proxyTrapsHelper.js` run (the tests with `$262.createRealm` stay
 skipped).
+
+### Weak collection tests
+
+`tools/probes/js-weak.json` has 318 snippets for Chromium 148 in 11 cases,
+made from `crates/js/tests/data/weak-snippets.txt` by
+`crates/js/tests/data/gen-weak-cases.js` (the format of `js-proxy.json`,
+without a prelude): the shape of `WeakMap`, `WeakSet`, `WeakRef` and
+`FinalizationRegistry` (key order, `length`, `name`, attributes, tags), the
+constructors (iterables, adders, closing of the iterator, subclasses,
+`Reflect.construct` and the order of the `prototype` read), every method
+with valid and invalid keys and V8's messages, the receivers, the upsert
+methods (the callable check before the key check, callbacks that change
+the map), symbols as keys (registered symbols fail, well-known symbols
+work), proxies as keys and targets, the uses of the target scripts (the
+module cache of bbc-js/s14.js, the core-js checks of bbc-js/s12.js, the
+circular-structure checks with `WeakSet` of bbc-js/s18.js and s47.js, the
+reactive store of ars-js/s06.js and others) and large tables, registries
+and chains. Nothing in them depends on when a collection runs. The case
+files:
+
+```
+node crates/js/tests/data/gen-weak-cases.js probe \
+  crates/js/tests/data/weak-snippets.txt tools/probes/js-weak.json
+just probe --json tools/probes/js-weak.json > probe.json
+node crates/js/tests/data/gen-weak-cases.js cases probe.json crates/js/tests/data
+```
+
+`crates/js/tests/builtins_weak.rs` runs `weak_cases.js` (311 snippets,
+normal and stress mode), `weak_cases_heavy.js` (7, normal mode) and
+`weak_console.js` (`console.log` of the weak objects; the expected output
+is that of Node.js 22). No snippet differs from the specification, so the
+`KNOWN` list of the script is empty. The collector cases are swb-only and
+force collections from Rust (`crates/js/tests/weak.rs`, normal and stress
+mode; the stress mode uses 5,000 instead of 100,000 entries for the
+large cases): a value that references its own key, the memory of dead
+entries, chains of 100,000 ephemerons in one table and across 1,000
+tables inserted forwards and backwards (a bound on the pause), keys that
+only another table's value reaches, `WeakRef` targets before and after
+`ClearKeptObjects` (and at the end of `run_jobs`), symbol keys, revoked
+proxies, cleanup callbacks (once per target, after the collection, in
+order, never for unregistered cells, dead registries or dropped queued
+registries, a callback that throws, callbacks that collect and register).
+The hostile tests in `weak_hostile.rs` (on an 8 MiB thread) cover a
+million entries whose keys die under a heap limit of 32 MiB, a chain of a
+million ephemerons inserted backwards, a chain, a table, a kept set and a
+registry that grow to the heap limit, a callback that registers a new
+target each time (2,000 rounds, bounded memory) and the shell's loop of
+cleanup tasks in the stress mode (the deadline ends it), 10,000 callbacks
+that throw (one error each) and `getOrInsertComputed` callbacks that
+change the map or re-enter without end (V8's `RangeError`). The unit tests
+of `object/weak.rs` cover the cells of a registry (reuse, stale
+references, tokens). The test262 subset has the features `WeakMap`,
+`WeakSet`, `WeakRef`, `FinalizationRegistry` and `symbols-as-weakmap-keys`
+and the four groups `test/built-ins/WeakMap`, `WeakSet`, `WeakRef` and
+`FinalizationRegistry`; no test there needs a forced collection, and the
+four cross-realm tests stay skipped.
 
 ## Python tools: development
 

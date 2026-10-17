@@ -446,7 +446,9 @@ generational, not incremental.
   key is marked (§9.9.2). `WeakRef` targets read in a synchronous run
   stay alive through the kept-alive list (§9.10, §9.11), which the host
   clears at each microtask checkpoint. `FinalizationRegistry` cleanup
-  runs as a host task (§9.9.4.1), never during a collection.
+  runs as a host task (§9.9.4.1), never during a collection. The
+  algorithm, the sweep order and the host interface are in section 15
+  (feature 9b).
 - No finalizer runs script code. Host data is dropped in the sweep, and
   its `Drop` must not touch the JavaScript heap.
 
@@ -2252,6 +2254,76 @@ where the first plan did not work:
   and 1.2 % more for `fib` and the `new Function` loop; the rows of
   `vm_bench` that moved by more than 3 % move between builds (code
   layout, docs/performance.md).
+- Weak collections (feature 9b, `object/weak.rs`, `heap/gc.rs`,
+  `heap/weak_roots.rs`, `builtins/weak.rs`, `weak_ref.rs`, §24.3, §24.4,
+  §26.1, §26.2, §9.9 to §9.13): `ObjectKind::WeakMap` and `WeakSet` hold
+  the hash table of `Map` and `Set` (`Table`, keyed with
+  `Heap::key_hash` by the handle of an object or of a symbol that
+  `Symbol.for` did not register; well-known symbols are allowed, as the
+  specification says and Chromium 148 does). The tables have no cursors
+  and no `size`, and no Rust code iterates them except the collector.
+  `WeakRef` holds its target, `FinalizationRegistry` its callback and its
+  cells (target and unregister token weak, held value strong, an index
+  from token to cells so that `unregister` costs the cells of its token).
+- Ephemerons (Hayes 1997): the marker does not trace a weak table. The
+  first phase marks from the roots and records the live `WeakMap`s,
+  `WeakSet`s, `WeakRef`s and registries by slot. If a `WeakMap` is live,
+  a second phase visits each entry of each recorded table once, in parts
+  of 1,024 entries like a large array: an entry with a marked key marks
+  its value, any other value waits in a list under its key (a map from
+  key to list head, with a bit per object and symbol slot so that most
+  marked objects need no lookup). In the second phase, a `WeakMap`
+  marked by the drain is visited when it is marked, an object that the
+  drain takes from the work list pushes its waiting list (parts of 1,024
+  values), and a marked symbol does the same. Each entry is visited and
+  waits at most once and each waiting value is marked at most once, so
+  the work is linear in entries plus marked things for chains in any
+  order, in one table or across many (a test: 100,000 links across 1,000
+  tables in both orders, and a million links in reverse order, on an
+  8 MiB stack). The first phase has no check: the drain of the
+  second phase is a separate instance of the generic drain.
+- Sweep order: after the marking and before anything is freed, each live
+  weak table removes the entries whose keys are not marked and compacts
+  (the memory returns in this collection), a live `WeakRef` forgets a
+  dead target, a live registry moves the cells with dead targets to its
+  pending list, drops dead tokens and enters the cleanup queue; then the
+  other weak tables (atoms, transitions) and the arenas are swept. No
+  entry, target or token outlives the slot it names; even if one did, a
+  handle carries its slot's generation, which equality and the keyed
+  hash include, so a later object in the slot never matches it.
+- `AddToKeptObjects` (new `WeakRef`, `deref`) adds the target to a set in
+  the heap, a root; `ClearKeptObjects` empties it at the end of
+  `Runtime::run_jobs` (the end of the synchronous run of a script and its
+  promise jobs, where HTML performs it at the end of a microtask
+  checkpoint), and `Runtime::clear_kept_objects` lets a host do it at
+  other ends of script runs. `run_jobs` clears only when it empties the
+  queue, so after a script or a job that threw, the host calls `run_jobs`
+  again or `clear_kept_objects` (HTML performs a microtask checkpoint
+  after every script, also one that threw; the shell exits). A set
+  instead of the specification's list: a loop of `deref` does not grow
+  it.
+- `HostEnqueueFinalizationRegistryCleanupJob`: a collection puts a
+  registry whose cells became pending into the heap's cleanup queue
+  (once). There is no hook trait yet (section 12): the host asks
+  `Runtime::pending_finalization_cleanups` after its tasks and runs one
+  job per registry with `Runtime::run_finalization_cleanup` as a task of
+  its own (the shell
+  after the promise jobs, each followed by the promise jobs it enqueued;
+  HTML queues a global task); the job calls the callback with the held
+  value of each pending cell in the order the collector found them, so no
+  script code runs during a collection. An exception ends the job, goes
+  to the host as `ScriptError::Uncaught` like an error of a promise job,
+  and the remaining cells get a new job. The queue holds its registries
+  weakly: a registry that script cannot reach calls no callback, also
+  when its job was queued before it died (cleanup is optional, §9.13).
+  `cleanupSome` is not defined (Chromium 148 has no such method).
+- No difference from Chromium 148 was found in 318 measured snippets
+  (`tools/probes/js-weak.json`); the messages are V8's
+  (`Invalid value used as weak map key`, `WeakRef: invalid target`,
+  `FinalizationRegistry.prototype.register: target and holdings must not
+  be same`, `Invalid unregisterToken ('1')` and the others), and
+  `getOrInsertComputed` checks the callback before the key, as the
+  proposal and test262 do.
 
 ## Consequences
 

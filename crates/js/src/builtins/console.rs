@@ -7,6 +7,9 @@
 //! `[Function: f]`, `[Number: 5]`, `Map(1) { 1 => 2 }`, `Set(2) { 1, 2 }`,
 //! `<ref *1> { self: [Circular *1] }`. The iterators of `Map` and `Set` print as
 //! ordinary objects (`Object [Map Iterator] {}`; Node.js lists their entries).
+//! `WeakMap { <items unknown> }`, `WeakSet { <items unknown> }`, `WeakRef {}`
+//! and `FinalizationRegistry {}` as in Node.js, which also prints the last
+//! two in full beyond the nesting depth when they have no properties.
 //! Formatting never runs script code: properties are read without
 //! calling getters (`[Getter]`), and no `toString` runs. Bounds: nesting
 //! depth 2 (deeper objects print as `[Object]` and `[Array]`), the first
@@ -167,6 +170,13 @@ impl Inspector<'_> {
             ObjectKind::Set(_) => Some("Set"),
             _ => None,
         };
+        // `Some(true)` for the weak collections (their items are not
+        // shown), `Some(false)` for `WeakRef` and `FinalizationRegistry`.
+        let weak = match record.kind {
+            ObjectKind::WeakMap(_) | ObjectKind::WeakSet(_) => Some(true),
+            ObjectKind::WeakRef(_) | ObjectKind::FinalizationRegistry(_) => Some(false),
+            _ => None,
+        };
         let base = self
             .base(object, &record.kind)
             .map(|base| self.with_function_tag(object, &record.kind, base));
@@ -174,6 +184,17 @@ impl Inspector<'_> {
         if !entries_shown {
             if let Some(base) = base {
                 return base;
+            }
+            if let Some(items) = weak {
+                let prefix = self.prefix(object, &record.kind);
+                if !items
+                    && self
+                        .property_entries(object, depth, indent, false)
+                        .is_empty()
+                {
+                    return format!("{prefix}{{}}");
+                }
+                return format!("[{}]", prefix.trim_end());
             }
             return match (is_array, collection) {
                 (true, _) => "[Array]".to_owned(),
@@ -186,6 +207,10 @@ impl Inspector<'_> {
             self.array_entries(object, depth, indent)
         } else if collection.is_some() {
             self.collection_entries(object, depth, indent)
+        } else if weak == Some(true) {
+            let mut entries = vec!["<items unknown>".to_owned()];
+            entries.extend(self.property_entries(object, depth, indent, false));
+            entries
         } else {
             self.property_entries(object, depth, indent, false)
         };
@@ -379,6 +404,10 @@ impl Inspector<'_> {
                     _ => format!("{builtin}({}) ", table.len()),
                 };
             }
+            ObjectKind::WeakMap(_)
+            | ObjectKind::WeakSet(_)
+            | ObjectKind::WeakRef(_)
+            | ObjectKind::FinalizationRegistry(_) => return self.weak_prefix(object, kind),
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
             | ObjectKind::ArrayIterator(_)
@@ -413,6 +442,33 @@ impl Inspector<'_> {
                 format!("{} ", sized(&name))
             }
             _ => String::new(),
+        }
+    }
+
+    /// The prefix of a weak collection, `WeakRef` or
+    /// `FinalizationRegistry`: always the constructor name (`WeakMap `),
+    /// with the tag when it differs (`M [WeakMap] ` for a subclass), or
+    /// `[WeakMap: null prototype] `.
+    fn weak_prefix(&self, object: Gc<Object>, kind: &ObjectKind) -> String {
+        let builtin = match kind {
+            ObjectKind::WeakMap(_) => "WeakMap",
+            ObjectKind::WeakSet(_) => "WeakSet",
+            ObjectKind::WeakRef(_) => "WeakRef",
+            _ => "FinalizationRegistry",
+        };
+        let tag = self.string_tag(object);
+        let Ok(Some(proto)) = self.rt.heap.get_prototype_of(object) else {
+            let start = format!("[{builtin}: null prototype] ");
+            return tag.map_or_else(|| start.clone(), |tag| format!("{start}[{tag}] "));
+        };
+        let name = self
+            .rt
+            .chain_constructor_name(proto)
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| builtin.to_owned());
+        match tag {
+            Some(tag) if tag != name => format!("{name} [{tag}] "),
+            _ => format!("{name} "),
         }
     }
 

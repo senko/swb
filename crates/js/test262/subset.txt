@@ -395,3 +395,19 @@ dir test/annexB/built-ins/RegExp
 feature Proxy
 feature proxy-missing-checks
 dir test/built-ins/Proxy
+
+# Added in M7 feature 9b: WeakMap and WeakSet (with the upsert methods of
+# WeakMap) and symbols as their keys, WeakRef with the kept-alive list, and
+# FinalizationRegistry with the cleanup job. No test of the four groups
+# needs a forced collection (`host-gc-required`, async-gc.js); the
+# cross-realm tests stay skipped. Tests with these features in groups that
+# run already (Object, Proxy, Array, JSON and others) run now too.
+feature WeakMap
+feature WeakSet
+feature WeakRef
+feature FinalizationRegistry
+feature symbols-as-weakmap-keys
+dir test/built-ins/WeakMap
+dir test/built-ins/WeakSet
+dir test/built-ins/WeakRef
+dir test/built-ins/FinalizationRegistry

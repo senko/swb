@@ -34,6 +34,7 @@
 mod arena;
 mod gc;
 mod roots;
+mod weak_roots;
 
 use std::any::Any;
 use std::time::Duration;
@@ -137,6 +138,9 @@ pub struct Heap {
     /// (parent shape, key, attributes) → child shape (weak).
     pub(crate) transitions: HandleMap<Transition, Gc<Shape>>,
     roots: roots::HeapRoots,
+    /// The kept set of the `WeakRef` targets and the cleanup queue of the
+    /// finalization registries (both roots).
+    pub(crate) weak_roots: weak_roots::WeakRoots,
     pub(crate) names: Names,
     config: HeapConfig,
     /// Live bytes measured by the last collection.
@@ -185,6 +189,7 @@ impl Heap {
             root_shapes: HandleMap::default(),
             transitions: HandleMap::default(),
             roots: roots::HeapRoots::default(),
+            weak_roots: weak_roots::WeakRoots::default(),
             names: Names { length },
             config,
             live_bytes: 0,

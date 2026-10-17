@@ -225,6 +225,31 @@ impl<T> Arena<T> {
         }
     }
 
+    /// The data at a slot index if the slot is live, for writing, with no
+    /// generation check (the sweep of the weak objects, which the marker
+    /// found live).
+    #[inline]
+    pub(crate) fn at_mut(&mut self, index: u32) -> Option<&mut T> {
+        match self.slots.get_mut(index as usize) {
+            Some(Slot {
+                state: State::Live(value),
+                ..
+            }) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// The handle of the live slot at an index.
+    pub(crate) fn handle_at(&self, index: u32) -> Option<Gc<T>> {
+        match self.slots.get(index as usize) {
+            Some(Slot {
+                generation,
+                state: State::Live(_),
+            }) => Some(Gc::new(index, *generation)),
+            _ => None,
+        }
+    }
+
     /// The live slots with their indices.
     pub(crate) fn iter(&self) -> impl Iterator<Item = (u32, &T)> {
         self.slots

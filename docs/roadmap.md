@@ -1676,6 +1676,32 @@ failures with a reason. Features, in this order:
      collection. Tests: the four `built-ins` directories, unit tests of
      the collector (chains of ephemerons, values that reference their
      keys, stress mode), hostile cases.
+     Done 2026-10-18: `WeakMap` and `WeakSet` (with `getOrInsert` and
+     `getOrInsertComputed`) over the hash table of `Map`, keyed by
+     objects and by symbols that are not registered (well-known symbols
+     too, as in the specification and Chromium 148). `WeakRef` with the
+     kept set: `AddToKeptObjects` at construction and at `deref`,
+     `ClearKeptObjects` at the end of `run_jobs`, once per microtask
+     checkpoint as HTML does, not after each job. `FinalizationRegistry`
+     with `register` and `unregister` (an index by token), and cleanup
+     as a host task (`Runtime::run_finalization_cleanup`) that never
+     runs during a collection; the queue holds its registries weakly, so
+     a registry that script dropped calls nothing. The collector marks
+     the ephemerons in a second phase, only when a `WeakMap` is live, in
+     time linear in the entries: a value whose key is not marked yet
+     waits in a list under the key (tests: chains of 100,000 links across
+     1,000 tables in both orders, and of a million links in reverse
+     order). The sweep removes dead entries, targets and tokens before
+     the arena frees their slots. The first marking phase has no new
+     check, and the drain skips the kind dispatch for plain objects and
+     arrays: `Heap::collect` executes 7 to 12 % fewer instructions on
+     heaps without weak collections. 318 snippets give Chromium 148's
+     results, with no difference from the specification. test262
+     runtime: 36,000 pass (was 35,666), the same in stress mode;
+     `built-ins/WeakMap` 140, `WeakSet` 84, `WeakRef` 28,
+     `FinalizationRegistry` 46 pass, 0 fail (4 cross-realm tests
+     skipped); parse-only unchanged (42,240).
+     Feature 9 done 2026-10-18: test262 runtime 35,233 → 36,000.
 10. `BigInt` (`implementer-hard`).
 11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
     `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
@@ -2046,6 +2072,32 @@ not repeated here; the open items of each spike session are in M6 step
     `exec` row). Consider a new runtime per program.
   - Remove `Proxy` from the EXCLUDED lists of the older probe generators
     at their next re-probe (1 snippet in `js-arrays.json`).
+- Weak collections (M7 9b):
+  - The host asks `Runtime::pending_finalization_cleanups` after its
+    tasks (polling); the host-hook trait of ADR 0026 section 12 has no
+    "schedule finalization cleanup" yet. The integration ADR decides.
+    The host must also call `run_jobs` or `clear_kept_objects` after a
+    script or a job that threw.
+  - The per-collection cost of a weak table or a registry is linear in
+    its size, also when nothing in it died; a generational or
+    incremental collector needs remembered sets for weak tables.
+  - The collector's memory for the ephemerons (the waiting lists, the
+    bit vectors) is allocated without the heap-limit check. It is at
+    most proportional to the entries with unmarked keys.
+  - `heap_bench`: the pause for 1M reachable objects is about 5 % slower
+    in wall time (16.9 → 17.7 ms) with 7.5 % fewer instructions. Measure
+    cache misses if it persists.
+  - `console.log`: Node prints an object with no entries in full at any
+    depth (`{ a: { b: { c: {} } } }`, `MM(0) [Map] {}`); swb prints
+    `[Object]` and `[Map]` past depth 2 (done for `WeakRef` and
+    `FinalizationRegistry` only).
+  - Spread or `for`-`of` over `new WeakSet()` or `new WeakMap()`:
+    Chromium 148's `TypeError` names the expression (`WeakSet is not a
+    function or its return value is not iterable`); swb gives its
+    generic message. Check other `new X()` expressions.
+  - Remove `WeakMap` from the EXCLUDED lists of `gen-proxy-cases.js`,
+    `gen-collection-cases.js` and `gen-iterator-cases.js` (no snippet
+    there uses it).
 
 ## Backlog from M5
 

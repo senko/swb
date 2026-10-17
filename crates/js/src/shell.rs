@@ -110,9 +110,12 @@ fn eval_script(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 }
 
 /// Runs a script and then the jobs that it enqueued (the promise jobs,
-/// ADR 0026 section 12), both under the time limit of the options. `name`
-/// is the script name that stack traces show. The unhandled rejections
-/// stay in the runtime's tracker ([`unhandled_rejections`]).
+/// ADR 0026 section 12), then the cleanup jobs of the finalization
+/// registries, each as a task followed by the promise jobs it enqueued,
+/// all under the time limit of the options. `name` is the script name that
+/// stack traces show. The unhandled rejections stay in the runtime's
+/// tracker ([`unhandled_rejections`]). An exception in a promise job or a
+/// cleanup callback ends the run like an uncaught exception of the script.
 pub(crate) fn run(
     rt: &mut Runtime,
     options: &Options,
@@ -122,6 +125,9 @@ pub(crate) fn run(
     rt.set_deadline(options.time_limit.map(|limit| Instant::now() + limit));
     let value = rt.eval_named(source, name)?;
     rt.run_jobs()?;
+    while rt.run_finalization_cleanup()? {
+        rt.run_jobs()?;
+    }
     Ok(value)
 }
 

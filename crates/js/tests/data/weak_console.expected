@@ -1,0 +1,34 @@
+WeakMap { <items unknown> }
+WeakSet { <items unknown> }
+WeakRef {}
+FinalizationRegistry {}
+{ a: WeakMap { <items unknown> }, b: WeakSet { <items unknown> } }
+[ WeakRef {} ]
+M [WeakMap] { <items unknown> }
+WeakMap { <items unknown>, x: 1 }
+WeakRef {}
+WeakRef {}
+{ d: { e: { f: [WeakMap] } } }
+FinalizationRegistry { y: 2 }
+F [FinalizationRegistry] {}
+WeakMap {}
+{
+  d: {
+    e: {
+      f: [M [WeakMap]],
+      g: WeakRef {},
+      h: FinalizationRegistry {},
+      i: [WeakSet]
+    }
+  }
+}
+[WeakMap: null prototype] { <items unknown> }
+[WeakSet: null prototype] { <items unknown> }
+[WeakRef: null prototype] {}
+{ x: WeakMap { <items unknown>, a: { b: [Object] } } }
+WeakRef { x: 1 }
+WeakSet { <items unknown>, [Symbol(q)]: 2 }
+{ a: { b: { c: [Object] } } }
+{ a: { b: { c: FinalizationRegistry {} } } }
+WeakMap { <items unknown> }
+WeakMap [X] { <items unknown> }

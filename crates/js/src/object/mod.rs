@@ -19,6 +19,7 @@ mod proxy;
 mod regexp;
 mod shape;
 mod table;
+mod weak;
 
 pub(crate) use array::{INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
@@ -33,6 +34,8 @@ pub(crate) use regexp::{RegExpData, RegExpStringIterator};
 pub(crate) use shape::KeyList;
 pub use shape::Shape;
 pub use table::{CollectionIterator, Table};
+pub(crate) use weak::WeakKey;
+pub(crate) use weak::{Registry, WeakRefData};
 
 pub(crate) use elements::Elements;
 pub(crate) use shape::{ShapeKind, Transition};
@@ -151,6 +154,18 @@ pub enum ObjectKind {
     /// A Proxy exotic object (§10.5): its target and handler (`proxy.rs`;
     /// the internal methods are in `vm/proxy.rs`).
     Proxy(Box<ProxyData>),
+    /// A `WeakMap` (`[[WeakMapData]]`, §24.3): the hash table of `Map`,
+    /// whose entries the collector treats as ephemerons (`weak.rs`).
+    WeakMap(Box<Table>),
+    /// A `WeakSet` (`[[WeakSetData]]`, §24.4): keys that the collector
+    /// does not trace.
+    WeakSet(Box<Table>),
+    /// A `WeakRef` (`[[WeakRefTarget]]`, §26.1): a target that the
+    /// collector does not trace.
+    WeakRef(Box<WeakRefData>),
+    /// A `FinalizationRegistry` (§26.2): the cleanup callback and the
+    /// cells.
+    FinalizationRegistry(Box<Registry>),
 }
 
 /// The state of a `for`-`in` loop: the object and the keys that the loop
@@ -232,6 +247,10 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::PrivateEnvironment(_) => "PrivateEnvironment",
             ObjectKind::Environment(_) => "Environment",
             ObjectKind::Proxy(_) => "Proxy",
+            ObjectKind::WeakMap(_) => "WeakMap",
+            ObjectKind::WeakSet(_) => "WeakSet",
+            ObjectKind::WeakRef(_) => "WeakRef",
+            ObjectKind::FinalizationRegistry(_) => "FinalizationRegistry",
         };
         f.write_str(name)
     }
@@ -239,8 +258,9 @@ impl fmt::Debug for ObjectKind {
 
 impl ObjectKind {
     /// Reports the handles in the payload of the kind to the tracer. The
-    /// marking loop calls it for every marked object.
-    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+    /// marking loop calls it for every marked object; `index` is the
+    /// object's slot (the weak kinds report it, `heap/gc.rs`).
+    pub(crate) fn trace(&self, index: u32, tracer: &mut Tracer<'_>) {
         match self {
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
@@ -293,11 +313,22 @@ impl ObjectKind {
             ObjectKind::Promise(state) => state.trace(tracer),
             ObjectKind::ArrayFromAsync(state) => state.trace(tracer),
             ObjectKind::Proxy(data) => data.trace(tracer),
+            ObjectKind::WeakMap(_) => tracer.weak_map(index),
+            ObjectKind::WeakSet(_) => tracer.weak_set(index),
+            ObjectKind::WeakRef(_) => tracer.weak_holder(index),
+            ObjectKind::FinalizationRegistry(registry) => {
+                registry.trace(tracer);
+                tracer.weak_holder(index);
+            }
         }
     }
 
     /// The bytes that the payload owns outside the object record.
     pub(crate) fn heap_size(&self) -> usize {
+        // The common kinds first: the sweep asks every live object.
+        if matches!(self, ObjectKind::Ordinary | ObjectKind::Array { .. }) {
+            return 0;
+        }
         match self {
             ObjectKind::Function(closure) => closure.heap_size(),
             ObjectKind::Native(native) => native.heap_size(),
@@ -305,9 +336,10 @@ impl ObjectKind {
             ObjectKind::Generator(state) => state.heap_size(),
             ObjectKind::ArrayIterator(_) => size_of::<ArrayIterator>(),
             ObjectKind::StringIterator(_) => size_of::<StringIterator>(),
-            ObjectKind::Map(table) | ObjectKind::Set(table) => {
-                size_of::<Table>() + table.heap_size()
-            }
+            ObjectKind::Map(table)
+            | ObjectKind::Set(table)
+            | ObjectKind::WeakMap(table)
+            | ObjectKind::WeakSet(table) => size_of::<Table>() + table.heap_size(),
             ObjectKind::MapIterator(_) | ObjectKind::SetIterator(_) => {
                 size_of::<CollectionIterator>()
             }
@@ -326,6 +358,8 @@ impl ObjectKind {
             ObjectKind::Promise(state) => state.heap_size(),
             ObjectKind::ArrayFromAsync(_) => size_of::<crate::builtins::FromAsync>(),
             ObjectKind::Proxy(_) => size_of::<ProxyData>(),
+            ObjectKind::WeakRef(_) => size_of::<WeakRefData>(),
+            ObjectKind::FinalizationRegistry(registry) => registry.heap_size(),
             _ => 0,
         }
     }

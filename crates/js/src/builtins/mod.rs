@@ -24,7 +24,8 @@
 //! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`;
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
-//! `set_methods.rs`, `collection.rs`); `Promise` (`promise.rs`,
+//! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
+//! and `FinalizationRegistry` (`weak.rs`, `weak_ref.rs`); `Promise` (`promise.rs`,
 //! `promise_combinators.rs`; the promise objects and jobs are in
 //! `vm/promise.rs` and `vm/jobs.rs`); and `%IteratorPrototype%`
 //! and `%ArrayIteratorPrototype%`. Each function
@@ -97,6 +98,8 @@ mod string_search;
 mod string_unicode;
 mod symbol;
 mod uri;
+mod weak;
+mod weak_ref;
 
 pub use array_from_async::FromAsync;
 pub(crate) use error::error_header;
@@ -153,6 +156,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;
     set::install(rt, realm)?;
+    weak::install(rt, realm)?;
+    weak_ref::install(rt, realm)?;
     json::install(rt, realm)?;
     console::install(rt, realm)?;
     promise::install(rt, realm)?;

@@ -228,6 +228,15 @@ Format: source, license (for code), what it influenced.
   library). The set methods follow ECMA-262 §24.2.4; the messages, the key
   order and the limit of 2^24 entries were measured in Chromium 148
   (`just probe` `tools/probes/js-collections.json`).
+- The weak collections (M7 feature 9b, `js/src/object/weak.rs`,
+  `js/src/heap/gc.rs`), written from ECMA-262 §9.9 to §9.13, §24.3,
+  §24.4, §26.1 and §26.2. The ephemeron marking follows the definition in
+  Barry Hayes, "Ephemerons: a new finalization mechanism", OOPSLA 1997 (a
+  value is reached only through its reached key); the per-key lists of
+  waiting values that make it linear, the two phases and the sweep order
+  are swb's own. No engine or collector code was read; the messages and
+  the key order were measured in Chromium 148 (`just probe`
+  `tools/probes/js-weak.json`), the `console.log` forms in Node.js 22.
 - The iterator helpers (M7 feature 6c, `js/src/builtins/iterator*.rs`,
   `js/src/object/iterator_helper.rs`), written from ECMA-262 §27.1 and
   the TC39 iterator sequencing proposal for `Iterator.concat`

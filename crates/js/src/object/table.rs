@@ -616,6 +616,48 @@ impl Table {
     pub(crate) fn cursor_count(&self) -> usize {
         self.cursors.len()
     }
+
+    // --- Weak tables (`weak.rs`) ---
+
+    /// The number of entries, deleted ones included (the positions of
+    /// [`Table::entry`]).
+    pub(crate) fn entry_len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// The entries at the positions `start..end` (fewer at the end).
+    pub(crate) fn entries_in(&self, start: usize, end: usize) -> &[Entry] {
+        let end = end.min(self.entries.len());
+        self.entries.get(start..end).unwrap_or_default()
+    }
+
+    /// The sweep of a `WeakMap` or `WeakSet` (which have no cursors and no
+    /// loops): removes the live entries whose key `dead` accepts, then
+    /// compacts the table, so the memory of the dead entries returns in
+    /// the same collection. Returns the number of removed entries.
+    pub(crate) fn remove_dead(&mut self, dead: impl Fn(Value) -> bool) -> usize {
+        let mut removed = 0;
+        for (position, entry) in self.entries.iter_mut().enumerate() {
+            if !entry.key.is_empty() && dead(entry.key) {
+                entry.key = Value::Empty;
+                entry.value = Value::Undefined;
+                entry.hash = position as u64 + 1;
+                removed += 1;
+            }
+        }
+        if removed > 0 {
+            self.live -= removed;
+            // This compaction allocates nothing, so it cannot fail: a weak
+            // table has no cursors or loops to remap, and with at least one
+            // entry removed, the new index is not longer than the old one.
+            // A failure would leave the index stale (lookups could miss live
+            // keys), so it is an internal error.
+            if self.compact().is_err() {
+                log::error!("internal error: a weak table could not be compacted");
+            }
+        }
+        removed
+    }
 }
 
 // --- SameValueZero and the hash ---

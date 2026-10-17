@@ -24,7 +24,12 @@
 //! until the host runs them with [`Runtime::run_jobs`] (the HTML microtask
 //! checkpoint; the shell after each script). After a drain, the host takes
 //! the promises that were rejected without a handler
-//! ([`Runtime::take_unhandled_rejections`]).
+//! ([`Runtime::take_unhandled_rejections`]). The end of a drain is also
+//! where `ClearKeptObjects` runs (§9.11; HTML performs it at the end of a
+//! microtask checkpoint). The cleanup jobs of finalization registries
+//! (`HostEnqueueFinalizationRegistryCleanupJob`, §9.5.6) wait in the heap
+//! until the host runs each as a task of its own
+//! ([`Runtime::run_finalization_cleanup`]).
 
 use std::any::Any;
 use std::borrow::Cow;
@@ -639,7 +644,85 @@ impl Runtime {
                 .safepoint(&self.vm)
                 .map_err(|e| finish_error(e.into()))?;
         }
+        // The synchronous run of script ends here: `ClearKeptObjects`
+        // (§9.11), as HTML performs it at the end of a microtask checkpoint.
+        self.heap.clear_kept_objects();
         Ok(())
+    }
+
+    /// `ClearKeptObjects` (§9.11): the targets of the `WeakRef`s made or
+    /// read since the last call can die at the next collection.
+    /// [`Runtime::run_jobs`] calls it when the queue is empty; a host that
+    /// ends a synchronous run of script in another way calls it then, also
+    /// after a script or a job that threw.
+    pub fn clear_kept_objects(&mut self) {
+        self.heap.clear_kept_objects();
+    }
+
+    /// The number of finalization registries whose cleanup job waits
+    /// (`HostEnqueueFinalizationRegistryCleanupJob`, §9.5.6). The host
+    /// runs each with [`Runtime::run_finalization_cleanup`] as a task (HTML
+    /// queues a global task on the JavaScript engine task source), and then
+    /// runs the promise jobs.
+    pub fn pending_finalization_cleanups(&self) -> usize {
+        self.heap.pending_cleanups()
+    }
+
+    /// Runs the next cleanup job: `CleanupFinalizationRegistry` (§9.13)
+    /// calls the registry's callback with the held value of each cell whose
+    /// target died, in the order the collector found them. Returns whether
+    /// a job ran. An exception in a callback ends the job and is returned
+    /// as [`ScriptError::Uncaught`] (the host reports it); the cells that
+    /// still wait get a new job. Does nothing while script code is running.
+    pub fn run_finalization_cleanup(&mut self) -> Result<bool, ScriptError> {
+        if !self.vm.frames.is_empty() {
+            return Ok(false);
+        }
+        let Some(registry) = self.heap.take_cleanup() else {
+            return Ok(false);
+        };
+        self.vm.error_offset = None;
+        let start = self.run_start();
+        let scope = self.heap.open_scope();
+        self.heap.record(registry);
+        match self.cleanup_registry(registry) {
+            Ok(()) => {
+                self.heap
+                    .close_scope(scope)
+                    .map_err(|e| finish_error(e.into()))?;
+                Ok(true)
+            }
+            Err(error) => {
+                if let Err(internal) = self.heap.requeue_cleanup(registry) {
+                    log::warn!("a finalization registry was not queued again: {internal}");
+                }
+                self.restore_run_start(&start);
+                self.finish(Err(error)).map(|_| true)
+            }
+        }
+    }
+
+    /// `CleanupFinalizationRegistry` (§9.13): one call per pending cell,
+    /// each in a handle scope of its own and a step of the time countdown.
+    fn cleanup_registry(&mut self, registry: Gc<Object>) -> VmResult<()> {
+        let callback = self
+            .heap
+            .registry(registry)?
+            .map_or(Value::Undefined, |registry| registry.callback);
+        loop {
+            self.tick()?;
+            let more = self.with_scope(|rt| {
+                let Some(held) = rt.heap.registry_take_pending(registry)? else {
+                    return Ok(false);
+                };
+                rt.heap.record(held);
+                rt.call(callback, Value::Undefined, &[held])?;
+                Ok(true)
+            })?;
+            if !more {
+                return Ok(());
+            }
+        }
     }
 
     /// The number of jobs in the queue.

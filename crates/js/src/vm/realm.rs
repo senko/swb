@@ -75,6 +75,13 @@ pub(crate) enum Intrinsic {
     /// (§22.2.9.2).
     RegExpPrototype,
     RegExpStringIteratorPrototype,
+    /// `%WeakMap.prototype%` (§24.3.3), `%WeakSet.prototype%` (§24.4.3),
+    /// `%WeakRef.prototype%` (§26.1.3) and
+    /// `%FinalizationRegistry.prototype%` (§26.2.3).
+    WeakMapPrototype,
+    WeakSetPrototype,
+    WeakRefPrototype,
+    FinalizationRegistryPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -128,10 +135,15 @@ pub(crate) enum Intrinsic {
     RegExpConstructor,
     RegExpExec,
     RegExpSpeciesGetter,
+    /// `WeakMap.prototype.set` and `WeakSet.prototype.add`, set when the
+    /// built-in functions are installed (the constructors call the adder
+    /// directly when it is the built-in one).
+    WeakMapPrototypeSet,
+    WeakSetPrototypeAdd,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 55;
+const INTRINSIC_COUNT: usize = 61;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -274,6 +286,10 @@ impl Runtime {
         let async_generator_function_proto = heap.new_object(Some(function_proto))?;
         let regexp_proto = heap.new_object(Some(object_proto))?;
         let regexp_string_iterator_proto = heap.new_object(Some(iterator_proto))?;
+        let weak_map_proto = heap.new_object(Some(object_proto))?;
+        let weak_set_proto = heap.new_object(Some(object_proto))?;
+        let weak_ref_proto = heap.new_object(Some(object_proto))?;
+        let registry_proto = heap.new_object(Some(object_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -332,6 +348,10 @@ impl Runtime {
             async_generator_function_proto,
             regexp_proto,
             regexp_string_iterator_proto,
+            weak_map_proto,
+            weak_set_proto,
+            weak_ref_proto,
+            registry_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

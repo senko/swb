@@ -42,8 +42,10 @@ Options:
 print(...) and console.log(...) write to stdout. $262 has evalScript(src),
 gc() and global; createRealm, detachArrayBuffer and agent are not available.
 
-The promise jobs run after each script. A promise rejected without a
-handler is reported as Uncaught (in promise) Name: message on stderr.
+The promise jobs run after each script, then the cleanup callbacks of the
+FinalizationRegistry objects whose targets the collector found dead (each
+followed by its promise jobs). A promise rejected without a handler is
+reported as Uncaught (in promise) Name: message on stderr.
 
 Exit codes: 0 success; 1 uncaught error (Uncaught Name: message and the
 position on stderr) or unhandled rejection; 2 compile error; 3 termination
