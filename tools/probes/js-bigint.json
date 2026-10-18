@@ -1,0 +1,35 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "limit",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const t = (f) => { try { const v = f(); return typeof v === 'bigint' ? 'ok bits=' + v.toString(16).length * 4 : String(v); } catch (e) { return e.name + ': ' + e.message; } }; const k = 2n ** 30n; return [t(() => 1n << (k - 1n)), t(() => 1n << k), t(() => (1n << (k - 1n)) * 2n), t(() => (1n << (k - 2n)) * 2n), t(() => 2n ** (k - 1n)), t(() => 2n ** k), t(() => 1n << (k + 100n)), t(() => 1n << 18446744073709551616n), t(() => -1n << 18446744073709551616n), t(() => 1n >> 18446744073709551616n), t(() => -1n >> 18446744073709551616n), t(() => 1n >> -18446744073709551616n), t(() => 0n << 18446744073709551616n), t(() => 1n / 0n), t(() => 1n % 0n), t(() => 2n ** -1n), t(() => BigInt(1.5)), t(() => BigInt(NaN)), t(() => BigInt('1.5')), t(() => BigInt('0x')), t(() => 0n ** 0n), t(() => 3n ** 100000000000n), t(() => (-1n) ** 100000000000001n), t(() => 1n ** 100000000000001n), t(() => 0n ** 100000000000001n), t(() => BigInt.asUintN(2**53 - 1, -1n) > 0n), t(() => BigInt.asUintN(2**31, -1n) > 0n), t(() => BigInt.asUintN(2**30, -1n) > 0n), t(() => BigInt.asUintN(2**30 + 1, -1n) > 0n), t(() => BigInt.asIntN(2**53 - 1, -1n)), t(() => BigInt.asUintN(2**53 - 1, 5n))]; })()"
+    }
+   ]
+  },
+  {
+   "name": "limit-bits",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const ok = (bits) => { try { const v = 1n << BigInt(bits - 1); return v > 0n; } catch (e) { return false; } }; let lo = 1, hi = 2 ** 31; while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ok(mid)) lo = mid; else hi = mid; } let m = ''; try { 1n << BigInt(hi - 1); } catch (e) { m = e.name + ': ' + e.message; } let mul = ''; try { const a = 1n << BigInt(lo - 2); const b = a * 2n; mul = 'ok ' + (b > 0n); } catch (e) { mul = e.message; } let mul2 = ''; try { const a = 1n << BigInt(lo - 1); const b = a * 2n; mul2 = 'ok'; } catch (e) { mul2 = e.message; } let ones = ''; try { const a = (1n << BigInt(lo)) - 1n; ones = 'ok ' + (a > 0n); } catch (e) { ones = e.message; } let add = ''; try { const a = (1n << BigInt(lo - 1)); const b = a + a; add = 'ok'; } catch (e) { add = e.message; } return [lo, m, mul, mul2, ones, add]; })()"
+    }
+   ]
+  },
+  {
+   "name": "limit-time",
+   "html": "<!DOCTYPE html><p>x</p>",
+   "measure": [
+    {
+     "js": "(() => { const x = (1n << 1000000n) - 1n; const t0 = performance.now(); const s = x.toString(); const t1 = performance.now(); const y = x * x; const t2 = performance.now(); const q = y / (x - 12345n); const t3 = performance.now(); return [s.length, Math.round(t1 - t0), Math.round(t2 - t1), Math.round(t3 - t2), q.toString(16).length]; })()"
+    }
+   ]
+  }
+ ]
+}

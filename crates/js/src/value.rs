@@ -149,16 +149,10 @@ pub struct Symbol {
     pub(crate) private: bool,
 }
 
-/// A `BigInt` (placeholder until M7 feature 10): sign and magnitude in
-/// 64-bit limbs, least significant first.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct BigInt {
-    /// Whether the value is negative.
-    pub negative: bool,
-    /// The magnitude, least significant limb first, without leading zero
-    /// limbs.
-    pub limbs: Vec<u64>,
-}
+/// A `BigInt` value: sign and magnitude in 64-bit limbs, normalized, with
+/// its arithmetic in `js-text` (ADR 0026 section 7). The heap's `BigInt`
+/// arena holds these.
+pub use swb_js_text::bigint::BigInt;
 
 /// A cell: the storage of a binding that a closure captures (ADR 0026
 /// section 3). A register holds it as [`Value::Cell`].

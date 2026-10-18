@@ -169,6 +169,24 @@ Format: source, license (for code), what it influenced.
   Computational and Applied Mathematics 315, 2017 (xorshift128+ of
   `Math.random`, `js/src/vm/random.rs`). `toLocaleString` and
   `Math.sumPrecise` follow Chromium 148, measured (`just probe`).
+- The `BigInt` arithmetic of `js-text/src/bigint/` (M7 10a), written
+  from the literature, no code of an engine or of a multi-precision
+  library read: D. E. Knuth, The Art of Computer Programming, vol. 2,
+  3rd edition, §4.3.1 (Algorithms A, S and M for addition, subtraction
+  and schoolbook multiplication; Algorithm D for long division, with its
+  normalization, the quotient estimate from the top two limbs, the test
+  with the third and the add-back step) and §4.6.3 (left-to-right binary
+  exponentiation); N. Möller and T. Granlund, "Improved division by
+  invariant integers", IEEE Transactions on Computers 60(2), 2011
+  (Algorithm 4, the division of two limbs by one with a precomputed
+  reciprocal, used in the single-limb division, in `toString` and in the
+  quotient estimate of Algorithm D); H. S. Warren, Jr., "Hacker's
+  Delight", 2nd edition, §9-2 (the test case of a multiword division that
+  needs the add-back step, scaled to 64-bit limbs). The infinite two's
+  complement form of the bitwise operators, `asIntN` and `asUintN` follow
+  ECMA-262 §6.1.6.2 and §21.2.2. The reference table comes from Python's
+  `int`, used as a black box; Chromium's size limit and messages were
+  measured (`just probe` `tools/probes/js-bigint.json`).
 - H.-J. Boehm, R. Atkinson and M. Plass, "Ropes: an Alternative to
   Strings", Software: Practice and Experience 25(12), 1995 — the ropes
   of `js/src/string/rope.rs` (M7 feature 5a): concatenation nodes with

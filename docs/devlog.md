@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 10a, BigInt arithmetic
+
+- Feature 10 is split into 10a (the arithmetic) and 10b (the language).
+  One target script needs BigInts: protobuf's 64-bit integers on Ars.
+- The arithmetic is a library module of `js-text` (`bigint/`), without
+  heap or engine types; the engine's placeholder type is now the
+  library's type. Sign and magnitude in 64-bit limbs, normalized.
+  Schoolbook multiplication; Knuth's Algorithm D for long division and
+  a short path for one-limb divisors, both with Möller and Granlund's
+  reciprocal division (the hardware 128-by-64 division is a slow library
+  call). Shifts and bitwise operators work on the two's complement form
+  and read only the limbs that the result depends on.
+- Size limit: 2^18 bits. At the limit the slowest operation, `toString`
+  in radix 10 (quadratic), takes 32 ms in a release build; 2^19 bits
+  would give 126 ms. Chromium allows 2^30 − 64 bits (KNOWN). Every
+  result above the limit fails before work in proportion to its size,
+  all allocation is fallible, and each operation has a cost in work
+  units for the time countdown.
+- `Natural` of the number conversions stays separate: sharing would put
+  fallible allocation and 64-bit limbs into the hot paths of `toFixed`
+  and `parseInt`.
+- Tests: 6,636 reference cases from Python's `int`, 40 of them with
+  Algorithm D's add-back step (found by a simulation of the quotient
+  estimate in the generator).
+- The review found no defect. Its own check of 40,352 cases against
+  Python, in a debug build with overflow checks, gave no difference. Its
+  nits: a right shift costs more per limb than the cost model charged
+  (now 3 units per limb), an overflow guard in the parse cost, and a
+  sentence in performance.md about the limbs that a result reserves.
+- Next: 10b, BigInt in the language.
+
 ## 2026-10-18: M7 feature 9b, weak collections; end of feature 9
 
 - `WeakMap`, `WeakSet`, `WeakRef` and `FinalizationRegistry`. The weak

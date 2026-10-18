@@ -329,7 +329,7 @@ impl Runtime {
             Value::Double(d) => !(d == 0.0 || d.is_nan()),
             Value::String(s) => !self.heap.string(s)?.is_empty(),
             Value::Symbol(_) | Value::Object(_) => true,
-            Value::BigInt(b) => !self.heap.bigint(b)?.limbs.is_empty(),
+            Value::BigInt(b) => !self.heap.bigint(b)?.is_zero(),
             Value::Empty | Value::Cell(_) => {
                 return Err(VmError::invariant("ToBoolean of an internal value"));
             }

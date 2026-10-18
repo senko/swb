@@ -513,6 +513,67 @@ instructions within 0.5 % (callgrind, the programs as `swb-js` scripts):
 +4 % (0.0 %); others moved by 3 to 6 % in both directions. These are
 effects of code placement.
 
+### BigInt
+
+`cargo run --release -p swb-js-text --example bigint_bench`
+(`crates/js-text/examples/bigint_bench.rs`) times the arithmetic of
+`js-text` alone (M7 10a; no script can make a `BigInt` before 10b), best
+of 5 runs, with the work units of `bigint::cost` per nanosecond: the cost
+model is calibrated so that a unit takes 0.3 to 1.3 ns (about 0.7 ns for
+the quadratic loops; one unit is one step of the schoolbook
+multiplication; the review of 10a measured each operation at one or two
+limbs and at the limit). `node --jitless crates/js-text/examples/bigint_bench.js`
+runs the same values in Node.js 22.11; its times include the
+interpreter's dispatch of one operation (about 25 ns). 2026-10-18, same
+machine:
+
+| Case | swb | node --jitless |
+|---|---|---|
+| add, 1 limb | 14.9 ns | 39.8 ns |
+| mul, 1 × 1 limb | 14.5 ns | 39.1 ns |
+| div, 2 by 1 limb | 30.0 ns | 51.4 ns |
+| toString(10), 1 limb | 44.9 ns | 53.2 ns |
+| add, 10 limbs | 23.0 ns | 44.4 ns |
+| mul, 10 × 10 limbs | 72.8 ns | 171.6 ns |
+| div, 20 by 10 limbs | 224 ns | 310 ns |
+| toString(10), 10 limbs | 556 ns | 723 ns |
+| add, 1,000 limbs | 0.72 µs | 0.66 µs |
+| mul, 1,000 × 1,000 limbs | 709 µs | 282 µs |
+| div, 2,000 by 1,000 limbs | 728 µs | 655 µs |
+| toString(10), 1,000 limbs | 1.9 ms | 1.0 ms |
+
+A result of one or two limbs is computed in 128-bit arithmetic. Most
+paths give it a vector of exactly its limbs; two reserve one limb more:
+`from_f64` of a double from 2^53 to 2^64, and a left shift (`x << 32n`
+of a 1-limb value holds 16 bytes). The heap charges the reserved bytes.
+The division of two limbs by one (all single-limb divisions,
+`toString`, the quotient estimate of Algorithm D)
+multiplies by a precomputed reciprocal (Möller and Granlund 2011); the
+reciprocals of the radix powers of `toString` are constants, and a
+1-limb value prints its digits directly (before both, `toString(10)` of a
+1-limb value took 88 ns). V8's multiplication is faster from about 100
+limbs on (Karatsuba and beyond).
+
+The size limit (ADR 0026 sections 7 and 15): the slowest operations on
+values of 2^18 bits (4,096 limbs):
+
+| Case | swb | node (with JIT) |
+|---|---|---|
+| `*`, two values of 2^17 bits | 3.0 ms | 0.56 ms |
+| `/`, 2^18 bits by 2^17 bits | 3.1 ms | 1.9 ms |
+| `toString()` (radix 10; radixes 3 and 36 the same) | 32.2 ms | 8.5 ms |
+| `toString(2)` | 0.33 ms | |
+| `BigInt` of the decimal text (78,914 digits) | 3.0 ms | |
+| `3n ** 165394n` (2^18 bits) | 4.0 ms | |
+| `x ** 7n`, x of 2^18 / 7 bits | 4.4 ms | |
+| `^` of two values at the limit | 7.8 µs | |
+| `BigInt.asUintN(2 ** 18, -x)` | 2.4 µs | |
+| `x << (1n << 40n)`, `3n ** (2n ** 64n - 1n)` (errors at once) | 40 to 50 ns | |
+
+With 2^19 bits `toString()` took 126 ms, more than the 100 ms that one
+operation may take; so the limit is 2^18. Chromium 148 prints a value of
+a million bits in 36 ms (`tools/probes/js-bigint.json`).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

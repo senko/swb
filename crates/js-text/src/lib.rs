@@ -8,10 +8,12 @@
 //! the regular expression matcher are generic over, and the Unicode data
 //! that the lexer needs ([`unicode`]), the conversions between numbers
 //! and text ([`number`]: exact in all radixes, with multi-precision
-//! integers where doubles do not suffice) and a keyed hasher ([`hash`]). It
+//! integers where doubles do not suffice), the integers of `BigInt`
+//! ([`bigint`]) and a keyed hasher ([`hash`]). It
 //! also has the engine's shared [`RecursionBudget`], because every
 //! engine crate depends on this one.
 
+pub mod bigint;
 mod budget;
 pub mod hash;
 pub mod number;

@@ -1702,7 +1702,60 @@ failures with a reason. Features, in this order:
      `FinalizationRegistry` 46 pass, 0 fail (4 cross-realm tests
      skipped); parse-only unchanged (42,240).
      Feature 9 done 2026-10-18: test262 runtime 35,233 → 36,000.
-10. `BigInt` (`implementer-hard`).
+10. `BigInt` (`implementer-hard`). Split 2026-10-18 into two sessions,
+    one commit each: the arithmetic first, then the language. test262:
+    77 tests in `built-ins/BigInt`, 59 in `language/literals/bigint`; in
+    the current subset, 177 tests are skipped for the feature `BigInt`
+    and 62 are unsupported (BigInt literals). Target scripts: ars-js/s02.js
+    (protobuf's 64-bit integers) calls `BigInt(...)` and
+    `BigInt.asIntN`, and uses `<<`, `>>`, `|`, `&` and `Number(...)` on
+    BigInts, after a `typeof BigInt` check with a fallback. No target
+    script has a BigInt literal.
+    - 10a Arithmetic (`implementer-hard`; `js`): the representation
+      (sign and magnitude in 64-bit limbs, normalized), addition,
+      subtraction, multiplication, division and remainder (truncating;
+      long division after Knuth's Algorithm D), exponentiation, the
+      shifts (`>>` rounds towards minus infinity), the bitwise
+      operators on the infinite two's complement form, `asIntN`,
+      `asUintN`, comparison with BigInts and with Numbers (exact, also
+      for fractions, infinities and NaN), the conversion to a double
+      (rounded to nearest, ties to even) and from an integral double,
+      `StringToBigInt`, the literal forms, and `toString` in the radixes
+      2 to 36. A size limit in bits and a time charge per limb operation
+      bound the time of every operation (ADR 0026 section 9); every
+      allocation is fallible. Tests: a table of results from an
+      arbitrary-precision reference outside swb, edge values, hostile
+      sizes.
+      Done 2026-10-18: `js-text/src/bigint/`, without heap or engine
+      types; the engine's `BigInt` type is the library's. Schoolbook
+      multiplication; Algorithm D and the one-limb division with a
+      precomputed reciprocal (Möller and Granlund 2011) instead of the
+      hardware's 128-by-64 division; powers by squaring with the result
+      size estimated first; shifts and two's complement bitwise
+      operators that read only the limbs the result depends on;
+      `asIntN`, `asUintN`; exact conversions and comparisons with
+      doubles; `StringToBigInt`; literals; `toString` in the radixes 2
+      to 36. The size limit is 2^18 bits (Chromium 148: 2^30 − 64; a
+      KNOWN difference): at the limit, `toString` in radix 10 takes
+      32 ms, a product or a quotient 3 ms; with 2^19 bits `toString`
+      would take 126 ms. Every result above the limit fails before work
+      in proportion to its size. `bigint::cost` gives the work of each
+      operation for the time countdown. Tests: 6,636 reference cases
+      from Python's `int` (40 of them need Algorithm D's add-back step);
+      the review compared 40,352 more cases of its own with Python: no
+      difference. test262 unchanged (36,000).
+    - 10b The language (`implementer-hard`; `js`): BigInt literals in
+      the compiler (also as property keys), `typeof`, the operators
+      with `ToNumeric` and V8's messages for mixed types, comparisons
+      and loose equality with Numbers and strings, `++` and `--`,
+      `ToBigInt`, `ToBigInt64`, `ToBigUint64`, the conversions and
+      their `TypeError`s (`ToNumber`, unary `+`, `>>>`, `Math`, `JSON`),
+      the `BigInt` function with `asIntN`, `asUintN` and the prototype
+      methods, wrapper objects, `console.log` as Node prints BigInts.
+      The fast paths for Numbers stay as fast as before. Tests:
+      `built-ins/BigInt`, `language/literals/bigint`, the tests with the
+      feature `BigInt` in the subset, probe cases from Chromium, the
+      int64 paths of ars-js/s02.js, hostile cases.
 11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
     `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
     and `BigUint64Array`), `DataView`, `Atomics` on non-shared buffers.
@@ -2098,6 +2151,14 @@ not repeated here; the open items of each spike session are in M6 step
   - Remove `WeakMap` from the EXCLUDED lists of `gen-proxy-cases.js`,
     `gen-collection-cases.js` and `gen-iterator-cases.js` (no snippet
     there uses it).
+- BigInt arithmetic (M7 10a):
+  - `toString` and the decimal parse are quadratic. A divide-and-conquer
+    `toString` (split by powers of the radix) would be about 4.5 times
+    faster and would allow a limit of 2^19 bits.
+  - No Karatsuba multiplication (a product at the limit takes 3 ms;
+    V8 is faster from about 100 limbs on).
+  - `from_f64` of a double from 2^53 to 2^64 and the left shifts reserve
+    one limb more than the result needs.
 
 ## Backlog from M5
 

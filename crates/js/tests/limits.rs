@@ -264,12 +264,7 @@ fn every_kind_of_handle_can_be_recorded() {
     let cell = heap.alloc_cell(inner.into()).unwrap();
     let held = heap.alloc_str("in generic data").unwrap();
     let generic = heap.alloc_generic(Code(vec![held.into()])).unwrap();
-    let big = heap
-        .alloc_bigint(BigInt {
-            negative: false,
-            limbs: vec![7],
-        })
-        .unwrap();
+    let big = heap.alloc_bigint(BigInt::from_u64(7).unwrap()).unwrap();
     let atom = heap.key_from_str("a key").unwrap();
     let described = heap.alloc_str("description").unwrap();
     let symbol = heap.alloc_symbol(Some(described)).unwrap();

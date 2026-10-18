@@ -668,9 +668,7 @@ impl Heap {
             .sweep(&marks.objects, |o| o.heap_size() + o.kind.heap_size()));
         add(arenas.strings.sweep(&marks.strings, JsString::heap_size));
         add(arenas.symbols.sweep(&marks.symbols, |_| 0));
-        add(arenas
-            .bigints
-            .sweep(&marks.bigints, |b| b.limbs.capacity() * 8));
+        add(arenas.bigints.sweep(&marks.bigints, BigInt::heap_bytes));
         add(arenas.cells.sweep(&marks.cells, |_| 0));
         add(arenas.shapes.sweep(&marks.shapes, Shape::heap_size));
         add(arenas.key_lists.sweep(&marks.key_lists, KeyList::heap_size));

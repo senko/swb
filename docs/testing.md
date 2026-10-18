@@ -999,6 +999,32 @@ random strings of 1 to 800 digits, leading zeros, signs, the ties at
 compares with it; `node crates/js-text/tests/data/gen-parse-int-table.js
 crates/js-text/tests/data/parse_int_radix.tsv` writes it again.
 
+`crates/js-text/tests/data/bigint_reference.tsv` holds 6,636 cases of
+the `BigInt` arithmetic of `js-text` (M7 10a) with the results of
+Python's `int`, an arbitrary-precision implementation outside swb used
+as a black box: addition, subtraction, multiplication, comparison,
+division and remainder (with 40 cases where Algorithm D needs its
+add-back step, found by a simulation of the quotient estimate in the
+script; a unit test in `bigint/div.rs` checks that each of them takes
+the step), exponentiation, the shifts, the bitwise operators, `asIntN`
+and `asUintN`, the conversions to and from doubles (ties to even, the
+boundary to infinity), the exact comparison with doubles, `toString` in
+all radixes, `StringToBigInt` (all white space, signs, prefixes,
+separators, leading zeros) and the literals, and results at and just
+above the size limit. Operands have 0 to 40 limbs, a few 100 to 300,
+with runs of zero and all-one limbs and edge values (±2^63, ±2^64 ± 1,
+powers of two). `crates/js-text/tests/bigint_reference.rs` compares with
+it and checks the texts and operations at the limit, which are too long
+for the table. To write it again (it does not need Node.js):
+
+```
+python3 crates/js-text/tests/data/gen-bigint-table.py crates/js-text/tests/data/bigint_reference.tsv
+```
+
+`tools/probes/js-bigint.json` measures Chromium's size limit (1,073,741,760
+bits, by bisection), its messages, and the times of `toString`, `*` and
+`/` on a value of a million bits.
+
 The scripts take their random values from a fixed seed, so the same
 Node.js and Chromium versions give the same tables. The other cases of
 `js-numbers.json` show Chromium's `Math.sumPrecise`, `Math.f16round`,

@@ -355,14 +355,11 @@ fn cells_and_bigints_are_traced() {
     let s = heap.alloc_str("in a cell").unwrap();
     let cell = heap.alloc_cell(s.into()).unwrap();
     let big = heap
-        .alloc_bigint(swb_js::BigInt {
-            negative: false,
-            limbs: vec![1, 2],
-        })
+        .alloc_bigint(swb_js::BigInt::from_limbs(false, vec![1, 2]).unwrap())
         .unwrap();
     heap.collect(&Roots(cell, big));
     assert!(heap.is_live_string(s));
-    assert_eq!(heap.bigint(big).unwrap().limbs, [1, 2]);
+    assert_eq!(heap.bigint(big).unwrap().limbs(), [1, 2]);
     heap.cell_mut(cell).unwrap().value = Value::Undefined;
     heap.collect(&Roots(cell, big));
     assert!(!heap.is_live_string(s));

@@ -723,8 +723,8 @@ impl Heap {
             }
             Value::BigInt(bigint) => {
                 let bigint = self.bigint(bigint)?;
-                hasher.write_u8(7 + u8::from(bigint.negative));
-                for limb in &bigint.limbs {
+                hasher.write_u8(7 + u8::from(bigint.is_negative()));
+                for limb in bigint.limbs() {
                     hasher.write_u64(*limb);
                 }
             }

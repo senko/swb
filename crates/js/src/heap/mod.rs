@@ -486,7 +486,7 @@ impl Heap {
 
     /// A new `BigInt`.
     pub fn alloc_bigint(&mut self, value: BigInt) -> Result<Gc<BigInt>> {
-        self.charge(Arena::<BigInt>::slot_size() + value.limbs.capacity() * 8);
+        self.charge(Arena::<BigInt>::slot_size() + value.heap_bytes());
         self.arenas.bigints.insert(value)
     }
 

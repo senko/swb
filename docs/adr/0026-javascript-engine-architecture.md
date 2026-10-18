@@ -416,9 +416,29 @@ semantics:
   (StringToNumber, §7.1.4.1.1; literals; `parseFloat`; JSON) and passes
   valid decimal text to Rust's float parser, which rounds correctly.
   Other radixes: own code.
-- `BigInt`: an own implementation (vectors of limbs, schoolbook
-  multiplication, long division after Knuth's Algorithm D) with a size
-  limit that bounds the time of these quadratic algorithms.
+- `BigInt` (M7 10a, `js-text/src/bigint/`, no heap and no engine
+  types): sign and magnitude, the magnitude in 64-bit limbs, least
+  significant first, without zero limbs at the top, zero never negative,
+  so the derived equality is the mathematical one. Schoolbook
+  multiplication; division after Knuth's Algorithm D (TAOCP vol. 2,
+  §4.3.1) with a short path for a one-limb divisor; both divide 128 by
+  64 bits with a precomputed reciprocal (Möller and Granlund, 2011)
+  instead of the hardware division. Exponentiation by squaring; shifts
+  and the bitwise operators on the two's complement form read only the
+  limbs that the result can depend on. `toString` divides repeatedly by
+  the largest power of the radix that fits in a limb (radixes that are
+  powers of two: bit groups); `StringToBigInt` and the literals
+  accumulate as many digits per step as fit in a limb. A limit of 2^18
+  bits (262,144; Chromium 2^30 − 64) bounds the time of these quadratic
+  algorithms: at the limit the slowest operation, `toString` in a radix
+  that is not a power of two, takes 32 ms in a release build, a product
+  or a quotient 3 ms (2^19 bits would give 126 ms). A result above the
+  limit is a `RangeError` before any work in proportion to its size (the
+  size is computed or bounded first; a product, a power or a decimal text
+  whose bound cannot decide computes at most a few bits beyond the limit
+  and then checks). Every allocation is fallible (`try_reserve`). Each
+  operation has a cost in work units (about 0.7 ns each, measured), which
+  the engine charges to the time countdown (`bigint::cost`).
 
 ### 8. Heap and garbage collection
 
@@ -519,7 +539,7 @@ Content from the network must never crash or hang the browser.
 | Heap | Byte accounting, limit set by the host. | Termination |
 | String length | About 2^29 code units (measured). | `RangeError` |
 | Regular expressions | Steps polled with the time check; backtrack stack counted in the heap; limits for pattern nesting, program size and capture count. | Termination or `SyntaxError` |
-| `BigInt` size | A limit in bits. | `RangeError` |
+| `BigInt` size | A limit of 2^18 bits, checked before the work (section 7). | `RangeError` |
 
 Stack size: every thread that runs JavaScript must have a stack of at
 least 8 MiB. Threads that swb creates for scripts (and the threads of
@@ -2324,6 +2344,30 @@ where the first plan did not work:
   be same`, `Invalid unregisterToken ('1')` and the others), and
   `getOrInsertComputed` checks the callback before the key, as the
   proposal and test262 do.
+
+- `BigInt` arithmetic (feature 10a, `js-text/src/bigint/`): the
+  library type `swb_js_text::bigint::BigInt` is the engine's `BigInt`
+  (`value.rs` re-exports it); the arena, equality and the keyed hash of
+  `Map` keys use its normalized limbs. The operations are free functions
+  that return a new value or a `BigIntError` (size limit, division by
+  zero, negative exponent, not an integral Number, out of memory, the
+  syntax error of StringToBigInt); `bigint::cost` gives the work of each
+  for its operands, so the engine can charge it before or after the call.
+  No script can make a `BigInt` before feature 10b. `Natural`
+  (`number/natural.rs`, 32-bit limbs, infallible, sizes of at most a few
+  hundred limbs in the number conversions) stays separate: sharing the
+  code would put fallible allocation and 64-bit limbs into the hot paths
+  of `toFixed` and `parseInt` for no gain.
+- The size limit is lower than Chromium's (KNOWN): 2^18 bits against
+  2^30 − 64 (1,073,741,760, measured in Chromium 148 with
+  `1n << (k − 1n)` in `tools/probes/js-bigint.json`; the message is
+  `Maximum BigInt size exceeded`). Chromium's subquadratic algorithms
+  print a value of 2^18 bits in radix 10 in 8.5 ms (`node`), swb's
+  quadratic ones in 32 ms; at Chromium's limit a quadratic `toString`
+  would take about six days. swb's error is exact: a result of 2^18 bits
+  is allowed and one of 2^18 + 1 bits is not, also for products and
+  powers (Chromium rejects `(1n << (k − 2n)) * 2n`, whose result has
+  the k bits of its limit).
 
 ## Consequences
 
