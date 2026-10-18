@@ -14,6 +14,7 @@ use std::process::ExitCode;
 use std::rc::Rc;
 use std::time::Duration;
 
+use swb_js::TimeZone;
 use swb_js_syntax::{LineIndex, dump};
 use swb_js_text::{RecursionBudget, String16};
 
@@ -34,6 +35,11 @@ Options:
   -e CODE               run CODE (before the files, if both are given)
   --heap-limit MIB      heap limit in MiB (default 1024)
   --stress              collect garbage at the safepoints (stress mode)
+  --time-zone ZONE      the local time zone of Date: UTC, an IANA name such as
+                        Europe/Zagreb, or a POSIX rule such as
+                        EST5EDT,M3.2.0,M11.1.0 (default: the system zone)
+  --now MS              a fixed clock for Date.now(): MS milliseconds since
+                        the epoch (default: the system clock)
   --time-limit MS       end a run after MS milliseconds
   --disassemble         print the bytecode of each script before it runs
   --compile-only        compile only (with --disassemble: list, do not run)
@@ -146,6 +152,15 @@ fn parse_command(args: &[String]) -> Result<Option<Command>, String> {
             }
             "--time-limit" => {
                 command.options.time_limit = Some(Duration::from_millis(number(iter.next(), arg)?));
+            }
+            "--time-zone" => {
+                let spec = iter.next().ok_or("--time-zone needs a name")?;
+                command.options.time_zone =
+                    Some(TimeZone::from_spec(spec).map_err(|e| e.to_string())?);
+            }
+            "--now" => {
+                let ms = iter.next().and_then(|v| v.parse::<f64>().ok());
+                command.options.now = Some(ms.ok_or("--now needs a number")?.floor());
             }
             "--stress" => command.options.stress = true,
             "--disassemble" => command.disassemble = true,

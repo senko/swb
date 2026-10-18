@@ -184,6 +184,18 @@ impl Runtime {
             }
             return Ok(result);
         }
+        self.ordinary_to_primitive(object, hint)
+    }
+
+    /// `OrdinaryToPrimitive(object, hint)` (§7.1.1.1): `toString` then
+    /// `valueOf` for the hint String, else the other order. `Date`'s
+    /// `@@toPrimitive` calls it.
+    pub(crate) fn ordinary_to_primitive(
+        &mut self,
+        object: Gc<Object>,
+        hint: Hint,
+    ) -> VmResult<Value> {
+        let value = Value::Object(object);
         let atoms = &self.vm.atoms;
         let order = if hint == Hint::String {
             [atoms.to_string, atoms.value_of]

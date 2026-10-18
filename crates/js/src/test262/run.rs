@@ -7,7 +7,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
-use swb_js::ScriptError;
+use swb_js::{ScriptError, TimeZone};
 use swb_js_syntax::messages::NOT_SUPPORTED;
 
 use super::meta::Meta;
@@ -45,7 +45,22 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "testTypedArray.js",
     "resizableArrayBufferUtils.js",
     "testAtomics.js",
+    "assertRelativeDateMs.js",
+    "dateConstants.js",
 ];
+
+/// The local time zone of the test262 runs: the rule of the US Eastern
+/// zone (UTC-5, summer time UTC-4 from the second Sunday in March to the
+/// first Sunday in November, for every year). A rule needs no time zone
+/// database, so the scores do not depend on the machine; it has summer
+/// time, so the tests of the local time functions see offsets that
+/// change (ADR 0027).
+pub(crate) const TEST_ZONE: &str = "EST5EDT,M3.2.0,M11.1.0";
+
+/// The zone [`TEST_ZONE`].
+fn test_zone() -> TimeZone {
+    TimeZone::from_spec(TEST_ZONE).expect("TEST_ZONE is a valid POSIX zone rule")
+}
 
 /// The harness file of the tests with the flag `async`: `$DONE` prints
 /// `Test262:AsyncTestComplete` or `Test262:AsyncTestFailure:...` with
@@ -145,6 +160,8 @@ pub(crate) fn run_mode(
         heap_limit: Some(limits.heap),
         stress: limits.stress,
         time_limit: Some(limits.time),
+        time_zone: Some(test_zone()),
+        now: None,
     };
     let printed = Rc::new(std::cell::RefCell::new(Vec::<u8>::new()));
     let sink: shell::Output = printed.clone();

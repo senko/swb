@@ -13,7 +13,8 @@
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
 # asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js,
 # proxyTrapsHelper.js, detachArrayBuffer.js, byteConversionValues.js,
-# testTypedArray.js, resizableArrayBufferUtils.js or testAtomics.js, or
+# testTypedArray.js, resizableArrayBufferUtils.js, testAtomics.js,
+# assertRelativeDateMs.js or dateConstants.js, or
 # have the flags module or CanBlockIsTrue, or use $262.createRealm or
 # $262.agent or new SharedArrayBuffer. Tests with the flag async get
 # doneprintHandle.js and pass when they print Test262:AsyncTestComplete.
@@ -540,3 +541,13 @@ feature stable-typedarray-sort
 feature uint8array-base64
 dir test/built-ins/Atomics
 dir test/built-ins/Uint8Array
+
+# Added in M7 feature 12a: Date (the time value operations, the local time
+# zone, the constructor, the getters and setters, the string forms,
+# Date.parse of the date time string format and of the output of toString
+# and toUTCString) and Annex B getYear, setYear and toGMTString. The tests
+# with the features Temporal (toTemporalInstant) and cross-realm stay
+# skipped by their features and flags. The runs use the zone
+# EST5EDT,M3.2.0,M11.1.0 (ADR 0027).
+dir test/built-ins/Date
+dir test/annexB/built-ins/Date

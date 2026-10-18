@@ -280,7 +280,16 @@ Format: source, license (for code), what it influenced.
   probe` `tools/probes/js-iterators.json`).
 - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" —
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
-  (`net/src/cookies/date.rs`).
+  (`net/src/cookies/date.rs`) and `days_from_civil` and `civil_from_days`
+  (M7 feature 12a, `js/src/date/time_value.rs`: the days of the 400-year
+  eras, extended to the whole time range of ECMA-262 §21.4.1).
+- `Date` (M7 feature 12a, `js/src/date/`, `js/src/builtins/date*.rs`),
+  written from ECMA-262 §21.4 and Annex B.2.3, and the `jiff` library
+  (Unlicense OR MIT; the offsets of a zone, the system zone, the
+  transitions) used through its documentation; the formats, the key
+  order and the messages were measured in Chromium 148 in seven time
+  zones (`just probe` `tools/probes/js-date.json`), no engine code read.
+  ADR 0027.
 - Unicode (M7 feature 5d, `js-text/src/unicode/case.rs`, `normalize.rs`,
   `collate.rs`, `tools/swbtools/js_case_tables.py`, `js_norm_tables.py`),
   written from the Unicode Standard 17.0 and no library read: chapter 3

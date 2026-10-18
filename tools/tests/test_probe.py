@@ -307,6 +307,24 @@ def test_probe_command_with_a_screenshot():
     assert command[-4:] == ["--full-page", "--screenshot", "s.png", "file:///p.html"]
 
 
+def test_time_zone_in_the_case_file():
+    text = (
+        '{"time_zone": "UTC", "cases": ['
+        '{"name": "a", "html": "<p>", "measure": [{"js": "1"}]},'
+        '{"name": "b", "html": "<p>", "time_zone": "Asia/Kolkata", "measure": [{"js": "1"}]}]}'
+    )
+    a, b = parse_cases(text)
+    assert (a.time_zone, b.time_zone) == ("UTC", "Asia/Kolkata")
+    (c,) = parse_cases('{"cases": [{"name": "c", "html": "", "measure": [{"js": "1"}]}]}')
+    assert c.time_zone is None
+
+
+def test_time_zone_must_be_a_name():
+    text = '{"cases": [{"name": "a", "html": "", "time_zone": 5, "measure": [{"js": "1"}]}]}'
+    with pytest.raises(ProbeError, match="time_zone must be a non-empty string"):
+        parse_cases(text)
+
+
 def test_any_error_finds_failed_queries():
     ok = CaseResult("c", (1, 1), [Row("js", "1", {"value": 1})])
     failed = CaseResult("d", (1, 1), [Row("boxes", "p[", {"error": "not a valid selector"})])
@@ -335,6 +353,30 @@ def test_example_in_chromium():
     style = by_name["computed-line-height"].rows
     assert [row.data["style"]["line-height"] for row in style[:3]] == ["normal", "30px", "30px"]
     assert style[3].data == {"value": 600}
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_runs_a_case_in_its_time_zone():
+    queries = (
+        Query("js", "new Date(2024, 6, 1).getTimezoneOffset()"),
+        Query("js", "new Date(2024, 0, 1).getTimezoneOffset()"),
+    )
+    cases = [
+        Case("utc", "<p>x", (400, 300), queries, (), "UTC"),
+        Case("kolkata", "<p>x", (400, 300), queries, (), "Asia/Kolkata"),
+        Case("zagreb", "<p>x", (400, 300), queries, (), "Europe/Zagreb"),
+        Case("adelaide", "<p>x", (400, 300), queries, (), "Australia/Adelaide"),
+    ]
+    results = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all(cases, None, 1.0, page, directory))
+    )
+    values = {r.name: [row.data["value"] for row in r.rows] for r in results}
+    assert values == {
+        "utc": [0, 0],
+        "kolkata": [-330, -330],
+        "zagreb": [-120, -60],
+        "adelaide": [-570, -630],
+    }
 
 
 @pytest.mark.usefixtures("chromium")

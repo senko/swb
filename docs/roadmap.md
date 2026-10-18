@@ -1875,8 +1875,69 @@ failures with a reason. Features, in this order:
       arrays with all methods, `Atomics` and base64/hex;
       `SharedArrayBuffer` stays out, as in Chromium 148. test262 runtime
       36,369 → 39,515 over the three sessions.
-12. `Date` (`implementer`; the time zone library under ADR 0003).
-    Annex B: `getYear`, `setYear`, `toGMTString`.
+12. `Date` (`implementer`; the time zone library under ADR 0003), in
+    two sessions. Measured 2026-10-18: test262 has 594 tests in
+    `built-ins/Date` and 24 in `annexB/built-ins/Date` (8 need
+    `Temporal`, 3 `cross-realm`); 155 tests in other directories fail
+    only with "Date is not defined". Target scripts: `new Date` in 27
+    files, `Date.now` in 27, `getTime` in 18, `toISOString` in 11,
+    `toUTCString` in 13 and `toGMTString` in 5 (cookie expiry dates),
+    the local getters and setters in date formatters, `getTimezoneOffset`
+    in 4, `Date.parse` in 2 (one with free-form text and "EDT" or "EST"
+    at the end). `toLocaleDateString` with locales and options
+    (`"en-GB"`, `timeZone: "UTC"`) and `Intl.DateTimeFormat` need
+    `Intl`, which is outside M7: without `Intl`, the `toLocale*String`
+    methods give Chromium's output for its default locale (en-US) and
+    ignore their arguments, and the `Intl` uses go to the backlog.
+    - 12a Time values and the built-in (`implementer`; `js`): the time
+      value operations of §21.4.1 (`Day`, `YearFromTime`, `MakeTime`,
+      `MakeDay`, `MakeDate`, `TimeClip`); the local time zone through a
+      time zone library (the offset of a UTC time, and of a local time
+      with the rules for skipped and repeated local times, §21.4.1.25
+      and §21.4.1.26); a host hook for the clock and the time zone, so
+      that tests use a fixed zone and a fixed clock; the constructor
+      with all argument forms, `Date.UTC`, `Date.now`, all getters and
+      setters (local and UTC), `getTimezoneOffset`, `toISOString`,
+      `toJSON`, `toUTCString`, `toString`, `toDateString`,
+      `toTimeString`, `valueOf`, `@@toPrimitive`; `toLocaleString`,
+      `toLocaleDateString` and `toLocaleTimeString` as Chromium's en-US
+      output without arguments; `Date.parse` of the
+      date time string format (§21.4.1.32) and of the output of
+      `toString` and `toUTCString`; Annex B `getYear`, `setYear`,
+      `toGMTString`; the runner's harness files
+      (`assertRelativeDateMs.js`, `dateConstants.js`). An ADR for the
+      time zone source (the library, the system zone, the host hook).
+      Done 2026-10-18: the time value operations, exact over the whole
+      range; the local zone through `jiff` (ADR 0027; it was already in
+      the lock file; +310 KB in `swb-js`): the offset of a UTC time,
+      `UTC(t)` with the offset before a transition, the system zone at
+      first use, UTC with a warning when there is no zone database;
+      the host hooks `Runtime::set_clock` and `set_time_zone`, and the
+      shell options `--now` and `--time-zone`. The `Date` constructor,
+      `Date.UTC`, `Date.now`, `Date.parse` (the date time string format
+      and the output of `toString` and `toUTCString`), all getters and
+      setters in the ES2025 order, the text forms, `toJSON`,
+      `@@toPrimitive`, Annex B, en-US `toLocale*String`. 11,670 Chromium
+      results in seven zones equal in normal and stress mode (KNOWN
+      where swb follows the spec: `getTimezoneOffset` with seconds,
+      `setFullYear` reads the time value first, `Date.parse` rejects
+      days past the end of the month, `MakeDay` beyond a million years;
+      LATER: Chromium's other `Date.parse` forms and the long zone
+      names, which 12b adds; until then `toString` prints the zone
+      abbreviation). test262 runtime 39,515 → 40,286 (`built-ins/Date`
+      583 of 583 that run, `annexB/built-ins/Date` 24 of 24; the 155
+      tests that failed with "Date is not defined" pass); the runner
+      uses the fixed zone `EST5EDT,M3.2.0,M11.1.0`. bbc-js/s5.js now
+      runs to its end.
+    - 12b Chromium's forms (`implementer`; `js`): `Date.parse` of the
+      other forms that Chromium 148 accepts (month and weekday names,
+      slashes, RFC 2822, two-digit years, zone abbreviations such as
+      EST and EDT, `UT`, `GMT`, `Z`), from black-box probes only; the
+      zone name in `toString` (Chromium prints the long English name,
+      such as "Central European Summer Time": English names from CLDR
+      under the Unicode license if the data is small, otherwise
+      KNOWN).
+    Annex B: `getYear`, `setYear`, `toGMTString` (12a).
 13. Performance (`implementer-hard`). Inline caches, a cache for
     global access, cached shapes for object literals, native callbacks
     without re-entry into the interpreter (`forEach` and similar),
@@ -2362,6 +2423,34 @@ not repeated here; the open items of each spike session are in M6 step
     can build the script from the snippets file (0.6 MB less). The
     Python generator of the snippets file is not in the repository; the
     snippets file is the source now.
+- Date (M7 12a):
+  - `Intl`: `toLocaleDateString("en-GB", {day: "numeric", month:
+    "short", year: "numeric", timeZone: "UTC"})` and similar calls in
+    the BBC scripts, and `Intl.DateTimeFormat().resolvedOptions()
+    .timeZone`. Without `Intl`, swb ignores the arguments and prints
+    the en-US form (12/31/2020; Chromium 31/12/2020 for en-GB).
+  - The KNOWN items where swb follows the spec and pages see V8:
+    `Date.parse("2000-02-30")` is NaN (V8: March 1), fractional
+    `getTimezoneOffset` for old local mean times, the `toString` round
+    trip for years below 100. Decide in 12b whether `parse_fallback`
+    takes V8's roll-over of days.
+  - The zone-dependent snippets use instants after 2026 (2100, 2400,
+    1e14, the `realworld` loop to 2040): a tzdata change of the future
+    rules of New York, Berlin, Adelaide or Lord Howe would break the
+    test although swb is right. Move them to a `future` group that runs
+    in UTC, Kolkata, Apia and New York only, with a comment on the
+    tzdata-sensitive groups. The tests need the system tzdata with the
+    seven zones.
+  - Test data: the seven expected files repeat the same snippets
+    (450 KB each); the `setters` group is half of the snippet bytes,
+    and running it in four zones instead of seven cuts about 20 %.
+  - `toString` allocates the zone abbreviation on each call (1M calls
+    982 ms, `node --jitless` 1.7 times faster); cache the zone
+    interval. `Date.now()` is 3.3 times and `new Date(t).getFullYear()`
+    2.7 times slower than `node --jitless` (call and allocation costs,
+    feature 13).
+  - The fallback to UTC without a zone database has no test, and the
+    shell installs no logger, so its warning is not visible there.
 - Flaky test (found 2026-10-18, also at 788905a):
   `long_digit_strings_parse_in_bounded_memory_and_time` in
   `language_hostile.rs` fails about 1 run in 6 when the whole file runs
@@ -2369,7 +2458,10 @@ not repeated here; the open items of each spike session are in M6 step
   `parseFloat(z)` loop over 16M units ends 213 to 243 ms after start,
   against a 100 ms deadline plus 100 ms slack. Alone it passes. The
   cause is not checked yet (the length of one call in the dev profile
-  under load, or the granularity of the step charge).
+  under load, or the granularity of the step charge). The 12a review
+  saw the same with `time_limit_object_keys_of_a_big_string_object` in
+  `vm_limits.rs` (a 250 ms bound) at a load average of 12; it passes
+  alone and with `--test-threads=1`.
 - Dependencies (2026-10-18): `ttf-parser` is unmaintained
   (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
   not use it; winit's Wayland title bar (`sctk-adwaita`, through

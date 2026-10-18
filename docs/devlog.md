@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 12a, Date
+
+- Feature 12 (`Date`) is split into two sessions: 12a the time values
+  and the built-in, 12b Chromium's other `Date.parse` forms and the long
+  zone names of `toString`. There is no `Intl` in M7, so
+  `toLocaleDateString("en-GB", {...})` in the target scripts goes to
+  the backlog; without arguments the `toLocale*String` methods give
+  Chromium's en-US text.
+- The calendar is exact in integers over the whole range of time
+  values; `MakeDay` and `MakeTime` work in doubles as the spec says.
+- Time zones come from `jiff` (ADR 0027), which was already in the lock
+  file through `env_logger`; `tz-rs` is smaller but has no API for
+  skipped and repeated local times. Outside `jiff`'s range of years
+  the zone code shifts by whole 400-year cycles. The host sets the
+  clock and the zone; the test262 runner uses a POSIX rule with
+  daylight saving time, so the scores do not depend on the machine.
+- The probe tool has a `time_zone` setting. 11,670 Chromium results in
+  seven zones (UTC, Berlin, New York, Kolkata, Adelaide, Lord Howe,
+  Apia) are a test, also in stress mode. Chromium differs from the
+  spec in a few places (KNOWN): `setFullYear` reads the time value
+  after the conversions, `getTimezoneOffset` drops the seconds of old
+  local mean times, `Date.parse` rolls "2000-02-30" into March.
+- test262 runtime 39,515 → 40,286; `built-ins/Date` and
+  `annexB/built-ins/Date` pass all tests that run. bbc-js/s5.js now
+  runs to its end.
+- The review found no defect. Nits fixed: a shared table of weekday
+  names, a section number, imports, an `expect` for the fixed test
+  zone. To the backlog: the snippets with instants after 2026 depend
+  on the future rules in the system tzdata, the size of the test data,
+  and the KNOWN items that pages see as V8 does them.
+
 ## 2026-10-18: M7 feature 11c, typed-array methods, Atomics, base64; end of feature 11
 
 - The 25 remaining methods of `%TypedArray%.prototype`, `Atomics` on

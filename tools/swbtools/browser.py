@@ -94,11 +94,15 @@ async def launch(playwright: Playwright, system_fonts: bool = False) -> Browser:
     return browser
 
 
-async def new_context(browser: Browser, viewport: tuple[int, int]) -> BrowserContext:
+async def new_context(
+    browser: Browser, viewport: tuple[int, int], time_zone: str | None = None
+) -> BrowserContext:
     """Creates a browser context: JavaScript disabled, device scale factor 1,
-    and the same media features as swb."""
+    and the same media features as swb. `time_zone` is an IANA name (the
+    time zone of `Date`); without it the context has the machine's zone."""
     width, height = viewport
     return await browser.new_context(
+        timezone_id=time_zone,
         viewport={"width": width, "height": height},
         device_scale_factor=1,
         java_script_enabled=False,

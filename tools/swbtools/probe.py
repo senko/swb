@@ -40,6 +40,10 @@ A case file is JSON (committed ones are in `tools/probes/`):
 - `files` (case, optional): files to put next to the page, as
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root. Use it for fonts (`@font-face`) and images.
+- `time_zone` (file and case, optional): the IANA name of the time zone of
+  the page (`"Europe/Zagreb"`), for the results of `Date`. Without it the
+  page has the machine's zone. Chromium gets it as the `timezone_id` of a
+  browser context; a case with its own zone runs in a context of that zone.
 
 Chromium has the settings of the other tools (`browser.py`: bundled fonts,
 JavaScript disabled, scale 1). The page is a file in a temporary directory,
@@ -119,6 +123,9 @@ class Case:
     queries: tuple[Query, ...]
     files: tuple[tuple[str, Path], ...] = ()
     """Files to copy next to the page: (published name, source path)."""
+    time_zone: str | None = None
+    """The IANA name of the time zone of the page, or `None` for the
+    machine's zone."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -159,7 +166,17 @@ def _parse_query(item: Any, where: str) -> Query:
     return Query(kind, target, tuple(props))
 
 
-def _parse_case(item: Any, number: int, default_viewport: tuple[int, int]) -> Case:
+def _parse_time_zone(value: Any, where: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ProbeError(f"{where}: time_zone must be a non-empty string (an IANA name)")
+    return value
+
+
+def _parse_case(
+    item: Any, number: int, default_viewport: tuple[int, int], default_zone: str | None = None
+) -> Case:
     if not isinstance(item, dict):
         raise ProbeError(f"case {number}: must be an object")
     name = item.get("name")
@@ -174,7 +191,8 @@ def _parse_case(item: Any, number: int, default_viewport: tuple[int, int]) -> Ca
     if not isinstance(measure, list) or not measure:
         raise ProbeError(f"{where}: measure must be a non-empty list")
     queries = tuple(_parse_query(q, f"{where}, measure {i}") for i, q in enumerate(measure, 1))
-    return Case(name, html, viewport, queries, _parse_files(item.get("files", {}), where))
+    zone = _parse_time_zone(item["time_zone"], where) if "time_zone" in item else default_zone
+    return Case(name, html, viewport, queries, _parse_files(item.get("files", {}), where), zone)
 
 
 def _parse_files(value: Any, where: str) -> tuple[tuple[str, Path], ...]:
@@ -208,7 +226,8 @@ def _parse_data(data: Any) -> list[Case]:
     if not isinstance(data, dict) or not isinstance(data.get("cases"), list):
         raise ProbeError('the top level must be an object with a "cases" list')
     viewport = _parse_viewport(data["viewport"], "file") if "viewport" in data else DEFAULT_VIEWPORT
-    cases = [_parse_case(item, i, viewport) for i, item in enumerate(data["cases"], 1)]
+    zone = _parse_time_zone(data.get("time_zone"), "file")
+    cases = [_parse_case(item, i, viewport, zone) for i, item in enumerate(data["cases"], 1)]
     seen: set[str] = set()
     for case in cases:
         if case.name in seen:
@@ -666,12 +685,29 @@ def run_swb(
 # --- Running ---------------------------------------------------------------
 
 
+async def _new_zone_page(page: Page, case: Case) -> Page:
+    """A page in a new browser context whose time zone is that of the case
+    (the context is closed with the browser)."""
+    chromium = page.context.browser
+    if chromium is None:
+        raise ProbeError("the page has no browser")
+    try:
+        context = await browser.new_context(chromium, case.viewport, case.time_zone)
+    except Exception as error:
+        message = str(error).strip().splitlines()[0] if str(error).strip() else "failed"
+        raise ProbeError(f"case {case.name!r}: time zone {case.time_zone!r}: {message}") from error
+    return await context.new_page()
+
+
 async def _probe_all(
     cases: Sequence[Case], binary: Path | None, tolerance: float, page: Page, directory: Path
 ) -> list[CaseResult]:
     results = []
+    zone_pages = {None: page}
     for number, case in enumerate(cases, 1):
-        result, path = await probe_case(page, directory, number, case)
+        if case.time_zone not in zone_pages:
+            zone_pages[case.time_zone] = await _new_zone_page(page, case)
+        result, path = await probe_case(zone_pages[case.time_zone], directory, number, case)
         if binary is not None:
             wants_ink = any(query.kind == "ink" for query in case.queries)
             try:

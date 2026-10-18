@@ -15,6 +15,7 @@
 mod builtins;
 mod bytecode;
 mod compiler;
+mod date;
 mod error;
 mod heap;
 mod object;
@@ -38,6 +39,7 @@ pub use value::{BigInt, Equality, Symbol, Value, ValueCell};
 
 pub use builtins::FromAsync;
 pub use compiler::CompileStats;
+pub use date::{Clock, TimeZone, TimeZoneError};
 pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
 pub use swb_js_text::RecursionBudget;
 pub use vm::{

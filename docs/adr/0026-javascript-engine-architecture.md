@@ -595,12 +595,12 @@ Memo 5.1 is the basis:
 
 The calendar arithmetic follows §21.4.1. The local time offset comes from
 a time zone library that reads the system's time zone data (TZif;
-candidate `jiff`, reviewed under ADR 0003 when the `Date` feature
-starts). The time zone is an input of the runtime that the host sets,
-so tests can fix it. Local time to UTC follows §21.4.1.26 (the offset
-before a transition). `Date.parse` accepts the date time string format
-of §21.4.1.32 exactly, then falls back to a token parser whose rules come
-from Chromium measurements (memo 5.2).
+`jiff`, ADR 0027). The time zone and the clock are inputs of the runtime
+that the host sets, so tests can fix them. Local time to UTC follows
+§21.4.1.26 (the offset before a transition). `Date.parse` accepts the
+date time string format of §21.4.1.32 exactly and the output of
+`toString` and `toUTCString`, then falls back to a token parser whose
+rules come from Chromium measurements (memo 5.2; feature 12b).
 
 ### 12. Embedding API
 
@@ -2781,6 +2781,32 @@ where the first plan did not work:
   `built-ins/TypedArray/prototype/{at … with}`, `toString`, `Atomics` and
   `Uint8Array` (the runner skips the tests that make a
   `SharedArrayBuffer`, and loads `testAtomics.js`).
+- `Date` (feature 12a; ADR 0027; `date/`, `builtins/date*.rs`): the
+  object kind `ObjectKind::Date(f64)` holds the time value (no handles to
+  trace); `Date.prototype` is an ordinary object, with Chromium 148's key
+  order and `toGMTString` the same function as `toUTCString`. The calendar
+  is integer arithmetic over the whole range; `MakeDay` computes years up
+  to 10^12 away exactly. The setters read the time value first, convert the
+  arguments in order, and only then test for NaN (ES2025). The text of the
+  parse is read in place (`Str16`), without a copy. The clock and the zone
+  are fields of the `Vm` (`TimeHost`), set by `Runtime::set_clock` and
+  `set_time_zone`; the system zone is found at the first use.
+  `OrdinaryToPrimitive` is a function of its own (`@@toPrimitive` of `Date`
+  calls it). `console.log` of a Date is the ISO string as in Node.js 22.
+- 12a tests: 11,670 Chromium 148 results in seven zones
+  (`builtins_date.rs`; equal in normal and stress mode, 336 KNOWN and 1,386
+  `!later` snippets are probed, not run), `date_hostile.rs`, the unit tests
+  of `date/`, and test262: `built-ins/Date` 583 of 583 that run (11 need
+  `Temporal` or `cross-realm`), `annexB/built-ins/Date` 24 of 24, and the
+  155 tests of other directories that failed with "Date is not defined"
+  (runtime 39,515 → 40,286 pass, 208 → 44 fail; parse-only 42,240 as
+  before; the stress run has the same counts). KNOWN differences from
+  Chromium 148 (ADR 0027 section 8): fractional `getTimezoneOffset`, the
+  setters' time value read before the conversions (`setFullYear`,
+  `setYear`), `Date.parse` rejects days beyond the month and reads back
+  `toString` for the years before 100, `MakeDay` beyond 10^6 years, no
+  `toTemporalInstant`, the locale arguments of `toLocale*String`. LATER
+  (12b): Chromium's other date forms and the long zone names.
 
 ## Consequences
 

@@ -8,8 +8,8 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use swb_js::{
-    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Termination, Value,
-    VmError, VmResult,
+    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Termination,
+    TimeZone, Value, VmError, VmResult,
 };
 use swb_js_syntax::LineIndex;
 use swb_js_text::String16;
@@ -18,7 +18,7 @@ use swb_js_text::String16;
 pub(crate) const STACK_SIZE: usize = 8 << 20;
 
 /// The limits and modes of a runtime.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Options {
     /// The heap limit in bytes (the engine default if `None`).
     pub(crate) heap_limit: Option<usize>,
@@ -26,6 +26,11 @@ pub(crate) struct Options {
     pub(crate) stress: bool,
     /// The time limit of each run.
     pub(crate) time_limit: Option<Duration>,
+    /// The local time zone of `Date` (the system zone if `None`).
+    pub(crate) time_zone: Option<TimeZone>,
+    /// A fixed clock for `Date.now()`, in milliseconds since the epoch
+    /// (the system clock if `None`).
+    pub(crate) now: Option<f64>,
 }
 
 /// Where `print` and `console.log` write.
@@ -50,6 +55,12 @@ pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, Scr
         ..RuntimeConfig::default()
     };
     let mut rt = Runtime::new(config)?;
+    if let Some(zone) = &options.time_zone {
+        rt.set_time_zone(zone.clone());
+    }
+    if let Some(now) = options.now {
+        rt.set_clock(Box::new(move || now));
+    }
     let sink = Rc::clone(&out);
     // A failed write (a closed pipe, a full disk) ends the run as a
     // termination by host request (exit code 3): `print` returns it at once;

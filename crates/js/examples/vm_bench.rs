@@ -418,6 +418,40 @@ const PROGRAMS: &[(&str, &str)] = &[
         "var e = new Uint8Array(16 << 20); e.fill(171);
          function run() { return typeof e.toBase64 === 'function' ? e.toBase64().length : Buffer.from(e.buffer).toString('base64').length; }",
     ),
+    // The `date:` rows run in the zone of the system (the shell option
+    // `--time-zone` is not used here), as `node --jitless` does.
+    (
+        "date: new Date(t).getFullYear(), 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += new Date(1.7e12 + i * 3600000).getFullYear(); } return s; }",
+    ),
+    (
+        "date: new Date(t).getUTCFullYear(), 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += new Date(1.7e12 + i * 3600000).getUTCFullYear(); } return s; }",
+    ),
+    (
+        "date: new Date(y, m, d), 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += new Date(2000 + (i & 31), i % 12, 1 + (i & 15)).getTime() & 255; } return s; }",
+    ),
+    (
+        "date: Date.now(), 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += Date.now() > 0 ? 1 : 0; } return s; }",
+    ),
+    (
+        "date: toISOString, 1M times",
+        "function run() { var s = 0; var d = new Date(1.7e12); for (var i = 0; i < 1000000; i++) { d.setTime(1.7e12 + i * 977); s += d.toISOString().length; } return s; }",
+    ),
+    (
+        "date: toString, 1M times",
+        "function run() { var s = 0; var d = new Date(1.7e12); for (var i = 0; i < 1000000; i++) { d.setTime(1.7e12 + i * 977777); s += d.toString().length & 1; } return s; }",
+    ),
+    (
+        "date: Date.parse of an ISO string, 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += Date.parse('2024-03-15T12:34:56.789Z') & 255; } return s; }",
+    ),
+    (
+        "date: Date.parse of a local time string, 1M times",
+        "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += Date.parse('2024-03-15T12:34:56.789') & 255; } return s; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

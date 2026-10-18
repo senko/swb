@@ -190,6 +190,7 @@ impl Runtime {
             termination: TerminationHandle::default(),
             join_stack: Vec::new(),
             random: crate::vm::random::RandomSource::new(),
+            time: crate::date::TimeHost::default(),
             split_cache: None,
             regexp_matcher: None,
             jobs: crate::vm::jobs::JobQueue::default(),
@@ -240,6 +241,18 @@ impl Runtime {
     /// line, without the line end).
     pub fn set_console(&mut self, sink: ConsoleSink) {
         self.console = Some(sink);
+    }
+
+    /// Sets the local time zone of `Date`. Without a call, the zone is the
+    /// system zone (ADR 0027).
+    pub fn set_time_zone(&mut self, zone: crate::date::TimeZone) {
+        self.vm.time.set_zone(zone);
+    }
+
+    /// Sets the clock of `Date.now()` and `new Date()`: milliseconds since
+    /// the epoch. Without a call, the clock is the system clock.
+    pub fn set_clock(&mut self, clock: crate::date::Clock) {
+        self.vm.time.set_clock(clock);
     }
 
     /// Writes a line to the console sink.

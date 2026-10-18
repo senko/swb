@@ -712,6 +712,39 @@ in 11c: the other rows of `vm_bench` are within noise of a build of
 384.0 → 378.4 ms, `array: read-modify-write` 143.7 → 144.3 ms, `typed:
 sum` 184.7 → 189.3 ms).
 
+### Date
+
+The `date:` rows of `vm_bench` (best of 5, release, 2026-10-18, M7 12a;
+both engines in the zone of the machine, Europe/Zagreb; the Node.js
+column is `node --jitless`, v22.11):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| `new Date(t).getFullYear()`, 1M times | 304.8 | 112.5 | 2.7x |
+| `new Date(t).getUTCFullYear()`, 1M times | 278.7 | 75.3 | 3.7x |
+| `new Date(y, m, d)`, 1M times | 406.5 | 157.0 | 2.6x |
+| `Date.now()`, 1M times | 145.9 | 44.8 | 3.3x |
+| `toISOString`, 1M times | 385.3 | 425.1 | 0.9x |
+| `toString`, 1M times | 981.6 | 587.4 | 1.7x |
+| `Date.parse` of an ISO string, 1M times | 174.7 | 154.3 | 1.1x |
+| `Date.parse` of a local time string, 1M times | 219.2 | 200.9 | 1.1x |
+
+The local getter costs about as much as the UTC one (30 ns more): the
+offset of a UTC time is a binary search in `jiff`'s transitions. The cost
+of the rows without a zone is the call, the object and the property
+lookup (`new Date` and `Date.now` are two to three times `node
+--jitless`, like other calls: feature 13). `toString` allocates the
+abbreviation of the zone and the text; 12b replaces the abbreviation with
+a table of names. The row `new Date(y, m, d)` includes `UTC(t)`: one
+`jiff` lookup of a local time. No interpreter path changed in 12a; the
+new object kind adds one arm to the matches of `ObjectKind`.
+
+Hostile cases (`date_hostile.rs`, debug build): `Date.parse` of a string
+of 100 M units does not scan it (the parsers stop at the first wrong unit); loops of parses and of
+every string form end within the slack of a 300 ms deadline.
+`swb-js` grows by 310 KB (4.35 MB to 4.66 MB stripped) with `jiff`
+(ADR 0027).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

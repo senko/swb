@@ -26,7 +26,8 @@
 //! `data_view.rs`); the typed arrays with all methods of
 //! `%TypedArray%.prototype` and the base64 and hex methods of
 //! `Uint8Array` (`typed_array*.rs`); `Atomics` on integer typed arrays
-//! (`atomics.rs`);
+//! (`atomics.rs`); `Date` with Annex B (`date*.rs`; the time arithmetic,
+//! the zone, the formats and the parser are in `crate::date`);
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
@@ -66,6 +67,10 @@ mod boolean;
 mod collection;
 mod console;
 mod data_view;
+mod date;
+mod date_get;
+mod date_set;
+mod date_string;
 mod descriptor;
 mod error;
 mod function;
@@ -175,6 +180,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     data_view::install(rt, realm)?;
     typed_array::install(rt, realm)?;
     atomics::install(rt, realm)?;
+    date::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;

@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -682,6 +682,12 @@ temporary directory, loaded by navigation.
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root (for example the fonts of `@font-face` rules:
   `tools/probes/web-fonts.json`).
+- `time_zone` (file and case, optional): the IANA name of the time zone of
+  the page (`"Europe/Berlin"`), for the results of `Date`. Without it the
+  page has the machine's zone, so a case that shows `Date` results must
+  set it. Chromium gets it as the `timezone_id` of the browser context;
+  the cases of a zone share one context (`tools/probes/js-date.json`
+  runs in seven zones).
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -904,8 +910,8 @@ another directory and `TEST262_URL` another repository.
   `promiseHelper.js`, `regExpUtils.js`, `compareIterator.js`,
   `proxyTrapsHelper.js`, `detachArrayBuffer.js`,
   `byteConversionValues.js`, `testTypedArray.js`,
-  `resizableArrayBufferUtils.js` and `testAtomics.js` (`HARNESS_INCLUDES`
-  in `run.rs`; the
+  `resizableArrayBufferUtils.js`, `testAtomics.js`, `assertRelativeDateMs.js`
+  and `dateConstants.js` (`HARNESS_INCLUDES` in `run.rs`; the
   test262 commit has no `testBigIntTypedArray.js`, its functions are in
   `testTypedArray.js`). A test with the
   flag `async` gets `doneprintHandle.js` before its includes; the runner
@@ -919,6 +925,10 @@ another directory and `TEST262_URL` another repository.
   `new SharedArrayBuffer` (Chromium 148 has none on a normal page; the
   tests of `Atomics` that make one without the feature tag), or expects an
   error in the `resolution` phase.
+  Every run has the local time zone `EST5EDT,M3.2.0,M11.1.0` (`TEST_ZONE`
+  in `run.rs`: the US Eastern rule for every year, no database needed,
+  so the scores do not depend on the machine; ADR 0027) and the system
+  clock.
   The others run in sloppy and strict mode as the flags say (`onlyStrict`,
   `noStrict`, `raw`); a test passes if all of its modes pass. A negative
   test checks the phase (`parse`/`early`: a compile error; `runtime`: an
@@ -1793,6 +1803,65 @@ whitespace or bad characters for the base64 and hex decoders: no
 whitespace, 16 M valid characters then a bad one, an error after a full
 target), and collections inside the callbacks and comparators with
 `BigInt` elements in the GC stress mode.
+
+### Date tests
+
+`tools/probes/js-date.json` has the snippet cases of `Date` for Chromium
+148, made from `crates/js/tests/data/date-snippets.txt` (about 2,200
+snippets, in groups) by `crates/js/tests/data/gen-date-cases.js` (the
+format of `js-bigint.json`, with a `time_zone` for each case). A group runs
+in seven zones: UTC, Europe/Berlin, America/New_York, Asia/Kolkata (a
+half-hour offset, no summer time), Australia/Adelaide (a half-hour offset,
+southern summer time), Australia/Lord_Howe (a 30-minute change) and
+Pacific/Apia (the day 2011-12-30 does not exist); a line `## NAME @ Zone,
+Zone` restricts a group. A line that starts with `!known ` marks a
+snippet where swb differs from Chromium on purpose, `!later ` one that
+needs the forms of feature 12b (both are probed, not run). No snippet
+depends on the current time. The groups: `shape` (the properties, their
+order and attributes, `Date()` as a function, subclasses and `new.target`),
+`methods` and `receivers` (the length, the name and V8's message of every
+method for a wrong receiver), `toprimitive`, `ctor` and `utc` (every form
+of the arguments, the order of the conversions, huge and non-finite
+values, two-digit years, the ends of the range), `getters` and `strings`
+(the getters and the string forms of 105 instants from year -271821 to
+275760, also the round trip through `Date.parse`), `names` (the long zone
+names, `!later`), `transitions` (the local times around the changes of
+each zone, in both directions, and the setters across them), `setters`
+(every setter with every kind of argument on eleven dates, the order of
+the conversions, a `valueOf` that changes the date), `parse` (the date
+time string format with the forms around each rule, and the output of
+`toString` and `toUTCString`) and `realworld`.
+
+```
+node crates/js/tests/data/gen-date-cases.js probe \
+  crates/js/tests/data/date-snippets.txt tools/probes/js-date.json
+just probe --json tools/probes/js-date.json > probe.json
+node crates/js/tests/data/gen-date-cases.js cases probe.json \
+  crates/js/tests/data/date-snippets.txt crates/js/tests/data
+```
+
+`crates/js/tests/builtins_date.rs` runs `date_cases.js` (the snippets once
+and the index list of each zone) in each zone, normally and in the GC
+stress mode, against `date_cases_ZONE.expected` (11,670 results). It needs
+the time zone database of the system (`/usr/share/zoneinfo`) with the seven
+zones; the old offsets of the cases come from tzdata and agree with the
+ICU data of Chromium 148 in these zones (Europe/Zagreb does not agree
+before 1884 in Debian's tzdata, so Berlin is the northern zone). It also
+tests the host clock, a POSIX rule as the zone and `console.log` of dates.
+`date_hostile.rs` runs: strings of up to 100 M units to `Date.parse` and
+the constructor (also as ropes and as the end of a `toString` text), loops
+of long parses and of every string form and setter against a deadline of
+300 ms, 900 pairs of huge and non-finite values in every position of the
+constructor, `Date.UTC` and the setters, the ends of the time range in
+six zones, conversions that change the date or collect (also in the GC
+stress mode), and a loop of 200,000 dates that the collector frees. The
+unit tests of `crates/js/src/date/` check the calendar over the range,
+`MakeDay` and `MakeTime` at their edges, the zone with the skipped and
+repeated times and the eras beyond the range of `jiff`, the formats and
+the parser. test262 runs `test/built-ins/Date` and
+`test/annexB/built-ins/Date` and loads `assertRelativeDateMs.js` and
+`dateConstants.js`; the 155 tests of other directories that use `Date`
+run too.
 
 ## Python tools: development
 

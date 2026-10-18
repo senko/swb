@@ -92,6 +92,8 @@ pub(crate) enum Intrinsic {
     /// prototypes and constructors of the 12 typed arrays are in
     /// [`Realm::typed_arrays`].
     TypedArrayPrototype,
+    /// `%Date.prototype%` (§21.4.4), an ordinary object.
+    DatePrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -173,7 +175,7 @@ pub(crate) enum Intrinsic {
 pub(crate) const TYPED_ARRAY_TYPES: usize = 12;
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 70;
+const INTRINSIC_COUNT: usize = 71;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -369,6 +371,7 @@ impl Runtime {
         let array_buffer_proto = heap.new_object(Some(object_proto))?;
         let data_view_proto = heap.new_object(Some(object_proto))?;
         let typed_array_proto = heap.new_object(Some(object_proto))?;
+        let date_proto = heap.new_object(Some(object_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -435,6 +438,7 @@ impl Runtime {
             array_buffer_proto,
             data_view_proto,
             typed_array_proto,
+            date_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

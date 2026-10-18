@@ -293,6 +293,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         ObjectKind::Error(_) => "Error",
         ObjectKind::BooleanWrapper(_) => "Boolean",
         ObjectKind::NumberWrapper(_) => "Number",
+        ObjectKind::Date(_) => "Date",
         ObjectKind::StringWrapper(_) => "String",
         ObjectKind::RegExp(_) => "RegExp",
         ObjectKind::RegExpStringIterator(_)

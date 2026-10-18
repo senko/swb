@@ -101,6 +101,9 @@ pub enum ObjectKind {
     NumberWrapper(f64),
     /// A Boolean object (`[[BooleanData]]`).
     BooleanWrapper(bool),
+    /// A Date object (`[[DateValue]]`, §21.4): the time value, an integral
+    /// Number within ±8.64e15 or NaN.
+    Date(f64),
     /// A Symbol object (`[[SymbolData]]`).
     SymbolWrapper(Gc<Symbol>),
     /// A `BigInt` object (`[[BigIntData]]`).
@@ -254,6 +257,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::StringWrapper(_) => "StringWrapper",
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
+            ObjectKind::Date(_) => "Date",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
             ObjectKind::BigIntWrapper(_) => "BigIntWrapper",
             ObjectKind::RawJson => "RawJson",
@@ -318,6 +322,7 @@ impl ObjectKind {
             | ObjectKind::Array { .. }
             | ObjectKind::NumberWrapper(_)
             | ObjectKind::BooleanWrapper(_)
+            | ObjectKind::Date(_)
             | ObjectKind::RawJson
             | ObjectKind::Arguments
             | ObjectKind::ArrayBuffer(_) => {}

@@ -388,6 +388,8 @@ pub(crate) struct Vm {
     pub(crate) join_stack: Vec<Gc<Object>>,
     /// The generator of `Math.random`.
     pub(crate) random: random::RandomSource,
+    /// The clock and the time zone of `Date` (ADR 0027).
+    pub(crate) time: crate::date::TimeHost,
     /// The last result of `String.prototype.split` with a string
     /// separator (`builtins/string_replace.rs`).
     pub(crate) split_cache: Option<SplitCache>,

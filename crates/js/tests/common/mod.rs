@@ -158,6 +158,21 @@ pub(crate) fn run(source: &str, stress: bool) -> String {
     })
 }
 
+/// Like [`run`], in the time zone `zone` (an IANA name or a POSIX rule)
+/// with the fixed clock `now` (milliseconds since the epoch).
+pub(crate) fn run_in_zone(source: &str, stress: bool, zone: &str, now: f64) -> String {
+    let (source, zone) = (source.to_owned(), zone.to_owned());
+    on_big_stack(move || {
+        let mut rt = runtime(stress);
+        rt.set_time_zone(swb_js::TimeZone::from_spec(&zone).expect("a time zone of the tests"));
+        rt.set_clock(Box::new(move || now));
+        let out = run_in(&mut rt, &source);
+        let stats = rt.heap().stats();
+        assert_eq!(stats.total_stale_roots, 0, "stale roots in {source}");
+        out
+    })
+}
+
 /// Runs each case (source, expected output) with and without the stress
 /// mode; reports all mismatches at once.
 pub(crate) fn check_cases(cases: &[(&str, &str)]) {

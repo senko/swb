@@ -299,6 +299,7 @@ impl Runtime {
             Ok(ObjectKind::BooleanWrapper(_)) => "[object Boolean]".to_owned(),
             Ok(ObjectKind::SymbolWrapper(_)) => "[object Symbol]".to_owned(),
             Ok(ObjectKind::BigIntWrapper(_)) => "[object BigInt]".to_owned(),
+            Ok(ObjectKind::Date(_)) => "[object Date]".to_owned(),
             // V8 names the constructor that the prototype chain gives
             // (`Map.prototype` is `#<Map>`, a `Map` whose prototype is
             // `Object.prototype` is `#<Object>`).
@@ -329,6 +330,7 @@ impl Runtime {
             // (measured).
             Ok(ObjectKind::Ordinary)
                 if self.inherits_intrinsic(object, super::Intrinsic::RegExpPrototype)
+                    || self.inherits_intrinsic(object, super::Intrinsic::DatePrototype)
                     || self.inherits_intrinsic(object, super::Intrinsic::TypedArrayPrototype) =>
             {
                 "[object Object]".to_owned()

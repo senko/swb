@@ -99,6 +99,24 @@ fn log(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
+/// A Date as `console.log` shows it (Node.js 22): the ISO string, or
+/// `Invalid Date`, with the name of a subclass before it.
+fn date_text(rt: &Runtime, object: Gc<Object>, time: f64) -> String {
+    let text = if time.is_nan() {
+        "Invalid Date".to_owned()
+    } else {
+        crate::date::format::to_iso_string(&crate::date::time_value::fields(time as i64))
+    };
+    let name = match rt.heap.get_prototype_of(object) {
+        Ok(Some(proto)) => rt.chain_constructor_name(proto),
+        _ => None,
+    };
+    match name {
+        Some(name) if !name.is_empty() && name != "Date" => format!("{name} {text}"),
+        _ => text,
+    }
+}
+
 /// A Number as `console.log` shows it: like `ToString`, but `-0` for
 /// negative zero.
 fn format_number(n: f64) -> String {
@@ -390,6 +408,9 @@ impl Inspector<'_> {
                     _ => format!("/{source}/{flags}"),
                 }
             }
+            // The ISO string, or `Invalid Date`, with the name of a
+            // subclass before it (Node.js 22).
+            ObjectKind::Date(t) => date_text(rt, object, *t),
             ObjectKind::Error(_) => {
                 // Without a `stack` property (M7), Node.js shows
                 // `[Name: message]`.

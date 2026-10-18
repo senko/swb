@@ -36,6 +36,12 @@ smallvec = { version = "1", features = ["union", "const_generics"] }
 thiserror = "2"
 url = "2.5"
 
+# js
+# Time zones for `Date` (ADR 0027): the offset of a UTC time, the local time
+# rules, the system zone. Without the bundled database (the system's
+# /usr/share/zoneinfo is read) and without the other formats and parsers.
+jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
+
 # Tests only.
 similar = "2"
 

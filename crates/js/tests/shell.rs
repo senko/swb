@@ -225,11 +225,45 @@ fn disassemble_and_compile_only() {
     assert_eq!(code(&shell(&["--compile-only", "-e", "var 1"])), 2);
 }
 
+/// `--time-zone` sets the local zone of `Date` (a rule needs no database;
+/// `UTC` is a name) and `--now` the clock.
+#[test]
+fn time_zone_and_clock_options() {
+    let script = "print(new Date(2024, 6, 1, 12).toISOString(), new Date(2024, 0, 1, 12).toISOString(), \
+                  Date.now(), new Date().toISOString())";
+    let out = shell(&[
+        "--time-zone",
+        "EST5EDT,M3.2.0,M11.1.0",
+        "--now",
+        "1700000000123.7",
+        "-e",
+        script,
+    ]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(
+        text(&out.stdout),
+        "2024-07-01T16:00:00.000Z 2024-01-01T17:00:00.000Z 1700000000123 2023-11-14T22:13:20.123Z\n"
+    );
+    let out = shell(&[
+        "--time-zone",
+        "UTC",
+        "-e",
+        "print(new Date(2024, 6, 1, 12).toISOString())",
+    ]);
+    assert_eq!(text(&out.stdout), "2024-07-01T12:00:00.000Z\n");
+}
+
 #[test]
 fn bad_command_lines_exit_64() {
     assert_eq!(code(&shell(&[])), 64);
     assert_eq!(code(&shell(&["--nope"])), 64);
     assert_eq!(code(&shell(&["--time-limit", "x", "-e", "1"])), 64);
+    assert_eq!(code(&shell(&["--now", "x", "-e", "1"])), 64);
+    assert_eq!(code(&shell(&["--now"])), 64);
+    assert_eq!(code(&shell(&["--time-zone"])), 64);
+    let bad_zone = shell(&["--time-zone", "No/Such_Zone", "-e", "1"]);
+    assert_eq!(code(&bad_zone), 64);
+    assert!(text(&bad_zone.stderr).contains("unknown time zone \"No/Such_Zone\""));
     let help = shell(&["--help"]);
     assert_eq!(code(&help), 0);
     let help = text(&help.stdout);
