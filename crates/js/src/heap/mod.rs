@@ -237,6 +237,15 @@ impl Heap {
         self.allocated = self.allocated.saturating_add(bytes);
     }
 
+    /// Takes `bytes` out of the estimate of the heap size, for memory that
+    /// was given back before the next collection measures it (the bytes of
+    /// a detached `ArrayBuffer`, a buffer that shrinks). Never collects.
+    pub(crate) fn release_bytes(&mut self, bytes: usize) {
+        let from_allocated = bytes.min(self.allocated);
+        self.allocated -= from_allocated;
+        self.live_bytes = self.live_bytes.saturating_sub(bytes - from_allocated);
+    }
+
     /// Whether a collection is due at the next safepoint: past the
     /// threshold, over the limit, or within a fifth of the limit with a
     /// tenth of it allocated since the last collection. The last rule is
@@ -293,10 +302,16 @@ impl Heap {
             return Ok(false);
         }
         self.collect(roots);
-        if self.heap_size() > self.config.limit - self.config.limit / 10 {
+        if self.heap_size() > self.live_limit() {
             return Err(Termination::HeapLimit.into());
         }
         Ok(true)
+    }
+
+    /// The live size above which a collection ends the script: 90 % of the
+    /// limit (see the module documentation).
+    fn live_limit(&self) -> usize {
+        self.config.limit - self.config.limit / 10
     }
 
     /// Makes room for an allocation of `bytes` whose size a script
@@ -306,12 +321,26 @@ impl Heap {
     ///
     /// Call it before the operation creates handles that are not rooted.
     pub fn reserve(&mut self, bytes: usize, roots: &dyn RootSource) -> Result<()> {
+        self.reserve_under(bytes, self.config.limit, roots)
+    }
+
+    /// [`Heap::reserve`] for memory that a script can keep and give back
+    /// (the bytes of an `ArrayBuffer`): the room ends at the live limit of
+    /// [`Heap::safepoint`], so that a script that keeps buffers gets the
+    /// failure of the reservation, not the end of the script at the next
+    /// collection.
+    pub(crate) fn reserve_live(&mut self, bytes: usize, roots: &dyn RootSource) -> Result<()> {
+        self.reserve_under(bytes, self.live_limit(), roots)
+    }
+
+    /// [`Heap::reserve`] with the room ending at `end`.
+    fn reserve_under(&mut self, bytes: usize, end: usize, roots: &dyn RootSource) -> Result<()> {
         let would_pass_threshold = self.allocated.saturating_add(bytes) > self.threshold();
-        let would_pass_limit = self.heap_size().saturating_add(bytes) > self.config.limit;
-        if self.no_gc == 0 && (self.config.stress || would_pass_threshold || would_pass_limit) {
+        let would_pass_end = self.heap_size().saturating_add(bytes) > end;
+        if self.no_gc == 0 && (self.config.stress || would_pass_threshold || would_pass_end) {
             self.collect(roots);
         }
-        if self.heap_size().saturating_add(bytes) > self.config.limit {
+        if self.heap_size().saturating_add(bytes) > end {
             return Err(Termination::HeapLimit.into());
         }
         Ok(())

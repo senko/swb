@@ -306,7 +306,9 @@ impl Runtime {
                 | ObjectKind::WeakMap(_)
                 | ObjectKind::WeakSet(_)
                 | ObjectKind::WeakRef(_)
-                | ObjectKind::FinalizationRegistry(_),
+                | ObjectKind::FinalizationRegistry(_)
+                | ObjectKind::ArrayBuffer(_)
+                | ObjectKind::DataView(_),
             ) => format!(
                 "#<{}>",
                 self.chain_constructor_name(object)

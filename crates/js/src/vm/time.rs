@@ -33,6 +33,11 @@ pub(crate) const TIME_CHECK_INTERVAL: u32 = 10_000;
 /// 10 to 30 ns).
 pub(crate) const UNITS_PER_STEP: usize = 64;
 
+/// The bytes of a buffer that a zero-fill or a copy costs as much as one
+/// step (the first write of new memory, with its page faults, runs at
+/// about 10 GB/s; a step is about 12 ns).
+pub(crate) const BYTES_PER_STEP: usize = 128;
+
 /// A handle that asks a runtime to end its running script. It can be
 /// cloned and sent to other threads. A request ends the script that runs
 /// at the next time check (or the next script that runs, if none runs);
@@ -86,6 +91,13 @@ impl Runtime {
     #[inline]
     pub(crate) fn charge_units(&mut self, units: usize) -> VmResult<()> {
         self.charge(units / UNITS_PER_STEP)
+    }
+
+    /// The cost of zero-filling or copying `bytes` bytes of a buffer: one
+    /// step per [`BYTES_PER_STEP`] bytes. Call it after the work.
+    #[inline]
+    pub(crate) fn charge_bytes(&mut self, bytes: usize) -> VmResult<()> {
+        self.charge(bytes / BYTES_PER_STEP)
     }
 
     /// The time check: a termination if the host asked for one or the

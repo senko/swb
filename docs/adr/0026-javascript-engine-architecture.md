@@ -512,7 +512,10 @@ growth, concatenation, the AST of `eval`) first reserves its size. A
 reservation is a safepoint: it collects when the request would pass the
 threshold or the limit, then checks the limit again. If the request
 still does not fit, or if a safepoint finds the heap over the limit
-after a collection, the script ends (termination, section 5). The
+after a collection, the script ends (termination, section 5); only the
+bytes of an `ArrayBuffer` are a `RangeError` instead, as
+`CreateByteDataBlock` says, already above 90 % of the limit (section
+15, feature 11a). The
 reservation happens before the operation creates new handles that are
 not yet rooted. Buffers grow with fallible reservation (`try_reserve`).
 
@@ -540,6 +543,7 @@ Content from the network must never crash or hang the browser.
 | String length | About 2^29 code units (measured). | `RangeError` |
 | Regular expressions | Steps polled with the time check; backtrack stack counted in the heap; limits for pattern nesting, program size and capture count. | Termination or `SyntaxError` |
 | `BigInt` size | A limit of 2^18 bits, checked before the work (section 7). | `RangeError` |
+| `ArrayBuffer` length | V8's limit (2^35 − 1 bytes; `maxByteLength` 2^35 − 4096) and the heap limit, checked before the allocation; zero-fills and copies charged to the time countdown (section 15). | `RangeError` |
 
 Stack size: every thread that runs JavaScript must have a stack of at
 least 8 MiB. Threads that swb creates for scripts (and the threads of
@@ -2430,6 +2434,91 @@ where the first plan did not work:
   swb's limit and the callee text of `o[Symbol.iterator]()` (swb shows
   `(intermediate value)` for every receiver, also for Numbers; not
   specific to `BigInt`) are left out of the test.
+
+- `ArrayBuffer` and `DataView` (feature 11a; `object/buffer.rs`,
+  `builtins/array_buffer.rs`, `builtins/data_view.rs`). Two object kinds:
+  `ObjectKind::ArrayBuffer` holds `[[ArrayBufferData]]` as a Rust vector
+  (`None` when detached; its length is `[[ArrayBufferByteLength]]`) and
+  `[[ArrayBufferMaxByteLength]]` of a resizable buffer;
+  `ObjectKind::DataView` holds a `BufferView` (the buffer, the byte
+  offset, a fixed length or `None` for a view that tracks a resizable
+  buffer), which the typed arrays of 11b reuse. The value representation
+  is unchanged (section 7).
+- Memory: the bytes live outside the arenas, in the vector that the
+  buffer object owns; the sweep drops it with the object. The heap counts
+  the capacity of the vector like the other buffers of live things
+  (`ObjectKind::heap_size`), so it counts in the limit and in the
+  collection threshold. An allocation reserves first (`Heap::reserve_buffer`,
+  a safepoint that collects as `reserve` does) and then allocates
+  fallibly (`try_reserve_exact`, then a zero-fill; no `vec![0; n]`).
+  A length that does not fit is a `RangeError` with V8's message ("Array
+  buffer allocation failed"), not a termination: `CreateByteDataBlock`
+  throws (§6.2.9.1), Chromium does the same, and the script can go on.
+  The room for buffers ends at 90 % of the heap limit, where a
+  collection ends the script (section 14): with the full limit, a script
+  that keeps buffers and drops them after the `RangeError` would end at
+  the next collection instead (found in the review). A
+  length above V8's limit (2^35 − 1 bytes, measured; `maxByteLength` up
+  to 2^35 − 4096) is "Invalid array buffer length" ("max length"). A
+  resizable buffer allocates only its current length, not its maximum
+  (V8 reserves the maximum as virtual memory); `resize` grows the vector
+  exactly and gives back the capacity when it shrinks below half of it.
+  Detaching (and `transfer`) takes the bytes out of the heap estimate at
+  once (`Heap::release_bytes`), so a loop that allocates and detaches
+  needs no collection. `transfer` moves the vector into the new buffer
+  (the note of §25.1.3.3 allows it): a transfer to the same or a smaller
+  length copies nothing.
+- Time: zero-fills and copies (the constructor, `slice`, `resize`,
+  `transfer` to another length) charge one step per 128 bytes after the
+  work (`Runtime::charge_bytes`; a first write of new memory runs at about
+  10 GB/s, a step is about 12 ns): endless loops of 64 MiB or 256 MiB
+  allocations, slices, transfers and resizes end within 21 ms of a 200 ms
+  limit in a release build. The zero-fill touches every page, so a
+  buffer that a script never writes costs what a written one costs
+  (V8's allocation is lazy: 40 buffers of 64 MiB take 21 ms in
+  `node --jitless`, 271 ms in swb). `slice` with the default
+  constructor copies into a new vector instead of zero-filling and then
+  copying.
+- `DataView` methods: one native per method over `GetViewValue` and
+  `SetViewValue` with the element type as a parameter; the view record
+  is read once (its fields never change), the conversions run, then
+  `Heap::view_range` checks the buffer (detached, out of bounds) and the
+  element is read or written in place. A read of an 8-, 16- or 32-bit
+  integer type gives `Value::Int` without an allocation, `Uint32` and
+  the floats a Number, the 64-bit types a new `BigInt` (`ToBigInt64`
+  and `ToBigUint64` of 10b on the way in). binary16 uses `f16_round` of
+  `js-text` with the bits of `number/binary16.rs`. NaN bits: binary32
+  and binary64 keep the bits of the double (the hardware conversion), a
+  NaN becomes the quiet binary16 NaN with its sign, and a binary16 NaN
+  reads as the quiet double NaN with its payload, all as Chromium 148
+  does (measured). The element conversions (`encode`, `decode`,
+  `Runtime::to_element`, `Runtime::element_value`, with
+  `Uint8Clamped` for 11b) are shared with the typed arrays.
+- `SpeciesConstructor` has a generic form for natives
+  (`Runtime::species_constructor`); `slice` with the default
+  constructor (and its built-in `@@species` getter) creates the buffer
+  without a call. `ArrayBuffer.isView` is true for a `DataView` (11b
+  adds the typed arrays).
+- `DetachArrayBuffer` is `Runtime::detach_array_buffer` for the host;
+  the shell and the test262 runner have `$262.detachArrayBuffer`.
+- Not defined, as in Chromium 148 (measured in the probe page):
+  `SharedArrayBuffer` (Chromium has it only in cross-origin isolated
+  pages; `crossOriginIsolated` is false there) and the immutable buffers
+  (`transferToImmutable`, `sliceToImmutable`, `immutable`).
+- Differences from Chromium 148 (KNOWN, 724 measured snippets in
+  `tools/probes/js-binary.json` agree otherwise, also V8's messages,
+  among them the odd "Invalid DataView length undefined" of the check
+  after `OrdinaryCreateFromConstructor`): `ToIndex` of the length of
+  `new ArrayBuffer` rejects 2^53 and Infinity at once, as §25.1.4.1
+  says (V8 reads `maxByteLength` and the prototype first and then
+  rejects the length); `resize` converts the length before it checks for
+  a detached buffer (§25.1.6.6; V8 checks the buffer first); the NaN that
+  an operator makes can have other bits (`0 / 0` is 0xFFF8... from the
+  hardware's division, V8 folds it to 0x7FF8...; V8 has its own NaN for
+  `undefined`); the specification leaves NaN bits to the
+  implementation. `console.log` of a `DataView` whose buffer is
+  detached or that is out of bounds prints `(detached)` or
+  `(out of bounds)` (Node.js 22 fails with an internal assertion).
 
 ## Consequences
 

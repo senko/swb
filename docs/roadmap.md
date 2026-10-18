@@ -1774,9 +1774,65 @@ failures with a reason. Features, in this order:
       ars-js/s02.js takes its BigInt branch; the 84 target scripts
       behave as before.
      Feature 10 done 2026-10-18: test262 runtime 36,000 → 36,369.
-11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
-    `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
-    and `BigUint64Array`), `DataView`, `Atomics` on non-shared buffers.
+11. Binary data. Split 2026-10-18 into three sessions, one commit each.
+    test262: 221 tests in `built-ins/ArrayBuffer`, 561 in `DataView`,
+    1,453 in `TypedArray`, 738 in `TypedArrayConstructors`, 70 in
+    `Uint8Array` (base64 and hex), 389 in `Atomics`; 356 tests of these
+    groups need `SharedArrayBuffer`. 2,067 tests include
+    `testTypedArray.js` and 302 `detachArrayBuffer.js`, which the runner
+    does not load yet. Target scripts: `Uint8Array` in 13 files,
+    `Uint32Array` in 8, `ArrayBuffer` in 7, `DataView` in 6, the other
+    typed arrays in 4 to 6; none uses `BigInt64Array`, `Float16Array` or
+    `Atomics`. `SharedArrayBuffer` stays out: Chromium exposes it only to
+    cross-origin isolated pages (confirm with a probe). `TextEncoder`,
+    `TextDecoder` and `crypto.getRandomValues` are Web APIs (the
+    bindings, after M7).
+    - 11a Buffers (`implementer-hard`; `js`): `ArrayBuffer` with its
+      bytes outside the collected arenas but in the heap accounting
+      (fallible allocation, the heap limit), resizable buffers
+      (`maxByteLength`, `resize`), detach, `transfer`,
+      `transferToFixedLength`, `slice`, `isView`, `@@species`;
+      `DataView` with all getters and setters (`BigInt64` and
+      `BigUint64` with `ToBigInt64` and `ToBigUint64` of 10b, `Float16`
+      with `Math.f16round`: round to nearest, ties to even), views that
+      track the length of a resizable buffer and the out-of-bounds
+      checks; the runner: `$262.detachArrayBuffer` and the harness files
+      of the feature. Measure whether Chromium 148 has the immutable
+      `ArrayBuffer` (`transferToImmutable`, 61 tests); add it only if it
+      does. This session sets the buffer API that 11b uses.
+      Done 2026-10-18: `ArrayBuffer` (resizable, `transfer`,
+      `transferToFixedLength`, `slice` with species, `isView`, detach)
+      with its bytes in a vector outside the arenas, counted in the heap
+      size; a buffer above the heap limit is a `RangeError` ("Array
+      buffer allocation failed", as V8), not a termination. Zero-fills
+      and copies are charged to the time countdown. `DataView` with the
+      22 getters and setters (binary16 included) and length-tracking
+      views; `$262.detachArrayBuffer` in the shell and the runner. 724
+      Chromium snippets equal in normal and stress mode (KNOWN: the
+      order of `ToIndex` in two places, NaN bits of operators,
+      `Float16Array`). Chromium 148 has no `SharedArrayBuffer` in a
+      normal page and no immutable buffers, so swb has neither. test262
+      runtime 36,369 → 37,011 (`built-ins/ArrayBuffer` 149 of 173,
+      `built-ins/DataView` 480 of 481; the 25 new failures call typed
+      array constructors without the feature tag).
+    - 11b Typed arrays (`implementer-hard`; `js`): `%TypedArray%` and the
+      12 constructors (`Int8` to `Float64`, `Uint8Clamped`, `Float16`,
+      `BigInt64`, `BigUint64`) with all argument forms, the TypedArray
+      exotic object (the internal methods for canonical numeric keys),
+      element access in the interpreter (a fast path, with `vm_bench`
+      rows), the accessors (`buffer`, `byteLength`, `byteOffset`,
+      `length`, `@@toStringTag`), length tracking and out-of-bounds,
+      `from`, `of`, `set`, `subarray`, `slice`, the iterators,
+      `TypedArraySpeciesCreate`.
+    - 11c Methods (`implementer`; `js`): the other methods of
+      `%TypedArray%.prototype`, after the patterns of the `Array`
+      methods (`at`, `copyWithin`, `every`, `fill`, `filter`, the `find`
+      methods, `forEach`, `includes`, `indexOf`, `join`, `lastIndexOf`,
+      `map`, `reduce`, `reduceRight`, `reverse`, `some`, `sort` with the
+      numeric default order, `toLocaleString`, `toReversed`, `toSorted`,
+      `with`, `toString`); `Atomics` on non-shared integer arrays
+      (`wait` throws, `notify` returns 0); the base64 and hex methods of
+      `Uint8Array`.
 12. `Date` (`implementer`; the time zone library under ADR 0003).
     Annex B: `getYear`, `setYear`, `toGMTString`.
 13. Performance (`implementer-hard`). Inline caches, a cache for
@@ -2202,6 +2258,21 @@ not repeated here; the open items of each spike session are in M6 step
     242 MiB. A collection is not interrupted at the deadline: a loop
     that keeps rejected promises ends up to 170 ms after a 600 ms
     `--time-limit`, also with Numbers.
+- Binary data (M7 11a):
+  - A `DataView` get or set costs about 95 ns (1M `getInt32` reads:
+    121 ms, `node --jitless` 23 ms), almost all of it the native call
+    (a `getInt32` call costs 24 ns more than a `Math.abs` call). Belongs
+    to feature 13 (call paths).
+  - A new buffer is zero-filled at once, so every page is touched: 40
+    buffers of 64 MiB take 271 ms (Node 21 ms, with lazy zero pages).
+    std has no fallible `calloc`; a chunked lazy zero-fill would help.
+  - `resize` grows the vector to the exact length, so a loop of
+    `resize(length + 1)` copies each time (charged). Grow by a factor,
+    capped at `maxByteLength`.
+  - The RegExp and Promise species code can use the generic
+    `Runtime::species_constructor`.
+  - NaN from `0/0` has the hardware bits (0xFFF8…); V8 gives 0x7FF8….
+    The spec leaves NaN bits to the implementation (KNOWN).
 - Dependencies (2026-10-18): `ttf-parser` is unmaintained
   (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
   not use it; winit's Wayland title bar (`sctk-adwaita`, through

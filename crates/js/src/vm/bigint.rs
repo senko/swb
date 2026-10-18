@@ -421,20 +421,12 @@ impl Runtime {
 
     /// `ToBigInt64` (§7.1.15): `ToBigInt`, then the value modulo 2^64 as
     /// a signed integer.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the BigInt64Array of M7 feature 11 uses it")
-    )]
     pub(crate) fn to_big_int64(&mut self, value: Value) -> VmResult<i64> {
         let b = self.to_bigint(value)?;
         Ok(self.heap.bigint(b)?.to_i64_wrapping())
     }
 
     /// `ToBigUint64` (§7.1.16): `ToBigInt`, then the value modulo 2^64.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the BigUint64Array of M7 feature 11 uses it")
-    )]
     pub(crate) fn to_big_uint64(&mut self, value: Value) -> VmResult<u64> {
         let b = self.to_bigint(value)?;
         Ok(self.heap.bigint(b)?.to_u64_wrapping())

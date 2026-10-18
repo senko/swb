@@ -1,0 +1,101 @@
+getInt8 index detach: TypeError
+getInt8 index gc: ok 0
+setInt8 index detach: TypeError
+setInt8 value detach: TypeError
+setInt8 value shrink: TypeError
+getInt8 index shrink: TypeError
+setInt8 value grow: ok 1
+setInt8 value gc: ok 1
+getUint8 index detach: TypeError
+getUint8 index gc: ok 0
+setUint8 index detach: TypeError
+setUint8 value detach: TypeError
+setUint8 value shrink: TypeError
+getUint8 index shrink: TypeError
+setUint8 value grow: ok 1
+setUint8 value gc: ok 1
+getInt16 index detach: TypeError
+getInt16 index gc: ok 0
+setInt16 index detach: TypeError
+setInt16 value detach: TypeError
+setInt16 value shrink: TypeError
+getInt16 index shrink: TypeError
+setInt16 value grow: ok 1
+setInt16 value gc: ok 1
+getUint16 index detach: TypeError
+getUint16 index gc: ok 0
+setUint16 index detach: TypeError
+setUint16 value detach: TypeError
+setUint16 value shrink: TypeError
+getUint16 index shrink: TypeError
+setUint16 value grow: ok 1
+setUint16 value gc: ok 1
+getInt32 index detach: TypeError
+getInt32 index gc: ok 0
+setInt32 index detach: TypeError
+setInt32 value detach: TypeError
+setInt32 value shrink: TypeError
+getInt32 index shrink: TypeError
+setInt32 value grow: ok 1
+setInt32 value gc: ok 1
+getUint32 index detach: TypeError
+getUint32 index gc: ok 0
+setUint32 index detach: TypeError
+setUint32 value detach: TypeError
+setUint32 value shrink: TypeError
+getUint32 index shrink: TypeError
+setUint32 value grow: ok 1
+setUint32 value gc: ok 1
+getFloat16 index detach: TypeError
+getFloat16 index gc: ok 0
+setFloat16 index detach: TypeError
+setFloat16 value detach: TypeError
+setFloat16 value shrink: TypeError
+getFloat16 index shrink: TypeError
+setFloat16 value grow: ok 1
+setFloat16 value gc: ok 1
+getFloat32 index detach: TypeError
+getFloat32 index gc: ok 0
+setFloat32 index detach: TypeError
+setFloat32 value detach: TypeError
+setFloat32 value shrink: TypeError
+getFloat32 index shrink: TypeError
+setFloat32 value grow: ok 1
+setFloat32 value gc: ok 1
+getFloat64 index detach: TypeError
+getFloat64 index gc: ok 0
+setFloat64 index detach: TypeError
+setFloat64 value detach: TypeError
+setFloat64 value shrink: TypeError
+getFloat64 index shrink: TypeError
+setFloat64 value grow: ok 1
+setFloat64 value gc: ok 1
+getBigInt64 index detach: TypeError
+getBigInt64 index gc: ok 0
+setBigInt64 index detach: TypeError
+setBigInt64 value detach: TypeError
+setBigInt64 value shrink: TypeError
+getBigInt64 index shrink: TypeError
+setBigInt64 value grow: ok 1
+setBigInt64 value gc: ok 1
+getBigUint64 index detach: TypeError
+getBigUint64 index gc: ok 0
+setBigUint64 index detach: TypeError
+setBigUint64 value detach: TypeError
+setBigUint64 value shrink: TypeError
+getBigUint64 index shrink: TypeError
+setBigUint64 value grow: ok 1
+setBigUint64 value gc: ok 1
+ctor offset detach: TypeError
+ctor length detach: TypeError
+ctor length shrink: RangeError
+ctor prototype detach: TypeError
+ctor prototype shrink: RangeError
+ctor prototype grow: ok 14
+slice start detach: TypeError
+slice species detach: TypeError
+slice species gc: ok 7
+transfer length detach: TypeError
+transfer length gc: ok 4:true
+resize length detach: TypeError
+ctor length gc: ok 8

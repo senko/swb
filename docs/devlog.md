@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 11a, ArrayBuffer and DataView
+
+- Feature 11 (binary data) is split into three sessions: 11a buffers,
+  11b typed arrays, 11c the other typed-array methods, `Atomics` and
+  base64/hex.
+- An `ArrayBuffer` owns its bytes as a Rust vector outside the arenas
+  (`object/buffer.rs`). The heap counts the vector's capacity, so
+  buffers count in the heap limit and the collection threshold; a
+  detached buffer gives its bytes back at once, `transfer` moves the
+  vector. Allocation reserves first and then allocates fallibly. A
+  buffer that does not fit is a `RangeError` ("Array buffer allocation
+  failed"), as in V8, not a termination.
+- Zero-fills and copies charge one step per 128 bytes. Endless loops of
+  64 MiB and 256 MiB operations end within 21 ms of a 200 ms limit.
+- `DataView` converts the arguments first and then reads or writes in
+  place, so a `valueOf` that detaches or shrinks the buffer is seen.
+  Reads of Number types allocate nothing. The element types and their
+  byte encoding (with binary16 in `js-text`) are ready for the typed
+  arrays of 11b.
+- Probes: Chromium 148 has no `SharedArrayBuffer` in a normal page
+  (`crossOriginIsolated` is false) and no immutable buffers, so swb has
+  neither. V8's limits (2^35 − 1 bytes, `maxByteLength` 2^35 − 4096) and
+  all messages come from 733 probe snippets; 724 are equal, 9 KNOWN.
+- The review found no defect. One nit: a buffer could take the heap to
+  the full limit, but a collection ends the script above 90 % of it, so
+  a script that kept buffers and dropped them after the `RangeError`
+  ended with a termination. The room for buffers now ends at the same
+  90 % line.
+- test262 runtime 36,369 → 37,011. The 25 new failures call typed array
+  constructors without the feature tag; they need 11b.
+- `getInt32` loops are 5 times slower than `node --jitless`, almost all
+  of it the cost of a native call (feature 13).
+
 ## 2026-10-18: rustls 0.23.46
 
 - `just audit` reported three advisories for rustls 0.23.45

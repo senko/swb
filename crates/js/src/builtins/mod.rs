@@ -22,7 +22,8 @@
 //! (`string*.rs`, `uri.rs`); `RegExp` with the legacy static properties,
 //! Annex B `compile` and `%RegExpStringIteratorPrototype%`
 //! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`; `BigInt`
-//! (`bigint.rs`);
+//! (`bigint.rs`); `ArrayBuffer` and `DataView` (`array_buffer.rs`,
+//! `data_view.rs`);
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
@@ -46,6 +47,7 @@
 
 mod array;
 mod array_access;
+mod array_buffer;
 mod array_copy;
 mod array_from_async;
 mod array_iteration;
@@ -59,6 +61,7 @@ mod bigint;
 mod boolean;
 mod collection;
 mod console;
+mod data_view;
 mod descriptor;
 mod error;
 mod function;
@@ -108,7 +111,7 @@ pub(crate) use error::error_header;
 pub(crate) use iterator::array_iterator_next_value;
 
 use crate::heap::Gc;
-use crate::object::Object;
+use crate::object::{Object, Property, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -155,6 +158,8 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     number::install(rt, realm, parse_int, parse_float)?;
     boolean::install(rt, realm)?;
     bigint::install(rt, realm)?;
+    array_buffer::install(rt, realm)?;
+    data_view::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;
@@ -216,6 +221,22 @@ fn symbol_method(
     Ok(function)
 }
 
+/// Defines an accessor with a getter only (non-enumerable, configurable),
+/// named "get NAME".
+fn getter(
+    rt: &mut Runtime,
+    realm: u32,
+    target: Gc<Object>,
+    name: &str,
+    func: NativeFn,
+) -> VmResult<()> {
+    let function = rt.new_builtin(realm, &format!("get {name}"), 0, func, false)?;
+    let key = rt.heap.key_from_str(name)?;
+    let desc = PropertyDescriptor::accessor(function.into(), Value::Undefined, false, true);
+    rt.define_own_property(target, key, desc)?;
+    Ok(())
+}
+
 /// Defines `@@toStringTag` (non-writable, non-enumerable, configurable).
 pub(crate) fn to_string_tag(rt: &mut Runtime, target: Gc<Object>, tag: &str) -> VmResult<()> {
     let text = rt.heap.intern_str(tag)?;
@@ -274,6 +295,46 @@ impl Runtime {
             _ => None,
         };
         self.intrinsic(realm.unwrap_or(call.realm()), fallback)
+    }
+
+    /// `SpeciesConstructor(object, default)` (§7.3.22) with V8's messages.
+    /// `builtin_species` is the built-in `@@species` getter of `default`:
+    /// while `default` has it, the getter is not called (it returns its
+    /// receiver, so the call is not observable). The result is recorded.
+    pub(crate) fn species_constructor(
+        &mut self,
+        object: Gc<Object>,
+        default: Gc<Object>,
+        builtin_species: Gc<Object>,
+    ) -> VmResult<Value> {
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        let constructor = self.get_value(object.into(), key)?;
+        let Value::Object(constructor) = constructor else {
+            if constructor.is_undefined() {
+                return Ok(default.into());
+            }
+            return Err(VmError::type_error(
+                "The .constructor property is not an object",
+            ));
+        };
+        let key = self.symbol_key(WellKnown::Species);
+        if constructor == default
+            && let Some(Property::Accessor { get, .. }) =
+                self.heap.get_own_property(default, key)?
+            && get == Value::Object(builtin_species)
+        {
+            return Ok(default.into());
+        }
+        let species = self.get_value(constructor.into(), key)?;
+        if species.is_nullish() {
+            return Ok(default.into());
+        }
+        if self.is_constructor(species)? {
+            return Ok(self.heap.record(species));
+        }
+        Err(VmError::type_error(
+            "object.constructor[Symbol.species] is not a constructor",
+        ))
     }
 
     /// `ToObject(this)`, recorded in the native's handle scope.

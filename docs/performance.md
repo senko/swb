@@ -618,6 +618,29 @@ the global object, which has one property more, `BigInt`), `regexp: test`
 −15 %, `set: for-of` −11 %, `toLowerCase, toUpperCase` +4 %, `JSON.parse`
 +5 %: code placement.
 
+### ArrayBuffer and DataView
+
+The `dataview:` and `arraybuffer:` rows of `vm_bench` (best of 5,
+release, 2026-10-18, M7 11a; the interpreter is unchanged, so the other
+rows are not measured again):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| dataview: 1M getInt32 reads | 121.1 | 23.2 | 5.2x |
+| dataview: 1M setUint32 writes | 96.5 | 24.1 | 4.0x |
+| arraybuffer: 100k new ArrayBuffer(256) and slice | 59.6 | 68.0 | 0.9x |
+
+A read or write allocates nothing (a 32-bit integer is a `Value::Int`);
+most of the time is the call of a native method, which costs about as
+much as `Math.abs` (a `getInt32` call takes about 24 ns more than a
+`Math.abs` call in the same loop; V8's `DataView` methods are
+compiled builtins). Large buffers: 40 allocations of 64 MiB take 271 ms
+(`node --jitless` 21 ms: V8 maps zeroed pages lazily, swb zero-fills
+fallibly and touches every page), 40 `slice`s of 64 MiB 355 ms (Node.js
+307 ms). Endless loops of 64 MiB and 256 MiB allocations, slices,
+transfers and resizes end within 21 ms of a 200 ms time limit (process
+start included).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

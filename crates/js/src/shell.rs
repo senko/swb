@@ -63,9 +63,16 @@ pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, Scr
     }));
     rt.set_host_data(Host { out });
     rt.define_global_function("print", 1, print)?;
-    rt.define_global_object("$262", &[("evalScript", 1, eval_script), ("gc", 0, gc)])?;
-    // `$262.global`: the global object. (`createRealm`, `detachArrayBuffer`
-    // and `agent` do not exist.)
+    rt.define_global_object(
+        "$262",
+        &[
+            ("evalScript", 1, eval_script),
+            ("gc", 0, gc),
+            ("detachArrayBuffer", 1, detach_array_buffer),
+        ],
+    )?;
+    // `$262.global`: the global object. (`createRealm` and `agent` do not
+    // exist.)
     rt.eval("$262.global = this;")?;
     Ok(rt)
 }
@@ -89,6 +96,13 @@ fn print(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 #[allow(clippy::unnecessary_wraps)] // The signature of native functions.
 fn gc(rt: &mut Runtime, _: &NativeCall) -> VmResult<NativeReturn> {
     rt.collect();
+    Ok(NativeReturn::Value(Value::Undefined))
+}
+
+/// `$262.detachArrayBuffer(buffer)`: `DetachArrayBuffer` (test262's
+/// INTERPRETING.md).
+fn detach_array_buffer(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    rt.detach_array_buffer(rt.arg(call, 0))?;
     Ok(NativeReturn::Value(Value::Undefined))
 }
 

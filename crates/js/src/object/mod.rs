@@ -9,6 +9,7 @@
 
 mod arguments;
 mod array;
+mod buffer;
 mod element_access;
 mod elements;
 mod iterator_helper;
@@ -22,6 +23,11 @@ mod table;
 mod weak;
 
 pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
+pub(crate) use buffer::{ArrayBufferData, BufferView};
+pub(crate) use buffer::{
+    Element, ElementType, MAX_BYTE_LENGTH, MAX_RESIZABLE_BYTE_LENGTH, RawValue, ViewError,
+    zeroed_bytes,
+};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
@@ -168,6 +174,11 @@ pub enum ObjectKind {
     /// A `FinalizationRegistry` (§26.2): the cleanup callback and the
     /// cells.
     FinalizationRegistry(Box<Registry>),
+    /// An `ArrayBuffer` (§25.1): its bytes, outside the arenas, and its
+    /// maximum length (`buffer.rs`).
+    ArrayBuffer(Box<ArrayBufferData>),
+    /// A `DataView` (§25.3): its buffer, offset and length.
+    DataView(Box<BufferView>),
 }
 
 /// The state of a `for`-`in` loop: the object and the keys that the loop
@@ -254,6 +265,8 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::WeakSet(_) => "WeakSet",
             ObjectKind::WeakRef(_) => "WeakRef",
             ObjectKind::FinalizationRegistry(_) => "FinalizationRegistry",
+            ObjectKind::ArrayBuffer(_) => "ArrayBuffer",
+            ObjectKind::DataView(_) => "DataView",
         };
         f.write_str(name)
     }
@@ -270,7 +283,9 @@ impl ObjectKind {
             | ObjectKind::NumberWrapper(_)
             | ObjectKind::BooleanWrapper(_)
             | ObjectKind::RawJson
-            | ObjectKind::Arguments => {}
+            | ObjectKind::Arguments
+            | ObjectKind::ArrayBuffer(_) => {}
+            ObjectKind::DataView(view) => tracer.object(view.buffer),
             ObjectKind::Error(data) => {
                 if let Some(data) = data {
                     data.trace(tracer);
@@ -364,6 +379,8 @@ impl ObjectKind {
             ObjectKind::Proxy(_) => size_of::<ProxyData>(),
             ObjectKind::WeakRef(_) => size_of::<WeakRefData>(),
             ObjectKind::FinalizationRegistry(registry) => registry.heap_size(),
+            ObjectKind::ArrayBuffer(data) => data.heap_size(),
+            ObjectKind::DataView(_) => size_of::<BufferView>(),
             _ => 0,
         }
     }

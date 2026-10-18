@@ -73,10 +73,10 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let exec = super::method(rt, realm, proto, "exec", 1, exec)?;
     rt.set_intrinsic(realm, Intrinsic::RegExpExec, exec);
     for (name, func) in FLAG_GETTERS {
-        getter(rt, realm, proto, name, func)?;
+        super::getter(rt, realm, proto, name, func)?;
         match name {
-            "dotAll" => getter(rt, realm, proto, "flags", flags)?,
-            "multiline" => getter(rt, realm, proto, "source", source)?,
+            "dotAll" => super::getter(rt, realm, proto, "flags", flags)?,
+            "multiline" => super::getter(rt, realm, proto, "source", source)?,
             _ => {}
         }
     }
@@ -85,21 +85,6 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     super::method(rt, realm, proto, "test", 1, test)?;
     super::regexp_symbol::install(rt, realm, proto)?;
     super::regexp_fast::record_shapes(rt, realm)
-}
-
-/// Defines an accessor with a getter only (non-enumerable, configurable).
-fn getter(
-    rt: &mut Runtime,
-    realm: u32,
-    target: Gc<Object>,
-    name: &str,
-    func: NativeFn,
-) -> VmResult<()> {
-    let function = rt.new_builtin(realm, &format!("get {name}"), 0, func, false)?;
-    let key = rt.heap.key_from_str(name)?;
-    let desc = PropertyDescriptor::accessor(function.into(), Value::Undefined, false, true);
-    rt.define_own_property(target, key, desc)?;
-    Ok(())
 }
 
 /// `get RegExp[@@species]` (§22.2.5.2): the receiver.

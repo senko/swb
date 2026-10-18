@@ -8,11 +8,11 @@
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
-# asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js
-# or proxyTrapsHelper.js, or have the flags module or
-# CanBlockIsTrue, or use $262.createRealm, $262.agent or
-# $262.detachArrayBuffer. Tests with the flag async get doneprintHandle.js
-# and pass when they print Test262:AsyncTestComplete.
+# asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js,
+# proxyTrapsHelper.js, detachArrayBuffer.js or byteConversionValues.js, or
+# have the flags module or CanBlockIsTrue, or use $262.createRealm or
+# $262.agent. Tests with the flag async get doneprintHandle.js and pass
+# when they print Test262:AsyncTestComplete.
 
 feature __getter__
 feature __proto__
@@ -423,3 +423,29 @@ dir test/built-ins/FinalizationRegistry
 feature BigInt
 dir test/built-ins/BigInt
 dir test/language/literals/bigint
+
+# Added in M7 feature 11a: ArrayBuffer (resizable buffers, transfer,
+# detach with $262.detachArrayBuffer) and DataView with all getters and
+# setters. getFloat16 and setFloat16 have the feature Float16Array; its
+# tests in these groups and in built-ins/Math/f16round need no typed
+# array. align-detached-buffer-semantics-with-web-reality: byteLength of a
+# detached buffer is 0, as the specification says now. The tests that need
+# TypedArray (or a typed array constructor), SharedArrayBuffer, Atomics,
+# immutable-arraybuffer (Chromium 148 has no immutable buffer) or
+# cross-realm stay skipped by their features.
+feature ArrayBuffer
+feature DataView
+feature DataView.prototype.getFloat32
+feature DataView.prototype.getFloat64
+feature DataView.prototype.getInt16
+feature DataView.prototype.getInt32
+feature DataView.prototype.getInt8
+feature DataView.prototype.getUint16
+feature DataView.prototype.getUint32
+feature DataView.prototype.setUint8
+feature resizable-arraybuffer
+feature arraybuffer-transfer
+feature Float16Array
+feature align-detached-buffer-semantics-with-web-reality
+dir test/built-ins/ArrayBuffer
+dir test/built-ins/DataView

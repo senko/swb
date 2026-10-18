@@ -84,6 +84,10 @@ pub(crate) enum Intrinsic {
     FinalizationRegistryPrototype,
     /// `%BigInt.prototype%` (§21.2.3), an ordinary object.
     BigIntPrototype,
+    /// `%ArrayBuffer.prototype%` (§25.1.6) and `%DataView.prototype%`
+    /// (§25.3.4), ordinary objects.
+    ArrayBufferPrototype,
+    DataViewPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -142,10 +146,16 @@ pub(crate) enum Intrinsic {
     /// directly when it is the built-in one).
     WeakMapPrototypeSet,
     WeakSetPrototypeAdd,
+    /// `%ArrayBuffer%` (§25.1.4) and the getter of `ArrayBuffer[@@species]`
+    /// (§25.1.5.3), set when the built-in functions are installed: the
+    /// buffers of `transfer` and the default of `SpeciesConstructor` in
+    /// `slice`.
+    ArrayBufferConstructor,
+    ArrayBufferSpeciesGetter,
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 62;
+const INTRINSIC_COUNT: usize = 66;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -293,6 +303,8 @@ impl Runtime {
         let weak_ref_proto = heap.new_object(Some(object_proto))?;
         let registry_proto = heap.new_object(Some(object_proto))?;
         let bigint_proto = heap.new_object(Some(object_proto))?;
+        let array_buffer_proto = heap.new_object(Some(object_proto))?;
+        let data_view_proto = heap.new_object(Some(object_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -356,6 +368,8 @@ impl Runtime {
             weak_ref_proto,
             registry_proto,
             bigint_proto,
+            array_buffer_proto,
+            data_view_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

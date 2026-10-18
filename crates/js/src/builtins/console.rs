@@ -10,6 +10,11 @@
 //! `WeakMap { <items unknown> }`, `WeakSet { <items unknown> }`, `WeakRef {}`
 //! and `FinalizationRegistry {}` as in Node.js, which also prints the last
 //! two in full beyond the nesting depth when they have no properties.
+//! `ArrayBuffer { [Uint8Contents]: <00 01>, byteLength: 2 }` (at most 100
+//! bytes), `ArrayBuffer { (detached), byteLength: 0 }` and `DataView {
+//! byteLength: 2, byteOffset: 0, buffer: ArrayBuffer { ... } }`; Node.js
+//! 22 fails on a view that is detached or out of bounds, swb prints
+//! `(detached)` or `(out of bounds)` in place of the lengths.
 //! Formatting never runs script code: properties are read without
 //! calling getters (`[Getter]`), and no `toString` runs. Bounds: nesting
 //! depth 2 (deeper objects print as `[Object]` and `[Array]`), the first
@@ -115,6 +120,38 @@ fn inspect(rt: &Runtime, value: Value) -> (String, usize) {
     (text, work)
 }
 
+/// What an object shows between its braces.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Body {
+    /// The elements and the other properties.
+    Array,
+    /// The entries of a `Map` or `Set` (the name).
+    Collection(&'static str),
+    /// A weak collection (`true`: `<items unknown>`) or a `WeakRef` or
+    /// `FinalizationRegistry` (`false`).
+    Weak(bool),
+    /// The bytes or the range of an `ArrayBuffer` or `DataView` (the
+    /// name).
+    Binary(&'static str),
+    /// The properties.
+    Plain,
+}
+
+impl Body {
+    fn of(kind: &ObjectKind) -> Body {
+        match kind {
+            ObjectKind::Array { .. } => Body::Array,
+            ObjectKind::Map(_) => Body::Collection("Map"),
+            ObjectKind::Set(_) => Body::Collection("Set"),
+            ObjectKind::WeakMap(_) | ObjectKind::WeakSet(_) => Body::Weak(true),
+            ObjectKind::WeakRef(_) | ObjectKind::FinalizationRegistry(_) => Body::Weak(false),
+            ObjectKind::ArrayBuffer(_) => Body::Binary("ArrayBuffer"),
+            ObjectKind::DataView(_) => Body::Binary("DataView"),
+            _ => Body::Plain,
+        }
+    }
+}
+
 struct Inspector<'a> {
     rt: &'a Runtime,
     /// The objects being formatted (for cycles).
@@ -173,19 +210,8 @@ impl Inspector<'_> {
         let Ok(record) = self.rt.heap.object(object) else {
             return "[Object]".to_owned();
         };
-        let is_array = matches!(record.kind, ObjectKind::Array { .. });
-        let collection = match record.kind {
-            ObjectKind::Map(_) => Some("Map"),
-            ObjectKind::Set(_) => Some("Set"),
-            _ => None,
-        };
-        // `Some(true)` for the weak collections (their items are not
-        // shown), `Some(false)` for `WeakRef` and `FinalizationRegistry`.
-        let weak = match record.kind {
-            ObjectKind::WeakMap(_) | ObjectKind::WeakSet(_) => Some(true),
-            ObjectKind::WeakRef(_) | ObjectKind::FinalizationRegistry(_) => Some(false),
-            _ => None,
-        };
+        let body = Body::of(&record.kind);
+        let is_array = body == Body::Array;
         let base = self
             .base(object, &record.kind)
             .map(|base| self.with_function_tag(object, &record.kind, base));
@@ -194,7 +220,7 @@ impl Inspector<'_> {
             if let Some(base) = base {
                 return base;
             }
-            if let Some(items) = weak {
+            if let Body::Weak(items) = body {
                 let prefix = self.prefix(object, &record.kind);
                 if !items
                     && self
@@ -205,24 +231,14 @@ impl Inspector<'_> {
                 }
                 return format!("[{}]", prefix.trim_end());
             }
-            return match (is_array, collection) {
-                (true, _) => "[Array]".to_owned(),
-                (_, Some(name)) => format!("[{name}]"),
+            return match body {
+                Body::Array => "[Array]".to_owned(),
+                Body::Collection(name) | Body::Binary(name) => format!("[{name}]"),
                 _ => "[Object]".to_owned(),
             };
         }
         self.stack.push(object);
-        let entries = if is_array {
-            self.array_entries(object, depth, indent)
-        } else if collection.is_some() {
-            self.collection_entries(object, depth, indent)
-        } else if weak == Some(true) {
-            let mut entries = vec!["<items unknown>".to_owned()];
-            entries.extend(self.property_entries(object, depth, indent, false));
-            entries
-        } else {
-            self.property_entries(object, depth, indent, false)
-        };
+        let entries = self.entries(object, body, depth, indent);
         self.stack.pop();
         let prefix = self.prefix(object, &record.kind);
         let mut text = match (base, entries.is_empty()) {
@@ -255,6 +271,25 @@ impl Inspector<'_> {
             text = format!("<ref *{}> {text}", index + 1);
         }
         text
+    }
+
+    /// The entries of an object between its braces.
+    fn entries(
+        &mut self,
+        object: Gc<Object>,
+        body: Body,
+        depth: usize,
+        indent: usize,
+    ) -> Vec<String> {
+        let mut entries = match body {
+            Body::Array => return self.array_entries(object, depth, indent),
+            Body::Collection(_) => return self.collection_entries(object, depth, indent),
+            Body::Binary(_) => self.binary_entries(object, depth, indent),
+            Body::Weak(true) => vec!["<items unknown>".to_owned()],
+            Body::Weak(false) | Body::Plain => Vec::new(),
+        };
+        entries.extend(self.property_entries(object, depth, indent, false));
+        entries
     }
 
     /// The text that replaces the braces of an object, or stands before
@@ -417,7 +452,9 @@ impl Inspector<'_> {
             ObjectKind::WeakMap(_)
             | ObjectKind::WeakSet(_)
             | ObjectKind::WeakRef(_)
-            | ObjectKind::FinalizationRegistry(_) => return self.weak_prefix(object, kind),
+            | ObjectKind::FinalizationRegistry(_)
+            | ObjectKind::ArrayBuffer(_)
+            | ObjectKind::DataView(_) => return self.named_prefix(object, kind),
             ObjectKind::Ordinary
             | ObjectKind::Array { .. }
             | ObjectKind::ArrayIterator(_)
@@ -455,15 +492,17 @@ impl Inspector<'_> {
         }
     }
 
-    /// The prefix of a weak collection, `WeakRef` or
-    /// `FinalizationRegistry`: always the constructor name (`WeakMap `),
-    /// with the tag when it differs (`M [WeakMap] ` for a subclass), or
-    /// `[WeakMap: null prototype] `.
-    fn weak_prefix(&self, object: Gc<Object>, kind: &ObjectKind) -> String {
+    /// The prefix of a weak collection, `WeakRef`, `FinalizationRegistry`,
+    /// `ArrayBuffer` or `DataView`: always the constructor name
+    /// (`WeakMap `), with the tag when it differs (`M [WeakMap] ` for a
+    /// subclass), or `[WeakMap: null prototype] `.
+    fn named_prefix(&self, object: Gc<Object>, kind: &ObjectKind) -> String {
         let builtin = match kind {
             ObjectKind::WeakMap(_) => "WeakMap",
             ObjectKind::WeakSet(_) => "WeakSet",
             ObjectKind::WeakRef(_) => "WeakRef",
+            ObjectKind::ArrayBuffer(_) => "ArrayBuffer",
+            ObjectKind::DataView(_) => "DataView",
             _ => "FinalizationRegistry",
         };
         let tag = self.string_tag(object);
@@ -496,6 +535,54 @@ impl Inspector<'_> {
             Value::String(tag) => Some(self.rt.name_text(tag)).filter(|tag| !tag.is_empty()),
             _ => None,
         }
+    }
+
+    /// The entries that Node.js shows for an `ArrayBuffer`
+    /// (`[Uint8Contents]: <00 01>` with at most 100 bytes, `byteLength`;
+    /// `(detached)`) and a `DataView` (`byteLength`, `byteOffset`,
+    /// `buffer`). Node.js 22 fails on a view that is detached or out of
+    /// bounds (its getters throw); swb shows `(detached)` or
+    /// `(out of bounds)` and the buffer.
+    fn binary_entries(&mut self, object: Gc<Object>, depth: usize, indent: usize) -> Vec<String> {
+        let heap = &self.rt.heap;
+        if let Ok(Some(view)) = heap.data_view(object) {
+            let range = heap.view_range(&view).ok().flatten();
+            let detached = heap
+                .array_buffer(view.buffer)
+                .ok()
+                .flatten()
+                .is_none_or(crate::object::ArrayBufferData::is_detached);
+            let mut entries = match range {
+                Some((_, length)) => vec![
+                    format!("byteLength: {length}"),
+                    format!("byteOffset: {}", view.byte_offset),
+                ],
+                None if detached => vec!["(detached)".to_owned()],
+                None => vec!["(out of bounds)".to_owned()],
+            };
+            let buffer = self.value(view.buffer.into(), depth + 1, indent + 2);
+            entries.push(format!("buffer: {buffer}"));
+            return entries;
+        }
+        let Ok(Some(data)) = heap.array_buffer(object) else {
+            return Vec::new();
+        };
+        let Some(bytes) = data.bytes() else {
+            return vec!["(detached)".to_owned(), "byteLength: 0".to_owned()];
+        };
+        let mut contents: Vec<String> = bytes
+            .iter()
+            .take(MAX_ENTRIES)
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        if bytes.len() > MAX_ENTRIES {
+            let rest = bytes.len() - MAX_ENTRIES;
+            let s = if rest == 1 { "" } else { "s" };
+            contents.push(format!("... {rest} more byte{s}"));
+        }
+        let contents = format!("[Uint8Contents]: <{}>", contents.join(" "));
+        self.units += contents.len();
+        vec![contents, format!("byteLength: {}", bytes.len())]
     }
 
     /// The elements of an array (holes as `<N empty items>`), then its

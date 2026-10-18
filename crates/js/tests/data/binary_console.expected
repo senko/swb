@@ -1,0 +1,87 @@
+ArrayBuffer { [Uint8Contents]: <00 00>, byteLength: 2 }
+ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 }
+ArrayBuffer { [Uint8Contents]: <01 ab 10>, byteLength: 3 }
+ArrayBuffer { [Uint8Contents]: <01 02 03>, byteLength: 3 }
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff ff ff>,
+  byteLength: 100
+}
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ... 1 more byte>,
+  byteLength: 101
+}
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ... 50 more bytes>,
+  byteLength: 150
+}
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>,
+  byteLength: 51
+}
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00 00>,
+  byteLength: 9
+}
+ArrayBuffer {
+  [Uint8Contents]: <00 00 00 00 00 00 00 00>,
+  byteLength: 8
+}
+ArrayBuffer { (detached), byteLength: 0 } 4
+DataView {
+  byteLength: 3,
+  byteOffset: 1,
+  buffer: ArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }
+}
+DataView {
+  byteLength: 6,
+  byteOffset: 0,
+  buffer: ArrayBuffer { [Uint8Contents]: <00 00 00 00 00 00>, byteLength: 6 }
+}
+DataView {
+  byteLength: 7,
+  byteOffset: 0,
+  buffer: ArrayBuffer {
+    [Uint8Contents]: <00 00 00 00 00 00 00>,
+    byteLength: 7
+  }
+}
+DataView {
+  byteLength: 2,
+  byteOffset: 1,
+  buffer: ArrayBuffer { [Uint8Contents]: <01 02 03>, byteLength: 3 }
+}
+[ ArrayBuffer { [Uint8Contents]: <00>, byteLength: 1 } ] {
+  a: DataView {
+    byteLength: 1,
+    byteOffset: 0,
+    buffer: ArrayBuffer { [Uint8Contents]: <00>, byteLength: 1 }
+  }
+}
+{
+  buffer: ArrayBuffer {
+    [Uint8Contents]: <00 00 00 00 00 00 00 00>,
+    byteLength: 8
+  }
+}
+{ x: { y: { z: [ArrayBuffer] } } }
+[ [ [ [ArrayBuffer], [DataView] ] ] ]
+X [ArrayBuffer] { [Uint8Contents]: <00>, byteLength: 1 }
+Y [DataView] {
+  byteLength: 1,
+  byteOffset: 0,
+  buffer: ArrayBuffer { [Uint8Contents]: <00>, byteLength: 1 }
+}
+ArrayBuffer { [Uint8Contents]: <00>, byteLength: 1, foo: 1 }
+DataView {
+  byteLength: 2,
+  byteOffset: 0,
+  buffer: ArrayBuffer { [Uint8Contents]: <00 00>, byteLength: 2 },
+  x: 5
+}
+Object [ArrayBuffer] {} Object [DataView] {}
+[object ArrayBuffer] [object DataView]
+[Function: ArrayBuffer] [Function: DataView] [Function: isView]
+[
+  ArrayBuffer { [Uint8Contents]: <00 00 00>, byteLength: 3 },
+  ArrayBuffer { [Uint8Contents]: <00 00 00>, byteLength: 3 }
+]

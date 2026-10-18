@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -865,8 +865,8 @@ current source. The protocol is documented in
 The shell `swb-js` is a binary of the `js` crate (ADR 0026 section 13).
 `cargo run --release -p swb-js -- [OPTIONS] FILE...` or `-e CODE` runs
 scripts in one global scope. `print` and `console.log` write to stdout.
-`$262` has `evalScript`, `gc` and `global`; `createRealm`,
-`detachArrayBuffer` and `agent` are not available. Options:
+`$262` has `evalScript`, `gc`, `detachArrayBuffer` and `global`;
+`createRealm` and `agent` are not available. Options:
 `--heap-limit MIB`, `--stress` (GC at every safepoint, fewer after the
 first 65,536; ADR 0026 section 8), `--time-limit MS`,
 `--disassemble` (bytecode listing), `--compile-only`. The promise jobs
@@ -896,8 +896,9 @@ another directory and `TEST262_URL` another repository.
   file once per run). The accepted files are `propertyHelper.js`,
   `compareArray.js`, `isConstructor.js`, `fnGlobalObject.js`, `nans.js`,
   `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js`,
-  `promiseHelper.js`, `regExpUtils.js`, `compareIterator.js` and
-  `proxyTrapsHelper.js` (`HARNESS_INCLUDES` in `run.rs`). A test with the
+  `promiseHelper.js`, `regExpUtils.js`, `compareIterator.js`,
+  `proxyTrapsHelper.js`, `detachArrayBuffer.js` and
+  `byteConversionValues.js` (`HARNESS_INCLUDES` in `run.rs`). A test with the
   flag `async` gets `doneprintHandle.js` before its includes; the runner
   runs the jobs after the test (as the shell does) and passes it only when
   it printed `Test262:AsyncTestComplete` and no
@@ -905,8 +906,8 @@ another directory and `TEST262_URL` another repository.
   does not fail a test. A test is
   skipped if it needs another harness file, has the flag `module`
   or `CanBlockIsTrue`, has a
-  feature outside the list, uses `$262.createRealm`, `$262.agent` or
-  `$262.detachArrayBuffer`, or expects an error in the `resolution` phase.
+  feature outside the list, uses `$262.createRealm` or `$262.agent`, or
+  expects an error in the `resolution` phase.
   The others run in sloppy and strict mode as the flags say (`onlyStrict`,
   `noStrict`, `raw`); a test passes if all of its modes pass. A negative
   test checks the phase (`parse`/`early`: a compile error; `runtime`: an
@@ -1610,6 +1611,64 @@ limit (a `SyntaxError` at compile time, also in a function that never
 runs, as a key and in a pattern) and literal constants in the stress
 mode. The test262 subset has the feature `BigInt` and the groups
 `test/built-ins/BigInt` and `test/language/literals/bigint`.
+
+### ArrayBuffer and DataView tests
+
+`tools/probes/js-binary.json` has 733 snippets for Chromium 148 in 21
+cases, made from `crates/js/tests/data/binary-snippets.txt` by
+`crates/js/tests/data/gen-binary-cases.js` (the format of `js-bigint.json`;
+the global helpers `hex`, `filled` and `nt` of the generator read the
+bytes with a `DataView`, make a buffer from bytes and make a constructor
+whose `prototype` getter runs a function), and four hand-written cases
+whose names start with `facts`, which the generator keeps: the
+properties of Chromium 148 (`SharedArrayBuffer` and the immutable buffers
+are not defined), the allocation limits and their messages, and V8's
+largest length and `maxByteLength` by bisection. The snippets cover the
+constructors and their conversions (also with `valueOf` side effects and
+the order of the checks around `OrdinaryCreateFromConstructor`),
+subclasses, the properties and their order, the getters, `isView`,
+`slice` with every case of `SpeciesConstructor`, `resize`, `transfer`
+and `transferToFixedLength`, views that track a resizable buffer and go
+out of bounds, every getter and setter in both byte orders with edge
+values (NaN, ±0, ±Infinity, subnormals, values that wrap, `BigInt`s out
+of range, binary16 ties), detaching and shrinking in the conversions, the
+NaN bits, and V8's messages. The case files:
+
+```
+node crates/js/tests/data/gen-binary-cases.js probe \
+  crates/js/tests/data/binary-snippets.txt tools/probes/js-binary.json
+just probe --json tools/probes/js-binary.json > probe.json
+node crates/js/tests/data/gen-binary-cases.js cases probe.json crates/js/tests/data
+```
+
+`crates/js/tests/builtins_binary.rs` runs `binary_cases.js` (724
+snippets, normal and stress mode; the `KNOWN` snippets of the generator
+are left out: the order of `ToIndex` in `new ArrayBuffer` and in
+`resize`, the NaN bits of `0 / 0` and of `undefined`, and `Float16Array`,
+which comes with 11b), `binary_console.js` (`console.log` of buffers and
+views; the expected output is that of Node.js 22) and the forms Node.js
+cannot print, the `DataView` paths of the target scripts, and views
+across collections. `crates/js/tests/binary_hostile.rs` (on an 8 MiB
+thread) covers buffers at and above a heap limit of 64 MiB (a
+`RangeError`, also for `resize`, `transfer` and `slice`), buffers kept
+until the limit (a `RangeError`, not a termination), a loop that drops
+its buffers after the `RangeError` and runs to the deadline, garbage,
+detached and sliced buffers that are given back (normal and stress
+mode), endless loops of 64 MiB allocations,
+slices, transfers, resizes and views against a deadline of 200 ms,
+`binary_detach.js` (detaching, shrinking, growing and collecting in
+every conversion callback of the 22 `DataView` methods, of the
+constructor and of the `ArrayBuffer` methods; expected output from
+Node.js 22), and the heap accounting of the bytes (a new buffer, a
+transfer, a detached buffer, a collection). The test262 runner has
+`$262.detachArrayBuffer` and the harness files `detachArrayBuffer.js` and
+`byteConversionValues.js` (`resizableArrayBufferUtils.js` needs the typed
+arrays); the subset has the features `ArrayBuffer`, `DataView`, the
+`DataView.prototype.*` names, `resizable-arraybuffer`,
+`arraybuffer-transfer`, `Float16Array` (no test of these groups or of
+`Math/f16round` needs a typed array) and
+`align-detached-buffer-semantics-with-web-reality`, and the groups
+`test/built-ins/ArrayBuffer` and `test/built-ins/DataView`.
 
 ## Python tools: development
 

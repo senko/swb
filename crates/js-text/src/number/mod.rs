@@ -10,7 +10,9 @@
 //! - [`shortest`]: the shortest digits in radixes other than 10.
 //! - [`natural`]: the multi-precision integers of the exact conversions.
 //! - [`sum`]: the exact sum of `Math.sumPrecise` and `Math.f16round`.
+//! - [`binary16`]: the binary16 bits of `getFloat16` and `setFloat16`.
 
+mod binary16;
 mod format;
 mod natural;
 mod parse;
@@ -18,6 +20,7 @@ mod radix;
 mod shortest;
 mod sum;
 
+pub use binary16::{f16_from_bits, f16_to_bits};
 pub use format::{
     locale_string, number_to_string, radix_string, shortest_digits, to_exponential, to_fixed,
     to_precision,

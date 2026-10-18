@@ -320,7 +320,9 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::WeakMap(_)
         | ObjectKind::WeakSet(_)
         | ObjectKind::WeakRef(_)
-        | ObjectKind::FinalizationRegistry(_) => "Object",
+        | ObjectKind::FinalizationRegistry(_)
+        | ObjectKind::ArrayBuffer(_)
+        | ObjectKind::DataView(_) => "Object",
     }
 }
 

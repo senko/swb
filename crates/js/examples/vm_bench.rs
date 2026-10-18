@@ -356,6 +356,18 @@ const PROGRAMS: &[(&str, &str)] = &[
         "bigint: 100k int64 joins and splits (shifts, masks, asIntN, Number)",
         "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var v = BigInt.asIntN(64, BigInt(i) << 32n | BigInt(i * 7 >>> 0)); n += Number(v & 4294967295n) + Number(v >> 32n); } return n; }",
     ),
+    (
+        "dataview: 1M getInt32 reads",
+        "function run() { var d = new DataView(new ArrayBuffer(4096)); for (var i = 0; i < 4096; i += 4) d.setInt32(i, Math.imul(i, 2654435761)); var s = 0; for (var k = 0; k < 1000; k++) for (var i = 0; i < 4096; i += 4) s = (s + d.getInt32(i, true)) | 0; return s; }",
+    ),
+    (
+        "dataview: 1M setUint32 writes",
+        "function run() { var d = new DataView(new ArrayBuffer(4096)); for (var k = 0; k < 1000; k++) for (var i = 0; i < 4096; i += 4) d.setUint32(i, k + i, true); return d.getUint32(4092, true); }",
+    ),
+    (
+        "arraybuffer: 100k new ArrayBuffer(256) and slice",
+        "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var b = new ArrayBuffer(256); n += b.slice(i & 127).byteLength; } return n; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

@@ -1,0 +1,724 @@
+new ArrayBuffer(8).byteLength => ok 8
+new ArrayBuffer().byteLength => ok 0
+new ArrayBuffer(undefined).byteLength => ok 0
+new ArrayBuffer(null).byteLength => ok 0
+new ArrayBuffer(1.9).byteLength => ok 1
+new ArrayBuffer(-0.9).byteLength => ok 0
+new ArrayBuffer('5').byteLength => ok 5
+new ArrayBuffer(' 0x10 ').byteLength => ok 16
+new ArrayBuffer('x').byteLength => ok 0
+new ArrayBuffer(NaN).byteLength => ok 0
+new ArrayBuffer(true).byteLength => ok 1
+new ArrayBuffer([3]).byteLength => ok 3
+new ArrayBuffer({ valueOf() { return 3; } }).byteLength => ok 3
+new ArrayBuffer(-1) => err RangeError: Invalid array buffer length
+new ArrayBuffer(-1.5) => err RangeError: Invalid array buffer length
+new ArrayBuffer(-Infinity) => err RangeError: Invalid array buffer length
+new ArrayBuffer(Infinity) => err RangeError: Invalid array buffer length
+new ArrayBuffer(2 ** 53) => err RangeError: Invalid array buffer length
+new ArrayBuffer(2 ** 53 - 1) => err RangeError: Invalid array buffer length
+new ArrayBuffer(7 * 2 ** 50) => err RangeError: Invalid array buffer length
+new ArrayBuffer(2 ** 40) => err RangeError: Invalid array buffer length
+new ArrayBuffer(2 ** 36) => err RangeError: Invalid array buffer length
+new ArrayBuffer(2 ** 35) => err RangeError: Invalid array buffer length
+new ArrayBuffer(1n) => err TypeError: Cannot convert a BigInt value to a number
+new ArrayBuffer(Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new ArrayBuffer({ valueOf() { throw new Error('len'); } }) => err Error: len
+ArrayBuffer(1) => err TypeError: Constructor ArrayBuffer requires 'new'
+ArrayBuffer() => err TypeError: Constructor ArrayBuffer requires 'new'
+ArrayBuffer.call(new ArrayBuffer(1), 1) => err TypeError: Constructor ArrayBuffer requires 'new'
+new ArrayBuffer(3).toString() => ok "[object ArrayBuffer]"
+hex(new ArrayBuffer(5)) => ok "0000000000"
+hex(new ArrayBuffer(0)) => ok ""
+new ArrayBuffer(4).resizable => ok false
+new ArrayBuffer(4).maxByteLength => ok 4
+new ArrayBuffer(4).detached => ok false
+new ArrayBuffer(4, { maxByteLength: 8 }).maxByteLength => ok 8
+new ArrayBuffer(4, { maxByteLength: 8 }).byteLength => ok 4
+new ArrayBuffer(4, { maxByteLength: 8 }).resizable => ok true
+new ArrayBuffer(4, { maxByteLength: 4 }).resizable => ok true
+new ArrayBuffer(0, { maxByteLength: 0 }).resizable => ok true
+new ArrayBuffer(4, { maxByteLength: undefined }).resizable => ok false
+new ArrayBuffer(4, {}).resizable => ok false
+new ArrayBuffer(4, null).resizable => ok false
+new ArrayBuffer(4, 8).resizable => ok false
+new ArrayBuffer(4, 'maxByteLength').resizable => ok false
+new ArrayBuffer(4, { maxByteLength: '8' }).maxByteLength => ok 8
+new ArrayBuffer(4, { maxByteLength: 8.9 }).maxByteLength => ok 8
+new ArrayBuffer(4, { maxByteLength: null }).maxByteLength => err RangeError: Invalid array buffer max length
+new ArrayBuffer(0, { maxByteLength: NaN }).maxByteLength => ok 0
+new ArrayBuffer(4, { maxByteLength: 2 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(4, { maxByteLength: -1 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(4, { maxByteLength: 2 ** 53 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(4, { maxByteLength: Infinity }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(0, { maxByteLength: 2 ** 35 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(0, { maxByteLength: 2 ** 35 - 4096 }).maxByteLength => ok 34359734272
+new ArrayBuffer(0, { maxByteLength: 2 ** 35 - 4095 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(0, { maxByteLength: 2 ** 33 }).byteLength => ok 0
+new ArrayBuffer(0, { maxByteLength: 1n }) => err TypeError: Cannot convert a BigInt value to a number
+new ArrayBuffer(4, { get maxByteLength() { throw new Error('mbl'); } }) => err Error: mbl
+new ArrayBuffer(-1, { get maxByteLength() { throw new Error('mbl'); } }) => err RangeError: Invalid array buffer length
+Reflect.construct(ArrayBuffer, [2 ** 53 - 1], nt(() => { throw new Error('proto'); })) => err Error: proto
+new ArrayBuffer(2 ** 53 - 1, { maxByteLength: 1 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(2 ** 40, { maxByteLength: 1 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(4, { maxByteLength: -1.5 }) => err RangeError: Invalid array buffer max length
+new ArrayBuffer(4, { maxByteLength: -0.5 }).maxByteLength => err RangeError: Invalid array buffer max length
+(() => { const log = []; try { new ArrayBuffer({ valueOf() { log.push('len'); return 1; } }, { get maxByteLength() { log.push('get'); return { valueOf() { log.push('max'); return 2; } }; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "len,get,max"
+(() => { const log = []; try { new ArrayBuffer({ valueOf() { log.push('len'); return 5; } }, { get maxByteLength() { log.push('get'); return { valueOf() { log.push('max'); return 2; } }; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "len,get,max,RangeError"
+Object.getPrototypeOf(Reflect.construct(ArrayBuffer, [1], Array)) === Array.prototype => ok true
+(() => { function F() {} F.prototype = 1; return Object.getPrototypeOf(Reflect.construct(ArrayBuffer, [1], F)) === ArrayBuffer.prototype; })() => ok true
+(() => { function F() {} F.prototype = null; return Object.getPrototypeOf(Reflect.construct(ArrayBuffer, [1], F)) === ArrayBuffer.prototype; })() => ok true
+Reflect.construct(ArrayBuffer, [7 * 2 ** 50], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(ArrayBuffer, [2 ** 40], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(ArrayBuffer, [2 ** 34], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(ArrayBuffer, [-1], nt(() => { throw new Error('proto'); })) => err RangeError: Invalid array buffer length
+Reflect.construct(ArrayBuffer, [10, { maxByteLength: 0 }], nt(() => { throw new Error('proto'); })) => err RangeError: Invalid array buffer max length
+Reflect.construct(ArrayBuffer, [0, { maxByteLength: 2 ** 35 }], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(ArrayBuffer, [2, { maxByteLength: 3 }], nt(() => { throw new Error('proto'); })) => err Error: proto
+(() => { class B extends ArrayBuffer { constructor(n) { super(n); this.x = 1; } } const b = new B(3); return [b.byteLength, b.x, b instanceof B, b instanceof ArrayBuffer, Object.prototype.toString.call(b)]; })() => ok [3,1,true,true,"[object ArrayBuffer]"]
+(() => { class B extends ArrayBuffer { constructor() { super(2, { maxByteLength: 4 }); } } const b = new B(); return [b.resizable, b.maxByteLength]; })() => ok [true,4]
+(() => { class B extends ArrayBuffer {} return Object.getPrototypeOf(B) === ArrayBuffer && new B(1).constructor === B; })() => ok true
+(() => { class B extends ArrayBuffer { constructor() { } } try { new B(); } catch (e) { return e.name; } })() => ok "ReferenceError"
+typeof ArrayBuffer => ok "function"
+ArrayBuffer.length => ok 1
+ArrayBuffer.name => ok "ArrayBuffer"
+Object.getOwnPropertyNames(ArrayBuffer).join() => ok "length,name,prototype,isView"
+Reflect.ownKeys(ArrayBuffer).map(String).join() => ok "length,name,prototype,isView,Symbol(Symbol.species)"
+Reflect.ownKeys(ArrayBuffer.prototype).map(String).join() => ok "constructor,byteLength,slice,maxByteLength,resizable,resize,transfer,transferToFixedLength,detached,Symbol(Symbol.toStringTag)"
+Object.getOwnPropertyNames(ArrayBuffer.prototype).map(k => { const d = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, k); return k + ':' + (d.get ? d.get.name + '/' + d.get.length + '/' + d.set : d.value.name + '/' + d.value.length) + '/' + d.enumerable + d.configurable + d.writable; }).join() => ok "constructor:ArrayBuffer/1/falsetruetrue,byteLength:get byteLength/0/undefined/falsetrueundefined,slice:slice/2/falsetruetrue,maxByteLength:get maxByteLength/0/undefined/falsetrueundefined,resizable:get resizable/0/undefined/falsetrueundefined,resize:resize/1/falsetruetrue,transfer:transfer/0/falsetruetrue,transferToFixedLength:transferToFixedLength/0/falsetruetrue,detached:get detached/0/undefined/falsetrueundefined"
+JSON.stringify(Object.getOwnPropertyDescriptor(ArrayBuffer, 'prototype')) => ok "{\"value\":{},\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+JSON.stringify(Object.getOwnPropertyDescriptor(ArrayBuffer, 'isView')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+ArrayBuffer.isView.name + ArrayBuffer.isView.length => ok "isView1"
+(() => { const d = Object.getOwnPropertyDescriptor(ArrayBuffer, Symbol.species); return [d.get.name, d.get.length, d.set, d.enumerable, d.configurable]; })() => ok ["get [Symbol.species]",0,undefined,false,true]
+ArrayBuffer[Symbol.species] === ArrayBuffer => ok true
+ArrayBuffer.prototype[Symbol.toStringTag] => ok "ArrayBuffer"
+JSON.stringify(Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, Symbol.toStringTag)) => ok "{\"value\":\"ArrayBuffer\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+ArrayBuffer.prototype.constructor === ArrayBuffer => ok true
+Object.getPrototypeOf(ArrayBuffer) === Function.prototype => ok true
+Object.getPrototypeOf(ArrayBuffer.prototype) === Object.prototype => ok true
+Object.prototype.toString.call(ArrayBuffer.prototype) => ok "[object ArrayBuffer]"
+ArrayBuffer.prototype.byteLength => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver #<ArrayBuffer>
+ArrayBuffer.prototype.maxByteLength => err TypeError: Method get ArrayBuffer.prototype.maxByteLength called on incompatible receiver #<ArrayBuffer>
+ArrayBuffer.prototype.resizable => err TypeError: Method get ArrayBuffer.prototype.resizable called on incompatible receiver #<ArrayBuffer>
+ArrayBuffer.prototype.detached => err TypeError: Method get ArrayBuffer.prototype.detached called on incompatible receiver #<ArrayBuffer>
+new ArrayBuffer.prototype.slice() => err TypeError: ArrayBuffer.prototype.slice is not a constructor
+new ArrayBuffer.isView() => err TypeError: ArrayBuffer.isView is not a constructor
+new (Object.getOwnPropertyDescriptor(ArrayBuffer, Symbol.species).get)() => err TypeError: Object.getOwnPropertyDescriptor(...).get is not a constructor
+typeof DataView => ok "function"
+DataView.length => ok 1
+DataView.name => ok "DataView"
+Reflect.ownKeys(DataView).map(String).join() => ok "length,name,prototype"
+Reflect.ownKeys(DataView.prototype).map(String).join() => ok "constructor,buffer,byteLength,byteOffset,getInt8,setInt8,getUint8,setUint8,getInt16,setInt16,getUint16,setUint16,getInt32,setInt32,getUint32,setUint32,getFloat32,setFloat32,getFloat64,setFloat64,getBigInt64,setBigInt64,getBigUint64,setBigUint64,getFloat16,setFloat16,Symbol(Symbol.toStringTag)"
+Object.getOwnPropertyNames(DataView.prototype).map(k => { const d = Object.getOwnPropertyDescriptor(DataView.prototype, k); return k + ':' + (d.get ? d.get.name + '/' + d.get.length + '/' + d.set : d.value.name + '/' + d.value.length) + '/' + d.enumerable + d.configurable + d.writable; }).join() => ok "constructor:DataView/1/falsetruetrue,buffer:get buffer/0/undefined/falsetrueundefined,byteLength:get byteLength/0/undefined/falsetrueundefined,byteOffset:get byteOffset/0/undefined/falsetrueundefined,getInt8:getInt8/1/falsetruetrue,setInt8:setInt8/2/falsetruetrue,getUint8:getUint8/1/falsetruetrue,setUint8:setUint8/2/falsetruetrue,getInt16:getInt16/1/falsetruetrue,setInt16:setInt16/2/falsetruetrue,getUint16:getUint16/1/falsetruetrue,setUint16:setUint16/2/falsetruetrue,getInt32:getInt32/1/falsetruetrue,setInt32:setInt32/2/falsetruetrue,getUint32:getUint32/1/falsetruetrue,setUint32:setUint32/2/falsetruetrue,getFloat32:getFloat32/1/falsetruetrue,setFloat32:setFloat32/2/falsetruetrue,getFloat64:getFloat64/1/falsetruetrue,setFloat64:setFloat64/2/falsetruetrue,getBigInt64:getBigInt64/1/falsetruetrue,setBigInt64:setBigInt64/2/falsetruetrue,getBigUint64:getBigUint64/1/falsetruetrue,setBigUint64:setBigUint64/2/falsetruetrue,getFloat16:getFloat16/1/falsetruetrue,setFloat16:setFloat16/2/falsetruetrue"
+JSON.stringify(Object.getOwnPropertyDescriptor(DataView, 'prototype')) => ok "{\"value\":{},\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+DataView.prototype[Symbol.toStringTag] => ok "DataView"
+JSON.stringify(Object.getOwnPropertyDescriptor(DataView.prototype, Symbol.toStringTag)) => ok "{\"value\":\"DataView\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+DataView.prototype.constructor === DataView => ok true
+Object.getPrototypeOf(DataView) === Function.prototype => ok true
+Object.getPrototypeOf(DataView.prototype) === Object.prototype => ok true
+Object.prototype.toString.call(DataView.prototype) => ok "[object DataView]"
+Object.prototype.toString.call(new DataView(new ArrayBuffer(1))) => ok "[object DataView]"
+String(new DataView(new ArrayBuffer(1))) => ok "[object DataView]"
+DataView.prototype.buffer => err TypeError: Method get DataView.prototype.buffer called on incompatible receiver #<DataView>
+DataView.prototype.byteLength => err TypeError: Method get DataView.prototype.byteLength called on incompatible receiver #<DataView>
+DataView.prototype.byteOffset => err TypeError: Method get DataView.prototype.byteOffset called on incompatible receiver #<DataView>
+DataView.prototype.getInt8(0) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver #<DataView>
+new DataView.prototype.getInt8() => err TypeError: DataView.prototype.getInt8 is not a constructor
+DataView[Symbol.species] => ok undefined
+'transferToImmutable' in ArrayBuffer.prototype => ok false
+typeof SharedArrayBuffer => ok "undefined"
+new ArrayBuffer(5).byteLength => ok 5
+(() => { const b = new ArrayBuffer(4); b.transfer(); return [b.byteLength, b.maxByteLength, b.resizable, b.detached]; })() => ok [0,0,false,true]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.transfer(); return [b.byteLength, b.maxByteLength, b.resizable, b.detached]; })() => ok [0,0,true,true]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.resize(6); return [b.byteLength, b.maxByteLength]; })() => ok [6,8]
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call({}) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(1) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver 1
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(undefined) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver undefined
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(null) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver null
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call('ab') => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver ab
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(new DataView(new ArrayBuffer(1))) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver #<DataView>
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call([]) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver [object Array]
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(function f() {}) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver function f() {}
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(Symbol('s')) => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver Symbol(s)
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'maxByteLength').get.call({}) => err TypeError: Method get ArrayBuffer.prototype.maxByteLength called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable').get.call({}) => err TypeError: Method get ArrayBuffer.prototype.resizable called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'detached').get.call({}) => err TypeError: Method get ArrayBuffer.prototype.detached called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'detached').get.call(1) => err TypeError: Method get ArrayBuffer.prototype.detached called on incompatible receiver 1
+Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable').get.call(new DataView(new ArrayBuffer(1))) => err TypeError: Method get ArrayBuffer.prototype.resizable called on incompatible receiver #<DataView>
+ArrayBuffer.isView(new DataView(new ArrayBuffer(1))) => ok true
+ArrayBuffer.isView(new ArrayBuffer(1)) => ok false
+ArrayBuffer.isView({}) => ok false
+ArrayBuffer.isView() => ok false
+ArrayBuffer.isView(1) => ok false
+ArrayBuffer.isView(null) => ok false
+ArrayBuffer.isView(Object.create(DataView.prototype)) => ok false
+ArrayBuffer.isView(new (class extends DataView {})(new ArrayBuffer(1))) => ok true
+(() => { const d = new DataView(new ArrayBuffer(1)); d.buffer.transfer(); return ArrayBuffer.isView(d); })() => ok true
+ArrayBuffer.isView(new Proxy(new DataView(new ArrayBuffer(1)), {})) => ok false
+ArrayBuffer.isView.call(null, new DataView(new ArrayBuffer(1))) => ok true
+hex(filled([1, 2, 3, 4, 5]).slice(1, 3)) => ok "0203"
+hex(filled([1, 2, 3, 4, 5]).slice()) => ok "0102030405"
+hex(filled([1, 2, 3, 4, 5]).slice(-2)) => ok "0405"
+hex(filled([1, 2, 3, 4, 5]).slice(-10)) => ok "0102030405"
+hex(filled([1, 2, 3, 4, 5]).slice(2, 1)) => ok ""
+hex(filled([1, 2, 3, 4, 5]).slice(1, -1)) => ok "020304"
+hex(filled([1, 2, 3, 4, 5]).slice(NaN)) => ok "0102030405"
+hex(filled([1, 2, 3, 4, 5]).slice('1', '3')) => ok "0203"
+hex(filled([1, 2, 3, 4, 5]).slice(undefined, 2)) => ok "0102"
+hex(filled([1, 2, 3, 4, 5]).slice(0, undefined)) => ok "0102030405"
+hex(filled([1, 2, 3, 4, 5]).slice(0, null)) => ok ""
+hex(filled([1, 2, 3, 4, 5]).slice(Infinity)) => ok ""
+hex(filled([1, 2, 3, 4, 5]).slice(-Infinity, Infinity)) => ok "0102030405"
+hex(filled([1, 2, 3, 4, 5]).slice(1.9, 3.9)) => ok "0203"
+hex(filled([1, 2, 3, 4, 5]).slice(-1.5)) => ok "05"
+hex(filled([1, 2, 3, 4, 5]).slice(2 ** 53, -(2 ** 53))) => ok ""
+filled([1, 2, 3], 8).slice().resizable => ok false
+filled([1, 2, 3], 8).slice().maxByteLength => ok 3
+(() => { const b = filled([1, 2, 3]); const c = b.slice(); return [c === b, c.byteLength, hex(c), Object.getPrototypeOf(c) === ArrayBuffer.prototype]; })() => ok [false,3,"010203",true]
+(() => { const b = new ArrayBuffer(4); b.transfer(); return b.slice(); })() => err TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return b.slice(-1); })() => err TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer
+ArrayBuffer.prototype.slice.call({}) => err TypeError: Method ArrayBuffer.prototype.slice called on incompatible receiver #<Object>
+ArrayBuffer.prototype.slice.call(1) => err TypeError: Method ArrayBuffer.prototype.slice called on incompatible receiver 1
+ArrayBuffer.prototype.slice.call(new DataView(new ArrayBuffer(1))) => err TypeError: Method ArrayBuffer.prototype.slice called on incompatible receiver #<DataView>
+filled([1, 2]).slice(1n) => err TypeError: Cannot convert a BigInt value to a number
+filled([1, 2]).slice(0, Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+(() => { const b = filled([1, 2, 3, 4]); try { b.slice({ valueOf() { b.transfer(); return 0; } }); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer"
+(() => { const b = filled([1, 2, 3, 4]); try { b.slice(0, { valueOf() { b.transfer(); return 2; } }); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer"
+(() => { const log = []; filled([1, 2]).slice({ valueOf() { log.push('start'); return 0; } }, { valueOf() { log.push('end'); return 1; } }); return log.join(); })() => ok "start,end"
+(() => { const b = new ArrayBuffer(4); b.constructor = undefined; return b.slice(1).byteLength; })() => ok 3
+(() => { const b = new ArrayBuffer(4); b.constructor = 1; return b.slice(1); })() => err TypeError: The .constructor property is not an object
+(() => { const b = new ArrayBuffer(4); b.constructor = 'x'; return b.slice(1); })() => err TypeError: The .constructor property is not an object
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: null }; return Object.getPrototypeOf(b.slice(1)) === ArrayBuffer.prototype; })() => ok true
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: undefined }; return b.slice(1).byteLength; })() => ok 3
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: {} }; return b.slice(1); })() => err TypeError: object.constructor[Symbol.species] is not a constructor
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: () => {} }; return b.slice(1); })() => err TypeError: object.constructor[Symbol.species] is not a constructor
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function () { return {}; } }; return b.slice(1); })() => err TypeError: Method ArrayBuffer.prototype.slice called on incompatible receiver #<Object>
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function () { return b; } }; return b.slice(1); })() => err TypeError: ArrayBuffer subclass returned this from species constructor
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { return new ArrayBuffer(n - 1); } }; return b.slice(1); })() => err TypeError: Derived ArrayBuffer constructor created a buffer which was too small
+(() => { const b = filled([1, 2, 3, 4]); b.constructor = { [Symbol.species]: function (n) { return new ArrayBuffer(n + 2); } }; const c = b.slice(1); return [c.byteLength, hex(c)]; })() => ok [5,"0203040000"]
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { const x = new ArrayBuffer(n); x.transfer(); return x; } }; return b.slice(1); })() => err TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { b.transfer(); return new ArrayBuffer(n); } }; return b.slice(1); })() => err TypeError: Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer
+(() => { const b = filled([1, 2, 3, 4, 5, 6], 8); b.constructor = { [Symbol.species]: function (n) { b.resize(3); return new ArrayBuffer(n); } }; const c = b.slice(1); return [c.byteLength, hex(c)]; })() => ok [5,"0203000000"]
+(() => { const b = filled([1, 2, 3, 4, 5, 6], 8); b.constructor = { [Symbol.species]: function (n) { b.resize(1); return new ArrayBuffer(n); } }; const c = b.slice(2); return [c.byteLength, hex(c)]; })() => ok [4,"00000000"]
+(() => { const b = filled([1, 2, 3, 4], 8); b.constructor = { [Symbol.species]: function (n) { b.resize(8); return new ArrayBuffer(n); } }; const c = b.slice(1); return [c.byteLength, hex(c)]; })() => ok [3,"020304"]
+(() => { const b = new ArrayBuffer(4); let args; b.constructor = { [Symbol.species]: function (...a) { args = a; return new ArrayBuffer(a[0]); } }; b.slice(1, 3); return [args.length, args[0]]; })() => ok [1,2]
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { return new DataView(new ArrayBuffer(n)); } }; return b.slice(1); })() => err TypeError: Method ArrayBuffer.prototype.slice called on incompatible receiver #<DataView>
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { return new ArrayBuffer(n, { maxByteLength: 10 }); } }; const c = b.slice(1); return [c.resizable, c.byteLength]; })() => ok [true,3]
+(() => { class B extends ArrayBuffer {} const c = new B(4).slice(1); return [c instanceof B, c.byteLength]; })() => ok [true,3]
+(() => { const log = []; const b = new ArrayBuffer(4); Object.defineProperty(b, 'constructor', { get() { log.push('constructor'); return ArrayBuffer; } }); b.slice({ valueOf() { log.push('start'); return 0; } }); return log.join(); })() => ok "start,constructor"
+(() => { const b = new ArrayBuffer(4); Object.defineProperty(b, 'constructor', { get() { throw new Error('ctor'); } }); return b.slice(); })() => err Error: ctor
+(() => { const b = new ArrayBuffer(4); b.constructor = { get [Symbol.species]() { throw new Error('species'); } }; return b.slice(); })() => err Error: species
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function () { throw new Error('construct'); } }; return b.slice(); })() => err Error: construct
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function (n) { return new ArrayBuffer(n); } }; return b.slice(5).byteLength; })() => ok 0
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(6); return [b.byteLength, hex(b)]; })() => ok [6,"010203040000"]
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(2); b.resize(4); return [b.byteLength, hex(b)]; })() => ok [4,"01020000"]
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(0); return [b.byteLength, hex(b), b.maxByteLength]; })() => ok [0,"",8]
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(8); return [b.byteLength, hex(b)]; })() => ok [8,"0102030400000000"]
+(() => { const b = filled([1, 2, 3, 4], 8); return b.resize(5); })() => ok undefined
+filled([1, 2, 3, 4], 8).resize(9) => err RangeError: ArrayBuffer.prototype.resize: Invalid length parameter
+filled([1, 2, 3, 4], 8).resize(-1) => err RangeError: ArrayBuffer.prototype.resize: Invalid length parameter
+filled([1, 2, 3, 4], 8).resize(2 ** 53) => err RangeError: ArrayBuffer.prototype.resize: Invalid length parameter
+filled([1, 2, 3, 4], 8).resize(Infinity) => err RangeError: ArrayBuffer.prototype.resize: Invalid length parameter
+filled([1, 2, 3, 4], 8).resize(1n) => err TypeError: Cannot convert a BigInt value to a number
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize('3'); return b.byteLength; })() => ok 3
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(); return b.byteLength; })() => ok 0
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(NaN); return b.byteLength; })() => ok 0
+(() => { const b = filled([1, 2, 3, 4], 8); b.resize(3.9); return b.byteLength; })() => ok 3
+new ArrayBuffer(4).resize(2) => err TypeError: Method ArrayBuffer.prototype.resize called on incompatible receiver #<ArrayBuffer>
+ArrayBuffer.prototype.resize.call({}, 1) => err TypeError: Method ArrayBuffer.prototype.resize called on incompatible receiver #<Object>
+ArrayBuffer.prototype.resize.call(1, 1) => err TypeError: Method ArrayBuffer.prototype.resize called on incompatible receiver 1
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.transfer(); return b.resize(2); })() => err TypeError: Cannot perform ArrayBuffer.prototype.resize on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.transfer(); return b.resize(9); })() => err TypeError: Cannot perform ArrayBuffer.prototype.resize on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return b.resize({ valueOf() { b.transfer(); return 2; } }); })() => err TypeError: Cannot perform ArrayBuffer.prototype.resize on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.resize({ valueOf() { b.resize(1); return 2; } }); return b.byteLength; })() => ok 2
+(() => { const b = new ArrayBuffer(0, { maxByteLength: 0 }); b.resize(0); return b.byteLength; })() => ok 0
+(() => { const b = new ArrayBuffer(0, { maxByteLength: 0 }); return b.resize(1); })() => err RangeError: ArrayBuffer.prototype.resize: Invalid length parameter
+(() => { const b = new ArrayBuffer(2, { maxByteLength: 2 ** 33 }); b.resize(1000); b.resize(3); return [b.byteLength, b.maxByteLength]; })() => ok [3,8589934592]
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(); return [b.detached, b.byteLength, c.byteLength, hex(c), c === b, c.resizable]; })() => ok [true,0,3,"010203",false,false]
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(5); return [c.byteLength, hex(c), c.resizable]; })() => ok [5,"0102030000",false]
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(1); return [c.byteLength, hex(c)]; })() => ok [1,"01"]
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(0); return [c.byteLength, b.detached]; })() => ok [0,true]
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(undefined); return c.byteLength; })() => ok 3
+(() => { const b = filled([1, 2, 3]); const c = b.transfer('2'); return c.byteLength; })() => ok 2
+(() => { const b = filled([1, 2, 3]); const c = b.transfer(null); return c.byteLength; })() => ok 0
+(() => { const b = filled([1, 2, 3], 8); const c = b.transfer(); return [c.resizable, c.maxByteLength, c.byteLength, hex(c)]; })() => ok [true,8,3,"010203"]
+(() => { const b = filled([1, 2, 3], 8); const c = b.transfer(6); return [c.resizable, c.maxByteLength, c.byteLength, hex(c)]; })() => ok [true,8,6,"010203000000"]
+(() => { const b = filled([1, 2, 3], 8); try { b.transfer(9); } catch (e) { return [e.name, e.message, b.detached]; } })() => ok ["RangeError","Invalid array buffer length",false]
+(() => { const b = filled([1, 2, 3], 8); const c = b.transferToFixedLength(); return [c.resizable, c.maxByteLength, c.byteLength, hex(c)]; })() => ok [false,3,3,"010203"]
+(() => { const b = filled([1, 2, 3], 8); const c = b.transferToFixedLength(10); return [c.resizable, c.maxByteLength, c.byteLength, hex(c)]; })() => ok [false,10,10,"01020300000000000000"]
+(() => { const b = filled([1, 2, 3]); const c = b.transferToFixedLength(2); return [c.resizable, c.byteLength, hex(c), b.detached]; })() => ok [false,2,"0102",true]
+(() => { const b = new ArrayBuffer(4); b.transfer(); return b.transfer(); })() => err TypeError: Cannot perform ArrayBuffer.prototype.transfer on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return b.transferToFixedLength(); })() => err TypeError: Cannot perform ArrayBuffer.prototype.transferToFixedLength on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return b.transfer(-1); })() => err RangeError: Invalid array buffer length
+(() => { const b = new ArrayBuffer(4); return b.transfer({ valueOf() { b.transfer(); return 1; } }); })() => err TypeError: Cannot perform ArrayBuffer.prototype.transfer on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); try { b.transfer(-1); } catch (e) { return [e.name, e.message, b.detached]; } })() => ok ["RangeError","Invalid array buffer length",false]
+new ArrayBuffer(4).transfer(2 ** 53) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4).transfer(1n) => err TypeError: Cannot convert a BigInt value to a number
+new ArrayBuffer(4).transfer(-1.5) => err RangeError: Invalid array buffer length
+new ArrayBuffer(4).transfer(-Infinity) => err RangeError: Invalid array buffer length
+new ArrayBuffer(4).transfer(Infinity) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4).transfer(2 ** 53 - 1) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4).transfer(2 ** 40) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4).transfer(2 ** 35) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4).transferToFixedLength(-1) => err RangeError: Invalid array buffer length
+new ArrayBuffer(4).transferToFixedLength(2 ** 53) => err RangeError: ArrayBuffer.prototype.transferToFixedLength: Invalid length parameter
+new ArrayBuffer(4, { maxByteLength: 8 }).transfer(2 ** 53) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4, { maxByteLength: 8 }).transfer(-1) => err RangeError: Invalid array buffer length
+new ArrayBuffer(4, { maxByteLength: 8 }).transfer(2 ** 40) => err RangeError: ArrayBuffer.prototype.transfer: Invalid length parameter
+new ArrayBuffer(4, { maxByteLength: 8 }).transferToFixedLength(2 ** 40) => err RangeError: ArrayBuffer.prototype.transferToFixedLength: Invalid length parameter
+ArrayBuffer.prototype.transfer.call({}) => err TypeError: Method ArrayBuffer.prototype.transfer called on incompatible receiver #<Object>
+ArrayBuffer.prototype.transfer.call(1) => err TypeError: Method ArrayBuffer.prototype.transfer called on incompatible receiver 1
+ArrayBuffer.prototype.transferToFixedLength.call({}) => err TypeError: Method ArrayBuffer.prototype.transferToFixedLength called on incompatible receiver #<Object>
+ArrayBuffer.prototype.transfer.call(new DataView(new ArrayBuffer(1))) => err TypeError: Method ArrayBuffer.prototype.transfer called on incompatible receiver #<DataView>
+(() => { class B extends ArrayBuffer {} const c = new B(1).transfer(); return [Object.getPrototypeOf(c) === ArrayBuffer.prototype, c instanceof B]; })() => ok [true,false]
+(() => { const b = new ArrayBuffer(4); b.constructor = { [Symbol.species]: function () { throw new Error('no'); } }; return b.transfer().byteLength; })() => ok 4
+(() => { const b = filled([1, 2]); const c = b.transfer(); const d = c.transfer(); return [b.detached, c.detached, d.detached, hex(d)]; })() => ok [true,true,false,"0102"]
+(() => { const b = new ArrayBuffer(8); const d = new DataView(b, 2); b.transfer(); try { d.byteLength; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot perform get DataView.prototype.byteLength on a detached or out-of-bounds ArrayBuffer"
+(() => { const b = new ArrayBuffer(8); const d = new DataView(b, 2); b.transfer(); try { d.byteOffset; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot perform get DataView.prototype.byteOffset on a detached or out-of-bounds ArrayBuffer"
+(() => { const b = new ArrayBuffer(8); const d = new DataView(b, 2); b.transfer(); return d.buffer === b; })() => ok true
+(() => { const b = filled([1, 2, 3, 4], 8); const c = b.transfer(2); c.resize(4); return [c.byteLength, hex(c)]; })() => ok [4,"01020000"]
+(() => { const d = new DataView(new ArrayBuffer(4)); return [d.byteLength, d.byteOffset]; })() => ok [4,0]
+(() => { const d = new DataView(new ArrayBuffer(4), 1); return [d.byteLength, d.byteOffset]; })() => ok [3,1]
+(() => { const d = new DataView(new ArrayBuffer(4), 1, 2); return [d.byteLength, d.byteOffset]; })() => ok [2,1]
+(() => { const d = new DataView(new ArrayBuffer(4), 4); return [d.byteLength, d.byteOffset]; })() => ok [0,4]
+(() => { const d = new DataView(new ArrayBuffer(4), 4, 0); return [d.byteLength, d.byteOffset]; })() => ok [0,4]
+(() => { const d = new DataView(new ArrayBuffer(0)); return [d.byteLength, d.byteOffset]; })() => ok [0,0]
+new DataView(new ArrayBuffer(4), 5) => err RangeError: Start offset 5 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 1, 4) => err RangeError: Invalid DataView length 4
+new DataView(new ArrayBuffer(4), 0, 5) => err RangeError: Invalid DataView length 5
+new DataView(new ArrayBuffer(4), 4, 1) => err RangeError: Invalid DataView length 1
+new DataView(new ArrayBuffer(4), -1) => err RangeError: Start offset -1 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 0, -1) => err RangeError: Invalid DataView length -1
+new DataView(new ArrayBuffer(4), 2 ** 53) => err RangeError: Start offset 9007199254740992 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 0, 2 ** 53) => err RangeError: Invalid DataView length 9007199254740992
+new DataView(new ArrayBuffer(4), Infinity) => err RangeError: Start offset Infinity is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 0, Infinity) => err RangeError: Invalid DataView length Infinity
+new DataView(new ArrayBuffer(4), 1n) => err TypeError: Cannot convert a BigInt value to a number
+new DataView(new ArrayBuffer(4), 0, Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new DataView(new ArrayBuffer(4), -1.5) => err RangeError: Start offset -1 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), '-2') => err RangeError: Start offset -2 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 5.5) => err RangeError: Start offset 5 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), -Infinity) => err RangeError: Start offset -Infinity is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 1e21) => err RangeError: Start offset 1e+21 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4), 0, -1.5) => err RangeError: Invalid DataView length -1
+new DataView(new ArrayBuffer(4), 0, 4.5).byteLength => ok 4
+new DataView(new ArrayBuffer(4), 1, 3.5).byteLength => ok 3
+new DataView(new ArrayBuffer(4), 0, 2 ** 53 - 1) => err RangeError: Invalid DataView length 9007199254740991
+new DataView(new ArrayBuffer(4), 2, 3) => err RangeError: Invalid DataView length 3
+new DataView(new ArrayBuffer(4), 2, '3') => err RangeError: Invalid DataView length 3
+new DataView(new ArrayBuffer(4), 0, 1e21) => err RangeError: Invalid DataView length 1e+21
+new DataView(new ArrayBuffer(4), -0).byteOffset => ok 0
+new DataView(new ArrayBuffer(4, { maxByteLength: 8 }), 5) => err RangeError: Start offset 5 is outside the bounds of the buffer
+new DataView(new ArrayBuffer(4, { maxByteLength: 8 }), 1, 4) => err RangeError: Invalid DataView length 4
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return Reflect.construct(DataView, [b, 1, 3], nt(() => b.resize(3))); })() => err RangeError: Invalid DataView length undefined
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return Reflect.construct(DataView, [b, 4], nt(() => b.resize(3))); })() => err RangeError: Start offset 4 is outside the bounds of the buffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return Object.getPrototypeOf(Reflect.construct(DataView, [b, 0, 0], nt(() => b.resize(0)))) === Object.prototype; })() => ok true
+(() => { const d = new DataView(new ArrayBuffer(4), undefined, undefined); return [d.byteLength, d.byteOffset]; })() => ok [4,0]
+(() => { const d = new DataView(new ArrayBuffer(4), '1', '2'); return [d.byteLength, d.byteOffset]; })() => ok [2,1]
+(() => { const d = new DataView(new ArrayBuffer(4), 1.5); return [d.byteLength, d.byteOffset]; })() => ok [3,1]
+(() => { const d = new DataView(new ArrayBuffer(4), NaN, null); return [d.byteLength, d.byteOffset]; })() => ok [0,0]
+(() => { const d = new DataView(new ArrayBuffer(4), -0.5); return [d.byteLength, d.byteOffset]; })() => ok [4,0]
+new DataView({}) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView() => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView(1) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView('abc') => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView(null) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView([1, 2]) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView(new DataView(new ArrayBuffer(1))) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView(Object.create(ArrayBuffer.prototype)) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+new DataView(new Proxy(new ArrayBuffer(1), {})) => err TypeError: First argument to DataView constructor must be an ArrayBuffer
+DataView(new ArrayBuffer(1)) => err TypeError: Constructor DataView requires 'new'
+DataView() => err TypeError: Constructor DataView requires 'new'
+DataView.call(new DataView(new ArrayBuffer(1)), new ArrayBuffer(1)) => err TypeError: Constructor DataView requires 'new'
+(() => { const b = new ArrayBuffer(4); b.transfer(); return new DataView(b); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return new DataView(b, 0, 0); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return new DataView(b, -1); })() => err RangeError: Start offset -1 is outside the bounds of the buffer
+(() => { const b = new ArrayBuffer(4); b.transfer(); return new DataView(b, 1); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); return new DataView(b, { valueOf() { b.transfer(); return 0; } }); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); return new DataView(b, 0, { valueOf() { b.transfer(); return 1; } }); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const log = []; new DataView(new ArrayBuffer(4), { valueOf() { log.push('offset'); return 1; } }, { valueOf() { log.push('length'); return 1; } }); return log.join(); })() => ok "offset,length"
+(() => { const log = []; try { new DataView(new ArrayBuffer(4), { valueOf() { log.push('offset'); return 5; } }, { valueOf() { log.push('length'); return 1; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "offset,RangeError"
+(() => { const log = []; try { new DataView({}, { valueOf() { log.push('offset'); return 0; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "TypeError"
+(() => { const b = new ArrayBuffer(4); return Reflect.construct(DataView, [b, 0], nt(() => b.transfer())); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4); return Reflect.construct(DataView, [b, 0, 0], nt(() => b.transfer())); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return Reflect.construct(DataView, [b, 3], nt(() => b.resize(2))); })() => err RangeError: Start offset 3 is outside the bounds of the buffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); return Reflect.construct(DataView, [b, 1, 2], nt(() => b.resize(2))); })() => err RangeError: Invalid DataView length undefined
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = Reflect.construct(DataView, [b, 1], nt(() => b.resize(2))); return [d.byteLength, d.byteOffset]; })() => ok [undefined,undefined]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = Reflect.construct(DataView, [b, 1, 2], nt(() => b.resize(8))); return [d.byteLength, d.byteOffset]; })() => ok [undefined,undefined]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = Reflect.construct(DataView, [b, 2], nt(() => b.resize(2))); return [d.byteLength, d.byteOffset]; })() => ok [undefined,undefined]
+Reflect.construct(DataView, [new ArrayBuffer(4), 5], nt(() => { throw new Error('proto'); })) => err RangeError: Start offset 5 is outside the bounds of the buffer
+Reflect.construct(DataView, [new ArrayBuffer(4), 0, 5], nt(() => { throw new Error('proto'); })) => err RangeError: Invalid DataView length 5
+Reflect.construct(DataView, [new ArrayBuffer(4), 0], nt(() => { throw new Error('proto'); })) => err Error: proto
+(() => { const b = new ArrayBuffer(4); b.transfer(); return Reflect.construct(DataView, [b, 0], nt(() => { throw new Error('proto'); })); })() => err TypeError: Cannot perform DataView constructor on a detached ArrayBuffer
+Object.getPrototypeOf(Reflect.construct(DataView, [new ArrayBuffer(1)], Array)) === Array.prototype => ok true
+(() => { function F() {} F.prototype = 1; return Object.getPrototypeOf(Reflect.construct(DataView, [new ArrayBuffer(1)], F)) === DataView.prototype; })() => ok true
+(() => { class D extends DataView { constructor(b) { super(b, 1); } } const d = new D(new ArrayBuffer(3)); return [d instanceof D, d instanceof DataView, d.byteLength, d.byteOffset, d.getUint8(0)]; })() => ok [true,true,2,1,0]
+(() => { const b = new ArrayBuffer(2); const d = new DataView(b); return [d.buffer === b, d.buffer === d.buffer]; })() => ok [true,true]
+Object.getOwnPropertyDescriptor(DataView.prototype, 'buffer').get.call({}) => err TypeError: Method get DataView.prototype.buffer called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(DataView.prototype, 'buffer').get.call(new ArrayBuffer(1)) => err TypeError: Method get DataView.prototype.buffer called on incompatible receiver #<ArrayBuffer>
+Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength').get.call({}) => err TypeError: Method get DataView.prototype.byteLength called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(DataView.prototype, 'byteOffset').get.call({}) => err TypeError: Method get DataView.prototype.byteOffset called on incompatible receiver #<Object>
+Object.getOwnPropertyDescriptor(DataView.prototype, 'byteOffset').get.call(1) => err TypeError: Method get DataView.prototype.byteOffset called on incompatible receiver 1
+Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength').get.call(undefined) => err TypeError: Method get DataView.prototype.byteLength called on incompatible receiver undefined
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); b.resize(6); return [d.byteLength, d.byteOffset]; })() => ok [6,0]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(2); return [d.byteLength, d.byteOffset]; })() => ok [1,1]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(1); return [d.byteLength, d.byteOffset]; })() => ok [0,1]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(0); return d.byteLength; })() => err TypeError: Cannot perform get DataView.prototype.byteLength on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(0); return d.byteOffset; })() => err TypeError: Cannot perform get DataView.prototype.byteOffset on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(0); b.resize(3); return [d.byteLength, d.byteOffset]; })() => ok [2,1]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1, 2); b.resize(2); return d.byteLength; })() => err TypeError: Cannot perform get DataView.prototype.byteLength on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1, 2); b.resize(3); return [d.byteLength, d.byteOffset]; })() => ok [2,1]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1, 2); b.resize(8); return [d.byteLength, d.byteOffset]; })() => ok [2,1]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 4); b.resize(3); return d.byteLength; })() => err TypeError: Cannot perform get DataView.prototype.byteLength on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 4); return [d.byteLength, d.byteOffset]; })() => ok [0,4]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 4); b.resize(8); return [d.byteLength, d.byteOffset]; })() => ok [4,4]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 0); b.resize(8); d.setUint32(4, 0x01020304); return [hex(b), d.getUint8(7)]; })() => ok ["0000000001020304",4]
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); b.resize(2); return d.getUint32(0); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(0); return d.getUint8(0); })() => err TypeError: Cannot perform DataView.prototype.getUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(0); return d.setUint8(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(1); return d.getUint8(0); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1); b.resize(1); return d.setUint8(0, 1); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1, 2); b.resize(2); return d.getUint8(0); })() => err TypeError: Cannot perform DataView.prototype.getUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 1, 2); b.resize(2); return d.setUint8(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); return d.getUint8({ valueOf() { b.resize(0); return 0; } }); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); return d.setUint16(2, { valueOf() { b.resize(3); return 1; } }); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); d.setUint16(2, { valueOf() { b.resize(8); return 0x102; } }); return hex(b); })() => ok "0000010200000000"
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 2); return d.getUint16({ valueOf() { b.resize(8); return 4; } }); })() => ok 0
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b, 2, 2); return d.getUint16({ valueOf() { b.resize(8); return 2; } }); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); b.transfer(); return d.getUint8(0); })() => err TypeError: Cannot perform DataView.prototype.getUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); const d = new DataView(b); const c = b.transfer(); return [ArrayBuffer.isView(d), c.resizable]; })() => ok [true,true]
+filled([0x80, 0x01, 0xff, 0x7f]).constructor === ArrayBuffer => ok true
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt8(0) => ok -128
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt8(1) => ok 1
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt8(2) => ok -1
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt8(3) => ok 127
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint8(0) => ok 128
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint8(2) => ok 255
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt16(0) => ok -32767
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt16(0, true) => ok 384
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt16(1) => ok 511
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt16(2, true) => ok 32767
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint16(0) => ok 32769
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint16(0, true) => ok 384
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint16(2) => ok 65407
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt32(0) => ok -2147352705
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getInt32(0, true) => ok 2147418496
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint32(0) => ok 2147614591
+new DataView(filled([0x80, 0x01, 0xff, 0x7f])).getUint32(0, true) => ok 2147418496
+new DataView(filled([0xff, 0xff, 0xff, 0xff])).getUint32(0) => ok 4294967295
+new DataView(filled([0xff, 0xff, 0xff, 0xff])).getInt32(0) => ok -1
+new DataView(filled([0x80, 0, 0, 0])).getInt32(0) => ok -2147483648
+new DataView(filled([0x7f, 0xff, 0xff, 0xff])).getInt32(0) => ok 2147483647
+new DataView(filled([0x80, 0, 0, 0])).getUint32(0) => ok 2147483648
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getUint32(4) => ok 84281096
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getUint32(3, true) => ok 117835012
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8]), 2).getUint32(0) => ok 50595078
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8]), 2, 4).getUint16(2) => ok 1286
+new DataView(filled([0x3f, 0xc0, 0, 0])).getFloat32(0) => ok 1.5
+new DataView(filled([0, 0, 0xc0, 0x3f])).getFloat32(0, true) => ok 1.5
+new DataView(filled([0x7f, 0x80, 0, 0])).getFloat32(0) => ok Infinity
+new DataView(filled([0xff, 0x80, 0, 0])).getFloat32(0) => ok -Infinity
+new DataView(filled([0x80, 0, 0, 0])).getFloat32(0) => ok -0
+new DataView(filled([0, 0, 0, 1])).getFloat32(0) => ok 1.401298464324817e-45
+new DataView(filled([0x7f, 0x7f, 0xff, 0xff])).getFloat32(0) => ok 3.4028234663852886e+38
+new DataView(filled([0x00, 0x80, 0, 0])).getFloat32(0) => ok 1.1754943508222875e-38
+new DataView(filled([0x7f, 0xc0, 0, 0])).getFloat32(0) => ok NaN
+new DataView(filled([0xff, 0xc0, 0, 1])).getFloat32(0) => ok NaN
+new DataView(filled([0x3d, 0xcc, 0xcc, 0xcd])).getFloat32(0) => ok 0.10000000149011612
+new DataView(filled([0x3f, 0xb9, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9a])).getFloat64(0) => ok 0.1
+new DataView(filled([0x9a, 0x99, 0x99, 0x99, 0x99, 0x99, 0xb9, 0x3f])).getFloat64(0, true) => ok 0.1
+new DataView(filled([0x7f, 0xf0, 0, 0, 0, 0, 0, 0])).getFloat64(0) => ok Infinity
+new DataView(filled([0xff, 0xf0, 0, 0, 0, 0, 0, 0])).getFloat64(0) => ok -Infinity
+new DataView(filled([0x80, 0, 0, 0, 0, 0, 0, 0])).getFloat64(0) => ok -0
+new DataView(filled([0, 0, 0, 0, 0, 0, 0, 1])).getFloat64(0) => ok 5e-324
+new DataView(filled([0x7f, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])).getFloat64(0) => ok 1.7976931348623157e+308
+new DataView(filled([0x7f, 0xf8, 0, 0, 0, 0, 0, 0])).getFloat64(0) => ok NaN
+new DataView(filled([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])).getFloat64(0) => ok NaN
+new DataView(filled([0x41, 0xd0, 0, 0, 0, 0, 0, 0])).getFloat64(0) => ok 1073741824
+new DataView(filled([0x3c, 0x00])).getFloat16(0) => ok 1
+new DataView(filled([0x00, 0x3c])).getFloat16(0, true) => ok 1
+new DataView(filled([0x7c, 0x00])).getFloat16(0) => ok Infinity
+new DataView(filled([0xfc, 0x00])).getFloat16(0) => ok -Infinity
+new DataView(filled([0x80, 0x00])).getFloat16(0) => ok -0
+new DataView(filled([0x00, 0x01])).getFloat16(0) => ok 5.960464477539063e-8
+new DataView(filled([0x03, 0xff])).getFloat16(0) => ok 0.00006097555160522461
+new DataView(filled([0x04, 0x00])).getFloat16(0) => ok 0.00006103515625
+new DataView(filled([0x7b, 0xff])).getFloat16(0) => ok 65504
+new DataView(filled([0xfb, 0xff])).getFloat16(0) => ok -65504
+new DataView(filled([0x7e, 0x00])).getFloat16(0) => ok NaN
+new DataView(filled([0x7c, 0x01])).getFloat16(0) => ok NaN
+new DataView(filled([0x35, 0x55])).getFloat16(0) => ok 0.333251953125
+new DataView(filled([0xc0, 0x00])).getFloat16(0) => ok -2
+new DataView(filled([0x2e, 0x66])).getFloat16(0) => ok 0.0999755859375
+new DataView(filled([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])).getBigInt64(0) => ok -1n
+new DataView(filled([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])).getBigUint64(0) => ok 18446744073709551615n
+new DataView(filled([0x80, 0, 0, 0, 0, 0, 0, 0])).getBigInt64(0) => ok -9223372036854775808n
+new DataView(filled([0x80, 0, 0, 0, 0, 0, 0, 0])).getBigUint64(0) => ok 9223372036854775808n
+new DataView(filled([0x80, 0, 0, 0, 0, 0, 0, 0])).getBigInt64(0, true) => ok 128n
+new DataView(filled([0, 0, 0, 0, 0, 0, 0, 0x80])).getBigInt64(0, true) => ok -9223372036854775808n
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getBigUint64(0) => ok 72623859790382856n
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getBigUint64(0, true) => ok 578437695752307201n
+new DataView(filled([0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])).getBigInt64(0) => ok 9223372036854775807n
+new DataView(filled([0, 0, 0, 0, 0, 0, 0, 0])).getBigInt64(0) => ok 0n
+typeof new DataView(new ArrayBuffer(8)).getBigInt64(0) => ok "bigint"
+new DataView(filled([1, 2, 3, 4])).getInt8('1') => ok 2
+new DataView(filled([1, 2, 3, 4])).getInt8(1.9) => ok 2
+new DataView(filled([1, 2, 3, 4])).getInt8(-0.5) => ok 1
+new DataView(filled([1, 2, 3, 4])).getInt8() => ok 1
+new DataView(filled([1, 2, 3, 4])).getInt8(NaN) => ok 1
+new DataView(filled([1, 2, 3, 4])).getInt8(null) => ok 1
+new DataView(filled([1, 2, 3, 4])).getInt8(true) => ok 2
+new DataView(filled([1, 2, 3, 4])).getInt8([2]) => ok 3
+new DataView(filled([1, 2, 3, 4])).getInt8(-1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(4) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(Infinity) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(-Infinity) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(2 ** 53) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(2 ** 53 - 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(2 ** 32) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt8(1n) => err TypeError: Cannot convert a BigInt value to a number
+new DataView(filled([1, 2, 3, 4])).getInt8(Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new DataView(filled([1, 2, 3, 4])).getUint16(3) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getInt32(1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4])).getFloat32(1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getFloat64(1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getBigInt64(1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4, 5, 6, 7, 8])).getBigUint64(-1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2])).getFloat16(1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(0)).getInt8(0) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4]), 4).getInt8(0) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2, 3, 4]), 1, 1).getInt16(0) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(filled([1, 2])).getInt16(0, 'false') => ok 513
+new DataView(filled([1, 2])).getInt16(0, '') => ok 258
+new DataView(filled([1, 2])).getInt16(0, 0) => ok 258
+new DataView(filled([1, 2])).getInt16(0, NaN) => ok 258
+new DataView(filled([1, 2])).getInt16(0, {}) => ok 513
+new DataView(filled([1, 2])).getInt16(0, Symbol()) => ok 513
+new DataView(filled([1, 2])).getInt16(0, 0n) => ok 258
+new DataView(filled([1, 2])).getInt16(0, 1n) => ok 513
+new DataView(filled([1, 2])).getInt16(0, null) => ok 258
+new DataView(filled([1, 2])).getInt16(0, undefined) => ok 258
+new DataView(filled([1, 2])).getInt8(0, true) => ok 1
+new DataView(filled([1, 2])).getUint8(1, false) => ok 2
+DataView.prototype.getInt8.call({}, 0) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver #<Object>
+DataView.prototype.getInt8.call(new ArrayBuffer(1), 0) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver #<ArrayBuffer>
+DataView.prototype.getInt8.call(1, 0) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver 1
+DataView.prototype.getInt8.call(undefined, 0) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver undefined
+DataView.prototype.getUint8.call({}, 0) => err TypeError: Method DataView.prototype.getUint8 called on incompatible receiver #<Object>
+DataView.prototype.getInt16.call({}, 0) => err TypeError: Method DataView.prototype.getInt16 called on incompatible receiver #<Object>
+DataView.prototype.getUint16.call({}, 0) => err TypeError: Method DataView.prototype.getUint16 called on incompatible receiver #<Object>
+DataView.prototype.getInt32.call({}, 0) => err TypeError: Method DataView.prototype.getInt32 called on incompatible receiver #<Object>
+DataView.prototype.getUint32.call({}, 0) => err TypeError: Method DataView.prototype.getUint32 called on incompatible receiver #<Object>
+DataView.prototype.getFloat16.call({}, 0) => err TypeError: Method DataView.prototype.getFloat16 called on incompatible receiver #<Object>
+DataView.prototype.getFloat32.call({}, 0) => err TypeError: Method DataView.prototype.getFloat32 called on incompatible receiver #<Object>
+DataView.prototype.getFloat64.call({}, 0) => err TypeError: Method DataView.prototype.getFloat64 called on incompatible receiver #<Object>
+DataView.prototype.getBigInt64.call({}, 0) => err TypeError: Method DataView.prototype.getBigInt64 called on incompatible receiver #<Object>
+DataView.prototype.getBigUint64.call({}, 0) => err TypeError: Method DataView.prototype.getBigUint64 called on incompatible receiver #<Object>
+DataView.prototype.getInt8.call({}, -1) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver #<Object>
+DataView.prototype.getInt8.call({}, { valueOf() { throw new Error('index'); } }) => err TypeError: Method DataView.prototype.getInt8 called on incompatible receiver #<Object>
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt8(0); })() => err TypeError: Cannot perform DataView.prototype.getInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getUint8(0); })() => err TypeError: Cannot perform DataView.prototype.getUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt16(0); })() => err TypeError: Cannot perform DataView.prototype.getInt16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getUint16(0); })() => err TypeError: Cannot perform DataView.prototype.getUint16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt32(0); })() => err TypeError: Cannot perform DataView.prototype.getInt32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getUint32(0); })() => err TypeError: Cannot perform DataView.prototype.getUint32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getFloat16(0); })() => err TypeError: Cannot perform DataView.prototype.getFloat16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getFloat32(0); })() => err TypeError: Cannot perform DataView.prototype.getFloat32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.getFloat64(0); })() => err TypeError: Cannot perform DataView.prototype.getFloat64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.getBigInt64(0); })() => err TypeError: Cannot perform DataView.prototype.getBigInt64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.getBigUint64(0); })() => err TypeError: Cannot perform DataView.prototype.getBigUint64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt8(-1); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt8(100); })() => err TypeError: Cannot perform DataView.prototype.getInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.getInt8(Symbol()); })() => err TypeError: Cannot convert a Symbol value to a number
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.getInt8({ valueOf() { d.buffer.transfer(); return 0; } }); })() => err TypeError: Cannot perform DataView.prototype.getInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.getInt8({ valueOf() { d.buffer.transfer(); return 10; } }); })() => err TypeError: Cannot perform DataView.prototype.getInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.getFloat64({ valueOf() { d.buffer.transfer(); return 0; } }, true); })() => err TypeError: Cannot perform DataView.prototype.getFloat64 on a detached or out-of-bounds ArrayBuffer
+(() => { const log = []; const d = new DataView(new ArrayBuffer(4)); d.getInt16({ valueOf() { log.push('index'); return 0; } }, { valueOf() { log.push('le'); return 0; } }); return log.join(); })() => ok "index"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setInt8(0, -1); d.setInt8(1, 128); d.setInt8(2, 255.9); d.setInt8(3, -129); d.setInt8(4, 2 ** 40 + 3); d.setInt8(5, -0.9); d.setInt8(6, 1e300); d.setInt8(7, -128); return hex(d); })() => ok "ff80ff7f03000080"
+(() => { const d = new DataView(new ArrayBuffer(10)); d.setUint8(0, 256); d.setUint8(1, -1); d.setUint8(2, 1.5); d.setUint8(3, NaN); d.setUint8(4, Infinity); d.setUint8(5, '7'); d.setUint8(6, true); d.setUint8(7, null); d.setUint8(8); d.setUint8(9, [0x41]); return hex(d); })() => ok "00ff0100000701000041"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setInt16(0, 0x1234); d.setInt16(2, 0x1234, true); d.setInt16(4, -2); d.setInt16(6, 65536 + 5, true); return hex(d); })() => ok "12343412fffe0500"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setUint16(0, 65535); d.setUint16(2, -1, true); d.setUint16(4, 0x8000); d.setUint16(6, 70000); return hex(d); })() => ok "ffffffff80001170"
+(() => { const d = new DataView(new ArrayBuffer(16)); d.setInt32(0, 0x12345678); d.setInt32(4, 0x12345678, true); d.setInt32(8, -2); d.setInt32(12, 2 ** 31, true); return hex(d); })() => ok "1234567878563412fffffffe00000080"
+(() => { const d = new DataView(new ArrayBuffer(16)); d.setUint32(0, 2 ** 32 + 1); d.setUint32(4, -1, true); d.setUint32(8, 2 ** 31); d.setUint32(12, 0xdeadbeef, true); return hex(d); })() => ok "00000001ffffffff80000000efbeadde"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setUint32(0, -(2 ** 53) + 1); d.setUint32(4, 2 ** 53 - 1); return hex(d); })() => ok "00000001ffffffff"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setInt32(0, 4294967295.5); d.setInt32(4, -4294967295.5); return hex(d); })() => ok "ffffffff00000001"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setInt16(1, 0x0102); return hex(d); })() => ok "00010200"
+(() => { const d = new DataView(new ArrayBuffer(4), 1); d.setUint16(1, 0xabcd); return hex(d); })() => ok "0000abcd"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setUint16(0, 0xabcd, 'yes'); d.setUint16(2, 0xabcd, ''); return hex(d); })() => ok "cdababcd"
+new DataView(new ArrayBuffer(4)).setInt8(0, 1) => ok undefined
+new DataView(new ArrayBuffer(4)).setInt8(4, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt8(-1, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt16(3, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setUint16(3, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt32(1, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setUint32(1, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt8(2 ** 53, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt8(Infinity, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setInt8(0, 1n) => err TypeError: Cannot convert a BigInt value to a number
+new DataView(new ArrayBuffer(4)).setInt8(0, Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new DataView(new ArrayBuffer(4)).setInt8(0, { valueOf() { throw new Error('value'); } }) => err Error: value
+new DataView(new ArrayBuffer(4)).setInt8(Symbol(), 1) => err TypeError: Cannot convert a Symbol value to a number
+new DataView(new ArrayBuffer(4)).setInt8(1n, 1) => err TypeError: Cannot convert a BigInt value to a number
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setInt8(); return hex(d); })() => ok "00000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setInt16(0, 0x102, Symbol()); return hex(d); })() => ok "02010000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1.5); return hex(d); })() => ok "3fc00000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1.5, true); return hex(d); })() => ok "0000c03f"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, -0); return hex(d); })() => ok "80000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, Infinity); return hex(d); })() => ok "7f800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, -Infinity); return hex(d); })() => ok "ff800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1e40); return hex(d); })() => ok "7f800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, -1e40); return hex(d); })() => ok "ff800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1e-46); return hex(d); })() => ok "00000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, -1e-46); return hex(d); })() => ok "80000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 3.4028235e38); return hex(d); })() => ok "7f7fffff"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 3.4028236e38); return hex(d); })() => ok "7f800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 3.4028235677973366e38); return hex(d); })() => ok "7f800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1.401298464324817e-45); return hex(d); })() => ok "00000001"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 7.006492321624085e-46); return hex(d); })() => ok "00000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 7.006492321624087e-46); return hex(d); })() => ok "00000001"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 16777217); return hex(d); })() => ok "4b800000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 16777219); return hex(d); })() => ok "4b800002"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 0.1); return hex(d); })() => ok "3dcccccd"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1.1754942106924411e-38); return hex(d); })() => ok "007fffff"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, '2.5'); return hex(d); })() => ok "40200000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 1.5); return d.getFloat32(0); })() => ok 1.5
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, 0.1); return d.getFloat32(0); })() => ok 0.10000000149011612
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 0.1); return hex(d); })() => ok "3fb999999999999a"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 0.1, true); return hex(d); })() => ok "9a9999999999b93f"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, -0); return hex(d); })() => ok "8000000000000000"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, -Infinity); return hex(d); })() => ok "fff0000000000000"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 5e-324); return hex(d); })() => ok "0000000000000001"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, Number.MAX_VALUE); return hex(d); })() => ok "7fefffffffffffff"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 2 ** 53 + 2); return hex(d); })() => ok "4340000000000001"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, Math.PI); return d.getFloat64(0) === Math.PI; })() => ok true
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 1e-310, true); return d.getFloat64(0, true); })() => ok 1e-310
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1); return hex(d); })() => ok "3c00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1, true); return hex(d); })() => ok "003c"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 65504); return hex(d); })() => ok "7bff"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 65519.99); return hex(d); })() => ok "7bff"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 65520); return hex(d); })() => ok "7c00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, -65520); return hex(d); })() => ok "fc00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 2049); return hex(d); })() => ok "6800"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 2051); return hex(d); })() => ok "6802"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 5.960464477539063e-8); return hex(d); })() => ok "0001"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 2.9802322387695312e-8); return hex(d); })() => ok "0000"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 2.980232238769532e-8); return hex(d); })() => ok "0001"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, -2.9802322387695312e-8); return hex(d); })() => ok "8000"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 0.00006103515625); return hex(d); })() => ok "0400"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 0.00006097555160522461); return hex(d); })() => ok "03ff"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 0.00006100535); return hex(d); })() => ok "03ff"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, -0); return hex(d); })() => ok "8000"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 0.1); return hex(d); })() => ok "2e66"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1e-8); return hex(d); })() => ok "0000"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, Infinity); return hex(d); })() => ok "7c00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, -Infinity); return hex(d); })() => ok "fc00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1.000488281250001); return hex(d); })() => ok "3c01"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1.00048828125); return hex(d); })() => ok "3c00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1.337); return d.getFloat16(0); })() => ok 1.3369140625
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, 1.337); return d.getFloat16(0) === Math.f16round(1.337); })() => ok true
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat16(1, 3); return hex(d); })() => ok "00420000"
+new DataView(new ArrayBuffer(4)).setFloat16(3, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setFloat32(1, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(8)).setFloat64(1, 1) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(4)).setFloat32(0, 1n) => err TypeError: Cannot convert a BigInt value to a number
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, -1n); return hex(d); })() => ok "ffffffffffffffff"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, 2n ** 63n); return [hex(d), d.getBigInt64(0)]; })() => ok ["8000000000000000",-9223372036854775808n]
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, 2n ** 64n + 5n); return hex(d); })() => ok "0000000000000005"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, -(2n ** 63n) - 1n); return [hex(d), d.getBigInt64(0)]; })() => ok ["7fffffffffffffff",9223372036854775807n]
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, 0x0102030405060708n, true); return hex(d); })() => ok "0807060504030201"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, true); return hex(d); })() => ok "0000000000000001"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, '0x10'); return hex(d); })() => ok "0000000000000010"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, ' -5 '); return d.getBigInt64(0); })() => ok -5n
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, Object(7n)); return d.getBigInt64(0); })() => ok 7n
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, { valueOf() { return 9n; } }); return d.getBigInt64(0); })() => ok 9n
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigInt64(0, -(2n ** 200n) + 3n); return d.getBigInt64(0); })() => ok 3n
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigUint64(0, 2n ** 64n - 1n); return [hex(d), d.getBigUint64(0)]; })() => ok ["ffffffffffffffff",18446744073709551615n]
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigUint64(0, -1n); return [hex(d), d.getBigUint64(0), d.getBigInt64(0)]; })() => ok ["ffffffffffffffff",18446744073709551615n,-1n]
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigUint64(0, 2n ** 65n + 3n); return d.getBigUint64(0); })() => ok 3n
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setBigUint64(0, 0x0102030405060708n, true); return hex(d); })() => ok "0807060504030201"
+new DataView(new ArrayBuffer(8)).setBigInt64(0, 1) => err TypeError: Cannot convert 1 to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, 1.5) => err TypeError: Cannot convert 1.5 to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0) => err TypeError: Cannot convert undefined to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, null) => err TypeError: Cannot convert null to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, 'x') => err SyntaxError: Cannot convert x to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, '1.5') => err SyntaxError: Cannot convert 1.5 to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, Symbol()) => err TypeError: Cannot convert Symbol() to a BigInt
+new DataView(new ArrayBuffer(8)).setBigUint64(0, 1) => err TypeError: Cannot convert 1 to a BigInt
+new DataView(new ArrayBuffer(8)).setBigUint64(0, NaN) => err TypeError: Cannot convert NaN to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(1, 1n) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(8)).setBigUint64(-1, 1n) => err RangeError: Offset is outside the bounds of the DataView
+new DataView(new ArrayBuffer(8)).setBigInt64(1, 1) => err TypeError: Cannot convert 1 to a BigInt
+new DataView(new ArrayBuffer(8)).setBigInt64(0, 1n) => ok undefined
+(() => { const log = []; const d = new DataView(new ArrayBuffer(4)); d.setInt16({ valueOf() { log.push('index'); return 0; } }, { valueOf() { log.push('value'); return 1; } }, { valueOf() { log.push('le'); return 1; } }); return log.join(); })() => ok "index,value"
+(() => { const log = []; const d = new DataView(new ArrayBuffer(4)); try { d.setInt16({ valueOf() { log.push('index'); return 3; } }, { valueOf() { log.push('value'); return 1; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "index,value,RangeError"
+(() => { const log = []; const d = new DataView(new ArrayBuffer(4)); try { d.setInt16(-1, { valueOf() { log.push('value'); return 1; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "RangeError"
+(() => { const log = []; const d = new DataView(new ArrayBuffer(8)); try { d.setBigInt64({ valueOf() { log.push('index'); return 4; } }, { valueOf() { log.push('value'); return 1n; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "index,value,RangeError"
+(() => { const log = []; try { DataView.prototype.setInt8.call({}, { valueOf() { log.push('index'); return 0; } }, { valueOf() { log.push('value'); return 1; } }); } catch (e) { log.push(e.name); } return log.join(); })() => ok "TypeError"
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.setInt8(0, { valueOf() { d.buffer.transfer(); return 1; } }); })() => err TypeError: Cannot perform DataView.prototype.setInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.setInt8(10, { valueOf() { d.buffer.transfer(); return 1; } }); })() => err TypeError: Cannot perform DataView.prototype.setInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.setUint32({ valueOf() { d.buffer.transfer(); return 0; } }, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); return d.setFloat64(0, { valueOf() { d.buffer.transfer(); return 1; } }); })() => err TypeError: Cannot perform DataView.prototype.setFloat64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); return d.setBigInt64(0, { valueOf() { d.buffer.transfer(); return 1n; } }); })() => err TypeError: Cannot perform DataView.prototype.setBigInt64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); return d.setBigUint64(0, { valueOf() { d.buffer.transfer(); return 1n; } }); })() => err TypeError: Cannot perform DataView.prototype.setBigUint64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); return d.setFloat16(0, { valueOf() { d.buffer.transfer(); return 1; } }); })() => err TypeError: Cannot perform DataView.prototype.setFloat16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt8(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setInt8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setUint8(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint8 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt16(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setInt16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setUint16(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt32(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setInt32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setUint32(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setUint32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setFloat16(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setFloat16 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setFloat32(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setFloat32 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.setFloat64(0, 1); })() => err TypeError: Cannot perform DataView.prototype.setFloat64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.setBigInt64(0, 1n); })() => err TypeError: Cannot perform DataView.prototype.setBigInt64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.setBigUint64(0, 1n); })() => err TypeError: Cannot perform DataView.prototype.setBigUint64 on a detached or out-of-bounds ArrayBuffer
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt8(0, Symbol()); })() => err TypeError: Cannot convert a Symbol value to a number
+(() => { const d = new DataView(new ArrayBuffer(8)); d.buffer.transfer(); return d.setBigInt64(0, 1); })() => err TypeError: Cannot convert 1 to a BigInt
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt8(-1, 1); })() => err RangeError: Offset is outside the bounds of the DataView
+(() => { const d = new DataView(new ArrayBuffer(4)); d.buffer.transfer(); return d.setInt8(100, 1); })() => err TypeError: Cannot perform DataView.prototype.setInt8 on a detached or out-of-bounds ArrayBuffer
+DataView.prototype.setInt8.call({}, 0, 0) => err TypeError: Method DataView.prototype.setInt8 called on incompatible receiver #<Object>
+DataView.prototype.setUint8.call({}, 0, 0) => err TypeError: Method DataView.prototype.setUint8 called on incompatible receiver #<Object>
+DataView.prototype.setInt16.call({}, 0, 0) => err TypeError: Method DataView.prototype.setInt16 called on incompatible receiver #<Object>
+DataView.prototype.setUint16.call({}, 0, 0) => err TypeError: Method DataView.prototype.setUint16 called on incompatible receiver #<Object>
+DataView.prototype.setInt32.call({}, 0, 0) => err TypeError: Method DataView.prototype.setInt32 called on incompatible receiver #<Object>
+DataView.prototype.setUint32.call({}, 0, 0) => err TypeError: Method DataView.prototype.setUint32 called on incompatible receiver #<Object>
+DataView.prototype.setFloat16.call({}, 0, 0) => err TypeError: Method DataView.prototype.setFloat16 called on incompatible receiver #<Object>
+DataView.prototype.setFloat32.call({}, 0, 0) => err TypeError: Method DataView.prototype.setFloat32 called on incompatible receiver #<Object>
+DataView.prototype.setFloat64.call({}, 0, 0) => err TypeError: Method DataView.prototype.setFloat64 called on incompatible receiver #<Object>
+DataView.prototype.setBigInt64.call({}, 0, 0n) => err TypeError: Method DataView.prototype.setBigInt64 called on incompatible receiver #<Object>
+DataView.prototype.setBigUint64.call({}, 0, 0n) => err TypeError: Method DataView.prototype.setBigUint64 called on incompatible receiver #<Object>
+DataView.prototype.setInt8.call(new ArrayBuffer(4), 0, 0) => err TypeError: Method DataView.prototype.setInt8 called on incompatible receiver #<ArrayBuffer>
+DataView.prototype.setInt8.call(null, 0, 0) => err TypeError: Method DataView.prototype.setInt8 called on incompatible receiver null
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, NaN); return hex(d); })() => ok "7ff8000000000000"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, -NaN); return hex(d); })() => ok "fff8000000000000"
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, Infinity - Infinity); return hex(d); })() => ok "fff8000000000000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, NaN); return hex(d); })() => ok "7fc00000"
+(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, -NaN); return hex(d); })() => ok "ffc00000"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, NaN); return hex(d); })() => ok "7e00"
+(() => { const d = new DataView(new ArrayBuffer(2)); d.setFloat16(0, -NaN); return hex(d); })() => ok "fe00"
+(() => { const d = new DataView(filled([0x7f, 0xf0, 0, 0, 0, 0, 0, 1])); const v = d.getFloat64(0); d.setFloat64(0, v); return [String(v), hex(d)]; })() => ok ["NaN","7ff0000000000001"]
+(() => { const d = new DataView(filled([0xff, 0xf8, 0, 0, 0, 0, 0, 7])); const v = d.getFloat64(0); d.setFloat64(0, v); return [String(v), hex(d)]; })() => ok ["NaN","fff8000000000007"]
+(() => { const d = new DataView(filled([0x7f, 0xc0, 0, 1])); const v = d.getFloat32(0); d.setFloat32(0, v); return [String(v), hex(d)]; })() => ok ["NaN","7fc00001"]
+(() => { const d = new DataView(filled([0xff, 0xc0, 0, 1, 0, 0, 0, 0])); const v = d.getFloat32(0); d.setFloat64(0, v); return hex(d); })() => ok "fff8000020000000"
+(() => { const d = new DataView(filled([0x7f, 0xf8, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0])); d.setFloat32(8, d.getFloat64(0)); return hex(d); })() => ok "7ff80000000000057fc00000"
+(() => { const d = new DataView(filled([0x7c, 0x01, 0, 0])); d.setFloat16(2, d.getFloat16(0)); return hex(d); })() => ok "7c017e00"
+(() => { const d = new DataView(filled([0x7c, 0x01, 0, 0, 0, 0, 0, 0, 0, 0])); d.setFloat64(2, d.getFloat16(0)); return hex(d); })() => ok "7c017ff8040000000000"
+(() => { const b = new ArrayBuffer(4); b.x = 1; return [b.x, Object.keys(b).join(), JSON.stringify(b)]; })() => ok [1,"x","{\"x\":1}"]
+(() => { const d = new DataView(new ArrayBuffer(2)); return [Object.keys(d).length, JSON.stringify(d)]; })() => ok [0,"{}"]
+(() => { const b = new ArrayBuffer(4); return Object.isExtensible(b) && Object.isFrozen(Object.freeze(b)); })() => ok true
+(() => { const b = new ArrayBuffer(2); return [b == b, b === new ArrayBuffer(2), typeof b]; })() => ok [true,false,"object"]
+Object.getOwnPropertyNames(new ArrayBuffer(2)).length => ok 0
+Object.getOwnPropertyNames(new DataView(new ArrayBuffer(2))).length => ok 0
+(() => { const b = new ArrayBuffer(2); return Object.getOwnPropertyDescriptor(b, 'byteLength'); })() => ok undefined
+(() => { const b = new ArrayBuffer(4); const m = new Map([[b, 1]]); return m.get(b); })() => ok 1
+(() => { const w = new WeakMap(); const b = new ArrayBuffer(4); w.set(b, 2); return w.get(b); })() => ok 2
+(() => { const d = new DataView(new ArrayBuffer(16)); for (let i = 0; i < 4; i++) d.setUint32(i * 4, i * 0x01010101); let s = 0; for (let i = 0; i < 16; i++) s += d.getUint8(i); return s; })() => ok 24
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setUint32(0, 0x12345678); return [d.getUint16(0), d.getUint16(2), d.getUint16(1, true), d.getInt8(3)]; })() => ok [4660,22136,22068,120]
+(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, -1.5); return [d.getUint32(0), d.getInt32(0), d.getFloat32(0)]; })() => ok [3220701184,-1074266112,-1.9375]
+(() => { const b = new ArrayBuffer(8); const d1 = new DataView(b, 0, 4), d2 = new DataView(b, 4); d1.setInt32(0, -1); d2.setInt32(0, 7); return [hex(b), d1.byteLength, d2.byteLength]; })() => ok ["ffffffff00000007",4,4]
+(() => { const b = new ArrayBuffer(8); return Object.getPrototypeOf(new DataView(b)) === DataView.prototype && Object.getPrototypeOf(b) === ArrayBuffer.prototype; })() => ok true
+(() => { const d = new DataView(new ArrayBuffer(4)); return [d.getInt8 === DataView.prototype.getInt8, typeof d.setFloat16]; })() => ok [true,"function"]
+(() => { const b = new ArrayBuffer(4); const p = new Proxy(b, {}); try { return p.byteLength; } catch (e) { return e.message; } })() => ok "Method get ArrayBuffer.prototype.byteLength called on incompatible receiver #<ArrayBuffer>"
+(() => { const d = new DataView(new ArrayBuffer(4)); const p = new Proxy(d, {}); try { return p.getInt8(0); } catch (e) { return e.message; } })() => ok "Method DataView.prototype.getInt8 called on incompatible receiver #<DataView>"
+(() => { const d = new DataView(new ArrayBuffer(4)); try { return Reflect.apply(DataView.prototype.getInt8, new Proxy(d, {}), [0]); } catch (e) { return e.message; } })() => ok "Method DataView.prototype.getInt8 called on incompatible receiver #<DataView>"
+(() => { const b = new ArrayBuffer(4); return Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get.call(new Proxy(b, {})); })() => err TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible receiver #<ArrayBuffer>

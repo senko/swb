@@ -190,11 +190,25 @@ fn eval_script_runs_in_the_global_scope() {
 
 #[test]
 fn missing_host_functions_are_absent() {
+    let out = shell(&["-e", "print(typeof $262.createRealm, typeof $262.agent)"]);
+    assert_eq!(text(&out.stdout), "undefined undefined\n");
+}
+
+/// `$262.detachArrayBuffer` detaches (test262's INTERPRETING.md); another
+/// value is a `TypeError`.
+#[test]
+fn detach_array_buffer() {
     let out = shell(&[
         "-e",
-        "print(typeof $262.createRealm, typeof $262.detachArrayBuffer, typeof $262.agent)",
+        "var b = new ArrayBuffer(8); var d = new DataView(b); $262.detachArrayBuffer(b); \
+         $262.detachArrayBuffer(b); print(b.detached, b.byteLength, ArrayBuffer.isView(d)); \
+         try { d.getInt8(0); } catch (e) { print(e.message); } \
+         try { $262.detachArrayBuffer({}); } catch (e) { print(e.name); }",
     ]);
-    assert_eq!(text(&out.stdout), "undefined undefined undefined\n");
+    assert_eq!(
+        text(&out.stdout),
+        "true 0 true\nCannot perform DataView.prototype.getInt8 on a detached or out-of-bounds ArrayBuffer\nTypeError\n"
+    );
 }
 
 #[test]

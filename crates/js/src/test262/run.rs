@@ -14,12 +14,7 @@ use super::meta::Meta;
 use crate::shell::{self, Options};
 
 /// Host features that the shell does not have.
-const HOST_USES: &[&str] = &[
-    "$262.createRealm",
-    "$262.agent",
-    "$262.detachArrayBuffer",
-    "$262.IsHTMLDDA",
-];
+const HOST_USES: &[&str] = &["$262.createRealm", "$262.agent", "$262.IsHTMLDDA"];
 
 /// The harness files that tests may include besides `sta.js` and
 /// `assert.js` (which every test gets). A test that includes another file
@@ -37,6 +32,8 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "regExpUtils.js",
     "compareIterator.js",
     "proxyTrapsHelper.js",
+    "detachArrayBuffer.js",
+    "byteConversionValues.js",
 ];
 
 /// The harness file of the tests with the flag `async`: `$DONE` prints
