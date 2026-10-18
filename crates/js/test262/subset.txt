@@ -13,10 +13,10 @@
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
 # asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js,
 # proxyTrapsHelper.js, detachArrayBuffer.js, byteConversionValues.js,
-# testTypedArray.js or resizableArrayBufferUtils.js, or
+# testTypedArray.js, resizableArrayBufferUtils.js or testAtomics.js, or
 # have the flags module or CanBlockIsTrue, or use $262.createRealm or
-# $262.agent. Tests with the flag async get doneprintHandle.js and pass
-# when they print Test262:AsyncTestComplete.
+# $262.agent or new SharedArrayBuffer. Tests with the flag async get
+# doneprintHandle.js and pass when they print Test262:AsyncTestComplete.
 
 feature __getter__
 feature __proto__
@@ -458,10 +458,9 @@ dir test/built-ins/DataView
 # and @@species, the 12 constructors, the TypedArray exotic object, the
 # accessors, set, subarray, slice and the iterators. The dir lines below
 # name parts of the group built-ins/TypedArray (the group of the scores
-# file): the directories of the other prototype methods (at ... toString)
-# come with 11c, and so do the features TypedArray.prototype.at and
-# stable-typedarray-sort. SharedArrayBuffer and immutable-arraybuffer stay
-# out (Chromium 148 has neither in a normal page); Atomics comes with 11c.
+# file). SharedArrayBuffer and immutable-arraybuffer stay out (Chromium
+# 148 has neither in a normal page); the tests that need them stay skipped
+# by their features.
 feature TypedArray
 feature Int8Array
 feature Uint8Array
@@ -501,4 +500,43 @@ dir test/built-ins/TypedArray/prototype/Symbol.toStringTag
 dir test/built-ins/TypedArray/prototype/constructor.js
 dir test/built-ins/TypedArray/prototype/resizable-and-fixed-have-same-prototype.js
 dir test/built-ins/TypedArray/prototype/Symbol.iterator.js
+dir test/built-ins/TypedArray/prototype/at
+dir test/built-ins/TypedArray/prototype/copyWithin
+dir test/built-ins/TypedArray/prototype/every
+dir test/built-ins/TypedArray/prototype/fill
+dir test/built-ins/TypedArray/prototype/filter
+dir test/built-ins/TypedArray/prototype/find
+dir test/built-ins/TypedArray/prototype/findIndex
+dir test/built-ins/TypedArray/prototype/findLast
+dir test/built-ins/TypedArray/prototype/findLastIndex
+dir test/built-ins/TypedArray/prototype/forEach
+dir test/built-ins/TypedArray/prototype/includes
+dir test/built-ins/TypedArray/prototype/indexOf
+dir test/built-ins/TypedArray/prototype/join
+dir test/built-ins/TypedArray/prototype/lastIndexOf
+dir test/built-ins/TypedArray/prototype/map
+dir test/built-ins/TypedArray/prototype/reduce
+dir test/built-ins/TypedArray/prototype/reduceRight
+dir test/built-ins/TypedArray/prototype/reverse
+dir test/built-ins/TypedArray/prototype/some
+dir test/built-ins/TypedArray/prototype/sort
+dir test/built-ins/TypedArray/prototype/toLocaleString
+dir test/built-ins/TypedArray/prototype/toReversed
+dir test/built-ins/TypedArray/prototype/toSorted
+dir test/built-ins/TypedArray/prototype/with
+dir test/built-ins/TypedArray/prototype/toString.js
+dir test/built-ins/TypedArray/prototype/toString
 dir test/built-ins/TypedArrayConstructors
+
+# Added in M7 feature 11c: the remaining methods of %TypedArray%.prototype
+# (the dir lines above), Atomics on ArrayBuffers (the tests that need a
+# SharedArrayBuffer or an agent stay skipped by their features and flags),
+# and the base64 and hex methods of Uint8Array.
+feature Atomics
+feature Atomics.pause
+feature Atomics.waitAsync
+feature TypedArray.prototype.at
+feature stable-typedarray-sort
+feature uint8array-base64
+dir test/built-ins/Atomics
+dir test/built-ins/Uint8Array

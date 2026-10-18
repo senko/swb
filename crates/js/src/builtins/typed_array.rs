@@ -113,6 +113,10 @@ fn install_constructor(
     rt.define(ctor, key, size, false, false, false)?;
     rt.define(proto, key, size, false, false, false)?;
     rt.set_typed_array_intrinsics(realm, ty, (ctor, proto));
+    if ty == ElementType::Uint8 {
+        // `fromBase64` … `setFromHex` follow `BYTES_PER_ELEMENT`.
+        super::typed_array_base64::install(rt, realm, ctor, proto)?;
+    }
     Ok(())
 }
 

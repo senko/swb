@@ -23,9 +23,10 @@
 //! Annex B `compile` and `%RegExpStringIteratorPrototype%`
 //! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`; `BigInt`
 //! (`bigint.rs`); `ArrayBuffer` and `DataView` (`array_buffer.rs`,
-//! `data_view.rs`); the typed arrays (`typed_array*.rs`; the methods of
-//! `%TypedArray%.prototype` other than `set`, `subarray`, `slice` and
-//! the iterators come with M7 feature 11c);
+//! `data_view.rs`); the typed arrays with all methods of
+//! `%TypedArray%.prototype` and the base64 and hex methods of
+//! `Uint8Array` (`typed_array*.rs`); `Atomics` on integer typed arrays
+//! (`atomics.rs`);
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
@@ -59,6 +60,7 @@ mod array_sort;
 mod array_species;
 mod async_function;
 mod async_generator;
+mod atomics;
 mod bigint;
 mod boolean;
 mod collection;
@@ -105,8 +107,14 @@ mod string_search;
 mod string_unicode;
 mod symbol;
 mod typed_array;
+mod typed_array_base64;
+mod typed_array_callback;
+mod typed_array_change;
 mod typed_array_create;
+mod typed_array_method;
 mod typed_array_proto;
+mod typed_array_search;
+mod typed_array_sort;
 mod uri;
 mod weak;
 mod weak_ref;
@@ -166,6 +174,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     array_buffer::install(rt, realm)?;
     data_view::install(rt, realm)?;
     typed_array::install(rt, realm)?;
+    atomics::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;

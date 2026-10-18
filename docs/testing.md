@@ -893,8 +893,9 @@ another directory and `TEST262_URL` another repository.
   directory, for example `test/language/expressions/addition`. A `dir`
   line can also name a directory or a file below a group
   (`test/built-ins/TypedArray/prototype/set`): then only the tests at or
-  below it run, and they count for their group in `scores.json` (M7 11b:
-  the methods of `%TypedArray%.prototype` that come with 11c stay out).
+  below it run, and they count for their group in `scores.json` (M7 11b
+  and 11c: the group `test/built-ins/TypedArray` runs in parts, one `dir`
+  line for each method of `%TypedArray%.prototype`).
 - Every test gets `sta.js` and `assert.js`, then the files of its
   `includes` in the test's order (each file once; the runner reads each
   file once per run). The accepted files are `propertyHelper.js`,
@@ -902,8 +903,9 @@ another directory and `TEST262_URL` another repository.
   `decimalToHexString.js`, `nativeErrors.js`, `asyncHelpers.js`,
   `promiseHelper.js`, `regExpUtils.js`, `compareIterator.js`,
   `proxyTrapsHelper.js`, `detachArrayBuffer.js`,
-  `byteConversionValues.js`, `testTypedArray.js` and
-  `resizableArrayBufferUtils.js` (`HARNESS_INCLUDES` in `run.rs`; the
+  `byteConversionValues.js`, `testTypedArray.js`,
+  `resizableArrayBufferUtils.js` and `testAtomics.js` (`HARNESS_INCLUDES`
+  in `run.rs`; the
   test262 commit has no `testBigIntTypedArray.js`, its functions are in
   `testTypedArray.js`). A test with the
   flag `async` gets `doneprintHandle.js` before its includes; the runner
@@ -913,8 +915,10 @@ another directory and `TEST262_URL` another repository.
   does not fail a test. A test is
   skipped if it needs another harness file, has the flag `module`
   or `CanBlockIsTrue`, has a
-  feature outside the list, uses `$262.createRealm` or `$262.agent`, or
-  expects an error in the `resolution` phase.
+  feature outside the list, uses `$262.createRealm`, `$262.agent` or
+  `new SharedArrayBuffer` (Chromium 148 has none on a normal page; the
+  tests of `Atomics` that make one without the feature tag), or expects an
+  error in the `resolution` phase.
   The others run in sloppy and strict mode as the flags say (`onlyStrict`,
   `noStrict`, `raw`); a test passes if all of its modes pass. A negative
   test checks the phase (`parse`/`early`: a compile error; `runtime`: an
@@ -1676,18 +1680,22 @@ transfer, a detached buffer, a collection). The test262 runner has
 
 ### Typed array tests
 
-`tools/probes/js-typed.json` has 901 snippets for Chromium 148 in 24
-cases, made from `crates/js/tests/data/typed-snippets.txt` by
-`crates/js/tests/data/gen-typed-cases.js` (the format of `js-binary.json`;
+`tools/probes/js-typed.json` has 9,245 snippets for Chromium 148, made
+from `crates/js/tests/data/typed-snippets.txt` (901 snippets, feature 11b)
+and `typed-method-snippets.txt` (8,344 snippets, feature 11c; described
+below) by `crates/js/tests/data/gen-typed-cases.js` (the format of
+`js-binary.json`;
 the global helpers `list`, `rab`, `desc`, `keys`, `det`, `nt` and `sp` of
 the generator read the elements by index, make a resizable buffer, show a
 property descriptor and the own keys, detach a buffer with `transfer`,
 and make a `new.target` with a `prototype` getter and a `constructor`
-with a `@@species` getter), two hand-written cases whose names start with
+with a `@@species` getter; the helpers of 11c are described in the
+generator), two hand-written cases whose names start with
 `facts` (the properties of Chromium 148 and V8's length limits; an
 array-like source of length 2^35 is not measured, V8 reads all its
-elements), and the case `detach`, which the generator makes from
-`crates/js/tests/data/typed_detach.js`. The snippets cover the
+elements), and the cases `detach` and `detach-methods`, which the generator
+makes from `crates/js/tests/data/typed_detach.js` and
+`typed_methods_detach.js`. The snippets of 11b cover the
 properties and their order, the abstract `%TypedArray%`, subclasses,
 every form of the constructors with the conversions of the length, the
 offset and the elements (all element types with the values of
@@ -1703,17 +1711,18 @@ constructor, the iterators, and V8's messages. The case files:
 
 ```
 node crates/js/tests/data/gen-typed-cases.js probe \
-  crates/js/tests/data/typed-snippets.txt tools/probes/js-typed.json
+  crates/js/tests/data/typed-snippets.txt \
+  crates/js/tests/data/typed-method-snippets.txt tools/probes/js-typed.json
 just probe --json tools/probes/js-typed.json > probe.json
 node crates/js/tests/data/gen-typed-cases.js cases probe.json crates/js/tests/data
 ```
 
-`crates/js/tests/builtins_typed.rs` runs `typed_cases.js` (887 snippets,
+`crates/js/tests/builtins_typed.rs` runs `typed_cases.js` (897 snippets,
 normal and stress mode; left out: the `KNOWN` snippets of the generator,
 `Object.isSealed` of a non-extensible array with elements, the iterator
 after a `TypeError` and the arguments of `subarray`'s species
-constructor, and the `LATER` snippets, which need `toString` and `join`
-of feature 11c), `typed_console.js` (`console.log` of typed arrays; the
+constructor), `typed_methods_cases.js` (feature 11c, 8,263 snippets,
+normal and stress mode; see below), `typed_console.js` (`console.log` of typed arrays; the
 expected output is that of Node.js 22), the forms that Node.js 22 cannot
 show (`Float16Array`, the cut after 100 elements), and the typed array
 paths of the target scripts (expected output from Node.js 22).
@@ -1736,10 +1745,54 @@ KNOWN lines where swb reads the source of `new T(typedArray)` after the
 overlapping copies of `set` and `slice` within one buffer against a model
 written in the script, and the heap accounting (the buffer counts, a
 `subarray` adds no bytes, a dropped array gives its buffer back). The
-test262 runner loads `testTypedArray.js` and `resizableArrayBufferUtils.js`;
-the subset has the features `TypedArray` and the 11 constructor names
-(with `Float16Array` of 11a), the parts of `test/built-ins/TypedArray`
-that are not methods of 11c, and `test/built-ins/TypedArrayConstructors`.
+test262 runner loads `testTypedArray.js`, `resizableArrayBufferUtils.js`
+and `testAtomics.js`; the subset has the features `TypedArray` and the 11
+constructor names (with `Float16Array` of 11a), `test/built-ins/TypedArray`
+(with a `dir` line for each method of the prototype),
+`test/built-ins/TypedArrayConstructors`, `test/built-ins/Atomics` and
+`test/built-ins/Uint8Array`.
+
+The snippets of feature 11c (`typed-method-snippets.txt`, made by a
+script that is not in the repository; the text file is the artifact)
+cover, in groups whose names start with `m-`: the properties and the
+key order of `%TypedArray%.prototype`; the receivers of every method (an
+object, `undefined`, an array, a `DataView`, a detached or out-of-bounds
+array, a `Proxy`) and the order of the receiver check and the argument
+conversions; callbacks that are not functions (the values and V8's three
+wordings); every method with the 12 element types (four types get all
+cases, the others a third of them plus the conversions) for the values
+that differ: −0, NaN, the ends of the integer ranges, `BigInt` elements
+and operands, `Float16Array`; the species cases of `map` and `filter` and
+`TypedArrayCreateSameType` of `toReversed`, `toSorted` and `with`; the
+arguments that detach, shrink, grow or empty a resizable buffer in every
+method (`ach` in the generator); the sequence of the calls of a
+comparator for sizes 2 to 100 and eight comparators (`sc`); the
+`Array.prototype` generics on typed arrays; `Atomics` with each operation
+and type, the conversion order, the revalidation, `wait`, `waitAsync`,
+`notify`, `isLockFree` and `pause`; and the base64 and hex methods with
+the options, the ends of the input, whitespace, padding, the three
+`lastChunkHandling` values, and targets of 0 to 8 bytes. The groups
+`m-known-*` are probed but not run (swb differs on purpose: the generator
+says why for each). `typed_methods_detach.js` runs the callback methods,
+the comparators, the argument conversions, the species constructors, the
+elements' `toLocaleString`, `Atomics` operands and the option getters of
+the base64 methods with the four actions (detach, shrink, grow, collect) for
+four element types (648 lines; 8 KNOWN lines).
+`crates/js/tests/typed_methods_hostile.rs` (on an 8 MiB thread) runs 40
+loops over arrays of 64 MiB (`fill`, `reverse`, `copyWithin`, the
+searches, the sorts, `join`, `toBase64`, `fromBase64`, the callback
+methods, `Atomics`) against a deadline of 200 ms, single calls of the
+sort and `join` over 8 M elements, arrays and strings at a heap limit of
+64 MiB (`RangeError` for the new arrays, the sort scratch memory, the list
+of `filter` and the output of the decoders and encoders; the end of the
+script for the text of `join`; "Invalid string length" above the string
+limit), a test at 32 MiB that the memory follows the data (a default sort
+of 8 MiB of floats with NaNs, a counting sort of 6 MiB, and 20 MiB of
+whitespace or bad characters for the base64 and hex decoders: no
+`RangeError`), malformed and huge base64 and hex input (16 M characters of
+whitespace, 16 M valid characters then a bad one, an error after a full
+target), and collections inside the callbacks and comparators with
+`BigInt` elements in the GC stress mode.
 
 ## Python tools: development
 

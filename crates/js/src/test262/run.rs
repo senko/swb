@@ -13,8 +13,16 @@ use swb_js_syntax::messages::NOT_SUPPORTED;
 use super::meta::Meta;
 use crate::shell::{self, Options};
 
-/// Host features that the shell does not have.
-const HOST_USES: &[&str] = &["$262.createRealm", "$262.agent", "$262.IsHTMLDDA"];
+/// Host features that the shell does not have. `new SharedArrayBuffer`:
+/// Chromium 148 has none on a normal page (a page needs cross-origin
+/// isolation), and tests that make one without the feature tag
+/// `SharedArrayBuffer` cannot pass.
+const HOST_USES: &[&str] = &[
+    "$262.createRealm",
+    "$262.agent",
+    "$262.IsHTMLDDA",
+    "new SharedArrayBuffer",
+];
 
 /// The harness files that tests may include besides `sta.js` and
 /// `assert.js` (which every test gets). A test that includes another file
@@ -36,6 +44,7 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "byteConversionValues.js",
     "testTypedArray.js",
     "resizableArrayBufferUtils.js",
+    "testAtomics.js",
 ];
 
 /// The harness file of the tests with the flag `async`: `$DONE` prints
@@ -371,8 +380,8 @@ mod tests {
             Plan::Skip("flag CanBlockIsTrue".into())
         );
         assert_eq!(
-            skip("/*---\nincludes: [testAtomics.js]\n---*/", ""),
-            Plan::Skip("include testAtomics.js".into())
+            skip("/*---\nincludes: [atomicsHelper.js]\n---*/", ""),
+            Plan::Skip("include atomicsHelper.js".into())
         );
         assert_eq!(
             skip("/*---\nincludes: [propertyHelper.js, nans.js]\n---*/", ""),
@@ -388,6 +397,17 @@ mod tests {
         assert_eq!(
             skip("/*---\n---*/", "$262.createRealm();"),
             Plan::Skip("host $262.createRealm".into())
+        );
+        assert_eq!(
+            skip("/*---\n---*/", "var b = new SharedArrayBuffer(8);"),
+            Plan::Skip("host new SharedArrayBuffer".into())
+        );
+        assert_eq!(
+            skip("/*---\n---*/", "var b = new ArrayBuffer(8);"),
+            Plan::Run {
+                sloppy: true,
+                strict: true
+            }
         );
         assert_eq!(
             skip(

@@ -22,6 +22,7 @@ mod regexp;
 mod shape;
 mod table;
 mod typed_array;
+mod typed_window;
 mod weak;
 
 pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
@@ -30,6 +31,7 @@ pub(crate) use buffer::{
     Element, ElementType, MAX_BYTE_LENGTH, MAX_RESIZABLE_BYTE_LENGTH, RawValue, ViewError,
     zeroed_bytes,
 };
+pub(crate) use buffer::{decode_bits, element_bits};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
@@ -44,6 +46,8 @@ pub use shape::Shape;
 pub use table::{CollectionIterator, Table};
 pub(crate) use typed_array::TypedArrayData;
 pub(crate) use typed_array::decode_element;
+pub(crate) use typed_array::load;
+pub(crate) use typed_window::mask;
 pub(crate) use weak::WeakKey;
 pub(crate) use weak::{Registry, WeakRefData};
 

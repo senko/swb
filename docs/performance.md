@@ -682,6 +682,36 @@ a short function; a first version that tested the kind in
 `own_property_of` and re-wrapped its result cost +7.7 % on the `o.x`
 row.
 
+The methods of `%TypedArray%.prototype` (best of 5, release,
+2026-10-18, M7 11c; the Node.js column is `node --jitless`, v22.11):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| typed: default sort of a Float64Array of 1M random values (a `slice` and `sort`) | 28.4 | 73.7 | 0.4x |
+| typed: indexOf over a 1M Int32Array, 20 searches | 4.4 | 4.3 | 1.0x |
+| typed: map with a callback over 1M elements | 104.5 | 8.3 | 12.6x |
+| typed: toBase64 of 16 MiB | 7.6 | 3.0 (`Buffer.from(...).toString('base64')`; Node.js 22 has no `toBase64`) | 2.5x |
+
+The default sort turns the elements into 32-bit or 64-bit keys whose
+unsigned order is the numeric order, sorts runs of 16,384 keys with the
+standard library's `sort_unstable` and merges them (a charge of the time countdown
+between the chunks); the one-byte types, and the two-byte types from
+262,144 elements, are counted into a table (below that the key path is
+faster: clearing and scanning the 65,536 counters costs 80 to 130 µs per
+sort; 20,000 sorts of 8 elements of a `Uint16Array` took 1.65 s and take
+13 ms with keys). The NaNs of the keys path sit in the tail of the key
+vector, so a default sort of a `Float64Array` needs 2 x 8 bytes per
+element and no more. The searches compare typed chunks of the buffer
+without making a value (the first version compared a `RawValue` per
+element and took 74.9 ms for the `indexOf` row; typed loops that the compiler vectorizes
+took it to 4.4 ms). The callback methods cost a call per element, as
+`Array.prototype.map` does (the `array:` rows above, 10 to 12 times
+`node --jitless`; feature 13). No interpreter or property path changed
+in 11c: the other rows of `vm_bench` are within noise of a build of
+788905a measured in the same session (for example `o.x = o.x + o.y`
+384.0 → 378.4 ms, `array: read-modify-write` 143.7 → 144.3 ms, `typed:
+sum` 184.7 → 189.3 ms).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

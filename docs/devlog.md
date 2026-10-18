@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 11c, typed-array methods, Atomics, base64; end of feature 11
+
+- The 25 remaining methods of `%TypedArray%.prototype`, `Atomics` on
+  `ArrayBuffer`s and the base64 and hex methods of `Uint8Array`. This
+  ends feature 11. test262 runtime 38,347 → 39,515, and 36,369 → 39,515
+  over the three sessions.
+- Loops without a callback run on the bytes of the buffer in chunks of
+  16,384 elements and charge the time countdown after each chunk, so a
+  `for (;;) big.sort()` over 64 MiB ends at the deadline. A first
+  `indexOf` read one value per element and took 75 ms for 20 searches
+  over 1M elements; the chunk loops take 4.4 ms, as `node --jitless`.
+- The default sort counts the one-byte types and the two-byte types of
+  262,144 elements or more, and sorts keys of the others (below that
+  size the keys are faster than a table of 65,536 counts); NaNs go
+  after the numbers with their bit patterns. The sort
+  with a comparator is a top-down merge sort whose comparator calls
+  equal Chromium's (435 measured sequences; `Array.prototype.sort` calls
+  the comparator in another order).
+- 8,263 snippets measured in Chromium 148 are a test, also in stress
+  mode. The differences that stay: the `toLocaleString` arguments
+  (ECMA-402), a content-type check that V8 does not make, `setFromBase64`
+  into a full target (V8 reads on; the proposal and test262 stop), and
+  the text of a few objects in messages.
+- `Atomics` and `Uint8Array` are in the test262 subset. The runner skips
+  tests that make a `SharedArrayBuffer`, which Chromium 148 does not
+  have on a normal page.
+- The review found no defect in memory safety or writes after user code.
+  Fixed: the default sort of floats reserved 8 bytes per element for
+  the NaN list, so `new Float64Array(2**25).sort()` was a RangeError at
+  the default heap limit; small arrays of two-byte types cleared 65,536
+  counters per sort (20,000 sorts of 8 elements took 1.7 s);
+  `fromBase64` reserved 3/4 of the string length before it read
+  anything. A delta review checked the fixes.
+- A timing test in `language_hostile.rs` (a `parseInt` loop against a
+  deadline) fails about 1 run in 6 when its file runs in parallel, also
+  at 788905a. It is in the backlog.
+
 ## 2026-10-18: M7 feature 11b, typed arrays
 
 - The 12 typed arrays and `%TypedArray%`, with every argument form of

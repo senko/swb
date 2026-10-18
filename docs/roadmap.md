@@ -1849,6 +1849,32 @@ failures with a reason. Features, in this order:
       `with`, `toString`); `Atomics` on non-shared integer arrays
       (`wait` throws, `notify` returns 0); the base64 and hex methods of
       `Uint8Array`.
+      Done 2026-10-18: the 25 other methods of `%TypedArray%.prototype`
+      (`toString` is the function of `Array.prototype`); `Atomics` on
+      `ArrayBuffer`s (the 12 functions, and `waitAsync` and `pause`,
+      which Chromium 148 has; `wait` and `waitAsync` throw the TypeError
+      for a buffer that is not shared, `notify` returns 0); the base64
+      and hex methods of `Uint8Array`. Loops without a callback work on
+      the bytes of the buffer in chunks that charge the time countdown.
+      The default sort counts one-byte types and two-byte types of
+      262,144 elements or more, and merges sorted runs of keys for the
+      others;
+      the sort with a comparator is a merge sort whose comparator calls
+      equal Chromium's. 8,263 Chromium snippets (and the 897 of 11b)
+      equal in normal and stress mode; KNOWN: the `toLocaleString`
+      arguments (ECMA-402), the content check of the species result of
+      `map` and `filter`, `isLockFree(1.5)`, `setFromBase64` into a full
+      target (the proposal text and test262), the text of some objects
+      in messages. test262 runtime 38,347 → 39,515 (`TypedArray` 1,438
+      of 1,438 that run, `Atomics` 106 of 106 that run, `Uint8Array` 68
+      of 68 that run; the runner skips the tests that make a
+      `SharedArrayBuffer`). `indexOf` over 1M elements takes as long as
+      in `node --jitless`, the default sort of 1M doubles 0.4 of its
+      time, `map` with a callback 12.6 times its time.
+      Feature 11 done 2026-10-18: buffers, `DataView`, the 12 typed
+      arrays with all methods, `Atomics` and base64/hex;
+      `SharedArrayBuffer` stays out, as in Chromium 148. test262 runtime
+      36,369 → 39,515 over the three sessions.
 12. `Date` (`implementer`; the time zone library under ADR 0003).
     Annex B: `getYear`, `setYear`, `toGMTString`.
 13. Performance (`implementer-hard`). Inline caches, a cache for
@@ -2311,6 +2337,39 @@ not repeated here; the open items of each spike session are in M6 step
     non-extensible object whose prototype has a writable property says
     "Cannot assign to read only property" (V8: "Cannot add property x,
     object is not extensible").
+- Typed-array methods (M7 11c):
+  - The callback methods (`map`, `forEach`, `filter`, ...) cost one call
+    of the interpreter per element: `map` over 1M elements takes 104 ms,
+    `node --jitless` 8 ms. Feature 13 (native callbacks).
+  - The default sort of 4- and 8-byte types keeps 2n keys of the
+    element width (the keys and the merge buffer). An in-place merge
+    would halve it.
+  - Memory outside the heap (the sort keys, the list of `filter`, the
+    decoder output) is checked with `reserve_buffer` but not counted
+    while it lives, so two such buffers alive at once can exceed the
+    limit by their sizes (the allocations use `try_reserve`, so no
+    abort). The output of `fromBase64` and `fromHex` grows by doubling
+    and can end up to twice the decoded size (inside the limit check).
+  - V8's object text in messages (`NoSideEffectsToString`) differs from
+    `object_text` (vm/messages.rs) for objects with their own `toString`,
+    instances of anonymous constructors and length-tracking typed arrays
+    (KNOWN in gen-typed-cases.js).
+  - Intl: V8 passes `(locales, options)` to the element's
+    `toLocaleString` (ECMA-402); swb passes no arguments, as for arrays.
+  - Test data: the 11c cases are in the repository three times
+    (`typed-method-snippets.txt` with the Chromium results, the derived
+    `typed_methods_cases.js` and `tools/probes/js-typed.json`). The test
+    can build the script from the snippets file (0.6 MB less). The
+    Python generator of the snippets file is not in the repository; the
+    snippets file is the source now.
+- Flaky test (found 2026-10-18, also at 788905a):
+  `long_digit_strings_parse_in_bounded_memory_and_time` in
+  `language_hostile.rs` fails about 1 run in 6 when the whole file runs
+  (its tests in parallel): a `while (true) parseInt(d)` or
+  `parseFloat(z)` loop over 16M units ends 213 to 243 ms after start,
+  against a 100 ms deadline plus 100 ms slack. Alone it passes. The
+  cause is not checked yet (the length of one call in the dev profile
+  under load, or the granularity of the step charge).
 - Dependencies (2026-10-18): `ttf-parser` is unmaintained
   (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
   not use it; winit's Wayland title bar (`sctk-adwaita`, through

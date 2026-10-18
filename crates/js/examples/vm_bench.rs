@@ -397,6 +397,27 @@ const PROGRAMS: &[(&str, &str)] = &[
         "typed: 100k new Uint8Array(64) and subarray",
         "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var t = new Uint8Array(64); n += t.subarray(i & 31).length; } return n; }",
     ),
+    (
+        "typed: default sort of a Float64Array of 1M random values",
+        "var rnd = new Float64Array(1000000); var seed = 12345;
+         for (var i = 0; i < rnd.length; i++) { seed = (seed * 1103515245 + 12345) % 2147483648; rnd[i] = seed / 7; }
+         function run() { var c = rnd.slice(); c.sort(); return c[0] + c[999999]; }",
+    ),
+    (
+        "typed: indexOf over a 1M Int32Array, 20 searches",
+        "var q = new Int32Array(1000000); for (var i = 0; i < q.length; i++) q[i] = i;
+         function run() { var n = 0; for (var k = 0; k < 20; k++) n += q.indexOf(-1 - k); return n; }",
+    ),
+    (
+        "typed: map with a callback over 1M elements",
+        "var m = new Int32Array(1000000); for (var i = 0; i < m.length; i++) m[i] = i;
+         function run() { var o = m.map(function (x) { return x + 1; }); return o[999999]; }",
+    ),
+    (
+        "typed: toBase64 of 16 MiB",
+        "var e = new Uint8Array(16 << 20); e.fill(171);
+         function run() { return typeof e.toBase64 === 'function' ? e.toBase64().length : Buffer.from(e.buffer).toString('base64').length; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

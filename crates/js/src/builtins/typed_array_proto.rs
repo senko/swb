@@ -4,9 +4,10 @@
 //! `@@toStringTag`, and `set`, `subarray`, `slice`, `entries`, `keys`,
 //! `values` and `@@iterator` (the same function object as `values`).
 //!
-//! The other methods (`at` … `toString`) come with M7 feature 11c: they
-//! are in [`METHODS`] in Chromium 148's key order with `None` in place of
-//! their natives, and [`install`] skips them until then.
+//! The other methods are in `typed_array_callback.rs` (callbacks),
+//! `typed_array_search.rs`, `typed_array_change.rs` and
+//! `typed_array_sort.rs`; [`METHODS`] has them all in Chromium 148's key
+//! order. `toString` is the function object of `Array.prototype`.
 //!
 //! The messages are V8's (measured with `tools/probes/js-typed.json`),
 //! which differ between the methods for the same check: `set` and the
@@ -22,45 +23,51 @@ use crate::value::Value;
 use crate::vm::convert::to_integer_or_infinity;
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
+use super::typed_array_callback::{
+    every, filter, find, find_index, find_last, find_last_index, for_each, map, reduce,
+    reduce_right, some,
+};
+use super::typed_array_change::{copy_within, fill, reverse, to_reversed, with};
 use super::typed_array_create::{
     CHARGE_CHUNK, CreateArgs, content_mismatch, element_of_raw, out_of_bounds, type_name,
 };
+use super::typed_array_search::{at, includes, index_of, join, last_index_of, to_locale_string};
+use super::typed_array_sort::{sort, to_sorted};
 
 /// The methods of `%TypedArray.prototype%` in Chromium 148's key order
 /// (after `constructor` and the accessors), with their `length`. `None`
-/// marks a method of feature 11c: its place in the key order is kept here,
-/// and 11c puts the native in.
+/// marks `toString`, which [`install`] takes from `Array.prototype`.
 const METHODS: [(&str, u32, Option<NativeFn>); 31] = [
     ("entries", 0, Some(entries)),
     ("keys", 0, Some(keys)),
     ("values", 0, Some(values)),
-    ("at", 1, None),
-    ("copyWithin", 2, None),
-    ("every", 1, None),
-    ("fill", 1, None),
-    ("filter", 1, None),
-    ("find", 1, None),
-    ("findIndex", 1, None),
-    ("findLast", 1, None),
-    ("findLastIndex", 1, None),
-    ("forEach", 1, None),
-    ("includes", 1, None),
-    ("indexOf", 1, None),
-    ("join", 1, None),
-    ("lastIndexOf", 1, None),
-    ("map", 1, None),
-    ("reverse", 0, None),
-    ("reduce", 1, None),
-    ("reduceRight", 1, None),
+    ("at", 1, Some(at)),
+    ("copyWithin", 2, Some(copy_within)),
+    ("every", 1, Some(every)),
+    ("fill", 1, Some(fill)),
+    ("filter", 1, Some(filter)),
+    ("find", 1, Some(find)),
+    ("findIndex", 1, Some(find_index)),
+    ("findLast", 1, Some(find_last)),
+    ("findLastIndex", 1, Some(find_last_index)),
+    ("forEach", 1, Some(for_each)),
+    ("includes", 1, Some(includes)),
+    ("indexOf", 1, Some(index_of)),
+    ("join", 1, Some(join)),
+    ("lastIndexOf", 1, Some(last_index_of)),
+    ("map", 1, Some(map)),
+    ("reverse", 0, Some(reverse)),
+    ("reduce", 1, Some(reduce)),
+    ("reduceRight", 1, Some(reduce_right)),
     ("set", 1, Some(set)),
     ("slice", 2, Some(slice)),
-    ("some", 1, None),
-    ("sort", 1, None),
+    ("some", 1, Some(some)),
+    ("sort", 1, Some(sort)),
     ("subarray", 2, Some(subarray)),
-    ("toReversed", 0, None),
-    ("toSorted", 1, None),
-    ("with", 2, None),
-    ("toLocaleString", 0, None),
+    ("toReversed", 0, Some(to_reversed)),
+    ("toSorted", 1, Some(to_sorted)),
+    ("with", 2, Some(with)),
+    ("toLocaleString", 0, Some(to_locale_string)),
     // §23.2.3.32: the same function object as `Array.prototype.toString`.
     ("toString", 0, None),
 ];
@@ -88,6 +95,11 @@ pub(super) fn install(
             values_function = Some(function);
         }
     }
+    // §23.2.3.32: `toString` is the function object of `Array.prototype`.
+    let array_proto = rt.intrinsic(realm, Intrinsic::ArrayPrototype)?;
+    let key = rt.heap.key_from_str("toString")?;
+    let to_string = rt.get_value(array_proto.into(), key)?;
+    rt.define(proto, key, to_string, true, false, true)?;
     let tag = rt.new_builtin(realm, "get [Symbol.toStringTag]", 0, to_string_tag, false)?;
     let key = rt.symbol_key(WellKnown::ToStringTag);
     let desc = PropertyDescriptor::accessor(tag.into(), Value::Undefined, false, true);
@@ -293,7 +305,7 @@ fn set_from_array_like(
 /// A relative index of `subarray` and `slice` (`ToIntegerOrInfinity`,
 /// from the end when negative, clamped to `0..=length`); `default` for
 /// `undefined` where the step says so.
-fn relative_index(
+pub(super) fn relative_index(
     rt: &mut Runtime,
     value: Value,
     length: usize,

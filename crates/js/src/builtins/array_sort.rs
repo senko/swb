@@ -46,7 +46,7 @@ const WRITE_CHUNK: usize = 256;
 
 /// The comparator argument of `sort` and `toSorted` (step 1): `None` for
 /// `undefined`, else a callable (V8's message otherwise).
-fn comparator_arg(rt: &mut Runtime, call: &NativeCall) -> VmResult<Option<Value>> {
+pub(super) fn comparator_arg(rt: &mut Runtime, call: &NativeCall) -> VmResult<Option<Value>> {
     let comparator = rt.arg(call, 0);
     if comparator.is_undefined() {
         return Ok(None);
@@ -137,7 +137,7 @@ fn collect(
 }
 
 /// The value at `index` of an internal array of the sort.
-fn item(rt: &Runtime, items: Gc<Object>, index: u32) -> VmResult<Value> {
+pub(super) fn item(rt: &Runtime, items: Gc<Object>, index: u32) -> VmResult<Value> {
     rt.heap
         .object(items)?
         .elements

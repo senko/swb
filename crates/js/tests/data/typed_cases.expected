@@ -53,6 +53,7 @@ Object.getPrototypeOf(Int8Array).prototype[Symbol.iterator].name => ok "values"
 Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get.name => ok "get [Symbol.toStringTag]"
 Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, 'length').get.length => ok 0
 Object.getPrototypeOf(Int8Array).prototype.values === Array.prototype.values => ok false
+Object.getPrototypeOf(Int8Array).prototype.toString === Array.prototype.toString => ok true
 Uint8Array.from === Object.getPrototypeOf(Int8Array).from => ok true
 Object.hasOwn(Uint8Array, 'from') => ok false
 String(Object.getPrototypeOf(Int8Array)) => ok "function TypedArray() { [native code] }"
@@ -61,6 +62,7 @@ Object.prototype.toString.call(Uint8Array.prototype) => ok "[object Object]"
 Object.prototype.toString.call(new Uint8Array(1)) => ok "[object Uint8Array]"
 Object.prototype.toString.call(new BigUint64Array(1)) => ok "[object BigUint64Array]"
 Object.prototype.toString.call(new Float16Array(1)) => ok "[object Float16Array]"
+String(new Uint8Array(0)) => ok ""
 ArrayBuffer.isView(new Uint8Array(1)) => ok true
 ArrayBuffer.isView(new BigInt64Array(1)) => ok true
 ArrayBuffer.isView(Uint8Array.prototype) => ok false
@@ -442,6 +444,7 @@ list(new Int32Array([2 ** 31 + 0.5, -(2 ** 31) - 0.5, 4294967296.5, 1.9, -1.9]))
 (() => { const t = new Uint8Array([1, 2]); const p = new Proxy(t, {}); return [keys(p), desc(p, 0), '0' in p, delete p[5]].join(' | '); })() => ok "0,1 | v=1 w=true e=true c=true | true | true"
 (() => { const t = new Uint8Array([1, 2]); const p = new Proxy({}, {}); Object.setPrototypeOf(p, t); return String(p[0]); })() => ok "1"
 (() => { const t = new Uint8Array([1, 2]); const o = Object.create(new Proxy(t, {})); o[0] = 5; return desc(o, 0) + ' | ' + list(t); })() => ok "v=5 w=true e=true c=true | 1,2"
+Object.assign(new Uint8Array(3), [7, 8]).join === undefined => ok false
 list(Object.assign(new Uint8Array(3), [7, 8])) => ok "7,8,0"
 list(Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 })) => ok "1"
 (() => { const t = Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 }); return keys(t); })() => ok "0,x"
@@ -527,6 +530,7 @@ Array.prototype.join.call(new Uint8Array([1, 2, 3]), '-') => ok "1-2-3"
 Array.prototype.map.call(new Uint8Array([1, 2]), x => x * 2).join() => ok "2,4"
 Array.prototype.indexOf.call(new Uint8Array([1, 2]), 2) => ok 1
 Array.prototype.includes.call(new Float64Array([NaN]), NaN) => ok true
+Array.prototype.reverse.call(new Uint8Array([1, 2, 3])).join === undefined => ok false
 list(Array.prototype.reverse.call(new Uint8Array([1, 2, 3]))) => ok "3,2,1"
 list(Array.prototype.sort.call(new Uint8Array([3, 1, 2]))) => ok "1,2,3"
 list(Array.prototype.fill.call(new Uint8Array(3), 7)) => ok "7,7,7"
@@ -546,6 +550,7 @@ Array.prototype.with.call(new Uint8Array([2, 1]), 0, 5).join() => ok "5,1"
 Array.prototype.at.call(new Uint8Array([2, 1]), -1) => ok 1
 Array.prototype.lastIndexOf.call(new Uint8Array([2, 1, 2]), 2) => ok 2
 Array.prototype.unshift.call(new Uint8Array(2), 1) => err TypeError: Cannot set property length of [object Object] which has only a getter
+Array.prototype.toString.call(new Uint8Array([2, 1])) => ok "2,1"
 Array.prototype.keys.call(new Uint8Array([2, 1])).next().value => ok 0
 Array.prototype.find.call(new Uint8Array([2, 1]), x => x < 2) => ok 1
 (() => { const [a, , b] = new Uint8Array([4, 5, 6]); return a + b; })() => ok 10
@@ -561,6 +566,11 @@ new Map(new Uint8Array([1])).size => err TypeError: Iterator value 1 is not an e
 Object.fromEntries(new Uint8Array([1])) => err TypeError: Iterator value 1 is not an entry object
 Promise.all(new Uint8Array([1])) instanceof Promise => ok true
 (() => { const it = new Uint8Array([1, 2])[Symbol.iterator](); return Object.prototype.toString.call(it) + ':' + (Object.getPrototypeOf(it) === Object.getPrototypeOf([][Symbol.iterator]())); })() => ok "[object Array Iterator]:true"
+new Uint8Array(2) == '0,0' => ok true
+new Uint8Array([1]) + 1 => ok "11"
+`${new Uint8Array([1, 2])}` => ok "1,2"
+new Uint8Array([3]) * 2 => ok 6
+Number(new Uint8Array([3])) => ok 3
 (() => { const t = new Uint16Array(new ArrayBuffer(16), 4, 3); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength].join(); })() => ok "3,6,4,16"
 (() => { const t = det(new Uint16Array(new ArrayBuffer(16), 4, 3)); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength, t.buffer.detached].join(); })() => ok "0,0,0,0,true"
 (() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, {})); } catch (e) { return e.message; } }).join(' | '); })() => ok "Method get %TypedArray%.prototype.buffer called on incompatible receiver #<Object> | Method get TypedArray.prototype.byteLength called on incompatible receiver #<Object> | Method get TypedArray.prototype.byteOffset called on incompatible receiver #<Object> | Method get TypedArray.prototype.length called on incompatible receiver #<Object>"

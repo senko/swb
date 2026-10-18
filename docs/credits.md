@@ -228,6 +228,22 @@ Format: source, license (for code), what it influenced.
   methods follow ECMA-262 §23.1; the messages, the key order and the
   limits (the depth of `flat`) were measured in Chromium 148 (`just
   probe` `tools/probes/js-arrays.json`).
+- The sorts of `%TypedArray%.prototype.sort` and `toSorted` (M7 feature
+  11c, `js/src/builtins/typed_array_sort.rs`), written from the textbook
+  descriptions, no engine code read: the sort with a comparator is the
+  top-down mergesort (R. Sedgewick and K. Wayne, "Algorithms", 4th
+  edition, §2.2) whose order of comparator calls was measured in
+  Chromium 148 (`tools/probes/js-typed.json`, the groups `m-sort-calls`);
+  the sort of one-byte and two-byte types is distribution counting (D. E.
+  Knuth, The Art of Computer Programming, vol. 3, §5.2); the keys of the
+  float and signed integer types whose unsigned order is the numeric order
+  (flip the sign bit, or all bits of a negative float) are a common
+  technique; the runs, the bottom-up merge and the charge of the time
+  countdown are swb's own. The base64 and hex methods of `Uint8Array`
+  follow the proposal text (TC39, "ArrayBuffer base64", `FromBase64`,
+  `DecodeBase64Chunk`, `FromHex`) and the alphabets of RFC 4648 §4 and §5;
+  no base64 library was read, and V8's messages and the cases where V8
+  reads on after a full target were measured in Chromium 148.
 - The ordered hash table of `Map` and `Set` (M7 feature 6b,
   `js/src/object/table.rs`), written from ECMA-262 §24.1 and §24.2 (the
   list of entries with empty entries for deleted keys) and from the

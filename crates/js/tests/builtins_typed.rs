@@ -12,14 +12,9 @@ mod common;
 
 use common::{check_cases, run};
 
-/// The snippets of `tools/probes/js-typed.json` with Chromium 148's
-/// results (`data/typed_cases.expected`; the script and the expected output
-/// are made by `data/gen-typed-cases.js` from the output of `just probe`),
-/// normally and in the GC stress mode.
-#[test]
-fn chromium_cases() {
-    let script = include_str!("data/typed_cases.js");
-    let expected = include_str!("data/typed_cases.expected");
+/// Runs a snippet script and compares each output line with the expected
+/// line (the results of Chromium 148), normally and in the GC stress mode.
+fn check_snippets(script: &str, expected: &str) {
     for stress in [false, true] {
         let actual = run(script, stress);
         let failures: Vec<String> = actual
@@ -27,6 +22,7 @@ fn chromium_cases() {
             .zip(expected.lines())
             .filter(|(actual, expected)| actual != expected)
             .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
+            .take(20)
             .collect();
         assert_eq!(
             actual.lines().count(),
@@ -39,6 +35,165 @@ fn chromium_cases() {
             failures.join("\n")
         );
     }
+}
+
+/// The snippets of `tools/probes/js-typed.json` with Chromium 148's
+/// results (`data/typed_cases.expected`; the script and the expected output
+/// are made by `data/gen-typed-cases.js` from the output of `just probe`),
+/// normally and in the GC stress mode.
+#[test]
+fn chromium_cases() {
+    check_snippets(
+        include_str!("data/typed_cases.js"),
+        include_str!("data/typed_cases.expected"),
+    );
+}
+
+/// The snippets of feature 11c (`data/typed-method-snippets.txt`): the
+/// methods of `%TypedArray%.prototype` with every element type, the
+/// receivers and callbacks, species, arguments that change the buffer,
+/// the calls of the comparator, `Atomics`, and the base64 and hex methods
+/// of `Uint8Array` with their options and malformed input. The groups
+/// that swb reproduces differently on purpose (`m-known-*`) are not in
+/// the script; `gen-typed-cases.js` says why.
+#[test]
+fn chromium_method_cases() {
+    check_snippets(
+        include_str!("data/typed_methods_cases.js"),
+        include_str!("data/typed_methods_cases.expected"),
+    );
+}
+
+/// The default sort of arrays above one chunk (16,384 elements: runs of
+/// `sort_unstable` and the merges between them) gives what the sort with
+/// a comparator gives, for every element type, with duplicates, −0, NaN
+/// and the ends of the ranges; `toSorted` leaves the receiver alone, and
+/// the NaNs keep their bit patterns and their order.
+#[test]
+fn large_default_sorts_agree_with_the_sort_of_a_comparator() {
+    let script = r"
+        function cmp(x, y) {
+          if (x !== x) return y !== y ? 0 : 1;
+          if (y !== y) return -1;
+          if (x < y) return -1;
+          if (x > y) return 1;
+          if (x === 0 && y === 0) return (Object.is(x, -0) ? 0 : 1) - (Object.is(y, -0) ? 0 : 1);
+          return 0;
+        }
+        function same(a, b) {
+          if (a.length !== b.length) return false;
+          for (var i = 0; i < a.length; i++) if (!Object.is(a[i], b[i])) return false;
+          return true;
+        }
+        var seed = 7;
+        function next() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed; }
+        [Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array,
+         Float16Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array].forEach(function (T) {
+          var big = T === BigInt64Array || T === BigUint64Array, a = new T(40000);
+          for (var i = 0; i < a.length; i++) {
+            var r = next();
+            a[i] = big ? BigInt(r) * BigInt(next()) - 4611686018427387904n : (r % 7 === 0 ? r % 5 - 2 : r) % 70000 - 30000;
+          }
+          if (T === Float16Array || T === Float32Array || T === Float64Array) {
+            for (var k = 0; k < a.length; k += 997) a[k] = NaN;
+            for (var k = 5; k < a.length; k += 1999) a[k] = -0;
+            for (var k = 7; k < a.length; k += 1999) a[k] = 0;
+            a[1] = Infinity; a[2] = -Infinity;
+          }
+          var before = a.slice(), s = a.toSorted(), c = a.toSorted(cmp), b = a.slice().sort();
+          print(T.name, same(s, c), same(a, before), same(b, s));
+        });
+        var f = new Float64Array(new Uint8Array(24).buffer);
+        var u = new Uint32Array(f.buffer);
+        u.set([1, 0x7ff80000, 2, 0xfff80000, 0, 0x3ff00000]);
+        f.sort();
+        print(Array.from(u).join());
+    ";
+    let out = run(script, false);
+    let mut lines: Vec<String> = [
+        "Int8Array",
+        "Uint8Array",
+        "Uint8ClampedArray",
+        "Int16Array",
+        "Uint16Array",
+        "Int32Array",
+        "Uint32Array",
+        "Float16Array",
+        "Float32Array",
+        "Float64Array",
+        "BigInt64Array",
+        "BigUint64Array",
+    ]
+    .iter()
+    .map(|name| format!("{name} true true true"))
+    .collect();
+    // 1.0 first, then the NaNs as they were: the words (hi 7ff80000, lo 1)
+    // and (hi fff80000, lo 2).
+    lines.push("0,1072693248,1,2146959360,2,4294443008".to_owned());
+    let expected = lines.join("\n");
+    assert_eq!(out, expected);
+}
+
+/// The two-byte types sort with keys below 262,144 elements and with a
+/// counting table from there on. Both paths give a sorted array with the
+/// same elements (a count of every 16-bit word), with the NaNs of a float
+/// type last in their bit patterns and order and -0 before +0; below the
+/// threshold the result also equals the sort of a comparator.
+#[test]
+fn two_byte_sorts_agree_on_both_sides_of_the_counting_threshold() {
+    let script = r"
+        function cmp(x, y) {
+          if (x !== x) return y !== y ? 0 : 1;
+          if (y !== y) return -1;
+          if (x < y) return -1;
+          if (x > y) return 1;
+          if (x === 0 && y === 0) return (Object.is(x, -0) ? 0 : 1) - (Object.is(y, -0) ? 0 : 1);
+          return 0;
+        }
+        function same(a, b) {
+          if (a.length !== b.length) return false;
+          for (var i = 0; i < a.length; i++) if (!Object.is(a[i], b[i])) return false;
+          return true;
+        }
+        var seed = 11;
+        function next() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed; }
+        function isNan(v) { return (v & 0x7c00) === 0x7c00 && (v & 0x3ff) !== 0; }
+        [Int16Array, Uint16Array, Float16Array].forEach(function (T) {
+          var float = T === Float16Array;
+          [0, 1, 8, 4096, 262143, 262144].forEach(function (n) {
+            var a = new T(n);
+            for (var i = 0; i < n; i++) a[i] = next() % 70000 - 30000;
+            if (float) {
+              for (var k = 0; k < n; k += 7) a[k] = NaN;
+              for (var k = 1; k < n; k += 11) a[k] = -0;
+              for (var k = 2; k < n; k += 13) a[k] = 0;
+              if (n > 4) { a[3] = Infinity; a[4] = -Infinity; }
+              var w = new Uint16Array(a.buffer);
+              for (var k = 0; k < n; k += 14) w[k] = 0x7e01 + (k & 255) + ((k & 1) << 15);
+            }
+            var before = a.slice(), s = a.toSorted();
+            var wb = new Uint16Array(before.buffer), ws = new Uint16Array(s.buffer);
+            // The same words; the numbers in order; the NaNs last, as they were.
+            var nans = float ? wb.filter(isNan) : wb.slice(0, 0);
+            var count = n - nans.length, ok = true, histogram = new Int32Array(65536);
+            for (var i = 0; i < n; i++) { histogram[wb[i]]++; histogram[ws[i]]--; }
+            for (var i = 0; i < 65536; i++) if (histogram[i] !== 0) ok = false;
+            for (var i = 1; i < count; i++) if (cmp(s[i - 1], s[i]) > 0) ok = false;
+            for (var i = 0; i < nans.length; i++) if (ws[count + i] !== nans[i]) ok = false;
+            var order = n > 5000 ? true : same(s, a.toSorted(cmp));
+            var inPlace = a.sort();
+            print(T.name, n, ok, order, same(inPlace, s), a === inPlace);
+          });
+        });
+    ";
+    let out = run(script, false);
+    let mut lines = Vec::new();
+    for name in ["Int16Array", "Uint16Array", "Float16Array"] {
+        for n in [0, 1, 8, 4096, 262_143, 262_144] {
+            lines.push(format!("{name} {n} true true true true"));
+        }
+    }
+    assert_eq!(out, lines.join("\n"));
 }
 
 /// `console.log` of typed arrays, as Node.js 22 prints them.

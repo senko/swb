@@ -516,9 +516,10 @@ reservation is a safepoint: it collects when the request would pass the
 threshold or the limit, then checks the limit again. If the request
 still does not fit, or if a safepoint finds the heap over the limit
 after a collection, the script ends (termination, section 5); only the
-bytes of an `ArrayBuffer` (also the buffer that a typed array makes) are
+bytes of an `ArrayBuffer` (also the buffer that a typed array makes, and
+the memory that a typed array method reserves outside the heap) are
 a `RangeError` instead, as `CreateByteDataBlock` says, already above 90 %
-of the limit (section 15, features 11a and 11b). The
+of the limit (section 15, features 11a to 11c). The
 reservation happens before the operation creates new handles that are
 not yet rooted. Buffers grow with fallible reservation (`try_reserve`).
 
@@ -546,7 +547,7 @@ Content from the network must never crash or hang the browser.
 | String length | About 2^29 code units (measured). | `RangeError` |
 | Regular expressions | Steps polled with the time check; backtrack stack counted in the heap; limits for pattern nesting, program size and capture count. | Termination or `SyntaxError` |
 | `BigInt` size | A limit of 2^18 bits, checked before the work (section 7). | `RangeError` |
-| `ArrayBuffer` and typed array length | V8's limit (2^35 − 1 bytes; `maxByteLength` 2^35 − 4096) and the heap limit, checked before the allocation; zero-fills and copies charged to the time countdown, element loops of the typed array natives one step per element (section 15). | `RangeError` |
+| `ArrayBuffer` and typed array length | V8's limit (2^35 − 1 bytes; `maxByteLength` 2^35 − 4096) and the heap limit, checked before the allocation; zero-fills and copies charged to the time countdown, loops of the typed array natives with a callback or a script source one step per element, loops without one in chunks of 16,384 elements (section 15). The memory outside the heap that a method reserves first (the sort, the list of `filter`, the output of the base64 methods) is a `RangeError` at the heap limit; the text of `join` and `toLocaleString` ends the script at the heap limit, as `Array.prototype.join` does. | `RangeError` |
 
 Stack size: every thread that runs JavaScript must have a stack of at
 least 8 MiB. Threads that swb creates for scripts (and the threads of
@@ -2605,8 +2606,8 @@ where the first plan did not work:
   `Object.seal` of an array with elements: "Cannot freeze array buffer
   views with elements"; of an array that tracks a resizable buffer:
   "Cannot freeze".
-- Differences from Chromium 148 (KNOWN; 887 of the 901 measured snippets
-  are a test, 10 need the methods of 11c and 4 are these): `Object.isSealed`
+- Differences from Chromium 148 (KNOWN; 897 of the 901 measured snippets
+  are a test, 4 are these): `Object.isSealed`
   of a non-extensible typed array with elements is false (the elements
   are configurable, §10.4.5; V8 answers true); an Array Iterator whose
   step threw stays finished (GeneratorStart; V8 lets the iterator of a
@@ -2629,9 +2630,157 @@ where the first plan did not work:
   when detached or out of bounds, the other enumerable properties after
   the elements, at most 100 elements), without the columns of arrays of
   more than six elements (as for arrays).
-- The methods `at` … `toString` of `%TypedArray%.prototype` come with
-  feature 11c: `typed_array_proto.rs` lists them in Chromium 148's key
-  order with `None` in place of their natives.
+- The methods of `%TypedArray%.prototype` (feature 11c; the callback
+  methods are `builtins/typed_array_callback.rs`, the readers
+  `typed_array_search.rs`, the writers `typed_array_change.rs`, the sorts
+  `typed_array_sort.rs`; `typed_array_method.rs` has what they share).
+  Each method follows its algorithm in §23.2.3: `ValidateTypedArray`
+  first, then the length is read once, and the loops go up to that
+  length. A callback or a conversion can detach, shrink or grow the
+  buffer; the element of a step is `Get(O, k)`, which is `undefined` for
+  an index that is no longer valid (the loop goes on), `indexOf` and
+  `lastIndexOf` skip such an index (`HasProperty`), `includes` reads it as
+  `undefined`, `fill` and `copyWithin` read the length again after their
+  conversions (and throw when the array is out of bounds), `with` fills
+  the elements that are gone with `Set(A, k, undefined)` (NaN or 0, a
+  `TypeError` for a `BigInt` array). `map`, `filter` use
+  `TypedArraySpeciesCreate`; `filter` keeps the selected elements as
+  element bytes in a vector (as many bytes as the receiver has at most;
+  runs of `undefined` entries are kept as ranges) until the species
+  constructor ran. `toReversed`, `toSorted`, `with` use
+  `TypedArrayCreateSameType` (the intrinsic prototype of the current
+  realm, no species lookup). Every callback step runs in a handle scope
+  of its own (a `BigInt` element is a new heap value) and takes one step
+  of the time countdown; `reduce` keeps the accumulator in a cell.
+- Native loops without callbacks work on the bytes of the buffer
+  (`object/typed_window.rs`: the window of the elements for the length
+  now, `typed_fill`, `typed_reverse_pairs`, `typed_write_bits`,
+  `typed_put_bytes`) in chunks of 16,384 elements with a charge of the
+  time countdown after each chunk (one step per 128 bytes), so a loop
+  over 64 MiB ends near the deadline; a single `memmove` (`copyWithin`,
+  the copy of `toReversed`, `with`) is charged before it. The searches
+  turn the search value into a needle once (the bits of an integer or
+  `BigInt` element that it equals, a Number for the float types, or none:
+  a Number that no element of the type can hold ends the search at once)
+  and compare bits; `Float16Array` and `Float32Array` compare the decoded
+  value. `join` formats the elements in blocks of 4,096 into a `Builder`
+  (the length limit before the heap limit, the lower bound of the final
+  size reserved first), without a string per element; `toLocaleString`
+  calls the `toLocaleString` of each element with no arguments (no
+  ECMA-402, as `Array.prototype.toLocaleString`). `toString` is the
+  function object of `Array.prototype`.
+- `sort` and `toSorted`: the default order is numeric (−0 before +0, NaN
+  last). One-byte types, and two-byte types of 262,144 elements or more,
+  are counted into a table (256 or 65,536 counters of 64 bits, no memory
+  per element; a float type counts its NaNs in a first pass and keeps
+  those bits only, 2 bytes each). The other types turn the elements into
+  keys of 32 or 64 bits (a two-byte type uses 32) whose unsigned order is
+  the numeric order (an integer biased by its sign bit, a float with its
+  sign handled), sort runs of 16,384 keys with `sort_unstable` and merge
+  them bottom-up with a charge of the time countdown in each chunk. The
+  keys have one slot per element: the keys of the numbers fill the vector
+  from the front, and the bit patterns of the NaNs from the back (a NaN
+  fits a slot), so the NaNs cost no memory of their own; only the front
+  is sorted, and the NaNs are written after the numbers as they were (V8
+  keeps their bit patterns; measured). The threshold is a measurement:
+  clearing and scanning 65,536 counters costs about 80 to 130 µs per
+  sort, and the key path is faster up to about 260,000 random elements
+  (8 elements, 20,000 sorts: 1.65 s with the table, 13 ms with keys). The
+  keys and the merge buffer are reserved first
+  (a `RangeError` at the heap limit). With a comparator, the values are
+  read first into an internal array (rooted by the scope), and a
+  top-down merge sort of a permutation (split in the middle, the left
+  half the shorter, the left element wins unless
+  `comparator(left, right)` is above zero; NaN is +0) calls the
+  comparator in the order of Chromium 148 (435 measured call sequences
+  for sizes 2 to 100 and eight comparators, among them `() => 1`, which
+  reverses, and `() => -1`, which keeps the order). `Array.prototype.sort`
+  calls `comparator(later, earlier)` (module `array_sort.rs`); the two
+  orders differ and each is V8's for its method. The sorted values are
+  written back with `Set`, which skips an index that the comparator made
+  invalid.
+- Receiver and callback checks use V8's messages, which differ between
+  the methods (measured): `at`, `join`, `sort`, `toReversed`,
+  `toSorted`, `toLocaleString` say "Method %TypedArray%.prototype.NAME
+  called on incompatible receiver X", the others "this is not a typed
+  array."; a detached or out-of-bounds array is "Cannot perform
+  %TypedArray%.prototype.NAME on a detached or out-of-bounds ArrayBuffer"
+  with `findIndexLast` for `findLastIndex`, no "or out-of-bounds" for
+  `reduce`, and no "or out-of-bounds" for `fill` and `copyWithin` after
+  their conversions; a callback that is not callable is "number 5 is not
+  a function" except for `map` ("5 is not a function"); `sort` and
+  `toSorted` check the comparator before the receiver. `copyWithin` cuts
+  the count to what is left of the source and the target after the
+  conversions (V8 and test262's `coerced-target-start-end-shrink.js`; the
+  byte loop of the specification text copies nothing for an overlapping
+  copy that has to start past the limit).
+- `Atomics` (§25.4; `builtins/atomics.rs`) on integer typed arrays over
+  `ArrayBuffer`s: every operation is a read, a modification and a write
+  of the element (no other agent sees the buffer). The steps are those of
+  `AtomicReadModifyWrite`: `ValidateIntegerTypedArray` (for `wait`,
+  `waitAsync` and `notify` an `Int32Array` or a `BigInt64Array`),
+  `ValidateAtomicAccess` (`ToIndex`, "Invalid atomic access index"), the
+  operand (`ToIntegerOrInfinity` and the modular conversion, or `ToBigInt`),
+  `RevalidateAtomicAccess` and the operation; `store` returns the
+  converted operand (not wrapped), `compareExchange` compares the element
+  bits. Chromium 148 has no `SharedArrayBuffer` on a normal page, so
+  `wait` and `waitAsync` always end in "X is not a shared typed array."
+  (after the checks of the array; a detached array says "Cannot perform
+  Atomics.wait", also for `waitAsync`), `notify` returns 0, and `pause`
+  (Chromium 148 has it) checks that its argument is undefined or an
+  integral Number. V8 words the errors of a detached array in
+  `compareExchange` with `Atomics.store`; swb does the same. The key
+  order of `Atomics` is Chromium 148's.
+- The base64 and hex methods of `Uint8Array` (`builtins/typed_array_base64.rs`;
+  the text of the proposal <https://tc39.es/proposal-arraybuffer-base64/>,
+  no library read): a decoder that follows `FromBase64` step by step as a
+  state machine (so it runs in blocks of 16,384 steps with a charge of the
+  time countdown), `FromHex`, and encoders that write Latin-1 text into a
+  vector in blocks of 12 KiB. `setFromBase64` and `setFromHex` write the
+  bytes that were decoded before a failure, then throw. The output
+  decoders grow their output in blocks (at most 48 KiB per step of the
+  loop, each growth reserved first), so the memory follows the decoded
+  bytes and not the length of the string; the encoders reserve their
+  exact output first (a `RangeError` at the heap limit; "Invalid string
+  length" for an encoded text above the string limit). The
+  messages are V8's: the three `SyntaxError`s of base64 (a bad character,
+  a single character left, non-zero padding bits; V8 words a partial
+  chunk in strict mode like a single character, and `A=` like a single
+  character but `A===` like a bad character), one for hex (odd length and
+  a bad pair), "input argument must be a string", "invalid option X" and
+  `invalid_argument` for options that are not an object. A receiver that
+  is another typed array is shown as `undefined` in "called on
+  incompatible receiver".
+- Differences from Chromium 148 (KNOWN; 8,263 snippets of
+  `typed-method-snippets.txt` are a test, 81 snippets and 8 lines of the
+  callback cases are these; the groups `m-known-*` hold the snippets): `toLocaleString` of an element
+  gets no arguments (V8 passes `locales` and `options`, ECMA-402);
+  `Atomics.isLockFree(1.5)` is true (`ToIntegerOrInfinity`; V8 false);
+  `setFromBase64` into a target that is too small stops when the output
+  is full (the proposal text and the specification of hex; V8 goes on
+  reading and throws a `SyntaxError` for an error after that point, for
+  base64 only); `map` and `filter` check the content type of the
+  species result (§23.2.4.1; V8 throws only when a conversion fails, so
+  `map(() => false)` into a `BigInt64Array` works there); a `map` whose
+  species constructor returns the receiver, which a callback then
+  detaches or shrinks, ignores the writes to the invalid indices
+  (TypedArraySetElement; V8 throws a `TypeError`; 8 lines of the callback
+  cases); the text of an object in a message is `#<Object>` where V8
+  shows `[object Object]` (an object with its own `toString`, the instance
+  of a function without a name) and `[object Int32Array]` where V8 shows
+  `[object Object]` (a length-tracking array in the message of
+  `Atomics.wait`).
+- Tests: `tools/probes/js-typed.json` has the 11b cases and, for 11c,
+  `crates/js/tests/data/typed-method-snippets.txt` (the methods with
+  every element type, receivers, callbacks, species, arguments that
+  change the buffer, the calls of the comparator, `Atomics`, base64 and
+  hex with options and malformed input) and `typed_methods_detach.js`
+  (callbacks that detach, shrink, grow or collect, 648 lines); the
+  generator `gen-typed-cases.js` writes `typed_methods_cases.*` and
+  `typed_methods_detach.expected` from the probe output. test262 adds
+  `built-ins/TypedArray/prototype/{at … with}`, `toString`, `Atomics` and
+  `Uint8Array` (the runner skips the tests that make a
+  `SharedArrayBuffer`, and loads `testAtomics.js`).
 
 ## Consequences
 

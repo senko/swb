@@ -49,7 +49,7 @@ impl TypedArrayData {
     /// The length for a buffer of `buffer_len` bytes, or `None` when the
     /// array is out of bounds (`IsTypedArrayOutOfBounds` and `TypedArrayLength`,
     /// §10.4.5).
-    fn length_in(&self, buffer_len: usize) -> Option<usize> {
+    pub(super) fn length_in(&self, buffer_len: usize) -> Option<usize> {
         let offset = self.view.byte_offset;
         let room = buffer_len.checked_sub(offset)?;
         match self.view.byte_length {
@@ -136,7 +136,7 @@ impl Heap {
     }
 
     /// The bytes of the buffer of a typed array; `None` when detached.
-    fn typed_bytes(&self, data: &TypedArrayData) -> Result<Option<&[u8]>> {
+    pub(super) fn typed_bytes(&self, data: &TypedArrayData) -> Result<Option<&[u8]>> {
         Ok(self
             .array_buffer(data.view.buffer)?
             .ok_or(Error::invariant("a typed array of another object"))?
@@ -317,7 +317,10 @@ impl Heap {
     }
 
     /// The bytes of a buffer for writing; `None` when it is detached.
-    fn array_buffer_bytes_mut(&mut self, buffer: Gc<Object>) -> Result<Option<&mut [u8]>> {
+    pub(super) fn array_buffer_bytes_mut(
+        &mut self,
+        buffer: Gc<Object>,
+    ) -> Result<Option<&mut [u8]>> {
         match &mut self.object_mut(buffer)?.kind {
             ObjectKind::ArrayBuffer(data) => Ok(data.bytes_mut()),
             _ => Err(Error::invariant("a typed array of another object")),
@@ -435,7 +438,7 @@ pub(crate) fn decode_element(ty: ElementType, bytes: &[u8]) -> RawValue {
 
 /// The little-endian integer of the bytes of an element (1, 2, 4 or 8
 /// bytes), read without a call of `memcpy`; `None` for another length.
-fn load(bytes: &[u8]) -> Option<u64> {
+pub(crate) fn load(bytes: &[u8]) -> Option<u64> {
     Some(match bytes.len() {
         1 => u64::from(*bytes.first()?),
         2 => u64::from(u16::from_le_bytes(bytes.try_into().ok()?)),
@@ -448,7 +451,7 @@ fn load(bytes: &[u8]) -> Option<u64> {
 /// Writes the low bytes of `bits` into the bytes of an element (1, 2, 4
 /// or 8 bytes, little endian) without a call of `memcpy`; false for
 /// another length.
-fn store(target: &mut [u8], bits: u64) -> bool {
+pub(super) fn store(target: &mut [u8], bits: u64) -> bool {
     let bytes = bits.to_le_bytes();
     match target.len() {
         1 => match target.first_mut() {

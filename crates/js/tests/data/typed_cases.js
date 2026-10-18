@@ -21,6 +21,47 @@ globalThis.nt = function (f) {
   Object.defineProperty(c, 'prototype', { get: function () { f(); return Object.prototype; } });
   return c;
 };
+globalThis.acts = function (b, S) {
+  return { detach: function () { b.transfer(); }, shrink: function () { b.resize(2 * S); }, grow: function () { b.resize(16 * S); }, shrink0: function () { b.resize(0); } };
+};
+globalThis.ach = function (T, act, f) {
+  var S = T.BYTES_PER_ELEMENT, b = rab(8 * S, 16 * S), t = new T(b), big = T === BigInt64Array;
+  for (var i = 0; i < t.length; i++) t[i] = big ? BigInt(i + 1) : i + 1;
+  var run = acts(b, S)[act];
+  var o = function (v) { return { valueOf: function () { run(); return v; }, toString: function () { run(); return '-'; } }; };
+  return f(t, o, run, function (n) { return big ? BigInt(n) : n; });
+};
+globalThis.fin = function (r, t) {
+  return [r !== null && typeof r === 'object' ? list(r) : String(r), t.length, t.byteLength, list(t)].join('|');
+};
+globalThis.arv = function (T, act, f) {
+  var S = T.BYTES_PER_ELEMENT, b = rab(8 * S, 16 * S), t = new T(b), run = acts(b, S)[act];
+  var o = function (v) { return { valueOf: function () { run(); return v; } }; };
+  return f(t, o, T === BigInt64Array ? 1n : 1) + '|' + list(t);
+};
+globalThis.ao = function (T, op, v, init) {
+  var big = T === BigInt64Array || T === BigUint64Array, t = new T(4);
+  t[1] = init === undefined ? (big ? 250n : 250) : init;
+  var r = Atomics[op](t, 1, v);
+  return (op === 'store' ? typeof r + ':' + (Object.is(r, -0) ? '-0' : String(r)) : String(r)) + '|' + list(t);
+};
+globalThis.ace = function (T, e, r, init) {
+  var t = new T(4); t[0] = init; var x = Atomics.compareExchange(t, 0, e, r); return x + '|' + list(t);
+};
+globalThis.sb = function (n, s, opts) {
+  var u = new Uint8Array(n);
+  try { var r = u.setFromBase64(s, opts); return r.read + ',' + r.written + '|' + list(u); } catch (e) { return e.name + ': ' + e.message + '|' + list(u); }
+};
+globalThis.sh = function (n, s) {
+  var u = new Uint8Array(n);
+  try { var r = u.setFromHex(s); return r.read + ',' + r.written + '|' + list(u); } catch (e) { return e.name + ': ' + e.message + '|' + list(u); }
+};
+globalThis.sq = function (n) { var a = []; for (var i = 0; i < n; i++) a.push((i * 7 + 3) % 11); return a; };
+globalThis.sc = function (T, data, cmp, method, big) {
+  var log = [], t = new T(big ? data.map(BigInt) : data);
+  var r = t[method || 'sort'](function (a, b) { log.push(a + ':' + b); return cmp(a, b); });
+  return r.join() + '|' + log.join(' ');
+};
 globalThis.sp = function (f) {
   var c = {};
   Object.defineProperty(c, Symbol.species, { get: function () { return f(); } });
@@ -91,6 +132,7 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get.name",
 "Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, 'length').get.length",
 "Object.getPrototypeOf(Int8Array).prototype.values === Array.prototype.values",
+"Object.getPrototypeOf(Int8Array).prototype.toString === Array.prototype.toString",
 "Uint8Array.from === Object.getPrototypeOf(Int8Array).from",
 "Object.hasOwn(Uint8Array, 'from')",
 "String(Object.getPrototypeOf(Int8Array))",
@@ -99,6 +141,7 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "Object.prototype.toString.call(new Uint8Array(1))",
 "Object.prototype.toString.call(new BigUint64Array(1))",
 "Object.prototype.toString.call(new Float16Array(1))",
+"String(new Uint8Array(0))",
 "ArrayBuffer.isView(new Uint8Array(1))",
 "ArrayBuffer.isView(new BigInt64Array(1))",
 "ArrayBuffer.isView(Uint8Array.prototype)",
@@ -480,6 +523,7 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "(() => { const t = new Uint8Array([1, 2]); const p = new Proxy(t, {}); return [keys(p), desc(p, 0), '0' in p, delete p[5]].join(' | '); })()",
 "(() => { const t = new Uint8Array([1, 2]); const p = new Proxy({}, {}); Object.setPrototypeOf(p, t); return String(p[0]); })()",
 "(() => { const t = new Uint8Array([1, 2]); const o = Object.create(new Proxy(t, {})); o[0] = 5; return desc(o, 0) + ' | ' + list(t); })()",
+"Object.assign(new Uint8Array(3), [7, 8]).join === undefined",
 "list(Object.assign(new Uint8Array(3), [7, 8]))",
 "list(Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 }))",
 "(() => { const t = Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 }); return keys(t); })()",
@@ -565,6 +609,7 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "Array.prototype.map.call(new Uint8Array([1, 2]), x => x * 2).join()",
 "Array.prototype.indexOf.call(new Uint8Array([1, 2]), 2)",
 "Array.prototype.includes.call(new Float64Array([NaN]), NaN)",
+"Array.prototype.reverse.call(new Uint8Array([1, 2, 3])).join === undefined",
 "list(Array.prototype.reverse.call(new Uint8Array([1, 2, 3])))",
 "list(Array.prototype.sort.call(new Uint8Array([3, 1, 2])))",
 "list(Array.prototype.fill.call(new Uint8Array(3), 7))",
@@ -584,6 +629,7 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "Array.prototype.at.call(new Uint8Array([2, 1]), -1)",
 "Array.prototype.lastIndexOf.call(new Uint8Array([2, 1, 2]), 2)",
 "Array.prototype.unshift.call(new Uint8Array(2), 1)",
+"Array.prototype.toString.call(new Uint8Array([2, 1]))",
 "Array.prototype.keys.call(new Uint8Array([2, 1])).next().value",
 "Array.prototype.find.call(new Uint8Array([2, 1]), x => x < 2)",
 "(() => { const [a, , b] = new Uint8Array([4, 5, 6]); return a + b; })()",
@@ -599,6 +645,11 @@ var SNIPPETS = ["typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray
 "Object.fromEntries(new Uint8Array([1]))",
 "Promise.all(new Uint8Array([1])) instanceof Promise",
 "(() => { const it = new Uint8Array([1, 2])[Symbol.iterator](); return Object.prototype.toString.call(it) + ':' + (Object.getPrototypeOf(it) === Object.getPrototypeOf([][Symbol.iterator]())); })()",
+"new Uint8Array(2) == '0,0'",
+"new Uint8Array([1]) + 1",
+"`${new Uint8Array([1, 2])}`",
+"new Uint8Array([3]) * 2",
+"Number(new Uint8Array([3]))",
 "(() => { const t = new Uint16Array(new ArrayBuffer(16), 4, 3); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength].join(); })()",
 "(() => { const t = det(new Uint16Array(new ArrayBuffer(16), 4, 3)); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength, t.buffer.detached].join(); })()",
 "(() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, {})); } catch (e) { return e.message; } }).join(' | '); })()",
