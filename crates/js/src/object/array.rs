@@ -25,13 +25,40 @@ pub(crate) const INVALID_ARRAY_LENGTH: &str = "Invalid array length";
 pub(crate) const INVALID_LENGTH_WRITE: &str =
     "Failed to set the 'length' property on 'Array': Invalid array length";
 
+/// The `TypeError`s of `ToNumber` of a symbol and a `BigInt` length.
+pub(crate) const SYMBOL_LENGTH: &str = "Cannot convert a Symbol value to a number";
+pub(crate) const BIGINT_LENGTH: &str = "Cannot convert a BigInt value to a number";
+
+/// The same `TypeError`s when `[[Set]]` writes `length` (Chromium 148).
+const SYMBOL_LENGTH_WRITE: &str =
+    "Failed to set the 'length' property on 'Array': Cannot convert a Symbol value to a number";
+const BIGINT_LENGTH_WRITE: &str =
+    "Failed to set the 'length' property on 'Array': Cannot convert a BigInt value to a number";
+
 /// The error of a write of `length` with `[[Set]]`: an invalid length
-/// gets Chromium's longer message.
+/// and a symbol or `BigInt` value get Chromium's longer messages.
 pub(crate) fn length_write_error(error: Error) -> Error {
-    if error == Error::range_error(INVALID_ARRAY_LENGTH) {
-        Error::range_error(INVALID_LENGTH_WRITE)
-    } else {
-        error
+    match error {
+        Error::Throw { message, .. } if message == INVALID_ARRAY_LENGTH => {
+            Error::range_error(INVALID_LENGTH_WRITE)
+        }
+        Error::Throw { message, .. } if message == SYMBOL_LENGTH => {
+            Error::type_error(SYMBOL_LENGTH_WRITE)
+        }
+        Error::Throw { message, .. } if message == BIGINT_LENGTH => {
+            Error::type_error(BIGINT_LENGTH_WRITE)
+        }
+        error => error,
+    }
+}
+
+/// [`length_write_error`] for the message of an error of the VM.
+pub(crate) fn length_write_message(message: &str) -> Option<&'static str> {
+    match message {
+        INVALID_ARRAY_LENGTH => Some(INVALID_LENGTH_WRITE),
+        SYMBOL_LENGTH => Some(SYMBOL_LENGTH_WRITE),
+        BIGINT_LENGTH => Some(BIGINT_LENGTH_WRITE),
+        _ => None,
     }
 }
 
@@ -54,14 +81,10 @@ fn to_array_length(value: Value) -> Result<u32> {
         Value::Null => 0.0,
         Value::Bool(b) => f64::from(u8::from(b)),
         Value::Symbol(_) => {
-            return Err(Error::type_error(
-                "Cannot convert a Symbol value to a number",
-            ));
+            return Err(Error::type_error(SYMBOL_LENGTH));
         }
         Value::BigInt(_) => {
-            return Err(Error::type_error(
-                "Cannot convert a BigInt value to a number",
-            ));
+            return Err(Error::type_error(BIGINT_LENGTH));
         }
         Value::String(_) | Value::Object(_) | Value::Empty | Value::Cell(_) => {
             return Err(Error::invariant(

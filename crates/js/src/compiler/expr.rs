@@ -80,6 +80,11 @@ impl FunctionCompiler<'_> {
                 self.emit(Insn::Const { dst: t, index });
                 Ok(t)
             }
+            ExprKind::BigInt(digits) => {
+                let t = self.target(dst)?;
+                self.load_bigint(digits, false, t);
+                Ok(t)
+            }
             ExprKind::Template(id) => self.template(id, dst),
             ExprKind::RegExp { pattern, flags } => {
                 let t = self.target(dst)?;
@@ -234,7 +239,7 @@ impl FunctionCompiler<'_> {
             ExprKind::Class(class) => self.class_definition(class, dst, None),
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => self.super_load(e, dst),
             ExprKind::SuperCall(call) => self.super_call(call, dst),
-            ExprKind::BigInt(_) | ExprKind::ImportCall { .. } | ExprKind::ImportMeta => {
+            ExprKind::ImportCall { .. } | ExprKind::ImportMeta => {
                 Err(self
                     .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
             }
@@ -362,6 +367,14 @@ impl FunctionCompiler<'_> {
             let index = self.number_const(value);
             self.emit(Insn::Const { dst, index });
         }
+    }
+
+    /// Loads the value of a `BigInt` literal (negated with `negative`)
+    /// into `dst`: a constant of the code object.
+    fn load_bigint(&mut self, digits: swb_js_syntax::StringId, negative: bool, dst: Reg) {
+        let text = self.ast.string(digits).clone();
+        let index = self.push_constant(super::ConstSpec::BigInt(text, negative));
+        self.emit(Insn::Const { dst, index });
     }
 
     // --- Bindings ---
@@ -619,7 +632,6 @@ impl FunctionCompiler<'_> {
                 | ExprKind::Spread(_)
                 | ExprKind::OptionalChain(_)
                 | ExprKind::TaggedTemplate { .. }
-                | ExprKind::BigInt(_)
                 | ExprKind::Class(_)
                 | ExprKind::SuperMember { .. }
                 | ExprKind::SuperIndex { .. }
@@ -633,6 +645,7 @@ impl FunctionCompiler<'_> {
                 | ExprKind::Boolean(_)
                 | ExprKind::Number(_)
                 | ExprKind::String(_)
+                | ExprKind::BigInt(_)
                 | ExprKind::RegExp { .. }
                 | ExprKind::Hole
                 | ExprKind::Function(_) => {}
@@ -737,8 +750,11 @@ impl FunctionCompiler<'_> {
                 }
             }
             UnaryOp::Minus => {
-                if let ExprKind::Number(value) = self.ast.expr(self.unparen(argument)).kind {
+                let literal = self.ast.expr(self.unparen(argument)).kind;
+                if let ExprKind::Number(value) = literal {
                     self.load_number(-value, t);
+                } else if let ExprKind::BigInt(digits) = literal {
+                    self.load_bigint(digits, true, t);
                 } else {
                     let src = self.expr(argument, None)?;
                     self.emit(Insn::Neg { dst: t, src });
@@ -1074,7 +1090,8 @@ impl FunctionCompiler<'_> {
         match key {
             AstKey::Name(name) => Some(self.name_text(name)),
             AstKey::Number(value) => Some(String16::from(number_to_string(value).as_str())),
-            AstKey::Computed(_) | AstKey::BigInt(_) => None,
+            AstKey::BigInt(digits) => super::bigint::key_text(self.ast.string(digits)),
+            AstKey::Computed(_) => None,
         }
     }
 
@@ -1211,7 +1228,7 @@ impl FunctionCompiler<'_> {
             key => {
                 let text = self
                     .key_text(key)
-                    .ok_or(Self::internal("an accessor with a BigInt key"))?;
+                    .ok_or(Self::internal("an accessor key without a text"))?;
                 let prefix = if getter { "get " } else { "set " };
                 let mut name = String16::from(prefix);
                 name.push_str16(text.as_str16());
@@ -1272,6 +1289,7 @@ impl FunctionCompiler<'_> {
         match self.ast.expr(self.unparen(index)).kind {
             ExprKind::String(id) => Some(self.ast.string(id).clone()),
             ExprKind::Number(value) => Some(String16::from(number_to_string(value).as_str())),
+            ExprKind::BigInt(digits) => super::bigint::key_text(self.ast.string(digits)),
             _ => None,
         }
     }

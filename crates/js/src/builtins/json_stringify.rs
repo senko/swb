@@ -719,6 +719,7 @@ impl Serializer {
                     value = Value::String(rt.heap.record(string));
                 }
                 ObjectKind::BooleanWrapper(flag) => value = Value::Bool(flag),
+                ObjectKind::BigIntWrapper(b) => value = Value::BigInt(b),
                 ObjectKind::RawJson => {
                     return match rt.get_value(value, self.raw_json)? {
                         Value::String(text) => Ok(Resolved::Raw(text)),

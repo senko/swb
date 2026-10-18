@@ -39,6 +39,7 @@
 mod async_function;
 pub(crate) mod async_generator;
 pub(crate) mod async_iteration;
+pub(crate) mod bigint;
 mod call;
 pub(crate) mod class;
 pub(crate) mod convert;
@@ -373,8 +374,10 @@ pub(crate) struct Vm {
     pub(crate) last_value: Value,
     /// The source offset where the current uncaught error was thrown.
     pub(crate) error_offset: Option<u32>,
-    /// The countdown to the next time check.
-    pub(crate) countdown: u32,
+    /// The countdown to the next time check. A `Cell`, so that work done
+    /// behind a shared borrow (the text of a message) is charged too
+    /// ([`Vm::charge_deferred`]).
+    pub(crate) countdown: std::cell::Cell<u32>,
     /// The deadline of the running task (set by the host).
     pub(crate) deadline: Option<std::time::Instant>,
     /// The termination request of the host (another thread can set it).

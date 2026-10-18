@@ -82,6 +82,8 @@ pub(crate) enum Intrinsic {
     WeakSetPrototype,
     WeakRefPrototype,
     FinalizationRegistryPrototype,
+    /// `%BigInt.prototype%` (§21.2.3), an ordinary object.
+    BigIntPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -143,7 +145,7 @@ pub(crate) enum Intrinsic {
 }
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 61;
+const INTRINSIC_COUNT: usize = 62;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -290,6 +292,7 @@ impl Runtime {
         let weak_set_proto = heap.new_object(Some(object_proto))?;
         let weak_ref_proto = heap.new_object(Some(object_proto))?;
         let registry_proto = heap.new_object(Some(object_proto))?;
+        let bigint_proto = heap.new_object(Some(object_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -352,6 +355,7 @@ impl Runtime {
             weak_set_proto,
             weak_ref_proto,
             registry_proto,
+            bigint_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);

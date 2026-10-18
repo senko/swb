@@ -411,3 +411,15 @@ dir test/built-ins/WeakMap
 dir test/built-ins/WeakSet
 dir test/built-ins/WeakRef
 dir test/built-ins/FinalizationRegistry
+
+# Added in M7 feature 10b: BigInt literals, the operators, the conversions,
+# the BigInt function with asIntN, asUintN and the prototype methods. The
+# tests with the feature BigInt in the groups that run already (the
+# operators, Object, Array, JSON, Math, Number, String and others) run now
+# too; those that also need TypedArray, DataView, Atomics or Intl stay
+# skipped by those features. The two dir lines cover their subdirectories
+# (a group of built-ins/ is its first three components, of language/ its
+# first four).
+feature BigInt
+dir test/built-ins/BigInt
+dir test/language/literals/bigint

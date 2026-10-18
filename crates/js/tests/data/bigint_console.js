@@ -1,0 +1,31 @@
+// console.log of BigInt values (the expected output is that of
+// Node.js 22, `node bigint_console.js`).
+console.log(1n);
+console.log(-1n);
+console.log(0n);
+console.log(2n ** 64n);
+console.log(-(2n ** 100n));
+console.log([1n]);
+console.log([1n, -2n, 3n]);
+console.log({ a: 1n });
+console.log({ a: 1n, b: [2n], c: { d: -3n } });
+console.log(Object(1n));
+console.log(Object(-5n));
+console.log([Object(1n)]);
+console.log({ w: Object(2n) });
+const w = Object(7n);
+w.x = 1;
+console.log(w);
+console.log(new Map([[1n, 2n]]));
+console.log(new Set([1n, 2n ** 64n]));
+console.log('a', 1n, 'b');
+console.log(String(1n), `${2n}`);
+console.log(1n, 1);
+console.log([[[[1n]]]]);
+console.log({ [1n]: 1n });
+console.log(typeof 1n, typeof Object(1n));
+console.log(BigInt);
+console.log(BigInt.asIntN);
+console.log([BigInt(10), BigInt('0x10'), BigInt.asUintN(8, -1n)]);
+console.log(BigInt.prototype);
+console.log(Object.create(BigInt.prototype));

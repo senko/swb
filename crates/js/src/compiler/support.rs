@@ -3,16 +3,14 @@
 //! script before any function compiles. The script fails with a
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source; the compile functions never see them. Since
-//! the end of M7 feature 7, all of the syntax of feature 1 compiles
-//! except module code, `import()` and `import.meta` (feature 14),
-//! and `BigInt` literals (feature 10).
+//! M7 feature 10b, all of the syntax of feature 1 compiles except module
+//! code, `import()` and `import.meta` (feature 14).
 
-use swb_js_syntax::{ClassKey, ExprKind, PropertyKey, Script, StmtKind};
+use swb_js_syntax::{ExprKind, Script, StmtKind};
 
 /// The construct of an expression that the compiler does not support.
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
-        ExprKind::BigInt(_) => "BigInt literal",
         ExprKind::ImportCall { .. } => "import()",
         ExprKind::ImportMeta => "import.meta",
         _ => return None,
@@ -48,25 +46,11 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         if let Some(construct) = unsupported_expr(expr.kind) {
             note(expr.span.start, construct);
         }
-        if let ExprKind::Object(properties) = expr.kind {
-            for property in ast.properties(properties) {
-                if let PropertyKey::BigInt(_) = property.key {
-                    note(property.span.start, "BigInt literal");
-                }
-            }
-        }
     }
     for id in ast.stmt_ids() {
         let stmt = ast.stmt(id);
         if let Some(construct) = unsupported_stmt(stmt.kind) {
             note(stmt.span.start, construct);
-        }
-    }
-    for id in ast.class_ids() {
-        for element in ast.class_elements(ast.class(id).elements) {
-            if let ClassKey::Property(PropertyKey::BigInt(_)) = element.key {
-                note(element.span.start, "BigInt literal");
-            }
         }
     }
     first

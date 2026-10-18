@@ -2,7 +2,8 @@
 //! §7.2, §13.5 to §13.15, §6.1.6.1).
 //!
 //! The interpreter handles numbers in its fast paths; the general paths
-//! here run when an operand needs a conversion. Conversions that can run
+//! here run when an operand needs a conversion or is a `BigInt` (the
+//! `BigInt` operations and `ToNumeric` are in `vm/bigint.rs`). Conversions that can run
 //! script code (`ToPrimitive` calls `valueOf` and `toString` through
 //! re-entry) record their intermediate results in the current handle
 //! scope, which the caller opened.
@@ -15,6 +16,7 @@ use crate::runtime::Runtime;
 use crate::string::rope::MAX_DEPTH;
 use crate::string::{JsString, PropertyKey};
 use crate::value::{Equality, Value};
+use crate::vm::bigint::{MIXED_TYPES, NOT_A_NUMBER, Numeric};
 use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::number::number_to_string;
 use crate::vm::time::UNITS_PER_STEP;
@@ -31,9 +33,11 @@ pub(crate) enum Hint {
     String,
 }
 
-/// The numeric binary operators.
+/// The numeric binary operators (`Add` only for its numeric part, after
+/// `ApplyStringOrNumericBinaryOperator` ruled out strings).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum NumberOp {
+    Add,
     Sub,
     Mul,
     Div,
@@ -139,6 +143,7 @@ pub(crate) fn int_rem(x: i32, y: i32) -> Value {
 /// A numeric operator on two Numbers.
 fn number_op(op: NumberOp, x: f64, y: f64) -> Value {
     match op {
+        NumberOp::Add => Value::Double(x + y),
         NumberOp::Sub => Value::Double(x - y),
         NumberOp::Mul => Value::Double(x * y),
         NumberOp::Div => Value::Double(x / y),
@@ -229,8 +234,7 @@ impl Runtime {
         }
     }
 
-    /// `ToNumber` (§7.1.4); also `ToNumeric` (§7.1.3) while `BigInt` is not
-    /// supported.
+    /// `ToNumber` (§7.1.4). `ToNumeric` is in `vm/bigint.rs`.
     pub(crate) fn to_number(&mut self, value: Value) -> VmResult<f64> {
         let primitive = self.to_primitive(value, Hint::Number)?;
         match primitive {
@@ -243,9 +247,7 @@ impl Runtime {
             Value::Symbol(_) => Err(VmError::type_error(
                 "Cannot convert a Symbol value to a number",
             )),
-            Value::BigInt(_) => Err(VmError::type_error(
-                "Cannot mix BigInt and other types, use explicit conversions",
-            )),
+            Value::BigInt(_) => Err(VmError::type_error(NOT_A_NUMBER)),
             Value::Object(_) | Value::Empty | Value::Cell(_) => {
                 Err(VmError::invariant("ToPrimitive returned an object"))
             }
@@ -270,9 +272,7 @@ impl Runtime {
                     "Cannot convert a Symbol value to a string",
                 ));
             }
-            Value::BigInt(_) => {
-                return Err(VmError::type_error("BigInt is not supported yet"));
-            }
+            Value::BigInt(b) => self.bigint_to_string(b, 10)?,
             Value::Object(_) | Value::Empty | Value::Cell(_) => {
                 return Err(VmError::invariant("ToPrimitive returned an object"));
             }
@@ -360,7 +360,8 @@ impl Runtime {
             Value::Double(d) => (ObjectKind::NumberWrapper(d), Intrinsic::NumberPrototype),
             Value::Bool(b) => (ObjectKind::BooleanWrapper(b), Intrinsic::BooleanPrototype),
             Value::Symbol(s) => (ObjectKind::SymbolWrapper(s), Intrinsic::SymbolPrototype),
-            Value::BigInt(_) | Value::Empty | Value::Cell(_) => {
+            Value::BigInt(b) => (ObjectKind::BigIntWrapper(b), Intrinsic::BigIntPrototype),
+            Value::Empty | Value::Cell(_) => {
                 return Err(VmError::type_error("Cannot convert value to object"));
             }
         };
@@ -410,7 +411,8 @@ impl Runtime {
         Ok(self.heap.equal(Equality::Strict, a, b)?)
     }
 
-    /// `IsLooselyEqual` (§7.2.14).
+    /// `IsLooselyEqual` (§7.2.14). No script code runs unless an operand
+    /// is an object.
     pub(crate) fn loosely_equal(&mut self, a: Value, b: Value) -> VmResult<bool> {
         let mut a = a;
         let mut b = b;
@@ -430,10 +432,20 @@ impl Runtime {
                 (Value::String(_), Value::Int(_) | Value::Double(_)) => {
                     a = Value::Double(self.to_number(a)?);
                 }
+                // Steps 7 and 8: StringToBigInt of the string; undefined
+                // is not equal.
+                (Value::BigInt(x), Value::String(y)) | (Value::String(y), Value::BigInt(x)) => {
+                    let order = self.compare_bigint_string(x, y)?;
+                    return Ok(order == Some(std::cmp::Ordering::Equal));
+                }
                 (Value::Bool(x), _) => a = Value::Int(i32::from(x)),
                 (_, Value::Bool(y)) => b = Value::Int(i32::from(y)),
                 (
-                    Value::String(_) | Value::Int(_) | Value::Double(_) | Value::Symbol(_),
+                    Value::String(_)
+                    | Value::Int(_)
+                    | Value::Double(_)
+                    | Value::BigInt(_)
+                    | Value::Symbol(_),
                     Value::Object(_),
                 ) => {
                     b = self.to_primitive(b, Hint::Default)?;
@@ -441,10 +453,22 @@ impl Runtime {
                 }
                 (
                     Value::Object(_),
-                    Value::String(_) | Value::Int(_) | Value::Double(_) | Value::Symbol(_),
+                    Value::String(_)
+                    | Value::Int(_)
+                    | Value::Double(_)
+                    | Value::BigInt(_)
+                    | Value::Symbol(_),
                 ) => {
                     a = self.to_primitive(a, Hint::Default)?;
                     self.heap.record(a);
+                }
+                // Step 13: the mathematical values; NaN and the infinities
+                // equal no BigInt.
+                (Value::BigInt(x), Value::Int(_) | Value::Double(_))
+                | (Value::Int(_) | Value::Double(_), Value::BigInt(x)) => {
+                    let y = a.as_number().or(b.as_number()).unwrap_or(f64::NAN);
+                    let order = self.compare_bigint_number(x, y)?;
+                    return Ok(order == Some(std::cmp::Ordering::Equal));
                 }
                 _ => return Ok(false),
             }
@@ -473,26 +497,57 @@ impl Runtime {
             let py = self.to_primitive(y, Hint::Number)?;
             (px, py)
         };
-        let less = if let (Value::String(a), Value::String(b)) = (px, py) {
-            Some(self.heap.compare_strings(a, b)? == std::cmp::Ordering::Less)
-        } else {
-            let (nx, ny) = if swapped {
-                let ny = self.to_number(py)?;
-                (self.to_number(px)?, ny)
-            } else {
-                let nx = self.to_number(px)?;
-                (nx, self.to_number(py)?)
-            };
-            if nx.is_nan() || ny.is_nan() {
-                None
-            } else {
-                Some(nx < ny)
-            }
-        };
+        let less = self.primitives_less_than(px, py, swapped)?;
         Ok(if or_equal {
             less == Some(false)
         } else {
             less == Some(true)
+        })
+    }
+
+    /// Steps 3 and 4 of `IsLessThan` (§7.2.13) for two primitives: `None`
+    /// for undefined. With `swapped`, `py` converts before `px`.
+    fn primitives_less_than(
+        &mut self,
+        px: Value,
+        py: Value,
+        swapped: bool,
+    ) -> VmResult<Option<bool>> {
+        use std::cmp::Ordering;
+        match (px, py) {
+            (Value::String(a), Value::String(b)) => {
+                return Ok(Some(self.heap.compare_strings(a, b)? == Ordering::Less));
+            }
+            (Value::BigInt(x), Value::String(y)) => {
+                let order = self.compare_bigint_string(x, y)?;
+                return Ok(order.map(|order| order == Ordering::Less));
+            }
+            (Value::String(x), Value::BigInt(y)) => {
+                let order = self.compare_bigint_string(y, x)?;
+                return Ok(order.map(|order| order == Ordering::Greater));
+            }
+            _ => {}
+        }
+        let (nx, ny) = if swapped {
+            let ny = self.to_numeric(py)?;
+            (self.to_numeric(px)?, ny)
+        } else {
+            let nx = self.to_numeric(px)?;
+            (nx, self.to_numeric(py)?)
+        };
+        Ok(match (nx, ny) {
+            (Numeric::Number(x), Numeric::Number(y)) => {
+                (!x.is_nan() && !y.is_nan()).then_some(x < y)
+            }
+            (Numeric::BigInt(x), Numeric::BigInt(y)) => {
+                Some(self.compare_bigints(x, y)? == Ordering::Less)
+            }
+            (Numeric::BigInt(x), Numeric::Number(y)) => self
+                .compare_bigint_number(x, y)?
+                .map(|order| order == Ordering::Less),
+            (Numeric::Number(x), Numeric::BigInt(y)) => self
+                .compare_bigint_number(y, x)?
+                .map(|order| order == Ordering::Greater),
         })
     }
 
@@ -508,16 +563,21 @@ impl Runtime {
             let sb = self.to_string(pb)?;
             return Ok(Value::String(self.concat(sa, sb)?));
         }
-        let x = self.to_number(pa)?;
-        let y = self.to_number(pb)?;
-        Ok(Value::Double(x + y))
+        self.arith_slow(NumberOp::Add, pa, pb)
     }
 
-    /// A numeric binary operator for operands that are not both Numbers.
+    /// A numeric binary operator for operands that are not both Numbers
+    /// (steps 3 to 7 of `ApplyStringOrNumericBinaryOperator`, §13.15.3):
+    /// `ToNumeric` of both, the Number or the `BigInt` operation, a
+    /// `TypeError` for a Number and a `BigInt`.
     pub(crate) fn arith_slow(&mut self, op: NumberOp, a: Value, b: Value) -> VmResult<Value> {
-        let x = self.to_number(a)?;
-        let y = self.to_number(b)?;
-        Ok(number_op(op, x, y))
+        let x = self.to_numeric(a)?;
+        let y = self.to_numeric(b)?;
+        match (x, y) {
+            (Numeric::Number(x), Numeric::Number(y)) => Ok(number_op(op, x, y)),
+            (Numeric::BigInt(x), Numeric::BigInt(y)) => self.bigint_binary(op, x, y),
+            _ => Err(VmError::type_error(MIXED_TYPES)),
+        }
     }
 
     /// The concatenation of two strings (ADR 0026 section 7; the rules are

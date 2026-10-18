@@ -513,6 +513,8 @@ impl FunctionCompiler<'_> {
             | ExprKind::Boolean(_)
             | ExprKind::Number(_)
             | ExprKind::String(_) => self.render(current, 1)?,
+            // V8 does not show the value of a `BigInt` literal (measured).
+            ExprKind::BigInt(_) => "(intermediate value)".to_owned(),
             _ => return None,
         };
         let mut text = base;

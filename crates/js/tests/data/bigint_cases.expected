@@ -1,0 +1,850 @@
+1n => ok 1n
+0n => ok 0n
+-0n => ok 0n
+0x1Fn => ok 31n
+0XFFn => ok 255n
+0o17n => ok 15n
+0O17n => ok 15n
+0b101n => ok 5n
+0B101n => ok 5n
+1_000_000n => ok 1000000n
+0x_1n => err SyntaxError: Invalid or unexpected token
+0xFF_FFn => ok 65535n
+18446744073709551616n => ok 18446744073709551616n
+-18446744073709551616n => ok -18446744073709551616n
+0xFFFFFFFFFFFFFFFFFFFFFFFFn => ok 79228162514264337593543950335n
+123456789012345678901234567890n => ok 123456789012345678901234567890n
+typeof 1n => ok "bigint"
+typeof 0n => ok "bigint"
+typeof Object(1n) => ok "object"
+typeof BigInt => ok "function"
+typeof BigInt(1) => ok "bigint"
+1n === 1n => ok true
+18446744073709551616n === 18446744073709551616n => ok true
+0x10n === 16n => ok true
+[1n, 2n, 3n].length => ok 3
+(() => { const a = 5n; return a; })() => ok 5n
+eval('7n') => ok 7n
+eval('01n') => err SyntaxError: Invalid or unexpected token
+eval('1.5n') => err SyntaxError: Invalid or unexpected token
+eval('1e3n') => err SyntaxError: Invalid or unexpected token
+eval('08n') => err SyntaxError: Invalid or unexpected token
+eval('0n.toString()') => ok "0"
+eval('1nn') => err SyntaxError: Invalid or unexpected token
+eval('1n_') => err SyntaxError: Invalid or unexpected token
+eval('1_n') => err SyntaxError: Numeric separators are not allowed at the end of numeric literals
+Function('return 42n')() => ok 42n
+`${10n}` => ok "10"
+`a${-3n}b${0n}` => ok "a-3b0"
+({1n: 'a'})[1] => ok "a"
+({1n: 'a'})['1'] => ok "a"
+Object.keys({1n: 'a', 0x10n: 'b', 0b11n: 'c'}).join() => ok "1,3,16"
+Object.keys({18446744073709551616n: 1}).join() => ok "18446744073709551616"
+({[1n]: 'x'})[1] => ok "x"
+(() => { const o = {}; o[2n] = 'y'; return Object.keys(o).join() + o[2]; })() => ok "2y"
+(() => { const o = {get 3n() { return 'g'; }}; return o[3]; })() => ok "g"
+(() => { const o = {4n() { return 'm'; }}; return o[4](); })() => ok "m"
+(() => { class C { 5n() { return 'c'; } static 6n = 'f'; } return new C()[5]() + C[6]; })() => ok "cf"
+(() => { class C { 0x7n = 'h'; } return new C()[7]; })() => ok "h"
+(() => { class C { static get 8n() { return 'sg'; } } return C[8]; })() => ok "sg"
+(() => { const o = {1n: 1, 1: 2}; return Object.keys(o).join() + o[1]; })() => ok "12"
+(() => { const {1n: a} = {1: 'd'}; return a; })() => ok "d"
+(() => { const a = ['p', 'q']; return a[1n]; })() => ok "q"
+(() => { const a = []; a[0n] = 1; return a.length; })() => ok 1
+1n in {1: 0} => ok true
+(() => { const o = {}; Object.defineProperty(o, 9n, {value: 1}); return Object.keys(Object.getOwnPropertyDescriptors(o)).join(); })() => ok "9"
+({10n: 1}).hasOwnProperty(10n) => ok true
+(() => { const m = {}; m[-1n] = 1; return Object.keys(m).join(); })() => ok "-1"
+1n + 2n => ok 3n
+2n - 5n => ok -3n
+6n * 7n => ok 42n
+7n / 2n => ok 3n
+-7n / 2n => ok -3n
+7n / -2n => ok -3n
+7n % 2n => ok 1n
+-7n % 2n => ok -1n
+7n % -2n => ok 1n
+-7n % -2n => ok -1n
+2n ** 10n => ok 1024n
+(-2n) ** 3n => ok -8n
+2n ** 0n => ok 1n
+0n ** 0n => ok 1n
+2n ** 64n => ok 18446744073709551616n
+(2n ** 64n) - 1n => ok 18446744073709551615n
+(2n ** 64n) * (2n ** 64n) => ok 340282366920938463463374607431768211456n
+(2n ** 128n) / (2n ** 64n + 1n) => ok 18446744073709551615n
+1n / 0n => err RangeError: Division by zero
+1n % 0n => err RangeError: Division by zero
+0n / 0n => err RangeError: Division by zero
+2n ** -1n => err RangeError: Exponent must be positive
+1n + 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1 + 1n => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n - 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n * 1.5 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n / 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n % 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n ** 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+2 ** 1n => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n + undefined => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n + null => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n + true => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n + {} => ok "1[object Object]"
+1n + [] => ok "1"
+1n + [1] => ok "11"
+1n + '1' => ok "11"
+'1' + 1n => ok "11"
+1n + 'a' + 2n => ok "1a2"
+'' + -5n => ok "-5"
+1n + Symbol() => err TypeError: Cannot convert a Symbol value to a number
+1n - '1' => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n * true => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n + {valueOf() { return 2n; }} => ok 3n
+({valueOf() { return 3n; }}) * 2n => ok 6n
+({toString() { return '4'; }}) + 1n => ok "41"
+1n + {valueOf() { return 1; }} => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+Object(1n) + 1n => ok 2n
+Object(2n) * Object(3n) => ok 6n
+[1n] + 1n => ok "11"
+1n + NaN => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+(() => { let x = 5n; x += 1n; return x; })() => ok 6n
+(() => { let x = 5n; x -= 2n; return x; })() => ok 3n
+(() => { let x = 5n; x *= 2n; return x; })() => ok 10n
+(() => { let x = 5n; x /= 2n; return x; })() => ok 2n
+(() => { let x = 5n; x %= 2n; return x; })() => ok 1n
+(() => { let x = 5n; x **= 2n; return x; })() => ok 25n
+(() => { let x = 5n; x <<= 2n; return x; })() => ok 20n
+(() => { let x = 5n; x >>= 1n; return x; })() => ok 2n
+(() => { let x = 5n; x &= 3n; return x; })() => ok 1n
+(() => { let x = 5n; x |= 3n; return x; })() => ok 7n
+(() => { let x = 5n; x ^= 3n; return x; })() => ok 6n
+(() => { let x = 5n; x >>>= 1n; return x; })() => err TypeError: BigInts have no unsigned right shift, use >> instead
+(() => { let x = 5n; x += 1; return x; })() => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+(() => { let x = 5n; x += 'a'; return x; })() => ok "5a"
+(() => { let x; x ??= 1n; x ||= 2n; x &&= 3n; return x; })() => ok 3n
+(() => { const o = {a: 1n}; o.a += 2n; o['a'] *= 3n; return o.a; })() => ok 9n
+(() => { const a = [1n]; a[0] **= 3n; a[0] -= 10n; return a[0]; })() => ok -9n
+9007199254740993n + 1n => ok 9007199254740994n
+-9223372036854775808n - 1n => ok -9223372036854775809n
+18446744073709551615n + 1n => ok 18446744073709551616n
+-1n * 18446744073709551616n => ok -18446744073709551616n
+340282366920938463463374607431768211455n / 18446744073709551615n => ok 18446744073709551617n
+340282366920938463463374607431768211455n % 18446744073709551615n => ok 0n
+(-(2n ** 64n)) / 3n => ok -6148914691236517205n
+(-(2n ** 64n)) % 3n => ok -1n
+(10n ** 30n) / (10n ** 15n) => ok 1000000000000000n
+(10n ** 30n + 7n) % (10n ** 15n) => ok 7n
+(-3n) ** 41n => ok -36472996377170786403n
+1n ** 1000000000000n => ok 1n
+(-1n) ** 1000000000001n => ok -1n
+0n ** 1000000000000n => ok 0n
+2n ** 1000n % 1000007n => ok 783922n
+5n & 3n => ok 1n
+5n | 3n => ok 7n
+5n ^ 3n => ok 6n
+-5n & 3n => ok 3n
+-5n | 3n => ok -5n
+-5n ^ 3n => ok -8n
+-5n & -3n => ok -7n
+-5n | -3n => ok -1n
+-5n ^ -3n => ok 6n
+~5n => ok -6n
+~-5n => ok 4n
+~0n => ok -1n
+~-1n => ok 0n
+1n << 3n => ok 8n
+1n << 64n => ok 18446744073709551616n
+-1n << 64n => ok -18446744073709551616n
+256n >> 4n => ok 16n
+-256n >> 4n => ok -16n
+-1n >> 100n => ok -1n
+-3n >> 1n => ok -2n
+5n >> -1n => ok 10n
+5n << -1n => ok 2n
+1n >> 64n => ok 0n
+-1n >> 1000000000000n => ok -1n
+1n >> 18446744073709551616n => ok 0n
+0n << 18446744073709551616n => ok 0n
+1n >>> 0n => err TypeError: BigInts have no unsigned right shift, use >> instead
+-1n >>> 1n => err TypeError: BigInts have no unsigned right shift, use >> instead
+1n >>> 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1 >>> 1n => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n & 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1 | 1n => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n ^ 1.5 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n << 1 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1 << 1n => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n >> '1' => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+(2n ** 64n - 1n) & 0xFFFFn => ok 65535n
+(2n ** 64n) | 1n => ok 18446744073709551617n
+(2n ** 100n) ^ (2n ** 100n) => ok 0n
+-(2n ** 64n) & 0xFFFFFFFFn => ok 0n
+-(2n ** 64n) | 0xFFn => ok -18446744073709551361n
+0xFFFFFFFFFFFFFFFFn & -0x10000000000000000n => ok 0n
+-0xFFFFFFFFFFFFFFFFn ^ 0x1234n => ok -18446744073709546955n
+~(2n ** 64n) => ok -18446744073709551617n
+-1n << 3n => ok -8n
+(-(2n ** 70n)) >> 3n => ok -147573952589676412928n
+(-(2n ** 70n) - 1n) >> 70n => ok -2n
+-1n => ok -1n
+-(-1n) => ok 1n
+-0n => ok 0n
++1n => err TypeError: Cannot convert a BigInt value to a number
++0n => err TypeError: Cannot convert a BigInt value to a number
++Object(1n) => err TypeError: Cannot convert a BigInt value to a number
+-Object(5n) => ok -5n
+~Object(5n) => ok -6n
+!0n => ok true
+!1n => ok false
+!!-1n => ok true
+!Object(0n) => ok false
+void 1n => ok undefined
+0n ? 'y' : 'n' => ok "n"
+1n ? 'y' : 'n' => ok "y"
+0n || 'or' => ok "or"
+1n && 'and' => ok "and"
+0n ?? 'nn' => ok 0n
+(() => { if (0n) return 'a'; return 'b'; })() => ok "b"
+(() => { let i = 0; let x = 3n; while (x) { x--; i++; } return i; })() => ok 3
+-{valueOf() { return 7n; }} => ok -7n
+~{valueOf() { return 7n; }} => ok -8n
++{valueOf() { return 7n; }} => err TypeError: Cannot convert a BigInt value to a number
+-[1n] => ok -1
+(() => { let x = 1n; x++; return x; })() => ok 2n
+(() => { let x = 1n; return x++; })() => ok 1n
+(() => { let x = 1n; return ++x; })() => ok 2n
+(() => { let x = 1n; x--; return x; })() => ok 0n
+(() => { let x = 1n; return x--; })() => ok 1n
+(() => { let x = 1n; return --x; })() => ok 0n
+(() => { let x = -1n; return ++x; })() => ok 0n
+(() => { let x = 18446744073709551615n; return ++x; })() => ok 18446744073709551616n
+(() => { let x = -18446744073709551616n; return --x; })() => ok -18446744073709551617n
+(() => { const o = {p: 1n}; o.p++; ++o.p; return o.p; })() => ok 3n
+(() => { const o = {p: 1n}; const r = o.p--; return r + ',' + o.p; })() => ok "1,0"
+(() => { const a = [10n]; a[0]++; return a[0]; })() => ok 11n
+(() => { const o = {valueOf() { return 1n; }}; let x = o; x++; return x; })() => ok 2n
+(() => { let x = Object(1n); const r = x++; return typeof r + ',' + x; })() => ok "bigint,2"
+(() => { let x = '1'; x++; return x; })() => ok 2
+(() => { var x = 1n; function f() { x++; } f(); f(); return x; })() => ok 3n
+(() => { let x = 1n; const f = () => ++x; f(); return f(); })() => ok 3n
+(() => { let s = 0n; for (let i = 0n; i < 10n; i++) s += i; return s; })() => ok 45n
+(() => { let s = 0n; for (let i = 10n; i > 0n; --i) s += i; return s; })() => ok 55n
+1n < 2n => ok true
+2n < 1n => ok false
+1n <= 1n => ok true
+1n >= 2n => ok false
+-1n < 0n => ok true
+1n < 2 => ok true
+2 < 1n => ok false
+1n < 1.5 => ok true
+1.5 < 2n => ok true
+1n <= 1 => ok true
+1n >= 1 => ok true
+1n > 0.9999999999999999 => ok true
+1n < NaN => ok false
+1n > NaN => ok false
+1n <= NaN => ok false
+NaN >= 1n => ok false
+1n < Infinity => ok true
+-1n > -Infinity => ok true
+Infinity > 18446744073709551616n => ok true
+2n ** 64n > 18446744073709551615 => ok false
+2n ** 64n > 18446744073709551616 => ok false
+2n ** 64n < 18446744073709551616 => ok false
+2n ** 64n >= 18446744073709551616 => ok true
+9007199254740993n > 9007199254740992 => ok true
+9007199254740993n < 9007199254740994 => ok true
+-9007199254740993n < -9007199254740992 => ok true
+0n < -0 => ok false
+0n <= -0 => ok true
+0n >= -0 => ok true
+1n < '2' => ok true
+'2' < 1n => ok false
+1n < '1' => ok false
+1n <= '1' => ok true
+1n < 'x' => ok false
+1n >= 'x' => ok false
+'x' > 1n => ok false
+1n < '' => ok false
+0n <= '' => ok true
+0n >= '  ' => ok true
+1n < '0x10' => ok true
+16n <= '0x10' => ok true
+1n < '1.5' => ok false
+1n > '-1' => ok true
+1n < '1e3' => ok false
+1n < ' 2 ' => ok true
+1n < '18446744073709551616' => ok true
+18446744073709551617n > '18446744073709551616' => ok true
+-18446744073709551617n < '-18446744073709551616' => ok true
+1n < '-0' => ok false
+1n < true => ok false
+1n > false => ok true
+1n < null => ok false
+-1n < undefined => ok false
+1n < {valueOf() { return 2n; }} => ok true
+1n < [2] => ok true
+1n < Symbol() => err TypeError: Cannot convert a Symbol value to a number
+'10' > 9n => ok true
+'abc' < 1n => ok false
+['a', 'b'].map(s => 1n < s).join() => ok "false,false"
+(() => { const r = []; for (const v of [0n, 1n, -1n]) for (const w of [0, 1, -1, 0.5, '0', '1', '-1']) r.push(v < w ? '<' : v > w ? '>' : v == w ? '=' : '?'); return r.join(''); })() => ok "=<><=<>>=>>>=><<=<<<="
+1n == 1n => ok true
+1n == 2n => ok false
+1n === 1n => ok true
+1n !== 1n => ok false
+0n == -0n => ok true
+1n == 1 => ok true
+1n == 1.0 => ok true
+1n == 1.5 => ok false
+1n === 1 => ok false
+0n == -0 => ok true
+0n == 0 => ok true
+1n == NaN => ok false
+NaN == 1n => ok false
+2n ** 64n == 18446744073709551616 => ok true
+2n ** 53n + 1n == 9007199254740993 => ok false
+1n == '1' => ok true
+1n == '01' => ok true
+1n == ' 1 ' => ok true
+1n == '1.0' => ok false
+1n == '1n' => ok false
+1n == 'x' => ok false
+1n == '' => ok false
+0n == '' => ok true
+0n == ' ' => ok true
+16n == '0x10' => ok true
+5n == '0b101' => ok true
+8n == '0o10' => ok true
+-1n == '-1' => ok true
+1n == '+1' => ok true
+-16n == '-0x10' => ok false
+1n == true => ok true
+0n == false => ok true
+2n == true => ok false
+1n == null => ok false
+0n == undefined => ok false
+1n == Object(1n) => ok true
+Object(1n) == 1n => ok true
+Object(1n) == Object(1n) => ok false
+1n == {valueOf() { return 1n; }} => ok true
+1n == {valueOf() { return 1; }} => ok true
+1n == {toString() { return '1'; }} => ok true
+1n == [1] => ok true
+1n == Symbol() => ok false
+1n != 2 => ok true
+1n != '1' => ok false
+'18446744073709551616' == 18446744073709551616n => ok true
+Object.is(1n, 1n) => ok true
+Object.is(0n, -0n) => ok true
+Object.is(1n, 1) => ok false
+[1n, 2n, 3n].includes(2n) => ok true
+[1n, 2n, 3n].indexOf(3n) => ok 2
+[1n, 2n, 3n, 2n].lastIndexOf(2n) => ok 3
+[1n].includes(1) => ok false
+[1].includes(1n) => ok false
+[1n].indexOf(1) => ok -1
+[2n ** 64n].includes(18446744073709551616n) => ok true
+[1n, 2n].findIndex(x => x === 2n) => ok 1
+(() => { switch (2n) { case 1n: return 'a'; case 2n: return 'b'; default: return 'c'; } })() => ok "b"
+(() => { switch (2n) { case 2: return 'num'; case '2': return 'str'; default: return 'none'; } })() => ok "none"
+(() => { switch (18446744073709551616n) { case 2n ** 64n: return 'big'; default: return 'none'; } })() => ok "big"
+(() => { const m = new Map([[1n, 'a']]); return m.get(1n) + m.has(1) + m.has(BigInt(1)); })() => ok "afalsetrue"
+(() => { const s = new Set([1n, 1n, BigInt(1), 2n ** 64n, 18446744073709551616n]); return s.size; })() => ok 2
+(() => { const s = new Set([0n, -0n]); return s.size; })() => ok 1
+(() => { const m = new Map(); m.set(2n ** 100n, 1); return m.get(1267650600228229401496703205376n); })() => ok 1
+(() => { const o = Object.freeze({a: 1n}); Object.defineProperty(o, 'a', {value: BigInt(1)}); return 'ok'; })() => ok "ok"
+(() => { const o = Object.freeze({a: 1n}); try { Object.defineProperty(o, 'a', {value: 2n}); return 'ok'; } catch (e) { return e.name; } })() => ok "TypeError"
+(() => { const o = {}; Object.defineProperty(o, 'a', {value: 2n ** 64n}); Object.defineProperty(o, 'a', {value: 18446744073709551616n}); return o.a; })() => ok 18446744073709551616n
+Reflect.defineProperty(Object.defineProperty({}, 'x', {value: 5n}), 'x', {value: 5n}) => ok true
+Reflect.defineProperty(Object.defineProperty({}, 'x', {value: 5n}), 'x', {value: 6n}) => ok false
+[0n, 1n].map(x => x ? 1 : 0).join() => ok "0,1"
+String(1n) => ok "1"
+String(-1n) => ok "-1"
+String(0n) => ok "0"
+String(2n ** 64n) => ok "18446744073709551616"
+String(-(2n ** 100n)) => ok "-1267650600228229401496703205376"
+(1n).toString() => ok "1"
+1n.toString() => ok "1"
+(255n).toString(16) => ok "ff"
+(255n).toString(2) => ok "11111111"
+(-255n).toString(36) => ok "-73"
+(2n ** 64n).toString(36) => ok "3w5e11264sgsg"
+(2n ** 64n).toString(8) => ok "2000000000000000000000"
+(10n).toString(10) => ok "10"
+(10n).toString(undefined) => ok "10"
+(10n).toString(1) => err RangeError: toString() radix argument must be between 2 and 36
+(10n).toString(37) => err RangeError: toString() radix argument must be between 2 and 36
+(10n).toString(0) => err RangeError: toString() radix argument must be between 2 and 36
+(10n).toString(-1) => err RangeError: toString() radix argument must be between 2 and 36
+(10n).toString(NaN) => err RangeError: toString() radix argument must be between 2 and 36
+(10n).toString(2.9) => ok "1010"
+(10n).toString('16') => ok "a"
+(10n).toString(16n) => err TypeError: Cannot convert a BigInt value to a number
+(0n).toString(2) => ok "0"
+(-0n).toString() => ok "0"
+(123456789012345678901234567890n).toString(7) => ok "21653251153414601406403630240331250"
+(1n).toLocaleString() => ok "1"
+(1234567n).toLocaleString() => ok "1,234,567"
+(-1234567n).toLocaleString() => ok "-1,234,567"
+(12345678901234567890n).toLocaleString() => ok "12,345,678,901,234,567,890"
+(0n).toLocaleString() => ok "0"
+(999n).toLocaleString() => ok "999"
+(1000n).toLocaleString() => ok "1,000"
+`${2n ** 64n}` => ok "18446744073709551616"
+[1n, 2n].join() => ok "1,2"
+[1n, -2n].toString() => ok "1,-2"
+[1n, [2n, [3n]]].join(';') => ok "1;2,3"
+String([0n]) => ok "0"
+JSON.stringify({a: 1n}) => err TypeError: Do not know how to serialize a BigInt
+JSON.stringify(1n) => err TypeError: Do not know how to serialize a BigInt
+JSON.stringify([1n]) => err TypeError: Do not know how to serialize a BigInt
+JSON.stringify({a: Object(1n)}) => err TypeError: Do not know how to serialize a BigInt
+JSON.stringify({a: 1n}, (k, v) => typeof v === 'bigint' ? v.toString() : v) => ok "{\"a\":\"1\"}"
+(() => { BigInt.prototype.toJSON = function () { return this.toString() + 'J'; }; try { return JSON.stringify({a: 1n, b: [2n], c: Object(3n)}); } finally { delete BigInt.prototype.toJSON; } })() => ok "{\"a\":\"1J\",\"b\":[\"2J\"],\"c\":\"3J\"}"
+(() => { BigInt.prototype.toJSON = function () { return this; }; try { return JSON.stringify(1n); } catch (e) { return e.name + ': ' + e.message; } finally { delete BigInt.prototype.toJSON; } })() => ok "TypeError: Do not know how to serialize a BigInt"
+JSON.stringify({a: 1n}, null, 2) => err TypeError: Do not know how to serialize a BigInt
+JSON.parse('1', (k, v) => BigInt(v)) === 1n => ok true
+(() => { try { JSON.stringify({x: {y: 2n}}); } catch (e) { return e.message; } })() => ok "Do not know how to serialize a BigInt"
+'abc'.at(1n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.charAt(1n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.slice(1n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.repeat(2n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.padStart(5n, '-') => err TypeError: Cannot convert a BigInt value to a number
+'abc'.indexOf('b', 1n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.concat(1n) => ok "abc1"
+'a-b'.split('-', 1n) => err TypeError: Cannot convert a BigInt value to a number
+'abc'.startsWith(1n) => ok false
+'1n'.replace('1', 2n) => ok "2n"
+[1, 2, 3].slice(1n) => err TypeError: Cannot convert a BigInt value to a number
+[1, 2, 3].at(1n) => err TypeError: Cannot convert a BigInt value to a number
+new Array(1n).length => ok 1
+Array(2n).length => ok 1
+[3n, 1n, 2n, 10n].sort().join() => ok "1,10,2,3"
+[3n, 1n, 2n, 10n].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join() => ok "1,2,3,10"
+[3n, 1n].sort((a, b) => a - b).join() => err TypeError: Cannot convert a BigInt value to a number
+[3n, 1n].toSorted((a, b) => Number(a - b)).join() => ok "1,3"
+[1n, 'a', 1].sort().join() => ok "1,1,a"
+[-2n, 1, 0n, -1].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join() => ok "-2,-1,0,1"
+[10n, 9n, 1n].sort((a, b) => a < b ? 1n : -1n).join() => err TypeError: Cannot convert a BigInt value to a number
+Number(1n) => ok 1
+Number(-1n) => ok -1
+Number(0n) => ok 0
+Number(2n ** 53n + 1n) => ok 9007199254740992
+Number(2n ** 64n) => ok 18446744073709552000
+Number(2n ** 1024n) => ok Infinity
+Number(-(2n ** 1024n)) => ok -Infinity
+Number(2n ** 1023n * 3n / 2n) => ok 1.348269851146737e+308
+Number(9007199254740993n) => ok 9007199254740992
+Number(9007199254740995n) => ok 9007199254740996
+Number(Object(5n)) => ok 5
+Number({valueOf() { return 3n; }}) => ok 3
+new Number(1n).valueOf() => ok 1
+Number('1n') => ok NaN
+parseInt(10n) => ok 10
+parseInt(0x10n, 16) => ok 22
+parseFloat(1n) => ok 1
+parseFloat(-12n) => ok -12
+parseInt('12n') => ok 12
+isNaN(1n) => err TypeError: Cannot convert a BigInt value to a number
+isFinite(1n) => err TypeError: Cannot convert a BigInt value to a number
+Number.isNaN(1n) => ok false
+Number.isFinite(1n) => ok false
+Number.isInteger(1n) => ok false
+Number.isSafeInteger(1n) => ok false
+Math.abs(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.max(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.max(1, 2n) => err TypeError: Cannot convert a BigInt value to a number
+Math.min() => ok Infinity
+Math.sign(-1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.floor(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.pow(2n, 2n) => err TypeError: Cannot convert a BigInt value to a number
+Math.sqrt(4n) => err TypeError: Cannot convert a BigInt value to a number
+Math.hypot(3n) => err TypeError: Cannot convert a BigInt value to a number
+Math.round(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.trunc(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.clz32(1n) => err TypeError: Cannot convert a BigInt value to a number
+Math.imul(1n, 1) => err TypeError: Cannot convert a BigInt value to a number
+Math.atan2(1n, 1) => err TypeError: Cannot convert a BigInt value to a number
+Math.sumPrecise([1n]) => err TypeError: Type of 'Iterator value' must be 'number', found 'bigint'
+(1).toFixed(1n) => err TypeError: Cannot convert a BigInt value to a number
+(1.5).toPrecision(2n) => err TypeError: Cannot convert a BigInt value to a number
+(255).toString(16n) => err TypeError: Cannot convert a BigInt value to a number
+[1, 2].fill(0, 1n).join() => err TypeError: Cannot convert a BigInt value to a number
+'abc'.substring(1n) => err TypeError: Cannot convert a BigInt value to a number
+(() => { try { return [1, 2, 3].splice(1n); } catch (e) { return e.message; } })() => ok "Cannot convert a BigInt value to a number"
+Array.from({length: 2n}).length => err TypeError: Cannot convert a BigInt value to a number
+String.fromCharCode(65n) => err TypeError: Cannot convert a BigInt value to a number
+'a'.codePointAt(0n) => err TypeError: Cannot convert a BigInt value to a number
+(() => { const a = [1, 2, 3]; a.length = 1n; return a.length; })() => err TypeError: Failed to set the 'length' property on 'Array': Cannot convert a BigInt value to a number
+Number.prototype.toString.call(1n) => err TypeError: Number.prototype.toString requires that 'this' be a Number
+1n.toFixed => ok undefined
+1n.toFixed() => err TypeError: (intermediate value).toFixed is not a function
+BigInt.length => ok 1
+BigInt.name => ok "BigInt"
+Object.getOwnPropertyNames(BigInt).join() => ok "length,name,prototype,asUintN,asIntN"
+Reflect.ownKeys(BigInt.prototype).map(String).join() => ok "constructor,toLocaleString,toString,valueOf,Symbol(Symbol.toStringTag)"
+Object.getPrototypeOf(BigInt) === Function.prototype => ok true
+Object.getPrototypeOf(BigInt.prototype) === Object.prototype => ok true
+BigInt.prototype.constructor === BigInt => ok true
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt, 'prototype')) => ok "{\"value\":{},\"writable\":false,\"enumerable\":false,\"configurable\":false}"
+JSON.stringify(Object.getOwnPropertyDescriptor(globalThis, 'BigInt')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt, 'asIntN')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt.prototype, 'toString')) => ok "{\"writable\":true,\"enumerable\":false,\"configurable\":true}"
+BigInt.prototype[Symbol.toStringTag] => ok "BigInt"
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt.prototype, Symbol.toStringTag)) => ok "{\"value\":\"BigInt\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+['asIntN', 'asUintN'].map(k => BigInt[k].name + '/' + BigInt[k].length).join() => ok "asIntN/2,asUintN/2"
+['toString', 'toLocaleString', 'valueOf'].map(k => BigInt.prototype[k].name + '/' + BigInt.prototype[k].length).join() => ok "toString/0,toLocaleString/0,valueOf/0"
+BigInt(1) => ok 1n
+BigInt(-1) => ok -1n
+BigInt(0) => ok 0n
+BigInt(-0) => ok 0n
+BigInt(1e21) => ok 1000000000000000000000n
+BigInt(2 ** 64) => ok 18446744073709551616n
+BigInt(Number.MAX_VALUE) => ok 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368n
+BigInt(Number.MAX_SAFE_INTEGER) => ok 9007199254740991n
+BigInt(-Number.MAX_SAFE_INTEGER) => ok -9007199254740991n
+BigInt(1.5) => err RangeError: The number 1.5 cannot be converted to a BigInt because it is not an integer
+BigInt(-0.5) => err RangeError: The number -0.5 cannot be converted to a BigInt because it is not an integer
+BigInt(NaN) => err RangeError: The number NaN cannot be converted to a BigInt because it is not an integer
+BigInt(Infinity) => err RangeError: The number Infinity cannot be converted to a BigInt because it is not an integer
+BigInt(-Infinity) => err RangeError: The number -Infinity cannot be converted to a BigInt because it is not an integer
+BigInt(1e-7) => err RangeError: The number 1e-7 cannot be converted to a BigInt because it is not an integer
+BigInt(Number.MIN_VALUE) => err RangeError: The number 5e-324 cannot be converted to a BigInt because it is not an integer
+BigInt(1n) => ok 1n
+BigInt(true) => ok 1n
+BigInt(false) => ok 0n
+BigInt('') => ok 0n
+BigInt('   ') => ok 0n
+BigInt('123') => ok 123n
+BigInt('-123') => ok -123n
+BigInt('+123') => ok 123n
+BigInt(' 12 ') => ok 12n
+BigInt('\n12\t') => ok 12n
+BigInt('0x1F') => ok 31n
+BigInt('0X1f') => ok 31n
+BigInt('0o17') => ok 15n
+BigInt('0b11') => ok 3n
+BigInt('-0x1F') => err SyntaxError: Cannot convert -0x1F to a BigInt
+BigInt('0x') => err SyntaxError: Cannot convert 0x to a BigInt
+BigInt('1.5') => err SyntaxError: Cannot convert 1.5 to a BigInt
+BigInt('1e3') => err SyntaxError: Cannot convert 1e3 to a BigInt
+BigInt('1n') => err SyntaxError: Cannot convert 1n to a BigInt
+BigInt('1_000') => err SyntaxError: Cannot convert 1_000 to a BigInt
+BigInt('abc') => err SyntaxError: Cannot convert abc to a BigInt
+BigInt('Infinity') => err SyntaxError: Cannot convert Infinity to a BigInt
+BigInt('00012') => ok 12n
+BigInt('-0') => ok 0n
+BigInt('١٢') => err SyntaxError: Cannot convert ١٢ to a BigInt
+BigInt(' 12 ') => ok 12n
+BigInt('  7 ﻿') => ok 7n
+BigInt('18446744073709551616') => ok 18446744073709551616n
+BigInt('0xFFFFFFFFFFFFFFFFFFFF') => ok 1208925819614629174706175n
+BigInt('9'.repeat(100)) % 1000n => ok 999n
+BigInt('x'.repeat(50)) => err SyntaxError: Cannot convert xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx to a BigInt
+BigInt(undefined) => err TypeError: Cannot convert undefined to a BigInt
+BigInt(null) => err TypeError: Cannot convert null to a BigInt
+BigInt() => err TypeError: Cannot convert undefined to a BigInt
+BigInt(Symbol()) => err TypeError: Cannot convert Symbol() to a BigInt
+BigInt({}) => err SyntaxError: Cannot convert [object Object] to a BigInt
+BigInt([]) => ok 0n
+BigInt([5]) => ok 5n
+BigInt([1, 2]) => err SyntaxError: Cannot convert 1,2 to a BigInt
+BigInt({valueOf() { return 5; }}) => ok 5n
+BigInt({valueOf() { return 5n; }}) => ok 5n
+BigInt({valueOf() { return '0x10'; }}) => ok 16n
+BigInt({toString() { return '7'; }}) => ok 7n
+BigInt({[Symbol.toPrimitive](h) { return h === 'number' ? 1 : 2; }}) => ok 1n
+BigInt(Object(3n)) => ok 3n
+BigInt(new Number(3)) => ok 3n
+BigInt(new String('4')) => ok 4n
+new BigInt(1) => err TypeError: BigInt is not a constructor
+new BigInt() => err TypeError: BigInt is not a constructor
+(() => { try { Reflect.construct(BigInt, [1]); } catch (e) { return e.message; } })() => ok "BigInt is not a constructor"
+BigInt.call(null, 9) => ok 9n
+BigInt.apply(undefined, ['11']) => ok 11n
+BigInt.asIntN(8, 255n) => ok -1n
+BigInt.asIntN(8, 127n) => ok 127n
+BigInt.asIntN(8, 128n) => ok -128n
+BigInt.asIntN(8, -129n) => ok 127n
+BigInt.asIntN(0, 5n) => ok 0n
+BigInt.asIntN(1, 1n) => ok -1n
+BigInt.asIntN(64, 2n ** 63n) => ok -9223372036854775808n
+BigInt.asIntN(64, 2n ** 64n - 1n) => ok -1n
+BigInt.asIntN(64, -(2n ** 63n)) => ok -9223372036854775808n
+BigInt.asIntN(64, 18446744073709551615n) => ok -1n
+BigInt.asIntN(65, 2n ** 64n) => ok -18446744073709551616n
+BigInt.asIntN(200, -1n) => ok -1n
+BigInt.asIntN(2 ** 53 - 1, 5n) => ok 5n
+BigInt.asIntN(2 ** 53, 5n) => err RangeError: Invalid value: not (convertible to) a safe integer
+BigInt.asIntN(-1, 5n) => err RangeError: Invalid value: not (convertible to) a safe integer
+BigInt.asIntN(1.9, 1n) => ok -1n
+BigInt.asIntN('8', 255n) => ok -1n
+BigInt.asIntN(NaN, 5n) => ok 0n
+BigInt.asIntN(undefined, 5n) => ok 0n
+BigInt.asIntN(8, 255) => err TypeError: Cannot convert 255 to a BigInt
+BigInt.asIntN(8, '255') => ok -1n
+BigInt.asIntN(8, true) => ok 1n
+BigInt.asIntN(8) => err TypeError: Cannot convert undefined to a BigInt
+BigInt.asIntN(8, Symbol()) => err TypeError: Cannot convert Symbol() to a BigInt
+BigInt.asIntN(8, 1.5) => err TypeError: Cannot convert 1.5 to a BigInt
+BigInt.asIntN(Infinity, 1n) => err RangeError: Invalid value: not (convertible to) a safe integer
+BigInt.asIntN(8n, 1n) => err TypeError: Cannot convert a BigInt value to a number
+BigInt.asUintN(8, 255n) => ok 255n
+BigInt.asUintN(8, 256n) => ok 0n
+BigInt.asUintN(8, -1n) => ok 255n
+BigInt.asUintN(0, 5n) => ok 0n
+BigInt.asUintN(1, -1n) => ok 1n
+BigInt.asUintN(64, -1n) => ok 18446744073709551615n
+BigInt.asUintN(64, 2n ** 64n) => ok 0n
+BigInt.asUintN(65, -1n) => ok 36893488147419103231n
+BigInt.asUintN(128, -(2n ** 64n)) => ok 340282366920938463444927863358058659840n
+BigInt.asUintN(2 ** 53 - 1, 5n) => ok 5n
+BigInt.asUintN(2 ** 53 - 1, 0n) => ok 0n
+BigInt.asUintN(-1, 5n) => err RangeError: Invalid value: not (convertible to) a safe integer
+BigInt.asUintN(8, '0x1FF') => ok 255n
+BigInt.asUintN(8, 'z') => err SyntaxError: Cannot convert z to a BigInt
+BigInt.asUintN(8, -255) => err TypeError: Cannot convert -255 to a BigInt
+(() => { const log = []; try { BigInt.asIntN({valueOf() { log.push('bits'); return 8; }}, {valueOf() { log.push('big'); return 1n; }}); } catch (e) {} return log.join(); })() => ok "bits,big"
+(() => { const log = []; try { BigInt.asUintN({valueOf() { log.push('bits'); return -1; }}, {valueOf() { log.push('big'); return 1n; }}); } catch (e) { log.push(e.name); } return log.join(); })() => ok "bits,RangeError"
+(() => { const n = BigInt.asIntN(64, BigInt('-9223372036854775809')); return n; })() => ok 9223372036854775807n
+BigInt.prototype.valueOf.call(1n) => ok 1n
+BigInt.prototype.valueOf.call(Object(2n)) => ok 2n
+BigInt.prototype.valueOf.call(1) => err TypeError: BigInt.prototype.valueOf requires that 'this' be a BigInt
+BigInt.prototype.valueOf.call({}) => err TypeError: BigInt.prototype.valueOf requires that 'this' be a BigInt
+BigInt.prototype.valueOf.call(BigInt.prototype) => err TypeError: BigInt.prototype.valueOf requires that 'this' be a BigInt
+BigInt.prototype.toString.call(1) => err TypeError: BigInt.prototype.toString requires that 'this' be a BigInt
+BigInt.prototype.toString.call('1') => err TypeError: BigInt.prototype.toString requires that 'this' be a BigInt
+BigInt.prototype.toString.call(Object(1)) => err TypeError: BigInt.prototype.toString requires that 'this' be a BigInt
+BigInt.prototype.toString.call(Object(5n), 2) => ok "101"
+BigInt.prototype.toLocaleString.call(1) => err TypeError: BigInt.prototype.toLocaleString requires that 'this' be a BigInt
+BigInt.prototype.toLocaleString.call(Object(1234n)) => ok "1,234"
+BigInt.prototype.toString() => err TypeError: BigInt.prototype.toString requires that 'this' be a BigInt
+(5n).valueOf() => ok 5n
+Object(5n).valueOf() => ok 5n
+Object(5n).toString() => ok "5"
+typeof Object(5n).valueOf() => ok "bigint"
+Object(1n) instanceof BigInt => ok true
+1n instanceof BigInt => ok false
+Object.getPrototypeOf(Object(1n)) === BigInt.prototype => ok true
+Object.getPrototypeOf(1n) === BigInt.prototype => ok true
+(1n).constructor === BigInt => ok true
+1n.constructor.name => ok "BigInt"
+1n.foo => ok undefined
+1n['toString'].name => ok "toString"
+(1n).hasOwnProperty('x') => ok false
+Object.prototype.toString.call(1n) => ok "[object BigInt]"
+Object.prototype.toString.call(Object(1n)) => ok "[object BigInt]"
+Object.prototype.toString.call(BigInt.prototype) => ok "[object BigInt]"
+String(Object(1n)) => ok "1"
+`${Object(-7n)}` => ok "-7"
+Object(1n) == 1n => ok true
+Object(1n) === Object(1n) => ok false
+typeof new Object(1n) => ok "object"
+Object(1n) + '' => ok "1"
+Object.keys(Object(1n)).length => ok 0
+(() => { 'use strict'; BigInt.prototype.me = function () { return typeof this; }; try { return 1n.me(); } finally { delete BigInt.prototype.me; } })() => ok "bigint"
+(() => { BigInt.prototype.me = function () { return typeof this; }; try { return 1n.me(); } finally { delete BigInt.prototype.me; } })() => ok "object"
+(() => { 'use strict'; try { 1n.x = 1; return 'no'; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot create property 'x' on bigint '1'"
+(() => { 1n.x = 1; return 1n.x; })() => ok undefined
+(() => { Object.defineProperty(BigInt.prototype, 'g', {get() { return typeof this; }, configurable: true}); try { return 1n.g; } finally { delete BigInt.prototype.g; } })() => ok "object"
+(() => { let r; Object.defineProperty(BigInt.prototype, 's', {set(v) { r = typeof this + v; }, configurable: true}); try { 'use strict'; 1n.s = 2; return r; } finally { delete BigInt.prototype.s; } })() => ok "object2"
+(() => { const v = BigInt.prototype.valueOf; BigInt.prototype.valueOf = function () { return 10n; }; try { return Object(1n) + 1n; } finally { BigInt.prototype.valueOf = v; } })() => ok 11n
+(() => { const p = BigInt.prototype; const v = Object.getOwnPropertyDescriptor(p, 'valueOf'); delete p.valueOf; try { return Object(1n) + 1n; } finally { Object.defineProperty(p, 'valueOf', v); } })() => ok "11"
+(() => { const p = BigInt.prototype; const v = Object.getOwnPropertyDescriptor(p, 'valueOf'); const t = Object.getOwnPropertyDescriptor(p, 'toString'); delete p.valueOf; delete p.toString; try { return Object(1n) + 1n; } catch (e) { return e.message; } finally { Object.defineProperty(p, 'toString', t); Object.defineProperty(p, 'valueOf', v); } })() => ok "[object BigInt]1"
+Object(1n)[Symbol.toPrimitive] => ok undefined
+Reflect.getPrototypeOf(Object(0n)) === BigInt.prototype => ok true
+(() => { class B extends BigInt {} try { return new B(1); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInt is not a constructor"
+(() => { function F() {} F.prototype = BigInt.prototype; return typeof new F(); })() => ok "object"
+Object.freeze(Object(1n)) + 1n => ok 2n
+Object.isFrozen(1n) => ok true
+Object.getOwnPropertyNames(1n).length => ok 0
+Object.entries(1n).length => ok 0
+Object.assign({}, 1n) => ok object
+({...1n}) => ok object
+Array.from(1n).length => ok 0
+(() => { try { for (const x of 1n) {} } catch (e) { return e.message; } })() => ok "(intermediate value) is not iterable"
+(() => { try { const [a] = 1n; } catch (e) { return e.message; } })() => ok "(intermediate value) is not iterable"
+(() => { const {constructor} = 1n; return constructor.name; })() => ok "BigInt"
+(() => { try { new (1n)(); } catch (e) { return e.message; } })() => ok "(intermediate value) is not a constructor"
+(() => { try { 1n(); } catch (e) { return e.message; } })() => ok "(intermediate value) is not a function"
+(() => { try { const x = 1n; x(); } catch (e) { return e.message; } })() => ok "x is not a function"
+(() => { try { const o = {p: 2n}; o.p(); } catch (e) { return e.message; } })() => ok "o.p is not a function"
+(() => { try { 1n.foo(); } catch (e) { return e.message; } })() => ok "(intermediate value).foo is not a function"
+(() => { try { 'x' in 1n; } catch (e) { return e.message; } })() => ok "Cannot use 'in' operator to search for 'x' in 1"
+(() => { try { ({}) instanceof 1n; } catch (e) { return e.message; } })() => ok "Right-hand side of 'instanceof' is not an object"
+(() => { try { Object.defineProperty(1n, 'x', {}); } catch (e) { return e.message; } })() => ok "Object.defineProperty called on non-object"
+(() => { try { Object.create(1n); } catch (e) { return e.message; } })() => ok "Object prototype may only be an Object or null: 1"
+(() => { try { Object.setPrototypeOf({}, 1n); } catch (e) { return e.message; } })() => ok "Object prototype may only be an Object or null: 1"
+(() => { try { new Proxy(1n, {}); } catch (e) { return e.message; } })() => ok "Cannot create proxy with a non-object as target or handler"
+(() => { try { new WeakMap().set(1n, 1); } catch (e) { return e.message; } })() => ok "Invalid value used as weak map key"
+(() => { try { new WeakSet().add(1n); } catch (e) { return e.message; } })() => ok "Invalid value used in weak set"
+(() => { try { new WeakRef(1n); } catch (e) { return e.message; } })() => ok "WeakRef: invalid target"
+(() => { try { Symbol.keyFor(1n); } catch (e) { return e.message; } })() => ok "1 is not a symbol"
+(() => { try { [].reduce(1n); } catch (e) { return e.message; } })() => ok "bigint is not a function"
+(() => { try { Promise.resolve().then.call(1n); } catch (e) { return e.message; } })() => ok "Method Promise.prototype.then called on incompatible receiver 1"
+(() => { try { throw 5n; } catch (e) { return typeof e + e; } })() => ok "bigint5"
+(() => { try { Reflect.get(1n, 'x'); } catch (e) { return e.message; } })() => ok "Reflect.get called on non-object"
+(() => { try { Symbol(1n).description; } catch (e) { return e.message; } })() => ok undefined
+Symbol(1n).description => ok "1"
+(() => { try { null[1n]; } catch (e) { return e.message; } })() => ok "Cannot read properties of null (reading '1')"
+(() => { try { undefined[2n ** 64n]; } catch (e) { return e.message; } })() => ok "Cannot read properties of undefined (reading '18446744073709551616')"
+(() => { try { let u; u.x = 1n; } catch (e) { return e.message; } })() => ok "Cannot set properties of undefined (setting 'x')"
+(() => { try { Object.prototype.__lookupGetter__.call(undefined, 1n); } catch (e) { return e.message; } })() => ok "Cannot convert undefined or null to object"
+Object.getOwnPropertyNames(Object(1n)).join() => ok ""
+(() => { try { +1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { 1n + 1; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { 1n >>> 1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInts have no unsigned right shift, use >> instead"
+(() => { try { Math.abs(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { 1n < Symbol(); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a Symbol value to a number"
+(() => { try { BigInt(1.5); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: The number 1.5 cannot be converted to a BigInt because it is not an integer"
+(() => { try { BigInt(0.1); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: The number 0.1 cannot be converted to a BigInt because it is not an integer"
+(() => { try { BigInt(1e-300); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: The number 1e-300 cannot be converted to a BigInt because it is not an integer"
+(() => { try { BigInt(-1.25e25); } catch (e) { return e.name + ': ' + e.message; } })() => ok undefined
+(() => { try { BigInt('1.5'); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert 1.5 to a BigInt"
+(() => { try { BigInt('  x  '); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert   x   to a BigInt"
+(() => { try { BigInt('aĀb'); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert aĀb to a BigInt"
+(() => { try { BigInt(undefined); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert undefined to a BigInt"
+(() => { try { BigInt(Symbol('s')); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert Symbol(s) to a BigInt"
+(() => { try { BigInt.asUintN(2 ** 53, 1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: Invalid value: not (convertible to) a safe integer"
+(() => { try { BigInt.asIntN(-1, 1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: Invalid value: not (convertible to) a safe integer"
+(() => { try { (1n).toString(99); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: toString() radix argument must be between 2 and 36"
+(() => { try { BigInt.prototype.toString.call(1); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInt.prototype.toString requires that 'this' be a BigInt"
+(() => { try { BigInt.prototype.valueOf.call('x'); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInt.prototype.valueOf requires that 'this' be a BigInt"
+(() => { try { BigInt.prototype.toLocaleString.call(null); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInt.prototype.toLocaleString requires that 'this' be a BigInt"
+(() => { try { 1n / 0n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: Division by zero"
+(() => { try { 1n ** -1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: Exponent must be positive"
+(() => { try { 1n << (2n ** 64n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "RangeError: Maximum BigInt size exceeded"
+(() => { try { isNaN(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { [1n].sort((a, b) => 1n); [2n, 1n].sort((a, b) => a - b); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { JSON.stringify(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Do not know how to serialize a BigInt"
+(() => { try { new Array(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok undefined
+(() => { try { 'x'.repeat(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { 1n - Symbol.iterator; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a Symbol value to a number"
+(() => { try { Symbol() + 1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a Symbol value to a number"
+(() => { try { let x = 1n; x += 1; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { let x = 1n; x >>>= 1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: BigInts have no unsigned right shift, use >> instead"
+(() => { try { (2n ** 64n) | 1; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { -1n >>> 0; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { 1 >>> 1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { +Object(1n); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert a BigInt value to a number"
+(() => { try { new Number(1n) + 1n; } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { 1n + {valueOf() { throw new Error('v'); }}; } catch (e) { return e.name + ': ' + e.message; } })() => ok "Error: v"
+(() => { const log = []; try { ({valueOf() { log.push('a'); return 1n; }}) + ({valueOf() { log.push('b'); return 1; }}); } catch (e) { log.push(e.name); } return log.join(); })() => ok "a,b,TypeError"
+(() => { const log = []; try { ({valueOf() { log.push('a'); return 1; }}) - ({valueOf() { log.push('b'); return 1n; }}); } catch (e) { log.push(e.name); } return log.join(); })() => ok "a,b,TypeError"
+(() => { const log = []; try { ({valueOf() { log.push('a'); return 1n; }}) < ({valueOf() { log.push('b'); return 'x'; }}); } catch (e) { log.push(e.name); } return log.join(); })() => ok "a,b"
+(() => { const log = []; const r = ({valueOf() { log.push('a'); return 1n; }}) > ({valueOf() { log.push('b'); return 0; }}); log.push(r); return log.join(); })() => ok "a,b,true"
+(() => { try { Number(1n) + 1n; } catch (e) { return e.message; } })() => ok "Cannot mix BigInt and other types, use explicit conversions"
+(() => { try { BigInt.asIntN(64, 1); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert 1 to a BigInt"
+(() => { try { BigInt.asIntN(64, undefined); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert undefined to a BigInt"
+(() => { try { BigInt.asIntN(64, null); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert null to a BigInt"
+(() => { try { BigInt.asIntN(64, '1.5'); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert 1.5 to a BigInt"
+(() => { try { BigInt.asIntN(64, Symbol('q')); } catch (e) { return e.name + ': ' + e.message; } })() => ok "TypeError: Cannot convert Symbol(q) to a BigInt"
+(() => { try { BigInt.asIntN(64, {}); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert [object Object] to a BigInt"
+(() => { try { BigInt.asIntN(64, 'abc'); } catch (e) { return e.name + ': ' + e.message; } })() => ok "SyntaxError: Cannot convert abc to a BigInt"
+(() => { try { null.f(1n); } catch (e) { return e.message; } })() => ok "Cannot read properties of null (reading 'f')"
+(() => { try { [].map(2n); } catch (e) { return e.message; } })() => ok "bigint is not a function"
+(() => { try { [1].forEach(-3n); } catch (e) { return e.message; } })() => ok "bigint is not a function"
+(() => { try { new Map().forEach(1n); } catch (e) { return e.message; } })() => ok "bigint is not a function"
+(() => { try { Object.defineProperty({}, 'a', 1n); } catch (e) { return e.message; } })() => ok "Property description must be an object: 1"
+(() => { try { Object.defineProperty({}, 'a', {get: 1n}); } catch (e) { return e.message; } })() => ok "Getter must be a function: 1"
+(() => { try { Function.prototype.call.call(1n); } catch (e) { return e.message; } })() => ok "Function.prototype.call was called on 1, which is a bigint and not a function"
+(() => { try { Array.prototype.sort.call([], 1n); } catch (e) { return e.message; } })() => ok "The comparison function must be either a function or undefined: 1"
+(() => { try { class A extends 1n {} } catch (e) { return e.message; } })() => ok "Class extends value 1 is not a constructor or null"
+(() => { try { new Set().union(1n); } catch (e) { return e.message; } })() => ok "Set.prototype.union argument must be an object"
+(() => { try { Symbol.prototype.toString.call(1n); } catch (e) { return e.message; } })() => ok "Symbol.prototype.toString requires that 'this' be a Symbol"
+(() => { try { String.prototype.trim.call(1n); return 'ok'; } catch (e) { return e.message; } })() => ok "ok"
+(() => { try { Number.prototype.valueOf.call(1n); } catch (e) { return e.message; } })() => ok "Number.prototype.valueOf requires that 'this' be a Number"
+(() => { try { Boolean.prototype.valueOf.call(1n); } catch (e) { return e.message; } })() => ok "Boolean.prototype.valueOf requires that 'this' be a Boolean"
+(() => { try { Map.prototype.get.call(1n); } catch (e) { return e.message; } })() => ok "Method Map.prototype.get called on incompatible receiver 1"
+(() => { try { 1n.toString.call(1); } catch (e) { return e.message; } })() => ok "BigInt.prototype.toString requires that 'this' be a BigInt"
+(() => { try { Reflect.ownKeys(1n); } catch (e) { return e.message; } })() => ok "Reflect.ownKeys called on non-object"
+(() => { try { Object.prototype.__defineGetter__.call({}, 'x', 1n); } catch (e) { return e.message; } })() => ok "Object.prototype.__defineGetter__: Expecting function"
+(() => { try { new Promise(1n); } catch (e) { return e.message; } })() => ok "Promise resolver 1 is not a function"
+(() => { try { Iterator.from(1n); } catch (e) { return e.message; } })() => ok "Iterator.from called on non-object"
+(() => { try { Array.from([1], 1n); } catch (e) { return e.message; } })() => ok "bigint is not a function"
+(() => { try { new Error('x', {cause: 1n}).cause; return 'ok'; } catch (e) { return e.message; } })() => ok "ok"
+(() => { const e = new Error('x', {cause: 1n}); return typeof e.cause; })() => ok "bigint"
+String(new Error(1n)) => ok "Error: 1"
+new TypeError(10n).message => ok "10"
+(() => { try { throw new Error(); } catch (e) { return typeof e.stack; } })() => ok "string"
+(() => { const a = [1, 2, 3]; a.length = Object(1n); return a.length; })() => err TypeError: Failed to set the 'length' property on 'Array': Cannot convert a BigInt value to a number
+(() => { const a = [1, 2, 3]; a.length = {valueOf() { return 1n; }}; return a.length; })() => err TypeError: Failed to set the 'length' property on 'Array': Cannot convert a BigInt value to a number
+(() => { const a = [1, 2, 3]; a.length = Symbol(); return a.length; })() => err TypeError: Failed to set the 'length' property on 'Array': Cannot convert a Symbol value to a number
+(() => { const a = [1, 2]; Object.defineProperty(a, 'length', {value: 1n}); return a.length; })() => err TypeError: Cannot convert a BigInt value to a number
+Reflect.set([1, 2], 'length', 1n) => err TypeError: Failed to set the 'length' property on 'Array': Cannot convert a BigInt value to a number
+(() => { try { for (const x of 5) {} } catch (e) { return e.message; } })() => ok "5 is not iterable"
+(() => { try { for (const x of 1n.foo) {} } catch (e) { return e.message; } })() => ok "(intermediate value).foo is not iterable"
+(() => { try { [...1n]; } catch (e) { return e.message; } })() => ok "(intermediate value) is not iterable"
+(() => { try { const x = 1n; [...x]; } catch (e) { return e.message; } })() => ok "x is not iterable"
+(() => { try { Math.max(...[1n]); } catch (e) { return e.message; } })() => ok "Cannot convert a BigInt value to a number"
+(() => { try { new Set(1n); } catch (e) { return e.message; } })() => ok "bigint is not iterable (cannot read property Symbol(Symbol.iterator))"
+(() => { try { const x = 1n; for (const y of x) {} } catch (e) { return e.message; } })() => ok "x is not iterable"
+1n.toString.call(2n, 16) => ok "2"
+typeof (1n).valueOf => ok "function"
+2n ** 3n ** 2n => ok 512n
+(-2n) ** 2n => ok 4n
+eval('-2n ** 2n') => err SyntaxError: Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence
+2n ** 0.5 => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n / -1n => ok -1n
+-1n / 1n => ok -1n
+0n / 1n => ok 0n
+BigInt(-0) === 0n => ok true
+1n << -64n => ok 0n
+-5n >> 64n => ok -1n
+-5n << -1n => ok -3n
+(() => { let x = 4n; x >>= 1; return x; })() => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+1n < 1n => ok false
+NaN < 1n => ok false
+'1' == 1n => ok true
+true == 1n => ok true
+[] == 0n => ok true
+null == 0n => ok false
+1n == {[Symbol.toPrimitive]() { return 1n; }} => ok true
+Object.is(-0n, 0n) => ok true
+Object.keys({0x1Fn: 1, 1_0n: 2}).join() => ok "10,31"
+(() => { class C { static [1n] = 'k'; } return C[1]; })() => ok "k"
+delete 1n.x => ok true
+'abc'[1n] => ok "b"
+({}).hasOwnProperty.call(1n, 'x') => ok false
+Object.getOwnPropertyNames(BigInt.prototype).join() => ok "constructor,toLocaleString,toString,valueOf"
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt, 'length')) => ok "{\"value\":1,\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+JSON.stringify(Object.getOwnPropertyDescriptor(BigInt, 'name')) => ok "{\"value\":\"BigInt\",\"writable\":false,\"enumerable\":false,\"configurable\":true}"
+BigInt.prototype.valueOf.length => ok 0
+(() => { const a = [1n, 2n]; return a.indexOf(2n) + a.lastIndexOf(1n) + a.includes(3n); })() => ok 1
+[, 1n].includes(undefined) => ok true
+[NaN, 0n].includes(0) => ok false
+[0n].indexOf(-0) => ok -1
+(() => { const a = new Array(5); a[3] = 2n ** 64n; return a.indexOf(18446744073709551616n); })() => ok 3
+[1n, 2n].join(1n) => ok "112"
+Array.prototype.concat.call(1n, 2n).length => ok 2
+(() => { const o = {a: 1n}; return JSON.stringify(o, (k, v) => typeof v === 'bigint' ? Object(v) : v); })() => err TypeError: Do not know how to serialize a BigInt
+`${1n}${-1n}${0x10n}` => ok "1-116"
+String.raw`${1n}` => ok "1"
+'x'.concat(-1n, 2n) => ok "x-12"
+[1n].map(String).join() => ok "1"
+[10n, 2n].map(Number).join() => ok "10,2"
+[1n, 2n].reduce((a, b) => a + b) => ok 3n
+[1n, 2n].reduce((a, b) => a + b, 0) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+Array.from([1n, 2n], x => x * 2n).join() => ok "2,4"
+Object.entries({a: 1n})[0][1] => ok 1n
+new Map([[1n, 'a'], [1, 'b']]).size => ok 2
+(() => { const s = new Set(); s.add(0n); s.add(-0n); s.add(0); return s.size; })() => ok 2
+(() => { const m = new Map(); m.set(Object(1n), 1); return m.has(1n); })() => ok false
+(() => { const w = new WeakMap(); try { w.set(Object(1n), 1); return w.has(Object(1n)); } catch (e) { return e.message; } })() => ok false
+Symbol.for(1n).description => ok "1"
+Array.of(1n, 2n).length => ok 2
+[3n, 2n, 1n].sort().join() => ok "1,2,3"
+[3n, 20n, 100n].toSorted().join() => ok "100,20,3"
+[1n, 2n].with(0, 3n).join() => ok "3,2"
+isFinite(Object(1n)) => err TypeError: Cannot convert a BigInt value to a number
+(() => { try { return Number.prototype.toFixed.call(Object(1n)); } catch (e) { return e.message; } })() => ok "Number.prototype.toFixed requires that 'this' be a Number"
+(() => { try { return Boolean(0n) + ',' + Boolean(Object(0n)) + ',' + !!2n; } catch (e) { return e.message; } })() => ok "false,true,true"
+(() => { let r = ''; for (const k in Object(1n)) r += k; return r; })() => ok ""
+(() => { let r = ''; for (const k in 1n) r += k; return r; })() => ok ""
+(() => { BigInt.prototype.extra = 1; try { let r = ''; for (const k in 1n) r += k; return r; } finally { delete BigInt.prototype.extra; } })() => ok "extra"
+(() => { try { 1n.x(); } catch (e) { return e.message; } })() => ok "(intermediate value).x is not a function"
+(() => { try { (1n).x.y; } catch (e) { return e.message; } })() => ok "Cannot read properties of undefined (reading 'y')"
+(() => { try { const b = 1n; b.x.y; } catch (e) { return e.message; } })() => ok "Cannot read properties of undefined (reading 'y')"
+(() => { try { new 1n; } catch (e) { return e.message; } })() => ok "(intermediate value) is not a constructor"
+(() => { try { 1n`x`; } catch (e) { return e.message; } })() => ok "(intermediate value) is not a function"
+(() => { try { const f = 1n; f`x`; } catch (e) { return e.message; } })() => ok "f is not a function"

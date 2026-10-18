@@ -35,6 +35,7 @@ use crate::object::{GetResult, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
+use crate::vm::bigint::UnaryOp;
 use crate::vm::call::{CallSite, Step};
 use crate::vm::class::{DERIVED_RESULT, MemberKind, SUPER_DELETE, SUPER_TWICE, THIS_BEFORE_SUPER};
 use crate::vm::function::ClosureParts;
@@ -235,8 +236,9 @@ impl Runtime {
                     if self.heap.gc_due() {
                         tri!(self.heap.safepoint(&self.vm));
                     }
-                    self.vm.countdown = self.vm.countdown.wrapping_sub(1);
-                    if self.vm.countdown == 0 {
+                    let countdown = self.vm.countdown.get().wrapping_sub(1);
+                    self.vm.countdown.set(countdown);
+                    if countdown == 0 {
                         tri!(self.check_time());
                     }
                 }
@@ -959,8 +961,7 @@ impl Runtime {
                         Value::Int(x) if x != i32::MIN => Value::Int(-x),
                         _ => {
                             save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
-                            Value::Double(-x)
+                            tri!(self.with_scope(|rt| rt.unary_slow(UnaryOp::Neg, value)))
                         }
                     };
                     put!(dst, result);
@@ -971,7 +972,11 @@ impl Runtime {
                         Value::Int(_) | Value::Double(_) => value,
                         _ => {
                             save!();
-                            Value::number(tri!(self.with_scope(|rt| rt.to_number(value))))
+                            if matches!(insn, Insn::ToNumeric { .. }) {
+                                tri!(self.with_scope(|rt| rt.to_numeric_value(value)))
+                            } else {
+                                Value::number(tri!(self.with_scope(|rt| rt.to_number(value))))
+                            }
                         }
                     };
                     put!(dst, result);
@@ -979,13 +984,12 @@ impl Runtime {
                 Insn::BitNot { dst, src } => {
                     let value = get!(src);
                     let result = if let Value::Int(x) = value {
-                        !x
+                        Value::Int(!x)
                     } else {
                         save!();
-                        let x = tri!(self.with_scope(|rt| rt.to_number(value)));
-                        !super::convert::to_int32(x)
+                        tri!(self.with_scope(|rt| rt.unary_slow(UnaryOp::BitNot, value)))
                     };
-                    put!(dst, Value::Int(result));
+                    put!(dst, result);
                 }
                 Insn::Not { dst, src } => {
                     let value = get!(src);
@@ -997,30 +1001,24 @@ impl Runtime {
                     let name = tri!(self.typeof_value(value));
                     put!(dst, Value::String(name));
                 }
-                Insn::Inc { dst, src } => {
-                    let value = get!(src);
-                    let result = match value {
-                        Value::Int(x) if x < i32::MAX => Value::Int(x + 1),
-                        _ => {
-                            save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
-                            Value::Double(x + 1.0)
-                        }
-                    };
-                    put!(dst, result);
-                }
-                Insn::Dec { dst, src } => {
-                    let value = get!(src);
-                    let result = match value {
-                        Value::Int(x) if x > i32::MIN => Value::Int(x - 1),
-                        _ => {
-                            save!();
-                            let x = tri!(self.with_scope(|rt| rt.to_number(value)));
-                            Value::Double(x - 1.0)
-                        }
-                    };
-                    put!(dst, result);
-                }
+                // The integer arms store directly: a shared store after the
+                // match costs the loop of `i++` three instructions more.
+                Insn::Inc { dst, src } => match get!(src) {
+                    Value::Int(x) if x < i32::MAX => put!(dst, Value::Int(x + 1)),
+                    value => {
+                        save!();
+                        let result = tri!(self.with_scope(|rt| rt.unary_slow(UnaryOp::Inc, value)));
+                        put!(dst, result);
+                    }
+                },
+                Insn::Dec { dst, src } => match get!(src) {
+                    Value::Int(x) if x > i32::MIN => put!(dst, Value::Int(x - 1)),
+                    value => {
+                        save!();
+                        let result = tri!(self.with_scope(|rt| rt.unary_slow(UnaryOp::Dec, value)));
+                        put!(dst, result);
+                    }
+                },
                 Insn::ToString { dst, src } => {
                     let value = get!(src);
                     let result = if let Value::String(_) = value {

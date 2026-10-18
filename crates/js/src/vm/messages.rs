@@ -95,6 +95,7 @@ impl Runtime {
             Value::Int(_) | Value::Double(_) => ("number", self.primitive_text(base)),
             Value::Bool(_) => ("boolean", self.primitive_text(base)),
             Value::Symbol(symbol) => ("symbol", self.key_text(PropertyKey::Symbol(symbol))),
+            Value::BigInt(_) => ("bigint", self.primitive_text(base)),
             _ => ("symbol", "Symbol()".to_owned()),
         };
         VmError::type_error(format!(
@@ -294,6 +295,7 @@ impl Runtime {
             Ok(ObjectKind::NumberWrapper(_)) => "[object Number]".to_owned(),
             Ok(ObjectKind::BooleanWrapper(_)) => "[object Boolean]".to_owned(),
             Ok(ObjectKind::SymbolWrapper(_)) => "[object Symbol]".to_owned(),
+            Ok(ObjectKind::BigIntWrapper(_)) => "[object BigInt]".to_owned(),
             // V8 names the constructor that the prototype chain gives
             // (`Map.prototype` is `#<Map>`, a `Map` whose prototype is
             // `Object.prototype` is `#<Object>`).
@@ -468,7 +470,7 @@ impl Runtime {
             Value::Double(d) => super::number::number_to_string(d),
             Value::String(s) => self.clipped_text(s),
             Value::Symbol(s) => self.key_text(PropertyKey::Symbol(s)),
-            Value::BigInt(_) => "BigInt".to_owned(),
+            Value::BigInt(b) => self.bigint_text(b),
             Value::Object(o) => self.object_text(o),
             Value::Empty | Value::Cell(_) => "(internal)".to_owned(),
         }

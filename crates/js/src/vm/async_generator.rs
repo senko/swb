@@ -636,7 +636,7 @@ mod tests {
         )
         .expect("script");
         // The next time check comes inside the drain of 100,000 requests.
-        rt.vm.countdown = TIME_CHECK_INTERVAL;
+        rt.vm.countdown.set(TIME_CHECK_INTERVAL);
         rt.set_deadline(Some(Instant::now()));
         assert_eq!(
             rt.run_jobs(),

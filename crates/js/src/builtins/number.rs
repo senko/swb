@@ -13,6 +13,7 @@ use crate::heap::Gc;
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::value::Value;
+use crate::vm::bigint::Numeric;
 use crate::vm::convert::{MAX_SAFE_INTEGER, to_integer_or_infinity};
 use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
@@ -58,13 +59,16 @@ pub(super) fn install(
     Ok(())
 }
 
-/// `Number(value)` (§21.1.1.1): `ToNumber` (`BigInt` is M7 feature 10);
-/// with `new`, a Number object.
+/// `Number(value)` (§21.1.1.1): `ToNumeric`, a `BigInt` converted to the
+/// nearest Number; with `new`, a Number object.
 fn number(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let n = if call.argc() == 0 {
         0.0
     } else {
-        rt.to_number(rt.arg(call, 0))?
+        match rt.to_numeric(rt.arg(call, 0))? {
+            Numeric::Number(n) => n,
+            Numeric::BigInt(b) => rt.bigint_to_number(b)?,
+        }
     };
     if call.new_target().is_undefined() {
         return Ok(NativeReturn::Value(Value::number(n)));

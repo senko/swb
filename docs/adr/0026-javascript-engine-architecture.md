@@ -2369,6 +2369,68 @@ where the first plan did not work:
   powers (Chromium rejects `(1n << (k − 2n)) * 2n`, whose result has
   the k bits of its limit).
 
+- `BigInt` in the language (feature 10b; `vm/bigint.rs`,
+  `builtins/bigint.rs`, `compiler/bigint.rs`). The value representation
+  is unchanged (section 7). A literal is a constant of its code object
+  (`ConstSpec::BigInt`; `-1n` is one negative constant), which the code
+  object traces; a property key `1n` is the decimal text of the value,
+  computed at compile time. A literal above the size limit is a
+  `SyntaxError` "Maximum BigInt size exceeded" before the compile, as in
+  V8 (measured in Chromium 148 with a literal of 2^30 + 64 bits: also in
+  a function that never runs and as a key), at swb's lower limit; only
+  literals of at least 65,539 characters are parsed for the check. A
+  `BigInt` object is `ObjectKind::BigIntWrapper`; `%BigInt.prototype%` is
+  an ordinary object (§21.2.3), the property reads and writes of a
+  `BigInt` primitive start there.
+- The interpreter's integer and double fast paths are unchanged: every
+  other operand already took the general paths (`arith_slow`,
+  `add_slow`, the relational and equality operators), which now apply
+  `ToNumeric` and dispatch to the `BigInt` operations; the unary
+  operators and `++`/`--` got one general path (`unary_slow`), and the
+  `ToNumeric` instruction (the old value of a postfix `++`) no longer
+  shares the arm of `ToNumber` (unary `+`, which throws for a `BigInt`).
+  Every operation charges `bigint::cost / 16` steps before the work (a
+  step is about 12 ns, a unit about 0.7 ns; loops of the slowest
+  operations on values at the limit end within 40 ms of a 200 ms
+  `--time-limit` in a release build, process start included), and every
+  result goes through `Heap::alloc_bigint`. `StringToBigInt` and the
+  comparisons with a string charge `cost::parse` of the text before the
+  scan. `===`, `SameValue`, `SameValueZero` and the keyed hash compare
+  the limbs without a charge (one pass, at most 4,096 limbs). The
+  decimal text of a value in a message or in `console.log` (35 ms at the
+  limit) is charged too: the message is built behind a shared borrow, so
+  the charge lowers the countdown without a check (`Vm::charge_deferred`,
+  at most to 1; the countdown is a `Cell`), and the next step runs the
+  check. Before the review found it, an endless loop of `big in big`
+  with a value at the limit never reached a time check.
+- Comparisons by value: all language comparisons go through
+  `Heap::equal` (`===`, `switch`, `Object.is`, the `SameValue` of
+  property definitions and of frozen objects, the proxy invariants,
+  `includes`, `indexOf` and `lastIndexOf` whose number fast path does not
+  take a `BigInt`) or the table's `same_value_zero` (`Map`, `Set`); no
+  code compares two `BigInt` handles alone.
+- Messages are V8's (`Cannot mix BigInt and other types, use explicit
+  conversions`, `Cannot convert a BigInt value to a number`, `BigInts have
+  no unsigned right shift, use >> instead`, `Cannot convert X to a
+  BigInt`, `The number X cannot be converted to a BigInt because it is
+  not an integer`, `Invalid value: not (convertible to) a safe integer`
+  for the bit count of `asIntN`, the `requires that 'this' be a BigInt`
+  of the receivers). The text of a failed `StringToBigInt` is quoted up
+  to 1,000 code units and then `…`, as V8 does; a lone surrogate in it
+  becomes U+FFFD (KNOWN: swb's messages are Rust strings). The `[[Set]]`
+  of an array `length` with a `BigInt` or a symbol gets Chromium's
+  prefix `Failed to set the 'length' property on 'Array': `.
+- `toLocaleString` has no ECMA-402 (KNOWN, as for Numbers): it ignores
+  its arguments and groups the digits in threes with commas, Chromium's
+  output with its default locale (en-US, measured).
+- `ToBigInt64` and `ToBigUint64` exist for the 64-bit typed arrays of
+  feature 11 (unit tests only so far).
+- No other difference from Chromium 148 was found in 850 measured
+  snippets (`tools/probes/js-bigint.json`); the snippets of values above
+  swb's limit and the callee text of `o[Symbol.iterator]()` (swb shows
+  `(intermediate value)` for every receiver, also for Numbers; not
+  specific to `BigInt`) are left out of the test.
+
 ## Consequences
 
 - The design keeps each memory risk behind a check: generations catch

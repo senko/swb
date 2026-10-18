@@ -248,14 +248,11 @@ fn constructs_outside_the_subset_do_not_compile() {
         // The parser accepts the forms of M7 feature 1; the compiler
         // rejects the ones of later features.
         for (source, construct) in [
-            ("1n;", "BigInt literal"),
-            ("({ 1n: 2 });", "BigInt literal"),
-            ("var { 1n: a } = {};", "BigInt literal"),
             // Module loading (feature 14).
             ("x = import('m');", "import()"),
             ("async function* f() { yield import('m'); }", "import()"),
             // The first construct in the source counts.
-            ("for (k of a?.b) x = 1n; with (a) {}", "BigInt literal"),
+            ("for (k of a?.b) x = import('m'); with (a) {}", "import()"),
             (
                 "x = async function () { for await (k of import('m')); };",
                 "import()",

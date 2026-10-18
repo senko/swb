@@ -185,7 +185,7 @@ impl Runtime {
             stack_limit: config.stack_limit.min(MAX_STACK_LIMIT),
             last_value: Value::Undefined,
             error_offset: None,
-            countdown: TIME_CHECK_INTERVAL,
+            countdown: std::cell::Cell::new(TIME_CHECK_INTERVAL),
             deadline: None,
             termination: TerminationHandle::default(),
             join_stack: Vec::new(),

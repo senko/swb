@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -1023,7 +1023,8 @@ python3 crates/js-text/tests/data/gen-bigint-table.py crates/js-text/tests/data/
 
 `tools/probes/js-bigint.json` measures Chromium's size limit (1,073,741,760
 bits, by bisection), its messages, and the times of `toString`, `*` and
-`/` on a value of a million bits.
+`/` on a value of a million bits; the snippet cases of the language are in
+"BigInt tests".
 
 The scripts take their random values from a fixed seed, so the same
 Node.js and Chromium versions give the same tables. The other cases of
@@ -1559,6 +1560,56 @@ references, tokens). The test262 subset has the features `WeakMap`,
 and the four groups `test/built-ins/WeakMap`, `WeakSet`, `WeakRef` and
 `FinalizationRegistry`; no test there needs a forced collection, and the
 four cross-realm tests stay skipped.
+
+### BigInt tests
+
+`tools/probes/js-bigint.json` has 868 snippets for Chromium 148 in 23
+cases, made from `crates/js/tests/data/bigint-snippets.txt` by
+`crates/js/tests/data/gen-bigint-cases.js` (the format of `js-weak.json`;
+a BigInt result shows as `1n`), and five hand-written cases of 10a and
+10b whose names start with `limit` (the size limit, the messages, the
+times, a literal above the limit, the quoting of long texts in
+messages), which the generator keeps: literals in all radixes and with
+separators, literals as keys of object literals, classes and patterns,
+every operator with every type combination (Numbers, strings, booleans,
+`undefined`, `null`, symbols, objects with `valueOf`, wrapper objects),
+compound assignment, `++` and `--` in all forms, the relational operators
+and `==` with Numbers, strings and booleans, `===`, `Object.is`,
+`switch`, `includes`, `indexOf`, `Map` and `Set`, property definitions on
+frozen objects, the conversions (`String`, template literals, `Number`,
+`parseInt`, `JSON.stringify` with and without `toJSON`, `sort`), the
+`TypeError` of the Number functions, the `BigInt` function, `asIntN` and
+`asUintN` (with `ToIndex`), the prototype methods and their receivers,
+property access on primitives, and V8's messages. The case files:
+
+```
+node crates/js/tests/data/gen-bigint-cases.js probe \
+  crates/js/tests/data/bigint-snippets.txt tools/probes/js-bigint.json
+just probe --json tools/probes/js-bigint.json > probe.json
+node crates/js/tests/data/gen-bigint-cases.js cases probe.json crates/js/tests/data
+```
+
+`crates/js/tests/builtins_bigint.rs` runs `bigint_cases.js` (850
+snippets, normal and stress mode), `bigint_console.js` (`console.log` of
+`BigInt` values and wrapper objects; the expected output is that of
+Node.js 22), both string widths of `StringToBigInt` and of the
+comparisons with strings (also ropes), and uses in loops. The group
+`sizes` (values beyond swb's limit of 2^18 bits) and the `KNOWN`
+snippets of the generator (ECMA-402 locales, `new Date`, the callee text
+of `o[Symbol.iterator]()`) are left out. `crates/js/tests/bigint_hostile.rs`
+(on an 8 MiB thread) covers endless loops of the slowest operations on
+values at the limit against a deadline of 200 ms (multiplication,
+division, `toString` in radixes 10 and 36, powers, `BigInt` of a long
+text, shifts, bitwise operators, `asUintN`, comparisons with long
+strings, `toLocaleString`), values that grow until a heap limit of
+64 MiB, a million temporaries under 32 MiB, `BigInt` of a valid and an
+invalid text of 50 million units, 240,000 operations that throw,
+endless loops of errors whose messages quote a value at the limit (`big
+in big`, `Object.create(big)` and others), literals at and above the
+limit (a `SyntaxError` at compile time, also in a function that never
+runs, as a key and in a pattern) and literal constants in the stress
+mode. The test262 subset has the feature `BigInt` and the groups
+`test/built-ins/BigInt` and `test/language/literals/bigint`.
 
 ## Python tools: development
 

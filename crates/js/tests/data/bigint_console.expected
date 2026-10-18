@@ -1,0 +1,27 @@
+1n
+-1n
+0n
+18446744073709551616n
+-1267650600228229401496703205376n
+[ 1n ]
+[ 1n, -2n, 3n ]
+{ a: 1n }
+{ a: 1n, b: [ 2n ], c: { d: -3n } }
+[BigInt: 1n]
+[BigInt: -5n]
+[ [BigInt: 1n] ]
+{ w: [BigInt: 2n] }
+[BigInt: 7n] { x: 1 }
+Map(1) { 1n => 2n }
+Set(2) { 1n, 18446744073709551616n }
+a 1n b
+1 2
+1n 1
+[ [ [ [Array] ] ] ]
+{ '1': 1n }
+bigint object
+[Function: BigInt]
+[Function: asIntN]
+[ 10n, 16n, 255n ]
+Object [BigInt] {}
+BigInt {}

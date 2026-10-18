@@ -574,6 +574,50 @@ With 2^19 bits `toString()` took 126 ms, more than the 100 ms that one
 operation may take; so the limit is 2^18. Chromium 148 prints a value of
 a million bits in 36 ms (`tools/probes/js-bigint.json`).
 
+`BigInt` in the language (M7 10b). The `bigint:` rows of `vm_bench`
+(best of 5, release, against `node --jitless`, 2026-10-18):
+
+| Program | swb | node --jitless |
+|---|---|---|
+| 1M steps `s = (s * c + i) % m` on 64-bit values | 280 ms | 80 ms |
+| 100k int64 joins and splits (`<<`, `\|`, `asIntN`, `&`, `>>`, `Number`) | 80 ms | 11 ms |
+
+An operation on one-limb values costs about 70 ns in a loop: the library
+call (15 to 30 ns), `ToNumeric`, the time charge, the handle scope of the
+general path and the allocation of the result (the library grows the
+result vector, `RawVec::finish_grow`, and `malloc`/`free` are about a
+third of the instructions). The loops of the time limit: endless loops
+of the slowest operations on values at the limit (`*`, `/`, `%`,
+`toString` in radixes 10 and 36, powers, `BigInt` of a 65,536-digit hex
+text, shifts, bitwise operators, `asUintN`, `==` with a long text,
+`toLocaleString`, `console.log`) end 2 to 10 ms after `swb-js
+--time-limit 200` (process start included); `BigInt` of a text of 50
+million digits and `<` with it, 39 ms after. The 165 error paths that
+the review of 10b tried with a value at the limit in the message (`big
+in big`, `Object.create(big)`, `[1, 2].sort(big)` and others) end 4 to
+37 ms after `--time-limit 300`, since the message text is charged
+(`Promise.all(big)` 130 ms after: collector pauses for the rejected
+promises that the loop keeps, also with a Number). The countdown became
+a `Cell` for that, with no cost (callgrind: a global `sum` loop −0.8 %,
+`fib(20)` −0.3 % instructions).
+
+The rows of `vm_bench` before (7ee436a) and after, best of two runs
+alternating between the two builds: the number rows did not get slower
+(`sum 10M integers` 118.6 → 107.3 ms, `in a try` 136.3 → 126.2,
+`try-finally` 196.3 → 184.5, `fib(27)` 65.7 → 63.2, `o.x = o.x + o.y`
+364.8 → 365.7). Callgrind (the programs as `swb-js` scripts): `sum 10M
+integers` −5.2 % instructions, `fib(27)` +0.3 %, `array: filter`
++0.7 % (`Elements::next_index`, which 10b did not change: placement of
+inlined code after the new object kind). A first version had the integer
+`++` store its result after the match with the general path, three
+instructions more per `i++` (+1.0 % on `sum 10M integers`); the integer
+arms of `Inc` and `Dec` now store directly. Rows that moved by more than
+3 % without a number path: the async rows +4 to +7 % (callgrind of
+`for await over an array`: +1.0 % instructions, all in `Shape::find` of
+the global object, which has one property more, `BigInt`), `regexp: test`
+−15 %, `set: for-of` −11 %, `toLowerCase, toUpperCase` +4 %, `JSON.parse`
++5 %: code placement.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

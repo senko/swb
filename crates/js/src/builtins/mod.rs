@@ -21,7 +21,8 @@
 //! complete, with the string iterator, the URI functions and Annex B
 //! (`string*.rs`, `uri.rs`); `RegExp` with the legacy static properties,
 //! Annex B `compile` and `%RegExpStringIteratorPrototype%`
-//! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`;
+//! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`; `BigInt`
+//! (`bigint.rs`);
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
@@ -54,6 +55,7 @@ mod array_sort;
 mod array_species;
 mod async_function;
 mod async_generator;
+mod bigint;
 mod boolean;
 mod collection;
 mod console;
@@ -152,6 +154,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     uri::install(rt, realm)?;
     number::install(rt, realm, parse_int, parse_float)?;
     boolean::install(rt, realm)?;
+    bigint::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;

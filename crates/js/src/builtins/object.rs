@@ -315,6 +315,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Host { .. }
         | ObjectKind::RawJson
         | ObjectKind::SymbolWrapper(_)
+        | ObjectKind::BigIntWrapper(_)
         | ObjectKind::Proxy(_)
         | ObjectKind::WeakMap(_)
         | ObjectKind::WeakSet(_)

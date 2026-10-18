@@ -348,6 +348,14 @@ const PROGRAMS: &[(&str, &str)] = &[
         "proxy: 1M calls with an apply trap",
         "function run() { var p = new Proxy(function (a) { return a; }, { apply: function (t, s, a) { return a[0]; } }); var n = 0; for (var i = 0; i < 1000000; i++) n += p(1); return n; }",
     ),
+    (
+        "bigint: 1M multiply-add-modulo steps on 64-bit values",
+        "function run() { var s = 1n, m = 18446744073709551557n; for (var i = 0n; i < 1000000n; i++) { s = (s * 6364136223846793005n + i) % m; } return s; }",
+    ),
+    (
+        "bigint: 100k int64 joins and splits (shifts, masks, asIntN, Number)",
+        "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var v = BigInt.asIntN(64, BigInt(i) << 32n | BigInt(i * 7 >>> 0)); n += Number(v & 4294967295n) + Number(v >> 32n); } return n; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

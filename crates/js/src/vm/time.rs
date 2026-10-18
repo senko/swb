@@ -63,8 +63,9 @@ impl Runtime {
     /// controls.
     #[inline]
     pub(crate) fn tick(&mut self) -> VmResult<()> {
-        self.vm.countdown = self.vm.countdown.wrapping_sub(1);
-        if self.vm.countdown == 0 {
+        let countdown = self.vm.countdown.get().wrapping_sub(1);
+        self.vm.countdown.set(countdown);
+        if countdown == 0 {
             return self.check_time();
         }
         Ok(())
@@ -101,17 +102,28 @@ impl Vm {
     #[inline]
     pub(crate) fn charge(&mut self, steps: usize) -> Result<(), Termination> {
         let steps = u32::try_from(steps).unwrap_or(u32::MAX);
-        if steps >= self.countdown {
+        let countdown = self.countdown.get();
+        if steps >= countdown {
             return self.check_time();
         }
-        self.countdown -= steps;
+        self.countdown.set(countdown - steps);
         Ok(())
+    }
+
+    /// `steps` steps of the countdown for work behind a shared borrow,
+    /// which cannot end the script (the decimal text of a `BigInt` in a
+    /// message). The countdown stops at 1, so the next step runs the time
+    /// check: a loop that builds such texts ends soon after the deadline.
+    pub(crate) fn charge_deferred(&self, steps: usize) {
+        let steps = u32::try_from(steps).unwrap_or(u32::MAX);
+        let countdown = self.countdown.get().saturating_sub(steps).max(1);
+        self.countdown.set(countdown);
     }
 
     /// [`Runtime::check_time`] on the VM alone.
     #[cold]
     fn check_time(&mut self) -> Result<(), Termination> {
-        self.countdown = TIME_CHECK_INTERVAL;
+        self.countdown.set(TIME_CHECK_INTERVAL);
         if self.termination.take() {
             return Err(Termination::HostRequest);
         }

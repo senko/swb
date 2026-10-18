@@ -232,7 +232,7 @@ impl FunctionCompiler<'_> {
                 key => {
                     let text = self
                         .key_text(key)
-                        .ok_or_else(|| self.unsupported("BigInt literal"))?;
+                        .ok_or(Self::internal("a pattern key without a text"))?;
                     if let Some(array) = excluded {
                         let k = self.temp()?;
                         let index = self.string_const(text.clone());

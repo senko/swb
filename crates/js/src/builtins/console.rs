@@ -141,9 +141,18 @@ impl Inspector<'_> {
                 quoted
             }
             Value::Double(d) => format_number(d),
+            Value::BigInt(b) => self.bigint(b),
             Value::Object(object) => self.object(object, depth, indent),
             _ => self.rt.primitive_text(value),
         }
+    }
+
+    /// A `BigInt` as Node.js prints it (`-12n`); `bigint_text` charges
+    /// the conversion.
+    fn bigint(&mut self, b: Gc<crate::value::BigInt>) -> String {
+        let text = format!("{}n", self.rt.bigint_text(b));
+        self.units += text.len();
+        text
     }
 
     fn object(&mut self, object: Gc<Object>, depth: usize, indent: usize) -> String {
@@ -309,6 +318,7 @@ impl Inspector<'_> {
             ObjectKind::SymbolWrapper(s) => {
                 format!("[Symbol: {}]", rt.key_text(PropertyKey::Symbol(*s)))
             }
+            ObjectKind::BigIntWrapper(b) => format!("[BigInt: {}n]", rt.bigint_text(*b)),
             // `/source/flags`, with the name of a subclass before it.
             ObjectKind::RegExp(data) => {
                 let source = match rt.heap.text(data.source) {

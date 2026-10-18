@@ -19,6 +19,7 @@
 //! recursion budget per level; left-associative chains of binary and
 //! logical operators are compiled in a loop.
 
+mod bigint;
 mod class;
 mod debug_names;
 mod dynamic;
@@ -87,6 +88,9 @@ pub(crate) enum ConstSpec {
     },
     /// A regular expression literal: the pattern text and the flags.
     RegExp(String16, swb_js_regexp::Flags),
+    /// A `BigInt` literal: the digits with the radix prefix, and whether
+    /// the value is negated (`-1n` is one constant).
+    BigInt(String16, bool),
 }
 
 /// The compiled form of one function before materialization.
@@ -322,6 +326,13 @@ fn compile_functions<'a>(
             offset,
         });
     }
+    if let Some(offset) = bigint::first_oversized(script) {
+        return Err(CompileError::Script {
+            kind: ThrowKind::SyntaxError,
+            message: bigint::TOO_LARGE.into(),
+            offset,
+        });
+    }
     let mut session = Session::new(script, input);
     if session.caller.as_ref().is_some_and(|plan| plan.overflow) {
         return Err(CompileError::Script {
@@ -445,6 +456,29 @@ fn regexp_constant(
     })))
 }
 
+/// The constant of a `BigInt` literal: the value on the heap, which the
+/// code object keeps alive (it traces its constants). The size was checked
+/// before the compile (`bigint::first_oversized`).
+fn bigint_constant(heap: &mut Heap, text: &String16, negative: bool) -> CResult<Constant> {
+    use swb_js_text::bigint::BigIntError;
+    let value = bigint::literal_value(text).and_then(|value| {
+        if negative {
+            swb_js_text::bigint::neg(&value)
+        } else {
+            Ok(value)
+        }
+    });
+    let value = value.map_err(|error| match error {
+        BigIntError::OutOfMemory => {
+            CompileError::Heap(crate::error::Termination::OutOfMemory.into())
+        }
+        _ => CompileError::Heap(Error::invariant(
+            "a BigInt literal that the size check passed",
+        )),
+    })?;
+    Ok(Constant::Value(Value::BigInt(heap.alloc_bigint(value)?)))
+}
+
 /// Turns a builder into code: atoms for the texts, code objects for the
 /// nested functions, keys for the sites; then verifies it.
 fn finish_code(
@@ -461,6 +495,7 @@ fn finish_code(
                 Constant::Value(Value::String(heap.intern(text.as_str16())?))
             }
             ConstSpec::Number(x) => Constant::Value(Value::number(*x)),
+            ConstSpec::BigInt(text, negative) => bigint_constant(heap, text, *negative)?,
             ConstSpec::Function(child) => {
                 let (handle, code) = done
                     .functions

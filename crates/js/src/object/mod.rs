@@ -21,7 +21,7 @@ mod shape;
 mod table;
 mod weak;
 
-pub(crate) use array::{INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE};
+pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
@@ -45,7 +45,7 @@ use std::fmt;
 use crate::error::Result;
 use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
 use crate::string::{JsString, PropertyKey};
-use crate::value::{Symbol, Value};
+use crate::value::{BigInt, Symbol, Value};
 use crate::vm::{
     BoundFunction, Closure, EnvRecord, ErrorData, GeneratorState, NativeFunction,
     PrivateEnvironment, PromiseState,
@@ -96,6 +96,8 @@ pub enum ObjectKind {
     BooleanWrapper(bool),
     /// A Symbol object (`[[SymbolData]]`).
     SymbolWrapper(Gc<Symbol>),
+    /// A `BigInt` object (`[[BigIntData]]`).
+    BigIntWrapper(Gc<BigInt>),
     /// A raw JSON object (`[[IsRawJSON]]`, `JSON.rawJSON`): ordinary
     /// otherwise.
     RawJson,
@@ -227,6 +229,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::NumberWrapper(_) => "NumberWrapper",
             ObjectKind::BooleanWrapper(_) => "BooleanWrapper",
             ObjectKind::SymbolWrapper(_) => "SymbolWrapper",
+            ObjectKind::BigIntWrapper(_) => "BigIntWrapper",
             ObjectKind::RawJson => "RawJson",
             ObjectKind::ArrayIterator(_) => "ArrayIterator",
             ObjectKind::StringIterator(_) => "StringIterator",
@@ -280,6 +283,7 @@ impl ObjectKind {
             ObjectKind::Generator(state) => state.trace(tracer),
             ObjectKind::StringWrapper(string) => tracer.string(*string),
             ObjectKind::SymbolWrapper(symbol) => tracer.symbol(*symbol),
+            ObjectKind::BigIntWrapper(bigint) => tracer.bigint(*bigint),
             ObjectKind::ArrayIterator(state) => {
                 if let Some(target) = state.target {
                     tracer.object(target);

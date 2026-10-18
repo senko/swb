@@ -454,7 +454,7 @@ impl FunctionCompiler<'_> {
         }
         let text = self
             .key_text(key)
-            .ok_or(Self::internal("a method with a BigInt key"))?;
+            .ok_or(Self::internal("a method key without a text"))?;
         let mut name = String16::from(prefix);
         name.push_str16(text.as_str16());
         self.session.inferred_names.insert(function, name);
@@ -643,7 +643,7 @@ impl FunctionCompiler<'_> {
             (ClassKey::Property(key), None) => {
                 let text = self
                     .key_text(key)
-                    .ok_or(Self::internal("a field with a BigInt key"))?;
+                    .ok_or(Self::internal("a field key without a text"))?;
                 match element.value {
                     Some(value) => {
                         self.expr_named(value, Some(v), text.clone())?;

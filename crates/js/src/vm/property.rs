@@ -12,8 +12,8 @@
 
 use crate::heap::Gc;
 use crate::object::{
-    GetResult, INVALID_ARRAY_LENGTH, INVALID_LENGTH_WRITE, Object, ObjectKind, PropertyDescriptor,
-    SetResult,
+    GetResult, INVALID_ARRAY_LENGTH, Object, ObjectKind, PropertyDescriptor, SetResult,
+    length_write_message,
 };
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
@@ -212,7 +212,7 @@ impl Runtime {
             Value::Int(_) | Value::Double(_) => Intrinsic::NumberPrototype,
             Value::Bool(_) => Intrinsic::BooleanPrototype,
             Value::Symbol(_) => Intrinsic::SymbolPrototype,
-            Value::BigInt(_) => Intrinsic::ObjectPrototype,
+            Value::BigInt(_) => Intrinsic::BigIntPrototype,
             Value::Object(object) => return self.get_with_receiver(object, key, base),
             Value::Empty | Value::Cell(_) => {
                 return Err(VmError::invariant("a property read of an internal value"));
@@ -293,6 +293,7 @@ impl Runtime {
                     Value::Int(_) | Value::Double(_) => Intrinsic::NumberPrototype,
                     Value::Bool(_) => Intrinsic::BooleanPrototype,
                     Value::Symbol(_) => Intrinsic::SymbolPrototype,
+                    Value::BigInt(_) => Intrinsic::BigIntPrototype,
                     _ => Intrinsic::ObjectPrototype,
                 };
                 let proto = self.intrinsic(realm, proto)?;
@@ -387,12 +388,13 @@ impl Runtime {
         }
         self.convert_array_length(value)
             .map_err(|error| match error {
-                VmError::Raise { kind, message } if message == INVALID_ARRAY_LENGTH => {
-                    VmError::Raise {
+                VmError::Raise { kind, message } => match length_write_message(&message) {
+                    Some(longer) => VmError::Raise {
                         kind,
-                        message: INVALID_LENGTH_WRITE.into(),
-                    }
-                }
+                        message: longer.into(),
+                    },
+                    None => VmError::Raise { kind, message },
+                },
                 error => error,
             })
     }

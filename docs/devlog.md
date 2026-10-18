@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 10b, BigInt in the language; end of feature 10
+
+- Scripts can use `BigInt`. Literals are constants of the code object
+  (`-1n` is one constant) and give their decimal text as property keys.
+  A literal above swb's size limit is a `SyntaxError` before the
+  compile, as V8 gives one above its own limit (measured, also in
+  functions that never run).
+- The interpreter's integer and double fast paths stay as they were:
+  all other operands already took the general paths, which now apply
+  `ToNumeric` and call the arithmetic of `js-text`. Every operation is
+  charged to the time countdown (16 work units per step) before the
+  work, and every result to the heap. A first version made `i++` three
+  instructions slower through a shared store; the integer arms store
+  directly now (`sum 10M integers` −5 % instructions).
+- `BigInt` with `asIntN` and `asUintN`, the prototype methods, wrapper
+  objects, `ToBigInt`, `ToBigInt64` and `ToBigUint64` (for the typed
+  arrays of feature 11), the comparisons with Numbers and strings (exact,
+  both string widths), V8's messages, `console.log` as Node.
+- Comparisons by value: an audit found no comparison of two values by
+  handle; all go through `Heap::equal` or the table's SameValueZero.
+- The review found one defect: the decimal text of a `BigInt` in an
+  error message was not charged. An endless loop of `big in big` with a
+  value at the limit (35 ms per text) never reached a time check. The
+  text is built behind a shared borrow, so the countdown is now a `Cell`
+  and the text lowers it without a check; the next step runs the check.
+  All 165 error paths of the review end within 40 ms of the deadline
+  (one with a collector pause, 130 ms). Also from the review: the
+  operators charge before the work (they charged after), and one
+  message constant is shared instead of copied.
+- Tests: 850 snippets equal to Chromium 148 in normal and stress mode,
+  Node's `console.log` forms, hostile cases. test262 runtime 36,000 →
+  36,369; ars-js/s02.js now takes its BigInt branch.
+- Next: feature 11, binary data.
+
 ## 2026-10-18: M7 feature 10a, BigInt arithmetic
 
 - Feature 10 is split into 10a (the arithmetic) and 10b (the language).

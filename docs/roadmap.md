@@ -1756,6 +1756,24 @@ failures with a reason. Features, in this order:
       `built-ins/BigInt`, `language/literals/bigint`, the tests with the
       feature `BigInt` in the subset, probe cases from Chromium, the
       int64 paths of ars-js/s02.js, hostile cases.
+      Done 2026-10-18: literals are constants of the code object (`-1n`
+      is one constant) and give their decimal text as keys; a literal
+      above 2^18 bits is a `SyntaxError` at compile time, as V8 gives one
+      above its limit (measured, also in functions that never run).
+      `typeof`, all operators with `ToNumeric` and V8's messages, `==`
+      and the relational operators with Numbers and strings, `++` and
+      `--`, `ToBigInt`, `ToBigInt64`, `ToBigUint64`, the conversions and
+      their `TypeError`s, `BigInt` with `asIntN`, `asUintN` and the
+      prototype methods, wrapper objects, `console.log` as Node. Every
+      operation and every decimal text, also one in a message, is
+      charged to the time countdown before the work. The number fast
+      paths did not get slower (`sum 10M integers` −5 % instructions).
+      850 Chromium snippets equal (KNOWN: the size limit, ECMA-402
+      locales). test262 runtime 36,000 → 36,369 (`built-ins/BigInt` 75
+      of 77, `language/literals/bigint` 59 of 59, 62 unsupported → 0).
+      ars-js/s02.js takes its BigInt branch; the 84 target scripts
+      behave as before.
+     Feature 10 done 2026-10-18: test262 runtime 36,000 → 36,369.
 11. Binary data (`implementer`). `ArrayBuffer` (resizable, detach,
     `transfer`), the typed arrays (with `Float16Array`, `BigInt64Array`
     and `BigUint64Array`), `DataView`, `Atomics` on non-shared buffers.
@@ -2159,6 +2177,31 @@ not repeated here; the open items of each spike session are in M6 step
     V8 is faster from about 100 limbs on).
   - `from_f64` of a double from 2^53 to 2^64 and the left shifts reserve
     one limb more than the result needs.
+- BigInt in the language (M7 10b):
+  - An operation on one-limb values costs about 70 ns (the
+    multiply-add-modulo row of `vm_bench`: 280 ms, `node --jitless`
+    80 ms). The library grows its result vectors
+    (`RawVec::finish_grow`); with `malloc` and `free` that is about a
+    third of the instructions. Size the result before the work.
+  - The compiler's decimal text of a literal key and the size check of
+    long literals are quadratic and not charged: 50 keys of 78,000
+    digits (3.9 MB of source) take 1.9 s to compile. The time limit does
+    not cover the compiler.
+  - The callee text of a call with a computed key that is not a literal
+    (`o[Symbol.iterator]()`): V8 shows the key expression, swb
+    `(intermediate value)`. Not specific to `BigInt`.
+  - The shell prints an uncaught `5n` as `Uncaught 5` (Node: `5n`).
+  - `console.log` ignores format specifiers (`%d`, `%s`, `%o`), which
+    Node applies. Not specific to `BigInt`.
+  - The longer messages of an array `length` write come from a match on
+    the message text (`length_write_message`); an error kind would be
+    more robust.
+  - Garbage-heavy loops under the default heap limit of 1 GiB (the heap
+    accounting item of M7 7a): 12 million temporary objects reach
+    311 MiB RSS, 12 million strings 554 MiB, 3 million `BigInt` steps
+    242 MiB. A collection is not interrupted at the deadline: a loop
+    that keeps rejected promises ends up to 170 ms after a 600 ms
+    `--time-limit`, also with Numbers.
 
 ## Backlog from M5
 
