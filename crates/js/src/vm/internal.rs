@@ -4,7 +4,8 @@
 //! The heap implements the methods that need no allocation and no script
 //! code. This layer adds what does: the character properties of String
 //! objects (each read allocates a string), the conversion of the value of
-//! `length` for arrays (`ToNumber` can run script code), the immutable
+//! `length` for arrays (`ToNumber` can run script code), the elements of
+//! typed arrays (`typed_array.rs`: conversions and `BigInt`s), the immutable
 //! prototype of `%Object.prototype%` (§10.4.7) and the error messages
 //! (V8's wording) of the failing `DefinePropertyOrThrow` and
 //! `[[SetPrototypeOf]]`. The result of a read is recorded in the current
@@ -46,6 +47,9 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return self.proxy_get_own_property(object, key);
         }
+        if let Some((data, index)) = self.typed_numeric(object, key)? {
+            return self.typed_own_property(&data, index);
+        }
         if let Some(unit) = self.heap.string_object_unit(object, key)? {
             let text = swb_js_text::String16::from_units(&[unit]);
             let character = self.heap.alloc_string(text)?;
@@ -60,10 +64,10 @@ impl Runtime {
         Ok(self.heap.get_own_property(object, key)?)
     }
 
-    /// `[[DefineOwnProperty]]` (§10.1.6, §10.4.2.1, §10.4.3.2). For the
-    /// `length` of an array, a string or object in `[[Value]]` is
+    /// `[[DefineOwnProperty]]` (§10.1.6, §10.4.2.1, §10.4.3.2, §10.4.5).
+    /// For the `length` of an array, a string or object in `[[Value]]` is
     /// converted first (`ArraySetLength` steps 3 to 5, which can run
-    /// script code).
+    /// script code); so is the value of an element of a typed array.
     pub(crate) fn define_own_property(
         &mut self,
         object: Gc<Object>,
@@ -72,6 +76,9 @@ impl Runtime {
     ) -> VmResult<bool> {
         if self.heap.is_proxy(object)? {
             return self.define_generic(object, key, desc, false);
+        }
+        if let Some((data, index)) = self.typed_numeric(object, key)? {
+            return self.typed_define_own_property(&data, index, &desc);
         }
         if let Some(value @ (Value::String(_) | Value::Object(_))) = desc.value
             && key == PropertyKey::String(self.heap.length_atom())
@@ -142,7 +149,7 @@ impl Runtime {
         {
             return Ok(());
         }
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy(object)? || self.typed_numeric(object, key)?.is_some() {
             let desc = PropertyDescriptor::data(value, true, true, true);
             self.define_generic(object, key, desc, true)?;
             return Ok(());
@@ -159,6 +166,13 @@ impl Runtime {
 
     /// The `TypeError` for a refused definition of `key`.
     pub(crate) fn define_failure(&mut self, object: Gc<Object>, key: PropertyKey) -> VmError {
+        // V8 words a numeric key that is not a valid index of a typed
+        // array apart from a refused descriptor.
+        if let Ok(Some((data, index))) = self.typed_numeric(object, key)
+            && matches!(self.heap.valid_index(&data, index), Ok(None))
+        {
+            return VmError::type_error(super::typed_array::INVALID_INDEX);
+        }
         let text = self.key_text(key);
         let exists = matches!(self.own_property(object, key), Ok(Some(_)));
         if exists {

@@ -14,7 +14,12 @@
 //! bytes), `ArrayBuffer { (detached), byteLength: 0 }` and `DataView {
 //! byteLength: 2, byteOffset: 0, buffer: ArrayBuffer { ... } }`; Node.js
 //! 22 fails on a view that is detached or out of bounds, swb prints
-//! `(detached)` or `(out of bounds)` in place of the lengths.
+//! `(detached)` or `(out of bounds)` in place of the lengths. A typed
+//! array prints as `Uint8Array(3) [ 1, 2, 3 ]` (`X(2) [Uint8Array] [ 0, 0 ]`
+//! for a subclass, `BigInt64Array(1) [ 5n ]`, `Uint8Array(0) []` when
+//! detached or out of bounds), its other enumerable properties after the
+//! elements; Node.js does not show an own `@@toStringTag` of a typed
+//! array, and neither does swb.
 //! Formatting never runs script code: properties are read without
 //! calling getters (`[Getter]`), and no `toString` runs. Bounds: nesting
 //! depth 2 (deeper objects print as `[Object]` and `[Array]`), the first
@@ -39,7 +44,7 @@ use std::fmt::Write;
 use swb_js_text::Str16;
 
 use crate::heap::Gc;
-use crate::object::{Object, ObjectKind, Property};
+use crate::object::{Object, ObjectKind, Property, RawValue};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
@@ -133,6 +138,8 @@ enum Body {
     /// The bytes or the range of an `ArrayBuffer` or `DataView` (the
     /// name).
     Binary(&'static str),
+    /// The elements of a typed array, then its other properties.
+    Typed,
     /// The properties.
     Plain,
 }
@@ -147,6 +154,7 @@ impl Body {
             ObjectKind::WeakRef(_) | ObjectKind::FinalizationRegistry(_) => Body::Weak(false),
             ObjectKind::ArrayBuffer(_) => Body::Binary("ArrayBuffer"),
             ObjectKind::DataView(_) => Body::Binary("DataView"),
+            ObjectKind::TypedArray(_) => Body::Typed,
             _ => Body::Plain,
         }
     }
@@ -211,7 +219,7 @@ impl Inspector<'_> {
             return "[Object]".to_owned();
         };
         let body = Body::of(&record.kind);
-        let is_array = body == Body::Array;
+        let is_array = matches!(body, Body::Array | Body::Typed);
         let base = self
             .base(object, &record.kind)
             .map(|base| self.with_function_tag(object, &record.kind, base));
@@ -234,6 +242,12 @@ impl Inspector<'_> {
             return match body {
                 Body::Array => "[Array]".to_owned(),
                 Body::Collection(name) | Body::Binary(name) => format!("[{name}]"),
+                Body::Typed => match &record.kind {
+                    ObjectKind::TypedArray(data) => {
+                        format!("[{}]", self.typed_name(object, data.ty))
+                    }
+                    _ => "[Object]".to_owned(),
+                },
                 _ => "[Object]".to_owned(),
             };
         }
@@ -285,6 +299,7 @@ impl Inspector<'_> {
             Body::Array => return self.array_entries(object, depth, indent),
             Body::Collection(_) => return self.collection_entries(object, depth, indent),
             Body::Binary(_) => self.binary_entries(object, depth, indent),
+            Body::Typed => return self.typed_entries(object, depth, indent),
             Body::Weak(true) => vec!["<items unknown>".to_owned()],
             Body::Weak(false) | Body::Plain => Vec::new(),
         };
@@ -430,6 +445,7 @@ impl Inspector<'_> {
                 };
             }
             ObjectKind::Arguments => return "[Arguments] ".to_owned(),
+            ObjectKind::TypedArray(data) => return self.typed_prefix(object, data),
             // `Map(2) `, `Set(1) `, and `Foo(1) [Map] ` for a subclass.
             ObjectKind::Map(table) | ObjectKind::Set(table) => {
                 let builtin = if matches!(kind, ObjectKind::Map(_)) {
@@ -585,6 +601,75 @@ impl Inspector<'_> {
         vec![contents, format!("byteLength: {}", bytes.len())]
     }
 
+    /// The name of a typed array's constructor (from its prototype chain,
+    /// else the built-in name).
+    fn typed_name(&self, object: Gc<Object>, ty: crate::object::ElementType) -> String {
+        let builtin = format!("{}Array", ty.name());
+        match self.rt.heap.get_prototype_of(object) {
+            Ok(Some(proto)) => self
+                .rt
+                .chain_constructor_name(proto)
+                .filter(|name| !name.is_empty())
+                .unwrap_or(builtin),
+            _ => builtin,
+        }
+    }
+
+    /// The prefix of a typed array: `Uint8Array(3) `, `X(2) [Uint8Array] `
+    /// for a subclass, `[Uint8Array(2): null prototype] `; the length is 0
+    /// when the array is detached or out of bounds.
+    fn typed_prefix(&self, object: Gc<Object>, data: &crate::object::TypedArrayData) -> String {
+        let builtin = format!("{}Array", data.ty.name());
+        let length = self.rt.heap.typed_length(data).ok().flatten().unwrap_or(0);
+        let Ok(Some(_)) = self.rt.heap.get_prototype_of(object) else {
+            return format!("[{builtin}({length}): null prototype] ");
+        };
+        let name = self.typed_name(object, data.ty);
+        if name == builtin {
+            format!("{builtin}({length}) ")
+        } else {
+            format!("{name}({length}) [{builtin}] ")
+        }
+    }
+
+    /// The elements of a typed array (at most 100, read from the buffer),
+    /// then its other enumerable properties except an own `@@toStringTag`
+    /// (Node.js 22 does not show it).
+    fn typed_entries(&mut self, object: Gc<Object>, depth: usize, indent: usize) -> Vec<String> {
+        let heap = &self.rt.heap;
+        let Ok(Some(data)) = heap.typed_array(object) else {
+            return Vec::new();
+        };
+        let length = heap.typed_length(&data).ok().flatten().unwrap_or(0);
+        let mut entries = Vec::new();
+        for index in 0..length.min(MAX_ENTRIES) {
+            let text = match heap.typed_get(&data, index) {
+                Ok(Some(RawValue::Int(int))) => int.to_string(),
+                Ok(Some(RawValue::Number(number))) => format_number(number),
+                Ok(Some(RawValue::BigInt64(int))) => format!("{int}n"),
+                Ok(Some(RawValue::BigUint64(int))) => format!("{int}n"),
+                _ => "undefined".to_owned(),
+            };
+            self.units += text.len();
+            entries.push(text);
+        }
+        self.steps += entries.len();
+        if length > MAX_ENTRIES {
+            let rest = length - MAX_ENTRIES;
+            let s = if rest == 1 { "" } else { "s" };
+            entries.push(format!("... {rest} more item{s}"));
+        }
+        let tag = self.rt.symbol_key(WellKnown::ToStringTag);
+        let keys = heap
+            .own_named_keys(object)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|&key| key != tag)
+            .collect();
+        entries.extend(self.entries_of_keys(object, keys, depth, indent, false));
+        entries
+    }
+
     /// The elements of an array (holes as `<N empty items>`), then its
     /// other enumerable properties.
     fn array_entries(&mut self, array: Gc<Object>, depth: usize, indent: usize) -> Vec<String> {
@@ -706,6 +791,19 @@ impl Inspector<'_> {
         let Ok(keys) = self.rt.heap.own_property_keys(object) else {
             return Vec::new();
         };
+        self.entries_of_keys(object, keys, depth, indent, skip_indices)
+    }
+
+    /// The enumerable properties of `object` among `keys`, as
+    /// [`Inspector::property_entries`] lists them.
+    fn entries_of_keys(
+        &mut self,
+        object: Gc<Object>,
+        keys: Vec<PropertyKey>,
+        depth: usize,
+        indent: usize,
+        skip_indices: bool,
+    ) -> Vec<String> {
         self.steps += keys.len();
         let mut entries = Vec::new();
         for key in keys {

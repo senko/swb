@@ -134,11 +134,14 @@ impl Runtime {
                 self.heap.get_own_property(object, key)
             };
             match own {
+                // V8 names the object that holds the accessor (measured in
+                // Chromium 148: `#<A>` for an instance of a subclass of A,
+                // `[object Object]` for the `length` of a typed array).
                 Ok(Some(Property::Accessor { .. })) => {
                     return VmError::type_error(format!(
                         "Cannot set property {} of {} which has only a getter",
                         self.key_text(key),
-                        self.object_text(target)
+                        self.object_text(object)
                     ));
                 }
                 Ok(Some(_)) => {
@@ -314,15 +317,20 @@ impl Runtime {
                 self.chain_constructor_name(object)
                     .unwrap_or_else(|| "Object".to_owned())
             ),
+            Ok(ObjectKind::TypedArray(data)) => self.typed_array_text(object, data.ty),
             Ok(ObjectKind::MapIterator(_)) => "[object Map Iterator]".to_owned(),
             Ok(ObjectKind::SetIterator(_)) => "[object Set Iterator]".to_owned(),
             Ok(ObjectKind::ArrayIterator(_)) => "[object Array Iterator]".to_owned(),
             Ok(ObjectKind::StringIterator(_)) => "[object String Iterator]".to_owned(),
             Ok(ObjectKind::RegExp(_)) => "[object RegExp]".to_owned(),
             Ok(ObjectKind::RegExpStringIterator(_)) => "[object RegExp String Iterator]".to_owned(),
-            // V8 shows `RegExp.prototype` and the objects that inherit
-            // from it without a constructor name (measured).
-            Ok(ObjectKind::Ordinary) if self.inherits_regexp_prototype(object) => {
+            // V8 shows `RegExp.prototype`, `%TypedArray.prototype%` and the
+            // objects that inherit from them without a constructor name
+            // (measured).
+            Ok(ObjectKind::Ordinary)
+                if self.inherits_intrinsic(object, super::Intrinsic::RegExpPrototype)
+                    || self.inherits_intrinsic(object, super::Intrinsic::TypedArrayPrototype) =>
+            {
                 "[object Object]".to_owned()
             }
             Ok(ObjectKind::Generator(state)) => match state.kind {
@@ -374,14 +382,39 @@ impl Runtime {
         }
     }
 
-    /// Whether `object` is `%RegExp.prototype%` of a realm or inherits
+    /// The text of a typed array (measured in Chromium 148):
+    /// `[object Uint8Array]`, with an own `@@toStringTag` data string in
+    /// place of the name, and `#<Constructor>` when the prototype chain
+    /// does not reach a `%TypedArray.prototype%`.
+    fn typed_array_text(&self, object: Gc<Object>, ty: crate::object::ElementType) -> String {
+        let tag = self.symbol_key(super::WellKnown::ToStringTag);
+        if let Ok(Some(Property::Data {
+            value: Value::String(tag),
+            ..
+        })) = self.heap.get_own_property(object, tag)
+        {
+            return format!("[object {}]", self.clipped_text(tag));
+        }
+        let proto = self.heap.get_prototype_of(object).ok().flatten();
+        if proto.is_none() || self.inherits_intrinsic(object, super::Intrinsic::TypedArrayPrototype)
+        {
+            return format!("[object {}Array]", ty.name());
+        }
+        format!(
+            "#<{}>",
+            self.chain_constructor_name(object)
+                .unwrap_or_else(|| "Object".to_owned())
+        )
+    }
+
+    /// Whether `object` is the intrinsic `which` of a realm or inherits
     /// from it.
-    fn inherits_regexp_prototype(&self, object: Gc<Object>) -> bool {
+    fn inherits_intrinsic(&self, object: Gc<Object>, which: super::Intrinsic) -> bool {
         let prototypes: Vec<Gc<Object>> = self
             .vm
             .realms
             .iter()
-            .filter_map(|realm| realm.intrinsic(super::Intrinsic::RegExpPrototype))
+            .filter_map(|realm| realm.intrinsic(which))
             .collect();
         let mut current = Some(object);
         for _ in 0..CHAIN_LIMIT {

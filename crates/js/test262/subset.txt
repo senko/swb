@@ -3,13 +3,17 @@
 # `feature NAME`: tests with a `features` entry outside this list are
 #   skipped (tests without features always run).
 # `dir PATH`: a group of tests (the first four components of the directory,
-#   relative to the test262 directory) that `just test262` runs.
+#   relative to the test262 directory; three for test/built-ins) that
+#   `just test262` runs, or a directory or file below a group: then only
+#   the tests at or below it run, and they count for their group in the
+#   scores file.
 #
 # Tests are also skipped when they include a harness file other than
 # assert.js, sta.js, propertyHelper.js, compareArray.js, isConstructor.js,
 # fnGlobalObject.js, nans.js, decimalToHexString.js, nativeErrors.js,
 # asyncHelpers.js, promiseHelper.js, regExpUtils.js, compareIterator.js,
-# proxyTrapsHelper.js, detachArrayBuffer.js or byteConversionValues.js, or
+# proxyTrapsHelper.js, detachArrayBuffer.js, byteConversionValues.js,
+# testTypedArray.js or resizableArrayBufferUtils.js, or
 # have the flags module or CanBlockIsTrue, or use $262.createRealm or
 # $262.agent. Tests with the flag async get doneprintHandle.js and pass
 # when they print Test262:AsyncTestComplete.
@@ -449,3 +453,52 @@ feature Float16Array
 feature align-detached-buffer-semantics-with-web-reality
 dir test/built-ins/ArrayBuffer
 dir test/built-ins/DataView
+
+# Added in M7 feature 11b: the typed arrays: %TypedArray% with from, of
+# and @@species, the 12 constructors, the TypedArray exotic object, the
+# accessors, set, subarray, slice and the iterators. The dir lines below
+# name parts of the group built-ins/TypedArray (the group of the scores
+# file): the directories of the other prototype methods (at ... toString)
+# come with 11c, and so do the features TypedArray.prototype.at and
+# stable-typedarray-sort. SharedArrayBuffer and immutable-arraybuffer stay
+# out (Chromium 148 has neither in a normal page); Atomics comes with 11c.
+feature TypedArray
+feature Int8Array
+feature Uint8Array
+feature Uint8ClampedArray
+feature Int16Array
+feature Uint16Array
+feature Int32Array
+feature Uint32Array
+feature Float32Array
+feature Float64Array
+feature BigInt64Array
+feature BigUint64Array
+dir test/built-ins/TypedArray/from
+dir test/built-ins/TypedArray/of
+dir test/built-ins/TypedArray/Symbol.species
+dir test/built-ins/TypedArray/invoked.js
+dir test/built-ins/TypedArray/length.js
+dir test/built-ins/TypedArray/name.js
+dir test/built-ins/TypedArray/out-of-bounds-behaves-like-detached.js
+dir test/built-ins/TypedArray/out-of-bounds-get-and-set.js
+dir test/built-ins/TypedArray/out-of-bounds-has.js
+dir test/built-ins/TypedArray/prototype.js
+dir test/built-ins/TypedArray/resizable-buffer-length-tracking-1.js
+dir test/built-ins/TypedArray/resizable-buffer-length-tracking-2.js
+dir test/built-ins/TypedArray/prototype/buffer
+dir test/built-ins/TypedArray/prototype/byteLength
+dir test/built-ins/TypedArray/prototype/byteOffset
+dir test/built-ins/TypedArray/prototype/length
+dir test/built-ins/TypedArray/prototype/entries
+dir test/built-ins/TypedArray/prototype/keys
+dir test/built-ins/TypedArray/prototype/values
+dir test/built-ins/TypedArray/prototype/set
+dir test/built-ins/TypedArray/prototype/slice
+dir test/built-ins/TypedArray/prototype/subarray
+dir test/built-ins/TypedArray/prototype/Symbol.iterator
+dir test/built-ins/TypedArray/prototype/Symbol.toStringTag
+dir test/built-ins/TypedArray/prototype/constructor.js
+dir test/built-ins/TypedArray/prototype/resizable-and-fixed-have-same-prototype.js
+dir test/built-ins/TypedArray/prototype/Symbol.iterator.js
+dir test/built-ins/TypedArrayConstructors

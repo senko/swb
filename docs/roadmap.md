@@ -1824,6 +1824,22 @@ failures with a reason. Features, in this order:
       `length`, `@@toStringTag`), length tracking and out-of-bounds,
       `from`, `of`, `set`, `subarray`, `slice`, the iterators,
       `TypedArraySpeciesCreate`.
+      Done 2026-10-18: `%TypedArray%` (abstract) with `from`, `of` and
+      `@@species`; the 12 constructors with all argument forms, V8's
+      messages and V8's limit (2^35 − 1 bytes); the exotic object for
+      every canonical numeric key (also "-0", "1.5", "NaN"); length
+      tracking and out-of-bounds over resizable buffers; the accessors,
+      `set` (also overlapping in one buffer), `subarray`, `slice`, the
+      iterators; `console.log` as Node.js 22. `ta[i]` loops run as fast
+      as `Array` loops; the `Array` and property rows changed by at most
+      +0.7 % instructions. 887 Chromium snippets equal in normal and
+      stress mode (KNOWN: 4 places where V8 does not follow the spec; 10
+      snippets need 11c). test262 runtime 37,011 → 38,347
+      (`TypedArray` 444 of 447 in the 11b directories,
+      `TypedArrayConstructors` 658 of 658, `ArrayBuffer` and `DataView`
+      without failures). The runner accepts `dir` lines below a group,
+      so the 11c method tests stay out until 11c. ars-js/s01.js now
+      builds its `Uint32Array` table and stops later, at `window`.
     - 11c Methods (`implementer`; `js`): the other methods of
       `%TypedArray%.prototype`, after the patterns of the `Array`
       methods (`at`, `copyWithin`, `every`, `fill`, `filter`, the `find`
@@ -2273,6 +2289,28 @@ not repeated here; the open items of each spike session are in M6 step
     `Runtime::species_constructor`.
   - NaN from `0/0` has the hardware bits (0xFFF8…); V8 gives 0x7FF8….
     The spec leaves NaN bits to the implementation (KNOWN).
+- Typed arrays (M7 11b):
+  - `ta.length` walks two prototypes to its accessor on each read (the
+    call itself is skipped): the Float64Array sum row takes 178 ms, the
+    `Array` loop 127 ms. Inline caches, feature 13.
+  - Spread and `Array.from` of a typed array take one iterator step per
+    element; a bulk path in `spread_array_iterator` would help. The
+    generic `Array.prototype` methods take the per-index steps on typed
+    arrays.
+  - The heap's `get_own_property` of a `BigInt` element is an internal
+    error (it cannot allocate behind `&self`); all runtime paths go
+    through `Runtime::own_property`. A heap read API that may allocate
+    would remove the trap.
+  - `Array.from.call(Uint8Array, [5, 6])` throws "Invalid typed array
+    index" (the message of `Object.defineProperty`); Chromium says
+    "Cannot redefine property: 0" for `CreateDataPropertyOrThrow`. Check
+    class fields too.
+  - Not specific to typed arrays: `console.log([].values())` prints `{}`
+    (Node.js: `Object [Array Iterator] {}`); the message of `null[obj]`
+    contains the key text (V8 leaves it out); a strict write to a
+    non-extensible object whose prototype has a writable property says
+    "Cannot assign to read only property" (V8: "Cannot add property x,
+    object is not extensible").
 - Dependencies (2026-10-18): `ttf-parser` is unmaintained
   (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
   not use it; winit's Wayland title bar (`sctk-adwaita`, through

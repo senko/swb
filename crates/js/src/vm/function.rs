@@ -367,6 +367,21 @@ impl Runtime {
         constructor: bool,
     ) -> VmResult<Gc<crate::object::Object>> {
         let proto = self.intrinsic(realm, Intrinsic::FunctionPrototype)?;
+        self.new_builtin_with_proto(realm, proto, name, length, func, constructor)
+    }
+
+    /// [`Runtime::new_builtin`] with another prototype than
+    /// `%Function.prototype%` (the typed array constructors inherit from
+    /// `%TypedArray%`, §23.2.6).
+    pub(crate) fn new_builtin_with_proto(
+        &mut self,
+        realm: u32,
+        proto: Gc<crate::object::Object>,
+        name: &str,
+        length: u32,
+        func: NativeFn,
+        constructor: bool,
+    ) -> VmResult<Gc<crate::object::Object>> {
         let name = self.heap.intern_str(name)?;
         self.heap.record(name);
         let kind = ObjectKind::Native(Box::new(NativeFunction {

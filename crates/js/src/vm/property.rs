@@ -13,7 +13,7 @@
 use crate::heap::Gc;
 use crate::object::{
     GetResult, INVALID_ARRAY_LENGTH, Object, ObjectKind, PropertyDescriptor, SetResult,
-    length_write_message,
+    TypedArrayData, length_write_message,
 };
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
@@ -91,15 +91,31 @@ impl Runtime {
     /// properties of String objects (§10.4.3.5), also those on the
     /// prototype chain. The heap does not know the characters (each is a
     /// new string), so an index that the heap does not find gets a second
-    /// look along the chain.
+    /// look along the chain. An array index of a typed array reads its
+    /// element here (§10.4.5: no walk of the chain; the interpreter's
+    /// `ta[i]`).
     pub(crate) fn get_with_receiver(
         &mut self,
         object: Gc<Object>,
         key: PropertyKey,
         receiver: Value,
     ) -> VmResult<Lookup> {
-        if let Some(value) = self.string_object_index(object, key)? {
-            return Ok(Lookup::Value(value));
+        if let PropertyKey::Index(index) = key {
+            let kind = &self.heap.object(object)?.kind;
+            if kind.sets_exotic() {
+                match *kind {
+                    ObjectKind::StringWrapper(string) => {
+                        if let Some(value) = self.string_own_property(string, key)? {
+                            return Ok(Lookup::Value(value));
+                        }
+                    }
+                    ObjectKind::TypedArray(ref data) => {
+                        let data = **data;
+                        return self.typed_index_lookup(&data, index);
+                    }
+                    _ => {}
+                }
+            }
         }
         let found = self.heap.get(object, key, receiver)?;
         if found == GetResult::Generic {
@@ -111,7 +127,10 @@ impl Runtime {
         {
             let mut current = self.heap.get_prototype_of(object)?;
             while let Some(proto) = current {
-                if self.heap.get_own_property(proto, key)?.is_some() {
+                // A typed array ends the walk for an index (§10.4.5).
+                if self.heap.typed_array(proto)?.is_some()
+                    || self.heap.get_own_property(proto, key)?.is_some()
+                {
                     break;
                 }
                 if let Some(value) = self.string_object_index(proto, key)? {
@@ -121,6 +140,14 @@ impl Runtime {
             }
         }
         ordinary_lookup(found)
+    }
+
+    /// The element `index` of a typed array (`undefined` if the
+    /// index is not valid), for [`Runtime::get_with_receiver`]: out of
+    /// line, so that the paths of other objects stay short.
+    #[inline(never)]
+    fn typed_index_lookup(&mut self, data: &TypedArrayData, index: u32) -> VmResult<Lookup> {
+        Ok(Lookup::Value(self.typed_element(data, index as usize)?))
     }
 
     /// The value of [`Runtime::get_generic`], with a getter called through

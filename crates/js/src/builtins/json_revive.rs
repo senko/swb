@@ -147,7 +147,9 @@ pub(super) fn internalize(
                 let (object, key) = (level.object, level.current);
                 if result.is_undefined() {
                     rt.delete_generic(object, key, false)?;
-                } else if rt.heap.is_proxy(object)? {
+                } else if rt.heap.is_proxy(object)? || rt.typed_numeric(object, key)?.is_some() {
+                    // A trap, or the conversion of a typed array element,
+                    // can run script code.
                     let desc = crate::object::PropertyDescriptor::data(result, true, true, true);
                     rt.define_generic(object, key, desc, false)?;
                 } else {

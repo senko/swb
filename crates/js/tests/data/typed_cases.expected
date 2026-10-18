@@ -1,0 +1,887 @@
+typeof Int8Array + typeof Uint8Array + typeof Uint8ClampedArray + typeof Int16Array + typeof Uint16Array + typeof Int32Array => ok "functionfunctionfunctionfunctionfunctionfunction"
+typeof Uint32Array + typeof Float16Array + typeof Float32Array + typeof Float64Array + typeof BigInt64Array + typeof BigUint64Array => ok "functionfunctionfunctionfunctionfunctionfunction"
+Object.getPrototypeOf(Int8Array) === Object.getPrototypeOf(BigUint64Array) => ok true
+Object.getPrototypeOf(Int8Array) === Function.prototype => ok false
+Object.getPrototypeOf(Object.getPrototypeOf(Int8Array)) === Function.prototype => ok true
+Object.getPrototypeOf(Int8Array).name => ok "TypedArray"
+Object.getPrototypeOf(Int8Array).length => ok 0
+keys(Object.getPrototypeOf(Int8Array)) => ok "length,name,prototype,of,from,Symbol(Symbol.species)"
+desc(Object.getPrototypeOf(Int8Array), 'prototype') => ok "v=object w=false e=false c=false"
+desc(Object.getPrototypeOf(Int8Array), 'from') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array), 'of') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array), Symbol.species) => ok "get=function set=undefined e=false c=true"
+Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array), Symbol.species).get.name => ok "get [Symbol.species]"
+Object.getPrototypeOf(Int8Array).from.length => ok 1
+Object.getPrototypeOf(Int8Array).of.length => ok 0
+Object.getPrototypeOf(Int8Array).from.name => ok "from"
+Object.getPrototypeOf(Int8Array).of.name => ok "of"
+Object.getPrototypeOf(Int8Array)[Symbol.species] === Object.getPrototypeOf(Int8Array) => ok true
+Uint8Array[Symbol.species] === Uint8Array => ok true
+Object.getPrototypeOf(Int8Array.prototype) === Object.getPrototypeOf(Int8Array).prototype => ok true
+Object.getPrototypeOf(Object.getPrototypeOf(Int8Array).prototype) === Object.prototype => ok true
+keys(Int8Array) => ok "length,name,prototype,BYTES_PER_ELEMENT"
+keys(Int8Array.prototype) => ok "constructor,BYTES_PER_ELEMENT"
+keys(BigInt64Array.prototype) => ok "constructor,BYTES_PER_ELEMENT"
+keys(Float16Array) => ok "length,name,prototype,BYTES_PER_ELEMENT"
+desc(Int8Array, 'BYTES_PER_ELEMENT') => ok "v=1 w=false e=false c=false"
+desc(Int8Array.prototype, 'BYTES_PER_ELEMENT') => ok "v=1 w=false e=false c=false"
+desc(Int8Array, 'prototype') => ok "v=object w=false e=false c=false"
+desc(Int8Array.prototype, 'constructor') => ok "v=function w=true e=false c=true"
+desc(Int8Array, 'length') => ok "v=3 w=false e=false c=true"
+desc(Int8Array, 'name') => ok "v=Int8Array w=false e=false c=true"
+[Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float16Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array].map(c => c.name + ':' + c.length + ':' + c.BYTES_PER_ELEMENT + ':' + c.prototype.BYTES_PER_ELEMENT).join() => ok "Int8Array:3:1:1,Uint8Array:3:1:1,Uint8ClampedArray:3:1:1,Int16Array:3:2:2,Uint16Array:3:2:2,Int32Array:3:4:4,Uint32Array:3:4:4,Float16Array:3:2:2,Float32Array:3:4:4,Float64Array:3:8:8,BigInt64Array:3:8:8,BigUint64Array:3:8:8"
+[Int8Array, Uint8Array, Float16Array, BigInt64Array].map(c => Object.getPrototypeOf(c.prototype) === Object.getPrototypeOf(Int8Array).prototype).join() => ok "true,true,true,true"
+Object.getPrototypeOf(Int8Array).prototype.BYTES_PER_ELEMENT => ok undefined
+'BYTES_PER_ELEMENT' in Object.getPrototypeOf(Int8Array) => ok false
+Object.getPrototypeOf(Int8Array).prototype.constructor === Object.getPrototypeOf(Int8Array) => ok true
+Reflect.ownKeys(Object.getPrototypeOf(Int8Array).prototype).map(String).filter(k => ['constructor', 'buffer', 'byteLength', 'byteOffset', 'length', 'entries', 'keys', 'values', 'set', 'slice', 'subarray', 'Symbol(Symbol.iterator)', 'Symbol(Symbol.toStringTag)'].includes(k)).join() => ok "constructor,buffer,byteLength,byteOffset,length,entries,keys,values,set,slice,subarray,Symbol(Symbol.toStringTag),Symbol(Symbol.iterator)"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'buffer') => ok "get=function set=undefined e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'byteLength') => ok "get=function set=undefined e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'byteOffset') => ok "get=function set=undefined e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'length') => ok "get=function set=undefined e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag) => ok "get=function set=undefined e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'set') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'subarray') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'slice') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, 'values') => ok "v=function w=true e=false c=true"
+desc(Object.getPrototypeOf(Int8Array).prototype, Symbol.iterator) => ok "v=function w=true e=false c=true"
+Object.getPrototypeOf(Int8Array).prototype[Symbol.iterator] === Object.getPrototypeOf(Int8Array).prototype.values => ok true
+Object.getPrototypeOf(Int8Array).prototype.values.name + ':' + Object.getPrototypeOf(Int8Array).prototype.keys.name + ':' + Object.getPrototypeOf(Int8Array).prototype.entries.name => ok "values:keys:entries"
+Object.getPrototypeOf(Int8Array).prototype[Symbol.iterator].name => ok "values"
+['set', 'subarray', 'slice', 'values', 'keys', 'entries'].map(k => Object.getPrototypeOf(Int8Array).prototype[k].length).join() => ok "1,2,2,0,0,0"
+['buffer', 'byteLength', 'byteOffset', 'length'].map(k => Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, k).get.name).join() => ok "get buffer,get byteLength,get byteOffset,get length"
+Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get.name => ok "get [Symbol.toStringTag]"
+Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, 'length').get.length => ok 0
+Object.getPrototypeOf(Int8Array).prototype.values === Array.prototype.values => ok false
+Uint8Array.from === Object.getPrototypeOf(Int8Array).from => ok true
+Object.hasOwn(Uint8Array, 'from') => ok false
+String(Object.getPrototypeOf(Int8Array)) => ok "function TypedArray() { [native code] }"
+Object.prototype.toString.call(Object.getPrototypeOf(Int8Array).prototype) => ok "[object Object]"
+Object.prototype.toString.call(Uint8Array.prototype) => ok "[object Object]"
+Object.prototype.toString.call(new Uint8Array(1)) => ok "[object Uint8Array]"
+Object.prototype.toString.call(new BigUint64Array(1)) => ok "[object BigUint64Array]"
+Object.prototype.toString.call(new Float16Array(1)) => ok "[object Float16Array]"
+ArrayBuffer.isView(new Uint8Array(1)) => ok true
+ArrayBuffer.isView(new BigInt64Array(1)) => ok true
+ArrayBuffer.isView(Uint8Array.prototype) => ok false
+ArrayBuffer.isView(Object.getPrototypeOf(Int8Array).prototype) => ok false
+ArrayBuffer.isView(Object.create(new Uint8Array(1))) => ok false
+ArrayBuffer.isView(new Proxy(new Uint8Array(1), {})) => ok false
+Array.isArray(new Uint8Array(1)) => ok false
+typeof new Uint8Array(1) => ok "object"
+new Uint8Array(2) instanceof Uint8Array => ok true
+new Uint8Array(2) instanceof Object.getPrototypeOf(Int8Array) => ok true
+new Uint8Array(2) instanceof Int8Array => ok false
+Object.isExtensible(new Uint8Array(1)) => ok true
+Object.getPrototypeOf(Int8Array)() => err TypeError: Abstract class TypedArray not directly constructable
+new (Object.getPrototypeOf(Int8Array))() => err TypeError: Abstract class TypedArray not directly constructable
+new (Object.getPrototypeOf(Int8Array))(1) => err TypeError: Abstract class TypedArray not directly constructable
+Reflect.construct(Object.getPrototypeOf(Int8Array), [], Uint8Array) => err TypeError: Abstract class TypedArray not directly constructable
+Object.getPrototypeOf(Int8Array).call(new Uint8Array(1)) => err TypeError: Abstract class TypedArray not directly constructable
+(() => { class X extends Object.getPrototypeOf(Int8Array) {} ; return new X(1); })() => err TypeError: Abstract class TypedArray not directly constructable
+(() => { class X extends Object.getPrototypeOf(Int8Array) { constructor() { super(); } } ; return new X(); })() => err TypeError: Abstract class TypedArray not directly constructable
+(() => { class X extends Uint8Array {} ; const x = new X(2); return [x instanceof X, x.length, Object.prototype.toString.call(x), X.BYTES_PER_ELEMENT, x.constructor === X].join(); })() => ok "true,2,[object Uint8Array],1,true"
+(() => { class X extends Uint8Array { constructor(n) { super(n * 2); this.extra = 1; } } ; const x = new X(2); return [x.length, x.extra, keys(x)].join(); })() => ok "4,1,0,1,2,3,extra"
+(() => { class X extends Float64Array {} ; return list(X.from([1.5, 2])) + ':' + (X.from([1]) instanceof X); })() => ok "1.5,2:true"
+(() => { class X extends Int16Array {} ; return list(X.of(1, 2, 3)) + ':' + (X.of(1) instanceof X); })() => ok "1,2,3:true"
+Uint8Array() => err TypeError: Constructor Uint8Array requires 'new'
+Uint8Array(1) => err TypeError: Constructor Uint8Array requires 'new'
+Float64Array.call(new Float64Array(1), 1) => err TypeError: Constructor Float64Array requires 'new'
+BigInt64Array() => err TypeError: Constructor BigInt64Array requires 'new'
+Reflect.construct(Uint8Array, [2], Object).length => ok undefined
+Object.getPrototypeOf(Reflect.construct(Uint8Array, [2], Object)) === Object.prototype => ok true
+Object.prototype.toString.call(Reflect.construct(Uint8Array, [2], Object)) => ok "[object Object]"
+ArrayBuffer.isView(Reflect.construct(Uint8Array, [2], Object)) => ok true
+(() => { const f = function () {}; f.prototype = 1; return Object.getPrototypeOf(Reflect.construct(Uint8Array, [1], f)) === Uint8Array.prototype; })() => ok true
+Object.getPrototypeOf(Reflect.construct(Int8Array, [1], Uint16Array)) === Uint16Array.prototype => ok true
+Reflect.construct(Int8Array, [1], Uint16Array).BYTES_PER_ELEMENT => ok 2
+Reflect.construct(Int8Array, [3], Uint16Array).byteLength => ok 3
+Reflect.construct(Uint8Array, [{ valueOf() { throw new Error('len'); } }], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(Uint8Array, [-1], nt(() => { throw new Error('proto'); })) => err RangeError: Invalid typed array length: -1
+Reflect.construct(Uint8Array, [[1, 2]], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(Uint8Array, [new ArrayBuffer(8), 9], nt(() => { throw new Error('proto'); })) => err Error: proto
+Reflect.construct(Uint8Array, [new Uint8Array(2)], nt(() => { throw new Error('proto'); })) => err Error: proto
+new Uint8Array().length => ok 0
+new Uint8Array(undefined).length => ok 0
+new Uint8Array(null).length => ok 0
+new Uint8Array(3).length => ok 3
+new Uint8Array(3.7).length => ok 3
+new Uint8Array('3').length => ok 3
+new Uint8Array('abc').length => ok 0
+new Uint8Array(' 0x10 ').length => ok 16
+new Uint8Array(-0).length => ok 0
+new Uint8Array(-0.9).length => ok 0
+new Uint8Array(NaN).length => ok 0
+new Uint8Array(true).length => ok 1
+new Uint8Array(false).length => ok 0
+new Uint8Array(-1) => err RangeError: Invalid typed array length: -1
+new Uint8Array(-1.5) => err RangeError: Invalid typed array length: -1.5
+new Uint8Array(-Infinity) => err RangeError: Invalid typed array length: -Infinity
+new Uint8Array(Infinity) => err RangeError: Invalid typed array length: Infinity
+new Uint8Array(2 ** 53) => err RangeError: Invalid typed array length: 9007199254740992
+new Uint8Array(2 ** 53 - 1) => err RangeError: Invalid typed array length: 9007199254740991
+new Uint8Array(2 ** 40) => err RangeError: Invalid typed array length: 1099511627776
+new Float64Array(2 ** 50) => err RangeError: Invalid typed array length: 1125899906842624
+new BigInt64Array(2 ** 53) => err RangeError: Invalid typed array length: 9007199254740992
+new Uint8Array(Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new Uint8Array(1n) => err TypeError: Cannot convert a BigInt value to a number
+new Uint8Array({ valueOf() { return 3; } }).length => ok 0
+list(new Uint8Array(3)) => ok "0,0,0"
+list(new Float64Array(2)) => ok "0,0"
+list(new BigInt64Array(2)) => ok "0n,0n"
+new Float16Array(4).byteLength => ok 8
+new BigUint64Array(3).byteLength => ok 24
+new Int32Array(5).byteOffset => ok 0
+new Int32Array(5).buffer.byteLength => ok 20
+new Int32Array(5).buffer.constructor === ArrayBuffer => ok true
+new Int32Array(5).buffer.resizable => ok false
+new Int32Array(0).buffer.byteLength => ok 0
+(() => { const t = new Uint8Array(4); return t.buffer === t.buffer; })() => ok true
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b); return [t.length, t.byteOffset, t.byteLength, t.buffer === b].join(); })() => ok "8,0,8,true"
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b, 2); return [t.length, t.byteOffset, t.byteLength].join(); })() => ok "6,2,6"
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b, 2, 3); return [t.length, t.byteOffset, t.byteLength].join(); })() => ok "3,2,3"
+(() => { const b = new ArrayBuffer(8); const t = new Uint16Array(b, 2, 3); return [t.length, t.byteOffset, t.byteLength].join(); })() => ok "3,2,6"
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b, 8); return [t.length, t.byteOffset, t.byteLength].join(); })() => ok "0,8,0"
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b, 8, 0); return [t.length, t.byteOffset].join(); })() => ok "0,8"
+new Uint8Array(new ArrayBuffer(8), 9) => err RangeError: Start offset 9 is outside the bounds of the buffer
+new Uint8Array(new ArrayBuffer(8), 2, 7) => err RangeError: Invalid typed array length: 7
+new Uint8Array(new ArrayBuffer(8), 0, 9) => err RangeError: Invalid typed array length: 9
+new Uint16Array(new ArrayBuffer(8), 1) => err RangeError: start offset of Uint16Array should be a multiple of 2
+new Uint16Array(new ArrayBuffer(8), 3, 1) => err RangeError: start offset of Uint16Array should be a multiple of 2
+new Uint16Array(new ArrayBuffer(7)) => err RangeError: byte length of Uint16Array should be a multiple of 2
+new Float64Array(new ArrayBuffer(12)) => err RangeError: byte length of Float64Array should be a multiple of 8
+new Float64Array(new ArrayBuffer(12), 4) => err RangeError: start offset of Float64Array should be a multiple of 8
+new Float64Array(new ArrayBuffer(16), 8, 2) => err RangeError: Invalid typed array length: 2
+new Uint32Array(new ArrayBuffer(8), 4, 2) => err RangeError: Invalid typed array length: 2
+new BigInt64Array(new ArrayBuffer(12)) => err RangeError: byte length of BigInt64Array should be a multiple of 8
+new Uint16Array(new ArrayBuffer(8), -1) => err RangeError: Start offset -1 is outside the bounds of the buffer
+new Uint16Array(new ArrayBuffer(8), -2) => err RangeError: Start offset -2 is outside the bounds of the buffer
+new Uint16Array(new ArrayBuffer(8), 2 ** 53) => err RangeError: Start offset 9007199254740992 is outside the bounds of the buffer
+new Uint16Array(new ArrayBuffer(8), Infinity) => err RangeError: Start offset Infinity is outside the bounds of the buffer
+new Uint8Array(new ArrayBuffer(8), 0, -1) => err RangeError: Invalid typed array length: -1
+new Uint8Array(new ArrayBuffer(8), 0, 2 ** 53) => err RangeError: Invalid typed array length: 9007199254740992
+new Uint8Array(new ArrayBuffer(8), 0, Infinity) => err RangeError: Invalid typed array length: Infinity
+new Uint8Array(new ArrayBuffer(8), NaN, NaN).length => ok 0
+new Uint8Array(new ArrayBuffer(8), undefined, undefined).length => ok 8
+new Uint8Array(new ArrayBuffer(8), '2', '3').length => ok 3
+new Uint8Array(new ArrayBuffer(8), 1.9, 2.9).length => ok 2
+new Uint8Array(new ArrayBuffer(8), null, null).length => ok 0
+new Uint8Array(new ArrayBuffer(8), 0, Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new Uint8Array(new ArrayBuffer(8), Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new Uint8Array(new ArrayBuffer(8), 1n) => err TypeError: Cannot convert a BigInt value to a number
+new Uint8Array(new ArrayBuffer(8), { valueOf() { throw new Error('off'); } }, { valueOf() { throw new Error('len'); } }) => err Error: off
+new Uint8Array(new ArrayBuffer(8), 0, { valueOf() { throw new Error('len'); } }) => err Error: len
+new Uint16Array(new ArrayBuffer(8), 1, { valueOf() { throw new Error('len'); } }) => err RangeError: start offset of Uint16Array should be a multiple of 2
+new Uint8Array(det(new ArrayBuffer(8))) => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+new Uint8Array(det(new ArrayBuffer(8)), 0, 0) => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+new Uint8Array(det(new ArrayBuffer(8)), 9) => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+new Uint16Array(det(new ArrayBuffer(8)), 1) => err RangeError: start offset of Uint16Array should be a multiple of 2
+new Uint8Array(det(new ArrayBuffer(8)), { valueOf() { throw new Error('off'); } }) => err Error: off
+(() => { const b = new ArrayBuffer(8); return new Uint8Array(b, { valueOf() { b.transfer(); return 0; } }); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(8); return new Uint8Array(b, 0, { valueOf() { b.transfer(); return 1; } }); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(8); return Reflect.construct(Uint8Array, [b], nt(() => b.transfer())); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const b = new ArrayBuffer(8); return Reflect.construct(Uint8Array, [b, 4, 2], nt(() => b.transfer())); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const b = rab(8, 16); return Reflect.construct(Uint8Array, [b, 4, 4], nt(() => b.resize(6))); })() => err RangeError: Invalid typed array length: 4
+(() => { const b = rab(8, 16); return Reflect.construct(Uint8Array, [b, 6], nt(() => b.resize(4))); })() => err RangeError: Start offset 6 is outside the bounds of the buffer
+(() => { const b = rab(8, 16); const t = Reflect.construct(Uint8Array, [b, 2], nt(() => b.resize(4))); return [t.length, t.byteOffset].join(); })() => ok ","
+(() => { const b = rab(8, 16); const t = Reflect.construct(Uint8Array, [b], nt(() => b.resize(12))); return t.length; })() => ok undefined
+new Uint8Array(new DataView(new ArrayBuffer(2))) => ok object
+new Uint8Array(new DataView(new ArrayBuffer(2))).length => ok 0
+new Uint8Array(Object.create(ArrayBuffer.prototype)).length => ok 0
+(() => { const b = new ArrayBuffer(8); const t = new Uint8Array(b); t[0] = 9; return new Uint8Array(b)[0]; })() => ok 9
+(() => { const b = new ArrayBuffer(8); const a = new Uint8Array(b); const c = new Uint32Array(b); a[0] = 1; a[1] = 2; return c[0]; })() => ok 513
+(() => { const b = new ArrayBuffer(8); const a = new Float64Array(b); a[0] = 1.5; return list(new Uint8Array(b)); })() => ok "0,0,0,0,0,0,248,63"
+(() => { const b = new ArrayBuffer(4); const a = new Float32Array(b); a[0] = -2.5; return list(new Uint8Array(b)); })() => ok "0,0,32,192"
+(() => { const b = new ArrayBuffer(2); const a = new Float16Array(b); a[0] = 1.5; return list(new Uint8Array(b)); })() => ok "0,62"
+(() => { const b = new ArrayBuffer(8); const a = new BigInt64Array(b); a[0] = -2n; return list(new Uint8Array(b)); })() => ok "254,255,255,255,255,255,255,255"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b); b.resize(12); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "12,12,0"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 2); b.resize(4); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "2,2,2"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4); b.resize(2); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,0"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4); b.resize(4); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,4"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4); b.resize(2); b.resize(10); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "6,6,4"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 2, 4); b.resize(5); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,0"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 2, 4); b.resize(6); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "4,4,2"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 2, 4); b.resize(5); b.resize(16); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "4,4,2"
+(() => { const b = rab(7, 16); const t = new Uint16Array(b); return [t.length, t.byteLength].join(); })() => ok "3,6"
+(() => { const b = rab(7, 16); const t = new Uint16Array(b); b.resize(9); return [t.length, t.byteLength].join(); })() => ok "4,8"
+(() => { const b = rab(8, 16); const t = new Uint32Array(b, 4); b.resize(7); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,4"
+new Uint16Array(rab(8, 16), 1) => err RangeError: start offset of Uint16Array should be a multiple of 2
+new Uint16Array(rab(8, 16), 10) => err RangeError: Start offset 10 is outside the bounds of the buffer
+new Uint16Array(rab(8, 16), 0, 5) => err RangeError: Invalid typed array length: 5
+new Uint8Array(rab(8, 16), 9) => err RangeError: Start offset 9 is outside the bounds of the buffer
+(() => { const t = new Uint8Array(rab(8, 16), 8); return [t.length, t.byteOffset].join(); })() => ok "0,8"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 0, undefined); b.resize(12); return t.length; })() => ok 12
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, undefined, 4); b.resize(12); return t.length; })() => ok 4
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4, 4); b.resize(7); return [t.length, '0' in t, t[0]].join(); })() => ok "0,false,"
+(() => { const b = rab(8, 16); const t = new Float64Array(b); b.resize(15); return [t.length, t.byteLength].join(); })() => ok "1,8"
+(() => { const b = rab(0, 16); const t = new Uint8Array(b); b.resize(3); t[2] = 5; return list(t); })() => ok "0,0,5"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b); b.resize(0); return [t.length, t.byteOffset, keys(t)].join(); })() => ok "0,0,"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t[3] = 7; b.resize(2); b.resize(4); return list(t); })() => ok "0,0,0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.resize(2); t[3] = 7; return [t[3], list(t)].join(); })() => ok ",0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.resize(8); t[7] = 7; return list(t); })() => ok "0,0,0,0,0,0,0,7"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 0, 4); b.resize(2); return [t[0], t.length, '0' in t, Object.keys(t).length].join(); })() => ok ",0,false,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.transfer(); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.transfer(); return t.buffer === b; })() => ok true
+Object.isExtensible(Object.preventExtensions(new Uint8Array(rab(4, 8)))) => err TypeError: Cannot prevent extensions
+Object.preventExtensions(new Uint8Array(rab(4, 8))) => err TypeError: Cannot prevent extensions
+Object.preventExtensions(new Uint8Array(rab(4, 8), 0, 2)) => err TypeError: Cannot prevent extensions
+Reflect.preventExtensions(new Uint8Array(rab(4, 8))) => ok false
+Reflect.preventExtensions(new Uint8Array(new ArrayBuffer(4))) => ok true
+Object.isExtensible(Object.preventExtensions(new Uint8Array(4))) => ok false
+Object.freeze(new Uint8Array(rab(0, 8))) => err TypeError: Cannot freeze
+Object.seal(new Uint8Array(rab(0, 8))) => err TypeError: Cannot seal
+Object.isFrozen(new Uint8Array(rab(0, 8))) => ok false
+list(new Uint8Array([1, 2, 3])) => ok "1,2,3"
+list(new Uint8Array([])) => ok ""
+list(new Uint8Array([, 2])) => ok "0,2"
+list(new Float64Array([1.5, '2', null, undefined, true, [], [7], {}])) => ok "1.5,2,0,NaN,1,0,7,NaN"
+list(new Uint8Array({ length: 2, 0: 5, 1: 6 })) => ok "5,6"
+list(new Uint8Array({ length: 2, 0: 5 })) => ok "5,0"
+list(new Uint8Array({ length: -1 })) => ok ""
+list(new Uint8Array({ length: '2', 0: 1, 1: 2 })) => ok "1,2"
+list(new Uint8Array({ length: 2.9, 0: 1, 1: 2, 2: 3 })) => ok "1,2"
+list(new Uint8Array({})) => ok ""
+new Uint8Array({ length: 2 ** 53 }) => err RangeError: Invalid typed array length: 9007199254740991
+new Uint8Array({ length: Infinity }) => err RangeError: Invalid typed array length: 9007199254740991
+new Uint8Array({ length: 2 ** 40 }) => err RangeError: Invalid typed array length: 1099511627776
+new Uint8Array({ get length() { throw new Error('length'); } }) => err Error: length
+new Uint8Array({ length: { valueOf() { throw new Error('vo'); } } }) => err Error: vo
+new Uint8Array({ length: 1n }) => err TypeError: Cannot convert a BigInt value to a number
+new Uint8Array({ length: Symbol() }) => err TypeError: Cannot convert a Symbol value to a number
+list(new Uint8Array(new Set([3, 4]))) => ok "3,4"
+list(new Uint8Array(new Map([[1, 2]]))) => ok "0"
+list(new Uint8Array(new String('12'))) => ok "1,2"
+list(new Uint8Array(Object('ab'))) => ok "0,0"
+list(new Uint8Array(function () {})) => ok ""
+list(new Uint8Array(Object(5))) => ok ""
+list(new Uint8Array({ [Symbol.iterator]: undefined, length: 1, 0: 3 })) => ok "3"
+list(new Uint8Array({ [Symbol.iterator]: null, length: 1, 0: 3 })) => ok "3"
+new Uint8Array({ [Symbol.iterator]: 1 }) => err TypeError: TypedArray's constructor requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+new Uint8Array({ [Symbol.iterator]: {} }) => err TypeError: TypedArray's constructor requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+new Uint8Array({ [Symbol.iterator]() { return 1; } }) => err TypeError: Result of the Symbol.iterator method is not an object
+new Uint8Array({ [Symbol.iterator]() { return {}; } }) => err TypeError: undefined is not a function
+new Uint8Array({ [Symbol.iterator]() { return { next: 1 }; } }) => err TypeError: number 1 is not a function
+new Uint8Array({ [Symbol.iterator]() { return { next() { return 1; } }; } }) => err TypeError: Iterator result 1 is not an object
+new Uint8Array({ get [Symbol.iterator]() { throw new Error('iter'); } }) => err Error: iter
+new Uint8Array({ [Symbol.iterator]() { throw new Error('call'); } }) => err Error: call
+list(new Uint8Array({ [Symbol.iterator]() { let i = 0; return { next() { return { done: i > 2, value: i++ }; } }; } })) => ok "0,1,2"
+new Uint8Array({ [Symbol.iterator]() { return { next() { throw new Error('next'); } }; } }) => err Error: next
+list(new Uint8Array({ [Symbol.iterator]() { let i = 0; return { next() { return { done: i++ > 0, get value() { return 7; } }; } }; } })) => ok "7"
+new Uint8Array({ [Symbol.iterator]() { return { next() { return { done: false, get value() { throw new Error('value'); } }; } }; } }) => err Error: value
+(() => { const log = []; const it = { [Symbol.iterator]() { let i = 0; return { next() { log.push('n' + i); return { done: i > 1, value: { valueOf() { log.push('v' + i); return i; } }, i: i++ }; }, return() { log.push('r'); return {}; } }; } }; new Uint8Array(it); return log.join(); })() => ok "n0,n1,n2,v3,v3"
+(() => { const log = []; const o = { get length() { log.push('len'); return 2; }, get 0() { log.push('g0'); return { valueOf() { log.push('v0'); return 1; } }; }, get 1() { log.push('g1'); return 2; } }; new Uint8Array(o); return log.join(); })() => ok "len,g0,v0,g1"
+(() => { const log = []; const o = { get [Symbol.iterator]() { log.push('iter'); return undefined; }, get length() { log.push('len'); return 0; } }; new Uint8Array(o); return log.join(); })() => ok "iter,len"
+(() => { let n = 0; const o = { length: 3, 0: 1, get 1() { n++; return 2; }, 2: 3 }; const t = new Uint8Array(o); return n + ':' + list(t); })() => ok "1:1,2,3"
+new Uint8Array([{ valueOf() { throw new Error('v'); } }]) => err Error: v
+new Uint8Array([1n]) => err TypeError: Cannot convert a BigInt value to a number
+new Uint8Array([Symbol()]) => err TypeError: Cannot convert a Symbol value to a number
+list(new Uint8Array([{ valueOf() { return 300; } }])) => ok "44"
+list(new Uint8Array([{ toString() { return '7'; }, valueOf: undefined }])) => ok "7"
+list(new Uint8Array(['0x10', '1e1', ' 5 ', '', 'x'])) => ok "16,10,5,0,0"
+(() => { const a = [1, 2, 3]; a[Symbol.iterator] = function* () { yield 9; }; return list(new Uint8Array(a)); })() => ok "9"
+(() => { const saved = Array.prototype[Symbol.iterator]; Array.prototype[Symbol.iterator] = function* () { yield 8; }; try { return list(new Uint8Array([1, 2])); } finally { Array.prototype[Symbol.iterator] = saved; } })() => ok "8"
+(() => { const p = Object.getPrototypeOf([][Symbol.iterator]()); const saved = p.next; p.next = function () { return { done: true }; }; try { return list(new Uint8Array([1, 2])); } finally { p.next = saved; } })() => ok ""
+list(new Uint8Array(new Proxy([4, 5], {}))) => ok "4,5"
+(() => { const log = []; new Uint8Array(new Proxy({ length: 1, 0: 2 }, { get(t, k) { log.push(String(k)); return t[k]; } })); return log.join(); })() => ok "Symbol(Symbol.iterator),length,0"
+list(new BigInt64Array([1n, -1n, 2n ** 63n, 2n ** 64n + 5n])) => ok "1n,-1n,-9223372036854775808n,5n"
+list(new BigUint64Array([1n, -1n, 2n ** 63n, 2n ** 64n + 5n])) => ok "1n,18446744073709551615n,9223372036854775808n,5n"
+list(new BigInt64Array(['5', true, false])) => ok "5n,1n,0n"
+new BigInt64Array([1]) => err TypeError: Cannot convert 1 to a BigInt
+new BigInt64Array([undefined]) => err TypeError: Cannot convert undefined to a BigInt
+new BigInt64Array([null]) => err TypeError: Cannot convert null to a BigInt
+new BigInt64Array([Symbol()]) => err TypeError: Cannot convert Symbol() to a BigInt
+new BigInt64Array(['1.5']) => err SyntaxError: Cannot convert 1.5 to a BigInt
+new BigUint64Array([{ valueOf() { return 1; } }]) => err TypeError: Cannot convert 1 to a BigInt
+list(new BigUint64Array([{ valueOf() { return 2n; } }])) => ok "2n"
+list(new BigInt64Array({ length: 1, 0: 3n })) => ok "3n"
+list(new BigInt64Array(new Set([4n]))) => ok "4n"
+list(new Uint8Array(new Int8Array([-1, 2]))) => ok "255,2"
+list(new Int8Array(new Uint8Array([255, 128]))) => ok "-1,-128"
+list(new Float32Array(new Float64Array([0.1, 1e40]))) => ok "0.10000000149011612,Infinity"
+list(new Uint8ClampedArray(new Float64Array([1.5, 2.5, -1, 300]))) => ok "2,2,0,255"
+list(new Uint8Array(new Float64Array([1.5, -1, 256, NaN]))) => ok "1,255,0,0"
+list(new Float16Array(new Float64Array([65520, 0.1]))) => ok "Infinity,0.0999755859375"
+list(new Float64Array(new Float16Array([1.5, 65504]))) => ok "1.5,65504"
+list(new BigInt64Array(new BigUint64Array([2n ** 64n - 1n]))) => ok "-1n"
+list(new BigUint64Array(new BigInt64Array([-1n]))) => ok "18446744073709551615n"
+new BigInt64Array(new Uint8Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new Uint8Array(new BigInt64Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new Float64Array(new BigUint64Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new BigUint64Array(new Float16Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new Uint8Array(det(new Uint8Array(2))) => err TypeError: Cannot perform Construct on a detached or out-of-bounds ArrayBuffer
+new Uint8Array(det(new BigInt64Array(2))) => err TypeError: Cannot perform Construct on a detached or out-of-bounds ArrayBuffer
+new BigInt64Array(det(new Uint8Array(2))) => err TypeError: Cannot perform Construct on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const s = new Uint8Array(b, 2); b.resize(1); return new Uint8Array(s); })() => err TypeError: Cannot perform Construct on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const s = new Uint8Array(b); b.resize(2); return list(new Uint8Array(s)); })() => ok "0,0"
+(() => { const s = new Uint8Array([1, 2]); const t = new Uint8Array(s); t[0] = 9; return list(s) + ':' + (t.buffer !== s.buffer); })() => ok "1,2:true"
+(() => { const s = new Uint8Array(rab(2, 4)); const t = new Uint8Array(s); return [t.buffer.resizable, t.buffer.byteLength].join(); })() => ok "false,2"
+(() => { class X extends Uint8Array {} ; const t = new Uint8Array(new X([1, 2])); return t.constructor === Uint8Array && list(t); })() => ok "1,2"
+(() => { const s = new Uint8Array([1, 2]); s.constructor = Float64Array; return new Uint8Array(s).buffer.constructor === ArrayBuffer; })() => ok true
+(() => { const s = new Uint8Array([1, 2]); Object.defineProperty(s, 'constructor', { get() { throw new Error('ctor'); } }); return list(new Uint8Array(s)); })() => ok "1,2"
+(() => { const s = new Uint8Array([1, 2]); s[Symbol.iterator] = function* () { yield 7; }; return list(new Uint8Array(s)); })() => ok "1,2"
+(() => { const s = new Uint8Array([3, 4]); return list(new Uint8Array(new Proxy(s, {}))); })() => err TypeError: this is not a typed array.
+(() => { const s = new Uint8Array([1, 2]); Object.defineProperty(s, 'length', { value: 5 }); return list(new Uint8Array(s)); })() => ok "1,2"
+(() => { const b = new ArrayBuffer(8); const s = new Uint8Array(b); s.set([1, 2, 3, 4, 5, 6, 7, 8]); return list(new Uint16Array(s)); })() => ok "1,2,3,4,5,6,7,8"
+(() => { const b = new ArrayBuffer(8); const s = new Uint8Array(b, 1, 4); s.set([1, 2, 3, 4]); return list(new Uint8Array(s)); })() => ok "1,2,3,4"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Int8Array(v)); })() => ok "127,-128,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,1,0,0,0,0,0,0,-1,0,0,-1,0,-127,-128,1,0,1,0,1,0,1,0,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Uint8Array(v)); })() => ok "127,128,255,0,255,0,255,0,255,0,255,0,255,0,1,0,0,0,0,0,0,255,0,0,255,0,129,128,1,0,1,0,1,0,1,0,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Uint8ClampedArray(v)); })() => ok "127,128,255,255,255,255,255,255,255,255,255,255,255,255,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Int16Array(v)); })() => ok "127,128,32767,-32768,-1,0,255,256,-1,0,-1,0,-1,0,1,0,0,0,0,0,0,-1,0,0,-1,0,-127,-128,-32767,-32768,1,0,-255,-256,1,0,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Uint16Array(v)); })() => ok "127,128,32767,32768,65535,0,255,256,65535,0,65535,0,65535,0,1,0,0,0,0,0,0,65535,0,0,65535,0,65409,65408,32769,32768,1,0,65281,65280,1,0,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Int32Array(v)); })() => ok "127,128,32767,32768,2147483647,-2147483648,255,256,65535,65536,-1,0,-1,0,1,0,0,0,0,0,0,-1,0,0,-1,0,-127,-128,-32767,-32768,-2147483647,-2147483648,-255,-256,-65535,-65536,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Uint32Array(v)); })() => ok "127,128,32767,32768,2147483647,2147483648,255,256,65535,65536,4294967295,0,4294967295,0,1,0,0,0,0,0,0,4294967295,0,0,4294967295,0,4294967169,4294967168,4294934529,4294934528,2147483649,2147483648,4294967041,4294967040,4294901761,4294901760,1,0,0,0,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Float32Array(v)); })() => ok "127,128,32767,32768,2147483648,2147483648,255,256,65535,65536,4294967296,4294967296,9007199254740992,9007199254740992,1.100000023841858,0.10000000149011612,0.5,0.5,0.6000000238418579,0.699999988079071,NaN,-1,-0,-0.10000000149011612,-1.100000023841858,NaN,-127,-128,-32767,-32768,-2147483648,-2147483648,-255,-256,-65535,-65536,-4294967296,-4294967296,Infinity,-Infinity,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Float64Array(v)); })() => ok "127,128,32767,32768,2147483647,2147483648,255,256,65535,65536,4294967295,4294967296,9007199254740991,9007199254740992,1.1,0.1,0.5,0.50000001,0.6,0.7,NaN,-1,-0,-0.1,-1.1,NaN,-127,-128,-32767,-32768,-2147483647,-2147483648,-255,-256,-65535,-65536,-4294967295,-4294967296,Infinity,-Infinity,0"
+(() => { const v = [127, 128, 32767, 32768, 2147483647, 2147483648, 255, 256, 65535, 65536, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 1.1, 0.1, 0.5, 0.50000001, 0.6, 0.7, undefined, -1, -0, -0.1, -1.1, NaN, -127, -128, -32767, -32768, -2147483647, -2147483648, -255, -256, -65535, -65536, -4294967295, -4294967296, Infinity, -Infinity, 0]; return list(new Float16Array(v)); })() => ok "127,128,32768,32768,Infinity,Infinity,255,256,Infinity,Infinity,Infinity,Infinity,Infinity,Infinity,1.099609375,0.0999755859375,0.5,0.5,0.60009765625,0.7001953125,NaN,-1,-0,-0.0999755859375,-1.099609375,NaN,-127,-128,-32768,-32768,-Infinity,-Infinity,-255,-256,-Infinity,-Infinity,-Infinity,-Infinity,Infinity,-Infinity,0"
+list(new Float16Array([2049, 2051, 0.00006103515625, 0.00006097555160522461, 5.960464477539063e-8, 2.9802322387695312e-8, 2.980232238769532e-8, 8.940696716308594e-8, 1.4901161193847656e-7, 1.490116119384766e-7, 65520, 65519.99999999999, 0.000061005353927612305, 0.0000610053539276123])) => ok "2048,2052,0.00006103515625,0.00006097555160522461,5.960464477539063e-8,0,5.960464477539063e-8,1.1920928955078125e-7,1.1920928955078125e-7,1.7881393432617188e-7,Infinity,65504,0.00006103515625,0.00006097555160522461"
+list(new Float32Array([3.4028235677973366e38, 3.4028235677973367e38, 1e-46, -1e-46, 1.401298464324817e-45, 16777217])) => ok "Infinity,Infinity,0,-0,1.401298464324817e-45,16777216"
+list(new Uint8ClampedArray([0.5, 1.5, 2.5, 3.5, 254.5, 255.5, -0.5, 0.49999999999999994, 1e300, -1e300])) => ok "0,2,2,4,254,255,0,0,255,0"
+list(new Int8Array(['127', '128', '-129', '1e3', 'Infinity', '-0'])) => ok "127,-128,127,-24,0,0"
+list(new Uint32Array([2 ** 32 + 5, -(2 ** 31), 2 ** 64, 1e21, -1e21])) => ok "5,2147483648,0,3735027712,559939584"
+list(new Int32Array([2 ** 31 + 0.5, -(2 ** 31) - 0.5, 4294967296.5, 1.9, -1.9])) => ok "-2147483648,-2147483648,0,1,-1"
+(() => { const t = new Float32Array(1); t[0] = 0.1; return t[0]; })() => ok 0.10000000149011612
+(() => { const t = new Float16Array(1); t[0] = 0.1; return t[0]; })() => ok 0.0999755859375
+(() => { const t = new Float64Array(1); t[0] = -0; return Object.is(t[0], -0); })() => ok true
+(() => { const t = new Float32Array(1); t[0] = -0; return Object.is(t[0], -0); })() => ok true
+(() => { const t = new Float16Array(1); t[0] = -0; return Object.is(t[0], -0); })() => ok true
+(() => { const t = new Int8Array(1); t[0] = -0; return Object.is(t[0], 0); })() => ok true
+(() => { const t = new Float64Array(1); t[0] = NaN; return Number.isNaN(t[0]); })() => ok true
+(() => { const t = new Uint32Array(1); t[0] = -1; return t[0]; })() => ok 4294967295
+(() => { const t = new Uint32Array(1); t[0] = -1; return typeof t[0]; })() => ok "number"
+(() => { const t = new BigUint64Array(1); t[0] = -1n; return t[0]; })() => ok 18446744073709551615n
+(() => { const t = new BigInt64Array(1); t[0] = 2n ** 63n; return t[0]; })() => ok -9223372036854775808n
+(() => { const t = new BigInt64Array(1); t[0] = 2n ** 200n + 3n; return t[0]; })() => ok 3n
+(() => { const t = new BigInt64Array(1); t[0] = -(2n ** 200n) - 3n; return t[0]; })() => ok -3n
+(() => { const t = new BigUint64Array(1); t[0] = '18446744073709551617'; return t[0]; })() => ok 1n
+(() => { const t = new BigInt64Array(1); t[0] = true; return t[0]; })() => ok 1n
+(() => { const t = new BigInt64Array(1); t[0] = 1; return t[0]; })() => err TypeError: Cannot convert 1 to a BigInt
+(() => { const t = new BigInt64Array(1); t[0] = '1.5'; return t[0]; })() => err SyntaxError: Cannot convert 1.5 to a BigInt
+(() => { const t = new BigInt64Array(1); t[0] = undefined; return t[0]; })() => err TypeError: Cannot convert undefined to a BigInt
+(() => { const t = new BigInt64Array(1); t[0] = Symbol(); return t[0]; })() => err TypeError: Cannot convert Symbol() to a BigInt
+(() => { const t = new Uint8Array(1); t[0] = 1n; return t[0]; })() => err TypeError: Cannot convert a BigInt value to a number
+(() => { const t = new Uint8Array(1); t[0] = Symbol(); return t[0]; })() => err TypeError: Cannot convert a Symbol value to a number
+(() => { const t = new Uint8Array(1); t[0] = { valueOf() { return 7; } }; return t[0]; })() => ok 7
+(() => { const t = new Uint8Array(1); t[0] = { valueOf() { throw new Error('vo'); } }; return t[0]; })() => err Error: vo
+(() => { const t = new Uint8Array(1); t[0] = '0x1f'; return t[0]; })() => ok 31
+(() => { const t = new Uint8Array(1); t[0] = null; return t[0]; })() => ok 0
+(() => { const t = new Uint8Array(1); t[0] = [5]; return t[0]; })() => ok 5
+(() => { const t = new Uint8Array(1); t[5] = { valueOf() { throw new Error('vo'); } }; return t[0]; })() => err Error: vo
+(() => { const t = new Uint8Array(1); t['-0'] = { valueOf() { throw new Error('vo'); } }; return t[0]; })() => err Error: vo
+(() => { const t = new Uint8Array(1); t[1.5] = { valueOf() { throw new Error('vo'); } }; return t[0]; })() => err Error: vo
+(() => { const t = new BigInt64Array(1); t[5] = 1; return 'no error'; })() => err TypeError: Cannot convert 1 to a BigInt
+(() => { const t = new BigInt64Array(1); t[5] = { valueOf() { throw new Error('vo'); } }; return 'x'; })() => err Error: vo
+(() => { const t = new Uint8Array(2); t[0] = { valueOf() { det(t); return 1; } }; return [t.length, t[0]].join(); })() => ok "0,"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t[3] = { valueOf() { b.resize(2); return 1; } }; return [t.length, list(t)].join(); })() => ok "2,0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t[5] = { valueOf() { b.resize(8); return 9; } }; return [t.length, list(t)].join(); })() => ok "8,0,0,0,0,0,9,0,0"
+(() => { const t = new Uint8Array(2); return (t[0] = 300); })() => ok 300
+(() => { const t = new Uint8Array(2); return (t[0] += 300); })() => ok 300
+(() => { const t = new Uint8Array(2); t[1] = 255; t[1]++; return t[1]; })() => ok 0
+(() => { const t = new Int8Array(2); t[1] = 127; return ++t[1]; })() => ok 128
+(() => { const t = new Float64Array(2); t[0] = 1.5; t[0] *= 2; return t[0]; })() => ok 3
+(() => { const t = new BigInt64Array(1); t[0] = 5n; t[0] += 2n; return t[0]; })() => ok 7n
+(() => { const t = new BigInt64Array(1); t[0]++; return t[0]; })() => ok 1n
+(() => { const t = new Uint32Array([2 ** 32 - 1]); return t[0] | 0; })() => ok -1
+(() => { const t = new Uint8Array([1, 2]); return [t['-0'], t['1.5'], t['1e+21'], t['Infinity'], t['-Infinity'], t['NaN'], t['-1'], t['2']].map(String).join(); })() => ok "undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined"
+(() => { const t = new Uint8Array([1, 2]); return [t['01'], t['1.0'], t[' 1'], t['0x1'], t['+1'], t['1e21'], t['+Infinity'], t['-NaN'], t['0.0000001']].map(String).join(); })() => ok "undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined"
+(() => { const t = new Uint8Array([1, 2]); return [t[-0], t['0'], t[1], t[1.0], t['1']].join(); })() => ok "1,1,2,2,2"
+(() => { const t = new Uint8Array([1, 2]); return [t[4294967295], t[4294967296], t['4294967295'], t[2 ** 53]].map(String).join(); })() => ok "undefined,undefined,undefined,undefined"
+(() => { Uint8Array.prototype['-0'] = 'p'; try { return String(new Uint8Array(1)['-0']); } finally { delete Uint8Array.prototype['-0']; } })() => ok "undefined"
+(() => { Uint8Array.prototype[5] = 'p'; try { return String(new Uint8Array(1)[5]); } finally { delete Uint8Array.prototype[5]; } })() => ok "undefined"
+(() => { Object.prototype[5] = 'p'; try { return String(new Uint8Array(1)[5]); } finally { delete Object.prototype[5]; } })() => ok "undefined"
+(() => { Object.prototype['1.5'] = 'p'; try { return String(new Uint8Array(1)['1.5']); } finally { delete Object.prototype['1.5']; } })() => ok "undefined"
+(() => { Object.prototype['01'] = 'p'; try { return String(new Uint8Array(1)['01']); } finally { delete Object.prototype['01']; } })() => ok "p"
+(() => { Object.prototype.foo = 'p'; try { return String(new Uint8Array(1).foo); } finally { delete Object.prototype.foo; } })() => ok "p"
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(t); return [o[0], o[1], String(o[2]), String(o['-0'])].join(); })() => ok "1,2,undefined,undefined"
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(t); return ['0' in o, '2' in o, '-0' in o, 'NaN' in o].join(); })() => ok "true,false,false,false"
+(() => { const t = new Uint8Array([1, 2]); return ['0' in t, '1' in t, '2' in t, '-0' in t, '1.5' in t, 'NaN' in t, '01' in t, 'buffer' in t, 'foo' in t].join(); })() => ok "true,true,false,false,false,false,false,true,false"
+(() => { Uint8Array.prototype['-0'] = 1; try { return '-0' in new Uint8Array(1); } finally { delete Uint8Array.prototype['-0']; } })() => ok false
+(() => { Object.prototype[3] = 1; try { return 3 in new Uint8Array(1); } finally { delete Object.prototype[3]; } })() => ok false
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.has(t, 0), Reflect.has(t, 5), Reflect.has(t, '-0'), Reflect.has(t, 'length')].join(); })() => ok "true,false,false,true"
+(() => { const t = new Uint8Array([1, 2]); return [t.hasOwnProperty(0), t.hasOwnProperty(2), t.hasOwnProperty('-0'), t.hasOwnProperty('length'), Object.hasOwn(t, 1)].join(); })() => ok "true,false,false,false,true"
+(() => { const t = new Uint8Array([1, 2]); return [t.propertyIsEnumerable(0), t.propertyIsEnumerable(2), t.propertyIsEnumerable('length')].join(); })() => ok "true,false,false"
+(() => { const t = new Uint8Array([1, 2]); return [desc(t, 0), desc(t, 1), desc(t, 2), desc(t, '-0'), desc(t, 'length')].join(' | '); })() => ok "v=1 w=true e=true c=true | v=2 w=true e=true c=true | none | none | none"
+(() => { const t = new BigInt64Array([1n]); return [desc(t, 0), desc(t, 1)].join(' | '); })() => ok "v=1n w=true e=true c=true | none"
+(() => { const t = new Float64Array([1.5]); return Reflect.getOwnPropertyDescriptor(t, '0').value; })() => ok 1.5
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.get(t, 0), Reflect.get(t, 0, {}), String(Reflect.get(t, 9, {}))].join(); })() => ok "1,1,undefined"
+(() => { const t = new Uint8Array([1, 2]); const r = {}; return String(Reflect.get(Object.create(t), 1, r)); })() => ok "2"
+(() => { const t = det(new Uint8Array([1, 2])); return [String(t[0]), '0' in t, desc(t, 0), Object.keys(t).length, t.length].join(); })() => ok "undefined,false,none,0,0"
+(() => { const t = new Uint8Array([7]); with (t) { return [typeof NaN, typeof Infinity, typeof length, typeof buffer].join(); } })() => ok "number,number,number,object"
+(() => { const t = new Float64Array([7]); let r; with (t) { r = NaN; } return Number.isNaN(r); })() => ok true
+(() => { const t = new Uint8Array(2); return typeof t.foo; })() => ok "undefined"
+(() => { const t = new Uint8Array([5, 6]); let s = 0; for (const k in t) s += t[k]; return s; })() => ok 11
+(() => { const t = new Uint8Array([5, 6]); t.x = 1; t['01'] = 2; const ks = []; for (const k in t) ks.push(k); return ks.join(); })() => ok "0,1,x,01"
+(() => { const t = new Uint8Array([5, 6]); const o = Object.create(t); o.y = 1; const ks = []; for (const k in o) ks.push(k); return ks.join(); })() => ok "y,0,1"
+(() => { const t = new Uint8Array(2); t[5] = 1; return [String(t[5]), keys(t)].join(); })() => ok "undefined,0,1"
+(() => { const t = new Uint8Array(2); t['-0'] = 1; t['1.5'] = 1; t.NaN = 1; t.Infinity = 1; t['-Infinity'] = 1; return keys(t); })() => ok "0,1"
+(() => { const t = new Uint8Array(2); t['01'] = 1; t['1.0'] = 2; t['+1'] = 3; t[' 1'] = 4; t['1e21'] = 5; return keys(t); })() => ok "0,1,01,1.0,+1, 1,1e21"
+(() => { const t = new Uint8Array(2); t[4294967295] = 1; t['4294967296'] = 2; return keys(t); })() => ok "0,1"
+(() => { 'use strict'; const t = new Uint8Array(2); t[5] = 1; t['-0'] = 1; return 'ok'; })() => ok "ok"
+(() => { 'use strict'; const t = new Uint8Array(2); t.length = 5; })() => err TypeError: Cannot set property length of [object Object] which has only a getter
+(() => { const t = new Uint8Array(2); t.length = 5; return t.length; })() => ok 2
+(() => { 'use strict'; const t = new Uint8Array(2); t.buffer = 5; })() => err TypeError: Cannot set property buffer of [object Object] which has only a getter
+(() => { 'use strict'; const t = det(new Uint8Array(2)); t[0] = 1; return 'ok'; })() => ok "ok"
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.set(t, 0, 9), Reflect.set(t, 5, 9), Reflect.set(t, '-0', 9), Reflect.set(t, 'x', 9), list(t)].join(); })() => ok "true,true,true,true,9,2"
+(() => { const t = new Uint8Array([1, 2]); const r = {}; return [Reflect.set(t, 0, 9, r), list(t), desc(r, 0)].join(' | '); })() => ok "true | 1,2 | v=9 w=true e=true c=true"
+(() => { const t = new Uint8Array([1, 2]); const r = {}; return [Reflect.set(t, 5, 9, r), keys(r)].join(' | '); })() => ok "true | "
+(() => { const t = new Uint8Array([1, 2]); const r = {}; return [Reflect.set(t, '-0', 9, r), keys(r)].join(' | '); })() => ok "true | "
+(() => { const t = new Uint8Array([1, 2]); const r = Object.preventExtensions({}); return Reflect.set(t, 0, 9, r); })() => ok false
+(() => { const t = new Uint8Array([1, 2]); const r = new Uint8Array([3, 4]); return [Reflect.set(t, 0, 9, r), list(t), list(r)].join(' | '); })() => ok "true | 1,2 | 9,4"
+(() => { const t = new Uint8Array([1, 2]); const r = new Uint8Array([3, 4]); return [Reflect.set(t, 1, 9, r), Reflect.set(t, 5, 9, r), list(r)].join(' | '); })() => ok "true | true | 3,9"
+(() => { const t = new Uint8Array([1, 2]); const r = new Uint8Array(1); return [Reflect.set(t, 1, 9, r), list(r), keys(r)].join(' | '); })() => ok "false | 0 | 0"
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.set({}, 0, 9, t), list(t)].join(' | '); })() => ok "true | 9,2"
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.set({}, 5, 9, t), keys(t)].join(' | '); })() => ok "false | 0,1"
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.set({}, 0, { valueOf() { return 7; } }, t), list(t)].join(' | '); })() => ok "true | 7,2"
+(() => { const t = new Uint8Array([1, 2]); return Reflect.set({ set 0(v) { this.z = v; } }, 0, 9, t) + ':' + t.z; })() => ok "true:9"
+(() => { const t = new Uint8Array([1, 2]); return Reflect.set(t, 0, 9, 'str'); })() => ok false
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(t); o[0] = 9; return [list(t), desc(o, 0)].join(' | '); })() => ok "1,2 | v=9 w=true e=true c=true"
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(t); o[5] = 9; return [keys(o), String(o[5])].join(' | '); })() => ok " | undefined"
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(t); o['-0'] = 9; return keys(o); })() => ok ""
+(() => { 'use strict'; const t = new Uint8Array([1, 2]); const o = Object.create(t); o[5] = 9; return keys(o); })() => ok ""
+(() => { const t = new BigInt64Array([1n]); const o = Object.create(t); o[0] = 9; return desc(o, 0); })() => ok "v=9 w=true e=true c=true"
+(() => { const t = new Uint8Array([1, 2]); const p = new Proxy(t, {}); p[0] = 9; p[5] = 9; return [list(t), p[0], String(p[5]), p.length].join(); })() => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Uint8Array]
+(() => { const t = new Uint8Array([1, 2]); const p = new Proxy(t, {}); return [keys(p), desc(p, 0), '0' in p, delete p[5]].join(' | '); })() => ok "0,1 | v=1 w=true e=true c=true | true | true"
+(() => { const t = new Uint8Array([1, 2]); const p = new Proxy({}, {}); Object.setPrototypeOf(p, t); return String(p[0]); })() => ok "1"
+(() => { const t = new Uint8Array([1, 2]); const o = Object.create(new Proxy(t, {})); o[0] = 5; return desc(o, 0) + ' | ' + list(t); })() => ok "v=5 w=true e=true c=true | 1,2"
+list(Object.assign(new Uint8Array(3), [7, 8])) => ok "7,8,0"
+list(Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 })) => ok "1"
+(() => { const t = Object.assign(new Uint8Array(1), { 0: 1, 1: 2, x: 3 }); return keys(t); })() => ok "0,x"
+(() => { const t = new Uint8Array(2); Object.defineProperty(t, '0', { value: 5 }); return list(t); })() => ok "5,0"
+(() => { const t = new Uint8Array(2); Object.defineProperty(t, '0', { value: 5, writable: true, enumerable: true, configurable: true }); return list(t); })() => ok "5,0"
+(() => { const t = new Uint8Array(2); Object.defineProperty(t, '0', {}); return list(t); })() => ok "0,0"
+(() => { const t = new Uint8Array(2); Object.defineProperty(t, '0', { writable: true }); return list(t); })() => ok "0,0"
+Object.defineProperty(new Uint8Array(2), '0', { value: 5, writable: false }) => err TypeError: Cannot redefine property: 0
+Object.defineProperty(new Uint8Array(2), '0', { value: 5, configurable: false }) => err TypeError: Cannot redefine property: 0
+Object.defineProperty(new Uint8Array(2), '0', { value: 5, enumerable: false }) => err TypeError: Cannot redefine property: 0
+Object.defineProperty(new Uint8Array(2), '0', { get() { return 1; } }) => err TypeError: Cannot redefine property: 0
+Object.defineProperty(new Uint8Array(2), '0', { set(v) {} }) => err TypeError: Cannot redefine property: 0
+Object.defineProperty(new Uint8Array(2), '5', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), '-0', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), '1.5', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), 'NaN', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), '4294967295', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), '-1', { value: 5 }) => err TypeError: Invalid typed array index
+Object.defineProperty(det(new Uint8Array(2)), '0', { value: 5 }) => err TypeError: Invalid typed array index
+keys(Object.defineProperty(new Uint8Array(2), '01', { value: 5 })) => ok "0,1,01"
+keys(Object.defineProperty(new Uint8Array(2), 'foo', { value: 5 })) => ok "0,1,foo"
+Object.defineProperty(new Uint8Array(2), '0', { value: 1n }) => err TypeError: Cannot convert a BigInt value to a number
+Object.defineProperty(new BigInt64Array(2), '0', { value: 1 }) => err TypeError: Cannot convert 1 to a BigInt
+list(Object.defineProperty(new BigInt64Array(2), '0', { value: 7n })) => ok "7n,0n"
+list(Object.defineProperty(new Uint8Array(2), '1', { value: '9' })) => ok "0,9"
+list(Object.defineProperty(new Uint8Array(2), '1', { value: { valueOf() { return 4; } } })) => ok "0,4"
+Object.defineProperty(new Uint8Array(2), '1', { value: { valueOf() { throw new Error('vo'); } } }) => err Error: vo
+Object.defineProperty(new Uint8Array(2), '5', { value: { valueOf() { throw new Error('vo'); } } }) => err TypeError: Invalid typed array index
+Object.defineProperty(new Uint8Array(2), '1', { value: { valueOf() { throw new Error('vo'); } }, configurable: false }) => err TypeError: Cannot redefine property: 1
+(() => { const t = new Uint8Array(2); Object.defineProperty(t, '1', { value: { valueOf() { det(t); return 4; } } }); return t.length; })() => ok 0
+(() => { const t = new Uint8Array(2); return [Reflect.defineProperty(t, '0', { value: 5 }), Reflect.defineProperty(t, '5', { value: 5 }), Reflect.defineProperty(t, '0', { value: 5, writable: false }), Reflect.defineProperty(t, '0', { get() {} }), Reflect.defineProperty(t, '-0', { value: 1 }), list(t)].join(); })() => ok "true,false,false,false,false,5,0"
+(() => { const t = new Uint8Array(2); return Reflect.defineProperty(t, '0', { value: 5, configurable: true, writable: true, enumerable: true }); })() => ok true
+(() => { const t = new Uint8Array(2); Object.defineProperties(t, { 0: { value: 3 }, 1: { value: 4 } }); return list(t); })() => ok "3,4"
+Object.defineProperties(new Uint8Array(2), { 0: { value: 3 }, 5: { value: 4 } }) => err TypeError: Invalid typed array index
+(() => { const t = Object.preventExtensions(new Uint8Array(2)); Object.defineProperty(t, '0', { value: 5 }); return list(t); })() => ok "5,0"
+Object.defineProperty(Object.preventExtensions(new Uint8Array(2)), 'x', { value: 5 }) => err TypeError: Cannot define property x, object is not extensible
+Object.freeze(new Uint8Array(1)) => err TypeError: Cannot freeze array buffer views with elements
+Object.freeze(new Uint8Array(0)) instanceof Uint8Array => ok true
+Object.freeze(new BigInt64Array(2)) => err TypeError: Cannot freeze array buffer views with elements
+Object.seal(new Uint8Array(1)) => err TypeError: Cannot seal array buffer views with elements
+Object.seal(new Uint8Array(0)) instanceof Uint8Array => ok true
+Object.freeze(det(new Uint8Array(2))) instanceof Uint8Array => ok true
+Object.isFrozen(Object.freeze(new Uint8Array(0))) => ok true
+Object.isFrozen(Object.preventExtensions(new Uint8Array(1))) => ok false
+Object.isFrozen(Object.preventExtensions(new Uint8Array(0))) => ok true
+Object.isSealed(Object.preventExtensions(det(new Uint8Array(1)))) => ok true
+(() => { const t = new Uint8Array(1); t.x = 1; Object.freeze(t); })() => err TypeError: Cannot freeze array buffer views with elements
+(() => { const t = new Uint8Array(0); t.x = 1; Object.freeze(t); return desc(t, 'x'); })() => ok "v=1 w=false e=true c=false"
+(() => { const t = new Uint8Array([1, 2]); return [delete t[0], delete t[5], delete t['-0'], delete t['1.5'], delete t.foo, list(t)].join(); })() => ok "false,true,true,true,true,1,2"
+(() => { 'use strict'; const t = new Uint8Array([1, 2]); delete t[0]; })() => err TypeError: Cannot delete property '0' of [object Uint8Array]
+(() => { 'use strict'; const t = new Uint8Array([1, 2]); return delete t[5]; })() => ok true
+(() => { 'use strict'; const t = new BigInt64Array([1n]); delete t[0]; })() => err TypeError: Cannot delete property '0' of [object BigInt64Array]
+(() => { const t = det(new Uint8Array([1, 2])); return delete t[0]; })() => ok true
+(() => { const t = new Uint8Array([1, 2]); return [Reflect.deleteProperty(t, 0), Reflect.deleteProperty(t, 2), Reflect.deleteProperty(t, '-0')].join(); })() => ok "false,true,true"
+(() => { const t = new Uint8Array([1, 2]); t['01'] = 1; return [delete t['01'], keys(t)].join(); })() => ok "true,0,1"
+(() => { const t = new Uint8Array(3); t.b = 1; t.a = 2; t[Symbol.iterator] = 3; return keys(t); })() => ok "0,1,2,b,a,Symbol(Symbol.iterator)"
+keys(new Uint8Array(0)) => ok ""
+keys(det(new Uint8Array(3))) => ok ""
+Object.keys(new Uint8Array(3)).join() => ok "0,1,2"
+Object.getOwnPropertyNames(new Float64Array(2)).join() => ok "0,1"
+Object.values(new Uint8Array([4, 5])).join() => ok "4,5"
+JSON.stringify(Object.entries(new Uint8Array([4, 5]))) => ok "[[\"0\",4],[\"1\",5]]"
+JSON.stringify(new Uint8Array([4, 5])) => ok "{\"0\":4,\"1\":5}"
+JSON.stringify(new Float64Array([1.5, -0, NaN])) => ok "{\"0\":1.5,\"1\":0,\"2\":null}"
+JSON.stringify({ a: new Uint8Array(2) }) => ok "{\"a\":{\"0\":0,\"1\":0}}"
+JSON.stringify(new BigInt64Array(1)) => err TypeError: Do not know how to serialize a BigInt
+JSON.stringify([new Int8Array([-1])]) => ok "[{\"0\":-1}]"
+JSON.stringify(new Uint8Array([1, 2]), (k, v) => typeof v === 'number' ? v * 10 : v) => ok "{\"0\":10,\"1\":20}"
+JSON.stringify(new Uint8Array([1, 2]), ['1']) => ok "{\"1\":2}"
+JSON.stringify(new Uint8Array(0)) => ok "{}"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.resize(6); return keys(t); })() => ok "0,1,2,3,4,5"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return keys(t); })() => ok ""
+Object.getOwnPropertyDescriptors(new Uint8Array([1]))[0].value => ok 1
+Object.keys(Object.getOwnPropertyDescriptors(new Uint8Array([1, 2]))).join() => ok "0,1"
+(() => { const t = new Uint8Array([1, 2]); return Object.entries(Object.getOwnPropertyDescriptors(t)).map(([k, d]) => k + ':' + d.writable + d.enumerable + d.configurable).join(); })() => ok "0:truetruetrue,1:truetruetrue"
+JSON.stringify(Object.groupBy(new Uint8Array([1, 2, 3]), x => x % 2)) => ok "{\"0\":[2],\"1\":[1,3]}"
+[...new Uint8Array([1, 2, 3])].join() => ok "1,2,3"
+[...new BigInt64Array([1n, 2n])].join() => ok "1,2"
+Array.from(new Uint8Array([1, 2])).join() => ok "1,2"
+Array.from(new Float16Array([1.5]))[0] => ok 1.5
+Array.prototype.slice.call(new Uint8Array([1, 2, 3]), 1).join() => ok "2,3"
+Array.prototype.join.call(new Uint8Array([1, 2, 3]), '-') => ok "1-2-3"
+Array.prototype.map.call(new Uint8Array([1, 2]), x => x * 2).join() => ok "2,4"
+Array.prototype.indexOf.call(new Uint8Array([1, 2]), 2) => ok 1
+Array.prototype.includes.call(new Float64Array([NaN]), NaN) => ok true
+list(Array.prototype.reverse.call(new Uint8Array([1, 2, 3]))) => ok "3,2,1"
+list(Array.prototype.sort.call(new Uint8Array([3, 1, 2]))) => ok "1,2,3"
+list(Array.prototype.fill.call(new Uint8Array(3), 7)) => ok "7,7,7"
+Array.prototype.push.call(new Uint8Array(2), 1) => err TypeError: Cannot set property length of [object Object] which has only a getter
+Array.prototype.pop.call(new Uint8Array(2)) => err TypeError: Cannot delete property '1' of [object Uint8Array]
+Array.prototype.shift.call(new Uint8Array([1, 2])) => err TypeError: Cannot delete property '1' of [object Uint8Array]
+Array.prototype.splice.call(new Uint8Array([1, 2]), 0, 1) => err TypeError: Cannot delete property '1' of [object Uint8Array]
+Array.prototype.concat.call([], new Uint8Array([1, 2])).length => ok 1
+[].concat(new Uint8Array([1, 2])).length => ok 1
+(() => { const t = new Uint8Array([1, 2]); t[Symbol.isConcatSpreadable] = true; return [].concat(t).join(); })() => ok "1,2"
+Array.prototype.every.call(new Uint8Array([1, 2]), x => x > 0) => ok true
+Array.prototype.copyWithin.call(new Uint8Array([1, 2, 3]), 0, 1).length => ok 3
+list(Array.prototype.copyWithin.call(new Uint8Array([1, 2, 3]), 0, 1)) => ok "2,3,3"
+Array.prototype.flat.call(new Uint8Array([1, 2])).join() => ok "1,2"
+Array.prototype.toSorted.call(new Uint8Array([2, 1])).join() => ok "1,2"
+Array.prototype.with.call(new Uint8Array([2, 1]), 0, 5).join() => ok "5,1"
+Array.prototype.at.call(new Uint8Array([2, 1]), -1) => ok 1
+Array.prototype.lastIndexOf.call(new Uint8Array([2, 1, 2]), 2) => ok 2
+Array.prototype.unshift.call(new Uint8Array(2), 1) => err TypeError: Cannot set property length of [object Object] which has only a getter
+Array.prototype.keys.call(new Uint8Array([2, 1])).next().value => ok 0
+Array.prototype.find.call(new Uint8Array([2, 1]), x => x < 2) => ok 1
+(() => { const [a, , b] = new Uint8Array([4, 5, 6]); return a + b; })() => ok 10
+(() => { const { 0: a, length: l } = new Uint8Array([4, 5, 6]); return a + l; })() => ok 7
+Math.max(...new Uint8Array([4, 9, 6])) => ok 9
+Math.max.apply(null, new Uint8Array([4, 9, 6])) => ok 9
+Reflect.apply(Math.min, null, new Int8Array([4, -9, 6])) => ok -9
+String.fromCharCode.apply(null, new Uint8Array([104, 105])) => ok "hi"
+String.fromCharCode.apply(null, new Uint16Array([0x263a])) => ok "☺"
+(() => { function f() { return arguments.length; } return f.apply(null, new Float64Array(3)); })() => ok 3
+new Set(new Uint8Array([1, 1, 2])).size => ok 2
+new Map(new Uint8Array([1])).size => err TypeError: Iterator value 1 is not an entry object
+Object.fromEntries(new Uint8Array([1])) => err TypeError: Iterator value 1 is not an entry object
+Promise.all(new Uint8Array([1])) instanceof Promise => ok true
+(() => { const it = new Uint8Array([1, 2])[Symbol.iterator](); return Object.prototype.toString.call(it) + ':' + (Object.getPrototypeOf(it) === Object.getPrototypeOf([][Symbol.iterator]())); })() => ok "[object Array Iterator]:true"
+(() => { const t = new Uint16Array(new ArrayBuffer(16), 4, 3); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength].join(); })() => ok "3,6,4,16"
+(() => { const t = det(new Uint16Array(new ArrayBuffer(16), 4, 3)); return [t.length, t.byteLength, t.byteOffset, t.buffer.byteLength, t.buffer.detached].join(); })() => ok "0,0,0,0,true"
+(() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, {})); } catch (e) { return e.message; } }).join(' | '); })() => ok "Method get %TypedArray%.prototype.buffer called on incompatible receiver #<Object> | Method get TypedArray.prototype.byteLength called on incompatible receiver #<Object> | Method get TypedArray.prototype.byteOffset called on incompatible receiver #<Object> | Method get TypedArray.prototype.length called on incompatible receiver #<Object>"
+(() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, new DataView(new ArrayBuffer(1)))); } catch (e) { return e.message; } }).join(' | '); })() => ok "Method get %TypedArray%.prototype.buffer called on incompatible receiver #<DataView> | Method get TypedArray.prototype.byteLength called on incompatible receiver #<DataView> | Method get TypedArray.prototype.byteOffset called on incompatible receiver #<DataView> | Method get TypedArray.prototype.length called on incompatible receiver #<DataView>"
+(() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, 5)); } catch (e) { return e.message; } }).join(' | '); })() => ok "Method get %TypedArray%.prototype.buffer called on incompatible receiver 5 | Method get TypedArray.prototype.byteLength called on incompatible receiver 5 | Method get TypedArray.prototype.byteOffset called on incompatible receiver 5 | Method get TypedArray.prototype.length called on incompatible receiver 5"
+(() => { const p = Object.getPrototypeOf(Int8Array).prototype; return ['buffer', 'byteLength', 'byteOffset', 'length'].map(k => { try { return String(Reflect.get(p, k, undefined)); } catch (e) { return e.message; } }).join(' | '); })() => ok "Method get %TypedArray%.prototype.buffer called on incompatible receiver undefined | Method get TypedArray.prototype.byteLength called on incompatible receiver undefined | Method get TypedArray.prototype.byteOffset called on incompatible receiver undefined | Method get TypedArray.prototype.length called on incompatible receiver undefined"
+Object.getPrototypeOf(Int8Array).prototype.length => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Object]
+Uint8Array.prototype.length => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Object]
+Uint8Array.prototype.buffer => err TypeError: Method get %TypedArray%.prototype.buffer called on incompatible receiver [object Object]
+Object.getPrototypeOf(Int8Array).prototype.byteLength => err TypeError: Method get TypedArray.prototype.byteLength called on incompatible receiver [object Object]
+(() => { const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, 'length').get; return g.call(new Proxy(new Uint8Array(2), {})); })() => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Uint8Array]
+(() => { const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, 'length').get; return g.call(Object.create(new Uint8Array(2))); })() => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Object]
+(() => { const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get; return [g.call(new Uint8Array(1)), g.call(new BigInt64Array(1)), g.call(new Uint8ClampedArray(1)), g.call(new Float16Array(1)), String(g.call({})), String(g.call(1)), String(g.call(undefined)), String(g.call(Uint8Array.prototype)), String(g.call(new DataView(new ArrayBuffer(1))))].join(); })() => ok "Uint8Array,BigInt64Array,Uint8ClampedArray,Float16Array,undefined,undefined,undefined,undefined,undefined"
+(() => { const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get; return String(g.call(new Proxy(new Uint8Array(1), {}))); })() => ok "undefined"
+(() => { const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array).prototype, Symbol.toStringTag).get; return String(g.call(det(new Uint8Array(1)))); })() => ok "Uint8Array"
+(() => { class X extends Uint8Array {} ; return new X(1)[Symbol.toStringTag]; })() => ok "Uint8Array"
+new Uint8Array(1)[Symbol.toStringTag] => ok "Uint8Array"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4, 2); b.resize(5); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,0"
+(() => { const b = rab(8, 16); const t = new Uint16Array(b, 4); b.resize(4); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "0,0,4"
+(() => { const b = rab(8, 16); const t = new Uint16Array(b, 2); b.resize(5); return [t.length, t.byteLength, t.byteOffset].join(); })() => ok "1,2,2"
+(() => { const t = new BigInt64Array(3); return [t.length, t.byteLength].join(); })() => ok "3,24"
+(() => { const t = new Uint8Array(4); t.length; return delete Object.getPrototypeOf(Int8Array).prototype.nope; })() => ok true
+(() => { const t = new Uint8Array(4); t.set([1, 2]); return list(t); })() => ok "1,2,0,0"
+(() => { const t = new Uint8Array(4); t.set([1, 2], 2); return list(t); })() => ok "0,0,1,2"
+(() => { const t = new Uint8Array(4); return t.set([1, 2], 3); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); return t.set([1, 2], -1); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); return t.set([1, 2], Infinity); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); return t.set([1, 2], 2 ** 53); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); t.set([1, 2], '1'); return list(t); })() => ok "0,1,2,0"
+(() => { const t = new Uint8Array(4); t.set([1, 2], 1.9); return list(t); })() => ok "0,1,2,0"
+(() => { const t = new Uint8Array(4); t.set([1, 2], -0.5); return list(t); })() => ok "1,2,0,0"
+(() => { const t = new Uint8Array(4); t.set([1, 2], NaN); return list(t); })() => ok "1,2,0,0"
+(() => { const t = new Uint8Array(4); return String(t.set([])); })() => ok "undefined"
+(() => { const t = new Uint8Array(4); t.set([], 4); return 'ok'; })() => ok "ok"
+(() => { const t = new Uint8Array(4); return t.set([], 5); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); t.set({ length: 2, 0: 7, 1: 8 }, 1); return list(t); })() => ok "0,7,8,0"
+(() => { const t = new Uint8Array(4); t.set({ length: 2, 0: 7 }, 1); return list(t); })() => ok "0,7,0,0"
+(() => { const t = new Uint8Array(4); t.set('12'); return list(t); })() => ok "1,2,0,0"
+(() => { const t = new Uint8Array(4); t.set(5); return list(t); })() => ok "0,0,0,0"
+(() => { const t = new Uint8Array(4); t.set(true); return list(t); })() => ok "0,0,0,0"
+(() => { const t = new Uint8Array(4); t.set(Symbol()); return list(t); })() => ok "0,0,0,0"
+new Uint8Array(4).set() => err TypeError: Cannot convert undefined or null to object
+new Uint8Array(4).set(undefined) => err TypeError: Cannot convert undefined or null to object
+new Uint8Array(4).set(null) => err TypeError: Cannot convert undefined or null to object
+new Uint8Array(4).set({ length: 5 }) => err RangeError: offset is out of bounds
+new Uint8Array(4).set({ length: 5 }, -1) => err RangeError: offset is out of bounds
+new Uint8Array(4).set({ get length() { throw new Error('len'); } }) => err Error: len
+new Uint8Array(4).set({ length: 1, get 0() { throw new Error('g0'); } }) => err Error: g0
+new Uint8Array(4).set([1], { valueOf() { throw new Error('off'); } }) => err Error: off
+new Uint8Array(4).set({ get length() { throw new Error('len'); } }, -1) => err RangeError: offset is out of bounds
+(() => { const log = []; const t = new Uint8Array(4); t.set({ get length() { log.push('len'); return 2; }, get 0() { log.push('g0'); return { valueOf() { log.push('v0'); return 1; } }; }, get 1() { log.push('g1'); return 2; } }, { valueOf() { log.push('off'); return 1; } }); return log.join() + ':' + list(t); })() => ok "off,len,g0,v0,g1:0,1,2,0"
+(() => { const t = new Uint8Array(4); t.set([1, { valueOf() { det(t); return 2; } }, 3]); return [t.length, keys(t)].join(); })() => ok "0,"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, { valueOf() { b.resize(2); return 2; } }, 3, 4]); return list(t); })() => ok "1,2"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, 2, 3], { valueOf() { b.resize(2); return 0; } }); return list(t); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); return t.set([1], { valueOf() { det(t); return 0; } }); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+new Uint8Array(4).set.call({}, []) => err TypeError: this is not a typed array.
+new Uint8Array(4).set.call(new DataView(new ArrayBuffer(1)), []) => err TypeError: this is not a typed array.
+Object.getPrototypeOf(Int8Array).prototype.set.call(det(new Uint8Array(4)), []) => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+Object.getPrototypeOf(Int8Array).prototype.set.call(det(new Uint8Array(4)), [1], 9) => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(4); t.set(new Uint8Array([5, 6]), 1); return list(t); })() => ok "0,5,6,0"
+(() => { const t = new Uint8Array(4); t.set(new Int8Array([-1, -2]), 1); return list(t); })() => ok "0,255,254,0"
+(() => { const t = new Float32Array(3); t.set(new Float64Array([0.1, 1e40, -0])); return list(t); })() => ok "0.10000000149011612,Infinity,-0"
+(() => { const t = new Int16Array(3); t.set(new Float16Array([1.5, -2.5, 65504])); return list(t); })() => ok "1,-2,-32"
+(() => { const t = new Uint8ClampedArray(3); t.set(new Int16Array([-5, 300, 128])); return list(t); })() => ok "0,255,128"
+(() => { const t = new BigInt64Array(2); t.set(new BigUint64Array([2n ** 64n - 1n])); return list(t); })() => ok "-1n,0n"
+new BigInt64Array(2).set(new Uint8Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new Uint8Array(2).set(new BigInt64Array(1)) => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+new BigInt64Array(2).set([1]) => err TypeError: Cannot convert 1 to a BigInt
+(() => { const t = new BigInt64Array(2); t.set([1n, '2']); return list(t); })() => ok "1n,2n"
+new Uint8Array(2).set(new Uint8Array(3)) => err RangeError: offset is out of bounds
+new Uint8Array(2).set(new Uint8Array(1), 2) => err RangeError: offset is out of bounds
+new Uint8Array(2).set(det(new Uint8Array(1))) => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); t.set(det(new Uint8Array(1)), 9); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); const s = new Uint8Array(1); t.set(s, { valueOf() { det(s); return 0; } }); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); const s = new Uint8Array(1); t.set(s, { valueOf() { det(t); return 0; } }); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); u8.set(u8.subarray(0, 4), 2); return list(u8); })() => ok "1,2,1,2,3,4,7,8"
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); u8.set(u8.subarray(4), 1); return list(u8); })() => ok "1,5,6,7,8,6,7,8"
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); const u16 = new Uint16Array(b, 0, 2); u8.set(u16, 1); return list(u8); })() => ok "1,1,3,4,5,6,7,8"
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); const u16 = new Uint16Array(b, 2, 3); u16.set(u8.subarray(0, 3)); return list(u8); })() => ok "1,2,1,0,2,0,3,0"
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); const f = new Float32Array(b); f.set(u8.subarray(0, 2)); return list(u8); })() => ok "0,0,128,63,0,0,0,64"
+(() => { const b = new ArrayBuffer(8); const u8 = new Uint8Array(b); u8.set([1, 2, 3, 4, 5, 6, 7, 8]); u8.set(u8); return list(u8); })() => ok "1,2,3,4,5,6,7,8"
+(() => { const b = new ArrayBuffer(8); const i8 = new Int8Array(b); i8.set([1, -2, 3, -4, 5, 6, 7, 8]); new Uint8Array(b).set(i8.subarray(0, 4), 4); return list(i8); })() => ok "1,-2,3,-4,1,-2,3,-4"
+(() => { const t = new Uint8Array([1, 2, 3]); t.set(new Proxy([9], {})); return list(t); })() => ok "9,2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); const s = new Uint8Array([7]); t.set(new Proxy(s, {})); return list(t); })() => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Uint8Array]
+(() => { const b = rab(4, 8); const s = new Uint8Array(b); b.resize(2); const t = new Uint8Array(4); t.set(s); return list(t); })() => ok "0,0,0,0"
+(() => { const b = rab(4, 8); const s = new Uint8Array(b, 2); b.resize(1); const t = new Uint8Array(4); return t.set(s); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return t.set([]); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return t.set([1]); })() => err TypeError: Cannot perform %TypedArray%.prototype.set on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); b.resize(2); return t.set([1, 2, 3]); })() => err RangeError: offset is out of bounds
+(() => { const t = new Uint8Array(4); t.set([1, 2], { valueOf() { return 1; } }); return list(t); })() => ok "0,1,2,0"
+(() => { const t = new Float64Array(2); t.set([1.5, '2.5']); return list(t); })() => ok "1.5,2.5"
+(() => { const t = new Uint8Array([1, 2, 3, 4]); const s = t.subarray(1, 3); return [list(s), s.byteOffset, s.buffer === t.buffer].join(); })() => ok "2,3,1,true"
+list(new Uint8Array([1, 2, 3, 4]).subarray()) => ok "1,2,3,4"
+list(new Uint8Array([1, 2, 3, 4]).subarray(-2)) => ok "3,4"
+list(new Uint8Array([1, 2, 3, 4]).subarray(1, -1)) => ok "2,3"
+list(new Uint8Array([1, 2, 3, 4]).subarray(3, 1)) => ok ""
+list(new Uint8Array([1, 2, 3, 4]).subarray(10)) => ok ""
+list(new Uint8Array([1, 2, 3, 4]).subarray(-10, 2)) => ok "1,2"
+list(new Uint8Array([1, 2, 3, 4]).subarray(NaN, Infinity)) => ok "1,2,3,4"
+list(new Uint8Array([1, 2, 3, 4]).subarray('1', '2')) => ok "2"
+list(new Uint8Array([1, 2, 3, 4]).subarray(1.5, 3.5)) => ok "2,3"
+list(new Uint8Array([1, 2, 3, 4]).subarray(0, undefined)) => ok "1,2,3,4"
+new Uint8Array([1, 2, 3, 4]).subarray(0, null).length => ok 0
+(() => { const t = new Uint16Array(new ArrayBuffer(16), 2, 4); const s = t.subarray(1, 3); return [s.length, s.byteOffset, s.byteLength].join(); })() => ok "2,4,4"
+(() => { const t = new Uint8Array([1, 2]); const s = t.subarray(0); s[0] = 9; return t[0]; })() => ok 9
+new Uint8Array([1, 2]).subarray(Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+new Uint8Array([1, 2]).subarray(0, 1n) => err TypeError: Cannot convert a BigInt value to a number
+new Uint8Array([1, 2]).subarray({ valueOf() { throw new Error('begin'); } }, { valueOf() { throw new Error('end'); } }) => err Error: begin
+Object.getPrototypeOf(Int8Array).prototype.subarray.call({}) => err TypeError: Method %TypedArray%.prototype.subarray called on incompatible receiver #<Object>
+Object.getPrototypeOf(Int8Array).prototype.subarray.call([1, 2]) => err TypeError: Method %TypedArray%.prototype.subarray called on incompatible receiver [object Array]
+det(new Uint8Array([1, 2])).subarray(0) => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+det(new Uint8Array([1, 2])).subarray(0, 0) => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const t = new Uint8Array([1, 2]); return t.subarray({ valueOf() { det(t); return 0; } }); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const b = rab(8, 16); const t = new Uint8Array(b); const s = t.subarray(2); b.resize(12); return [s.length, s.byteOffset].join(); })() => ok "10,2"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b); const s = t.subarray(2, 4); b.resize(12); return [s.length, s.byteOffset].join(); })() => ok "2,2"
+(() => { const b = rab(8, 16); const t = new Uint8Array(b); const s = t.subarray(2, undefined); b.resize(12); return s.length; })() => ok 10
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 0, 8); const s = t.subarray(2); b.resize(12); return s.length; })() => ok 6
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 4); b.resize(2); const s = t.subarray(0); return [s.length, s.byteOffset].join(); })() => err RangeError: Start offset 4 is outside the bounds of the buffer
+(() => { const b = rab(8, 16); const t = new Uint8Array(b, 2); b.resize(1); return t.subarray(0); })() => err RangeError: Start offset 2 is outside the bounds of the buffer
+(() => { class X extends Uint8Array {} ; const s = new X([1, 2, 3]).subarray(1); return [s instanceof X, list(s)].join(); })() => ok "true,2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => Float64Array); return t.subarray(1); })() => err RangeError: start offset of Float64Array should be a multiple of 8
+(() => { const t = new Uint8Array([1, 2, 3, 4]); t.constructor = sp(() => Uint16Array); const s = t.subarray(2); return [s.constructor.name, s.length, s.byteOffset].join(); })() => err RangeError: Invalid typed array length: 2
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => Array); return t.subarray(1); })() => err TypeError: Method %TypedArray%.prototype.subarray called on incompatible receiver [object Array]
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return {}; }); return t.subarray(1); })() => err TypeError: Method %TypedArray%.prototype.subarray called on incompatible receiver #<Object>
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return new Uint8Array(1); }); return list(t.subarray(1)); })() => ok "0"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return t; }); return t.subarray(1) === t; })() => ok true
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return det(new Uint8Array(4)); }); return t.subarray(1); })() => err TypeError: Cannot perform %TypedArray%.prototype.subarray on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => BigInt64Array); return t.subarray(1); })() => err RangeError: start offset of BigInt64Array should be a multiple of 8
+(() => { const t = new Uint8Array([1, 2, 3]); const log = []; t.constructor = sp(() => function (...a) { log.push(a.length, a[0] === t.buffer, a[1], a[2]); return new Uint8Array(...a); }); t.subarray(1); return log.join(); })() => ok "3,true,1,2"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = undefined; return list(t.subarray(1)); })() => ok "2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = 1; return t.subarray(1); })() => err TypeError: The .constructor property is not an object
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => null); return list(t.subarray(1)); })() => ok "2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => 1); return t.subarray(1); })() => err TypeError: object.constructor[Symbol.species] is not a constructor
+(() => { const t = new Uint8Array([1, 2, 3]); Object.defineProperty(t, 'constructor', { get() { det(t); return undefined; } }); return t.subarray(1); })() => err TypeError: Cannot perform Construct on a detached ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); const log = []; Object.defineProperty(t, 'constructor', { get() { log.push('ctor'); return undefined; } }); t.subarray({ valueOf() { log.push('begin'); return 0; } }, { valueOf() { log.push('end'); return 1; } }); return log.join(); })() => ok "begin,end,ctor"
+list(new Uint8Array([1, 2, 3, 4]).slice()) => ok "1,2,3,4"
+list(new Uint8Array([1, 2, 3, 4]).slice(1)) => ok "2,3,4"
+list(new Uint8Array([1, 2, 3, 4]).slice(-2)) => ok "3,4"
+list(new Uint8Array([1, 2, 3, 4]).slice(1, -1)) => ok "2,3"
+list(new Uint8Array([1, 2, 3, 4]).slice(3, 1)) => ok ""
+list(new Uint8Array([1, 2, 3, 4]).slice(10)) => ok ""
+list(new Float64Array([1.5, -0, NaN]).slice()) => ok "1.5,-0,NaN"
+list(new BigInt64Array([1n, -2n]).slice(1)) => ok "-2n"
+(() => { const t = new Uint8Array([1, 2]); const s = t.slice(); s[0] = 9; return [t[0], s.buffer !== t.buffer, s.byteOffset].join(); })() => ok "1,true,0"
+(() => { const t = new Uint8Array(new ArrayBuffer(8), 2, 4); t.set([1, 2, 3, 4]); const s = t.slice(1, 3); return [list(s), s.byteOffset, s.buffer.byteLength].join(); })() => ok "2,3,0,2"
+det(new Uint8Array([1, 2])).slice() => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+det(new Uint8Array([1, 2])).slice(0, 0) => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+Object.getPrototypeOf(Int8Array).prototype.slice.call({}) => err TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver #<Object>
+Object.getPrototypeOf(Int8Array).prototype.slice.call([1, 2]) => err TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver [object Array]
+new Uint8Array([1, 2]).slice(Symbol()) => err TypeError: Cannot convert a Symbol value to a number
+(() => { const t = new Uint8Array([1, 2, 3]); return t.slice({ valueOf() { det(t); return 0; } }); })() => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); return list(t.slice({ valueOf() { det(t); return 0; } }, 0)); })() => ok ""
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, 2, 3, 4]); return list(t.slice(0, { valueOf() { b.resize(2); return 4; } })); })() => ok "1,2,0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, 2, 3, 4]); return list(t.slice({ valueOf() { b.resize(6); return 0; } })); })() => ok "1,2,3,4"
+(() => { class X extends Uint8Array {} ; const s = new X([1, 2, 3]).slice(1); return [s instanceof X, list(s)].join(); })() => ok "true,2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => Float64Array); const s = t.slice(1); return [s.constructor.name, list(s)].join(); })() => ok "Float64Array,2,3"
+(() => { const t = new Float64Array([1.5, 300, -1]); t.constructor = sp(() => Uint8Array); const s = t.slice(); return [s.constructor.name, list(s)].join(); })() => ok "Uint8Array,1,44,255"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => Uint16Array); const s = t.slice(1); return [s.constructor.name, list(s)].join(); })() => ok "Uint16Array,2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => BigInt64Array); return t.slice(1); })() => err TypeError: Cannot mix BigInt and other types, use explicit conversions
+(() => { const t = new BigInt64Array([1n]); t.constructor = sp(() => BigUint64Array); return list(t.slice()); })() => ok "1n"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return new Uint8Array(1); }); return t.slice(1); })() => err TypeError: Derived TypedArray constructor created an array which was too small
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return new Uint8Array(5); }); return list(t.slice(1)); })() => ok "2,3,0,0,0"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return {}; }); return t.slice(1); })() => err TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver #<Object>
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => Array); return t.slice(1); })() => err TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver [object Array]
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return det(new Uint8Array(4)); }); return t.slice(1); })() => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { det(t); return new Uint8Array(4); }); return t.slice(1); })() => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { det(t); return new Uint8Array(4); }); return list(t.slice(1, 1)); })() => ok "0,0,0,0"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { det(t); return new Float64Array(4); }); return t.slice(1); })() => err TypeError: Cannot perform %TypedArray%.prototype.slice on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return t; }); return list(t.slice(1)); })() => ok "2,3,3"
+(() => { const t = new Uint8Array([1, 2, 3, 4]); t.constructor = sp(() => function () { return new Uint8Array(t.buffer, 1); }); return list(t.slice(0, 2)) + ':' + list(t); })() => ok "1,1,4:1,1,1,4"
+(() => { const t = new Uint8Array([1, 2, 3, 4]); t.constructor = sp(() => function () { return new Uint8Array(t.buffer, 1); }); t.slice(0, 2); return list(t); })() => ok "1,1,1,4"
+(() => { const t = new Uint8Array([1, 2, 3, 4]); t.constructor = sp(() => function () { return new Uint16Array(t.buffer, 2); }); return list(t.slice(0, 1)) + ':' + list(t); })() => ok "1:1,2,1,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, 2, 3, 4]); t.constructor = sp(() => function (n) { b.resize(2); return new Uint8Array(n); }); return list(t.slice()); })() => ok "1,2,0,0"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); t.set([1, 2, 3, 4]); t.constructor = sp(() => function (n) { b.resize(2); return new Float64Array(n); }); return list(t.slice()); })() => ok "1,2,0,0"
+(() => { const t = new Uint8Array([1, 2, 3]); const log = []; t.constructor = sp(() => function (...a) { log.push(a.length, typeof a[0], a[0]); return new Uint8Array(...a); }); t.slice(1); return log.join(); })() => ok "1,number,2"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function () { return new Proxy(new Uint8Array(3), {}); }); return t.slice(); })() => err TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver [object Uint8Array]
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function (n) { return new Uint8Array(rab(n, 8)); }); return list(t.slice()); })() => ok "1,2,3"
+(() => { const t = new Uint8Array([1, 2, 3]); t.constructor = sp(() => function (n) { const b = rab(n, 8); const r = new Uint8Array(b, 1); return r; }); return t.slice(); })() => err TypeError: Derived TypedArray constructor created an array which was too small
+[...new Uint8Array([1, 2]).keys()].join() => ok "0,1"
+[...new Uint8Array([1, 2]).values()].join() => ok "1,2"
+[...new Uint8Array([1, 2]).entries()].map(String).join(' ') => ok "0,1 1,2"
+[...new BigInt64Array([5n]).entries()].map(String).join(' ') => ok "0,5"
+Object.getPrototypeOf(Int8Array).prototype.values.call({}) => err TypeError: this is not a typed array.
+Object.getPrototypeOf(Int8Array).prototype.keys.call([1]) => err TypeError: this is not a typed array.
+Object.getPrototypeOf(Int8Array).prototype.entries.call(1) => err TypeError: this is not a typed array.
+Object.getPrototypeOf(Int8Array).prototype[Symbol.iterator].call(new DataView(new ArrayBuffer(1))) => err TypeError: this is not a typed array.
+det(new Uint8Array(2)).values() => err TypeError: Cannot perform %TypedArray%.prototype.values on a detached or out-of-bounds ArrayBuffer
+det(new Uint8Array(2)).keys() => err TypeError: Cannot perform %TypedArray%.prototype.keys on a detached ArrayBuffer
+det(new Uint8Array(2)).entries() => err TypeError: Cannot perform %TypedArray%.prototype.entries on a detached or out-of-bounds ArrayBuffer
+det(new Uint8Array(2))[Symbol.iterator]() => err TypeError: Cannot perform %TypedArray%.prototype.values on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); const it = t.values(); det(t); return it.next(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); const it = t.keys(); it.next(); det(t); return it.next(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array(2); const it = t.values(); it.next(); it.next(); it.next(); det(t); return JSON.stringify(it.next()); })() => ok "{\"done\":true}"
+(() => { const t = new Uint8Array([1, 2, 3]); const out = []; for (const v of t) { out.push(v); if (v === 1) det(t); } return out.join(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(3, 8); const t = new Uint8Array(b); t.set([1, 2, 3]); const out = []; for (const v of t) { out.push(v); if (out.length === 1) b.resize(5); } return out.join(); })() => ok "1,2,3,0,0"
+(() => { const b = rab(3, 8); const t = new Uint8Array(b); t.set([1, 2, 3]); const out = []; for (const v of t) { out.push(v); if (out.length === 1) b.resize(2); } return out.join(); })() => ok "1,2"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); const out = []; for (const v of t) { out.push(v); b.resize(1); } return out.join(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); const it = t.values(); it.next(); b.resize(1); return it.next(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 0, 2); const it = t.values(); it.next(); b.resize(1); return it.next(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); const it = t.values(); for (let i = 0; i < 4; i++) it.next(); const done = JSON.stringify(it.next()); b.resize(8); return done + JSON.stringify(it.next()); })() => ok "{\"done\":true}{\"done\":true}"
+(() => { const t = new Uint8Array([1, 2]); const it = t.values(); Object.defineProperty(t, 'length', { value: 0 }); return JSON.stringify(it.next()); })() => ok "{\"value\":1,\"done\":false}"
+(() => { const t = new Uint8Array([1, 2]); const it = Array.prototype.values.call(t); Object.defineProperty(t, 'length', { value: 0 }); return JSON.stringify(it.next()); })() => ok "{\"value\":1,\"done\":false}"
+(() => { const t = new Uint8Array([1, 2]); const it = Array.prototype.values.call(t); det(t); return it.next(); })() => err TypeError: Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new Uint8Array([1, 2]); t[Symbol.iterator] = function* () { yield 9; }; return [...t].join(); })() => ok "9"
+(() => { const t = new Uint8Array([1, 2]); const p = Object.getPrototypeOf(t.values()); const saved = p.next; p.next = function () { return { done: true }; }; try { return [...t].length; } finally { p.next = saved; } })() => ok 0
+(() => { const s = Object.getPrototypeOf(Int8Array).prototype; const saved = s[Symbol.iterator]; s[Symbol.iterator] = function* () { yield 4; }; try { return [...new Uint8Array(3)].join(); } finally { s[Symbol.iterator] = saved; } })() => ok "4"
+Object.getPrototypeOf(new Uint8Array(1).values()) === Object.getPrototypeOf([].values()) => ok true
+(() => { const t = new Float16Array([0.5, 2]); return [...t.entries()].map(String).join(' '); })() => ok "0,0.5 1,2"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b); const out = []; for (const k of t.keys()) { out.push(k); if (k === 1) b.resize(8); } return out.join(); })() => ok "0,1,2,3,4,5,6,7"
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return t.keys(); })() => err TypeError: Cannot perform %TypedArray%.prototype.keys on a detached ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return t.entries(); })() => err TypeError: Cannot perform %TypedArray%.prototype.entries on a detached or out-of-bounds ArrayBuffer
+(() => { const b = rab(4, 8); const t = new Uint8Array(b, 2); b.resize(1); return t.values(); })() => err TypeError: Cannot perform %TypedArray%.prototype.values on a detached or out-of-bounds ArrayBuffer
+(() => { const t = new BigInt64Array([-1n, 2n]); const out = []; for (const v of t) out.push(typeof v + v); return out.join(); })() => ok "bigint-1,bigint2"
+(() => { const t = new Uint8Array([1, 2, 3]); const it = t.entries(); it.next(); t.set([7, 8, 9]); return JSON.stringify(it.next().value); })() => ok "[1,8]"
+(() => { const t = new Float64Array([1.5]); const it = t[Symbol.iterator](); return [JSON.stringify(it.next()), JSON.stringify(it.next())].join(); })() => ok "{\"value\":1.5,\"done\":false},{\"done\":true}"
+list(Uint8Array.from([1, 2, 3])) => ok "1,2,3"
+list(Uint8Array.from({ length: 2, 0: 7 })) => ok "7,0"
+list(Uint8Array.from(new Set([5, 6]))) => ok "5,6"
+list(Uint8Array.from('123')) => ok "1,2,3"
+list(Uint8Array.from([1, 2], x => x * 10)) => ok "10,20"
+list(Uint8Array.from([1, 2], function (x, i) { return this.k + x + i; }, { k: 10 })) => ok "11,13"
+(() => { const log = []; Uint8Array.from([5], function (x, i) { log.push(arguments.length, x, i); return x; }); return log.join(); })() => ok "2,5,0"
+Uint8Array.from([1], 1) => err TypeError: number 1 is not a function
+Uint8Array.from([1], {}) => err TypeError: object is not a function
+Uint8Array.from([1], null) => err TypeError: object null is not a function
+list(Uint8Array.from([1], undefined)) => ok "1"
+Uint8Array.from.call({}, [1]) => err TypeError: #<Object> is not a constructor
+Uint8Array.from.call(undefined, [1]) => err TypeError: undefined is not a constructor
+Uint8Array.from.call(Array, [1]) => err TypeError: Method %TypedArray%.from called on incompatible receiver [object Array]
+Uint8Array.from.call(function () { return {}; }, [1]) => err TypeError: Method %TypedArray%.from called on incompatible receiver #<Object>
+Uint8Array.from.call(function () { return new Uint8Array(0); }, [1]) => err TypeError: Derived TypedArray constructor created an array which was too small
+list(Uint8Array.from.call(function () { return new Uint8Array(3); }, [1])) => ok "1,0,0"
+Uint8Array.from.call(function () { return det(new Uint8Array(3)); }, [1]) => err TypeError: Cannot perform %TypedArray%.from on a detached or out-of-bounds ArrayBuffer
+list(Uint8Array.from.call(Float64Array, [1.5])) => ok "1.5"
+Object.getPrototypeOf(Int8Array).from([1]) => err TypeError: Abstract class TypedArray not directly constructable
+Object.getPrototypeOf(Int8Array).from.call(Uint8Array, [1]).constructor === Uint8Array => ok true
+Uint8Array.from(null) => err TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+Uint8Array.from(undefined) => err TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+Uint8Array.from() => err TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+list(Uint8Array.from(5)) => ok ""
+list(Uint8Array.from({ [Symbol.iterator]: undefined, length: 1, 0: 4 })) => ok "4"
+Uint8Array.from({ [Symbol.iterator]: 5 }) => err TypeError: %TypedArray%.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+Uint8Array.from({ get [Symbol.iterator]() { throw new Error('iter'); } }) => err Error: iter
+Uint8Array.from({ get length() { throw new Error('len'); } }) => err Error: len
+Uint8Array.from({ length: 2 ** 53 }) => err RangeError: Invalid typed array length: 9007199254740991
+BigInt64Array.from([1]) => err TypeError: Cannot convert 1 to a BigInt
+list(BigInt64Array.from([1n, 2n])) => ok "1n,2n"
+list(BigInt64Array.from([1, 2], x => BigInt(x))) => ok "1n,2n"
+list(Uint8Array.from(new Uint8Array([3, 4]))) => ok "3,4"
+list(Uint8Array.from(new BigInt64Array([3n]), x => Number(x))) => ok "3"
+(() => { const log = []; const it = { [Symbol.iterator]() { let i = 0; log.push('iter'); return { next() { log.push('next'); return { done: i > 1, value: i++ }; } }; } }; const C = function (n) { log.push('ctor ' + n); return new Uint8Array(n); }; Uint8Array.from.call(C, it, x => { log.push('map ' + x); return x; }); return log.join(); })() => ok "iter,next,next,next,ctor 2,map 0,map 1"
+(() => { const log = []; const o = { get length() { log.push('len'); return 2; }, get 0() { log.push('g0'); return 1; }, get 1() { log.push('g1'); return 2; } }; const C = function (n) { log.push('ctor ' + n); return new Uint8Array(n); }; Uint8Array.from.call(C, o, x => { log.push('map ' + x); return x; }); return log.join(); })() => ok "len,ctor 2,g0,map 1,g1,map 2"
+(() => { const t = new Uint8Array(2); const C = function () { return t; }; Uint8Array.from.call(C, [1, 2], (x) => { if (x === 1) det(t); return x; }); return t.length; })() => ok 0
+(() => { const b = rab(2, 4); const t = new Uint8Array(b); const C = function () { return t; }; Uint8Array.from.call(C, [1, 2], (x) => { if (x === 1) b.resize(1); return x; }); return list(t); })() => ok "1"
+(() => { let n = 0, i = 0; try { Uint8Array.from({ [Symbol.iterator]() { return { next() { return { done: i++ > 2, value: 1 }; }, return() { n++; return {}; } }; } }, () => { throw new Error('map'); }); } catch (e) { return e.message + n + i; } })() => ok "map04"
+list(Uint8Array.of(1, 2, 300)) => ok "1,2,44"
+list(Uint8Array.of()) => ok ""
+list(Float64Array.of(1.5, '2')) => ok "1.5,2"
+Uint8Array.of.call({}, 1) => err TypeError: #<Object> is not a constructor
+Uint8Array.of.call(Array, 1) => err TypeError: Method %TypedArray%.of called on incompatible receiver [object Array]
+Uint8Array.of.call(function () { return new Uint8Array(1); }, 1, 2) => err TypeError: Derived TypedArray constructor created an array which was too small
+list(Uint8Array.of.call(function () { return new Uint8Array(4); }, 1, 2)) => ok "1,2,0,0"
+Uint8Array.of.call(function () { return det(new Uint8Array(4)); }, 1) => err TypeError: Cannot perform %TypedArray%.of on a detached or out-of-bounds ArrayBuffer
+BigInt64Array.of(1) => err TypeError: Cannot convert 1 to a BigInt
+list(BigInt64Array.of(1n, -1n)) => ok "1n,-1n"
+Uint8Array.of({ valueOf() { throw new Error('vo'); } }) => err Error: vo
+(() => { const t = new Uint8Array(3); Uint8Array.of.call(function () { return t; }, 1, { valueOf() { det(t); return 2; } }, 3); return t.length; })() => ok 0
+(() => { const log = []; const C = function (...a) { log.push(a.length, a[0]); return new Uint8Array(...a); }; Uint8Array.of.call(C, 1, 2); return log.join(); })() => ok "1,2"
+(() => { const log = []; const C = function (...a) { log.push(a.length, typeof a[0], a[0]); return new Uint8Array(...a); }; Uint8Array.from.call(C, [1, 2]); return log.join(); })() => ok "1,number,2"
+(() => { class X extends Uint8Array { constructor(...a) { super(...a); this.made = a.length; } } ; return X.from([1]).made + ':' + X.of(1, 2).made; })() => ok "1:1"
+Uint8Array.from.call(function () { return new Proxy(new Uint8Array(3), {}); }, [1]) => err TypeError: Method %TypedArray%.from called on incompatible receiver [object Uint8Array]
+list(Uint8Array.from([1, 2, 3], (v, k) => k)) => ok "0,1,2"
+Object.getPrototypeOf(Int8Array)[Symbol.species] === Object.getPrototypeOf(Int8Array) => ok true
+Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array), Symbol.species).get.call(5) => ok 5
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => undefined); return list(t.slice()); })() => ok "1,2"
+(() => { const t = new Uint8Array([1, 2]); t.constructor = { get [Symbol.species]() { throw new Error('sp'); } }; return t.slice(); })() => err Error: sp
+(() => { const t = new Uint8Array([1, 2]); Object.defineProperty(t, 'constructor', { get() { throw new Error('ctor'); } }); return t.slice(); })() => err Error: ctor
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => function () { throw new Error('construct'); }); return t.slice(); })() => err Error: construct
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => ({})); return t.slice(); })() => err TypeError: object.constructor[Symbol.species] is not a constructor
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => Object.getPrototypeOf(Int8Array)); return t.slice(); })() => err TypeError: Abstract class TypedArray not directly constructable
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => new Proxy(Uint16Array, {})); return list(t.slice()); })() => ok "1,2"
+(() => { const t = new Uint8Array([1, 2]); t.constructor = sp(() => Uint8Array.bind(null)); return list(t.slice()); })() => ok "1,2"
+(() => { const saved = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Int8Array), Symbol.species); Object.defineProperty(Uint8Array, Symbol.species, { value: Float32Array, configurable: true }); try { return new Uint8Array([1]).slice().constructor.name; } finally { delete Uint8Array[Symbol.species]; } })() => ok "Float32Array"
+(() => { Object.defineProperty(Uint8Array.prototype, 'constructor', { value: sp(() => Int8Array), configurable: true, writable: true }); try { return new Uint8Array([255]).slice()[0]; } finally { Uint8Array.prototype.constructor = Uint8Array; } })() => ok -1
+(() => { const t = new Uint8Array(1); return t.foo(); })() => err TypeError: t.foo is not a function
+(() => { const t = new Uint8Array(1); return t(); })() => err TypeError: t is not a function
+(() => { const t = new Uint8Array(1); return new t(); })() => err TypeError: t is not a constructor
+(() => { const t = new Uint8Array(1); return 1 instanceof t; })() => err TypeError: Right-hand side of 'instanceof' is not callable
+(() => { 'use strict'; const t = Object.preventExtensions(new Uint8Array(1)); t.x = 1; })() => err TypeError: Cannot add property x, object is not extensible
+(() => { 'use strict'; const t = new Uint8Array(1); Object.defineProperty(t, 'x', { value: 1 }); t.x = 2; })() => err TypeError: Cannot assign to read only property 'x' of object '[object Uint8Array]'
+(() => { 'use strict'; const t = new Uint8Array(1); Object.defineProperty(t, 'x', { get() {} }); t.x = 2; })() => err TypeError: Cannot set property x of [object Uint8Array] which has only a getter
+(() => { 'use strict'; const t = new BigInt64Array(1); Object.defineProperty(t, 'x', { value: 1 }); t.x = 2; })() => err TypeError: Cannot assign to read only property 'x' of object '[object BigInt64Array]'
+(() => { const t = new Uint8Array(1); Object.defineProperty(t, 'x', { value: 1 }); Object.defineProperty(t, 'x', { value: 2 }); })() => err TypeError: Cannot redefine property: x
+(() => { const t = new Float64Array(1); return Object.setPrototypeOf(Object.preventExtensions(t), {}); })() => err TypeError: [object Float64Array] is not extensible
+(() => { 'use strict'; const t = new Uint8Array(1); delete t.buffer; return 'ok'; })() => ok "ok"
+(() => { 'use strict'; const t = new Uint8Array(1); Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of [object Uint8Array]
+(() => { const t = new Uint8Array(1); return Object.prototype.toString.call(new Proxy(t, {})); })() => ok "[object Object]"
+(() => { const t = new Uint8Array(1); return Symbol() + t; })() => err TypeError: Cannot convert a Symbol value to a string
+(() => { const t = new Uint8Array(1); return t.x.y; })() => err TypeError: Cannot read properties of undefined (reading 'y')
+(() => { const t = new Uint8Array(1); return [] instanceof t; })() => err TypeError: Right-hand side of 'instanceof' is not callable
+(() => { const t = new Uint8Array(1); return 'a' in 5; })() => err TypeError: Cannot use 'in' operator to search for 'a' in 5
+(() => { const t = new Uint8Array(2); return Reflect.ownKeys(new Proxy(t, { ownKeys() { return ['0']; } })); })() => ok ["0"]
+(() => { const t = new Uint8Array(2); return Object.keys(new Proxy(t, { ownKeys() { return []; } })); })() => ok []
+(() => { const t = new Uint8Array(2); return Object.getOwnPropertyDescriptor(new Proxy(t, { getOwnPropertyDescriptor() { return undefined; } }), 0); })() => ok undefined
+(() => { const t = new Uint8Array(2); return Object.defineProperty(new Proxy(t, {}), '0', { value: 1, writable: false }); })() => err TypeError: Cannot redefine property: 0
+(() => { const t = Object.preventExtensions(new Uint8Array(2)); return Object.getOwnPropertyDescriptor(new Proxy(t, { getOwnPropertyDescriptor() { return undefined; } }), 0); })() => err TypeError: 'getOwnPropertyDescriptor' on proxy: trap returned undefined for property '0' which exists in the non-extensible proxy target
+(() => { const t = Object.preventExtensions(new Uint8Array(2)); return Object.keys(new Proxy(t, { ownKeys() { return []; } })); })() => err TypeError: 'ownKeys' on proxy: trap result did not include '0'
+(() => { const t = new Uint8Array(2); return Reflect.deleteProperty(new Proxy(t, {}), 0); })() => ok false
+(() => { 'use strict'; const t = new Uint8Array(2); delete new Proxy(t, {})[0]; })() => err TypeError: Cannot delete property '0' of [object Uint8Array]
+(() => { 'use strict'; class A { get x() { return 1; } } class B extends A {} new B().x = 2; })() => err TypeError: Cannot set property x of #<A> which has only a getter
+(() => { 'use strict'; const o = Object.create(new Uint8Array(1)); o.length = 3; })() => err TypeError: Cannot set property length of [object Object] which has only a getter
+(() => { 'use strict'; const o = Object.create(new Uint8Array(1)); Object.defineProperty(o, 'y', { value: 1 }); delete o.y; })() => err TypeError: Cannot delete property 'y' of [object Object]
+(() => { 'use strict'; const o = Object.create(Uint8Array.prototype); Object.defineProperty(o, 'y', { value: 1 }); delete o.y; })() => err TypeError: Cannot delete property 'y' of [object Object]
+(() => { 'use strict'; const o = Object.create(Object.getPrototypeOf(Int8Array).prototype); Object.defineProperty(o, 'y', { value: 1 }); delete o.y; })() => err TypeError: Cannot delete property 'y' of [object Object]
+Object.setPrototypeOf(Object.preventExtensions(Object.create(new Uint8Array(1))), {}) => err TypeError: [object Object] is not extensible
+Object.setPrototypeOf(Object.preventExtensions(Reflect.construct(Uint8Array, [1], Object)), {}) => err TypeError: #<Object> is not extensible
+(() => { 'use strict'; const t = new Uint8Array(1); Object.setPrototypeOf(t, null); Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of [object Uint8Array]
+(() => { 'use strict'; const t = new Uint8Array(1); Object.setPrototypeOf(t, Map.prototype); Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of #<Map>
+(() => { 'use strict'; const t = new Uint8Array(1); t.constructor = Map; Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of [object Uint8Array]
+(() => { 'use strict'; const t = new Uint8Array(1); Object.defineProperty(t, Symbol.toStringTag, { value: 'Zz' }); Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of [object Zz]
+(() => { 'use strict'; class X extends Uint8Array {} ; const t = new X(1); Object.defineProperty(t, 'y', { value: 1 }); delete t.y; })() => err TypeError: Cannot delete property 'y' of [object Uint8Array]
+(() => { const t = new Uint8Array(1); return Object.prototype.toString.call(Object.create(t)); })() => ok "[object Object]"
+Array.prototype.pop.call(Object.create(new Uint8Array(2))) => err TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Object]
+(() => { 'use strict'; const m = new Map(); const o = Object.create(m); o.size = 1; })() => err TypeError: Cannot set property size of #<Map> which has only a getter

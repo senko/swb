@@ -68,6 +68,7 @@ mod stack;
 pub(crate) mod stack_text;
 mod symbols;
 pub(crate) mod time;
+pub(crate) mod typed_array;
 
 use std::borrow::Cow;
 use std::rc::Rc;
@@ -85,7 +86,7 @@ pub(crate) use generator::{
 pub use private::PrivateEnvironment;
 pub use promise::{Continuation, ContinuationFn, PromiseState, PromiseStatus, ReactionKind};
 pub(crate) use property::{Lookup, SetOutcome};
-pub(crate) use realm::{Intrinsic, Realm, error_prototype};
+pub(crate) use realm::{Intrinsic, Realm, TYPED_ARRAY_TYPES, error_prototype};
 pub use stack::{ErrorData, StackFrame};
 pub(crate) use stack::{capture_stack_trace, stack_getter, stack_setter};
 pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};

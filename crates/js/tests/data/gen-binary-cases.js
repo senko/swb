@@ -50,8 +50,6 @@ const KNOWN = [
   // implementation choose them (§25.1.3.17).
   '(() => { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0); return hex(d); })()',
   '(() => { const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, 0 / 0); return hex(d); })()',
-  // Float16Array comes with the typed arrays (feature 11b).
-  'typeof Float16Array',
 ];
 
 const PRELUDE = `globalThis.hex = function (x) {

@@ -75,8 +75,12 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     for (name, func) in FLAG_GETTERS {
         super::getter(rt, realm, proto, name, func)?;
         match name {
-            "dotAll" => super::getter(rt, realm, proto, "flags", flags)?,
-            "multiline" => super::getter(rt, realm, proto, "source", source)?,
+            "dotAll" => {
+                super::getter(rt, realm, proto, "flags", flags)?;
+            }
+            "multiline" => {
+                super::getter(rt, realm, proto, "source", source)?;
+            }
             _ => {}
         }
     }

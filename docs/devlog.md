@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: M7 feature 11b, typed arrays
+
+- The 12 typed arrays and `%TypedArray%`, with every argument form of
+  the constructors, length tracking over resizable buffers and V8's
+  messages. A typed array is one more object kind over the `BufferView`
+  of 11a. A canonical numeric key is an element or no property, and
+  never walks the prototype chain.
+- The heap answers what runs no script code. Conversions and `BigInt`
+  elements go to the runtime through the same `Generic` results as
+  proxies.
+- Performance: keeping the other paths fast took three rounds with
+  callgrind. The kind tests are now one comparison of adjacent enum
+  variants, and the typed paths are out of line. `Array` loops and `o.x`
+  changed by at most +0.7 % instructions (a first version cost +7.7 % on
+  `o.x`). `ta[i]` loops run as fast as `Array` loops.
+- Spec over V8 in four places (KNOWN), among them the order in which
+  `new T(typedArray)` reads its source. The hostile callback cases use
+  Chromium's output: Node.js 22 (V8 12) differs from Chromium 148 there.
+- The test262 runner accepts `dir` lines below a group, so the method
+  tests of 11c stay out until 11c. test262 runtime 37,011 → 38,347; the
+  25 failures of 11a pass.
+- The review found one defect: a `start` conversion in `slice` that
+  shrinks a length-tracking array to no element made the empty copy an
+  internal error (Chromium returns the new array). A copy of 0 bytes now
+  checks no range; a test covers it. The byte-by-byte copy of an
+  overlapping `slice` is now charged before the work.
+
 ## 2026-10-18: M7 feature 11a, ArrayBuffer and DataView
 
 - Feature 11 (binary data) is split into three sessions: 11a buffers,

@@ -4,8 +4,9 @@
 //! An object is a slot in the object arena: a shape (which holds the
 //! prototype and the named keys), the values of the named properties, the
 //! elements, the kind and the extensible flag. The internal methods are
-//! in [`ops`] (ordinary objects, §10.1) and [`array`] (array exotic
-//! objects, §10.4.2).
+//! in [`ops`] (ordinary objects, §10.1), [`array`] (array exotic
+//! objects, §10.4.2) and [`typed_array`] (`TypedArray` exotic objects,
+//! §10.4.5).
 
 mod arguments;
 mod array;
@@ -20,6 +21,7 @@ mod proxy;
 mod regexp;
 mod shape;
 mod table;
+mod typed_array;
 mod weak;
 
 pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
@@ -40,6 +42,8 @@ pub(crate) use regexp::{RegExpData, RegExpStringIterator};
 pub(crate) use shape::KeyList;
 pub use shape::Shape;
 pub use table::{CollectionIterator, Table};
+pub(crate) use typed_array::TypedArrayData;
+pub(crate) use typed_array::decode_element;
 pub(crate) use weak::WeakKey;
 pub(crate) use weak::{Registry, WeakRefData};
 
@@ -89,13 +93,6 @@ pub enum ObjectKind {
     /// A generator object (§27.5): its state and, while it is suspended,
     /// its frame and register window.
     Generator(Box<GeneratorState>),
-    /// A String object (§10.4.3). `length` is a stored property; the
-    /// index properties come from the string and are not stored (the heap
-    /// answers `[[HasProperty]]`, `[[Delete]]`, `[[OwnPropertyKeys]]`,
-    /// `[[DefineOwnProperty]]` and `[[Set]]` for them; the VM reads the
-    /// characters, which are new strings). The string is flat: the code
-    /// that makes a String object flattens a rope first.
-    StringWrapper(Gc<JsString>),
     /// A Number object (`[[NumberData]]`).
     NumberWrapper(f64),
     /// A Boolean object (`[[BooleanData]]`).
@@ -159,9 +156,23 @@ pub enum ObjectKind {
     /// `with` statement or the record of the vars of sloppy direct eval
     /// code. Internal: only bindings `%env` hold it.
     Environment(Box<EnvRecord>),
+    /// A String object (§10.4.3). `length` is a stored property; the
+    /// index properties come from the string and are not stored (the heap
+    /// answers `[[HasProperty]]`, `[[Delete]]`, `[[OwnPropertyKeys]]`,
+    /// `[[DefineOwnProperty]]` and `[[Set]]` for them; the VM reads the
+    /// characters, which are new strings). The string is flat: the code
+    /// that makes a String object flattens a rope first.
+    /// (Before `Proxy` and `TypedArray`: [`ObjectKind::sets_exotic`] tests
+    /// the three with one comparison.)
+    StringWrapper(Gc<JsString>),
     /// A Proxy exotic object (§10.5): its target and handler (`proxy.rs`;
     /// the internal methods are in `vm/proxy.rs`).
     Proxy(Box<ProxyData>),
+    /// A typed array (§10.4.5, §23.2): its buffer, offset, length and
+    /// element type (`typed_array.rs`). Its elements are not stored in the
+    /// object. (Next to `Proxy`: [`ObjectKind::walks_exotic`] tests both
+    /// with one comparison.)
+    TypedArray(Box<TypedArrayData>),
     /// A `WeakMap` (`[[WeakMapData]]`, §24.3): the hash table of `Map`,
     /// whose entries the collector treats as ephemerons (`weak.rs`).
     WeakMap(Box<Table>),
@@ -267,12 +278,33 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::FinalizationRegistry(_) => "FinalizationRegistry",
             ObjectKind::ArrayBuffer(_) => "ArrayBuffer",
             ObjectKind::DataView(_) => "DataView",
+            ObjectKind::TypedArray(_) => "TypedArray",
         };
         f.write_str(name)
     }
 }
 
 impl ObjectKind {
+    /// Whether the walks of the heap's `[[Get]]`, `[[Set]]` and
+    /// `[[HasProperty]]` along the prototype chain must look at this kind
+    /// before its stored properties: a proxy (whose traps run script code)
+    /// or a typed array (whose numeric keys end the walk). The hot paths
+    /// test this first and handle both kinds out of line.
+    #[inline]
+    pub(crate) fn walks_exotic(&self) -> bool {
+        matches!(self, ObjectKind::Proxy(_) | ObjectKind::TypedArray(_))
+    }
+
+    /// [`ObjectKind::walks_exotic`] for the heap's `[[Set]]`, which also
+    /// looks at the characters of a String object.
+    #[inline]
+    pub(crate) fn sets_exotic(&self) -> bool {
+        matches!(
+            self,
+            ObjectKind::StringWrapper(_) | ObjectKind::Proxy(_) | ObjectKind::TypedArray(_)
+        )
+    }
+
     /// Reports the handles in the payload of the kind to the tracer. The
     /// marking loop calls it for every marked object; `index` is the
     /// object's slot (the weak kinds report it, `heap/gc.rs`).
@@ -286,6 +318,7 @@ impl ObjectKind {
             | ObjectKind::Arguments
             | ObjectKind::ArrayBuffer(_) => {}
             ObjectKind::DataView(view) => tracer.object(view.buffer),
+            ObjectKind::TypedArray(data) => tracer.object(data.view.buffer),
             ObjectKind::Error(data) => {
                 if let Some(data) = data {
                     data.trace(tracer);
@@ -381,6 +414,7 @@ impl ObjectKind {
             ObjectKind::FinalizationRegistry(registry) => registry.heap_size(),
             ObjectKind::ArrayBuffer(data) => data.heap_size(),
             ObjectKind::DataView(_) => size_of::<BufferView>(),
+            ObjectKind::TypedArray(_) => size_of::<TypedArrayData>(),
             _ => 0,
         }
     }

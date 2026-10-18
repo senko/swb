@@ -240,11 +240,13 @@ fn max_byte_length_option(rt: &mut Runtime, options: Value) -> VmResult<Option<u
 }
 
 /// `ArrayBuffer.isView ( arg )` (§25.1.5.1): whether `arg` has a
-/// `[[ViewedArrayBuffer]]` slot (a `DataView`; the typed arrays of feature
-/// 11b).
+/// `[[ViewedArrayBuffer]]` slot (a `DataView` or a typed array).
 fn is_view(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let view = match rt.arg(call, 0) {
-        Value::Object(object) => matches!(rt.heap.object(object)?.kind, ObjectKind::DataView(_)),
+        Value::Object(object) => matches!(
+            rt.heap.object(object)?.kind,
+            ObjectKind::DataView(_) | ObjectKind::TypedArray(_)
+        ),
         _ => false,
     };
     Ok(NativeReturn::Value(Value::Bool(view)))

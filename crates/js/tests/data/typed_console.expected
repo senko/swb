@@ -1,0 +1,42 @@
+Uint8Array(3) [ 1, 2, 3 ]
+Uint8Array(0) []
+Int8Array(3) [ -1, 127, -128 ]
+Uint8ClampedArray(2) [ 255, 0 ]
+Int16Array(2) [ 1, -1 ] Uint16Array(1) [ 65535 ]
+Int32Array(1) [ -2147483648 ] Uint32Array(1) [ 4294967295 ]
+Float32Array(2) [ 0.10000000149011612, -0 ]
+Float64Array(4) [ 1.5, -0, NaN, Infinity ]
+BigInt64Array(2) [ 1n, -2n ]
+BigUint64Array(1) [ 18446744073709551615n ]
+BigInt64Array(0) []
+[ Uint8Array(2) [ 0, 0 ] ]
+{ a: Int16Array(2) [ 1, -1 ] }
+{ a: { b: { c: [Uint8Array] } } }
+{ a: { b: { c: [Object] } } }
+Uint8Array(2) [ 1, 2, x: 5 ]
+Uint8Array(0) []
+Uint8Array(0) []
+X(2) [Uint8Array] [ 0, 0 ]
+[Uint8Array(2): null prototype] [ 0, 0 ]
+Uint8Array(2) [ 0, 0 ]
+TypedArray {}
+{}
+[Function: Uint8Array] [Function: TypedArray]
+Float64Array(2) [ 0, 0 ]
+Uint8Array(2) [ 0, 0 ]
+Uint8Array(2) [ 0, 0, g: [Getter] ]
+Uint8Array(1) [ 0, [Symbol(k)]: 2 ]
+Uint8Array(2) [ 0, 0 ]
+Uint8Array(3) [ 0, 0, 0 ]
+Uint8Array(3) [ 0, 0, 0 ]
+ArrayBuffer { [Uint8Contents]: <00 00>, byteLength: 2 }
+Uint8Array(3) [ 0, 0, 0, foo: Uint8Array(1) [ 0 ] ]
+Uint8Array {}
+150 [ Uint16Array(5) [ 0, 0, 0, 0, 0 ] ]
+{ k: Float64Array(6) [ 0.5, 0.25, 0.125, 1e+21, 1e-7, -1.5 ] }
+DataView {
+  byteLength: 2,
+  byteOffset: 0,
+  buffer: ArrayBuffer { [Uint8Contents]: <01 02>, byteLength: 2 }
+}
+[object Uint8Array]

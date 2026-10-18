@@ -641,6 +641,47 @@ fallibly and touches every page), 40 `slice`s of 64 MiB 355 ms (Node.js
 transfers and resizes end within 21 ms of a 200 ms time limit (process
 start included).
 
+### Typed arrays
+
+The `typed:` rows of `vm_bench` and the `array:` rows that do the same
+with an `Array` (best of 5, release, 2026-10-18, M7 11b; the arrays are
+globals, as in the `for loop over 1M elements` row):
+
+| Program | swb-js (ms) | node --jitless (ms) | ratio |
+|---|---|---|---|
+| typed: sum a Float64Array of 1M elements | 177.6 | 21.0 | 8.5x |
+| for loop over 1M elements (an `Array`) | 127.2 | 16.5 | 7.7x |
+| typed: fill a Uint8Array of 1M elements | 63.2 | 13.0 | 4.9x |
+| array: fill an array of 1M elements | 65.0 | 14.5 | 4.5x |
+| typed: Int32Array read-modify-write, 1M times | 137.0 | 22.7 | 6.0x |
+| array: read-modify-write, 1M times | 137.1 | 23.4 | 5.9x |
+| typed: 100k new Uint8Array(64) and subarray | 50.9 | 24.9 | 2.0x |
+
+A read `ta[i]` takes the element in `get_with_receiver` (out of line,
+with the slots of the array passed along), a write of a `Value::Int` to
+an integer type stores its low bits without a conversion of a double,
+and the element bytes are read and written with fixed-size loads and
+stores (a first version with `copy_from_slice` and the conversions of
+`DataView` took 1.50 G instructions for the read-modify-write program
+against 1.24 G for the `Array`; now 1.35 G). `ta.length` reads the
+length without the call when the getter is the built-in one; it still
+walks two prototypes to find the accessor (`Float64Array.prototype`,
+`%TypedArray%.prototype`), so the sum loop with `i < f.length` is slower
+than the `Array` loop, whose `length` is an own property (inline caches,
+M7 feature 13).
+
+The other paths did not get slower: callgrind (instructions, the
+programs as `swb-js` scripts with the loops in a function) against
+cc701dd: an `Array` element read loop (1M appends, then 3M reads with
+`arr.length`) +0.7 %, an element write loop +0.7 %, the `Array`
+read-modify-write loop +0.7 %, `o.x = o.x + o.y` 5M times +0.3 %. The
+walks of `[[Get]]`, `[[Set]]` and `[[HasProperty]]` test proxies and typed
+arrays with one comparison (adjacent variants of `ObjectKind`), handle
+them out of line, and `[[Set]]` keeps the fast path of an own property in
+a short function; a first version that tested the kind in
+`own_property_of` and re-wrapped its result cost +7.7 % on the `o.x`
+row.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

@@ -203,7 +203,7 @@ fn updated_scores(
     }
     let mut updated = scores.clone();
     for (group, c) in groups {
-        if subset.dirs.contains(group) {
+        if subset.has_group(group) {
             updated.insert(group.clone(), c.pass);
         }
     }

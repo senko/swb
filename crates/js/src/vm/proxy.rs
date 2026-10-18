@@ -257,6 +257,9 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return Ok(self.proxy_get_own_property(object, key)?.is_some());
         }
+        if let Some((data, index)) = self.typed_numeric(object, key)? {
+            return Ok(self.heap.valid_index(&data, index)?.is_some());
+        }
         Ok(self.heap.string_object_unit(object, key)?.is_some()
             || self.heap.get_own_property(object, key)?.is_some())
     }
@@ -277,6 +280,9 @@ impl Runtime {
         if self.heap.string_object_unit(object, key)?.is_some() {
             return Ok(true);
         }
+        if let Some((data, index)) = self.typed_numeric(object, key)? {
+            return Ok(self.heap.valid_index(&data, index)?.is_some());
+        }
         Ok(self
             .heap
             .get_own_property(object, key)?
@@ -293,6 +299,9 @@ impl Runtime {
     ) -> VmResult<Option<Property>> {
         if self.heap.is_proxy(object)? {
             return self.proxy_get_own_property(object, key);
+        }
+        if let Some((data, index)) = self.typed_numeric(object, key)? {
+            return self.typed_own_property(&data, index);
         }
         Ok(self.heap.get_own_property(object, key)?)
     }
@@ -312,6 +321,11 @@ impl Runtime {
         loop {
             if self.heap.is_proxy(current)? {
                 return self.proxy_get(current, key, receiver);
+            }
+            // §10.4.5: a numeric key of a typed array ends the walk.
+            if let Some((data, index)) = self.typed_numeric(current, key)? {
+                let value = self.typed_index_value(&data, index)?;
+                return Ok(Lookup::Value(self.heap.record(value)));
             }
             match self.own_property(current, key)? {
                 Some(Property::Data { value, .. }) => return Ok(Lookup::Value(value)),
@@ -344,6 +358,9 @@ impl Runtime {
         loop {
             if self.heap.is_proxy(current)? {
                 return self.proxy_has(current, key);
+            }
+            if let Some((data, index)) = self.typed_numeric(current, key)? {
+                return Ok(self.heap.valid_index(&data, index)?.is_some());
             }
             if self.heap.get_own_property(current, key)?.is_some()
                 || self.heap.string_object_unit(current, key)?.is_some()
@@ -379,6 +396,17 @@ impl Runtime {
         loop {
             if self.heap.is_proxy(current)? {
                 return self.proxy_set(current, key, value, receiver, throw);
+            }
+            // §10.4.5: a numeric key of a typed array.
+            if let Some((data, index)) = self.typed_numeric(current, key)? {
+                if receiver == Value::Object(current) {
+                    self.typed_set_element(&data, index, value)?;
+                    return Ok(SetDone::Done(true));
+                }
+                if self.heap.valid_index(&data, index)?.is_none() {
+                    return Ok(SetDone::Done(true));
+                }
+                break;
             }
             match self.own_property(current, key)? {
                 Some(Property::Data { writable: true, .. }) => break,

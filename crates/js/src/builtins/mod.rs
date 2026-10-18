@@ -23,7 +23,9 @@
 //! Annex B `compile` and `%RegExpStringIteratorPrototype%`
 //! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`; `BigInt`
 //! (`bigint.rs`); `ArrayBuffer` and `DataView` (`array_buffer.rs`,
-//! `data_view.rs`);
+//! `data_view.rs`); the typed arrays (`typed_array*.rs`; the methods of
+//! `%TypedArray%.prototype` other than `set`, `subarray`, `slice` and
+//! the iterators come with M7 feature 11c);
 //! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
 //! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
 //! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
@@ -102,6 +104,9 @@ mod string_replace;
 mod string_search;
 mod string_unicode;
 mod symbol;
+mod typed_array;
+mod typed_array_create;
+mod typed_array_proto;
 mod uri;
 mod weak;
 mod weak_ref;
@@ -111,7 +116,7 @@ pub(crate) use error::error_header;
 pub(crate) use iterator::array_iterator_next_value;
 
 use crate::heap::Gc;
-use crate::object::{Object, Property, PropertyDescriptor};
+use crate::object::{GetResult, Object, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -160,6 +165,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     bigint::install(rt, realm)?;
     array_buffer::install(rt, realm)?;
     data_view::install(rt, realm)?;
+    typed_array::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;
@@ -222,19 +228,19 @@ fn symbol_method(
 }
 
 /// Defines an accessor with a getter only (non-enumerable, configurable),
-/// named "get NAME".
+/// named "get NAME"; returns the getter.
 fn getter(
     rt: &mut Runtime,
     realm: u32,
     target: Gc<Object>,
     name: &str,
     func: NativeFn,
-) -> VmResult<()> {
+) -> VmResult<Gc<Object>> {
     let function = rt.new_builtin(realm, &format!("get {name}"), 0, func, false)?;
     let key = rt.heap.key_from_str(name)?;
     let desc = PropertyDescriptor::accessor(function.into(), Value::Undefined, false, true);
     rt.define_own_property(target, key, desc)?;
-    Ok(())
+    Ok(function)
 }
 
 /// Defines `@@toStringTag` (non-writable, non-enumerable, configurable).
@@ -281,6 +287,17 @@ impl Runtime {
     /// `new`) if it is an object, else the intrinsic of the callee's
     /// realm.
     fn prototype_from(&mut self, call: &NativeCall, fallback: Intrinsic) -> VmResult<Gc<Object>> {
+        self.prototype_from_with(call, |rt, realm| rt.intrinsic(realm, fallback))
+    }
+
+    /// [`Runtime::prototype_from`] with the fallback prototype of a realm
+    /// given by `fallback` (for the prototypes outside the intrinsics
+    /// table, `Realm::typed_arrays`).
+    fn prototype_from_with(
+        &mut self,
+        call: &NativeCall,
+        fallback: impl FnOnce(&Runtime, u32) -> VmResult<Gc<Object>>,
+    ) -> VmResult<Gc<Object>> {
         let target = match call.new_target() {
             Value::Undefined => Value::Object(call.callee()),
             target => target,
@@ -294,13 +311,16 @@ impl Runtime {
             Value::Object(target) => self.function_realm_checked(target)?,
             _ => None,
         };
-        self.intrinsic(realm.unwrap_or(call.realm()), fallback)
+        fallback(self, realm.unwrap_or(call.realm()))
     }
 
     /// `SpeciesConstructor(object, default)` (§7.3.22) with V8's messages.
     /// `builtin_species` is the built-in `@@species` getter of `default`:
-    /// while `default` has it, the getter is not called (it returns its
-    /// receiver, so the call is not observable). The result is recorded.
+    /// when the `@@species` of the constructor is that getter (its own or
+    /// one on its prototype chain, as for the typed array constructors,
+    /// which inherit the getter of `%TypedArray%`), it is not called: it
+    /// returns its receiver, so the call is not observable. The result is
+    /// recorded.
     pub(crate) fn species_constructor(
         &mut self,
         object: Gc<Object>,
@@ -318,14 +338,12 @@ impl Runtime {
             ));
         };
         let key = self.symbol_key(WellKnown::Species);
-        if constructor == default
-            && let Some(Property::Accessor { get, .. }) =
-                self.heap.get_own_property(default, key)?
-            && get == Value::Object(builtin_species)
-        {
-            return Ok(default.into());
-        }
-        let species = self.get_value(constructor.into(), key)?;
+        let species = match self.heap.get(constructor, key, constructor.into())? {
+            GetResult::CallGetter { getter, .. } if getter == Value::Object(builtin_species) => {
+                constructor.into()
+            }
+            _ => self.get_value(constructor.into(), key)?,
+        };
         if species.is_nullish() {
             return Ok(default.into());
         }

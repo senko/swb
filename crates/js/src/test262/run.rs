@@ -34,6 +34,8 @@ pub(crate) const HARNESS_INCLUDES: &[&str] = &[
     "proxyTrapsHelper.js",
     "detachArrayBuffer.js",
     "byteConversionValues.js",
+    "testTypedArray.js",
+    "resizableArrayBufferUtils.js",
 ];
 
 /// The harness file of the tests with the flag `async`: `$DONE` prints
@@ -369,8 +371,8 @@ mod tests {
             Plan::Skip("flag CanBlockIsTrue".into())
         );
         assert_eq!(
-            skip("/*---\nincludes: [testTypedArray.js]\n---*/", ""),
-            Plan::Skip("include testTypedArray.js".into())
+            skip("/*---\nincludes: [testAtomics.js]\n---*/", ""),
+            Plan::Skip("include testAtomics.js".into())
         );
         assert_eq!(
             skip("/*---\nincludes: [propertyHelper.js, nans.js]\n---*/", ""),

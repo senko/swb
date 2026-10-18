@@ -149,6 +149,11 @@ impl Runtime {
             if self.heap.is_proxy(current)? {
                 return self.with_scope(|rt| rt.has_generic(current, key));
             }
+            // A numeric key (`NaN`, `Infinity`) of a typed array ends the
+            // walk (§10.4.5).
+            if let Some((data, index)) = self.typed_numeric(current, key)? {
+                return Ok(self.heap.valid_index(&data, index)?.is_some());
+            }
             if self.heap.get_own_property(current, key)?.is_some()
                 || self.heap.string_object_unit(current, key)?.is_some()
             {

@@ -14,7 +14,7 @@
 //! and zero-filled. Detaching drops the vector (or hands it to the new
 //! buffer of `transfer`) and takes its bytes out of the estimate at once.
 //!
-//! A view (a `DataView` now; the typed arrays of feature 11b) is a
+//! A view (a `DataView`, or a typed array of `typed_array.rs`) is a
 //! [`BufferView`]: the buffer, the byte offset and a fixed byte length or
 //! none for a view that tracks the length of a resizable buffer.
 //! [`Heap::view_range`] gives the bytes that a view covers, or `None` when
@@ -66,6 +66,22 @@ impl ArrayBufferData {
     /// The bytes; `None` when the buffer is detached.
     pub(crate) fn bytes(&self) -> Option<&[u8]> {
         self.bytes.as_deref()
+    }
+
+    /// The bytes for writing; `None` when the buffer is detached.
+    pub(crate) fn bytes_mut(&mut self) -> Option<&mut [u8]> {
+        self.bytes.as_deref_mut()
+    }
+
+    /// Moves the vector out for a copy from another buffer (the buffer
+    /// reads as detached until [`ArrayBufferData::put_bytes`] returns it).
+    pub(crate) fn take_bytes(&mut self) -> Option<Vec<u8>> {
+        self.bytes.take()
+    }
+
+    /// Returns the vector that [`ArrayBufferData::take_bytes`] moved out.
+    pub(crate) fn put_bytes(&mut self, bytes: Vec<u8>) {
+        self.bytes = Some(bytes);
     }
 
     /// The bytes that the data owns (the capacity of the vector).
@@ -400,12 +416,7 @@ impl Heap {
 pub(crate) enum ElementType {
     Int8,
     Uint8,
-    /// Used by `Uint8ClampedArray` (feature 11b); `DataView` has no such
-    /// method.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the Uint8ClampedArray of feature 11b uses it")
-    )]
+    /// Used by `Uint8ClampedArray`; `DataView` has no such method.
     Uint8Clamped,
     Int16,
     Uint16,
@@ -429,11 +440,21 @@ impl ElementType {
         }
     }
 
+    /// Whether the elements are integers of at most 32 bits that wrap
+    /// (`Int8` … `Uint32`; not `Uint8Clamped`, which clamps).
+    pub(crate) const fn is_integer(self) -> bool {
+        matches!(
+            self,
+            ElementType::Int8
+                | ElementType::Uint8
+                | ElementType::Int16
+                | ElementType::Uint16
+                | ElementType::Int32
+                | ElementType::Uint32
+        )
+    }
+
     /// `IsBigIntElementType` (§25.1.3.12).
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the typed arrays of feature 11b use it")
-    )]
     pub(crate) const fn is_bigint(self) -> bool {
         matches!(self, ElementType::BigInt64 | ElementType::BigUint64)
     }
@@ -460,11 +481,14 @@ impl ElementType {
 
 /// A value to store: a Number (after `ToNumber`) for the Number types, the
 /// 64 bits of a `BigInt` (after `ToBigInt64` or `ToBigUint64`, which give
-/// the same bits) for the `BigInt` types.
+/// the same bits) for the `BigInt` types, or a Number that is a 32-bit
+/// integer (the interpreter's `Value::Int`, stored without a conversion
+/// of a double for the integer types).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Element {
     Number(f64),
     Bits(u64),
+    Int(i32),
 }
 
 /// A value read from the bytes: an integer that fits in 32 bits (the
@@ -493,23 +517,35 @@ fn to_uint8_clamp(n: f64) -> u8 {
 /// binary16; binary32 and binary64 keep the bits of the double (the
 /// conversion of the hardware), as Chromium 148 does (measured).
 pub(crate) fn encode(ty: ElementType, value: Element, little_endian: bool) -> [u8; 8] {
+    let size = match value {
+        Element::Number(_) | Element::Int(_) => ty.size(),
+        Element::Bits(_) => 8,
+    };
+    order(element_bits(ty, value).to_le_bytes(), size, little_endian)
+}
+
+/// The bits of `value` as an element of type `ty` (`NumericToRawBytes`
+/// as a little-endian integer: the low `ty.size()` bytes are the element).
+pub(crate) fn element_bits(ty: ElementType, value: Element) -> u64 {
     let n = match value {
         Element::Number(n) => n,
-        Element::Bits(bits) => return order(bits.to_le_bytes(), 8, little_endian),
+        Element::Bits(bits) => return bits,
+        // ToInt8 … ToUint32 of an integer keep its low bits.
+        Element::Int(int) if ty.is_integer() => return u64::from(int as u32),
+        Element::Int(int) => f64::from(int),
     };
     let int = || crate::vm::convert::to_uint32(n);
-    let (raw, size): (u64, usize) = match ty {
-        ElementType::Int8 | ElementType::Uint8 => (u64::from(int() as u8), 1),
-        ElementType::Uint8Clamped => (u64::from(to_uint8_clamp(n)), 1),
-        ElementType::Int16 | ElementType::Uint16 => (u64::from(int() as u16), 2),
-        ElementType::Int32 | ElementType::Uint32 => (u64::from(int()), 4),
-        ElementType::Float16 => (u64::from(swb_js_text::number::f16_to_bits(n)), 2),
-        ElementType::Float32 => (u64::from((n as f32).to_bits()), 4),
+    match ty {
+        ElementType::Int8 | ElementType::Uint8 => u64::from(int() as u8),
+        ElementType::Uint8Clamped => u64::from(to_uint8_clamp(n)),
+        ElementType::Int16 | ElementType::Uint16 => u64::from(int() as u16),
+        ElementType::Int32 | ElementType::Uint32 => u64::from(int()),
+        ElementType::Float16 => u64::from(swb_js_text::number::f16_to_bits(n)),
+        ElementType::Float32 => u64::from((n as f32).to_bits()),
         // A Number for a BigInt type does not happen (the caller converts
         // with ToBigInt); the bits of the double keep it defined.
-        ElementType::Float64 | ElementType::BigInt64 | ElementType::BigUint64 => (n.to_bits(), 8),
-    };
-    order(raw.to_le_bytes(), size, little_endian)
+        ElementType::Float64 | ElementType::BigInt64 | ElementType::BigUint64 => n.to_bits(),
+    }
 }
 
 /// The first `size` bytes of `bytes` (little endian), reversed for big
@@ -525,17 +561,19 @@ fn order(mut bytes: [u8; 8], size: usize, little_endian: bool) -> [u8; 8] {
 /// (`bytes.len()` is the element size).
 pub(crate) fn decode(ty: ElementType, bytes: &[u8], little_endian: bool) -> RawValue {
     let mut raw = [0u8; 8];
-    for (i, &byte) in bytes.iter().take(8).enumerate() {
-        let at = if little_endian {
-            i
-        } else {
-            bytes.len() - 1 - i
-        };
-        if let Some(slot) = raw.get_mut(at) {
-            *slot = byte;
+    let len = bytes.len().min(8);
+    if let (Some(target), Some(source)) = (raw.get_mut(..len), bytes.get(..len)) {
+        target.copy_from_slice(source);
+        if !little_endian {
+            target.reverse();
         }
     }
-    let bits = u64::from_le_bytes(raw);
+    decode_bits(ty, u64::from_le_bytes(raw))
+}
+
+/// `RawBytesToNumeric` of the bits of an element (the low `ty.size()`
+/// bytes of a little-endian integer).
+pub(crate) fn decode_bits(ty: ElementType, bits: u64) -> RawValue {
     match ty {
         ElementType::Int8 => RawValue::Int(i32::from(bits as u8 as i8)),
         ElementType::Uint8 | ElementType::Uint8Clamped => RawValue::Int(i32::from(bits as u8)),
@@ -577,6 +615,38 @@ mod tests {
             decode(ElementType::Int16, &[0x80, 0x01], true),
             RawValue::Int(384)
         );
+    }
+
+    /// An integer element (`Value::Int`) keeps its low bits for the
+    /// integer types and is converted as a Number for the others.
+    #[test]
+    fn integer_elements() {
+        assert_eq!(encode(ElementType::Int8, Element::Int(-129), true)[0], 0x7F);
+        assert_eq!(
+            &encode(ElementType::Uint16, Element::Int(-1), true)[..2],
+            &[0xFF, 0xFF]
+        );
+        assert_eq!(
+            &encode(ElementType::Int32, Element::Int(i32::MIN), false)[..4],
+            &[0x80, 0, 0, 0]
+        );
+        assert_eq!(
+            encode(ElementType::Uint8Clamped, Element::Int(300), true)[0],
+            255
+        );
+        assert_eq!(
+            encode(ElementType::Uint8Clamped, Element::Int(-3), true)[0],
+            0
+        );
+        assert_eq!(
+            &encode(ElementType::Float32, Element::Int(3), false)[..4],
+            &[0x40, 0x40, 0, 0]
+        );
+        assert_eq!(
+            encode(ElementType::Float64, Element::Int(-2), true),
+            (-2.0f64).to_bits().to_le_bytes()
+        );
+        assert!(ElementType::Uint32.is_integer() && !ElementType::Uint8Clamped.is_integer());
     }
 
     #[test]

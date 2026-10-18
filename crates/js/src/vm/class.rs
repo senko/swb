@@ -160,9 +160,10 @@ impl Runtime {
                 "a field of a value that is not an object",
             ));
         };
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy(object)? || self.typed_numeric(object, key)?.is_some() {
             // `this` of a derived class whose parent's `[[Construct]]`
-            // returned a proxy.
+            // returned a proxy, or an element of a typed array (the value
+            // is converted, which can run script code).
             return self.with_scope(|rt| rt.create_data_property_or_throw(object, key, value));
         }
         if self

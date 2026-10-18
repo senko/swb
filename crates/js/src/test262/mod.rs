@@ -202,9 +202,11 @@ pub(crate) fn main(args: &[String]) -> u8 {
     }
     tests.sort();
     tests.dedup();
-    if args.paths.is_empty() && !args.all {
-        // A `dir` line names one group, not the groups below it.
-        tests.retain(|test| subset.dirs.contains(&group_of(test)));
+    let whole_subset = args.paths.is_empty() && !args.all;
+    if whole_subset {
+        // A `dir` line names one group, not the groups below it, or a part
+        // of a group.
+        tests.retain(|test| subset.selects(test));
     }
     if tests.is_empty() {
         eprintln!(
@@ -222,7 +224,10 @@ pub(crate) fn main(args: &[String]) -> u8 {
         }
     };
     let done = run_all(&args, &subset, &harness, &tests);
-    summarise(&args, &subset, &roots, &scores, &done)
+    // A run of the subset covers its groups, also those of which only the
+    // selected part ran (their scores count that part).
+    let covered = if whole_subset { subset.groups() } else { roots };
+    summarise(&args, &subset, &covered, &scores, &done)
 }
 
 /// The parse-only mode: its roots, skip list and scores file; `--update`

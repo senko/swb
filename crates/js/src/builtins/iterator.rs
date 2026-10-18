@@ -10,10 +10,14 @@
 //! them, with `@@iterator`).
 //!
 //! An Array Iterator works on any object with a `length` (arrays and
-//! array-likes). It reads `length` again at each step, so growth and
-//! shrinkage show; it never allocates in proportion to the length. Once
-//! it has finished, or when reading `length` or an element threw, it stays
-//! finished (the specification's generator closure has completed).
+//! array-likes) and on typed arrays, whose length it takes from the array
+//! itself (`TypedArrayLength`; a typed array that is detached or out of
+//! bounds is a `TypeError`). It reads the length again at each step, so
+//! growth and shrinkage show; it never allocates in proportion to the
+//! length. Once it has finished, or when reading `length` or an element
+//! threw, it stays finished (the specification's generator closure has
+//! completed; V8 lets the iterator of a typed array go on after its
+//! `TypeError`, ADR 0026 section 15).
 
 use crate::heap::Gc;
 use crate::object::{ArrayIterator, IterationKind, Object, ObjectKind, PropertyDescriptor};
@@ -243,7 +247,20 @@ fn create_array_iterator(
     kind: IterationKind,
 ) -> VmResult<NativeReturn> {
     let target = rt.this_object(call)?;
-    let proto = rt.intrinsic(call.realm(), Intrinsic::ArrayIteratorPrototype)?;
+    let iterator = new_array_iterator(rt, call.realm(), target, kind)?;
+    Ok(NativeReturn::Value(iterator.into()))
+}
+
+/// `CreateArrayIterator(target, kind)` (§23.1.5.1) with the
+/// `%ArrayIteratorPrototype%` of `realm` (also for the iterators of typed
+/// arrays).
+pub(super) fn new_array_iterator(
+    rt: &mut Runtime,
+    realm: u32,
+    target: Gc<Object>,
+    kind: IterationKind,
+) -> VmResult<Gc<Object>> {
+    let proto = rt.intrinsic(realm, Intrinsic::ArrayIteratorPrototype)?;
     let state = ArrayIterator {
         target: Some(target),
         next_index: 0.0,
@@ -252,7 +269,7 @@ fn create_array_iterator(
     let iterator = rt
         .heap
         .new_object_with_kind(Some(proto), ObjectKind::ArrayIterator(Box::new(state)))?;
-    Ok(NativeReturn::Value(iterator.into()))
+    Ok(rt.heap.record(iterator))
 }
 
 /// `%ArrayIteratorPrototype%.next()` (§23.1.5.2.1).
@@ -302,7 +319,19 @@ fn array_iterator_step(
     index: f64,
     kind: IterationKind,
 ) -> VmResult<Option<Value>> {
-    let length = rt.length_of_array_like(target)?;
+    let typed = rt.heap.typed_array(target)?;
+    let length = match &typed {
+        // §23.1.5.1 step 2.b.i: the length of the typed array itself.
+        Some(data) => match rt.heap.typed_length(data)? {
+            Some(length) => length as f64,
+            None => {
+                return Err(VmError::type_error(
+                    "Cannot perform Array Iterator.prototype.next on a detached or out-of-bounds ArrayBuffer",
+                ));
+            }
+        },
+        None => rt.length_of_array_like(target)?,
+    };
     if index >= length {
         return Ok(None);
     }
@@ -313,8 +342,14 @@ fn array_iterator_step(
     let result = match kind {
         IterationKind::Keys => number,
         IterationKind::Values | IterationKind::Entries => {
-            let key = rt.index_key(index)?;
-            let element = rt.get_value(target.into(), key)?;
+            // `Get` of a valid index of a typed array runs no script.
+            let element = if let Some(data) = &typed {
+                let value = rt.typed_element(data, index as usize)?;
+                rt.heap.record(value)
+            } else {
+                let key = rt.index_key(index)?;
+                rt.get_value(target.into(), key)?
+            };
             if kind == IterationKind::Values {
                 element
             } else {

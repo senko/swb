@@ -11,7 +11,8 @@
 //! an accessor element. All object kinds have them except String objects
 //! (the characters are index properties that are not stored) and host
 //! objects (their class can answer the internal methods) and proxies (their
-//! traps answer them); typed arrays will not either. Mapped arguments objects have them: the
+//! traps answer them) and typed arrays (their elements are in the buffer).
+//! Mapped arguments objects have them: the
 //! element of a mapped index holds the parameter's cell, which
 //! `[[GetOwnProperty]]` reads.
 //!
@@ -99,7 +100,10 @@ impl DenseArray {
 fn ordinary_elements(kind: &ObjectKind) -> bool {
     !matches!(
         kind,
-        ObjectKind::StringWrapper(_) | ObjectKind::Host { .. } | ObjectKind::Proxy(_)
+        ObjectKind::StringWrapper(_)
+            | ObjectKind::Host { .. }
+            | ObjectKind::Proxy(_)
+            | ObjectKind::TypedArray(_)
     )
 }
 

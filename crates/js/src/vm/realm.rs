@@ -88,6 +88,10 @@ pub(crate) enum Intrinsic {
     /// (§25.3.4), ordinary objects.
     ArrayBufferPrototype,
     DataViewPrototype,
+    /// `%TypedArray.prototype%` (§23.2.3), an ordinary object. The
+    /// prototypes and constructors of the 12 typed arrays are in
+    /// [`Realm::typed_arrays`].
+    TypedArrayPrototype,
     /// `Function.prototype[@@hasInstance]` (§20.2.3.6), set when the
     /// built-in functions are installed.
     FunctionHasInstance,
@@ -152,10 +156,24 @@ pub(crate) enum Intrinsic {
     /// `slice`.
     ArrayBufferConstructor,
     ArrayBufferSpeciesGetter,
+    /// `%TypedArray%` (§23.2.1) and the getter of `%TypedArray%[@@species]`
+    /// (§23.2.2.4), set when the built-in functions are installed: the
+    /// default of `TypedArraySpeciesCreate` needs no call while a typed
+    /// array constructor has the built-in getter.
+    TypedArrayConstructor,
+    TypedArraySpeciesGetter,
+    /// The getter of `%TypedArray%.prototype.length` (§23.2.3.22), set when
+    /// the built-in functions are installed: the interpreter's read of
+    /// `ta.length` gives the length without the call.
+    TypedArrayLengthGetter,
 }
 
+/// The number of typed array element types (Table 71): the length of
+/// [`Realm::typed_arrays`].
+pub(crate) const TYPED_ARRAY_TYPES: usize = 12;
+
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 66;
+const INTRINSIC_COUNT: usize = 70;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -179,6 +197,10 @@ pub(crate) struct Realm {
     /// The state of the `RegExp` built-ins: the last match for the legacy
     /// static properties and the shapes of the fast paths.
     pub(crate) regexp: crate::object::RegExpRealm,
+    /// The constructor (`%Int8Array%` …) and the prototype of each typed
+    /// array, by element type (`ElementType as usize`); set when the
+    /// built-in functions are installed.
+    pub(crate) typed_arrays: [Option<(Gc<Object>, Gc<Object>)>; TYPED_ARRAY_TYPES],
 }
 
 impl Realm {
@@ -186,6 +208,10 @@ impl Realm {
         tracer.object(self.global);
         for object in self.intrinsics.iter().flatten() {
             tracer.object(*object);
+        }
+        for (constructor, prototype) in self.typed_arrays.iter().flatten() {
+            tracer.object(*constructor);
+            tracer.object(*prototype);
         }
         for (name, binding) in &self.lexical {
             tracer.string(*name);
@@ -225,6 +251,43 @@ impl Runtime {
     pub(crate) fn set_intrinsic(&mut self, realm: u32, which: Intrinsic, object: Gc<Object>) {
         if let Some(realm) = self.vm.realms.get_mut(realm as usize) {
             realm.set_intrinsic(which, object);
+        }
+    }
+
+    /// The constructor and the prototype of the typed array with elements
+    /// of type `ty` in a realm.
+    pub(crate) fn typed_array_intrinsics(
+        &self,
+        realm: u32,
+        ty: crate::object::ElementType,
+    ) -> VmResult<(Gc<Object>, Gc<Object>)> {
+        self.vm
+            .realms
+            .get(realm as usize)
+            .ok_or(VmError::invariant("a realm index without a realm"))?
+            .typed_arrays
+            .get(ty as usize)
+            .copied()
+            .flatten()
+            .ok_or(VmError::invariant(
+                "a typed array constructor that is not set yet",
+            ))
+    }
+
+    /// Sets the constructor and the prototype of a typed array of a realm.
+    pub(crate) fn set_typed_array_intrinsics(
+        &mut self,
+        realm: u32,
+        ty: crate::object::ElementType,
+        objects: (Gc<Object>, Gc<Object>),
+    ) {
+        if let Some(slot) = self
+            .vm
+            .realms
+            .get_mut(realm as usize)
+            .and_then(|realm| realm.typed_arrays.get_mut(ty as usize))
+        {
+            *slot = Some(objects);
         }
     }
 
@@ -305,6 +368,7 @@ impl Runtime {
         let bigint_proto = heap.new_object(Some(object_proto))?;
         let array_buffer_proto = heap.new_object(Some(object_proto))?;
         let data_view_proto = heap.new_object(Some(object_proto))?;
+        let typed_array_proto = heap.new_object(Some(object_proto))?;
         let error_proto = heap.new_object(Some(object_proto))?;
         let type_error_proto = heap.new_object(Some(error_proto))?;
         let range_error_proto = heap.new_object(Some(error_proto))?;
@@ -370,6 +434,7 @@ impl Runtime {
             bigint_proto,
             array_buffer_proto,
             data_view_proto,
+            typed_array_proto,
         ];
         for (slot, object) in intrinsics.iter_mut().zip(created) {
             *slot = Some(object);
@@ -379,6 +444,7 @@ impl Runtime {
             intrinsics,
             lexical: HandleMap::default(),
             regexp: crate::object::RegExpRealm::default(),
+            typed_arrays: [None; TYPED_ARRAY_TYPES],
         };
         Ok(realm)
     }

@@ -22,10 +22,25 @@ enum Level {
 
 impl Runtime {
     /// `SetIntegrityLevel` (§7.3.15); a `false` result of
-    /// `[[PreventExtensions]]` (a proxy's trap) is V8's `TypeError`.
+    /// `[[PreventExtensions]]` (a typed array that tracks the length of
+    /// its buffer or views a resizable one; a proxy throws its own error)
+    /// is V8's `TypeError`. The elements of a typed array cannot become
+    /// non-configurable (`[[DefineOwnProperty]]` refuses): V8's message
+    /// names them before the first definition.
     fn set_integrity_level(&mut self, object: Gc<Object>, level: Level) -> VmResult<()> {
+        let verb = match level {
+            Level::Sealed => "seal",
+            Level::Frozen => "freeze",
+        };
         if !self.prevent_extensions(object, true)? {
-            return Err(VmError::type_error("Cannot prevent extensions"));
+            return Err(VmError::type_error(format!("Cannot {verb}")));
+        }
+        if let Some(data) = self.heap.typed_array(object)?
+            && self.heap.typed_length(&data)?.unwrap_or(0) > 0
+        {
+            return Err(VmError::type_error(format!(
+                "Cannot {verb} array buffer views with elements"
+            )));
         }
         let keys = self.own_keys(object)?;
         self.heap.record_keys(&keys);

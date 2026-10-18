@@ -127,6 +127,7 @@ new DataView.prototype.getInt8() => err TypeError: DataView.prototype.getInt8 is
 DataView[Symbol.species] => ok undefined
 'transferToImmutable' in ArrayBuffer.prototype => ok false
 typeof SharedArrayBuffer => ok "undefined"
+typeof Float16Array => ok "function"
 new ArrayBuffer(5).byteLength => ok 5
 (() => { const b = new ArrayBuffer(4); b.transfer(); return [b.byteLength, b.maxByteLength, b.resizable, b.detached]; })() => ok [0,0,false,true]
 (() => { const b = new ArrayBuffer(4, { maxByteLength: 8 }); b.transfer(); return [b.byteLength, b.maxByteLength, b.resizable, b.detached]; })() => ok [0,0,true,true]

@@ -518,7 +518,16 @@ impl Runtime {
                         match tri!(self.heap.get(object, key, target)) {
                             GetResult::Value(value) => put!(dst, value),
                             GetResult::CallGetter { getter, receiver } => {
-                                call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
+                                // `ta.length` of a typed array with the
+                                // built-in getter: the length, without the
+                                // call (nothing can observe it).
+                                if let Some(length) =
+                                    tri!(self.typed_length_getter_value(getter, receiver))
+                                {
+                                    put!(dst, length);
+                                } else {
+                                    call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
+                                }
                             }
                             // A proxy on the chain (out of line; a getter
                             // runs through re-entry).

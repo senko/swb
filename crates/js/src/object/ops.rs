@@ -1,7 +1,11 @@
 //! The internal methods of ordinary objects that do not run script code
 //! (ECMA-262 §10.1), with the dispatch to array exotic objects
-//! (§10.4.2), String objects (§10.4.3) and mapped arguments objects
-//! (§10.4.4, `arguments.rs`).
+//! (§10.4.2), String objects (§10.4.3), mapped arguments objects
+//! (§10.4.4, `arguments.rs`) and typed arrays (§10.4.5, `typed_array.rs`:
+//! a canonical numeric key is an element or no property and never walks
+//! the prototype chain; conversions that run script code and the
+//! elements of `BigInt` arrays, which are new `BigInt`s, are left to the
+//! runtime through the `Generic` results).
 //!
 //! [[Get]] and [[Set]] walk the prototype chain in a loop. Where they
 //! meet an accessor, they return a request to call the getter or the
@@ -15,7 +19,9 @@ use crate::error::{Error, Result};
 use crate::heap::{Gc, Heap, RootSource};
 use crate::object::elements::DenseWrite;
 use crate::object::property::{Apply, validate_and_apply};
-use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor, ShapeKind};
+use crate::object::{
+    Elements, Object, ObjectKind, Property, PropertyDescriptor, RawValue, ShapeKind, TypedArrayData,
+};
 use crate::string::PropertyKey;
 use crate::value::Value;
 
@@ -129,8 +135,14 @@ impl Heap {
         Ok(self.object(object)?.extensible)
     }
 
-    /// `[[PreventExtensions]]` (§10.1.4).
+    /// `[[PreventExtensions]]` (§10.1.4; a typed array that can grow or
+    /// shrink with its buffer refuses, §10.4.5).
     pub fn prevent_extensions(&mut self, object: Gc<Object>) -> Result<bool> {
+        if let Some(data) = self.typed_array(object)?
+            && !self.typed_fixed_length(&data)?
+        {
+            return Ok(false);
+        }
         let record = self.object_mut(object)?;
         if let ObjectKind::Proxy(_) = record.kind {
             return Err(Error::invariant("a heap [[PreventExtensions]] of a proxy"));
@@ -140,17 +152,25 @@ impl Heap {
     }
 
     /// `[[GetOwnProperty]]` (§10.1.5; for arrays also the `length`
-    /// property, §10.4.2).
+    /// property, §10.4.2; for typed arrays §10.4.5).
     #[inline]
     pub fn get_own_property(
         &self,
         object: Gc<Object>,
         key: PropertyKey,
     ) -> Result<Option<Property>> {
-        self.own_property_of(self.object(object)?, key)
+        let record = self.object(object)?;
+        if let ObjectKind::TypedArray(_) = record.kind {
+            return self.typed_own_property_of(record, key);
+        }
+        self.own_property_of(record, key)
     }
 
-    /// [`Heap::get_own_property`] of an object record.
+    /// [`Heap::get_own_property`] of an object record that is not a typed
+    /// array, or of a typed array with a key that is not a canonical
+    /// numeric string (the walks of `[[Get]]`, `[[Set]]` and
+    /// `[[HasProperty]]` handle the numeric keys of typed arrays before
+    /// they call this).
     #[inline]
     fn own_property_of(&self, record: &Object, key: PropertyKey) -> Result<Option<Property>> {
         match key {
@@ -184,6 +204,21 @@ impl Heap {
         }
     }
 
+    /// [`Heap::own_property_of`] of a typed array: a canonical numeric key
+    /// is an element or no property (never a stored one), another key a
+    /// named property.
+    #[cold]
+    #[inline(never)]
+    fn typed_own_property_of(&self, record: &Object, key: PropertyKey) -> Result<Option<Property>> {
+        let ObjectKind::TypedArray(data) = &record.kind else {
+            return Err(Error::invariant("a typed array lookup of another object"));
+        };
+        match self.numeric_index(key)? {
+            Some(index) => self.typed_own_property(data, index),
+            None => self.named_property(record, key),
+        }
+    }
+
     /// `[[DefineOwnProperty]]` (§10.1.6; §10.4.2.1 for arrays). Can collect.
     pub fn define_own_property(
         &mut self,
@@ -199,12 +234,33 @@ impl Heap {
         if let (PropertyKey::Index(index), Some(cell)) = (key, self.mapped_argument(object, key)?) {
             return self.arguments_define_own_property(object, (index, cell), desc, roots);
         }
-        match self.object(object)?.kind {
+        match &self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
             ObjectKind::Proxy(_) => {
                 Err(Error::invariant("a heap [[DefineOwnProperty]] of a proxy"))
             }
+            ObjectKind::TypedArray(_) => self.typed_or_ordinary_define(object, key, desc, roots),
             _ => self.ordinary_define_own_property(object, key, desc, roots),
+        }
+    }
+
+    /// `[[DefineOwnProperty]]` of a typed array (§10.4.5): an element for a
+    /// numeric key, an ordinary property for another key.
+    #[cold]
+    #[inline(never)]
+    fn typed_or_ordinary_define(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        desc: PropertyDescriptor,
+        roots: &dyn RootSource,
+    ) -> Result<bool> {
+        let data = self.typed_array(object)?.ok_or(Error::invariant(
+            "a typed array definition on another object",
+        ))?;
+        match self.numeric_index(key)? {
+            Some(index) => self.typed_define_own_property(&data, index, &desc),
+            None => self.ordinary_define_own_property(object, key, desc, roots),
         }
     }
 
@@ -337,8 +393,9 @@ impl Heap {
         ))
     }
 
-    /// `[[HasProperty]]` (§10.1.7), or `None` when the walk meets a proxy
-    /// (the runtime then takes the generic path).
+    /// `[[HasProperty]]` (§10.1.7, §10.4.5 for typed arrays), or `None`
+    /// when the walk meets a proxy (the runtime then takes the generic
+    /// path).
     pub(crate) fn has_property_fast(
         &self,
         object: Gc<Object>,
@@ -347,8 +404,15 @@ impl Heap {
         let mut current = object;
         loop {
             let record = self.object(current)?;
-            if let ObjectKind::Proxy(_) = record.kind {
-                return Ok(None);
+            if record.kind.walks_exotic() {
+                match &record.kind {
+                    ObjectKind::TypedArray(data) => {
+                        if let Some(index) = self.numeric_index(key)? {
+                            return Ok(Some(self.valid_index(data, index)?.is_some()));
+                        }
+                    }
+                    _ => return Ok(None),
+                }
             }
             if self.own_property_of(record, key)?.is_some()
                 || self.string_unit_of(record, key)?.is_some()
@@ -362,14 +426,17 @@ impl Heap {
         }
     }
 
-    /// [[Get]] (§10.1.8). Returns a request to call the getter where it
+    /// [[Get]] (§10.1.8; §10.4.5 for a numeric key of a typed array,
+    /// which ends the walk). Returns a request to call the getter where it
     /// meets an accessor.
     pub fn get(&self, object: Gc<Object>, key: PropertyKey, receiver: Value) -> Result<GetResult> {
         let mut current = object;
         loop {
             let record = self.object(current)?;
-            if let ObjectKind::Proxy(_) = record.kind {
-                return Ok(GetResult::Generic);
+            if record.kind.walks_exotic()
+                && let Some(found) = self.exotic_get(record, key)?
+            {
+                return Ok(found);
             }
             match self.own_property_of(record, key)? {
                 Some(Property::Data { value, .. }) => return Ok(GetResult::Value(value)),
@@ -406,18 +473,34 @@ impl Heap {
         if receiver == Value::Object(object) && self.set_own_fast(object, key, value)? {
             return Ok(SetResult::Done(true));
         }
+        self.set_walk(object, key, value, receiver, roots)
+    }
+
+    /// The steps of [`Heap::set`] after its fast path: the walk of the
+    /// prototype chain and the definition on the receiver. Out of line, so
+    /// that the fast path of an own writable property stays short.
+    #[inline(never)]
+    fn set_walk(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+        receiver: Value,
+        roots: &dyn RootSource,
+    ) -> Result<SetResult> {
         // OrdinarySetWithOwnDescriptor (§10.1.9.2), steps 1 to 2 as a loop
         // over the prototype chain.
         let mut current = object;
         loop {
             let record = self.object(current)?;
-            match record.kind {
-                ObjectKind::Proxy(_) => return Ok(SetResult::Generic),
-                ObjectKind::StringWrapper(_) if self.string_unit_of(record, key)?.is_some() => {
-                    // A character of a String object: not writable.
-                    return Ok(SetResult::Done(false));
+            if record.kind.sets_exotic() {
+                match self.exotic_set(record, current, key, receiver)? {
+                    ExoticSet::Result(result) => return Ok(result),
+                    // A valid index of a typed array: a writable data
+                    // property (OrdinarySet).
+                    ExoticSet::Element => break,
+                    ExoticSet::Ordinary => {}
                 }
-                _ => {}
             }
             match self.own_property_of(record, key)? {
                 Some(Property::Data { writable, .. }) => {
@@ -446,13 +529,10 @@ impl Heap {
             return Ok(SetResult::Done(false));
         };
         let record = self.object(target)?;
-        if let ObjectKind::Proxy(_) = record.kind {
-            // A proxy receiver: its [[GetOwnProperty]] and
-            // [[DefineOwnProperty]] run traps.
-            return Ok(SetResult::Generic);
-        }
-        if self.string_unit_of(record, key)?.is_some() {
-            return Ok(SetResult::Done(false));
+        if record.kind.sets_exotic()
+            && let Some(result) = self.exotic_receiver(record, key)?
+        {
+            return Ok(result);
         }
         let done = match self.own_property_of(record, key)? {
             Some(
@@ -475,14 +555,20 @@ impl Heap {
     fn set_own_fast(&mut self, object: Gc<Object>, key: PropertyKey, value: Value) -> Result<bool> {
         match key {
             PropertyKey::Index(index) => {
-                match self.object_mut(object)?.elements.write_dense(index, value) {
+                let record = self.object_mut(object)?;
+                match record.elements.write_dense(index, value) {
                     DenseWrite::Done => Ok(true),
                     // §10.4.4.4: a mapped argument writes its parameter.
                     DenseWrite::Cell(cell) => {
                         self.cell_mut(cell)?.value = value;
                         Ok(true)
                     }
-                    DenseWrite::NotApplicable => Ok(false),
+                    DenseWrite::NotApplicable => {
+                        if let ObjectKind::TypedArray(_) = record.kind {
+                            return self.typed_set_fast(object, index, value);
+                        }
+                        Ok(false)
+                    }
                 }
             }
             PropertyKey::String(name)
@@ -586,11 +672,17 @@ impl Heap {
         self.charge_growth(object, before)
     }
 
-    /// [[Delete]] (§10.1.10).
+    /// [[Delete]] (§10.1.10; §10.4.5 for typed arrays).
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         let record = self.object(object)?;
-        if let ObjectKind::Proxy(_) = record.kind {
-            return Err(Error::invariant("a heap [[Delete]] of a proxy"));
+        match &record.kind {
+            ObjectKind::Proxy(_) => return Err(Error::invariant("a heap [[Delete]] of a proxy")),
+            ObjectKind::TypedArray(data) => {
+                if let Some(index) = self.numeric_index(key)? {
+                    return Ok(self.valid_index(data, index)?.is_none());
+                }
+            }
+            _ => {}
         }
         if self.string_unit_of(record, key)?.is_some() {
             return Ok(false);
@@ -650,8 +742,14 @@ impl Heap {
             .stored()
             .saturating_add(shape.entries(&self.arenas.key_lists)?.len())
             .saturating_add(1);
-        if let ObjectKind::StringWrapper(string) = record.kind {
-            count = count.saturating_add(self.string(string)?.len());
+        match &record.kind {
+            ObjectKind::StringWrapper(string) => {
+                count = count.saturating_add(self.string(*string)?.len());
+            }
+            ObjectKind::TypedArray(data) => {
+                count = count.saturating_add(self.typed_length(data)?.unwrap_or(0));
+            }
+            _ => {}
         }
         Ok(count)
     }
@@ -668,10 +766,18 @@ impl Heap {
         let record = self.object(object)?;
         let shape = self.arenas.shapes.get(record.shape)?;
         let entries = shape.entries(&self.arenas.key_lists)?;
-        if let ObjectKind::StringWrapper(string) = record.kind {
-            for index in 0..self.string(string)?.len() {
-                f(PropertyKey::Index(index as u32), true);
+        match &record.kind {
+            ObjectKind::StringWrapper(string) => {
+                for index in 0..self.string(*string)?.len() {
+                    f(PropertyKey::Index(index as u32), true);
+                }
             }
+            ObjectKind::TypedArray(data) => {
+                for index in typed_keys(self.typed_length(data)?)? {
+                    f(PropertyKey::Index(index), true);
+                }
+            }
+            _ => {}
         }
         record.elements.each_key(|index, enumerable| {
             f(PropertyKey::Index(index), enumerable);
@@ -691,10 +797,14 @@ impl Heap {
     /// (stops at the first one it finds).
     pub(crate) fn has_enumerable_string_key(&self, object: Gc<Object>) -> Result<bool> {
         let record = self.object(object)?;
-        if let ObjectKind::StringWrapper(string) = record.kind
-            && !self.string(string)?.is_empty()
-        {
-            return Ok(true);
+        match &record.kind {
+            ObjectKind::StringWrapper(string) if !self.string(*string)?.is_empty() => {
+                return Ok(true);
+            }
+            ObjectKind::TypedArray(data) if self.typed_length(data)?.unwrap_or(0) > 0 => {
+                return Ok(true);
+            }
+            _ => {}
         }
         let found = match &record.elements {
             Elements::Dense { count, .. } => *count > 0,
@@ -722,10 +832,17 @@ impl Heap {
         let count = self.own_key_bound(object)?;
         self.check_room(count.saturating_mul(size_of::<PropertyKey>()))?;
         keys.try_reserve(count)?;
-        if let ObjectKind::StringWrapper(string) = record.kind {
-            // §10.4.3.3 step 5: the indices of the string come first.
-            let length = self.string(string)?.len();
-            keys.extend((0..length).map(|index| PropertyKey::Index(index as u32)));
+        match &record.kind {
+            ObjectKind::StringWrapper(string) => {
+                // §10.4.3.3 step 5: the indices of the string come first.
+                let length = self.string(*string)?.len();
+                keys.extend((0..length).map(|index| PropertyKey::Index(index as u32)));
+            }
+            ObjectKind::TypedArray(data) => {
+                // §10.4.5: the indices of the elements come first.
+                keys.extend(typed_keys(self.typed_length(data)?)?.map(PropertyKey::Index));
+            }
+            _ => {}
         }
         record.elements.keys(&mut keys);
         if let ObjectKind::Array { .. } = record.kind {
@@ -733,13 +850,174 @@ impl Heap {
             // key.
             keys.push(PropertyKey::String(self.names.length));
         }
+        self.push_named_keys(entries, &mut keys);
+        Ok(keys)
+    }
+
+    /// The own keys of an object that its shape holds (the named
+    /// properties: strings, then symbols, each in creation order; no
+    /// elements, no `length` of an array). For `console.log` of a typed
+    /// array, whose elements it lists itself.
+    pub(crate) fn own_named_keys(&self, object: Gc<Object>) -> Result<Vec<PropertyKey>> {
+        let record = self.object(object)?;
+        let entries = self
+            .arenas
+            .shapes
+            .get(record.shape)?
+            .entries(&self.arenas.key_lists)?;
+        self.check_room(entries.len().saturating_mul(size_of::<PropertyKey>()))?;
+        let mut keys = Vec::new();
+        keys.try_reserve(entries.len())?;
+        self.push_named_keys(entries, &mut keys);
+        Ok(keys)
+    }
+
+    /// Appends the live string keys and then the symbol keys of shape
+    /// entries (Private Names are not properties, `private.rs`).
+    fn push_named_keys(
+        &self,
+        entries: &[crate::object::shape::ShapeEntry],
+        keys: &mut Vec<PropertyKey>,
+    ) {
         let live = entries.iter().filter(|entry| !entry.flags.deleted());
         keys.extend(live.clone().filter(|e| !e.key.is_symbol()).map(|e| e.key));
-        // Private Names are not properties (`private.rs`).
         keys.extend(
             live.filter(|e| e.key.is_symbol() && !self.is_private_key(e.key))
                 .map(|e| e.key),
         );
-        Ok(keys)
+    }
+}
+
+/// The indices of the elements of a typed array of `length` elements
+/// (none when it is out of bounds), as array indices. A typed array with
+/// 2^32 − 1 elements or more would need string keys; the list of its keys
+/// (16 bytes each) is far above any heap limit, so this is an internal
+/// error that the heap check before the list makes unreachable.
+fn typed_keys(length: Option<usize>) -> Result<std::ops::Range<u32>> {
+    let length = length.unwrap_or(0);
+    let end = u32::try_from(length)
+        .ok()
+        .filter(|&end| end < u32::MAX)
+        .ok_or(Error::invariant(
+            "a key list of a typed array beyond the array indices",
+        ))?;
+    Ok(0..end)
+}
+
+/// What a step of the heap's `[[Set]]` walk found at a proxy or a typed
+/// array.
+enum ExoticSet {
+    /// The result of `[[Set]]`.
+    Result(SetResult),
+    /// A valid element of a typed array that is not the receiver.
+    Element,
+    /// A key that the typed array treats as an ordinary property.
+    Ordinary,
+}
+
+impl Heap {
+    /// The `[[Get]]` walk at a proxy or typed array (`record`): `Generic`
+    /// for a proxy, the result for a numeric key of a typed array, `None`
+    /// for another key of a typed array (an ordinary property).
+    #[cold]
+    #[inline(never)]
+    fn exotic_get(&self, record: &Object, key: PropertyKey) -> Result<Option<GetResult>> {
+        match &record.kind {
+            ObjectKind::TypedArray(data) => match self.numeric_index(key)? {
+                Some(index) => Ok(Some(self.typed_get_result(data, index)?)),
+                None => Ok(None),
+            },
+            _ => Ok(Some(GetResult::Generic)),
+        }
+    }
+
+    /// The `[[Set]]` walk at a proxy or typed array `current` (§10.4.5:
+    /// for a numeric key, the receiver's own element converts the value,
+    /// which can run script code, so the runtime takes over; another
+    /// receiver sees a valid index as a writable data property and an
+    /// index that is not valid as a write that did nothing).
+    #[cold]
+    #[inline(never)]
+    fn exotic_set(
+        &self,
+        record: &Object,
+        current: Gc<Object>,
+        key: PropertyKey,
+        receiver: Value,
+    ) -> Result<ExoticSet> {
+        let data = match &record.kind {
+            ObjectKind::TypedArray(data) => data,
+            // A character of a String object: not writable.
+            ObjectKind::StringWrapper(_) if self.string_unit_of(record, key)?.is_some() => {
+                return Ok(ExoticSet::Result(SetResult::Done(false)));
+            }
+            ObjectKind::StringWrapper(_) => return Ok(ExoticSet::Ordinary),
+            _ => return Ok(ExoticSet::Result(SetResult::Generic)),
+        };
+        let Some(index) = self.numeric_index(key)? else {
+            return Ok(ExoticSet::Ordinary);
+        };
+        if receiver == Value::Object(current) {
+            // The fast path wrote the plain values.
+            return Ok(ExoticSet::Result(SetResult::Generic));
+        }
+        if self.valid_index(data, index)?.is_none() {
+            return Ok(ExoticSet::Result(SetResult::Done(true)));
+        }
+        Ok(ExoticSet::Element)
+    }
+
+    /// Step 3 of the heap's `[[Set]]` for a receiver that is a proxy (its
+    /// `[[GetOwnProperty]]` and `[[DefineOwnProperty]]` run traps), a
+    /// typed array with a numeric key (the definition converts the value)
+    /// or a String object with a character at the key (not writable): the
+    /// result; `None` for an ordinary property.
+    #[cold]
+    #[inline(never)]
+    fn exotic_receiver(&self, record: &Object, key: PropertyKey) -> Result<Option<SetResult>> {
+        Ok(match record.kind {
+            ObjectKind::Proxy(_) => Some(SetResult::Generic),
+            ObjectKind::TypedArray(_) if self.numeric_index(key)?.is_some() => {
+                Some(SetResult::Generic)
+            }
+            ObjectKind::StringWrapper(_) if self.string_unit_of(record, key)?.is_some() => {
+                Some(SetResult::Done(false))
+            }
+            _ => None,
+        })
+    }
+
+    /// The result of `[[Get]]` for a numeric index of a typed array: the
+    /// element, `undefined` for an index that is not valid, or `Generic`
+    /// for an element of a `BigInt` array (a new `BigInt`, which the
+    /// runtime allocates).
+    fn typed_get_result(&self, data: &TypedArrayData, index: f64) -> Result<GetResult> {
+        let Some(index) = self.valid_index(data, index)? else {
+            return Ok(GetResult::Value(Value::Undefined));
+        };
+        Ok(match self.typed_get(data, index)? {
+            Some(RawValue::Int(int)) => GetResult::Value(Value::Int(int)),
+            Some(RawValue::Number(number)) => GetResult::Value(Value::number(number)),
+            Some(RawValue::BigInt64(_) | RawValue::BigUint64(_)) => GetResult::Generic,
+            None => GetResult::Value(Value::Undefined),
+        })
+    }
+
+    /// The fast path of `[[Set]]` for an array index of a typed array that
+    /// is its own receiver, with a value that needs no conversion by the
+    /// runtime: the element is written if the index is valid, and the
+    /// result is true either way (`TypedArraySetElement`). False when the
+    /// fast path does not apply.
+    #[inline(never)]
+    fn typed_set_fast(&mut self, object: Gc<Object>, index: u32, value: Value) -> Result<bool> {
+        let ObjectKind::TypedArray(data) = &self.object(object)?.kind else {
+            return Ok(false);
+        };
+        let data = **data;
+        let Some(element) = self.plain_element(data.ty, value)? else {
+            return Ok(false);
+        };
+        self.typed_set(&data, index as usize, element)?;
+        Ok(true)
     }
 }

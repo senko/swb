@@ -368,6 +368,35 @@ const PROGRAMS: &[(&str, &str)] = &[
         "arraybuffer: 100k new ArrayBuffer(256) and slice",
         "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var b = new ArrayBuffer(256); n += b.slice(i & 127).byteLength; } return n; }",
     ),
+    (
+        "typed: sum a Float64Array of 1M elements",
+        "var f = new Float64Array(1000000); for (var i = 0; i < f.length; i++) f[i] = i * 0.5;
+         function run() { var s = 0; for (var i = 0; i < f.length; i++) { s += f[i]; } return s; }",
+    ),
+    (
+        "typed: fill a Uint8Array of 1M elements",
+        "var u = new Uint8Array(1000000);
+         function run() { for (var i = 0; i < 1000000; i++) { u[i] = i; } return u[999999]; }",
+    ),
+    (
+        "typed: Int32Array read-modify-write, 1M times",
+        "var a = new Int32Array(1024);
+         function run() { for (var i = 0; i < 1000000; i++) { a[i & 1023] = (a[i & 1023] + i) | 0; } return a[1023]; }",
+    ),
+    (
+        "array: fill an array of 1M elements",
+        "var w = []; for (var i = 0; i < 1000000; i++) w[i] = 0;
+         function run() { for (var i = 0; i < 1000000; i++) { w[i] = i & 255; } return w[999999]; }",
+    ),
+    (
+        "array: read-modify-write, 1M times",
+        "var b = []; for (var i = 0; i < 1024; i++) b[i] = 0;
+         function run() { for (var i = 0; i < 1000000; i++) { b[i & 1023] = (b[i & 1023] + i) | 0; } return b[1023]; }",
+    ),
+    (
+        "typed: 100k new Uint8Array(64) and subarray",
+        "function run() { var n = 0; for (var i = 0; i < 100000; i++) { var t = new Uint8Array(64); n += t.subarray(i & 31).length; } return n; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

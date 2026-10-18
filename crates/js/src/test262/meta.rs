@@ -88,8 +88,60 @@ fn negative(block: &[&str]) -> Option<Negative> {
 /// The subset: the groups to run and the features in scope.
 #[derive(Debug, Default)]
 pub(crate) struct Subset {
+    /// The `dir` lines: a group (`test/built-ins/Array`), or a directory
+    /// or file below a group (`test/built-ins/TypedArray/prototype/set`),
+    /// which selects only the tests at or below it.
     pub(crate) dirs: Vec<String>,
     pub(crate) features: BTreeSet<String>,
+}
+
+/// Whether a `dir` entry names a whole group (see [`super::run::group_of`])
+/// rather than a part of one.
+fn is_group(dir: &str) -> bool {
+    super::run::group_of(&format!("{dir}/x.js")) == dir
+}
+
+impl Subset {
+    /// Whether the subset selects the test at `path`: its group is a `dir`
+    /// entry, or the test is at or below an entry that names a part of a
+    /// group.
+    pub(crate) fn selects(&self, path: &str) -> bool {
+        let group = super::run::group_of(path);
+        self.dirs.iter().any(|dir| {
+            if is_group(dir) {
+                *dir == group
+            } else {
+                path == dir
+                    || path
+                        .strip_prefix(dir.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
+            }
+        })
+    }
+
+    /// The groups that the subset runs (the scores file has one count per
+    /// group, also for a group of which only a part runs).
+    pub(crate) fn groups(&self) -> Vec<String> {
+        let mut groups: Vec<String> = self
+            .dirs
+            .iter()
+            .map(|dir| {
+                if is_group(dir) {
+                    dir.clone()
+                } else {
+                    super::run::group_of(&format!("{dir}/x.js"))
+                }
+            })
+            .collect();
+        groups.sort();
+        groups.dedup();
+        groups
+    }
+
+    /// Whether `group` is one of [`Subset::groups`].
+    pub(crate) fn has_group(&self, group: &str) -> bool {
+        self.groups().iter().any(|g| g == group)
+    }
 }
 
 /// Parses the subset file: `dir PATH` and `feature NAME` lines; `#`
@@ -135,6 +187,37 @@ mod tests {
         assert_eq!(parse_meta("x = 1;"), Meta::default());
         let meta = parse_meta("/*---\nflags: []\n---*/");
         assert_eq!(meta, Meta::default());
+    }
+
+    /// A `dir` line can name a group or a part of one; the part counts
+    /// for its group.
+    #[test]
+    fn subset_parts_of_groups() {
+        let subset = parse_subset(
+            "dir test/built-ins/Map\ndir test/built-ins/T/prototype/set\n\
+             dir test/built-ins/T/name.js\ndir test/language/a/b\n",
+        );
+        assert!(subset.selects("test/built-ins/Map/x.js"));
+        assert!(subset.selects("test/built-ins/Map/prototype/get/x.js"));
+        assert!(subset.selects("test/built-ins/T/prototype/set/x.js"));
+        assert!(subset.selects("test/built-ins/T/prototype/set/deep/x.js"));
+        assert!(subset.selects("test/built-ins/T/name.js"));
+        assert!(!subset.selects("test/built-ins/T/prototype/setter/x.js"));
+        assert!(!subset.selects("test/built-ins/T/prototype/at/x.js"));
+        assert!(!subset.selects("test/built-ins/T/length.js"));
+        assert!(subset.selects("test/language/a/b/x.js"));
+        assert!(subset.selects("test/language/a/b/c/x.js"));
+        assert!(!subset.selects("test/language/a/x.js"));
+        assert_eq!(
+            subset.groups(),
+            [
+                "test/built-ins/Map",
+                "test/built-ins/T",
+                "test/language/a/b"
+            ]
+        );
+        assert!(subset.has_group("test/built-ins/T"));
+        assert!(!subset.has_group("test/built-ins/T/prototype/set"));
     }
 
     #[test]

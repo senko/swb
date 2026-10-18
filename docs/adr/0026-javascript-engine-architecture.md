@@ -343,7 +343,10 @@ then string keys and then symbols, each in insertion order
 
 **Exotic objects** (memo 3.4). The object kind is an enum. The fast
 paths handle ordinary objects and arrays; all other kinds go through one
-`match` per internal method (§10.1, §10.4, §10.5). Host classes (section
+`match` per internal method (§10.1, §10.4, §10.5); the walks of
+`[[Get]]`, `[[Set]]` and `[[HasProperty]]` test one predicate for the
+kinds that need their own step (proxies and typed arrays, section 15,
+feature 11b). Host classes (section
 12) provide functions for any of the internal methods. This covers the
 WebIDL legacy platform objects, `WindowProxy` and `document.all`
 (Annex B.3.6). Proxy implements all internal methods with the invariant
@@ -513,9 +516,9 @@ reservation is a safepoint: it collects when the request would pass the
 threshold or the limit, then checks the limit again. If the request
 still does not fit, or if a safepoint finds the heap over the limit
 after a collection, the script ends (termination, section 5); only the
-bytes of an `ArrayBuffer` are a `RangeError` instead, as
-`CreateByteDataBlock` says, already above 90 % of the limit (section
-15, feature 11a). The
+bytes of an `ArrayBuffer` (also the buffer that a typed array makes) are
+a `RangeError` instead, as `CreateByteDataBlock` says, already above 90 %
+of the limit (section 15, features 11a and 11b). The
 reservation happens before the operation creates new handles that are
 not yet rooted. Buffers grow with fallible reservation (`try_reserve`).
 
@@ -543,7 +546,7 @@ Content from the network must never crash or hang the browser.
 | String length | About 2^29 code units (measured). | `RangeError` |
 | Regular expressions | Steps polled with the time check; backtrack stack counted in the heap; limits for pattern nesting, program size and capture count. | Termination or `SyntaxError` |
 | `BigInt` size | A limit of 2^18 bits, checked before the work (section 7). | `RangeError` |
-| `ArrayBuffer` length | V8's limit (2^35 − 1 bytes; `maxByteLength` 2^35 − 4096) and the heap limit, checked before the allocation; zero-fills and copies charged to the time countdown (section 15). | `RangeError` |
+| `ArrayBuffer` and typed array length | V8's limit (2^35 − 1 bytes; `maxByteLength` 2^35 − 4096) and the heap limit, checked before the allocation; zero-fills and copies charged to the time countdown, element loops of the typed array natives one step per element (section 15). | `RangeError` |
 
 Stack size: every thread that runs JavaScript must have a stack of at
 least 8 MiB. Threads that swb creates for scripts (and the threads of
@@ -2519,6 +2522,116 @@ where the first plan did not work:
   implementation. `console.log` of a `DataView` whose buffer is
   detached or that is out of bounds prints `(detached)` or
   `(out of bounds)` (Node.js 22 fails with an internal assertion).
+
+- Typed arrays (feature 11b; `object/typed_array.rs`,
+  `vm/typed_array.rs`, `builtins/typed_array.rs`,
+  `typed_array_create.rs`, `typed_array_proto.rs`). One object kind,
+  `ObjectKind::TypedArray`, holds the slots of §23.2.7: the `BufferView`
+  of 11a (buffer, byte offset, a fixed byte length or `None` when
+  `[[ByteLength]]` and `[[ArrayLength]]` are `auto`) and the element type,
+  which gives `[[TypedArrayName]]` and `[[ContentType]]`. The slots never
+  change, so a copy of them stays right while script code runs; the
+  object traces its buffer. The elements are little endian. The value
+  representation is unchanged (section 7).
+- The exotic internal methods (§10.4.5): a canonical numeric key (an
+  array index, or a string for which `ToString(ToNumber(s))` is `s`, or
+  "-0") is an element or no property and never a stored one, so the
+  object's own element storage stays empty and `"-0"`, `"1.5"`, `"NaN"`
+  never walk the prototype chain. `CanonicalNumericIndexString` parses
+  only strings that start like a Number's text. The heap answers all
+  that runs no script code (`[[GetOwnProperty]]` and `[[Get]]` of the
+  Number types, `[[HasProperty]]`, `[[Delete]]`, `[[OwnPropertyKeys]]`,
+  `[[PreventExtensions]]`, which refuses for an array on a resizable
+  buffer, the checks of `[[DefineOwnProperty]]`); the conversions of
+  `TypedArraySetElement` (`ToNumber`, `ToBigInt`) and the elements of the
+  `BigInt` arrays (new `BigInt`s) go to the runtime through the
+  `Generic` results of the walks, as for proxies. The value is converted
+  first and written only if the index is still valid then.
+- Speed: the walks of `[[Get]]`, `[[Set]]` and `[[HasProperty]]` test one
+  predicate (`ObjectKind::walks_exotic`, `sets_exotic`: the variants
+  `StringWrapper`, `Proxy` and `TypedArray` are adjacent, one comparison)
+  and handle these kinds out of line; `[[Set]]` keeps its fast path of an
+  own writable property in a short function and walks out of line. A
+  read `ta[i]` with an integer index takes the element in
+  `get_with_receiver`, a write of a Number (or a `BigInt` to a `BigInt`
+  array) in the fast path of `[[Set]]` after the dense write fails. A
+  read of `ta.length` whose getter is the built-in one gives the length
+  without the call. Callgrind against cc701dd: an `Array` element read
+  loop +0.7 % instructions, an element write loop +0.7 %, a
+  read-modify-write loop +0.7 %, `o.x = o.x + o.y` +0.3 % (first
+  versions were up to +7.7 %: the check of the kind before the tail call
+  of `named_property` must not re-wrap the result, and the typed paths
+  must stay out of line).
+- Creation (§23.2.5): the steps run in the specification's order (the
+  `prototype` of `new.target` before the source is read); the new array
+  gets its buffer when it is made and its elements are converted one by
+  one into it, which no script code can reach before the constructor
+  returns. An iterable source goes through `IteratorToList` into an
+  internal array (no prototype) first, as the specification says; an
+  Array Iterator with the built-in `next` over an array without holes is
+  copied at once. `TypedArraySpeciesCreate` with the default
+  constructor (the `constructor` and the inherited `@@species` getter of
+  `%TypedArray%` are the built-in ones) makes the array without the call;
+  `Runtime::species_constructor` now recognizes the built-in getter
+  anywhere on the constructor's chain (also for subclasses of
+  `ArrayBuffer`).
+- Copies: `set` of the same element type copies the bytes (`memmove`
+  within one buffer), of another type converts element by element (from
+  a copy of the source bytes when both views share a buffer:
+  `CloneArrayBuffer`); `slice` copies forward byte by byte within one
+  buffer, as the specification says (a species view of the same buffer
+  sees the bytes it wrote; measured in Chromium). Bulk copies and
+  conversions charge one step per 128 bytes; loops over array-like and
+  iterable sources, `from` with a mapping function and `set` from an
+  array-like take one step per element.
+- Limits: a byte length above V8's 2^35 − 1 is "Invalid typed array
+  length: N" (measured: `new Float64Array(2 ** 32)` fails,
+  `new Uint8Array(2 ** 35 - 1)` is "Array buffer allocation failed");
+  offsets and lengths up to 2^53 − 1 are checked with checked arithmetic.
+  `Object.keys` and the other key lists of a large array reserve their
+  size first and end at the heap limit.
+- Messages are V8's (measured in Chromium 148, `tools/probes/js-typed.json`),
+  which differ between methods for the same check (`set` and the
+  iterator methods "this is not a typed array.", `slice` and `subarray`
+  "Method … called on incompatible receiver"; `keys` "on a detached
+  ArrayBuffer", `values` "on a detached or out-of-bounds ArrayBuffer").
+  A typed array's text in messages is `[object Uint8Array]` (an own
+  `@@toStringTag` data string in place of the name, `#<Constructor>` when
+  the chain does not reach a `%TypedArray.prototype%`); objects that
+  inherit from `%TypedArray.prototype%` are `[object Object]`, as for
+  `RegExp.prototype`. "Cannot set property x of Y which has only a getter"
+  names the object that holds the accessor (`#<A>` for an instance of a
+  subclass of `A`; measured), not the receiver. `Object.freeze` and
+  `Object.seal` of an array with elements: "Cannot freeze array buffer
+  views with elements"; of an array that tracks a resizable buffer:
+  "Cannot freeze".
+- Differences from Chromium 148 (KNOWN; 887 of the 901 measured snippets
+  are a test, 10 need the methods of 11c and 4 are these): `Object.isSealed`
+  of a non-extensible typed array with elements is false (the elements
+  are configurable, §10.4.5; V8 answers true); an Array Iterator whose
+  step threw stays finished (GeneratorStart; V8 lets the iterator of a
+  typed array go on after its `TypeError`); `subarray` of a
+  length-tracking array with `end` undefined passes two arguments to the
+  species constructor (§23.2.3.30; V8 passes a third, `undefined`);
+  `new T(typedArray)` reads the source's length after the `prototype`
+  getter of `new.target` (§23.2.5.1 step 6.b; V8 reads it before, so a
+  getter that shrinks the source makes V8 copy elements past its end; 8
+  lines of the callback cases of `typed_hostile.rs`). Found in the
+  review, not in the snippets: a replaced `%TypedArray%[@@species]`
+  getter runs (`SpeciesConstructor`, §7.3.22); V8 does not call it.
+- Copies of 0 bytes check no range: a conversion in `slice` can shrink
+  a length-tracking array to no element after the new array exists, and
+  the copy then has nothing to do (the review found an internal error
+  there; `copy_between_buffers` returns at once for 0 bytes).
+- `console.log` prints a typed array as Node.js 22 does
+  (`Uint8Array(3) [ 1, 2, 3 ]`, `X(2) [Uint8Array] [ 0, 0 ]` for a
+  subclass, `[Uint8Array(2): null prototype]`, `5n`, `Uint8Array(0) []`
+  when detached or out of bounds, the other enumerable properties after
+  the elements, at most 100 elements), without the columns of arrays of
+  more than six elements (as for arrays).
+- The methods `at` … `toString` of `%TypedArray%.prototype` come with
+  feature 11c: `typed_array_proto.rs` lists them in Chromium 148's key
+  order with `None` in place of their natives.
 
 ## Consequences
 
