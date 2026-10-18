@@ -4,6 +4,15 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-18: rustls 0.23.46
+
+- `just audit` reported three advisories for rustls 0.23.45
+  (RUSTSEC-2026-0346, 0347, 0348). None affects swb: it has no custom
+  session store, no ECH and not the `brotli` feature. 0.23.46 fixes all
+  three; only `Cargo.lock` changes.
+- One informational advisory remains: `ttf-parser`, through winit, is
+  unmaintained (backlog).
+
 ## 2026-10-18: M7 feature 10b, BigInt in the language; end of feature 10
 
 - Scripts can use `BigInt`. Literals are constants of the code object

@@ -2202,6 +2202,14 @@ not repeated here; the open items of each spike session are in M6 step
     242 MiB. A collection is not interrupted at the deadline: a loop
     that keeps rejected promises ends up to 170 ms after a 600 ms
     `--time-limit`, also with Numbers.
+- Dependencies (2026-10-18): `ttf-parser` is unmaintained
+  (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
+  not use it; winit's Wayland title bar (`sctk-adwaita`, through
+  `ab_glyph`) does. Options: a winit release without it, or winit
+  without the feature `wayland-csd-adwaita` (then a compositor without
+  server-side decorations, such as GNOME, shows no title bar). `just
+  check` runs the offline subset of `cargo deny`; run `just audit` at
+  each milestone end.
 
 ## Backlog from M5
 
