@@ -263,10 +263,12 @@ fn parse_function(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn>
 /// `crate::date::parse`), with `UTC(t)` for a local time.
 fn parse_text(rt: &mut Runtime, string: Gc<JsString>) -> VmResult<f64> {
     let text = rt.flat_text(string)?;
-    // The parsers stop at the first unit that does not fit, so the work
-    // does not grow with the length of the text; a rope flattens (and is
-    // charged) first.
-    let Some(parsed) = parse::parse(text) else {
+    // The exact parsers stop at the first unit that does not fit; the
+    // reader of the other forms scans the text once, and the scan is
+    // charged. A rope flattens (and is charged) first.
+    let (parsed, scanned) = parse::parse_with_cost(text);
+    rt.charge_units(scanned)?;
+    let Some(parsed) = parsed else {
         return Ok(f64::NAN);
     };
     let time = if parsed.local {

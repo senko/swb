@@ -4,6 +4,8 @@
 //! without `Intl` (their arguments are ignored; ECMA-402 is outside M7).
 //! The formats themselves are in `crate::date::format`.
 
+use std::borrow::Cow;
+
 use crate::date::format;
 use crate::date::time_value::{Fields, fields};
 use crate::runtime::Runtime;
@@ -40,7 +42,7 @@ fn text_of(
 }
 
 /// The local fields of the UTC time `t` with the offset and the zone name.
-fn local(rt: &mut Runtime, t: i64) -> (Fields, i64, String) {
+fn local(rt: &mut Runtime, t: i64) -> (Fields, i64, Cow<'static, str>) {
     let zone = rt.vm.time.zone();
     let offset = zone.offset_at_utc(t);
     (fields(t + offset), offset, zone.display_name_at_utc(t))
@@ -57,7 +59,8 @@ pub(super) fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeR
 /// `Date.prototype.toDateString()` (§21.4.4.35).
 pub(super) fn to_date_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     text_of(rt, call, "toDateString", |rt, t| {
-        format::date_string(&local(rt, t).0)
+        let zone = rt.vm.time.zone();
+        format::date_string(&fields(t + zone.offset_at_utc(t)))
     })
 }
 

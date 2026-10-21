@@ -290,6 +290,32 @@ Format: source, license (for code), what it influenced.
   order and the messages were measured in Chromium 148 in seven time
   zones (`just probe` `tools/probes/js-date.json`), no engine code read.
   ADR 0027.
+- `Date.parse` beyond the spec formats (M7 feature 12b,
+  `js/src/date/iso_variants.rs`, `written.rs`): written from RFC 5322
+  §3.2.2, §3.3 and §4.3 (the date, the obsolete syntax, the zone names,
+  comments), RFC 850 §2.1.2 and RFC 1036 §2.1.2 (`DD-Mon-YY`), ISO C
+  `asctime` and RFC 9110 §5.6.7 (the three HTTP date formats), RFC 3339
+  §5.6 (a space for `T`, lower case `t` and `z`), ISO 8601-1 (decimal
+  fractions, offsets) and ECMA-262 §21.4.1.32. Every other rule
+  (separators, optional parts, ranges, two-digit years, the year of a
+  date without one, a day past the month end, local time or UTC, what
+  is NaN) was measured in Chromium 148 (`just probe`,
+  `tools/probes/js-date.json`); no engine or browser code was read, and no
+  design of any engine's parser was used (ADR 0025; a first version was
+  withdrawn for this reason). ADR 0027.
+- Zone names (M7 feature 12b, `zone_names.rs`, `zone.rs`,
+  `tools/swbtools/js_time_zone_names.py`): ES5.1 §15.9.1.8 (an
+  equivalent year for the daylight saving time), UTS #35 part 4 ("Using
+  Time Zone Names", "Metazones": the rules for the long names and the
+  localized GMT format) and the data of the Unicode CLDR 48 (`en.xml`,
+  `metaZones.xml`, `bcp47/timezone.xml`; Unicode License v3,
+  `THIRD_PARTY_NOTICES.md`). Chromium's use of the metazone of the
+  present time was measured with 484 zones in Chromium 148, and its
+  table of 14 equivalent years (one per weekday of January 1 and leap
+  year) with seven zones whose rules change from year to year
+  (`just probe`, `tools/probes/js-date.json`, groups `names-years`,
+  `names-edge`); no source of any engine, browser or ICU was read. ADR
+  0027.
 - Unicode (M7 feature 5d, `js-text/src/unicode/case.rs`, `normalize.rs`,
   `collate.rs`, `tools/swbtools/js_case_tables.py`, `js_norm_tables.py`),
   written from the Unicode Standard 17.0 and no library read: chapter 3

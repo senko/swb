@@ -21,6 +21,7 @@ use swb_js_text::Str16;
 // the week follows from the date.
 use super::format::{MONTHS, WEEKDAYS};
 use super::time_value::{days_in_month, make_date, make_day, make_time};
+use super::{iso_variants, written};
 
 /// What a string means: the time value of the fields (UTC, with an offset
 /// in the text already applied), and whether the fields are in local time,
@@ -34,27 +35,39 @@ pub(crate) struct Parsed {
     pub(crate) local: bool,
 }
 
-/// The meaning of `text` in the forms of this feature, or `None`.
-pub(crate) fn parse(text: Str16<'_>) -> Option<Parsed> {
-    parse_iso(text)
+/// [`parse`], and the number of units that the reader of Chromium's other
+/// forms scanned (0 when one of the exact forms fits or ends at once): the
+/// caller charges them against the time limit.
+pub(crate) fn parse_with_cost(text: Str16<'_>) -> (Option<Parsed>, usize) {
+    if let Some(parsed) = parse_iso(text)
         .or_else(|| parse_to_string(text))
         .or_else(|| parse_to_utc_string(text))
-        .or_else(|| parse_fallback(text))
+    {
+        return (Some(parsed), 0);
+    }
+    parse_fallback(text)
 }
 
-/// The place for Chromium's other forms (feature 12b). Today none.
-fn parse_fallback(_text: Str16<'_>) -> Option<Parsed> {
-    None
+/// Chromium's other forms (ADR 0027 section 5a): the variants of ISO 8601
+/// ([`super::iso_variants`]), then the written forms
+/// ([`super::written`]). The second number is the units looked at.
+fn parse_fallback(text: Str16<'_>) -> (Option<Parsed>, usize) {
+    let (parsed, scanned) = iso_variants::parse(text);
+    if parsed.is_some() {
+        return (parsed, scanned);
+    }
+    let (parsed, more) = written::parse(text);
+    (parsed, scanned + more)
 }
 
 /// A position in the text with the readers of fixed-width pieces.
-struct Cursor<'a> {
-    text: Str16<'a>,
-    at: usize,
+pub(super) struct Cursor<'a> {
+    pub(super) text: Str16<'a>,
+    pub(super) at: usize,
 }
 
 impl<'a> Cursor<'a> {
-    fn new(text: Str16<'a>) -> Self {
+    pub(super) fn new(text: Str16<'a>) -> Self {
         Cursor { text, at: 0 }
     }
 
@@ -65,12 +78,12 @@ impl<'a> Cursor<'a> {
             .and_then(|unit| u8::try_from(unit).ok())
     }
 
-    fn at_end(&self) -> bool {
+    pub(super) fn at_end(&self) -> bool {
         self.at >= self.text.len()
     }
 
     /// Takes the ASCII character `ch` if it is next.
-    fn eat(&mut self, ch: u8) -> bool {
+    pub(super) fn eat(&mut self, ch: u8) -> bool {
         if self.peek() == Some(ch) {
             self.at += 1;
             true
@@ -96,7 +109,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Takes exactly `count` ASCII decimal numerals.
-    fn numeral(&mut self, count: usize) -> Option<i64> {
+    pub(super) fn numeral(&mut self, count: usize) -> Option<i64> {
         let mut value = 0_i64;
         for i in 0..count {
             let unit = self.text.get(self.at + i)?;
@@ -131,7 +144,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Takes `+` (1) or `-` (-1).
-    fn sign(&mut self) -> Option<i64> {
+    pub(super) fn sign(&mut self) -> Option<i64> {
         if self.eat(b'+') {
             Some(1)
         } else if self.eat(b'-') {
@@ -143,7 +156,7 @@ impl<'a> Cursor<'a> {
 }
 
 /// The time value of the fields and whether they are local.
-fn time_of(
+pub(super) fn time_of(
     (year, month, day): (i64, i64, i64),
     (hour, minute, second, ms): (i64, i64, i64, i64),
     offset_minutes: Option<i64>,
@@ -340,9 +353,14 @@ fn parse_to_utc_string(text: Str16<'_>) -> Option<Parsed> {
 mod tests {
     use super::*;
 
+    /// The meaning in the exact forms.
     fn time(text: &str) -> Option<(f64, bool)> {
         let units: Vec<u16> = text.encode_utf16().collect();
-        parse(Str16::Wide(&units)).map(|p| (p.time, p.local))
+        let text = Str16::Wide(&units);
+        parse_iso(text)
+            .or_else(|| parse_to_string(text))
+            .or_else(|| parse_to_utc_string(text))
+            .map(|p| (p.time, p.local))
     }
 
     #[test]

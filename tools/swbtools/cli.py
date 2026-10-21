@@ -9,6 +9,7 @@ from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.hostile import hostile
+from swbtools.js_time_zone_names import write_data as write_js_time_zone_names
 from swbtools.js_unicode_tables import write_tables as write_js_unicode_tables
 from swbtools.jsbench import jsbench
 from swbtools.jsdiff import jsdiff
@@ -131,6 +132,10 @@ def cmd_linebreak_tables(args: argparse.Namespace) -> int:
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
     return write_js_unicode_tables()
+
+
+def cmd_js_time_zone_names(args: argparse.Namespace) -> int:
+    return write_js_time_zone_names()
 
 
 def cmd_substitute(args: argparse.Namespace) -> int:
@@ -326,6 +331,12 @@ def build_parser() -> argparse.ArgumentParser:
         "js-unicode-tables", help="write crates/js-text/src/unicode/tables.rs (UCD)"
     )
     p.set_defaults(func=cmd_js_unicode_tables)
+
+    p = commands.add_parser(
+        "js-time-zone-names",
+        help="write crates/js/src/date/zone_names_data.rs (CLDR time zone names)",
+    )
+    p.set_defaults(func=cmd_js_time_zone_names)
 
     p = commands.add_parser(
         "substitute",

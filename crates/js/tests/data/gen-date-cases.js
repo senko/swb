@@ -14,7 +14,8 @@
 // The snippet file has one snippet per line; a line that starts with `#`
 // is a comment, and a line `## NAME` starts a group. A group runs in
 // every zone of ZONES; `## NAME @ Zone/A, Zone/B` runs it in those zones
-// only. A snippet line that starts with `!known ` (swb differs from
+// only (also EXTRA_ZONES, which no other group uses). A snippet line that
+// starts with `!known ` (swb differs from
 // Chromium on purpose, ADR 0026 section 15) or `!later ` (Chromium's
 // forms of feature 12b) goes to the probe file but not to the script of
 // swb-js. Each group becomes one probe case per zone (or several, of at
@@ -63,6 +64,29 @@ const RUN = 'for (const s of SNIPPETS) { let r; try { r = "ok " + show((0, eval)
   'catch (e) { r = "err " + (e && e.constructor && e.constructor.name) + ": " + (e && e.message); } ' +
   '$out.push(s + " => " + r); }';
 
+// More zones, for the groups that name them with `@`: the zone names of
+// feature 12b (negative saving time in Dublin, a zone with names of its own
+// in London, a zone with no name in CLDR now, a 45-minute offset, a zone
+// whose database form differs from ICU's; the last six: zones whose rules
+// differ from year to year, for the equivalent year of the names).
+const EXTRA_ZONES = [
+  'Europe/London',
+  'Europe/Dublin',
+  'America/Los_Angeles',
+  'America/Argentina/Buenos_Aires',
+  'Asia/Kathmandu',
+  'Africa/Casablanca',
+  'Africa/Windhoek',
+  'Antarctica/Troll',
+  'Asia/Almaty',
+  'Africa/Cairo',
+  'America/Sao_Paulo',
+  'Asia/Tehran',
+  'Asia/Amman',
+  'America/Santiago',
+  'Pacific/Fiji',
+];
+
 const slug = zone => zone.replace(/[^A-Za-z0-9]+/g, '_').toLowerCase();
 
 function readGroups(file) {
@@ -94,7 +118,7 @@ function probe(snippetsFile, out) {
   for (const group of readGroups(snippetsFile)) {
     const texts = group.snippets.map(s => parseSnippet(s).text);
     for (const zone of group.zones) {
-      if (!ZONES.includes(zone)) throw new Error('unknown zone ' + zone);
+      if (!ZONES.includes(zone) && !EXTRA_ZONES.includes(zone)) throw new Error('unknown zone ' + zone);
       for (let i = 0; i < texts.length; i += PER_CASE) {
         const part = texts.slice(i, i + PER_CASE);
         const js = `(() => { const $out = []; ${SHOW.replace(/\n\s*/g, ' ')} ` +
@@ -128,11 +152,11 @@ function cases(input, snippetsFile, outDir) {
   const result = JSON.parse(fs.readFileSync(input, 'utf8'));
   const skip = marks(snippetsFile);
   const byZone = {};
-  for (const zone of ZONES) byZone[zone] = { snippets: [], expected: [] };
+  for (const zone of [...ZONES, ...EXTRA_ZONES]) byZone[zone] = { snippets: [], expected: [] };
   let nLater = 0;
   let nKnown = 0;
   for (const c of result.cases) {
-    const zone = ZONES.find(z => c.name.includes('-' + slug(z) + '-'));
+    const zone = [...ZONES, ...EXTRA_ZONES].find(z => c.name.includes('-' + slug(z) + '-'));
     if (!zone) throw new Error('no zone in ' + c.name);
     for (const r of c.results) {
       if (r.kind !== 'js' || !Array.isArray(r.value)) throw new Error('bad result in ' + c.name);
@@ -153,7 +177,7 @@ function cases(input, snippetsFile, outDir) {
   const all = [];
   const index = new Map();
   const lists = {};
-  for (const zone of ZONES) {
+  for (const zone of [...ZONES, ...EXTRA_ZONES]) {
     lists[zone] = byZone[zone].snippets.map((text) => {
       if (!index.has(text)) { index.set(text, all.length); all.push(text); }
       return index.get(text);
@@ -169,12 +193,12 @@ function cases(input, snippetsFile, outDir) {
       'var $out = { push: print };\n' + RUN + '\n',
   );
   let total = 0;
-  for (const zone of ZONES) {
+  for (const zone of [...ZONES, ...EXTRA_ZONES]) {
     fs.writeFileSync(path.join(outDir, `date_cases_${slug(zone)}.expected`),
       byZone[zone].expected.join('\n') + '\n');
     total += byZone[zone].snippets.length;
   }
-  console.log(`date_cases: ${total} snippets in ${ZONES.length} zones ` +
+  console.log(`date_cases: ${total} snippets in ${ZONES.length + EXTRA_ZONES.length} zones ` +
     `(${nKnown} known, ${nLater} later left out)`);
 }
 

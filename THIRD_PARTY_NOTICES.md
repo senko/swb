@@ -245,7 +245,7 @@ Fonts in the fixtures:
   was written for swb (boxes as glyphs, no third-party outlines; CC0 1.0),
   with the script that makes it.
 
-## Unicode Character Database (Unicode License v3)
+## Unicode Character Database and Unicode CLDR (Unicode License v3)
 
 The tables of the JavaScript engine (`crates/js-text/src/unicode/`) and of
 line breaking (`crates/text/src/linebreak/tables.rs`) are generated from
@@ -253,7 +253,15 @@ files of the Unicode Character Database 17.0.0
 (https://www.unicode.org/Public/17.0.0/ucd/, and, for the emoji sequences
 of the sets of `\p{...}`, https://www.unicode.org/Public/17.0.0/emoji/), and
 `crates/js-text/tests/data/normalization_sample.txt` is a sample of its
-`NormalizationTest.txt`. The header of each file says:
+`NormalizationTest.txt`. The English time zone names of `Date`
+(`crates/js/src/date/zone_names_data.rs`) are generated from three files of
+the Unicode Common Locale Data Repository (CLDR) 48
+(https://unicode.org/Public/cldr/48/cldr-common-48.zip: `common/main/en.xml`,
+`common/supplemental/metaZones.xml`, `common/bcp47/timezone.xml`); their
+headers say "Copyright © 1991-2025 Unicode, Inc. For terms of use, see
+http://www.unicode.org/copyright.html" and (`en.xml`)
+"SPDX-License-Identifier: Unicode-3.0", the same license as the UCD. The
+header of each file of the UCD says:
 
 > © 2025 Unicode®, Inc.
 > Unicode and the Unicode Logo are registered trademarks of Unicode, Inc.

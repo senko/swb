@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-21: M7 feature 12b, Date.parse forms and zone names; end of feature 12
+
+- The first session's reader of `Date.parse` matched Chromium on
+  130,000 texts, but its design (an ISO phase, a token scanner with a
+  keyword table, a digit limit, objects that compose the day, the clock
+  and the zone) and the equivalent-year formula came from the author's
+  memory of V8's source. Recalled engine code counts as read code (ADR
+  0025), so the owner chose a rewrite, as in feature 4. The CLDR zone
+  names of that session stayed; the reader was removed before the
+  second session started, and its scratch work was not given to it.
+- The second reader is a grammar of named forms, each with a source:
+  ISO 8601 and RFC 3339 for the ISO variants, RFC 5322 (with the
+  two-digit year rule of section 4.3), RFC 850, `asctime`, and probes
+  in Chromium 148 for the written English and numeric forms. Texts
+  outside the forms are NaN. On about 600,000 compared texts swb never
+  gives a value where Chromium gives NaN or another value; the cost of
+  the rewrite is NaN for Chromium's quirks (a number alone, minute 60,
+  stray tokens): 501 snippets KNOWN in six classes.
+- Zone names: Chromium takes the metazone of the present, not of the
+  printed date, and decides the saving flag outside 1970 to 2038 at an
+  equivalent year. The years were measured with seven zones whose rules
+  change from year to year: one year fits each of the 14 kinds of year.
+- test262 runtime unchanged (40,286); the targets behave as before.
+- Review: one defect, fixed: a non-ASCII unit glued to the date in the
+  free text gave a value where Chromium gives NaN (`ĀJul 1 2024`). Probes
+  showed that Chromium counts non-ASCII units as word characters, skips
+  every word but a month before the first number (also `GMT`, `PM`,
+  `T`), and reads a signed six-digit year only at the very start of the
+  text. swb now does the same; a leftover keyword `T` and a number cap
+  that looked like the withdrawn design are gone. About 260,000 texts
+  compared again: no value where Chromium has NaN, no different value.
+
 ## 2026-10-18: M7 feature 12a, Date
 
 - Feature 12 (`Date`) is split into two sessions: 12a the time values

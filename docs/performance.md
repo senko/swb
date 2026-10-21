@@ -734,16 +734,39 @@ offset of a UTC time is a binary search in `jiff`'s transitions. The cost
 of the rows without a zone is the call, the object and the property
 lookup (`new Date` and `Date.now` are two to three times `node
 --jitless`, like other calls: feature 13). `toString` allocates the
-abbreviation of the zone and the text; 12b replaces the abbreviation with
-a table of names. The row `new Date(y, m, d)` includes `UTC(t)`: one
+abbreviation of the zone and the text (12b: a table of names). The row `new Date(y, m, d)` includes `UTC(t)`: one
 `jiff` lookup of a local time. No interpreter path changed in 12a; the
 new object kind adds one arm to the matches of `ObjectKind`.
 
-Hostile cases (`date_hostile.rs`, debug build): `Date.parse` of a string
-of 100 M units does not scan it (the parsers stop at the first wrong unit); loops of parses and of
-every string form end within the slack of a 300 ms deadline.
+Hostile cases (`date_hostile.rs`, debug build): the exact parsers stop at
+the first wrong unit; the readers of the other forms (12b) look at each
+unit at most once and the units are charged against the time limit, so
+loops of parses of 1 M-unit texts and of every string form end within the
+slack of a 300 ms deadline.
 `swb-js` grows by 310 KB (4.35 MB to 4.66 MB stripped) with `jiff`
 (ADR 0027).
+
+12b (2026-10-21; best of 3, release, `swb-js` shell, zone Europe/Berlin,
+a build of 17646c1 (12a) against the build of 12b, same session, 1M
+calls): `toString` 551 ms before, 593 ms after (+8%: the text is 20 to
+30 bytes longer; the name is a `&'static str` from a table, no
+allocation, and the saving flag of a time from 1970 to 2038-01-19 costs
+no second lookup; outside that range it costs the equivalent year and
+one more `jiff` lookup: 616 ms for a date in 1800). `toDateString` no
+longer computes the zone name. `Date.parse` (the exact form before, the
+written forms after): `Jan 1 2000 5:06 PM EST` 285 ms (a form that 12a
+rejected in 148 ms), `7/1/2024, 1:05:09 PM` 335 ms, `2024-07-01
+17:06:07` 347 ms (153 ms before: NaN), `Mon, 01 Jul 2024 11:05:09 GMT`
+195 ms (185 ms before, the exact form for `toUTCString`), the ISO form
+`2024-07-01T17:06:07Z` 195 ms (179 ms), a text of words 219 ms (NaN in
+150 ms before). A text of 10 M units of free text before a date: 29 ms;
+50 M units of one word after a date: 29 ms; 100 M digits: 138 ms (15 ms
+before): one pass, no memory grows. The zone name of a zone without a
+CLDR name builds the text `GMT+01:00` for each call (one allocation).
+`swb-js` grows by 56 KB stripped (4,660,272 to 4,715,872 bytes): 19 KB
+of CLDR data, the table of names and the two readers. `vm_bench`, same
+session, Europe/Zagreb: `toString` 659.1 ms, `Date.parse` of a local
+time string 215.2 ms, of an ISO string 171.1 ms.
 
 ### BBC scripts (M6 spike)
 

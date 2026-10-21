@@ -1937,6 +1937,25 @@ failures with a reason. Features, in this order:
       such as "Central European Summer Time": English names from CLDR
       under the Unicode license if the data is small, otherwise
       KNOWN).
+      Done 2026-10-21, in two sessions: the reader of the first session
+      was withdrawn because its design came from the author's memory of
+      V8's date parser (ADR 0025); the second session wrote a grammar
+      of named forms with sources. `Date.parse` reads the variants of
+      ISO 8601 that the date time string format does not take, RFC 5322
+      and its obsolete syntax, RFC 850, `asctime`, English and numeric
+      dates with a clock and a zone, and the en-US `toLocale*String`
+      output (`iso_variants.rs`, `written.rs`; one pass, no allocation,
+      the scan is charged). Each rule comes from a standard or a probe
+      in Chromium 148; a text outside the forms is NaN. Compared with
+      Chromium on about 600,000 texts: no text where swb gives a value
+      and Chromium NaN, and none with a different value; 501 snippets
+      where Chromium reads a quirk are KNOWN (six classes, ADR 0027
+      section 8). Days past the end of the month roll over as in
+      Chromium. `toString` prints the long English zone name of CLDR 48
+      (19.4 KB of data; the metazone of the present, the GMT format
+      without a name, the saving flag at an equivalent year from a
+      measured table of 14 years); 22 zones in the snippet tests.
+      test262 runtime unchanged (40,286); `swb-js` +56 KB.
     Annex B: `getYear`, `setYear`, `toGMTString` (12a).
 13. Performance (`implementer-hard`). Inline caches, a cache for
     global access, cached shapes for object literals, native callbacks
@@ -2430,27 +2449,49 @@ not repeated here; the open items of each spike session are in M6 step
     .timeZone`. Without `Intl`, swb ignores the arguments and prints
     the en-US form (12/31/2020; Chromium 31/12/2020 for en-GB).
   - The KNOWN items where swb follows the spec and pages see V8:
-    `Date.parse("2000-02-30")` is NaN (V8: March 1), fractional
-    `getTimezoneOffset` for old local mean times, the `toString` round
-    trip for years below 100. Decide in 12b whether `parse_fallback`
-    takes V8's roll-over of days.
+    fractional `getTimezoneOffset` for old local mean times, the
+    `toString` round trip for years below 100. (12b reads
+    `"2000-02-30"` as March 1, as V8 does.)
   - The zone-dependent snippets use instants after 2026 (2100, 2400,
     1e14, the `realworld` loop to 2040): a tzdata change of the future
     rules of New York, Berlin, Adelaide or Lord Howe would break the
     test although swb is right. Move them to a `future` group that runs
     in UTC, Kolkata, Apia and New York only, with a comment on the
     tzdata-sensitive groups. The tests need the system tzdata with the
-    seven zones.
+    22 zones of 12b.
   - Test data: the seven expected files repeat the same snippets
     (450 KB each); the `setters` group is half of the snippet bytes,
     and running it in four zones instead of seven cuts about 20 %.
-  - `toString` allocates the zone abbreviation on each call (1M calls
-    982 ms, `node --jitless` 1.7 times faster); cache the zone
-    interval. `Date.now()` is 3.3 times and `new Date(t).getFullYear()`
+  - `toString` (1M calls 593 ms after 12b, which took the
+    allocation of the name away; a zone without a CLDR name still
+    builds `GMT+01:00` for each call). `Date.now()` is 3.3 times and `new Date(t).getFullYear()`
     2.7 times slower than `node --jitless` (call and allocation costs,
     feature 13).
   - The fallback to UTC without a zone database has no test, and the
     shell installs no logger, so its warning is not visible there.
+- Date (M7 12b):
+  - The `toString` parser of 12a reads any name in parentheses that
+    ends with `)`; Chromium needs balanced parentheses
+    (`(Eastern Sta)ndard Time)` is NaN there).
+  - Chromium's quirks that the named forms do not read (KNOWN, ADR 0027
+    section 8): a number alone as a month or a year (`Date.parse("5")`,
+    `new Date("5")`), minute or second 60, offsets above 23:59, `h:`
+    clocks, stray tokens after a date. Add a form only when a target
+    needs it.
+  - The end of the equivalent-year range (2^31 seconds) is not proved by
+    a probe: no zone with year-dependent rules changes near 2038-01-19.
+  - The names depend on the system tzdata: where its offsets differ from
+    ICU's data (local mean times, `Africa/Casablanca` 1984 and 1985,
+    `America/Vancouver`), the names differ too.
+  - Alias zone names (`US/Eastern`, `Asia/Calcutta`, `GB`, `Japan`,
+    `Europe/Kiev`) are unknown to `TimeZone::from_spec` when the system
+    tzdata has no legacy links (Debian 13 without `tzdata-legacy`);
+    Chromium knows them. The CLDR alias table of `zone_names_data.rs`
+    could map them to a canonical name first.
+  - Chromium reads more free text than swb: a word after a month name
+    and before the first number (`Jul T 1 2024`), `_` and `[` as word
+    characters (`_ Jul 1 2024`), a sign after free text as nothing
+    (` -000001 01`). All are NaN in swb (KNOWN class).
 - Flaky test (found 2026-10-18, also at 788905a):
   `long_digit_strings_parse_in_bounded_memory_and_time` in
   `language_hostile.rs` fails about 1 run in 6 when the whole file runs

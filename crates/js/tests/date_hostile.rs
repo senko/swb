@@ -88,11 +88,16 @@ fn long_strings_to_parse() {
                 "Date.parse('2000-01-01T00:00:00.000Z' + 'x'.repeat(50_000_000))",
                 "=> NaN",
             ),
+            // Chromium reads the zeros as the number 0, the year 2000; the
+            // reader of the written forms has no month 0 and gives NaN
+            // (ADR 0027 section 8).
             ("Date.parse('0'.repeat(50_000_000) + '-01-01')", "=> NaN"),
+            // Chromium: a sign is ignored, the zeros are the year 2000.
             ("Date.parse('+' + '0'.repeat(50_000_000))", "=> NaN"),
+            // The fraction can have any number of digits.
             (
                 "Date.parse('2000-01-01T00:00:00.' + '0'.repeat(50_000_000) + 'Z')",
-                "=> NaN",
+                "=> 946684800000",
             ),
             (
                 "Date.parse('Mon Jul 01 2024 13:05:09 GMT+0200 (' + 'x'.repeat(50_000_000) + ')')",
@@ -100,7 +105,7 @@ fn long_strings_to_parse() {
             ),
             (
                 "Date.parse('Mon Jul 01 2024 13:05:09 GMT+0200 (' + 'x'.repeat(50_000_000))",
-                "=> NaN",
+                "=> 1719831909000",
             ),
             (
                 "var s = ''; for (var i = 0; i < 20; i++) s = s + s + 'ab'; \
@@ -119,6 +124,87 @@ fn long_strings_to_parse() {
     });
 }
 
+/// The reader of the written forms (ADR 0027 section 5a) scans a text once
+/// and keeps at most 32 tokens: long runs of digits, words, symbols, white
+/// space, unclosed parentheses, many numbers and many names, NUL units and
+/// lone surrogates each end in bounded time with NaN, or a time value for
+/// a text that has a date after free text or before a NUL.
+#[test]
+fn the_reader_of_other_forms_is_bounded() {
+    on_big_stack(|| {
+        let mut rt = runtime_in("Europe/Berlin", false);
+        let cases = [
+            ("Date.parse('1'.repeat(20_000_000))", "=> NaN"),
+            (
+                "Date.parse('Jan 1 2000 ' + 'x'.repeat(20_000_000))",
+                "=> NaN",
+            ),
+            (
+                "Date.parse('Jan 1 2000 ' + ' '.repeat(20_000_000))",
+                "=> 946681200000",
+            ),
+            (
+                "Date.parse('Jan 1 2000 (' + 'x'.repeat(20_000_000))",
+                "=> 946681200000",
+            ),
+            ("Date.parse('('.repeat(20_000_000))", "=> NaN"),
+            ("Date.parse(')'.repeat(20_000_000))", "=> NaN"),
+            (
+                "Date.parse('Jan 1 2000 ' + ')'.repeat(1_000_000))",
+                "=> NaN",
+            ),
+            ("Date.parse('1 '.repeat(5_000_000))", "=> NaN"),
+            // Chromium skips the repeated names; a month name is not free
+            // text here.
+            ("Date.parse('Jan '.repeat(5_000_000) + '1 2000')", "=> NaN"),
+            (
+                "Date.parse('x '.repeat(5_000_000) + '1 Jan 2000')",
+                "=> 946681200000",
+            ),
+            ("Date.parse('1:'.repeat(5_000_000))", "=> NaN"),
+            ("Date.parse('+'.repeat(20_000_000))", "=> NaN"),
+            (
+                "Date.parse('1/1/2000 5:06:07.' + '9'.repeat(20_000_000))",
+                "=> 946699567999",
+            ),
+            (
+                "Date.parse('1/1/2000 5:06 GMT+' + '1'.repeat(20_000_000))",
+                "=> NaN",
+            ),
+            (
+                "Date.parse(String.fromCharCode(0).repeat(20_000_000))",
+                "=> NaN",
+            ),
+            (
+                "Date.parse('Jan 1 2000' + String.fromCharCode(0) + 'x'.repeat(20_000_000))",
+                "=> 946681200000",
+            ),
+            (
+                "Date.parse(String.fromCharCode(0xd800).repeat(10_000_000))",
+                "=> NaN",
+            ),
+            (
+                "Date.parse('Jan 1 2000 ' + String.fromCharCode(0xd800))",
+                "=> NaN",
+            ),
+            (
+                "Date.parse(String.fromCharCode(0xd800) + ' Jan 1 2000')",
+                "=> 946681200000",
+            ),
+        ];
+        for (source, expected) in cases {
+            let (result, elapsed) = eval_within(&mut rt, source, LONG);
+            assert!(result.is_ok(), "{source}: {result:?}");
+            assert!(
+                elapsed < Duration::from_secs(5),
+                "{source}: took {elapsed:?}"
+            );
+            assert_eq!(run_in(&mut rt, source), expected, "{source}");
+        }
+        assert_clean(&rt);
+    });
+}
+
 #[test]
 fn loops_of_long_parses_end_at_the_deadline() {
     assert_ends_at_the_deadline(
@@ -127,6 +213,13 @@ fn loops_of_long_parses_end_at_the_deadline() {
     assert_ends_at_the_deadline(
         "var long = 'Mon Jul 01 2024 13:05:09 GMT+0200 (' + 'y'.repeat(1_000_000) + ')'; \
          for (;;) { Date.parse(long); }",
+    );
+    // The scan of the reader of other forms is charged.
+    assert_ends_at_the_deadline(
+        "var long = 'Jan 1 2000 ' + 'x'.repeat(1_000_000); for (;;) { Date.parse(long); }",
+    );
+    assert_ends_at_the_deadline(
+        "var long = '1 '.repeat(500_000); for (;;) { Date.parse(long); new Date(long); }",
     );
     // A new rope each time: the flatten is charged.
     assert_ends_at_the_deadline(

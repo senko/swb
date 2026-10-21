@@ -26,7 +26,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
 
@@ -76,6 +76,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
+| `just tools js-time-zone-names` | `js-time-zone-names`             | Writes `crates/js/src/date/zone_names_data.rs` (the long English time zone names: the standard and daylight names of 191 metazones, three zone names, the metazone of each of 573 zone names with the aliases) from CLDR 48 (`common/main/en.xml`, `common/supplemental/metaZones.xml`, `common/bcp47/timezone.xml`, from `https://unicode.org/Public/cldr/48/cldr-common-48.zip`, downloaded into `out/cldr/48/`). `just fmt` formats the file. |
 | `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable), `norm_tables.rs` (combining classes, decompositions, compositions, quick check), `property_names.rs` (the names and aliases of the properties of `\p{...}`) and `property_data.rs` (their code point sets and the emoji strings, `js_property_sets.py`) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`, `PropertyAliases.txt`, `PropertyValueAliases.txt`, `DerivedGeneralCategory.txt`, `Scripts.txt`, `ScriptExtensions.txt`, `PropList.txt`, `DerivedBinaryProperties.txt`, `emoji-data.txt`, `emoji-sequences.txt` and `emoji-zwj-sequences.txt` (the last two from the `emoji/` directory of 17.0.0) into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. The generated files are formatted by `just fmt` (the committed `case_tables.rs`, `norm_tables.rs` and `property_names.rs` differ from the raw output only in formatting; `property_data.rs` is stable under `rustfmt`). |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
 | `just tools-fmt`             |                                        | Formats `tools/` and applies safe lint fixes. |
@@ -1807,30 +1808,53 @@ target), and collections inside the callbacks and comparators with
 ### Date tests
 
 `tools/probes/js-date.json` has the snippet cases of `Date` for Chromium
-148, made from `crates/js/tests/data/date-snippets.txt` (about 2,200
+148, made from `crates/js/tests/data/date-snippets.txt` (about 5,500
 snippets, in groups) by `crates/js/tests/data/gen-date-cases.js` (the
 format of `js-bigint.json`, with a `time_zone` for each case). A group runs
 in seven zones: UTC, Europe/Berlin, America/New_York, Asia/Kolkata (a
 half-hour offset, no summer time), Australia/Adelaide (a half-hour offset,
 southern summer time), Australia/Lord_Howe (a 30-minute change) and
 Pacific/Apia (the day 2011-12-30 does not exist); a line `## NAME @ Zone,
-Zone` restricts a group. A line that starts with `!known ` marks a
-snippet where swb differs from Chromium on purpose, `!later ` one that
-needs the forms of feature 12b (both are probed, not run). No snippet
-depends on the current time. The groups: `shape` (the properties, their
+Zone` restricts a group, also to the fifteen `EXTRA_ZONES` of the generator
+(Europe/London, Europe/Dublin, America/Los_Angeles,
+America/Argentina/Buenos_Aires, Asia/Kathmandu, Africa/Casablanca,
+Africa/Windhoek, Antarctica/Troll, Asia/Almaty; and, for the equivalent
+year of the names, Africa/Cairo, America/Sao_Paulo, Asia/Tehran,
+Asia/Amman, America/Santiago, Pacific/Fiji) that only the groups
+`names-more`, `names-years`, `names-edge` and `names-edge-1970` use. A
+line that starts with `!known ` marks a snippet where swb differs from
+Chromium on purpose (ADR 0027 section 8: for `Date.parse`, 501 texts of
+the groups `parse-fallback*` and `parse-forms` in six classes, and 27 of
+`parse-free`), `!later ` one that needs a feature that is not there yet
+(both are probed, not run; no snippet has `!later` since 12b). No
+snippet depends on the current time. The groups: `shape` (the properties, their
 order and attributes, `Date()` as a function, subclasses and `new.target`),
 `methods` and `receivers` (the length, the name and V8's message of every
 method for a wrong receiver), `toprimitive`, `ctor` and `utc` (every form
 of the arguments, the order of the conversions, huge and non-finite
 values, two-digit years, the ends of the range), `getters` and `strings`
 (the getters and the string forms of 105 instants from year -271821 to
-275760, also the round trip through `Date.parse`), `names` (the long zone
-names, `!later`), `transitions` (the local times around the changes of
+275760, also the round trip through `Date.parse`), `names` and `names-more`
+(the long zone names and the GMT format, in 16 zones, at times that
+include the years before 1970 and after 2038), `transitions` (the local times around the changes of
 each zone, in both directions, and the setters across them), `setters`
 (every setter with every kind of argument on eleven dates, the order of
 the conversions, a `valueOf` that changes the date), `parse` (the date
 time string format with the forms around each rule, and the output of
-`toString` and `toUTCString`) and `realworld`.
+`toString` and `toUTCString`), `parse-fallback`, `parse-fallback-more`,
+`parse-fallback-long` and `parse-forms` (Chromium's other forms in New
+York and Berlin: a table of dates, clocks and zones, a deterministic
+sample of random token mixes, long runs, units that are white space or
+not, what the constructor and the string forms of `Date` read back; in
+`parse-forms` the probes of the separators, the order of the fields, the
+clocks and the zones that set the rules of ADR 0027 section 5a, and every
+97th text of a generated list of 129,000 dates x clocks x zones),
+`parse-free` (the free text before the date and the expanded year at the
+start, from the review of 12b),
+`names-years` (the zone names on 122 days of 28 years before 1970 and
+after 2037, in seven zones with year-dependent rules: the table of
+equivalent years), `names-edge` and `names-edge-1970` (where the
+equivalent year starts) and `realworld`.
 
 ```
 node crates/js/tests/data/gen-date-cases.js probe \
@@ -1842,23 +1866,37 @@ node crates/js/tests/data/gen-date-cases.js cases probe.json \
 
 `crates/js/tests/builtins_date.rs` runs `date_cases.js` (the snippets once
 and the index list of each zone) in each zone, normally and in the GC
-stress mode, against `date_cases_ZONE.expected` (11,670 results). It needs
-the time zone database of the system (`/usr/share/zoneinfo`) with the seven
+stress mode, against `date_cases_ZONE.expected` (about 18,600 results in
+22 zones). It needs
+the time zone database of the system (`/usr/share/zoneinfo`) with the 16
 zones; the old offsets of the cases come from tzdata and agree with the
 ICU data of Chromium 148 in these zones (Europe/Zagreb does not agree
 before 1884 in Debian's tzdata, so Berlin is the northern zone). It also
 tests the host clock, a POSIX rule as the zone and `console.log` of dates.
+The zone names depend on the database in two ways: the saving flag for
+the zones of `names-more` (the database must have Dublin's winter time
+as `GMT` with a negative saving, or in rearguard form: `zone.rs` handles
+both), and the offsets of years before 1900.
 `date_hostile.rs` runs: strings of up to 100 M units to `Date.parse` and
 the constructor (also as ropes and as the end of a `toString` text), loops
 of long parses and of every string form and setter against a deadline of
 300 ms, 900 pairs of huge and non-finite values in every position of the
 constructor, `Date.UTC` and the setters, the ends of the time range in
 six zones, conversions that change the date or collect (also in the GC
-stress mode), and a loop of 200,000 dates that the collector frees. The
+stress mode), and a loop of 200,000 dates that the collector frees; for
+the written forms: runs of 20 M units of digits, words, white space,
+parentheses, NUL units and lone surrogates, and loops of long texts that
+end at the deadline (the scan is charged). The
 unit tests of `crates/js/src/date/` check the calendar over the range,
 `MakeDay` and `MakeTime` at their edges, the zone with the skipped and
-repeated times and the eras beyond the range of `jiff`, the formats and
-the parser. test262 runs `test/built-ins/Date` and
+repeated times and the eras beyond the range of `jiff`, the formats, the
+exact parsers, each form of the ISO variants and the written forms
+(`iso_variants.rs`, `written.rs`), the table of equivalent years and the
+zone names (`zone_names.rs`, `zone.rs`). The names were also compared with Chromium for
+all 484 zones of the system database at 18 instants each (not in the
+repository: a probe file made by a script of the scratchpad; the 8,000
+results with equal offsets are equal, see ADR 0027 section 6). The data of
+the names is made by `just tools js-time-zone-names` (next table). test262 runs `test/built-ins/Date` and
 `test/annexB/built-ins/Date` and loads `assertRelativeDateMs.js` and
 `dateConstants.js`; the 155 tests of other directories that use `Date`
 run too.
