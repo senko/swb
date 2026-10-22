@@ -457,8 +457,8 @@ impl FunctionCompiler<'_> {
                 self.emit(Insn::Undefined { dst: t });
             }
             None => {
-                let name = self.name_const(reference.name);
-                self.emit(Insn::GetGlobal { dst: t, name });
+                let site = self.site(self.name_text(reference.name));
+                self.emit(Insn::GetGlobal { dst: t, site });
             }
         }
         Ok(t)
@@ -473,7 +473,8 @@ impl FunctionCompiler<'_> {
         let reference = self.reference(id);
         let name = self.name_const(reference.name);
         let Some(index) = access.capture else {
-            self.emit(Insn::SetGlobal { src, name });
+            let site = self.site(self.name_text(reference.name));
+            self.emit(Insn::SetGlobal { src, site });
             return Ok(());
         };
         let kind = access.kind;
@@ -541,7 +542,8 @@ impl FunctionCompiler<'_> {
                 self.emit(Insn::InitGlobalFunction { src, name });
             }
             EvalVarEnv::Global => {
-                self.emit(Insn::SetGlobal { src, name });
+                let site = self.site(text);
+                self.emit(Insn::SetGlobal { src, site });
             }
             EvalVarEnv::None => {
                 return Err(Self::internal("a var of strict eval code outside it"));

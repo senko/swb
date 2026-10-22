@@ -142,6 +142,10 @@ pub struct Heap {
     /// finalization registries (both roots).
     pub(crate) weak_roots: weak_roots::WeakRoots,
     pub(crate) names: Names,
+    /// Incremented by each change of the keys, attributes or prototype of
+    /// a watched object (the validation of the inline caches,
+    /// `object/cache.rs`).
+    pub(crate) watch_epoch: u32,
     config: HeapConfig,
     /// Live bytes measured by the last collection.
     live_bytes: usize,
@@ -191,6 +195,7 @@ impl Heap {
             roots: roots::HeapRoots::default(),
             weak_roots: weak_roots::WeakRoots::default(),
             names: Names { length },
+            watch_epoch: 0,
             config,
             live_bytes: 0,
             allocated: 0,

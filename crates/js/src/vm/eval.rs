@@ -645,7 +645,7 @@ impl Runtime {
         self.vm
             .realms
             .get(self.current_realm() as usize)
-            .is_some_and(|realm| realm.lexical.contains_key(&name))
+            .is_some_and(|realm| realm.lexical.contains_key(name))
     }
 
     /// `CanDeclareGlobalFunction` (§9.1.1.4.16).

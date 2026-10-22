@@ -51,6 +51,7 @@ mod for_in;
 mod function;
 pub(crate) mod generator;
 mod global;
+mod inline_cache;
 pub(crate) mod internal;
 mod interp;
 pub(crate) mod iter;
@@ -469,7 +470,7 @@ mod tests {
     #[test]
     fn record_sizes() {
         assert_eq!(size_of::<Frame>(), 128);
-        assert_eq!(size_of::<FunctionCode>(), 200);
+        assert_eq!(size_of::<FunctionCode>(), 216);
         assert_eq!(size_of::<crate::bytecode::Constant>(), 24);
         assert_eq!(size_of::<GeneratorState>(), 176);
         assert_eq!(size_of::<Closure>(), 48);

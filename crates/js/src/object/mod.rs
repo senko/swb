@@ -11,6 +11,7 @@
 mod arguments;
 mod array;
 mod buffer;
+mod cache;
 mod element_access;
 mod elements;
 mod iterator_helper;
@@ -32,6 +33,11 @@ pub(crate) use buffer::{
     zeroed_bytes,
 };
 pub(crate) use buffer::{decode_bits, element_bits};
+pub(crate) use cache::{SetPlan, SiteCache};
+
+/// The most keys of an object literal that the compiler builds in its
+/// final shape (more would put the object into dictionary mode).
+pub(crate) const LITERAL_KEY_LIMIT: usize = shape::DICTIONARY_LIMIT as usize;
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub use iterator_helper::{IteratorHelper, WrappedIterator};
@@ -438,6 +444,10 @@ pub struct Object {
     pub(crate) elements: Elements,
     pub(crate) kind: ObjectKind,
     pub(crate) extensible: bool,
+    /// Whether a change of its keys, attributes or prototype increments
+    /// the heap's watch epoch: set for every object that is or was the
+    /// prototype of a shape, and for global objects (`cache.rs`).
+    pub(crate) watched: bool,
 }
 
 impl Object {
@@ -516,6 +526,7 @@ impl Heap {
             elements: Elements::default(),
             kind,
             extensible: true,
+            watched: false,
         })
     }
 
@@ -644,6 +655,7 @@ impl Heap {
         if let Some(second) = second {
             slots.push(second);
         }
+        self.layout_changed(object)?;
         self.charge_growth(object, before)
     }
 
@@ -671,6 +683,7 @@ impl Heap {
             write_slots(slots, entry.slot, first, second)?;
             return Ok(());
         }
+        self.layout_changed(object)?;
         self.make_dictionary(object)?;
         let (dictionary, slots) = self.dictionary_mut(object)?;
         let position = *dictionary
@@ -714,6 +727,7 @@ impl Heap {
     /// Removes a named property (moves the object to dictionary mode).
     pub(crate) fn remove_named(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<()> {
         let before = self.object_bytes(object)?;
+        self.layout_changed(object)?;
         self.make_dictionary(object)?;
         let (dictionary, slots) = self.dictionary_mut(object)?;
         let Some(position) = dictionary.index.remove(&key) else {

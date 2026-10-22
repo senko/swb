@@ -210,6 +210,13 @@ fn endless_sources_end_at_the_deadline() {
             "JSON.stringify(big);",
             "Array.prototype.indexOf.call(big, 1);",
         ] {
+            // Each source starts from a collected heap: the garbage of an
+            // endless source (millions of iterator results) leaves the
+            // slot vector of the objects long, and objects that the next
+            // script makes before its first collection sit at its end and
+            // keep that length counted; the 800 MB of the `BigInt64Array`
+            // then fail as a `RangeError` (backlog, M7 13a).
+            rt.collect();
             let (result, elapsed) = eval_with_deadline(&mut rt, source);
             assert!(
                 matches!(

@@ -1021,6 +1021,7 @@ pub(super) fn default_constructor(
     Builder {
         insns,
         constants: Vec::new(),
+        site_keys: Vec::new(),
         sites: Vec::new(),
         captures: Vec::new(),
         globals: Vec::new(),

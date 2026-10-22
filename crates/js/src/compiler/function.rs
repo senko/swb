@@ -138,8 +138,11 @@ pub(super) struct FunctionCompiler<'a> {
     string_constants: HashMap<String16, u32>,
     number_constants: HashMap<u64, u32>,
     function_constants: HashMap<FunctionId, u32>,
-    sites: Vec<String16>,
-    site_map: HashMap<String16, u32>,
+    /// The key texts of the sites, each once, and their indices.
+    site_keys: Vec<String16>,
+    site_key_map: HashMap<String16, u32>,
+    /// Per site, the index of its key.
+    sites: Vec<u32>,
     /// The first register above the declared bindings.
     first_temp: u32,
     next_reg: u32,
@@ -204,8 +207,9 @@ impl<'a> FunctionCompiler<'a> {
             string_constants: HashMap::new(),
             number_constants: HashMap::new(),
             function_constants: HashMap::new(),
+            site_keys: Vec::new(),
+            site_key_map: HashMap::new(),
             sites: Vec::new(),
-            site_map: HashMap::new(),
             first_temp: fscope.register_count,
             next_reg: fscope.register_count,
             max_reg: fscope.register_count,
@@ -313,6 +317,7 @@ impl<'a> FunctionCompiler<'a> {
         Ok(Builder {
             insns: self.insns,
             constants: self.constants,
+            site_keys: self.site_keys,
             sites: self.sites,
             captures,
             globals,
@@ -570,14 +575,30 @@ impl<'a> FunctionCompiler<'a> {
         index
     }
 
-    /// The property site of a key text.
+    /// A new property site with a key text. Every access gets its own
+    /// site, because the site holds the access's inline cache.
     pub(super) fn site(&mut self, text: String16) -> u32 {
-        if let Some(&index) = self.site_map.get(&text) {
-            return index;
-        }
+        let key = if let Some(&key) = self.site_key_map.get(&text) {
+            key
+        } else {
+            let key = self.site_keys.len() as u32;
+            self.site_keys.push(text.clone());
+            self.site_key_map.insert(text, key);
+            key
+        };
         let index = self.sites.len() as u32;
-        self.sites.push(text.clone());
-        self.site_map.insert(text, index);
+        self.sites.push(key);
+        index
+    }
+
+    /// A new site with the key of `site` (the write of a compound
+    /// assignment, whose read uses `site`).
+    pub(super) fn site_like(&mut self, site: u32) -> u32 {
+        let Some(&key) = self.sites.get(site as usize) else {
+            return site;
+        };
+        let index = self.sites.len() as u32;
+        self.sites.push(key);
         index
     }
 
@@ -612,7 +633,10 @@ impl<'a> FunctionCompiler<'a> {
                     BindingKind::Let | BindingKind::Const | BindingKind::Class => {
                         Insn::InitGlobalLexical { src, name }
                     }
-                    _ => Insn::SetGlobal { src, name },
+                    _ => {
+                        let site = self.site(self.name_text(b.name));
+                        Insn::SetGlobal { src, site }
+                    }
                 };
                 self.emit(insn);
             }
@@ -761,7 +785,8 @@ impl<'a> FunctionCompiler<'a> {
                     cond: hoisted,
                     offset: 0,
                 });
-                self.emit(Insn::SetGlobal { src: value, name });
+                let site = self.site(self.name_text(self.scopes.binding(b).name));
+                self.emit(Insn::SetGlobal { src: value, site });
                 self.patch_here(skip);
             }
             _ => self.store_ref(target, value)?,

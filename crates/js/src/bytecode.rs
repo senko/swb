@@ -46,14 +46,14 @@
 //! constants through [`GenericData`]; the heap form also keeps the
 //! template objects that the code created.
 
-use std::cell::RefCell;
+use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
 use swb_js_syntax::CaptureSource;
 use swb_js_text::String16;
 
 use crate::heap::{Gc, Generic, GenericData, HandleMap, Tracer};
-use crate::object::Object;
+use crate::object::{Object, SiteCache};
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 
@@ -253,24 +253,26 @@ pub(crate) enum Insn {
         start: u32,
     },
 
-    // --- Globals (by name; `name` is a string constant) ---
+    // --- Globals (by name; `name` is a string constant, `site` a property
+    // site with the name as its key and the cache of the access) ---
     /// `GlobalDeclarationInstantiation` (§16.1.7) for the script's
     /// [`FunctionCode::globals`], except the function values.
     DeclareGlobals,
-    /// `dst` = the global binding `name`; `ReferenceError` if missing.
+    /// `dst` = the global binding `sites[site]`; `ReferenceError` if
+    /// missing.
     GetGlobal {
         dst: Reg,
-        name: u32,
+        site: u32,
     },
     /// `dst` = `typeof name` for a global name (no error if missing).
     TypeofGlobal {
         dst: Reg,
         name: u32,
     },
-    /// `PutValue` on the global binding `name`.
+    /// `PutValue` on the global binding `sites[site]`.
     SetGlobal {
         src: Reg,
-        name: u32,
+        site: u32,
     },
     /// Initializes the global lexical binding `name`.
     InitGlobalLexical {
@@ -351,6 +353,25 @@ pub(crate) enum Insn {
     /// `dst` = a new ordinary object.
     NewObject {
         dst: Reg,
+    },
+    /// `dst` = a new ordinary object for an object literal whose
+    /// properties are all data properties with constant keys that are not
+    /// array indices: it has the final shape of the literal, with the
+    /// `count` keys `sites[site..site + count]` in order (each once), and
+    /// `undefined` values that [`Insn::InitSlot`] then sets. The shape is
+    /// cached in the entry of `sites[site]` (a literal without keys has one
+    /// site, with the empty string, for the entry).
+    NewLiteral {
+        dst: Reg,
+        count: u16,
+        site: u32,
+    },
+    /// Sets the named property in `slot` of the object of
+    /// [`Insn::NewLiteral`] in `obj` to the value of `src`.
+    InitSlot {
+        obj: Reg,
+        src: Reg,
+        slot: u32,
     },
     /// `dst` = a new empty array.
     NewArray {
@@ -1663,8 +1684,12 @@ pub(crate) fn find_eval_name(names: &[EvalName], name: Gc<JsString>) -> Option<&
 pub(crate) struct FunctionCode {
     pub(crate) insns: Box<[Insn]>,
     pub(crate) constants: Box<[Constant]>,
-    /// The keys of the property sites (inline caches are M7 feature 13).
+    /// The keys of the property sites. Each named access, global access
+    /// and object literal has its own site.
     pub(crate) sites: Box<[PropertyKey]>,
+    /// The inline cache entries of the sites, one per site; allocated at
+    /// the first fill (most functions of a page never run).
+    pub(crate) caches: OnceCell<Box<[Cell<SiteCache>]>>,
     /// Where a closure of this code gets each captured cell.
     pub(crate) captures: Box<[CaptureSource]>,
     /// The global declarations (scripts only).
@@ -1729,7 +1754,7 @@ pub(crate) struct Source {
     /// The source of a `Function` constructor call (see
     /// [`FunctionCode::is_dynamic`]).
     pub(crate) dynamic_function: bool,
-    lines: std::cell::OnceCell<swb_js_syntax::LineIndex>,
+    lines: OnceCell<swb_js_syntax::LineIndex>,
 }
 
 impl Source {
@@ -1740,7 +1765,7 @@ impl Source {
             name,
             origin: None,
             dynamic_function: false,
-            lines: std::cell::OnceCell::new(),
+            lines: OnceCell::new(),
         }
     }
 
@@ -1751,7 +1776,7 @@ impl Source {
             name: Rc::from(format!("{origin}, <anonymous>")),
             origin: Some(origin),
             dynamic_function: false,
-            lines: std::cell::OnceCell::new(),
+            lines: OnceCell::new(),
         }
     }
 
@@ -1823,6 +1848,10 @@ impl FunctionCode {
             + self.constants.len() * size_of::<Constant>()
             + template_parts
             + self.sites.len() * size_of::<PropertyKey>()
+            + self
+                .caches
+                .get()
+                .map_or(0, |caches| caches.len() * size_of::<Cell<SiteCache>>())
             + self.captures.len() * size_of::<CaptureSource>()
             + self.globals.len() * size_of::<GlobalDecl>()
             + self.lines.len() * 8
@@ -1888,6 +1917,37 @@ impl FunctionCode {
             | Constant::PrivateNames(_)
             | Constant::RegExp(_) => None,
         }
+    }
+
+    /// The cache entry of a site (`Empty` before the first fill).
+    #[inline]
+    pub(crate) fn cache(&self, site: u32) -> SiteCache {
+        self.caches
+            .get()
+            .and_then(|caches| caches.get(site as usize))
+            .map_or(SiteCache::Empty, Cell::get)
+    }
+
+    /// Stores the cache entry of a site; allocates the table at the first
+    /// fill and returns its bytes then (the caller charges them), else 0.
+    /// Without memory for the table nothing is stored.
+    pub(crate) fn fill_cache(&self, site: u32, entry: SiteCache) -> usize {
+        let mut allocated = 0;
+        let caches = if let Some(caches) = self.caches.get() {
+            caches
+        } else {
+            let mut table = Vec::new();
+            if table.try_reserve_exact(self.sites.len()).is_err() {
+                return 0;
+            }
+            table.resize(self.sites.len(), Cell::new(SiteCache::Empty));
+            allocated = table.len() * size_of::<Cell<SiteCache>>();
+            self.caches.get_or_init(|| table.into_boxed_slice())
+        };
+        if let Some(cell) = caches.get(site as usize) {
+            cell.set(entry);
+        }
+        allocated
     }
 
     /// The string constant at `index`.
@@ -2284,9 +2344,7 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
             "destructuring message",
         ),
         Insn::CheckTdz { name, .. }
-        | Insn::GetGlobal { name, .. }
         | Insn::TypeofGlobal { name, .. }
-        | Insn::SetGlobal { name, .. }
         | Insn::InitGlobalLexical { name, .. }
         | Insn::InitGlobalFunction { name, .. }
         | Insn::BlockFunctionHoisted { name, .. }
@@ -2297,6 +2355,15 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         | Insn::DeleteBinding { name, .. }
         | Insn::SetVarBinding { name, .. }
         | Insn::ThrowConstAssign { name } => (code.string(name).is_some(), "name constant index"),
+        Insn::GetGlobal { site, .. } | Insn::SetGlobal { site, .. } => (
+            matches!(code.sites.get(site as usize), Some(PropertyKey::String(_))),
+            "global site index",
+        ),
+        Insn::NewLiteral { site, count, .. } => (
+            (site as usize) < code.sites.len()
+                && site as usize + usize::from(count) <= code.sites.len(),
+            "literal site range",
+        ),
         Insn::GetNamed { site, .. }
         | Insn::SetNamed { site, .. }
         | Insn::DeleteNamed { site, .. }
@@ -2371,6 +2438,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::BlockFunctionHoisted { dst, .. }
         | I::DeleteGlobal { dst, .. }
         | I::NewObject { dst }
+        | I::NewLiteral { dst, .. }
         | I::NewArray { dst, .. }
         | I::RestArguments { dst, .. }
         | I::Closure { dst, .. }
@@ -2527,6 +2595,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::SetNamed { obj: dst, src, .. }
         | I::DeleteNamed { dst, obj: src, .. }
         | I::DefineNamed { obj: dst, src, .. }
+        | I::InitSlot { obj: dst, src, .. }
         | I::JumpIfNotLt { a: dst, b: src, .. }
         | I::JumpIfNotLe { a: dst, b: src, .. }
         | I::JumpIfNotGt { a: dst, b: src, .. }
@@ -2640,6 +2709,7 @@ mod tests {
             insns: insns.into(),
             constants: Box::new([]),
             sites: Box::new([]),
+            caches: OnceCell::new(),
             captures: Box::new([]),
             globals: Box::new([]),
             register_count: registers,

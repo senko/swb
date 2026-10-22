@@ -768,6 +768,45 @@ of CLDR data, the table of names and the two readers. `vm_bench`, same
 session, Europe/Zagreb: `toString` 659.1 ms, `Date.parse` of a local
 time string 215.2 ms, of an ISO string 171.1 ms.
 
+### Inline caches (M7 13a)
+
+The monomorphic caches of the property sites, the global cache and the
+literal shapes (ADR 0026 section 15). `vm_bench`, best of 5 within a run
+and best of two runs, the base build (e9badd9) and 13a alternated in one
+session, release, same machine; the Node.js column is `node --jitless`
+v22.11 from the same session:
+
+| Program | base (ms) | 13a (ms) | 13a / base | node --jitless (ms) | 13a / node |
+|---|---|---|---|---|---|
+| fib(27) | 63.0 | 42.4 | 0.67 | 10.6 | 4.0x |
+| o.x = o.x + o.y, 5M times | 367.3 | 134.6 | 0.37 | 74.7 | 1.8x |
+| closure counter 1M calls | 63.8 | 63.0 | 0.99 | 19.9 | 3.2x |
+| 1M small objects | 239.1 | 76.0 | 0.32 | 22.3 | 3.4x |
+| for loop over 1M elements | 123.9 | 64.6 | 0.52 | 16.3 | 4.0x |
+| typed: sum a Float64Array of 1M elements | 181.5 | 87.9 | 0.48 | 22.3 | 3.9x |
+| array: read-modify-write, 1M times | 132.5 | 72.5 | 0.55 | 24.2 | 3.0x |
+| proxy: 1M reads without a trap | 95.6 | 90.3 | 0.94 | 17.0 | 5.3x |
+
+The geometric mean of 13a / base over all 95 programs is 0.86. The rows
+that gain most read globals (`fib`, the loops over the global arrays
+`arr`, `f`, `b`), properties of one shape (`o.x`), `length` of arrays
+and typed arrays, or make literals (`1M small objects`: the object is
+made in its final shape, then the slots are written). The closure row
+has no property access. No row became slower beyond noise: the rows that
+were 3 to 8 % slower in one run were not in the other, and their
+instruction counts (callgrind) are lower or equal; a write through a
+proxy with a `set` trap costs about 90 instructions more (2.8 % of the
+3,200 of the trap call: the checks of the entry before the generic
+path). Under callgrind, `o.x = o.x + o.y` takes 645 instead of 1,264
+instructions per iteration.
+
+The cost is in the compile: every access has a site of its own (8 bytes
+for its key) and every global access a site besides its name constant.
+The BBC scripts (`swb-js bench-compile`, alternated four times) parse
+and compile in 178 ms instead of 175 ms (+2 %), and their code objects
+take 29.0 MB instead of 27.9 MB (+3.7 %). A function's cache table (28
+bytes per site) exists only after the function ran.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

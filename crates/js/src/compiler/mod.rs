@@ -46,6 +46,7 @@ use crate::bytecode::{
 };
 use crate::error::{Error, ThrowKind};
 use crate::heap::{Gc, Generic, Heap};
+use crate::string::PropertyKey;
 use crate::value::Value;
 
 /// A compile failure.
@@ -98,7 +99,10 @@ pub(crate) enum ConstSpec {
 pub(crate) struct Builder {
     pub(crate) insns: Vec<Insn>,
     pub(crate) constants: Vec<ConstSpec>,
-    pub(crate) sites: Vec<String16>,
+    /// The key texts of the sites, each once.
+    pub(crate) site_keys: Vec<String16>,
+    /// Per site, the index of its key in `site_keys`.
+    pub(crate) sites: Vec<u32>,
     pub(crate) captures: Vec<CaptureSource>,
     pub(crate) globals: Vec<GlobalDecl>,
     pub(crate) register_count: u32,
@@ -479,6 +483,20 @@ fn bigint_constant(heap: &mut Heap, text: &String16, negative: bool) -> CResult<
     Ok(Constant::Value(Value::BigInt(heap.alloc_bigint(value)?)))
 }
 
+/// The keys of a builder's sites (each key text becomes a key once).
+fn site_keys(heap: &mut Heap, builder: &Builder) -> CResult<Box<[PropertyKey]>> {
+    let mut keys = Vec::with_capacity(builder.site_keys.len());
+    for text in &builder.site_keys {
+        keys.push(heap.key_from_str16(text.as_str16())?);
+    }
+    Ok(builder
+        .sites
+        .iter()
+        .map(|&key| keys.get(key as usize).copied())
+        .collect::<Option<Box<[PropertyKey]>>>()
+        .ok_or(Error::invariant("a site without a key"))?)
+}
+
 /// Turns a builder into code: atoms for the texts, code objects for the
 /// nested functions, keys for the sites; then verifies it.
 fn finish_code(
@@ -542,17 +560,15 @@ fn finish_code(
             ConstSpec::RegExp(pattern, flags) => regexp_constant(heap, pattern, *flags)?,
         });
     }
-    let mut sites = Vec::with_capacity(builder.sites.len());
-    for text in &builder.sites {
-        sites.push(heap.key_from_str16(text.as_str16())?);
-    }
+    let sites = site_keys(heap, &builder)?;
     let name_text = builder.name.or(inferred_name).unwrap_or_default();
     let name = heap.intern(name_text.as_str16())?;
     let debug_name = heap.intern(debug_name.unwrap_or_default().as_str16())?;
     let code = FunctionCode {
         insns: builder.insns.into(),
         constants: constants.into(),
-        sites: sites.into(),
+        sites,
+        caches: std::cell::OnceCell::new(),
         captures: builder.captures.into(),
         globals: builder.globals.into(),
         register_count: builder.register_count,

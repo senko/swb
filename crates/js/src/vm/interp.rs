@@ -31,7 +31,7 @@ use crate::bytecode::{
     INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, ITERATOR_PENDING, Insn, RESUME_NEXT,
     RESUME_RETURN, RESUME_THROW,
 };
-use crate::object::{GetResult, ObjectKind};
+use crate::object::{GetResult, ObjectKind, SetPlan, SiteCache};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -461,15 +461,17 @@ impl Runtime {
                     save!();
                     tri!(self.declare_globals(&code));
                 }
-                Insn::GetGlobal { dst, name } => {
-                    let name = string_const!(name);
-                    if let Some(found) = tri!(self.get_global(name)) {
-                        lookup!(dst, found);
-                    } else {
-                        let text = self.name_text(name);
-                        tri!(Err(VmError::reference_error(format!(
-                            "{text} is not defined"
-                        ))));
+                Insn::GetGlobal { dst, site } => {
+                    match tri!(self.cached_global_get(code.cache(site))) {
+                        Some(GetResult::Value(value)) => put!(dst, value),
+                        Some(GetResult::CallGetter { getter, receiver }) => {
+                            call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
+                        }
+                        _ => {
+                            let key = site!(site);
+                            let found = tri!(self.get_global_miss(&code, site, key));
+                            lookup!(dst, found);
+                        }
                     }
                 }
                 Insn::TypeofGlobal { dst, name } => {
@@ -478,12 +480,15 @@ impl Runtime {
                     let result = tri!(self.with_scope(|rt| rt.typeof_global(name)));
                     put!(dst, result);
                 }
-                Insn::SetGlobal { src, name } => {
-                    let name = string_const!(name);
+                Insn::SetGlobal { src, site } => {
                     let value = get!(src);
-                    save!();
-                    let outcome = tri!(self.set_global(name, value, code.strict_at(pc - 1)));
-                    store!(outcome, value);
+                    if !tri!(self.cached_global_set(code.cache(site), value)) {
+                        let key = site!(site);
+                        save!();
+                        let strict = code.strict_at(pc - 1);
+                        let outcome = tri!(self.set_global_miss(&code, site, key, value, strict));
+                        store!(outcome, value);
+                    }
                 }
                 Insn::InitGlobalLexical { src, name } => {
                     let name = string_const!(name);
@@ -510,48 +515,100 @@ impl Runtime {
 
                 // --- Properties ---
                 Insn::GetNamed { dst, obj, site } => {
-                    let key = site!(site);
                     let target = get!(obj);
-                    if let Value::Object(object) = target
-                        && !matches!(key, PropertyKey::Index(_))
-                    {
-                        match tri!(self.heap.get(object, key, target)) {
-                            GetResult::Value(value) => put!(dst, value),
-                            GetResult::CallGetter { getter, receiver } => {
-                                // `ta.length` of a typed array with the
-                                // built-in getter: the length, without the
-                                // call (nothing can observe it).
-                                if let Some(length) =
-                                    tri!(self.typed_length_getter_value(getter, receiver))
-                                {
-                                    put!(dst, length);
-                                } else {
-                                    call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
-                                }
-                            }
-                            // A proxy on the chain (out of line; a getter
-                            // runs through re-entry).
-                            GetResult::Generic => {
-                                save!();
-                                put!(dst, tri!(self.get_generic_value(object, key, target)));
-                            }
-                        }
-                    } else if let Value::Object(_) = target {
-                        // An index: String objects have their own.
-                        let found = tri!(self.get_property(target, key));
-                        lookup!(dst, found);
-                    } else {
+                    let Value::Object(object) = target else {
+                        let key = site!(site);
                         save!();
                         let found = tri!(self.get_primitive_property(target, key));
                         lookup!(dst, found);
+                        continue;
+                    };
+                    let entry = code.cache(site);
+                    if let Some(value) = tri!(self.heap.cached_own_value(object, entry)) {
+                        put!(dst, value);
+                        continue;
+                    }
+                    let found = if let Some(found) = tri!(self.heap.cached_get(object, entry)) {
+                        found
+                    } else {
+                        let key = site!(site);
+                        if let PropertyKey::Index(_) = key {
+                            // An index: String objects have their own.
+                            let found = tri!(self.get_property(target, key));
+                            lookup!(dst, found);
+                            continue;
+                        }
+                        tri!(self.get_named_miss(&code, site, object, key))
+                    };
+                    match found {
+                        GetResult::Value(value) => put!(dst, value),
+                        GetResult::CallGetter { getter, receiver } => {
+                            // `ta.length` of a typed array with the built-in
+                            // getter: the length, without the call (nothing
+                            // can observe it).
+                            if let Some(length) =
+                                tri!(self.typed_length_getter_value(getter, receiver))
+                            {
+                                put!(dst, length);
+                            } else {
+                                call_accessor!(getter, receiver, &[], ReturnTo::Register(dst));
+                            }
+                        }
+                        // A proxy on the chain (out of line; a getter runs
+                        // through re-entry).
+                        GetResult::Generic => {
+                            let key = site!(site);
+                            save!();
+                            put!(dst, tri!(self.get_generic_value(object, key, target)));
+                        }
                     }
                 }
                 Insn::SetNamed { obj, src, site } => {
-                    let key = site!(site);
                     let target = get!(obj);
                     let value = get!(src);
-                    save!();
-                    let outcome = tri!(self.put_value(target, key, value, code.strict_at(pc - 1)));
+                    let outcome = if let Value::Object(object) = target {
+                        let entry = code.cache(site);
+                        if tri!(self.heap.cached_own_write(object, entry, value)) {
+                            continue;
+                        }
+                        match tri!(self.heap.cached_set(object, entry)) {
+                            Some(SetPlan::Setter(setter)) => SetOutcome::Setter {
+                                setter,
+                                receiver: target,
+                            },
+                            Some(SetPlan::Add) => {
+                                save!();
+                                let added = match entry {
+                                    SiteCache::Add { to, .. } => tri!(
+                                        self.heap.add_by_transition(object, to, value, &self.vm)
+                                    ),
+                                    _ => false,
+                                };
+                                if added {
+                                    continue;
+                                }
+                                let key = site!(site);
+                                let strict = code.strict_at(pc - 1);
+                                tri!(self.set_named_miss(&code, site, (object, key, value), strict))
+                            }
+                            Some(SetPlan::General) => {
+                                let key = site!(site);
+                                save!();
+                                tri!(self.put_value(target, key, value, code.strict_at(pc - 1)))
+                            }
+                            // (`cached_set` leaves `Own` to `cached_own_write`.)
+                            Some(SetPlan::Own(_)) | None => {
+                                let key = site!(site);
+                                save!();
+                                let strict = code.strict_at(pc - 1);
+                                tri!(self.set_named_miss(&code, site, (object, key, value), strict))
+                            }
+                        }
+                    } else {
+                        let key = site!(site);
+                        save!();
+                        tri!(self.put_value(target, key, value, code.strict_at(pc - 1)))
+                    };
                     store!(outcome, value);
                 }
                 Insn::GetIndex { dst, obj, key } => {
@@ -636,6 +693,34 @@ impl Runtime {
                     let proto = tri!(self.intrinsic(realm, Intrinsic::ObjectPrototype));
                     let object = tri!(self.heap.new_object(Some(proto)));
                     put!(dst, Value::Object(object));
+                }
+                Insn::NewLiteral { dst, count, site } => {
+                    let realm = self.current_realm();
+                    let proto = tri!(self.intrinsic(realm, Intrinsic::ObjectPrototype));
+                    let shape = match code.cache(site) {
+                        SiteCache::Literal {
+                            proto: cached,
+                            shape,
+                        } if cached == proto && self.heap.shape_alive(shape) => shape,
+                        _ => tri!(self.literal_shape_miss(&code, site, count, proto)),
+                    };
+                    let object = tri!(self.new_literal_object(shape, count));
+                    put!(dst, Value::Object(object));
+                }
+                Insn::InitSlot { obj, src, slot } => {
+                    let Value::Object(object) = get!(obj) else {
+                        return Err(VmError::invariant("a literal that is not an object"));
+                    };
+                    let value = get!(src);
+                    match tri!(self.heap.object_mut(object))
+                        .slots
+                        .get_mut(slot as usize)
+                    {
+                        Some(stored) => *stored = value,
+                        None => {
+                            return Err(VmError::invariant("a literal slot outside the object"));
+                        }
+                    }
                 }
                 Insn::NewArray { dst } => {
                     let realm = self.current_realm();

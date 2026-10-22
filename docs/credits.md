@@ -136,6 +136,14 @@ Format: source, license (for code), what it influenced.
   with a work list, weak tables) and the study memos 3 and 4 (shapes,
   dictionary mode, generational indices, the array density idea of Lua
   5.0) — `js/src/heap/`, `js/src/object/`.
+- L. Peter Deutsch and Allan M. Schiffman, "Efficient Implementation of
+  the Smalltalk-80 System" (POPL 1984: inline caches), Urs Hölzle, Craig
+  Chambers and David Ungar, "Optimizing Dynamically-Typed
+  Object-Oriented Languages With Polymorphic Inline Caches" (ECOOP 1991)
+  and study memo 3.3 — the monomorphic caches of the property sites
+  (M7 13a, `js/src/object/cache.rs`, `js/src/vm/inline_cache.rs`). The
+  validation of prototype hits by a watch epoch, the global cache and
+  the literal shapes are swb's own design; no engine code was read.
 - The study memos 1 and 2 for the compiler and interpreter (register
   machine with temporaries in stack order after "The Implementation of
   Lua 5.0" and Duktape's design notes; one value stack and frame records

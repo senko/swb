@@ -206,9 +206,10 @@ function and by all realms of a runtime.
 
 **Property sites.** A property-access instruction with a constant key
 names a site: an entry in a table of the code object that holds the key
-and, later, the inline cache (section 6). Two registers and the site
-index fit the instruction size, and caches can come later without a
-change of the instruction format.
+and the inline cache (section 6). Two registers and the site index fit
+the instruction size. Since M7 13a every access has a site of its own
+(the keys are shared), and so do the global accesses and the object
+literals that are built in their final shape.
 
 ### 5. Calls, generators, exceptions
 
@@ -352,13 +353,17 @@ WebIDL legacy platform objects, `WindowProxy` and `document.all`
 (Annex B.3.6). Proxy implements all internal methods with the invariant
 checks of §10.5; trap recursion charges the recursion budget.
 
-**Inline caches** are not in the first version. The interpreter does a
-direct lookup in the shape's key list, then along the prototype chain.
-After the core passes its test262 targets, monomorphic caches (shape,
-slot) come in the property sites of each code object (section 4), with
-entries in `Cell`s. Shape handles in caches carry the generation
-(section 8), so a reused shape slot cannot match an old entry
-(memo 3.3). Objects in dictionary mode never match a cache entry.
+**Inline caches** (M7 feature 13a; details in section 15). Each property
+site of a code object (section 4) has one monomorphic entry, a small
+`Copy` value in a `Cell` of a side table. An entry checks the receiver's
+shape handle; shape handles carry the generation (section 8), so a
+reused shape slot cannot match an old entry (memo 3.3). An entry that
+depends on the prototype chain also checks the heap's watch epoch,
+which every change of the keys, attributes or prototype of a prototype
+or a global object increments. Dictionary shapes are never stored in an
+entry; proxies and host objects never match. A miss runs the direct
+lookup in the shape's key list and along the prototype chain, which
+gives the result and the new entry in one walk.
 
 **Built-in objects** (memo 3.5) are described by static tables: per
 property the name, the kind (native function with its `length`,
@@ -2807,6 +2812,103 @@ where the first plan did not work:
   `toString` for the years before 100, `MakeDay` beyond 10^6 years, no
   `toTemporalInstant`, the locale arguments of `toLocale*String`. LATER
   (12b): Chromium's other date forms and the long zone names.
+- Inline caches (feature 13a; `object/cache.rs`, `vm/inline_cache.rs`,
+  the global entries in `vm/global.rs`; memo 3.3). Every named access,
+  global access and object literal has a site of its own (the compiler
+  shares the key texts, not the sites; the write of a compound assignment
+  gets a second site). A code object keeps one entry per site, a
+  `SiteCache` (28 bytes, `Copy`) in a `Cell`, in a table that the first
+  fill allocates and charges to the heap (most functions of a page never
+  run). No `unsafe`, no `RefCell` on the hot path. The entries are
+  monomorphic: a miss overwrites the entry; a miss that gives no entry
+  (a proxy on the chain, a dictionary receiver) keeps the old one.
+  - Entry kinds: an own data property or accessor of receivers with a
+    shape (shape, slot); a data property or accessor on the prototype
+    chain, or no property at all (shape, holder, slot, epoch); a write
+    that adds a property (old shape, new shape, epoch); `length` of an
+    array (the kind alone); `length` of a typed array through its
+    accessor (shape, holder, slot, epoch: the interpreter computes the
+    length when the getter is the built-in one, without the walk and the
+    call); a proxy receiver (straight to the generic path, without the
+    walk of a miss); a global lexical binding (realm, position); a
+    property of the global object or of its chain (realm, number of
+    lexical bindings, holder, slot, epoch); the final shape of an object
+    literal (prototype, shape).
+  - Receivers: an entry stores only shared shapes. A shape handle carries
+    the generation of its slot, so a shape in a reused slot never matches;
+    the new shape of an add entry and the shape of a literal are checked
+    alive before use. Values are read from the slots at each hit, so a
+    value written in place (also a getter replaced with the same
+    attributes) needs no invalidation.
+  - Validation of prototype hits: a watch epoch (a `u32` counter of the
+    heap) instead of the shape of each object on the path. Every object
+    that is or was the prototype of a shape is *watched*: the flag is set
+    when its root shape is made and when `[[SetPrototypeOf]]` puts it into
+    a dictionary shape; each realm's global object is watched from its
+    creation. Adding, removing or redefining (other attributes) a property
+    of a watched object, a change of its prototype, and an add through a
+    cached transition increment the epoch; entries of the chain store the
+    epoch of their walk. While the epoch is unchanged and the receiver has
+    the cached shape (which fixes its prototype), every object on the path
+    has the keys, attributes and prototype of the walk, so the holder and
+    the slot are the same; dictionary prototypes are covered as well. The
+    cost: a change of any prototype or global object invalidates all chain
+    entries (a refill each); scripts change prototypes at start-up, not in
+    loops. Reasons against the per-object shapes: an entry of unbounded
+    size, and dictionary prototypes (shapes changed in place) would never
+    hit. At `u32::MAX` the epoch stays and no chain entry is made any more.
+    A fill checks the flag of every prototype on the path as a guard.
+  - Kinds: the shape does not fix the kind (an array and
+    `Object.create(Array.prototype)` share the root shape). Proxies and
+    host objects never match; a typed array matches a chain entry only
+    when the walk met a typed array with the key (so the key is not a
+    canonical numeric string); `length` is cached through the chain only
+    for typed-array receivers (an array's `length` is not in its shape).
+    String objects, arguments objects and arrays are ordinary for the
+    non-index keys of named sites; index keys (`o[0]` with a constant key)
+    are never cached.
+  - Writes: an own writable data property, an own or inherited setter,
+    and adds. An add entry needs an extensible receiver at the hit (the
+    flag is not in the shape), no setter and no read-only property with
+    the key on the chain (the epoch), and never `length`; it pushes the
+    value and moves the object to the cached shape (a growth of the slots
+    can collect; the new shape is checked alive afterwards, else the
+    general path). Everything else (`freeze`, a read-only own property,
+    array `length`, a proxy target) takes the general `PutValue`.
+  - Misses walk once: the walk that gives the result also gives the entry,
+    so a polymorphic site costs about what a site without a cache did.
+  - Global cache: `GetGlobal` and `SetGlobal` name a site. A lexical
+    binding keeps its position for the life of the realm (bindings are
+    never removed; the record is a vector with a name index), so its entry
+    needs no invalidation; a binding in its dead zone and a constant are
+    misses (the general path throws). A property entry is valid while the
+    realm has the same number of lexical bindings (a later script's
+    `let` can shadow the global property) and the epoch is unchanged
+    (`delete`, a sloppy assignment that creates a global, a `var` of eval
+    code, a redefinition, the dictionary mode of the global object). Code
+    in the reach of `with` and of eval vars checks those records first
+    and reaches the global site only after them.
+  - Object literals: a literal whose properties are all data properties
+    with constant keys that are not array indices (`a: v`, shorthands,
+    methods; repeated keys keep the first position) and at most 128 keys
+    compiles to `NewLiteral` (the object in its final shape, cached per
+    site and realm by its prototype, with `undefined` values) and one
+    `InitSlot` per property. Nothing can observe the object before its
+    last value is stored (a method's home object cannot run before the
+    literal ends). Literals with `__proto__: v`, computed keys, spread or
+    accessors keep `NewObject` and the definitions.
+  - Measured (vm_bench, best of 5, release, same session, base e9badd9
+    against 13a; the table is in `docs/performance.md`): `fib(27)` 63 →
+    42 ms, `o.x = o.x + o.y` 5M times 367 → 135 ms, 1M small objects
+    239 → 76 ms, the `for` loop over 1M elements 124 → 65 ms, the sum of a
+    `Float64Array` 182 → 88 ms, the array read-modify-write 133 → 73 ms;
+    the geometric mean over all 95 programs 0.86. Code objects grow by the
+    sites of their own (one key per access, 8 bytes) and, once a function
+    runs, by its cache table.
+  - Tests: `tests/inline_caches.rs` (the invalidation cases, normal and in
+    the GC stress mode, expected outputs from Node.js 22), the unit tests
+    of `object/cache.rs`; test262 unchanged (40,286 pass, 44 fail, normal
+    and stress; parse-only 42,240).
 
 ## Consequences
 
@@ -2826,8 +2928,8 @@ where the first plan did not work:
 - The register machine makes the compiler larger than a stack machine
   compiler; the AST makes this manageable.
 - Eager compilation and eager built-ins keep the first version simple.
-  Lazy compilation, lazy built-ins and inline caches are later work,
-  each after a measurement.
+  Lazy compilation and lazy built-ins are later work, each after a
+  measurement; the inline caches came in M7 13a (section 15).
 - The regular expression engine is a separate crate, so it can grow in
   parallel with the runtime (CLAUDE.md allows parallel work only in
   separate crates).

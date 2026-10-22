@@ -429,8 +429,8 @@ impl FunctionCompiler<'_> {
             }
             Resolution::Global => {
                 let t = self.target(dst)?;
-                let name = self.name_const(name());
-                self.emit(Insn::GetGlobal { dst: t, name });
+                let site = self.site(self.name_text(name()));
+                self.emit(Insn::GetGlobal { dst: t, site });
                 Ok(t)
             }
             Resolution::Unresolved => Err(Self::internal("an unresolved reference")),
@@ -473,7 +473,8 @@ impl FunctionCompiler<'_> {
         let name = self.name_const(reference.name);
         match reference.resolution {
             Resolution::Global => {
-                self.emit(Insn::SetGlobal { src, name });
+                let site = self.site(self.name_text(reference.name));
+                self.emit(Insn::SetGlobal { src, site });
             }
             Resolution::Register(r) => {
                 if reference.tdz_check {
@@ -1101,6 +1102,10 @@ impl FunctionCompiler<'_> {
         properties: List<swb_js_syntax::Property>,
         dst: Option<Reg>,
     ) -> CResult<Reg> {
+        let list = self.ast.properties(properties).to_vec();
+        if let Some((keys, slots)) = self.literal_layout(&list) {
+            return self.shaped_object(&list, &keys, &slots, dst);
+        }
         let t = self.target(dst)?;
         let mark = self.mark();
         let object = self.temp()?;
@@ -1164,6 +1169,112 @@ impl FunctionCompiler<'_> {
                     });
                 }
             }
+            self.release(inner);
+        }
+        self.emit(Insn::Move {
+            dst: t,
+            src: object,
+        });
+        self.release(mark);
+        Ok(t)
+    }
+
+    /// The layout of an object literal whose properties are all data
+    /// properties (`key: value`, shorthands, methods) with constant keys
+    /// that are not array indices: the keys in order, each once, and the
+    /// slot of each property (a repeated key writes the slot of its first
+    /// occurrence, as `CreateDataPropertyOrThrow` replaces the value in
+    /// place). `None` for any other literal, and for one with more keys
+    /// than a shared shape holds.
+    fn literal_layout(
+        &self,
+        list: &[swb_js_syntax::Property],
+    ) -> Option<(Vec<String16>, Vec<u32>)> {
+        let mut keys: Vec<String16> = Vec::new();
+        let mut slots = Vec::with_capacity(list.len());
+        for property in list {
+            if !matches!(
+                property.kind,
+                PropertyKind::Init | PropertyKind::Shorthand | PropertyKind::Method
+            ) {
+                return None;
+            }
+            let text = self.key_text(property.key)?;
+            if crate::string::array_index(text.as_str16()).is_some() {
+                return None;
+            }
+            // A linear search: at most `LITERAL_KEY_LIMIT` keys.
+            let slot = if let Some(slot) = keys.iter().position(|key| *key == text) {
+                slot as u32
+            } else {
+                if keys.len() == crate::object::LITERAL_KEY_LIMIT {
+                    return None;
+                }
+                keys.push(text);
+                keys.len() as u32 - 1
+            };
+            slots.push(slot);
+        }
+        Some((keys, slots))
+    }
+
+    /// An object literal of [`FunctionCompiler::literal_layout`]: the
+    /// object in its final shape, then the values in their slots.
+    fn shaped_object(
+        &mut self,
+        list: &[swb_js_syntax::Property],
+        keys: &[String16],
+        slots: &[u32],
+        dst: Option<Reg>,
+    ) -> CResult<Reg> {
+        let t = self.target(dst)?;
+        let mark = self.mark();
+        let object = self.temp()?;
+        // Consecutive sites for the keys; a literal without keys has one
+        // site for its cache entry.
+        let site = match keys.split_first() {
+            Some((first, rest)) => {
+                let site = self.site(first.clone());
+                for (offset, key) in rest.iter().enumerate() {
+                    if self.site(key.clone()) != site + 1 + offset as u32 {
+                        return Err(Self::internal("literal sites that are not consecutive"));
+                    }
+                }
+                site
+            }
+            None => self.site(String16::default()),
+        };
+        let count =
+            u16::try_from(keys.len()).map_err(|_| Self::internal("too many literal keys"))?;
+        self.emit(Insn::NewLiteral {
+            dst: object,
+            count,
+            site,
+        });
+        for (property, &slot) in list.iter().zip(slots) {
+            self.position = property.span.start;
+            let inner = self.mark();
+            let text = keys
+                .get(slot as usize)
+                .cloned()
+                .ok_or(Self::internal("a literal slot without a key"))?;
+            let v = if property.kind == PropertyKind::Method {
+                let ExprKind::Function(function) = self.ast.expr(property.value).kind else {
+                    return Err(Self::internal("a method that is not a function"));
+                };
+                self.session.inferred_names.insert(function, text);
+                self.position = self.ast.expr(property.value).span.start;
+                let v = self.method_closure(function, object, None)?;
+                self.position = property.span.start;
+                v
+            } else {
+                self.expr_named(property.value, None, text)?
+            };
+            self.emit(Insn::InitSlot {
+                obj: object,
+                src: v,
+                slot,
+            });
             self.release(inner);
         }
         self.emit(Insn::Move {
@@ -1640,7 +1751,11 @@ impl FunctionCompiler<'_> {
 
     pub(super) fn emit_put(&mut self, obj: Reg, key: KeyReg, src: Reg) {
         match key {
-            KeyReg::Site(site) => self.emit(Insn::SetNamed { obj, src, site }),
+            KeyReg::Site(site) => {
+                // The write has a cache of its own.
+                let site = self.site_like(site);
+                self.emit(Insn::SetNamed { obj, src, site })
+            }
             KeyReg::Register(key) => self.emit(Insn::SetIndex { obj, key, src }),
             KeyReg::Private { env, index } => self.emit(Insn::SetPrivate {
                 obj,

@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 feature 13a, property access caches
+
+- Feature 13 (performance) starts with a baseline: 95 `jsbench`
+  programs at a geometric mean of 3.4 times `node --jitless`. The slow
+  rows come from property access, object creation, calls, calls of
+  natives and callbacks from natives; the roadmap splits the feature in
+  sessions 13a to 13e by these causes. Startup is 2 ms, so lazy
+  built-ins are not needed.
+- Every named access, global access and object literal has a site of
+  its own now, with one cache entry. An entry checks the receiver's
+  shape handle (with its generation, so a reused shape slot never
+  matches); entries that depend on the prototype chain also check a
+  watch epoch that each change of a prototype's or the global object's
+  keys, attributes or prototype increments. A miss walks the chain once
+  and fills the entry. Global lexical bindings keep their position;
+  global-object properties depend on the epoch and the number of
+  lexical bindings (a later `let` can shadow them). Literals with plain
+  data properties are made in their final shape.
+- `o.x` loop 367 → 135 ms, 1M small objects 239 → 76 ms, fib 63 → 42
+  ms; geometric mean 0.86 of base. test262 and the target scripts are
+  unchanged.
+- The faster literals exposed an arena effect in a hostile test: objects
+  allocated at the end of a long slot vector keep its capacity counted
+  as live (backlog).
+- Review: no correctness defect (the reviewer compared hundreds of
+  programs on prototype, attribute, global and literal changes with the
+  base build, Node and stress mode). A megamorphic site is faster than
+  before; a loop that changes a prototype in each iteration is 7 to 15 %
+  slower (each change increments the epoch). Fixed: an add to a watched
+  object no longer fills an entry that can never hit; a comment on why
+  entries filled before a setter runs cannot go stale; the credits.
+
 ## 2026-10-21: M7 feature 12b, Date.parse forms and zone names; end of feature 12
 
 - The first session's reader of `Date.parse` matched Chromium on

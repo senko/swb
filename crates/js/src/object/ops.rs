@@ -119,10 +119,14 @@ impl Heap {
             current = self.get_prototype_of(p)?;
         }
         let empty_shared = matches!(&shape.kind, ShapeKind::Shared(shared) if shared.len == 0);
+        self.layout_changed(object)?;
         if empty_shared {
             let root = self.root_shape(proto)?;
             self.object_mut(object)?.shape = root;
         } else {
+            if let Some(proto) = proto {
+                self.watch(proto)?;
+            }
             self.make_dictionary(object)?;
             let shape = self.object(object)?.shape;
             self.arenas.shapes.get_mut(shape)?.proto = proto;
@@ -921,7 +925,11 @@ impl Heap {
     /// for another key of a typed array (an ordinary property).
     #[cold]
     #[inline(never)]
-    fn exotic_get(&self, record: &Object, key: PropertyKey) -> Result<Option<GetResult>> {
+    pub(super) fn exotic_get(
+        &self,
+        record: &Object,
+        key: PropertyKey,
+    ) -> Result<Option<GetResult>> {
         match &record.kind {
             ObjectKind::TypedArray(data) => match self.numeric_index(key)? {
                 Some(index) => Ok(Some(self.typed_get_result(data, index)?)),

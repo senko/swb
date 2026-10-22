@@ -235,6 +235,11 @@ impl Heap {
         {
             return Ok(shape);
         }
+        if let Some(proto) = proto {
+            // A prototype is watched (the validation of the inline caches,
+            // `cache.rs`).
+            self.watch(proto)?;
+        }
         self.charge(
             Arena::<KeyList>::slot_size() + Arena::<Shape>::slot_size() + ROOT_TABLE_ENTRY_BYTES,
         );

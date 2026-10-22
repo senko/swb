@@ -1965,6 +1965,63 @@ failures with a reason. Features, in this order:
     compilation if measurements on the target scripts show the need.
     The spike measured calls 5x, property access 5x and object
     literals 11x slower than `node --jitless` (docs/js-spike-report.md).
+    Baseline 2026-10-21 (e9badd9; `just jsbench out/bbc-js`, 95
+    programs): geometric mean 3.4 times `node --jitless`, 43 programs at
+    5 times or more. The slow rows have five causes: property access
+    (`o.x = o.x + o.y` 4.8x, a `for` loop over an array 7.8x, the sum of
+    a `Float64Array` 8.5x), object creation (1M small objects 10.7x),
+    script-to-script calls (fib 5.9x, calls that read `arguments`
+    12.8x), calls of natives from script (`Date.now` 3.3x, `DataView`
+    5.3x, string methods 6 to 7x), and callbacks from natives (`forEach`
+    8.7x, `reduce` 11x, typed-array `map` 12.5x, iterator helpers 6 to
+    9.6x, promise jobs 7 to 9x, proxy traps 7 to 8.8x). Startup is 2 ms
+    (empty script), so lazy built-ins are not needed. The 60 BBC scripts
+    compile in 172 ms into 27.9 MB of code (7.9 bytes per source byte).
+    Sessions, each measured with `jsbench` before and after, test262 in
+    normal and stress mode:
+    - 13a Property access (`implementer-hard`): monomorphic inline
+      caches in the property sites (get and set; own data properties,
+      data and accessor properties on the prototype chain, `length` of
+      arrays and typed arrays), a cache for global access (the global
+      object and the global lexical declarations), cached shapes for
+      object literals.
+      Done 2026-10-22: every named access, global access and object
+      literal has a site of its own with one cache entry (28 bytes, a
+      `Cell` in a table that the code object allocates at the first
+      fill): own properties, the prototype chain (validated by a watch
+      epoch that each change of the keys, attributes or prototype of a
+      prototype or global object increments), adds by transition, array
+      and typed-array `length`; global lexical bindings by position,
+      global-object properties by the epoch and the count of lexical
+      bindings; literals with plain data properties built in their final
+      shape (`NewLiteral`, `InitSlot`). Shape handles in entries carry
+      the generation. `jsbench`: `o.x` loop 367 → 135 ms, 1M small
+      objects 239 → 76 ms, `for` loop over an array 124 → 65 ms,
+      `Float64Array` sum 182 → 88 ms, fib 63 → 42 ms; geometric mean over
+      95 programs 0.86 of base. Compile time +2 to 3 %, code +3.7 % (one
+      site per access). test262 unchanged (40,286; stress the same).
+    - 13b Calls (`implementer-hard`): the frame setup of script calls,
+      the arguments object (a cached shape, a bulk element store), the
+      path of native calls from script, and the code alignment of the
+      interpreter loop (fib became 8 % slower with 7d at 3 % fewer
+      instructions).
+    - 13c Callbacks from natives (`implementer-hard`): calls of script
+      functions from native loops (`forEach`, `map`, `filter`, `reduce`,
+      `sort`, typed-array methods, iterator helpers, `replace` with a
+      function, proxy traps, promise jobs) without the cost of a new
+      interpreter entry for each call; one shape for iterator results;
+      `for`-`of` over a generator without the result object.
+    - 13d Small items (`implementer`): a table of the 256 one-unit
+      Latin-1 strings, a start offset for `shift` on dense arrays, a fast
+      path of `toFixed` for few digits, a cached hash of `Map` string
+      keys, elision of temporal-dead-zone checks, the kept source text
+      of ASCII scripts in one byte per character, integer results of
+      `|` in arrays, and the open check of `out/notes/stress-9b-r1.js`
+      (GC stress mode with `WeakMap` callbacks ran more than 13 hours).
+    - 13e Lazy compilation (`implementer-hard`), only if the targets
+      need it after 13a to 13d: compile a function body at its first
+      call; it saves compile time and code memory of functions that
+      never run.
 14. Modules (`implementer-hard`), when a target uses
     `<script type="module">`.
 
@@ -2464,11 +2521,32 @@ not repeated here; the open items of each spike session are in M6 step
     and running it in four zones instead of seven cuts about 20 %.
   - `toString` (1M calls 593 ms after 12b, which took the
     allocation of the name away; a zone without a CLDR name still
-    builds `GMT+01:00` for each call). `Date.now()` is 3.3 times and `new Date(t).getFullYear()`
-    2.7 times slower than `node --jitless` (call and allocation costs,
-    feature 13).
+    builds `GMT+01:00` for each call). `Date.now()` is 3.3 times and
+    `new Date(t).getFullYear()` 2.7 times slower than `node --jitless`
+    (call and allocation costs, feature 13).
   - The fallback to UTC without a zone database has no test, and the
     shell installs no logger, so its warning is not visible there.
+- Property caches (M7 13a):
+  - Not cached: receivers in dictionary mode (`window.foo` on a global
+    object in dictionary mode, objects with more than 128 keys),
+    primitive receivers (`s.length`, `s.charCodeAt`, `n.toFixed`),
+    `TypeofGlobal` and `DeleteGlobal`; no polymorphic entries (add them
+    only if the target scripts show many sites with two to four shapes).
+    `DefineNamed` of literals with computed keys or spread could use the
+    add entry.
+  - A write through a proxy with a `set` trap runs three lookups (2.8 %
+    more instructions than before 13a).
+- Heap (found in 13a): objects that a script allocates past the end of a
+  long slot vector before the first collection keep the capacity of the
+  vector counted as live, so a large reservation after a burst of
+  garbage fails early (`typed_hostile.rs`
+  `endless_sources_end_at_the_deadline` now collects before each
+  source). The effect is older, but 13a makes more garbage in the same
+  time: without the collection the test fails in every debug run (an
+  800 MB `BigInt64Array` gives "Array buffer allocation failed"). A page
+  can see it as a failed allocation of hundreds of MB after a burst of
+  garbage. Options: allocate from the free list only after a
+  collection, or compact the tail when a reservation fails.
 - Date (M7 12b):
   - The `toString` parser of 12a reads any name in parentheses that
     ends with `)`; Chromium needs balanced parentheses

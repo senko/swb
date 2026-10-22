@@ -6,7 +6,7 @@ use std::borrow::Cow;
 
 use crate::bytecode::{FunctionCode, GlobalKind};
 use crate::heap::Gc;
-use crate::object::{Object, Property, PropertyDescriptor};
+use crate::object::{GetResult, Object, ObjectKind, Property, PropertyDescriptor, SiteCache};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
@@ -25,7 +25,7 @@ impl Runtime {
             .get(realm as usize)
             .ok_or(VmError::invariant("no realm"))?;
         if !record.lexical.is_empty()
-            && let Some(binding) = record.lexical.get(&name)
+            && let Some(binding) = record.lexical.get(name)
         {
             if binding.value.is_empty() {
                 return Err(self.tdz_error(name));
@@ -84,6 +84,186 @@ impl Runtime {
         })
     }
 
+    /// A global read through the cache entry of its site (ADR 0026
+    /// section 15, M7 13a): the result on a hit, `None` on a miss. A
+    /// binding in its dead zone is a miss (the general path throws).
+    #[inline]
+    pub(crate) fn cached_global_get(&self, entry: SiteCache) -> VmResult<Option<GetResult>> {
+        match entry {
+            SiteCache::GlobalLexical { realm, index } if realm == self.current_realm() => Ok(self
+                .vm
+                .realms
+                .get(realm as usize)
+                .and_then(|record| record.lexical.binding(index))
+                .filter(|binding| !binding.value.is_empty())
+                .map(|binding| GetResult::Value(binding.value))),
+            SiteCache::GlobalProperty {
+                realm,
+                lexicals,
+                holder,
+                slot,
+                accessor,
+                epoch,
+            } if realm == self.current_realm() && epoch == self.heap.watch_epoch() => {
+                let Some(record) = self.vm.realms.get(realm as usize) else {
+                    return Ok(None);
+                };
+                if record.lexical.len() != lexicals {
+                    return Ok(None);
+                }
+                let value = self.heap.object(holder)?.slots.get(slot as usize).copied();
+                Ok(match value {
+                    Some(getter) if accessor => Some(if getter.is_undefined() {
+                        GetResult::Value(Value::Undefined)
+                    } else {
+                        GetResult::CallGetter {
+                            getter,
+                            receiver: record.global.into(),
+                        }
+                    }),
+                    Some(value) => Some(GetResult::Value(value)),
+                    None => None,
+                })
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// A global write through the cache entry of its site: true if it
+    /// wrote the value. A constant, a binding in its dead zone and every
+    /// other case are a miss (the general path).
+    #[inline]
+    pub(crate) fn cached_global_set(&mut self, entry: SiteCache, value: Value) -> VmResult<bool> {
+        match entry {
+            SiteCache::GlobalLexical { realm, index } if realm == self.current_realm() => {
+                let binding = self
+                    .vm
+                    .realms
+                    .get_mut(realm as usize)
+                    .and_then(|record| record.lexical.binding_mut(index));
+                match binding {
+                    Some(binding) if binding.mutable && !binding.value.is_empty() => {
+                        binding.value = value;
+                        Ok(true)
+                    }
+                    _ => Ok(false),
+                }
+            }
+            SiteCache::GlobalProperty {
+                realm,
+                lexicals,
+                holder,
+                slot,
+                accessor: false,
+                epoch,
+            } if realm == self.current_realm() && epoch == self.heap.watch_epoch() => {
+                let fresh = self.vm.realms.get(realm as usize).is_some_and(|record| {
+                    record.lexical.len() == lexicals && record.global == holder
+                });
+                if !fresh {
+                    return Ok(false);
+                }
+                match self.heap.object_mut(holder)?.slots.get_mut(slot as usize) {
+                    Some(stored) => {
+                        *stored = value;
+                        Ok(true)
+                    }
+                    None => Ok(false),
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// The global read of the name of `key` after a miss of the cache
+    /// entry of `site`: [`Runtime::get_global`] (a `ReferenceError` if the
+    /// name has no binding), then the entry for it.
+    #[inline(never)]
+    pub(crate) fn get_global_miss(
+        &mut self,
+        code: &FunctionCode,
+        site: u32,
+        key: PropertyKey,
+    ) -> VmResult<Lookup> {
+        let PropertyKey::String(name) = key else {
+            return Err(VmError::invariant("a global site without a name"));
+        };
+        let Some(found) = self.get_global(name)? else {
+            let text = self.name_text(name);
+            return Err(VmError::reference_error(format!("{text} is not defined")));
+        };
+        let entry = self.global_entry(name, false)?;
+        self.fill_cache(code, site, entry);
+        Ok(found)
+    }
+
+    /// The global write of the name of `key` after a miss of the cache
+    /// entry of `site`: [`Runtime::set_global`], with the entry for the
+    /// next write.
+    #[inline(never)]
+    pub(crate) fn set_global_miss(
+        &mut self,
+        code: &FunctionCode,
+        site: u32,
+        key: PropertyKey,
+        value: Value,
+        strict: bool,
+    ) -> VmResult<SetOutcome> {
+        let PropertyKey::String(name) = key else {
+            return Err(VmError::invariant("a global site without a name"));
+        };
+        let outcome = self.set_global(name, value, strict)?;
+        let entry = self.global_entry(name, true)?;
+        self.fill_cache(code, site, entry);
+        Ok(outcome)
+    }
+
+    /// The cache entry of the global name `name` in the current realm: its
+    /// lexical binding, or the property of the global object or of its
+    /// prototype chain that holds it (for a write, only a writable data
+    /// property of the global object). `Empty` if there is none or the
+    /// walk meets an object whose kind a cache cannot follow.
+    fn global_entry(&self, name: Gc<JsString>, write: bool) -> VmResult<SiteCache> {
+        let realm = self.current_realm();
+        let record = self
+            .vm
+            .realms
+            .get(realm as usize)
+            .ok_or(VmError::invariant("no realm"))?;
+        if let Some(index) = record.lexical.position(name) {
+            return Ok(SiteCache::GlobalLexical { realm, index });
+        }
+        let key = PropertyKey::String(name);
+        let mut current = Some(record.global);
+        while let Some(object) = current {
+            let object_record = self.heap.object(object)?;
+            let plain = !matches!(
+                object_record.kind,
+                ObjectKind::Proxy(_) | ObjectKind::Host { .. } | ObjectKind::TypedArray(_)
+            );
+            if !plain || !object_record.watched {
+                return Ok(SiteCache::Empty);
+            }
+            let shape = self.heap.shape(object_record.shape)?;
+            if let Some(found) = shape.find(key, &self.heap.arenas.key_lists)? {
+                let accessor = found.flags.accessor();
+                if write && (object != record.global || accessor || !found.flags.writable()) {
+                    return Ok(SiteCache::Empty);
+                }
+                return Ok(SiteCache::GlobalProperty {
+                    realm,
+                    lexicals: record.lexical.len(),
+                    holder: object,
+                    slot: found.slot,
+                    accessor,
+                    epoch: self.heap.watch_epoch(),
+                });
+            }
+            current = shape.proto();
+        }
+        Ok(SiteCache::Empty)
+    }
+
     /// `PutValue` on a global name (§9.1.1.4.5 `SetMutableBinding`; an
     /// unresolvable name in sloppy mode creates a global property).
     pub(crate) fn set_global(
@@ -98,7 +278,7 @@ impl Runtime {
             .realms
             .get_mut(realm as usize)
             .ok_or(VmError::invariant("no realm"))?;
-        if let Some(binding) = record.lexical.get_mut(&name) {
+        if let Some(binding) = record.lexical.get_mut(name) {
             if binding.value.is_empty() {
                 return Err(self.tdz_error(name));
             }
@@ -124,7 +304,7 @@ impl Runtime {
             .vm
             .realms
             .get_mut(realm as usize)
-            .and_then(|r| r.lexical.get_mut(&name))
+            .and_then(|r| r.lexical.get_mut(name))
             .ok_or(VmError::invariant(
                 "a global lexical binding was not declared",
             ))?;
@@ -169,7 +349,7 @@ impl Runtime {
             .realms
             .get(realm as usize)
             .ok_or(VmError::invariant("no realm"))?;
-        if record.lexical.contains_key(&name) {
+        if record.lexical.contains_key(name) {
             return Ok(false);
         }
         let global = record.global;
@@ -199,7 +379,7 @@ impl Runtime {
                 .vm
                 .realms
                 .get(realm as usize)
-                .is_some_and(|r| r.lexical.contains_key(&name));
+                .is_some_and(|r| r.lexical.contains_key(name));
             let redeclared = match kind {
                 GlobalKind::Let | GlobalKind::Const => {
                     lexical_exists
@@ -325,7 +505,7 @@ impl Runtime {
             .vm
             .realms
             .get(realm as usize)
-            .is_some_and(|r| r.lexical.contains_key(&name));
+            .is_some_and(|r| r.lexical.contains_key(name));
         if lexical {
             return Ok(false);
         }

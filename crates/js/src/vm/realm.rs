@@ -186,6 +186,83 @@ pub(crate) struct LexicalBinding {
     pub(crate) mutable: bool,
 }
 
+/// The global declarative record: the global `let`, `const` and `class`
+/// bindings, by atom (a handle-keyed map: the keys are atoms, whose
+/// handles a script cannot choose). A binding keeps its position for the
+/// life of the realm (bindings are never removed), so the global cache of
+/// a site can name it by position.
+#[derive(Default)]
+pub(crate) struct GlobalLexicals {
+    index: HandleMap<Gc<JsString>, u32>,
+    bindings: Vec<(Gc<JsString>, LexicalBinding)>,
+}
+
+impl GlobalLexicals {
+    /// The binding of `name`.
+    pub(crate) fn get(&self, name: Gc<JsString>) -> Option<&LexicalBinding> {
+        let position = *self.index.get(&name)?;
+        self.binding(position)
+    }
+
+    /// The binding of `name`, for writing.
+    pub(crate) fn get_mut(&mut self, name: Gc<JsString>) -> Option<&mut LexicalBinding> {
+        let position = *self.index.get(&name)?;
+        self.binding_mut(position)
+    }
+
+    /// The position of the binding of `name`.
+    pub(crate) fn position(&self, name: Gc<JsString>) -> Option<u32> {
+        self.index.get(&name).copied()
+    }
+
+    /// The binding at `position`.
+    #[inline]
+    pub(crate) fn binding(&self, position: u32) -> Option<&LexicalBinding> {
+        self.bindings
+            .get(position as usize)
+            .map(|(_, binding)| binding)
+    }
+
+    /// The binding at `position`, for writing.
+    #[inline]
+    pub(crate) fn binding_mut(&mut self, position: u32) -> Option<&mut LexicalBinding> {
+        self.bindings
+            .get_mut(position as usize)
+            .map(|(_, binding)| binding)
+    }
+
+    /// Whether `name` has a binding.
+    pub(crate) fn contains_key(&self, name: Gc<JsString>) -> bool {
+        self.index.contains_key(&name)
+    }
+
+    /// Whether there is no binding.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.bindings.is_empty()
+    }
+
+    /// The number of bindings.
+    #[inline]
+    pub(crate) fn len(&self) -> u32 {
+        self.bindings.len() as u32
+    }
+
+    /// Adds the binding of `name` (replaces it if it exists).
+    pub(crate) fn insert(&mut self, name: Gc<JsString>, binding: LexicalBinding) {
+        if let Some(existing) = self.get_mut(name) {
+            *existing = binding;
+            return;
+        }
+        self.index.insert(name, self.bindings.len() as u32);
+        self.bindings.push((name, binding));
+    }
+
+    /// The names and bindings.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &(Gc<JsString>, LexicalBinding)> {
+        self.bindings.iter()
+    }
+}
+
 /// A realm.
 pub(crate) struct Realm {
     /// The global object (in a browser, behind `WindowProxy`).
@@ -193,9 +270,8 @@ pub(crate) struct Realm {
     /// `None` for the two intrinsics that exist only after the built-in
     /// functions are installed, until `set_intrinsic` runs.
     intrinsics: [Option<Gc<Object>>; INTRINSIC_COUNT],
-    /// The global `let` and `const` bindings, by atom (a handle-keyed
-    /// map: the keys are atoms, whose handles a script cannot choose).
-    pub(crate) lexical: HandleMap<Gc<JsString>, LexicalBinding>,
+    /// The global `let`, `const` and `class` bindings.
+    pub(crate) lexical: GlobalLexicals,
     /// The state of the `RegExp` built-ins: the last match for the legacy
     /// static properties and the shapes of the fast paths.
     pub(crate) regexp: crate::object::RegExpRealm,
@@ -215,7 +291,7 @@ impl Realm {
             tracer.object(*constructor);
             tracer.object(*prototype);
         }
-        for (name, binding) in &self.lexical {
+        for (name, binding) in self.lexical.iter() {
             tracer.string(*name);
             tracer.value(binding.value);
         }
@@ -391,6 +467,8 @@ impl Runtime {
             })),
         )?;
         let global = heap.new_object(Some(object_proto))?;
+        // The global caches of the sites depend on its keys (`object/cache.rs`).
+        heap.watch(global)?;
         // The intrinsics in declaration order; the others are set by
         // `set_intrinsic` when their function exists.
         let mut intrinsics = [None; INTRINSIC_COUNT];
@@ -446,7 +524,7 @@ impl Runtime {
         let realm = Realm {
             global,
             intrinsics,
-            lexical: HandleMap::default(),
+            lexical: GlobalLexicals::default(),
             regexp: crate::object::RegExpRealm::default(),
             typed_arrays: [None; TYPED_ARRAY_TYPES],
         };
