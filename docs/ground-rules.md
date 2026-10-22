@@ -94,3 +94,12 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
   An optional ad and tracker blocker is a possible later target.
 - The user-agent string does not change. If browser sniffing causes real
   problems, decide again.
+
+## Decisions from 2026-10-22: JavaScript in the browser
+
+- The first milestone of the engine integration (M8) targets the five
+  target pages with JavaScript on: each renders like Chromium with
+  JavaScript on, no script error breaks the page, and the JavaScript
+  features of the page work.
+- Fixtures with JavaScript on contain the sites' scripts. They stay on
+  the local machine and are never committed.

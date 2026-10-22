@@ -4,6 +4,36 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M8 step 1, the script survey
+
+- Owner decisions: the M8 targets are the five target pages with
+  JavaScript on (they render like Chromium with JavaScript on, no script
+  error breaks them, their JavaScript features work); fixtures with
+  JavaScript on stay local (`fixtures/js/`, git-ignored), because they
+  contain the sites' scripts. Recorded in the ground rules and the new
+  M8 section of the roadmap.
+- Tools: `capture --js` records a page with JavaScript on into
+  `fixtures/js/NAME/`. `js-survey` replays it in Chromium four times:
+  with a tracer (an init script that wraps the members of the Web API
+  interfaces and counts calls, reads, writes and `new` per phase), with
+  JIT and with `--js-flags=--jitless` for the DevTools performance
+  metrics, and with JavaScript off for the screenshot difference. Each
+  run has a 300 s limit.
+- Report: `docs/js-survey.md`. Senko.net and Hacker News need no
+  JavaScript. Wikipedia: 14 scripts (1.1 MB, all first-party), 176
+  members, no errors in replay; features: appearance (dark mode, text
+  size, width), pinned menus, collapsibles, a sticky header, reference
+  previews, search suggestions, the video player. Ars Technica: 214
+  scripts (5.2 MB, mostly third-party), 364 members, 3,141
+  `getComputedStyle` calls during parse, `document.write`; a consent
+  dialog covers the page. BBC: 93 scripts (5.1 MB, 60 % its own), 272
+  members, 955 ms of script time in Chromium without JIT; a consent
+  dialog in a cross-origin iframe covers the page.
+- Review: no blocking findings. Fixed: the per-run time limit (a page
+  that blocks its main thread stopped the survey), a test that the
+  tool's own calls are not counted, three limits of the method in the
+  report.
+
 ## 2026-10-22: M7 maintenance; end of M7
 
 - Feature 14 (modules) is postponed: of the script tags of the five

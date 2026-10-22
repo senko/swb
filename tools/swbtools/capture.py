@@ -1,6 +1,7 @@
 """`swbtools capture URL NAME`: download a page and its resources into a
-fixture directory. `swbtools capture-missing NAME`: add only the resources
-that a fixture does not have.
+fixture directory (with `--js`: JavaScript on, into `fixtures/js/NAME`).
+`swbtools capture-missing NAME`: add only the resources that a fixture does
+not have.
 
 1. Chromium loads the page from the network (JavaScript disabled) and
    scrolls through it. Every response is recorded.
@@ -25,17 +26,37 @@ from swbtools.routing import Recorder
 log = logging.getLogger(__name__)
 
 
+JS_SCROLL_STEPS = 60
+"""Scroll steps of a capture with JavaScript on (a page can grow for ever)."""
+
+JS_IDLE_TIMEOUT_MS = 15_000
+"""Cap of the wait for network idle after the scroll, with JavaScript on."""
+
+
 async def chromium_pass(
-    fixture: Fixture, url: str, replay_known: bool, system_fonts: bool
+    fixture: Fixture, url: str, replay_known: bool, system_fonts: bool, javascript: bool = False
 ) -> tuple[str, str]:
     """Loads `url` in Chromium and records what it fetches. Returns the
-    serialized URL of the first request and the Chromium version."""
-    async with browser.session(browser.PAGE_VIEWPORT, system_fonts) as (chromium, context, page):
+    serialized URL of the first request and the Chromium version. With
+    `javascript`, scripts run, the scroll has a step limit, and the log
+    names the requests that were still pending after the capped wait."""
+    async with browser.session(browser.PAGE_VIEWPORT, system_fonts, javascript) as (
+        chromium,
+        context,
+        page,
+    ):
         recorder = Recorder(fixture, context, replay_known=replay_known)
         await recorder.attach(context, page)
+        tracker = browser.PendingRequests(page)
         response = await page.goto(url, wait_until="load", timeout=120_000)
-        await browser.scroll_through(page)
-        await browser.wait_for_network_idle(page)
+        await browser.scroll_through(page, max_steps=JS_SCROLL_STEPS if javascript else None)
+        await browser.wait_for_network_idle(page, JS_IDLE_TIMEOUT_MS if javascript else 15_000)
+        if javascript and tracker.pending():
+            log.warning(
+                "%d requests still pending: %s",
+                len(tracker.pending()),
+                ", ".join(tracker.pending()),
+            )
         first_url = url
         if response is not None:
             request = response.request
@@ -71,9 +92,13 @@ def capture(
     swb_path: Path | None,
     force: bool,
     system_fonts: bool,
+    javascript: bool = False,
 ) -> int:
-    """Runs the capture. `with_swb=None` means: use swb if it exists."""
-    directory = paths.fixture_dir(name)
+    """Runs the capture. `with_swb=None` means: use swb if it exists, but not
+    for a JavaScript capture (swb runs no scripts yet)."""
+    if javascript and with_swb is None:
+        with_swb = False
+    directory = paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
     if (directory / MANIFEST_FILE).exists():
         if not force:
             log.error("%s exists; use --force to capture it again", directory)
@@ -89,12 +114,16 @@ def capture(
             return 1
 
     fixture = Fixture(directory)
-    first_url, version = asyncio.run(chromium_pass(fixture, url, False, system_fonts))
+    first_url, version = asyncio.run(chromium_pass(fixture, url, False, system_fonts, javascript))
     captured = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     write_meta(
         directory,
         FixtureMeta(
-            url=first_url, captured=captured, viewport=browser.PAGE_VIEWPORT, chromium=version
+            url=first_url,
+            captured=captured,
+            viewport=browser.PAGE_VIEWPORT,
+            chromium=version,
+            javascript=javascript,
         ),
     )
 
@@ -103,7 +132,7 @@ def capture(
         if status != 0:
             log.warning("swb exited with status %d; its recording may be incomplete", status)
         fixture = Fixture(directory)
-        asyncio.run(chromium_pass(fixture, first_url, True, system_fonts))
+        asyncio.run(chromium_pass(fixture, first_url, True, system_fonts, javascript))
     else:
         log.info("swb not used: only Chromium's requests are recorded")
 

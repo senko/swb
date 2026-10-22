@@ -58,6 +58,8 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | just                         | swbtools                               | What it does |
 |------------------------------|----------------------------------------|--------------|
 | `just capture URL NAME`      | `capture URL NAME`                     | Downloads a page into `fixtures/pages/NAME/`. |
+| `just capture URL NAME --js` | `capture --js URL NAME`                | Downloads a page with JavaScript on into `fixtures/js/NAME/` (local only; see "Capture with JavaScript on"). |
+| `just js-survey [NAME...]`   | `js-survey NAME... \| --all [--runs N]` | Replays `fixtures/js/NAME` in Chromium with JavaScript on and measures what the scripts do (see "Survey the scripts of a page"). |
 | `just capture-missing NAME`  | `capture-missing NAME`                 | Adds only the responses that the fixture does not have. |
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
@@ -90,7 +92,8 @@ Options:
 - `capture --force`: replace an existing fixture (deletes its manifest,
   `files/`, `fixture.json` and `reference/`).
 - `capture --with-swb` / `--no-swb`: record swb's requests too, or not.
-  Default: use swb if the binary exists.
+  Default: use swb if the binary exists (with `--js`: do not use it).
+- `capture --js`: JavaScript on; the fixture goes to `fixtures/js/NAME/`.
 - `--swb PATH` (`capture`, `capture-missing`, `compare`, `perf`, `probe`): the
   swb binary. Default: the
   `SWB` environment variable, then `target/release/swb`, then
@@ -265,7 +268,8 @@ settings (`tools/swbtools/browser.py`):
   device scale factor 1.
 - JavaScript disabled (`java_script_enabled=False`). swb does not run
   JavaScript. Playwright's `evaluate` still works: the tools use it to read
-  boxes and to scroll.
+  boxes and to scroll. Only `capture --js` and `js-survey` turn JavaScript
+  on (`new_context(javascript=True)`).
 - Locale `en-US`, `prefers-color-scheme: light`,
   `prefers-reduced-motion: no-preference`, service workers blocked.
   Playwright's headless defaults give `hover: hover` and `pointer: fine`,
@@ -380,6 +384,71 @@ What `capture` does:
    fixture and fetches only missing URLs from the network. So the fixture
    has everything that Chromium needs for the final HTML.
 4. Body files that no entry uses are deleted.
+
+### Capture with JavaScript on
+
+`just capture URL NAME --js` (`capture --js URL NAME`) captures a page as
+above, with these differences:
+
+- Chromium runs the page's scripts. `fixture.json` gets
+  `"javascript": true`. Readers that do not know the field ignore it.
+- The fixture goes to `fixtures/js/NAME/`, not `fixtures/pages/NAME/`. The
+  directory is git-ignored and **never committed**: the fixture contains the
+  sites' scripts, which are commercial code, and the repository is public.
+  `substitute` does not apply to it. `reference`, `compare` and the other
+  commands do not see it (they list `fixtures/pages/`).
+- swb recording is off unless `--with-swb` is given (swb runs no scripts).
+- Scripts can keep the network busy for ever (ads, analytics), and a page can
+  grow while the tool scrolls. The scroll stops after 60 steps, the wait for
+  network idle after the scroll is capped at 15 s, and the log (level
+  `warning`) lists the requests that were still pending.
+- The recording has the responses of one run. Scripts that request URLs with
+  random or time-based parts (timestamps, session ids) get other URLs in
+  replay, and replay fails them.
+
+### Survey the scripts of a page
+
+`just js-survey NAME...` (`js-survey --all`) measures what the scripts of
+`fixtures/js/NAME` do, in Chromium with the test settings and JavaScript on
+(`tools/swbtools/js_survey.py`). Every request is answered from the fixture;
+requests that the fixture lacks fail and the survey lists them. There are
+four runs per page (`--runs N` sets the runs of the timing measurement,
+default 3):
+
+1. Traced run. An init script (`js_tracer.js`, added with
+   `context.add_init_script`, so it runs before any page script) wraps the
+   members of the Web API interfaces with proxies and counts calls, reads
+   and writes by phase: `parse` (until `DOMContentLoaded`), `load` (until
+   the `load` event) and `after` (the scroll and the wait that follow). It
+   also records arguments of a few members (event types and targets, tag
+   names, selectors, timer delays, hosts of requests), scripts and iframes
+   that scripts insert, the timer and animation-frame callbacks that ran,
+   and DOM mutations (a `MutationObserver` from document start). Outside the
+   page, the tool records the scripts that Chromium compiled (CDP
+   `Debugger.scriptParsed`), console errors, uncaught exceptions and the
+   requests by resource type.
+2. Untraced run with JIT: Chrome DevTools Protocol `Performance.getMetrics`
+   (script, task, layout and style durations and counts, nodes, heap) and
+   the screenshot of the first viewport.
+3. The same with `--js-flags=--jitless` (a separate browser launch). swb's
+   interpreter is about 2 times slower than `node --jitless`, so this run
+   predicts the script time of swb.
+4. JavaScript off, from the same fixture: element count and screenshot. The
+   tool writes the fraction of differing pixels.
+
+Each run stops after 300 s with an error (a page that blocks its main
+thread would otherwise stop the survey); the next page continues.
+
+The output is in `out/js-survey/NAME/`: `survey.json` (all data),
+`js-on.png`, `js-off.png`, `js-diff.png` and `summary.md` (also printed). The
+results of the target pages are in [js-survey.md](js-survey.md).
+
+Limits: a wrapper counts the calls of page scripts only (not those of the
+engine, and not the members that the page cannot see); non-configurable
+members (`window.location`, `document`, `top`) cannot be wrapped and are
+listed by name; named-property access (`localStorage.key = value`) is not
+counted; only the top frame is traced; the phase of a mutation is the phase
+at the time of delivery; replay misses requests with new URLs.
 
 ### Substitute copyrighted content
 

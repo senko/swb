@@ -43,6 +43,19 @@ def fixture_dir(name: str) -> Path:
     return pages_dir() / name
 
 
+def js_fixtures_dir() -> Path:
+    """Returns `fixtures/js/`: page fixtures captured with JavaScript on. The
+    directory is git-ignored because the fixtures contain the sites' scripts."""
+    return fixtures_dir() / "js"
+
+
+def js_fixture_dir(name: str) -> Path:
+    """Returns the directory of the JavaScript fixture `name`."""
+    if not name or "/" in name or name.startswith("."):
+        raise ValueError(f"invalid fixture name {name!r}")
+    return js_fixtures_dir() / name
+
+
 def fonts_conf() -> Path:
     """Returns the fontconfig file with the bundled test fonts."""
     return fixtures_dir() / "fonts" / "fonts.conf"

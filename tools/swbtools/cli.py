@@ -9,6 +9,7 @@ from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.hostile import hostile
+from swbtools.js_survey import js_survey
 from swbtools.js_time_zone_names import write_data as write_js_time_zone_names
 from swbtools.js_unicode_tables import write_tables as write_js_unicode_tables
 from swbtools.jsbench import jsbench
@@ -18,7 +19,7 @@ from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
-from swbtools.pages import list_fixtures, read_meta
+from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
 from swbtools.probe import DEFAULT_TOLERANCE as PROBE_TOLERANCE
@@ -38,7 +39,9 @@ def _names(args: argparse.Namespace) -> list[str] | None:
 
 
 def cmd_capture(args: argparse.Namespace) -> int:
-    return capture(args.url, args.name, args.with_swb, args.swb, args.force, args.system_fonts)
+    return capture(
+        args.url, args.name, args.with_swb, args.swb, args.force, args.system_fonts, args.js
+    )
 
 
 def cmd_capture_missing(args: argparse.Namespace) -> int:
@@ -142,6 +145,14 @@ def cmd_substitute(args: argparse.Namespace) -> int:
     return substitute(args.names, args.check)
 
 
+def cmd_js_survey(args: argparse.Namespace) -> int:
+    names = list_js_fixtures() if args.all else args.names
+    if not names:
+        log.error("give fixture names or --all")
+        return 2
+    return js_survey(names, args.runs, args.system_fonts)
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     for name in list_fixtures():
         directory = paths.fixture_dir(name)
@@ -179,6 +190,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--swb", type=Path, help="path of the swb binary")
     p.add_argument("--force", action="store_true", help="replace an existing fixture")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
+    p.add_argument(
+        "--js",
+        action="store_true",
+        help="run the page's scripts and write fixtures/js/NAME (local only, not committed); "
+        "swb recording is off unless --with-swb",
+    )
     p.set_defaults(func=cmd_capture)
 
     p = commands.add_parser(
@@ -347,6 +364,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--check", action="store_true", help="only report content that may not be published"
     )
     p.set_defaults(func=cmd_substitute)
+
+    p = commands.add_parser(
+        "js-survey",
+        help="measure what the scripts of fixtures/js/NAME do in Chromium (docs/js-survey.md)",
+    )
+    p.add_argument("names", nargs="*", metavar="NAME")
+    p.add_argument("--all", action="store_true", help="all fixtures in fixtures/js")
+    p.add_argument("--runs", type=int, default=3, help="runs of the timing measurement (default 3)")
+    p.add_argument("--system-fonts", action="store_true", help=fonts_help)
+    p.set_defaults(func=cmd_js_survey)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

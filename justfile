@@ -83,6 +83,10 @@ tools *ARGS:
 capture URL NAME *ARGS:
     uv run --project tools swbtools capture {{URL}} {{NAME}} {{ARGS}}
 
+# Measure what the scripts of fixtures/js/NAME do in Chromium (JavaScript on). Example: just js-survey bbc; capture with `just capture URL NAME --js`.
+js-survey *NAMES:
+    uv run --project tools swbtools js-survey {{ if NAMES == "" { "--all" } else { NAMES } }}
+
 # Add the responses that a fixture does not have (after swb learned to load more). Example: just capture-missing senko-net
 capture-missing NAME *ARGS: build
     uv run --project tools swbtools capture-missing {{NAME}} {{ARGS}}

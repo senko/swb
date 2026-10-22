@@ -2159,9 +2159,69 @@ shell has no `$262.createRealm`), 68 tests that include
 `SharedArrayBuffer` and 112 `atomicsHelper.js` tests (out of scope,
 ADR 0026). The other skipped tests are proposals after ES2025.
 
-After M7 (or interleaved, when the owner gives targets): the bindings
-and the engine integration (layers 2 and 3 of ADR 0025), each with its
-own ADR, and the on/off setting of M6 step 4.
+After M7: the bindings and the engine integration (layers 2 and 3 of
+ADR 0025) are M8.
+
+## M8: JavaScript in the browser — in progress
+
+Owner decisions (2026-10-22, ground rules):
+
+- Targets: the five target pages with JavaScript on. Each page renders
+  like Chromium with JavaScript on, no script error breaks the page, and
+  the JavaScript features of the page work. The survey (step 1) lists
+  the features; the owner confirms the list with the plan.
+- The fixtures with JavaScript on (`fixtures/js/<name>/`) contain the
+  sites' scripts, also commercial code. They stay on the local machine:
+  the directory is git-ignored and never committed. Tests that need it
+  skip when it is missing. The fixtures with JavaScript off, their
+  references and their scores do not change.
+- JavaScript stays off by default (ADR 0025).
+
+Steps:
+
+1. Survey (`implementer`, tools only): `capture --js` records a target
+   with JavaScript on into `fixtures/js/`; `js-survey` replays it in
+   Chromium and records the scripts, the Web APIs that they use per
+   phase (parse, load, after load), the DOM changes, the network
+   requests, the errors in replay, Chromium's script, style and layout
+   times (with and without JIT) and the screenshot difference between
+   JavaScript on and off. Report: `docs/js-survey.md`.
+2. Design (`implementer-hard`, docs only): ADR 0028, the bindings and
+   the engine integration, from the survey, ADR 0025, ADR 0026
+   section 12 and memo 5.3. The ADR decides at least:
+   - The crates: a crate for the bindings and the event loop between
+     `js` and `engine`; `js` stays independent of the browser crates.
+   - DOM wrappers: one wrapper per node, the lifetime of nodes (the DOM
+     arena does not free nodes now; scripts can hold detached nodes),
+     cycles between the DOM and scripts, host classes and brand checks,
+     and how the bindings are written (by hand or generated from
+     WebIDL; the source and license of the IDL).
+   - The event loop: task sources, the microtask checkpoint, timers,
+     animation frames, the rendering update, the time budget per task,
+     and the integration items of the backlog (termination inside the
+     resume of an async function, the globals of a document after a
+     heap-limit termination, the finalization cleanup hook, the
+     rejection events).
+   - Scripts during parsing: the parser pause at parser-blocking
+     scripts, `defer`, `async`, module scripts without imports (M7
+     feature 14 note), `nomodule`, `document.write` if a target uses
+     it, the scripting flag.
+   - Style and layout after DOM changes and layout queries from
+     scripts, against the counts of the survey.
+   - Network requests from scripts (`fetch`, XHR, beacons) through
+     `net`; CORS; `document.cookie`.
+   - The on/off setting of M6 step 4.
+   - Time and memory budgets per page (backlog: lazy compilation, the
+     accounting of source text).
+   - Tests: synthetic pages in the repository for each binding, the
+     local JS-on fixtures for the targets, and a comparison with
+     Chromium with JavaScript on.
+
+   The session also writes the ordered feature list of M8 into this
+   section, each feature with its scope from the survey. The owner
+   approves the ADR and the list before the first feature starts.
+3. Features, in the order of step 2: the smallest target first
+   (Hacker News, Wikipedia, Ars Technica, BBC).
 
 ## Pending decisions
 

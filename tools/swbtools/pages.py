@@ -24,6 +24,8 @@ class FixtureMeta:
     viewport: tuple[int, int]
     chromium: str
     """Chromium version used for the capture."""
+    javascript: bool = False
+    """True for a fixture in `fixtures/js/`: captured with JavaScript on."""
 
 
 def read_meta(fixture: Path) -> FixtureMeta:
@@ -35,6 +37,7 @@ def read_meta(fixture: Path) -> FixtureMeta:
         captured=data["captured"],
         viewport=(int(width), int(height)),
         chromium=data.get("chromium", ""),
+        javascript=bool(data.get("javascript", False)),
     )
 
 
@@ -46,13 +49,23 @@ def write_meta(fixture: Path, meta: FixtureMeta) -> None:
         "viewport": list(meta.viewport),
         "chromium": meta.chromium,
     }
+    if meta.javascript:
+        data["javascript"] = True
     text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
     (fixture / META_FILE).write_text(text, encoding="utf-8")
 
 
+def _list_in(directory: Path) -> list[str]:
+    if not directory.is_dir():
+        return []
+    return sorted(child.name for child in directory.iterdir() if (child / MANIFEST_FILE).is_file())
+
+
 def list_fixtures() -> list[str]:
     """Returns the names of all page fixtures (directories with a manifest)."""
-    pages = paths.pages_dir()
-    if not pages.is_dir():
-        return []
-    return sorted(child.name for child in pages.iterdir() if (child / MANIFEST_FILE).is_file())
+    return _list_in(paths.pages_dir())
+
+
+def list_js_fixtures() -> list[str]:
+    """Returns the names of all JavaScript fixtures in `fixtures/js/`."""
+    return _list_in(paths.js_fixtures_dir())

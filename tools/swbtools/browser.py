@@ -7,7 +7,7 @@ reasons for each one are in docs/testing.md ("Chromium settings").
 import logging
 import os
 import tempfile
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from html import escape
 from pathlib import Path
@@ -85,27 +85,34 @@ def browser_env(system_fonts: bool) -> dict[str, str]:
     return env
 
 
-async def launch(playwright: Playwright, system_fonts: bool = False) -> Browser:
-    """Launches headless Chromium with the test settings."""
+async def launch(
+    playwright: Playwright, system_fonts: bool = False, extra_args: Sequence[str] = ()
+) -> Browser:
+    """Launches headless Chromium with the test settings. `extra_args` are
+    added to the command line (for example `--js-flags=--jitless`)."""
     browser = await playwright.chromium.launch(
-        args=CHROMIUM_ARGS, env=browser_env(system_fonts), headless=True
+        args=[*CHROMIUM_ARGS, *extra_args], env=browser_env(system_fonts), headless=True
     )
     log.info("Chromium %s", browser.version)
     return browser
 
 
 async def new_context(
-    browser: Browser, viewport: tuple[int, int], time_zone: str | None = None
+    browser: Browser,
+    viewport: tuple[int, int],
+    time_zone: str | None = None,
+    javascript: bool = False,
 ) -> BrowserContext:
-    """Creates a browser context: JavaScript disabled, device scale factor 1,
-    and the same media features as swb. `time_zone` is an IANA name (the
-    time zone of `Date`); without it the context has the machine's zone."""
+    """Creates a browser context: JavaScript disabled (unless `javascript`),
+    device scale factor 1, and the same media features as swb. `time_zone` is
+    an IANA name (the time zone of `Date`); without it the context has the
+    machine's zone."""
     width, height = viewport
     return await browser.new_context(
         timezone_id=time_zone,
         viewport={"width": width, "height": height},
         device_scale_factor=1,
-        java_script_enabled=False,
+        java_script_enabled=javascript,
         locale="en-US",
         color_scheme="light",
         reduced_motion="no-preference",
@@ -115,15 +122,18 @@ async def new_context(
 
 @asynccontextmanager
 async def session(
-    viewport: tuple[int, int], system_fonts: bool = False
+    viewport: tuple[int, int],
+    system_fonts: bool = False,
+    javascript: bool = False,
+    extra_args: Sequence[str] = (),
 ) -> AsyncIterator[tuple[Browser, BrowserContext, Page]]:
     """Starts Chromium with the test settings and yields the browser, a
     context with `viewport` and a new page. Closes Chromium on exit, also
     when the body fails."""
     async with async_playwright() as playwright:
-        chromium = await launch(playwright, system_fonts)
+        chromium = await launch(playwright, system_fonts, extra_args)
         try:
-            context = await new_context(chromium, viewport)
+            context = await new_context(chromium, viewport, javascript=javascript)
             yield chromium, context, await context.new_page()
         finally:
             await chromium.close()
@@ -143,12 +153,15 @@ async def load_html(page: Page, path: Path, html: str) -> None:
     await page.goto(path.as_uri(), wait_until="load")
 
 
-async def scroll_through(page: Page, pause_ms: int = 250) -> None:
+async def scroll_through(page: Page, pause_ms: int = 250, max_steps: int | None = None) -> None:
     """Scrolls down the whole page in steps, then back to the top, so that
-    lazy-loaded images load."""
+    lazy-loaded images load. `max_steps` stops early; use it for pages with
+    scripts, where the height can grow for ever (infinite scroll)."""
     step = int(page.viewport_size["height"] * 0.8) if page.viewport_size else 600
     y = 0
-    while True:
+    steps = 0
+    while max_steps is None or steps < max_steps:
+        steps += 1
         height = await page.evaluate("document.documentElement.scrollHeight")
         if y >= height:
             break
@@ -216,3 +229,19 @@ async def wait_for_network_idle(page: Page, timeout_ms: int = 15000) -> None:
         await page.wait_for_load_state("networkidle", timeout=timeout_ms)
     except Exception as error:
         log.warning("network did not become idle: %s", error)
+
+
+class PendingRequests:
+    """Tracks the requests of a page that have not finished. Scripts (ads,
+    analytics) can keep the network busy for ever; after a capped wait the
+    tool logs what is still pending."""
+
+    def __init__(self, page: Page) -> None:
+        self.urls: dict[object, str] = {}
+        page.on("request", lambda request: self.urls.__setitem__(request, request.url))
+        page.on("requestfinished", lambda request: self.urls.pop(request, None))
+        page.on("requestfailed", lambda request: self.urls.pop(request, None))
+
+    def pending(self) -> list[str]:
+        """Returns the URLs of the requests that have not finished."""
+        return sorted(self.urls.values())
