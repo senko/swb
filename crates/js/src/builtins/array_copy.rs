@@ -50,7 +50,7 @@ fn is_concat_spreadable(rt: &mut Runtime, value: Value) -> VmResult<bool> {
 
 /// `Array.prototype.concat(...items)` (§23.1.3.1).
 pub(super) fn concat(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_of(call, "Array.prototype.concat")?;
+    let object = rt.this_object_checked(call, "Array.prototype.concat")?;
     let result = rt.array_species_create(object, 0.0)?;
     let mut n = 0.0;
     for index in 0..=call.argc() {

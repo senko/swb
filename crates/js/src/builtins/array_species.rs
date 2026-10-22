@@ -2,12 +2,12 @@
 //! (§23.1.2.5) and `Array.prototype[@@unscopables]` (§23.1.3.41).
 
 use crate::heap::Gc;
-use crate::object::{Object, PropertyDescriptor};
+use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::convert::checked_array_length;
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, VmError, VmResult, WellKnown};
 
 /// The names on `Array.prototype[@@unscopables]` (ES2025, in Chromium's
 /// order).
@@ -32,11 +32,8 @@ const UNSCOPABLES: [&str; 16] = [
 
 /// Defines the `@@species` getter on `Array`.
 pub(super) fn install_species(rt: &mut Runtime, realm: u32, array: Gc<Object>) -> VmResult<()> {
-    let getter = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let getter = super::species_getter(rt, realm, array)?;
     rt.set_intrinsic(realm, Intrinsic::ArraySpeciesGetter, getter);
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc = PropertyDescriptor::accessor(getter.into(), Value::Undefined, false, true);
-    rt.define_own_property(array, key, desc)?;
     Ok(())
 }
 
@@ -51,15 +48,6 @@ pub(super) fn install_unscopables(rt: &mut Runtime, proto: Gc<Object>) -> VmResu
     }
     let key = rt.symbol_key(WellKnown::Unscopables);
     rt.define(proto, key, unscopables.into(), false, false, true)
-}
-
-/// `get Array[@@species]`: the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
 }
 
 impl Runtime {

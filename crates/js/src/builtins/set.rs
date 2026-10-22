@@ -1,9 +1,10 @@
 //! `Set` (ECMA-262 §24.2, <https://tc39.es/ecma262/#sec-set-objects>):
 //! the constructor, `Set.prototype` in Chromium 148's key order and
 //! `%SetIteratorPrototype%`. The ES2025 set methods are in
-//! `set_methods.rs`; the table, the shared natives and the iterators are
-//! in `object/table.rs` and `collection.rs`. A `Set` stores its elements
-//! as the keys of the table.
+//! `set_methods.rs`; the table is in `object/table.rs` (with its heap
+//! operations in `object/collection.rs`), the shared natives and the
+//! iterators are in `collection.rs`. A `Set` stores its elements as the
+//! keys of the table.
 
 use crate::object::IterationKind;
 use crate::runtime::Runtime;
@@ -94,7 +95,7 @@ fn delete(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Set.prototype.clear()` (§24.2.4.2).
 fn clear(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let set = rt.this_collection(call, Which::Set, "Set.prototype.clear")?;
-    rt.heap.table_mut(set)?.clear();
+    rt.heap.collection_table_mut(set)?.clear();
     Ok(NativeReturn::Value(Value::Undefined))
 }
 

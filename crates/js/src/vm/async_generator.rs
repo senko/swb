@@ -48,7 +48,7 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::call::Step;
-use crate::vm::generator::{GeneratorKind, GeneratorStatus, incompatible_receiver};
+use crate::vm::generator::{GeneratorKind, GeneratorStatus, generator_receiver_error};
 use crate::vm::{
     Intrinsic, NativeCall, NativeReturn, ReactionKind, Resume, ResumeMode, ReturnTo, VmError,
     VmResult,
@@ -130,7 +130,8 @@ fn request(
     let promise = rt.new_promise(realm)?;
     let this = call.this();
     let Some(generator) = rt.as_async_generator(this)? else {
-        let reason = rt.thrown_value(incompatible_receiver(rt, "AsyncGenerator", method, this))?;
+        let reason =
+            rt.thrown_value(generator_receiver_error(rt, "AsyncGenerator", method, this))?;
         rt.heap.record(reason);
         rt.reject_promise(promise, reason)?;
         return Ok(NativeReturn::Value(promise.into()));

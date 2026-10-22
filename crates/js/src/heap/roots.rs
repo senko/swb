@@ -321,7 +321,8 @@ impl Heap {
             .ok_or(Error::invariant("a released persistent root"))
     }
 
-    /// The value of a persistent root that holds a value.
+    /// The value of a persistent root that holds a value. (For embedders
+    /// and tests; the engine itself does not call it.)
     pub fn persistent_value(&mut self, root: &Persistent) -> Result<Value> {
         match self.persistent_root(root)? {
             Root::Value(value) => Ok(value),

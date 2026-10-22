@@ -54,7 +54,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         super::method(rt, realm, atomics, name, length, func)?;
     }
     super::to_string_tag(rt, atomics, "Atomics")?;
-    super::global(rt, realm, "Atomics", atomics.into())
+    super::define_global(rt, realm, "Atomics", atomics.into())
 }
 
 // --- Validation ---
@@ -72,7 +72,7 @@ fn validate_integer(
     let wrong = |what: &str| {
         VmError::type_error(format!(
             "{} is not {what} typed array.",
-            rt.primitive_text(value)
+            rt.value_text(value)
         ))
     };
     let Some((_, data)) = rt.typed_slots(value)? else {
@@ -273,7 +273,7 @@ fn wait(rt: &mut Runtime, call: &NativeCall, name: &str) -> VmResult<NativeRetur
     validate_integer(rt, value, name, true)?;
     Err(VmError::type_error(format!(
         "{} is not a shared typed array.",
-        rt.primitive_text(value)
+        rt.value_text(value)
     )))
 }
 

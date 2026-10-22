@@ -74,7 +74,8 @@ impl Heap {
         self.weak_roots.kept = HashSet::default();
     }
 
-    /// The number of targets in the kept set.
+    /// The number of targets in the kept set. (For embedders and tests; the
+    /// engine itself does not call it.)
     pub fn kept_objects(&self) -> usize {
         self.weak_roots.kept.len()
     }

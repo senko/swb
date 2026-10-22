@@ -23,6 +23,8 @@ that the code point sets (`js_property_sets.py`) use the same indices.
 
 from pathlib import Path
 
+from swbtools.ucd import rust_static
+
 NON_BINARY = {
     "General_Category": "gc",
     "Script": "sc",
@@ -86,15 +88,13 @@ def value_aliases(path: Path, prop: str) -> list[list[str]]:
 
 def _name_table(name: str, doc: str, entries: dict[str, int], index_type: str) -> list[str]:
     items = sorted(entries.items())
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(&str, {index_type}); {len(items)}] = ["]
-    lines += [f'    ("{key}", {index}),' for key, index in items]
-    return [*lines, "];", ""]
+    rows = [f'    ("{key}", {index}),' for key, index in items]
+    return rust_static(name, doc, f"[(&str, {index_type}); {len(items)}]", rows)
 
 
 def _list(name: str, doc: str, names: list[str]) -> list[str]:
-    lines = [f"/// {doc}", f"pub(super) static {name}: [&str; {len(names)}] = ["]
-    lines += [f'    "{n}",' for n in names]
-    return [*lines, "];", ""]
+    rows = [f'    "{n}",' for n in names]
+    return rust_static(name, doc, f"[&str; {len(names)}]", rows)
 
 
 def _values(rows: list[list[str]]) -> tuple[list[str], dict[str, int]]:

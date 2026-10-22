@@ -9,7 +9,7 @@ mod common;
 use std::fmt::Write;
 use std::time::{Duration, Instant};
 
-use common::{on_big_stack, run, run_in, runtime, runtime_with};
+use common::{assert_clean, eval_within, on_big_stack, run, run_in, runtime, runtime_with};
 use swb_js::{
     HeapConfig, NativeCall, NativeReturn, RecursionBudget, Runtime, RuntimeConfig, ScriptError,
     Termination, ThrowKind, Value, VmResult,
@@ -140,7 +140,7 @@ fn deep_recursion_in_stress_mode() {
 }
 
 #[test]
-fn suspended_generators_survive_collections() {
+fn suspended_generators_survive_collections_at_the_limits() {
     // 50 generators, each with a captured counter and a local object,
     // advanced in turns with collections between; other calls use the
     // value stack while they are suspended.
@@ -568,21 +568,9 @@ fn the_stack_limit_is_clamped() {
 /// within a few seconds of it, also in a debug build).
 const DEADLINE: Duration = Duration::from_millis(200);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-/// The state that every run must leave behind: no frames, an empty value
-/// stack, no open handle scope, no no-GC region.
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
+    eval_within(rt, source, DEADLINE)
 }
 
 #[test]

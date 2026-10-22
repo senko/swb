@@ -7,27 +7,18 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{on_big_stack, run, run_in, runtime, runtime_with};
+use common::{
+    assert_clean, eval_within, is_limit, on_big_stack, run, run_in, runtime, runtime_with,
+};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(100);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
+    eval_within(rt, source, DEADLINE)
 }
 
 #[test]
@@ -243,6 +234,11 @@ fn bound_arguments_are_charged_per_call() {
     });
 }
 
+/// The keys of a string object with 2^24 units, from `Object.*`, `Reflect`,
+/// `for-in` and the spread of an object. The string fits; the list of its
+/// keys does not (12 bytes per unit, the size of a `PropertyKey`, charged
+/// before the list is built). The `Object.*` cases end with the heap limit;
+/// the cases of the language may also end at the deadline.
 #[test]
 fn keys_of_a_long_string_object_count_against_the_heap_limit() {
     on_big_stack(|| {
@@ -254,12 +250,11 @@ fn keys_of_a_long_string_object_count_against_the_heap_limit() {
             ..RuntimeConfig::default()
         };
         let mut rt = runtime_with(config);
-        // The string fits; the list of its keys (24 bytes per unit) does not.
         rt.eval(
             "var t = 'a'; for (var i = 0; i < 24; i++) t += t; var s = new String(t); undefined;",
         )
         .unwrap();
-        let cases = [
+        let object_cases = [
             "Object.keys(s)",
             "Object.values(s)",
             "Object.entries(s)",
@@ -271,13 +266,24 @@ fn keys_of_a_long_string_object_count_against_the_heap_limit() {
             "Object.isFrozen(Object.preventExtensions(s))",
             "Object.getOwnPropertyDescriptors(s)",
         ];
-        for source in cases {
+        for source in object_cases {
             let (result, elapsed) = eval_with_deadline(&mut rt, source);
             assert_eq!(
                 result,
                 Err(ScriptError::Terminated(Termination::HeapLimit)),
                 "{source}"
             );
+            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
+        }
+        let language_cases = [
+            "for (var k in s) { }",
+            "for (var k in t) { }",
+            "var c = { ...s };",
+            "var c = { ...t };",
+        ];
+        for source in language_cases {
+            let (result, elapsed) = eval_with_deadline(&mut rt, source);
+            assert!(is_limit(&result), "{source}: {result:?}");
             assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
         }
     });

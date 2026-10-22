@@ -9,7 +9,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{check_cases, on_big_stack, run, run_in, runtime};
+use common::{check_cases, check_chromium, on_big_stack, run_in, runtime};
 use swb_js::{PromiseStatus, ReactionKind, Runtime, ScriptError, Termination, Value, VmResult};
 
 /// The snippets of `tools/probes/js-promises.json` with Chromium 148's
@@ -34,28 +34,6 @@ fn chromium_cases_heavy() {
         include_str!("data/promises_cases_heavy.expected"),
         &[false],
     );
-}
-
-fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
-    for &stress in modes {
-        let actual = run(script, stress);
-        let failures: Vec<String> = actual
-            .lines()
-            .zip(expected.lines())
-            .filter(|(actual, expected)| actual != expected)
-            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
-            .collect();
-        assert_eq!(
-            actual.lines().count(),
-            expected.lines().count(),
-            "number of lines (stress: {stress})\n{actual}"
-        );
-        assert!(
-            failures.is_empty(),
-            "stress: {stress}\n{}",
-            failures.join("\n")
-        );
-    }
 }
 
 /// Executors, handlers, thenables, `finally` callbacks, subclasses and

@@ -48,7 +48,7 @@ fn begin(rt: &mut Runtime, call: &NativeCall, name: &str, plain: bool) -> VmResu
     let callback = rt.arg(call, 0);
     if !rt.is_callable(callback)? {
         return Err(if plain {
-            VmError::type_error(format!("{} is not a function", rt.primitive_text(callback)))
+            VmError::type_error(format!("{} is not a function", rt.value_text(callback)))
         } else {
             rt.not_callable(callback)
         });

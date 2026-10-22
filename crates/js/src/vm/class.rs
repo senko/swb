@@ -56,7 +56,7 @@ impl Runtime {
         if !self.is_constructor(superclass)? {
             return Err(VmError::type_error(format!(
                 "Class extends value {} is not a constructor or null",
-                self.primitive_text(superclass)
+                self.value_text(superclass)
             )));
         }
         let key = PropertyKey::String(self.vm.atoms.prototype);
@@ -65,7 +65,7 @@ impl Runtime {
             Value::Object(_) | Value::Null => Ok((proto_parent, superclass)),
             _ => Err(VmError::type_error(format!(
                 "Class extends value does not have valid prototype property {}",
-                self.primitive_text(proto_parent)
+                self.value_text(proto_parent)
             ))),
         }
     }
@@ -331,7 +331,7 @@ impl Runtime {
                 .own_data_string(object, self.vm.atoms.name)
                 .filter(|name| !name.is_empty())
                 .unwrap_or_else(|| "null".to_owned()),
-            _ => self.primitive_text(parent),
+            _ => self.value_text(parent),
         };
         let class = match active {
             Value::Object(object) => self
@@ -421,6 +421,6 @@ impl Runtime {
             Value::BigInt(_) => "bigint",
             _ => "object",
         };
-        format!("{kind} '{}'", self.primitive_text(value))
+        format!("{kind} '{}'", self.value_text(value))
     }
 }

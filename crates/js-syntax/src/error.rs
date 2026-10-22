@@ -37,6 +37,16 @@ pub enum ErrorKind {
     Range,
 }
 
+impl ErrorKind {
+    /// The name of the error class that the script sees.
+    pub fn class_name(self) -> &'static str {
+        match self {
+            ErrorKind::Syntax => "SyntaxError",
+            ErrorKind::Range => "RangeError",
+        }
+    }
+}
+
 /// The error of [`crate::parse_script`]: the first error in the source.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseError {
@@ -46,9 +56,6 @@ pub struct ParseError {
     pub offset: u32,
     /// The message, worded like Chromium's where it was measured.
     pub message: Cow<'static, str>,
-    /// For a construct that the parser does not support yet (message
-    /// "not supported yet"): the name of the construct.
-    pub unsupported: Option<&'static str>,
 }
 
 impl ParseError {
@@ -58,15 +65,6 @@ impl ParseError {
             kind: ErrorKind::Syntax,
             offset,
             message: message.into(),
-            unsupported: None,
-        }
-    }
-
-    /// The error for a construct outside the supported subset.
-    pub fn unsupported(offset: u32, construct: &'static str) -> Self {
-        ParseError {
-            unsupported: Some(construct),
-            ..ParseError::syntax(offset, crate::messages::NOT_SUPPORTED)
         }
     }
 
@@ -95,14 +93,7 @@ impl From<SyntaxError> for ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let kind = match self.kind {
-            ErrorKind::Syntax => "SyntaxError",
-            ErrorKind::Range => "RangeError",
-        };
-        write!(f, "{kind}: {}", self.message)?;
-        if let Some(construct) = self.unsupported {
-            write!(f, " ({construct})")?;
-        }
+        write!(f, "{}: {}", self.kind.class_name(), self.message)?;
         write!(f, " (at offset {})", self.offset)
     }
 }

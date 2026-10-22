@@ -6,8 +6,9 @@
 //! [--runs N] FILE_OR_DIRECTORY...` (a directory means its `*.js` files).
 //!
 //! This driver lexes without the parser on purpose (it measures the lexer
-//! alone), so it chooses the goal symbol with a previous-token heuristic: `/` starts a regular expression unless the
-//! previous token ends an expression (a name, a literal, `)`, `]`, `}`,
+//! alone), so it chooses the goal symbol with a previous-token heuristic:
+//! `/` starts a regular expression unless the previous token ends an
+//! expression (a name, a literal, `)`, `]`, `}`,
 //! `this`, `super`, `++`, `--`), and `}` continues a template when it
 //! closes a substitution. The heuristic is wrong in known cases (for
 //! example `if (x) /re/.test(s)`); its errors are reported, not the

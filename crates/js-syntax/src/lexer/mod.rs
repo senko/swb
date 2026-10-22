@@ -28,7 +28,7 @@ use crate::token::{Goal, Legacy, Token, TokenKind, TokenValue, keyword_kind};
 
 /// The largest source length in code units: offsets are `u32`, and a
 /// source has fewer than 2^31 code units (ADR 0026 section 3).
-pub const MAX_SOURCE_LEN: usize = (1 << 31) - 1;
+pub(crate) const MAX_SOURCE_LEN: usize = (1 << 31) - 1;
 
 const LF: u16 = 0x0A;
 const CR: u16 = 0x0D;
@@ -170,12 +170,12 @@ impl<'a, U: CodeUnit> Lexer<'a, U> {
     }
 
     /// The name table, for the parser to add names.
-    pub fn interner_mut(&mut self) -> &mut Interner {
+    pub(crate) fn interner_mut(&mut self) -> &mut Interner {
         &mut self.interner
     }
 
     /// Ends the lexer and returns its name table.
-    pub fn into_interner(self) -> Interner {
+    pub(crate) fn into_interner(self) -> Interner {
         self.interner
     }
 

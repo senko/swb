@@ -2104,7 +2104,7 @@ impl Runtime {
                     }
                 }
                 swb_js_syntax::CaptureSource::ParentCapture(index) => self.capture(index),
-                // The compiler rejects module code (M7 feature 14).
+                // The compiler rejects module code (roadmap: modules, M7 feature 14).
                 swb_js_syntax::CaptureSource::Import(_) => {
                     Err(VmError::invariant("an import capture outside a module"))
                 }

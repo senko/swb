@@ -30,18 +30,11 @@ impl Runtime {
             return Ok(None);
         }
         if !self.is_callable(method)? {
-            let name = crate::vm::WELL_KNOWN
-                .iter()
-                .find(|(known, _)| *known == which)
-                .map_or("", |(_, name)| *name);
-            return Err(VmError::type_error(format!(
-                "'{}' returned for property 'Symbol(Symbol.{name})' of object '{}' is not a function",
-                self.primitive_text(method),
-                match value {
-                    Value::Object(object) => self.object_text(object),
-                    _ => self.primitive_text(value),
-                }
-            )));
+            return Err(self.not_function_property(
+                method,
+                &format!("Symbol(Symbol.{})", which.name()),
+                value,
+            ));
         }
         Ok(Some(self.heap.record(method)))
     }

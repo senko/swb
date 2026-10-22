@@ -84,6 +84,16 @@ pub enum ThrowKind {
     UriError,
 }
 
+impl From<swb_js_syntax::ErrorKind> for ThrowKind {
+    /// The error object that a failed parse throws.
+    fn from(kind: swb_js_syntax::ErrorKind) -> Self {
+        match kind {
+            swb_js_syntax::ErrorKind::Syntax => ThrowKind::SyntaxError,
+            swb_js_syntax::ErrorKind::Range => ThrowKind::RangeError,
+        }
+    }
+}
+
 impl ThrowKind {
     /// The name of the constructor.
     pub fn name(self) -> &'static str {

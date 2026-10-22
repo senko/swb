@@ -12,7 +12,6 @@
 //!   reports the time, the memory of the tree and the scope tables, and
 //!   the bytes per token.
 
-use std::collections::BTreeMap;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
@@ -37,7 +36,6 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     let mut parsed = 0;
-    let mut first_unsupported: BTreeMap<&str, usize> = BTreeMap::default();
     let mut total = Duration::ZERO;
     let mut bytes = 0;
     for file in &files {
@@ -61,8 +59,6 @@ fn main() -> ExitCode {
                 );
             }
             Err(error) => {
-                let construct = error.unsupported.unwrap_or("syntax error");
-                *first_unsupported.entry(construct).or_default() += 1;
                 println!(
                     "{name}: {} ({:.0} % of the file before it)",
                     describe(&error, source.as_str16()),
@@ -70,9 +66,6 @@ fn main() -> ExitCode {
                 );
             }
         }
-    }
-    for (construct, count) in &first_unsupported {
-        println!("first error: {construct}: {count} files");
     }
     println!(
         "{parsed} of {} files parse; {} bytes in {:.1} ms",
@@ -95,12 +88,8 @@ fn describe(error: &ParseError, source: Str16<'_>) -> String {
         .slice(offset.saturating_sub(30), (offset + 30).min(source.len()))
         .map(|text| text.to_string_lossy().replace('\n', " "))
         .unwrap_or_default();
-    let what = match error.unsupported {
-        Some(construct) => format!("not supported: {construct}"),
-        None => format!("{error}"),
-    };
     format!(
-        "{what} at {}:{} near `{around}`",
+        "{error} at {}:{} near `{around}`",
         location.line, location.column
     )
 }

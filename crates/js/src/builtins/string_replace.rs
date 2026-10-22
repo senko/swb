@@ -271,11 +271,11 @@ pub(super) fn replace_all(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nativ
         let replacer = rt.get_value(search_value, key)?;
         if !replacer.is_nullish() {
             if !rt.is_callable(replacer)? {
-                return Err(VmError::type_error(format!(
-                    "'{}' returned for property 'Symbol(Symbol.replace)' of object '{}' is not a function",
-                    rt.primitive_text(replacer),
-                    rt.primitive_text(search_value)
-                )));
+                return Err(rt.not_function_property(
+                    replacer,
+                    "Symbol(Symbol.replace)",
+                    search_value,
+                ));
             }
             return Ok(dispatch(replacer, search_value, this, replace_value));
         }

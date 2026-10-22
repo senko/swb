@@ -11,10 +11,12 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{check_cases, on_big_stack, run_in, runtime_with_tests};
-use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
+use common::{
+    assert_clean, check_cases, eval_within, on_big_stack, run_in, runtime_with_heap_limit,
+};
+use swb_js::{Runtime, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(200);
 
@@ -24,32 +26,9 @@ const DEADLINE: Duration = Duration::from_millis(200);
 /// noise.
 const SLACK: Duration = Duration::from_millis(1500);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
-}
-
-/// A runtime with a heap limit of `mib` MiB and the test functions.
-fn limited(mib: usize, stress: bool) -> Runtime {
-    runtime_with_tests(RuntimeConfig {
-        heap: HeapConfig {
-            limit: mib << 20,
-            stress,
-            ..HeapConfig::default()
-        },
-        ..RuntimeConfig::default()
-    })
+    eval_within(rt, source, DEADLINE)
 }
 
 /// A `try` around `body` that gives the name and the message of the error.
@@ -75,7 +54,7 @@ fn detaching_in_every_method_callback() {
 #[test]
 fn loops_over_large_arrays_end_at_the_deadline() {
     on_big_stack(|| {
-        let mut rt = limited(768, false);
+        let mut rt = runtime_with_heap_limit(768, false);
         let setup = "var big = new Uint8Array(1 << 26); var floats = new Float64Array(1 << 23); \
                      var ints = new Int32Array(1 << 24); var bigs = new BigInt64Array(1 << 22); \
                      var text = 'AAAA'.repeat(1 << 22); var hex = '00'.repeat(1 << 23); \
@@ -150,7 +129,7 @@ fn loops_over_large_arrays_end_at_the_deadline() {
 #[test]
 fn single_calls_over_large_arrays_end_at_the_deadline() {
     on_big_stack(|| {
-        let mut rt = limited(768, false);
+        let mut rt = runtime_with_heap_limit(768, false);
         let setup = "var big = new Uint8Array(3 << 24); var floats = new Float64Array(1 << 24); \
                      function fill() { for (var i = 0; i < floats.length; i++) floats[i] = (i * 7919) % 1000003; } \
                      var unused = fill();";
@@ -190,7 +169,7 @@ fn allocations_above_the_heap_limit_are_range_errors() {
     on_big_stack(|| {
         let range = "=> RangeError: Array buffer allocation failed";
         // An array of 36 MiB: no second array, no list, no text fits.
-        let mut rt = limited(64, false);
+        let mut rt = runtime_with_heap_limit(64, false);
         assert_eq!(
             run_in(
                 &mut rt,
@@ -237,7 +216,7 @@ fn allocations_above_the_heap_limit_are_range_errors() {
         }
         assert_eq!(run_in(&mut rt, "big.length"), "=> 37748736");
         // The scratch memory of a sort: 16 bytes per eight-byte element.
-        let mut rt = limited(64, false);
+        let mut rt = runtime_with_heap_limit(64, false);
         assert_eq!(
             run_in(&mut rt, "var floats = new Float64Array(3 << 20);"),
             ""
@@ -266,7 +245,7 @@ fn allocations_above_the_heap_limit_are_range_errors() {
                 "=> 52428800",
             ),
         ] {
-            let mut rt = limited(64, false);
+            let mut rt = runtime_with_heap_limit(64, false);
             assert_eq!(run_in(&mut rt, setup), "");
             assert_eq!(run_in(&mut rt, &catch(source)), range, "{source}");
             assert_clean(&rt);
@@ -284,7 +263,7 @@ fn memory_follows_the_data() {
     on_big_stack(|| {
         // 8 MiB of floats: keys and merge buffer (16 MiB) fit under 90 % of
         // 32 MiB; a NaN list of 8 bytes per element (8 MiB more) did not.
-        let mut rt = limited(32, false);
+        let mut rt = runtime_with_heap_limit(32, false);
         assert_eq!(
             run_in(
                 &mut rt,
@@ -323,7 +302,7 @@ fn memory_follows_the_data() {
                 "=> SyntaxError: Input string must contain hex characters in even length",
             ),
         ] {
-            let mut rt = limited(32, false);
+            let mut rt = runtime_with_heap_limit(32, false);
             assert_eq!(run_in(&mut rt, &source), expected, "{source}");
             assert_clean(&rt);
         }
@@ -336,7 +315,7 @@ fn memory_follows_the_data() {
 #[test]
 fn malformed_base64_and_hex_input() {
     on_big_stack(|| {
-        let mut rt = limited(256, false);
+        let mut rt = runtime_with_heap_limit(256, false);
         let setup = "var spaces = ' '.repeat(1 << 24); var many = 'A'.repeat(1 << 24); \
                      var t = new Uint8Array(1 << 20);";
         assert_eq!(run_in(&mut rt, setup), "");
@@ -417,7 +396,7 @@ fn malformed_base64_and_hex_input() {
 fn collections_inside_callbacks_and_comparators() {
     on_big_stack(|| {
         for stress in [false, true] {
-            let mut rt = limited(64, stress);
+            let mut rt = runtime_with_heap_limit(64, stress);
             for (source, expected) in [
                 (
                     "var t = new BigInt64Array([5n, 3n, 9n, 1n, 7n]); \

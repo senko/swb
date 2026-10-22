@@ -160,9 +160,9 @@ def test_range_and_sequence_encoding_round_trips():
         encode_ranges,
         encode_sequences,
         leb128,
-        merge,
         read_leb128,
     )
+    from swbtools.ucd import merge_ranges
 
     for number in (0, 1, 127, 128, 300, 0x10FFFF):
         assert read_leb128(leb128(number), 0) == (number, len(leb128(number)))
@@ -174,7 +174,7 @@ def test_range_and_sequence_encoding_round_trips():
     assert decode_ranges(b"") == []
     sequences = [(0x1F1ED, 0x1F1F7), (0x23, 0xFE0F, 0x20E3)]
     assert decode_sequences(encode_sequences(sequences)) == sorted(sequences)
-    assert merge([(5, 6), (1, 2), (3, 4), (10, 10)]) == [(1, 6), (10, 10)]
+    assert merge_ranges([(5, 6), (1, 2), (3, 4), (10, 10)]) == [(1, 6), (10, 10)]
     try:
         encode_ranges([(5, 6), (6, 7)])
     except ValueError:

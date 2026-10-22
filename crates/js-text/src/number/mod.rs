@@ -22,9 +22,9 @@ mod sum;
 
 pub use binary16::{f16_from_bits, f16_to_bits};
 pub use format::{
-    locale_string, number_to_string, radix_string, shortest_digits, to_exponential, to_fixed,
-    to_precision,
+    locale_string, number_to_string, radix_string, to_exponential, to_fixed, to_precision,
 };
-pub use parse::{is_str_whitespace, parse_float, parse_int, string_to_number};
+pub(crate) use parse::is_str_whitespace;
+pub use parse::{parse_float, parse_int, string_to_number};
 pub use radix::RadixAccumulator;
 pub use sum::{ExactSum, f16_round};

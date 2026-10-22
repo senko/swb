@@ -51,7 +51,8 @@ impl TerminationHandle {
         self.0.store(true, Ordering::Relaxed);
     }
 
-    /// Whether a request is pending.
+    /// Whether a request is pending. (For embedders and tests; the engine
+    /// itself does not call it.)
     pub fn is_requested(&self) -> bool {
         self.0.load(Ordering::Relaxed)
     }

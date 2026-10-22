@@ -73,7 +73,7 @@ impl Form {
 }
 
 /// The `Canonical_Combining_Class` of `cp`.
-pub fn combining_class(cp: u32) -> u8 {
+pub(crate) fn combining_class(cp: u32) -> u8 {
     if cp < 0x300 {
         return 0;
     }

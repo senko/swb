@@ -158,11 +158,10 @@ pub(crate) enum Intrinsic {
     /// `slice`.
     ArrayBufferConstructor,
     ArrayBufferSpeciesGetter,
-    /// `%TypedArray%` (§23.2.1) and the getter of `%TypedArray%[@@species]`
-    /// (§23.2.2.4), set when the built-in functions are installed: the
-    /// default of `TypedArraySpeciesCreate` needs no call while a typed
-    /// array constructor has the built-in getter.
-    TypedArrayConstructor,
+    /// The getter of `%TypedArray%[@@species]` (§23.2.2.4), set when the
+    /// built-in functions are installed: the default of
+    /// `TypedArraySpeciesCreate` needs no call while a typed array
+    /// constructor has the built-in getter.
     TypedArraySpeciesGetter,
     /// The getter of `%TypedArray%.prototype.length` (§23.2.3.22), set when
     /// the built-in functions are installed: the interpreter's read of
@@ -182,7 +181,7 @@ pub(crate) enum Intrinsic {
 pub(crate) const TYPED_ARRAY_TYPES: usize = 12;
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 74;
+const INTRINSIC_COUNT: usize = 73;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]

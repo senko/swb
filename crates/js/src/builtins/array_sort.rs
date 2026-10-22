@@ -60,7 +60,7 @@ pub(super) fn comparator_arg(rt: &mut Runtime, call: &NativeCall) -> VmResult<Op
     }
     Err(VmError::type_error(format!(
         "The comparison function must be either a function or undefined: {}",
-        rt.primitive_text(comparator)
+        rt.value_text(comparator)
     )))
 }
 

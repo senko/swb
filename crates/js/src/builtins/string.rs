@@ -31,7 +31,9 @@ use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::JsString;
 use crate::value::Value;
-use crate::vm::convert::{MAX_STRING_LENGTH, to_integer_or_infinity, to_length, to_uint32};
+use crate::vm::convert::{
+    MAX_STRING_LENGTH, clamp_from_end, to_integer_or_infinity, to_length, to_uint32,
+};
 use crate::vm::number::number_to_string;
 use crate::vm::{NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
@@ -241,11 +243,7 @@ impl Runtime {
 /// A relative index clamped to `0..=length` (the start of `slice`, steps
 /// 4 to 7 of §22.1.3.24): negative values count from the end.
 pub(super) fn clamp_relative(relative: f64, length: usize) -> usize {
-    if relative < 0.0 {
-        (length as f64 + relative).max(0.0) as usize
-    } else {
-        relative.min(length as f64) as usize
-    }
+    clamp_from_end(relative, length as f64) as usize
 }
 
 /// An index clamped to `0..=length`.
@@ -434,7 +432,7 @@ fn from_code_point(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
 
 /// `String.raw(template, ...substitutions)` (§22.1.2.4).
 fn raw(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let cooked = rt.this_object_arg(call, 0)?;
+    let cooked = rt.object_arg(call, 0)?;
     let key = crate::string::PropertyKey::String(rt.vm.atoms.raw);
     let raw = rt.get_value(cooked.into(), key)?;
     let literals = rt.to_object(raw)?;

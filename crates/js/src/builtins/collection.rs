@@ -6,7 +6,8 @@
 //! (`CreateMapIterator`, `CreateSetIterator`, the `next` methods) and
 //! `@@species`.
 //!
-//! The table is in `object/table.rs`. A native loop over a table
+//! The table is in `object/table.rs`, the heap operations on it in
+//! `object/collection.rs`. A native loop over a table
 //! (`forEach`, the set methods) registers its position with the table, so
 //! that a compaction during a callback corrects it: it sees the entries
 //! added during the loop and skips the deleted ones, as the specification's
@@ -18,7 +19,7 @@ use crate::object::{IterationKind, Object, ObjectKind, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
 /// Which collection a native works on.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -120,22 +121,11 @@ impl Runtime {
         Err(self.incompatible_receiver(method, call.this()))
     }
 
-    /// V8's `TypeError` for a method called on another receiver.
-    pub(super) fn incompatible_receiver(&self, method: &str, receiver: Value) -> VmError {
-        VmError::type_error(format!(
-            "Method {method} called on incompatible receiver {}",
-            match receiver {
-                Value::Object(object) => self.object_text(object),
-                _ => self.primitive_text(receiver),
-            }
-        ))
-    }
-
     /// The `size` of a table as a Number.
     pub(super) fn collection_size(&self, object: Gc<Object>) -> VmResult<usize> {
         Ok(self
             .heap
-            .table(object)?
+            .collection_table(object)?
             .map_or(0, crate::object::Table::len))
     }
 }
@@ -177,7 +167,7 @@ pub(crate) fn collection_iterator_next_value(
     let result = match kind {
         IterationKind::Keys => entry.key,
         IterationKind::Values => value,
-        IterationKind::Entries => rt.pair_array(entry.key, value)?.into(),
+        IterationKind::Entries => rt.array_from_values(&[entry.key, value])?.into(),
     };
     Ok(Some(rt.heap.record(result)))
 }
@@ -307,11 +297,7 @@ pub(super) fn construct_collection(
     let key = rt.heap.key_from_str(name)?;
     let adder = rt.get_value(collection.into(), key)?;
     if !rt.is_callable(adder)? {
-        return Err(VmError::type_error(format!(
-            "'{}' returned for property '{name}' of object '{}' is not a function",
-            rt.primitive_text(adder),
-            rt.object_text(collection)
-        )));
+        return Err(rt.not_function_property(adder, name, collection.into()));
     }
     let direct = adder == Value::Object(rt.intrinsic(rt.current_realm(), builtin)?);
     let mut record = rt.get_iterator(iterable)?;
@@ -380,20 +366,8 @@ pub(super) fn install_species(
     realm: u32,
     constructor: Gc<Object>,
 ) -> VmResult<()> {
-    let getter = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc = PropertyDescriptor::accessor(getter.into(), Value::Undefined, false, true);
-    rt.define_own_property(constructor, key, desc)?;
+    super::species_getter(rt, realm, constructor)?;
     Ok(())
-}
-
-/// `get Map[@@species]` and `get Set[@@species]`: the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
 }
 
 /// Defines the accessor `size` (§24.1.3.12, §24.2.4.14) on a prototype.

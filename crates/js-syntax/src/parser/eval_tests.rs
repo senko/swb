@@ -1,4 +1,4 @@
-//! Tests of eval code (M7 feature 1c, §19.2.1.1 `PerformEval`): the early
+//! Tests of eval code (§19.2.1.1 `PerformEval`): the early
 //! errors that depend on the call site, with V8's messages and positions
 //! (measured with `eval` in Node.js 22: in a sloppy function, a strict
 //! function, a method, a class field initializer, a derived constructor

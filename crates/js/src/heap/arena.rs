@@ -37,6 +37,7 @@ pub struct Gc<T> {
 }
 
 impl<T> Gc<T> {
+    /// A handle for the slot `index` in the generation `generation`.
     pub(crate) const fn new(index: u32, generation: u32) -> Self {
         Gc {
             index,
@@ -113,6 +114,7 @@ pub(crate) struct Arena<T> {
 }
 
 impl<T> Arena<T> {
+    /// An empty arena; `name` shows in the messages of the heap.
     pub(crate) const fn new(name: &'static str) -> Self {
         Arena {
             name,

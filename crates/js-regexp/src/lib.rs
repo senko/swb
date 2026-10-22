@@ -23,7 +23,7 @@ mod program;
 
 use swb_js_text::Str16;
 
-pub use error::{Error, SyntaxKind};
+pub use error::{Error, SyntaxKind, invalid_pattern_message};
 pub use exec::Matcher;
 
 /// The flags of a regular expression (§22.2.6.4: `d`, `g`, `i`, `m`, `s`,
@@ -150,12 +150,6 @@ impl Regex {
     /// The flags.
     pub fn flags(&self) -> Flags {
         self.flags
-    }
-
-    /// The number of capture groups, without the whole match
-    /// (`[[CapturingGroupsCount]]`).
-    pub fn group_count(&self) -> usize {
-        self.program.group_count as usize
     }
 
     /// The name of each capture group as UTF-16, in order (index 0 is
@@ -340,7 +334,7 @@ mod tests {
     #[test]
     fn compiled_regex_reports_its_groups() {
         let re = Regex::new(Str16::Latin1(b"(?<a>x)|(?<a>y)(z)"), Flags::empty()).expect("valid");
-        assert_eq!(re.group_count(), 3);
+        assert_eq!(re.group_names().len(), 3);
         let names: Vec<Option<&[u16]>> = re.group_names().iter().map(|n| n.as_deref()).collect();
         assert_eq!(names, [Some(&[0x61u16][..]), Some(&[0x61][..]), None]);
         assert!(re.has_named_groups());

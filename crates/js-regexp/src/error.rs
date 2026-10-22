@@ -132,6 +132,16 @@ pub enum Error {
     InputChanged,
 }
 
+/// V8's text for a pattern that does not compile: `Invalid regular
+/// expression: /PATTERN/FLAGS: REASON`.
+pub fn invalid_pattern_message(
+    pattern: &str,
+    flags: &str,
+    reason: impl std::fmt::Display,
+) -> String {
+    format!("Invalid regular expression: /{pattern}/{flags}: {reason}")
+}
+
 impl Error {
     /// The message of the `SyntaxError` that JavaScript sees, as V8 writes
     /// it: for an invalid pattern `Invalid regular expression:
@@ -140,11 +150,10 @@ impl Error {
     /// `RegExp` constructor has its own message for invalid flags.
     pub fn message(&self, pattern: Str16<'_>, flags: Str16<'_>) -> String {
         match self {
-            Error::Syntax(kind) => format!(
-                "Invalid regular expression: /{}/{}: {}",
-                pattern.to_string_lossy(),
-                flags.to_string_lossy(),
-                kind.message()
+            Error::Syntax(kind) => invalid_pattern_message(
+                &pattern.to_string_lossy(),
+                &flags.to_string_lossy(),
+                kind.message(),
             ),
             other => other.to_string(),
         }

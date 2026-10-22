@@ -24,7 +24,7 @@ use swb_js::{ScriptError, Termination};
 /// shows the callback and its caller (native frames are not shown, as
 /// before 13c; V8 shows `at Array.forEach`).
 #[test]
-fn exceptions() {
+fn exceptions_in_callbacks() {
     check_cases(EXCEPTIONS);
 }
 

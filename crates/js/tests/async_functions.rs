@@ -9,7 +9,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{check_cases, check_script_cases, on_big_stack, run, run_in, runtime};
+use common::{check_cases, check_chromium, check_script_cases, on_big_stack, run_in, runtime};
 use swb_js::{PromiseStatus, ScriptError, Termination, Value};
 
 /// The snippets of `tools/probes/js-async.json` with Chromium 148's
@@ -34,28 +34,6 @@ fn chromium_cases_heavy() {
         include_str!("data/async_cases_heavy.expected"),
         &[false],
     );
-}
-
-fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
-    for &stress in modes {
-        let actual = run(script, stress);
-        let failures: Vec<String> = actual
-            .lines()
-            .zip(expected.lines())
-            .filter(|(actual, expected)| actual != expected)
-            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
-            .collect();
-        assert_eq!(
-            actual.lines().count(),
-            expected.lines().count(),
-            "number of lines (stress: {stress})\n{actual}"
-        );
-        assert!(
-            failures.is_empty(),
-            "stress: {stress}\n{}",
-            failures.join("\n")
-        );
-    }
 }
 
 /// Registers, `arguments`, cells, `finally` state, iterators and values
@@ -161,7 +139,7 @@ fn the_host_calls_an_async_function() {
 /// the result promise stays pending and no handler runs. A function that
 /// was suspended during the termination resumes in a later task.
 #[test]
-fn a_termination_is_never_a_rejection() {
+fn a_termination_is_never_a_rejection_of_an_async_function() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         // An endless loop of awaits ends at the deadline.

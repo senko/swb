@@ -285,10 +285,7 @@ pub(crate) fn error_header(rt: &mut Runtime, this: Value) -> VmResult<Gc<JsStrin
 fn to_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let this = call.this();
     if !matches!(this, Value::Object(_)) {
-        return Err(VmError::type_error(format!(
-            "Method Error.prototype.toString called on incompatible receiver {}",
-            rt.primitive_text(this)
-        )));
+        return Err(rt.incompatible_receiver("Error.prototype.toString", this));
     }
     let string = error_header(rt, this)?;
     Ok(NativeReturn::Value(string.into()))

@@ -275,7 +275,7 @@ macro_rules! keywords {
 
         impl TokenKind {
             /// The name of a reserved word, or `None` for another kind.
-            pub fn keyword_name(self) -> Option<NameId> {
+            pub(crate) fn keyword_name(self) -> Option<NameId> {
                 match self {
                     $(TokenKind::$kind => Some(names::$name),)*
                     _ => None,
@@ -330,7 +330,7 @@ impl TokenKind {
     /// The reserved word whose name is `name`, or `None`. The parser uses
     /// it for identifiers with escapes, which must not be reserved words
     /// (§13.1.1).
-    pub fn keyword_from_name(name: NameId) -> Option<TokenKind> {
+    pub(crate) fn keyword_from_name(name: NameId) -> Option<TokenKind> {
         if name.index() < names::RESERVED_WORDS {
             KEYWORDS.get(name.index() as usize).copied()
         } else {

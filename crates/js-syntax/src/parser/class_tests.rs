@@ -1,4 +1,4 @@
-//! Tests of the forms of M7 feature 1b: classes (heritage, methods,
+//! Tests of classes (heritage, methods,
 //! accessors, fields, static blocks, private names and `#x in o`), `super`,
 //! `async` functions, arrow functions, methods and generators, `await`,
 //! `for await`; `await` and `yield` as identifiers by context; their early
@@ -216,7 +216,7 @@ fn deviations_from_v8() {
     ]);
 }
 
-/// A program with every form of feature 1b.
+/// A program with every form that these tests cover.
 const CLASS_ASYNC_PROGRAM: &str = r"class A extends B.c {
   #p = 1; static #q; [k] = 2; 'f'; static g = this;
   constructor(a, ...b) { super(a, ...b); const f = () => super.m(new.target); }

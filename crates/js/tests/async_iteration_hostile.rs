@@ -9,37 +9,11 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{on_big_stack, run_in, runtime, runtime_with_tests};
-use swb_js::{HeapConfig, Runtime, RuntimeConfig};
-
-/// Runs `source` and its jobs with a deadline; the result of the drain
-/// (or of the script) and the time it took.
-fn run_with_deadline(rt: &mut Runtime, source: &str, deadline: Duration) -> (String, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + deadline));
-    let out = run_in(rt, source);
-    rt.set_deadline(None);
-    (out, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
-}
-
-fn runtime_with_limit(mib: usize) -> Runtime {
-    runtime_with_tests(RuntimeConfig {
-        heap: HeapConfig {
-            limit: mib << 20,
-            ..HeapConfig::default()
-        },
-        ..RuntimeConfig::default()
-    })
-}
+use common::{
+    assert_clean, on_big_stack, run_in, run_with_deadline, runtime, runtime_with_heap_limit,
+};
 
 /// Each level's `next` resumes the next level as a frame of the same
 /// interpreter loop: the frame limit ends the chain with a `RangeError`
@@ -180,7 +154,7 @@ fn endless_async_iteration_ends_at_the_deadline() {
 }
 
 #[test]
-fn growing_queues_end_at_the_heap_limit() {
+fn growing_async_generator_queues_end_at_the_heap_limit() {
     on_big_stack(|| {
         let cases = [
             // Requests on a generator that waits forever.
@@ -197,7 +171,7 @@ fn growing_queues_end_at_the_heap_limit() {
             "async function* g() { for (;;) yield new Array(10); } Array.fromAsync(g());",
         ];
         for source in cases {
-            let mut rt = runtime_with_limit(32);
+            let mut rt = runtime_with_heap_limit(32, false);
             let (out, elapsed) = run_with_deadline(&mut rt, source, Duration::from_secs(60));
             assert!(out.contains("heap limit"), "{source}: {out}");
             assert!(elapsed < Duration::from_secs(30), "{source}: {elapsed:?}");

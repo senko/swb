@@ -25,8 +25,9 @@ pub(crate) const INVALID_ARRAY_LENGTH: &str = "Invalid array length";
 pub(crate) const INVALID_LENGTH_WRITE: &str =
     "Failed to set the 'length' property on 'Array': Invalid array length";
 
-/// The `TypeError`s of `ToNumber` of a symbol and a `BigInt` length.
+/// The `TypeError` of `ToNumber` of a symbol length.
 pub(crate) const SYMBOL_LENGTH: &str = "Cannot convert a Symbol value to a number";
+/// The `TypeError` of `ToNumber` of a `BigInt` length.
 pub(crate) const BIGINT_LENGTH: &str = "Cannot convert a BigInt value to a number";
 
 /// The same `TypeError`s when `[[Set]]` writes `length` (Chromium 148).

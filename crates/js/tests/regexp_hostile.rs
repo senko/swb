@@ -13,25 +13,14 @@ mod common;
 use std::fmt::Write;
 use std::time::{Duration, Instant};
 
-use common::{on_big_stack, run, run_in, runtime, runtime_with_tests};
+use common::{assert_clean, eval_within, on_big_stack, run, run_in, runtime, runtime_with_tests};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(200);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
+    eval_within(rt, source, DEADLINE)
 }
 
 /// Ten million code units: the global loops are linear (a debug build of

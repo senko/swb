@@ -32,7 +32,7 @@ impl Runtime {
         let Value::Object(object) = value else {
             return Err(VmError::type_error(format!(
                 "Property description must be an object: {}",
-                self.primitive_text(value)
+                self.value_text(value)
             )));
         };
         let mut desc = PropertyDescriptor::default();
@@ -59,7 +59,7 @@ impl Runtime {
             if !function.is_undefined() && !self.is_callable(function)? {
                 return Err(VmError::type_error(format!(
                     "{what} must be a function: {}",
-                    self.primitive_text(function)
+                    self.value_text(function)
                 )));
             }
             if name == "get" {
@@ -216,7 +216,7 @@ pub(super) fn create(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
         other => {
             return Err(VmError::type_error(format!(
                 "Object prototype may only be an Object or null: {}",
-                rt.primitive_text(other)
+                rt.value_text(other)
             )));
         }
     };

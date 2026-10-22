@@ -17,7 +17,7 @@ use crate::vm::{NativeCall, NativeReturn, VmError, VmResult};
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proxy = rt.new_builtin(realm, "Proxy", 2, proxy_constructor, true)?;
     super::method(rt, realm, proxy, "revocable", 2, revocable)?;
-    super::global(rt, realm, "Proxy", proxy.into())
+    super::define_global(rt, realm, "Proxy", proxy.into())
 }
 
 /// `Proxy(target, handler)` (§28.2.1.1).

@@ -167,12 +167,7 @@ impl Runtime {
             return Ok((target, handler, None));
         }
         if !self.is_callable(method)? {
-            return Err(VmError::type_error(format!(
-                "'{}' returned for property '{}' of object '{}' is not a function",
-                self.primitive_text(method),
-                trap.name(),
-                self.object_text(handler)
-            )));
+            return Err(self.not_function_property(method, trap.name(), handler.into()));
         }
         Ok((target, handler, Some(method)))
     }
@@ -192,7 +187,7 @@ impl Runtime {
                 "[object Object]".to_owned()
             }
             Value::Double(0.0) => "0".to_owned(),
-            _ => self.primitive_text(value),
+            _ => self.value_text(value),
         }
     }
 
@@ -1070,7 +1065,7 @@ impl Runtime {
                 other => {
                     return Err(VmError::type_error(format!(
                         "{} is not a valid property name",
-                        self.primitive_text(other)
+                        self.value_text(other)
                     )));
                 }
             };
@@ -1141,7 +1136,7 @@ impl Runtime {
             if !matches!(result, Value::Object(_)) {
                 return Err(VmError::type_error(format!(
                     "'construct' on proxy: trap returned non-object ('{}')",
-                    rt.primitive_text(result)
+                    rt.value_text(result)
                 )));
             }
             Ok(Some(Ok(result)))

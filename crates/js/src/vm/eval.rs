@@ -17,13 +17,10 @@
 //! the creation of the bindings, so the compile can sit in between and use
 //! the decisions of Annex B.3.2.3.
 
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use swb_js_syntax::{
-    BindingId, BindingKind, ErrorKind, EvalContext, ParseError, Resolution, Script, Storage,
-};
+use swb_js_syntax::{BindingId, BindingKind, EvalContext, ParseError, Resolution, Script, Storage};
 use swb_js_text::{RecursionBudget, Str16, String16};
 
 use crate::bytecode::{
@@ -33,7 +30,6 @@ use crate::compiler::eval::{
     EvalCaller, EvalInput, MAX_FUNCTION_CAPTURES, MAX_HANDED_CAPTURES, is_dynamic_name,
 };
 use crate::compiler::{CompileError, compile_eval};
-use crate::error::ThrowKind;
 use crate::heap::{Gc, Generic};
 use crate::object::{Object, Property, PropertyDescriptor};
 use crate::runtime::Runtime;
@@ -688,29 +684,17 @@ impl Runtime {
 /// The `SyntaxError` of a var of eval code that a lexical declaration has
 /// (V8's message).
 fn redeclared(rt: &Runtime, name: Gc<JsString>) -> VmError {
-    VmError::Raise {
-        kind: ThrowKind::SyntaxError,
-        message: Cow::Owned(format!(
-            "Identifier '{}' has already been declared",
-            rt.name_text(name)
-        )),
-    }
+    VmError::syntax_error(format!(
+        "Identifier '{}' has already been declared",
+        rt.name_text(name)
+    ))
 }
 
 /// The error that a failed parse of eval code throws.
 pub(super) fn parse_failure(error: ParseError) -> VmError {
-    let mut message = error.message.into_owned();
-    if let Some(construct) = error.unsupported {
-        message.push_str(" (");
-        message.push_str(construct);
-        message.push(')');
-    }
     VmError::Raise {
-        kind: match error.kind {
-            ErrorKind::Syntax => ThrowKind::SyntaxError,
-            ErrorKind::Range => ThrowKind::RangeError,
-        },
-        message: Cow::Owned(message),
+        kind: error.kind.into(),
+        message: error.message,
     }
 }
 

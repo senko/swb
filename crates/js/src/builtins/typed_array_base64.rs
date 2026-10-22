@@ -29,7 +29,6 @@
 
 use swb_js_text::String16;
 
-use crate::error::ThrowKind;
 use crate::heap::Gc;
 use crate::object::{ElementType, Object, TypedArrayData};
 use crate::runtime::Runtime;
@@ -114,7 +113,7 @@ fn options_object(value: Value) -> VmResult<Option<Gc<Object>>> {
 
 /// The `TypeError` for an option with a value that is not allowed.
 fn invalid_option(rt: &Runtime, value: Value) -> VmError {
-    VmError::type_error(format!("invalid option {}", rt.primitive_text(value)))
+    VmError::type_error(format!("invalid option {}", rt.value_text(value)))
 }
 
 /// The value of an option that must be one of `names` (compared as a
@@ -175,20 +174,14 @@ enum Failure {
 impl Failure {
     /// The `SyntaxError` with V8's message.
     fn error(self) -> VmError {
-        VmError::Raise {
-            kind: ThrowKind::SyntaxError,
-            message: match self {
-                Failure::BadChar => {
-                    "Found a character that cannot be part of a valid base64 string."
-                }
-                Failure::SingleChar => {
-                    "The base64 input terminates with a single character, excluding padding (=)."
-                }
-                Failure::ExtraBits => "The base64 input terminates with non-zero padding bits.",
-                Failure::BadHex => "Input string must contain hex characters in even length",
+        VmError::syntax_error(match self {
+            Failure::BadChar => "Found a character that cannot be part of a valid base64 string.",
+            Failure::SingleChar => {
+                "The base64 input terminates with a single character, excluding padding (=)."
             }
-            .into(),
-        }
+            Failure::ExtraBits => "The base64 input terminates with non-zero padding bits.",
+            Failure::BadHex => "Input string must contain hex characters in even length",
+        })
     }
 }
 

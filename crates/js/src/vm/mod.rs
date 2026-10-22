@@ -58,7 +58,7 @@ mod interp;
 pub(crate) mod iter;
 pub(crate) mod jobs;
 mod literal;
-mod messages;
+pub(crate) mod messages;
 pub(crate) mod native_loop;
 pub(crate) mod number;
 pub(crate) mod private;
@@ -77,21 +77,20 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 pub(crate) use create_function::DynamicKind;
-pub use env::EnvRecord;
+pub(crate) use env::EnvRecord;
 pub(crate) use eval::eval_function;
-pub use function::{
-    BoundFunction, Closure, LoopState, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume,
-    ResumeMode,
-};
-pub use generator::GeneratorState;
+pub(crate) use function::{BoundFunction, Closure, LoopState, NativeFunction, ResumeMode};
+pub use function::{NativeCall, NativeFn, NativeReturn, Resume};
+pub(crate) use generator::GeneratorState;
 pub(crate) use generator::{
     next as generator_next, return_ as generator_return, throw as generator_throw,
 };
-pub use private::PrivateEnvironment;
-pub use promise::{Continuation, ContinuationFn, PromiseState, PromiseStatus, ReactionKind};
+pub(crate) use private::PrivateEnvironment;
+pub(crate) use promise::{ContinuationFn, PromiseState};
+pub use promise::{PromiseStatus, ReactionKind};
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, TYPED_ARRAY_TYPES, error_prototype};
-pub use stack::{ErrorData, StackFrame};
+pub(crate) use stack::ErrorData;
 pub(crate) use stack::{capture_stack_trace, stack_getter, stack_setter};
 pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};
 pub(crate) use time::TIME_CHECK_INTERVAL;
@@ -231,6 +230,14 @@ impl VmError {
     pub fn reference_error(message: impl Into<Cow<'static, str>>) -> Self {
         VmError::Raise {
             kind: ThrowKind::ReferenceError,
+            message: message.into(),
+        }
+    }
+
+    /// A `SyntaxError` with a message.
+    pub fn syntax_error(message: impl Into<Cow<'static, str>>) -> Self {
+        VmError::Raise {
+            kind: ThrowKind::SyntaxError,
             message: message.into(),
         }
     }

@@ -120,7 +120,7 @@ fn start(rt: &mut Runtime, call: &NativeCall, promise: Gc<Object>) -> VmResult<(
     if !mapper.is_undefined() && !rt.is_callable(mapper)? {
         return Err(VmError::type_error(format!(
             "{} is not a function",
-            rt.primitive_text(mapper)
+            rt.value_text(mapper)
         )));
     }
     let key = rt.symbol_key(WellKnown::AsyncIterator);

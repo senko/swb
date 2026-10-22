@@ -17,18 +17,18 @@ use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult};
 /// which `Number` shares.
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<(Gc<Object>, Gc<Object>)> {
     let eval = rt.new_builtin(realm, "eval", 1, crate::vm::eval_function, false)?;
-    super::global(rt, realm, "eval", eval.into())?;
+    super::define_global(rt, realm, "eval", eval.into())?;
     if let Some(record) = rt.vm.realms.get_mut(realm as usize) {
         record.set_intrinsic(Intrinsic::Eval, eval);
     }
     let is_nan = rt.new_builtin(realm, "isNaN", 1, is_nan, false)?;
-    super::global(rt, realm, "isNaN", is_nan.into())?;
+    super::define_global(rt, realm, "isNaN", is_nan.into())?;
     let is_finite = rt.new_builtin(realm, "isFinite", 1, is_finite, false)?;
-    super::global(rt, realm, "isFinite", is_finite.into())?;
+    super::define_global(rt, realm, "isFinite", is_finite.into())?;
     let parse_float = rt.new_builtin(realm, "parseFloat", 1, parse_float, false)?;
-    super::global(rt, realm, "parseFloat", parse_float.into())?;
+    super::define_global(rt, realm, "parseFloat", parse_float.into())?;
     let parse_int = rt.new_builtin(realm, "parseInt", 2, parse_int, false)?;
-    super::global(rt, realm, "parseInt", parse_int.into())?;
+    super::define_global(rt, realm, "parseInt", parse_int.into())?;
     Ok((parse_int, parse_float))
 }
 

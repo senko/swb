@@ -9,10 +9,12 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{check_cases, on_big_stack, run_in, runtime, runtime_with_tests};
-use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
+use common::{
+    assert_clean, check_cases, eval_within, on_big_stack, run_in, runtime, runtime_with_heap_limit,
+};
+use swb_js::{Runtime, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(200);
 
@@ -21,32 +23,9 @@ const DEADLINE: Duration = Duration::from_millis(200);
 /// build of the tests, charged after the work) plus scheduling noise.
 const SLACK: Duration = Duration::from_millis(1500);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
-}
-
-/// A runtime with a heap limit of `mib` MiB and the test functions.
-fn limited(mib: usize, stress: bool) -> Runtime {
-    runtime_with_tests(RuntimeConfig {
-        heap: HeapConfig {
-            limit: mib << 20,
-            stress,
-            ..HeapConfig::default()
-        },
-        ..RuntimeConfig::default()
-    })
+    eval_within(rt, source, DEADLINE)
 }
 
 /// A buffer that the heap limit does not allow is a `RangeError` with
@@ -55,7 +34,7 @@ fn limited(mib: usize, stress: bool) -> Runtime {
 #[test]
 fn buffers_above_the_heap_limit_are_range_errors() {
     on_big_stack(|| {
-        let mut rt = limited(64, false);
+        let mut rt = runtime_with_heap_limit(64, false);
         for (source, expected) in [
             ("new ArrayBuffer(40 << 20).byteLength", "=> 41943040"),
             (
@@ -102,7 +81,7 @@ fn buffers_above_the_heap_limit_are_range_errors() {
 fn kept_buffers_end_at_the_heap_limit() {
     on_big_stack(|| {
         for stress in [false, true] {
-            let mut rt = limited(64, stress);
+            let mut rt = runtime_with_heap_limit(64, stress);
             assert_eq!(
                 run_in(
                     &mut rt,
@@ -145,7 +124,7 @@ fn kept_buffers_end_at_the_heap_limit() {
 fn dropped_buffers_after_the_range_error_run_to_the_deadline() {
     on_big_stack(|| {
         for stress in [false, true] {
-            let mut rt = limited(64, stress);
+            let mut rt = runtime_with_heap_limit(64, stress);
             let (result, elapsed) = eval_with_deadline(
                 &mut rt,
                 "var a = []; for (;;) { try { a.push(new ArrayBuffer(1 << 20)); } catch (e) { a.length = 0; } }",
@@ -164,7 +143,7 @@ fn dropped_buffers_after_the_range_error_run_to_the_deadline() {
 /// at the deadline: the zero-fill and the copies are charged to the time
 /// countdown.
 #[test]
-fn large_work_ends_at_the_deadline() {
+fn large_buffer_work_ends_at_the_deadline() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         let setup = "var big = new ArrayBuffer(1 << 26); \

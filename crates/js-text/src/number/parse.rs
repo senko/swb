@@ -36,7 +36,7 @@ const MAX_EXACT_INTEGER: u64 = 9_007_199_254_740_992;
 
 /// Whether a code unit is `StrWhiteSpaceChar` (§7.1.4.1: `WhiteSpace` and
 /// `LineTerminator`), the set of `TrimString`.
-pub fn is_str_whitespace(unit: u16) -> bool {
+pub(crate) fn is_str_whitespace(unit: u16) -> bool {
     let unit = u32::from(unit);
     unicode::is_whitespace(unit) || unicode::is_line_terminator(unit)
 }

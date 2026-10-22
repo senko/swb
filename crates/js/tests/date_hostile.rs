@@ -10,9 +10,9 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{on_big_stack, run_in, runtime};
+use common::{assert_clean, eval_within, on_big_stack, run_in, runtime};
 use swb_js::{Runtime, ScriptError, Termination, TimeZone, Value};
 
 const DEADLINE: Duration = Duration::from_millis(300);
@@ -32,26 +32,6 @@ fn runtime_in(zone: &str, stress: bool) -> Runtime {
 
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
     eval_within(rt, source, DEADLINE)
-}
-
-/// Runs `source` with the deadline `limit` after now.
-fn eval_within(
-    rt: &mut Runtime,
-    source: &str,
-    limit: Duration,
-) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + limit));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
 }
 
 /// A loop that never ends ends at the deadline with the time limit, and

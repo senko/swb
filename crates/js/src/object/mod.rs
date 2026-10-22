@@ -5,13 +5,22 @@
 //! prototype and the named keys), the values of the named properties, the
 //! elements, the kind and the extensible flag. The internal methods are
 //! in [`ops`] (ordinary objects, §10.1), [`array`] (array exotic
-//! objects, §10.4.2) and [`typed_array`] (`TypedArray` exotic objects,
-//! §10.4.5).
+//! objects, §10.4.2), [`typed_array`] (`TypedArray` exotic objects,
+//! §10.4.5) and [`proxy`] (the slots of Proxy objects; the internal
+//! methods are in `vm/proxy.rs`).
+//!
+//! The other modules: `shape` (shapes and transitions), `cache` (inline
+//! cache entries), `elements` and `dense` (the element storage),
+//! `element_access` (element access for natives), `private` (private
+//! elements), `regexp` (data of `RegExp` objects), `weak` (weak tables and
+//! registries), `table` and `collection` (`Map` and `Set`), `buffer`,
+//! `typed_window`, `arguments`, `iterator_helper` and `property`.
 
 mod arguments;
 mod array;
 mod buffer;
 mod cache;
+mod collection;
 mod dense;
 mod element_access;
 mod elements;
@@ -40,9 +49,10 @@ pub(crate) use cache::{SetPlan, SiteCache};
 /// The most keys of an object literal that the compiler builds in its
 /// final shape (more would put the object into dictionary mode).
 pub(crate) const LITERAL_KEY_LIMIT: usize = shape::DICTIONARY_LIMIT as usize;
+pub(crate) use collection::CollectionIterator;
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
-pub use iterator_helper::{IteratorHelper, WrappedIterator};
+pub(crate) use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
 pub(crate) use property::validate_and_apply_descriptor;
 pub use property::{Property, PropertyDescriptor};
@@ -50,8 +60,8 @@ pub(crate) use proxy::ProxyData;
 pub(crate) use regexp::{LastMatch, RegExpRealm, RegExpShapes, program_share};
 pub(crate) use regexp::{RegExpData, RegExpStringIterator};
 pub(crate) use shape::KeyList;
-pub use shape::Shape;
-pub use table::{CollectionIterator, Table};
+pub(crate) use shape::Shape;
+pub(crate) use table::Table;
 pub(crate) use typed_array::TypedArrayData;
 pub(crate) use typed_array::decode_element;
 pub(crate) use typed_array::load;
@@ -223,7 +233,7 @@ pub struct ForInIterator {
 /// What an Array Iterator returns for each index (§23.1.5.1
 /// `CreateArrayIterator`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IterationKind {
+pub(crate) enum IterationKind {
     /// The indices.
     Keys,
     /// The elements.
@@ -478,7 +488,8 @@ impl Heap {
     }
 
     /// A new host object with a class and native data (see
-    /// [`ObjectKind::Host`]).
+    /// [`ObjectKind::Host`]). (For embedders and tests; the engine itself
+    /// does not call it.)
     pub fn new_host_object(
         &mut self,
         proto: Option<Gc<Object>>,

@@ -39,7 +39,7 @@
 //! `swb-js-regexp`.
 
 #[cfg(test)]
-mod class_fix_tests;
+mod class_name_tests;
 #[cfg(test)]
 mod class_tests;
 mod classes;

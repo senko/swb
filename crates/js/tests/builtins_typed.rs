@@ -244,7 +244,7 @@ fn console_log_without_node() {
 /// `Uint8Array` and `ArrayBuffer.isView`. The expected output is that of
 /// Node.js 22.
 #[test]
-fn paths_of_the_target_scripts() {
+fn paths_of_the_target_scripts_for_typed_arrays() {
     check_cases(&[
         (
             "function B(n) { var t = new Uint8Array(n); Object.setPrototypeOf(t, B.prototype); return t; } \

@@ -21,7 +21,7 @@ use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::TYPED_ARRAY_TYPES;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
 
 use super::typed_array_create::{CreateArgs, invalid_length, type_name};
 
@@ -69,18 +69,13 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::TypedArrayPrototype)?;
     let abstract_ctor = rt.new_builtin(realm, "TypedArray", 0, abstract_constructor, true)?;
     rt.heap.record(abstract_ctor);
-    rt.set_intrinsic(realm, Intrinsic::TypedArrayConstructor, abstract_ctor);
     // Chromium 148's order: length, name, prototype, of, from, @@species.
     let key = PropertyKey::String(rt.vm.atoms.prototype);
     rt.define(abstract_ctor, key, proto.into(), false, false, false)?;
     super::method(rt, realm, abstract_ctor, "of", 0, of)?;
     super::method(rt, realm, abstract_ctor, "from", 1, from)?;
-    let species = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let species = super::species_getter(rt, realm, abstract_ctor)?;
     rt.set_intrinsic(realm, Intrinsic::TypedArraySpeciesGetter, species);
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc =
-        crate::object::PropertyDescriptor::accessor(species.into(), Value::Undefined, false, true);
-    rt.define_own_property(abstract_ctor, key, desc)?;
     super::typed_array_proto::install(rt, realm, abstract_ctor, proto)?;
     for (ty, func) in CONSTRUCTORS {
         install_constructor(rt, realm, ty, func, abstract_ctor)?;
@@ -107,7 +102,7 @@ fn install_constructor(
     rt.define(ctor, key, proto.into(), false, false, false)?;
     let key = PropertyKey::String(rt.vm.atoms.constructor);
     rt.define(proto, key, ctor.into(), true, false, true)?;
-    super::global(rt, realm, &name, ctor.into())?;
+    super::define_global(rt, realm, &name, ctor.into())?;
     let size = Value::Int(ty.size() as i32);
     let key = rt.heap.key_from_str("BYTES_PER_ELEMENT")?;
     rt.define(ctor, key, size, false, false, false)?;
@@ -125,15 +120,6 @@ fn abstract_constructor(_: &mut Runtime, _: &NativeCall) -> VmResult<NativeRetur
     Err(VmError::type_error(
         "Abstract class TypedArray not directly constructable",
     ))
-}
-
-/// `get %TypedArray%[@@species]` (§23.2.2.4): the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
 }
 
 /// `TypedArray(...args)` (§23.2.5.1) for the element type `ty`.
@@ -194,7 +180,7 @@ fn constructor_this(rt: &Runtime, call: &NativeCall) -> VmResult<Value> {
     if !rt.is_constructor(constructor)? {
         return Err(VmError::type_error(format!(
             "{} is not a constructor",
-            rt.primitive_text(constructor)
+            rt.value_text(constructor)
         )));
     }
     Ok(constructor)

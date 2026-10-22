@@ -2,8 +2,6 @@
 //! §16.1.7 `GlobalDeclarationInstantiation` with the changes of Annex
 //! B.3.2.2 for function declarations in blocks).
 
-use std::borrow::Cow;
-
 use crate::bytecode::{FunctionCode, GlobalKind};
 use crate::heap::Gc;
 use crate::object::{GetResult, Object, ObjectKind, Property, PropertyDescriptor, SiteCache};
@@ -392,13 +390,10 @@ impl Runtime {
                 GlobalKind::BlockFunction => false,
             };
             if redeclared {
-                return Err(VmError::Raise {
-                    kind: crate::error::ThrowKind::SyntaxError,
-                    message: Cow::Owned(format!(
-                        "Identifier '{}' has already been declared",
-                        self.name_text(name)
-                    )),
-                });
+                return Err(VmError::syntax_error(format!(
+                    "Identifier '{}' has already been declared",
+                    self.name_text(name)
+                )));
             }
         }
         // Steps 11 and 12 (§9.1.1.4.15 `CanDeclareGlobalVar`, §9.1.1.4.16
@@ -421,13 +416,10 @@ impl Runtime {
                         Some(Property::Accessor { .. }) => false,
                     };
                     if !allowed {
-                        return Err(VmError::Raise {
-                            kind: crate::error::ThrowKind::SyntaxError,
-                            message: Cow::Owned(format!(
-                                "Identifier '{}' has already been declared",
-                                self.name_text(name)
-                            )),
-                        });
+                        return Err(VmError::syntax_error(format!(
+                            "Identifier '{}' has already been declared",
+                            self.name_text(name)
+                        )));
                     }
                 }
                 GlobalKind::Var => {

@@ -40,9 +40,6 @@
 
 use std::fmt::Write;
 
-#[cfg(test)]
-use swb_js_text::Str16;
-
 use crate::heap::Gc;
 use crate::object::{Object, ObjectKind, Property, RawValue};
 use crate::runtime::Runtime;
@@ -69,7 +66,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let console = rt.heap.new_object(Some(proto))?;
     rt.heap.record(console);
     super::method(rt, realm, console, "log", 0, log)?;
-    super::global(rt, realm, "console", console.into())
+    super::define_global(rt, realm, "console", console.into())
 }
 
 /// `console.log(...data)`.
@@ -206,7 +203,7 @@ impl Inspector<'_> {
             Value::Double(d) => format_number(d),
             Value::BigInt(b) => self.bigint(b),
             Value::Object(object) => self.object(object, depth, indent),
-            _ => self.rt.primitive_text(value),
+            _ => self.rt.value_text(value),
         }
     }
 
@@ -749,7 +746,7 @@ impl Inspector<'_> {
             self.rt.heap.object(object).map(|o| &o.kind),
             Ok(ObjectKind::Map(_))
         );
-        let Ok(Some(table)) = self.rt.heap.table(object) else {
+        let Ok(Some(table)) = self.rt.heap.collection_table(object) else {
             return entries;
         };
         let total = table.len();
@@ -903,24 +900,18 @@ impl Inspector<'_> {
 /// rest is counted.
 const MAX_STRING: usize = 10_000;
 
-/// A string in quotes as Node.js shows it: single quotes, or double
-/// quotes if the text has a single quote and no double quote, or
-/// backquotes if it has both; control characters and lone surrogates
-/// escaped; at most [`MAX_STRING`] code units.
-#[cfg(test)]
-fn quote(text: Str16<'_>) -> String {
-    quote_units(text.len(), || text.units())
-}
-
-/// [`quote`] of a script string (a rope is read leaf by leaf, without a
-/// flatten).
+/// A script string in quotes as Node.js shows it (see [`quote_units`]); a
+/// rope is read leaf by leaf, without a flatten.
 fn quote_string(heap: &crate::heap::Heap, string: Gc<JsString>) -> String {
     let len = heap.string(string).map_or(0, JsString::len);
     quote_units(len, || heap.string_units(string))
 }
 
-/// [`quote`] of the `len` code units that `units` gives (each call gives
-/// them from the start).
+/// The `len` code units that `units` gives (each call gives them from the
+/// start) in quotes as Node.js shows a string: single quotes, or double
+/// quotes if the text has a single quote and no double quote, or
+/// backquotes if it has both; control characters and lone surrogates
+/// escaped; at most [`MAX_STRING`] code units.
 fn quote_units<I: Iterator<Item = u16>>(len: usize, units: impl Fn() -> I) -> String {
     let has = |c: char| units().any(|u| u32::from(u) == c as u32);
     let quote = if !has('\'') {
@@ -980,7 +971,11 @@ fn quote_units<I: Iterator<Item = u16>>(len: usize, units: impl Fn() -> I) -> St
 mod tests {
     use swb_js_text::String16;
 
-    use super::quote;
+    use super::quote_units;
+
+    fn quote(text: swb_js_text::Str16<'_>) -> String {
+        quote_units(text.len(), || text.units())
+    }
 
     #[test]
     fn quotes_like_node() {

@@ -36,7 +36,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::rc::Rc;
 
-use swb_js_syntax::{ErrorKind, ParseError};
+use swb_js_syntax::ParseError;
 use swb_js_text::{RecursionBudget, Str16, String16};
 
 use crate::bytecode::FunctionCode;
@@ -130,18 +130,9 @@ impl std::error::Error for ScriptError {}
 
 impl From<ParseError> for ScriptError {
     fn from(error: ParseError) -> Self {
-        let mut message = error.message.into_owned();
-        if let Some(construct) = error.unsupported {
-            message.push_str(" (");
-            message.push_str(construct);
-            message.push(')');
-        }
         ScriptError::Compile {
-            kind: match error.kind {
-                ErrorKind::Syntax => ThrowKind::SyntaxError,
-                ErrorKind::Range => ThrowKind::RangeError,
-            },
-            message,
+            kind: error.kind.into(),
+            message: error.message.into_owned(),
             offset: error.offset,
         }
     }
@@ -476,7 +467,7 @@ impl Runtime {
     /// script code (getters are not called).
     fn describe_exception(&self, value: Value) -> (String, String) {
         let Value::Object(object) = value else {
-            return (String::new(), self.primitive_text(value));
+            return (String::new(), self.value_text(value));
         };
         let read = |key| match self.heap.get(object, PropertyKey::String(key), value) {
             Ok(GetResult::Value(Value::String(text))) => Some(self.name_text(text)),
@@ -579,7 +570,7 @@ impl Runtime {
     /// diagnostics): primitives as `ToString` gives them, objects as
     /// `#<Object>`.
     pub fn display(&self, value: Value) -> String {
-        self.primitive_text(value)
+        self.value_text(value)
     }
 
     /// The text of a thrown value or a rejection reason without running

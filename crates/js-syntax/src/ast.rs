@@ -350,8 +350,7 @@ pub enum ExprKind {
     /// [`ExprKind::This`].
     NewTarget(RefId),
     /// A `BigInt` literal: its digits with the radix prefix (`0x`, `0o`,
-    /// `0b`), without separators and without the `n`. The value comes
-    /// with M7 feature 10.
+    /// `0b`), without separators and without the `n`.
     BigInt(StringId),
     /// A class expression (§15.7).
     Class(ClassId),
@@ -599,7 +598,7 @@ pub enum PropertyKey {
     /// `[expression]`.
     Computed(ExprId),
     /// A `BigInt` literal (the digits as in [`ExprKind::BigInt`]); the
-    /// key is the decimal string of its value (M7 feature 10).
+    /// key is the decimal string of its value.
     BigInt(StringId),
 }
 
@@ -1019,7 +1018,7 @@ pub enum FunctionKind {
 
 impl FunctionKind {
     /// Whether the function has its own `this` and `arguments`.
-    pub fn has_own_this(self) -> bool {
+    pub(crate) fn has_own_this(self) -> bool {
         !matches!(self, FunctionKind::Arrow | FunctionKind::Eval)
     }
 

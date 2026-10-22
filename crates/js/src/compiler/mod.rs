@@ -7,8 +7,14 @@
 //! functions compile. Then [`materialize`] creates the heap things, the
 //! innermost functions first so that a parent's constant pool can refer
 //! to its children's code objects, in a no-GC region (ADR 0026 section 3:
-//! a collection cannot run during a compile). The verifier checks each
-//! function before its code object exists.
+//! a collection cannot run during a compile). The verifier
+//! (`bytecode/verify.rs`) checks each function before its code object
+//! exists.
+//!
+//! The `impl` of [`function::FunctionCompiler`] is in several files:
+//! `function.rs` (setup, registers, emission, scopes), `statement.rs`,
+//! `expr.rs` (with `assign.rs` and `call.rs`), `pattern.rs`, `params.rs`,
+//! `iterate.rs`, `class.rs`, `dynamic.rs`, `eval.rs` and `positions.rs`.
 //!
 //! Register allocation: the parameters and local bindings have the
 //! registers of the scope analysis; temporaries are allocated above them
@@ -19,7 +25,9 @@
 //! recursion budget per level; left-associative chains of binary and
 //! logical operators are compiled in a loop.
 
+mod assign;
 mod bigint;
+mod call;
 mod class;
 mod debug_names;
 mod dynamic;
@@ -30,6 +38,7 @@ mod iterate;
 mod params;
 mod pattern;
 mod positions;
+mod statement;
 mod support;
 
 use std::borrow::Cow;
@@ -60,6 +69,35 @@ pub(crate) enum CompileError {
     },
     /// A failure of the heap (limit, out of memory) or an engine bug.
     Heap(Error),
+}
+
+impl CompileError {
+    /// A `SyntaxError` at `offset`.
+    pub(crate) fn syntax(offset: u32, message: impl Into<Cow<'static, str>>) -> Self {
+        CompileError::Script {
+            kind: ThrowKind::SyntaxError,
+            message: message.into(),
+            offset,
+        }
+    }
+
+    /// A `RangeError` at `offset`.
+    pub(crate) fn range(offset: u32, message: impl Into<Cow<'static, str>>) -> Self {
+        CompileError::Script {
+            kind: ThrowKind::RangeError,
+            message: message.into(),
+            offset,
+        }
+    }
+
+    /// The error for a construct that the compiler does not support:
+    /// `SyntaxError` "not supported yet (construct)".
+    pub(crate) fn unsupported(offset: u32, construct: &str) -> Self {
+        CompileError::syntax(
+            offset,
+            format!("{} ({construct})", swb_js_syntax::messages::NOT_SUPPORTED),
+        )
+    }
 }
 
 impl From<Error> for CompileError {
@@ -318,26 +356,17 @@ fn compile_functions<'a>(
     input: Option<eval::EvalInput>,
 ) -> CResult<(Vec<Option<Builder>>, Session)> {
     if let Some((offset, construct)) = support::first_unsupported(script) {
-        return Err(CompileError::Script {
-            kind: ThrowKind::SyntaxError,
-            message: format!("{} ({construct})", swb_js_syntax::messages::NOT_SUPPORTED).into(),
-            offset,
-        });
+        return Err(CompileError::unsupported(offset, construct));
     }
     if let Some(offset) = bigint::first_oversized(script) {
-        return Err(CompileError::Script {
-            kind: ThrowKind::SyntaxError,
-            message: bigint::TOO_LARGE.into(),
-            offset,
-        });
+        return Err(CompileError::syntax(offset, bigint::TOO_LARGE));
     }
     let mut session = Session::new(script, input);
     if session.caller.as_ref().is_some_and(|plan| plan.overflow) {
-        return Err(CompileError::Script {
-            kind: ThrowKind::RangeError,
-            message: swb_js_syntax::messages::TOO_MANY_CAPTURES.into(),
-            offset: 0,
-        });
+        return Err(CompileError::range(
+            0,
+            swb_js_syntax::messages::TOO_MANY_CAPTURES,
+        ));
     }
     let mut builders = Vec::with_capacity(script.ast.function_count());
     for id in script.ast.function_ids() {

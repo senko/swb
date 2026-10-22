@@ -1,4 +1,4 @@
-//! Tests of the Module goal (M7 feature 1c): import and export
+//! Tests of the Module goal: import and export
 //! declarations, import attributes, `import()` and `import.meta`,
 //! top-level `await`, the module early errors with V8's messages and
 //! positions (measured with `node --check` on `.mjs` files in Node.js 22),

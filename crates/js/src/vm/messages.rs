@@ -25,6 +25,13 @@ const QUOTE_LIMIT: usize = 1024;
 /// The marker that ends a shortened string.
 const CUT_MARK: &str = "<...>";
 
+/// V8's message for `ToObject` of `undefined` or `null`.
+pub(crate) const NULLISH_TO_OBJECT: &str = "Cannot convert undefined or null to object";
+
+/// V8's message for a `constructor` property that is neither an object
+/// nor `undefined`, in `SpeciesConstructor`.
+pub(crate) const CONSTRUCTOR_NOT_OBJECT: &str = "The .constructor property is not an object";
+
 impl Runtime {
     /// The text of a script string as a message quotes it: at most
     /// `QUOTE_LIMIT` units, then `<...>`. Every message that quotes a
@@ -92,10 +99,10 @@ impl Runtime {
         }
         let (kind, text) = match base {
             Value::String(string) => ("string", self.clipped_text(string)),
-            Value::Int(_) | Value::Double(_) => ("number", self.primitive_text(base)),
-            Value::Bool(_) => ("boolean", self.primitive_text(base)),
+            Value::Int(_) | Value::Double(_) => ("number", self.value_text(base)),
+            Value::Bool(_) => ("boolean", self.value_text(base)),
             Value::Symbol(symbol) => ("symbol", self.key_text(PropertyKey::Symbol(symbol))),
-            Value::BigInt(_) => ("bigint", self.primitive_text(base)),
+            Value::BigInt(_) => ("bigint", self.value_text(base)),
             _ => ("symbol", "Symbol()".to_owned()),
         };
         VmError::type_error(format!(
@@ -489,6 +496,18 @@ impl Runtime {
         VmError::type_error(format!("{} is not a function", self.typed_text(value)))
     }
 
+    /// The `TypeError` for a property of `holder` that is neither nullish
+    /// nor callable ("'5' returned for property 'return' of object
+    /// '#<Object>' is not a function"). `key` is the property as the
+    /// message shows it.
+    pub(crate) fn not_function_property(&self, method: Value, key: &str, holder: Value) -> VmError {
+        VmError::type_error(format!(
+            "'{}' returned for property '{key}' of object '{}' is not a function",
+            self.value_text(method),
+            self.value_text(holder)
+        ))
+    }
+
     /// The `TypeError` of a value without a usable `@@iterator` method.
     pub(crate) fn not_iterable(&self, value: Value) -> VmError {
         VmError::type_error(format!(
@@ -497,8 +516,18 @@ impl Runtime {
         ))
     }
 
-    /// The text of a primitive value without running script code.
-    pub(crate) fn primitive_text(&self, value: Value) -> String {
+    /// V8's `TypeError` for a method called on another receiver ("Method
+    /// NAME called on incompatible receiver X").
+    pub(crate) fn incompatible_receiver(&self, method: &str, receiver: Value) -> VmError {
+        VmError::type_error(format!(
+            "Method {method} called on incompatible receiver {}",
+            self.value_text(receiver)
+        ))
+    }
+
+    /// The text of any value in a message, without running script code
+    /// (an object as `object_text` shows it).
+    pub(crate) fn value_text(&self, value: Value) -> String {
         match value {
             Value::Undefined => "undefined".to_owned(),
             Value::Null => "null".to_owned(),
@@ -520,7 +549,7 @@ impl Runtime {
                 Ok(kind) if is_callable_kind(kind) => "function".to_owned(),
                 _ => self.object_text(object),
             },
-            _ => self.primitive_text(value),
+            _ => self.value_text(value),
         }
     }
 }

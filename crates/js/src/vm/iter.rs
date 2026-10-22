@@ -144,7 +144,7 @@ impl Runtime {
     pub(crate) fn iterator_result_error(&self, result: Value) -> VmError {
         VmError::type_error(format!(
             "Iterator result {} is not an object",
-            self.primitive_text(result)
+            self.value_text(result)
         ))
     }
 
@@ -230,7 +230,7 @@ impl Runtime {
                 "Spread syntax requires ...iterable[Symbol.iterator] to be a function".to_owned()
             }
             (ITER_SPREAD, text) => {
-                let value_text = self.primitive_text(value);
+                let value_text = self.value_text(value);
                 format!(
                     "{} is not iterable (cannot read property {value_text})",
                     text.unwrap_or_else(|| value_text.clone())

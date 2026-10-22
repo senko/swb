@@ -544,7 +544,8 @@ fn error_positions() {
 
 #[test]
 fn source_length_limit() {
-    use crate::{MAX_SOURCE_LEN, check_source_len};
+    use crate::check_source_len;
+    use crate::lexer::MAX_SOURCE_LEN;
     assert!(check_source_len(MAX_SOURCE_LEN).is_ok());
     let error = check_source_len(MAX_SOURCE_LEN + 1).expect_err("too long");
     assert_eq!(error.message, "Script is too large");

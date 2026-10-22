@@ -28,7 +28,9 @@ pub(crate) fn parse_meta(source: &str) -> Meta {
     let body = body.find("---*/").map_or(body, |end| &body[..end]);
     // Top-level keys with the lines that belong to them.
     let mut keys: Vec<(&str, &str, Vec<&str>)> = Vec::new();
-    for line in body.lines() {
+    // A line ends at LF, CR (so CRLF gives an empty line, which is skipped),
+    // U+2028 or U+2029: test262 has tests with CR line ends.
+    for line in body.split(['\n', '\r', '\u{2028}', '\u{2029}']) {
         if line.trim().is_empty() {
             continue;
         }
@@ -187,6 +189,18 @@ mod tests {
         assert_eq!(parse_meta("x = 1;"), Meta::default());
         let meta = parse_meta("/*---\nflags: []\n---*/");
         assert_eq!(meta, Meta::default());
+    }
+
+    /// Line ends are LF, CR, CRLF, U+2028 and U+2029.
+    #[test]
+    fn frontmatter_line_terminators() {
+        let lf = "/*---\nincludes: [a.js]\nflags:\n  - raw\nnegative:\n  phase: parse\n  type: SyntaxError\n---*/";
+        let expected = parse_meta(lf);
+        assert_eq!(expected.includes, ["a.js"]);
+        assert_eq!(expected.flags, ["raw"]);
+        for end in ["\r", "\r\n", "\u{2028}", "\u{2029}"] {
+            assert_eq!(parse_meta(&lf.replace('\n', end)), expected, "{end:?}");
+        }
     }
 
     /// A `dir` line can name a group or a part of one; the part counts

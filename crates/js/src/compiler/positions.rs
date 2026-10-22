@@ -22,6 +22,7 @@
 //! source text that skips white space, comments, `)` and `?.`.
 
 use swb_js_syntax::{ExprId, ExprKind};
+use swb_js_text::unicode::{is_line_terminator, is_whitespace};
 
 use super::function::FunctionCompiler;
 
@@ -190,10 +191,10 @@ impl FunctionCompiler<'_> {
                 }
                 at += 2;
             } else if unit == u16::from(b'/') && next == Some(u16::from(b'/')) {
-                while !matches!(self.text.get(at)?, 0x0A | 0x0D | 0x2028 | 0x2029) {
+                while !is_line_terminator(u32::from(self.text.get(at)?)) {
                     at += 1;
                 }
-            } else if matches!(unit, 0x09..=0x0D | 0x20 | 0xA0 | 0x2028 | 0x2029 | 0xFEFF) {
+            } else if is_whitespace(u32::from(unit)) || is_line_terminator(u32::from(unit)) {
                 at += 1;
             } else {
                 return u32::try_from(at).ok();

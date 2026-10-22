@@ -2,8 +2,9 @@
 //! the constructor, `Map.groupBy` (§24.1.2.1), `Map.prototype` in
 //! Chromium 148's key order (with `getOrInsert` and `getOrInsertComputed`
 //! of the upsert proposal, which Chromium 148 has and test262 tests) and
-//! `%MapIteratorPrototype%`. The table, the shared natives and the
-//! iterators are in `object/table.rs` and `collection.rs`.
+//! `%MapIteratorPrototype%`. The table is in `object/table.rs` (with
+//! its heap operations in `object/collection.rs`), the shared natives and
+//! the iterators are in `collection.rs`.
 
 use crate::heap::Gc;
 use crate::object::{IterationKind, Object};
@@ -111,7 +112,7 @@ fn delete(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Map.prototype.clear()` (§24.1.3.1).
 fn clear(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let map = rt.this_collection(call, Which::Map, "Map.prototype.clear")?;
-    rt.heap.table_mut(map)?.clear();
+    rt.heap.collection_table_mut(map)?.clear();
     Ok(NativeReturn::Value(Value::Undefined))
 }
 

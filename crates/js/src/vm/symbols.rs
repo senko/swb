@@ -51,6 +51,17 @@ pub(crate) const WELL_KNOWN: [(WellKnown, &str); 13] = [
     (WellKnown::Unscopables, "unscopables"),
 ];
 
+impl WellKnown {
+    /// The name of the property of `Symbol` that holds this symbol
+    /// ("iterator" for `Symbol.iterator`).
+    pub(crate) fn name(self) -> &'static str {
+        WELL_KNOWN
+            .iter()
+            .find(|(known, _)| *known == self)
+            .map_or("", |(_, name)| *name)
+    }
+}
+
 /// The bytes charged for a registry entry (key, symbol and map slot).
 const REGISTRY_ENTRY_SIZE: usize = 48;
 

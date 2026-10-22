@@ -701,10 +701,7 @@ impl<T: CodeUnit> Parser<'_, T> {
 
     /// The `SyntaxError` for `kind` at `position`.
     fn fail(&self, kind: Kind, position: usize) -> VmError {
-        VmError::Raise {
-            kind: crate::error::ThrowKind::SyntaxError,
-            message: error_message(T::view(self.src), kind, position).into(),
-        }
+        VmError::syntax_error(error_message(T::view(self.src), kind, position))
     }
 
     /// A member name and the colon after it. `kind` is the error for a

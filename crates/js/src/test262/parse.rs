@@ -10,7 +10,6 @@
 use std::collections::BTreeSet;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use swb_js_syntax::messages::NOT_SUPPORTED;
 use swb_js_syntax::{ErrorKind, parse_module, parse_script};
 use swb_js_text::{RecursionBudget, String16};
 
@@ -77,10 +76,6 @@ fn run_mode(meta: &Meta, source: &str, mode: Mode) -> Status {
         .as_ref()
         .is_some_and(|n| n.phase == "parse" || n.phase == "early");
     match result {
-        Err(error) if error.message == NOT_SUPPORTED => Status::Unsupported(format!(
-            "{NOT_SUPPORTED} ({})",
-            error.unsupported.unwrap_or("?")
-        )),
         Err(error) if expects_error => {
             let kind = meta.negative.as_ref().map_or("", |n| n.kind.as_str());
             if error.kind == ErrorKind::Syntax && kind == "SyntaxError" {

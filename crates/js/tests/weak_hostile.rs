@@ -13,7 +13,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{on_big_stack, runtime, runtime_with_tests};
+use common::{assert_clean, on_big_stack, runtime, runtime_with_tests};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination};
 
 fn runtime_with_limit(limit: usize) -> Runtime {
@@ -24,13 +24,6 @@ fn runtime_with_limit(limit: usize) -> Runtime {
         },
         ..RuntimeConfig::default()
     })
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
 }
 
 #[test]

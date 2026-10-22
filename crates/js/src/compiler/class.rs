@@ -699,13 +699,7 @@ impl FunctionCompiler<'_> {
     pub(super) fn super_call(&mut self, id: SuperCallId, dst: Option<Reg>) -> CResult<Reg> {
         let call = *self.ast.super_call(id);
         let arguments = self.ast.exprs(call.arguments).to_vec();
-        let Ok(argc) = u16::try_from(arguments.len()) else {
-            return Err(super::CompileError::Script {
-                kind: crate::error::ThrowKind::SyntaxError,
-                message: swb_js_syntax::messages::TOO_MANY_ARGUMENTS.into(),
-                offset: self.position,
-            });
-        };
+        let argc = self.argument_count(arguments.len())?;
         let spread = arguments
             .iter()
             .any(|&e| matches!(self.ast.expr(e).kind, ExprKind::Spread(_)));

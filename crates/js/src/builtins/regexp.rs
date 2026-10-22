@@ -20,17 +20,16 @@
 
 use std::rc::Rc;
 
-use swb_js_regexp::{Error as RegexError, Flags, Regex};
+use swb_js_regexp::{Error as RegexError, Flags, Regex, invalid_pattern_message};
 use swb_js_text::{Str16, String16};
 
 use crate::bytecode::{Constant, FunctionCode};
-use crate::error::ThrowKind;
 use crate::heap::Gc;
-use crate::object::{Object, ObjectKind, PropertyDescriptor, RegExpData};
+use crate::object::{Object, ObjectKind, RegExpData};
 use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
 
 /// The flag getters of `RegExp.prototype` in Chromium 148's key order
 /// (`flags` and `source` are between them).
@@ -64,11 +63,8 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     rt.set_intrinsic(realm, Intrinsic::RegExpConstructor, ctor);
     super::regexp_legacy::install(rt, realm, ctor)?;
     super::method(rt, realm, ctor, "escape", 1, escape)?;
-    let species = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let species = super::species_getter(rt, realm, ctor)?;
     rt.set_intrinsic(realm, Intrinsic::RegExpSpeciesGetter, species);
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc = PropertyDescriptor::accessor(species.into(), Value::Undefined, false, true);
-    rt.define_own_property(ctor, key, desc)?;
 
     let exec = super::method(rt, realm, proto, "exec", 1, exec)?;
     rt.set_intrinsic(realm, Intrinsic::RegExpExec, exec);
@@ -91,24 +87,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     super::regexp_fast::record_shapes(rt, realm)
 }
 
-/// `get RegExp[@@species]` (§22.2.5.2): the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
-}
-
 // --- Creation ---
-
-/// A `SyntaxError` with a message.
-pub(super) fn syntax_error(message: String) -> VmError {
-    VmError::Raise {
-        kind: ThrowKind::SyntaxError,
-        message: message.into(),
-    }
-}
 
 impl Runtime {
     /// The data of a `RegExp` object, or `None` for another value.
@@ -153,7 +132,7 @@ impl Runtime {
         self.flatten(flags_text)?;
         let parsed = swb_js_regexp::parse_flags(self.heap.text(flags_text)?);
         let Ok(flag_set) = parsed else {
-            return Err(syntax_error(format!(
+            return Err(VmError::syntax_error(format!(
                 "Invalid flags supplied to RegExp constructor '{}'",
                 self.heap.string_lossy(flags_text, usize::MAX)
             )));
@@ -193,15 +172,11 @@ impl Runtime {
     ) -> VmError {
         let pattern = self.heap.string_lossy(source, usize::MAX);
         let flags = self.heap.string_lossy(flags_text, usize::MAX);
-        match error {
-            RegexError::Syntax(kind) => syntax_error(format!(
-                "Invalid regular expression: /{pattern}/{flags}: {}",
-                kind.message()
-            )),
-            other => syntax_error(format!(
-                "Invalid regular expression: /{pattern}/{flags}: {other}"
-            )),
-        }
+        let reason = match error {
+            RegexError::Syntax(kind) => kind.message().to_owned(),
+            other => other.to_string(),
+        };
+        VmError::syntax_error(invalid_pattern_message(&pattern, &flags, reason))
     }
 
     /// `RegExpAlloc` (§22.2.3.2) and the end of `RegExpInitialize` for a
@@ -464,7 +439,7 @@ fn flags(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let Value::Object(object) = call.this() else {
         return Err(VmError::type_error(format!(
             "RegExp.prototype.flags getter called on non-object {}",
-            rt.primitive_text(call.this())
+            rt.value_text(call.this())
         )));
     };
     let text = rt.flags_text(object)?;

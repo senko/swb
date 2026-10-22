@@ -63,6 +63,29 @@ pub(crate) fn to_integer_or_infinity(x: f64) -> f64 {
     x.trunc() + 0.0
 }
 
+/// A relative index (an integer or an infinity) as an absolute one: a
+/// negative value counts from the end, and the result is clamped to
+/// `0..=length` (the start and end of `slice`, `splice`, `fill` and the
+/// like).
+pub(crate) fn clamp_from_end(relative: f64, length: f64) -> f64 {
+    if relative < 0.0 {
+        (length + relative).max(0.0)
+    } else {
+        relative.min(length)
+    }
+}
+
+/// The first index of `indexOf` and `includes` from `fromIndex` (an
+/// integer, not +∞): a negative value counts from the end; a large value
+/// is not clamped.
+pub(crate) fn from_index_start(from_index: f64, length: f64) -> f64 {
+    if from_index >= 0.0 {
+        from_index
+    } else {
+        (length + from_index).max(0.0)
+    }
+}
+
 /// `ToLength` (§7.1.20) of a Number.
 pub(crate) fn to_length(x: f64) -> f64 {
     to_integer_or_infinity(x).clamp(0.0, MAX_SAFE_INTEGER)
@@ -366,9 +389,7 @@ impl Runtime {
         let (kind, proto) = match value {
             Value::Object(object) => return Ok(object),
             Value::Undefined | Value::Null => {
-                return Err(VmError::type_error(
-                    "Cannot convert undefined or null to object",
-                ));
+                return Err(VmError::type_error(crate::vm::messages::NULLISH_TO_OBJECT));
             }
             Value::String(s) => {
                 // The string of a String object is flat (`object/ops.rs`).
@@ -766,7 +787,7 @@ impl Runtime {
         let Value::Object(proto) = proto else {
             return Err(VmError::type_error(format!(
                 "Function has non-object prototype '{}' in instanceof check",
-                self.primitive_text(proto)
+                self.value_text(proto)
             )));
         };
         // A proxy's `getPrototypeOf` trap can make the chain endless; each

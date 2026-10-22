@@ -30,7 +30,7 @@ fn global_bindings() {
 }
 
 #[test]
-fn object_literals() {
+fn object_literals_with_inline_caches() {
     check_cases(LITERALS);
 }
 

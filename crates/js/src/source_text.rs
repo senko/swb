@@ -1,6 +1,10 @@
-//! The kept source text of a script (M7 13e, ADR 0026 section 3): one
+//! The kept source text of a script (ADR 0026 section 3): one
 //! byte per code unit, with the few wide units of a mostly Latin-1
-//! script in a sorted list.
+//! script in a sorted list ([`SourceText`]), and the text of a script with
+//! its name and line index ([`Source`]).
+
+use std::cell::OnceCell;
+use std::rc::Rc;
 
 use swb_js_text::{Str16, String16};
 
@@ -95,6 +99,66 @@ impl SourceText {
                 f(self.slice(0, self.len()).unwrap_or_default().as_str16())
             }
         }
+    }
+}
+
+/// The text of a script with its name, shared by all the functions of
+/// the script. The line index for stack traces is built on the first
+/// use (once per script, not once per error).
+#[derive(Debug)]
+pub(crate) struct Source {
+    /// The text.
+    pub(crate) text: SourceText,
+    /// The name that stack traces show (a file name or URL; empty when
+    /// the host gave none; for eval code, its origin and `<anonymous>`).
+    pub(crate) name: Rc<str>,
+    /// Eval code: where it comes from, as V8 shows it (`eval at f
+    /// (file:1:5)`; the origin of eval code that eval code made names the
+    /// outer origin instead of a position).
+    pub(crate) origin: Option<Rc<str>>,
+    /// The source of a `Function` constructor call (see
+    /// [`FunctionCode::is_dynamic`]).
+    pub(crate) dynamic_function: bool,
+    lines: OnceCell<swb_js_syntax::LineIndex>,
+}
+
+impl Source {
+    /// A script text with its name.
+    pub(crate) fn new(text: Str16<'_>, name: Rc<str>) -> Self {
+        Source {
+            text: SourceText::new(text),
+            name,
+            origin: None,
+            dynamic_function: false,
+            lines: OnceCell::new(),
+        }
+    }
+
+    /// The text of eval code with its origin.
+    pub(crate) fn eval_code(text: Str16<'_>, origin: Rc<str>) -> Self {
+        Source {
+            text: SourceText::new(text),
+            name: Rc::from(format!("{origin}, <anonymous>")),
+            origin: Some(origin),
+            dynamic_function: false,
+            lines: OnceCell::new(),
+        }
+    }
+
+    /// The source of a `Function` constructor call with the origin of the
+    /// call (it shows in stack traces like eval code).
+    pub(crate) fn dynamic_function(text: Str16<'_>, origin: Rc<str>) -> Self {
+        Source {
+            dynamic_function: true,
+            ..Source::eval_code(text, origin)
+        }
+    }
+
+    /// The line and column of a code-unit offset (both from 1).
+    pub(crate) fn location(&self, offset: u32) -> swb_js_syntax::Location {
+        self.lines
+            .get_or_init(|| self.text.with_whole(swb_js_syntax::LineIndex::new))
+            .location(offset)
     }
 }
 

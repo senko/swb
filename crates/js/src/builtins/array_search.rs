@@ -17,7 +17,7 @@ use crate::heap::Gc;
 use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::value::{Equality, Value};
-use crate::vm::convert::{MAX_STRING_LENGTH, to_integer_or_infinity};
+use crate::vm::convert::{MAX_STRING_LENGTH, from_index_start, to_integer_or_infinity};
 use crate::vm::{NativeCall, NativeReturn, VmError, VmResult};
 
 use super::array::receiver;
@@ -181,7 +181,7 @@ pub(super) fn index_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRe
     if n == f64::INFINITY {
         return Ok(not_found);
     }
-    let start = if n >= 0.0 { n } else { (length + n).max(0.0) };
+    let start = from_index_start(n, length);
     let search = rt.arg(call, 0);
     if let Dense::Done(found) = dense_search(
         rt,
@@ -265,7 +265,7 @@ pub(super) fn includes(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRe
     if n == f64::INFINITY {
         return Ok(NativeReturn::Value(Value::Bool(false)));
     }
-    let start = if n >= 0.0 { n } else { (length + n).max(0.0) };
+    let start = from_index_start(n, length);
     let search = rt.arg(call, 0);
     let holes = search.is_undefined();
     if let Dense::Done(found) = dense_search(

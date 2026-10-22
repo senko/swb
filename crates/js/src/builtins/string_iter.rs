@@ -97,11 +97,5 @@ pub(super) fn next_value(rt: &mut Runtime, iterator: Gc<Object>) -> VmResult<Opt
 
 /// V8's `TypeError` for `next` on another receiver.
 fn incompatible(rt: &Runtime, receiver: Value) -> VmError {
-    VmError::type_error(format!(
-        "Method String Iterator.prototype.next called on incompatible receiver {}",
-        match receiver {
-            Value::Object(object) => rt.object_text(object),
-            _ => rt.primitive_text(receiver),
-        }
-    ))
+    rt.incompatible_receiver("String Iterator.prototype.next", receiver)
 }

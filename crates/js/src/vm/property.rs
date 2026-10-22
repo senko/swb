@@ -449,9 +449,7 @@ impl Runtime {
                 deleted
             }
             Value::Undefined | Value::Null => {
-                return Err(VmError::type_error(
-                    "Cannot convert undefined or null to object",
-                ));
+                return Err(VmError::type_error(crate::vm::messages::NULLISH_TO_OBJECT));
             }
             Value::String(string) => {
                 let deleted = self.string_own_property(string, key)?.is_none();

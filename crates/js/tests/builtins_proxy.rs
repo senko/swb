@@ -7,7 +7,7 @@
 
 mod common;
 
-use common::{check_cases, run};
+use common::{check_cases, check_chromium};
 
 /// The snippets of `tools/probes/js-proxy.json` with Chromium 148's
 /// results (`data/proxy_cases.expected`; the script and the expected
@@ -33,28 +33,6 @@ fn chromium_cases_heavy() {
             &[false],
         );
     });
-}
-
-fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
-    for &stress in modes {
-        let actual = run(script, stress);
-        let failures: Vec<String> = actual
-            .lines()
-            .zip(expected.lines())
-            .filter(|(actual, expected)| actual != expected)
-            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
-            .collect();
-        assert_eq!(
-            actual.lines().count(),
-            expected.lines().count(),
-            "number of lines (stress: {stress})"
-        );
-        assert!(
-            failures.is_empty(),
-            "stress: {stress}\n{}",
-            failures.join("\n")
-        );
-    }
 }
 
 /// Traps that allocate and collect while the engine holds targets,

@@ -23,25 +23,17 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{on_big_stack, run, run_in, runtime, runtime_with, runtime_with_tests};
+use common::{
+    assert_clean, eval_within, is_limit, on_big_stack, run, run_in, runtime, runtime_with,
+    runtime_with_tests,
+};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(100);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
+    eval_within(rt, source, DEADLINE)
 }
 
 #[test]
@@ -136,45 +128,6 @@ fn a_long_prototype_chain_with_keys() {
         assert_eq!(result, Err(ScriptError::Terminated(Termination::TimeLimit)));
         assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
         assert_clean(&rt);
-    });
-}
-
-#[test]
-fn keys_of_a_long_string_object_count_against_the_heap_limit() {
-    on_big_stack(|| {
-        let config = RuntimeConfig {
-            heap: HeapConfig {
-                limit: 128 << 20,
-                ..HeapConfig::default()
-            },
-            ..RuntimeConfig::default()
-        };
-        let mut rt = runtime_with(config);
-        // The string fits; the list of its keys (16 bytes per unit) does
-        // not.
-        rt.eval(
-            "var t = 'a'; for (var i = 0; i < 24; i++) t += t; var s = new String(t); undefined;",
-        )
-        .unwrap();
-        let cases = [
-            "for (var k in s) { }",
-            "for (var k in t) { }",
-            "var c = { ...s };",
-            "var c = { ...t };",
-        ];
-        for source in cases {
-            let (result, elapsed) = eval_with_deadline(&mut rt, source);
-            assert!(
-                matches!(
-                    result,
-                    Err(ScriptError::Terminated(
-                        Termination::HeapLimit | Termination::TimeLimit
-                    ))
-                ),
-                "{source}: {result:?}"
-            );
-            assert!(elapsed < Duration::from_secs(3), "{source}: {elapsed:?}");
-        }
     });
 }
 
@@ -2163,16 +2116,6 @@ fn locale_compare_of_long_strings() {
 }
 
 // --- Arrays (M7 feature 6a) ---
-
-/// A termination at the time or the heap limit.
-fn is_limit(result: &Result<Value, ScriptError>) -> bool {
-    matches!(
-        result,
-        Err(ScriptError::Terminated(
-            Termination::TimeLimit | Termination::HeapLimit
-        ))
-    )
-}
 
 #[test]
 fn moving_methods_on_huge_sparse_lengths_cost_the_stored_elements() {

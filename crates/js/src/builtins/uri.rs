@@ -43,7 +43,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         ("unescape", unescape),
     ] {
         let function = rt.new_builtin(realm, name, 1, func, false)?;
-        super::global(rt, realm, name, function.into())?;
+        super::define_global(rt, realm, name, function.into())?;
     }
     Ok(())
 }

@@ -249,7 +249,7 @@ impl std::fmt::Debug for LoopState {
 /// How a generator resumes (§27.5.3.3 `GeneratorResume`, §27.5.3.4
 /// `GeneratorResumeAbrupt`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ResumeMode {
+pub(crate) enum ResumeMode {
     /// `next(v)`: `v` is the value of the `yield` expression.
     Next,
     /// `throw(e)`: the `yield` throws `e`.

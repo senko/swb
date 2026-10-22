@@ -19,7 +19,7 @@
 use crate::object::{ElementType, RawValue, TypedArrayData, decode_bits, load, mask};
 use crate::runtime::Runtime;
 use crate::value::Value;
-use crate::vm::convert::to_integer_or_infinity;
+use crate::vm::convert::{from_index_start, to_integer_or_infinity};
 use crate::vm::{NativeCall, NativeReturn, VmResult};
 
 use swb_js_text::String16;
@@ -231,12 +231,7 @@ fn forward_start(rt: &mut Runtime, from_index: Value, length: usize) -> VmResult
     if n == f64::INFINITY {
         return Ok(None);
     }
-    let k = if n >= 0.0 {
-        n
-    } else {
-        (length as f64 + n).max(0.0)
-    };
-    Ok(Some(k as usize))
+    Ok(Some(from_index_start(n, length as f64) as usize))
 }
 
 /// `%TypedArray%.prototype.includes(searchElement [, fromIndex])`

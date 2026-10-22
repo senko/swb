@@ -22,7 +22,9 @@ use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::convert::{MAX_SAFE_INTEGER, checked_array_length, to_integer_or_infinity};
+use crate::vm::convert::{
+    MAX_SAFE_INTEGER, checked_array_length, clamp_from_end, to_integer_or_infinity,
+};
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
 use super::array_access::{Flow, Item};
@@ -114,7 +116,7 @@ pub(super) fn receiver(
     name: Option<&str>,
 ) -> VmResult<(Gc<Object>, f64)> {
     let object = match name {
-        Some(name) => rt.this_object_of(call, &format!("Array.prototype.{name}"))?,
+        Some(name) => rt.this_object_checked(call, &format!("Array.prototype.{name}"))?,
         None => rt.this_object(call)?,
     };
     let length = rt.length_of_array_like(object)?;
@@ -145,11 +147,7 @@ pub(super) fn relative_index(
         return Ok(default);
     }
     let relative = to_integer_or_infinity(rt.to_number(value)?);
-    Ok(if relative < 0.0 {
-        (length + relative).max(0.0)
-    } else {
-        relative.min(length)
-    })
+    Ok(clamp_from_end(relative, length))
 }
 
 /// The `TypeError` of a result length above 2^53 − 1 (V8's message for

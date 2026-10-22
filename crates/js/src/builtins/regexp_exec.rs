@@ -392,7 +392,7 @@ impl Runtime {
         for span in captures.spans() {
             pairs.push(match *span {
                 Some((start, end)) => self
-                    .pair_array(Value::number(start as f64), Value::number(end as f64))?
+                    .array_from_values(&[Value::number(start as f64), Value::number(end as f64)])?
                     .into(),
                 None => Value::Undefined,
             });

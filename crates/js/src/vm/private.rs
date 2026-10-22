@@ -390,7 +390,7 @@ impl Runtime {
             };
             return Err(VmError::type_error(format!(
                 "Cannot use 'in' operator to search for '{name}' in {}",
-                self.primitive_text(target)
+                self.value_text(target)
             )));
         };
         Ok(match (element.kind, element.is_static) {

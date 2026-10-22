@@ -1,8 +1,7 @@
 # ADR 0026: JavaScript engine: architecture of the language core
 
-- Status: accepted. The spike (roadmap M6, step 3) tests this design.
-  If the spike shows a better choice, this ADR gets an update with the
-  measurements.
+- Status: accepted. The M6 spike tested this design, and M7 built the
+  language core on it. Sections 14 and 15 record the changes.
 - Date: 2026-10-09
 
 ## Context
@@ -183,8 +182,8 @@ them (memo 2.5):
 the global object is `Window`, reached through `WindowProxy`, with
 accessor properties, named properties on its prototype chain and
 properties that the host adds and removes. A by-name lookup handles all
-of these by construction. A per-instruction cache can come later
-(section 6).
+of these by construction. The per-instruction caches (inline caches)
+came in M7 feature 13a (sections 6 and 15).
 
 **Nesting.** Each recursive parser call and each AST level charges the
 shared recursion budget (section 9). Because the AST depth is bounded,
@@ -225,13 +224,13 @@ bounds-checked slot accesses in safe Rust; values are 16 bytes, so
 pushes and pops cost more than in engines with 8-byte values; and with
 an AST, register allocation is simple. Known cost: a temporary keeps its
 last value alive until it is reused or the frame returns (memo 1.1,
-Duktape's notes). This is accepted; it is measured in the spike.
+Duktape's notes). This is accepted; the spike measured it (docs/js-spike-report.md).
 
 **Instructions** are values of a Rust enum with typed operands
 (registers `u16`, constant and site indices `u32`, jump offsets `i32`).
 They need no decoding. A test keeps the size of an instruction at 12
-bytes or less, so an instruction has at most two register operands and
-one 32-bit operand. The interpreter is a loop around a `match`; the
+bytes or less, so an instruction has three register operands, or two
+register operands and one 32-bit operand. The interpreter is a loop around a `match`; the
 program counter and the frame base are local variables of the loop,
 written back to the frame record before any operation that can call out
 (memo 1.1). All instructions stay in the one `match`: in M7 13b a loop
@@ -445,13 +444,16 @@ entry; proxies and host objects never match. A miss runs the direct
 lookup in the shape's key list and along the prototype chain, which
 gives the result and the new entry in one walk.
 
-**Built-in objects** (memo 3.5) are described by static tables: per
-property the name, the kind (native function with its `length`,
-accessor pair, constant, nested object), the attributes and the native
-function. A realm keeps its intrinsics in an array indexed by an enum
-(§6.1.7.4). The first version creates all built-in objects when the
-realm is created. The spike measures the cost; lazy creation (memo 3.5)
-comes if a target creates many realms (frames).
+**Built-in objects** (memo 3.5) are defined by code at install time,
+not by one static table of property kinds: each module has an `install`
+function that calls small helpers (`method`, `getter`, `constructor`,
+`to_string_tag` in `builtins/mod.rs`), usually over a per-module array
+of (name, `length`, native function) entries. The helpers set the
+name, the `length`, the attributes and the native function. A realm
+keeps its intrinsics in an array indexed by an enum (§6.1.7.4). The
+engine creates all built-in objects when the realm is created (eager).
+Lazy creation (memo 3.5) comes if a target creates many realms
+(frames) and a measurement shows the need.
 
 ### 7. Values, strings, numbers
 
@@ -589,9 +591,7 @@ Memo 4.4 notes that a built-in that never reaches a safepoint needs no
 rooting. Almost every built-in can reach one, because `ToPrimitive`,
 getters and Proxy traps can run script code. So all native functions
 use handle scopes, which makes the rule simple to check. The spike
-measures the cost; if it is high, the static table of built-ins can mark
-the few functions that never run script code (for example `Math`
-functions on numbers) as exempt.
+measured the cost (docs/js-spike-report.md) and no function is exempt.
 
 **When a collection runs.** Only at safepoints. An allocation of a
 small, fixed size never collects. The safepoints are:
@@ -700,6 +700,23 @@ rules come from Chromium measurements (memo 5.2; feature 12b).
 
 ### 12. Embedding API
 
+This section is the design for the engine integration (ADR 0025 layers 2
+and 3: the web API bindings and the event loop). Parts of it exist;
+the rest comes with the first target that needs it.
+
+Implemented so far (`runtime.rs`, `heap/`, `object/mod.rs`): `Runtime`
+with one global object per realm; `eval`, `eval_named`, `call_function`,
+`define_global_function`, `define_global_object`; `run_jobs` (the host
+runs the job queue, which ends with `ClearKeptObjects`),
+`take_unhandled_rejections`, `run_finalization_cleanup`; `set_console`,
+`set_clock`, `set_time_zone`, `set_deadline` and a `TerminationHandle`;
+`set_host_data` and `host_data_mut` (one value of any type); persistent
+roots (`Persistent`); `GenericData` for host-owned heap data and
+`ObjectKind::Host` objects with a class and data. There is no host
+trait yet, and no module loader.
+
+Design:
+
 - **Runtime:** the heap, the atoms, the shapes, the stacks and the job
   queue. It is not `Send`; one runtime per page thread.
 - **Realm:** a global object and its intrinsics. Realms of one runtime
@@ -796,7 +813,8 @@ where the first plan did not work:
 - The speed against `node --jitless`, before inline caches, is in
   [docs/performance.md](../performance.md). Inline caches in the
   property sites, a cache for global access and cached literal shapes
-  are the next performance steps (M7 feature 13).
+  were the next performance steps; they are done (M7 feature 13, section
+  15).
 - Exceptions: the handler table is sorted by start (the
   outer range first for equal starts), so the last range that contains
   a position is the innermost. A `finally` block ends with an
@@ -3161,8 +3179,10 @@ where the first plan did not work:
     resumes a generator) gave no gain on `then` (64 ms both) and made
     100k `await`s 10 % slower (+5 % instructions): one job is one call,
     and a step costs about what a re-entry costs. These stay on the
-    re-entry path; iterator helpers need their own resumable steps (a
-    later feature).
+    re-entry path. The iterator helpers have their own steps (native
+    state machines, `builtins/iterator_helper.rs`), but they still call
+    back into script code by re-entry (roadmap backlog, "Callbacks from
+    natives").
   - Iterator results: `CreateIterResultObject` makes the first result of
     a realm with the general definitions and keeps its shape (`value`,
     `done` on `%Object.prototype%`); later results are made in that shape
@@ -3405,19 +3425,19 @@ where the first plan did not work:
   stale handles, handle scopes and the stress mode catch rooting errors,
   the verifier catches compiler errors, and the shared recursion budget
   bounds all Rust recursion.
-- Costs that the spike must measure: the overhead of handle scopes in
+- Costs that the spike measured: the overhead of handle scopes in
   native loops, the generation check on each access, the instruction
   size, the interpreter speed compared with `node --jitless`, the GC
   pause for a heap of one million objects, and the compile time and peak
-  memory for the BBC scripts. The spike measured them
+  memory for the BBC scripts
   ([docs/js-spike-report.md](../js-spike-report.md)); none of them
-  needs a change of this design. Only 3 of the 60 BBC scripts are inside
-  the spike's subset, so the compile time of the real scripts comes
-  with M7 feature 1.
+  needed a change of this design. Only 3 of the 60 BBC scripts were
+  inside the spike's subset; M7 compiled the real scripts, and the
+  compile time of all 60 is in [docs/performance.md](../performance.md).
 - The register machine makes the compiler larger than a stack machine
   compiler; the AST makes this manageable.
-- Eager compilation and eager built-ins keep the first version simple.
-  Lazy compilation and lazy built-ins are later work, each after a
+- Eager compilation and eager built-ins keep the engine simple. Lazy
+  compilation and lazy built-ins are later work, each after a
   measurement; the inline caches came in M7 13a (section 15).
 - The regular expression engine is a separate crate, so it can grow in
   parallel with the runtime (CLAUDE.md allows parallel work only in

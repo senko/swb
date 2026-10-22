@@ -149,7 +149,7 @@ impl BigInt {
     }
 
     /// A copy (fallible, unlike `Clone`).
-    pub fn try_clone(&self) -> Result<Self> {
+    pub(crate) fn try_clone(&self) -> Result<Self> {
         let mut limbs = limbs::try_vec(self.limbs.len())?;
         limbs.extend_from_slice(&self.limbs);
         Ok(BigInt {

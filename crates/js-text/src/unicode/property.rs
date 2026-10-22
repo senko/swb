@@ -47,7 +47,7 @@ fn find<I: Copy>(table: &[(&str, I)], name: &str) -> Option<I> {
 }
 
 /// The `General_Category` value with this name or alias.
-pub fn general_category(name: &str) -> Option<u8> {
+pub(crate) fn general_category(name: &str) -> Option<u8> {
     find(&t::GENERAL_CATEGORY_NAMES, name)
 }
 
@@ -62,7 +62,7 @@ pub fn binary(name: &str) -> Option<u8> {
 }
 
 /// The binary property of strings with this name (they have no aliases).
-pub fn string_property(name: &str) -> Option<u8> {
+pub(crate) fn string_property(name: &str) -> Option<u8> {
     t::STRING_PROPERTIES
         .iter()
         .position(|&n| n == name)
@@ -99,12 +99,12 @@ pub fn script_name(index: u16) -> Option<&'static str> {
 }
 
 /// The canonical name of a binary property.
-pub fn binary_name(index: u8) -> Option<&'static str> {
+pub(crate) fn binary_name(index: u8) -> Option<&'static str> {
     t::BINARY_PROPERTIES.get(usize::from(index)).copied()
 }
 
 /// The name of a binary property of strings.
-pub fn string_name(index: u8) -> Option<&'static str> {
+pub(crate) fn string_name(index: u8) -> Option<&'static str> {
     t::STRING_PROPERTIES.get(usize::from(index)).copied()
 }
 

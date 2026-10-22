@@ -69,7 +69,7 @@ pub fn number_to_string(x: f64) -> String {
 /// and the position `n` of the decimal point (x ≈ 0.ddd × 10^n).
 /// Among the shortest digit strings it takes the one closest to `x`, the
 /// even one on a tie (the recommendation of §6.1.6.1.20, note 2).
-pub fn shortest_digits(x: f64) -> (String, i32) {
+pub(crate) fn shortest_digits(x: f64) -> (String, i32) {
     // `{:e}` gives "d.ddde±x" with the shortest round-trip digits.
     let shortest = format!("{x:e}");
     // The shortest form breaks exact ties upward; the specification wants

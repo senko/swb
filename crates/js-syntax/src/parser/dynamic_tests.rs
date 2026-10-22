@@ -1,5 +1,5 @@
-//! Tests of the source of `Function` constructor calls (M7 feature 3f,
-//! §20.2.1.1.1 `CreateDynamicFunction`, [`super::parse_dynamic_function`]):
+//! Tests of the source of `Function` constructor calls
+//! (§20.2.1.1.1 `CreateDynamicFunction`, [`super::parse_dynamic_function`]):
 //! the parameters and the body cannot reach into each other, with V8's
 //! messages (measured in Node.js 22), and the function has no binding of
 //! its name.

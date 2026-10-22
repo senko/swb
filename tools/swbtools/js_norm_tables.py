@@ -24,7 +24,7 @@ Writes `crates/js-text/src/unicode/norm_tables.rs` from the UCD
 
 from pathlib import Path
 
-from swbtools.ucd import range_table
+from swbtools.ucd import merge_ranges, range_table, rust_static, unicode_data_rows
 
 HANGUL_FIRST = 0xAC00
 HANGUL_LAST = 0xD7A3
@@ -38,10 +38,7 @@ def parse_unicode_data(
     ccc: dict[int, int] = {}
     canonical: dict[int, list[int]] = {}
     compat: dict[int, list[int]] = {}
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        fields = raw.split(";")
-        if len(fields) < 15:
-            continue
+    for fields in unicode_data_rows(path):
         cp = int(fields[0], 16)
         if int(fields[3]):
             ccc[cp] = int(fields[3])
@@ -116,19 +113,20 @@ def pool_table(name: str, doc: str, decompositions: dict[int, list[int]]) -> tup
         data.extend(mapped)
     assert len(data) < 65536
     longest = max(length for _, _, length in index)
-    lines = [
-        f"/// {doc} Entries `(code point, offset in {name}_DATA, length)`.",
-        f"pub(super) static {name}_INDEX: [(u32, u16, u8); {len(index)}] = [",
+    index_rows = [f"    (0x{cp:04X}, {offset}, {length})," for cp, offset, length in index]
+    data_rows = [
+        "    " + " ".join(f"0x{x:04X}," for x in data[start : start + 8])
+        for start in range(0, len(data), 8)
     ]
-    lines += [f"    (0x{cp:04X}, {offset}, {length})," for cp, offset, length in index]
-    lines += ["];", ""]
-    lines += [
-        f"/// The decompositions of `{name}_INDEX`.",
-        f"pub(super) static {name}_DATA: [u32; {len(data)}] = [",
-    ]
-    for start in range(0, len(data), 8):
-        lines.append("    " + " ".join(f"0x{x:04X}," for x in data[start : start + 8]))
-    lines += ["];", ""]
+    lines = rust_static(
+        f"{name}_INDEX",
+        f"{doc} Entries `(code point, offset in {name}_DATA, length)`.",
+        f"[(u32, u16, u8); {len(index)}]",
+        index_rows,
+    )
+    lines += rust_static(
+        f"{name}_DATA", f"The decompositions of `{name}_INDEX`.", f"[u32; {len(data)}]", data_rows
+    )
     return lines, longest
 
 
@@ -145,13 +143,7 @@ def ccc_ranges(ccc: dict[int, int]) -> list[tuple[int, int, int]]:
 
 def cp_ranges(values: set[int]) -> list[tuple[int, int]]:
     """Ranges of a set of code points."""
-    out: list[tuple[int, int]] = []
-    for cp in sorted(values):
-        if out and out[-1][1] == cp - 1:
-            out[-1] = (out[-1][0], cp)
-        else:
-            out.append((cp, cp))
-    return out
+    return merge_ranges((cp, cp) for cp in values)
 
 
 def is_hangul(cp: int) -> bool:

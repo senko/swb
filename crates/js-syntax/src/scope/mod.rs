@@ -364,7 +364,7 @@ pub struct Binding {
     pub init_end: u32,
     /// Whether an inner function refers to it (or a direct `eval` can).
     pub captured: bool,
-    /// For `let`, `const` (and `class`, M7): whether the binding can be
+    /// For `let`, `const` (and `class`): whether the binding can be
     /// read before its initialization, so that the compiler must write
     /// the uninitialized marker at scope entry. True when any reference
     /// has `tdz_check`, or a closure or a direct `eval` can read it.

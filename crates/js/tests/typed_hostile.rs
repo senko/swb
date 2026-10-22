@@ -9,10 +9,12 @@
 
 mod common;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use common::{check_cases, on_big_stack, run_in, runtime, runtime_with_tests};
-use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
+use common::{
+    assert_clean, check_cases, eval_within, on_big_stack, run_in, runtime, runtime_with_heap_limit,
+};
+use swb_js::{Runtime, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(200);
 
@@ -22,32 +24,9 @@ const DEADLINE: Duration = Duration::from_millis(200);
 /// noise.
 const SLACK: Duration = Duration::from_millis(1500);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
-}
-
-/// A runtime with a heap limit of `mib` MiB and the test functions.
-fn limited(mib: usize, stress: bool) -> Runtime {
-    runtime_with_tests(RuntimeConfig {
-        heap: HeapConfig {
-            limit: mib << 20,
-            stress,
-            ..HeapConfig::default()
-        },
-        ..RuntimeConfig::default()
-    })
+    eval_within(rt, source, DEADLINE)
 }
 
 /// An array that the heap limit does not allow is a `RangeError` with
@@ -57,7 +36,7 @@ fn limited(mib: usize, stress: bool) -> Runtime {
 #[test]
 fn arrays_above_the_heap_limit_are_range_errors() {
     on_big_stack(|| {
-        let mut rt = limited(64, false);
+        let mut rt = runtime_with_heap_limit(64, false);
         let catch =
             |body: &str| format!("try {{ {body} }} catch (e) {{ e.name + ': ' + e.message }}");
         for (source, expected) in [
@@ -130,7 +109,7 @@ fn arrays_above_the_heap_limit_are_range_errors() {
 fn kept_arrays_end_at_the_heap_limit() {
     on_big_stack(|| {
         for stress in [false, true] {
-            let mut rt = limited(64, stress);
+            let mut rt = runtime_with_heap_limit(64, stress);
             let out = run_in(
                 &mut rt,
                 "var keep = []; try { for (;;) keep.push(new Float32Array(1 << 20)); } \
@@ -168,7 +147,7 @@ fn kept_arrays_end_at_the_heap_limit() {
 fn dropped_arrays_after_the_range_error_run_to_the_deadline() {
     on_big_stack(|| {
         for stress in [false, true] {
-            let mut rt = limited(64, stress);
+            let mut rt = runtime_with_heap_limit(64, stress);
             let (result, elapsed) = eval_with_deadline(
                 &mut rt,
                 "var a = []; for (;;) { try { a.push(new Int16Array(1 << 19)); } catch (e) { a.length = 0; } }",
@@ -237,7 +216,7 @@ fn endless_sources_end_at_the_deadline() {
 /// Endless loops of large copies, conversions and allocations end at the
 /// deadline: the bulk work is charged to the time countdown.
 #[test]
-fn large_work_ends_at_the_deadline() {
+fn large_typed_array_work_ends_at_the_deadline() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         let setup = "var big = new Uint8Array(1 << 26); var other = new Uint8Array(1 << 26); \

@@ -4,6 +4,51 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 maintenance; end of M7
+
+- Feature 14 (modules) is postponed: of the script tags of the five
+  target pages, only one BBC script has `type="module"`, and it has no
+  `import` or `export`. The roadmap says how the engine integration
+  runs it.
+- M7 exit: test262 subset 40,286 pass, 43 fail (stress the same),
+  parse-only 42,240. The roadmap lists each failure with its reason and
+  the skipped tests in the scope of ES2025 (174 `cross-realm`, 68 that
+  need `nativeFunctionMatcher.js`, the module tests).
+- Two reviewers read the JavaScript crates, the Python generators and
+  the docs; two implementer sessions applied the lists.
+  - Duplicates removed: the test helpers of the hostile tests (one
+    `tests/common` module), the `@@species` getter (6 copies), the
+    incompatible-receiver and not-a-function messages, the
+    relative-index clamp, `syntax_error`, the "Invalid regular
+    expression" message, the compile error constructors, the parse
+    error kind mapping, the line-terminator sets of the compiler, the
+    shared parts of the Unicode table generators (the tables are
+    byte-identical).
+  - Dead code removed: `ParseError::unsupported` (always empty), two
+    intrinsics that nothing read, test-only helpers. The `js` crate
+    re-exports only what an embedder names.
+  - Splits along existing seams: `bytecode/` (verifier, eval
+    metadata), the compiler's assignments, calls and statements, the
+    Map and Set operations (`object/collection.rs`), `@@replace`
+    (`regexp_replace.rs`).
+  - Docs: ADR 0026 no longer describes the spike as future work, says
+    how built-ins are defined, and marks section 12 as the design of
+    the engine integration with what exists now; `docs/testing.md` has
+    all shell options; stale comments that named features as future
+    work are gone.
+- Two small fixes: the test262 runner reads the front matter of files
+  with CR line ends (one test that needs `nativeFunctionMatcher.js` is
+  skipped now instead of failing); the compiler's position scan skips
+  every white space character between tokens, as the lexer does.
+- Left: the regexp matcher's line terminator test, the digit value
+  helpers of the lexer and the `await` path (hot paths), and the split
+  of ADR 0026 (its sections are referenced by number).
+- `vm_bench`, geometric mean per run: session 1 0.996 and 0.999 of 13e,
+  session 2 0.998 to 1.004 of session 1. No row was slower by more than
+  5 % in both runs except `date: new Date(y, m, d)` (6 to 8 %), which
+  runs no changed code and has the same instruction count in
+  callgrind.
+
 ## 2026-10-22: M7 feature 13e, compiler and memory; end of feature 13
 
 - Dead-zone checks: the scope analysis drops the check for a reference

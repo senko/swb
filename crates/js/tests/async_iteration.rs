@@ -11,7 +11,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{check_cases, on_big_stack, run, run_in, runtime};
+use common::{check_cases, check_chromium, on_big_stack, run_in, runtime};
 use swb_js::{PromiseStatus, ScriptError, Termination, Value};
 
 /// The snippets of `tools/probes/js-async-iteration.json` with Chromium
@@ -39,35 +39,13 @@ fn chromium_cases_heavy() {
     );
 }
 
-fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
-    for &stress in modes {
-        let actual = run(script, stress);
-        let failures: Vec<String> = actual
-            .lines()
-            .zip(expected.lines())
-            .filter(|(actual, expected)| actual != expected)
-            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
-            .collect();
-        assert_eq!(
-            actual.lines().count(),
-            expected.lines().count(),
-            "number of lines (stress: {stress})\n{actual}"
-        );
-        assert!(
-            failures.is_empty(),
-            "stress: {stress}\n{}",
-            failures.join("\n")
-        );
-    }
-}
-
 /// Registers, `arguments`, cells, `finally` state, queues of requests,
 /// loop records, Async-from-Sync Iterators and the state of
 /// `Array.fromAsync`, held only by suspended frames and reactions while
 /// the code allocates and collects (the expected output is that of
 /// Node.js 22; `just jsdiff` compares it).
 #[test]
-fn suspended_generators_survive_collections() {
+fn suspended_async_generators_survive_collections() {
     check_cases(&[(
         include_str!("data/async_iteration_gc.js"),
         include_str!("data/async_iteration_gc.expected").trim_end_matches('\n'),
@@ -171,7 +149,7 @@ fn the_host_steps_an_async_generator() {
 /// suspended during the termination resumes in a later task; one whose
 /// frame the termination removed is completed.
 #[test]
-fn a_termination_is_never_a_rejection() {
+fn a_termination_is_never_a_rejection_of_an_async_generator() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         rt.eval(

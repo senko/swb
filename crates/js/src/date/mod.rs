@@ -3,9 +3,11 @@
 //! hook for the clock and the time zone (ADR 0027).
 //!
 //! `time_value` has the calendar and the `Make*` operations, `zone` the
-//! local time zone (over `jiff`), `format` the text forms, and `parse` the
-//! reader of `Date.parse`. The built-in objects are in
-//! `builtins/date*.rs`.
+//! local time zone (over `jiff`), `zone_names` and the generated
+//! `zone_names_data` the long zone names, `format` the text forms, and
+//! `parse` the reader of `Date.parse` (`iso_variants` and `written` read
+//! the forms beyond the date time string format). The built-in objects
+//! are in `builtins/date*.rs`.
 //!
 //! The host sets the clock ([`crate::Runtime::set_clock`]) and the zone
 //! ([`crate::Runtime::set_time_zone`]). Without them, `Date.now()` reads

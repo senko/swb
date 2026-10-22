@@ -2,9 +2,8 @@
 //! section 9).
 //!
 //! All Rust recursion in the engine charges one budget: the parser per
-//! nesting level and per AST level, later the compiler, native re-entry
-//! into the interpreter, JSON, Proxy traps and the regular expression
-//! parser. Each kind of recursion charges a weight that approximates its
+//! nesting level and per AST level, the compiler, native re-entry into
+//! the interpreter, JSON, Proxy traps and the regular expression parser. Each kind of recursion charges a weight that approximates its
 //! stack use in bytes in a debug build, so the budget is a number of
 //! stack bytes. The budget assumes a thread stack of at least 8 MiB.
 //!

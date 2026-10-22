@@ -20,7 +20,7 @@ use crate::heap::Gc;
 use crate::object::{IterationKind, Object, PropertyDescriptor, TypedArrayData};
 use crate::runtime::Runtime;
 use crate::value::Value;
-use crate::vm::convert::to_integer_or_infinity;
+use crate::vm::convert::{clamp_from_end, to_integer_or_infinity};
 use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
 
 use super::typed_array_callback::{
@@ -318,12 +318,7 @@ pub(super) fn relative_index(
         Value::Int(int) => f64::from(int),
         value => to_integer_or_infinity(rt.to_number(value)?),
     };
-    let length = length as f64;
-    Ok(if relative < 0.0 {
-        (length + relative).max(0.0)
-    } else {
-        relative.min(length)
-    } as usize)
+    Ok(clamp_from_end(relative, length as f64) as usize)
 }
 
 /// `%TypedArray%.prototype.subarray(start, end)`: a view of the same

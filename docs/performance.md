@@ -81,6 +81,12 @@ Observations:
 
 ## JavaScript engine
 
+The dated entries below are history. Where an entry says that something
+comes with "feature 13" (M7), it is done: the sections "Inline caches (M7
+13a)" to "Compiler and memory (M7 13e)" give the results. Where an entry
+says "before inline caches" or "swb has no ropes", it describes the
+engine of that date.
+
 `just jsbench [DIR]` (`swbtools jsbench`) builds `swb-js`, the `vm_bench`
 example (`crates/js/examples/vm_bench.rs`) and the `lex_files` example
 (`crates/js-syntax/examples/lex_files.rs`), then prints two Markdown tables.
@@ -102,8 +108,10 @@ example (`crates/js/examples/vm_bench.rs`) and the `lex_files` example
    in a browser, save the page's scripts (the `<script src>` files and the
    inline scripts) with the developer tools or with `curl` into one
    directory, one `.js` file per script. Any directory of `.js` files works;
-   the numbers below are for the 60 scripts of the M6 spike run, so they
-   compare only with the same set. Example: `just jsbench out/bbc-js`.
+   the numbers of the table "BBC scripts (M6 spike)" are for the 60 scripts
+   of the M6 spike run, so they compare only with the same set; the
+   section "Compiler and memory (M7 13e)" has the current compile
+   measurement of the same 60 scripts (`swb-js bench-compile`). Example: `just jsbench out/bbc-js`.
 
 Two examples are not part of `jsbench`:
 
@@ -1056,9 +1064,9 @@ Observations:
   A page like the BBC scripts (3.5 MB) would need about 120 ms to compile
   at 29 MB/s if all of it were supported.
 - The throw rows compare an engine without `stack` with V8, which builds
-  stack traces; they are not comparable until M7 adds `stack`. The string
-  row is slow because swb has no ropes (ADR 0026: flat strings): each
-  append copies.
+  stack traces; they were not comparable until M7 added `stack`. The string
+  row is slow because swb had no ropes at the time of the M6 spike (ropes
+  came in M7 5a): each append copied.
 - The slowest rows (small objects 11x, `forEach` 9.8x, `for` loop 7.9x,
   property update 5.1x) point at M7 work: inline caches for property access,
   the global cache, and callbacks that do not re-enter the interpreter.

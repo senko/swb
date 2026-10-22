@@ -109,7 +109,6 @@ pub mod names {
         PROTOTYPE = "prototype",
         SET = "set",
         TARGET = "target",
-        USE_STRICT = "use strict",
         PROTO = "__proto__",
         // The names of the implicit `new.target` binding and of the
         // active function binding of a derived constructor (not
@@ -248,7 +247,7 @@ impl Interner {
     /// A table for a source of `len` code units: the cache starts at the
     /// size that the source probably needs (a short eval string needs few
     /// slots).
-    pub fn for_source(len: usize) -> Self {
+    pub(crate) fn for_source(len: usize) -> Self {
         let slots = (len / 4)
             .next_power_of_two()
             .clamp(FIRST_CACHE_SLOTS, CACHE_SLOTS);
@@ -346,7 +345,6 @@ mod tests {
         assert_eq!(interner.intern_str("await"), names::AWAIT);
         assert_eq!(interner.intern_str("yield"), names::YIELD);
         assert_eq!(interner.intern_str("let"), names::LET);
-        assert_eq!(interner.intern_str("use strict"), names::USE_STRICT);
         assert_eq!(names::RESERVED_WORDS, 38);
         assert_eq!(interner.len(), names::TEXTS.len());
         for (index, text) in names::TEXTS.iter().enumerate() {

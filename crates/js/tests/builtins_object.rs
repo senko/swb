@@ -643,7 +643,7 @@ Cannot redefine property: 1",
 }
 
 #[test]
-fn globals() {
+fn global_functions_and_properties() {
     check_cases(&[(
         r"print(isNaN(NaN), isNaN('x'), isNaN('1'), isNaN(undefined), isNaN(null), isNaN({}), isNaN([]), isNaN(), isFinite(1), isFinite(Infinity), isFinite('1'), isFinite(NaN), isFinite(-Infinity), isFinite(null), isFinite());
 print(isNaN.name, isNaN.length, isFinite.name, isFinite.length, Math.pow(2, 10), Math.pow(2, 0.5), Math.pow(NaN, 0), Math.pow(1, Infinity), Math.pow(-8, 1 / 3), Math.pow(0, -1), Math.pow(-0, -3), Math.pow('2', '3'), Math.pow(2), Math.pow.length, Math.pow.name);

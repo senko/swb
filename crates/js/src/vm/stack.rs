@@ -37,7 +37,7 @@ pub(crate) const MAX_FRAMES: usize = 200;
 const HOLDER_CHAIN_LIMIT: usize = 1_000;
 
 /// One captured frame.
-pub struct StackFrame {
+pub(crate) struct StackFrame {
     /// The function; `None` for the code of a script.
     pub(crate) function: Option<Gc<Object>>,
     /// The code object, which keeps the code's constants alive.

@@ -84,7 +84,7 @@ fn install_constructor(rt: &mut Runtime, realm: u32, iterator_proto: Gc<Object>)
     super::method(rt, realm, iterator, "from", 1, iterator_from::from)?;
     super::method(rt, realm, iterator, "concat", 0, iterator_from::concat)?;
     rt.set_intrinsic(realm, Intrinsic::IteratorConstructor, iterator);
-    super::global(rt, realm, "Iterator", iterator.into())?;
+    super::define_global(rt, realm, "Iterator", iterator.into())?;
     let key = PropertyKey::String(rt.vm.atoms.constructor);
     install_accessor(
         rt,
@@ -353,7 +353,7 @@ fn array_iterator_step(
             if kind == IterationKind::Values {
                 element
             } else {
-                rt.pair_array(number, element)?.into()
+                rt.array_from_values(&[number, element])?.into()
             }
         }
     };
@@ -369,11 +369,5 @@ fn set_target(rt: &mut Runtime, iterator: Gc<Object>, target: Option<Gc<Object>>
 
 /// V8's `TypeError` for `next` on another receiver.
 fn incompatible(rt: &Runtime, receiver: Value) -> VmError {
-    VmError::type_error(format!(
-        "Method Array Iterator.prototype.next called on incompatible receiver {}",
-        match receiver {
-            Value::Object(object) => rt.object_text(object),
-            _ => rt.primitive_text(receiver),
-        }
-    ))
+    rt.incompatible_receiver("Array Iterator.prototype.next", receiver)
 }

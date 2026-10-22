@@ -27,25 +27,17 @@ mod vm;
 
 pub use error::{Error, InternalError, Result, Termination, ThrowKind};
 pub use heap::{
-    Gc, GcStats, Generic, GenericData, HandleScope, Heap, HeapConfig, HeapCounts, NoRoots,
-    Persistent, Root, RootSource, Tracer,
+    Gc, Generic, GenericData, HandleScope, Heap, HeapConfig, NoRoots, Persistent, Root, RootSource,
+    Tracer,
 };
-pub use object::{
-    ArrayIterator, CollectionIterator, GetResult, IterationKind, IteratorHelper, Object,
-    ObjectKind, Property, PropertyDescriptor, SetResult, Shape, StringIterator, Table,
-    WrappedIterator,
-};
+pub use object::{GetResult, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};
-pub use value::{BigInt, Equality, Symbol, Value, ValueCell};
+pub use value::{BigInt, Symbol, Value, ValueCell};
 
-pub use builtins::FromAsync;
-pub use compiler::CompileStats;
 pub use date::{Clock, TimeZone, TimeZoneError};
 pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
 pub use swb_js_text::RecursionBudget;
 pub use vm::{
-    BoundFunction, Closure, Continuation, ContinuationFn, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT,
-    EnvRecord, ErrorData, GeneratorState, LoopState, NativeCall, NativeFn, NativeFunction,
-    NativeReturn, PrivateEnvironment, PromiseState, PromiseStatus, ReactionKind, Resume,
-    ResumeMode, StackFrame, TerminationHandle, VmError, VmResult,
+    DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, NativeCall, NativeFn, NativeReturn, PromiseStatus,
+    ReactionKind, Resume, TerminationHandle, VmError, VmResult,
 };

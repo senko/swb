@@ -164,10 +164,10 @@ fn resume_request(
         {
             object
         }
-        other => return Err(incompatible_receiver(rt, "Generator", method, other)),
+        other => return Err(generator_receiver_error(rt, "Generator", method, other)),
     };
     if !matches!(rt.generator_state(generator)?.kind, GeneratorKind::Sync) {
-        return Err(incompatible_receiver(
+        return Err(generator_receiver_error(
             rt,
             "Generator",
             method,
@@ -184,7 +184,7 @@ fn resume_request(
 
 /// V8's `TypeError` for a method of `[class].prototype` called on a value
 /// that is not of its class.
-pub(crate) fn incompatible_receiver(
+pub(crate) fn generator_receiver_error(
     rt: &Runtime,
     class: &str,
     method: &str,
@@ -192,7 +192,7 @@ pub(crate) fn incompatible_receiver(
 ) -> VmError {
     VmError::type_error(format!(
         "Method [{class}].prototype.{method} called on incompatible receiver {}",
-        rt.primitive_text(value)
+        rt.value_text(value)
     ))
 }
 
@@ -367,7 +367,7 @@ impl Runtime {
         if !matches!(result, Value::Object(_)) {
             return Err(VmError::type_error(format!(
                 "Iterator result {} is not an object",
-                self.primitive_text(result)
+                self.value_text(result)
             )));
         }
         let done = self.get_value(result, PropertyKey::String(self.vm.atoms.done))?;

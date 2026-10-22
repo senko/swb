@@ -79,7 +79,7 @@ impl Default for HeapConfig {
 }
 
 /// Data of the generic heap kind, for things that the object model does
-/// not know (code objects of the compiler, later environments).
+/// not know (the code objects of the compiler).
 pub trait GenericData: Any {
     /// Reports every heap handle that the data holds.
     fn trace(&self, tracer: &mut Tracer<'_>);
@@ -468,12 +468,14 @@ impl Heap {
         self.arenas.generic.get(handle).map(|_| ())
     }
 
-    /// Whether a handle refers to a live object.
+    /// Whether a handle refers to a live object. (For embedders and tests;
+    /// the engine itself does not call it.)
     pub fn is_live_object(&self, handle: Gc<Object>) -> bool {
         self.arenas.objects.contains(handle)
     }
 
-    /// Whether a handle refers to a live string.
+    /// Whether a handle refers to a live string. (For embedders and tests;
+    /// the engine itself does not call it.)
     pub fn is_live_string(&self, handle: Gc<JsString>) -> bool {
         self.arenas.strings.contains(handle)
     }
@@ -597,15 +599,6 @@ impl Heap {
         Ok(PropertyKey::String(self.intern_string(string)?))
     }
 
-    /// The property key of a non-negative integer: an array index below
-    /// 2^32 − 1, otherwise the atom of its decimal text.
-    pub fn key_from_u32(&mut self, value: u32) -> Result<PropertyKey> {
-        if value < crate::string::MAX_ARRAY_LENGTH {
-            return Ok(PropertyKey::Index(value));
-        }
-        Ok(PropertyKey::String(self.intern(decimal(value).as_str16())?))
-    }
-
     /// The value of a key, as `[[OwnPropertyKeys]]` lists it: a string (an
     /// index becomes its decimal text) or a symbol.
     pub fn key_to_value(&mut self, key: PropertyKey) -> Result<Value> {
@@ -662,6 +655,15 @@ pub struct HeapCounts {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The property key of a non-negative integer: an array index below
+    /// 2^32 − 1, otherwise the atom of its decimal text.
+    fn key_from_u32(heap: &mut Heap, value: u32) -> Result<PropertyKey> {
+        if value < crate::string::MAX_ARRAY_LENGTH {
+            return Ok(PropertyKey::Index(value));
+        }
+        Ok(PropertyKey::String(heap.intern(decimal(value).as_str16())?))
+    }
 
     /// The folded bound of `gc_due` gives the answer of the three rules
     /// for live sizes and allocations around each of their edges.
@@ -732,10 +734,10 @@ mod tests {
         assert_eq!(heap.key_from_str("7").unwrap(), PropertyKey::Index(7));
         let key = heap.key_from_str("07").unwrap();
         assert!(matches!(key, PropertyKey::String(_)));
-        let max = heap.key_from_u32(u32::MAX).unwrap();
+        let max = key_from_u32(&mut heap, u32::MAX).unwrap();
         assert_eq!(max, heap.key_from_str("4294967295").unwrap());
         assert_eq!(
-            heap.key_from_u32(4_294_967_294).unwrap(),
+            key_from_u32(&mut heap, 4_294_967_294).unwrap(),
             PropertyKey::Index(4_294_967_294)
         );
         let Value::String(text) = heap.key_to_value(PropertyKey::Index(42)).unwrap() else {

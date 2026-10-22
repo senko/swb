@@ -31,7 +31,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     super::method(rt, realm, json, "rawJSON", 1, raw_json)?;
     super::method(rt, realm, json, "isRawJSON", 1, is_raw_json)?;
     super::to_string_tag(rt, json, "JSON")?;
-    super::global(rt, realm, "JSON", json.into())
+    super::define_global(rt, realm, "JSON", json.into())
 }
 
 /// `JSON.parse(text, reviver)` (§25.5.1).
@@ -61,10 +61,7 @@ fn raw_json(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let text = rt.to_string(text)?;
     rt.heap.record(text);
     let length = rt.string_len(text)?;
-    let invalid = || VmError::Raise {
-        kind: crate::error::ThrowKind::SyntaxError,
-        message: INVALID_RAW_JSON.into(),
-    };
+    let invalid = || VmError::syntax_error(INVALID_RAW_JSON);
     if length == 0 {
         return Err(invalid());
     }

@@ -18,7 +18,7 @@ use std::cmp::Ordering;
 use swb_js_text::String16;
 use swb_js_text::bigint::{self, BigIntError, cost};
 
-use crate::error::{Termination, ThrowKind};
+use crate::error::Termination;
 use crate::heap::Gc;
 use crate::runtime::Runtime;
 use crate::string::JsString;
@@ -77,14 +77,7 @@ pub(crate) fn bigint_error(error: BigIntError) -> VmError {
             VmError::range_error("The number cannot be converted to a BigInt")
         }
         BigIntError::OutOfMemory => VmError::Terminated(Termination::OutOfMemory),
-        BigIntError::InvalidSyntax => syntax_error("Cannot convert the text to a BigInt".into()),
-    }
-}
-
-fn syntax_error(message: String) -> VmError {
-    VmError::Raise {
-        kind: ThrowKind::SyntaxError,
-        message: message.into(),
+        BigIntError::InvalidSyntax => VmError::syntax_error("Cannot convert the text to a BigInt"),
     }
 }
 
@@ -393,7 +386,7 @@ impl Runtime {
             | Value::Symbol(_) => {
                 return Err(VmError::type_error(format!(
                     "Cannot convert {} to a BigInt",
-                    self.primitive_text(primitive)
+                    self.value_text(primitive)
                 )));
             }
             Value::Object(_) | Value::Empty | Value::Cell(_) => {
@@ -416,7 +409,7 @@ impl Runtime {
         {
             text.push('…');
         }
-        syntax_error(format!("Cannot convert {text} to a BigInt"))
+        VmError::syntax_error(format!("Cannot convert {text} to a BigInt"))
     }
 
     /// `ToBigInt64` (§7.1.15): `ToBigInt`, then the value modulo 2^64 as

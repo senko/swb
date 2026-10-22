@@ -3,8 +3,8 @@
 //! without zero limbs at the top. Only the operations that the digit
 //! generation of `toFixed`, `toExponential`, `toPrecision` and
 //! `toString(radix)` and the exact `parseInt` need (rounding to the
-//! nearest double: [`Natural::to_f64`]); `BigInt` (M7 feature 10) can
-//! grow this.
+//! nearest double: [`Natural::to_f64`]). `BigInt` has its own limbs
+//! (`bigint/`).
 //!
 //! The digit step divides two naturals whose quotient is a single digit:
 //! an estimate from the leading 64 bits of the divisor, which is never too

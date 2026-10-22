@@ -37,7 +37,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
         super::method(rt, realm, reflect, name, length, func)?;
     }
     super::to_string_tag(rt, reflect, "Reflect")?;
-    super::global(rt, realm, "Reflect", reflect.into())
+    super::define_global(rt, realm, "Reflect", reflect.into())
 }
 
 #[allow(
@@ -80,7 +80,7 @@ pub(super) fn not_a_function_of(rt: &Runtime, method: &str, value: Value) -> VmE
     };
     VmError::type_error(format!(
         "{method} was called on {}, which is {which} and not a function",
-        rt.primitive_text(value)
+        rt.value_text(value)
     ))
 }
 
@@ -104,7 +104,7 @@ fn construct(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     if !rt.is_constructor(callee)? {
         return Err(VmError::type_error(format!(
             "{} is not a constructor",
-            rt.primitive_text(callee)
+            rt.value_text(callee)
         )));
     }
     let new_target = if call.argc() > 2 {
@@ -115,7 +115,7 @@ fn construct(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     if !rt.is_constructor(new_target)? {
         return Err(VmError::type_error(format!(
             "{} is not a constructor",
-            rt.primitive_text(new_target)
+            rt.value_text(new_target)
         )));
     }
     let args = rt.list_from_array_like(rt.arg(call, 1))?;
@@ -237,7 +237,7 @@ fn set_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         other => {
             return Err(VmError::type_error(format!(
                 "Object prototype may only be an Object or null: {}",
-                rt.primitive_text(other)
+                rt.value_text(other)
             )));
         }
     };

@@ -74,7 +74,7 @@ fn console_log_of_views_without_bytes() {
 /// written anew with the same calls. The expected output is that of
 /// Node.js 22.
 #[test]
-fn paths_of_the_target_scripts() {
+fn paths_of_the_target_scripts_for_buffers() {
     check_cases(&[
         (
             "function hash(view) { var h = 0x811c9dc5; for (var i = 0; i + 4 <= view.byteLength; i += 4) \

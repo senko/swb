@@ -1,4 +1,4 @@
-//! Tests of the review fixes of M7 feature 1b: the class name `await` in
+//! Tests of class names and private names: the class name `await` in
 //! async arrow heads, private name resolution, the dead `async` callee,
 //! and the messages of `arguments`, bare private names and `await` in
 //! class code. The tables come from Node.js 22 (`new vm.Script(source)`;

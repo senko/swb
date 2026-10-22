@@ -454,8 +454,8 @@ const PROGRAMS: &[(&str, &str)] = &[
         "date: Date.parse of a local time string, 1M times",
         "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += Date.parse('2024-03-15T12:34:56.789') & 255; } return s; }",
     ),
-    // M7 13d: strings of one unit, hashes of string keys, toFixed, shift
-    // on dense arrays, integer results of `|`.
+    // Strings of one unit, hashes of string keys, toFixed, shift on dense
+    // arrays, integer results of `|`.
     (
         "string: for-of over 1M code units",
         "var s = 'abcdefghij'.repeat(100000);

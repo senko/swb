@@ -1,43 +1,56 @@
-//! The built-in objects (ECMA-262 clauses 19 to 28).
+//! The built-in objects (ECMA-262 clauses 19 to 28), one module or one
+//! group of modules for each object. Each function has the `name` and
+//! `length` of the specification; methods and constructors are writable,
+//! non-enumerable and configurable properties (clause 18). The modules, in
+//! the order of the list below:
 //!
-//! Implemented so far: `console.log`; `Object` (all static functions,
-//! `Object.prototype` with Annex B) and `Reflect`; the `Error`
-//! constructors, `AggregateError` and the V8 extensions
-//! `Error.captureStackTrace` and `Error.stackTraceLimit`; `Array`
-//! complete (`array*.rs`; `Array.fromAsync` in `array_from_async.rs`);
-//! `Function.prototype` with `call`, `apply`, `bind`, `toString`,
-//! `@@hasInstance` and the restricted `caller` and `arguments` (the
-//! `Function` constructor is in `vm/create_function.rs`);
-//! `GeneratorFunction`, its prototype and `%GeneratorPrototype%`
-//! (`generator.rs`; the generator objects run in `vm/generator.rs`);
-//! `AsyncFunction` and its prototype (`async_function.rs`; async
-//! functions run in `vm/async_function.rs`); `AsyncGeneratorFunction`,
-//! its prototype, `%AsyncGeneratorPrototype%`, `%AsyncIteratorPrototype%`
-//! and `%AsyncFromSyncIteratorPrototype%` (`async_generator.rs`; the
-//! objects run in `vm/async_generator.rs` and `vm/async_iteration.rs`); the
-//! global
-//! functions `eval`, `isNaN`, `isFinite`, `parseFloat` and `parseInt`;
-//! `Number` and `Math` complete (`number.rs`, `math.rs`); `String`
-//! complete, with the string iterator, the URI functions and Annex B
-//! (`string*.rs`, `uri.rs`); `RegExp` with the legacy static properties,
-//! Annex B `compile` and `%RegExpStringIteratorPrototype%`
-//! (`regexp*.rs`; the matcher is the crate `js-regexp`); `Boolean`; `BigInt`
-//! (`bigint.rs`); `ArrayBuffer` and `DataView` (`array_buffer.rs`,
-//! `data_view.rs`); the typed arrays with all methods of
-//! `%TypedArray%.prototype` and the base64 and hex methods of
-//! `Uint8Array` (`typed_array*.rs`); `Atomics` on integer typed arrays
-//! (`atomics.rs`); `Date` with Annex B (`date*.rs`; the time arithmetic,
-//! the zone, the formats and the parser are in `crate::date`);
-//! `Symbol` with the well-known symbols; `JSON` (`json*.rs`); `Map` and
-//! `Set` with the ES2025 set methods (`map.rs`, `set.rs`,
-//! `set_methods.rs`, `collection.rs`); `WeakMap`, `WeakSet`, `WeakRef`
-//! and `FinalizationRegistry` (`weak.rs`, `weak_ref.rs`); `Promise` (`promise.rs`,
-//! `promise_combinators.rs`; the promise objects and jobs are in
-//! `vm/promise.rs` and `vm/jobs.rs`); and `%IteratorPrototype%`
-//! and `%ArrayIteratorPrototype%`. Each function
-//! has the `name` and `length` of the specification; methods and
-//! constructors are writable, non-enumerable and configurable properties
-//! (clause 18).
+//! - `array*.rs`: `Array` (`array.rs`: the constructor, `from`, `of`, the
+//!   key order; `array_access.rs`: the element loops; `array_iteration.rs`,
+//!   `array_search.rs`, `array_mutate.rs`, `array_copy.rs`,
+//!   `array_sort.rs`: the methods; `array_species.rs`: `@@species` and
+//!   `@@unscopables`; `array_from_async.rs`: `Array.fromAsync`).
+//! - `array_buffer.rs`, `data_view.rs`: `ArrayBuffer` and `DataView`.
+//! - `async_function.rs`, `async_generator.rs`, `generator.rs`:
+//!   `AsyncFunction`, `AsyncGeneratorFunction`, `GeneratorFunction`, their
+//!   prototypes and `%AsyncIteratorPrototype%`,
+//!   `%AsyncFromSyncIteratorPrototype%` (the objects run in
+//!   `vm/async_function.rs`, `vm/async_generator.rs`,
+//!   `vm/async_iteration.rs` and `vm/generator.rs`).
+//! - `atomics.rs`: `Atomics` on integer typed arrays.
+//! - `bigint.rs`, `boolean.rs`, `number.rs`, `math.rs`, `symbol.rs`: the
+//!   primitive wrappers (`primitive.rs`: `String`'s function, constructor
+//!   and `toString`) and `Math`.
+//! - `collection.rs`, `map.rs`, `set.rs`, `set_methods.rs`: `Map` and
+//!   `Set` with the ES2025 set methods (`collection.rs` is what they
+//!   share); `weak.rs`, `weak_ref.rs`: `WeakMap`, `WeakSet`, `WeakRef` and
+//!   `FinalizationRegistry`.
+//! - `console.rs`: `console` with the inspector that formats like Node.js.
+//! - `date*.rs`: `Date` with Annex B (the time arithmetic, the zone, the
+//!   formats and the parser are in `crate::date`).
+//! - `descriptor.rs`, `integrity.rs`, `object*.rs`, `reflect.rs`,
+//!   `proxy.rs`: `Object` (static functions, `Object.prototype` with
+//!   Annex B), `Reflect` and `Proxy`.
+//! - `error.rs`: the `Error` constructors, `AggregateError`, and the V8
+//!   extensions `Error.captureStackTrace` and `Error.stackTraceLimit`.
+//! - `function.rs`: `Function.prototype` (`call`, `apply`, `bind`,
+//!   `toString`, `@@hasInstance`, the restricted `caller` and
+//!   `arguments`); the `Function` constructor is in
+//!   `vm/create_function.rs`.
+//! - `global.rs`, `uri.rs`: the global functions.
+//! - `iterator.rs`, `iterator_consume.rs`, `iterator_from.rs`,
+//!   `iterator_helper.rs`: `%IteratorPrototype%`, `%ArrayIteratorPrototype%`,
+//!   `Iterator` with `Iterator.from` and the helpers.
+//! - `json*.rs`: `JSON`.
+//! - `promise.rs`, `promise_combinators.rs`: `Promise` (the promise
+//!   objects and jobs are in `vm/promise.rs` and `vm/jobs.rs`).
+//! - `regexp*.rs`: `RegExp` with the legacy static properties, Annex B
+//!   `compile`, `@@match`, `@@matchAll` with
+//!   `%RegExpStringIteratorPrototype%`, `@@replace` (`regexp_replace.rs`),
+//!   `@@search` and `@@split` (the matcher is the crate `js-regexp`).
+//! - `string*.rs`: `String` with the string iterator and Annex B.
+//! - `typed_array*.rs`: the typed arrays with all methods of
+//!   `%TypedArray%.prototype` and the base64 and hex methods of
+//!   `Uint8Array`.
 //!
 //! Natives that call back into script code (`forEach`, `map`, `join`
 //! through `toString`, and the key loops of `Object` that read getters)
@@ -100,6 +113,7 @@ mod regexp;
 mod regexp_exec;
 mod regexp_fast;
 mod regexp_legacy;
+mod regexp_replace;
 mod regexp_symbol;
 mod set;
 mod set_methods;
@@ -124,7 +138,7 @@ mod uri;
 mod weak;
 mod weak_ref;
 
-pub use array_from_async::FromAsync;
+pub(crate) use array_from_async::FromAsync;
 pub(crate) use error::error_header;
 pub(crate) use iterator::{array_iterator_next_value, new_array_iterator};
 
@@ -135,7 +149,7 @@ use crate::string::PropertyKey;
 use crate::value::Value;
 use crate::vm::convert::{checked_array_length, to_length};
 use crate::vm::{
-    Intrinsic, NativeCall, NativeFn, STACK_OVERFLOW, SetOutcome, VmError, VmResult, WELL_KNOWN,
+    Intrinsic, NativeCall, NativeFn, NativeReturn, STACK_OVERFLOW, SetOutcome, VmError, VmResult,
     WellKnown,
 };
 
@@ -229,11 +243,8 @@ fn symbol_method(
     func: NativeFn,
     attributes: (bool, bool),
 ) -> VmResult<Gc<Object>> {
-    let name = WELL_KNOWN
-        .iter()
-        .find(|(known, _)| *known == which)
-        .map_or("", |(_, name)| *name);
-    let function = rt.new_builtin(realm, &format!("[Symbol.{name}]"), length, func, false)?;
+    let name = format!("[Symbol.{}]", which.name());
+    let function = rt.new_builtin(realm, &name, length, func, false)?;
     let key = rt.symbol_key(which);
     rt.define(
         target,
@@ -262,6 +273,24 @@ fn getter(
     Ok(function)
 }
 
+/// Defines the accessor `@@species` ("get [Symbol.species]") of a
+/// constructor (`get Array[@@species]` and so on: it returns the
+/// receiver); returns the getter.
+fn species_getter(rt: &mut Runtime, realm: u32, constructor: Gc<Object>) -> VmResult<Gc<Object>> {
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "the signature of native functions"
+    )]
+    fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+        Ok(NativeReturn::Value(call.this()))
+    }
+    let getter = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let key = rt.symbol_key(WellKnown::Species);
+    let desc = PropertyDescriptor::accessor(getter.into(), Value::Undefined, false, true);
+    rt.define_own_property(constructor, key, desc)?;
+    Ok(getter)
+}
+
 /// Defines `@@toStringTag` (non-writable, non-enumerable, configurable).
 pub(crate) fn to_string_tag(rt: &mut Runtime, target: Gc<Object>, tag: &str) -> VmResult<()> {
     let text = rt.heap.intern_str(tag)?;
@@ -272,7 +301,7 @@ pub(crate) fn to_string_tag(rt: &mut Runtime, target: Gc<Object>, tag: &str) -> 
 
 /// Defines a property of the global object (writable, non-enumerable,
 /// configurable, as the global properties of clause 19).
-fn global(rt: &mut Runtime, realm: u32, name: &str, value: Value) -> VmResult<()> {
+fn define_global(rt: &mut Runtime, realm: u32, name: &str, value: Value) -> VmResult<()> {
     let global = rt.global_object(realm)?;
     let key = rt.heap.key_from_str(name)?;
     rt.define(global, key, value, true, false, true)
@@ -294,7 +323,7 @@ fn constructor(
     rt.define(function, key, prototype.into(), false, false, false)?;
     let key = PropertyKey::String(rt.vm.atoms.constructor);
     rt.define(prototype, key, function.into(), true, false, true)?;
-    global(rt, realm, name, function.into())?;
+    define_global(rt, realm, name, function.into())?;
     Ok(function)
 }
 
@@ -353,9 +382,10 @@ impl Runtime {
                 return Ok(default.into());
             }
             return Err(VmError::type_error(
-                "The .constructor property is not an object",
+                crate::vm::messages::CONSTRUCTOR_NOT_OBJECT,
             ));
         };
+        self.heap.record(constructor);
         let key = self.symbol_key(WellKnown::Species);
         let species = match self.heap.get(constructor, key, constructor.into())? {
             GetResult::CallGetter { getter, .. } if getter == Value::Object(builtin_species) => {
@@ -381,10 +411,10 @@ impl Runtime {
         Ok(object)
     }
 
-    /// `ToObject` of argument `index`, recorded in the native's handle
-    /// scope (V8 words the failure "Cannot convert undefined or null to
-    /// object").
-    fn this_object_arg(&mut self, call: &NativeCall, index: usize) -> VmResult<Gc<Object>> {
+    /// `ToObject` of argument `index` (not of `this`), recorded in the
+    /// native's handle scope (V8 words the failure "Cannot convert
+    /// undefined or null to object").
+    fn object_arg(&mut self, call: &NativeCall, index: usize) -> VmResult<Gc<Object>> {
         let object = self.to_object(self.arg(call, index))?;
         self.heap.record(object);
         Ok(object)
@@ -403,12 +433,6 @@ impl Runtime {
         let proto = self.intrinsic(self.current_realm(), Intrinsic::ArrayPrototype)?;
         let array = self.heap.new_array(Some(proto), 0)?;
         Ok(self.heap.record(array))
-    }
-
-    /// A new array `[first, second]`; both values must be reachable or
-    /// recorded by the caller.
-    fn pair_array(&mut self, first: Value, second: Value) -> VmResult<Gc<Object>> {
-        self.array_from_values(&[first, second])
     }
 
     /// `CreateListFromArrayLike` (§7.3.19) with the limit of the value
@@ -439,10 +463,10 @@ impl Runtime {
         Ok(args)
     }
 
-    /// `ToObject(this)` for the generic array methods that V8 words as
-    /// "Array.prototype.forEach called on null or undefined" (`name` is
-    /// the method with its prefix).
-    fn this_object_of(&mut self, call: &NativeCall, name: &str) -> VmResult<Gc<Object>> {
+    /// [`Runtime::this_object`] after a null check, for the generic array
+    /// methods that V8 words as "Array.prototype.forEach called on null or
+    /// undefined" (`name` is the method with its prefix).
+    fn this_object_checked(&mut self, call: &NativeCall, name: &str) -> VmResult<Gc<Object>> {
         if call.this().is_nullish() {
             return Err(VmError::type_error(format!(
                 "{name} called on null or undefined"

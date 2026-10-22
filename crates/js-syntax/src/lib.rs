@@ -36,7 +36,7 @@ pub use ast::{
 };
 pub use error::{ErrorKind, ParseError, SyntaxError};
 pub use interner::{Interner, NameId, names};
-pub use lexer::{Checkpoint, Lexer, LexerOptions, MAX_SOURCE_LEN};
+pub use lexer::{Checkpoint, Lexer, LexerOptions};
 pub use lines::{LineIndex, Location};
 pub use module::{
     ExportEntry, ExportImportName, ImportAttribute, ImportEntry, ImportName, ModuleRecord,

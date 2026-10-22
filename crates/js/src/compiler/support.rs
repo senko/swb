@@ -1,10 +1,9 @@
 //! The constructs that the parser accepts but the compiler does not
-//! compile yet (M7 feature 3): a linear scan over the node tables of a
-//! script before any function compiles. The script fails with a
-//! `SyntaxError` "not supported yet (construct)" at the first such
-//! construct in the source; the compile functions never see them. Since
-//! M7 feature 10b, all of the syntax of feature 1 compiles except module
-//! code, `import()` and `import.meta` (feature 14).
+//! compile: a linear scan over the node tables of a script before any
+//! function compiles. The script fails with a `SyntaxError` "not
+//! supported yet (construct)" at the first such construct in the source;
+//! the compile functions never see them. These are module code,
+//! `import()` and `import.meta`.
 
 use swb_js_syntax::{ExprKind, Script, StmtKind};
 

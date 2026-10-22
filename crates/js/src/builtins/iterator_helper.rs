@@ -126,7 +126,7 @@ fn with_limit(
     // in Chromium 148 accepts them).
     let too_large = number.is_finite() && number > MAX_SAFE_INTEGER;
     if number.is_nan() || too_large || integer < 0.0 {
-        let error = VmError::range_error(format!("{} must be positive", rt.primitive_text(limit)));
+        let error = VmError::range_error(format!("{} must be positive", rt.value_text(limit)));
         return Err(close_after_error(rt, this, error));
     }
     let underlying = get_iterator_direct(rt, this)?;
@@ -234,10 +234,7 @@ pub(super) fn return_(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRet
 
 /// The `TypeError` for a receiver that is not a helper (V8's words).
 fn incompatible(rt: &Runtime, receiver: Value, method: &str) -> VmError {
-    VmError::type_error(format!(
-        "Method Iterator Helper.prototype.{method} called on incompatible receiver {}",
-        rt.primitive_text(receiver)
-    ))
+    rt.incompatible_receiver(&format!("Iterator Helper.prototype.{method}"), receiver)
 }
 
 /// The receiver of `next` or `return` (`RequireInternalSlot`).

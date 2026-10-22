@@ -4,7 +4,7 @@
 //! `test262` (the test262 runner) and `bench-compile` (parse and compile
 //! time and memory for a directory of scripts).
 
-mod bench;
+mod bench_compile;
 mod shell;
 mod test262;
 
@@ -80,7 +80,7 @@ fn main() -> ExitCode {
 fn dispatch(args: &[String]) -> u8 {
     match args.first().map(String::as_str) {
         Some("test262") => test262::main(&args[1..]),
-        Some("bench-compile") => bench::main(&args[1..]),
+        Some("bench-compile") => bench_compile::main(&args[1..]),
         Some("--dump-ast") => dump_ast_main(&args[1..]),
         _ => shell_main(args),
     }

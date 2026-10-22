@@ -559,7 +559,7 @@ they call during load, measured in Chromium), and agree what "works"
 means per target (for example menus, carousels, lazy images). That sets
 the scope of the bindings, as the CSS feature lists did for M4 and M5.
 
-## M7: JavaScript language core
+## M7: JavaScript language core — done
 
 Starts after the spike (M6 step 3) is merged. Design: ADR 0026. Scope:
 ECMA-262 2025 with Annex B, no `Intl`. Each feature ends with a review
@@ -2112,7 +2112,52 @@ failures with a reason. Features, in this order:
     Feature 13 done 2026-10-22: geometric mean 2.05 times
     `node --jitless` over 107 programs (3.4 times over 95 at the start).
 14. Modules (`implementer-hard`), when a target uses
-    `<script type="module">`.
+    `<script type="module">`. Postponed 2026-10-22: no target needs
+    module loading. Of the script tags of the five target pages, only
+    one BBC script has `type="module"` (`dotcom-bootstrap.js`, the ads
+    and cookie prompt loader, 75 KB). It has no `import`, `export`,
+    `import()` or `import.meta`: a bundle in a strict-mode function,
+    which gives the same result as a classic script. BBC also has one
+    `nomodule` script (a Next.js chunk). None of the 84 target scripts
+    uses `import()`. For the engine integration: run a module script
+    without imports as strict code with `this` undefined, after the
+    document is parsed (as `defer`), and skip `nomodule` scripts.
+
+M7 exit (2026-10-22). test262 subset: 40,286 pass, 43 fail, the same in
+stress mode; parse-only 42,240. All groups pass 95 % or more, except
+seven groups of 13 to 38 tests where one or two tests fail. The failures
+and their reasons:
+
+- `null[key] op= v`, `null[key]++` and `null[key] &&= v` convert the
+  key before the check of the base (backlog, M7 3e): 22 tests of
+  `compound-assignment`, 2 each of `prefix-increment`,
+  `prefix-decrement`, `postfix-increment` and `postfix-decrement`, 3
+  of `logical-assignment`.
+- `(fn) = function () {}` gives the function the name `fn`; a
+  parenthesized target must not name it
+  (`expressions/assignment/fn-name-lhs-cover.js`).
+- Destructuring with a computed key evaluates the target reference in
+  another order
+  (`destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings.js`).
+- GlobalDeclarationInstantiation throws a `SyntaxError` where test262
+  wants a `TypeError` (backlog, M7 3e): 2 tests of `global-code`.
+- `undeclared = (this.undeclared = 5)` in strict code: swb resolves the
+  global at the store, as V8 does; the spec resolves it before the
+  right side (`identifier-resolution/assign-to-global-undefined.js`).
+- The completion value of `try` in `eval` (backlog, M6:
+  `statements/try/completion-values.js`); the catch parameter and its
+  block share one scope (backlog, M7 3b:
+  `statements/try/scope-catch-block-lex-open.js`).
+- `Promise.try`: two tests of a 2026 change that Chromium 148 does not
+  have (backlog, M7 7b).
+- `%ThrowTypeError%` of arguments objects with non-simple parameters
+  (backlog, M7 13b: `ThrowTypeError/unique-per-realm-non-simple.js`).
+
+Skipped tests in the scope of ES2025: 174 `cross-realm` tests (the
+shell has no `$262.createRealm`), 68 tests that include
+`nativeFunctionMatcher.js`, the module tests (feature 14), 240
+`SharedArrayBuffer` and 112 `atomicsHelper.js` tests (out of scope,
+ADR 0026). The other skipped tests are proposals after ES2025.
 
 After M7 (or interleaved, when the owner gives targets): the bindings
 and the engine integration (layers 2 and 3 of ADR 0025), each with its
@@ -2136,8 +2181,9 @@ not repeated here; the open items of each spike session are in M6 step
 
 - The scope analysis's capture map: check that a crafted script cannot
   drive it into long probe chains (it has the per-process key now).
-- The test262 runner recognizes "not supported yet" by the message
-  text; make it a structured field of `ParseError`.
+- The test262 runner recognizes "not supported yet" (module code,
+  `import()`, `import.meta`) by the message text of the script error;
+  make it a structured field of the compile error.
 - The lexer scans an identifier with a non-ASCII or escaped part twice;
   the interner copies one-byte names into a scratch buffer on each
   cache miss. Measure before a change.
@@ -2259,6 +2305,19 @@ not repeated here; the open items of each spike session are in M6 step
     flaky in single runs: `a.push.apply(a, a)` can reach "Maximum call
     stack size exceeded" before the deadline, and `is_limit` does not
     accept that `RangeError`.
+- Maintenance (M7):
+  - Left for measurement (hot paths): the line terminator test of the
+    regexp matcher (`js-regexp/src/exec.rs`) and the digit value of a
+    code unit (five copies: the lexer, the number parser, the regexp
+    parser, JSON, URI) could use the `js-text` functions; the
+    PromiseResolve sequence of `await` is in five places.
+  - ADR 0026 has 3,400 lines; sections 14 and 15 are the record of
+    the spike and of M7. A split needs the references by section number
+    (roadmap, devlog, code comments) updated.
+  - Long files: `bytecode/mod.rs` 2,108 lines (`Insn` and
+    `FunctionCode`), `compiler/expr.rs` 1,421.
+  - `general_category_name` and `ScopeTree::dynamic_envs` have only
+    test users.
 - `[[VarNames]]` (M7 3f, older): the global environment does not record
   var names, so a later `let` of a name whose configurable property
   existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws

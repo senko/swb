@@ -5,6 +5,7 @@
 //! LS and PS. Columns count UTF-16 code units, as source offsets do.
 
 use swb_js_text::Str16;
+use swb_js_text::unicode::is_line_terminator;
 
 /// A line and column, both starting at 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,26 +28,19 @@ impl LineIndex {
         let mut starts = vec![0];
         let mut units = source.units().enumerate().peekable();
         while let Some((index, unit)) = units.next() {
-            let terminator = match unit {
-                0x0D => {
-                    if units.peek().is_some_and(|&(_, next)| next == 0x0A) {
-                        units.next();
-                        index + 2
-                    } else {
-                        index + 1
-                    }
-                }
-                0x0A | 0x2028 | 0x2029 => index + 1,
-                _ => continue,
+            if !is_line_terminator(u32::from(unit)) {
+                continue;
+            }
+            let terminator = if unit == 0x0D && units.peek().is_some_and(|&(_, next)| next == 0x0A)
+            {
+                units.next();
+                index + 2
+            } else {
+                index + 1
             };
             starts.push(terminator as u32);
         }
         LineIndex { starts }
-    }
-
-    /// The number of lines.
-    pub fn line_count(&self) -> usize {
-        self.starts.len()
     }
 
     /// The location of a code-unit offset. An offset inside a CR LF pair
@@ -77,7 +71,7 @@ mod tests {
     #[test]
     fn lines_split_at_all_terminators() {
         let lines = index("a\nbc\r\nd\re\u{2028}f\u{2029}g");
-        assert_eq!(lines.line_count(), 6);
+        assert_eq!(lines.starts.len(), 6);
         assert_eq!(lines.location(0), Location { line: 1, column: 1 });
         assert_eq!(lines.location(1), Location { line: 1, column: 2 });
         assert_eq!(lines.location(2), Location { line: 2, column: 1 });

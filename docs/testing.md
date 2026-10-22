@@ -876,7 +876,12 @@ scripts in one global scope. `print` and `console.log` write to stdout.
 `createRealm` and `agent` are not available. Options:
 `--heap-limit MIB`, `--stress` (GC at every safepoint, fewer after the
 first 65,536; ADR 0026 section 8), `--time-limit MS`,
-`--disassemble` (bytecode listing), `--compile-only`. The promise jobs
+`--disassemble` (bytecode listing), `--compile-only`,
+`--time-zone ZONE` (the local zone of `Date`: `UTC`, an IANA name or a
+POSIX rule; default the system zone), `--now MS` (a fixed clock for
+`Date.now()`; default the system clock). The subcommands are `test262`,
+`bench-compile DIR` (parse and compile time of the scripts in DIR) and
+`--dump-ast FILE` (the syntax tree, scopes and references). The promise jobs
 run after each script, under the same time limit. A promise that was
 rejected without a handler and still has none after the jobs is
 reported on stderr as Chromium's console shows it, `Uncaught (in

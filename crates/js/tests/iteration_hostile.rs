@@ -14,34 +14,16 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use common::{check_cases, on_big_stack, run_in, runtime, runtime_with};
+use common::{
+    assert_clean, check_cases, eval_within, is_limit, on_big_stack, run_in, runtime, runtime_with,
+};
 use swb_js::{HeapConfig, Runtime, RuntimeConfig, ScriptError, Termination, Value};
 
 const DEADLINE: Duration = Duration::from_millis(100);
 
-/// Runs `source` with a deadline; returns the result and the time it took.
+/// Runs `source` with the deadline `DEADLINE`; returns the result and the time it took.
 fn eval_with_deadline(rt: &mut Runtime, source: &str) -> (Result<Value, ScriptError>, Duration) {
-    let start = Instant::now();
-    rt.set_deadline(Some(start + DEADLINE));
-    let result = rt.eval(source);
-    rt.set_deadline(None);
-    (result, start.elapsed())
-}
-
-fn assert_clean(rt: &Runtime) {
-    assert_eq!(rt.stack_depths(), (0, 0));
-    assert_eq!(rt.heap().scope_depth(), 0);
-    assert_eq!(rt.heap().no_gc_depth(), 0);
-    assert_eq!(rt.heap().stats().total_stale_roots, 0);
-}
-
-fn is_limit(result: &Result<Value, ScriptError>) -> bool {
-    matches!(
-        result,
-        Err(ScriptError::Terminated(
-            Termination::TimeLimit | Termination::HeapLimit
-        ))
-    )
+    eval_within(rt, source, DEADLINE)
 }
 
 #[test]

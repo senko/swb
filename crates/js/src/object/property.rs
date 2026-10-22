@@ -152,26 +152,32 @@ impl Flags {
         bit(enumerable, Self::ENUMERABLE) | bit(configurable, Self::CONFIGURABLE)
     }
 
+    /// Whether the value can be changed.
     pub(crate) const fn writable(self) -> bool {
         self.0 & Self::WRITABLE != 0
     }
 
+    /// Whether the property shows in `for`-`in` and the key lists.
     pub(crate) const fn enumerable(self) -> bool {
         self.0 & Self::ENUMERABLE != 0
     }
 
+    /// Whether the property can be deleted or redefined.
     pub(crate) const fn configurable(self) -> bool {
         self.0 & Self::CONFIGURABLE != 0
     }
 
+    /// Whether the property is an accessor (a getter and a setter).
     pub(crate) const fn accessor(self) -> bool {
         self.0 & Self::ACCESSOR != 0
     }
 
+    /// Whether the entry is a deleted one (a tombstone in a dictionary).
     pub(crate) const fn deleted(self) -> bool {
         self.0 & Self::DELETED != 0
     }
 
+    /// These flags with the deleted mark set.
     pub(crate) const fn with_deleted(self) -> Self {
         Flags(self.0 | Self::DELETED)
     }

@@ -3,13 +3,17 @@
 //! thread with an 8 MiB stack (ADR 0026 section 9), with and without the
 //! GC stress mode.
 
+// Every integration test file compiles this module separately and uses a
+// part of it, so the helpers that a file does not use are dead code there.
 #![allow(dead_code, clippy::unwrap_used, clippy::unnecessary_wraps)]
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use swb_js::{
-    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, Value, VmError, VmResult,
+    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Termination, Value,
+    VmError, VmResult,
 };
 
 /// The output lines of `print` and `console.log`.
@@ -217,4 +221,89 @@ pub(crate) fn check_script_cases(cases: &[(&str, &str)]) {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+// --- Helpers of the hostile and Chromium-case tests ---
+
+/// The state that every run must leave behind: no frames, an empty value
+/// stack, no open handle scope, no no-GC region and no stale root.
+pub(crate) fn assert_clean(rt: &Runtime) {
+    assert_eq!(rt.stack_depths(), (0, 0));
+    assert_eq!(rt.heap().scope_depth(), 0);
+    assert_eq!(rt.heap().no_gc_depth(), 0);
+    assert_eq!(rt.heap().stats().total_stale_roots, 0);
+}
+
+/// Runs `source` with a deadline `deadline` after now; returns the result
+/// and the time it took. Each test file has its own deadline.
+pub(crate) fn eval_within(
+    rt: &mut Runtime,
+    source: &str,
+    deadline: Duration,
+) -> (Result<Value, ScriptError>, Duration) {
+    let start = Instant::now();
+    rt.set_deadline(Some(start + deadline));
+    let result = rt.eval(source);
+    rt.set_deadline(None);
+    (result, start.elapsed())
+}
+
+/// Runs `source` and its jobs with a deadline; the result of the drain
+/// (or of the script) and the time it took.
+pub(crate) fn run_with_deadline(
+    rt: &mut Runtime,
+    source: &str,
+    deadline: Duration,
+) -> (String, Duration) {
+    let start = Instant::now();
+    rt.set_deadline(Some(start + deadline));
+    let out = run_in(rt, source);
+    rt.set_deadline(None);
+    (out, start.elapsed())
+}
+
+/// A runtime with a heap limit of `mib` MiB and the test functions.
+pub(crate) fn runtime_with_heap_limit(mib: usize, stress: bool) -> Runtime {
+    runtime_with_tests(RuntimeConfig {
+        heap: HeapConfig {
+            limit: mib << 20,
+            stress,
+            ..HeapConfig::default()
+        },
+        ..RuntimeConfig::default()
+    })
+}
+
+/// A termination at the time or the heap limit.
+pub(crate) fn is_limit(result: &Result<Value, ScriptError>) -> bool {
+    matches!(
+        result,
+        Err(ScriptError::Terminated(
+            Termination::TimeLimit | Termination::HeapLimit
+        ))
+    )
+}
+
+/// Runs the script of a file of `data/` in each of the stress `modes` and
+/// compares its output line by line with the output that Chromium gave.
+pub(crate) fn check_chromium(script: &str, expected: &str, modes: &[bool]) {
+    for &stress in modes {
+        let actual = run(script, stress);
+        let failures: Vec<String> = actual
+            .lines()
+            .zip(expected.lines())
+            .filter(|(actual, expected)| actual != expected)
+            .map(|(actual, expected)| format!("expected: {expected}\nactual:   {actual}"))
+            .collect();
+        assert_eq!(
+            actual.lines().count(),
+            expected.lines().count(),
+            "number of lines (stress: {stress})\n{actual}"
+        );
+        assert!(
+            failures.is_empty(),
+            "stress: {stress}\n{}",
+            failures.join("\n")
+        );
+    }
 }

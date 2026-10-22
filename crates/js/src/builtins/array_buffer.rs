@@ -24,14 +24,14 @@ use swb_js_text::bigint::BigInt;
 
 use crate::heap::Gc;
 use crate::object::{
-    Element, ElementType, MAX_BYTE_LENGTH, MAX_RESIZABLE_BYTE_LENGTH, Object, ObjectKind,
-    PropertyDescriptor, RawValue, zeroed_bytes,
+    Element, ElementType, MAX_BYTE_LENGTH, MAX_RESIZABLE_BYTE_LENGTH, Object, ObjectKind, RawValue,
+    zeroed_bytes,
 };
 use crate::runtime::Runtime;
 use crate::value::Value;
 use crate::vm::bigint::bigint_error;
-use crate::vm::convert::{MAX_SAFE_INTEGER, to_integer_or_infinity};
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::convert::{MAX_SAFE_INTEGER, clamp_from_end, to_integer_or_infinity};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
 /// V8's message for a byte length that `ToIndex` or the allocation
 /// rejects.
@@ -51,11 +51,8 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     rt.heap.record(ctor);
     rt.set_intrinsic(realm, Intrinsic::ArrayBufferConstructor, ctor);
     super::method(rt, realm, ctor, "isView", 1, is_view)?;
-    let species = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let species = super::species_getter(rt, realm, ctor)?;
     rt.set_intrinsic(realm, Intrinsic::ArrayBufferSpeciesGetter, species);
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc = PropertyDescriptor::accessor(species.into(), Value::Undefined, false, true);
-    rt.define_own_property(ctor, key, desc)?;
     // Chromium 148's order of the keys.
     super::getter(rt, realm, proto, "byteLength", byte_length)?;
     super::method(rt, realm, proto, "slice", 2, slice)?;
@@ -252,15 +249,6 @@ fn is_view(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Bool(view)))
 }
 
-/// `get ArrayBuffer[@@species]` (§25.1.5.3): the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
-}
-
 // --- The accessors ---
 
 /// `get ArrayBuffer.prototype.byteLength` (§25.1.6.1): 0 when detached.
@@ -337,11 +325,7 @@ fn resize(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// for a negative value, clamped to 0 and `length`.
 fn clamped_index(rt: &mut Runtime, value: Value, length: f64) -> VmResult<f64> {
     let relative = rt.index_integer(value)?;
-    Ok(if relative < 0.0 {
-        (length + relative).max(0.0)
-    } else {
-        relative.min(length)
-    })
+    Ok(clamp_from_end(relative, length))
 }
 
 /// `ArrayBuffer.prototype.slice ( start, end )` (§25.1.6.7).

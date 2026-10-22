@@ -20,7 +20,7 @@ Default Case Conversion: Unicode Standard 17.0 chapter 3.13.
 
 from pathlib import Path
 
-from swbtools.ucd import has_property, range_table, ranges
+from swbtools.ucd import has_property, range_table, ranges, rust_static, unicode_data_rows
 
 Runs = list[tuple[int, int, int, int]]
 
@@ -29,10 +29,7 @@ def parse_unicode_data(path: Path) -> tuple[dict[int, int], dict[int, int]]:
     """The simple lowercase and uppercase mappings of `UnicodeData.txt`."""
     lower: dict[int, int] = {}
     upper: dict[int, int] = {}
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        fields = raw.split(";")
-        if len(fields) < 15:
-            continue
+    for fields in unicode_data_rows(path):
         cp = int(fields[0], 16)
         if fields[12]:
             upper[cp] = int(fields[12], 16)
@@ -100,20 +97,17 @@ def expand_runs(runs: Runs) -> dict[int, int]:
 
 def runs_table(name: str, doc: str, runs: Runs) -> list[str]:
     """The Rust source of a table of runs."""
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, u32, u8, i32); {len(runs)}] = ["]
-    lines += [f"    (0x{a:04X}, 0x{b:04X}, {s}, {d})," for a, b, s, d in runs]
-    lines += ["];", ""]
-    return lines
+    rows = [f"    (0x{a:04X}, 0x{b:04X}, {s}, {d})," for a, b, s, d in runs]
+    return rust_static(name, doc, f"[(u32, u32, u8, i32); {len(runs)}]", rows)
 
 
 def special_table(name: str, doc: str, special: dict[int, list[int]]) -> list[str]:
     """The Rust source of a table of full mappings."""
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, [u32; 3]); {len(special)}] = ["]
+    rows = []
     for cp in sorted(special):
         mapped = special[cp] + [0] * (3 - len(special[cp]))
-        lines.append(f"    (0x{cp:04X}, [{', '.join(f'0x{x:04X}' for x in mapped)}]),")
-    lines += ["];", ""]
-    return lines
+        rows.append(f"    (0x{cp:04X}, [{', '.join(f'0x{x:04X}' for x in mapped)}]),")
+    return rust_static(name, doc, f"[(u32, [u32; 3]); {len(special)}]", rows)
 
 
 def generate_case_tables(

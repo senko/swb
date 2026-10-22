@@ -9,7 +9,7 @@ ranges for generated Rust tables.
 import logging
 import re
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from swbtools import paths
@@ -35,23 +35,38 @@ def ucd_file(relative: str, version: str) -> Path:
     return path
 
 
-def _data_lines(path: Path) -> Iterator[tuple[int, int, list[str]]]:
-    """The data lines of a UCD file: first and last code point, and the
-    fields after the code points. Comments and empty lines are skipped."""
+def data_fields(path: Path) -> Iterator[tuple[str, list[str]]]:
+    """The data lines of a UCD file: the first field (code points or a
+    sequence of them) and the fields after it. Comments and empty lines are
+    skipped."""
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = [field.strip() for field in line.split(";")]
-        first, last = _code_points(fields[0])
-        yield first, last, fields[1:]
+        if line:
+            fields = [field.strip() for field in line.split(";")]
+            yield fields[0], fields[1:]
 
 
-def _code_points(field: str) -> tuple[int, int]:
+def data_lines(path: Path) -> Iterator[tuple[int, int, list[str]]]:
+    """The data lines of a UCD file: first and last code point, and the
+    fields after the code points."""
+    for field, rest in data_fields(path):
+        first, last = code_points(field)
+        yield first, last, rest
+
+
+def code_points(field: str) -> tuple[int, int]:
     """The first and last code point of a field such as `0041..005A` or `0030`."""
     first_text, _, last_text = field.partition("..")
     first = int(first_text, 16)
     return first, int(last_text, 16) if last_text else first
+
+
+def unicode_data_rows(path: Path) -> Iterator[list[str]]:
+    """The records of `UnicodeData.txt` (15 fields each)."""
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        fields = raw.split(";")
+        if len(fields) >= 15:
+            yield fields
 
 
 def read_property(path: Path, default: str) -> list[str]:
@@ -63,7 +78,7 @@ def read_property(path: Path, default: str) -> list[str]:
         if missing:
             first, last = int(missing.group(1), 16), int(missing.group(2), 16)
             values[first : last + 1] = [missing.group(3)] * (last - first + 1)
-    for first, last, fields in _data_lines(path):
+    for first, last, fields in data_lines(path):
         values[first : last + 1] = [fields[0]] * (last - first + 1)
     return values
 
@@ -72,7 +87,7 @@ def has_property(path: Path, name: str) -> list[bool]:
     """For every code point, whether a binary property file (such as
     emoji-data.txt, which lists several properties) gives it `name`."""
     values = [False] * (MAX_CODE_POINT + 1)
-    for first, last, fields in _data_lines(path):
+    for first, last, fields in data_lines(path):
         if fields[0] == name:
             values[first : last + 1] = [True] * (last - first + 1)
     return values
@@ -91,6 +106,17 @@ def ranges(selected: list[bool]) -> list[tuple[int, int]]:
     return out
 
 
+def merge_ranges(items: Iterable[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Sorts ranges and merges overlapping and adjacent ones."""
+    out: list[tuple[int, int]] = []
+    for first, last in sorted(items):
+        if out and first <= out[-1][1] + 1:
+            out[-1] = (out[-1][0], max(out[-1][1], last))
+        else:
+            out.append((first, last))
+    return out
+
+
 def value_ranges(values: list[str | None]) -> list[tuple[int, int, str]]:
     """The ranges of equal values, without the code points whose value is None."""
     out: list[tuple[int, int, str]] = []
@@ -104,9 +130,20 @@ def value_ranges(values: list[str | None]) -> list[tuple[int, int, str]]:
     return out
 
 
+def rust_static(
+    name: str, doc: str, rust_type: str, rows: list[str], *, rustfmt_skip: bool = False
+) -> list[str]:
+    """The Rust source of one `pub(super) static` table: the doc comment,
+    the declaration, the `rows` (lines with their indentation) and an empty
+    line."""
+    lines = [f"/// {doc}"]
+    if rustfmt_skip:
+        lines.append("#[rustfmt::skip]")
+    lines.append(f"pub(super) static {name}: {rust_type} = [")
+    return [*lines, *rows, "];", ""]
+
+
 def range_table(name: str, doc: str, items: list[tuple[int, int]]) -> list[str]:
     """The Rust source of one table of code point ranges."""
-    lines = [f"/// {doc}", f"pub(super) static {name}: [(u32, u32); {len(items)}] = ["]
-    lines += [f"    (0x{a:04X}, 0x{b:04X})," for a, b in items]
-    lines += ["];", ""]
-    return lines
+    rows = [f"    (0x{a:04X}, 0x{b:04X})," for a, b in items]
+    return rust_static(name, doc, f"[(u32, u32); {len(items)}]", rows)

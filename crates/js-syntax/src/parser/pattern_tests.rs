@@ -1,4 +1,4 @@
-//! Tests of the forms of M7 feature 1a: patterns and destructuring,
+//! Tests of patterns and destructuring,
 //! spread and rest, default parameters, `for`-`in` and `for`-`of`,
 //! optional chaining, tagged templates, `new.target`, `BigInt` literals,
 //! `yield*`, accessors and `with`; their early errors with V8's messages
@@ -198,7 +198,7 @@ fn m7_valid_sources_parse() {
     }
 }
 
-/// A program with every form of feature 1a.
+/// A program with every form that these tests cover.
 const PATTERN_PROGRAM: &str = r"var [a, , b = 1, ...c] = d, {e, f: [g], [h]: i = 2, ...j} = k;
 let {l = 1} = m; const [[n]] = o;
 [a, b.c, d[e], ...f] = g; ({a, b: c.d, e = 1, ...f} = g);

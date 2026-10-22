@@ -4,12 +4,11 @@
 //! forms that `toString` and `toUTCString` print (§21.4.4.41, §21.4.4.43),
 //! which the specification requires `Date.parse` to read back.
 //!
-//! The forms of this feature (12a) are exact: a string that is not in one
-//! of them gives `None`, which is NaN. The forms that Chromium accepts
-//! beyond them (month and weekday names in other orders, slashes,
-//! two-digit years, zone abbreviations, lower case letters, more than
-//! three fraction digits) come in feature 12b through [`parse_fallback`],
-//! which [`parse`] tries last. The parsers read the text in place, from
+//! These forms are exact: a string that is not in one of them gives
+//! `None`, which is NaN. The forms that Chromium accepts beyond them
+//! (month and weekday names in other orders, slashes, two-digit years,
+//! zone abbreviations, lower case letters, more than three fraction
+//! digits) are read by [`parse_fallback`], which [`parse`] tries last. The parsers read the text in place, from
 //! the start; each stops at the first unit that does not fit, and none
 //! reads more than a few dozen units except the name in parentheses at the
 //! end of the `toString` form, of which only the first and last units

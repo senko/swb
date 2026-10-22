@@ -16,11 +16,11 @@
 //! costs no Rust recursion.
 
 use crate::heap::Gc;
-use crate::object::{Object, PropertyDescriptor};
+use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmError, VmResult};
 
 /// The static functions in Chromium's order, with their `length`.
 const STATICS: [(&str, u32, NativeFn); 8] = [
@@ -48,11 +48,8 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     for (name, length, func) in STATICS {
         super::method(rt, realm, promise, name, length, func)?;
     }
-    let getter = rt.new_builtin(realm, "get [Symbol.species]", 0, species, false)?;
+    let getter = super::species_getter(rt, realm, promise)?;
     rt.set_intrinsic(realm, Intrinsic::PromiseSpeciesGetter, getter);
-    let key = rt.symbol_key(WellKnown::Species);
-    let desc = PropertyDescriptor::accessor(getter.into(), Value::Undefined, false, true);
-    rt.define_own_property(promise, key, desc)?;
     for (name, length, func) in METHODS {
         super::method(rt, realm, proto, name, length, func)?;
     }
@@ -70,7 +67,7 @@ fn promise_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRe
     if !rt.is_callable(executor)? {
         return Err(VmError::type_error(format!(
             "Promise resolver {} is not a function",
-            rt.primitive_text(executor)
+            rt.value_text(executor)
         )));
     }
     let proto = rt.prototype_from(call, Intrinsic::PromisePrototype)?;
@@ -81,15 +78,6 @@ fn promise_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRe
         rt.reject_with_function(reject, reason)?;
     }
     Ok(NativeReturn::Value(promise.into()))
-}
-
-/// `get Promise[@@species]` (§27.2.4.9): the receiver.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
-fn species(_: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    Ok(NativeReturn::Value(call.this()))
 }
 
 /// The receiver of a static function as an object (V8's message for
@@ -158,10 +146,7 @@ fn try_(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// `Promise.prototype.then(onFulfilled, onRejected)` (§27.2.5.4).
 fn then(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let Some(promise) = rt.as_promise(call.this())? else {
-        return Err(VmError::type_error(format!(
-            "Method Promise.prototype.then called on incompatible receiver {}",
-            rt.primitive_text(call.this())
-        )));
+        return Err(rt.incompatible_receiver("Promise.prototype.then", call.this()));
     };
     let realm = call.realm();
     let constructor = rt.promise_species_constructor(promise, realm)?;

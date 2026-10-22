@@ -35,12 +35,7 @@ pub(super) fn get_method_v8(
         return Ok(None);
     }
     if !rt.is_callable(method)? {
-        return Err(VmError::type_error(format!(
-            "'{}' returned for property '{}' of object '{}' is not a function",
-            rt.primitive_text(method),
-            rt.key_text(key),
-            rt.primitive_text(value)
-        )));
+        return Err(rt.not_function_property(method, &rt.key_text(key), value));
     }
     Ok(Some(method))
 }
@@ -68,7 +63,7 @@ pub(super) fn get_iterator_flattenable(
     if !matches!(iterator, Value::Object(_)) {
         return Err(VmError::type_error(format!(
             "{} is not iterable",
-            rt.primitive_text(value)
+            rt.value_text(value)
         )));
     }
     get_iterator_direct(rt, iterator)
@@ -97,10 +92,10 @@ fn this_wrapped(rt: &Runtime, call: &NativeCall, method: &str) -> VmResult<Itera
     {
         return Ok(state.record);
     }
-    Err(VmError::type_error(format!(
-        "Method %WrapForValidIteratorPrototype%.{method} called on incompatible receiver {}",
-        rt.primitive_text(call.this())
-    )))
+    Err(rt.incompatible_receiver(
+        &format!("%WrapForValidIteratorPrototype%.{method}"),
+        call.this(),
+    ))
 }
 
 /// `%WrapForValidIteratorPrototype%.next()` (§27.1.3.2.1.1.1): calls the
@@ -162,7 +157,7 @@ pub(super) fn concat(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
         let Some(method) = get_method_v8(rt, item, iterator_key(rt))? else {
             return Err(VmError::type_error(format!(
                 "{} is not iterable",
-                rt.primitive_text(item)
+                rt.value_text(item)
             )));
         };
         update(rt, helper, |state| state.sources.extend([method, item]))?;
@@ -195,7 +190,7 @@ pub(super) fn step_concat(
             if !matches!(iterator, Value::Object(_)) {
                 return Err(VmError::type_error(format!(
                     "{} is not iterable",
-                    rt.primitive_text(iterator)
+                    rt.value_text(iterator)
                 )));
             }
             let record = get_iterator_direct(rt, iterator)?;

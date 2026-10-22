@@ -147,10 +147,7 @@ pub(super) fn to_primitive(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nati
         "string" | "default" => Hint::String,
         "number" => Hint::Number,
         _ => {
-            let shown = match rt.arg(call, 0) {
-                Value::Object(hint) => rt.object_text(hint),
-                other => rt.primitive_text(other),
-            };
+            let shown = rt.value_text(rt.arg(call, 0));
             return Err(VmError::type_error(format!("Invalid hint: {shown}")));
         }
     };

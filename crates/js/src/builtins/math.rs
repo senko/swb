@@ -80,7 +80,7 @@ pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     }
     super::method(rt, realm, math, "f16round", 1, f16round)?;
     super::method(rt, realm, math, "sumPrecise", 1, sum_precise)?;
-    super::global(rt, realm, "Math", math.into())
+    super::define_global(rt, realm, "Math", math.into())
 }
 
 /// `ToNumber` of argument `index`, without a conversion for a Number.

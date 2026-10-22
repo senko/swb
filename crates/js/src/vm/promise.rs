@@ -105,11 +105,11 @@ pub enum ReactionKind {
 /// The function of an internal continuation: called with its data, the
 /// kind of the settlement and the value. Its result resolves the
 /// reaction's capability (if any); a thrown value rejects it.
-pub type ContinuationFn = fn(&mut Runtime, Value, ReactionKind, Value) -> VmResult<Value>;
+pub(crate) type ContinuationFn = fn(&mut Runtime, Value, ReactionKind, Value) -> VmResult<Value>;
 
 /// An internal continuation: a handler that is not a function object.
 #[derive(Clone, Copy)]
-pub struct Continuation {
+pub(crate) struct Continuation {
     pub(crate) func: ContinuationFn,
     /// The value it works on (for `await`: the suspended function's
     /// object); traced with the reaction.
@@ -582,7 +582,7 @@ impl Runtime {
         if !self.is_constructor(constructor)? {
             return Err(VmError::type_error(format!(
                 "{} is not a constructor",
-                self.primitive_text(constructor)
+                self.value_text(constructor)
             )));
         }
         let slots = Box::new([Value::Undefined, Value::Undefined]) as Box<[Value]>;
@@ -701,7 +701,7 @@ impl Runtime {
                 return Ok(default.into());
             }
             return Err(VmError::type_error(
-                "The .constructor property is not an object",
+                crate::vm::messages::CONSTRUCTOR_NOT_OBJECT,
             ));
         };
         if constructor == default && self.has_builtin_species(default, realm)? {

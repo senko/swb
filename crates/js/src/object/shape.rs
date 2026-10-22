@@ -70,8 +70,13 @@ pub struct Shape {
     pub(crate) kind: ShapeKind,
 }
 
+/// The two forms of a shape.
 pub(crate) enum ShapeKind {
+    /// A shape that objects share (a prefix of a shared key list,
+    /// reached by transitions).
     Shared(SharedShape),
+    /// A shape of one object, for an object with many keys or with
+    /// deletions and attribute changes.
     Dictionary(Dictionary),
 }
 
@@ -122,7 +127,8 @@ impl Shape {
         matches!(self.kind, ShapeKind::Dictionary(_))
     }
 
-    /// The number of named properties.
+    /// The number of named properties. (For embedders and tests; the engine
+    /// itself does not call it.)
     pub fn property_count(&self) -> usize {
         match &self.kind {
             ShapeKind::Shared(shared) => shared.len as usize,

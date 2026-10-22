@@ -28,11 +28,17 @@ string; the offset tables give the start of each item (the end of an item
 is the start of the next one).
 """
 
-from collections.abc import Iterator
 from pathlib import Path
 
 from swbtools.js_property_names import BINARY, SPECIAL_BINARY, STRING_PROPERTIES
-from swbtools.ucd import MAX_CODE_POINT, read_property
+from swbtools.ucd import (
+    MAX_CODE_POINT,
+    code_points,
+    data_fields,
+    merge_ranges,
+    read_property,
+    rust_static,
+)
 
 FILES = {
     "DerivedGeneralCategory": "ucd/extracted/DerivedGeneralCategory.txt",
@@ -102,7 +108,7 @@ def encode_ranges(ranges: Ranges) -> bytes:
 
 
 def decode_ranges(data: bytes) -> Ranges:
-    """The inverse of `encode_ranges`."""
+    """The inverse of `encode_ranges` (used by the tests: the round-trip check)."""
     out: Ranges = []
     pos = next_free = 0
     while pos < len(data):
@@ -127,7 +133,7 @@ def encode_sequences(sequences: list[tuple[int, ...]]) -> bytes:
 
 
 def decode_sequences(data: bytes) -> list[tuple[int, ...]]:
-    """The inverse of `encode_sequences`."""
+    """The inverse of `encode_sequences` (used by the tests: the round-trip check)."""
     out = []
     pos = 0
     while pos < len(data):
@@ -141,37 +147,12 @@ def decode_sequences(data: bytes) -> list[tuple[int, ...]]:
     return out
 
 
-def merge(ranges: Ranges) -> Ranges:
-    """Sorts ranges and merges overlapping and adjacent ones."""
-    out: Ranges = []
-    for first, last in sorted(ranges):
-        if out and first <= out[-1][1] + 1:
-            out[-1] = (out[-1][0], max(out[-1][1], last))
-        else:
-            out.append((first, last))
-    return out
-
-
-def _data_fields(path: Path) -> Iterator[tuple[str, list[str]]]:
-    """The data lines of a UCD file: the code point field and the others."""
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if line:
-            fields = [field.strip() for field in line.split(";")]
-            yield fields[0], fields[1:]
-
-
-def _code_points(field: str) -> tuple[int, int]:
-    first, _, last = field.partition("..")
-    return int(first, 16), int(last or first, 16)
-
-
 def binary_ranges(path: Path) -> dict[str, Ranges]:
     """The ranges of every property in a file with lines `range ; Name`."""
     found: dict[str, Ranges] = {}
-    for field, rest in _data_fields(path):
-        found.setdefault(rest[0], []).append(_code_points(field))
-    return {name: merge(ranges) for name, ranges in found.items()}
+    for field, rest in data_fields(path):
+        found.setdefault(rest[0], []).append(code_points(field))
+    return {name: merge_ranges(ranges) for name, ranges in found.items()}
 
 
 def value_sets(values: list[str | None], names: list[str]) -> dict[str, Ranges]:
@@ -184,7 +165,7 @@ def value_sets(values: list[str | None], names: list[str]) -> dict[str, Ranges]:
             if value is not None:
                 found[value].append((start, cp - 1))
             start = cp
-    return {name: merge(ranges) for name, ranges in found.items()}
+    return {name: merge_ranges(ranges) for name, ranges in found.items()}
 
 
 def script_extensions(path: Path, scripts: list[str], short: dict[str, str]) -> dict[str, Ranges]:
@@ -192,8 +173,8 @@ def script_extensions(path: Path, scripts: list[str], short: dict[str, str]) -> 
     `Script` of each code point (by short name); `short` maps the names in
     `ScriptExtensions.txt` to short names."""
     listed: list[tuple[str, ...] | None] = [None] * (MAX_CODE_POINT + 1)
-    for field, rest in _data_fields(path):
-        first, last = _code_points(field)
+    for field, rest in data_fields(path):
+        first, last = code_points(field)
         names = tuple(short.get(name, name) for name in rest[0].split())
         for cp in range(first, last + 1):
             listed[cp] = names
@@ -213,13 +194,13 @@ def read_sequences(path: Path) -> tuple[dict[str, Ranges], dict[str, list[tuple[
     strings in `emoji-sequences.txt` or `emoji-zwj-sequences.txt`."""
     singles: dict[str, Ranges] = {}
     sequences: dict[str, list[tuple[int, ...]]] = {}
-    for field, rest in _data_fields(path):
+    for field, rest in data_fields(path):
         name = rest[0]
         if " " in field:
             sequences.setdefault(name, []).append(tuple(int(cp, 16) for cp in field.split()))
         else:
-            singles.setdefault(name, []).append(_code_points(field))
-    return {name: merge(ranges) for name, ranges in singles.items()}, sequences
+            singles.setdefault(name, []).append(code_points(field))
+    return {name: merge_ranges(ranges) for name, ranges in singles.items()}, sequences
 
 
 class Blob:
@@ -265,14 +246,11 @@ def _rust_bytes(name: str, doc: str, data: bytes) -> list[str]:
 
 
 def _rust_offsets(name: str, doc: str, offsets: list[int]) -> list[str]:
-    lines = [
-        f"/// {doc}",
-        "#[rustfmt::skip]",
-        f"pub(super) static {name}: [u32; {len(offsets)}] = [",
+    rows = [
+        "    " + ", ".join(str(o) for o in offsets[i : i + 12]) + ","
+        for i in range(0, len(offsets), 12)
     ]
-    for i in range(0, len(offsets), 12):
-        lines.append("    " + ", ".join(str(o) for o in offsets[i : i + 12]) + ",")
-    return [*lines, "];", ""]
+    return rust_static(name, doc, f"[u32; {len(offsets)}]", rows, rustfmt_skip=True)
 
 
 def generate_property_data(

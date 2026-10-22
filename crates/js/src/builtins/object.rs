@@ -94,7 +94,7 @@ fn enumerable_own_properties(
     call: &NativeCall,
     kind: Kind,
 ) -> VmResult<NativeReturn> {
-    let object = rt.this_object_arg(call, 0)?;
+    let object = rt.object_arg(call, 0)?;
     let keys = rt.own_keys(object)?;
     rt.heap.record_keys(&keys);
     let result = rt.new_array_with_capacity(keys.len())?;
@@ -113,7 +113,7 @@ fn enumerable_own_properties(
                 Kind::Entries => {
                     let value = rt.get_value(object.into(), key)?;
                     let name = rt.heap.key_to_value(key)?;
-                    rt.pair_array(name, value)?.into()
+                    rt.array_from_values(&[name, value])?.into()
                 }
             };
             rt.push_value(result, item)
@@ -139,7 +139,7 @@ fn entries(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 
 /// `Object.assign(target, ...sources)` (§20.1.2.1).
 fn assign(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let to = rt.this_object_arg(call, 0)?;
+    let to = rt.object_arg(call, 0)?;
     for index in 1..call.argc() {
         let source = rt.arg(call, index);
         if source.is_nullish() {
@@ -178,7 +178,7 @@ fn get_own_property_symbols(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nat
 
 /// `GetOwnPropertyKeys(O, type)` (§20.1.2.11.1).
 fn own_keys_of_type(rt: &mut Runtime, call: &NativeCall, symbols: bool) -> VmResult<NativeReturn> {
-    let object = rt.this_object_arg(call, 0)?;
+    let object = rt.object_arg(call, 0)?;
     let keys = rt.own_keys(object)?;
     rt.heap.record_keys(&keys);
     let result = rt.new_array_with_capacity(keys.len())?;
@@ -195,7 +195,7 @@ fn own_keys_of_type(rt: &mut Runtime, call: &NativeCall, symbols: bool) -> VmRes
 
 /// `Object.getPrototypeOf(O)` (§20.1.2.12).
 fn get_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_arg(call, 0)?;
+    let object = rt.object_arg(call, 0)?;
     let proto = rt.get_prototype_of(object)?;
     Ok(NativeReturn::Value(proto.map_or(Value::Null, Value::from)))
 }
@@ -214,7 +214,7 @@ fn set_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         other => {
             return Err(VmError::type_error(format!(
                 "Object prototype may only be an Object or null: {}",
-                rt.primitive_text(other)
+                rt.value_text(other)
             )));
         }
     };
@@ -233,7 +233,7 @@ fn set_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
 
 /// `Object.hasOwn(O, P)` (§20.1.2.13).
 fn has_own(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let object = rt.this_object_arg(call, 0)?;
+    let object = rt.object_arg(call, 0)?;
     let key = rt.key_arg(rt.arg(call, 1))?;
     let own = rt.has_own_property(object, key)?;
     Ok(NativeReturn::Value(Value::Bool(own)))

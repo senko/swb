@@ -1,4 +1,4 @@
-//! `BigInt` literals in the compiler (M7 10b): the value of a literal
+//! `BigInt` literals in the compiler: the value of a literal
 //! (§12.9.3.1, <https://tc39.es/ecma262/#sec-static-semantics-mv>), its
 //! text as a property key (`{1n: x}`, `class { 1n() {} }`: the decimal
 //! text of the value, §7.1.19 `ToPropertyKey`), and the check of their

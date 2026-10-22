@@ -99,7 +99,7 @@ fn this_registry(rt: &Runtime, call: &NativeCall, method: &str) -> VmResult<Gc<O
 fn invalid_token(rt: &Runtime, token: Value) -> VmError {
     VmError::type_error(format!(
         "Invalid unregisterToken ('{}')",
-        rt.primitive_text(token)
+        rt.value_text(token)
     ))
 }
 

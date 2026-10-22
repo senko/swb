@@ -1,10 +1,13 @@
 //! The error messages of the lexer and the parser. The wording is V8's,
 //! measured in Node.js 22 (`new vm.Script(source)`), so that scripts that
-//! inspect `error.message` see what they see in Chromium. The four `pub`
+//! inspect `error.message` see what they see in Chromium. The `pub`
 //! constants are also used by the compiler and the interpreter, so that
 //! each text exists once.
 
+/// The compiler's message for a construct that it does not compile (module
+/// code, `import()`, `import.meta`).
 pub const NOT_SUPPORTED: &str = "not supported yet";
+/// The `RangeError` for nesting beyond the recursion budget.
 pub const STACK_OVERFLOW: &str = "Maximum call stack size exceeded";
 pub(crate) const SOURCE_TOO_LONG: &str = "Script is too large";
 
@@ -136,6 +139,7 @@ pub(crate) const SINGLE_FUNCTION_LITERAL: &str = "Single function literal requir
 pub const TOO_MANY_CAPTURES: &str = "Too many captured variables in a script";
 pub(crate) const TOO_MANY_PARAMETERS: &str =
     "Too many parameters in function definition (only 65534 allowed)";
+/// A call with more arguments than the 16-bit count of the call instructions.
 pub const TOO_MANY_ARGUMENTS: &str = "Too many arguments in function call (only 65535 allowed)";
 
 // Modules and `import` (measured with `node --check` on `.mjs` files).
