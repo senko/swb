@@ -20,9 +20,10 @@ from swbtools.manifest import Entry, Fixture
 
 log = logging.getLogger(__name__)
 
-# Added to every served response. The fixture does not store CORS headers,
-# so without this Chromium would block cross-origin fonts and other CORS
-# requests in replay. swb does not check CORS.
+# Added to every served response whose request has no `Origin` header. The
+# fixture does not store CORS headers, so without this Chromium would block
+# cross-origin fonts and other CORS requests in replay. A request with an
+# `Origin` header (a CORS-mode request) gets `cors_headers` instead.
 EXTRA_HEADERS = (("access-control-allow-origin", "*"),)
 
 # Request headers that are not forwarded when Chromium's requests are
@@ -31,10 +32,68 @@ EXTRA_HEADERS = (("access-control-allow-origin", "*"),)
 _DROPPED_REQUEST_HEADERS = {"accept-encoding", "content-length", "host"}
 
 
-def served_headers(entry: Entry) -> list[dict[str, str]]:
+def header_value(headers: dict[str, str], name: str) -> str | None:
+    """Returns the value of a request header (CDP gives a dict with the
+    case of the sender), or None."""
+    lowered = name.lower()
+    for key, value in headers.items():
+        if key.lower() == lowered:
+            return value
+    return None
+
+
+def cors_headers(origin: str | None, entry: Entry) -> tuple[tuple[str, str], ...]:
+    """The CORS headers for a served response (ADR 0028 section 12). With
+    the request's `Origin`: that origin, credentials allowed, `Vary: Origin`
+    and the names of the stored headers as exposed headers. Without it: `*`."""
+    if origin is None:
+        return EXTRA_HEADERS
+    headers = [
+        ("access-control-allow-origin", origin),
+        ("access-control-allow-credentials", "true"),
+        ("vary", "Origin"),
+    ]
+    if entry.headers:
+        names = ", ".join(name for name, _ in entry.headers)
+        headers.append(("access-control-expose-headers", names))
+    return tuple(headers)
+
+
+def served_headers(entry: Entry, origin: str | None = None) -> list[dict[str, str]]:
     """The headers that Chromium gets for a fixture entry: the stored headers
-    and `EXTRA_HEADERS`, in CDP form."""
-    return [{"name": name, "value": value} for name, value in (*entry.headers, *EXTRA_HEADERS)]
+    and the CORS headers for a request with the given `Origin`, in CDP
+    form."""
+    extra = cors_headers(origin, entry)
+    # The tool owns the CORS headers. A fixture that stores some (the local
+    # craigslist-search fixture has two, added by hand) would otherwise give
+    # `Access-Control-Allow-Origin` twice, which Chromium rejects.
+    stored = [(n, v) for n, v in entry.headers if not n.lower().startswith("access-control-")]
+    return [{"name": name, "value": value} for name, value in (*stored, *extra)]
+
+
+def is_preflight(request: dict[str, Any]) -> bool:
+    """True for a CORS preflight request: `OPTIONS` with
+    `Access-Control-Request-Method`."""
+    headers = request.get("headers", {})
+    return (
+        request["method"] == "OPTIONS"
+        and header_value(headers, "access-control-request-method") is not None
+    )
+
+
+def preflight_headers(request: dict[str, Any]) -> list[dict[str, str]]:
+    """The headers of the permissive answer to a preflight: the requested
+    origin, method and headers are allowed, with credentials."""
+    headers = request.get("headers", {})
+    origin = header_value(headers, "origin") or "*"
+    answer = [
+        ("access-control-allow-origin", origin),
+        ("access-control-allow-credentials", "true"),
+        ("access-control-allow-methods", header_value(headers, "access-control-request-method")),
+        ("access-control-allow-headers", header_value(headers, "access-control-request-headers")),
+        ("vary", "Origin"),
+    ]
+    return [{"name": name, "value": value} for name, value in answer if value]
 
 
 def _is_http(url: str) -> bool:
@@ -63,7 +122,13 @@ class Interceptor:
 
     async def _run(self, event: dict[str, Any]) -> None:
         try:
-            await self.handle(event)
+            request = event["request"]
+            if _is_http(request["url"]) and is_preflight(request):
+                # The fixtures store no preflights, and a preflight never
+                # goes to the network or into a recording.
+                await self.answer_preflight(event)
+            else:
+                await self.handle(event)
         except Error as error:
             # The page or browser closed while the request was pending.
             log.debug("request %s: %s", event["request"]["url"], error)
@@ -75,13 +140,27 @@ class Interceptor:
         assert self._session is not None, "attach() must run before requests pause"
         await self._session.send(method, params)
 
+    async def answer_preflight(self, event: dict[str, Any]) -> None:
+        """Answers a CORS preflight locally with 204 and a permissive
+        response."""
+        log.debug("preflight %s", event["request"]["url"])
+        await self.send(
+            "Fetch.fulfillRequest",
+            {
+                "requestId": event["requestId"],
+                "responseCode": 204,
+                "responseHeaders": preflight_headers(event["request"]),
+            },
+        )
+
     async def fulfill(self, event: dict[str, Any], entry: Entry, body: bytes) -> None:
+        origin = header_value(event["request"].get("headers", {}), "origin")
         await self.send(
             "Fetch.fulfillRequest",
             {
                 "requestId": event["requestId"],
                 "responseCode": entry.status,
-                "responseHeaders": served_headers(entry),
+                "responseHeaders": served_headers(entry, origin),
                 "body": base64.b64encode(body).decode("ascii"),
             },
         )
@@ -95,8 +174,9 @@ class Interceptor:
 
 
 class Replayer(Interceptor):
-    """Serves every request from the fixture. Fails requests for URLs that
-    are not in it and remembers them in `missing`."""
+    """Serves every request from the fixture. A URL that is not in it is
+    served by a replay pattern of the fixture (`Fixture.lookup`) or fails; the
+    failed URLs are in `missing`."""
 
     def __init__(self, fixture: Fixture) -> None:
         super().__init__(fixture)
@@ -108,7 +188,7 @@ class Replayer(Interceptor):
         if not _is_http(url):
             await self.pass_through(event)
             return
-        entry = self.fixture.get(url, method)
+        entry = self.fixture.lookup(url, method)
         if entry is None:
             log.warning("not in fixture: %s %s", method, url)
             self.missing.append(url)

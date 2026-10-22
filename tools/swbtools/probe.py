@@ -45,9 +45,16 @@ A case file is JSON (committed ones are in `tools/probes/`):
   page has the machine's zone. Chromium gets it as the `timezone_id` of a
   browser context; a case with its own zone runs in a context of that zone.
 
+- `javascript` (file and case, optional; default false): true runs the
+  scripts of the page. The case runs in a Chromium context with JavaScript
+  on (contexts are keyed by time zone and this flag). With `--with-swb`, swb
+  runs the case with `--js`, and the `js` queries are also evaluated in swb
+  (`--eval`, docs/testing.md "Probe Chromium behaviour"). A swb without
+  these options prints `not supported` for its lines.
+
 Chromium has the settings of the other tools (`browser.py`: bundled fonts,
-JavaScript disabled, scale 1). The page is a file in a temporary directory,
-loaded by navigation (see `measure.py`).
+JavaScript disabled unless the case sets `javascript`, scale 1). The page is a
+file in a temporary directory, loaded by navigation (see `measure.py`).
 
 Output: one line per value, `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -60,8 +67,10 @@ writes a full-page screenshot, and the same area of it (Chromium's border
 box of the element) gives swb's ink and bounding box: a line
 `CASE  swb  LABEL  ink=.. bbox=..  dink=..` with `!` when the ink differs
 by more than `INK_TOLERANCE` (relative, at least 2) or an edge of the
-bounding box by more than the tolerance. `rects`, `style` and `js` are
-Chromium only.
+bounding box by more than the tolerance. `rects` and `style` are Chromium
+only, and so is `js` in a case without `javascript`; in a JavaScript case a
+line `CASE  swb    EXPR  VALUE` follows the `js` line, with `!` when the
+value differs.
 """
 
 import asyncio
@@ -126,6 +135,8 @@ class Case:
     time_zone: str | None = None
     """The IANA name of the time zone of the page, or `None` for the
     machine's zone."""
+    javascript: bool = False
+    """True if the scripts of the page run."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -174,8 +185,18 @@ def _parse_time_zone(value: Any, where: str) -> str | None:
     return value
 
 
+def _parse_javascript(value: Any, where: str) -> bool:
+    if not isinstance(value, bool):
+        raise ProbeError(f"{where}: javascript must be true or false")
+    return value
+
+
 def _parse_case(
-    item: Any, number: int, default_viewport: tuple[int, int], default_zone: str | None = None
+    item: Any,
+    number: int,
+    default_viewport: tuple[int, int],
+    default_zone: str | None = None,
+    default_javascript: bool = False,
 ) -> Case:
     if not isinstance(item, dict):
         raise ProbeError(f"case {number}: must be an object")
@@ -192,7 +213,11 @@ def _parse_case(
         raise ProbeError(f"{where}: measure must be a non-empty list")
     queries = tuple(_parse_query(q, f"{where}, measure {i}") for i, q in enumerate(measure, 1))
     zone = _parse_time_zone(item["time_zone"], where) if "time_zone" in item else default_zone
-    return Case(name, html, viewport, queries, _parse_files(item.get("files", {}), where), zone)
+    javascript = (
+        _parse_javascript(item["javascript"], where) if "javascript" in item else default_javascript
+    )
+    files = _parse_files(item.get("files", {}), where)
+    return Case(name, html, viewport, queries, files, zone, javascript)
 
 
 def _parse_files(value: Any, where: str) -> tuple[tuple[str, Path], ...]:
@@ -227,7 +252,10 @@ def _parse_data(data: Any) -> list[Case]:
         raise ProbeError('the top level must be an object with a "cases" list')
     viewport = _parse_viewport(data["viewport"], "file") if "viewport" in data else DEFAULT_VIEWPORT
     zone = _parse_time_zone(data.get("time_zone"), "file")
-    cases = [_parse_case(item, i, viewport, zone) for i, item in enumerate(data["cases"], 1)]
+    javascript = _parse_javascript(data.get("javascript", False), "file")
+    cases = [
+        _parse_case(item, i, viewport, zone, javascript) for i, item in enumerate(data["cases"], 1)
+    ]
     seen: set[str] = set()
     for case in cases:
         if case.name in seen:
@@ -284,6 +312,15 @@ class SwbInk:
 
 
 @dataclass
+class SwbValue:
+    """swb's answer to a `js` query (`--eval`) and whether it differs."""
+
+    text: str
+    """The printed value, or `error: MESSAGE`."""
+    outside: bool = False
+
+
+@dataclass
 class Row:
     """One value of a case."""
 
@@ -293,6 +330,10 @@ class Row:
     data: dict[str, Any] = field(default_factory=dict)
     swb: SwbBox | None = None
     swb_ink: SwbInk | None = None
+    swb_value: SwbValue | None = None
+    """swb's value of a `js` row in a JavaScript case."""
+    swb_unsupported: bool = False
+    """True if swb lacks an option that the row needs (`--js`)."""
 
 
 @dataclass
@@ -362,6 +403,12 @@ def format_row(case: str, row: Row) -> list[str]:
             if swb_box.delta is not None:
                 text += "  " + format_delta(swb_box.delta)
             lines.append(prefix + text + ("  !" if swb_box.outside else ""))
+    if row.swb_unsupported:
+        lines.append(f"{case}  {_SWB_LABEL:<5}  {row.label}  not supported")
+    swb_value = row.swb_value
+    if swb_value is not None:
+        text = swb_value.text + ("  !" if swb_value.outside else "")
+        lines.append(f"{case}  {_SWB_LABEL:<5}  {row.label}  {text}")
     swb_ink = row.swb_ink
     if swb_ink is not None:
         delta = round2(swb_ink.ink - row.data["ink"])
@@ -399,6 +446,13 @@ def format_json(results: Sequence[CaseResult]) -> str:
                     "delta": s.delta,
                     "outside": s.outside,
                 }
+            if row.swb_value is not None:
+                item["swb_value"] = {
+                    "text": row.swb_value.text,
+                    "outside": row.swb_value.outside,
+                }
+            if row.swb_unsupported:
+                item["swb_unsupported"] = True
             if row.swb_ink is not None:
                 item["swb_ink"] = {
                     "ink": row.swb_ink.ink,
@@ -489,6 +543,7 @@ def any_outside(results: Sequence[CaseResult]) -> bool:
     return any(r.swb_error for r in results) or any(
         (row.swb is not None and row.swb.outside)
         or (row.swb_ink is not None and row.swb_ink.outside)
+        or (row.swb_value is not None and row.swb_value.outside)
         for r in results
         for row in r.rows
     )
@@ -618,7 +673,12 @@ async def _run_query(page: Page, query: Query) -> list[Row]:
     """Runs one query. A failing selector or expression gives an error row."""
     try:
         if query.kind == "js":
-            return [Row("js", query.target, {"value": await page.evaluate(query.target)})]
+            value = await page.evaluate(query.target)
+            try:
+                json.dumps(value)
+            except TypeError as error:
+                raise ProbeError(f"the value is not JSON: {error}") from error
+            return [Row("js", query.target, {"value": value})]
         if query.kind == "ink":
             return await _ink_rows(page, query.target)
         if query.kind == "style":
@@ -661,17 +721,34 @@ async def probe_case(
 # --- swb -------------------------------------------------------------------
 
 
+@dataclass
+class SwbRun:
+    """What one swb run of a case produced."""
+
+    dump: BoxDump
+    image: Image.Image | None
+    """The full-page screenshot, if it was requested."""
+    stdout: list[str]
+    """The lines swb printed to stdout (the `--eval` answers)."""
+
+
 def run_swb(
-    binary: Path, page: Path, viewport: tuple[int, int], directory: Path, screenshot: bool = False
-) -> tuple[BoxDump, Image.Image | None]:
-    """Renders the page in swb and returns its box dump and, with
-    `screenshot`, its full-page screenshot. Raises `ProbeError` if swb
-    fails."""
+    binary: Path,
+    page: Path,
+    viewport: tuple[int, int],
+    directory: Path,
+    screenshot: bool = False,
+    extra: list[str] | None = None,
+) -> SwbRun:
+    """Renders the page in swb and returns its box dump, with `screenshot`
+    its full-page screenshot, and its stdout. `extra` are additional swb
+    options. Raises `ProbeError` if swb fails."""
     dump_path = directory / f"{page.stem}.swb-boxes.json"
     log_path = directory / f"{page.stem}.swb.log"
+    out_path = directory / f"{page.stem}.swb.out"
     shot_path = directory / f"{page.stem}.swb.png" if screenshot else None
-    command = swb.probe_command(binary, page.as_uri(), viewport, dump_path, shot_path)
-    status = swb.run(command, log_path)
+    command = swb.probe_command(binary, page.as_uri(), viewport, dump_path, shot_path, extra)
+    status = swb.run(command, log_path, out_path)
     if status != 0 or not dump_path.is_file():
         tail = log_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-3:]
         raise ProbeError(f"swb failed (exit {status}): {' | '.join(tail)}")
@@ -679,42 +756,129 @@ def run_swb(
     if shot_path is not None:
         with Image.open(shot_path) as shot:
             image = shot.convert("RGB")
-    return read_dump(dump_path), image
+    text = out_path.read_text(encoding="utf-8", errors="replace")
+    stdout = [line for line in text.splitlines() if line.strip()]
+    return SwbRun(read_dump(dump_path), image, stdout)
+
+
+# --- swb values of `js` queries ----------------------------------------------
+
+JS_OPTION = "--js"
+EVAL_OPTION = "--eval"
+_PLAYWRIGHT_PREFIX = "Page.evaluate: "
+
+
+def printed_error(message: str) -> str:
+    """The first line of Chromium's error message as the probe prints it,
+    without Playwright's `Page.evaluate: ` prefix."""
+    return message.removeprefix(_PLAYWRIGHT_PREFIX)
+
+
+def parse_swb_value(line: str) -> str:
+    """The printed form of one `--eval` answer: the line is `{"value": V}`
+    or `{"error": "MESSAGE"}` (docs/testing.md, "Probe Chromium behaviour").
+    A value is parsed (Python's JSON reader accepts `NaN`, `Infinity` and
+    `-Infinity`) and printed as the probe prints Chromium's, so that the
+    two compare as text. A line that does not follow the contract gives
+    `invalid answer: LINE`."""
+    try:
+        answer = json.loads(line)
+    except json.JSONDecodeError:
+        return f"invalid answer: {line}"
+    if isinstance(answer, dict) and set(answer) == {"value"}:
+        return json.dumps(answer["value"], ensure_ascii=False)
+    if isinstance(answer, dict) and set(answer) == {"error"} and isinstance(answer["error"], str):
+        return f"error: {printed_error(answer['error'])}"
+    return f"invalid answer: {line}"
+
+
+def attach_swb_values(result: CaseResult, answers: list[str]) -> None:
+    """Sets swb's value on each `js` row of the result, from the `--eval`
+    answer lines in order. Raises `ProbeError` if the number of answers is
+    wrong."""
+    rows = [row for row in result.rows if row.kind == "js"]
+    if len(answers) != len(rows):
+        raise ProbeError(f"swb printed {len(answers)} answers for {len(rows)} --eval expressions")
+    for row, answer in zip(rows, answers, strict=True):
+        text = parse_swb_value(answer)
+        if "error" in row.data:
+            chromium = f"error: {printed_error(row.data['error'])}"
+        else:
+            chromium = _values(row)
+        row.swb_value = SwbValue(text, outside=text != chromium)
+
+
+def mark_unsupported(result: CaseResult, kinds: Sequence[str]) -> None:
+    """Marks the rows of the given kinds: swb lacks an option they need."""
+    for row in result.rows:
+        if row.kind in kinds:
+            row.swb_unsupported = True
 
 
 # --- Running ---------------------------------------------------------------
 
 
-async def _new_zone_page(page: Page, case: Case) -> Page:
-    """A page in a new browser context whose time zone is that of the case
-    (the context is closed with the browser)."""
+async def _new_context_page(page: Page, case: Case) -> Page:
+    """A page in a new browser context with the time zone and the
+    JavaScript setting of the case (the context is closed with the
+    browser)."""
     chromium = page.context.browser
     if chromium is None:
         raise ProbeError("the page has no browser")
     try:
-        context = await browser.new_context(chromium, case.viewport, case.time_zone)
+        context = await browser.new_context(
+            chromium, case.viewport, case.time_zone, case.javascript
+        )
     except Exception as error:
         message = str(error).strip().splitlines()[0] if str(error).strip() else "failed"
         raise ProbeError(f"case {case.name!r}: time zone {case.time_zone!r}: {message}") from error
     return await context.new_page()
 
 
+def _compare_with_swb(
+    result: CaseResult,
+    case: Case,
+    binary: Path,
+    tolerance: float,
+    path: Path,
+    directory: Path,
+) -> None:
+    """Runs swb on the case and attaches its boxes, ink and values to the
+    result. A JavaScript case needs `--js` (and `--eval` for its `js`
+    queries); a swb without them has `not supported` lines instead."""
+    flags = swb.supported_flags(binary)
+    if case.javascript and JS_OPTION not in flags:
+        mark_unsupported(result, ("boxes", "js"))
+        return
+    evaluates = case.javascript and EVAL_OPTION in flags
+    extra = [JS_OPTION] if case.javascript else []
+    expressions = [query.target for query in case.queries if query.kind == "js"]
+    if evaluates:
+        extra += [f"{EVAL_OPTION}={expression}" for expression in expressions]
+    elif case.javascript:
+        mark_unsupported(result, ("js",))
+    wants_ink = any(query.kind == "ink" for query in case.queries)
+    try:
+        run = run_swb(binary, path, case.viewport, directory, wants_ink, extra)
+        attach_swb(result, run.dump, tolerance, run.image)
+        if evaluates:
+            attach_swb_values(result, run.stdout)
+    except ProbeError as error:
+        result.swb_error = str(error)
+
+
 async def _probe_all(
     cases: Sequence[Case], binary: Path | None, tolerance: float, page: Page, directory: Path
 ) -> list[CaseResult]:
     results = []
-    zone_pages = {None: page}
+    pages = {(None, False): page}
     for number, case in enumerate(cases, 1):
-        if case.time_zone not in zone_pages:
-            zone_pages[case.time_zone] = await _new_zone_page(page, case)
-        result, path = await probe_case(zone_pages[case.time_zone], directory, number, case)
+        key = (case.time_zone, case.javascript)
+        if key not in pages:
+            pages[key] = await _new_context_page(page, case)
+        result, path = await probe_case(pages[key], directory, number, case)
         if binary is not None:
-            wants_ink = any(query.kind == "ink" for query in case.queries)
-            try:
-                dump, shot = run_swb(binary, path, case.viewport, directory, wants_ink)
-                attach_swb(result, dump, tolerance, shot)
-            except ProbeError as error:
-                result.swb_error = str(error)
+            _compare_with_swb(result, case, binary, tolerance, path, directory)
         results.append(result)
     return results
 

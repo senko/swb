@@ -8,6 +8,7 @@ the same entry order, the same JSON formatting and the same body file names.
 import hashlib
 import json
 import os
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,8 @@ from typing import Any
 from swbtools.mime import extract_essence
 
 MANIFEST_FILE = "manifest.json"
+META_FILE = "fixture.json"
+REPLAY_PATTERNS_KEY = "replay_patterns"
 FILES_DIR = "files"
 MANIFEST_VERSION = 1
 STORED_HEADERS = ("content-type", "location")
@@ -154,6 +157,45 @@ def read_manifest(fixture: Path) -> list[Entry]:
     return parse_manifest((fixture / MANIFEST_FILE).read_text(encoding="utf-8"))
 
 
+def replay_patterns_of(data: object, source: Path) -> tuple[str, ...]:
+    """The `replay_patterns` of the parsed `fixture.json` from `source`
+    (empty if the key is missing). See `Fixture.lookup`."""
+    patterns = data.get(REPLAY_PATTERNS_KEY, []) if isinstance(data, dict) else []
+    if not isinstance(patterns, list) or not all(isinstance(p, str) for p in patterns):
+        raise ValueError(f"{source}: {REPLAY_PATTERNS_KEY} must be a list of strings")
+    return tuple(patterns)
+
+
+def read_replay_patterns(fixture: Path) -> tuple[str, ...]:
+    """Reads the `replay_patterns` of `fixture.json` (empty if the file or
+    the key is missing). A file that is not JSON is an error."""
+    path = fixture / META_FILE
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{path}: {error}") from error
+    return replay_patterns_of(data, path)
+
+
+def natural_key(url: str) -> tuple[tuple[int, int, str], ...]:
+    """A sort key that orders the digit runs of a URL by value: `/d/9/` is
+    before `/d/12/`."""
+    parts = re.split(r"(\d+)", url)
+    return tuple((1, int(part), "") if part.isdigit() else (0, 0, part) for part in parts)
+
+
+def pattern_regex(pattern: str) -> re.Pattern[str]:
+    """Compiles a replay pattern: a URL in which `*` matches one path
+    segment (one or more characters other than `/`, `?` and `#`). The rest
+    is literal and the whole URL must match."""
+    parts = (re.escape(part) for part in pattern.split("*"))
+    return re.compile("[^/?#]+".join(parts))
+
+
 def write_atomic(path: Path, data: bytes) -> None:
     """Writes a temporary file next to `path`, then renames it to `path`."""
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
@@ -183,6 +225,9 @@ class Fixture:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.entries: dict[tuple[str, str], Entry] = {}
+        self.replay_patterns = tuple(
+            (pattern, pattern_regex(pattern)) for pattern in read_replay_patterns(path)
+        )
         if (path / MANIFEST_FILE).exists():
             for entry in read_manifest(path):
                 self.entries.setdefault(entry.key, entry)
@@ -190,6 +235,32 @@ class Fixture:
     def get(self, url: str, method: str = "GET") -> Entry | None:
         """Returns the entry for a request URL (the fragment is ignored)."""
         return self.entries.get((entry_url(url), method.upper()))
+
+    def lookup(self, url: str, method: str = "GET") -> Entry | None:
+        """Returns the entry that replay serves for a request: the entry of
+        the URL or, if there is none, the entry of a recorded URL that
+        matches the same replay pattern as the request URL (the pattern's
+        `*` is one path segment; of several entries the one with the
+        greatest URL, comparing the numbers in it as numbers). It is for
+        pages that request a URL with a segment that changes with time. The
+        rule is in `fixture.json`:
+        `"replay_patterns": ["https://example.test/static/*/app.js"]`."""
+        exact = self.get(url, method)
+        if exact is not None or not self.replay_patterns:
+            return exact
+        wanted = entry_url(url)
+        method = method.upper()
+        for _, regex in self.replay_patterns:
+            if not regex.fullmatch(wanted):
+                continue
+            matching = [
+                entry
+                for entry in self.entries.values()
+                if entry.method == method and regex.fullmatch(entry.url)
+            ]
+            if matching:
+                return max(matching, key=lambda entry: natural_key(entry.url))
+        return None
 
     def read_body(self, entry: Entry) -> bytes:
         """Returns the body of an entry."""

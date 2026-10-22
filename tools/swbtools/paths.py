@@ -56,6 +56,19 @@ def js_fixture_dir(name: str) -> Path:
     return js_fixtures_dir() / name
 
 
+def js_reference_dir(name: str) -> Path:
+    """Returns `out/js-reference/NAME/`: Chromium's output with JavaScript on
+    for the JavaScript fixture `name` (local only, like the fixture)."""
+    if not name or "/" in name or name.startswith("."):
+        raise ValueError(f"invalid fixture name {name!r}")
+    return out_dir() / "js-reference" / name
+
+
+def js_scores_file() -> Path:
+    """Returns `out/js-scores.json`: the scores of `compare --js`."""
+    return out_dir() / "js-scores.json"
+
+
 def fonts_conf() -> Path:
     """Returns the fontconfig file with the bundled test fonts."""
     return fixtures_dir() / "fonts" / "fonts.conf"

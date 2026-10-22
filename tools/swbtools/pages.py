@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from swbtools import paths
-from swbtools.manifest import MANIFEST_FILE
+from swbtools.manifest import MANIFEST_FILE, META_FILE, REPLAY_PATTERNS_KEY, replay_patterns_of
 
-META_FILE = "fixture.json"
 REFERENCE_DIR = "reference"
 REFERENCE_BOXES = "boxes.json"
 REFERENCE_SCREENSHOT = "screenshot.png"
@@ -26,11 +25,14 @@ class FixtureMeta:
     """Chromium version used for the capture."""
     javascript: bool = False
     """True for a fixture in `fixtures/js/`: captured with JavaScript on."""
+    replay_patterns: tuple[str, ...] = ()
+    """URL patterns for requests that the fixture lacks (`Fixture.lookup`)."""
 
 
 def read_meta(fixture: Path) -> FixtureMeta:
     """Reads `fixture.json`."""
-    data = json.loads((fixture / META_FILE).read_text(encoding="utf-8"))
+    path = fixture / META_FILE
+    data = json.loads(path.read_text(encoding="utf-8"))
     width, height = data["viewport"]
     return FixtureMeta(
         url=data["url"],
@@ -38,6 +40,7 @@ def read_meta(fixture: Path) -> FixtureMeta:
         viewport=(int(width), int(height)),
         chromium=data.get("chromium", ""),
         javascript=bool(data.get("javascript", False)),
+        replay_patterns=replay_patterns_of(data, path),
     )
 
 
@@ -51,6 +54,8 @@ def write_meta(fixture: Path, meta: FixtureMeta) -> None:
     }
     if meta.javascript:
         data["javascript"] = True
+    if meta.replay_patterns:
+        data[REPLAY_PATTERNS_KEY] = list(meta.replay_patterns)
     text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
     (fixture / META_FILE).write_text(text, encoding="utf-8")
 

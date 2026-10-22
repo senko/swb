@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M8 feature 1, test tools with JavaScript on
+
+- `reference --js NAME` and `compare --js NAME` render the local
+  fixtures with JavaScript on (`fixtures/js/`). References go to
+  `out/js-reference/`, reports to `out/compare/js-NAME/`, scores to
+  `out/js-scores.json`; nothing of it is committed. The reference waits
+  for `load`, network idle (at most 15 s) and 1 s more, and does not
+  scroll. Three runs give the same boxes on the four M8 fixtures.
+- CORS in replay: the CDP `Fetch` domain pauses preflight requests, so
+  the routing answers them itself (204, permissive) in capture and
+  replay, and never sends them to the network. A response to a request
+  with an `Origin` header gets that origin and
+  `Access-Control-Allow-Credentials: true` instead of `*`, which
+  credentialed requests reject. The new survey of Ars Technica and both
+  Craigslist pages shows no CORS errors. The JS-off references do not
+  change (byte for byte).
+- Craigslist requests `manifest.js` with a version of
+  `floor(Date.now() / 300000)` in the path. Two fixes: `replay_patterns`
+  in `fixture.json` (one wildcard path segment; Python replay only for
+  now), and a fixed start time: the page's `Date` starts at the
+  fixture's capture time. Playwright's clock replaces the timers and
+  `requestAnimationFrame` with its own code, so an init script shifts
+  `Date` by a constant offset instead.
+- Probe option `"javascript": true`. With `--with-swb`, the `js` queries
+  of such cases also run in swb with `--eval EXPR`; docs/testing.md
+  defines the output (one JSON line per expression), which feature 4c
+  implements. Until swb has `--js` and `--eval`, the probe prints `not
+  supported` and does not fail. `compare --js` reads swb's flags from
+  `swb --help` and runs swb without JavaScript (with a warning) until
+  feature 2 adds `--js`.
+- Baseline of swb without JavaScript against Chromium with JavaScript
+  (geometry / pixels): senko-net 1.0000 / 0.9990, hacker-news 1.0000 /
+  0.9986, wikipedia-web-browser 0.1810 / 0.9735, craigslist-posting
+  0.0000 / 0.6897.
+- Next: feature 2, the JavaScript setting and the scripting flag.
+
 ## 2026-10-22: M8 step 2, ADR 0028 and the feature plan; new targets
 
 - The owner changed the targets: Ars Technica and BBC use JavaScript

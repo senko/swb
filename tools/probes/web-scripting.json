@@ -1,0 +1,27 @@
+{"viewport": [400, 200],
+ "javascript": true,
+ "cases": [
+   {"name": "scripting-media-on",
+    "html": "<!DOCTYPE html><style>#m { width: 10px; height: 10px } @media (scripting: enabled) { #m { width: 20px } } @media (scripting: none) { #m { width: 30px } }</style><div id=m></div>",
+    "measure": [
+      {"boxes": "#m"},
+      {"js": "matchMedia('(scripting)').matches"},
+      {"js": "matchMedia('(scripting: enabled)').matches"}
+    ]},
+   {"name": "scripting-media-off",
+    "javascript": false,
+    "html": "<!DOCTYPE html><style>#m { width: 10px; height: 10px } @media (scripting: enabled) { #m { width: 20px } } @media (scripting: none) { #m { width: 30px } }</style><div id=m></div>",
+    "measure": [
+      {"boxes": "#m"},
+      {"js": "matchMedia('(scripting)').matches"}
+    ]},
+   {"name": "script-changes-the-dom",
+    "html": "<!DOCTYPE html><style>#a { height: 10px; background: #ccc }</style><div id=a></div><script>document.getElementById('a').style.height = '40px'; document.title = 'done';</script>",
+    "measure": [
+      {"boxes": "#a"},
+      {"js": "document.title"},
+      {"js": "document.getElementById('a').style.height"},
+      {"js": "new Promise((resolve) => setTimeout(() => resolve('later'), 20))"},
+      {"js": "[undefined, NaN, -0, Infinity, 1.5, 'é']"}
+    ]}
+ ]}

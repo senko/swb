@@ -2290,14 +2290,26 @@ Steps:
       `capture --js`; a replay rule for a path segment that changes
       with time (Craigslist requests `/static/d/<version>/www/manifest.js`,
       and the version counts up; the local fixture holds 460 alias
-      entries for now); a fixed start time in Chromium (Playwright's
-      clock) for `compare --js`.
+      entries for now); a fixed start time in Chromium for `compare
+      --js`.
       Tests: `tools/tests/` for the new options, with a small local
       fixture.
       Exit: `reference --js` runs for the M8 fixtures (senko-net,
       hacker-news, wikipedia-web-browser, craigslist-posting) in
       Chromium; a new `js-survey` run shows no CORS failures in replay
       (the Ars Technica and Craigslist fixtures had them).
+      Done 2026-10-22. The `Fetch` domain pauses preflights, so the
+      routing answers them itself. The rule for the changing path
+      segment is `replay_patterns` in `fixture.json` (Python replay
+      only; swb's replay reads it in 10a). The page clock starts at
+      the capture time through an init script (a `Date` with a constant
+      offset), because Playwright's clock replaces the timers. Three
+      runs of `reference --js` give the same boxes on the four
+      fixtures; no CORS errors in the new survey of Ars Technica and
+      both Craigslist pages. Baseline of swb without JavaScript
+      (geometry / pixels): senko-net 1.0000 / 0.9990, hacker-news
+      1.0000 / 0.9986, wikipedia-web-browser 0.1810 / 0.9735,
+      craigslist-posting 0.0000 / 0.6897.
    2. The JavaScript setting and the scripting flag (`implementer`).
       Scope: `--js` on the command line, the session option and
       `page.setJavaScript` of the automation API, `page.info`
@@ -2396,12 +2408,13 @@ Steps:
         heap-limit stop with the drop of the runtime, finalization
         cleanup tasks, uncaught errors as `error` events at the window
         and console lines, `unhandledrejection`, the page clock with
-        real and virtual time, `--now`, `page.waitForIdle` (the event
-        loop until no task is due within a quiet time, or a time-out)
-        and the headless `--settle-ms`. Tests: order of tasks,
-        microtasks and timers against Chromium (probe cases that log an
-        order); hostile cases: endless loops in a script, a timer and a
-        microtask chain, `setInterval(0)`.
+        real and virtual time, `--now` (`compare --js` then passes the
+        fixture's capture time, as Chromium gets it),
+        `page.waitForIdle` (the event loop until no task is due within
+        a quiet time, or a time-out) and the headless `--settle-ms`.
+        Tests: order of tasks, microtasks and timers against Chromium
+        (probe cases that log an order); hostile cases: endless loops
+        in a script, a timer and a microtask chain, `setInterval(0)`.
       - 5c: script processing (ADR 0028 section 8): parser-blocking
         classic scripts with the pause and resume, inline scripts,
         style sheets that block scripts, `defer`, `async`, scripts
@@ -2538,11 +2551,13 @@ Steps:
       section 12).
       - 10a: credentials modes and the CORS check with preflights in
         `net` (more methods in `net::Method`); replay in swb that
-        answers preflights and reflects the origin; `fetch` with
-        `Request`, `Response`, `Headers`, `AbortController`,
-        `AbortSignal` (`timeout`, and the `signal` option of
-        `addEventListener`); at most 64 requests in flight per
-        document. Tests: a local HTTP test server (as the cookie tests
+        answers preflights and reflects the origin, as the Chromium
+        routing does, and reads `replay_patterns` from `fixture.json`
+        (then the alias entries of the local Craigslist fixture can
+        go); `fetch` with `Request`, `Response`, `Headers`,
+        `AbortController`, `AbortSignal` (`timeout`, and the `signal`
+        option of `addEventListener`); at most 64 requests in flight
+        per document. Tests: a local HTTP test server (as the cookie tests
         use) with CORS cases (simple, preflighted, credentialed,
         denied) whose outcomes match Chromium against the same server;
         hostile: thousands of pending fetches.

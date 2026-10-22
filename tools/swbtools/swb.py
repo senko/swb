@@ -4,10 +4,14 @@ All swb command lines are built here, so that a change of swb's flags needs
 a change in this file only.
 """
 
+import contextlib
 import logging
 import os
+import re
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
+from typing import IO
 
 from swbtools import paths
 
@@ -31,6 +35,32 @@ def find_swb(explicit: Path | None = None) -> Path | None:
         if candidate.is_file():
             return candidate
     return None
+
+
+_FLAGS_CACHE: dict[tuple[str, int, int], frozenset[str]] = {}
+
+
+def supported_flags(swb: Path) -> frozenset[str]:
+    """The long options that `swb --help` lists (for example `--js`), so
+    that the tools can use options that a swb build does not have yet. The
+    answer is cached per binary (path, size and modification time). An
+    unusable binary has no flags."""
+    try:
+        stat = swb.stat()
+    except OSError:
+        return frozenset()
+    key = (str(swb), stat.st_size, stat.st_mtime_ns)
+    if key not in _FLAGS_CACHE:
+        try:
+            result = subprocess.run(
+                [str(swb), "--help"], capture_output=True, text=True, timeout=30, check=False
+            )
+            text = result.stdout + result.stderr
+        except (OSError, subprocess.SubprocessError) as error:
+            log.warning("%s --help failed: %s", swb, error)
+            text = ""
+        _FLAGS_CACHE[key] = frozenset(re.findall(r"(?<![\w-])--[a-z][a-z0-9-]*", text))
+    return _FLAGS_CACHE[key]
 
 
 def record_command(swb: Path, fixture: Path, url: str) -> list[str]:
@@ -68,15 +98,18 @@ def replay_command(
     viewport: tuple[int, int],
     boxes: Path,
     screenshot: Path,
+    extra: list[str] | None = None,
 ) -> list[str]:
     """Command line that loads `url` from the fixture with the test fonts and
-    writes a box dump and a first-viewport screenshot."""
+    writes a box dump and a first-viewport screenshot. `extra` are
+    additional swb options, for example `--js`."""
     return [
         *_replay_options(swb, fixture, viewport),
         "--dump-boxes",
         str(boxes),
         "--screenshot",
         str(screenshot),
+        *(extra or []),
         url,
     ]
 
@@ -96,11 +129,17 @@ def full_page_command(
 
 
 def probe_command(
-    swb: Path, url: str, viewport: tuple[int, int], boxes: Path, screenshot: Path | None = None
+    swb: Path,
+    url: str,
+    viewport: tuple[int, int],
+    boxes: Path,
+    screenshot: Path | None = None,
+    extra: list[str] | None = None,
 ) -> list[str]:
     """Command line that loads `url` (a local file) with the test fonts and
     writes a box dump and, if `screenshot` is given, a full-page
-    screenshot. `probe` uses it."""
+    screenshot. `extra` are additional swb options (`--js`, `--eval EXPR`).
+    `probe` uses it."""
     width, height = viewport
     shot = ["--full-page", "--screenshot", str(screenshot)] if screenshot is not None else []
     return [
@@ -112,6 +151,7 @@ def probe_command(
         "--dump-boxes",
         str(boxes),
         *shot,
+        *(extra or []),
         url,
     ]
 
@@ -173,9 +213,10 @@ def bench_command(
     return [*_replay_options(swb, fixture, viewport), "--bench", str(runs), url]
 
 
-def run(command: list[str], log_file: Path | None = None) -> int:
+def run(command: list[str], log_file: Path | None = None, stdout_file: Path | None = None) -> int:
     """Runs swb and returns its exit status. stderr (swb's log) goes to
-    `log_file` if given, otherwise to this process's stderr."""
+    `log_file` if given, otherwise to this process's stderr. With
+    `stdout_file`, stdout goes there and only stderr goes to `log_file`."""
     log.info("running %s", " ".join(command))
     env = dict(os.environ)
     env.setdefault("RUST_LOG", "warn")
@@ -184,12 +225,12 @@ def run(command: list[str], log_file: Path | None = None) -> int:
             result = subprocess.run(command, env=env, timeout=SWB_TIMEOUT_S, check=False)
         else:
             log_file.parent.mkdir(parents=True, exist_ok=True)
-            with log_file.open("wb") as output:
+            with log_file.open("wb") as output, _stdout(stdout_file, output) as out:
                 result = subprocess.run(
                     command,
                     env=env,
-                    stdout=output,
-                    stderr=subprocess.STDOUT,
+                    stdout=out,
+                    stderr=output,
                     timeout=SWB_TIMEOUT_S,
                     check=False,
                 )
@@ -197,3 +238,14 @@ def run(command: list[str], log_file: Path | None = None) -> int:
         log.error("swb did not finish in %d s", SWB_TIMEOUT_S)
         return -1
     return result.returncode
+
+
+@contextlib.contextmanager
+def _stdout(stdout_file: Path | None, shared: IO[bytes]) -> Iterator[IO[bytes]]:
+    """The stdout target of `run`: `stdout_file` if given, else `shared` (the
+    log file, which also receives stderr)."""
+    if stdout_file is None:
+        yield shared
+        return
+    with stdout_file.open("wb") as handle:
+        yield handle

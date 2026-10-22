@@ -63,14 +63,16 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just capture-missing NAME`  | `capture-missing NAME`                 | Adds only the responses that the fixture does not have. |
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
+| `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
+| `just compare --js NAME...`  | `compare --js NAME...`                 | Runs swb with JavaScript on over `fixtures/js/NAME` and compares with `out/js-reference/NAME/` (see "Compare with JavaScript on"). |
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
-| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values (see "Probe Chromium behaviour"). |
+| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values; cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
 | `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json`; `--parse-only` runs only the front end over `test/language/`, `test/built-ins/` and `test/annexB/` against `parse-scores.json` (see "JavaScript engine tools"). |
 | `just jsdiff FILE...`        | `jsdiff FILE...`                       | Runs files in `swb-js` and in Node.js and diffs stdout and the uncaught error. |
@@ -109,6 +111,10 @@ Options:
   that contains a space or one of `#>[]:*()'"` needs a second level of
   quotes: `just compare bbc --click "'details > summary'"`,
   `just compare bbc --click "'#menu'"`.
+- `reference --js`, `compare --js`: the fixtures of `fixtures/js/` with
+  JavaScript on (`--all` means all of them). `compare --js` writes
+  `out/compare/js-NAME/`, and `--update-scores` writes `out/js-scores.json`,
+  never `fixtures/scores.json`. Not allowed with `--full-page` or `--click`.
 - `compare --full-page`: also take full-page screenshots in both browsers and
   compare them (score, differing regions).
 - `compare --click SELECTOR` (repeatable, applied in order): compare the page
@@ -154,6 +160,24 @@ this against the expected file of the Rust test `manifest_format_is_exact`.
 - `captured`: capture time, UTC, ISO 8601.
 - `viewport`: viewport size in CSS px.
 - `chromium`: the Chromium version used for the capture.
+- `javascript` (optional): `true` for a fixture in `fixtures/js/`.
+- `replay_patterns` (optional, a list of strings): URL patterns for requests
+  that the fixture lacks. In Python replay, a request that is not in the
+  manifest and matches a pattern gets the response of a recorded URL that
+  matches the same pattern. `*` matches one path segment (one or more
+  characters other than `/`, `?` and `#`), the rest is literal, the whole URL
+  must match, and the method must be the same. Of several recorded URLs
+  the one with the greatest URL gets served, with numbers compared as
+  numbers. Use it for a segment that changes with time. Example: Craigslist
+  requests `https://www.craigslist.org/static/d/<N>/www/manifest.js` with
+  `N = floor(Date.now() / 300000)`, and the local `craigslist-posting`
+  fixture has `"replay_patterns":
+  ["https://www.craigslist.org/static/d/*/www/manifest.js"]`. The rule
+  applies to `reference --js`, `js-survey` and the other Chromium replays
+  (`Fixture.lookup`), not to `capture` (which needs exact matches to record).
+  **swb's Rust replay does not read `replay_patterns` yet**; until it does,
+  swb needs one manifest entry per URL (the fixture has 460 alias entries
+  for `manifest.js`; do not delete them).
 
 ### Box dump
 
@@ -268,8 +292,10 @@ settings (`tools/swbtools/browser.py`):
   device scale factor 1.
 - JavaScript disabled (`java_script_enabled=False`). swb does not run
   JavaScript. Playwright's `evaluate` still works: the tools use it to read
-  boxes and to scroll. Only `capture --js` and `js-survey` turn JavaScript
-  on (`new_context(javascript=True)`).
+  boxes and to scroll. Only `capture --js`, `js-survey`, `reference --js`
+  and the probe cases with `"javascript": true` turn JavaScript on
+  (`new_context(javascript=True)`). `reference --js` also fixes the start
+  time of the page clock (see "Compare with JavaScript on").
 - Locale `en-US`, `prefers-color-scheme: light`,
   `prefers-reduced-motion: no-preference`, service workers blocked.
   Playwright's headless defaults give `hover: hover` and `pointer: fine`,
@@ -344,13 +370,37 @@ redirect target from the network. With `Fetch`, every hop pauses, so the
 tools record each hop and serve each hop from the fixture.
 
 Chromium gets the same response headers in capture and in replay: the
-stored headers (`content-type`, `location`) and
-`Access-Control-Allow-Origin: *`. The fixture does not store CORS headers;
-without this header Chromium would block cross-origin fonts. swb does not
-check CORS.
+stored headers (`content-type`, `location`) and CORS headers. The fixture
+does not store CORS headers, and swb's replay is to add the same ones
+(ADR 0028 section 12). Without them Chromium would block cross-origin fonts
+and requests from scripts.
 
-In replay, a request for a URL that is not in the fixture fails, and the
-tool logs the URL.
+- A request without an `Origin` header (a request in `no-cors` mode: images,
+  classic scripts, stylesheets) gets `Access-Control-Allow-Origin: *`.
+- A request with an `Origin` header (a CORS-mode request: web fonts,
+  `fetch`, `XMLHttpRequest`, `crossorigin` elements) gets
+  `Access-Control-Allow-Origin: <that origin>`,
+  `Access-Control-Allow-Credentials: true`, `Vary: Origin` and
+  `Access-Control-Expose-Headers` with the names of the stored headers.
+  `*` would fail a request with the `include` credentials mode.
+- A CORS preflight (`OPTIONS` with `Access-Control-Request-Method`) is
+  answered by the tool with `204`, in replay and in capture: it is never
+  fetched from the network and never recorded. The answer allows the
+  requested origin (with credentials), method and headers.
+
+**The `Fetch` domain pauses preflights.** Measured with Chromium 148 and a
+page at `https://a.test/` (all `.test` names never resolve, so a request that
+escaped the interception would fail) that runs
+`fetch('https://b.test/data', {credentials: 'include', headers: {'X-Custom':
+'1'}})`: `Fetch.requestPaused` fires for the document, then for
+`OPTIONS https://b.test/data` (resource type `XHR`, with `Origin`,
+`Access-Control-Request-Method: GET` and `Access-Control-Request-Headers:
+x-custom`), then for the `GET`. Answering the `OPTIONS` with
+`Fetch.fulfillRequest` (204) lets the `GET` proceed; the page gets the body.
+So no other mechanism is needed.
+
+In replay, a request for a URL that is not in the fixture (and that no
+`replay_patterns` rule serves) fails, and the tool logs the URL.
 
 ## Workflows
 
@@ -404,7 +454,11 @@ above, with these differences:
   `warning`) lists the requests that were still pending.
 - The recording has the responses of one run. Scripts that request URLs with
   random or time-based parts (timestamps, session ids) get other URLs in
-  replay, and replay fails them.
+  replay, and replay fails them. A segment that counts up with time can be
+  served by a `replay_patterns` rule of `fixture.json` (see "Page fixture").
+- Cross-origin requests from scripts work in the capture and in the replay:
+  the tool answers CORS preflights itself and reflects the request's
+  origin (see "Request interception").
 
 ### Survey the scripts of a page
 
@@ -624,6 +678,77 @@ When a change improves the scores, run `just update-scores` and commit
 `fixtures/scores.json` with the change. The tool logs every score that goes
 down. Scores only go up unless the commit message explains why.
 
+### Compare with JavaScript on
+
+`reference --js NAME...` and `compare --js NAME...` do for the fixtures of
+`fixtures/js/` (local only, see "Capture with JavaScript on") what
+`reference` and `compare` do for `fixtures/pages/`: Chromium with JavaScript
+on renders the replay, swb renders the same replay, and the tool scores swb
+against Chromium. The references are not committed. They are in
+`out/js-reference/NAME/` (`boxes.json`, `screenshot.png`), and the scores are
+in `out/js-scores.json` (`compare --js --update-scores`; never
+`fixtures/scores.json`). `compare --js` writes `out/compare/js-NAME/`; the
+report and the scoring are the same as for the other fixtures (tolerance,
+threshold, first viewport), and the summary line starts with `js-NAME`.
+`--full-page` and `--click` do not work with `--js` yet.
+
+**Chromium side** (`reference --js`; `tools/swbtools/reference.py`). Test
+settings (fonts, viewport from `fixture.json`, no animations, caret hidden),
+JavaScript on, every request answered from the fixture (CORS answers,
+`replay_patterns`; see "Request interception" and "Page fixture"). The tool
+logs the requests that the fixture lacks and the console errors and uncaught
+exceptions of the page. The page is done when:
+
+1. the `load` event has fired;
+2. the network has been idle for 500 ms, waiting at most 15 s (a warning
+   says if the cap was reached);
+3. 1 s has passed (`JS_SETTLE_MS`), for timers and layout that scripts start
+   late;
+4. the web fonts have loaded and CSS animations and transitions are off.
+
+The page is not scrolled: scripts react to scrolling (sticky headers, lazy
+content), and swb does not scroll either. Then the tool writes the box dump
+and the first-viewport screenshot. Measured on 2026-10-22 with the four M8
+fixtures (senko-net, hacker-news, wikipedia-web-browser, craigslist-posting),
+three runs each, the last from empty output: the box dumps are
+byte-identical (65, 821, 4169 and 283 elements) and the screenshots are
+identical (pixel score 1.0000).
+
+**Start time.** Both browsers must see the same `Date`, or the pages differ
+by the date (Craigslist shows the posting age, and requests `manifest.js`
+with a number from the clock). The page clock of `reference --js` starts at
+the `captured` time of `fixture.json` and then runs at real speed:
+`Date.now()` is the real time plus a constant offset
+(`browser.fix_start_time`, an init script that wraps `Date` in a `Proxy`).
+Playwright's `page.clock` is not used. Measured with Chromium 148
+(`clock.install`, `clock.set_fixed_time` and a plain page, checking the
+timer functions, `Date`, `performance.now` and `requestAnimationFrame` over
+300 ms): `install` replaces `setTimeout` and the other timer functions,
+`requestAnimationFrame`, `Date` and `Date.prototype.constructor` with
+JavaScript implementations (`setTimeout.toString()` shows the wrapper) that
+run the timers on Playwright's fake clock; `set_fixed_time` replaces `Date` the
+same way and freezes it (`Date.now()` does not advance in 300 ms, so
+elapsed-time code sees 0). The order of the timer callbacks stayed the same
+in the test, but the page cannot tell that for all its timers, so the tool
+changes only `Date`. The wrapper keeps the statics, the prototype,
+`instanceof`, subclassing and `Date.prototype.constructor === Date`
+(`tools/tests/test_js_tools.py`). Not covered: `Intl.DateTimeFormat().format()`
+without an argument, `Temporal`, and `performance.timeOrigin`. When swb gets
+`--now` (M8 feature 5b), `compare --js` passes the same `captured` time to
+swb; it does not pass it now.
+
+**swb side** (`compare --js`). `swb --help` lists the supported options (the
+result is cached per binary, `swb.supported_flags`). With `--js` in the help,
+the tool passes `--js` to swb. Without it (before M8 feature 2), the tool
+prints a warning, runs swb without JavaScript, and appends
+`(swb ran without JavaScript: no --js option)` to the summary line, so the
+scores of such a run are a baseline of the JavaScript-off swb against the
+JavaScript-on Chromium.
+
+Baseline of 2026-10-22 (swb without `--js`; geometry, pixels):
+senko-net 1.0000, 0.9990; hacker-news 1.0000, 0.9986;
+wikipedia-web-browser 0.1810, 0.9735; craigslist-posting 0.0000, 0.6897.
+
 ### Add a layout test
 
 1. Write `tests/layout/<name>.html`: one feature, a `<!DOCTYPE html>`, a
@@ -758,6 +883,14 @@ temporary directory, loaded by navigation.
   set it. Chromium gets it as the `timezone_id` of the browser context;
   the cases of a zone share one context (`tools/probes/js-date.json`
   runs in seven zones).
+- `javascript` (file and case, optional): `true` runs the scripts of the
+  page (default `false`). The case runs in a Chromium context with JavaScript
+  on; the contexts are keyed by time zone and this flag. The queries run
+  after the `load` event and the web fonts; a script that works later needs
+  a `js` query that waits (a returned promise is awaited). `@media
+  (scripting)` matches. The clock is not fixed: a case must not depend on
+  the date. Without the flag, scripts do not run and `js` queries only read
+  the DOM that the HTML made.
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -783,9 +916,72 @@ full-page screenshot, and the probe computes swb's ink and bounding box
 in Chromium's border box of the element: a line `swb ink=.. bbox=..
 dink=..` follows, with `!` if the ink differs by more than 5 % (at
 least 2) or an edge of the bounding box by more than the tolerance.
-`rects`, `style` and `js` are Chromium only.
+`rects` and `style` are Chromium only, and so is `js` in a case without
+`"javascript": true`.
 Exit status 1 if a compared box is outside the tolerance, a tag differs, or
 swb fails; so `just probe --with-swb FILE` works as a quick check.
+
+**JavaScript cases with `--with-swb`.** swb runs the case with `--js`. A swb
+without `--js` does not run the case at all: the probe prints `not supported`
+for each swb line of the case (`boxes` and `js` rows), and this is not a
+failure (exit status 0 if nothing else differs). The `js` queries of the case
+also go to swb, as `--eval=EXPR` (one argument per query, in the order of the
+queries; the `=` form keeps an expression that starts with `-`, such as `-0`,
+from being read as an option), and the probe prints swb's value under the Chromium line, with `!` and exit
+status 1 if the printed values differ. A swb with `--js` but without
+`--eval` prints `not supported` for the `js` rows only.
+
+```
+case  js     document.title  "done"
+case  swb    document.title  "done"
+case  js     1 + 1  2
+case  swb    1 + 1  3  !
+```
+
+**The `--eval` contract** (what M8 feature 4c implements; ADR 0028
+section 17). `swb --headless --js [--eval=EXPR]... URL`. swb must accept the
+`--eval=EXPR` form with any EXPR, also one that starts with `-`. Directly
+after the page's `load` event (Chromium's probe evaluates when navigation
+returns at `load`, with no settle time; tasks that are due later, such as
+timers, may not have run, so a case that needs them waits in the expression
+with a promise), swb evaluates each EXPR in order as a classic script in the
+global scope of the page (the value is that of the last expression
+statement, as for Chromium's `Runtime.evaluate`; the evaluation is not in a
+function), and, if the result is a promise, waits for it (as `await`: a
+settled promise gives its value, a rejected one gives an error). It prints
+exactly one line to stdout per EXPR, in order, and nothing else to stdout
+(logs go to stderr):
+
+- `{"value": V}` for a value, or
+- `{"error": "NAME: message"}` for a thrown value (or a rejected promise).
+  The probe compares the text after removing Playwright's `Page.evaluate: `
+  prefix from Chromium's message, so `TypeError: x is not a function` must
+  be the same in both; other thrown values (not an `Error`) are not
+  specified.
+
+An `error` answer does not change swb's exit status. If the page does not
+load, swb prints no lines and exits with a status other than 0. The probe
+reads stdout after swb exits, so buffering does not matter.
+
+V is JSON text for the same domain that the probe prints for Chromium:
+`undefined` and `null` are `null`; `true`, `false`; a string with JSON
+escapes (non-ASCII characters may be literal); an array (a hole or an
+`undefined` element is `null`); a plain object (keys in the order of
+`Object.keys`: integer keys ascending, then insertion order). Numbers are
+the shortest round-trip decimal as `Number.prototype.toString` prints them
+(`1`, `1.5`, `1e+21`), with these forms outside JSON: `NaN`, `Infinity`,
+`-Infinity`, and `-0.0` for negative zero. The probe reads the line with
+Python's JSON reader, which accepts these tokens, and prints the value in
+its own form, so spacing and key quoting do not matter. The Chromium side
+prints (Playwright's serialization): `undefined` as `null`, `NaN`,
+`Infinity`, `-Infinity`, `-0` as `-0.0`, `1e21` as `1e+21`, a BigInt as an
+integer, a function as `1` (measured), a symbol as `null`, a `Map` as `{}`;
+a `Date` or an `Error` object gives an `error: the value is not JSON` row.
+Queries must therefore return primitives, arrays and plain objects of these (convert other values in the expression: `String(x)`,
+`JSON.stringify(x)`, `[...map]`); values outside this domain are not
+compared. A line that does not follow the contract is printed as `invalid
+answer: LINE` and counts as a difference, and so does a wrong number of
+lines (`swb printed N answers for M --eval expressions`).
 
 Case files that other people should reuse go in `tools/probes/`
 (`example.json` shows the format). Scratch case files can live anywhere.

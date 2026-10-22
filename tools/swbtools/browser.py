@@ -9,6 +9,7 @@ import os
 import tempfile
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
+from datetime import datetime
 from html import escape
 from pathlib import Path
 
@@ -120,20 +121,60 @@ async def new_context(
     )
 
 
+# Starts the page clock at a fixed time. The clock runs on from there at real
+# speed: `Date.now()` is the real time plus a constant offset. The wrapper
+# is a Proxy of the real `Date`, so statics, the prototype and `instanceof`
+# work as before. Not covered: `Intl.DateTimeFormat().format()` without an
+# argument, `Temporal` and workers. Each document computes its own offset, so
+# a frame that loads later than its parent also starts at the fixed time.
+# Playwright's `clock.install` is not used: it replaces the timer functions,
+# `requestAnimationFrame`, `performance` and `Date.prototype.constructor` with
+# its own implementations (measured in docs/testing.md, "Fixed start time").
+_FIXED_START_JS = """
+(() => {
+  const RealDate = Date;
+  const offset = %d - RealDate.now();
+  const now = () => RealDate.now() + offset;
+  const FakeDate = new Proxy(RealDate, {
+    construct(target, args, newTarget) {
+      const target2 = newTarget === FakeDate ? target : newTarget;
+      return Reflect.construct(target, args.length === 0 ? [now()] : args, target2);
+    },
+    apply() { return new RealDate(now()).toString(); },
+    get(target, property) { return property === 'now' ? now : Reflect.get(target, property); },
+  });
+  Object.defineProperty(RealDate.prototype, 'constructor',
+    { value: FakeDate, writable: true, configurable: true });
+  Object.defineProperty(window, 'Date',
+    { value: FakeDate, writable: true, configurable: true });
+})();
+"""
+
+
+async def fix_start_time(context: BrowserContext, start: datetime) -> None:
+    """Makes the page clock of every document in the context start at
+    `start` (see `_FIXED_START_JS`)."""
+    milliseconds = int(start.timestamp() * 1000)
+    await context.add_init_script(_FIXED_START_JS % milliseconds)
+
+
 @asynccontextmanager
 async def session(
     viewport: tuple[int, int],
     system_fonts: bool = False,
     javascript: bool = False,
     extra_args: Sequence[str] = (),
+    start_time: datetime | None = None,
 ) -> AsyncIterator[tuple[Browser, BrowserContext, Page]]:
     """Starts Chromium with the test settings and yields the browser, a
     context with `viewport` and a new page. Closes Chromium on exit, also
-    when the body fails."""
+    when the body fails. With `start_time`, the page clock starts then."""
     async with async_playwright() as playwright:
         chromium = await launch(playwright, system_fonts, extra_args)
         try:
             context = await new_context(chromium, viewport, javascript=javascript)
+            if start_time is not None:
+                await fix_start_time(context, start_time)
             yield chromium, context, await context.new_page()
         finally:
             await chromium.close()

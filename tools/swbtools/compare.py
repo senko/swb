@@ -6,6 +6,9 @@ diff image, swb's log and `report.html`.
 Two options extend the comparison (docs/testing.md, "Compare swb with
 Chromium"):
 
+- `--js` compares a JavaScript fixture (`fixtures/js/NAME`) with Chromium's
+  JavaScript-on output in `out/js-reference/NAME/`; the output is in
+  `out/compare/js-NAME/` ("Compare with JavaScript on" in docs/testing.md).
 - `--full-page` adds Chromium's and swb's full-page screenshots, a
   full-page pixel score and the list of differing regions.
 - `--click SELECTOR` compares the page after clicks. Chromium's boxes and
@@ -63,6 +66,8 @@ class Options:
     full_page: bool = False
     clicks: tuple[str, ...] = ()
     """Selectors to click, in order, in both browsers."""
+    javascript: bool = False
+    """Compare a fixture of `fixtures/js/` with JavaScript on."""
 
 
 def state_suffix(clicks: tuple[str, ...]) -> str:
@@ -83,16 +88,55 @@ def named(file: str, suffix: str) -> str:
     return f"{stem}{suffix}{dot}{extension}"
 
 
-def output_dir(name: str) -> Path:
-    """Returns `out/compare/<name>/`."""
-    return paths.out_dir() / "compare" / name
+def output_dir(name: str, javascript: bool = False) -> Path:
+    """Returns `out/compare/<name>/`, or `out/compare/js-<name>/` for a
+    JavaScript fixture."""
+    return paths.out_dir() / "compare" / (f"js-{name}" if javascript else name)
 
 
-def run_swb(name: str, swb_binary: Path, output: Path, full_page: bool = False) -> bool:
+def fixture_path(name: str, javascript: bool = False) -> Path:
+    """Returns the directory of a page fixture or JavaScript fixture."""
+    return paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
+
+
+def reference_path(name: str, javascript: bool = False) -> Path:
+    """Returns the directory of Chromium's reference output."""
+    if javascript:
+        return paths.js_reference_dir(name)
+    return paths.fixture_dir(name) / REFERENCE_DIR
+
+
+JS_FLAG = "--js"
+_WARNED: set[Path] = set()
+
+
+def swb_js_options(swb_binary: Path, javascript: bool) -> tuple[list[str], bool]:
+    """Returns the swb options for JavaScript, and whether the run has
+    JavaScript on. A swb without `--js` (before feature 2 of M8) runs
+    without it, with a warning."""
+    if not javascript:
+        return [], False
+    if JS_FLAG in swb.supported_flags(swb_binary):
+        return [JS_FLAG], True
+    if swb_binary not in _WARNED:
+        _WARNED.add(swb_binary)
+        log.warning("%s has no %s option: swb runs without JavaScript", swb_binary, JS_FLAG)
+    return [], False
+
+
+def run_swb(
+    name: str,
+    swb_binary: Path,
+    output: Path,
+    full_page: bool = False,
+    javascript: bool = False,
+) -> bool:
     """Runs swb on the fixture. Returns True if it wrote a box dump. With
-    `full_page`, a second run writes the full-page screenshot."""
-    fixture = paths.fixture_dir(name)
+    `full_page`, a second run writes the full-page screenshot. With
+    `javascript`, swb gets `--js` if it has the option."""
+    fixture = fixture_path(name, javascript)
     meta = read_meta(fixture)
+    extra, _ = swb_js_options(swb_binary, javascript)
     for stale in (SWB_BOXES, SWB_SCREENSHOT, SWB_FULL_PAGE):
         (output / stale).unlink(missing_ok=True)
     command = swb.replay_command(
@@ -102,6 +146,7 @@ def run_swb(name: str, swb_binary: Path, output: Path, full_page: bool = False) 
         meta.viewport,
         output / SWB_BOXES,
         output / SWB_SCREENSHOT,
+        extra,
     )
     status = swb.run(command, log_file=output / SWB_LOG)
     if status != 0:
@@ -122,7 +167,7 @@ def run_swb(name: str, swb_binary: Path, output: Path, full_page: bool = False) 
 def run_swb_state(name: str, swb_binary: Path, output: Path, options: Options, suffix: str) -> bool:
     """Runs swb through the automation API: load, click, then write the box
     dump and the screenshots of the state. Returns True on success."""
-    fixture = paths.fixture_dir(name)
+    fixture = fixture_path(name)
     meta = read_meta(fixture)
     files = [named(f, suffix) for f in (SWB_BOXES, SWB_SCREENSHOT, SWB_FULL_PAGE)]
     for stale in files:
@@ -153,7 +198,7 @@ def run_chromium_state(name: str, output: Path, options: Options, suffix: str) -
     """Captures the live Chromium output of a run: the boxes, the viewport
     screenshot of a state and the full-page screenshot. Returns True on
     success."""
-    fixture = paths.fixture_dir(name)
+    fixture = fixture_path(name)
     meta = read_meta(fixture)
     live = LiveOutput(
         boxes=output / named(REFERENCE_LIVE_BOXES, suffix),
@@ -182,22 +227,31 @@ def compare_fixture(
     """Compares one fixture. With `swb_binary=None`, uses the output that is
     already in the output directory (swb's and, for `--full-page` and
     `--click`, Chromium's). Returns None on failure."""
-    fixture = paths.fixture_dir(name)
-    reference_dir = fixture / REFERENCE_DIR
     options = options or Options()
+    js = options.javascript
+    fixture = fixture_path(name, js)
+    reference_dir = reference_path(name, js)
     suffix = state_suffix(options.clicks)
+    if js and (options.full_page or options.clicks):
+        log.error("%s: --js does not work with --full-page or --click", name)
+        return None
     if not (fixture / META_FILE).is_file():
         log.error("%s: %s does not exist; capture the fixture first", name, fixture / META_FILE)
         return None
     # A state is compared with a live capture; only the plain run needs the
     # committed reference.
     if not options.clicks and not (reference_dir / REFERENCE_BOXES).is_file():
-        log.error("%s: no reference; run `swbtools reference %s`", name, name)
+        log.error(
+            "%s: no reference; run `swbtools reference %s%s`", name, "--js " if js else "", name
+        )
         return None
-    output = output_dir(name)
+    output = output_dir(name, js)
     output.mkdir(parents=True, exist_ok=True)
-    if swb_binary is not None and not run_outputs(name, swb_binary, output, options, suffix):
-        return None
+    swb_has_js = True
+    if swb_binary is not None:
+        swb_has_js = swb_js_options(swb_binary, js)[1] if js else True
+        if not run_outputs(name, swb_binary, output, options, suffix):
+            return None
     swb_boxes = output / named(SWB_BOXES, suffix)
     if not swb_boxes.is_file():
         log.error("%s: %s does not exist", name, swb_boxes)
@@ -253,7 +307,16 @@ def compare_fixture(
         full_page_images=full_images,
         clicks=options.clicks,
     )
-    print(summary_line(name, scores, comparison.alignment.identical, report, full_page))
+    print(
+        summary_line(
+            f"js-{name}" if js else name,
+            scores,
+            comparison.alignment.identical,
+            report,
+            full_page,
+            swb_without_js=js and not swb_has_js,
+        )
+    )
     return scores
 
 
@@ -263,7 +326,7 @@ def run_outputs(name: str, swb_binary: Path, output: Path, options: Options, suf
         return run_swb_state(name, swb_binary, output, options, suffix) and run_chromium_state(
             name, output, options, suffix
         )
-    if not run_swb(name, swb_binary, output, options.full_page):
+    if not run_swb(name, swb_binary, output, options.full_page, options.javascript):
         return False
     return not options.full_page or run_chromium_state(name, output, options, suffix)
 
@@ -290,12 +353,16 @@ def summary_line(
     identical: bool,
     report: Path,
     full_page: FullPage | None = None,
+    swb_without_js: bool = False,
 ) -> str:
     """One line with the scores of a fixture. With `full_page`, it adds the
     full-page score, the number of differing regions and, if the sizes
-    differ, both sizes."""
+    differ, both sizes. `swb_without_js` says that a `--js` comparison ran
+    swb without JavaScript (the binary has no `--js`)."""
     pixels = "n/a" if scores.pixels is None else f"{scores.pixels:.4f}"
     tags = "" if identical else " (tag sequences differ)"
+    if swb_without_js:
+        tags += " (swb ran without JavaScript: no --js option)"
     full = ""
     if full_page is not None:
         full = f" fullpage {full_page.score:.4f} regions {len(full_page.regions)}"

@@ -24,7 +24,7 @@ from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
 from swbtools.probe import DEFAULT_TOLERANCE as PROBE_TOLERANCE
 from swbtools.probe import probe
-from swbtools.reference import reference
+from swbtools.reference import reference, reference_js
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
 from swbtools.substitute import substitute
 
@@ -32,9 +32,10 @@ log = logging.getLogger("swbtools")
 
 
 def _names(args: argparse.Namespace) -> list[str] | None:
-    """The fixture names from `NAME...` and `--all`; None if neither is given."""
+    """The fixture names from `NAME...` and `--all`; None if neither is given.
+    With `--js`, `--all` means the fixtures of `fixtures/js/`."""
     if args.all:
-        return list_fixtures()
+        return list_js_fixtures() if getattr(args, "js", False) else list_fixtures()
     return args.names or None
 
 
@@ -53,6 +54,8 @@ def cmd_reference(args: argparse.Namespace) -> int:
     if names is None:
         log.error("give fixture names or --all")
         return 2
+    if args.js:
+        return reference_js(names, args.system_fonts)
     return reference(names, args.system_fonts)
 
 
@@ -61,7 +64,10 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if names is None:
         log.error("give fixture names or --all")
         return 2
-    options = Options(full_page=args.full_page, clicks=tuple(args.click))
+    options = Options(full_page=args.full_page, clicks=tuple(args.click), javascript=args.js)
+    if args.js and (options.full_page or options.clicks):
+        log.error("--js does not work with --full-page or --click")
+        return 2
     if args.update_scores and (options.full_page or options.clicks):
         log.error("--update-scores works only with the plain comparison")
         return 2
@@ -80,7 +86,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         else:
             results[name] = scores
     if args.update_scores and results:
-        update_scores(paths.scores_file(), results)
+        update_scores(paths.js_scores_file() if args.js else paths.scores_file(), results)
     return 1 if failed else 0
 
 
@@ -210,6 +216,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("names", nargs="*", metavar="NAME")
     p.add_argument("--all", action="store_true", help="all fixtures in fixtures/pages")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
+    p.add_argument(
+        "--js",
+        action="store_true",
+        help="JavaScript on: the fixtures of fixtures/js (local only); the output goes to "
+        "out/js-reference/NAME/ and --all means all of them",
+    )
     p.set_defaults(func=cmd_reference)
 
     p = commands.add_parser("compare", help="run swb on fixtures and compare with Chromium")
@@ -232,7 +244,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"maximum channel difference for equal pixels (default {DEFAULT_THRESHOLD})",
     )
     p.add_argument(
-        "--update-scores", action="store_true", help="write the scores to fixtures/scores.json"
+        "--update-scores",
+        action="store_true",
+        help="write the scores to fixtures/scores.json (with --js: out/js-scores.json)",
+    )
+    p.add_argument(
+        "--js",
+        action="store_true",
+        help="compare the fixtures of fixtures/js with Chromium's JavaScript-on output in "
+        "out/js-reference (`reference --js`); swb gets --js if it has the option; the output "
+        "is in out/compare/js-NAME",
     )
     p.add_argument(
         "--full-page",
