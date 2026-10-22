@@ -271,8 +271,7 @@ impl Runtime {
                 let Some(unit) = self.heap.text(string)?.get(index as usize) else {
                     return Ok(None);
                 };
-                let one = swb_js_text::String16::from_units(&[unit]);
-                Ok(Some(Value::String(self.heap.alloc_string(one)?)))
+                Ok(Some(Value::String(self.heap.unit_string(unit)?)))
             }
             PropertyKey::String(name) if name == self.heap.length_atom() => {
                 Ok(Some(Value::number(len as f64)))

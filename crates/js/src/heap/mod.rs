@@ -126,6 +126,9 @@ pub(crate) struct Arenas {
 /// The atoms that the engine itself uses; always alive.
 pub(crate) struct Names {
     pub(crate) length: Gc<JsString>,
+    /// The atoms of one code unit below 256, made at their first use and
+    /// kept alive (`Heap::unit_string`).
+    pub(crate) units: Box<[Option<Gc<JsString>>; 256]>,
 }
 
 /// The JavaScript heap of one runtime.
@@ -198,7 +201,10 @@ impl Heap {
             transitions: HandleMap::default(),
             roots: roots::HeapRoots::default(),
             weak_roots: weak_roots::WeakRoots::default(),
-            names: Names { length },
+            names: Names {
+                length,
+                units: Box::new([None; 256]),
+            },
             watch_epoch: 0,
             config,
             live_bytes: 0,
@@ -608,6 +614,24 @@ impl Heap {
             PropertyKey::String(atom) => Value::String(atom),
             PropertyKey::Symbol(symbol) => Value::Symbol(symbol),
         })
+    }
+
+    /// The string of one code unit. A unit below 256 gives the atom of
+    /// that text, one per heap and kept alive, so that code which makes
+    /// strings of one unit (`s[i]`, `charAt`, `split`, iteration) allocates
+    /// nothing. Any other unit gives a new string; the caller records it.
+    pub fn unit_string(&mut self, unit: u16) -> Result<Gc<JsString>> {
+        let Some(&cached) = self.names.units.get(usize::from(unit)) else {
+            return self.alloc_string(String16::from_units(&[unit]));
+        };
+        if let Some(string) = cached {
+            return Ok(string);
+        }
+        let string = self.intern(Str16::Latin1(&[unit as u8]))?;
+        if let Some(slot) = self.names.units.get_mut(usize::from(unit)) {
+            *slot = Some(string);
+        }
+        Ok(string)
     }
 
     /// The atom `"length"`.

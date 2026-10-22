@@ -158,7 +158,7 @@ impl Heap {
     ) -> Result<()> {
         self.cell(cell)?;
         match &mut self.object_mut(object)?.elements {
-            Elements::Dense { values, .. } => match values.get_mut(index as usize) {
+            Elements::Dense(values) => match values.get_mut(index as usize) {
                 Some(slot) if !slot.is_empty() => {
                     *slot = Value::Cell(cell);
                     Ok(())

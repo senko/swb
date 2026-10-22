@@ -287,15 +287,25 @@ pub fn convert_latin1(bytes: &[u8], op: CaseOp) -> Latin1Case {
         return Latin1Case::Wide;
     }
     out.extend_from_slice(&bytes[..first]);
-    for &b in &bytes[first..] {
-        match op {
-            CaseOp::Lower => out.push(latin1_lower(b)),
-            CaseOp::Upper => match b {
-                0xB5 | 0xFF => return Latin1Case::Wide,
-                0xDF => out.extend_from_slice(b"SS"),
-                _ if latin1_upper_changes(b) => out.push(b - 32),
-                _ => out.push(b),
-            },
+    let rest = &bytes[first..];
+    match op {
+        CaseOp::Lower => out.extend(rest.iter().map(|&b| latin1_lower(b))),
+        // A text without the three special characters maps unit by unit.
+        CaseOp::Upper if !rest.iter().any(|&b| matches!(b, 0xB5 | 0xDF | 0xFF)) => {
+            out.extend(
+                rest.iter()
+                    .map(|&b| if latin1_upper_changes(b) { b - 32 } else { b }),
+            );
+        }
+        CaseOp::Upper => {
+            for &b in rest {
+                match b {
+                    0xB5 | 0xFF => return Latin1Case::Wide,
+                    0xDF => out.extend_from_slice(b"SS"),
+                    _ if latin1_upper_changes(b) => out.push(b - 32),
+                    _ => out.push(b),
+                }
+            }
         }
     }
     Latin1Case::Changed(crate::String16::from_latin1(out))

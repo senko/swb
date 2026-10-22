@@ -29,7 +29,7 @@ use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 use crate::vm::convert::to_uint32;
 use crate::vm::native_loop::{LoopStep, NativeLoop};
-use crate::vm::{NativeCall, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
 
 use super::string::{Builder, string_result};
 
@@ -88,7 +88,11 @@ pub(super) fn replace(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRet
         return FunctionReplace::start(rt, (string, search, function), position, false);
     }
     let length = rt.string_len(string)?;
-    let mut builder = Builder::new();
+    let template_length = match replacement.template {
+        Some(template) => rt.string_len(template)?,
+        None => 0,
+    };
+    let mut builder = Builder::with_capacity(length - search_length + template_length);
     builder.push_range(rt, string, 0, position)?;
     replacement.append(rt, &mut builder, search, string, position)?;
     builder.push_range(rt, string, position + search_length, length)?;
@@ -541,13 +545,14 @@ pub(super) fn split(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         // The same strings give the same pieces: copy them into a new
         // array in one step.
         let pieces = cache.pieces;
-        let values = rt
+        let proto = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayPrototype)?;
+        let length = rt.heap.dense_elements(pieces)?.map_or(0, <[Value]>::len);
+        rt.charge(length)?;
+        let array = rt
             .heap
-            .dense_elements(pieces)?
-            .map(<[Value]>::to_vec)
+            .new_array_copy(Some(proto), pieces, &rt.vm)?
             .ok_or(VmError::invariant("the split cache is not dense"))?;
-        rt.charge(values.len())?;
-        let array = rt.array_from_values(&values)?;
+        rt.heap.record(array);
         return Ok(NativeReturn::Value(array.into()));
     }
     // The dense builder (`object/element_access.rs`): the pieces are
@@ -636,9 +641,9 @@ fn split_units(
             .text(string)?
             .get(index)
             .ok_or(VmError::invariant("a split position outside the string"))?;
-        let mut text = swb_js_text::String16::new();
-        text.push(unit);
-        let piece = rt.heap.alloc_string(text)?;
+        // No handle record: the array holds the piece before the next
+        // safepoint.
+        let piece = rt.heap.unit_string(unit)?;
         push_piece(rt, array, index, piece.into())?;
     }
     Ok(())

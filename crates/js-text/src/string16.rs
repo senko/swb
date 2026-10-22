@@ -170,9 +170,14 @@ impl<'a> Str16<'a> {
 
     /// The owned copy, in the narrow width if all units are below 256.
     pub fn to_string16(self) -> String16 {
-        let mut out = String16::new();
-        out.push_str16(self);
-        out
+        match self {
+            // One allocation of the exact size (no growth step).
+            Str16::Latin1(bytes) => String16(Repr::Latin1(bytes.to_vec())),
+            Str16::Wide(units) if units.iter().all(|&u| u < 256) => {
+                String16(Repr::Latin1(units.iter().map(|&u| u as u8).collect()))
+            }
+            Str16::Wide(units) => String16(Repr::Wide(units.to_vec())),
+        }
     }
 
     /// Whether the text has the same code units as the UTF-16 form of `s`.

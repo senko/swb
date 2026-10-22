@@ -377,7 +377,7 @@ impl Heap {
         };
         if !new.is_default_data() {
             let elements = &self.object(object)?.elements;
-            if matches!(elements, Elements::Dense { .. }) {
+            if matches!(elements, Elements::Dense(_)) {
                 let estimate = elements.stored() * crate::object::elements::SPARSE_ENTRY_BYTES;
                 let (first, second) = new.slot_values();
                 let extra = [object.into(), first, second.unwrap_or_default()];
@@ -670,7 +670,7 @@ impl Heap {
         let before = self.object_bytes(object)?;
         let record = self.object_mut(object)?;
         record.slots.try_reserve_exact(slots)?;
-        if let Elements::Dense { values, .. } = &mut record.elements {
+        if let Elements::Dense(values) = &mut record.elements {
             values.try_reserve_exact(elements)?;
         }
         self.charge_growth(object, before)
@@ -811,7 +811,7 @@ impl Heap {
             _ => {}
         }
         let found = match &record.elements {
-            Elements::Dense { count, .. } => *count > 0,
+            Elements::Dense(values) => values.count > 0,
             Elements::Sparse(map) => map.values().any(Property::enumerable),
         };
         if found {

@@ -13,7 +13,8 @@ use crate::object::{GetResult, Object, ObjectKind, SetPlan, Shape, SiteCache};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
 use crate::value::Value;
-use crate::vm::property::SetOutcome;
+use crate::vm::Intrinsic;
+use crate::vm::property::{Lookup, SetOutcome};
 use crate::vm::{VmError, VmResult};
 
 impl Runtime {
@@ -40,6 +41,50 @@ impl Runtime {
     ) -> VmResult<GetResult> {
         let (found, entry) = self.heap.get_for_cache(object, key)?;
         self.fill_cache(code, site, entry);
+        Ok(found)
+    }
+
+    /// The prototype object that a primitive base reads through: the
+    /// `String.prototype`, `Number.prototype` or `Boolean.prototype` of
+    /// the running realm; `None` for other values.
+    #[inline]
+    pub(crate) fn primitive_proto(&self, base: Value) -> Option<Gc<Object>> {
+        let which = match base {
+            Value::String(_) => Intrinsic::StringPrototype,
+            Value::Int(_) | Value::Double(_) => Intrinsic::NumberPrototype,
+            Value::Bool(_) => Intrinsic::BooleanPrototype,
+            _ => return None,
+        };
+        self.vm
+            .realms
+            .get(self.current_realm() as usize)?
+            .intrinsic(which)
+    }
+
+    /// `base.key` for a primitive base after a miss of the entry of `site`:
+    /// the general read, and a new entry when the property is a data
+    /// property of the prototype object itself (the usual method).
+    #[inline(never)]
+    pub(crate) fn get_primitive_miss(
+        &mut self,
+        code: &FunctionCode,
+        site: u32,
+        base: Value,
+        key: PropertyKey,
+    ) -> VmResult<Lookup> {
+        let found = self.get_primitive_property(base, key)?;
+        // The own `length` and indices of a string come first; they give
+        // no entry.
+        let is_string = matches!(base, Value::String(_));
+        if is_string && key == PropertyKey::String(self.heap.length_atom()) {
+            self.fill_cache(code, site, SiteCache::StringLength);
+            return Ok(found);
+        }
+        let own_of_string = is_string && matches!(key, PropertyKey::Index(_));
+        if !own_of_string && let Some(proto) = self.primitive_proto(base) {
+            let entry = self.heap.primitive_entry(proto, key)?;
+            self.fill_cache(code, site, entry);
+        }
         Ok(found)
     }
 

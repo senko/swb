@@ -454,6 +454,40 @@ const PROGRAMS: &[(&str, &str)] = &[
         "date: Date.parse of a local time string, 1M times",
         "function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s += Date.parse('2024-03-15T12:34:56.789') & 255; } return s; }",
     ),
+    // M7 13d: strings of one unit, hashes of string keys, toFixed, shift
+    // on dense arrays, integer results of `|`.
+    (
+        "string: for-of over 1M code units",
+        "var s = 'abcdefghij'.repeat(100000);
+         function run() { var n = 0; for (const c of s) { n += c.length; } return n; }",
+    ),
+    (
+        "string: charAt, s[i] and at over 1M units",
+        "var s = 'abcdefghij'.repeat(100000);
+         function run() { var n = 0; for (var i = 0; i < 1000000; i++) { n += s.charAt(i).length + s[i].length + s.at(i).length; } return n; }",
+    ),
+    (
+        "string: split into 1M one-unit pieces",
+        "var s = 'abcdefghij'.repeat(100000);
+         function run() { return s.split('').length; }",
+    ),
+    (
+        "map: 1M set and get on 1,000 string keys",
+        "var keys = []; for (var i = 0; i < 1000; i++) keys.push('key' + i);
+         function run() { var m = new Map(); var s = 0; for (var j = 0; j < 500; j++) { for (var i = 0; i < 1000; i++) { m.set(keys[i], j); s += m.get(keys[i]); } } return s + m.size; }",
+    ),
+    (
+        "number: toFixed(2), 1M calls",
+        "function run() { var n = 0; for (var i = 0; i < 1000000; i++) { n += (i * 1.37).toFixed(2).length; } return n; }",
+    ),
+    (
+        "array: shift all of 100k elements",
+        "function run() { var a = []; for (var i = 0; i < 100000; i++) a.push(i); var s = 0; while (a.length) s += a.shift(); return s; }",
+    ),
+    (
+        "array: store 1M results of (x * 1103515245 + 12345) % 2147483648 | 0, then sum",
+        "function run() { var a = []; var x = 1; for (var i = 0; i < 1000000; i++) { x = (x * 1103515245 + 12345) % 2147483648; a.push(x | 0); } var s = 0; for (var i = 0; i < 1000000; i++) { s += a[i] & 255; } return s; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

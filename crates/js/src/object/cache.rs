@@ -110,6 +110,19 @@ pub(crate) enum SiteCache {
         accessor: bool,
         epoch: u32,
     },
+    /// A data property of the prototype object of a primitive kind
+    /// (`"abc".slice`, `n.toFixed`): the object `holder` (the
+    /// `String.prototype` or `Number.prototype` of the realm that runs)
+    /// still has `shape`, and the value is at `slot`. A primitive has no
+    /// properties of its own to check; no epoch is needed because the
+    /// holder is the first object of the walk.
+    PrimitiveOwn {
+        shape: Gc<Shape>,
+        holder: Gc<Object>,
+        slot: u32,
+    },
+    /// `length` of a string value.
+    StringLength,
     /// The final shape of an object literal whose prototype is `proto`.
     Literal { proto: Gc<Object>, shape: Gc<Shape> },
 }
@@ -216,6 +229,54 @@ impl Heap {
             return Ok(None);
         }
         Ok(record.slots.get(slot as usize).copied())
+    }
+
+    /// The value of a data property of the prototype object `proto` of
+    /// a primitive base through a `PrimitiveOwn` entry: `None` for any
+    /// other entry and on a miss.
+    #[inline]
+    pub(crate) fn cached_primitive_get(
+        &self,
+        proto: Gc<Object>,
+        entry: SiteCache,
+    ) -> Result<Option<Value>> {
+        let SiteCache::PrimitiveOwn {
+            shape,
+            holder,
+            slot,
+        } = entry
+        else {
+            return Ok(None);
+        };
+        if holder != proto {
+            return Ok(None);
+        }
+        let record = self.object(proto)?;
+        if record.shape != shape {
+            return Ok(None);
+        }
+        Ok(record.slots.get(slot as usize).copied())
+    }
+
+    /// The entry for an own data property `key` of `proto`, if `proto` has
+    /// a shared shape and the property is a data property.
+    pub(crate) fn primitive_entry(&self, proto: Gc<Object>, key: PropertyKey) -> Result<SiteCache> {
+        let record = self.object(proto)?;
+        if !own_cacheable(&record.kind) || !matches!(key, PropertyKey::String(_)) {
+            return Ok(SiteCache::Empty);
+        }
+        let shape = self.arenas.shapes.get(record.shape)?;
+        if shape.is_dictionary() {
+            return Ok(SiteCache::Empty);
+        }
+        Ok(match shape.find(key, &self.arenas.key_lists)? {
+            Some(found) if !found.flags.accessor() => SiteCache::PrimitiveOwn {
+                shape: record.shape,
+                holder: proto,
+                slot: found.slot,
+            },
+            _ => SiteCache::Empty,
+        })
     }
 
     /// `[[Get]]` of `object` through a cache entry: the result on a hit,

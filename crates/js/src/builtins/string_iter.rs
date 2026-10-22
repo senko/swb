@@ -5,7 +5,8 @@
 //!
 //! The iterator holds the string, flattened when the iterator is made,
 //! and the index of the next code unit. Each step allocates its element
-//! (one string of one or two code units) and the result object.
+//! (a string of one or two code units; the strings of one unit below 256
+//! are shared) and the result object.
 
 use swb_js_text::{String16, is_lead_surrogate, is_trail_surrogate};
 
@@ -74,21 +75,24 @@ pub(super) fn next_value(rt: &mut Runtime, iterator: Gc<Object>) -> VmResult<Opt
         }
         return Ok(None);
     };
-    let mut element = String16::new();
-    element.push(first);
     let mut width = 1;
+    let mut pair = None;
     if is_lead_surrogate(first)
         && let Some(second) = text.get(position + 1)
         && is_trail_surrogate(second)
     {
-        element.push(second);
+        pair = Some(second);
         width = 2;
     }
     if let ObjectKind::StringIterator(state) = &mut rt.heap.object_mut(iterator)?.kind {
         state.position = position + width;
     }
-    let element = rt.new_string(element)?;
-    Ok(Some(rt.heap.record(element).into()))
+    let element = match pair {
+        // One unit: the shared string of the heap, for a unit below 256.
+        None => rt.unit_string(first)?,
+        Some(second) => rt.new_string(String16::from_units(&[first, second]))?,
+    };
+    Ok(Some(element.into()))
 }
 
 /// V8's `TypeError` for `next` on another receiver.

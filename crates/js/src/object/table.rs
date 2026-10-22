@@ -708,8 +708,17 @@ impl Heap {
                 hasher.write_u64(bits);
             }
             Value::String(string) => {
+                // The hash is kept in the string: a key that is used again
+                // (the same handle) is not hashed again. It has 32 bits
+                // (the table needs the low bits of the hash).
+                let record = self.string(string)?;
+                if let Some(hash) = record.cached_key_hash() {
+                    return Ok(u64::from(hash));
+                }
                 let text = self.text(string)?;
-                return Ok(self.atoms.hash(text));
+                let hash = self.atoms.hash(text) as u32;
+                record.remember_key_hash(hash);
+                return Ok(u64::from(hash.max(1)));
             }
             Value::Symbol(symbol) => {
                 hasher.write_u8(5);

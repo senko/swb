@@ -461,7 +461,7 @@ impl Tracer<'_> {
                     }
                     self.slots(object, index, 0);
                     match &object.elements {
-                        Elements::Dense { .. } => self.dense(object, index, 0),
+                        Elements::Dense(_) => self.dense(object, index, 0),
                         Elements::Sparse(_) => self.sparse(object, index, 0),
                     }
                 }
@@ -526,7 +526,7 @@ impl Tracer<'_> {
     }
 
     fn dense(&mut self, object: &Object, index: u32, start: usize) {
-        let Elements::Dense { values, .. } = &object.elements else {
+        let Elements::Dense(values) = &object.elements else {
             return;
         };
         let end = (start + CHUNK).min(values.len());
@@ -629,6 +629,9 @@ impl Heap {
         heap_roots.trace(&mut tracer);
         weak_roots.trace(&mut tracer);
         tracer.string(names.length);
+        for unit in names.units.iter().flatten() {
+            tracer.string(*unit);
+        }
         tracer.drain();
         if !tracer.weak.maps.is_empty() {
             tracer.start_ephemerons();

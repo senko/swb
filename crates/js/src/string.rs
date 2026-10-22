@@ -17,6 +17,7 @@
 
 pub(crate) mod rope;
 
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, RandomState};
 
@@ -31,6 +32,10 @@ pub struct JsString {
     repr: Repr,
     /// Whether the string is in the atom table.
     atom: bool,
+    /// The keyed hash of the content that `Map` and `Set` use (0: not
+    /// computed yet). It sits in the padding after `atom`, so it costs no
+    /// memory.
+    key_hash: Cell<u32>,
 }
 
 /// The two forms of a string.
@@ -46,6 +51,7 @@ impl JsString {
         JsString {
             repr: Repr::Flat(text),
             atom: false,
+            key_hash: Cell::new(0),
         }
     }
 
@@ -53,6 +59,7 @@ impl JsString {
         JsString {
             repr: Repr::Rope(rope),
             atom: false,
+            key_hash: Cell::new(0),
         }
     }
 
@@ -63,6 +70,20 @@ impl JsString {
             Repr::Flat(text) => Some(text.as_str16()),
             Repr::Rope(_) => None,
         }
+    }
+
+    /// The cached 32-bit hash of the content, if one was stored. The
+    /// content of a string never changes (a flatten keeps it), so the
+    /// hash stays valid.
+    #[inline]
+    pub(crate) fn cached_key_hash(&self) -> Option<u32> {
+        Some(self.key_hash.get()).filter(|&hash| hash != 0)
+    }
+
+    /// Stores the hash of the content (never 0).
+    #[inline]
+    pub(crate) fn remember_key_hash(&self, hash: u32) {
+        self.key_hash.set(hash.max(1));
     }
 
     /// Whether the string is a rope (not flattened yet).
@@ -355,6 +376,20 @@ mod tests {
         assert_eq!(index(" 1"), None);
         assert_eq!(index("99999999999"), None);
         assert_eq!(array_index(Str16::Wide(&[0x31, 0x32])), Some(12));
+    }
+
+    #[test]
+    fn a_string_costs_no_memory_for_its_cached_hash() {
+        // The hash sits in the padding of the record (40 bytes, 48 with
+        // the slot header): a field of 8 bytes would grow both.
+        assert_eq!(size_of::<JsString>(), 40);
+        assert_eq!(Arena::<JsString>::slot_size(), 48);
+        let text = JsString::new(String16::from("key"));
+        assert_eq!(text.cached_key_hash(), None);
+        text.remember_key_hash(0);
+        assert_eq!(text.cached_key_hash(), Some(1));
+        text.remember_key_hash(77);
+        assert_eq!(text.cached_key_hash(), Some(77));
     }
 
     #[test]

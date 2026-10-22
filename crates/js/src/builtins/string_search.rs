@@ -165,6 +165,11 @@ fn search_slices<A: Unit, B: Unit, const REV: bool>(
     meter: &mut Meter<'_>,
 ) -> VmResult<Option<usize>> {
     let (hay_len, needle_len) = (hay.len(), needle.len());
+    if !REV && needle_len < KMP_FROM {
+        let result = search_plain_forward(hay, needle, from, meter);
+        meter.flush()?;
+        return result;
+    }
     let hay_at = |i: usize| -> u16 {
         if REV {
             hay[hay_len - 1 - i].unit()
@@ -180,6 +185,53 @@ fn search_slices<A: Unit, B: Unit, const REV: bool>(
         }
     };
     search(hay_len, needle_len, from, hay_at, pat_at, meter)
+}
+
+/// [`search_plain`] for the forward search over slices, with the scan for
+/// the first unit as a slice iteration (the common call: a short needle).
+/// The needle has at least one unit and `from + needle.len() <= hay.len()`.
+fn search_plain_forward<A: Unit, B: Unit>(
+    hay: &[A],
+    needle: &[B],
+    from: usize,
+    meter: &mut Meter<'_>,
+) -> VmResult<Option<usize>> {
+    let Some(first) = needle.first().map(|&unit| unit.unit()) else {
+        return Ok(None);
+    };
+    let Some(last_start) = hay.len().checked_sub(needle.len()) else {
+        return Ok(None);
+    };
+    let mut i = from;
+    while i <= last_start {
+        let window_end = last_start.min(i + SCAN_WINDOW - 1);
+        let Some(window) = hay.get(i..=window_end) else {
+            return Ok(None);
+        };
+        let Some(offset) = window.iter().position(|&unit| unit.unit() == first) else {
+            meter.add(window.len())?;
+            i = window_end + 1;
+            continue;
+        };
+        meter.add(offset)?;
+        let j = i + offset;
+        let (Some(rest_hay), Some(rest_needle)) =
+            (hay.get(j + 1..j + needle.len()), needle.get(1..))
+        else {
+            return Ok(None);
+        };
+        let matched = rest_hay
+            .iter()
+            .zip(rest_needle)
+            .take_while(|(a, b)| a.unit() == b.unit())
+            .count();
+        meter.add((matched + 1) * COMPARE_POINTS)?;
+        if matched == rest_needle.len() {
+            return Ok(Some(j));
+        }
+        i = j + 1;
+    }
+    Ok(None)
 }
 
 /// The first position `>= from` where the needle (`needle_len >= 1`

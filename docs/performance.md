@@ -898,6 +898,67 @@ reduce` 272 → 299 ms at 1 % more instructions, 70 times more
 instruction cache misses in cachegrind), the promise job queue as one
 loop (`then` 64 ms both, 100k `await`s 10 % slower).
 
+### Strings, collections, arrays and numbers (M7 13d)
+
+The table of one-unit strings, the cache of method reads on primitives,
+the local fixes of the string methods, the hash kept in string keys, the
+fast path of `toFixed` and the start offset of dense arrays (ADR 0026
+section 15). `vm_bench`, best of 5 within a run
+and best of two runs, the base build (d36be4f with the new rows) and 13d
+alternated in one session, release, same machine (other jobs ran on it,
+load average about 4); the Node.js column is `node --jitless` v22.11 from
+`just jsbench` of the same session:
+
+| Program | base (ms) | 13d (ms) | 13d / base | node --jitless (ms) | 13d / node |
+|---|---|---|---|---|---|
+| string: for-of over 1M code units | 68.7 | 34.2 | 0.50 | 22.3 | 1.5x |
+| string: charAt, s[i] and at over 1M units | 377.4 | 152.6 | 0.40 | 53.5 | 2.9x |
+| string: split into 1M one-unit pieces | 35.4 | 12.5 | 0.35 | 1.2 | 10.4x |
+| regexp: match with g, 1M matches | 118.7 | 65.3 | 0.55 | 15.3 | 4.3x |
+| regexp: matchAll, 300k matches | 88.1 | 66.6 | 0.76 | 10.1 | 6.6x |
+| regexp: global replace with $1, 1M matches | 213.3 | 138.2 | 0.65 | 78.4 | 1.8x |
+| regexp: global replace with a function, 1M matches | 206.9 | 139.6 | 0.67 | 50.2 | 2.8x |
+| string: slice and charCodeAt 1M calls | 235.0 | 168.0 | 0.71 | 36.7 | 4.6x |
+| string: replace, trim, padStart 300k calls | 144.0 | 92.4 | 0.64 | 26.8 | 3.4x |
+| string: toLowerCase, toUpperCase 4M calls on 10 units | 477.5 | 279.2 | 0.58 | 93.7 | 3.0x |
+| string: split 100k times into 8 pieces | 17.8 | 13.4 | 0.75 | 3.9 | 3.4x |
+| string: indexOf 1M calls | 185.9 | 111.1 | 0.60 | 45.9 | 2.4x |
+| string: 20k appends of 'ab' | 2.1 | 2.0 | 0.95 | 0.3 | 6.7x |
+| map: set and get of 100k string keys | 21.8 | 17.0 | 0.78 | 12.1 | 1.4x |
+| map: 1M set and get on 1,000 string keys | 74.1 | 63.7 | 0.86 | 25.0 | 2.5x |
+| number: toFixed(2), 1M calls | 280.0 | 121.8 | 0.43 | 90.4 | 1.3x |
+| array: shift all of 100k elements | 3500.8 | 11.4 | 0.00 | 512.8 | 0.0x |
+
+Instructions per iteration (callgrind, `swb-js` shell, start-up
+subtracted), base → 13d: `slice` and `charCodeAt` 3,620 → 2,554;
+`replace`/`trim`/`padStart` 9,147 → 5,851; four case conversions 7,621 →
+5,727; `split` into 8 pieces 3,057 → 2,386; two `indexOf` 3,645 → 2,724;
+`toFixed(2)` 5,615 → 2,229; a `Map` `set` and `get` with a string key
+2,962 → 2,517; 20k appends of `'ab'` 1,566 → 1,547 (unchanged).
+
+The geometric mean of 13d / base over all 102 programs (95 of 13c and 7
+new rows) is 0.86; against `node --jitless` it is 2.21x (17 programs at
+5x or more; 2.35x and 21 at 13c). These numbers include the integer
+form on the double paths of the bitwise operators, which the review
+removed: it made the integer paths of `|`, `&`, `^` and the shifts 25 %
+slower (`array: read-modify-write` 1.10, `s = i | 0` over 8M iterations
+110 → 138 ms) for a gain of 1 to 3 % (ADR 0026 section 15). After the
+removal, `array: read-modify-write` is 61.1 ms (base 61.4), the
+`Int32Array` read-modify-write 70.9 to 73.6 ms (base 72.7 to 73.1) and
+the default `sort` of 100k integers 17.6 ms (base 17.5). The default sort
+of a `Float64Array` (1.09 in one run) and `toBase64` of 16 MiB (1.17 in
+the first run, 1.02 in the second) are noise.
+
+Dropped or kept as is: the 20k appends (1.7 ms, 6.7x): the cost is the
+allocation of a new leaf for each append; the right fix is a mutable
+leaf or an inline small string (backlog). `toFixed` is 1.3x Node.js now
+(290 → 121 ns).
+
+Memory: `JsString` stays 40 bytes (slot 48): the cached hash is in the
+padding. An object stays 88 bytes (slot 96): the start offset and the
+count of non-holes share the 8 bytes after the vector. Compile time and
+code size of the BBC scripts are unchanged (179 ms, 28.9 MB).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

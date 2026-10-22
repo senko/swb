@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 feature 13d, strings and collections
+
+- The rest of feature 13 is split into 13d (strings and collections),
+  13e (compiler and memory) and 13f (lazy compilation, only if needed).
+- Callgrind on the string rows: a method read on a string cost about
+  290 instructions (the general `[[Get]]`), a short copy 276, and
+  `padStart` made six strings. Method reads on strings, numbers and
+  booleans and the `length` of strings now have a site cache entry.
+  Strings of one unit below 256 come from a table of atoms. Local fixes:
+  exact-size copies, one-pass case conversion, `padStart` in one
+  buffer, a slice scan in `indexOf`.
+- `Map` and `Set` string keys keep 32 bits of their keyed hash in the
+  padding of the string. `toFixed` with up to 20 digits computes in
+  128-bit integers (290 → 121 ns) and agrees with the exact path on 30
+  million random doubles.
+- Dense elements have a start offset, so `shift` takes constant time
+  (100,000 shifts 3,500 → 11 ms). The first version put the offset next
+  to the element count and made every object 8 bytes larger; the
+  `record_sizes` test caught it, and the count moved into the new
+  vector type.
+- `indexOf` 186 → 111 ms, case conversion 478 → 279, `for`-`of` over a
+  string 69 → 34; geometric mean 0.86 of 13c, 2.21 times
+  `node --jitless`. test262 unchanged; new tests in
+  `tests/small_items.rs`.
+- Review: no correctness defect (the start offset in every element path
+  and in the collector, shifted objects collected, caches on primitives
+  after prototype changes, all bitwise results, Latin-1 case mapping,
+  `toFixed` against the exact path). It traced the 10 % loss of
+  `array: read-modify-write` to the integer results of `|` on doubles:
+  with `Value::Int` on the double path, the integer paths of `|`, `&`,
+  `^` and the shifts were 25 % slower (also with the double path out of
+  line); with `Value::number`, a loop of bitwise operators on doubles was
+  8 % slower. The item gained 1 to 3 %, so 13d drops it. Also fixed: the
+  `split` pieces of two-byte units took a handle each.
+
 ## 2026-10-22: M7 feature 13c, callbacks from natives
 
 - Callgrind on `forEach` showed 1,397 instructions per element: 686 in

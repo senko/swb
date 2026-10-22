@@ -12,6 +12,7 @@ mod arguments;
 mod array;
 mod buffer;
 mod cache;
+mod dense;
 mod element_access;
 mod elements;
 mod iterator_helper;
@@ -540,7 +541,7 @@ impl Heap {
     /// `None` when its elements are sparse.
     pub(crate) fn dense_elements(&self, object: Gc<Object>) -> Result<Option<&[Value]>> {
         Ok(match &self.object(object)?.elements {
-            Elements::Dense { values, .. } => Some(values),
+            Elements::Dense(values) => Some(values),
             Elements::Sparse(_) => None,
         })
     }

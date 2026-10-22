@@ -101,22 +101,11 @@ pub(super) fn shift(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         rt.set_length(object, 0.0)?;
         return Ok(NativeReturn::Value(Value::Undefined));
     }
-    if let Some(state) = writable_dense(rt, object, false)? {
-        let first = rt.heap.change_dense(object, |values, length| {
-            let first = if values.is_empty() {
-                Value::Empty
-            } else {
-                values.remove(0)
-            };
-            *length -= 1;
-            Ok(first)
-        })?;
-        rt.charge(state.stored_len / MOVES_PER_STEP)?;
-        return Ok(NativeReturn::Value(if first.is_empty() {
-            Value::Undefined
-        } else {
-            first
-        }));
+    if writable_dense(rt, object, false)?.is_some() {
+        // The start offset of the dense vector: no element moves.
+        let first = rt.heap.shift_dense(object)?;
+        rt.charge(1)?;
+        return Ok(NativeReturn::Value(first));
     }
     let first = rt.get_index(object, 0.0)?;
     rt.move_elements(object, 1.0, 0.0, length - 1.0, false)?;

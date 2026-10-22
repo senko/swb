@@ -2050,15 +2050,44 @@ failures with a reason. Features, in this order:
       `node --jitless`). Recursion through callbacks ends at the frame
       limit (4,999 levels; 408 before). test262 unchanged (40,286;
       stress the same).
-    - 13d Small items (`implementer`): a table of the 256 one-unit
-      Latin-1 strings, a start offset for `shift` on dense arrays, a fast
-      path of `toFixed` for few digits, a cached hash of `Map` string
-      keys, elision of temporal-dead-zone checks, the kept source text
-      of ASCII scripts in one byte per character, integer results of
-      `|` in arrays, and the open check of `out/notes/stress-9b-r1.js`
-      (GC stress mode with `WeakMap` callbacks ran more than 13 hours).
-    - 13e Lazy compilation (`implementer-hard`), only if the targets
-      need it after 13a to 13d: compile a function body at its first
+    - 13d Strings and collections (`implementer`): a table of the 256
+      one-unit Latin-1 strings, the main costs of the string-method rows
+      (`slice` and `charCodeAt` 6.4x, `replace`/`trim`/`padStart` 5.5x,
+      `toLowerCase` 5x, `split` 4.5x, `indexOf` 3.8x), a cached hash of
+      `Map` string keys, a fast path of `toFixed` for few digits, a start
+      offset for `shift` on dense arrays, integer results of `|` in
+      arrays.
+      Done 2026-10-22: strings of one code unit below 256 are atoms of a
+      table that the heap keeps, so `s[i]`, `charAt`, `split`, the String
+      Iterator and every substring of one unit allocate nothing; method
+      reads on strings, numbers and booleans and the `length` of strings
+      have a site cache entry (the realm's prototype and its shape);
+      local fixes in the string methods found with callgrind (exact-size
+      copies, one-pass case conversion of Latin-1 strings, `padStart` in
+      one buffer, the `replace` capacity, a slice scan in `indexOf`, the
+      `split` cache copy). `Map` and `Set` string keys keep 32 bits of
+      their keyed hash in the padding of the string (no extra memory).
+      `toFixed` with up to 20 digits computes in 128-bit integers (290 →
+      121 ns; a differential test against the exact path passed 30
+      million random doubles). Dense elements have a start offset
+      (`DenseVec`), so `shift` takes constant time (100,000 shifts 3,500
+      → 11 ms; Node.js 513 ms). Integer results of `|` on doubles were
+      measured and rejected: they made the integer paths of the bitwise
+      operators 25 % slower for a gain of 1 to 3 %. `jsbench`: `indexOf` 186 → 111 ms, `slice` and
+      `charCodeAt` 235 → 168, case conversion 478 → 279, `replace`,
+      `trim`, `padStart` 144 → 92, `match` with `g` 119 → 65, `for`-`of`
+      over a string 69 → 34; geometric mean 0.86 of 13c (2.21 times
+      `node --jitless` over 102 programs). test262 unchanged (40,286;
+      stress the same).
+    - 13e Compiler and memory (`implementer`): elision of
+      temporal-dead-zone checks, the kept source text of ASCII scripts in
+      one byte per character, array destructuring of dense arrays with
+      the built-in iteration without an Array Iterator
+      (`for (const [k, v] of map)` 4.6x), and the open check of
+      `out/notes/stress-9b-r1.js` (GC stress mode with `WeakMap`
+      callbacks ran more than 13 hours).
+    - 13f Lazy compilation (`implementer-hard`), only if the targets
+      need it after 13a to 13e: compile a function body at its first
       call; it saves compile time and code memory of functions that
       never run.
 14. Modules (`implementer-hard`), when a target uses
@@ -2163,10 +2192,19 @@ not repeated here; the open items of each spike session are in M6 step
     of `f → forEach → callback`); V8 stops at about 2,800 for
     `forEach` and 705 for `replace`.
   - Stack traces show no frames of natives (V8: `at Array.forEach`).
-  - `for (const [k, v] of map)` is unchanged (191 ms, Node 43 ms): the
-    array destructuring of each entry makes an Array Iterator and
-    closes it; a fast path for arrays with the built-in iteration would
-    help.
+- Strings and collections (M7 13d):
+  - Every string buffer is a `malloc` (about 220 instructions when
+    cold). Strings of up to 8 units stored in the slot would remove it;
+    a leaf that `s += x` extends in place while no other value shares
+    it would fix the row of 20k appends (6.7 times `node --jitless`).
+  - `Object.keys` and other conversions of array indices to keys make a
+    decimal string each time; a table for 0 to 255, like the one-unit
+    strings, would help.
+  - The site cache of primitives covers own properties of the realm's
+    `String`, `Number` and `Boolean` prototypes only; properties further
+    up the chain (`'x'.hasOwnProperty`) take the general `[[Get]]`.
+  - `padStart` and `padEnd` with more than 256 units still make a rope
+    of the filler.
 - `[[VarNames]]` (M7 3f, older): the global environment does not record
   var names, so a later `let` of a name whose configurable property
   existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws
@@ -2296,9 +2334,6 @@ not repeated here; the open items of each spike session are in M6 step
 - `join` and `String` of arrays nested 500 deep end with a `RangeError`
   (400 work), because each level re-enters the interpreter through
   `ToPrimitive`, `toString` and `join`; V8 handles 1,000 (M7 6a).
-- Integer results of `|` (for example `(x * 1103515245 + 12345) %
-  2147483648 | 0`) are stored in arrays as doubles; check the bitwise
-  results of the interpreter (M7 6a; feature 13).
 - No-GC paths near the heap limit (M7 6a): the rope rebalance and other
   paths reserve with `check_room` and cannot collect, so near the limit
   they could end the script while garbage remains. Since 6a a safepoint

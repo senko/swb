@@ -247,7 +247,17 @@ impl Runtime {
     }
 
     /// `ToNumber` (§7.1.4). `ToNumeric` is in `vm/bigint.rs`.
+    #[inline]
     pub(crate) fn to_number(&mut self, value: Value) -> VmResult<f64> {
+        match value {
+            Value::Int(i) => Ok(f64::from(i)),
+            Value::Double(d) => Ok(d),
+            _ => self.to_number_slow(value),
+        }
+    }
+
+    #[inline(never)]
+    fn to_number_slow(&mut self, value: Value) -> VmResult<f64> {
         let primitive = self.to_primitive(value, Hint::Number)?;
         match primitive {
             Value::Undefined => Ok(f64::NAN),

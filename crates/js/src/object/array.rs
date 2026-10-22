@@ -113,8 +113,8 @@ impl Heap {
             return Ok(None);
         };
         Ok(match &record.elements {
-            Elements::Dense { values, count }
-                if values.len() == length as usize && *count == length =>
+            Elements::Dense(values)
+                if values.len() == length as usize && values.count == length =>
             {
                 Some((length, length_writable))
             }
@@ -153,7 +153,7 @@ impl Heap {
         // doubling would count up to twice the elements against the heap
         // limit), else by doubling, so that many small copies stay linear.
         let capacity = match &self.object(target)?.elements {
-            Elements::Dense { values, .. } => values.capacity(),
+            Elements::Dense(values) => values.capacity(),
             Elements::Sparse(_) => return Ok(None),
         };
         let needed = new_length as usize;
@@ -167,7 +167,7 @@ impl Heap {
         let bytes = (grown - capacity) * size_of::<Value>();
         self.reserve_with(bytes, roots, &[target.into(), source.into()])?;
         let before = self.object_bytes(target)?;
-        if let Elements::Dense { values, .. } = &mut self.object_mut(target)?.elements {
+        if let Elements::Dense(values) = &mut self.object_mut(target)?.elements {
             values.try_reserve_exact(grown - values.len())?;
         }
         let mut buffer = [Value::Undefined; APPEND_CHUNK];
@@ -175,7 +175,7 @@ impl Heap {
         let end = source_length as usize;
         while next < end {
             let chunk = (end - next).min(APPEND_CHUNK);
-            let Elements::Dense { values, .. } = &self.object(source)?.elements else {
+            let Elements::Dense(values) = &self.object(source)?.elements else {
                 return Err(Error::invariant("the source of a bulk copy became sparse"));
             };
             let part = values
@@ -185,11 +185,11 @@ impl Heap {
                 .get_mut(..chunk)
                 .ok_or(Error::invariant("a bulk copy chunk outside the buffer"))?;
             slots.copy_from_slice(part);
-            let Elements::Dense { values, count } = &mut self.object_mut(target)?.elements else {
+            let Elements::Dense(values) = &mut self.object_mut(target)?.elements else {
                 return Err(Error::invariant("the target of a bulk copy became sparse"));
             };
             values.extend_from_slice(slots);
-            *count += chunk as u32;
+            values.count += chunk as u32;
             next += chunk;
         }
         self.set_array_length_field(target, new_length, true)?;

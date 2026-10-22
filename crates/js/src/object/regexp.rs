@@ -14,6 +14,7 @@ use swb_js_regexp::Regex;
 
 use crate::error::{Error, Result};
 use crate::heap::{Arena, Gc, Heap, Tracer};
+use crate::object::dense::DenseVec;
 use crate::object::{Elements, Object, ObjectKind, Shape, ShapeKind};
 use crate::string::JsString;
 use crate::value::Value;
@@ -109,10 +110,7 @@ impl Heap {
         let object = Object {
             shape,
             slots,
-            elements: Elements::Dense {
-                values: elements,
-                count,
-            },
+            elements: Elements::Dense(DenseVec::from_parts(elements, count)),
             kind,
             extensible: true,
             watched: false,

@@ -27,6 +27,7 @@ use swb_js_text::Str16;
 
 use crate::error::{Error, Result};
 use crate::heap::{Gc, Heap, RootSource};
+use crate::object::dense::DenseVec;
 use crate::object::{Elements, Object, ObjectKind};
 use crate::string::{MAX_ARRAY_LENGTH, PropertyKey};
 use crate::value::Value;
@@ -139,13 +140,13 @@ impl Heap {
     #[inline]
     pub(crate) fn dense_element(&self, object: Gc<Object>, k: f64) -> Option<Value> {
         let record = self.object(object).ok()?;
-        let Elements::Dense { values, .. } = &record.elements else {
+        let Elements::Dense(values) = &record.elements else {
             return None;
         };
         if !(0.0..values.len() as f64).contains(&k) || !ordinary_elements(&record.kind) {
             return None;
         }
-        let value = *values.get(k as usize)?;
+        let value = *values.element(k as usize)?;
         (!value.is_internal()).then_some(value)
     }
 
@@ -202,7 +203,7 @@ impl Heap {
         else {
             return Ok(None);
         };
-        let Elements::Dense { values, count } = &record.elements else {
+        let Elements::Dense(values) = &record.elements else {
             return Ok(None);
         };
         let state = DenseArray {
@@ -210,7 +211,7 @@ impl Heap {
             length_writable,
             extensible: record.extensible,
             stored_len: values.len(),
-            holes: *count as usize != values.len(),
+            holes: values.count as usize != values.len(),
         };
         let chain = self.element_chain(object)?;
         Ok((chain.ordinary && chain.protos_empty).then_some(state))
@@ -356,7 +357,7 @@ impl Heap {
     pub(crate) fn change_dense<T>(
         &mut self,
         array: Gc<Object>,
-        change: impl FnOnce(&mut Vec<Value>, &mut u32) -> Result<T>,
+        change: impl FnOnce(&mut DenseVec, &mut u32) -> Result<T>,
     ) -> Result<T> {
         let before = self.object_bytes(array)?;
         let record = self.object_mut(array)?;
@@ -365,7 +366,7 @@ impl Heap {
                 "a dense change of an object that is not an array",
             ));
         };
-        let Elements::Dense { values, count } = &mut record.elements else {
+        let Elements::Dense(values) = &mut record.elements else {
             return Err(Error::invariant("a dense change of sparse elements"));
         };
         let result = change(values, length)?;
@@ -375,7 +376,7 @@ impl Heap {
         if values.len() > *length as usize || values.iter().any(|v| matches!(v, Value::Cell(_))) {
             return Err(Error::invariant("a dense change broke the elements"));
         }
-        *count = values.iter().filter(|value| !value.is_empty()).count() as u32;
+        values.count = values.iter().filter(|value| !value.is_empty()).count() as u32;
         self.charge_growth(array, before)?;
         Ok(result)
     }
@@ -393,11 +394,7 @@ impl Heap {
         if values.iter().any(|value| value.is_internal()) {
             return Err(Error::invariant("an internal value stored as an element"));
         }
-        let Elements::Dense {
-            values: vector,
-            count,
-        } = &mut self.object_mut(array)?.elements
-        else {
+        let Elements::Dense(vector) = &mut self.object_mut(array)?.elements else {
             return Ok(false);
         };
         let Some(range) = vector.get_mut(start..start + values.len()) else {
@@ -405,7 +402,7 @@ impl Heap {
         };
         let holes = range.iter().filter(|value| value.is_empty()).count();
         range.copy_from_slice(values);
-        *count += holes as u32;
+        vector.count += holes as u32;
         Ok(true)
     }
 
@@ -413,7 +410,7 @@ impl Heap {
     /// elements costs (0 if the capacity is enough).
     pub(crate) fn dense_growth(&self, array: Gc<Object>, len: usize) -> Result<usize> {
         Ok(match &self.object(array)?.elements {
-            Elements::Dense { values, .. } if len > values.capacity() => {
+            Elements::Dense(values) if len > values.capacity() => {
                 (len - values.capacity()) * size_of::<Value>()
             }
             _ => 0,
@@ -435,7 +432,7 @@ impl Heap {
         else {
             return Err(Error::invariant("a dense pop of another object"));
         };
-        let Elements::Dense { values, count } = &mut record.elements else {
+        let Elements::Dense(values) = &mut record.elements else {
             return Err(Error::invariant("a dense pop of sparse elements"));
         };
         if *length == 0 {
@@ -448,12 +445,44 @@ impl Heap {
         }
         let last = values.pop().filter(|value| !value.is_empty());
         if last.is_some() {
-            *count = count.saturating_sub(1);
+            values.count = values.count.saturating_sub(1);
         }
         while values.last().is_some_and(|value| value.is_empty()) {
             values.pop();
         }
         Ok(last)
+    }
+
+    /// The steps of `shift` after `length` for an `Array` with dense
+    /// elements and a writable `length` above 0, whose prototypes the
+    /// caller checked ([`Heap::dense_array`]): the first element
+    /// (`undefined` for a hole), removed, and the others moved down. The
+    /// move is the start offset of the vector ([`DenseVec`]): O(1) with an
+    /// occasional compaction that is paid by the shifts before it.
+    pub(crate) fn shift_dense(&mut self, array: Gc<Object>) -> Result<Value> {
+        let record = self.object_mut(array)?;
+        let ObjectKind::Array {
+            length,
+            length_writable: true,
+        } = &mut record.kind
+        else {
+            return Err(Error::invariant("a dense shift of another object"));
+        };
+        let Elements::Dense(values) = &mut record.elements else {
+            return Err(Error::invariant("a dense shift of sparse elements"));
+        };
+        if *length == 0 {
+            return Err(Error::invariant("a dense shift of an empty array"));
+        }
+        *length -= 1;
+        let first = values.pop_front().filter(|value| !value.is_empty());
+        if first.is_some() {
+            values.count = values.count.saturating_sub(1);
+        }
+        while values.last().is_some_and(|value| value.is_empty()) {
+            values.pop();
+        }
+        Ok(first.unwrap_or(Value::Undefined))
     }
 
     /// `CreateDataProperty(target, at + k, source[k])` for each element `k`
@@ -470,7 +499,7 @@ impl Heap {
         roots: &dyn RootSource,
     ) -> Result<bool> {
         let (source_len, source_count) = match &self.object(source)?.elements {
-            Elements::Dense { values, count } => (values.len(), *count as usize),
+            Elements::Dense(values) => (values.len(), values.count as usize),
             Elements::Sparse(_) => return Ok(false),
         };
         let record = self.object(target)?;
@@ -481,7 +510,7 @@ impl Heap {
         else {
             return Ok(false);
         };
-        let Elements::Dense { values, count } = &record.elements else {
+        let Elements::Dense(values) = &record.elements else {
             return Ok(false);
         };
         let start = at as usize;
@@ -489,7 +518,7 @@ impl Heap {
         if !record.extensible
             || values.len() > start
             || new_len >= MAX_ARRAY_LENGTH as usize
-            || !Elements::dense_fits(new_len, *count as usize + source_count)
+            || !Elements::dense_fits(new_len, values.count as usize + source_count)
         {
             return Ok(false);
         }
@@ -497,19 +526,19 @@ impl Heap {
         self.reserve_with(bytes, roots, &[target.into(), source.into()])?;
         let before = self.object_bytes(target)?;
         let copy: Vec<Value> = match &self.object(source)?.elements {
-            Elements::Dense { values, .. } => values.clone(),
+            Elements::Dense(values) => values.to_vec(),
             Elements::Sparse(_) => {
                 return Err(Error::invariant("the source of a copy became sparse"));
             }
         };
         let record = self.object_mut(target)?;
-        let Elements::Dense { values, count } = &mut record.elements else {
+        let Elements::Dense(values) = &mut record.elements else {
             return Err(Error::invariant("the target of a copy became sparse"));
         };
         values.try_reserve_exact(new_len - values.len())?;
         values.resize(start, Value::Empty);
         values.extend_from_slice(&copy);
-        *count += source_count as u32;
+        values.count += source_count as u32;
         while values.last().is_some_and(|value| value.is_empty()) {
             values.pop();
         }
@@ -539,7 +568,7 @@ impl Heap {
         self.reserve(bytes, roots)?;
         let array = self.new_array(proto, 0)?;
         let before = self.object_bytes(array)?;
-        if let Elements::Dense { values, .. } = &mut self.object_mut(array)?.elements {
+        if let Elements::Dense(values) = &mut self.object_mut(array)?.elements {
             values.try_reserve_exact(capacity)?;
         }
         self.charge_growth(array, before)?;
@@ -568,6 +597,45 @@ impl Heap {
         Ok(array)
     }
 
+    /// A new array with a copy of the elements of `source`, a dense array
+    /// without holes that the caller keeps alive (rooted); `None` when
+    /// `source` is not one. One copy of the vector, no intermediate
+    /// buffer.
+    pub(crate) fn new_array_copy(
+        &mut self,
+        proto: Option<Gc<Object>>,
+        source: Gc<Object>,
+        roots: &dyn RootSource,
+    ) -> Result<Option<Gc<Object>>> {
+        let Some(len) = self.dense_elements(source)?.map(<[Value]>::len) else {
+            return Ok(None);
+        };
+        let Ok(length) = u32::try_from(len) else {
+            return Ok(None);
+        };
+        if length == MAX_ARRAY_LENGTH
+            || self
+                .dense_elements(source)?
+                .is_some_and(|values| values.iter().any(|value| value.is_internal()))
+        {
+            return Ok(None);
+        }
+        self.reserve(len * size_of::<Value>(), roots)?;
+        let array = self.new_array(proto, 0)?;
+        let vector = self
+            .dense_elements(source)?
+            .ok_or(Error::invariant("the source array changed form"))?
+            .to_vec();
+        let before = self.object_bytes(array)?;
+        let record = self.object_mut(array)?;
+        record.elements = Elements::Dense(DenseVec::from_parts(vector, length));
+        if let ObjectKind::Array { length: stored, .. } = &mut record.kind {
+            *stored = length;
+        }
+        self.charge_growth(array, before)?;
+        Ok(Some(array))
+    }
+
     /// Appends `value` to `array` as `CreateDataProperty(array, length,
     /// value)` (§7.3.5) when `array` is an extensible `Array` with a
     /// writable `length` whose elements are dense without holes. Returns
@@ -593,14 +661,10 @@ impl Heap {
         else {
             return Ok(false);
         };
-        let Elements::Dense {
-            values: vector,
-            count,
-        } = &record.elements
-        else {
+        let Elements::Dense(vector) = &record.elements else {
             return Ok(false);
         };
-        if !record.extensible || vector.len() != length as usize || *count != length {
+        if !record.extensible || vector.len() != length as usize || vector.count != length {
             return Ok(false);
         }
         let Some(new_length) = length
@@ -616,11 +680,7 @@ impl Heap {
         }
         let before = self.object_bytes(array)?;
         let record = self.object_mut(array)?;
-        let Elements::Dense {
-            values: vector,
-            count,
-        } = &mut record.elements
-        else {
+        let Elements::Dense(vector) = &mut record.elements else {
             return Err(Error::invariant("dense elements changed form"));
         };
         if values.len() > spare {
@@ -629,7 +689,7 @@ impl Heap {
         }
         vector.extend_from_slice(values);
         let holes = values.iter().filter(|value| value.is_empty()).count();
-        *count += (values.len() - holes) as u32;
+        vector.count += (values.len() - holes) as u32;
         if let ObjectKind::Array { length, .. } = &mut record.kind {
             *length = new_length;
         }
@@ -667,18 +727,18 @@ impl Heap {
             _ => return Ok(false),
         };
         let extensible = record.extensible;
-        let Elements::Dense { values, count } = &mut record.elements else {
+        let Elements::Dense(values) = &mut record.elements else {
             return Ok(false);
         };
         let position = index as usize;
-        match values.get_mut(position) {
+        match values.element_mut(position) {
             Some(slot) if !slot.is_empty() => *slot = value,
             Some(slot) => {
                 if !extensible {
                     return Ok(false);
                 }
                 *slot = value;
-                *count += 1;
+                values.count += 1;
             }
             None => {
                 if !extensible || position != values.len() || values.len() == values.capacity() {
@@ -690,7 +750,7 @@ impl Heap {
                     return Ok(false);
                 }
                 values.push(value);
-                *count += 1;
+                values.count += 1;
                 if let (Some((length, _)), ObjectKind::Array { length: field, .. }) =
                     (array, &mut record.kind)
                     && index >= length

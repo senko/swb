@@ -51,8 +51,7 @@ impl Runtime {
             return self.typed_own_property(&data, index);
         }
         if let Some(unit) = self.heap.string_object_unit(object, key)? {
-            let text = swb_js_text::String16::from_units(&[unit]);
-            let character = self.heap.alloc_string(text)?;
+            let character = self.heap.unit_string(unit)?;
             self.heap.record(character);
             return Ok(Some(Property::Data {
                 value: Value::String(character),

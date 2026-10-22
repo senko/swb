@@ -187,9 +187,11 @@ impl Runtime {
 
     /// A string of one code unit.
     pub(super) fn unit_string(&mut self, unit: u16) -> VmResult<Gc<JsString>> {
-        let mut text = String16::new();
-        text.push(unit);
-        self.new_string(text)
+        let string = self.heap.unit_string(unit)?;
+        if unit >= 256 {
+            self.heap.record(string);
+        }
+        Ok(string)
     }
 
     /// The code units `start..end` of `string` as a string. The whole
@@ -212,6 +214,11 @@ impl Runtime {
         }
         self.flatten(string)?;
         let count = end - start;
+        if count == 1
+            && let Some(unit) = self.heap.text(string)?.get(start)
+        {
+            return self.unit_string(unit);
+        }
         if count >= RESERVE_FROM {
             self.heap.reserve(count * 2, &self.vm)?;
         }
@@ -267,6 +274,17 @@ impl Builder {
             reserved: RESERVE_FROM,
             reserved_wide: false,
         }
+    }
+
+    /// An empty builder with room for `units` code units when that is
+    /// below the size of a reservation (one allocation for a short
+    /// result).
+    pub(super) fn with_capacity(units: usize) -> Self {
+        let mut builder = Builder::new();
+        if units < RESERVE_FROM {
+            builder.text = String16::try_with_capacity(units, false).unwrap_or_default();
+        }
+        builder
     }
 
     /// Makes room for `extra` more code units: the maximum length, then
@@ -384,6 +402,11 @@ fn from_char_code(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn>
         let value = rt.arg(call, index);
         let number = rt.to_number(value)?;
         text.push(to_uint32(number) as u16);
+    }
+    if text.len() == 1
+        && let Some(unit) = text.as_str16().get(0)
+    {
+        return string_result(rt.unit_string(unit)?);
     }
     let string = rt.heap.alloc_string(text)?;
     string_result(string)
@@ -615,6 +638,9 @@ fn pad(
         return Err(VmError::range_error(INVALID_STRING_LENGTH));
     }
     let fill = max_length as usize - length;
+    if max_length as usize <= PAD_SMALL {
+        return pad_small(rt, string, filler, fill, at_start);
+    }
     let whole = repeat_string(rt, filler, fill / filler_length)?;
     rt.heap.record(whole);
     let partial = rt.substring(filler, 0, fill % filler_length)?;
@@ -626,6 +652,44 @@ fn pad(
     } else {
         rt.concat(string, padding)?
     };
+    string_result(result)
+}
+
+/// A padded result of at most this many units is built in one buffer
+/// (the general path makes a rope of the repeated filler first).
+const PAD_SMALL: usize = 256;
+
+/// `StringPad` for a short result: one copy of the filler, repeated and cut
+/// to `fill` units, and the string, in one new flat string.
+fn pad_small(
+    rt: &mut Runtime,
+    string: Gc<JsString>,
+    filler: Gc<JsString>,
+    fill: usize,
+    at_start: bool,
+) -> VmResult<NativeReturn> {
+    rt.flatten(string)?;
+    rt.flatten(filler)?;
+    let text = rt.heap.text(string)?;
+    let pattern = rt.heap.text(filler)?;
+    let mut out = String16::try_with_capacity(text.len() + fill, false).unwrap_or_default();
+    if !at_start {
+        out.push_str16(text);
+    }
+    let mut left = fill;
+    while left > 0 {
+        let take = left.min(pattern.len());
+        match pattern.slice(0, take) {
+            Some(part) => out.push_str16(part),
+            None => return Err(VmError::invariant("a filler prefix outside the filler")),
+        }
+        left -= take;
+    }
+    if at_start {
+        out.push_str16(text);
+    }
+    rt.charge_units(text.len() + fill)?;
+    let result = rt.new_string(out)?;
     string_result(result)
 }
 

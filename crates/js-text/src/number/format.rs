@@ -224,6 +224,12 @@ fn decimal_text(digits: &[u8]) -> String {
 
 /// `Number.prototype.toFixed` (§21.1.3.3) for a finite `x` and
 /// `fraction_digits` ≤ 100.
+///
+/// With at most [`FAST_FRACTION_DIGITS`] digits the integer `n` of step 8
+/// (`n / 10^f - x` as close to zero as possible, the larger on a tie) is
+/// computed exactly in 128-bit arithmetic ([`fixed_integer`]); otherwise,
+/// and when that overflows, from multi-precision arithmetic
+/// ([`to_fixed_exact`]). Both give the same text for every input.
 pub fn to_fixed(x: f64, fraction_digits: u32) -> String {
     let mut out = String::new();
     let mut x = x;
@@ -236,22 +242,122 @@ pub fn to_fixed(x: f64, fraction_digits: u32) -> String {
         return out;
     }
     let f = fraction_digits as usize;
-    let mut m = if x == 0.0 {
+    if let Some(n) = fixed_integer(x, fraction_digits) {
+        let mut buffer = [0u8; 48];
+        let start = write_decimal(&mut buffer, n);
+        let digits = buffer.get(start..).unwrap_or_default();
+        out.reserve(digits.len() + f + 3);
+        assemble_fixed(&mut out, digits, f);
+        return out;
+    }
+    out.push_str(&to_fixed_exact(x, fraction_digits));
+    out
+}
+
+/// The most fraction digits for which [`fixed_integer`] works: with
+/// `10^20 < 2^67`, the product with a 53-bit significand is below
+/// `2^120`.
+const FAST_FRACTION_DIGITS: u32 = 20;
+
+/// The integer `n` of `toFixed` step 8 for `0 <= x < 1e21` and
+/// `f <= 20`: `round(x * 10^f)` with a tie rounded up, exactly. `x` is
+/// `m * 2^e` with a 53-bit integer `m`; for `e < 0` the result is
+/// `floor((m * 10^f + 2^(-e-1)) / 2^(-e))`, for `e >= 0` it is
+/// `m * 10^f * 2^e`. `None` when the 128 bits are not enough.
+fn fixed_integer(x: f64, f: u32) -> Option<u128> {
+    if f > FAST_FRACTION_DIGITS || !(0.0..1e21).contains(&x) {
+        return None;
+    }
+    if x == 0.0 {
+        return Some(0);
+    }
+    let bits = x.to_bits();
+    let biased = (bits >> 52) as i32;
+    let fraction = bits & ((1u64 << 52) - 1);
+    let (m, e) = if biased == 0 {
+        (fraction, -1074)
+    } else {
+        (fraction | (1u64 << 52), biased - 1075)
+    };
+    let scaled = u128::from(m) * 10u128.pow(f);
+    if e >= 0 {
+        // `x < 1e21` makes `e <= 17`; the shift cannot lose bits if the
+        // product is small enough.
+        let shifted = scaled.checked_shl(e as u32)?;
+        return (shifted >> e == scaled).then_some(shifted);
+    }
+    let shift = e.unsigned_abs();
+    if shift >= 128 {
+        // `scaled < 2^120 < 2^(shift - 1)`: below one half.
+        return Some(0);
+    }
+    Some((scaled + (1u128 << (shift - 1))) >> shift)
+}
+
+/// Writes the decimal digits of `n` at the end of `buffer` and returns
+/// the index of the first digit. `n < 2^128` has at most 39 digits.
+fn write_decimal(buffer: &mut [u8; 48], n: u128) -> usize {
+    /// Writes `value` below the digit at `at`, with zeros up to 19 digits
+    /// if `pad`.
+    fn put(buffer: &mut [u8; 48], at: &mut usize, mut value: u64, pad: bool) {
+        let mut count = 0;
+        while value > 0 || (pad && count < 19) {
+            *at -= 1;
+            if let Some(slot) = buffer.get_mut(*at) {
+                *slot = b'0' + (value % 10) as u8;
+            }
+            value /= 10;
+            count += 1;
+        }
+    }
+    const CHUNK: u128 = 10_000_000_000_000_000_000; // 10^19
+    let mut at = buffer.len();
+    let mut rest = n;
+    while rest >= CHUNK {
+        put(buffer, &mut at, (rest % CHUNK) as u64, true);
+        rest /= CHUNK;
+    }
+    if rest == 0 {
+        // Only for `n == 0`: the loop leaves at least one.
+        at -= 1;
+        if let Some(slot) = buffer.get_mut(at) {
+            *slot = b'0';
+        }
+    } else {
+        put(buffer, &mut at, rest as u64, false);
+    }
+    at
+}
+
+/// The text of `toFixed` from the digits of `n` (ASCII, no leading zeros
+/// but for zero itself) and the fraction digit count `f`.
+fn assemble_fixed(out: &mut String, digits: &[u8], f: usize) {
+    let text = std::str::from_utf8(digits).unwrap_or("0");
+    if f == 0 {
+        out.push_str(text);
+    } else if text.len() > f {
+        let (int, frac) = text.split_at(text.len() - f);
+        out.push_str(int);
+        out.push('.');
+        out.push_str(frac);
+    } else {
+        out.push_str("0.");
+        out.extend(std::iter::repeat_n('0', f - text.len()));
+        out.push_str(text);
+    }
+}
+
+/// `toFixed` for a non-negative `x` below 1e21 from multi-precision
+/// arithmetic (the digits of [`round_decimal`]), for any `f` ≤ 100.
+fn to_fixed_exact(x: f64, fraction_digits: u32) -> String {
+    let m = if x == 0.0 {
         String::new()
     } else {
         decimal_text(&round_decimal(x, Rounding::Fraction(fraction_digits)).0)
     };
-    if m.is_empty() {
-        m.push('0');
-    }
-    if f != 0 {
-        if m.len() <= f {
-            let zeros = "0".repeat(f + 1 - m.len());
-            m.insert_str(0, &zeros);
-        }
-        m.insert(m.len() - f, '.');
-    }
-    out.push_str(&m);
+    let m = if m.is_empty() { "0" } else { &m };
+    let mut out = String::new();
+    assemble_fixed(&mut out, m.as_bytes(), fraction_digits as usize);
     out
 }
 
@@ -460,5 +566,162 @@ mod tests {
         for (x, expected) in cases {
             assert_eq!(number_to_string(x), expected, "{x:e}");
         }
+    }
+
+    // --- toFixed: the fast path against the exact path ---
+
+    /// The result of the multi-precision path for any finite `x`.
+    fn fixed_reference(x: f64, f: u32) -> String {
+        let mut out = String::new();
+        let mut x = x;
+        if x < 0.0 {
+            out.push('-');
+            x = -x;
+        }
+        if x >= 1e21 {
+            out.push_str(&number_to_string(x));
+        } else {
+            out.push_str(&to_fixed_exact(x, f));
+        }
+        out
+    }
+
+    /// A xorshift64* generator (a fixed seed: the test is repeatable).
+    struct Rng(u64);
+
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 >> 12;
+            self.0 ^= self.0 << 25;
+            self.0 ^= self.0 >> 27;
+            self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        }
+    }
+
+    fn check_fixed(x: f64, f: u32) {
+        assert_eq!(
+            to_fixed(x, f),
+            fixed_reference(x, f),
+            "x = {x:e} ({:#x}), f = {f}",
+            x.to_bits()
+        );
+    }
+
+    /// Runs `count` random doubles of several families through both paths.
+    fn compare_fixed(count: u64, seed: u64) {
+        let mut rng = Rng(seed);
+        for i in 0..count {
+            let r = rng.next();
+            let f = (rng.next() % 24) as u32 % 22; // mostly 0 to 20, some 21
+            let f = if i % 97 == 0 {
+                (rng.next() % 101) as u32
+            } else {
+                f
+            };
+            let sign = if r & 1 == 1 { 1u64 << 63 } else { 0 };
+            let x = match i % 5 {
+                // Any exponent.
+                0 => f64::from_bits((rng.next() & !(1 << 63)) | sign),
+                // Exponents where the rounding position matters.
+                1 | 2 => {
+                    let exponent = 1023 - 70 + rng.next() % 150;
+                    f64::from_bits(sign | (exponent << 52) | (rng.next() & ((1 << 52) - 1)))
+                }
+                // A decimal with a 5 in the position after the last digit
+                // (a tie in decimal; the double is near it), and its
+                // neighbours.
+                3 => {
+                    let k = rng.next() >> (12 + rng.next() % 40);
+                    let base = (k as f64 + 0.5) / 10f64.powi(f.min(22) as i32);
+                    let bits = base.to_bits().wrapping_add(rng.next() % 3).wrapping_sub(1);
+                    f64::from_bits(bits | sign)
+                }
+                // An exact tie: an odd number over a power of two.
+                _ => {
+                    let j = rng.next() % 40 + 1;
+                    let odd = (rng.next() >> (30 + rng.next() % 30)) | 1;
+                    let x = odd as f64 / (1u64 << j) as f64;
+                    if sign == 0 { x } else { -x }
+                }
+            };
+            if x.is_finite() {
+                check_fixed(x, f);
+            }
+        }
+    }
+
+    #[test]
+    fn fixed_boundary_cases() {
+        let specials = [
+            0.0,
+            -0.0,
+            0.5,
+            1.5,
+            2.5,
+            -0.5,
+            -2.5,
+            0.125,
+            0.375,
+            1.005,
+            1.45,
+            8.345,
+            10.235,
+            0.000_001,
+            1e-7,
+            5e-324,
+            -5e-324,
+            f64::MIN_POSITIVE,
+            f64::MAX,
+            f64::EPSILON,
+            9.995,
+            0.999_999_5,
+            99.5,
+            999.5,
+            1e20,
+            1e21,
+            9.999_999_999_999_999e20,
+            1e21 - 131_072.0,
+            2f64.powi(70),
+            2f64.powi(53),
+            2f64.powi(53) + 2.0,
+            4_503_599_627_370_497.5,
+            123_456_789_012_345_680_000.0,
+        ];
+        for &x in &specials {
+            for f in 0..=100 {
+                check_fixed(x, f);
+                check_fixed(f64::from_bits(x.to_bits().wrapping_add(1)), f);
+                check_fixed(f64::from_bits(x.to_bits().wrapping_sub(1)), f);
+            }
+        }
+        assert_eq!(to_fixed(-0.0, 2), "0.00");
+        assert_eq!(to_fixed(-0.000_1, 2), "-0.00");
+        assert_eq!(to_fixed(2.5, 0), "3");
+        assert_eq!(to_fixed(1.005, 2), "1.00");
+        assert_eq!(to_fixed(1e21, 2), "1e+21");
+        assert_eq!(to_fixed(123.456, 2), "123.46");
+        assert_eq!(to_fixed(0.0, 0), "0");
+        assert_eq!(to_fixed(5e-324, 20), "0.00000000000000000000");
+        assert_eq!(
+            to_fixed(1e20, 20),
+            "100000000000000000000.00000000000000000000"
+        );
+    }
+
+    #[test]
+    fn fixed_fast_path_matches_the_exact_path() {
+        compare_fixed(300_000, 0x9E37_79B9_7F4A_7C15);
+    }
+
+    /// The large run: `TOFIXED_COUNT=20000000 cargo test --release -p
+    /// swb-js-text fixed_large -- --ignored`.
+    #[test]
+    #[ignore = "a long run; the count is TOFIXED_COUNT (default 10 million)"]
+    fn fixed_large_differential_run() {
+        let count = std::env::var("TOFIXED_COUNT")
+            .ok()
+            .and_then(|text| text.parse().ok())
+            .unwrap_or(10_000_000);
+        compare_fixed(count, 0xD1B5_4A32_D192_ED03);
     }
 }

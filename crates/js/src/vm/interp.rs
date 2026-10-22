@@ -566,14 +566,28 @@ impl Runtime {
                 // --- Properties ---
                 Insn::GetNamed { dst, obj, site } => {
                     let target = get!(obj);
+                    let entry = code.cache(site);
                     let Value::Object(object) = target else {
+                        if let (SiteCache::StringLength, Value::String(string)) = (entry, target) {
+                            put!(
+                                dst,
+                                Value::number(tri!(self.heap.string(string)).len() as f64)
+                            );
+                            continue;
+                        }
+                        if let SiteCache::PrimitiveOwn { .. } = entry
+                            && let Some(proto) = self.primitive_proto(target)
+                            && let Some(value) = tri!(self.heap.cached_primitive_get(proto, entry))
+                        {
+                            put!(dst, value);
+                            continue;
+                        }
                         let key = site!(site);
                         save!();
-                        let found = tri!(self.get_primitive_property(target, key));
+                        let found = tri!(self.get_primitive_miss(&code, site, target, key));
                         lookup!(dst, found);
                         continue;
                     };
-                    let entry = code.cache(site);
                     if let Some(value) = tri!(self.heap.cached_own_value(object, entry)) {
                         put!(dst, value);
                         continue;

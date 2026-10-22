@@ -362,7 +362,10 @@ then string keys and then symbols, each in insertion order
 **Elements** (memo 3.2) are separate from named properties:
 
 - A dense vector of values. A hole holds `Empty`. `length` is a `u32`
-  field with a writable flag.
+  field with a writable flag. Since M7 13d the vector has a start offset
+  (`DenseVec`, `object/dense.rs`): `shift` advances it, so a queue
+  drains in O(1) per element; the offset and the count of non-holes fit
+  in the 8 bytes after the buffer, so an object keeps its size.
 - A sparse ordered map from index to property (a B-tree map) when the
   vector would be too sparse (a density rule, measured), or when an
   element gets non-default attributes or an accessor. An array returns
@@ -420,7 +423,8 @@ behind a small API, so NaN-boxing can come later if measurements show a
 need. The integer variant holds the integral results of integer
 operations; `-0` and overflow give doubles. Built-in functions and the
 API turn integral doubles back into integers; the interpreter's double
-paths do not (memo 4.1).
+paths do not (memo 4.1; M7 13d measured the integer form for the
+bitwise operators and rejected it, section 15).
 
 **Strings** (memo 4.2) are immutable and use 16-bit code-unit
 semantics:
@@ -439,6 +443,12 @@ semantics:
   key is an array index (`u32` below 2^32 − 1), an interned string or a
   symbol. Hash tables keyed by script strings use a hash with a random
   seed per runtime, against collision floods.
+- Since M7 13d the strings of one code unit below 256 are atoms made at
+  their first use and kept alive by the heap (`Heap::unit_string`):
+  `s[i]`, `charAt`, `at`, `split`, iteration, `fromCharCode` and every
+  substring of one unit allocate nothing. A string also keeps the 32-bit
+  keyed hash that `Map` and `Set` use, in the padding of its record (40
+  bytes with or without it).
 - At the boundary to the rest of swb (UTF-8): a one-byte string with
   only ASCII converts by copy. The bindings ADR decides the handling of
   unpaired surrogates.
@@ -1082,7 +1092,9 @@ where the first plan did not work:
 - `toFixed`, `toExponential` and `toPrecision` with a digit count are
   exact (multi-precision integers of 32-bit limbs, one quotient digit per
   step), and charge about 5 time steps per output character (a digit
-  costs up to 60 ns).
+  costs up to 60 ns). `toFixed` with at most 20 digits and a value below
+  1e21 computes the integer of step 8 in 128-bit arithmetic since M7 13d
+  (see section 15).
 - `Number.prototype.toString(radix)` in radixes other than 10 prints the
   digit string with the fewest significant digits whose exact value
   rounds (to nearest, ties to even) to the double; of those the closest
@@ -1511,8 +1523,10 @@ where the first plan did not work:
   (`AtomTable::hash`, a key per heap; both widths agree), so content from
   the network cannot choose collisions. `Heap::key_hash` is the function
   that `WeakMap` and `WeakSet` (feature 9) reuse. Measured, a lookup costs
-  about 30 ns for an integer key and about 100 ns for a string key; a
-  cached hash in the string could save 30 ns (backlog).
+  about 30 ns for an integer key and about 100 ns for a string key. Since
+  M7 13d a string key keeps a 32-bit part of its hash (`JsString::
+  key_hash`, in padding), so a key used again is not hashed again (the
+  per-process key stays).
 - Compaction. When at least half of the entries are deleted, and at least
   as many as the iterators and native loops that hold positions, the
   vector is rebuilt in place without them and the index for the live
@@ -3147,6 +3161,111 @@ where the first plan did not work:
     expected outputs from Node.js 22), the unit test of `SortMachine`;
     test262 unchanged (40,286 pass, 44 fail, normal and stress;
     parse-only 42,240).
+- Strings, collections, arrays and numbers (feature 13d). Measured with
+  callgrind on the string rows first (instructions per iteration, base
+  d36be4f): `slice` and `charCodeAt` 3,620; `replace`/`trim`/`padStart`
+  9,147; case conversion of 4 strings 7,621; `split` 3,057; two
+  `indexOf` 3,645. The costs were: the read of a method on a primitive
+  string (about 290 instructions for each of 3 reads: the general
+  `[[Get]]` through the String prototype, a shape search), the copy of
+  a short text (a vector grown from empty, 276 instructions for 5
+  units), `toLowerCase` pushing unit by unit, a `padStart` built from a
+  rope of the repeated filler (6 allocations), `replace` growing its
+  builder 3 times, the scan of `indexOf` through closures with a bounds
+  check per unit, and the allocation of the result (a vector per string,
+  about 220 instructions with a cold `malloc`, which stays).
+  - One-unit strings: `Heap::unit_string` (a table of 256 atoms in
+    `Names`, made at first use, traced by the collector). Used by `s[i]`,
+    `charAt`, `at`, `fromCharCode`, `Runtime::substring` (so also the
+    parts of `split`, `match`, `matchAll`, `replace`, `trim`), `split('')`,
+    the String Iterator and the `[[GetOwnProperty]]` of String objects.
+    As atoms they are also property keys without a table lookup.
+  - Reads on primitives: a new site entry `PrimitiveOwn { shape, holder,
+    slot }` for a data property of the prototype object of a string,
+    number or boolean (`"abc".slice`, `n.toFixed`): valid while the
+    holder is the running realm's prototype and still has the cached
+    shape (`Heap::cached_primitive_get`); the value is read from the slot
+    at each hit. The holder is the first object of the walk, so no
+    watch epoch is needed. A property further down the chain, an
+    accessor, a dictionary-mode holder and `length` and indices of
+    strings give no entry; `StringLength` reads the length of a string
+    value. The usual design of monomorphic caches (Deutsch and
+    Schiffman); no code from other engines.
+  - Smaller local fixes: `to_number` of an integer or double returns at
+    once; `Str16::to_string16` allocates the exact size; Latin-1 case
+    conversion maps in one pass over iterators; `padStart`/`padEnd` of up
+    to 256 units build the result in one buffer; `replace` reserves its
+    result; the forward search for a needle of fewer than 16 units scans
+    slices; the `split` cache copies its pieces without a temporary
+    vector (`Heap::new_array_copy`).
+  - Not changed: the 20k appends of `'ab'` (1.7 ms): each append copies
+    the right leaf (up to 1,024 units) into a new leaf, because leaves
+    are immutable; the cost is the allocation. Small strings inline in
+    the slot would change the representation (backlog).
+  - `Map` and `Set` string keys: `JsString::key_hash`, a `Cell<u32>` in
+    the padding of the record (`size_of::<JsString>()` stays 40, the slot
+    48; a test checks it), set at the first `Heap::key_hash` of the
+    string. It is a 32-bit part of the keyed hash of `AtomTable::hash`
+    (the per-process key and the SipHash stay, so a page cannot choose
+    collisions); the table needs only the low bits and compares the key
+    after the hash. A flatten keeps the content, so the hash stays valid.
+    Alternative measured on paper and not built: a side table keyed by
+    handle (a lookup as costly as the hash for short keys).
+  - `toFixed`: for at most 20 digits, `x = m * 2^e` with a 53-bit `m` and
+    `n = floor((m * 10^f + 2^(-e-1)) / 2^(-e))` for `e < 0` (a tie goes
+    up, as step 8 asks), `m * 10^f * 2^e` for `e >= 0`, in `u128`
+    (`m * 10^20 < 2^120`); a shift of 128 or more gives 0. An overflow
+    of the integer case falls back to the multi-precision path, which
+    stays as `to_fixed_exact` and is the reference of the tests: a
+    differential test over 300,000 random doubles of five families (any
+    exponent, exponents near the rounding position, decimals with a 5
+    after the last digit and their neighbours, exact binary ties) with
+    0 to 100 digits is part of the test run, and an ignored test ran 30
+    million (16 s in release) with no difference; fixed cases include
+    halves, 1e21 and its neighbours, `-0`, subnormals and `MAX_VALUE`.
+    The digits are written from `u128` in chunks of 19 digits.
+  - `shift`: `DenseVec` (a `Vec<Value>` and a start `u32`) replaces the
+    vector in `Elements::Dense`; it reads as the slice after the offset
+    (`Deref`), so all readers and writers (the trace of the collector,
+    `unshift`, `splice`, `reverse`, `sort`, length changes, holes,
+    `next_own_index`, the inline caches for `length` and elements) see
+    the elements only. `pop_front` advances the offset; the elements move
+    down when the offset reaches the count of elements (and 16), so the
+    moves of a series of shifts are at most the number of shifts; an empty
+    vector resets the offset; `splice` (used by `unshift`) first moves the
+    elements to the start. The offset and the count of non-holes share
+    the 8 bytes after the buffer (`record_sizes` checks 88 bytes for an
+    object). `Heap::shift_dense` is O(1) (the old `change_dense` also
+    counted the holes of the whole vector on each call). The time charge
+    of a dense `shift` is 1. The dead slots before the offset stay in
+    the heap's count of allocated bytes until the elements move down, so
+    a queue (`push` and `shift`) can hold about twice its live size: a
+    loop of 3M `push` and 1.5M `shift` after 2M garbage objects ends at a
+    heap limit of 256 MiB and passes at 300 MiB (13d review).
+  - Rejected after the review: the integer form on the double paths of
+    `|`, `&`, `^`, `<<`, `>>` and `>>>`. With `Value::Int` there, the
+    integer paths of these operators became 25 % slower (`s = i | 0`
+    over 8M iterations 110 → 138 ms) through the code of the
+    interpreter loop, also with the double path in a function out of
+    line; with `Value::number` the integer paths kept their speed, but
+    a loop of bitwise operators on doubles was 8 % slower. The gain was
+    1 % on the row that stores `x | 0` in an array and 3 % on the
+    default `sort` of such values. The double paths give
+    `Value::Double` as before.
+  - Rejected: (1) the dense vector as a `VecDeque` (a slice view needs
+    `make_contiguous`, which moves everything on each call); (2) the
+    offset as a separate field of `Elements::Dense` (the record grew by
+    8 bytes, `record_sizes` failed: 1M small objects would cost 8 MB
+    more); (3) a cache entry for any property of the primitive's chain
+    (it needs the watch epoch and a watched String prototype, which no
+    String object may have made yet).
+  - Tests: `tests/small_items.rs` (Node.js 22 outputs, normal and
+    stress): one-unit strings, caches on primitives (changes of the
+    prototype objects after the cache filled), string keys in `Map` and
+    `Set`, `toFixed`, `shift` (holes, prototype elements, frozen and
+    sealed arrays, getters, queues of 100,000, collections), the values
+    of the bitwise operators on doubles; unit tests of `DenseVec` and
+    `toFixed`; the size test of `JsString`.
 
 ## Consequences
 

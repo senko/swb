@@ -17,6 +17,7 @@
 use std::collections::BTreeMap;
 
 use crate::error::{Error, Result};
+use crate::object::dense::DenseVec;
 use crate::object::property::Property;
 use crate::string::PropertyKey;
 use crate::value::Value;
@@ -44,20 +45,15 @@ pub(crate) enum DenseWrite {
 
 /// The elements of an object.
 pub(crate) enum Elements {
-    Dense {
-        values: Vec<Value>,
-        /// The number of values that are not holes.
-        count: u32,
-    },
+    /// A vector with a start offset, which also holds the number of
+    /// values that are not holes (`DenseVec::count`).
+    Dense(DenseVec),
     Sparse(BTreeMap<u32, Property>),
 }
 
 impl Default for Elements {
     fn default() -> Self {
-        Elements::Dense {
-            values: Vec::new(),
-            count: 0,
-        }
+        Elements::Dense(DenseVec::new())
     }
 }
 
@@ -65,7 +61,7 @@ impl Elements {
     /// The element at `index`.
     pub(crate) fn get(&self, index: u32) -> Option<Property> {
         match self {
-            Elements::Dense { values, .. } => match values.get(index as usize) {
+            Elements::Dense(values) => match values.element(index as usize) {
                 Some(Value::Empty) | None => None,
                 Some(&value) => Some(Property::data(value)),
             },
@@ -77,8 +73,8 @@ impl Elements {
     /// vector. An element that holds a cell (a mapped argument,
     /// `arguments.rs`) keeps it: the caller writes the cell.
     pub(crate) fn write_dense(&mut self, index: u32, value: Value) -> DenseWrite {
-        if let Elements::Dense { values, .. } = self
-            && let Some(Value::Cell(cell)) = values.get(index as usize)
+        if let Elements::Dense(values) = self
+            && let Some(Value::Cell(cell)) = values.element(index as usize)
         {
             return DenseWrite::Cell(*cell);
         }
@@ -92,8 +88,8 @@ impl Elements {
     /// Stores the value of an existing data element in the dense vector
     /// (also over a cell). Returns false if the element is not there.
     fn store_dense(&mut self, index: u32, value: Value) -> bool {
-        if let Elements::Dense { values, .. } = self
-            && let Some(slot) = values.get_mut(index as usize)
+        if let Elements::Dense(values) = self
+            && let Some(slot) = values.element_mut(index as usize)
             && !slot.is_empty()
             && !value.is_empty()
         {
@@ -110,8 +106,8 @@ impl Elements {
             return (None, 0);
         }
         match self {
-            Elements::Dense { values, count } => {
-                if *count == 0 {
+            Elements::Dense(values) => {
+                if values.count == 0 {
                     return (None, 0);
                 }
                 let stop = (end as usize).min(values.len());
@@ -134,8 +130,8 @@ impl Elements {
             return (None, 0);
         }
         match self {
-            Elements::Dense { values, count } => {
-                if *count == 0 || values.is_empty() {
+            Elements::Dense(values) => {
+                if values.count == 0 || values.is_empty() {
                     return (None, 0);
                 }
                 let top = (from as usize).min(values.len() - 1);
@@ -166,7 +162,7 @@ impl Elements {
     /// The dense vector, if the elements are dense.
     pub(crate) fn dense(&self) -> Option<&[Value]> {
         match self {
-            Elements::Dense { values, .. } => Some(values),
+            Elements::Dense(values) => Some(values),
             Elements::Sparse(_) => None,
         }
     }
@@ -174,7 +170,7 @@ impl Elements {
     /// The number of stored elements.
     pub(crate) fn stored(&self) -> usize {
         match self {
-            Elements::Dense { count, .. } => *count as usize,
+            Elements::Dense(values) => values.count as usize,
             Elements::Sparse(map) => map.len(),
         }
     }
@@ -184,10 +180,10 @@ impl Elements {
     /// of a conversion to the sparse map.
     pub(crate) fn growth_estimate(&self, index: u32, property: &Property) -> usize {
         match self {
-            Elements::Dense { values, count } => {
+            Elements::Dense(values) => {
                 let new_len = (index as usize + 1).max(values.len());
-                if !property.is_default_data() || !dense_allowed(new_len, *count) {
-                    (*count as usize + 1) * SPARSE_ENTRY_BYTES
+                if !property.is_default_data() || !dense_allowed(new_len, values.count) {
+                    (values.count as usize + 1) * SPARSE_ENTRY_BYTES
                 } else if new_len > values.capacity() {
                     new_len.max(values.capacity() * 2) * size_of::<Value>()
                 } else {
@@ -205,7 +201,7 @@ impl Elements {
         {
             return Err(Error::invariant("an Empty value stored as an element"));
         }
-        if let Elements::Dense { values, count } = self
+        if let Elements::Dense(values) = self
             && property.is_default_data()
         {
             let position = index as usize;
@@ -214,14 +210,14 @@ impl Elements {
                     return Err(Error::invariant("an element inserted twice"));
                 }
                 *slot = property.slot_values().0;
-                *count += 1;
+                values.count += 1;
                 return Ok(());
             }
-            if dense_allowed(position + 1, *count) {
+            if dense_allowed(position + 1, values.count) {
                 values.try_reserve(position + 1 - values.len())?;
                 values.resize(position, Value::Empty);
                 values.push(property.slot_values().0);
-                *count += 1;
+                values.count += 1;
                 return Ok(());
             }
         }
@@ -246,12 +242,12 @@ impl Elements {
     /// Removes the element at `index`, if any.
     pub(crate) fn remove(&mut self, index: u32) {
         match self {
-            Elements::Dense { values, count } => {
+            Elements::Dense(values) => {
                 if let Some(slot) = values.get_mut(index as usize)
                     && !slot.is_empty()
                 {
                     *slot = Value::Empty;
-                    *count = count.saturating_sub(1);
+                    values.count = values.count.saturating_sub(1);
                     while values.last().is_some_and(|value| value.is_empty()) {
                         values.pop();
                     }
@@ -279,12 +275,12 @@ impl Elements {
     /// is bounded by the number of stored elements.
     pub(crate) fn remove_from(&mut self, new_len: u32) -> Option<u32> {
         match self {
-            Elements::Dense { values, count } => {
+            Elements::Dense(values) => {
                 let start = (new_len as usize).min(values.len());
                 let removed = values.get(start..).map_or(0, |tail| {
                     tail.iter().filter(|value| !value.is_empty()).count()
                 });
-                *count = count.saturating_sub(removed as u32);
+                values.count = values.count.saturating_sub(removed as u32);
                 values.truncate(start);
                 if values.capacity() > DENSE_MIN_LEN && values.capacity() > values.len() * 4 {
                     values.shrink_to(values.len() * 2);
@@ -313,8 +309,8 @@ impl Elements {
     /// Appends the keys in ascending order.
     pub(crate) fn keys(&self, out: &mut Vec<PropertyKey>) {
         match self {
-            Elements::Dense { values, count } => {
-                out.reserve(*count as usize);
+            Elements::Dense(values) => {
+                out.reserve(values.count as usize);
                 out.extend(
                     values
                         .iter()
@@ -334,7 +330,7 @@ impl Elements {
     /// element is enumerable.
     pub(crate) fn each_key(&self, mut f: impl FnMut(u32, bool)) {
         match self {
-            Elements::Dense { values, .. } => {
+            Elements::Dense(values) => {
                 for (index, value) in values.iter().enumerate() {
                     if !value.is_empty() {
                         f(index as u32, true);
@@ -352,14 +348,14 @@ impl Elements {
     /// The bytes that the elements own.
     pub(crate) fn heap_size(&self) -> usize {
         match self {
-            Elements::Dense { values, .. } => values.capacity() * size_of::<Value>(),
+            Elements::Dense(values) => values.allocated_bytes(),
             Elements::Sparse(map) => map.len() * SPARSE_ENTRY_BYTES,
         }
     }
 
     /// Converts to the sparse form (no change if already sparse).
     fn make_sparse(&mut self) -> Result<&mut BTreeMap<u32, Property>> {
-        if let Elements::Dense { values, .. } = self {
+        if let Elements::Dense(values) = self {
             let map = values
                 .iter()
                 .enumerate()
@@ -370,7 +366,7 @@ impl Elements {
         }
         match self {
             Elements::Sparse(map) => Ok(map),
-            Elements::Dense { .. } => Err(Error::invariant("elements did not become sparse")),
+            Elements::Dense(_) => Err(Error::invariant("elements did not become sparse")),
         }
     }
 }
@@ -386,7 +382,7 @@ mod tests {
     use super::*;
 
     fn is_dense(elements: &Elements) -> bool {
-        matches!(elements, Elements::Dense { .. })
+        matches!(elements, Elements::Dense(_))
     }
 
     #[test]
@@ -474,10 +470,10 @@ mod tests {
         }
         elements.remove(2);
         elements.remove(3);
-        let Elements::Dense { values, count } = &elements else {
+        let Elements::Dense(values) = &elements else {
             panic!("still dense");
         };
-        assert_eq!((values.len(), *count), (2, 2));
+        assert_eq!((values.len(), values.count), (2, 2));
         assert!(elements.insert(0, Property::data(Value::Empty)).is_err());
     }
 
