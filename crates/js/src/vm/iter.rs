@@ -268,9 +268,9 @@ impl Runtime {
     }
 
     /// The built-in iterator of a record whose step can run without
-    /// calling `next`: an Array, Map or Set Iterator or an iterator
-    /// helper whose `next` is the built-in method of its kind (of some
-    /// realm). The step then does
+    /// calling `next`: an Array, Map, Set, String or `RegExp` String
+    /// Iterator or an iterator helper whose `next` is the built-in method
+    /// of its kind (of some realm). The step then does
     /// what `next` does, except for the result object, which nothing can
     /// observe ([`crate::builtins::builtin_iterator_next_value`]).
     pub(crate) fn builtin_step(&self, iterator: Value, next: Value) -> Option<Gc<Object>> {
@@ -285,9 +285,35 @@ impl Runtime {
             ObjectKind::MapIterator(_) => Intrinsic::MapIteratorNext,
             ObjectKind::SetIterator(_) => Intrinsic::SetIteratorNext,
             ObjectKind::IteratorHelper(_) => Intrinsic::IteratorHelperNext,
+            ObjectKind::StringIterator(_) => Intrinsic::StringIteratorNext,
+            ObjectKind::RegExpStringIterator(_) => Intrinsic::RegExpStringIteratorNext,
             _ => return None,
         };
         let builtin = self.intrinsic(native.realm, which).ok()?;
+        (builtin == next).then_some(iterator)
+    }
+
+    /// The generator of a record whose step can resume it directly: a
+    /// generator (not an async one) whose `next` is the built-in
+    /// `%GeneratorPrototype%.next` of some realm. The step then resumes it
+    /// as `next` does, and a `yield` gives its value without the result
+    /// object, which nothing can observe ([`crate::vm::ReturnTo::IterValue`]).
+    pub(crate) fn builtin_generator(&self, iterator: Value, next: Value) -> Option<Gc<Object>> {
+        let (Value::Object(iterator), Value::Object(next)) = (iterator, next) else {
+            return None;
+        };
+        let ObjectKind::Native(native) = &self.heap.object(next).ok()?.kind else {
+            return None;
+        };
+        let ObjectKind::Generator(state) = &self.heap.object(iterator).ok()?.kind else {
+            return None;
+        };
+        if !matches!(state.kind, crate::vm::generator::GeneratorKind::Sync) {
+            return None;
+        }
+        let builtin = self
+            .intrinsic(native.realm, Intrinsic::GeneratorNext)
+            .ok()?;
         (builtin == next).then_some(iterator)
     }
 

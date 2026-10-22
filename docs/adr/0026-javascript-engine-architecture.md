@@ -247,13 +247,22 @@ instructions. The native part returns a request "call this function with
 these arguments" to the loop instead of calling it (memo 1.2: deferred
 calls).
 
-**Native functions that call script code** (callbacks of `forEach`,
-`sort` and `replace`, `ToPrimitive`, `toJSON`, Proxy traps, getters
-reached from native code) re-enter the interpreter through Rust
-recursion. Each re-entry charges the recursion budget (section 9). A
-built-in whose callbacks dominate, or that needs `await`, can be written
-in JavaScript and compiled with the realm (self-hosted, memo 1.2); this
-is decided per built-in.
+**Native functions that call script code** in a loop (the callbacks of
+the array and typed-array methods, `sort` with a comparator, `replace`
+and `replaceAll` with a function) are native loops since M7 13c (`vm/native_loop.rs`, section 15; memo 1.2,
+"resumable native functions"): the native returns its state, and the
+interpreter runs the state's steps; a step's call of a script function
+is a frame of the running interpreter loop whose return
+(`ReturnTo::Native`) runs the next step. The state keeps its heap values
+in registers, a window of the value stack. The other natives that need a
+result of script code in the middle of their work (`ToPrimitive`,
+`toJSON`, Proxy traps, getters reached from native code, the steps of
+iterator helpers, promise jobs) re-enter the interpreter through Rust
+recursion. Each
+re-entry charges the recursion budget (section 9), and so does the start
+of a native callee from a loop step. A built-in whose callbacks dominate,
+or that needs `await`, can be written in JavaScript and compiled with the
+realm (self-hosted, memo 1.2); this is decided per built-in.
 
 **`arguments`** is created at function entry only if the function
 references it or contains a direct `eval` (§10.2.11). Rest parameters
@@ -271,7 +280,10 @@ nothing points into the moved window (section 3). The resume delivers a
 value and a mode (next, throw, return) in registers; the compiler emits
 a dispatch on the mode after each `yield`. The return mode jumps into
 the compiled return path, which runs `finally` blocks and closes
-iterators (memo 1.3). `yield*` is a bytecode loop. `await` attaches
+iterators (memo 1.3). `yield*` is a bytecode loop. A step of `for`-`of` over a generator
+whose `next` is the built-in one resumes the frame directly, and its
+`yield` puts the value into the loop's register without the result
+object (M7 13c, section 15). `await` attaches
 internal reactions to a promise that resume the frame from a promise
 job (§27.7.5.3); awaiting a native promise costs one job. Async
 generators keep the request queue of §27.6.3.
@@ -570,7 +582,7 @@ Content from the network must never crash or hang the browser.
 | Time per task | A countdown at function entry, backward jumps, regular expression steps and long built-in loops; at zero, the host's time check (deadline per task). | Termination |
 | Script call depth | Length of the frame vector; default 10,000, compared with Chromium. | `RangeError` |
 | Value stack | Bounded number of slots. | `RangeError` |
-| Rust recursion | One shared budget for all Rust recursion in the engine: native re-entry into the interpreter, parser levels and AST depth, JSON, Proxy traps, the regular expression parser. Each kind charges a weight that approximates its stack use. The budget assumes a stack of at least 8 MiB (see below); a test runs the worst cases in a debug build on a thread with that stack size. | `RangeError` (also in the parser, as in Chromium) |
+| Rust recursion | One shared budget for all Rust recursion in the engine: native re-entry into the interpreter, the start of a native callee from a native loop's step (section 15, 13c), parser levels and AST depth, JSON, Proxy traps, the regular expression parser. Each kind charges a weight that approximates its stack use. The budget assumes a stack of at least 8 MiB (see below); a test runs the worst cases in a debug build on a thread with that stack size. | `RangeError` (also in the parser, as in Chromium) |
 | Scope analysis | At most 2^20 captured-variable entries per script and 65,535 per function (flat closures copy a capture into each function in between); at most 65,535 − 1,024 declared registers per function (1,024 stay for temporaries; the compiler checks the total). | `RangeError` (captures), `SyntaxError` (registers) |
 | Heap | Byte accounting, limit set by the host. | Termination |
 | String length | About 2^29 code units (measured). | `RangeError` |
@@ -3006,6 +3018,135 @@ where the first plan did not work:
     normal and stress; expected outputs from Node.js 22); test262
     unchanged (40,286 pass, 44 fail, normal and stress; parse-only
     42,240).
+- Callbacks from natives (feature 13c; `vm/native_loop.rs`; memo 1.2,
+  "resumable native functions"). Measured first with callgrind on
+  `forEach` over 200,000 elements with an empty callback: 1,397
+  instructions per element, of them 686 in `Runtime::call` (the re-entry:
+  `push_window` 107, `invoke` and the frame 217, `run_frames` and the
+  entry and exit of a new `execute` 283 for a body of two instructions)
+  and 710 in the element loop (460 of them the search of the prototype
+  chain for the next stored index, which a dense array without holes
+  does not need).
+  - Alternatives. (1) A cheaper re-entry: the entry of a new `execute`
+    and `run_frames` is the part that only a nested loop has; even with
+    `push_window` and the bookkeeping of `call` cut, a re-entry stays
+    above 500 instructions per call, and it keeps the recursion limit of
+    about 400 levels of the budget. (2) Self-hosted built-ins (memo 1.2):
+    the callbacks would be script calls, but every built-in would need a
+    JavaScript version with the exact order of observable steps and V8's
+    messages, and the bodies would run slower in the interpreter than in
+    Rust. (3) Native loops (chosen): the native returns its state, a
+    step returns "call this" or "done", and the call is a frame of the
+    running interpreter loop. Measured with the first version: 1,129
+    instructions per element (the state was rooted by recording its
+    handles in each step's handle scope, and a step returned its call as
+    a 100-byte value); with registers on the value stack and the window
+    pushed by the step, 893.
+  - The mechanism: `NativeReturn::Loop` carries the state (a boxed
+    `NativeLoop`) and the index of its registers. `Runtime::start_loop`
+    pushes a `LoopRecord` (the state, the registers, where the result
+    goes, the stack length to restore, the number of frames below it)
+    and runs steps until one calls a script function. A step gets the
+    last call's result (recorded in the step's handle scope), pushes the
+    next call's window (`push_call`) and returns `LoopStep::Call`, or
+    returns `Done(value)`. The call runs with `ReturnTo::Native`: its frame's return delivers to the
+    top record, whose next step runs (`resume_loop`). A native callee
+    that returns at once continues the loop without a frame. A loop
+    whose result goes to the loop below it continues that one in the
+    same Rust loop, not by recursion.
+  - GC: the state keeps its heap values in registers, a window of the
+    value stack above the native's arguments (the copies in Rust fields
+    are only valid because the registers hold them); the state itself
+    holds no other handles, so a step needs no rooting of its state and
+    the records need no tracing.
+  - Exceptions: `run_frames` gives an exception that leaves the frames
+    above the top record to the record's `on_error` before it searches
+    the handlers below (the default passes the exception on). Records
+    belong to the run of
+    the interpreter whose frames they wait for: a record whose step runs,
+    or whose call of a native callee runs in Rust, is below any run that
+    the step or the callee starts (re-entry), so `catching_loop` and
+    `drop_loops` skip it. Found by `Promise.prototype.finally` in a job
+    loop of a first version (its closure calls the callback through
+    re-entry, and the exception reached the loop of the outer run).
+  - Limits: a step ticks the countdown; the frame of a script callee
+    checks the frame limit, so a recursion through callbacks ends at the
+    frame limit (two frames per level: 4,999 levels of
+    `f → forEach → callback → f`; before, 408 levels of the recursion
+    budget; Node.js 22 2,789 for `forEach`, 1,743 for `sort`, 705 for
+    `replace`). The start of a native callee from a step charges the
+    recursion budget (a native callee can start a loop of its own in
+    Rust).
+  - Converted: `Array.prototype` `forEach`, `map`, `filter`, `every`,
+    `some`, `reduce`, `reduceRight` and the `find` family (one state
+    machine; an element in the receiver's dense vector is the next one
+    without the chain search, which also speeds up the loops that still
+    call `for_present`); the typed-array equivalents; `sort` and
+    `toSorted` with a comparator (the merge sort as a state machine,
+    `SortMachine`, which makes the comparisons of `merge_sort` in the same
+    order, checked by a unit test with random and inconsistent answers);
+    `RegExp.prototype[@@replace]` with a function (after the collection
+    of the matches) and `String.prototype.replace` and `replaceAll` with a
+    function.
+  - Measured and not converted: a proxy `get` trap as a native loop (two
+    steps, a boxed state per access) was 36 % slower than the re-entry
+    (133 → 181 ms for 1M reads): the fixed costs of a loop with one call
+    exceed a re-entry. The consumers of iterator helpers (`reduce`,
+    `forEach`, `some`, `every`, `find`) as loops whose steps pull the
+    next value through the helpers (which still re-enter for the
+    mapper and for a script's `next`) were 10 % slower in wall time at
+    1 % more instructions: cachegrind showed 70 times more instruction
+    cache misses, from the re-entries inside a step of the outer loop.
+    The promise job queue as one loop (the handlers of reaction jobs as
+    frames, the resumption of an `await` as a frame through a step that
+    resumes a generator) gave no gain on `then` (64 ms both) and made
+    100k `await`s 10 % slower (+5 % instructions): one job is one call,
+    and a step costs about what a re-entry costs. These stay on the
+    re-entry path; iterator helpers need their own resumable steps (a
+    later feature).
+  - Iterator results: `CreateIterResultObject` makes the first result of
+    a realm with the general definitions and keeps its shape (`value`,
+    `done` on `%Object.prototype%`); later results are made in that shape
+    with both slots at once. The results of `RegExp` exec already had
+    fixed shapes (8b).
+  - `for`-`of` fast paths (`IteratorCall`): the record's `next` is read
+    once by `GetIterator`, as before; when it is the built-in `next` of
+    the iterator's kind (compared with the intrinsic of the function's
+    realm), the step needs no result object. Since 6b this held for
+    Array, Map and Set Iterators and iterator helpers; 13c adds String and
+    `RegExp` String Iterators (a step without the result object, as
+    `next` does it) and generators: the step resumes the generator's
+    frame directly with `ReturnTo::IterValue`, and its `yield` puts the
+    value into the loop's register and marks the step done or not in the
+    record's state register, without the result object; a return marks
+    it done; a `yield*` that passes a result object of its delegate gives
+    that object to the general check (its getters run). A patched
+    `%GeneratorPrototype%.next`, an own `next` of the generator, or an
+    async generator take the general path.
+  - Interpreter: the arms that can remove the top frame (`Return`, the
+    yields, the async instructions) no longer write the pc back after an
+    error, because a native loop that resumed there can fail after the
+    frame went (the pc went into the frame below before). `deliver` is
+    fallible and stays inlined for registers; the native loop and the
+    `for`-`of` step are out of line.
+  - Measured (vm_bench, best of 5, two alternating runs, base 43e5f3e;
+    `docs/performance.md`): `forEach` 66 → 51 ms, `reduce` 71 → 49,
+    `filter` 77 → 57, typed `map` 82 → 70, `sort` with a comparator 89 →
+    80, `matchAll` 150 → 88, `for`-`of` over a generator 266 → 69, `for
+    await` over an async generator 66 → 58 (iterator results); `replace`
+    with a function, the iterator helper and promise rows unchanged; the
+    rows of helpers that call script functions 2 to 6 % slower (1 % more
+    instructions on the re-entry path). Geometric mean over 95 programs
+    0.97.
+  - Tests: `tests/callbacks.rs` (exceptions in callback loops with
+    their stack text, callbacks that change the array, re-entrant calls of
+    the same native, natives as callbacks that re-enter and throw, deep
+    recursion through callbacks, a time limit inside callback loops,
+    generators and async functions as callbacks, patched `next` methods
+    and `return` on early exits of `for`-`of`; normal and stress;
+    expected outputs from Node.js 22), the unit test of `SortMachine`;
+    test262 unchanged (40,286 pass, 44 fail, normal and stress;
+    parse-only 42,240).
 
 ## Consequences
 

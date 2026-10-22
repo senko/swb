@@ -10,9 +10,11 @@
 //! not stop there. `map` and `filter` make their result through
 //! `TypedArraySpeciesCreate`; `filter` keeps the selected elements in a
 //! compact list of element bytes (the source array already holds as many
-//! bytes) until the species constructor ran. Every step ticks the time
-//! countdown and runs in a handle scope of its own, so a `BigInt` element
-//! and the callback's results stay alive for one step only.
+//! bytes) until the species constructor ran. Each method is a native loop
+//! (`vm/native_loop.rs`): every step ticks the time countdown and runs in
+//! a handle scope of its own, so a `BigInt` element and the callback's
+//! results stay alive for one step only, and the callback runs as a frame
+//! of the interpreter loop.
 //!
 //! V8's messages (measured in Chromium 148): a callback that is not
 //! callable is "number 5 is not a function" (the type and the value, as
@@ -22,13 +24,15 @@
 use crate::heap::Gc;
 use crate::object::{Object, TypedArrayData};
 use crate::runtime::Runtime;
-use crate::value::{Value, ValueCell};
+use crate::value::Value;
+use crate::vm::native_loop::{LoopStep, NativeLoop};
 use crate::vm::{NativeCall, NativeReturn, VmError, VmResult};
 
+use super::array_iteration::{Found, Method};
 use super::typed_array_create::{CreateArgs, element_of_raw};
 use super::typed_array_method::{position, validate_this};
 
-/// The state of a method that calls a function for the elements.
+/// The receiver, its length, the callback and `thisArg` of a method.
 struct Each {
     array: Gc<Object>,
     data: TypedArrayData,
@@ -63,48 +67,174 @@ impl Each {
     fn index(&self, n: usize, descending: bool) -> usize {
         if descending { self.length - 1 - n } else { n }
     }
+}
 
-    /// `Call(callback, thisArg, « element, k, O »)` for index `k`, in the
-    /// current handle scope: the element (read before the call) and the
-    /// result.
-    fn call(&self, rt: &mut Runtime, k: usize) -> VmResult<(Value, Value)> {
-        let element = rt.typed_value(&self.data, k)?;
-        let result = rt.call(
-            self.callback,
-            self.this_arg,
-            &[element, position(k), self.array.into()],
-        )?;
-        Ok((element, result))
+/// The registers of a typed-array element loop: the array, the callback,
+/// `thisArg`, the result, the current element, the accumulator.
+const CURRENT: usize = 4;
+const ACCUMULATOR: usize = 5;
+
+/// The state of a typed-array element loop (a native loop): one call per
+/// index, `Call(callback, thisArg, « element, k, O »)` (`reduce`:
+/// `« accumulator, element, k, O »` with `undefined` as `this`); the
+/// element is read before the call.
+struct TypedLoop {
+    each: Each,
+    method: Method,
+    descending: bool,
+    /// The number of indices visited.
+    n: usize,
+    /// The index and the element whose call runs.
+    current: Option<(usize, Value)>,
+    /// `map`: the result and its data.
+    result: Option<(Gc<Object>, TypedArrayData)>,
+    /// `filter`: the selected elements, and the bits of the current one.
+    kept: Option<Box<Kept>>,
+    bits: Option<u64>,
+    /// `reduce`: the accumulator once it has one.
+    accumulator: Option<Value>,
+}
+
+impl TypedLoop {
+    fn new(each: Each, method: Method) -> TypedLoop {
+        TypedLoop {
+            each,
+            method,
+            descending: false,
+            n: 0,
+            current: None,
+            result: None,
+            kept: None,
+            bits: None,
+            accumulator: None,
+        }
     }
 
-    /// Visits the indices in order (or from the end) until `step` says
-    /// stop; `step(rt, k, element, result)` runs in the scope of the step.
-    fn run(
-        &self,
-        rt: &mut Runtime,
-        descending: bool,
-        mut step: impl FnMut(&mut Runtime, usize, Value, Value) -> VmResult<bool>,
-    ) -> VmResult<()> {
-        for n in 0..self.length {
-            rt.tick()?;
-            let k = self.index(n, descending);
-            let stop = rt.with_scope(|rt| {
-                let (element, result) = self.call(rt, k)?;
-                step(rt, k, element, result)
-            })?;
-            if stop {
-                break;
+    /// Runs the state as a native loop.
+    fn run(self, rt: &mut Runtime) -> VmResult<NativeReturn> {
+        let registers = [
+            self.each.array.into(),
+            self.each.callback,
+            self.each.this_arg,
+            self.result
+                .as_ref()
+                .map_or(Value::Undefined, |(result, _)| Value::Object(*result)),
+            Value::Undefined,
+            self.accumulator.unwrap_or(Value::Undefined),
+        ];
+        rt.native_loop(self, &registers)
+    }
+
+    /// Takes the callback's result for the current element; returns the
+    /// loop's result if it ends here.
+    fn take(&mut self, rt: &mut Runtime, result: Value) -> VmResult<Option<Value>> {
+        let Some((k, element)) = self.current.take() else {
+            return Ok(None);
+        };
+        match self.method {
+            Method::ForEach => {}
+            Method::EverySome { stop } => {
+                if rt.to_boolean(result)? == stop {
+                    // `every` stops with false, `some` with true.
+                    return Ok(Some(Value::Bool(stop)));
+                }
             }
+            Method::Find(found) => {
+                if rt.to_boolean(result)? {
+                    return Ok(Some(match found {
+                        Found::Value => element,
+                        Found::Index => position(k),
+                    }));
+                }
+            }
+            Method::Map => {
+                if let Some((_, target)) = &self.result {
+                    rt.typed_set_element(target, k as f64, result)?;
+                }
+            }
+            Method::Filter => {
+                if rt.to_boolean(result)?
+                    && let Some(kept) = &mut self.kept
+                {
+                    let limit = self.each.length.saturating_mul(kept.size);
+                    kept.push(rt, limit, self.bits)?;
+                }
+            }
+            Method::Reduce => self.accumulator = Some(result),
         }
-        Ok(())
+        Ok(None)
+    }
+
+    /// The loop's result after the last index.
+    fn finish(&mut self, rt: &mut Runtime) -> VmResult<Value> {
+        Ok(match self.method {
+            Method::ForEach | Method::Find(Found::Value) => Value::Undefined,
+            Method::EverySome { stop } => Value::Bool(!stop),
+            Method::Find(Found::Index) => Value::Int(-1),
+            Method::Map => self
+                .result
+                .as_ref()
+                .map_or(Value::Undefined, |(result, _)| Value::Object(*result)),
+            Method::Filter => match self.kept.take() {
+                Some(kept) => filter_result(rt, &self.each, &kept)?.into(),
+                None => Value::Undefined,
+            },
+            Method::Reduce => self.accumulator.unwrap_or(Value::Undefined),
+        })
+    }
+}
+
+impl NativeLoop for TypedLoop {
+    fn step(&mut self, rt: &mut Runtime, regs: usize, input: Value) -> VmResult<LoopStep> {
+        if let Some(result) = self.take(rt, input)? {
+            return Ok(LoopStep::Done(result));
+        }
+        if let Some(accumulator) = self.accumulator {
+            rt.set_loop_reg(regs, ACCUMULATOR, accumulator)?;
+        }
+        let mut first = true;
+        loop {
+            if self.n >= self.each.length {
+                return Ok(LoopStep::Done(self.finish(rt)?));
+            }
+            if !first {
+                // The first element of `reduce` took no call: a step of
+                // its own.
+                rt.tick()?;
+            }
+            first = false;
+            let k = self.each.index(self.n, self.descending);
+            self.n += 1;
+            if self.method == Method::Filter {
+                self.bits = rt.heap.typed_bits(&self.each.data, k)?;
+            }
+            let element = rt.typed_value(&self.each.data, k)?;
+            let array = Value::Object(self.each.array);
+            if self.method == Method::Reduce {
+                let Some(accumulator) = self.accumulator else {
+                    self.accumulator = Some(element);
+                    rt.set_loop_reg(regs, ACCUMULATOR, element)?;
+                    continue;
+                };
+                self.current = Some((k, element));
+                let args = [accumulator, element, position(k), array];
+                rt.push_call(self.each.callback, Value::Undefined, &args)?;
+                return Ok(LoopStep::Call);
+            }
+            self.current = Some((k, element));
+            // `find` returns the element after the call.
+            rt.set_loop_reg(regs, CURRENT, element)?;
+            let args = [element, position(k), array];
+            rt.push_call(self.each.callback, self.each.this_arg, &args)?;
+            return Ok(LoopStep::Call);
+        }
     }
 }
 
 /// `%TypedArray%.prototype.forEach(callback, thisArg)` (§23.2.3.15).
 pub(super) fn for_each(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let each = begin(rt, call, "forEach", false)?;
-    each.run(rt, false, |_, _, _, _| Ok(false))?;
-    Ok(NativeReturn::Value(Value::Undefined))
+    TypedLoop::new(each, Method::ForEach).run(rt)
 }
 
 /// `every` (§23.2.3.7) and `some` (§23.2.3.29): the first callback result
@@ -116,13 +246,8 @@ fn every_or_some(
     stop: bool,
 ) -> VmResult<NativeReturn> {
     let each = begin(rt, call, name, false)?;
-    let mut stopped = false;
-    each.run(rt, false, |rt, _, _, result| {
-        stopped = rt.to_boolean(result)? == stop;
-        Ok(stopped)
-    })?;
-    // `every` is true unless it stopped, `some` true only if it stopped.
-    Ok(NativeReturn::Value(Value::Bool(stopped == stop)))
+    let method = Method::EverySome { stop };
+    TypedLoop::new(each, method).run(rt)
 }
 
 /// `%TypedArray%.prototype.every(callback, thisArg)` (§23.2.3.7).
@@ -135,13 +260,6 @@ pub(super) fn some(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
     every_or_some(rt, call, "some", true)
 }
 
-/// What the `find` family returns.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Found {
-    Value,
-    Index,
-}
-
 /// `FindViaPredicate` (§23.2.3.10.1) for `find`, `findIndex`, `findLast`
 /// and `findLastIndex`.
 fn find_via_predicate(
@@ -152,20 +270,9 @@ fn find_via_predicate(
     found: Found,
 ) -> VmResult<NativeReturn> {
     let each = begin(rt, call, name, false)?;
-    let mut hit = None;
-    each.run(rt, descending, |rt, k, element, result| {
-        if rt.to_boolean(result)? {
-            hit = Some((k, element));
-        }
-        Ok(hit.is_some())
-    })?;
-    Ok(NativeReturn::Value(match (hit, found) {
-        // The scope of the step is closed: root the element again.
-        (Some((_, element)), Found::Value) => rt.heap.record(element),
-        (Some((k, _)), Found::Index) => position(k),
-        (None, Found::Value) => Value::Undefined,
-        (None, Found::Index) => Value::Int(-1),
-    }))
+    let mut state = TypedLoop::new(each, Method::Find(found));
+    state.descending = descending;
+    state.run(rt)
 }
 
 /// `%TypedArray%.prototype.find(predicate, thisArg)` (§23.2.3.10).
@@ -196,17 +303,15 @@ pub(super) fn find_last_index(rt: &mut Runtime, call: &NativeCall) -> VmResult<N
 pub(super) fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     const NAME: &str = "%TypedArray%.prototype.map";
     let each = begin(rt, call, "map", true)?;
-    let (result, target) = rt.typed_species_create(
+    let created = rt.typed_species_create(
         each.array,
         each.data.ty,
         CreateArgs::Length(each.length),
         NAME,
     )?;
-    each.run(rt, false, |rt, k, _, mapped| {
-        rt.typed_set_element(&target, k as f64, mapped)?;
-        Ok(false)
-    })?;
-    Ok(NativeReturn::Value(result.into()))
+    let mut state = TypedLoop::new(each, Method::Map);
+    state.result = Some(created);
+    state.run(rt)
 }
 
 // --- filter (§23.2.3.9) ---
@@ -292,28 +397,23 @@ impl Kept {
 
 /// `%TypedArray%.prototype.filter(callback, thisArg)` (§23.2.3.9).
 pub(super) fn filter(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    const NAME: &str = "%TypedArray%.prototype.filter";
     let each = begin(rt, call, "filter", false)?;
-    let ty = each.data.ty;
-    let size = ty.size();
-    let mut kept = Kept {
+    let size = each.data.ty.size();
+    let mut state = TypedLoop::new(each, Method::Filter);
+    state.kept = Some(Box::new(Kept {
         size,
         bytes: Vec::new(),
         undefined: Vec::new(),
         count: 0,
-    };
-    let limit = each.length.saturating_mul(size);
-    for k in 0..each.length {
-        rt.tick()?;
-        rt.with_scope(|rt| {
-            let bits = rt.heap.typed_bits(&each.data, k)?;
-            let (_, selected) = each.call(rt, k)?;
-            if rt.to_boolean(selected)? {
-                kept.push(rt, limit, bits)?;
-            }
-            Ok(())
-        })?;
-    }
+    }));
+    state.run(rt)
+}
+
+/// The result of `filter` after the loop: `TypedArraySpeciesCreate` with
+/// the number of selected elements, then the elements.
+fn filter_result(rt: &mut Runtime, each: &Each, kept: &Kept) -> VmResult<Gc<Object>> {
+    const NAME: &str = "%TypedArray%.prototype.filter";
+    let ty = each.data.ty;
     let (result, target) =
         rt.typed_species_create(each.array, ty, CreateArgs::Length(kept.count), NAME)?;
     let mut run = 0;
@@ -328,7 +428,7 @@ pub(super) fn filter(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
             None => rt.typed_set_element(&target, n as f64, Value::Undefined),
         })?;
     }
-    Ok(NativeReturn::Value(result.into()))
+    Ok(result)
 }
 
 // --- reduce (§23.2.3.25) and reduceRight (§23.2.3.26) ---
@@ -347,33 +447,11 @@ fn reduce_either(
             "Reduce of empty array with no initial value",
         ));
     }
-    let accumulator = rt.heap.alloc_cell(rt.arg(call, 1))?;
-    rt.heap.record(accumulator);
-    let mut first = !has_initial;
-    for n in 0..each.length {
-        rt.tick()?;
-        let k = each.index(n, descending);
-        rt.with_scope(|rt| {
-            let element = rt.typed_value(&each.data, k)?;
-            if first {
-                first = false;
-                return set_cell(rt, accumulator, element);
-            }
-            let previous = rt.heap.cell(accumulator)?.value;
-            let next = rt.call(
-                each.callback,
-                Value::Undefined,
-                &[previous, element, position(k), each.array.into()],
-            )?;
-            set_cell(rt, accumulator, next)
-        })?;
-    }
-    Ok(NativeReturn::Value(rt.heap.cell(accumulator)?.value))
-}
-
-fn set_cell(rt: &mut Runtime, cell: Gc<ValueCell>, value: Value) -> VmResult<()> {
-    rt.heap.cell_mut(cell)?.value = value;
-    Ok(())
+    let initial = rt.arg(call, 1);
+    let mut state = TypedLoop::new(each, Method::Reduce);
+    state.descending = descending;
+    state.accumulator = has_initial.then_some(initial);
+    state.run(rt)
 }
 
 /// `%TypedArray%.prototype.reduce(callback [, initialValue])`

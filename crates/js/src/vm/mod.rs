@@ -58,6 +58,7 @@ pub(crate) mod iter;
 pub(crate) mod jobs;
 mod literal;
 mod messages;
+pub(crate) mod native_loop;
 pub(crate) mod number;
 pub(crate) mod private;
 pub(crate) mod promise;
@@ -78,7 +79,8 @@ pub(crate) use create_function::DynamicKind;
 pub use env::EnvRecord;
 pub(crate) use eval::eval_function;
 pub use function::{
-    BoundFunction, Closure, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume, ResumeMode,
+    BoundFunction, Closure, LoopState, NativeCall, NativeFn, NativeFunction, NativeReturn, Resume,
+    ResumeMode,
 };
 pub use generator::GeneratorState;
 pub(crate) use generator::{
@@ -127,6 +129,15 @@ pub(crate) enum ReturnTo {
     Discard,
     /// Back to the Rust caller of the interpreter loop.
     Host,
+    /// To the top native loop (`native_loop.rs`), whose next step runs.
+    Native,
+    /// A step of `for`-`of` over a generator with the built-in `next`
+    /// (`Insn::IteratorCall`): a `yield` puts its value into the register
+    /// `dst` and `false` into the record's state register `state`, without
+    /// the result object; a return leaves the state `true` (done); any
+    /// other result is a result object for the general check (the state
+    /// becomes `ITERATOR_PENDING`).
+    IterValue { dst: Reg, state: Reg },
 }
 
 /// A frame record (ADR 0026 section 5).
@@ -362,6 +373,9 @@ pub(crate) struct Vm {
     pub(crate) stack: Vec<Value>,
     /// The frame records, innermost last.
     pub(crate) frames: Vec<Frame>,
+    /// The native loops that wait for a call (`native_loop.rs`),
+    /// innermost last.
+    pub(crate) loops: Vec<native_loop::LoopRecord>,
     /// The realms (ADR 0026 section 12).
     pub(crate) realms: Vec<Realm>,
     pub(crate) atoms: Atoms,

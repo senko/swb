@@ -2028,6 +2028,28 @@ failures with a reason. Features, in this order:
       function, proxy traps, promise jobs) without the cost of a new
       interpreter entry for each call; one shape for iterator results;
       `for`-`of` over a generator without the result object.
+      Done 2026-10-22: natives that call script functions in a loop are
+      native loops (`vm/native_loop.rs`): the native returns its state
+      with its heap values in registers on the value stack, a step
+      pushes the next call, and the call is a frame of the running
+      interpreter loop whose return runs the next step; an exception
+      reaches the loop's `on_error` before the handlers below it.
+      Converted: the array and typed-array callback methods, `sort` and
+      `toSorted` with a comparator (the merge sort as a state machine
+      with the same comparisons), `replace` and `replaceAll` with a
+      function. A dense element skips the search of the prototype chain
+      for the next index. Iterator results have one shape per realm;
+      `for`-`of` takes no result objects from generators with the
+      built-in `next` and from String and `RegExp` String Iterators.
+      Measured and kept on re-entry: proxy traps, promise jobs and the
+      consumers of iterator helpers (as loops they were not faster).
+      `jsbench`: `forEach` 66 → 51 ms, `reduce` 71 → 49, `filter` 77 →
+      57, typed `map` 82 → 70, `sort` with a comparator 89 → 80,
+      `matchAll` 150 → 88, `for`-`of` over a generator 266 → 69;
+      geometric mean over 95 programs 0.97 of 13b (2.35 times
+      `node --jitless`). Recursion through callbacks ends at the frame
+      limit (4,999 levels; 408 before). test262 unchanged (40,286;
+      stress the same).
     - 13d Small items (`implementer`): a table of the 256 one-unit
       Latin-1 strings, a start offset for `shift` on dense arrays, a fast
       path of `toFixed` for few digits, a cached hash of `Map` string
@@ -2115,6 +2137,36 @@ not repeated here; the open items of each spike session are in M6 step
     is 128 bytes; `extra_args` and `new_target` could be smaller.
   - A call of a chain of 100,000 bound functions ends with "Invalid
     string length"; Node calls it (13b review; also at 13a).
+- Callbacks from natives (M7 13c):
+  - Iterator helpers step synchronously and call the mapper, the
+    predicate and a script's `next` by re-entry. Native loops for the
+    consumers alone were slower (instruction cache misses from the
+    re-entries inside a step). A fix needs resumable helper steps: a
+    pending state per helper (waiting for the underlying `next` or for
+    the callback) and a consumer loop that keeps the stack of helpers
+    in progress, with the rules for `return()`, `Executing` and
+    `IfAbruptCloseIterator`.
+  - Proxy traps and promise jobs use re-entry: as native loops (a boxed
+    state, a record and two steps per call) they were slower (proxy
+    `get` 36 %, 100k awaits 10 %). A state stored in the record, or a
+    `ReturnTo` that checks a trap result, would make loops with one call
+    cheaper.
+  - Typed-array `sort` with a comparator uses re-entry; a state machine
+    like `SortMachine` would convert it.
+  - The `find` family reads a run of indices that no object of the
+    chain stores as `undefined`, also when a callback adds an element
+    there during the run (as before 13c); `[[Get]]` would see it.
+  - The re-entry path has about 1 % more instructions than at 13b; the
+    iterator-helper rows that call script functions are 2 to 6 %
+    slower, the proxy `get` trap row 1 to 6 %.
+  - Recursion through callbacks ends at the frame limit (4,999 levels
+    of `f → forEach → callback`); V8 stops at about 2,800 for
+    `forEach` and 705 for `replace`.
+  - Stack traces show no frames of natives (V8: `at Array.forEach`).
+  - `for (const [k, v] of map)` is unchanged (191 ms, Node 43 ms): the
+    array destructuring of each entry makes an Array Iterator and
+    closes it; a fast path for arrays with the built-in iteration would
+    help.
 - `[[VarNames]]` (M7 3f, older): the global environment does not record
   var names, so a later `let` of a name whose configurable property
   existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws

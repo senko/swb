@@ -196,7 +196,7 @@ impl NativeCall {
 }
 
 /// What a native function returns.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub enum NativeReturn {
     /// The result.
     Value(Value),
@@ -226,6 +226,24 @@ pub enum NativeReturn {
     /// Resume a generator (the `next`, `return` and `throw` methods of
     /// generator objects).
     Resume(Resume),
+    /// A native loop (`vm/native_loop.rs`): the interpreter runs its steps
+    /// and their calls; the loop's result is the result of the native
+    /// call.
+    Loop(LoopState),
+}
+
+/// The state of a native loop that a native function returns
+/// (`Runtime::native_loop`): the state and the index of its registers in
+/// the value stack.
+pub struct LoopState {
+    pub(crate) state: Box<dyn crate::vm::native_loop::NativeLoop>,
+    pub(crate) regs: usize,
+}
+
+impl std::fmt::Debug for LoopState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LoopState")
+    }
 }
 
 /// How a generator resumes (§27.5.3.3 `GeneratorResume`, §27.5.3.4

@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 feature 13c, callbacks from natives
+
+- Callgrind on `forEach` showed 1,397 instructions per element: 686 in
+  the re-entry of the interpreter (`Runtime::call`) and 460 in the
+  search of the prototype chain for the next index. Natives that call
+  script functions in a loop are now native loops: the native returns
+  its state, the interpreter runs its steps, and each call is a frame of
+  the same interpreter loop (908 instructions per element). The state's
+  heap values live in registers on the value stack, so a step needs no
+  rooting. An element in the receiver's dense vector skips the chain
+  search.
+- Converted: the array and typed-array callback methods, `sort` with a
+  comparator, `replace` with a function. Proxy traps, promise jobs and
+  the consumers of iterator helpers were tried as loops and were not
+  faster (a loop with one call costs as much as a re-entry; the helper
+  consumers lost to instruction cache misses), so they keep the
+  re-entry.
+- Iterator results have one shape per realm; `for`-`of` over a generator
+  resumes the frame and takes the yielded value without the result
+  object (266 → 69 ms for 1M values); String and `RegExp` String
+  Iterators step without result objects (`matchAll` 150 → 88 ms).
+- `forEach` 66 → 51 ms, `reduce` 71 → 49, `filter` 77 → 57; geometric
+  mean 0.97 of 13b. Recursion through callbacks now ends at the frame
+  limit (4,999 levels instead of 408). test262 unchanged; new tests in
+  `tests/callbacks.rs`.
+- Review: about 430 probe cases (step order on proxies, arrays and typed
+  arrays changed by the callback, sort comparators, `replace` callbacks,
+  exception routing through nested loops and re-entries, the `for`-`of`
+  fast paths with patched `next`) give the same output as 13b in normal
+  and stress mode; deep recursion through callbacks ends with a
+  `RangeError` (peak RSS at 4,999 levels 11.6 MB). One defect fixed: an
+  uncaught error from a callback reported the offset of the loop's call
+  instead of the throw (only the `swb-js` shell shows it). One nit
+  fixed: the array and typed-array loops share `Found` and `Method`.
+
 ## 2026-10-22: M7 feature 13b, call paths
 
 - Callgrind on `fib(27)` showed 1,089 instructions per call, about 450

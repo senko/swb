@@ -372,7 +372,7 @@ impl Runtime {
             .take()
             .map_or(Value::Undefined, Value::Object);
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
-        Ok(self.deliver(ret, result))
+        self.deliver(ret, result)
     }
 
     /// Writes a resumption into the registers of a `yield` in the top
@@ -411,7 +411,7 @@ impl Runtime {
         self.vm
             .stack
             .resize(frame.restore_top as usize, Value::Undefined);
-        Ok(self.deliver(frame.ret, result))
+        self.deliver(frame.ret, result)
     }
 
     /// `AsyncGeneratorCompleteStep` (§27.6.3.5): removes the head request

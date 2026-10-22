@@ -64,47 +64,83 @@ impl Runtime {
         }
         let scope_depth = self.heap.scope_depth();
         let no_gc = self.heap.no_gc_depth();
-        loop {
+        'run: loop {
             let mut error = match self.execute() {
                 Ok(value) => return Ok(value),
                 Err(error) => error,
             };
-            // A `Raise` becomes an error object here, while the frames
-            // of the failure still exist: its `stack` shows them.
-            if let VmError::Raise { kind, message } = &error {
-                error = match self.error_object(*kind, message) {
-                    Ok(object) => VmError::Throw(object.into()),
-                    Err(failure) => failure,
+            loop {
+                // A `Raise` becomes an error object here, while the frames
+                // of the failure still exist: its `stack` shows them.
+                if let VmError::Raise { kind, message } = &error {
+                    error = match self.error_object(*kind, message) {
+                        Ok(object) => VmError::Throw(object.into()),
+                        Err(failure) => failure,
+                    };
+                }
+                if !matches!(error, VmError::Throw(_) | VmError::Raise { .. }) {
+                    break;
+                }
+                let handler = self.find_handler(entry - 1);
+                // A native loop that waits for a frame above the handler
+                // gets the exception first (`native_loop.rs`).
+                if let Some(depth) = self.catching_loop(entry - 1, handler.map(|(index, _)| index))
+                {
+                    // The throw site is in the frames that go now.
+                    self.note_error_offset(entry);
+                    self.unwind_frames(depth);
+                    self.heap.close_scopes_to(scope_depth);
+                    self.heap.restore_no_gc_depth(no_gc);
+                    match self.loop_error(error) {
+                        Ok(Some(value)) => {
+                            self.vm.error_offset = None;
+                            return Ok(value);
+                        }
+                        Ok(None) => {
+                            self.vm.error_offset = None;
+                            continue 'run;
+                        }
+                        Err(next) => {
+                            error = next;
+                            continue;
+                        }
+                    }
+                }
+                let Some((index, handler)) = handler else {
+                    break;
                 };
-            }
-            if matches!(error, VmError::Throw(_) | VmError::Raise { .. })
-                && let Some((index, handler)) = self.find_handler(entry - 1)
-            {
                 match self.enter_handler(index, handler, error, scope_depth, no_gc) {
-                    Ok(()) => continue,
+                    Ok(()) => continue 'run,
                     // Creating the error object failed (the heap limit).
                     Err(failure) => error = failure,
                 }
+                break;
             }
-            // The offset is in the host's script: eval code has a source of
-            // its own, so the call of `eval` counts.
-            if self.vm.error_offset.is_none()
-                && let Some(frame) = self
-                    .vm
-                    .frames
-                    .get(entry - 1..)
-                    .unwrap_or(&[])
-                    .iter()
-                    .rev()
-                    .find(|frame| frame.compiled.source.origin.is_none())
-            {
-                let pc = (frame.pc as usize).saturating_sub(1);
-                self.vm.error_offset = frame.compiled.source_offset(pc);
-            }
+            self.note_error_offset(entry);
             self.unwind(entry - 1);
             self.heap.close_scopes_to(scope_depth);
             self.heap.restore_no_gc_depth(no_gc);
             return Err(error);
+        }
+    }
+
+    /// Records the offset of the failing instruction in the top frame of
+    /// this run, unless an inner run recorded one. The offset is in the
+    /// host's script: eval code has a source of its own, so the call of
+    /// `eval` counts.
+    fn note_error_offset(&mut self, entry: usize) {
+        if self.vm.error_offset.is_none()
+            && let Some(frame) = self
+                .vm
+                .frames
+                .get(entry - 1..)
+                .unwrap_or(&[])
+                .iter()
+                .rev()
+                .find(|frame| frame.compiled.source.origin.is_none())
+        {
+            let pc = (frame.pc as usize).saturating_sub(1);
+            self.vm.error_offset = frame.compiled.source_offset(pc);
         }
     }
 
@@ -224,6 +260,20 @@ impl Runtime {
                 code = Rc::clone(&frame.compiled);
                 pc = frame.pc as usize;
                 base = frame.base as usize;
+            }};
+        }
+        // The result of an operation that can remove the top frame (a
+        // return, a suspension): a value for the host, or the loop goes on
+        // in the new top frame. The pc was saved before; an error can come
+        // after the frame went (from a native loop that resumed), so it
+        // is not saved again (into another frame).
+        macro_rules! frames_changed {
+            ($e:expr) => {{
+                match $e {
+                    Ok(Some(value)) => return Ok(value),
+                    Ok(None) => reload!(),
+                    Err(error) => return Err(error),
+                }
             }};
         }
         macro_rules! jump {
@@ -1198,6 +1248,31 @@ impl Runtime {
                                 put!(dst, value);
                                 put!(state, Value::Bool(false));
                             }
+                        } else if let Some(generator) = self.builtin_generator(iterator, next) {
+                            // The generator runs as a frame; its `yield`
+                            // fills `dst` and the state (`ReturnTo::IterValue`).
+                            put!(state, Value::Bool(true));
+                            let restore_top = base + code.register_count as usize;
+                            let resume = crate::vm::Resume {
+                                generator,
+                                value: Value::Undefined,
+                                mode: crate::vm::ResumeMode::Next,
+                            };
+                            let ret = ReturnTo::IterValue { dst, state };
+                            match tri!(self.resume_generator(resume, ret, restore_top)) {
+                                Step::Entered => reload!(),
+                                // A generator that does not run: its result
+                                // object.
+                                Step::Value(result) => {
+                                    put!(dst, result);
+                                    put!(state, Value::Int(ITERATOR_PENDING));
+                                }
+                                Step::NotCallable => {
+                                    return Err(VmError::invariant(
+                                        "a generator that is not callable",
+                                    ));
+                                }
+                            }
                         } else {
                             put!(state, Value::Int(ITERATOR_PENDING));
                             let restore_top = base + code.register_count as usize;
@@ -1420,10 +1495,7 @@ impl Runtime {
                 Insn::Return { src } => {
                     let value = get!(src);
                     save!();
-                    if let Some(value) = tri!(self.return_from_frame(value)) {
-                        return Ok(value);
-                    }
-                    reload!();
+                    frames_changed!(self.return_from_frame(value));
                 }
                 Insn::Closure { dst, index } => {
                     let Some(Constant::Function(handle, compiled)) =
@@ -1487,17 +1559,11 @@ impl Runtime {
                 // --- Generators ---
                 Insn::InitialYield => {
                     save!();
-                    if let Some(value) = tri!(self.initial_yield()) {
-                        return Ok(value);
-                    }
-                    reload!();
+                    frames_changed!(self.initial_yield());
                 }
                 Insn::Yield { reg } => {
                     save!();
-                    if let Some(value) = tri!(self.yield_value(reg)) {
-                        return Ok(value);
-                    }
-                    reload!();
+                    frames_changed!(self.yield_value(reg));
                 }
                 Insn::Resume { reg, offset } => match get!(reg.saturating_add(1)) {
                     Value::Int(RESUME_NEXT) => jump!(offset),
@@ -1561,10 +1627,7 @@ impl Runtime {
                 }
                 Insn::YieldDelegate { reg } => {
                     save!();
-                    if let Some(value) = tri!(self.yield_delegate(reg)) {
-                        return Ok(value);
-                    }
-                    reload!();
+                    frames_changed!(self.yield_delegate(reg));
                 }
 
                 // --- Async functions, async generators, async iteration ---
@@ -1583,10 +1646,7 @@ impl Runtime {
                 | Insn::AsyncDelegateCall { .. }
                 | Insn::AsyncDelegateResult { .. } => {
                     save!();
-                    if let Some(value) = tri!(self.async_instruction(insn)) {
-                        return Ok(value);
-                    }
-                    reload!();
+                    frames_changed!(self.async_instruction(insn));
                 }
 
                 // --- Classes and `super` ---

@@ -68,7 +68,10 @@ pub(super) fn install(
         ("throw", generator_throw),
     ];
     for (name, func) in methods {
-        super::method(rt, realm, generator_proto, name, 1, func)?;
+        let function = super::method(rt, realm, generator_proto, name, 1, func)?;
+        if name == "next" {
+            rt.set_intrinsic(realm, Intrinsic::GeneratorNext, function);
+        }
     }
     super::to_string_tag(rt, generator_proto, "Generator")
 }

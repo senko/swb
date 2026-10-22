@@ -343,8 +343,8 @@ impl Runtime {
                             };
                             continue;
                         }
-                        NativeReturn::Resume(resume) => {
-                            self.resume_generator(resume, site.ret, site.restore_top)?
+                        other @ (NativeReturn::Resume(_) | NativeReturn::Loop(_)) => {
+                            self.native_request(other, site)?
                         }
                     }
                 }
@@ -713,6 +713,7 @@ impl Runtime {
             NativeReturn::Resume(resume) => {
                 self.resume_generator(resume, site.ret, site.restore_top)
             }
+            NativeReturn::Loop(state) => self.start_loop(state, site),
         }
     }
 
@@ -811,7 +812,7 @@ impl Runtime {
         let depth = self.vm.frames.len() - 1;
         self.vm.frames.truncate(depth);
         self.vm.stack.resize(restore_top, Value::Undefined);
-        Ok(self.deliver(ret, value))
+        self.deliver(ret, value)
     }
 
     /// [`Runtime::return_from_frame`] of a generator's frame (the result
@@ -832,6 +833,21 @@ impl Runtime {
                 return self.async_generator_complete(generator, Ok(value));
             }
         }
+        if let Some(ReturnTo::IterValue { dst, .. }) = self.vm.frames.last().map(|f| f.ret) {
+            // A step of `for`-`of`: done (the state register says so
+            // already), no result object.
+            self.complete_generator(generator)?;
+            let frame = self
+                .vm
+                .frames
+                .pop()
+                .ok_or(VmError::invariant("return without a frame"))?;
+            self.vm
+                .stack
+                .resize(frame.restore_top as usize, Value::Undefined);
+            self.set_register(dst, Value::Undefined);
+            return Ok(None);
+        }
         // The registers of the frame still root `value`.
         let scope = self.heap.open_scope();
         let result = self.iter_result(value, true)?;
@@ -846,33 +862,66 @@ impl Runtime {
             .stack
             .resize(frame.restore_top as usize, Value::Undefined);
         self.heap.close_scope(scope)?;
-        Ok(self.deliver(frame.ret, result.into()))
+        self.deliver(frame.ret, result.into())
     }
 
     /// Delivers the result of a frame: into a register of the frame below,
-    /// nowhere, or to the host (returned).
-    pub(crate) fn deliver(&mut self, ret: ReturnTo, value: Value) -> Option<Value> {
+    /// nowhere, to the host (returned), or to the top native loop, which
+    /// continues (it can push a frame or deliver its own result).
+    // Inlined into every return (measured: 6 instructions per call
+    // more as a call, M7 13c).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub(crate) fn deliver(&mut self, ret: ReturnTo, value: Value) -> VmResult<Option<Value>> {
         match ret {
             ReturnTo::Register(register) => {
-                if let Some(frame) = self.vm.frames.last()
-                    && let Some(slot) = self
-                        .vm
-                        .stack
-                        .get_mut(frame.base as usize + usize::from(register))
-                {
-                    *slot = value;
-                }
-                None
+                self.set_register(register, value);
+                Ok(None)
             }
-            ReturnTo::Discard => None,
-            ReturnTo::Host => Some(value),
+            ReturnTo::Discard => Ok(None),
+            ReturnTo::Host => Ok(Some(value)),
+            ReturnTo::Native | ReturnTo::IterValue { .. } => self.deliver_special(ret, value),
+        }
+    }
+
+    /// [`Runtime::deliver`] to a native loop or to a step of `for`-`of`
+    /// (out of line: the common returns stay small).
+    #[inline(never)]
+    fn deliver_special(&mut self, ret: ReturnTo, value: Value) -> VmResult<Option<Value>> {
+        match ret {
+            ReturnTo::IterValue { dst, state } => {
+                self.set_register(dst, value);
+                self.set_register(state, Value::Int(crate::bytecode::ITERATOR_PENDING));
+                Ok(None)
+            }
+            _ => self.resume_loop(Ok(value)),
+        }
+    }
+
+    /// Writes a register of the top frame (a result delivered to it).
+    #[inline]
+    pub(crate) fn set_register(&mut self, register: crate::bytecode::Reg, value: Value) {
+        if let Some(frame) = self.vm.frames.last()
+            && let Some(slot) = self
+                .vm
+                .stack
+                .get_mut(frame.base as usize + usize::from(register))
+        {
+            *slot = value;
         }
     }
 
     /// Pops frames down to `depth` after an uncaught error: generators of
     /// popped frames complete, the value stack returns to the length
-    /// before the outermost popped frame.
+    /// before the outermost popped frame, and the native loops that wait
+    /// for the popped frames go too.
     pub(crate) fn unwind(&mut self, depth: usize) {
+        self.unwind_frames(depth);
+        self.drop_loops(depth);
+    }
+
+    /// [`Runtime::unwind`] without the native loops.
+    pub(crate) fn unwind_frames(&mut self, depth: usize) {
         while self.vm.frames.len() > depth {
             let Some(frame) = self.vm.frames.pop() else {
                 break;
@@ -922,7 +971,7 @@ impl Runtime {
                 self.vm.stack.truncate(restore_top);
                 Ok(value)
             }
-            Ok(Step::Entered) => self.run_frames(),
+            Ok(Step::Entered) => self.run_entered(restore_top),
             Ok(Step::NotCallable) => {
                 self.vm.stack.truncate(restore_top);
                 Err(VmError::type_error(format!(
@@ -935,6 +984,16 @@ impl Runtime {
                 Err(error)
             }
         }
+    }
+
+    /// Runs the frame that a call from Rust pushed and returns its result;
+    /// the value stack ends at `restore_top` afterwards (a native loop's
+    /// frames restore the stack to the loop's window, not to the call's).
+    #[inline]
+    fn run_entered(&mut self, restore_top: usize) -> VmResult<Value> {
+        let result = self.run_frames();
+        self.vm.stack.truncate(restore_top);
+        result
     }
 
     /// `Construct(callee, args)` from Rust (a native function or the host):
@@ -970,7 +1029,7 @@ impl Runtime {
                 self.vm.stack.truncate(restore_top);
                 Ok(value)
             }
-            Ok(Step::Entered) => self.run_frames(),
+            Ok(Step::Entered) => self.run_entered(restore_top),
             Ok(Step::NotCallable) => {
                 self.vm.stack.truncate(restore_top);
                 Err(VmError::type_error(format!(

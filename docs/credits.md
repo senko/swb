@@ -144,6 +144,12 @@ Format: source, license (for code), what it influenced.
   (M7 13a, `js/src/object/cache.rs`, `js/src/vm/inline_cache.rs`). The
   validation of prototype hits by a watch epoch, the global cache and
   the literal shapes are swb's own design; no engine code was read.
+- The Lua 5.2 reference manual, §4.7 (continuations of C functions that
+  call Lua), and study memo 1.2 ("resumable native functions") — the
+  native loops of M7 13c (`js/src/vm/native_loop.rs`): a native that
+  calls script functions in a loop returns its state, and the
+  interpreter runs each call as a frame of its own loop. No engine code
+  was read.
 - The study memos 1 and 2 for the compiler and interpreter (register
   machine with temporaries in stack order after "The Implementation of
   Lua 5.0" and Duktape's design notes; one value stack and frame records

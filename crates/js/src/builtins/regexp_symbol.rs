@@ -52,7 +52,8 @@ pub(super) fn install(rt: &mut Runtime, realm: u32, proto: Gc<Object>) -> VmResu
         super::symbol_method(rt, realm, proto, which, length, func, (true, true))?;
     }
     let iterator_proto = rt.intrinsic(realm, Intrinsic::RegExpStringIteratorPrototype)?;
-    super::method(rt, realm, iterator_proto, "next", 0, iterator_next)?;
+    let next = super::method(rt, realm, iterator_proto, "next", 0, iterator_next)?;
+    rt.set_intrinsic(realm, Intrinsic::RegExpStringIteratorNext, next);
     super::to_string_tag(rt, iterator_proto, "RegExp String Iterator")
 }
 
@@ -278,25 +279,46 @@ fn symbol_match_all(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
 /// the closure of `CreateRegExpStringIterator` (§22.2.9.1) for one
 /// match.
 fn iterator_next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    let state = match call.this() {
-        Value::Object(object) => match &rt.heap.object(object)?.kind {
-            ObjectKind::RegExpStringIterator(state) => Some((
-                object,
-                state.matcher,
-                state.string,
-                state.global,
-                state.full_unicode,
-            )),
-            _ => None,
-        },
-        _ => None,
+    let iterator = match call.this() {
+        Value::Object(object)
+            if matches!(
+                rt.heap.object(object)?.kind,
+                ObjectKind::RegExpStringIterator(_)
+            ) =>
+        {
+            object
+        }
+        _ => {
+            let name = "%RegExpStringIterator%.prototype.next";
+            return Err(rt.incompatible_receiver(name, call.this()));
+        }
     };
-    let Some((iterator, matcher, string, global, unicode)) = state else {
-        return Err(rt.incompatible_receiver("%RegExpStringIterator%.prototype.next", call.this()));
+    let result = match iterator_next_value(rt, iterator)? {
+        Some(value) => rt.iter_result(value, false)?,
+        None => rt.iter_result(Value::Undefined, true)?,
     };
+    Ok(NativeReturn::Value(result.into()))
+}
+
+/// The next match of the `RegExp` String Iterator `iterator`, or `None`
+/// when it is done: `next` without its result object (the compiled
+/// iteration steps call it for the built-in `next`, `vm/iter.rs`). The
+/// value is recorded in the current handle scope.
+pub(super) fn iterator_next_value(
+    rt: &mut Runtime,
+    iterator: Gc<Object>,
+) -> VmResult<Option<Value>> {
+    let ObjectKind::RegExpStringIterator(state) = &rt.heap.object(iterator)?.kind else {
+        return Err(VmError::invariant("not a RegExp String Iterator"));
+    };
+    let (matcher, string, global, unicode) = (
+        state.matcher,
+        state.string,
+        state.global,
+        state.full_unicode,
+    );
     let Some(regexp) = matcher else {
-        let result = rt.iter_result(Value::Undefined, true)?;
-        return Ok(NativeReturn::Value(result.into()));
+        return Ok(None);
     };
     let finish = |rt: &mut Runtime| -> VmResult<()> {
         if let ObjectKind::RegExpStringIterator(state) = &mut rt.heap.object_mut(iterator)?.kind {
@@ -310,15 +332,15 @@ fn iterator_next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> 
     if !matches!(step, Ok(Some(_))) {
         finish(rt)?;
     }
-    let result = match step? {
-        Some((value, true)) => {
-            finish(rt)?;
-            rt.iter_result(value, false)?
+    Ok(match step? {
+        Some((value, last)) => {
+            if last {
+                finish(rt)?;
+            }
+            Some(rt.heap.record(value))
         }
-        Some((value, false)) => rt.iter_result(value, false)?,
-        None => rt.iter_result(Value::Undefined, true)?,
-    };
-    Ok(NativeReturn::Value(result.into()))
+        None => None,
+    })
 }
 
 /// One step of the closure of `CreateRegExpStringIterator`: the match
@@ -356,6 +378,7 @@ enum Replacer {
 }
 
 /// A result that `@@replace` processes after the loop.
+#[derive(Clone, Copy)]
 enum Pending {
     /// A built-in match: its spans start at this index of `spans`.
     Match { at: usize, regex: usize },
@@ -452,14 +475,20 @@ impl Collected {
 
     /// The captures of the built-in match at `at`.
     fn captures(&self, at: usize) -> Vec<Option<(usize, usize)>> {
+        let mut out = Vec::new();
+        self.captures_into(at, &mut out);
+        out
+    }
+
+    /// [`Collected::captures`] into a vector that the caller reuses.
+    fn captures_into(&self, at: usize, out: &mut Vec<Option<(usize, usize)>>) {
         let count = self.spans.get(at).copied().unwrap_or(0) as usize;
-        (0..count)
-            .map(|i| {
-                let start = self.spans.get(at + 1 + 2 * i).copied().unwrap_or(u32::MAX);
-                let end = self.spans.get(at + 2 + 2 * i).copied().unwrap_or(u32::MAX);
-                (start != u32::MAX).then_some((start as usize, end as usize))
-            })
-            .collect()
+        out.clear();
+        out.extend((0..count).map(|i| {
+            let start = self.spans.get(at + 1 + 2 * i).copied().unwrap_or(u32::MAX);
+            let end = self.spans.get(at + 2 + 2 * i).copied().unwrap_or(u32::MAX);
+            (start != u32::MAX).then_some((start as usize, end as usize))
+        }));
     }
 }
 
@@ -510,6 +539,25 @@ fn symbol_replace(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn>
             &mut collected,
             replacer,
         )?;
+    }
+    if let Replacer::Function(function) = replacer
+        && let Some(collected) = collected.take_if(|collected| !collected.pending.is_empty())
+    {
+        // The replacer runs for the collected results in a native loop.
+        let objects = collected.objects.map_or(Value::Undefined, Value::Object);
+        let registers = [string.into(), function, objects];
+        let state = ReplaceLoop {
+            string,
+            function,
+            collected,
+            acc,
+            length,
+            next: 0,
+            waiting: None,
+            spans: Vec::new(),
+            args: Vec::new(),
+        };
+        return rt.native_loop(state, &registers);
     }
     if let Some(collected) = &collected {
         apply_collected(rt, &mut acc, string, collected, replacer)?;
@@ -657,6 +705,23 @@ fn apply_collected(
     Ok(())
 }
 
+/// What step 15 of `@@replace` reads from a result: the matched string,
+/// its position, the captures (`values` from `first` on) and the groups
+/// (rooted).
+struct Parts {
+    matched: Gc<JsString>,
+    position: usize,
+    values: Vec<Value>,
+    first: usize,
+    named: Value,
+}
+
+impl Parts {
+    fn captures(&self) -> &[Value] {
+        self.values.get(self.first..).unwrap_or(&[])
+    }
+}
+
 /// Step 15 for a built-in match: the matched string, the captures and
 /// the groups come from the spans.
 fn apply_match(
@@ -706,6 +771,38 @@ fn apply_match(
     )
 }
 
+/// The [`Parts`] of a built-in match (the steps of [`apply_match`] for
+/// the replacer loop).
+fn match_parts(
+    rt: &mut Runtime,
+    string: Gc<JsString>,
+    spans: &[Option<(usize, usize)>],
+    regex: &Regex,
+) -> VmResult<Parts> {
+    let (position, _) = spans.first().copied().flatten().unwrap_or((0, 0));
+    let mut values = Vec::with_capacity(spans.len());
+    for span in spans {
+        values.push(match *span {
+            Some((start, end)) => {
+                let piece = rt.substring(string, start, end)?;
+                Value::String(rt.heap.record(piece))
+            }
+            None => Value::Undefined,
+        });
+    }
+    let named = rt.groups_object(regex, &values)?;
+    let Some(&Value::String(matched)) = values.first() else {
+        return Err(VmError::invariant("a match without its string"));
+    };
+    Ok(Parts {
+        matched,
+        position,
+        values,
+        first: 1,
+        named,
+    })
+}
+
 /// Step 15 for the result of a script's `exec`: the reads of the
 /// specification, in its order.
 fn apply_object(
@@ -715,6 +812,28 @@ fn apply_object(
     result: Value,
     replacer: Replacer,
 ) -> VmResult<()> {
+    let template = matches!(replacer, Replacer::Template { .. });
+    let parts = object_parts(rt, string, result, template)?;
+    replace_one(
+        rt,
+        acc,
+        string,
+        (parts.matched, parts.position),
+        parts.captures(),
+        parts.named,
+        replacer,
+    )
+}
+
+/// The [`Parts`] of the result of a script's `exec`, read in the order of
+/// the specification (a template uses at most [`TEMPLATE_CAPTURES`]
+/// captures).
+fn object_parts(
+    rt: &mut Runtime,
+    string: Gc<JsString>,
+    result: Value,
+    template: bool,
+) -> VmResult<Parts> {
     let Value::Object(object) = result else {
         return Err(VmError::invariant(
             "a collected result that is not an object",
@@ -755,18 +874,115 @@ fn apply_object(
         .dense_elements(list)?
         .map(<[Value]>::to_vec)
         .unwrap_or_default();
-    if matches!(replacer, Replacer::Template { .. }) {
+    if template {
         captures.truncate(TEMPLATE_CAPTURES);
     }
-    replace_one(
-        rt,
-        acc,
-        string,
-        (matched, position),
-        &captures,
+    Ok(Parts {
+        matched,
+        position,
+        values: captures,
+        first: 0,
         named,
-        replacer,
-    )
+    })
+}
+
+/// Steps 14 and 15 of `@@replace` with a replacer function, as a native
+/// loop (`vm/native_loop.rs`): a step reads the next collected result and
+/// calls the function; the next one appends the string of its result.
+/// The registers hold the string, the function and the internal array
+/// of the results of a script's `exec`.
+struct ReplaceLoop {
+    string: Gc<JsString>,
+    function: Value,
+    collected: Collected,
+    acc: Accumulator,
+    /// The length of the string.
+    length: usize,
+    /// The next result.
+    next: usize,
+    /// The position and the length of the match whose call runs, and
+    /// whether it is in order (`position >= nextSourcePosition`).
+    waiting: Option<(usize, usize, bool)>,
+    /// Vectors that the steps reuse: the spans of a match and the
+    /// arguments of a call.
+    spans: Vec<Option<(usize, usize)>>,
+    args: Vec<Value>,
+}
+
+impl ReplaceLoop {
+    /// The [`Parts`] of the collected result `pending`.
+    fn parts(&mut self, rt: &mut Runtime, pending: Pending) -> VmResult<Parts> {
+        match pending {
+            Pending::Match { at, regex } => {
+                let regex = self
+                    .collected
+                    .regexes
+                    .get(regex)
+                    .ok_or(VmError::invariant("a collected match without its program"))?;
+                self.collected.captures_into(at, &mut self.spans);
+                match_parts(rt, self.string, &self.spans, regex)
+            }
+            Pending::Object(index) => {
+                let objects = self
+                    .collected
+                    .objects
+                    .ok_or(VmError::invariant("a collected result without its array"))?;
+                let object = rt.get_value(objects.into(), PropertyKey::Index(index))?;
+                object_parts(rt, self.string, object, false)
+            }
+        }
+    }
+}
+
+impl crate::vm::native_loop::NativeLoop for ReplaceLoop {
+    fn step(
+        &mut self,
+        rt: &mut Runtime,
+        _regs: usize,
+        input: Value,
+    ) -> VmResult<crate::vm::native_loop::LoopStep> {
+        let string = self.string;
+        if let Some((position, match_length, in_order)) = self.waiting.take() {
+            let replacement = rt.to_string(input)?;
+            rt.heap.record(replacement);
+            if in_order {
+                self.acc
+                    .out
+                    .push_range(rt, string, self.acc.next_source, position)?;
+                self.acc.out.push_string(rt, replacement)?;
+                self.acc.next_source = position + match_length;
+            }
+        }
+        if let Some(&pending) = self.collected.pending.get(self.next) {
+            self.next += 1;
+            let parts = self.parts(rt, pending)?;
+            let match_length = rt.string_len(parts.matched)?;
+            let in_order = parts.position >= self.acc.next_source;
+            if parts.captures().len() + 4 > rt.vm.stack_limit {
+                return Err(VmError::range_error(crate::vm::STACK_OVERFLOW));
+            }
+            let args = &mut self.args;
+            args.clear();
+            args.push(parts.matched.into());
+            args.extend_from_slice(parts.captures());
+            args.push(Value::number(parts.position as f64));
+            args.push(string.into());
+            if !parts.named.is_undefined() {
+                args.push(parts.named);
+            }
+            rt.push_call(self.function, Value::Undefined, args)?;
+            self.waiting = Some((parts.position, match_length, in_order));
+            return Ok(crate::vm::native_loop::LoopStep::Call);
+        }
+        if self.acc.next_source < self.length {
+            self.acc
+                .out
+                .push_range(rt, string, self.acc.next_source, self.length)?;
+        }
+        let out = std::mem::replace(&mut self.acc.out, Builder::new());
+        let result = out.finish(rt)?;
+        Ok(crate::vm::native_loop::LoopStep::Done(result.into()))
+    }
 }
 
 /// The replacement of one result and its place in the output (steps

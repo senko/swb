@@ -188,7 +188,7 @@ impl Runtime {
         // result promise.
         let result = self.suspension_result(generator)?;
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
-        Ok(self.deliver(ret, result))
+        self.deliver(ret, result)
     }
 
     /// The end of a running async function's body (§27.7.5.2 steps 3.e
@@ -223,7 +223,7 @@ impl Runtime {
         self.vm
             .stack
             .resize(frame.restore_top as usize, Value::Undefined);
-        Ok(self.deliver(frame.ret, promise.into()))
+        self.deliver(frame.ret, promise.into())
     }
 
     /// `AsyncReject`: the body threw `value` and nothing in it caught it.

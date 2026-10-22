@@ -9,7 +9,8 @@
 
 use swb_js_text::{String16, is_lead_surrogate, is_trail_surrogate};
 
-use crate::object::{ObjectKind, StringIterator};
+use crate::heap::Gc;
+use crate::object::{Object, ObjectKind, StringIterator};
 use crate::runtime::Runtime;
 use crate::value::Value;
 use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
@@ -17,7 +18,8 @@ use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 /// Installs `next` and `@@toStringTag` of `%StringIteratorPrototype%`.
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::StringIteratorPrototype)?;
-    super::method(rt, realm, proto, "next", 0, next)?;
+    let next = super::method(rt, realm, proto, "next", 0, next)?;
+    rt.set_intrinsic(realm, Intrinsic::StringIteratorNext, next);
     super::to_string_tag(rt, proto, "String Iterator")
 }
 
@@ -42,20 +44,35 @@ fn next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let Value::Object(iterator) = call.this() else {
         return Err(incompatible(rt, call.this()));
     };
-    let ObjectKind::StringIterator(state) = &rt.heap.object(iterator)?.kind else {
+    if !matches!(
+        rt.heap.object(iterator)?.kind,
+        ObjectKind::StringIterator(_)
+    ) {
         return Err(incompatible(rt, call.this()));
+    }
+    let result = match next_value(rt, iterator)? {
+        Some(element) => rt.iter_result(element, false)?,
+        None => rt.iter_result(Value::Undefined, true)?,
+    };
+    Ok(NativeReturn::Value(result.into()))
+}
+
+/// The next element of the String Iterator `iterator`, or `None` when it
+/// is done: `next` without its result object (the compiled iteration
+/// steps call it for the built-in `next`, `vm/iter.rs`).
+pub(super) fn next_value(rt: &mut Runtime, iterator: Gc<Object>) -> VmResult<Option<Value>> {
+    let ObjectKind::StringIterator(state) = &rt.heap.object(iterator)?.kind else {
+        return Err(VmError::invariant("not a String Iterator"));
     };
     let (Some(string), position) = (state.string, state.position) else {
-        let result = rt.iter_result(Value::Undefined, true)?;
-        return Ok(NativeReturn::Value(result.into()));
+        return Ok(None);
     };
     let text = rt.heap.text(string)?;
     let Some(first) = text.get(position) else {
         if let ObjectKind::StringIterator(state) = &mut rt.heap.object_mut(iterator)?.kind {
             state.string = None;
         }
-        let result = rt.iter_result(Value::Undefined, true)?;
-        return Ok(NativeReturn::Value(result.into()));
+        return Ok(None);
     };
     let mut element = String16::new();
     element.push(first);
@@ -71,8 +88,7 @@ fn next(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         state.position = position + width;
     }
     let element = rt.new_string(element)?;
-    let result = rt.iter_result(element.into(), false)?;
-    Ok(NativeReturn::Value(result.into()))
+    Ok(Some(rt.heap.record(element).into()))
 }
 
 /// V8's `TypeError` for `next` on another receiver.

@@ -12,7 +12,10 @@
 //! collection can run in any comparator), and no Rust recursion is
 //! needed. It makes O(n log n) comparisons and always ends with a
 //! permutation, whatever the comparator answers; a comparator that throws
-//! ends the sort with its error before anything is written back. The
+//! ends the sort with its error before anything is written back. With a
+//! comparator the sort is a native loop (`vm/native_loop.rs`): the same
+//! merge sort as a state machine ([`SortMachine`]) gives one comparison
+//! per step, and the comparator runs as a frame of the interpreter loop. The
 //! comparator sees a private copy of the values: changes of the array
 //! during the sort show only in the steps after it (the writes of the
 //! sorted values and the deletes of the holes), as the specification
@@ -36,6 +39,7 @@ use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::string::JsString;
 use crate::value::Value;
+use crate::vm::native_loop::{LoopStep, NativeLoop};
 use crate::vm::{NativeCall, NativeReturn, VmError, VmResult};
 
 use super::array::receiver;
@@ -62,6 +66,7 @@ pub(super) fn comparator_arg(rt: &mut Runtime, call: &NativeCall) -> VmResult<Op
 
 /// The values that `SortIndexedProperties` collected, without the
 /// `undefined` values, which are only counted.
+#[derive(Clone, Copy)]
 struct Collected {
     /// An internal array (no prototype, never reachable from script code)
     /// whose dense elements are the values.
@@ -147,32 +152,16 @@ pub(super) fn item(rt: &Runtime, items: Gc<Object>, index: u32) -> VmResult<Valu
         .ok_or(VmError::invariant("a sort index outside its values"))
 }
 
-/// Sorts the collected values (step 5 of `SortIndexedProperties`): the
-/// permutation of their indices in sorted order.
-fn sort_collected(
-    rt: &mut Runtime,
-    collected: &Collected,
-    comparator: Option<Value>,
-) -> VmResult<Vec<u32>> {
+/// Sorts the collected values without a comparator (step 5 of
+/// `SortIndexedProperties`): the permutation of their indices in sorted
+/// order.
+fn sort_collected(rt: &mut Runtime, collected: &Collected) -> VmResult<Vec<u32>> {
     let count = collected.count;
     // The two permutations are outside the heap: check that they fit.
     rt.heap
         .check_room(count.saturating_mul(2 * size_of::<u32>()))?;
     let mut order: Vec<u32> = (0..count as u32).collect();
-    let items = collected.items;
-    match comparator {
-        Some(comparator) => merge_sort(&mut order, |later, earlier| {
-            rt.with_scope(|rt| {
-                let x = item(rt, items, later)?;
-                let y = item(rt, items, earlier)?;
-                let result = rt.call(comparator, Value::Undefined, &[x, y])?;
-                let v = rt.to_number(result)?;
-                // NaN is +0 (`CompareArrayElements` step 4.b).
-                Ok(v < 0.0)
-            })
-        })?,
-        None => default_sort(rt, items, &mut order)?,
-    }
+    default_sort(rt, collected.items, &mut order)?;
     Ok(order)
 }
 
@@ -417,6 +406,264 @@ fn merge<E>(
     Ok(())
 }
 
+/// Where a step of [`SortMachine`] stands.
+#[derive(Clone, Copy, Debug)]
+enum Phase {
+    /// Binary insertion of the run that starts at `start`: element `i` is
+    /// next; `search` is the range of the binary search while it runs, and
+    /// `middle` the element of its pending comparison.
+    Insertion {
+        start: usize,
+        i: usize,
+        search: Option<(usize, usize, usize)>,
+    },
+    /// The merges of runs of `width`: the pair at `low`; `merging` is the
+    /// position in its left run, its right run and the target while the
+    /// merge runs (`None` before the boundary test). `in_order` tells
+    /// which buffer holds the runs.
+    Merge {
+        width: usize,
+        low: usize,
+        in_order: bool,
+        merging: Option<(usize, usize, usize)>,
+    },
+    Done,
+}
+
+/// [`merge_sort`] as a state machine for a comparator that runs as a
+/// script function: [`SortMachine::advance`] gives the next comparison
+/// `(later, earlier)` and takes its answer at the next call, so a native
+/// loop can call the comparator between the steps. It makes the same
+/// comparisons in the same order and gives the same permutation as
+/// `merge_sort` with the same answers (a unit test compares them).
+pub(super) struct SortMachine {
+    order: Vec<u32>,
+    scratch: Vec<u32>,
+    phase: Phase,
+}
+
+impl SortMachine {
+    /// A machine that sorts the permutation `0..count`.
+    pub(super) fn new(count: usize) -> SortMachine {
+        let phase = if count < 2 {
+            Phase::Done
+        } else {
+            Phase::Insertion {
+                start: 0,
+                i: 1,
+                search: None,
+            }
+        };
+        SortMachine {
+            order: (0..count as u32).collect(),
+            scratch: Vec::new(),
+            phase,
+        }
+    }
+
+    /// The sorted permutation (after `advance` returned `None`).
+    #[cfg(test)]
+    pub(super) fn order(&self) -> &[u32] {
+        &self.order
+    }
+
+    /// Applies `answer` (whether `later` must come before `earlier`) to
+    /// the pending comparison, if there is one, and returns the next
+    /// comparison, or `None` when the permutation is sorted.
+    pub(super) fn advance(&mut self, mut answer: Option<bool>) -> Option<(u32, u32)> {
+        let n = self.order.len();
+        loop {
+            match self.phase {
+                Phase::Done => return None,
+                Phase::Insertion { start, i, search } => {
+                    let len = INSERTION_RUN.min(n - start);
+                    if search.is_none() && answer.is_none() && i >= len {
+                        self.phase = self.after_run(start + INSERTION_RUN);
+                        continue;
+                    }
+                    let run = self.order.get_mut(start..start + len)?;
+                    let x = *run.get(i)?;
+                    match (search, answer.take()) {
+                        // The test against the last element of the prefix.
+                        (None, Some(false)) => self.phase = Phase::insertion(start, i + 1),
+                        (None, Some(true)) => {
+                            self.phase = Phase::Insertion {
+                                start,
+                                i,
+                                search: Some((0, i - 1, 0)),
+                            };
+                        }
+                        (Some((low, high, middle)), Some(before)) => {
+                            let (low, high) = if before {
+                                (low, middle)
+                            } else {
+                                (middle + 1, high)
+                            };
+                            self.phase = Phase::Insertion {
+                                start,
+                                i,
+                                search: Some((low, high, middle)),
+                            };
+                        }
+                        (None, None) => return Some((x, *run.get(i - 1)?)),
+                        (Some((low, high, _)), None) => {
+                            if low < high {
+                                let middle = low + (high - low) / 2;
+                                self.phase = Phase::Insertion {
+                                    start,
+                                    i,
+                                    search: Some((low, high, middle)),
+                                };
+                                return Some((x, *run.get(middle)?));
+                            }
+                            run.copy_within(low..i, low + 1);
+                            *run.get_mut(low)? = x;
+                            self.phase = Phase::insertion(start, i + 1);
+                        }
+                    }
+                }
+                Phase::Merge {
+                    width,
+                    low,
+                    in_order,
+                    merging,
+                } => {
+                    if let Some(next) = self.merge_step(width, low, in_order, merging, &mut answer)
+                    {
+                        return Some(next);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The phase after the insertion of the run before `next`.
+    fn after_run(&mut self, next: usize) -> Phase {
+        let n = self.order.len();
+        if next < n {
+            return Phase::insertion(next, 1);
+        }
+        if n <= INSERTION_RUN {
+            return Phase::Done;
+        }
+        self.scratch = self.order.clone();
+        Phase::Merge {
+            width: INSERTION_RUN,
+            low: 0,
+            in_order: true,
+            merging: None,
+        }
+    }
+
+    /// One part of a merge (see [`merge`]): sets the next phase and returns
+    /// a comparison, or `None` to go on.
+    fn merge_step(
+        &mut self,
+        width: usize,
+        low: usize,
+        in_order: bool,
+        merging: Option<(usize, usize, usize)>,
+        answer: &mut Option<bool>,
+    ) -> Option<(u32, u32)> {
+        let len = self.order.len();
+        if low >= len {
+            // The end of a pass over the pairs.
+            let (width, in_order) = (width * 2, !in_order);
+            if width >= len {
+                if !in_order {
+                    self.order.copy_from_slice(&self.scratch);
+                }
+                self.phase = Phase::Done;
+            } else {
+                self.phase = Phase::Merge {
+                    width,
+                    low: 0,
+                    in_order,
+                    merging: None,
+                };
+            }
+            return None;
+        }
+        let middle = (low + width).min(len);
+        let high = (low + 2 * width).min(len);
+        let next_pair = Phase::Merge {
+            width,
+            low: high,
+            in_order,
+            merging: None,
+        };
+        let (source, target): (&[u32], &mut [u32]) = if in_order {
+            (&self.order, &mut self.scratch)
+        } else {
+            (&self.scratch, &mut self.order)
+        };
+        let (from, to) = (source.get(low..high)?, target.get_mut(low..high)?);
+        let split = middle - low;
+        let (left, right) = from.split_at(split.min(from.len()));
+        let Some((i, j, slot)) = merging else {
+            match answer.take() {
+                None if split < from.len() => {
+                    return Some((*right.first()?, *left.last()?));
+                }
+                // The boundary is in order (or there is no right run).
+                None | Some(false) => {
+                    to.copy_from_slice(from);
+                    self.phase = next_pair;
+                }
+                Some(true) => {
+                    self.phase = Phase::Merge {
+                        width,
+                        low,
+                        in_order,
+                        merging: Some((0, 0, 0)),
+                    };
+                }
+            }
+            return None;
+        };
+        let (mut i, mut j, mut slot) = (i, j, slot);
+        while slot < to.len() {
+            let take_right = match (left.get(i), right.get(j)) {
+                (Some(&earlier), Some(&later)) => {
+                    let Some(before) = answer.take() else {
+                        self.phase = Phase::Merge {
+                            width,
+                            low,
+                            in_order,
+                            merging: Some((i, j, slot)),
+                        };
+                        return Some((later, earlier));
+                    };
+                    before
+                }
+                (None, _) => true,
+                (_, None) => false,
+            };
+            let value = if take_right {
+                j += 1;
+                right.get(j - 1)
+            } else {
+                i += 1;
+                left.get(i - 1)
+            };
+            *to.get_mut(slot)? = value.copied().unwrap_or_default();
+            slot += 1;
+        }
+        self.phase = next_pair;
+        None
+    }
+}
+
+impl Phase {
+    fn insertion(start: usize, i: usize) -> Phase {
+        Phase::Insertion {
+            start,
+            i,
+            search: None,
+        }
+    }
+}
+
 /// The sorted values in order: the permuted values, then the
 /// `undefined`s; `emit` receives them in chunks.
 fn emit_sorted(
@@ -448,29 +695,138 @@ fn emit_sorted(
     Ok(())
 }
 
-/// `Array.prototype.sort(comparefn)` (§23.1.3.30).
+/// `Array.prototype.sort(comparefn)` (§23.1.3.30). With a comparator the
+/// sort is a native loop ([`SortLoop`]).
 pub(super) fn sort(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let comparator = comparator_arg(rt, call)?;
     let (object, length) = receiver(rt, call, None)?;
     let collected = collect(rt, object, length, false)?;
-    let order = sort_collected(rt, &collected, comparator)?;
-    let item_count = collected.count as f64 + collected.undefined;
-    // Steps 6 to 9: write the sorted values, delete the rest.
-    let mut j = 0.0;
-    emit_sorted(rt, &collected, &order, |rt, values| {
-        rt.charge(values.len())?;
-        if write_dense(rt, object, j, values)? {
-            j += values.len() as f64;
-            return Ok(());
+    let target = SortTarget::InPlace { object, length };
+    finish_or_loop(rt, collected, comparator, target)
+}
+
+/// Where the sorted values go.
+#[derive(Clone, Copy)]
+enum SortTarget {
+    /// Back into the receiver (`sort`).
+    InPlace { object: Gc<Object>, length: f64 },
+    /// Into a new array (`toSorted`).
+    Copy(Gc<Object>),
+}
+
+impl SortTarget {
+    fn value(self) -> Value {
+        match self {
+            SortTarget::InPlace { object, .. } | SortTarget::Copy(object) => object.into(),
         }
-        for &value in values {
-            rt.with_scope(|rt| rt.set_index(object, j, value))?;
-            j += 1.0;
+    }
+}
+
+/// Sorts without a comparator at once; with one, returns the native loop
+/// that calls it.
+fn finish_or_loop(
+    rt: &mut Runtime,
+    collected: Collected,
+    comparator: Option<Value>,
+    target: SortTarget,
+) -> VmResult<NativeReturn> {
+    let Some(comparator) = comparator else {
+        let order = sort_collected(rt, &collected)?;
+        write_sorted(rt, &collected, &order, target)?;
+        return Ok(NativeReturn::Value(target.value()));
+    };
+    // The two permutations are outside the heap: check that they fit.
+    rt.heap
+        .check_room(collected.count.saturating_mul(2 * size_of::<u32>()))?;
+    let machine = SortMachine::new(collected.count);
+    let registers = [collected.items.into(), comparator, target.value()];
+    let state = SortLoop {
+        collected,
+        comparator,
+        machine,
+        target,
+        pending: false,
+    };
+    rt.native_loop(state, &registers)
+}
+
+/// Writes the sorted values to the target (steps 6 to 9 of `sort`, or the
+/// copy of `toSorted`).
+fn write_sorted(
+    rt: &mut Runtime,
+    collected: &Collected,
+    order: &[u32],
+    target: SortTarget,
+) -> VmResult<()> {
+    match target {
+        SortTarget::InPlace { object, length } => {
+            let item_count = collected.count as f64 + collected.undefined;
+            // Steps 6 to 9: write the sorted values, delete the rest.
+            let mut j = 0.0;
+            emit_sorted(rt, collected, order, |rt, values| {
+                rt.charge(values.len())?;
+                if write_dense(rt, object, j, values)? {
+                    j += values.len() as f64;
+                    return Ok(());
+                }
+                for &value in values {
+                    rt.with_scope(|rt| rt.set_index(object, j, value))?;
+                    j += 1.0;
+                }
+                Ok(())
+            })?;
+            rt.delete_range(object, item_count, length, true)
         }
-        Ok(())
-    })?;
-    rt.delete_range(object, item_count, length, true)?;
-    Ok(NativeReturn::Value(object.into()))
+        SortTarget::Copy(result) => emit_sorted(rt, collected, order, |rt, values| {
+            rt.charge(values.len())?;
+            if rt.heap.extend_elements(result, values)? {
+                return Ok(());
+            }
+            for &value in values {
+                rt.push_value(result, value)?;
+            }
+            Ok(())
+        }),
+    }
+}
+
+/// The sort with a comparator as a native loop (`vm/native_loop.rs`): each
+/// comparison of the [`SortMachine`] is a call of the comparator; after
+/// the last one the values are written. The registers hold the values,
+/// the comparator and the target.
+struct SortLoop {
+    collected: Collected,
+    comparator: Value,
+    machine: SortMachine,
+    target: SortTarget,
+    /// Whether a comparison's call runs.
+    pending: bool,
+}
+
+impl NativeLoop for SortLoop {
+    fn step(&mut self, rt: &mut Runtime, _regs: usize, input: Value) -> VmResult<LoopStep> {
+        let answer = if self.pending {
+            self.pending = false;
+            // NaN is +0 (`CompareArrayElements` step 4.b).
+            Some(match input {
+                Value::Int(int) => int < 0,
+                Value::Double(double) => double < 0.0,
+                _ => rt.to_number(input)? < 0.0,
+            })
+        } else {
+            None
+        };
+        let Some((later, earlier)) = self.machine.advance(answer) else {
+            let order = std::mem::take(&mut self.machine.order);
+            write_sorted(rt, &self.collected, &order, self.target)?;
+            return Ok(LoopStep::Done(self.target.value()));
+        };
+        let items = self.collected.items;
+        let (x, y) = (item(rt, items, later)?, item(rt, items, earlier)?);
+        self.pending = true;
+        rt.push_call(self.comparator, Value::Undefined, &[x, y])?;
+        Ok(LoopStep::Call)
+    }
 }
 
 /// `Set(object, at + i, values[i], true)` for each `i` in the dense vector
@@ -494,18 +850,7 @@ pub(super) fn to_sorted(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeR
     let result =
         rt.new_array_with_capacity((length as usize).min(super::array::INITIAL_CAPACITY))?;
     let collected = collect(rt, object, length, true)?;
-    let order = sort_collected(rt, &collected, comparator)?;
-    emit_sorted(rt, &collected, &order, |rt, values| {
-        rt.charge(values.len())?;
-        if rt.heap.extend_elements(result, values)? {
-            return Ok(());
-        }
-        for &value in values {
-            rt.push_value(result, value)?;
-        }
-        Ok(())
-    })?;
-    Ok(NativeReturn::Value(result.into()))
+    finish_or_loop(rt, collected, comparator, SortTarget::Copy(result))
 }
 
 #[cfg(test)]
@@ -570,6 +915,47 @@ mod tests {
             .unwrap();
             assert!(order.windows(2).all(|w| w[0] < w[1]));
             assert_eq!(comparisons, n - 1, "{n}");
+        }
+    }
+
+    /// The comparisons and the result of the machine are those of
+    /// `merge_sort`, for consistent and for random answers.
+    #[test]
+    fn sort_machine_follows_merge_sort() {
+        let mut seed = 0x9e37_79b9u32;
+        let mut random = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed
+        };
+        for n in (0..70).chain([100, 255, 256, 257, 1000, 4097]) {
+            for mode in 0..3 {
+                let keys: Vec<u32> = (0..n).map(|_| random() % 50).collect();
+                let answers: Vec<bool> = (0..n * 20).map(|_| random() & 1 == 1).collect();
+                let answer = |count: usize, later: u32, earlier: u32| match mode {
+                    0 => keys[later as usize] < keys[earlier as usize],
+                    1 => answers[count % answers.len().max(1)],
+                    _ => later > earlier,
+                };
+                let mut expected_calls = Vec::new();
+                let mut order: Vec<u32> = (0..n as u32).collect();
+                merge_sort(&mut order, |later, earlier| -> Result<bool, ()> {
+                    let before = answer(expected_calls.len(), later, earlier);
+                    expected_calls.push((later, earlier));
+                    Ok(before)
+                })
+                .unwrap();
+                let mut machine = SortMachine::new(n);
+                let mut calls = Vec::new();
+                let mut reply = None;
+                while let Some((later, earlier)) = machine.advance(reply) {
+                    reply = Some(answer(calls.len(), later, earlier));
+                    calls.push((later, earlier));
+                }
+                assert_eq!(calls, expected_calls, "n {n} mode {mode}");
+                assert_eq!(machine.order(), &order[..], "n {n} mode {mode}");
+            }
         }
     }
 

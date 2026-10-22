@@ -810,6 +810,21 @@ fn uncaught_errors_through_finally_and_natives_report_the_offset() {
         };
         assert_eq!(message, "number 2 is not a function");
         assert_eq!(offset, Some(source.find("forEach").unwrap() as u32));
+        // A throw in a callback of a native loop: the offset of the throw,
+        // not of the call of the loop (13c review).
+        for call in ["[1].forEach(cb)", "[2, 1].sort(cb)", "'a'.replace(/a/, cb)"] {
+            let source = format!(
+                "function inner() {{ throw new Error('x'); }}\nfunction cb() {{ inner(); }}\n{call};"
+            );
+            let Err(ScriptError::Uncaught { offset, .. }) = rt.eval(&source) else {
+                panic!("an uncaught error");
+            };
+            let first_line = source.find('\n').unwrap() as u32;
+            assert!(
+                offset.is_some_and(|offset| offset < first_line),
+                "{call}: offset {offset:?}"
+            );
+        }
         // A caught error leaves no offset behind.
         assert_eq!(
             rt.eval("try { null.x; } catch (e) { 5 }"),

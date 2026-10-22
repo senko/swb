@@ -130,6 +130,25 @@ fn named_integer_index(text: Str16<'_>) -> Option<f64> {
 }
 
 impl Heap {
+    /// The value of the element `k` of `object` if the object stores it in
+    /// its dense vector and has ordinary elements: then `HasProperty(object,
+    /// k)` is true and `Get(object, k)` is the value, without effects and
+    /// without a look at the prototype chain. `None` otherwise (a hole, a
+    /// mapped argument, sparse or exotic elements, an index beyond the
+    /// vector); the caller takes the general steps then.
+    #[inline]
+    pub(crate) fn dense_element(&self, object: Gc<Object>, k: f64) -> Option<Value> {
+        let record = self.object(object).ok()?;
+        let Elements::Dense { values, .. } = &record.elements else {
+            return None;
+        };
+        if !(0.0..values.len() as f64).contains(&k) || !ordinary_elements(&record.kind) {
+            return None;
+        }
+        let value = *values.get(k as usize)?;
+        (!value.is_internal()).then_some(value)
+    }
+
     /// Walks the prototype chain of `object` (see [`ChainInfo`]). The walk
     /// stops at the first object without ordinary elements.
     pub(crate) fn element_chain(&self, object: Gc<Object>) -> Result<ChainInfo> {

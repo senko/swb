@@ -15,7 +15,9 @@
 //!
 //! `replaceAll` and `split` find their matches one at a time: the
 //! positions are not collected (the string cannot change meanwhile, so
-//! this is not observable). Each match charges the time of its search,
+//! this is not observable). With a replacer function, `replace` and
+//! `replaceAll` are native loops (`vm/native_loop.rs`) whose calls run as
+//! frames of the interpreter loop. Each match charges the time of its search,
 //! its copy and a step of the countdown. The result of `replaceAll` is
 //! built in a [`Builder`], which stops at V8's maximum length; `split`
 //! checks the heap limit every [`SAFEPOINT_PIECES`] pieces.
@@ -26,6 +28,7 @@ use crate::runtime::Runtime;
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 use crate::vm::convert::to_uint32;
+use crate::vm::native_loop::{LoopStep, NativeLoop};
 use crate::vm::{NativeCall, NativeReturn, VmError, VmResult, WellKnown};
 
 use super::string::{Builder, string_result};
@@ -81,6 +84,9 @@ pub(super) fn replace(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRet
     let Some(position) = rt.string_index_of(string, search, 0)? else {
         return string_result(string);
     };
+    if let Some(function) = replacement.function {
+        return FunctionReplace::start(rt, (string, search, function), position, false);
+    }
     let length = rt.string_len(string)?;
     let mut builder = Builder::new();
     builder.push_range(rt, string, 0, position)?;
@@ -171,6 +177,81 @@ impl Replacement {
     }
 }
 
+/// `replace` and `replaceAll` with a string to search and a replacer
+/// function, as a native loop (`vm/native_loop.rs`): a step appends the
+/// text before the next match and calls the function (the next match is
+/// searched first; nothing can observe the order); the next step appends
+/// the string of its result. The registers hold the string, the searched
+/// string and the function.
+struct FunctionReplace {
+    string: Gc<JsString>,
+    search: Gc<JsString>,
+    function: Value,
+    out: Builder,
+    search_length: usize,
+    /// The end of the last match.
+    end_of_last: usize,
+    /// The next match.
+    next: Option<usize>,
+    /// `replaceAll`: every match.
+    all: bool,
+    /// Whether the call of a replacement runs.
+    waiting: bool,
+}
+
+impl FunctionReplace {
+    fn start(
+        rt: &mut Runtime,
+        (string, search, function): (Gc<JsString>, Gc<JsString>, Value),
+        first: usize,
+        all: bool,
+    ) -> VmResult<NativeReturn> {
+        let search_length = rt.string_len(search)?;
+        let state = FunctionReplace {
+            string,
+            search,
+            function,
+            out: Builder::new(),
+            search_length,
+            end_of_last: 0,
+            next: Some(first),
+            all,
+            waiting: false,
+        };
+        rt.native_loop(state, &[string.into(), search.into(), function])
+    }
+}
+
+impl NativeLoop for FunctionReplace {
+    fn step(&mut self, rt: &mut Runtime, _regs: usize, input: Value) -> VmResult<LoopStep> {
+        let string = self.string;
+        if self.waiting {
+            self.waiting = false;
+            let text = rt.to_string(input)?;
+            rt.heap.record(text);
+            self.out.push_string(rt, text)?;
+        }
+        if let Some(at) = self.next {
+            self.out.push_range(rt, string, self.end_of_last, at)?;
+            self.end_of_last = at + self.search_length;
+            self.next = if self.all {
+                let advance = self.search_length.max(1);
+                rt.string_index_of(string, self.search, at + advance)?
+            } else {
+                None
+            };
+            let args = [self.search.into(), Value::number(at as f64), string.into()];
+            rt.push_call(self.function, Value::Undefined, &args)?;
+            self.waiting = true;
+            return Ok(LoopStep::Call);
+        }
+        let length = rt.string_len(string)?;
+        self.out.push_range(rt, string, self.end_of_last, length)?;
+        let out = std::mem::replace(&mut self.out, Builder::new());
+        Ok(LoopStep::Done(out.finish(rt)?.into()))
+    }
+}
+
 // --- replaceAll ---
 
 /// `String.prototype.replaceAll(searchValue, replaceValue)` (§22.1.3.20).
@@ -204,6 +285,9 @@ pub(super) fn replace_all(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nativ
     let Some(first) = rt.string_index_of(string, search, 0)? else {
         return string_result(string);
     };
+    if let Some(function) = replacement.function {
+        return FunctionReplace::start(rt, (string, search, function), first, true);
+    }
     let mut builder = Builder::new();
     let mut end_of_last = 0;
     let mut position = Some(first);

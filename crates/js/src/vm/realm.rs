@@ -168,6 +168,13 @@ pub(crate) enum Intrinsic {
     /// the built-in functions are installed: the interpreter's read of
     /// `ta.length` gives the length without the call.
     TypedArrayLengthGetter,
+    /// `%StringIteratorPrototype%.next`, `%RegExpStringIteratorPrototype%.next`
+    /// and `%GeneratorPrototype%.next`, set when the built-in functions are
+    /// installed: the compiled iteration steps recognize them
+    /// (`vm/iter.rs`).
+    StringIteratorNext,
+    RegExpStringIteratorNext,
+    GeneratorNext,
 }
 
 /// The number of typed array element types (Table 71): the length of
@@ -175,7 +182,7 @@ pub(crate) enum Intrinsic {
 pub(crate) const TYPED_ARRAY_TYPES: usize = 12;
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 71;
+const INTRINSIC_COUNT: usize = 74;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]
@@ -278,6 +285,9 @@ pub(crate) struct Realm {
     /// The templates of the arguments objects of sloppy (0) and strict (1)
     /// functions, once the first one was made (`object/arguments.rs`).
     pub(crate) arguments: [Option<crate::object::ArgumentsTemplate>; 2],
+    /// The shape of the iterator result objects (`{ value, done }`), once
+    /// the first one was made (`vm/generator.rs`, `iter_result`).
+    pub(crate) iter_result_shape: Option<Gc<crate::object::Shape>>,
     /// The constructor (`%Int8Array%` …) and the prototype of each typed
     /// array, by element type (`ElementType as usize`); set when the
     /// built-in functions are installed.
@@ -301,6 +311,9 @@ impl Realm {
         self.regexp.trace(tracer);
         for template in self.arguments.iter().flatten() {
             template.trace(tracer);
+        }
+        if let Some(shape) = self.iter_result_shape {
+            tracer.shape(shape);
         }
     }
 
@@ -533,6 +546,7 @@ impl Runtime {
             lexical: GlobalLexicals::default(),
             regexp: crate::object::RegExpRealm::default(),
             arguments: [None, None],
+            iter_result_shape: None,
             typed_arrays: [None; TYPED_ARRAY_TYPES],
         };
         Ok(realm)

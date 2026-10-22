@@ -178,6 +178,7 @@ impl Runtime {
         let vm = Vm {
             stack: Vec::new(),
             frames: Vec::new(),
+            loops: Vec::new(),
             realms: Vec::new(),
             atoms,
             symbols,

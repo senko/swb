@@ -849,6 +849,55 @@ instructions in its `match` (35 KB instead of 109 KB of machine code)
 was 3 to 7 % slower. The loop is not sensitive to its layout on this
 build.
 
+### Callbacks from natives (M7 13c)
+
+Native loops for the array and typed-array callback methods, `sort` with
+a comparator and `replace` with a function; iterator results in one
+shape; `for`-`of` over generators, String and `RegExp` String Iterators
+without result objects (ADR 0026 section 15). `vm_bench`, best of 5
+within a run and best of two runs, the base build (43e5f3e) and 13c
+alternated in one session, release, same machine (other jobs ran on the
+machine during part of the session); the Node.js column is
+`node --jitless` v22.11 from `just jsbench` of the same session:
+
+| Program | base (ms) | 13c (ms) | 13c / base | node --jitless (ms) | 13c / node |
+|---|---|---|---|---|---|
+| forEach over 1M elements | 66.3 | 50.9 | 0.77 | 11.0 | 4.6x |
+| array: reduce of 100k elements, 10 times | 70.8 | 49.3 | 0.70 | 8.3 | 5.9x |
+| array: filter of 100k elements, 10 times | 77.0 | 56.8 | 0.74 | 11.2 | 5.1x |
+| typed: map with a callback over 1M elements | 82.3 | 69.5 | 0.84 | 8.4 | 8.3x |
+| array: sort 100k integers with (a, b) => a - b | 89.4 | 80.0 | 0.89 | 23.4 | 3.4x |
+| regexp: global replace with a function, 1M matches | 208.9 | 208.9 | 1.00 | 48.7 | 4.3x |
+| regexp: matchAll, 300k matches | 149.6 | 87.6 | 0.59 | 11.2 | 7.8x |
+| iterator: Iterator.from(user iterator).map().toArray() of 100k, 5 times | 139.0 | 139.9 | 1.01 | 24.9 | 5.6x |
+| iterator: take, drop, flatMap and reduce over 100k, 5 times | 264.3 | 266.0 | 1.01 | 50.3 | 5.3x |
+| generator: for-of over 1M yielded values | 265.6 | 68.5 | 0.26 | 46.1 | 1.5x |
+| map: for-of over 100k entries, 5 times | 195.6 | 191.4 | 0.98 | 42.9 | 4.5x |
+| proxy: 1M reads with a get trap | 134.5 | 143.1 | 1.06 | 27.8 | 5.1x |
+| promise: 100k Promise.resolve(i).then | 63.7 | 64.2 | 1.01 | 9.0 | 7.1x |
+| async: for await over an async generator of 100k values | 66.2 | 57.5 | 0.87 | 15.4 | 3.7x |
+
+Instructions (callgrind, `swb-js` shell): `forEach` with an empty
+callback 1,397 → 908 per element; a `for`-`of` step over a generator
+4,835 → 1,226; `replace` with a function about 240 fewer per match (the
+match string, its captures and the result string dominate). The
+geometric mean of 13c / base over all 95 programs is 0.97; against
+`node --jitless` 2.35x (21 programs at 5x or more). The rows that were
+3 to 7 % slower in one comparison and ran again: the iterator helper rows
+whose helpers call script functions (`values().map().filter()` 4 to 6 %,
+`for`-`of` over `map().filter()` 2 to 5 %; 1 % more instructions, the
+re-entry path) and `global replace with $1` (2 to 5 %); others that this
+feature does not touch (`toBase64` of 16 MiB, the default sort of a
+`Float64Array`, `sum 10M integers in a try`) showed the same spread with
+the same instruction counts (layout and memory effects). The proxy row
+was 1.01 to 1.06 in three comparisons; its path is the base path.
+
+Measured and dropped: the proxy `get` trap as a native loop (133 →
+181 ms), the iterator consumers as native loops (`take, drop, flatMap,
+reduce` 272 → 299 ms at 1 % more instructions, 70 times more
+instruction cache misses in cachegrind), the promise job queue as one
+loop (`then` 64 ms both, 100k `await`s 10 % slower).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

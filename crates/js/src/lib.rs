@@ -44,7 +44,7 @@ pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptEr
 pub use swb_js_text::RecursionBudget;
 pub use vm::{
     BoundFunction, Closure, Continuation, ContinuationFn, DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT,
-    EnvRecord, ErrorData, GeneratorState, NativeCall, NativeFn, NativeFunction, NativeReturn,
-    PrivateEnvironment, PromiseState, PromiseStatus, ReactionKind, Resume, ResumeMode, StackFrame,
-    TerminationHandle, VmError, VmResult,
+    EnvRecord, ErrorData, GeneratorState, LoopState, NativeCall, NativeFn, NativeFunction,
+    NativeReturn, PrivateEnvironment, PromiseState, PromiseStatus, ReactionKind, Resume,
+    ResumeMode, StackFrame, TerminationHandle, VmError, VmResult,
 };

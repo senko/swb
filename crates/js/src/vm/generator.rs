@@ -244,7 +244,7 @@ impl Runtime {
             frame.generator = Some(generator);
         }
         let ret = self.suspend_top(generator, None, GeneratorStatus::SuspendedStart)?;
-        Ok(self.deliver(ret, generator.into()))
+        self.deliver(ret, generator.into())
     }
 
     /// `yield` (§27.5.3.7 Yield): suspends the running generator frame and
@@ -265,12 +265,20 @@ impl Runtime {
             .get(frame.base as usize + usize::from(register))
             .copied()
             .ok_or(VmError::invariant("a register outside the stack"))?;
+        if let ReturnTo::IterValue { dst, state } = frame.ret {
+            // A step of `for`-`of`: the value without the result object
+            // (nothing allocates until it is in the register).
+            self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
+            self.set_register(dst, value);
+            self.set_register(state, Value::Bool(false));
+            return Ok(None);
+        }
         let scope = self.heap.open_scope();
         let result = self.iter_result(value, false)?;
         self.heap.record(result);
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
         self.heap.close_scope(scope)?;
-        Ok(self.deliver(ret, result.into()))
+        self.deliver(ret, result.into())
     }
 
     /// `GeneratorYield(innerResult)` of `yield*` (§15.5.5 step 8.a.vii,
@@ -295,7 +303,7 @@ impl Runtime {
         // The saved window roots the result until it is delivered; nothing
         // allocates in between.
         let ret = self.suspend_top(generator, Some(register), GeneratorStatus::SuspendedYield)?;
-        Ok(self.deliver(ret, result))
+        self.deliver(ret, result)
     }
 
     /// The method that a step of `yield*` calls (§15.5.5 step 8) in the
@@ -502,8 +510,41 @@ impl Runtime {
     /// `CreateIterResultObject` (§7.4.14). The arguments of the internal
     /// methods are rooted during their reservations, so `value` must only
     /// be rooted by the caller until this returns.
+    ///
+    /// The first result of a realm is made with the general definitions;
+    /// its shape (`value`, `done` on `%Object.prototype%`) makes the later
+    /// ones at once.
     pub(crate) fn iter_result(&mut self, value: Value, done: bool) -> VmResult<Gc<Object>> {
         let realm = self.current_realm();
+        let record = self
+            .vm
+            .realms
+            .get(realm as usize)
+            .ok_or(VmError::invariant("a realm index without a realm"))?;
+        if let Some(shape) = record.iter_result_shape {
+            let slots = vec![value, Value::Bool(done)];
+            return Ok(self.heap.new_object_with_shape(
+                shape,
+                slots,
+                Vec::new(),
+                ObjectKind::Ordinary,
+            )?);
+        }
+        let object = self.iter_result_general(realm, value, done)?;
+        let shape = self.heap.shared_shape(object)?;
+        if let Some(record) = self.vm.realms.get_mut(realm as usize) {
+            record.iter_result_shape = shape;
+        }
+        Ok(object)
+    }
+
+    /// [`Runtime::iter_result`] with the general definitions.
+    fn iter_result_general(
+        &mut self,
+        realm: u32,
+        value: Value,
+        done: bool,
+    ) -> VmResult<Gc<Object>> {
         let proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;
         let object = self.heap.new_object(Some(proto))?;
         let value_key = PropertyKey::String(self.vm.atoms.value);

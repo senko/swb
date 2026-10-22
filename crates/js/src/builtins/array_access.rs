@@ -215,6 +215,12 @@ impl Runtime {
         while k < end {
             self.tick()?;
             let step = self.with_scope(|rt| {
+                // An element in the receiver's dense vector is the next one
+                // (no search of the chain).
+                if let Some(value) = rt.heap.dense_element(object, k) {
+                    let value = rt.heap.record(value);
+                    return Ok(Some((k, body(rt, k, value)?)));
+                }
                 let (index, value) = match rt.next_element(object, k, end)? {
                     Next::End => return Ok(None),
                     Next::At(index, Some(value)) => (index, rt.heap.record(value)),
@@ -249,6 +255,10 @@ impl Runtime {
         while k >= low {
             self.tick()?;
             let step = self.with_scope(|rt| {
+                if let Some(value) = rt.heap.dense_element(object, k) {
+                    let value = rt.heap.record(value);
+                    return Ok(Some((k, body(rt, k, value)?)));
+                }
                 let (index, value) = match rt.prev_element(object, k, low)? {
                     Next::End => return Ok(None),
                     Next::At(index, Some(value)) => (index, rt.heap.record(value)),

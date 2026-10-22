@@ -75,6 +75,16 @@ impl RegExpStringIterator {
 }
 
 impl Heap {
+    /// The shape of `object` if it is shared (the shape of objects that
+    /// were made with the same keys in the same order).
+    pub(crate) fn shared_shape(&self, object: Gc<Object>) -> Result<Option<Gc<Shape>>> {
+        let shape = self.object(object)?.shape;
+        Ok(match self.arenas.shapes.get(shape)?.kind {
+            ShapeKind::Shared(_) => Some(shape),
+            ShapeKind::Dictionary(_) => None,
+        })
+    }
+
     /// A new object with a shared `shape` and the values of its named
     /// properties (`slots`, in the shape's order) and of its elements
     /// (dense, without holes), for objects whose shape the `RegExp`
