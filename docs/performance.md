@@ -807,6 +807,48 @@ and compile in 178 ms instead of 175 ms (+2 %), and their code objects
 take 29.0 MB instead of 27.9 MB (+3.7 %). A function's cache table (28
 bytes per site) exists only after the function ran.
 
+### Call paths (M7 13b)
+
+The frame setup and return of script calls, the binding of `this`, the
+`gc_due` check, the handle scope of native calls, the 8-byte tag of
+`Value` and the arguments object templates (ADR 0026 section 15).
+`vm_bench`, best of 5 within a run and best of two runs, the base build
+(bfe3560) and 13b alternated in one session, release, same machine; the
+Node.js column is `node --jitless` v22.11 from `just jsbench` of the same
+session. Instructions per call (or per loop iteration) from callgrind on
+the same programs in the `swb-js` shell, the start-up subtracted:
+
+| Program | base (ms) | 13b (ms) | 13b / base | node --jitless (ms) | 13b / node | instructions base → 13b |
+|---|---|---|---|---|---|---|
+| fib(27) | 42.6 | 29.8 | 0.70 | 10.7 | 2.8x | 1,089 → 903 per call |
+| closure counter 1M calls | 64.2 | 47.4 | 0.74 | 20.2 | 2.3x | 1,149 → 995 |
+| 1M calls that read arguments | 513.4 | 214.1 | 0.42 | 44.1 | 4.9x | 7,414 → 2,940 |
+| 1M calls that write mapped arguments | 506.7 | 212.2 | 0.42 | 59.9 | 3.5x | 7,358 → 2,948 |
+| 1M calls of new Function code | 63.7 | 45.1 | 0.71 | 17.4 | 2.5x | 1,146 → 934 |
+| date: Date.now(), 1M times | 83.2 | 80.2 | 0.96 | 39.9 | 2.0x | 1,259 → 1,026 |
+| dataview: 1M getInt32 reads | 87.4 | 84.6 | 0.97 | 23.2 | 3.6x | 1,494 → 1,320 |
+| string: slice and charCodeAt 1M calls | 266.9 | 232.3 | 0.87 | 36.3 | 6.4x | 3,748 → 3,549 |
+| array: 1M push, then 1M pop | 136.0 | 107.1 | 0.79 | 40.4 | 2.7x | 1,358 → 1,212 per call |
+| async: 100k calls of an async function | 20.7 | 19.9 | 0.96 | 3.5 | 5.4x | 2,967 → 2,765 |
+
+The geometric mean of 13b / base over all 95 programs is 0.85; against
+`node --jitless` it is 2.5x (22 programs at 5x or more). No row became
+slower beyond noise: three rows were 2 to 3 % slower in one comparison
+(the default `sort` of 100k integers, 300k evaluations of a regular
+expression literal, `indexOf` over an `Int32Array`); the first two run 4
+to 5 % fewer instructions under callgrind, and the third takes 4 ms. The
+call of a native costs about 100 instructions now; the rows of natives
+are dominated by their bodies (`getInt32` about 300 instructions, the
+system clock of `Date.now` about 200). The BBC scripts compile as before
+(181 to 183 ms, 28.9 MB of code; the compiler is unchanged).
+
+Layout of the interpreter loop: five builds with other alignments of
+functions, loops and jump targets moved `fib(27)` between 29.5 and
+30.4 ms and six other programs by at most 2 %; a build without the rare
+instructions in its `match` (35 KB instead of 109 KB of machine code)
+was 3 to 7 % slower. The loop is not sensitive to its layout on this
+build.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

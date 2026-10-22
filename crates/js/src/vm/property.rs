@@ -502,8 +502,95 @@ impl Runtime {
     /// mapped one after, and it maps each index below the argument count
     /// whose parameter register holds a cell (an earlier position of a
     /// repeated name holds a plain value).
+    ///
+    /// After the first object of a realm, the objects are made in the
+    /// template's shape with all elements at once (`object/arguments.rs`).
     #[inline(never)]
     pub(crate) fn create_arguments(&mut self, slot: usize, mapped: bool) -> VmResult<()> {
+        let frame = self
+            .vm
+            .frames
+            .last()
+            .ok_or(VmError::invariant("arguments without a frame"))?;
+        let (base, argc, realm, strict, function) = (
+            frame.base as usize,
+            frame.argc as usize,
+            frame.realm,
+            frame.compiled.strict,
+            frame.function,
+        );
+        let params = frame.compiled.param_count as usize;
+        // A sloppy object needs its callee: only strict objects and sloppy
+        // ones of a function use or make a template.
+        let templated = strict || function.is_some();
+        if let Some(elements) = self.argument_elements(base, params, argc, mapped)? {
+            let template = self
+                .vm
+                .realms
+                .get(realm as usize)
+                .and_then(|record| record.arguments[usize::from(strict)].as_ref());
+            if let Some(template) = template
+                && templated
+            {
+                let callee = function.map_or(Value::Undefined, Value::Object);
+                let object = self.heap.new_arguments_object(template, callee, elements)?;
+                *self
+                    .vm
+                    .stack
+                    .get_mut(slot)
+                    .ok_or(VmError::invariant("a register outside the stack"))? = object.into();
+                return Ok(());
+            }
+        }
+        let object = self.create_arguments_general(slot, mapped)?;
+        let callee = PropertyKey::String(self.vm.atoms.callee);
+        if templated
+            && let Some(record) = self.vm.realms.get(realm as usize)
+            && record.arguments[usize::from(strict)].is_none()
+            && let Some(template) = self.heap.arguments_template(object, callee)?
+            && let Some(record) = self.vm.realms.get_mut(realm as usize)
+        {
+            record.arguments[usize::from(strict)] = Some(template);
+        }
+        Ok(())
+    }
+
+    /// The elements of a new arguments object: the arguments, with the
+    /// cell of each mapped parameter (`mapped`) or its value. `None` if an
+    /// argument is a hole (`Empty`), which the dense vector cannot hold.
+    fn argument_elements(
+        &self,
+        base: usize,
+        params: usize,
+        argc: usize,
+        mapped: bool,
+    ) -> VmResult<Option<Vec<Value>>> {
+        let passed = self
+            .vm
+            .stack
+            .get(base..base + argc.min(params))
+            .ok_or(VmError::invariant("arguments outside the stack"))?;
+        let extra = match self.vm.frames.last() {
+            Some(frame) if argc > params => frame.extra_args.as_slice(),
+            _ => &[],
+        };
+        let mut elements = Vec::with_capacity(argc);
+        for &value in passed.iter().chain(extra) {
+            elements.push(match value {
+                Value::Empty => return Ok(None),
+                Value::Cell(cell) if !mapped => self.heap.cell(cell)?.value,
+                value => value,
+            });
+        }
+        if elements.len() != argc {
+            return Err(VmError::invariant("arguments without their values"));
+        }
+        Ok(Some(elements))
+    }
+
+    /// [`Runtime::create_arguments`] with the general definitions; returns
+    /// the object.
+    fn create_arguments_general(&mut self, slot: usize, mapped: bool) -> VmResult<Gc<Object>> {
         let frame = self
             .vm
             .frames
@@ -580,6 +667,6 @@ impl Runtime {
         } else if let Some(function) = function {
             self.define(object, callee, function.into(), true, false, true)?;
         }
-        Ok(())
+        Ok(object)
     }
 }

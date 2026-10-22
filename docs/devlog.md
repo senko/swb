@@ -4,6 +4,29 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 feature 13b, call paths
+
+- Callgrind on `fib(27)` showed 1,089 instructions per call, about 450
+  of them in the call and the return, and a `Value` copied in five
+  pieces at every register access. The call now reads the callee in one
+  lookup, binds a sloppy `this` in place, checks the limits together and
+  drops the frame record in place; the check for a due collection is
+  one comparison; a native call pushes one handle scope; `Value` has an
+  8-byte tag (two moves per copy). `Root` stays at 16 bytes: it records
+  property keys as their string or symbol values.
+- Arguments objects after the first of a realm are made from a template
+  in one step (7,414 → 2,940 instructions per call).
+- fib 42.6 → 29.8 ms, closure counter 64 → 47 ms, calls with
+  `arguments` 513 → 214 ms; geometric mean 0.85 of 13a. The interpreter
+  loop is not sensitive to code alignment, and a smaller `match` was
+  slower, so the layout stays; the 8 % fib loss of 7d did not
+  reproduce. test262 unchanged; new tests in `tests/calls.rs`.
+- Review: no defect (GC rooting of keys without `Root::Key`, every path
+  that changes the live size, call semantics, arguments templates after
+  changes to the first object; peak memory within 2 MB of 13a under a
+  64 MiB limit). Two nits fixed: a comment on an unreachable arm, one
+  local for the template condition.
+
 ## 2026-10-22: M7 feature 13a, property access caches
 
 - Feature 13 (performance) starts with a baseline: 95 `jsbench`

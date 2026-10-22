@@ -16,9 +16,11 @@ use crate::string::PropertyKey;
 use crate::value::{Value, ValueCell};
 
 /// A root of any kind that native code can hold: a value (which covers
-/// strings, symbols, `BigInt`s and objects), a cell, generic data, or a
-/// property key. [`Heap::record`] and [`Heap::persist`] accept everything
-/// that converts into a `Root`.
+/// strings, symbols, `BigInt`s and objects), a cell, or generic data.
+/// [`Heap::record`] and [`Heap::persist`] accept everything that converts
+/// into a `Root`, also a property key (recorded as its string or symbol
+/// value). The type stays at 16 bytes (the size of a value): a variant of
+/// 12 bytes beside the 8-byte tag of [`Value`] would make it 24.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Root {
     /// A value.
@@ -27,8 +29,6 @@ pub enum Root {
     Cell(Gc<ValueCell>),
     /// A thing of the generic kind.
     Generic(Gc<Generic>),
-    /// A property key (an index key holds nothing).
-    Key(PropertyKey),
 }
 
 impl Root {
@@ -37,7 +37,6 @@ impl Root {
             Root::Value(value) => tracer.value(value),
             Root::Cell(cell) => tracer.cell(cell),
             Root::Generic(generic) => tracer.generic(generic),
-            Root::Key(key) => tracer.key(key),
         }
     }
 }
@@ -62,7 +61,12 @@ impl From<Gc<Generic>> for Root {
 
 impl From<PropertyKey> for Root {
     fn from(key: PropertyKey) -> Self {
-        Root::Key(key)
+        Root::Value(match key {
+            PropertyKey::String(string) => Value::String(string),
+            PropertyKey::Symbol(symbol) => Value::Symbol(symbol),
+            // An index key holds nothing.
+            PropertyKey::Index(_) => Value::Undefined,
+        })
     }
 }
 
@@ -115,6 +119,15 @@ pub struct HandleScope {
     id: u64,
 }
 
+/// An open handle scope.
+#[derive(Clone, Copy)]
+struct OpenScope {
+    /// The length of `scope_values` when the scope opened.
+    start: usize,
+    /// [`HandleScope::id`].
+    id: u64,
+}
+
 struct PersistentSlot {
     generation: u32,
     value: Option<Root>,
@@ -125,10 +138,10 @@ struct PersistentSlot {
 pub(crate) struct HeapRoots {
     /// Values recorded in handle scopes, innermost scope last.
     scope_values: Vec<Root>,
-    /// The start of each open scope in `scope_values`.
-    scope_starts: Vec<usize>,
-    /// The id of each open scope ([`HandleScope::id`]).
-    scope_ids: Vec<u64>,
+    /// The open scopes, innermost last: the start of each in
+    /// `scope_values` and its id ([`HandleScope::id`]). One vector, so
+    /// that opening a scope (once per native call) is one push.
+    scopes: Vec<OpenScope>,
     /// The id of the next scope.
     next_scope_id: u64,
     persistent: Vec<PersistentSlot>,
@@ -157,12 +170,14 @@ impl Heap {
     /// Opens a handle scope inside the current one.
     pub fn open_scope(&mut self) -> HandleScope {
         let roots = &mut self.roots;
-        roots.scope_starts.push(roots.scope_values.len());
         let id = roots.next_scope_id;
         roots.next_scope_id += 1;
-        roots.scope_ids.push(id);
+        roots.scopes.push(OpenScope {
+            start: roots.scope_values.len(),
+            id,
+        });
         HandleScope {
-            depth: roots.scope_starts.len(),
+            depth: roots.scopes.len(),
             id,
         }
     }
@@ -175,16 +190,15 @@ impl Heap {
     pub fn close_scope(&mut self, scope: HandleScope) -> Result<()> {
         let HandleScope { depth, id } = scope;
         let roots = &mut self.roots;
-        if depth != roots.scope_starts.len() || roots.scope_ids.last() != Some(&id) {
-            return Err(Error::invariant("handle scopes closed out of order"));
+        match roots.scopes.last() {
+            Some(open) if open.id == id && depth == roots.scopes.len() => {
+                let start = open.start;
+                roots.scopes.pop();
+                roots.scope_values.truncate(start);
+                Ok(())
+            }
+            _ => Err(Error::invariant("handle scopes closed out of order")),
         }
-        roots.scope_ids.pop();
-        let start = roots
-            .scope_starts
-            .pop()
-            .ok_or(Error::invariant("no handle scope is open"))?;
-        roots.scope_values.truncate(start);
-        Ok(())
     }
 
     /// Closes every handle scope above `depth` (a value of
@@ -194,10 +208,9 @@ impl Heap {
     /// (closing one is an internal error).
     pub fn close_scopes_to(&mut self, depth: usize) {
         let roots = &mut self.roots;
-        if let Some(&start) = roots.scope_starts.get(depth) {
-            roots.scope_values.truncate(start);
-            roots.scope_starts.truncate(depth);
-            roots.scope_ids.truncate(depth);
+        if let Some(open) = roots.scopes.get(depth) {
+            roots.scope_values.truncate(open.start);
+            roots.scopes.truncate(depth);
         }
     }
 
@@ -206,7 +219,7 @@ impl Heap {
     /// the value is returned unrooted: the caller roots it.
     pub fn close_scope_with(&mut self, scope: HandleScope, value: Value) -> Result<Value> {
         self.close_scope(scope)?;
-        if self.roots.scope_starts.is_empty() {
+        if self.roots.scopes.is_empty() {
             return Ok(value);
         }
         Ok(self.record(value))
@@ -223,7 +236,7 @@ impl Heap {
     #[inline]
     pub fn record<R: Into<Root> + Copy>(&mut self, root: R) -> R {
         debug_assert!(
-            !self.roots.scope_starts.is_empty(),
+            !self.roots.scopes.is_empty(),
             "Heap::record without an open handle scope"
         );
         self.roots.scope_values.push(root.into());
@@ -234,12 +247,12 @@ impl Heap {
     /// `own_property_keys`) in the current handle scope.
     pub fn record_keys(&mut self, keys: &[PropertyKey]) {
         debug_assert!(
-            keys.is_empty() || !self.roots.scope_starts.is_empty(),
+            keys.is_empty() || !self.roots.scopes.is_empty(),
             "Heap::record_keys without an open handle scope"
         );
         self.roots
             .scope_values
-            .extend(keys.iter().map(|&key| Root::Key(key)));
+            .extend(keys.iter().map(|&key| Root::from(key)));
     }
 
     /// [`Heap::reserve`] with `extra` values rooted during the call: the
@@ -262,7 +275,7 @@ impl Heap {
 
     /// The number of open handle scopes.
     pub fn scope_depth(&self) -> usize {
-        self.roots.scope_starts.len()
+        self.roots.scopes.len()
     }
 
     /// The number of values recorded in all open scopes.

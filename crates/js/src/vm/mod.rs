@@ -477,5 +477,9 @@ mod tests {
         assert_eq!(size_of::<PromiseState>(), 88);
         assert_eq!(size_of::<promise::Reaction>(), 64);
         assert_eq!(size_of::<jobs::QueuedJob>(), 72);
+        // A value has an 8-byte tag (`value.rs`); a root must still fit
+        // in 16 bytes (`heap/roots.rs`).
+        assert_eq!(size_of::<crate::heap::Root>(), 16);
+        assert_eq!(size_of::<crate::object::Property>(), 40);
     }
 }

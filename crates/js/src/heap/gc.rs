@@ -695,6 +695,7 @@ impl Heap {
 
         self.live_bytes = live;
         self.allocated = 0;
+        self.update_trigger();
         let pause = start.elapsed();
         self.stats = GcStats {
             collections: self.stats.collections + 1,

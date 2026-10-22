@@ -20,8 +20,10 @@
 //! Rust stack nor value stack in proportion to its length. Each level is
 //! a step of the time countdown and charges the copy of its arguments.
 
-use crate::bytecode::{CodeKind, ThisMode};
-use crate::heap::Gc;
+use std::rc::Rc;
+
+use crate::bytecode::{CodeKind, FunctionCode, ThisMode};
+use crate::heap::{Gc, Generic};
 use crate::object::{GetResult, Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
@@ -29,8 +31,8 @@ use crate::value::Value;
 use crate::vm::function::{is_callable_kind, is_constructor_kind};
 use crate::vm::generator::GeneratorKind;
 use crate::vm::{
-    Frame, Intrinsic, NativeCall, NativeReturn, REENTRY_WEIGHT, ReturnTo, STACK_OVERFLOW, VmError,
-    VmResult,
+    Closure, Frame, Intrinsic, NativeCall, NativeReturn, REENTRY_WEIGHT, ReturnTo, STACK_OVERFLOW,
+    VmError, VmResult,
 };
 
 /// The outcome of starting a call.
@@ -85,6 +87,37 @@ pub(crate) struct CallSite {
     pub(crate) new_target: Option<Gc<Object>>,
 }
 
+/// What the frame of a closure needs from the function object, read in one
+/// lookup.
+struct Callee {
+    function: Gc<Object>,
+    code: Gc<Generic>,
+    compiled: Rc<FunctionCode>,
+    this_mode: ThisMode,
+    realm: u32,
+}
+
+impl Callee {
+    fn of(function: Gc<Object>, closure: &Closure) -> Callee {
+        Callee {
+            function,
+            code: closure.code,
+            compiled: Rc::clone(&closure.compiled),
+            this_mode: closure.this_mode,
+            realm: closure.realm,
+        }
+    }
+}
+
+/// Makes the value stack end at the top of a new register window of
+/// `registers` registers at `window`: the first `kept` slots (the passed
+/// arguments that are parameters) stay, the others become `undefined`.
+#[inline]
+fn clear_window(stack: &mut Vec<Value>, window: usize, kept: usize, registers: usize) {
+    stack.truncate(window + kept);
+    stack.resize(window + registers, Value::Undefined);
+}
+
 /// The result of a native function, checked: internal values (`Empty`,
 /// `Cell`) must not reach a script.
 fn native_value(value: Value) -> VmResult<Value> {
@@ -111,11 +144,22 @@ impl Runtime {
             return Ok(Step::NotCallable);
         };
         let record = self.heap.object(function)?;
+        // A closure first: one lookup of the object gives all that the
+        // frame needs (the common case of script code).
+        if let ObjectKind::Function(closure) = &record.kind {
+            if site.construct && !is_constructor_kind(&record.kind) {
+                return Ok(Step::NotCallable);
+            }
+            let callee = Callee::of(function, closure);
+            return self.enter_function(callee, site);
+        }
         if site.construct && !is_constructor_kind(&record.kind) {
             return Ok(Step::NotCallable);
         }
         match &record.kind {
-            ObjectKind::Function(_) => self.enter_function(function, site),
+            // Closures returned above; the arm keeps the match exhaustive
+            // without a wildcard.
+            ObjectKind::Function(_) => Err(VmError::invariant("a closure after its arm")),
             ObjectKind::Native(native) => {
                 let (func, realm) = (native.func, native.realm);
                 self.call_native(function, func, realm, site)
@@ -315,7 +359,7 @@ impl Runtime {
                         continue;
                     }
                 },
-                _ => self.enter_function(function, site)?,
+                _ => self.enter_closure(function, site)?,
             };
             if let Step::Value(_) = step {
                 self.vm.stack.truncate(window - 2);
@@ -391,26 +435,107 @@ impl Runtime {
         Ok(())
     }
 
-    /// Pushes the frame of a closure. A function entry is a step of the
-    /// time countdown.
-    fn enter_function(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<Step> {
-        self.tick()?;
-        if self.vm.frames.len() >= self.vm.frame_limit {
-            return Err(VmError::range_error(STACK_OVERFLOW));
-        }
+    /// [`Runtime::enter_function`] of a closure that the caller knows only
+    /// by its handle (a tail call).
+    fn enter_closure(&mut self, function: Gc<Object>, site: CallSite) -> VmResult<Step> {
         let ObjectKind::Function(closure) = &self.heap.object(function)?.kind else {
             return Err(VmError::invariant("not a closure"));
         };
-        let code = closure.code;
-        let compiled = std::rc::Rc::clone(&closure.compiled);
-        let this_mode = closure.this_mode;
-        let realm = closure.realm;
+        let callee = Callee::of(function, closure);
+        self.enter_function(callee, site)
+    }
+
+    /// Pushes the frame of a closure. A function entry is a step of the
+    /// time countdown.
+    ///
+    /// The frame is built in place: the parameter registers are the
+    /// caller's argument slots, the stack grows (or shrinks) to the top of
+    /// the new window, and only the registers above the passed arguments
+    /// are cleared to `undefined`.
+    #[inline]
+    fn enter_function(&mut self, callee: Callee, site: CallSite) -> VmResult<Step> {
+        self.tick()?;
+        let registers = callee.compiled.register_count as usize;
+        let window = site.window;
+        if self.vm.frames.len() >= self.vm.frame_limit || window + registers > self.vm.stack_limit {
+            return Err(VmError::range_error(STACK_OVERFLOW));
+        }
+        if site.construct || callee.compiled.kind.is_class_constructor() {
+            return self.enter_constructor_frame(callee, site);
+        }
+        let Callee {
+            function,
+            code,
+            compiled,
+            this_mode,
+            realm,
+        } = callee;
+        let params = compiled.param_count as usize;
+        let this = match this_mode {
+            ThisMode::Lexical => Value::Undefined,
+            ThisMode::Strict => self.stack_value(window - 1)?,
+            // §10.2.1.2: an object stays, `undefined` and `null` become the
+            // global object of the function's realm.
+            ThisMode::Global => match self.stack_value(window - 1)? {
+                this @ Value::Object(_) => this,
+                Value::Undefined | Value::Null => match self.vm.realms.get(realm as usize) {
+                    Some(record) => Value::Object(record.global),
+                    None => return Err(VmError::invariant("a realm index without a realm")),
+                },
+                this => self.coerce_this(this, realm)?,
+            },
+        };
+        let extra_args = if compiled.keeps_extra_args && site.argc > params {
+            self.extra_args(window, params, site.argc)?
+        } else {
+            Vec::new()
+        };
+        clear_window(&mut self.vm.stack, window, site.argc.min(params), registers);
+        self.vm.frames.push(Frame {
+            function: Some(function),
+            code,
+            compiled,
+            pc: 0,
+            base: window as u32,
+            restore_top: site.restore_top as u32,
+            this,
+            new_target: Value::Undefined,
+            argc: site.argc as u32,
+            extra_args,
+            ret: site.ret,
+            construct: false,
+            generator: None,
+            realm,
+        });
+        Ok(Step::Entered)
+    }
+
+    /// The arguments beyond the declared parameters, for the frame record.
+    #[inline(never)]
+    fn extra_args(&self, window: usize, params: usize, argc: usize) -> VmResult<Vec<Value>> {
+        self.vm
+            .stack
+            .get(window + params..window + argc)
+            .map(<[Value]>::to_vec)
+            .ok_or(VmError::invariant("arguments outside the stack"))
+    }
+
+    /// [`Runtime::enter_function`] of a `[[Construct]]`, or of a class
+    /// constructor without `new` (an error).
+    #[inline(never)]
+    fn enter_constructor_frame(&mut self, callee: Callee, site: CallSite) -> VmResult<Step> {
+        let Callee {
+            function,
+            code,
+            compiled,
+            this_mode: _,
+            realm,
+        } = callee;
         let params = compiled.param_count as usize;
         let registers = compiled.register_count as usize;
         let window = site.window;
-        if window + registers > self.vm.stack_limit {
-            return Err(VmError::range_error(STACK_OVERFLOW));
-        }
+        // (The checks of the stack and the frame limit ran in
+        // `enter_function`.)
         let (this, new_target) = if site.construct {
             let new_target = site.new_target.unwrap_or(function);
             // The slot of `this` roots `new.target` while its `prototype`
@@ -434,26 +559,14 @@ impl Runtime {
                 format!("Class constructor {name} cannot be invoked without 'new'")
             }));
         } else {
-            let this = self.stack_value(window - 1)?;
-            let this = match this_mode {
-                ThisMode::Lexical => Value::Undefined,
-                ThisMode::Strict => this,
-                ThisMode::Global => self.coerce_this(this, realm)?,
-            };
-            (this, Value::Undefined)
+            return Err(VmError::invariant("a plain call of a constructor frame"));
         };
         let extra_args = if compiled.keeps_extra_args && site.argc > params {
-            self.vm
-                .stack
-                .get(window + params..window + site.argc)
-                .map(<[Value]>::to_vec)
-                .ok_or(VmError::invariant("arguments outside the stack"))?
+            self.extra_args(window, params, site.argc)?
         } else {
             Vec::new()
         };
-        let stack = &mut self.vm.stack;
-        stack.truncate(window + site.argc.min(params));
-        stack.resize(window + registers, Value::Undefined);
+        clear_window(&mut self.vm.stack, window, site.argc.min(params), registers);
         self.vm.frames.push(Frame {
             function: Some(function),
             code,
@@ -555,6 +668,7 @@ impl Runtime {
 
     /// Calls a native function with a handle scope open; runs its deferred
     /// call or generator resumption.
+    #[inline]
     fn call_native(
         &mut self,
         function: Gc<Object>,
@@ -563,6 +677,16 @@ impl Runtime {
         site: CallSite,
     ) -> VmResult<Step> {
         match self.run_native(function, func, realm, site)? {
+            NativeReturn::Value(value) => Ok(Step::Value(native_value(value)?)),
+            other => self.native_request(other, site),
+        }
+    }
+
+    /// The deferred call or generator resumption that a native function
+    /// returned (out of line: most natives return a value).
+    #[inline(never)]
+    fn native_request(&mut self, request: NativeReturn, site: CallSite) -> VmResult<Step> {
+        match request {
             NativeReturn::Value(value) => Ok(Step::Value(native_value(value)?)),
             NativeReturn::Call { callee, this, args } => self.invoke_tail_calls(
                 site,
@@ -682,15 +806,12 @@ impl Runtime {
         if let Some(generator) = frame.generator {
             return self.return_from_generator(generator, value);
         }
-        let frame = self
-            .vm
-            .frames
-            .pop()
-            .ok_or(VmError::invariant("return without a frame"))?;
-        self.vm
-            .stack
-            .resize(frame.restore_top as usize, Value::Undefined);
-        Ok(self.deliver(frame.ret, value))
+        // The record is dropped in place (a `pop` would move it out).
+        let (ret, restore_top) = (frame.ret, frame.restore_top as usize);
+        let depth = self.vm.frames.len() - 1;
+        self.vm.frames.truncate(depth);
+        self.vm.stack.resize(restore_top, Value::Undefined);
+        Ok(self.deliver(ret, value))
     }
 
     /// [`Runtime::return_from_frame`] of a generator's frame (the result

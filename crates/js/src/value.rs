@@ -20,6 +20,7 @@ use crate::string::JsString;
 /// language's equality (`SameValue`, `SameValueZero`, `===`) is
 /// [`Heap::equal`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u64)]
 pub enum Value {
     /// `undefined`.
     #[default]

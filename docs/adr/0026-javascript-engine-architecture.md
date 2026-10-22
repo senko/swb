@@ -189,7 +189,11 @@ bytes or less, so an instruction has at most two register operands and
 one 32-bit operand. The interpreter is a loop around a `match`; the
 program counter and the frame base are local variables of the loop,
 written back to the frame record before any operation that can call out
-(memo 1.1).
+(memo 1.1). All instructions stay in the one `match`: in M7 13b a loop
+with only about 40 frequent arms (a third of the machine code) ran 3 to
+7 % slower and 3.5 % more instructions, and five alignments of
+functions, loops and jump targets changed the times by at most 2 %
+(section 15).
 
 **Verifier.** After code generation, a pass checks each function:
 register operands below the register count, jump targets inside the
@@ -225,6 +229,17 @@ registers, so arguments are not copied. Missing arguments become
 of the frame record when the function uses `arguments` or a rest
 parameter (known at compile time), and dropped otherwise.
 
+The path of a script-to-script call (M7 13b, section 15): one lookup of
+the callee object gives the code, the `this` mode and the realm; the
+countdown step, the frame limit and the value-stack limit are checked
+together; the `this` of a sloppy function is bound in place (an object
+stays, `undefined` and `null` give the realm's global object; only a
+primitive takes the general `ToObject`); the stack is cut to the passed
+parameters and grown with `undefined` to the register count; the record
+is pushed. Constructor calls and class constructors without `new` take a
+separate path. A return drops the record in place (no move of the
+128-byte record) and restores the caller's stack length.
+
 Calls that look like native calls but end in a script function also stay
 in the loop: `Function.prototype.call` and `apply`, `Reflect.apply`,
 bound functions, and getters and setters reached from property
@@ -242,7 +257,12 @@ is decided per built-in.
 
 **`arguments`** is created at function entry only if the function
 references it or contains a direct `eval` (§10.2.11). Rest parameters
-and default values are ordinary bytecode at the function start.
+and default values are ordinary bytecode at the function start. Since
+M7 13b the first arguments object of a realm (one for sloppy, one for
+strict functions) is made with the general definitions and its shape and
+named slots become a template of the realm; later objects are made in
+that shape at once, with the elements (values or the cells of mapped
+parameters) in one dense vector.
 
 **Generators and `async` functions.** At a suspension, the frame record
 and its register window move into the generator object; a resume moves
@@ -377,7 +397,11 @@ comes if a target creates many realms (frames).
 
 **Values** (memo 4.1) are a Rust enum of 16 bytes: undefined, null,
 boolean, 32-bit integer, double, and handles to a string, symbol,
-`BigInt` or object. One internal variant, `Empty`, marks uninitialized
+`BigInt` or object. Since M7 13b the enum has an 8-byte tag
+(`#[repr(u64)]`), so every payload starts at byte 8 and a copy is two
+8-byte moves; with the default layout the compiler copied a value in
+five pieces (tag, a byte, two bytes, four bytes, eight bytes) in the
+interpreter loop (section 15). One internal variant, `Empty`, marks uninitialized
 bindings and array holes. It never reaches a script: every path out of
 the VM and the object model converts or rejects it. The layout stays
 behind a small API, so NaN-boxing can come later if measurements show a
@@ -2909,6 +2933,79 @@ where the first plan did not work:
     the GC stress mode, expected outputs from Node.js 22), the unit tests
     of `object/cache.rs`; test262 unchanged (40,286 pass, 44 fail, normal
     and stress; parse-only 42,240).
+- Call paths (feature 13b; `vm/call.rs`, `object/arguments.rs`,
+  `heap/roots.rs`, `value.rs`). Measured first with callgrind on
+  `fib(27)` (1,089 instructions per call, of them about 450 in the call
+  and the return) and the closure counter (1,149 per iteration). The
+  largest costs and what replaced them:
+  - Copies of values: the default layout of the `Value` enum put the
+    payloads at bytes 1, 4 and 8, and the interpreter copied a value in
+    five pieces at each register read and write. An 8-byte tag
+    (`#[repr(u64)]`) makes it two moves: `fib` 8 % fewer instructions,
+    `Date.now()` 12 %. `#[repr(C, u8)]` (payload at byte 8, 1-byte tag)
+    gained nothing. The 8-byte tag leaves no room beside the niche for
+    the 12-byte key variant of `Root` (24 instead of 16 bytes, which made
+    a test with a million handle-scope values reach the heap limit), so
+    a property key is now recorded as its string or symbol value; a test
+    keeps `Root` at 16 bytes.
+  - Frame setup: `invoke` reads the code, the `this` mode and the realm
+    in one lookup of the callee (was two); the `this` of a sloppy
+    function is bound in place (was a call); the frame limit and the
+    stack limit are one check; constructor frames have their own
+    function. A return drops the frame record in place instead of
+    moving it out of the vector through an `Option` and a `Result` (about
+    60 instructions of copies per return).
+  - Checks: `gc_due` at every call and backward jump compared the
+    allocation with three rules (threshold, limit, near the limit) in
+    about 25 instructions; the rules are now folded into one bound that
+    is recomputed when the live size changes (after a collection,
+    `release_bytes`), and the check is one comparison and a flag. A unit
+    test compares the bound with the rules at their edges. The countdown
+    step at function entry and the frame limit are unchanged (section 9).
+  - Native calls: a handle scope was two vector pushes (start, id) and
+    two pops; it is one vector of (start, id) pairs. The deferred-call
+    and resume results of natives go to an out-of-line function, so the
+    common `Value` result returns directly. The native function signature
+    is unchanged. `Date.now` converts the clock without the 128-bit
+    milliseconds of `Duration::as_millis` (a library call).
+  - Arguments objects: the first object of a realm (sloppy: `callee` a
+    data property; strict: the `%ThrowTypeError%` accessor) is made with
+    the general definitions; its shape and named slots (`length`,
+    `@@iterator`, `callee`) become a template of the realm (a root of the
+    realm). Later objects are made in the template's shape with the
+    elements in one dense vector (the cells of mapped parameters, the
+    values otherwise): 7,414 → 2,940 instructions per call of `f(a, b)`
+    that reads `arguments`. The rest is the allocation of the object, its
+    two vectors and the two parameter cells, the collection of them, and
+    the generic `[[Get]]` of `arguments[0]`.
+  - Kept: the register clearing (`resize` to the register count, about
+    16 instructions for 6 registers), the `Rc` count of the code in the
+    frame and the loop (4 updates per call), the 128-byte frame record.
+  - Layout of the loop (the 7d note: `fib` 8 % slower at 3 % fewer
+    instructions): five builds with different alignments of functions,
+    loops and jump targets (`-align-all-functions`, `-align-loops`,
+    `-align-all-nofallthru-blocks` of 16 and 32 bytes) gave `fib` 29.5 to
+    30.4 ms and six other programs within 2 %. A build whose `match`
+    kept only about 40 frequent instructions (the others an error; 35 KB of
+    machine code instead of 109 KB) ran 3 to 7 % slower with 3.5 % more
+    instructions. So the size of the `match` is not the cause, and no
+    layout attribute is needed; the loop stays as it is. The 7d effect
+    did not reproduce on this build.
+  - Measured (vm_bench, best of 5, two alternating runs, base bfe3560;
+    `docs/performance.md`): `fib(27)` 42.6 → 29.8 ms, closure counter
+    64.2 → 47.4, calls that read `arguments` 513 → 214, that write mapped
+    arguments 507 → 212, `new Function` code 63.7 → 45.1, `push`/`pop`
+    136 → 107, `slice`/`charCodeAt` 267 → 232, `Date.now` 83.2 → 80.2,
+    `getInt32` 87.4 → 84.6; geometric mean over 95 programs 0.85. The
+    native rows gain little: the call costs about 100 instructions now,
+    the bodies of `getInt32` (about 300) and `Date.now` (about 200, most
+    of it the system clock) dominate.
+  - Tests: `tests/calls.rs` (arguments objects after the template,
+    mapped and unmapped aliasing, `this` binding, call errors, deep
+    recursion, generators and async functions that use `arguments`;
+    normal and stress; expected outputs from Node.js 22); test262
+    unchanged (40,286 pass, 44 fail, normal and stress; parse-only
+    42,240).
 
 ## Consequences
 

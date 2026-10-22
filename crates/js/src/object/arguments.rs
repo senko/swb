@@ -13,6 +13,13 @@
 //! non-writable (§10.4.4.2), which replaces the cell by a plain value. So
 //! the map costs no memory, and no element value is ever stale.
 //!
+//! Creation (M7 13b): the first arguments object of a realm is made with
+//! the general definitions; its shape and slot values become the realm's
+//! [`ArgumentsTemplate`] (one for sloppy functions, with `callee` as a data
+//! property, one for strict functions, with the `%ThrowTypeError%`
+//! accessor). Later objects are made in that shape at once, with all
+//! elements in one dense vector ([`Heap::new_arguments_object`]).
+//!
 //! Only `create_arguments` (`vm/property.rs`) stores cells in elements;
 //! the elements are read only through `[[GetOwnProperty]]` in `ops.rs`,
 //! which takes the cell's value, so no cell reaches a script. `[[Get]]`
@@ -21,12 +28,103 @@
 //! writes the cell.
 
 use crate::error::{Error, Result};
-use crate::heap::{Gc, Heap, RootSource};
-use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor};
+use crate::heap::{Gc, Heap, RootSource, Tracer};
+use crate::object::shape::ShapeKind;
+use crate::object::{Elements, Object, ObjectKind, Property, PropertyDescriptor, Shape};
 use crate::string::PropertyKey;
 use crate::value::{Value, ValueCell};
 
+/// The shape and the named property values of the arguments objects of a
+/// realm, taken from the first one that the general definitions made:
+/// `length`, `@@iterator` and `callee`, all in their final shape.
+pub(crate) struct ArgumentsTemplate {
+    /// The shape (shared; its prototype is the realm's
+    /// `%Object.prototype%`).
+    pub(crate) shape: Gc<Shape>,
+    /// The slot values; the slots of `length` and of a data `callee` are
+    /// replaced for each object (the template holds `undefined` there).
+    pub(crate) slots: Box<[Value]>,
+    /// The slot of `length`.
+    pub(crate) length_slot: usize,
+    /// The slot of `callee` when it is a data property (sloppy
+    /// functions).
+    pub(crate) callee_slot: Option<usize>,
+}
+
+impl ArgumentsTemplate {
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        tracer.shape(self.shape);
+        for value in &self.slots {
+            tracer.value(*value);
+        }
+    }
+}
+
 impl Heap {
+    /// The template of the arguments object `object`, which the general
+    /// definitions just made (`length`, `@@iterator`, `callee` and only
+    /// elements otherwise). `None` if its shape is not shared.
+    pub(crate) fn arguments_template(
+        &self,
+        object: Gc<Object>,
+        callee: PropertyKey,
+    ) -> Result<Option<ArgumentsTemplate>> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        if !matches!(shape.kind, ShapeKind::Shared(_)) {
+            return Ok(None);
+        }
+        let lists = &self.arenas.key_lists;
+        let length = PropertyKey::String(self.length_atom());
+        let Some(length) = shape.find(length, lists)? else {
+            return Ok(None);
+        };
+        let Some(callee) = shape.find(callee, lists)? else {
+            return Ok(None);
+        };
+        let callee_slot = (!callee.flags.accessor()).then_some(callee.slot as usize);
+        let mut slots: Box<[Value]> = record.slots.clone().into_boxed_slice();
+        for slot in [Some(length.slot as usize), callee_slot]
+            .into_iter()
+            .flatten()
+        {
+            *slots
+                .get_mut(slot)
+                .ok_or(Error::invariant("a shape slot outside the object"))? = Value::Undefined;
+        }
+        Ok(Some(ArgumentsTemplate {
+            shape: record.shape,
+            slots,
+            length_slot: length.slot as usize,
+            callee_slot,
+        }))
+    }
+
+    /// A new arguments object in the shape of `template`, with `length`
+    /// = the number of `elements`, `callee` (for a template with a data
+    /// `callee`) and the elements (values, or the cells of mapped
+    /// parameters; no holes). Never collects.
+    pub(crate) fn new_arguments_object(
+        &mut self,
+        template: &ArgumentsTemplate,
+        callee: Value,
+        elements: Vec<Value>,
+    ) -> Result<Gc<Object>> {
+        let mut slots = template.slots.to_vec();
+        let length = Value::number(elements.len() as f64);
+        for (slot, value) in [
+            (Some(template.length_slot), length),
+            (template.callee_slot, callee),
+        ] {
+            if let Some(slot) = slot {
+                *slots
+                    .get_mut(slot)
+                    .ok_or(Error::invariant("a template slot outside the slots"))? = value;
+            }
+        }
+        self.new_object_with_shape(template.shape, slots, elements, ObjectKind::Arguments)
+    }
+
     /// The cell of the mapped element `key` of `object`, if it is one.
     pub(crate) fn mapped_argument(
         &self,

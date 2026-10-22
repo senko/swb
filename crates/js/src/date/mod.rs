@@ -64,9 +64,16 @@ impl TimeHost {
 fn system_now() -> f64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(elapsed) => elapsed.as_millis() as f64,
-        Err(before) => -(before.duration().as_millis() as f64),
+        Ok(elapsed) => millis(elapsed),
+        Err(before) => -millis(before.duration()),
     }
+}
+
+/// The whole milliseconds of a duration, without the 128-bit integer of
+/// `Duration::as_millis` (its conversion to `f64` is a library call). Exact
+/// below 2^53 / 1000 seconds; the clock is far below.
+fn millis(duration: std::time::Duration) -> f64 {
+    duration.as_secs() as f64 * 1000.0 + f64::from(duration.subsec_millis())
 }
 
 #[cfg(test)]
@@ -87,6 +94,19 @@ mod tests {
     #[test]
     fn the_system_clock_is_after_2023() {
         assert!(TimeHost::default().now() > 1_700_000_000_000.0);
+    }
+
+    #[test]
+    fn durations_give_whole_milliseconds() {
+        use std::time::Duration;
+        let cases = [
+            Duration::new(1_700_000_000, 123_999_999),
+            Duration::new(0, 999_999),
+            Duration::new(253_402_300_799, 999_000_000),
+        ];
+        for duration in cases {
+            assert_eq!(millis(duration), duration.as_millis() as f64);
+        }
     }
 
     #[test]

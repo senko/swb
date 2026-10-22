@@ -151,6 +151,10 @@ pub struct Heap {
     live_bytes: usize,
     /// Bytes charged since the last collection.
     allocated: usize,
+    /// [`Heap::gc_due`] holds when `allocated` is above this bound, or
+    /// always with `gc_always` ([`Heap::update_trigger`]).
+    gc_after: usize,
+    gc_always: bool,
     /// Depth of the regions in which collections are not allowed.
     no_gc: u32,
     /// The safepoints seen in the stress mode.
@@ -177,7 +181,7 @@ impl Heap {
             .insert(length)
             .expect("an empty arena has room for the first atom");
         atoms.insert(atoms.hash(Str16::Latin1(b"length")), length);
-        Heap {
+        let mut heap = Heap {
             arenas: Arenas {
                 objects: Arena::new("object"),
                 strings,
@@ -199,10 +203,14 @@ impl Heap {
             config,
             live_bytes: 0,
             allocated: 0,
+            gc_after: 0,
+            gc_always: false,
             no_gc: 0,
             stress_safepoints: 0,
             stats: GcStats::default(),
-        }
+        };
+        heap.update_trigger();
+        heap
     }
 
     /// The configuration.
@@ -249,6 +257,7 @@ impl Heap {
         let from_allocated = bytes.min(self.allocated);
         self.allocated -= from_allocated;
         self.live_bytes = self.live_bytes.saturating_sub(bytes - from_allocated);
+        self.update_trigger();
     }
 
     /// Whether a collection is due at the next safepoint: past the
@@ -259,9 +268,14 @@ impl Heap {
     /// would otherwise end the script near the limit although a collection
     /// would free enough (M7 6a: a rope loop with 3 MB of live data ended
     /// at a limit of 13 MiB, the threshold being above the limit).
+    ///
+    /// The interpreter asks at every call and backward jump, so the rules
+    /// are folded into one bound on [`Heap::allocated_since_gc`]
+    /// ([`Heap::update_trigger`]), which changes only when the live bytes
+    /// do.
     #[inline]
     pub fn gc_due(&self) -> bool {
-        self.config.stress || self.due_by_size()
+        self.gc_always || self.allocated > self.gc_after
     }
 
     /// [`Heap::gc_due`] without the stress mode.
@@ -271,6 +285,22 @@ impl Heap {
         self.allocated > self.threshold()
             || self.heap_size() > limit
             || (self.heap_size() > limit - limit / 5 && self.allocated > limit / 10)
+    }
+
+    /// Recomputes the bound of [`Heap::gc_due`] after a change of the live
+    /// bytes: `allocated > gc_after` holds exactly when
+    /// [`Heap::due_by_size`] does (for heap sizes below `usize::MAX`),
+    /// and `gc_always` covers the stress mode and live bytes over the
+    /// limit.
+    fn update_trigger(&mut self) {
+        let limit = self.config.limit;
+        let live = self.live_bytes;
+        self.gc_always = self.config.stress || live > limit;
+        // `live + allocated > limit`.
+        let over_limit = limit - live.min(limit);
+        // `live + allocated > limit - limit / 5 && allocated > limit / 10`.
+        let near_limit = (limit - limit / 5).saturating_sub(live).max(limit / 10);
+        self.gc_after = self.threshold().min(over_limit).min(near_limit);
     }
 
     /// Counts a safepoint of the stress mode and returns whether the
@@ -608,6 +638,54 @@ pub struct HeapCounts {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The folded bound of `gc_due` gives the answer of the three rules
+    /// for live sizes and allocations around each of their edges.
+    #[test]
+    fn the_collection_trigger_follows_the_rules() {
+        for (limit, min_threshold, growth_factor) in [
+            (1 << 30, 16 << 20, 2),
+            (13 << 20, 16 << 20, 2),
+            (1000, 10, 3),
+        ] {
+            for stress in [false, true] {
+                let config = HeapConfig {
+                    limit,
+                    min_threshold,
+                    growth_factor,
+                    stress,
+                };
+                let mut heap = Heap::new(config);
+                let edges = [
+                    0,
+                    1,
+                    limit / 10,
+                    limit / 2,
+                    limit - limit / 5,
+                    limit - 1,
+                    limit,
+                    limit + 1,
+                    min_threshold,
+                    2 * limit,
+                ];
+                for live in edges {
+                    heap.live_bytes = live;
+                    heap.update_trigger();
+                    for base in edges.iter().chain(&[min_threshold * growth_factor]) {
+                        for allocated in [base.saturating_sub(1), *base, base + 1] {
+                            heap.allocated = allocated;
+                            let rules = stress || heap.due_by_size();
+                            assert_eq!(
+                                heap.gc_due(),
+                                rules,
+                                "limit {limit} live {live} allocated {allocated}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn atoms_are_unique_per_content() {

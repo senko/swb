@@ -275,6 +275,9 @@ pub(crate) struct Realm {
     /// The state of the `RegExp` built-ins: the last match for the legacy
     /// static properties and the shapes of the fast paths.
     pub(crate) regexp: crate::object::RegExpRealm,
+    /// The templates of the arguments objects of sloppy (0) and strict (1)
+    /// functions, once the first one was made (`object/arguments.rs`).
+    pub(crate) arguments: [Option<crate::object::ArgumentsTemplate>; 2],
     /// The constructor (`%Int8Array%` …) and the prototype of each typed
     /// array, by element type (`ElementType as usize`); set when the
     /// built-in functions are installed.
@@ -296,6 +299,9 @@ impl Realm {
             tracer.value(binding.value);
         }
         self.regexp.trace(tracer);
+        for template in self.arguments.iter().flatten() {
+            template.trace(tracer);
+        }
     }
 
     /// Replaces an intrinsic (for objects that exist only after the
@@ -526,6 +532,7 @@ impl Runtime {
             intrinsics,
             lexical: GlobalLexicals::default(),
             regexp: crate::object::RegExpRealm::default(),
+            arguments: [None, None],
             typed_arrays: [None; TYPED_ARRAY_TYPES],
         };
         Ok(realm)

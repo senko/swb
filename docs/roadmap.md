@@ -2005,6 +2005,23 @@ failures with a reason. Features, in this order:
       path of native calls from script, and the code alignment of the
       interpreter loop (fib became 8 % slower with 7d at 3 % fewer
       instructions).
+      Done 2026-10-22: a call reads the callee's code, `this` mode and
+      realm in one lookup, binds a sloppy `this` in place, checks the
+      frame and stack limits together and drops the frame record in
+      place at the return; the check for a due collection is one
+      comparison with a bound that changes only with the live size; a
+      native call pushes one handle scope; `Value` has an 8-byte tag (a
+      copy is two moves instead of five; `Root` keeps 16 bytes because
+      it records property keys as values); arguments objects after the
+      first of a realm are made from a template (shape and slots) with
+      all elements at once. `jsbench`: fib 42.6 → 29.8 ms, closure
+      counter 64 → 47 ms, calls that read `arguments` 513 → 214 ms,
+      push and pop 136 → 107 ms, `Date.now` 83 → 80 ms; geometric mean
+      over 95 programs 0.85 of 13a (2.5 times `node --jitless`). The
+      interpreter loop is not sensitive to code alignment (five builds
+      within 2 %), and a `match` with only the frequent instructions
+      was 3 to 7 % slower, so the layout stays. test262 unchanged
+      (40,286; stress the same).
     - 13c Callbacks from natives (`implementer-hard`): calls of script
       functions from native loops (`forEach`, `map`, `filter`, `reduce`,
       `sort`, typed-array methods, iterator helpers, `replace` with a
@@ -2082,9 +2099,22 @@ not repeated here; the open items of each spike session are in M6 step
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
   Annex B.3.4 that now rely on the shared scope.
-- Arguments objects (M7 3f): creating one costs about 0.5 µs (`node
-  --jitless`: 0.05 µs); a cached shape for its named properties and a
-  bulk element store (feature 13).
+- Calls (M7 13b):
+  - Arguments objects of sloppy functions with non-simple parameters
+    (defaults, rest, patterns) have `callee` as a data property; the
+    spec (§10.4.4.6, `CreateUnmappedArgumentsObject`) and V8 give the
+    `%ThrowTypeError%` accessor.
+  - An arguments object costs about 0.21 µs (`node --jitless` 0.04 to
+    0.06 µs): three allocations and one cell per mapped parameter;
+    `arguments[i]` takes the generic `[[Get]]` (about 230
+    instructions), a fast path for dense elements would halve it.
+  - The interpreter loop spills the frame base, the stack length and the
+    operands: about 12 instructions of dispatch per bytecode instruction
+    and 9 per register access. Not tried: a local slice of the
+    instructions with an outer loop for frame changes. The frame record
+    is 128 bytes; `extra_args` and `new_target` could be smaller.
+  - A call of a chain of 100,000 bound functions ends with "Invalid
+    string length"; Node calls it (13b review; also at 13a).
 - `[[VarNames]]` (M7 3f, older): the global environment does not record
   var names, so a later `let` of a name whose configurable property
   existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws
@@ -2284,10 +2314,6 @@ not repeated here; the open items of each spike session are in M6 step
   - Speed: 5.5 to 9.3 times slower than `node --jitless` (100k values
     through `for await` over an async generator 81 ms, Node.js 15 ms):
     two jobs and 3 to 4 allocations per step (feature 13).
-  - `fib(27)` in `vm_bench` became 8 % slower with 7d although it runs
-    3 % fewer machine instructions; four layouts of the interpreter
-    change gave +7 to +13 %. Check the code alignment of the interpreter
-    loop in feature 13.
 - Regular expressions (M7 8a):
   - `Matcher::new` allocates the capture and counter vectors for each
     match; the global loops of 8b (`replace`, `matchAll`, `split`) could
@@ -2438,10 +2464,11 @@ not repeated here; the open items of each spike session are in M6 step
     that keeps rejected promises ends up to 170 ms after a 600 ms
     `--time-limit`, also with Numbers.
 - Binary data (M7 11a):
-  - A `DataView` get or set costs about 95 ns (1M `getInt32` reads:
-    121 ms, `node --jitless` 23 ms), almost all of it the native call
-    (a `getInt32` call costs 24 ns more than a `Math.abs` call). Belongs
-    to feature 13 (call paths).
+  - A `DataView` get or set costs about 85 ns (1M `getInt32` reads:
+    85 ms after 13b, `node --jitless` 23 ms). The call is about 100
+    instructions now; the body about 300 (`ToIndex`, two lookups of the
+    buffer, a generic decode). One buffer lookup and a decode per
+    element type would cut it.
   - A new buffer is zero-filled at once, so every page is touched: 40
     buffers of 64 MiB take 271 ms (Node 21 ms, with lazy zero pages).
     std has no fallible `calloc`; a chunked lazy zero-fill would help.
@@ -2580,7 +2607,10 @@ not repeated here; the open items of each spike session are in M6 step
   under load, or the granularity of the step charge). The 12a review
   saw the same with `time_limit_object_keys_of_a_big_string_object` in
   `vm_limits.rs` (a 250 ms bound) at a load average of 12; it passes
-  alone and with `--test-threads=1`.
+  alone and with `--test-threads=1`. The 13b session saw
+  `long_strings_to_parse` in `date_hostile.rs`
+  (`Date.parse('x'.repeat(100_000_000))`) reach its deadline while
+  test262 ran on all CPUs.
 - Dependencies (2026-10-18): `ttf-parser` is unmaintained
   (RUSTSEC-2026-0192, informational; no known vulnerability). swb does
   not use it; winit's Wayland title bar (`sctk-adwaita`, through

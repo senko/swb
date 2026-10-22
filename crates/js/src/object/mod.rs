@@ -26,6 +26,7 @@ mod typed_array;
 mod typed_window;
 mod weak;
 
+pub(crate) use arguments::ArgumentsTemplate;
 pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
 pub(crate) use buffer::{ArrayBufferData, BufferView};
 pub(crate) use buffer::{

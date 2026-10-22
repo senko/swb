@@ -2,9 +2,11 @@
 //! `docs/js-spike-report.md`: the instruction size, the code size of a
 //! generated program, and the time of small programs (compare with
 //! `node --jitless`, V8's interpreter, on the same programs; the
-//! `--print-js` option writes them as a Node.js script).
+//! `--print-js` option writes them as a Node.js script). `--only TEXT`
+//! runs only the programs whose name contains TEXT, without the code size
+//! and time limit measurements (for A/B runs of a few programs).
 //!
-//! `cargo run --release -p swb-js --example vm_bench [-- --print-js]`
+//! `cargo run --release -p swb-js --example vm_bench [-- --print-js | --only TEXT]`
 
 use std::time::{Duration, Instant};
 
@@ -482,9 +484,17 @@ fn main() {
         print_js();
         return;
     }
+    let args: Vec<String> = std::env::args().collect();
+    let only = args
+        .iter()
+        .position(|a| a == "--only")
+        .and_then(|i| args.get(i + 1).cloned());
     std::thread::Builder::new()
         .stack_size(64 << 20)
-        .spawn(measure)
+        .spawn(move || match only {
+            Some(only) => measure_programs(Some(&only)),
+            None => measure(),
+        })
         .expect("a thread")
         .join()
         .expect("the measurements finish");
@@ -551,8 +561,15 @@ fn measure() {
             late.as_secs_f64() * 1000.0
         );
     }
-    // Speed.
+    measure_programs(None);
+}
+
+/// The time of the programs (those whose name contains `only`, if given).
+fn measure_programs(only: Option<&str>) {
     for (name, source) in PROGRAMS {
+        if only.is_some_and(|only| !name.contains(only)) {
+            continue;
+        }
         let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");
         rt.eval(source).expect("the program compiles");
         let mut best = Duration::MAX;
