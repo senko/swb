@@ -50,7 +50,9 @@ use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
 use swb_js_syntax::CaptureSource;
-use swb_js_text::String16;
+use swb_js_text::{Str16, String16};
+
+pub(crate) use crate::source_text::SourceText;
 
 use crate::heap::{Gc, Generic, GenericData, HandleMap, Tracer};
 use crate::object::{Object, SiteCache};
@@ -114,6 +116,14 @@ pub(crate) const ITER_YIELD_STAR: u32 = 5;
 pub(crate) const HINT_SHIFT: u32 = 28;
 /// The text index of a `hint` without a rendered text.
 pub(crate) const HINT_NO_TEXT: u32 = (1 << HINT_SHIFT) - 1;
+/// The top bit of a `hint`: the record is for an array pattern, which
+/// may step a plain array without an Array Iterator
+/// (`vm/array_pattern.rs`).
+pub(crate) const HINT_PATTERN: u32 = 1 << 31;
+/// The state of an iterator record in registers (`rec + 2`) that steps a
+/// plain array directly: `ARRAY_PATTERN + i` for the next index `i`; the
+/// record's iterator register holds the array.
+pub(crate) const ARRAY_PATTERN: i32 = 2;
 
 /// The states of an async `yield*` step in its mode register (`rec + 3`)
 /// besides the resume modes ([`Insn::AsyncDelegateCall`]): the close of a
@@ -656,7 +666,11 @@ pub(crate) enum Insn {
     /// `dst + 2` = the state, `false` (not done). The state is `true`
     /// when the record is done, [`ITERATOR_PENDING`] while a step runs.
     /// `hint` selects the message for a value that is not iterable
-    /// ([`ITER_GENERIC`] and the others).
+    /// ([`ITER_GENERIC`] and the others). With [`HINT_PATTERN`], a plain
+    /// array whose iteration is the built-in one makes a record in the
+    /// state [`ARRAY_PATTERN`] + 0 that holds the array instead of an
+    /// iterator; `IteratorCall`, `IteratorValue`, `SpreadArray` and
+    /// `IteratorClose` step it directly.
     GetIterator {
         dst: Reg,
         src: Reg,
@@ -1743,7 +1757,7 @@ pub(crate) struct FunctionCode {
 #[derive(Debug)]
 pub(crate) struct Source {
     /// The text.
-    pub(crate) text: String16,
+    pub(crate) text: SourceText,
     /// The name that stack traces show (a file name or URL; empty when
     /// the host gave none; for eval code, its origin and `<anonymous>`).
     pub(crate) name: Rc<str>,
@@ -1759,9 +1773,9 @@ pub(crate) struct Source {
 
 impl Source {
     /// A script text with its name.
-    pub(crate) fn new(text: String16, name: Rc<str>) -> Self {
+    pub(crate) fn new(text: Str16<'_>, name: Rc<str>) -> Self {
         Source {
-            text,
+            text: SourceText::new(text),
             name,
             origin: None,
             dynamic_function: false,
@@ -1770,9 +1784,9 @@ impl Source {
     }
 
     /// The text of eval code with its origin.
-    pub(crate) fn eval_code(text: String16, origin: Rc<str>) -> Self {
+    pub(crate) fn eval_code(text: Str16<'_>, origin: Rc<str>) -> Self {
         Source {
-            text,
+            text: SourceText::new(text),
             name: Rc::from(format!("{origin}, <anonymous>")),
             origin: Some(origin),
             dynamic_function: false,
@@ -1782,7 +1796,7 @@ impl Source {
 
     /// The source of a `Function` constructor call with the origin of the
     /// call (it shows in stack traces like eval code).
-    pub(crate) fn dynamic_function(text: String16, origin: Rc<str>) -> Self {
+    pub(crate) fn dynamic_function(text: Str16<'_>, origin: Rc<str>) -> Self {
         Source {
             dynamic_function: true,
             ..Source::eval_code(text, origin)
@@ -1792,7 +1806,7 @@ impl Source {
     /// The line and column of a code-unit offset (both from 1).
     pub(crate) fn location(&self, offset: u32) -> swb_js_syntax::Location {
         self.lines
-            .get_or_init(|| swb_js_syntax::LineIndex::new(self.text.as_str16()))
+            .get_or_init(|| self.text.with_whole(swb_js_syntax::LineIndex::new))
             .location(offset)
     }
 }
@@ -1816,11 +1830,7 @@ impl FunctionCode {
     /// `span` names), lossy for lone surrogates.
     pub(crate) fn source_text(&self) -> Option<String16> {
         let (start, end) = self.span;
-        self.source
-            .text
-            .as_str16()
-            .slice(start as usize, end as usize)
-            .map(swb_js_text::Str16::to_string16)
+        self.source.text.slice(start as usize, end as usize)
     }
 
     /// The bytes that the code owns outside its own record.
@@ -2334,7 +2344,7 @@ fn check_tables(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
         Insn::GetIterator { hint, .. } => {
             let text = hint & HINT_NO_TEXT;
             (
-                hint >> HINT_SHIFT <= ITER_YIELD_STAR
+                (hint & !HINT_PATTERN) >> HINT_SHIFT <= ITER_YIELD_STAR
                     && (text == HINT_NO_TEXT || code.string(text).is_some()),
                 "iterator hint",
             )
@@ -2725,7 +2735,7 @@ mod tests {
             lines: Box::new([]),
             handlers: Box::new([]),
             call_names: Box::new([]),
-            source: Rc::new(Source::new(String16::default(), Rc::from(""))),
+            source: Rc::new(Source::new(Str16::Latin1(&[]), Rc::from(""))),
             span: (0, 0),
             eval: None,
         }

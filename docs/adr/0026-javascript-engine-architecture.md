@@ -77,7 +77,12 @@ are code-unit offsets (`u32`). The source of a script is kept once
 (shared, reference counted, outside the GC heap) for
 `Function.prototype.toString` (§20.2.3.5: a slice by the function's
 start and end offsets), error positions and a later lazy compiler
-(memo 2.6).
+(memo 2.6). Since M7 13e the kept text (`bytecode::SourceText`) has three
+forms: one byte per unit for text below 256 (this was already so), the
+same bytes plus a sorted list of (offset, unit) for the few units of 256
+or above in a script that is otherwise Latin-1 (used when the wide units
+are fewer than an eighth of the length), and two bytes per unit
+otherwise.
 
 **Lexer.** The parser drives the lexer and asks for one token at a time
 with the goal symbol of its context (§12: regular expression or
@@ -114,10 +119,50 @@ value `Empty` (section 7). Loads of lexical bindings check it. The
 compiler may leave out the check only where memo 2.4 shows it is safe
 (same function, after the declaration in source order, in the declaring
 block or a nested one, not in a later `case` clause, not in a function
-that can be created before the initialization). The first version leaves
-out the check only for a load in the same function that follows the
-complete declaration in source order; `switch` must add the `case`
-clause rule. Further elision is a performance task.
+that can be created before the initialization). The rule, since M7 13e
+(`js-syntax` `scope/analysis.rs`, `finish_references`): a reference to a
+`let`, `const` or `class` binding (or a parameter with a dead zone) has
+no check when its binding is in a register or a cell of the function
+that declares it, the scope of the binding is not a `switch` scope, and
+
+1. the reference is in the declaring function and its offset is at or
+   after the end of the declarator (`Binding::init_end`; for a class
+   name, the end of the class; for a `for`-`in`/`of` head, the end of the
+   right side); or
+2. the reference is in a closure (any depth), and the outermost function
+   on the path from the reference to the declaring function is a
+   function expression, arrow function, method, getter, setter,
+   constructor or other function that is not a declaration, and it starts
+   at or after `init_end`.
+
+Why this is safe (§9.1 `InitializeBinding`, §14.3.1 `LexicalDeclaration`
+evaluation, §14.12 `switch` scope, §10.2.11 `FunctionDeclarationInstantiation`):
+the binding is initialized when the declarator completes, in the
+statement list of its scope. Control reaches any later point of that
+scope, in the same entry of the scope, only through the declarator (a
+`switch` clause can skip it, so those scopes keep every check; a loop
+re-enters the scope and creates new bindings). A function expression is
+created when its expression is evaluated, so one that starts after the
+declarator is created after the initialization, and so is every call of
+it and of the functions inside it. Function declarations are created
+when the scope is entered (the hoisting of §10.2.11 step 36 and §14.2.2
+`BlockDeclarationInstantiation`), so a declaration can run before the
+declarator whatever its position: a reference in it or in anything
+inside it keeps the check. A function that starts inside the declarator
+(`const f = () => f()`), before it, or inside a class that is the
+declarator, keeps the check. Direct `eval` code and the `with`
+fallback keep their checks (they resolve at run time against the scope
+description and `with` falls back to the same static reference, which is
+decided by the same rule). A reference in a function declaration, a
+read before the declarator, a read of a parameter inside the default
+expression of an earlier parameter, a class heritage or computed key
+(they run before the end of the class) and every `typeof x` before the
+declarator keep the check; the tests in
+`crates/js/tests/tdz_elision.rs` (Node.js outputs) and
+`closures_created_after_the_declaration_need_no_check` (`js-syntax`) cover
+each of these. `needs_tdz` is unchanged: a captured binding still gets
+the uninitialized marker at scope entry (a store per entry, no check per
+reference).
 
 **Dynamic scope.** Only functions that use the dynamic features pay for
 them (memo 2.5):
@@ -3266,6 +3311,93 @@ where the first plan did not work:
     sealed arrays, getters, queues of 100,000, collections), the values
     of the bitwise operators on doubles; unit tests of `DenseVec` and
     `toFixed`; the size test of `JsString`.
+- Compiler and memory (feature 13e). Measured as in 13a to 13d (`vm_bench`
+  best of 5, two alternating runs of the base build 409c2f1 and 13e;
+  tables in `docs/performance.md`).
+  - Dead-zone checks (section 4 has the rule and its proof from the
+    specification). The analysis `finish_references` (`js-syntax`
+    `scope/analysis.rs`) now also drops the check of a reference in a
+    closure that `created_after` the declarator: the outermost function
+    from the reference up to the declaring function is not a
+    declaration and starts at or after `Binding::init_end`. Cases that
+    keep the check are in `tests/tdz_elision.rs` (Node.js outputs, normal
+    and stress): a hoisted function called before the declaration, a
+    closure created before it, loops (a closure of the last iteration
+    called before the next declarator), `switch`, `typeof`, `eval`,
+    `with`, class heritage, computed keys and static members, default
+    parameters, stores and `const` assignment, generators and async
+    functions. Result: three constants read in a closure loop of 5M
+    iterations 138 → 125 ms (0.91); locals in a loop are unchanged (they
+    had no check); a closure that reads one constant per call 156 →
+    154 ms. The code of the BBC scripts shrinks by 0.2 MB (28.95 →
+    28.77 MB, 0.6 %). `needs_tdz` is unchanged; dropping the marker of
+    a captured binding whose references all lost the check would save
+    one store per scope entry and was not measured (backlog).
+  - Source text. The kept text was already one byte per unit for Latin-1
+    scripts (`String16`); the new `SourceText` (`source_text.rs`) also
+    covers a script with a few wide units: 7 of the 60 BBC scripts have
+    1 to 130 units of 256 or above (typographic quotes, `€`), and
+    each of them took two bytes per unit (1.18 M units, 2.35 MB). A
+    script whose wide units are fewer than an eighth of its length keeps
+    one byte per unit plus a sorted list of (offset, unit) pairs of 8
+    bytes; `slice` (for `Function.prototype.toString`) and the line
+    index of an error rebuild the units. Kept text of the 60 scripts:
+    4.71 MB → 3.54 MB. The heap accounting of a script's code still
+    charges two bytes per unit (a bound, not the exact size): charging
+    the real size moved the first collection of the `vm_bench` rows
+    across their threshold (`toLowerCase` +13 %, one collection more) and
+    was dropped.
+  - Array patterns. `GetIterator` with `HINT_PATTERN` (the compiler sets
+    it for every array pattern) makes a record that holds the array and
+    counts the next index in the state register (`ARRAY_PATTERN + i`) when
+    the array is a plain array whose iteration cannot be observed
+    (`vm/array_pattern.rs`): the array has the cached shape (shared,
+    prototype `Array.prototype` of the running realm, no own
+    `@@iterator`); `Array.prototype[@@iterator]` is a data property that
+    holds the intrinsic `%Array.prototype.values%`;
+    `%ArrayIteratorPrototype%.next` is a data property that holds the
+    intrinsic; `%ArrayIteratorPrototype%`, `%IteratorPrototype%` and
+    `%Object.prototype%` have no `return` and the chain between them is
+    the standard one. The four prototype objects are watched and the
+    cache is valid at the watch epoch of its walk (a change of keys,
+    attributes or prototypes of any of them makes the walk again); the
+    two values are read from their slots at each use, because a write to
+    them does not change the epoch. `IteratorCall` reads `length` at each
+    step, ends the record when the index is past it, and otherwise reads
+    the element (the dense vector, or `[[Get]]`, which reaches the
+    prototype chain for holes and runs getters in order); a failing step
+    leaves the record done, as the iterator would. `IteratorClose` does
+    nothing while the epoch is the cache's; otherwise (a default value or
+    a target changed something) it makes the Array Iterator that the
+    record stands for, at the index where the pattern stopped, and closes
+    it in the ordinary way, so that a `return` added in the middle sees
+    the iterator it would have seen. `SpreadArray` (array rest) appends the
+    rest of an array without holes in one copy. Tests:
+    `tests/array_patterns.rs` (Node.js outputs, normal and stress):
+    plain patterns, holes and prototype elements, getters that change the
+    array, throwing targets and defaults, a replaced or deleted
+    `@@iterator` (data, accessor, non-callable), own `@@iterator`, other
+    prototypes, subclasses, proxies, typed arrays, strings, a patched or
+    deleted `next` (also while the pattern runs), `return` on each of the
+    three prototypes (before and during the pattern, in a generator that
+    is closed), rest elements, parameters, loop heads, `catch`, a
+    truncated array. Result (`vm_bench`): `const [a, b] = pair` 1M times
+    282 → 53 ms (5.3x); `function f([a, b])` 1M calls 349 → 90 ms
+    (3.9x); `for (const [k, v] of map)` over 300k entries (the map is
+    built in the same row) 135 → 66 ms; `Map` for-of over 100k entries
+    5 times 186 → 67 ms. Instruction paths of loops without patterns
+    are unchanged (the integer rows are within 1 % in A/B runs of each
+    row alone).
+  - The check of `out/notes/stress-9b-r1.js`: the file runs in 0.2 s in
+    stress mode at 409c2f1 and at 13e. A reduced size with live objects
+    in a `WeakMap`, a `FinalizationRegistry` and `WeakRef`s, and the
+    same program with plain `Map`s and arrays take the same time (N = 2000
+    live objects 1.9 s, 4000 6.0 s): the cost per collection grows with
+    the live heap and stress mode collects at every allocation, so the
+    work is quadratic by design. The weak structures add no cost. The
+    13.5-hour run of the 9b review does not reproduce at 409c2f1 or at 13e;
+    it was probably the 9b candidate before the fixes
+    of that review round (not checked: the old build is gone).
 
 ## Consequences
 

@@ -26,8 +26,8 @@
 //! the compiled `finally` block, so the close itself holds none.
 
 use crate::bytecode::{
-    FunctionCode, HINT_NO_TEXT, HINT_SHIFT, ITER_ARRAY_SPREAD, ITER_CALL, ITER_RENDERED,
-    ITER_SPREAD, ITER_YIELD_STAR,
+    FunctionCode, HINT_NO_TEXT, HINT_PATTERN, HINT_SHIFT, ITER_ARRAY_SPREAD, ITER_CALL,
+    ITER_RENDERED, ITER_SPREAD, ITER_YIELD_STAR,
 };
 use crate::heap::Gc;
 use crate::object::{IterationKind, Object, ObjectKind};
@@ -201,6 +201,7 @@ impl Runtime {
         hint: u32,
         code: &FunctionCode,
     ) -> VmResult<IteratorRecord> {
+        let hint = hint & !HINT_PATTERN;
         let key = self.symbol_key(WellKnown::Iterator);
         let method = match value {
             Value::Undefined | Value::Null => Value::Undefined,

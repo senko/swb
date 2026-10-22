@@ -57,6 +57,8 @@ fn measure(sources: &[String]) -> serde_json::Value {
     let mut compiled = 0u32;
     let mut compiled_bytes = 0usize;
     let mut code_bytes = 0usize;
+    let mut source_text_bytes = 0usize;
+    let mut functions = 0usize;
     // Source units (bytes of the text) that the front end read: whole
     // files for scripts that compile, the offset of the error otherwise.
     let mut reached_bytes = 0usize;
@@ -80,6 +82,8 @@ fn measure(sources: &[String]) -> serde_json::Value {
                         compiled_bytes += source.len();
                         reached_bytes += source.len();
                         code_bytes += stats.bytes;
+                        source_text_bytes += stats.source_bytes;
+                        functions += stats.functions;
                     }
                     Err(ScriptError::Compile {
                         message, offset, ..
@@ -103,6 +107,8 @@ fn measure(sources: &[String]) -> serde_json::Value {
         "compiled": compiled,
         "compiled_source_bytes": compiled_bytes,
         "code_bytes": code_bytes,
+        "source_text_bytes": source_text_bytes,
+        "functions": functions,
         "compile_seconds": best_compiled.as_secs_f64(),
         "attempt_seconds": best_all.as_secs_f64(),
         "reached_bytes": reached_bytes,

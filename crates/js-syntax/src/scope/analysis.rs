@@ -113,7 +113,7 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     mark_mapped_arguments(ast, tree);
     group_by_scope(tree);
     assign_storage(ast, tree, limits, eval_vars)?;
-    finish_references(tree, &captures);
+    finish_references(ast, tree, &captures);
     finish_captures(ast, tree, &captures);
     mark_needs_tdz(tree);
     Ok(())
@@ -765,7 +765,7 @@ fn enter_scope(
 }
 
 /// Step 4: the resolution and TDZ check of each occurrence.
-fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
+fn finish_references(ast: &Ast, tree: &mut ScopeTree, captures: &IdMap<u32>) {
     for index in 0..tree.references.len() {
         let Some(&reference) = tree.references.get(index) else {
             break;
@@ -802,10 +802,15 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
                 // clauses before it, so their bindings are always checked.
                 // An import's cell belongs to another module, which may
                 // not have initialized it yet.
-                let initialized = user == owner
-                    && reference.offset >= binding.init_end
-                    && tree.scope(binding.scope).kind != ScopeKind::Switch
+                let after_init = tree.scope(binding.scope).kind != ScopeKind::Switch
                     && binding.kind != BindingKind::Import;
+                let initialized = after_init
+                    && if user == owner {
+                        reference.offset >= binding.init_end
+                    } else {
+                        matches!(binding.storage, Storage::Register(_) | Storage::Cell(_))
+                            && created_after(ast, user, owner, binding.init_end)
+                    };
                 let tdz = has_tdz(binding) && !reference.declaration && !initialized;
                 (resolution, tdz)
             }
@@ -813,6 +818,26 @@ fn finish_references(tree: &mut ScopeTree, captures: &IdMap<u32>) {
         if let Some(r) = tree.references.get_mut(index) {
             r.resolution = resolution;
             r.tdz_check = tdz_check;
+        }
+    }
+}
+
+/// Whether the closure that contains `user` (the function between `user`
+/// and `owner` that `owner` creates) is created after the offset `init_end`
+/// of the declarator in `owner`: it is an expression, not a declaration
+/// (declarations are created when the scope is entered), and it starts
+/// after the declarator, so its creation runs after the initialization
+/// and so does every call of `user`.
+fn created_after(ast: &Ast, user: FunctionId, owner: FunctionId, init_end: u32) -> bool {
+    let mut function = user;
+    loop {
+        let f = ast.function(function);
+        match f.parent {
+            Some(parent) if parent == owner => {
+                return !f.is_declaration && f.span.start >= init_end;
+            }
+            Some(parent) => function = parent,
+            None => return false,
         }
     }
 }

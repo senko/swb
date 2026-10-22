@@ -194,6 +194,7 @@ impl Runtime {
             time: crate::date::TimeHost::default(),
             split_cache: None,
             regexp_matcher: None,
+            array_pattern: None,
             jobs: crate::vm::jobs::JobQueue::default(),
         };
         let mut runtime = Runtime {

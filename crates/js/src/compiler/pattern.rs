@@ -34,7 +34,7 @@ use super::expr::{KeyReg, RENDER_DEPTH};
 use super::function::{EXPR_WEIGHT, FinallyBody, FunctionCompiler};
 use super::iterate::GENERIC_HINT;
 use crate::bytecode::{
-    COERCIBLE_PARAMETER, COERCIBLE_READ, COERCIBLE_RENDERED, COERCIBLE_VALUE,
+    COERCIBLE_PARAMETER, COERCIBLE_READ, COERCIBLE_RENDERED, COERCIBLE_VALUE, HINT_PATTERN,
     INVALID_TARGET_ASSIGN, ITER_RENDERED, Insn, Reg,
 };
 
@@ -339,7 +339,7 @@ impl FunctionCompiler<'_> {
         self.emit(Insn::GetIterator {
             dst: rec,
             src: value,
-            hint,
+            hint: hint | HINT_PATTERN,
         });
         let start = self.push_close()?;
         for &element in elements {

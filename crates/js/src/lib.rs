@@ -20,6 +20,7 @@ mod error;
 mod heap;
 mod object;
 mod runtime;
+mod source_text;
 mod string;
 mod value;
 mod vm;

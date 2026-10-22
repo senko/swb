@@ -4,6 +4,49 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M7 feature 13e, compiler and memory; end of feature 13
+
+- Dead-zone checks: the scope analysis drops the check for a reference
+  in a closure that is created after the declarator (not a function
+  declaration, which is created at scope entry; not in a `switch`
+  scope). ADR 0026 section 4 has the rule and its reasons. Five
+  expectations of the scope tests lost a check; three captured
+  constants read in a closure loop take 8 % less time.
+- Source text: scripts with only Latin-1 units already kept one byte per
+  unit. Seven of the 60 BBC scripts have 1 to 130 wider units (quotes,
+  the euro sign) and kept two bytes for every unit. `SourceText` keeps
+  one byte per unit and a sorted list of the wide units: 4.71 → 3.54 MB.
+- Array patterns on a plain array use the array and an index in
+  registers in place of an Array Iterator. The shortcut is valid at the
+  watch epoch of 13a while the slots of `@@iterator` and `next` hold the
+  built-in functions and no object of the chain has `return`. If a
+  `return` appears while the pattern runs, the close makes the Array
+  Iterator at the stop index. `const [a, b] = pair` 288 → 52 ms
+  (Node.js 76).
+- Measured and dropped: charging the real size of the source text in
+  the heap accounting moved a collection and made the `toLowerCase` and
+  `regexp replace` rows 13 and 25 % slower with equal instruction
+  counts.
+- `out/notes/stress-9b-r1.js` runs in 0.2 s with `--stress`; the 13.5
+  hours do not reproduce. Stress mode collects at each allocation, so
+  its time grows with the live heap; the weak structures add nothing.
+- 13f (lazy compilation) is not started: the BBC scripts compile in
+  176 ms, and the parse with the scope analysis (75 ms) would stay.
+- Geometric mean 0.957 of 13d over 108 programs; 2.05 times
+  `node --jitless` (3.4 times at the start of feature 13). test262
+  unchanged.
+- Review: no correctness defect. About 200 dead-zone cases and 190 array
+  pattern cases (prototype changes before and during the pattern,
+  `return` added from defaults and getters, `yield` in a default with
+  `return()` and `throw()`) gave the Node.js output, also in stress
+  mode. No row moved by more than 5 % in both A/B runs except
+  `regexp: test` (+3 to 5.5 %, a row that runs none of the changed
+  code). Fixed: the line index of a Latin-1 script copied the whole
+  text; the close of a pattern record without its array now raises the
+  same internal error as the step. Backlog: a second shape in the
+  pattern cache; the catch parameter pattern has no dead zone (also at
+  13d).
+
 ## 2026-10-22: M7 feature 13d, strings and collections
 
 - The rest of feature 13 is split into 13d (strings and collections),

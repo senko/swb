@@ -126,7 +126,7 @@ mod weak_ref;
 
 pub use array_from_async::FromAsync;
 pub(crate) use error::error_header;
-pub(crate) use iterator::array_iterator_next_value;
+pub(crate) use iterator::{array_iterator_next_value, new_array_iterator};
 
 use crate::heap::Gc;
 use crate::object::{GetResult, Object, PropertyDescriptor};

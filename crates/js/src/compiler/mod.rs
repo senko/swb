@@ -208,6 +208,8 @@ pub struct CompileStats {
     pub lines: usize,
     /// The bytes of all code objects (records, instructions and tables).
     pub bytes: usize,
+    /// The bytes that the kept source text of the script occupies.
+    pub source_bytes: usize,
 }
 
 impl CompileStats {
@@ -215,6 +217,7 @@ impl CompileStats {
     pub(crate) fn of(code: &Rc<FunctionCode>) -> CompileStats {
         let mut stats = CompileStats {
             instruction_size: size_of::<Insn>(),
+            source_bytes: code.source.text.byte_size(),
             ..CompileStats::default()
         };
         let mut work = vec![Rc::clone(code)];
@@ -245,10 +248,7 @@ pub(crate) fn compile_script(
     name: &str,
     budget: &mut RecursionBudget,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
-    let shared = Rc::new(crate::bytecode::Source::new(
-        source.to_string16(),
-        Rc::from(name),
-    ));
+    let shared = Rc::new(crate::bytecode::Source::new(source, Rc::from(name)));
     compile_code(heap, script, (source, shared), budget, None)
 }
 
@@ -264,10 +264,7 @@ pub(crate) fn compile_eval(
     budget: &mut RecursionBudget,
     input: eval::EvalInput,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
-    let shared = Rc::new(crate::bytecode::Source::eval_code(
-        source.to_string16(),
-        origin,
-    ));
+    let shared = Rc::new(crate::bytecode::Source::eval_code(source, origin));
     compile_code(heap, script, (source, shared), budget, Some(input))
 }
 
@@ -287,10 +284,7 @@ pub(crate) fn compile_dynamic_function(
         .ok_or(CompileError::Heap(Error::invariant(
             "a Function constructor source without its function",
         )))?;
-    let shared = Rc::new(crate::bytecode::Source::dynamic_function(
-        source.to_string16(),
-        origin,
-    ));
+    let shared = Rc::new(crate::bytecode::Source::dynamic_function(source, origin));
     let input = eval::EvalInput::default();
     let initial = *budget;
     let result =

@@ -2086,10 +2086,31 @@ failures with a reason. Features, in this order:
       (`for (const [k, v] of map)` 4.6x), and the open check of
       `out/notes/stress-9b-r1.js` (GC stress mode with `WeakMap`
       callbacks ran more than 13 hours).
-    - 13f Lazy compilation (`implementer-hard`), only if the targets
-      need it after 13a to 13e: compile a function body at its first
-      call; it saves compile time and code memory of functions that
-      never run.
+      Done 2026-10-22: a reference in a closure that is created after the
+      declarator (a function expression, arrow or method; not a function
+      declaration, not in a `switch` scope) has no temporal-dead-zone
+      check (ADR 0026 section 4 has the rule and its reasons). The kept
+      source text of a script with few units above 255 has one byte per
+      unit and a list of the wide units (`SourceText`; the 60 BBC
+      scripts 4.71 → 3.54 MB; scripts with only Latin-1 units had one
+      byte per unit before). Array patterns step a plain array without
+      an Array Iterator while `@@iterator`, `next` and `return` are the
+      built-in ones (the watch epoch of 13a plus two slot reads); a
+      `return` that appears while the pattern runs gets an Array
+      Iterator at the stop index. `jsbench`: `const [a, b] = pair` 288 →
+      52 ms, `function f([a, b])` 351 → 90, `for (const [k, v] of map)`
+      136 → 66, three captured constants in a closure loop 138 → 127;
+      geometric mean 0.957 of 13d over 108 programs (1.00 without the
+      seven new rows). `stress-9b-r1.js` runs in 0.2 s with `--stress`
+      at 13d and 13e; stress mode collects at each allocation, so its
+      time grows with the live heap, and the weak structures add
+      nothing. test262 unchanged (40,286; stress the same).
+    - 13f Lazy compilation: not started (decision 2026-10-22). The
+      targets do not need it: the 60 BBC scripts (16,653 functions)
+      compile in 176 ms at 30 MiB peak, and the parse with the scope
+      analysis (75 ms) stays with lazy compilation. Backlog item below.
+    Feature 13 done 2026-10-22: geometric mean 2.05 times
+    `node --jitless` over 107 programs (3.4 times over 95 at the start).
 14. Modules (`implementer-hard`), when a target uses
     `<script type="module">`.
 
@@ -2149,7 +2170,10 @@ not repeated here; the open items of each spike session are in M6 step
   sees the block's lexical declarations (test262
   `statements/try/scope-catch-block-lex-open.js`). A fix needs a
   separate block scope and moves the early errors of §14.15.1 and
-  Annex B.3.4 that now rely on the shared scope.
+  Annex B.3.4 that now rely on the shared scope. The bindings of a
+  catch parameter pattern also have no dead zone:
+  `try { throw [] } catch ([e = (() => f)(), f]) {}` throws a
+  `ReferenceError` in Node.js and nothing in swb (13e review).
 - Calls (M7 13b):
   - Arguments objects of sloppy functions with non-simple parameters
     (defaults, rest, patterns) have `callee` as a data property; the
@@ -2205,6 +2229,36 @@ not repeated here; the open items of each spike session are in M6 step
     up the chain (`'x'.hasOwnProperty`) take the general `[[Get]]`.
   - `padStart` and `padEnd` with more than 256 units still make a rope
     of the filler.
+- Compiler and memory (M7 13e):
+  - Lazy compilation (13f, not started): it would save at most the code
+    generation (BBC 100 ms of 176 ms) and part of the code objects (BBC
+    21.7 MB, 1.3 KB per function) of functions that never run. Decide
+    with the engine integration, when a page has a load-time budget or a
+    memory ceiling; cheaper first steps are a smaller instruction (12
+    bytes) and shared line tables. To measure the share of functions
+    that never run, add a `swb-js` option that counts first calls.
+  - The heap accounting of a script's code charges two bytes per source
+    unit, more than `SourceText` uses. The real size moved a collection
+    and made unrelated rows 13 to 25 % slower (same instruction counts);
+    change it together with the memory budget of the engine
+    integration.
+  - A captured binding whose references all lost the dead-zone check
+    still stores the marker at each scope entry.
+  - `for`-`of` and spread over a plain array could use the record of
+    array patterns and skip the Array Iterator (one allocation per
+    loop). An array rest over an array with holes copies per element.
+  - The cache of array patterns keeps one array shape. Patterns that
+    alternate between two shapes (a pair and a `RegExp` match result)
+    walk the prototypes at each use: 265 ms for 1M iterations against
+    93 ms with one shape (710 ms at 13d). Two entries or a check that
+    does not depend on the shape would fix it.
+  - Layout noise: rows move by up to 7 % between builds that differ in
+    code they do not run, with equal instruction counts. Try function
+    alignment or `codegen-units = 1` in the release profile.
+  - `language_hostile::copies_of_huge_sparse_arrays_end_at_a_limit` is
+    flaky in single runs: `a.push.apply(a, a)` can reach "Maximum call
+    stack size exceeded" before the deadline, and `is_limit` does not
+    accept that `RangeError`.
 - `[[VarNames]]` (M7 3f, older): the global environment does not record
   var names, so a later `let` of a name whose configurable property
   existed before a `var` (or a B.3.2.2 var) is allowed; the spec throws

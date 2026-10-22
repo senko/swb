@@ -488,6 +488,30 @@ const PROGRAMS: &[(&str, &str)] = &[
         "array: store 1M results of (x * 1103515245 + 12345) % 2147483648 | 0, then sum",
         "function run() { var a = []; var x = 1; for (var i = 0; i < 1000000; i++) { x = (x * 1103515245 + 12345) % 2147483648; a.push(x | 0); } var s = 0; for (var i = 0; i < 1000000; i++) { s += a[i] & 255; } return s; }",
     ),
+    (
+        "let/const: locals in a loop, 10M iterations",
+        "function run() { const k = 3; let s = 0; for (let i = 0; i < 10000000; i++) { const t = i + k; let u = t & 255; s += u; } return s; }",
+    ),
+    (
+        "let/const: three captured constants read in a closure loop, 5M iterations",
+        "function run() { const a = 1, b = 2, c = 3; let n = 0; const f = () => { let t = 0; for (let i = 0; i < 5000000; i++) { t += a + b + c; } return t; }; return f(); }",
+    ),
+    (
+        "let/const: a closure called 3M times that reads a constant",
+        "function run() { const k = 3; const add = (x) => x + k; let s = 0; for (let i = 0; i < 3000000; i++) { s = add(s) & 1023; } return s; }",
+    ),
+    (
+        "destructuring: for (const [k, v] of map), 300k entries",
+        "function run() { var m = new Map(); for (var i = 0; i < 300000; i++) m.set(i, i + 1); var s = 0; for (const [k, v] of m) { s += k + v; } return s; }",
+    ),
+    (
+        "destructuring: const [a, b] = pair, 1M times",
+        "function run() { var p = [1, 2], s = 0; for (var i = 0; i < 1000000; i++) { const [a, b] = p; s += a + b; } return s; }",
+    ),
+    (
+        "destructuring: function f([a, b]), 1M calls",
+        "function f([a, b]) { return a + b; } function run() { var p = [1, 2], s = 0; for (var i = 0; i < 1000000; i++) { s += f(p); } return s; }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

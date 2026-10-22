@@ -201,6 +201,29 @@ impl Heap {
         Ok(())
     }
 
+    /// The slot of the own data property `key` of `object`: `None` when
+    /// it has none or has an accessor.
+    pub(crate) fn own_data_slot(
+        &self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> Result<Option<u32>> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        Ok(shape
+            .find(key, &self.arenas.key_lists)?
+            .filter(|found| !found.flags.accessor())
+            .map(|found| found.slot))
+    }
+
+    /// Whether the shape of `object` has `key` (an ordinary named
+    /// property; not an element and not an array's `length`).
+    pub(crate) fn has_shape_key(&self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
+        let record = self.object(object)?;
+        let shape = self.arenas.shapes.get(record.shape)?;
+        Ok(shape.find(key, &self.arenas.key_lists)?.is_some())
+    }
+
     /// Records a change of the keys, attributes or prototype of `object`.
     #[inline]
     pub(crate) fn layout_changed(&mut self, object: Gc<Object>) -> Result<()> {

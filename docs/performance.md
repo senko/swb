@@ -959,6 +959,70 @@ padding. An object stays 88 bytes (slot 96): the start offset and the
 count of non-holes share the 8 bytes after the vector. Compile time and
 code size of the BBC scripts are unchanged (179 ms, 28.9 MB).
 
+### Compiler and memory (M7 13e)
+
+The elision of temporal-dead-zone checks, the source text of scripts with
+few wide units, and array patterns without an Array Iterator (ADR 0026
+sections 4 and 15). `vm_bench`, best of 5 within a run and best of two
+runs, the base build (409c2f1 with the new rows) and 13e alternated in
+one session, release, same machine; the Node.js column is `node
+--jitless` v22.11 from `just jsbench` of the same session:
+
+| Program | base (ms) | 13e (ms) | 13e / base | node --jitless (ms) | 13e / node |
+|---|---|---|---|---|---|
+| let/const: locals in a loop, 10M iterations | 169.3 | 168.5 | 1.00 | 132.0 | 1.3x |
+| let/const: three captured constants read in a closure loop, 5M iterations | 138.2 | 127.3 | 0.92 | 77.7 | 1.6x |
+| let/const: a closure called 3M times that reads a constant | 150.0 | 149.5 | 1.00 | 54.1 | 2.8x |
+| destructuring: for (const [k, v] of map), 300k entries | 136.2 | 65.5 | 0.48 | 48.2 | 1.4x |
+| destructuring: const [a, b] = pair, 1M times | 287.5 | 51.7 | 0.18 | 75.7 | 0.7x |
+| destructuring: function f([a, b]), 1M calls | 350.7 | 90.1 | 0.26 | 90.0 | 1.0x |
+| map: for-of over 100k entries, 5 times | 185.8 | 66.8 | 0.36 | 44.5 | 1.5x |
+
+The geometric mean of 13e / base over all 108 rows is 0.957; without the
+seven rows above, 1.002 (101 rows). The integer rows (`sum 10M integers`
+1.01, `fib(27)` 1.02, `array: read-modify-write` 1.00) are unchanged,
+and A/B runs of single rows (three alternations) agree within 2 %.
+Against `node --jitless`, the pair destructuring is now faster than
+Node.js (0.7x). The `for (const [k, v] of map)` row includes the
+construction of the map. Layout noise: the rows `sum 10M integers in a
+try` (1.07), `closure counter` (1.05) and a few others move by up to 7 %
+in either direction between builds that differ in code that they do not
+run (callgrind: equal instruction counts).
+
+Measured and dropped:
+
+- Charging the real size of the source text in the heap accounting of the
+  script's code (`SourceText::byte_size`): it halves the accounted
+  size for Latin-1 scripts, so the first collection of some rows moved
+  (`toLowerCase` row 275 → 325 ms: one collection more; the instruction
+  counts are equal), a pacing effect, not a cost of the change. The
+  accounting stays at two bytes per unit (an upper bound).
+- Boxing the cache of array patterns in `Vm` (one pointer in place of the
+  cache): no effect on the rows; one build of that variant had `1M small
+  objects` at 106 ms against 79 (layout); the plain `Option` has 83.
+- The elision of the marker for a captured binding whose references all
+  lost the check (one store per scope entry): not built.
+
+Memory, the 60 BBC scripts (`swb-js bench-compile out/bbc-js`; the kept
+source text is `source_text_bytes`): the kept text 4.71 MB → 3.54 MB
+(the 7 scripts with 1 to 130 wide units took two bytes per unit: 1.18 M
+units, 2.35 MB; now one byte per unit and 8 bytes per wide unit). The
+code objects: 28.95 MB → 28.77 MB (-0.6 %) from the dead-zone checks that
+are gone (this figure includes the source text at two bytes per unit,
+see above). Parse and compile 176 to 179 ms before and after; peak
+resident memory 30.3 to 31.1 MiB before, 30.0 to 30.4 MiB after. Ars
+Technica scripts (24): code 10.11 → 10.08 MB, compile 58.6 → 59 ms.
+
+For the decision on lazy compilation (13f), the numbers of the scripts:
+BBC 16,653 functions (3.54 MB of text) in 28.8 MB of code objects, of
+which 7.1 MB is the accounting of the source text, so about 21.7 MB for
+the code (1.3 KB per function); parse with scope analysis 75 ms of the
+176 ms, code generation and the objects 100 ms. Ars Technica: 5,843
+functions in 10.08 MB (2.5 MB of that is the accounting of the source
+text), parse 26 ms of 59 ms. The share of functions that never run was
+not measured: the shell cannot run the page scripts (27 of the 84 stop
+at a missing browser object).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

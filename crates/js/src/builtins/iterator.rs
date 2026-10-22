@@ -254,7 +254,7 @@ fn create_array_iterator(
 /// `CreateArrayIterator(target, kind)` (§23.1.5.1) with the
 /// `%ArrayIteratorPrototype%` of `realm` (also for the iterators of typed
 /// arrays).
-pub(super) fn new_array_iterator(
+pub(crate) fn new_array_iterator(
     rt: &mut Runtime,
     realm: u32,
     target: Gc<Object>,

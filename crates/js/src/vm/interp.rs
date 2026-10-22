@@ -27,9 +27,9 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::bytecode::{
-    COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, Handler, INVALID_TARGET_FOR,
-    INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, ITERATOR_PENDING, Insn, RESUME_NEXT,
-    RESUME_RETURN, RESUME_THROW,
+    ARRAY_PATTERN, COMPLETION_NORMAL, COMPLETION_RETURN, COMPLETION_THROW, Constant, HINT_PATTERN,
+    Handler, INVALID_TARGET_FOR, INVALID_TARGET_POSTFIX, INVALID_TARGET_PREFIX, ITERATOR_PENDING,
+    Insn, RESUME_NEXT, RESUME_RETURN, RESUME_THROW,
 };
 use crate::object::{GetResult, ObjectKind, SetPlan, SiteCache};
 use crate::runtime::Runtime;
@@ -1239,16 +1239,43 @@ impl Runtime {
                 // --- Iteration ---
                 Insn::GetIterator { dst, src, hint } => {
                     let value = get!(src);
-                    save!();
-                    let record =
-                        tri!(self.with_scope(|rt| rt.get_iterator_hinted(value, hint, &code)));
-                    put!(dst, record.iterator);
-                    put!(dst.saturating_add(1), record.next_method);
-                    put!(dst.saturating_add(2), Value::Bool(false));
+                    if hint & HINT_PATTERN != 0 && self.plain_array_pattern(value) {
+                        // The record steps the array itself.
+                        put!(dst, value);
+                        put!(dst.saturating_add(1), Value::Undefined);
+                        put!(dst.saturating_add(2), Value::Int(ARRAY_PATTERN));
+                    } else {
+                        save!();
+                        let record =
+                            tri!(self.with_scope(|rt| rt.get_iterator_hinted(value, hint, &code)));
+                        put!(dst, record.iterator);
+                        put!(dst.saturating_add(1), record.next_method);
+                        put!(dst.saturating_add(2), Value::Bool(false));
+                    }
                 }
                 Insn::IteratorCall { dst, rec } => {
                     let state = rec.saturating_add(2);
-                    if !matches!(get!(state), Value::Bool(true)) {
+                    let current = get!(state);
+                    if let Value::Int(n) = current
+                        && n >= ARRAY_PATTERN
+                    {
+                        let Value::Object(array) = get!(rec) else {
+                            return Err(VmError::invariant("a pattern record without its array"));
+                        };
+                        save!();
+                        // A failed step leaves the record done.
+                        put!(state, Value::Bool(true));
+                        let step =
+                            tri!(self.with_scope(|rt| {
+                                rt.array_pattern_step(array, n - ARRAY_PATTERN)
+                            }));
+                        if let Some(value) = step {
+                            put!(dst, value);
+                            if let Some(next) = n.checked_add(1) {
+                                put!(state, Value::Int(next));
+                            }
+                        }
+                    } else if !matches!(current, Value::Bool(true)) {
                         let iterator = get!(rec);
                         let next = get!(rec.saturating_add(1));
                         save!();
@@ -1339,7 +1366,18 @@ impl Runtime {
                 }
                 Insn::SpreadArray { array, rec } => {
                     let state = rec.saturating_add(2);
-                    if matches!(get!(state), Value::Bool(false))
+                    if let Value::Int(n) = get!(state)
+                        && n >= ARRAY_PATTERN
+                    {
+                        if let (Value::Object(target), Value::Object(source)) =
+                            (get!(array), get!(rec))
+                        {
+                            save!();
+                            if tri!(self.spread_array_pattern(target, source, n - ARRAY_PATTERN)) {
+                                put!(state, Value::Bool(true));
+                            }
+                        }
+                    } else if matches!(get!(state), Value::Bool(false))
                         && let Value::Object(target) = get!(array)
                         && let Some(iterator) =
                             self.builtin_array_step(get!(rec), get!(rec.saturating_add(1)))
@@ -1352,12 +1390,25 @@ impl Runtime {
                 }
                 Insn::IteratorClose { rec, kind } => {
                     let state = rec.saturating_add(2);
-                    if matches!(get!(state), Value::Bool(false)) {
+                    let current = get!(state);
+                    if matches!(current, Value::Bool(false)) {
                         put!(state, Value::Bool(true));
                         let iterator = get!(rec);
                         let throw = matches!(get!(kind), Value::Int(COMPLETION_THROW));
                         save!();
                         tri!(self.close_iterator(iterator, throw));
+                    } else if let Value::Int(n) = current
+                        && n >= ARRAY_PATTERN
+                    {
+                        put!(state, Value::Bool(true));
+                        let throw = matches!(get!(kind), Value::Int(COMPLETION_THROW));
+                        let Value::Object(array) = get!(rec) else {
+                            return Err(VmError::invariant("a pattern record without its array"));
+                        };
+                        save!();
+                        tri!(self.with_scope(|rt| {
+                            rt.close_array_pattern(array, n - ARRAY_PATTERN, throw)
+                        }));
                     }
                 }
 

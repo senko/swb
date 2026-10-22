@@ -36,6 +36,7 @@
 //! time check compares the clock with the host's deadline and reads the
 //! termination request of the host.
 
+mod array_pattern;
 mod async_function;
 pub(crate) mod async_generator;
 pub(crate) mod async_iteration;
@@ -413,6 +414,9 @@ pub(crate) struct Vm {
     /// The state of the last regular expression match, whose vectors the
     /// next match reuses (`builtins/regexp_exec.rs`).
     pub(crate) regexp_matcher: Option<swb_js_regexp::Matcher>,
+    /// What the last array pattern found out about plain arrays
+    /// (`array_pattern.rs`).
+    pub(crate) array_pattern: Option<array_pattern::ArrayPatternCache>,
 }
 
 impl RootSource for Vm {

@@ -97,7 +97,7 @@ fn per_iteration_bindings() {
         "function 0 params [] registers 1
          ||scope 1 For: per-iteration i cell r0 Let
          function 1 parent 0 params [] registers 0 captures [i<-r0]",
-        "i@9:=cell0 i@16:cell0 i@23:cell0 f@30:global i@38:cap0!",
+        "i@9:=cell0 i@16:cell0 i@23:cell0 f@30:global i@38:cap0",
     );
     check(
         "for (let i = 0; i < 3; i++) { f(i); }",
@@ -113,7 +113,7 @@ fn per_iteration_bindings() {
          ||scope 1 For: i cell r0 Const
          function 1 parent 0 params [] registers 0 captures [i<-r0]
          function 2 parent 0 params [] registers 0",
-        "i@11:=cell0 g@22:global i@30:cap0! j@45:=global g@56:global j@64:global",
+        "i@11:=cell0 g@22:global i@30:cap0 j@45:=global g@56:global j@64:global",
     );
 }
 
@@ -212,7 +212,7 @@ fn hoisting_and_shadowing() {
          function 2 g parent 1 params [] registers 1
          ||scope 2 Function: x cell r0 Let
          function 3 parent 2 params [] registers 0 captures [x<-r0]",
-        "f@9:=global x@19:=r0 g@31:=r1 x@41:=cell0 x@57:cap0! x@69:r0",
+        "f@9:=global x@19:=r0 g@31:=r1 x@41:=cell0 x@57:cap0 x@69:r0",
     );
     // Duplicate parameters share a binding: the last position.
     check(
@@ -395,7 +395,47 @@ fn closure_in_for_head_sees_the_initial_cell() {
         "function 0 params [] registers 2
          ||scope 1 For: per-iteration i cell r0 Let, g r1 Let
          function 1 parent 0 params [] registers 0 captures [i<-r0]",
-        "i@9:=cell0 g@16:=r1 i@26:cap0! i@29:cell0 i@36:cell0 i@43:cell0",
+        "i@9:=cell0 g@16:=r1 i@26:cap0 i@29:cell0 i@36:cell0 i@43:cell0",
+    );
+}
+
+/// The number of references that carry a check.
+fn checks(source: &str) -> usize {
+    let script = analyze(source);
+    dump_references(&script)
+        .split(' ')
+        .filter(|r| r.ends_with('!'))
+        .count()
+}
+
+#[test]
+fn closures_created_after_the_declaration_need_no_check() {
+    // Created after the declarator and not hoisted: no check.
+    assert_eq!(checks("function f() { let x = 1; return () => x; }"), 0);
+    assert_eq!(
+        checks("function f() { const x = 1; return function () { return () => x; }; }"),
+        0
+    );
+    assert_eq!(
+        checks("function f() { let x = 1; return class { m() { return x; } }; }"),
+        0
+    );
+    // Hoisted declarations can run before the declaration.
+    assert_eq!(
+        checks("function f() { let x = 1; function g() { return x; } }"),
+        1
+    );
+    assert_eq!(
+        checks("function f() { let x = 1; function g() { return () => x; } }"),
+        1
+    );
+    // Created inside the declarator or before it.
+    assert_eq!(checks("function f() { const g = () => g; }"), 1);
+    assert_eq!(checks("function f() { const g = () => x; let x = 1; }"), 1);
+    // The clauses of a switch.
+    assert_eq!(
+        checks("function f(k) { switch (k) { case 0: let s = 1; case 1: return () => s; } }"),
+        1
     );
 }
 
@@ -531,7 +571,7 @@ fn parameter_expressions_have_their_own_scope() {
          ||scope 1 Function: a cell r3 Parameter, b r1 Parameter, c cell r4 Parameter
          ||scope 3 FunctionBody: a r5 Var, d r6 Var, e r7 Let
          function 2 parent 1 params [] registers 0 captures [a<-r3 c<-r4]",
-        "f@9:=global a@11:=cell3 b@14:=r1 a@24:cap0! c@28:cap1! c@31:=cell4 a@40:=r5 \
+        "f@9:=global a@11:=cell3 b@14:=r1 a@24:cap0 c@28:cap1! c@31:=cell4 a@40:=r5 \
          d@47:=r6 e@54:=r7 a@64:r5",
     );
     // Patterns without expressions: one scope; `var a` is the parameter.
@@ -581,14 +621,14 @@ fn for_in_of_bindings() {
         "function 0 params [] registers 1
          ||scope 1 ForInOf: per-iteration x cell r0 Let
          function 1 parent 0 params [] registers 0 captures [x<-r0]",
-        "x@9:=cell0 x@14:cell0! g@19:global x@27:cap0!",
+        "x@9:=cell0 x@14:cell0! g@19:global x@27:cap0",
     );
     check(
         "for (const [k, v] of y) g(() => k);",
         "function 0 params [] registers 2
          ||scope 1 ForInOf: per-iteration k cell r0 Const, v r1 Const
          function 1 parent 0 params [] registers 0 captures [k<-r0]",
-        "k@12:=cell0 v@15:=r1 y@21:global g@24:global k@32:cap0!",
+        "k@12:=cell0 v@15:=r1 y@21:global g@24:global k@32:cap0",
     );
     check(
         "for (var i in o) i;",
