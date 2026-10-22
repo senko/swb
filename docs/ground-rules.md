@@ -97,9 +97,15 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
 
 ## Decisions from 2026-10-22: JavaScript in the browser
 
-- The first milestone of the engine integration (M8) targets the five
-  target pages with JavaScript on: each renders like Chromium with
-  JavaScript on, no script error breaks the page, and the JavaScript
-  features of the page work.
+- The first milestone of the engine integration (M8) targets Hacker
+  News, Wikipedia (without its video player) and a Craigslist posting
+  with JavaScript on: each renders like Chromium with JavaScript on, no
+  script error breaks the page, and the JavaScript features of the page
+  work. senko.net stays the same. Ars Technica and BBC (their scripts
+  are mostly ads), a Craigslist search page and GitHub come later.
+  Frames and media playback are not in M8.
 - Fixtures with JavaScript on contain the sites' scripts. They stay on
   the local machine and are never committed.
+- The W3C Software and Document License is allowed for WebIDL data
+  files copied from W3C specifications
+  ([ADR 0003](adr/0003-dependency-policy.md) update).

@@ -4,6 +4,51 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M8 step 2, ADR 0028 and the feature plan; new targets
+
+- The owner changed the targets: Ars Technica and BBC use JavaScript
+  mostly for ads, consent dialogs in frames and video, so they come
+  later. Wikipedia stays without its video player (media playback is a
+  milestone of its own). A survey of candidates with the step 1 tools:
+  - github.com/senko/swb: 75 custom element definitions, 24 shadow roots,
+    `popover`, module scripts that load about 130 files with `import()`:
+    a later milestone for web components. It also found an swb CSS bug
+    (the header menu buttons lose their padding; backlog).
+  - A Craigslist search page: no special features, but about 140,000
+    elements created and removed and 1,119 layouts in Chromium: it needs
+    incremental layout. Later.
+  - A Craigslist posting: 111 ms of script time, jQuery and Leaflet,
+    nothing visible without JavaScript. Chosen as the third M8 target
+    (target 6, fixture `craigslist-posting`, JS-off scores 1.000 and
+    0.9994). Its hidden storage frame is not needed: the page renders
+    the same in Chromium when the frame does not load.
+  - Stack Overflow: a Cloudflare challenge page for headless Chromium and
+    for swb. Dropped.
+- ADR 0028 (written by a design session from the survey, the
+  specifications and memo 5.3): the crates `web` and `webidl` (binding
+  glue generated from WebIDL, checked in), one runtime per document, the
+  document state lent to the runtime for each task, a resumable parser
+  and a change journal, nodes that live as long as their document, one
+  wrapper per node, the HTML event loop with 5 s per task, style and
+  layout on demand, the CORS check, no frames and no media in M8.
+- Owner decisions: the W3C Software and Document License for IDL data
+  files (ADR 0003 update); the defaults of ADR 0028.
+- The roadmap has the 12 features of M8: test tools, the setting and the
+  scripting flag, the DOM and engine for scripts, the embedding, events,
+  the event loop and the parser, the DOM core and input events (Hacker
+  News), style and layout from scripts, window and document APIs,
+  observers and forms, network, the Craigslist posting, Wikipedia.
+- Review: no blocking error in the ADR. Fixed: the event core moved
+  before the event loop (5a), the DOM core (6a to 6d) and network (10a,
+  10b) split into sessions; `readyState` follows "the end" of the
+  parser; mutation observers get their records at each primitive change
+  (a sink of the `dom` change functions), not from the journal; the
+  global object stays cacheable for the inline caches; the stack-limit
+  check needs `rustix` as a direct dependency; `document.write`, the
+  CSSOM sheet API and the canvas context come with later targets; the
+  deviations (synchronous XHR, `write` after the parse) are stated; the
+  timer clamp threshold is measured in Chromium first.
+
 ## 2026-10-22: M8 step 1, the script survey
 
 - Owner decisions: the M8 targets are the five target pages with

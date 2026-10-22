@@ -5,6 +5,11 @@
 - Updated: 2026-10-03: one exception, the Public Suffix List (MPL-2.0
   data), allowed by the owner in [ADR 0014](0014-public-suffix-list-license-exception.md).
   The policy itself is unchanged; the exception is not a precedent.
+- Updated: 2026-10-22: the owner allowed the W3C Software and Document
+  License (2023) for WebIDL data files copied from W3C specifications
+  ([ADR 0028](0028-javascript-in-the-browser.md) section 5). It is
+  permissive: keep the notice and mark changes. It applies to IDL data
+  files only, not to code dependencies.
 
 ## Context
 

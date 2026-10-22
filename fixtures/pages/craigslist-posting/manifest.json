@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://images.craigslist.org/00N0N_jpE0mRtinHI_0t20CI_50x50c.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/beb3b382b36a0273.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://images.craigslist.org/00i0i_kBdFKYu7TKA_0t20CI_50x50c.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4af6184cb3a68d16.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://images.craigslist.org/00i0i_kBdFKYu7TKA_0t20CI_600x450.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/4d54536cb64abe29.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://images.craigslist.org/00q0q_gBcIb55huB_0t20CI_50x50c.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/dfe6f505273d5d6e.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://images.craigslist.org/01717_41bXrfumkl3_0t20CI_50x50c.jpg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/jpeg"
+        ]
+      ],
+      "body": "files/0f32e8f898afb60d.jpg"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=utf-8"
+        ]
+      ],
+      "body": "files/01a041ab79faa0d1.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/1ef72b49ff8235a6.html"
+    }
+  ]
+}

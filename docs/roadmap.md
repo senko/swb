@@ -2166,16 +2166,24 @@ ADR 0025) are M8.
 
 Owner decisions (2026-10-22, ground rules):
 
-- Targets: the five target pages with JavaScript on. Each page renders
-  like Chromium with JavaScript on, no script error breaks the page, and
-  the JavaScript features of the page work. The survey (step 1) lists
-  the features; the owner confirms the list with the plan.
+- Targets: Hacker News, Wikipedia (without its video player) and a
+  Craigslist posting, with JavaScript on. Each renders like Chromium
+  with JavaScript on, no script error breaks it, and the JavaScript
+  features in the lists of step 3 work. senko.net has no scripts and
+  must stay the same. Later: Ars Technica and BBC (their scripts are
+  mostly ads and consent dialogs), a Craigslist search page and GitHub.
+  Stack Overflow is dropped: Cloudflare answers headless Chromium and
+  swb with a challenge page. Frames and media playback are not in M8.
 - The fixtures with JavaScript on (`fixtures/js/<name>/`) contain the
   sites' scripts, also commercial code. They stay on the local machine:
   the directory is git-ignored and never committed. Tests that need it
   skip when it is missing. The fixtures with JavaScript off, their
   references and their scores do not change.
 - JavaScript stays off by default (ADR 0025).
+- The W3C Software and Document License is allowed for IDL data files
+  (ADR 0003 update). The defaults of ADR 0028 are accepted: the CORS
+  check for requests from scripts, cookies and `localStorage` in memory,
+  5 s per task, the page on the GUI's main thread.
 
 Steps:
 
@@ -2185,43 +2193,425 @@ Steps:
    phase (parse, load, after load), the DOM changes, the network
    requests, the errors in replay, Chromium's script, style and layout
    times (with and without JIT) and the screenshot difference between
-   JavaScript on and off. Report: `docs/js-survey.md`.
-2. Design (`implementer-hard`, docs only): ADR 0028, the bindings and
-   the engine integration, from the survey, ADR 0025, ADR 0026
-   section 12 and memo 5.3. The ADR decides at least:
-   - The crates: a crate for the bindings and the event loop between
-     `js` and `engine`; `js` stays independent of the browser crates.
-   - DOM wrappers: one wrapper per node, the lifetime of nodes (the DOM
-     arena does not free nodes now; scripts can hold detached nodes),
-     cycles between the DOM and scripts, host classes and brand checks,
-     and how the bindings are written (by hand or generated from
-     WebIDL; the source and license of the IDL).
-   - The event loop: task sources, the microtask checkpoint, timers,
-     animation frames, the rendering update, the time budget per task,
-     and the integration items of the backlog (termination inside the
-     resume of an async function, the globals of a document after a
-     heap-limit termination, the finalization cleanup hook, the
-     rejection events).
-   - Scripts during parsing: the parser pause at parser-blocking
-     scripts, `defer`, `async`, module scripts without imports (M7
-     feature 14 note), `nomodule`, `document.write` if a target uses
-     it, the scripting flag.
-   - Style and layout after DOM changes and layout queries from
-     scripts, against the counts of the survey.
-   - Network requests from scripts (`fetch`, XHR, beacons) through
-     `net`; CORS; `document.cookie`.
-   - The on/off setting of M6 step 4.
-   - Time and memory budgets per page (backlog: lazy compilation, the
-     accounting of source text).
-   - Tests: synthetic pages in the repository for each binding, the
-     local JS-on fixtures for the targets, and a comparison with
-     Chromium with JavaScript on.
+   JavaScript on and off. Report: `docs/js-survey.md`. Done 2026-10-22
+   (4fff117) for the five targets; then for the candidates GitHub,
+   Craigslist (a search page and a posting) and Stack Overflow
+   (blocked), in the section "Candidates" of the report.
+2. Design (`implementer-hard`, docs only). Done 2026-10-22:
+   [ADR 0028](adr/0028-javascript-in-the-browser.md). The crates `web`
+   (bindings, event loop, script processing) and `webidl` (a generator
+   of the binding glue from WebIDL; the output is checked in); one
+   runtime per document; the engine lends the document state to the
+   runtime for each task; a resumable parser, a change journal and
+   nodes that live as long as their document; one wrapper per node; the
+   HTML event loop with a limit of 5 s per task; style and layout run
+   when a query or a frame needs them, incremental style only if the
+   measurements need it; the CORS check; frames and media out of scope.
+   The owner approved its decisions on 2026-10-22.
+3. Features, in this order. Design: ADR 0028. Each feature ends with a
+   review and a commit. At every commit: JavaScript is off by default,
+   `just snapshot` shows no change for the JS-off fixtures, and their
+   scores do not change. Each feature adds its hostile-page cases
+   (ADR 0028 section 16) and, where Chromium can observe the behaviour,
+   probe cases with `"javascript": true` whose Chromium values are the
+   expected values of the Rust tests. Target fixtures with JavaScript on
+   (`fixtures/js/NAME`) are local; tests that need them skip when they
+   are missing.
 
-   The session also writes the ordered feature list of M8 into this
-   section, each feature with its scope from the survey. The owner
-   approves the ADR and the list before the first feature starts.
-3. Features, in the order of step 2: the smallest target first
-   (Hacker News, Wikipedia, Ars Technica, BBC).
+   What "works" means, per target (the owner confirms this list):
+
+   - senko.net: no scripts. With JavaScript on, the same boxes and
+     pixels as with JavaScript off and as Chromium with JavaScript on.
+   - Hacker News (logged out, front page): the same rendering as
+     Chromium with JavaScript on; `hn.js` runs at the end of the body
+     without errors; its `click` listener on `document` is registered
+     and runs on every click; links, the "more" link and the search
+     form work as with JavaScript off. The logged-in features (vote
+     with XHR, hide with `fetch` and `insertAdjacentHTML`, comment
+     collapse) need a session and are not tested in replay; their APIs
+     are in features 6 and 10.
+   - Wikipedia (Web browser article): the rendering of Chromium with
+     JavaScript on (the `client-js` styles, the pinned table of contents
+     and Appearance panel with their "hide" buttons, the collapse
+     chevrons of the table of contents); no script error in replay
+     (Chromium has none); and these features:
+     1. Appearance: color theme (light, dark, automatic), text size and
+        page width, by the radio buttons; the choice is kept in the
+        client preference cookie and `localStorage` within the session.
+     2. Pin and unpin the table of contents and the Tools and
+        Appearance menus (moved between the sidebar and the dropdown).
+     3. Collapse and expand the sections of the table of contents.
+     4. Collapsible tables and navboxes (`show`/`hide`, by click and by
+        keyboard).
+     5. The sticky header with search and tools after scrolling down.
+     6. Reference previews on hover.
+     7. The search box loads its typeahead code on focus; the
+        suggestions come from the live API, so they work only on the
+        live site (not tested in replay).
+     8. Anchors and back/forward (`hashchange`).
+     Not in M8: the video player (no media playback; the poster and
+     play button may appear, since they are DOM, but nothing plays),
+     find-in-page expansion (`beforematch`).
+     Load-time budget: the `load` event within 0.7 s (ADR 0028
+     section 16: three times Chromium's jitless task time, 217 ms, plus
+     the JS-off pipeline time, 37 ms).
+   - Craigslist posting (a for-sale posting with four photos and a map,
+     `craigslist-posting`): with JavaScript off the page shows only the
+     title, one sentence and a notice that JavaScript is needed. With
+     JavaScript on: the rendering of Chromium with JavaScript on (the
+     navigation bar with the area and category links, the toolbar with
+     reply, favorite, hide, flag, share, the posting age and print, the
+     heading with the price, the main photo, four thumbnails, the map
+     with its tiles, the radius circle and the zoom and fullscreen
+     buttons, the attributes, the text, the post id row); no script
+     error in replay (Chromium has none); and these features:
+     1. A click on a thumbnail shows that photo as the main photo (the
+        local fixture has the four large photos).
+     2. The zoom buttons and a drag move the map (tiles that the
+        fixture lacks stay empty, as in Chromium's replay).
+     3. The toolbar buttons do in swb what they do in Chromium's replay
+        (feature 11 checks each in Chromium first).
+     4. Reply opens its panel; the contact data comes from a request
+        that only the live site answers (not tested in replay).
+     Load-time budget: the `load` event within 0.45 s (three times
+     Chromium's jitless task time, 149 ms, plus the JS-off pipeline
+     time, 2 ms, measured with `perf` on 2026-10-22).
+
+   Foundations:
+
+   1. Test tools with JavaScript on (`implementer`, tools only).
+      Scope: the probe option `"javascript": true`; `--with-swb` reads
+      `js` queries from swb (`--eval EXPR`, which prints JSON; until
+      feature 4c the swb side reports "not supported"); `reference --js
+      NAME` and `compare --js NAME` over `fixtures/js/NAME`, with scores
+      and references in `out/`; the Chromium routing answers CORS
+      preflights and reflects the request origin with
+      `Access-Control-Allow-Credentials` (ADR 0028 section 12), also in
+      `capture --js`; a replay rule for a path segment that changes
+      with time (Craigslist requests `/static/d/<version>/www/manifest.js`,
+      and the version counts up; the local fixture holds 460 alias
+      entries for now); a fixed start time in Chromium (Playwright's
+      clock) for `compare --js`.
+      Tests: `tools/tests/` for the new options, with a small local
+      fixture.
+      Exit: `reference --js` runs for the M8 fixtures (senko-net,
+      hacker-news, wikipedia-web-browser, craigslist-posting) in
+      Chromium; a new `js-survey` run shows no CORS failures in replay
+      (the Ars Technica and Craigslist fixtures had them).
+   2. The JavaScript setting and the scripting flag (`implementer`).
+      Scope: `--js` on the command line, the session option and
+      `page.setJavaScript` of the automation API, `page.info`
+      reporting it, a toolbar toggle and a shortcut in the GUI; the
+      setting applies to the next document. With it on: the parser's
+      scripting flag (`<noscript>` as raw text, its serialization),
+      `@media (scripting)` matches `enabled`, media elements show
+      controls only with `controls` (ADR 0020), `<canvas>` is a
+      replaced element that paints nothing. No script runs yet. The GUI
+      reads the process stack limit and keeps JavaScript off below
+      8 MiB; the headless runner and server run the page on a thread
+      with a 16 MiB stack (ADR 0028 section 2).
+      Tests: probe cases with `"javascript": true` for `<noscript>` in
+      `head` and `body`, `@media (scripting)`, `<video>` without
+      `controls` and `<canvas>`, compared with `--with-swb`;
+      automation tests for the setting.
+      Exit: `just snapshot` unchanged; the cases match Chromium.
+   3. The DOM and the engine for scripts (`implementer-hard`), two
+      sessions. No script runs yet; JavaScript off must not change.
+      - 3a `dom`: the resumable parser (html5ever tokenizer with a
+        `BufferQueue`, a step that stops at a script end tag, the
+        document taken out of and put back into the sink), the change
+        journal, the generation counter, the id index, fragment parsing
+        with a context element and the move of the nodes into the
+        arena, more document and fragment nodes in one arena with the
+        node document of each node, the node limit and the DOM byte
+        limit (ADR 0028 sections 3 and 16). Tests: unit tests for each;
+        the journal of a parse of each JS-off fixture lists every node
+        once; a pause at every script end tag and a resume give the same
+        tree as one parse (all fixtures).
+      - 3b `engine`: the split of `Page` into the page and a boxed
+        `DocumentState`; the parse in steps; the loads of stylesheets,
+        images and posters started from the journal at insertion
+        instead of the walk after the parse; derived data (tree order,
+        form controls with dirty flags, disabled elements, title, base
+        URL) rebuilt by generation; the parsed-stylesheet cache, so a
+        stylist rebuild does not parse CSS again. Tests: engine tests
+        that change the DOM through the API and check style, layout and
+        loads; `just snapshot` and `just perf` (JS off) within noise.
+      Exit: snapshot unchanged, the JS-off perf table within 5 %, the
+      hostile set passes.
+   4. Embedding (`implementer-hard`), three sessions.
+      - 4a `js`: host classes with parents, prototypes and interface
+        objects per realm, the brand check; host hooks for the internal
+        methods; the host-defined global object; host data that the
+        collector traces as a root; termination requested by a native;
+        event handler functions with an object-environment scope chain;
+        the real size of source text in the heap accounting (ADR 0028
+        section 6, items 1 to 6 and 8). Tests: unit tests in `js`
+        with a test host (a class tree, a legacy indexed object, a
+        named-property object), the GC stress mode, test262 unchanged.
+      - 4b `webidl`: the IDL parser for the subset, the generator of
+        the glue (section 5), the conversions, `DOMException`,
+        `[Reflect]`, the freshness test, `just bindings`; the IDL files
+        with their license headers (after the owner's decision on the
+        W3C license). Tests: generator unit tests; generated code for
+        `Node` and `EventTarget` compiles and passes the conversion
+        tests (each WebIDL type, measured against Chromium where a
+        conversion is observable: `setTimeout('x', '12abc')`,
+        `[Clamp]`, `[EnforceRange]` errors).
+      - 4c `web`: the runtime per document, the lending of
+        `DocumentState`, the wrapper vector and side table, `Window` as
+        the global object, `Document`, `Node`, `Element` and
+        `CharacterData` with their read-only tree accessors, `console`
+        to the log and to the automation console buffer,
+        `page.evaluate`, `page.consoleMessages`, `swb --eval`. Classic
+        inline scripts run at the end of the parse (the real script
+        processing is feature 5c). Tests: wrapper identity, expandos,
+        `instanceof` along the interface chain, brand-check errors as in
+        Chromium (`Illegal invocation`), prototype chains and property
+        descriptors of `Node.prototype` against Chromium (probe).
+      Exit: `swb --headless --js --eval 'document.title'` on the
+      fixtures gives Chromium's value; a runtime per document is dropped
+      on navigation (a test checks the memory returns); the time to
+      create a runtime with the bindings is measured and in
+      docs/performance.md.
+   5. Events, the event loop and scripts in the parser
+      (`implementer-hard`), three sessions.
+      - 5a: the event core (ADR 0028 section 11): `EventTarget`
+        (`addEventListener` with `capture`, `once` and `passive`,
+        `removeEventListener`, `dispatchEvent`), `Event`,
+        `CustomEvent`, `ErrorEvent`, `PromiseRejectionEvent`,
+        `PageTransitionEvent`; the dispatch algorithm (the path,
+        capture and bubble, `stopPropagation`,
+        `stopImmediatePropagation`, `preventDefault`, `composedPath`,
+        `window.event`), exceptions of listeners reported without
+        stopping the dispatch. Tests: dispatch order and phases,
+        `once`, `passive`, against Chromium (probe cases); hostile:
+        recursion through nested `dispatchEvent`, an endless loop in a
+        listener.
+      - 5b: the task queues, `Page::pump`, the microtask checkpoint
+        (after tasks and after callbacks), `setTimeout`,
+        `setInterval`, their `clear*`, the nesting clamp (Chromium's
+        threshold measured with a probe), `queueMicrotask`, the
+        deadline per task and the stop after three terminations, the
+        heap-limit stop with the drop of the runtime, finalization
+        cleanup tasks, uncaught errors as `error` events at the window
+        and console lines, `unhandledrejection`, the page clock with
+        real and virtual time, `--now`, `page.waitForIdle` (the event
+        loop until no task is due within a quiet time, or a time-out)
+        and the headless `--settle-ms`. Tests: order of tasks,
+        microtasks and timers against Chromium (probe cases that log an
+        order); hostile cases: endless loops in a script, a timer and a
+        microtask chain, `setInterval(0)`.
+      - 5c: script processing (ADR 0028 section 8): parser-blocking
+        classic scripts with the pause and resume, inline scripts,
+        style sheets that block scripts, `defer`, `async`, scripts
+        inserted by scripts (async and ordered; insertion through the
+        minimal `createElement` and `appendChild` of this session,
+        completed in 6a), `nomodule` skipped, types that are not
+        JavaScript skipped, module scripts not run (warning), `load`
+        and `error` at script elements, `document.currentScript`,
+        `readyState`, `DOMContentLoaded`, `load`, `pageshow`,
+        `pagehide`, the load event's delays, the new meaning of
+        `page.waitForLoad`. Tests: the execution order of a page with
+        all script kinds and stylesheets (with delayed responses from a
+        test fetcher) against Chromium; a script that reads the DOM
+        below itself (the read-only tree accessors of 4c) sees nothing;
+        hostile: a script that inserts scripts in a chain.
+      Exit: senko.net with JavaScript on matches its JS-off boxes and
+      pixels; `hn.js` runs at the end of the Hacker News body (its error
+      is the missing `getElementsByClassName`, fixed in 6b).
+   6. DOM core and input events (`implementer`), four sessions.
+      - 6a: tree changes (`appendChild`, `insertBefore`,
+        `removeChild`, `replaceChild`, `remove`, `append`, `prepend`,
+        `before`, `after`, `replaceWith`, `cloneNode`, `textContent`,
+        `nodeValue`, `data`, `normalize`), `contains`,
+        `compareDocumentPosition`, `isConnected`, `getRootNode`,
+        `isEqualNode`; attributes (`getAttribute`, `setAttribute`,
+        `removeAttribute`, `hasAttribute`, `toggleAttribute`,
+        `attributes`, `Attr`), `id`, `className`, `classList`,
+        `dataset`, `tagName`, `localName`, `namespaceURI`,
+        `children`, the element sibling accessors; creation
+        (`createElement`, `createElementNS`, `createTextNode`,
+        `createComment`, `createDocumentFragment`), `getElementById`;
+        the `Document` accessors (`body`, `head`, `documentElement`,
+        `title`, `URL`, `referrer`, `characterSet`, `compatMode`,
+        `defaultView`). Tests: probe cases for each group; hostile:
+        DOM growth past the node limit, deep `appendChild` nesting.
+      - 6b: queries and markup: `getElementsByTagName`,
+        `getElementsByClassName`, `getElementsByName`, `scripts`,
+        `forms` (live collections), `querySelector`,
+        `querySelectorAll` (with `:scope`), `matches`, `closest`,
+        `innerHTML`, `outerHTML`, `insertAdjacentHTML`,
+        `insertAdjacentElement`, `DOMParser`,
+        `DOMImplementation.createHTMLDocument`, `template.content`.
+        Tests: probe cases; live collections after changes; hostile:
+        huge `innerHTML`, a selector that matches every node of a
+        large tree.
+      - 6c: the HTML element interfaces with `[Reflect]` attributes for
+        the elements and attributes that the M8 targets use (`a`,
+        `img`, `script`, `link`, `meta`, `input`, `button`, `form`,
+        `table` parts, `style`, `time`, `iframe` as an empty element)
+        and the SVG element members that Leaflet uses. Tests: probe
+        cases for reflection (enumerated attributes, URLs, numbers).
+      - 6d: input as DOM events (ADR 0028 section 11): `UIEvent`,
+        `MouseEvent`, `PointerEvent`, `KeyboardEvent`, `FocusEvent`,
+        `InputEvent`, `WheelEvent`; `on*` attributes and properties;
+        the engine's input as DOM events with default actions after
+        the dispatch (mouse, keys, focus, the checkbox pre-activation,
+        `submit` and `reset`), `click()`, `focus()`, `blur()`,
+        `activeElement`, `hasFocus`; `javascript:` URLs. Tests:
+        canceled default actions (a canceled `click` on a link does not
+        navigate; a canceled `keydown` in a text field inserts
+        nothing), handler attribute scope (`onclick="f(value)"` in a
+        form), the event order of a click and of typing against
+        Chromium.
+      Exit (Hacker News): the Hacker News checks of the list above in
+      an integration test on the local fixture; `compare --js
+      hacker-news` gives the same scores as the JS-off comparison;
+      load time within 50 ms of JS off.
+   7. Style and layout from scripts (`implementer-hard`), two sessions.
+      - 7a: invalidation from the journal, the flushes for queries
+        (ADR 0028 section 9), counters of forced style and layout runs
+        per load (in `--bench` and `page.info`); `element.style`
+        (`CSSStyleDeclaration` over the style attribute: properties,
+        `setProperty`, `removeProperty`, `getPropertyValue`,
+        `cssText`, camel-case names); `getComputedStyle` with resolved
+        values serialized as Chromium does, for the properties that
+        `style` computes; `CSS.supports`. Tests: probe cases for the
+        serialization of each property group (colors, lengths,
+        percentages resolved by layout, `auto`, shorthands from
+        `style`), style changes that change layout (class toggles,
+        `hidden`, inserted style elements).
+      - 7b: geometry (`getBoundingClientRect`, `getClientRects`,
+        `offsetTop/Left/Width/Height/Parent`, `client*`, `scroll*`),
+        scrolling from scripts (`scrollTop` and `scrollLeft` setters,
+        `scrollTo`, `scrollBy`, `scrollIntoView`, `window.scroll*`,
+        `scrollX`, `scrollY`, `pageYOffset`), `innerWidth`,
+        `innerHeight`, `outerWidth`, `devicePixelRatio`, `screen`,
+        `elementFromPoint`, `innerText`; `matchMedia` with `change`
+        events; the rendering update with `requestAnimationFrame` and
+        `cancelAnimationFrame`, `resize` and `scroll` events. Tests:
+        probe cases for the geometry of each box kind (inline, block,
+        positioned, transformed, scrolled, in tables); a rAF loop that
+        counts frames in virtual time; hostile: a rAF loop that changes
+        layout every frame.
+      Exit: the counters for Wikipedia are recorded in
+      docs/performance.md; the probe files pass.
+   8. Window and document APIs (`implementer`), two sessions.
+      - 8a: `location` (reads, `assign`, `replace`, `reload`, the
+        `href` and `hash` setters), `history` (`pushState`,
+        `replaceState`, `state`, `back`, `forward`, `go`), `popstate`,
+        `hashchange`, `structuredClone`; `navigator` (ADR 0028 section
+        13), `performance` (`now`, `timeOrigin`, `timing`, `mark`,
+        `measure`, `getEntries*`, the navigation entry),
+        `PerformanceObserver` (marks and measures only),
+        `crypto.getRandomValues`, `randomUUID`, `URL`,
+        `URLSearchParams`, `atob`, `btoa`, `TextEncoder`,
+        `TextDecoder`, `requestIdleCallback`, `document.hidden` and
+        `visibilityState` (`visible`), `visibilitychange`. Tests:
+        probe cases (URL parsing and serialization, history entries and
+        events, `structuredClone` of each type and the errors).
+      - 8b: `document.cookie` with the jar (also in replay, ADR 0028
+        section 12), `localStorage` and `sessionStorage` (named
+        properties, quota, the `storage` event), the in-memory storage
+        per origin. Tests: cookie attributes through `document.cookie`
+        (path, expiry, `HttpOnly` invisible), storage across documents
+        of one origin in one session; hostile: storage past its quota,
+        thousands of cookies.
+   9. Observers and forms (`implementer`), two sessions.
+      - 9a: `MutationObserver` (all options, `takeRecords`,
+        `disconnect`, records from the parser), `IntersectionObserver`
+        (root, margins, thresholds, the first notification),
+        `ResizeObserver` (content and border boxes, the loop limit and
+        its error). Tests: record lists against Chromium; observers in
+        virtual time while scrolling; hostile: a mutation observer that
+        mutates in its callback without end.
+      - 9b: forms from scripts: `value`, `defaultValue`, `checked`,
+        `defaultChecked`, `selected`, `selectedIndex`, `disabled`,
+        `form`, `elements`, `type`, with the dirty flags of ADR 0013;
+        controls that scripts insert or remove; `input` and `change`
+        from typing and clicks; `form.submit()`, `requestSubmit()`,
+        `reset()`; `focusin` and `focusout`. Tests: probe cases for
+        the IDL attributes and the event order of typing and of
+        radio-button clicks.
+   10. Network from scripts (`implementer`), two sessions (ADR 0028
+      section 12).
+      - 10a: credentials modes and the CORS check with preflights in
+        `net` (more methods in `net::Method`); replay in swb that
+        answers preflights and reflects the origin; `fetch` with
+        `Request`, `Response`, `Headers`, `AbortController`,
+        `AbortSignal` (`timeout`, and the `signal` option of
+        `addEventListener`); at most 64 requests in flight per
+        document. Tests: a local HTTP test server (as the cookie tests
+        use) with CORS cases (simple, preflighted, credentialed,
+        denied) whose outcomes match Chromium against the same server;
+        hostile: thousands of pending fetches.
+      - 10b: asynchronous `XMLHttpRequest`; `navigator.sendBeacon`;
+        `FormData`, `Blob`, `FileReader` (data URL and text);
+        `Image()`, `load` and `error` at images and stylesheets
+        inserted by scripts. Tests: XHR event order and states against
+        Chromium; image `load` and `error` order.
+   11. Craigslist posting (`implementer`).
+      Scope: what the fixture with JavaScript on still lacks after
+      features 1 to 10. The session lists the gaps first; if they need
+      more than one session, it splits them by area (11a, 11b) in this
+      section before it starts. Expected: paths of jQuery 3 and jQuery Migrate
+      (selectors through `querySelectorAll` and `matches`, event
+      delegation, style writes), Leaflet (`style.transform` with
+      `translate3d`, `offsetWidth`, `getBoundingClientRect`, tile images
+      with `load` and `error`, mouse, touch, `dblclick`, `contextmenu`
+      and `wheel` events, an SVG circle that the script creates, with
+      `createElementNS` and the SVG element members it uses), the
+      relative date (`time.timeago`), `screen.orientation`,
+      `matchMedia`, and the hidden storage frame (ADR 0028 section 14:
+      `contentWindow` is null; the page's call is inside `try`). An
+      integration test on the local fixture drives each feature of the
+      list above.
+      Exit: the list works in the test; no script error that Chromium
+      does not have; `compare --js craigslist-posting` geometry and
+      pixels at least 0.98; the load-time budget is met.
+   12. Wikipedia (`implementer`).
+      Scope: what the Wikipedia fixture with JavaScript on still lacks
+      after features 1 to 11 (expected: gaps in members of the HTML
+      element interfaces, `eval` paths of ResourceLoader, details of
+      events). As in 11, the session lists the gaps first and splits the
+      feature if needed. An integration test on the local fixture drives each
+      feature of the list above (click a theme radio and compare the
+      root classes and a pixel sample with Chromium; pin and unpin;
+      collapse; scroll to 2,000 px and check the sticky header; hover a
+      reference; press back after an anchor).
+      Exit: the list above works in the test; no script error that
+      Chromium does not have; `compare --js wikipedia-web-browser`
+      within 2 points of the JS-off scores; the load-time budget is
+      met. If forced style runs take more than 20 % of the budget, 12b
+      follows first.
+      - 12b (only if 12 shows the need; `implementer-hard`): the style
+        of one element on demand, then the restyle of dirty subtrees
+        (ADR 0028 section 9).
+
+   Later (not in M8):
+
+   - A Craigslist search page: no special HTML features, but its result
+     grid creates and removes about 140,000 elements, and Chromium lays
+     it out 1,119 times while it loads and scrolls. It needs incremental
+     style and layout, and replay of its credentialed API requests.
+   - GitHub (github.com/senko/swb): custom elements (75 definitions),
+     shadow DOM (24 hosts), `<template>`, `popover`, module scripts that
+     load about 130 files with `import()` (M7 feature 14), and `fetch`
+     of fragments for the first view. A milestone for web components.
+   - Media playback (Wikipedia's video player) and frames.
+   - Ars Technica (ADR 0028 designs the parts): `document.write` during
+     the parse, the canvas 2D context stub, `getComputedStyle` in large
+     numbers during the parse (the style of one element on demand), the
+     Fides consent dialog with credentialed CORS `fetch` calls,
+     `AbortController` and `FileReader`.
+   - BBC: module scripts without imports (ADR 0028 section 6, item 7),
+     `CSSStyleSheet.insertRule` at the rate of a CSS-in-JS library,
+     `MessageChannel` and `postMessage`, `customElements.whenDefined`,
+     XHR analytics, and probably incremental layout (Chromium lays it
+     out about 100 times). Its consent modal is in a cross-origin
+     frame, so its first viewport differs from Chromium's until frames
+     come.
 
 ## Pending decisions
 
@@ -2230,6 +2620,22 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M8
+
+- CSS (found by the GitHub candidate, 2026-10-22): the header
+  navigation of github.com/senko/swb is 402 px wide in swb and 627 px
+  in Chromium, because the menu buttons have no side padding. The rule
+  is `padding: var(--base-size-8)` inside `@media (width>=1012px)`,
+  and the custom properties are in a `:root` rule after `@layer`
+  statements. Find which of the three swb gets wrong. The JS-off
+  capture is in the git-ignored `out/candidates/github-swb/`.
+- `compare`: the Chromium reference of the GitHub capture is scrolled
+  by 394 px (the box dump starts at y = 394). Find the cause before
+  GitHub becomes a target.
+- `substitute` fails on raster `data:` URLs in CSS (GitHub has two
+  3x2 px PNGs; they were replaced by hand). Replace them with an SVG
+  `data:` URL of the same size.
 
 ## Backlog from M6
 

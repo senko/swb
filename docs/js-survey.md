@@ -72,6 +72,7 @@ Limits of the method:
 | wikipedia-web-browser | 14 (1,137 KB) | 74 / 75 ms | 2.42 % | many: menus, TOC, appearance, collapsibles, previews |
 | ars-technica | 214 (5,219 KB) | 318 / 331 ms | 63.1 % | consent dialog, menus, theme, view settings, ads |
 | bbc | 93 (5,126 KB) | 490 / 955 ms | 75.6 % | consent dialog, menu with search, carousels, save popover |
+| craigslist-posting | 9 (1,234 KB) | 111 / 111 ms | 31.0 % | photos and thumbnails, map, toolbar, reply (the page is empty without JavaScript) |
 
 Read across the targets:
 
@@ -399,6 +400,82 @@ JavaScript features found:
 | Lazy images with fallbacks (`error`, `load` on 140 images) | 142 `img` added; `IntersectionObserver` (565 observes) |
 | Analytics, A/B tests (Optimizely), paywall (Piano), player loader | Requests; no visible effect on the first viewport |
 
+## craigslist-posting
+
+Added on 2026-10-22 as an M8 target, after the candidate survey below. The
+posting is a for-sale item with four photos and a map, picked from the San
+Francisco results.
+
+- Scripts (9 compiled, 1,234 KB, all first-party): a loader inserts a
+  `manifest.js` (its URL has a version that counts up with time) and the
+  page bundle (1.2 MB: jQuery 3 with jQuery Migrate, Leaflet, the site's
+  code); 3 inline scripts (2 KB). No modules.
+- API use (148 members, 1,915 ops; parse 18, load 1,738, after 159):
+  `Node.nodeType` 242, `HTMLElement.style` 209, `addEventListener` 130,
+  `createElement` 110 (`div` 53, `span` 15, `fieldset` 7, `button` 6,
+  `input` 6, `a` 5, `img` 4, `canvas` 2 for feature tests, `script` 2),
+  `appendChild` 96, `classList` 57, `innerHTML` set 15 times, about 40
+  `querySelector`/`querySelectorAll`, `getComputedStyle` 8, `matchMedia`
+  5, `localStorage`, `URL`, one `IntersectionObserver`, one
+  `XMLHttpRequest` (the reply flow), `postMessage` to the hidden frame.
+  Timers: `setTimeout` 9, `setInterval` 4.
+- Listeners: Leaflet's mouse, touch, `dblclick`, `contextmenu` and key
+  listeners on the map, the zoom and fullscreen buttons, the toolbar
+  buttons, the thumbnails, `load` and `error` on the tile images.
+- One hidden same-origin frame (`display: none`): a helper page that keeps
+  `localStorage` in step across Craigslist's subdomains through
+  `postMessage`. The page's call is inside `try`; with the frame's URL
+  removed from the fixture, Chromium renders the same 283 elements with no
+  errors (0.17 % of the pixels differ: the relative date and the map).
+- No custom elements, shadow DOM, video, audio, canvas drawing, `dialog`,
+  `popover`, `template`, workers or `document.write`.
+- Errors in replay: none. Requests: 19, one missing.
+- Chromium: `ScriptDuration` 111 ms (JIT and jitless); `TaskDuration` 146 /
+  149 ms; 11 layouts, 26 style recalculations; 283 elements.
+- JS on vs off: 283 against 208 elements; 31.0 % of the first viewport
+  differs. With JavaScript off the page shows only the title bar, one
+  sentence and the notice "We've detected that JavaScript is not enabled".
+  With JavaScript on: the navigation bar, the toolbar (reply, favorite,
+  hide, flag, share, the posting age, print), the heading with the price,
+  the main photo, four thumbnails, the Leaflet map with a radius circle
+  (SVG) and zoom and fullscreen buttons, the attributes, the text, the post
+  id row.
+- Tried in Chromium on the replay: a thumbnail changes the main photo (the
+  large photos of thumbnails 2 to 4 were added to the local fixture
+  afterwards), zoom in works, reply shows a spinner (its request is live
+  only).
+
+## Candidates that are not M8 targets
+
+On 2026-10-22 the owner asked for pages whose scripts need no HTML
+features that swb lacks (no frames, no media, preferably no custom
+elements). The same tools surveyed four candidates; the owner chose the
+Craigslist posting (above).
+
+| | github-swb | craigslist-search | stackoverflow-question |
+|---|---|---|---|
+| URL | github.com/senko/swb | sfbay.craigslist.org/search/sss | stackoverflow.com/questions/11227809 |
+| Capture | worked | worked; replay lacks the result data and photos (see below) | blocked: Cloudflare challenge page (HTTP 403) for headless Chromium and for swb |
+| JS off in swb | pixels 0.851; the geometry score is not valid (the Chromium reference is scrolled by 394 px); the header menu buttons lose their side padding (backlog) | 1.000 / 0.993, but the page without JavaScript is a different, unstyled list | none |
+| Scripts | 128 (5,103 KB), 9 module scripts that load the rest with `import()` | 9 (904 KB), first-party | none |
+| Script time JIT / jitless | 227 / 237 ms | 338 / 424 ms (task 1,458 / 1,578 ms) | none |
+| Members / ops | 317 / 147,000 | 151 / 205,000 | none |
+| Special features | 75 `customElements.define`, 24 shadow roots, 4 `<template>`, 10 `popover` elements, 8 `fetch` calls that the first view needs, five observer kinds | no custom elements or shadow DOM; about 140,000 elements created and removed, 1,119 layouts, 5,700 `getBoundingClientRect` calls, an `IntersectionObserver` that drives the grid, credentialed XHR | none |
+
+- GitHub has every feature that the owner wanted to avoid: custom
+  elements, shadow DOM, `popover` and module scripts with imports. A
+  later milestone for web components.
+- The Craigslist search page needs no special features, but its result
+  grid needs incremental style and layout. Its replay also needs two tool
+  changes: credentialed CORS (replay adds `Access-Control-Allow-Origin: *`,
+  which a credentialed request rejects) and a rule for the time-based
+  `manifest.js` URL. Both are in M8 feature 1.
+- Stack Overflow: the live page also challenges swb, and passing the
+  challenge needs its scripts and frames. Dropped.
+
+The JS-off captures of github-swb and craigslist-search are in the
+git-ignored `out/candidates/`; their JS fixtures are in `fixtures/js/`.
+
 ## Cross-target table
 
 Distinct members used and operations (calls, reads, writes, `new`), from
@@ -443,9 +520,9 @@ iframes created by scripts (Ars Technica, BBC), `MessageChannel` and
   similar reads are missing from the counts. A CDP-based measurement or a
   source check of the target scripts would settle it.
 - Cross-origin iframes (consent dialogs, ads, Optimizely storage) run their
-  own scripts in other frames. The survey does not trace them. Whether swb
-  must run scripts in iframes for the targets (for example to dismiss the
-  BBC consent dialog) needs a decision.
+  own scripts in other frames. The survey does not trace them. Decided:
+  M8 renders no frames and runs no scripts in them (ADR 0028 section 14);
+  BBC, whose consent dialog is such a frame, is a later target.
 - The Ars Technica consent dialog cannot be accepted in replay because the
   CORS preflights of `fides.condenastdigital.com` fail. Whether it can be
   accepted on the live site in Chromium was not tried (the survey runs from

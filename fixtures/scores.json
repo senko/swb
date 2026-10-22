@@ -11,6 +11,12 @@
     "relative": 1.0,
     "size": 1.0
   },
+  "craigslist-posting": {
+    "geometry": 1.0,
+    "pixels": 0.9994,
+    "relative": 1.0,
+    "size": 1.0
+  },
   "hacker-news": {
     "geometry": 1.0,
     "pixels": 0.9988,
