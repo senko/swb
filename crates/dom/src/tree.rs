@@ -5,33 +5,44 @@
 //! removed node stays in the arena (detached); IDs are never reused, so a
 //! `NodeId` stays valid for the lifetime of the document.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
+use std::num::NonZeroU32;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use html5ever::{LocalName, QualName, local_name, ns};
 
+use crate::id_index::IdIndex;
+use crate::journal::{Journal, MutationSink};
+
 /// Index of a node in its [`Document`].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodeId(u32);
+///
+/// It holds the index plus one, so that `Option<NodeId>` takes four bytes:
+/// each node has five such links.
+pub struct NodeId(NonZeroU32);
 
 impl NodeId {
     /// The document node. It is always the first node in the arena.
-    pub const DOCUMENT: NodeId = NodeId(0);
+    pub const DOCUMENT: NodeId = NodeId(NonZeroU32::MIN);
 
     /// The index of this node in the arena.
     pub fn index(self) -> usize {
-        self.0 as usize
+        self.0.get() as usize - 1
     }
 
     /// Creates an ID from a raw index, for example one received from the
     /// automation API. Use [`Document::get`] to check that it is valid.
     pub fn from_index(index: usize) -> Option<NodeId> {
-        u32::try_from(index).ok().map(NodeId)
+        let raw = u32::try_from(index.checked_add(1)?).ok()?;
+        NonZeroU32::new(raw).map(NodeId)
     }
 }
 
 impl fmt::Debug for NodeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}", self.0)
+        write!(f, "#{}", self.index())
     }
 }
 
@@ -61,7 +72,7 @@ pub struct Attribute {
 pub struct ElementData {
     /// The element's qualified name.
     pub name: QualName,
-    attrs: Vec<Attribute>,
+    pub(crate) attrs: Vec<Attribute>,
     /// For `<template>` elements: the document fragment with the contents.
     pub template_contents: Option<NodeId>,
     /// For form-associated elements: the form that the parser associated
@@ -126,40 +137,22 @@ impl ElementData {
         self.attr(local).is_some()
     }
 
-    /// Sets an attribute (no namespace), replacing an existing value.
-    pub fn set_attr(&mut self, local: &str, value: &str) {
-        if let Some(attr) = self
-            .attrs
-            .iter_mut()
-            .find(|a| a.name.ns == ns!() && &*a.name.local == local)
-        {
-            value.clone_into(&mut attr.value);
-        } else {
-            self.attrs.push(Attribute {
-                name: QualName::new(None, ns!(), LocalName::from(local)),
-                value: value.to_owned(),
-            });
-        }
-    }
-
-    /// Adds an attribute unless one with the same qualified name exists.
-    pub(crate) fn add_attr_if_missing(&mut self, attr: Attribute) {
-        if !self.attrs.iter().any(|a| a.name == attr.name) {
-            self.attrs.push(attr);
-        }
-    }
-
-    /// Removes an attribute (no namespace). Returns true if it existed.
-    pub fn remove_attr(&mut self, local: &str) -> bool {
-        let before = self.attrs.len();
+    /// The index of the attribute with this namespace and local name.
+    pub(crate) fn attr_index(&self, name: &QualName) -> Option<usize> {
         self.attrs
-            .retain(|a| !(a.name.ns == ns!() && &*a.name.local == local));
-        self.attrs.len() != before
+            .iter()
+            .position(|a| a.name.ns == name.ns && a.name.local == name.local)
     }
 
     /// The `id` attribute, if present and not empty.
     pub fn id(&self) -> Option<&str> {
-        self.attr("id").filter(|id| !id.is_empty())
+        // Atom comparison: cheaper than `attr("id")`, and the change
+        // functions ask for it at each insertion.
+        self.attrs
+            .iter()
+            .find(|a| a.name.ns == ns!() && a.name.local == local_name!("id"))
+            .map(|a| a.value.as_str())
+            .filter(|id| !id.is_empty())
     }
 
     /// The tokens of the `class` attribute.
@@ -212,26 +205,30 @@ pub enum NodeData {
     },
 }
 
-/// A node: its tree links and its data.
+/// A node: its tree links, its node document and its data.
 #[derive(Clone, Debug)]
 pub struct Node {
-    parent: Option<NodeId>,
-    first_child: Option<NodeId>,
-    last_child: Option<NodeId>,
-    prev_sibling: Option<NodeId>,
-    next_sibling: Option<NodeId>,
+    pub(crate) parent: Option<NodeId>,
+    pub(crate) first_child: Option<NodeId>,
+    pub(crate) last_child: Option<NodeId>,
+    pub(crate) prev_sibling: Option<NodeId>,
+    pub(crate) next_sibling: Option<NodeId>,
+    /// The node document: a document node of the arena. A document node is
+    /// its own node document.
+    pub(crate) owner: NodeId,
     /// The node's data.
     pub data: NodeData,
 }
 
 impl Node {
-    fn new(data: NodeData) -> Self {
+    pub(crate) fn new(data: NodeData, owner: NodeId) -> Self {
         Node {
             parent: None,
             first_child: None,
             last_child: None,
             prev_sibling: None,
             next_sibling: None,
+            owner,
             data,
         }
     }
@@ -283,11 +280,49 @@ impl Node {
     }
 }
 
-/// An HTML document.
-#[derive(Clone, Debug)]
+/// The limits of an arena (ADR 0028 section 16). The change functions
+/// return [`DomError::NodeLimit`](crate::DomError::NodeLimit) or
+/// [`DomError::ByteLimit`](crate::DomError::ByteLimit) instead of going
+/// past them; the parser stops at them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Limits {
+    /// The most nodes that the arena may hold (all nodes ever created,
+    /// since nodes are never freed).
+    pub max_nodes: usize,
+    /// The most bytes of character data (text, comments, processing
+    /// instructions, doctypes), names and attributes that the arena may
+    /// hold. An attribute counts its name, its value and the size of its
+    /// record; an element counts its name.
+    pub max_text_bytes: usize,
+}
+
+/// The default node limit: 1,048,576 nodes per arena.
+pub const MAX_NODES: usize = 1 << 20;
+
+/// The default limit of text and attribute bytes: 256 MiB per arena.
+pub const MAX_TEXT_BYTES: usize = 256 << 20;
+
+impl Default for Limits {
+    fn default() -> Self {
+        Limits {
+            max_nodes: MAX_NODES,
+            max_text_bytes: MAX_TEXT_BYTES,
+        }
+    }
+}
+
+/// The source of arena identities ([`Document::arena_id`]).
+static NEXT_ARENA_ID: AtomicU64 = AtomicU64::new(1);
+
+/// An arena of nodes: the HTML document of [`NodeId::DOCUMENT`] and the
+/// other documents and fragments that scripts create (ADR 0028 section 3).
+///
+/// All changes go through the change functions (`mutation.rs`), which keep
+/// the journal, the generation, the id index and the limits.
 pub struct Document {
-    nodes: Vec<Node>,
-    /// The quirks mode, set by the parser.
+    pub(crate) nodes: Vec<Node>,
+    /// The quirks mode of the document of [`NodeId::DOCUMENT`], set by the
+    /// parser.
     pub quirks_mode: QuirksMode,
     /// The scripting flag of the document: true if the document was
     /// created with JavaScript on (ADR 0028 section 15). The parser reads it
@@ -295,6 +330,40 @@ pub struct Document {
     /// controls and `<canvas>` follow it. Set by the parser; it does not
     /// change during the life of the document.
     scripting: bool,
+    /// The changes since the last drain.
+    pub(crate) journal: Journal,
+    /// False while changes are not recorded (the journal then becomes
+    /// incomplete).
+    pub(crate) journaling: bool,
+    /// Grows with every change.
+    pub(crate) generation: u64,
+    /// `id` values of connected elements; built at the first lookup, which
+    /// takes `&self`.
+    pub(crate) ids: RefCell<IdIndex>,
+    /// The bytes of character data, names and attributes in the arena
+    /// (see [`Limits::max_text_bytes`]).
+    pub(crate) text_bytes: usize,
+    pub(crate) limits: Limits,
+    pub(crate) mutation_sink: Option<Box<dyn MutationSink>>,
+    /// The template contents owner document of each document node that
+    /// has one (created when the document gets its first template). An
+    /// inert owner document maps to itself.
+    pub(crate) template_owners: HashMap<NodeId, NodeId>,
+    /// Pairs of a template contents fragment and its template element
+    /// (the fragment's host, for the host-including ancestor check).
+    pub(crate) template_hosts: HashMap<NodeId, NodeId>,
+    arena_id: u64,
+}
+
+impl fmt::Debug for Document {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Document")
+            .field("nodes", &self.nodes.len())
+            .field("quirks_mode", &self.quirks_mode)
+            .field("scripting", &self.scripting)
+            .field("generation", &self.generation)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for Document {
@@ -304,13 +373,90 @@ impl Default for Document {
 }
 
 impl Document {
-    /// Creates an empty document that contains only the document node.
+    /// Creates an empty document that contains only the document node,
+    /// with the default limits.
     pub fn new() -> Self {
+        Self::with_limits(Limits::default())
+    }
+
+    /// Creates an empty document with these limits.
+    pub fn with_limits(limits: Limits) -> Self {
         Document {
-            nodes: vec![Node::new(NodeData::Document)],
+            nodes: vec![Node::new(NodeData::Document, NodeId::DOCUMENT)],
             quirks_mode: QuirksMode::NoQuirks,
             scripting: false,
+            journal: Journal::default(),
+            journaling: true,
+            generation: 0,
+            ids: RefCell::default(),
+            text_bytes: 0,
+            limits,
+            mutation_sink: None,
+            template_owners: HashMap::new(),
+            template_hosts: HashMap::new(),
+            arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
+    }
+
+    /// A number that identifies this arena among all arenas of the process.
+    /// The parser checks that it resumes with the arena that it started
+    /// with.
+    pub fn arena_id(&self) -> u64 {
+        self.arena_id
+    }
+
+    /// The limits of the arena.
+    pub fn limits(&self) -> Limits {
+        self.limits
+    }
+
+    /// The bytes of character data, names and attributes in the arena
+    /// (see [`Limits::max_text_bytes`]).
+    pub fn text_bytes(&self) -> usize {
+        self.text_bytes
+    }
+
+    /// True if the arena has reached one of its limits.
+    pub fn at_limit(&self) -> bool {
+        self.nodes.len() >= self.limits.max_nodes || self.text_bytes >= self.limits.max_text_bytes
+    }
+
+    /// The generation: a counter that grows with every change. Derived
+    /// data records the generation it was built for.
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// The changes since the last [`take_journal`](Self::take_journal).
+    pub fn journal(&self) -> &Journal {
+        &self.journal
+    }
+
+    /// Drains the journal: returns the changes so far and starts an empty
+    /// journal.
+    pub fn take_journal(&mut self) -> Journal {
+        std::mem::take(&mut self.journal)
+    }
+
+    /// Turns the recording of changes on or off (on for a new document).
+    /// While it is off, the journal only notes that changes are missing
+    /// ([`Journal::incomplete`]); the mutation sink still gets every change.
+    pub fn set_journaling(&mut self, on: bool) {
+        self.journaling = on;
+    }
+
+    /// Installs the sink that receives each change as it happens, and
+    /// returns the previous one. `None` removes it.
+    pub fn set_mutation_sink(
+        &mut self,
+        sink: Option<Box<dyn MutationSink>>,
+    ) -> Option<Box<dyn MutationSink>> {
+        std::mem::replace(&mut self.mutation_sink, sink)
+    }
+
+    /// The installed mutation sink.
+    pub fn mutation_sink_mut(&mut self) -> Option<&mut (dyn MutationSink + 'static)> {
+        self.mutation_sink.as_deref_mut()
     }
 
     /// True if scripting is enabled for the document (the document was
@@ -351,7 +497,7 @@ impl Document {
         self.nodes.get(id.index())
     }
 
-    fn node_mut(&mut self, id: NodeId) -> &mut Node {
+    pub(crate) fn node_mut(&mut self, id: NodeId) -> &mut Node {
         &mut self.nodes[id.index()]
     }
 
@@ -360,8 +506,9 @@ impl Document {
         self.node(id).as_element()
     }
 
-    /// Mutable element data of a node, if it is an element.
-    pub fn element_mut(&mut self, id: NodeId) -> Option<&mut ElementData> {
+    /// Mutable element data of a node, if it is an element. Not public:
+    /// changes of attributes go through the change functions.
+    pub(crate) fn element_mut(&mut self, id: NodeId) -> Option<&mut ElementData> {
         match &mut self.node_mut(id).data {
             NodeData::Element(e) => Some(e),
             _ => None,
@@ -513,15 +660,16 @@ impl Document {
             .find(|&n| self.element(n).is_some_and(&mut pred))
     }
 
-    /// The first element with this `id` attribute.
+    /// The first element in tree order with this `id` in the document of
+    /// [`NodeId::DOCUMENT`] (from the id index).
     pub fn element_by_id(&self, id: &str) -> Option<NodeId> {
-        self.find_element(NodeId::DOCUMENT, |e| e.id() == Some(id))
+        self.get_element_by_id(NodeId::DOCUMENT, id)
     }
 
     /// The first element with each `id` attribute value, in one pass: the
     /// index for many lookups (`element_by_id` scans the tree).
-    pub fn element_ids(&self) -> std::collections::HashMap<&str, NodeId> {
-        let mut ids = std::collections::HashMap::new();
+    pub fn element_ids(&self) -> HashMap<&str, NodeId> {
+        let mut ids = HashMap::new();
         for node in self.descendants(NodeId::DOCUMENT) {
             if let Some(id) = self.element(node).and_then(ElementData::id) {
                 ids.entry(id).or_insert(node);
@@ -530,117 +678,53 @@ impl Document {
         ids
     }
 
-    // ----- Mutation -----
-
-    /// Creates a detached node and returns its ID.
-    pub fn create_node(&mut self, data: NodeData) -> NodeId {
-        let id = NodeId(u32::try_from(self.nodes.len()).expect("fewer than 2^32 nodes"));
-        self.nodes.push(Node::new(data));
-        id
+    /// The node document of a node: the document node that the node
+    /// belongs to (a document node is its own node document).
+    /// <https://dom.spec.whatwg.org/#concept-node-document>
+    pub fn node_document(&self, id: NodeId) -> NodeId {
+        self.node(id).owner
     }
 
-    /// Creates a detached element.
-    pub fn create_element(&mut self, name: QualName, attrs: Vec<Attribute>) -> NodeId {
-        self.create_node(NodeData::Element(ElementData::new(name, attrs)))
+    /// The root of the tree that contains `id`: its last ancestor, or the
+    /// node itself.
+    pub fn root(&self, id: NodeId) -> NodeId {
+        self.ancestors(id).last().unwrap_or(id)
     }
 
-    /// Creates a detached text node.
-    pub fn create_text(&mut self, text: &str) -> NodeId {
-        self.create_node(NodeData::Text(text.to_owned()))
+    /// True if the root of the tree that contains `id` is a document node
+    /// (DOM "connected"; swb has no shadow trees).
+    pub fn is_connected(&self, id: NodeId) -> bool {
+        matches!(self.node(self.root(id)).data, NodeData::Document)
     }
 
-    /// Appends `child` as the last child of `parent`. The child is first
-    /// removed from its current parent.
-    pub fn append_child(&mut self, parent: NodeId, child: NodeId) {
-        self.detach(child);
-        let last = self.node(parent).last_child;
-        {
-            let c = self.node_mut(child);
-            c.parent = Some(parent);
-            c.prev_sibling = last;
+    /// True if `a` comes before `b` in tree order. Both must be in the same
+    /// tree; otherwise the result is false.
+    /// <https://dom.spec.whatwg.org/#concept-tree-preceding>
+    pub fn precedes(&self, a: NodeId, b: NodeId) -> bool {
+        if a == b {
+            return false;
         }
-        match last {
-            Some(last) => self.node_mut(last).next_sibling = Some(child),
-            None => self.node_mut(parent).first_child = Some(child),
-        }
-        self.node_mut(parent).last_child = Some(child);
-    }
-
-    /// Inserts `child` before `sibling`. The child is first removed from its
-    /// current parent. Does nothing if `sibling` has no parent.
-    pub fn insert_before(&mut self, sibling: NodeId, child: NodeId) {
-        let Some(parent) = self.node(sibling).parent else {
-            return;
+        // The inclusive ancestors of each, root first.
+        let path = |n: NodeId| {
+            let mut path: Vec<NodeId> = std::iter::once(n).chain(self.ancestors(n)).collect();
+            path.reverse();
+            path
         };
-        self.detach(child);
-        let prev = self.node(sibling).prev_sibling;
-        {
-            let c = self.node_mut(child);
-            c.parent = Some(parent);
-            c.prev_sibling = prev;
-            c.next_sibling = Some(sibling);
+        let (pa, pb) = (path(a), path(b));
+        if pa.first() != pb.first() {
+            return false;
         }
-        self.node_mut(sibling).prev_sibling = Some(child);
-        match prev {
-            Some(prev) => self.node_mut(prev).next_sibling = Some(child),
-            None => self.node_mut(parent).first_child = Some(child),
-        }
-    }
-
-    /// Removes a node from its parent. The node and its subtree stay in the
-    /// arena, detached.
-    pub fn detach(&mut self, id: NodeId) {
-        let (parent, prev, next) = {
-            let n = self.node(id);
-            (n.parent, n.prev_sibling, n.next_sibling)
-        };
-        let Some(parent) = parent else {
-            return;
-        };
-        match prev {
-            Some(prev) => self.node_mut(prev).next_sibling = next,
-            None => self.node_mut(parent).first_child = next,
-        }
-        match next {
-            Some(next) => self.node_mut(next).prev_sibling = prev,
-            None => self.node_mut(parent).last_child = prev,
-        }
-        let n = self.node_mut(id);
-        n.parent = None;
-        n.prev_sibling = None;
-        n.next_sibling = None;
-    }
-
-    /// Appends text to `parent`: merges with the last child if it is a text
-    /// node, otherwise creates a new text node.
-    pub fn append_text(&mut self, parent: NodeId, text: &str) {
-        if let Some(last) = self.node(parent).last_child
-            && let NodeData::Text(existing) = &mut self.node_mut(last).data
-        {
-            existing.push_str(text);
-            return;
-        }
-        let t = self.create_text(text);
-        self.append_child(parent, t);
-    }
-
-    /// Inserts text before `sibling`: merges with the previous sibling if it
-    /// is a text node, otherwise creates a new text node.
-    pub fn insert_text_before(&mut self, sibling: NodeId, text: &str) {
-        if let Some(prev) = self.node(sibling).prev_sibling
-            && let NodeData::Text(existing) = &mut self.node_mut(prev).data
-        {
-            existing.push_str(text);
-            return;
-        }
-        let t = self.create_text(text);
-        self.insert_before(sibling, t);
-    }
-
-    /// Moves all children of `from` to the end of `to`'s children.
-    pub fn reparent_children(&mut self, from: NodeId, to: NodeId) {
-        while let Some(child) = self.node(from).first_child {
-            self.append_child(to, child);
+        let common = pa.iter().zip(&pb).take_while(|(x, y)| x == y).count();
+        match (pa.get(common), pb.get(common)) {
+            // `a` is an ancestor of `b`.
+            (None, Some(_)) => true,
+            // Siblings under the last common ancestor: is `ca` before `cb`?
+            (Some(&ca), Some(&cb)) => {
+                std::iter::successors(self.node(ca).next_sibling, |&n| self.node(n).next_sibling)
+                    .any(|n| n == cb)
+            }
+            // `b` is an ancestor of `a`, or `a == b`.
+            (_, None) => false,
         }
     }
 }
@@ -729,77 +813,39 @@ mod tests {
     }
 
     #[test]
-    fn append_and_traverse() {
-        let mut doc = Document::new();
-        let root = doc.create_element(html("html"), vec![]);
-        doc.append_child(NodeId::DOCUMENT, root);
-        let a = doc.create_element(html("a"), vec![]);
-        let b = doc.create_element(html("b"), vec![]);
-        doc.append_child(root, a);
-        doc.append_child(root, b);
-        doc.append_text(a, "x");
-        doc.append_text(a, "y");
-
-        assert_eq!(doc.children(root).collect::<Vec<_>>(), vec![a, b]);
-        assert_eq!(doc.text_content(root), "xy");
-        assert_eq!(doc.children(a).count(), 1, "adjacent text is merged");
-        let all: Vec<_> = doc.descendants(NodeId::DOCUMENT).collect();
-        assert_eq!(all.len(), 5);
-        assert_eq!(
-            doc.ancestors(a).collect::<Vec<_>>(),
-            vec![root, NodeId::DOCUMENT]
-        );
+    fn traversal() {
+        let doc = crate::parse_html("<html><body><a id=a><c id=c></c>xy</a><b id=b></b>");
+        let id = |name: &str| doc.element_by_id(name).expect("element");
+        let (a, b, c) = (id("a"), id("b"), id("c"));
+        let body = doc.body().expect("body");
+        assert_eq!(doc.children(body).collect::<Vec<_>>(), vec![a, b]);
+        assert_eq!(doc.text_content(body), "xy");
+        assert_eq!(doc.descendants(a).count(), 3, "a, c and the text");
+        assert_eq!(doc.ancestors(a).last(), Some(NodeId::DOCUMENT));
         assert_eq!(doc.next_sibling_element(a), Some(b));
         assert_eq!(doc.prev_sibling_element(b), Some(a));
-    }
-
-    #[test]
-    fn descendants_stay_within_subtree() {
-        let mut doc = Document::new();
-        let root = doc.create_element(html("html"), vec![]);
-        doc.append_child(NodeId::DOCUMENT, root);
-        let a = doc.create_element(html("a"), vec![]);
-        let b = doc.create_element(html("b"), vec![]);
-        doc.append_child(root, a);
-        doc.append_child(root, b);
-        let c = doc.create_element(html("c"), vec![]);
-        doc.append_child(a, c);
-        assert_eq!(doc.descendants(a).collect::<Vec<_>>(), vec![a, c]);
-    }
-
-    #[test]
-    fn insert_before_and_detach() {
-        let mut doc = Document::new();
-        let p = doc.create_element(html("p"), vec![]);
-        doc.append_child(NodeId::DOCUMENT, p);
-        let a = doc.create_text("a");
-        let c = doc.create_text("c");
-        doc.append_child(p, a);
-        doc.append_child(p, c);
-        let b = doc.create_element(html("b"), vec![]);
-        doc.insert_before(c, b);
-        assert_eq!(doc.children(p).collect::<Vec<_>>(), vec![a, b, c]);
-        doc.detach(b);
-        assert_eq!(doc.children(p).collect::<Vec<_>>(), vec![a, c]);
-        assert_eq!(doc.parent(b), None);
-        doc.detach(a);
-        doc.detach(c);
-        assert_eq!(doc.node(p).first_child(), None);
-        assert_eq!(doc.node(p).last_child(), None);
+        assert!(doc.precedes(a, c) && doc.precedes(c, b) && doc.precedes(a, b));
+        assert!(!doc.precedes(b, a) && !doc.precedes(c, a) && !doc.precedes(a, a));
+        assert!(doc.is_connected(c));
+        assert_eq!(doc.root(c), NodeId::DOCUMENT);
     }
 
     #[test]
     fn attributes_and_classes() {
-        let mut e = ElementData::new(html("div"), vec![]);
-        e.set_attr("class", " a\tb  c ");
-        e.set_attr("id", "main");
+        let attr = |name: &str, value: &str| Attribute {
+            name: QualName::new(None, ns!(), LocalName::from(name)),
+            value: value.to_owned(),
+        };
+        let e = ElementData::new(
+            html("div"),
+            vec![attr("class", " a\tb  c "), attr("id", "main")],
+        );
         assert!(e.has_class("b"));
         assert!(!e.has_class("d"));
         assert_eq!(e.classes().collect::<Vec<_>>(), vec!["a", "b", "c"]);
         assert_eq!(e.id(), Some("main"));
-        e.set_attr("id", "");
+        let e = ElementData::new(html("div"), vec![attr("id", "")]);
         assert_eq!(e.id(), None);
-        assert!(e.remove_attr("id"));
-        assert!(!e.has_attr("id"));
+        assert!(e.has_attr("id"));
     }
 }

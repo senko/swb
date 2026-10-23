@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 3a, the DOM for scripts
+
+- The `dom` crate gets what scripts need (ADR 0028 section 3). A
+  resumable parser (`HtmlParser`) drives html5ever's tokenizer and
+  stops at each HTML `script` end tag; the caller keeps the document
+  and lends it to each step. A test pauses at every script end tag of
+  all fixtures and layout tests and gets the same tree as one parse.
+- All changes go through change functions that follow the DOM
+  algorithms (pre-insert, replace, replace all, remove, adopt,
+  attributes, character data) and return `DomError`. Each change goes
+  to a journal (drained by the engine), to an installed mutation sink
+  (for mutation observers) and to a generation counter. An id index
+  serves `getElementById`; `parse_fragment` parses with a context
+  element; an arena holds more documents, and each node knows its node
+  document.
+- Limits per arena: 1,048,576 nodes and 256 MiB of text, names and
+  attributes. The change functions return an error; the parser stops
+  with a warning. Two new hostile cases reach them.
+- Design changes, recorded in ADR 0028: the parser borrows the
+  document per step; the sink lives in the document (html5ever's sink
+  cannot hold a borrowed one without `unsafe`); the parse without
+  scripts records no journal (recording costs 2 to 3 % of the parse
+  time); the id index starts at the first lookup.
+- `NodeId` stores index + 1 in a `NonZeroU32`, so links take 4 bytes;
+  this pays for the new bookkeeping. Parse time +1 to +4 % against M7;
+  the JS-off snapshot does not change.
+- Review fixes: a lookup among many elements of one id walked siblings
+  for each pair (1 s for 30,000 duplicates); it now walks the tree once.
+  The journal overflows past 16 MiB of old attribute values. The byte
+  limit counts names and a record size per attribute.
+  `replaceChildren` on a document checks against the current children,
+  as the DOM standard says.
+- Next: feature 3b, the engine's document state and the parse in steps.
+
 ## 2026-10-22: M8 feature 2, the JavaScript setting
 
 - The setting: `--js` (`--javascript on|off`), the session option

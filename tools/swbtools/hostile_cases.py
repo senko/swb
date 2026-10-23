@@ -207,6 +207,26 @@ def selector_lists() -> Page:
     return Page(doc("<i class='s5 s99999'>x</i><i class=k>y</i>", big + compound))
 
 
+@case(
+    "1,100,000 comments: past the limit of 1,048,576 nodes per document; the parser stops "
+    "(ADR 0028 section 16)",
+    expect_log="HTML parser stopped",
+)
+def dom_node_limit() -> Page:
+    return Page(doc("<p>before</p>" + "<!---->" * 1_100_000 + "<p>after</p>"))
+
+
+@case(
+    "a formatting element with a 2 MB attribute that the parser clones for each of 200 "
+    "paragraphs (400 MB): past the limit of 256 MiB of text and attributes per document; the "
+    "parser stops (ADR 0028 section 16)",
+    expect_log="HTML parser stopped",
+)
+def dom_byte_limit() -> Page:
+    title = "t" * 2_000_000
+    return Page(doc(f"<p><b title='{title}'></p>" + "<p>x</p>" * 200))
+
+
 @case("250,000 elements in one document", time_limit_s=10)
 def many_elements() -> Page:
     return Page(doc("<i>x</i>" * 125_000 + "<b></b>" * 125_000))

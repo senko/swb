@@ -15,3 +15,4 @@ workspace = true
 encoding_rs.workspace = true
 html5ever.workspace = true
 log.workspace = true
+thiserror.workspace = true

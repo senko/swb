@@ -327,11 +327,11 @@ impl Page {
         let Some(doc) = self.document.as_mut() else {
             return false;
         };
-        let Some(element) = doc.element_mut(details) else {
+        if doc.element(details).is_none() {
             return false;
-        };
-        if !element.remove_attr("open") {
-            element.set_attr("open", "");
+        }
+        if !doc.remove_attr(details, "open") && doc.set_attr(details, "open", "").is_err() {
+            log::warn!("cannot open the details element: the document is at its limit");
         }
         self.styles = None;
         self.invalidate_layout();

@@ -2352,6 +2352,22 @@ Steps:
         the journal of a parse of each JS-off fixture lists every node
         once; a pause at every script end tag and a resume give the same
         tree as one parse (all fixtures).
+        Done 2026-10-23. `HtmlParser` pauses at HTML script end tags;
+        the caller keeps the document and lends it to each step. The
+        change functions follow the DOM algorithms and return `DomError`;
+        each change goes to the journal, to an installed mutation sink
+        and to the generation. The parse without scripts (`parse_html*`)
+        records no journal (2 to 3 % of the parse time); its journal is
+        incomplete, so 3b walks the new document once with JS off. The
+        id index starts at the first lookup; with more than eight
+        elements of one id, a lookup walks the tree. `parse_fragment`,
+        node documents and inert template contents owner documents. The
+        byte limit counts text, names, attribute values and a record
+        size per attribute; the journal overflows past 16 MiB of old
+        attribute values. ADR 0028 section 3 records the four changes of
+        the design. Parse time +1 to +4 % against M7, snapshot
+        unchanged, hostile set ok with `dom-node-limit` and
+        `dom-byte-limit`.
       - 3b `engine`: the split of `Page` into the page and a boxed
         `DocumentState`; the parse in steps; the loads of stylesheets,
         images and posters started from the journal at insertion
@@ -2676,6 +2692,33 @@ Steps:
 - `substitute` fails on raster `data:` URLs in CSS (GitHub has two
   3x2 px PNGs; they were replaced by hand). Replace them with an SVG
   `data:` URL of the same size.
+- DOM (found in feature 3a): `element_ids()` (SVG `use` references,
+  layout) still scans the whole tree; it could use the id index.
+- DOM, feature 6a: `getElementById` in a script loop with many elements
+  of one id walks the tree at each call; a cache of the result keyed by
+  the generation would help. Hostile case: 100,000 elements with one id
+  and `getElementById` in a loop.
+- DOM, feature 6a: the fragment parser takes its scripting flag from the
+  context's document. Probe Chromium for `<noscript>` in `innerHTML`
+  with JavaScript on.
+- DOM, feature 6a: elements of a parsed fragment get no form element
+  pointer; the form owner must come from the ancestors at insertion
+  (HTML "reset the form owner").
+- DOM: only the document of `NodeId::DOCUMENT` has a quirks mode; other
+  documents of the arena are in no-quirks mode (matters for
+  `DOMParser`).
+- DOM: the parser can create a few nodes past the node limit (the token
+  at hand finishes; at most about the list of active formatting
+  elements). The public change functions are exact.
+- DOM: with the id index active, inserting or removing a node with an
+  id or with children costs O(depth) (`is_connected`), and the parser's
+  depth check is O(depth) when a script moved the open element deep.
+  A script that builds a very deep chain is quadratic until the 5 s
+  task limit stops it. Cache connectedness or cap the depth of
+  script-built trees if a page needs it.
+- DOM: `Document::nodes` never shrinks, and the node limit counts every
+  node ever created (immortal nodes, ADR 0028 section 3). A page that
+  re-renders for hours reaches the limit; node reclamation is the fix.
 
 ## Backlog from M6
 

@@ -173,19 +173,31 @@ Changes in `dom`:
   directly: a `BufferQueue` holds the decoded input, and `feed` returns
   when the tree builder reaches the end tag of a `script` element
   (html5ever reports it as a script result). The parser object keeps
-  the tokenizer, the tree builder and its sink. While the parser waits,
-  the engine takes the `Document` out of the sink and puts it back
-  before it feeds again, so scripts and the engine have the document
-  while the parser keeps its state (the stack of open elements holds
-  `NodeId`s, which stay valid). The scripting flag is an option of the
-  parse.
+  the tokenizer, the tree builder and its sink. The caller keeps the
+  `Document` and lends it to each step (`HtmlParser::resume(&mut doc)`
+  moves it into the sink for the step and back), so scripts and the
+  engine have the document while the parser keeps its state (the stack
+  of open elements holds `NodeId`s, which stay valid). A step with
+  another arena is refused. The scripting flag is an option of the
+  parse. (Feature 3a: the borrow replaces "take the document out of the
+  sink and put it back"; it is the same move, and the parser cannot be
+  fed without the document.)
 - **Change journal.** Every change of the tree, an attribute or a text
   node appends an entry to a journal of the document: the kind, the
   target, the added and removed nodes with their siblings, the attribute
   name and the old value. The parser's changes are journaled too. The
   engine drains it (resource loading, style invalidation, derived
   data). With JavaScript off, the engine is the only consumer and drains
-  once after the parse.
+  once after the parse. (Feature 3a: the parse without scripts,
+  `parse_html*`, does not record; its journal is *incomplete*, which
+  tells the consumer to treat the whole document as changed, so the
+  engine walks the new document once, as before. Recording costs 2 to
+  3 % of the parse time of the fixtures (measured 2026-10-23: a journaled
+  parse is 3.7 to 4.8 % slower than the parser of M7, an unjournaled one
+  1.2 to 3 %), which leaves too little room in the 5 % budget of a JS-off
+  feature. `HtmlParser`, which the engine uses with JavaScript on,
+  records. A journal also becomes incomplete when it overflows at
+  1,048,576 entries.)
 - **Mutation sink.** Mutation observers cannot wait for a drain: DOM
   "queue a mutation record" finds the interested observers on the tree
   at each primitive change, and a removal adds transient registered
@@ -194,7 +206,15 @@ Changes in `dom`:
   functions of `dom` also report each primitive change, as it happens,
   to a sink that the caller passes (the bindings' observer registry;
   nothing when no observer exists). The parser reports through the same
-  sink.
+  sink. (Feature 3a: the caller passes the sink by installing it in the
+  document, `Document::set_mutation_sink`, as a `'static` trait object,
+  not as an argument of each change function: html5ever's tree sink lives
+  in the parser across steps and cannot hold a borrowed sink without
+  `unsafe`, and the document carries the sink to every change function
+  and to the parser. The sink holds only Rust data, the registered
+  observers by `NodeId` and the queued records; the callbacks stay in the
+  binding state, keyed by observer number. The sink gets the document in
+  its state after each change, and the old value of attributes and text.)
 - **Generation.** A counter that grows with every change. Derived data
   (tree order, disabled elements, the id map, live collections, cached
   query results) records the generation it was built for and is rebuilt
@@ -202,6 +222,9 @@ Changes in `dom`:
 - **Id index.** A map from `id` values to elements, kept up to date by
   the attribute and tree changes; with several elements of one id, the
   first in tree order is found by a walk of only those elements.
+  (Feature 3a: the index is built at the first lookup, with one walk, and
+  kept up to date from then on; a parse without lookups does not pay for
+  it.)
 - **Fragment parsing** with a context element (`innerHTML`,
   `insertAdjacentHTML`, `outerHTML`, `DOMParser`,
   `createContextualFragment`): html5ever parses into a temporary
@@ -771,7 +794,7 @@ Per document, all settings with these defaults:
 | Time per task, checkpoint or callback | 5 s | termination; after three, scripts stop (section 7) |
 | JavaScript heap | 256 MiB | termination; scripts stop, the runtime is dropped |
 | Nodes created in a document's arena | 1,048,576 | the task ends (termination) |
-| DOM text and attribute bytes | 256 MiB | the task ends |
+| DOM bytes: text, names and attributes | 256 MiB | the task ends |
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
 | Script fetches in flight | 64 | queued |
 | `localStorage` per origin | 5 MiB | `QuotaExceededError` |

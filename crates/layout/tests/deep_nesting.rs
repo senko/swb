@@ -30,12 +30,14 @@ fn nested_document(names: &[&str], style: &str) -> Document {
             "td" => local_name!("td"),
             _ => local_name!("div"),
         };
-        let child = doc.create_element(QualName::new(None, ns!(html), local), Vec::new());
-        doc.append_child(parent, child);
+        let child = doc
+            .create_element(QualName::new(None, ns!(html), local), Vec::new())
+            .expect("the document has room");
+        doc.append_child(parent, child).expect("a valid tree");
         parent = child;
     }
-    let text = doc.create_text("innermost text");
-    doc.append_child(parent, text);
+    let text = doc.create_text("innermost text").expect("room");
+    doc.append_child(parent, text).expect("a valid tree");
     doc
 }
 

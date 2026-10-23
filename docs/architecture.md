@@ -36,7 +36,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | Crate        | Responsibility                                                                 | Depends on                    |
 |--------------|--------------------------------------------------------------------------------|-------------------------------|
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures. | — |
-| `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree), character encoding detection, `outerHTML` serialization, the tree dump. | — |
+| `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree; the resumable parser `HtmlParser` in `parser.rs`, the tree sink in `parser/sink.rs`, fragment parsing in `parser/fragment.rs`), the change functions (`mutation.rs`), the change journal and the mutation sink (`journal.rs`), the id index (`id_index.rs`), character encoding detection, `outerHTML` serialization, the tree dump. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
 | `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. | `css`, `dom`                  |
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
@@ -70,12 +70,49 @@ Rules:
 
 ## Key data structures
 
-- **DOM** (`dom`): nodes are stored in a `Vec` and addressed by `NodeId`
-  (a `u32` index). Nodes link to parent, siblings and children by `NodeId`.
-  This makes the tree easy to traverse without reference counting. It also
-  gives a stable handle for the automation API and, later, for JavaScript.
-  The parser limits the tree depth to 512 (as Blink does), because later
-  stages recurse over the tree.
+- **DOM** (`dom`): nodes are stored in a `Vec` (the arena, type
+  `Document`) and addressed by `NodeId` (a `u32` index; `Option<NodeId>`
+  takes four bytes). Nodes link to parent, siblings and children by
+  `NodeId`, and to their node document. Nodes are never freed. This makes
+  the tree easy to traverse without reference counting. It also gives a
+  stable handle for the automation API and for JavaScript. The parser
+  limits the tree depth to 512 (as Blink does), because later stages
+  recurse over the tree. ADR 0028 section 3 adds what scripts need:
+  - *More documents in one arena:* document and fragment nodes besides
+    `NodeId::DOCUMENT` (`create_document`; template contents belong to an
+    inert template contents owner document). Rendering uses only the tree
+    of `NodeId::DOCUMENT`.
+  - *Change functions* (`mutation.rs`): the only code that changes a tree,
+    an attribute or text data after a node is created. They follow the
+    DOM's "insert", "remove", "replace", "replace all", "adopt", "change
+    an attribute" and "replace data", check its preconditions (`DomError`),
+    and report each primitive change: the generation grows, the journal
+    gets an entry, and the installed mutation sink is called.
+  - *Journal* (`journal.rs`): the changes since the engine last drained it
+    (`take_journal`), in the form of DOM mutation records (parent, added
+    and removed nodes with their siblings; attribute name and old value;
+    the text node). It is incomplete (the consumer treats everything as
+    changed) after an overflow (1,048,576 entries) or while recording is
+    off; `parse_html*` parses without recording (recording costs 2 to 3 %
+    of the parse time), `HtmlParser` records.
+  - *Mutation sink* (`MutationSink`): a trait object that the owner of the
+    document installs (`set_mutation_sink`; mutation observers later). It
+    gets each change at the moment it happens, with the document in its new
+    state, also the parser's changes.
+  - *Id index* (`id_index.rs`): `id` values of connected elements, built at
+    the first lookup and then kept up to date by the change functions;
+    `get_element_by_id` picks the first in tree order among the elements
+    of one id.
+  - *Resumable parser* (`HtmlParser`): drives html5ever's tokenizer over a
+    `BufferQueue`; each `resume` parses until a `script` end tag or the end
+    of the input. The caller keeps the document and lends it to each step.
+    `parse_html*` run it to the end. `parse_fragment` parses with a context
+    element into a temporary arena and copies the nodes into a new
+    fragment.
+  - *Limits* (`Limits`, ADR 0028 section 16): at most 1,048,576 nodes and
+    256 MiB of text, names and attributes per arena. The change functions
+    return `DomError::NodeLimit` or `ByteLimit`; the parser drops the rest
+    of its input with a warning.
 - **Computed style** (`style`): one `Arc<ComputedStyle>` per element. Elements
   that share a style share the `Arc`. `StyleMap` also holds each list
   item's ordinal value; after the cascade, `counters.rs` replaces the
