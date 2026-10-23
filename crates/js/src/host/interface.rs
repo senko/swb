@@ -73,6 +73,16 @@ impl Runtime {
     /// the host defines it there if the interface is exposed
     /// ([`Runtime::define_value`] with [`Attributes::HIDDEN`]).
     pub fn create_interface(&mut self, realm: u32, class: ClassId) -> VmResult<Interface> {
+        let interface = self.begin_interface(realm, class)?;
+        self.end_interface(interface)?;
+        Ok(interface)
+    }
+
+    /// [`Runtime::create_interface`] without the `constructor` property of
+    /// the prototype: the host defines the members first and then calls
+    /// [`Runtime::end_interface`], so that `constructor` is the last own
+    /// property, as Chromium lists it.
+    pub fn begin_interface(&mut self, realm: u32, class: ClassId) -> VmResult<Interface> {
         self.scoped(|rt| {
             let record = rt.vm.host.class(class.index())?;
             let (name, length) = (record.name.to_string(), record.length);
@@ -103,13 +113,28 @@ impl Runtime {
             rt.set_native_slots(object, Box::new([Value::Int(class.index() as i32)]))?;
             let key = PropertyKey::String(rt.vm.atoms.prototype);
             rt.define(object, key, prototype.into(), false, false, false)?;
-            let key = PropertyKey::String(rt.vm.atoms.constructor);
-            rt.define(prototype, key, object.into(), true, false, true)?;
             crate::builtins::to_string_tag(rt, prototype, &name)?;
             let interface = Interface { object, prototype };
             rt.set_interface(realm, class, interface)?;
             Ok(interface)
         })
+    }
+
+    /// Defines the `constructor` property of an interface's prototype (the
+    /// last step of [`Runtime::create_interface`]): writable, not
+    /// enumerable, configurable.
+    pub fn end_interface(&mut self, interface: Interface) -> VmResult<()> {
+        self.keep(interface.object);
+        self.keep(interface.prototype);
+        let key = PropertyKey::String(self.vm.atoms.constructor);
+        self.define(
+            interface.prototype,
+            key,
+            interface.object.into(),
+            true,
+            false,
+            true,
+        )
     }
 
     /// The interface of `class` in `realm`, if it was created.
@@ -238,7 +263,7 @@ impl Runtime {
     /// ordinary one (the hooks are for scripts; Web IDL defines
     /// `@@toStringTag` of a named properties object that way). Otherwise
     /// `DefinePropertyOrThrow`.
-    fn define_by_host(
+    pub(crate) fn define_by_host(
         &mut self,
         object: Gc<Object>,
         key: PropertyKey,

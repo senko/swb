@@ -25,6 +25,8 @@ swb-net = { path = "crates/net" }
 swb-paint = { path = "crates/paint" }
 swb-style = { path = "crates/style" }
 swb-text = { path = "crates/text" }
+swb-web = { path = "crates/web" }
+swb-webidl = { path = "crates/webidl" }
 
 # Shared by several crates.
 anyhow = "1"

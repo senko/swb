@@ -29,6 +29,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
+| Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
 Chromium are needed only to capture fixtures, to regenerate the expected
@@ -74,6 +75,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values; cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
+| `just bindings`              |                                        | Regenerates the binding glue from the IDL files with `swb-webidl` (see "Web API bindings"). |
 | `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json`; `--parse-only` runs only the front end over `test/language/`, `test/built-ins/` and `test/annexB/` against `parse-scores.json` (see "JavaScript engine tools"). |
 | `just jsdiff FILE...`        | `jsdiff FILE...`                       | Runs files in `swb-js` and in Node.js and diffs stdout and the uncaught error. |
 | `just jsbench [DIR]`         | `jsbench [DIR] [--runs N]`             | The engine's benchmark programs against `node --jitless`; for a directory of scripts also lexing, parse and compile ([performance.md](performance.md)). |
@@ -2176,6 +2178,51 @@ the names is made by `just tools js-time-zone-names` (next table). test262 runs 
 `test/annexB/built-ins/Date` and loads `assertRelativeDateMs.js` and
 `dateConstants.js`; the 155 tests of other directories that use `Date`
 run too.
+
+## Web API bindings
+
+The glue between JavaScript and the Web API implementations is generated
+from IDL files (ADR 0028 section 5) by `swb-webidl` (`crates/webidl/`)
+and checked in. There are two sets (`swb_webidl::binding_sets`):
+
+| Set | IDL | Output |
+|-----|-----|--------|
+| The browser's | every `.idl` file in `crates/web/idl/` | `crates/web/src/generated/` |
+| The tests' | `crates/web/idl/webidl.idl` and `crates/web/tests/idl/test.idl` | `crates/web/tests/generated/` |
+
+After a change of an IDL file or of the generator, run `just bindings`
+(`cargo run -q -p swb-webidl`; `--check` only reports the files that
+differ) and commit the generated files with the change. The freshness
+test (`crates/webidl/tests/freshness.rs`, part of `just test`) runs the
+generator in memory and fails if a checked-in file differs or a file in
+an output directory is not generated. The generated files are not
+formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
+
+- `crates/web/tests/bindings.rs`: the test IDL has one member per type and
+  extended attribute that the generator supports (integers with
+  `[Clamp]` and `[EnforceRange]`, floats, the string types, nullable,
+  optional with defaults, variadic, sequences, records, dictionaries with
+  inheritance, enumerations, callback functions and interfaces, promises,
+  `any`, `object`, unions, overloads, `[Reflect]` and its variants,
+  `[Global]`, `[LegacyUnforgeable]`, `[Replaceable]`, `[PutForwards]`,
+  `[SwbCustom]`, static operations, `stringifier`). A test host with a
+  fake document implements its traits. Each case is a script whose
+  string value (and, after the jobs, the global `out` if the script sets
+  it) is compared with the expected text.
+- `crates/web/tests/interfaces.rs`: the browser's glue (`EventTarget`,
+  `Event`, `Node`, `DOMException`) with stand-in behaviour: interface
+  objects, prototype chains, property names in order, descriptors,
+  `length` and `name`, constants, the argument checks, and
+  `DOMException`.
+
+Both run every case with and without the GC stress mode and check that no
+collection found a stale root. The expected values come from Chromium
+where a real API shows the conversion (`tools/probes/web-bindings.json`,
+`just probe tools/probes/web-bindings.json`: `setTimeout` with
+`'12abc'`, `tabIndex` for `long`, `Blob.slice` for `[Clamp] long long`,
+`getImageData` for `[EnforceRange]`, enumeration, dictionary, sequence,
+record and union messages, the descriptors of `Node.prototype` and
+`DOMException`); the rest follows Web IDL.
 
 ## Python tools: development
 

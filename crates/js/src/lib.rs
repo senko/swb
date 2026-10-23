@@ -35,7 +35,7 @@ pub use heap::{
 };
 pub use host::{
     Attributes, ClassId, ClassSpec, DefineOwnPropertyHook, DeleteHook, EventHandler, GetHook,
-    GetOwnPropertyHook, HostHooks, HostState, Interface, OwnKeysHook, SetHook,
+    GetOwnPropertyHook, HostHooks, HostState, Interface, OwnKeysHook, ScriptIterator, SetHook,
 };
 pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};

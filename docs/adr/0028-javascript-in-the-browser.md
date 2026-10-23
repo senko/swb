@@ -389,6 +389,88 @@ argument conversions and the brand checks uniform and keeps the
 hand-written code to the behaviour. Checked-in output can be read and
 reviewed and needs no build step.
 
+Feature 4b notes:
+
+- (Feature 4b: how the glue calls the hand-written functions.) Each
+  generated interface module has a trait `NameImpl: Host` with one
+  associated function per member: `fn(cx: &mut Cx, this, args...) ->
+  Result<T, Exception>` for attributes (getter `name`, setter
+  `set_name`), operations (overloads `name_1`, `name_2`, ... in IDL
+  order), the constructor (`constructor`, which returns the new object;
+  `Cx::new_instance` makes it with the prototype of `new.target` and the
+  `[LegacyUnforgeable]` members) and `stringifier;` (`stringify`). The
+  native functions of the glue are generic over the host type `H` and
+  call `<H as NameImpl>::member`; `mod.rs` has `define_classes::<H>` and
+  `create_interfaces::<H>`, and the trait `Bindings` that bundles all
+  traits of a set. 4c implements the traits for its binding state; the
+  glue for `EventTarget`, `Event`, `Node` and `DOMException` compiles
+  without that and registers with a test host
+  (`crates/web/tests/interfaces.rs`). `[SwbCustom]` members are
+  hand-written native functions (`fn(&mut Runtime, &NativeCall)`) that the
+  trait declares and the glue defines as they are.
+- (Feature 4b: the `cx` interface.) `Cx` holds `&mut Runtime`, the realm,
+  the class of the member and the native call; hand-written code reaches
+  its state through `cx.rt` (4c: `with_host`). What the glue needs from
+  4c is the trait `Host` (on the runtime's host data): `wrap_node` (the one
+  wrapper of a node, created with the most derived interface), the
+  content attributes of `[Reflect]` (`reflect_get`, `reflect_set`,
+  `reflect_remove`, `reflect_url`) and `glue_state` (the templates of
+  `[LegacyUnforgeable]` members, traced by the host state). Interface
+  types that inherit from `Node` convert to `NodeId` (the wrapper's word
+  is the node index, `node_data`); other interfaces to `Platform` (the
+  object and its host data) as arguments and to the object as results.
+- (Feature 4b: messages.) Hand-written code and conversions return an
+  `Exception` with a bare message; the glue adds Chromium's context
+  ("Failed to execute 'x' on 'Y': ", "Failed to set the 'x' property on
+  'Y': ", "Failed to construct 'Y': ") to `TypeError`, `RangeError` and
+  `DOMException` messages. A value of the wrong type is worded by its
+  place: "parameter N is not of type 'T'." for an argument, "Failed to
+  convert value to 'T'." in a dictionary member, a sequence or record
+  element or an attribute value, "The provided value is not of type
+  '(A or B)'." for a union (members sorted, as Chromium prints them).
+  Errors that script code throws pass unchanged. Measured in
+  `tools/probes/web-bindings.json`.
+- (Feature 4b: overloads and unions.) The generator computes the effective
+  overload set per argument count: fewer arguments than the shortest
+  overload is "N argument(s) required, but only M present."; a count
+  without an overload is "Overload resolution failed." (Chromium's
+  words); one overload is called directly; several overloads of one count
+  are told apart at the distinguishing index by the runtime test of Web
+  IDL §3.6 step 12 (`bindings::overload::select`, without buffer and
+  `bigint` types), which also fails with "Overload resolution failed.".
+  The selection runs before the arguments before the distinguishing index
+  are converted (Web IDL converts those first; the difference shows only
+  with side effects of those conversions together with an `@@iterator`
+  getter). Each union type becomes a Rust enum with a converter that
+  follows §3.2.25 for its member types, generated per union.
+- (Feature 4b: property order.) As measured in Chromium: attributes in IDL
+  order, then constants, then operations sorted by name, then
+  `constructor` (the generator calls `Runtime::begin_interface`, defines
+  the members, then `end_interface`). Chromium's attribute order comes
+  from its own IDL files where they differ from the specifications
+  (`Event`, `DOMException`); swb keeps the specifications' order.
+- (Feature 4b: `[Reflect]`.) The HTML attributes `[Reflect]`,
+  `[ReflectURL]`, `[ReflectNonNegative]`, `[ReflectPositive]`,
+  `[ReflectPositiveWithFallback]`, `[ReflectRange]`, `[ReflectDefault]`
+  and `[ReflectSetter]` for `DOMString`, `DOMString?`, `USVString`,
+  `boolean`, `long` and `unsigned long`. HTML gives the keywords of
+  enumerated attributes in prose, so swb's IDL files add them with
+  extended attributes of their own: `[SwbKeywords="ltr rtl auto"]`
+  (`alias=canonical` maps a keyword to its state's keyword, `=canonical`
+  is the empty keyword), `[SwbMissing="..."]` and `[SwbInvalid="..."]`
+  (the canonical keywords of the missing and invalid value defaults).
+- (Feature 4b: where the test IDL lives.) `crates/web/tests/idl/test.idl`
+  (swb's own, with a stand-in `Node` and a `[Global] Window`), generated
+  with `webidl.idl` into `crates/web/tests/generated/` and compiled by
+  `crates/web/tests/bindings.rs`. `swb_webidl::binding_sets` names both
+  sets; the freshness test (`crates/webidl/tests/freshness.rs`) checks
+  both.
+- (Feature 4b: not generated yet.) Indexed and named properties (special
+  operations: the hooks of legacy platform objects), `iterable`,
+  `[LegacyFactoryFunction]`, static attributes, `[Reflect]` of `double`
+  and of element references: the generator refuses them with a message
+  and the line.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -413,6 +495,15 @@ lists the design; these are the parts to build):
    construct 'Name': Illegal constructor`; a constructor gets the
    prototype of `new.target` with `Runtime::prototype_from_new_target`,
    so script subclasses work.)
+   (Feature 4b: `ClassId::from_index` lets the generated glue name its
+   classes by constants; `Runtime::begin_interface` and `end_interface`
+   split `create_interface` so that `constructor` comes after the
+   members; `host/ops.rs` makes the abstract operations that the
+   conversions need public: `ToNumber`, `ToBoolean`, `IsCallable`, `GetV`,
+   `Set`, `[[GetOwnProperty]]`, `[[OwnPropertyKeys]]`,
+   `CreateDataPropertyOrThrow`, the iterator steps, arrays, plain objects,
+   `PromiseResolve`, rejected promises and error objects. They call the
+   engine's own implementations; nothing on the engine's paths changed.)
 2. **Host hooks for internal methods:** optional functions per class
    for `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, `[[Get]]`,
    `[[Set]]`, `[[Delete]]` and `[[OwnPropertyKeys]]`. A hook may run

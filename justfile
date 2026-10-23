@@ -26,6 +26,10 @@ lint:
 test:
     cargo test --workspace --locked
 
+# Generate the Web API binding glue from crates/web/idl/ (and the test IDL) with swb-webidl; the freshness test fails until this ran.
+bindings:
+    cargo run -q -p swb-webidl
+
 # Check dependency licenses, bans and sources (offline-safe subset).
 deny:
     cargo deny --offline check licenses bans sources

@@ -85,6 +85,7 @@ pub(crate) use generator::GeneratorState;
 pub(crate) use generator::{
     next as generator_next, return_ as generator_return, throw as generator_throw,
 };
+pub(crate) use iter::IteratorRecord;
 pub(crate) use private::PrivateEnvironment;
 pub(crate) use promise::{ContinuationFn, PromiseState};
 pub use promise::{PromiseStatus, ReactionKind};

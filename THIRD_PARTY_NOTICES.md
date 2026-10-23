@@ -16,6 +16,10 @@ This file lists:
   other projects: from Chromium and Skia (BSD-3-Clause; copies of swb's
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
+- the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
+  (BSD-3-Clause) and a W3C specification (W3C Software and Document
+  License), from which the binding glue in `crates/web/src/generated/` is
+  generated;
 - third-party content in the test fixtures (not in binaries).
 
 It does not reproduce the notices of the permissive dependencies (MIT,
@@ -69,6 +73,98 @@ headers of the files list them):
 Copyright WHATWG (Apple, Google, Mozilla, Microsoft). Licensed under the
 Creative Commons Attribution 4.0 International License:
 https://creativecommons.org/licenses/by/4.0/. The changes are swb's.
+
+## WHATWG DOM and Web IDL Standards: IDL (BSD-3-Clause)
+
+`crates/web/idl/dom.idl` and `crates/web/idl/webidl.idl` contain IDL
+blocks copied from the DOM Living Standard (https://dom.spec.whatwg.org/)
+and the Web IDL Living Standard (https://webidl.spec.whatwg.org/), both
+last updated 19 October 2026, cut by swb to the members that it
+implements (the headers of the files say what was cut). The standards are
+licensed under CC BY 4.0, and "to the extent portions of it are
+incorporated into source code, such portions in the source code are
+licensed under the BSD 3-Clause License instead" (WHATWG IPR Policy 7.1.1,
+https://whatwg.org/ipr-policy). The generated glue in
+`crates/web/src/generated/` is derived from these files.
+
+> Copyright © WHATWG (Apple, Google, Mozilla, Microsoft).
+>
+> Redistribution and use in source and binary forms, with or without
+> modification, are permitted provided that the following conditions are
+> met:
+>
+> 1. Redistributions of source code must retain the above copyright
+>    notice, this list of conditions and the following disclaimer.
+> 2. Redistributions in binary form must reproduce the above copyright
+>    notice, this list of conditions and the following disclaimer in the
+>    documentation and/or other materials provided with the distribution.
+> 3. Neither the name of the copyright holder nor the names of its
+>    contributors may be used to endorse or promote products derived from
+>    this software without specific prior written permission.
+>
+> THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+> IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+> TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+> PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+> HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+> SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+> TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+> PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+> LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+> NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+> SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## W3C High Resolution Time: IDL (W3C Software and Document License)
+
+`crates/web/idl/hr-time.idl` contains the typedef `DOMHighResTimeStamp`
+from High Resolution Time (W3C Editor's Draft of 1 September 2026,
+https://w3c.github.io/hr-time/); swb cut the file to this typedef. The
+owner allowed this license for IDL data files (ADR 0003, 2026-10-22).
+
+> This software or document includes material copied from or derived
+> from High Resolution Time, https://w3c.github.io/hr-time/. Copyright ©
+> 2026 World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
+The license (https://www.w3.org/copyright/software-license-2023/,
+retrieved 2026-10-23):
+
+> By obtaining and/or copying this work, you (the licensee) agree that
+> you have read, understood, and will comply with the following terms and
+> conditions.
+>
+> Permission to copy, modify, and distribute this work, with or without
+> modification, for any purpose and without fee or royalty is hereby
+> granted, provided that you include the following on ALL copies of the
+> work or portions thereof, including modifications:
+>
+> - The full text of this NOTICE in a location viewable to users of the
+>   redistributed or derivative work.
+> - Any pre-existing intellectual property disclaimers, notices, or terms
+>   and conditions. If none exist, the W3C software and document short
+>   notice should be included.
+> - Notice of any changes or modifications, through a copyright statement
+>   on the new code or document such as "This software or document
+>   includes material copied from or derived from [title and URI of the
+>   W3C document]. Copyright © [$year-of-document] World Wide Web
+>   Consortium. https://www.w3.org/copyright/software-license-2023/"
+>
+> Disclaimers
+>
+> THIS WORK IS PROVIDED "AS IS," AND COPYRIGHT HOLDERS MAKE NO
+> REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+> LIMITED TO, WARRANTIES OF MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR
+> PURPOSE OR THAT THE USE OF THE SOFTWARE OR DOCUMENT WILL NOT INFRINGE ANY
+> THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+>
+> COPYRIGHT HOLDERS WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL
+> OR CONSEQUENTIAL DAMAGES ARISING OUT OF ANY USE OF THE SOFTWARE OR
+> DOCUMENT.
+>
+> The name and trademarks of copyright holders may NOT be used in
+> advertising or publicity pertaining to the work without specific,
+> written prior permission. Title to copyright in this work will at all
+> times remain with copyright holders.
 
 ## Chromium (BSD-3-Clause)
 

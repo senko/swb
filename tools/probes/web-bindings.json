@@ -1,0 +1,140 @@
+{"viewport": [400, 200],
+ "javascript": true,
+ "cases": [
+   {"name": "integers",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script><canvas id=c></canvas>",
+    "measure": [
+      {"js": "(() => { const d = document.createElement('div'); const r = []; for (const v of ['12abc', '12', 1.9, -1.9, 2 ** 32 + 5, 2 ** 31, -(2 ** 31) - 1, NaN, Infinity, null, true, '0x10', ' 7 ', { valueOf() { return 3; } }]) { d.tabIndex = v; r.push(d.tabIndex); } return r; })()"},
+      {"js": "(() => { const s = document.createElement('style'); document.head.appendChild(s); return [t(() => s.sheet.insertRule('a{}', -1)), t(() => s.sheet.insertRule('a{}', 2 ** 32)), t(() => s.sheet.insertRule('a{}', '1x'))]; })()"},
+      {"js": "[1.5, 2.5, -2.5, 0.5, -0.5, 2 ** 70, -(2 ** 70), NaN, Infinity, '3'].map((v) => new Blob(['abcdef']).slice(v).size)"},
+      {"js": "(() => { const ws = new WebSocket('ws://127.0.0.1:9/'); const r = []; for (const c of [70000, -5, 2999.5, 3000.5, 3001.5, 1000.4, NaN, '3000', 4999.5]) { try { ws.close(c); r.push('ok ' + c); } catch (e) { r.push(e.name + ': ' + e.message); } } return r; })()"},
+      {"js": "(() => { const x = document.getElementById('c').getContext('2d'); return [NaN, Infinity, 2 ** 31, -(2 ** 31) - 1, 1.9, '2', null].map((v) => t(() => x.getImageData(v, 0, 1, 1).width)); })()"},
+      {"js": "(() => { const x = document.getElementById('c').getContext('2d'); return [t(() => x.createImageData(1.9, 1).width), t(() => x.createImageData(0, 1).width), t(() => x.createImageData(-2, 1).width)]; })()"}
+    ]},
+   {"name": "floats",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "(() => { const r = new DOMRect('1', null, undefined, {}); return [r.x, r.y, String(r.width), String(r.height)]; })()"},
+      {"js": "(() => { const v = document.createElement('video'); return [t(() => { v.currentTime = Infinity; }), t(() => { v.currentTime = 'x'; }), t(() => { v.volume = NaN; })]; })()"},
+      {"js": "String(new DOMPoint(NaN, Infinity, -Infinity).toJSON().y)"}
+    ]},
+   {"name": "strings",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "(() => { const d = document.createElement('div'); const r = []; d.title = null; r.push(d.title); d.title = undefined; r.push(d.title); d.title = { toString() { return 'x'; } }; r.push(d.title); d.title = 12.5; r.push(d.title); r.push(t(() => { d.title = Symbol('s'); })); d.innerHTML = null; r.push(d.innerHTML); d.textContent = null; r.push(d.textContent); d.textContent = undefined; r.push(d.textContent); return r; })()"},
+      {"js": "[t(() => new Headers([['a', '\\u0100']])), t(() => new Headers([['a', '\\u00ff']]).get('a').length)]"},
+      {"js": "new URLSearchParams('a=\\ud800').get('a').charCodeAt(0)"},
+      {"js": "(() => { const d = document.createElement('div'); d.title = 'a\\ud800b'; return [d.title.length, d.title.charCodeAt(1)]; })()"}
+    ]},
+   {"name": "arguments",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script><div id=a><b></b></div>",
+    "measure": [
+      {"js": "[t(() => document.body.appendChild()), t(() => document.body.appendChild({})), t(() => document.body.appendChild(null)), t(() => document.body.appendChild(undefined)), t(() => document.body.insertBefore()), t(() => document.body.insertBefore(document.createElement('i'))), t(() => document.body.insertBefore(document.createElement('i'), {})), t(() => document.body.insertBefore(document.createElement('i'), undefined).tagName)]"},
+      {"js": "[t(() => document.createElement()), t(() => Node.prototype.isSameNode.call(document.body)), t(() => document.body.contains()), t(() => document.body.contains(undefined)), t(() => document.body.contains(5))]"},
+      {"js": "(() => { const d = document.getElementById('a'); return [d.cloneNode().childNodes.length, d.cloneNode(undefined).childNodes.length, d.cloneNode(1).childNodes.length, d.cloneNode('').childNodes.length]; })()"},
+      {"js": "[t(() => { Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set.call(document.createElement('p')); return 'set'; }), t(() => { const p = document.createElement('p'); Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set.call(p, undefined); return p.textContent; })]"},
+      {"js": "(() => { const d = document.createElement('div'); d.append('a', 1, null, undefined, document.createElement('b')); return d.innerHTML; })()"},
+      {"js": "(() => { const d = document.createElement('div'); d.append(); return [d.childNodes.length, d.append.length, document.createElement('div').classList.add.length]; })()"},
+      {"js": "(() => { const log = []; const v = { valueOf() { log.push('v'); throw new RangeError('from valueOf'); } }; return [t(() => document.body.insertBefore(v, v)), log.join()]; })()"}
+    ]},
+   {"name": "overloads",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script><canvas id=c></canvas>",
+    "measure": [
+      {"js": "(() => { const x = document.getElementById('c').getContext('2d'); return [t(() => x.createImageData()), t(() => x.createImageData({})), t(() => x.createImageData(5)), t(() => x.createImageData(2, 3).height), t(() => x.createImageData(x.createImageData(4, 5)).width), t(() => x.createImageData(null))]; })()"},
+      {"js": "(() => { const c = document.getElementById('c'); const x = c.getContext('2d'); return [t(() => x.drawImage(c, 1, 2, 3)), t(() => x.drawImage(c)), t(() => x.drawImage(c, 1)), t(() => x.drawImage(c, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), t(() => x.drawImage({}, 1, 2))]; })()"},
+      {"js": "(() => { const x = new XMLHttpRequest(); return [t(() => x.open('GET')), t(() => x.open())]; })()"},
+      {"js": "[t(() => window.scrollTo()), t(() => window.scrollTo(5)), t(() => window.scrollTo({})), t(() => window.scrollTo(0, 0))]"}
+    ]},
+   {"name": "enums-and-dictionaries",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "[t(() => new Blob([], { endings: 'bogus' })), t(() => document.body.scrollIntoView({ block: 'x' })), t(() => new Blob([], { endings: 'native' }).size)]"},
+      {"js": "(() => { const x = new XMLHttpRequest(); x.responseType = 'bogus'; const a = x.responseType; x.responseType = 'json'; const b = x.responseType; x.responseType = 'TEXT'; return [a, b, x.responseType]; })()"},
+      {"js": "[t(() => new Event('x', 5)), t(() => new Event('x', null).bubbles), t(() => new Event('x', undefined).bubbles), t(() => new Event('x', { bubbles: 1 }).bubbles), t(() => new Event('x', 'str')), t(() => new Event('x', () => 1).bubbles)]"},
+      {"js": "[t(() => new PromiseRejectionEvent('x', {})), t(() => new PromiseRejectionEvent('x')), t(() => new Event())]"},
+      {"js": "(() => { const order = []; const init = new Proxy({}, { get(target, key) { order.push(String(key)); return undefined; }, has(target, key) { order.push('has ' + String(key)); return false; } }); new CustomEvent('x', init); return order; })()"},
+      {"js": "(() => { const order = []; const init = {}; for (const k of ['detail', 'composed', 'cancelable', 'bubbles']) Object.defineProperty(init, k, { get() { order.push(k); return 1; } }); new CustomEvent('x', init); return order; })()"},
+      {"js": "(() => { const e = new Event('x', { get bubbles() { throw new SyntaxError('in getter'); } }); return 'no error'; })()"},
+      {"js": "t(() => new Event('x', { get bubbles() { throw new SyntaxError('in getter'); } }))"},
+      {"js": "t(() => new MouseEvent('x', { clientX: 'abc' }).clientX)"},
+      {"js": "t(() => new KeyboardEvent('x', { key: Symbol('k') }))"},
+      {"js": "t(() => new MouseEvent('x', { view: 5 }))"}
+    ]},
+   {"name": "sequences-records-unions",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "[t(() => new Blob('abc')), t(() => new Blob(5)), t(() => new Blob({ [Symbol.iterator]: 5 })), t(() => new Blob([1, 2]).size), t(() => new Blob(new Set(['ab'])).size), t(() => new Blob({ length: 1, 0: 'a' })), t(() => new Blob(null)), t(() => new Blob(undefined).size)]"},
+      {"js": "[t(() => window.postMessage(1, '*', [5])), t(() => window.postMessage(1, '*', 5))]"},
+      {"js": "[t(() => new URLSearchParams({ a: 1, b: '2' }).toString()), t(() => new URLSearchParams(Object.defineProperty({ x: 1 }, 'h', { value: 1, enumerable: false })).toString()), t(() => new URLSearchParams({ [Symbol('s')]: 1, z: 2 }).toString()), t(() => new URLSearchParams({ 2: 'b', 1: 'a', c: 'c' }).toString())]"},
+      {"js": "[t(() => new URLSearchParams([['a', '1'], ['b', 2]]).toString()), t(() => new URLSearchParams('?a=1').toString()), t(() => new URLSearchParams(5).toString()), t(() => new URLSearchParams(null).toString()), t(() => new URLSearchParams([['a']])), t(() => new URLSearchParams([5])), t(() => new URLSearchParams(() => 1).toString())]"},
+      {"js": "(() => { const log = []; const p = new Proxy({ a: 1, b: 2 }, { ownKeys(t) { log.push('ownKeys'); return Reflect.ownKeys(t); }, getOwnPropertyDescriptor(t, k) { log.push('gopd ' + String(k)); return Reflect.getOwnPropertyDescriptor(t, k); }, get(t, k) { log.push('get ' + String(k)); return Reflect.get(t, k); } }); new URLSearchParams(p); return log; })()"},
+      {"js": "(() => { const log = []; const it = { [Symbol.iterator]() { log.push('iter'); let i = 0; return { next() { log.push('next ' + i); i++; return i > 2 ? { done: true } : { value: { valueOf() { log.push('conv'); return 'x'; }, toString() { log.push('str'); return 'y'; } }, done: false }; } }; } }; return [new Blob(it).size, log.join()]; })()"}
+    ]},
+   {"name": "callbacks",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "[t(() => new MutationObserver(5)), t(() => new MutationObserver({})), t(() => new MutationObserver()), t(() => requestAnimationFrame(5)), t(() => requestAnimationFrame(null)), t(() => typeof new MutationObserver(class {}))]"},
+      {"js": "[t(() => document.addEventListener('x', 5)), t(() => document.addEventListener('x', 'str')), t(() => document.addEventListener('x', null)), t(() => document.addEventListener('x')), t(() => document.addEventListener('x', {})), t(() => document.addEventListener()), t(() => document.addEventListener('x', () => 1, 7))]"},
+      {"js": "(() => { const r = []; const o = { handleEvent(e) { r.push('obj ' + (this === o) + ' ' + e.type); } }; const f = function (e) { r.push('fn ' + (this === document) + ' ' + e.type); }; f.handleEvent = () => r.push('not called'); document.addEventListener('zz', o); document.addEventListener('zz', f); document.dispatchEvent(new Event('zz')); return r; })()"},
+      {"js": "(() => { const errors = []; window.onerror = (m) => { errors.push(m); return true; }; document.addEventListener('yy', {}); document.addEventListener('yy', { handleEvent: 5 }); document.dispatchEvent(new Event('yy')); window.onerror = null; return errors; })()"},
+      {"js": "(() => { const log = []; const o = { get handleEvent() { log.push('get'); return () => log.push('call'); } }; document.addEventListener('ww', o); log.push('added'); document.dispatchEvent(new Event('ww')); document.dispatchEvent(new Event('ww')); return log; })()"},
+      {"js": "new Promise((resolve) => { const r = []; setTimeout(() => r.push('a'), '12abc'); setTimeout(() => r.push('b'), 5); setTimeout(() => r.push('c'), { valueOf() { return 1; } }); setTimeout(() => resolve(r), 40); })"},
+      {"js": "new Promise((resolve) => { window.__x = []; setTimeout('window.__x.push(1)'); setTimeout(5); setTimeout(() => resolve(window.__x), 20); })"}
+    ]},
+   {"name": "promise-any-object",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "(() => { const p = Promise.resolve(1); const e1 = new PromiseRejectionEvent('x', { promise: 5 }); const e2 = new PromiseRejectionEvent('x', { promise: p }); return [e1.promise instanceof Promise, e2.promise === p, t(() => new PromiseRejectionEvent('x', { promise: undefined }))]; })()"},
+      {"js": "(() => { const o = {}; return [new CustomEvent('x', { detail: o }).detail === o, new CustomEvent('x').detail, new CustomEvent('x', { detail: undefined }).detail]; })()"},
+      {"js": "[t(() => document.body.animate(5)), t(() => new MutationObserver(() => 1).observe(document.body, 5)), t(() => new MutationObserver(() => 1).observe(5, {}))]"}
+    ]},
+   {"name": "dom-exception",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script>",
+    "measure": [
+      {"js": "(() => { const e = new DOMException(); return [e.name, e.message, e.code, String(e), Object.prototype.toString.call(e)]; })()"},
+      {"js": "(() => { const e = new DOMException('m', 'SyntaxError'); return [e.name, e.message, e.code, String(e), new DOMException('m', 'Bogus').code, new DOMException(undefined, undefined).name, new DOMException(null, null).message, new DOMException(1, 2).name]; })()"},
+      {"js": "['IndexSizeError', 'HierarchyRequestError', 'WrongDocumentError', 'InvalidCharacterError', 'NoModificationAllowedError', 'NotFoundError', 'NotSupportedError', 'InUseAttributeError', 'InvalidStateError', 'SyntaxError', 'InvalidModificationError', 'NamespaceError', 'InvalidAccessError', 'TypeMismatchError', 'SecurityError', 'NetworkError', 'AbortError', 'URLMismatchError', 'QuotaExceededError', 'TimeoutError', 'InvalidNodeTypeError', 'DataCloneError', 'EncodingError', 'NotReadableError', 'OperationError', 'ValidationError'].map((n) => new DOMException('', n).code)"},
+      {"js": "(() => { const e = new DOMException('m'); return [e instanceof Error, e instanceof DOMException, Object.getPrototypeOf(DOMException.prototype) === Error.prototype, Object.getPrototypeOf(DOMException) === Function.prototype, DOMException.length, DOMException.name, Error.prototype.isPrototypeOf(e)]; })()"},
+      {"js": "(() => { const e = new DOMException('m', 'NotFoundError'); return [JSON.stringify(Object.getOwnPropertyNames(e)), JSON.stringify(Object.getOwnPropertyNames(DOMException.prototype)), JSON.stringify(Object.getOwnPropertyNames(DOMException)), typeof e.stack, 'stack' in e]; })()"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(DOMException.prototype, 'name'); const c = Object.getOwnPropertyDescriptor(DOMException, 'SYNTAX_ERR'); const p = Object.getOwnPropertyDescriptor(DOMException.prototype, 'SYNTAX_ERR'); return [typeof d.get, d.set, d.enumerable, d.configurable, d.get.name, c.value, c.writable, c.enumerable, c.configurable, p.value, p.writable, p.enumerable, p.configurable]; })()"},
+      {"js": "[t(() => DOMException()), t(() => Object.getOwnPropertyDescriptor(DOMException.prototype, 'code').get.call({})), t(() => Object.getOwnPropertyDescriptor(DOMException.prototype, 'message').get.call(new Error('x'))), t(() => new DOMException(Symbol()))]"},
+      {"js": "(() => { try { document.body.appendChild(document.documentElement); } catch (e) { return [e instanceof DOMException, e.name, e.code, e.message, JSON.stringify(Object.getOwnPropertyNames(e)), typeof e.stack, String(e.stack).split('\\n')[0], String(e)]; } })()"},
+      {"js": "(() => { try { document.querySelector('##'); } catch (e) { return [e.name, e.code, e.message]; } })()"},
+      {"js": "(() => { class E extends DOMException { constructor() { super('sub', 'AbortError'); } } const e = new E(); return [e instanceof E, e.name, e.code, Object.getPrototypeOf(e) === E.prototype]; })()"},
+      {"js": "(() => { const e = new DOMException('m', 'AbortError'); e.name = 'x'; return [e.name, Object.getOwnPropertyNames(e).length, Object.prototype.toString.call(DOMException.prototype)]; })()"}
+    ]},
+   {"name": "node-descriptors",
+    "html": "<!DOCTYPE html><div id=a></div>",
+    "measure": [
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(Node.prototype))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(Node))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(EventTarget.prototype))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(EventTarget))"},
+      {"js": "['appendChild', 'insertBefore', 'replaceChild', 'removeChild', 'cloneNode', 'isEqualNode', 'isSameNode', 'compareDocumentPosition', 'contains', 'lookupPrefix', 'lookupNamespaceURI', 'isDefaultNamespace', 'hasChildNodes', 'normalize', 'getRootNode'].map((n) => n + ' ' + Node.prototype[n].length)"},
+      {"js": "['addEventListener', 'removeEventListener', 'dispatchEvent'].map((n) => n + ' ' + EventTarget.prototype[n].length + ' ' + EventTarget.prototype[n].name)"},
+      {"js": "['nodeType', 'nodeName', 'baseURI', 'isConnected', 'parentNode', 'firstChild', 'lastChild', 'previousSibling', 'nextSibling', 'nodeValue', 'textContent'].map((n) => { const d = Object.getOwnPropertyDescriptor(Node.prototype, n); return [n, typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set ? d.set.name + ' ' + d.set.length : '-'].join(' '); })"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(Node.prototype, 'ELEMENT_NODE'); const e = Object.getOwnPropertyDescriptor(Node, 'DOCUMENT_POSITION_CONTAINED_BY'); return [d.value, d.writable, d.enumerable, d.configurable, e.value, e.writable, e.enumerable, e.configurable]; })()"},
+      {"js": "[EventTarget.length, typeof new EventTarget(), Object.prototype.toString.call(new EventTarget()), Object.getPrototypeOf(Node.prototype) === EventTarget.prototype, Object.getPrototypeOf(Node) === EventTarget]"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(Node.prototype, 'appendChild'); return [d.writable, d.enumerable, d.configurable, String(d.value), Object.prototype.hasOwnProperty.call(d.value, 'prototype'), (() => { try { new d.value(); return 'constructed'; } catch (e) { return String(e); } })()]; })()"},
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(Event.prototype))"},
+      {"js": "(() => { const e = new Event('x'); const d = Object.getOwnPropertyDescriptor(e, 'isTrusted'); return [JSON.stringify(Object.getOwnPropertyNames(e)), typeof d.get, d.enumerable, d.configurable, d.get.name, Object.getOwnPropertyDescriptor(Event.prototype, 'isTrusted') === undefined, Event.length]; })()"},
+      {"js": "(() => { const a = new Event('x'); const b = new Event('y'); return Object.getOwnPropertyDescriptor(a, 'isTrusted').get === Object.getOwnPropertyDescriptor(b, 'isTrusted').get; })()"}
+    ]},
+   {"name": "messages",
+    "html": "<!DOCTYPE html><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }</script><canvas id=c></canvas>",
+    "measure": [
+      {"js": "(() => { const x = document.getElementById('c').getContext('2d'); return [t(() => x.fill('bogus')), t(() => x.isPointInPath(0, 0, 'bogus')), t(() => x.fill(5))]; })()"},
+      {"js": "[t(() => new ClipboardItem(5)), t(() => new ClipboardItem({ a: Symbol() })), t(() => typeof new ClipboardItem({ a: 'x' }))]"},
+      {"js": "[t(() => { document.body = 5; }), t(() => { document.body = null; })]"},
+      {"js": "(() => { const g = new AudioContext().createGain(); return [t(() => g.connect(5)), t(() => g.connect({})), t(() => g.connect())]; })()"},
+      {"js": "[t(() => structuredClone(1, { transfer: [5] })), t(() => new MutationObserver(() => 1).observe(document.body, { attributeFilter: [Symbol()] })), t(() => new MutationObserver(() => 1).observe(document.body, { attributeFilter: 5 }))]"},
+      {"js": "[t(() => document.body.append(Symbol())), t(() => document.body.append('a', Symbol()))]"},
+      {"js": "[t(() => { document.body.tabIndex = 10n; }), t(() => document.getElementById('c').getContext('2d').getImageData(10n, 0, 1, 1)), t(() => new Blob(['ab']).slice(1n))]"},
+      {"js": "[t(() => new DOMRect(Symbol())), t(() => new DOMRect(10n))]"},
+      {"js": "(() => { const f = Object.getOwnPropertyDescriptor(Node.prototype, 'nodeType').get; return [t(() => f.call(5)), t(() => f.call('s')), t(() => Node.prototype.appendChild.call(5, document.body))]; })()"},
+      {"js": "[t(() => getComputedStyle()), t(() => getComputedStyle(5)), t(() => window.getComputedStyle.call(5, document.body) === undefined)]"},
+      {"js": "(() => { const r = []; const d = document.createElement('input'); for (const v of ['TEXT', 'bogus', '', 'Checkbox']) { d.type = v; r.push(d.type + '|' + d.getAttribute('type')); } const i = document.createElement('img'); r.push(String(i.crossOrigin)); i.crossOrigin = 'xyz'; r.push(i.crossOrigin); i.setAttribute('crossorigin', ''); r.push(i.crossOrigin); i.crossOrigin = null; r.push(String(i.crossOrigin), String(i.getAttribute('crossorigin'))); return r; })()"},
+      {"js": "(() => { const r = []; const d = document.createElement('div'); r.push(d.hidden, d.getAttribute('hidden')); d.hidden = 1; r.push(d.getAttribute('hidden')); const i = document.createElement('img'); r.push(i.width); i.setAttribute('width', '-5'); r.push(i.width); i.width = 7.9; r.push(i.getAttribute('width')); const t2 = document.createElement('textarea'); r.push(t2.rows); t2.rows = 0; r.push(t2.getAttribute('rows')); t2.setAttribute('rows', '0'); r.push(t2.rows); const ip = document.createElement('input'); r.push(ip.maxLength); r.push(t(() => { ip.maxLength = -2; })); return r; })()"},
+      {"js": "(() => { const r = []; const td = document.createElement('td'); r.push(td.colSpan); td.setAttribute('colspan', '5000'); r.push(td.colSpan); td.setAttribute('colspan', '0'); r.push(td.colSpan); td.colSpan = 0; r.push(td.getAttribute('colspan')); const s = document.createElement('select'); r.push(s.size); r.push(t(() => { s.size = 0; return s.getAttribute('size'); })); const a = document.createElement('a'); a.setAttribute('href', 'x y'); r.push(a.href.endsWith('/x%20y')); return r; })()"}
+    ]}
+ ]}

@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 4b, the WebIDL generator and the binding glue
+
+- New crate `swb-webidl`: a parser for the WebIDL subset of ADR 0028
+  section 5 (errors with file and line), a checked model (partials,
+  mixins, typedefs, extended attributes) and the generator of the glue.
+  Per interface, it writes a trait of hand-written functions and the
+  native functions that check `this`, convert the arguments (Web IDL
+  §3.2), resolve overloads, call the trait and convert the result;
+  `types.rs` has the dictionaries, enumerations, unions and callbacks.
+  `just bindings` writes the checked-in output; a test fails when it is
+  stale.
+- New crate `swb-web` with the support code: conversions in both
+  directions, exceptions with Chromium's messages and member prefixes,
+  `DOMException` (it inherits from `Error.prototype`, as in Chromium),
+  overload selection, `[Reflect]`, `[LegacyUnforgeable]`,
+  `[Replaceable]`, `[PutForwards]`, `[Global]`, callbacks. The glue of
+  `EventTarget`, `Event`, `Node` and `DOMException` is generated from
+  the DOM, Web IDL and HR-Time IDL (license headers, notices). The
+  behaviour of `Node` and `EventTarget` comes in 4c and 5a; the glue is
+  generic over the host type, so it compiles and registers without
+  them.
+- `js`: `ClassId::from_index`, `begin_interface`/`end_interface`
+  (`constructor` last, as Chromium lists it), public entries to the
+  abstract operations the conversions need. jsbench within noise.
+- Tests: a test IDL with a member for each type and extended attribute,
+  run through the runtime with a fake DOM; the browser's glue with a
+  stand-in host (names, descriptors, lengths, constants, messages); all
+  in both GC modes; expected values from a new probe
+  (`tools/probes/web-bindings.json`).
+- Review fixes: a dictionary that inherits from itself made the
+  generator allocate without end, and a typedef that refers to itself
+  overflowed its stack; both are now errors. A record whose keys convert
+  to the same string (lone surrogates) keeps one entry with the last
+  value, as Web IDL says.
+- The first review run ended when the machine ran short of memory:
+  `/tmp` is a RAM disk, and agents had left copies of the tree and
+  build directories there. Briefs now keep builds out of the scratchpad.
+- Next: feature 4c, the runtime per document.
+
 ## 2026-10-23: M8 feature 4a, the embedding hooks in `js`
 
 - Host classes (ADR 0028 section 6): a registry per runtime with

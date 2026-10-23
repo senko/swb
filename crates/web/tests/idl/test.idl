@@ -1,0 +1,130 @@
+// The test IDL of swb-web (crates/web/tests/bindings.rs): one interface
+// member for each type and extended attribute that the generator supports.
+// It is swb's own and never exposed to pages. Its Node is a stand-in: the
+// generator treats Node and its descendants as node interfaces.
+
+[Global=Window, Exposed=Window]
+interface Window {
+  attribute long globalValue;
+  DOMString globalOp();
+  [LegacyUnforgeable] readonly attribute DOMString fixed;
+};
+
+[Exposed=Window]
+interface Node {
+  readonly attribute DOMString nodeName;
+};
+
+[Exposed=Window]
+interface TestElement : Node {
+  [Reflect] attribute DOMString title;
+  [Reflect="data-x"] attribute DOMString? optionalText;
+  [Reflect, SwbKeywords="ltr rtl auto"] attribute DOMString dir;
+  [Reflect, SwbKeywords="text checkbox radio button=radio", SwbMissing="text", SwbInvalid="text"] attribute DOMString type;
+  [Reflect="crossorigin", SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  [ReflectURL] attribute USVString href;
+  [Reflect] attribute boolean hidden;
+  [Reflect] attribute long tabIndex;
+  [ReflectNonNegative] attribute long maxLength;
+  [Reflect, ReflectDefault=20] attribute unsigned long size;
+  [ReflectPositive] attribute unsigned long cols;
+  [ReflectPositiveWithFallback, ReflectDefault=2] attribute unsigned long rows;
+  [Reflect, ReflectRange=(1, 1000), ReflectDefault=1] attribute unsigned long colSpan;
+  [ReflectSetter] attribute DOMString autocapitalize;
+};
+
+enum TestMode { "fast", "slow", "two-words", "" };
+
+dictionary TestBase {
+  long base = 1;
+  required DOMString name;
+};
+
+dictionary TestDict : TestBase {
+  boolean flag = false;
+  [Clamp] octet clamped;
+  [EnforceRange] unsigned long enforced;
+  TestMode mode = "fast";
+  sequence<DOMString> list;
+  record<DOMString, long> map;
+  Node? node;
+  any extra;
+  double ratio;
+};
+
+dictionary TestOptions {
+  boolean capture = false;
+  DOMString label;
+};
+
+callback TestCallback = DOMString (long n, optional DOMString s);
+
+callback interface TestListener {
+  undefined handle(DOMString what);
+};
+
+typedef (TestElement or DOMString) ElementOrString;
+
+[Exposed=Window]
+interface Tester {
+  constructor(optional DOMString label = "t");
+
+  const long ANSWER = 42;
+  const boolean YES = true;
+  const double HALF = 0.5;
+  const unsigned long BIG = 4294967295;
+
+  attribute long counter;
+  readonly attribute DOMString label;
+  [Replaceable] readonly attribute long replaceable;
+  [PutForwards=counter] readonly attribute Tester self;
+  [LegacyUnforgeable] readonly attribute boolean trusted;
+  [SameObject] readonly attribute TestElement element;
+
+  DOMString integers(byte a, octet b, short c, unsigned short d, long e, unsigned long f, long long g, unsigned long long h);
+  DOMString clamped([Clamp] octet a, [Clamp] long b, [Clamp] unsigned short c, [Clamp] long long d);
+  DOMString enforced([EnforceRange] long a, [EnforceRange] unsigned long b, [EnforceRange] long long c);
+  DOMString floats(float a, unrestricted float b, double c, unrestricted double d);
+  DOMString strings(DOMString a, [LegacyNullToEmptyString] DOMString b, USVString c, ByteString d);
+  DOMString nullables(long? a, DOMString? b, Node? c);
+  DOMString optionals(optional long a = 5, optional DOMString b = "x", optional boolean c, optional TestMode d = "slow", optional any e, optional double f = 1.5, optional sequence<long> g = []);
+  DOMString variadic(DOMString first, long... rest);
+  DOMString sequences(sequence<long> a, sequence<sequence<DOMString>> b);
+  DOMString records(record<DOMString, long> a, record<USVString, Node> b);
+  DOMString dictionary(TestDict d);
+  DOMString options(optional TestOptions o = {});
+  TestMode echoMode(TestMode m);
+  DOMString callbackFunction(TestCallback cb);
+  DOMString callbackInterface(TestListener listener);
+  Promise<any> promised(Promise<any> p);
+  Promise<any> rejects(DOMString kind);
+  any echoAny(any value);
+  object echoObject(object value);
+  DOMString unions(ElementOrString a, (long or boolean) b, (sequence<long> or record<DOMString, long> or DOMString) c, (TestOptions or boolean) d);
+  DOMString nullableUnion((long or DOMString)? a);
+  DOMString handler((TestCallback or DOMString) h);
+
+  DOMString over();
+  DOMString over(long a);
+  DOMString over(DOMString a, long b);
+  DOMString over(Node a, long b);
+  DOMString over(sequence<long> a, long b);
+  DOMString over(TestOptions a, long b);
+  DOMString over(long a, long b, long c, long d);
+  DOMString pick(Node a);
+  DOMString pick(TestCallback a);
+
+  sequence<TestElement> elements();
+  record<DOMString, long> recordOut();
+  TestDict dictOut();
+  (long or DOMString) unionOut(boolean number);
+  sequence<DOMString>? maybeList(boolean present);
+  TestElement? maybeElement(boolean present);
+
+  undefined throwDom(DOMString name, DOMString message);
+  undefined throwType();
+  undefined throwRange();
+  [SwbCustom] any custom(any value);
+  static DOMString version();
+  stringifier;
+};

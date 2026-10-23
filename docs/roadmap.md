@@ -2429,10 +2429,27 @@ Steps:
         tests (each WebIDL type, measured against Chromium where a
         conversion is observable: `setTimeout('x', '12abc')`,
         `[Clamp]`, `[EnforceRange]` errors).
+        Done 2026-10-23. The owner had already allowed the W3C license
+        for IDL files (ADR 0003, 2026-10-22). The generator writes a
+        trait per interface for the hand-written functions and glue
+        generic over the host type; node interfaces convert to
+        `NodeId`, others to the object and its host data. Chromium's
+        messages with the member prefix; overloads by argument count and
+        by the Web IDL type test ("Overload resolution failed."); unions
+        as generated enums; `[Reflect]` with swb's keyword attributes
+        for enumerated attributes; `DOMException` inherits from
+        `Error.prototype`, as in Chromium. `Event` is in `dom.idl` too
+        (`EventTarget` needs it). Property order as in Chromium:
+        attributes, constants, sorted operations, `constructor`. Not
+        generated yet: indexed and named properties, `iterable`,
+        `[LegacyFactoryFunction]`. test262 unchanged; jsbench within
+        noise.
       - 4c `web`: the runtime per document, the lending of
         `DocumentState`, the wrapper vector and side table, `Window` as
         the global object, `Document`, `Node`, `Element` and
-        `CharacterData` with their read-only tree accessors, `console`
+        `CharacterData` with their read-only tree accessors, `NodeList`
+        for `childNodes` (the generator gets indexed getters and
+        `iterable`, which 4b left out), `console`
         to the log and to the automation console buffer,
         `page.evaluate`, `page.consoleMessages`, `swb --eval`. Classic
         inline scripts run at the end of the parse (the real script
@@ -2810,6 +2827,42 @@ Steps:
 - `js`: the source text of a script is charged only while the script's
   code object lives; its functions keep the shared text alive after
   that, uncharged (older than M8).
+- `webidl`, 6a/6b (found in feature 4b): `[LegacyFactoryFunction]`
+  (`Image`, `Option`) is not generated; it needs a `js` API for a
+  constructor function with a given `prototype`.
+- `web`: `DOMException`s that the bindings throw have no own `stack`
+  (Chromium: an own string `stack` whose first line is `Name: message`).
+- `web`: overload resolution selects the overload before it converts
+  the earlier arguments (Web IDL: after). Not observable with the real
+  IDL files (no overloads yet); revisit when an overload has its
+  distinguishing argument after the first.
+- `web`: sequences are capped at 2^24 items; a 10^9-length array-like
+  runs 9 s (debug build) before the `RangeError`, and each item is
+  recorded in the handle scope. A lower cap or a time charge per item
+  would end such scripts sooner.
+- `web`: `[SecureContext]` members are exposed everywhere; `[Exposed]`
+  other than `Window` or `*` exposes nothing (no workers).
+- `web`: `[Reflect]` of `double` (needs the HTML float parser) and of
+  element references is not generated. The setter message of a
+  positive reflected integer ("The value provided is 0, which is an
+  invalid size.") is a guess; measure `input.size = 0`.
+- `web`: Chromium lists the attributes of `Event.prototype` and
+  `DOMException.prototype` in its own order; swb uses the
+  specifications' order.
+- `webidl`: the checks accept duplicate enum values, unions of
+  indistinguishable members, overloads such as `f(any)` with `f(long)`,
+  a repeated `stringifier;` and `1e999`; nesting of about 1,000 levels
+  overflows the stack. The IDL files are ours, so these are checks
+  against our own mistakes.
+- `web`, tests: no `sequence<object>`, `sequence` of callbacks, record of
+  objects, callback-typed dictionary member, or `Promise` followed by
+  more arguments in `test.idl`.
+- `web` uses `Runtime::heap_mut` in three places, and its `keep` helper
+  repeats `Runtime::keep`. The generated code has long one-line
+  statements; `freshness.rs` repeats the stale-file logic of `main.rs`.
+- `js`: V8 says "Class constructor X cannot be invoked without 'new'"
+  (with the class name); swb says "Class constructors cannot be invoked
+  without 'new'".
 - `jsbench`: the best of 5 runs depends on where collections fall (the
   real source size in 4a made `toLowerCase` +17 % and a regexp row
   +15 %). A collection before each timed run, or the median, would make

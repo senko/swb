@@ -29,10 +29,14 @@
 //!   running task with a reason.
 //! - **Event handlers** (`handler.rs`): functions compiled with a scope
 //!   chain of object environments.
+//! - **Operations** (`ops.rs`): the ECMAScript abstract operations that the
+//!   Web IDL conversions use (`ToNumber`, `Get`, `[[OwnPropertyKeys]]`,
+//!   iteration, arrays, promises, error objects).
 
 mod handler;
 pub(crate) mod hooks;
 mod interface;
+mod ops;
 
 use std::any::Any;
 
@@ -41,6 +45,7 @@ pub use hooks::{
     DefineOwnPropertyHook, DeleteHook, GetHook, GetOwnPropertyHook, HostHooks, OwnKeysHook, SetHook,
 };
 pub use interface::{Attributes, Interface};
+pub use ops::ScriptIterator;
 
 use crate::error::Termination;
 use crate::heap::{Gc, Tracer};
@@ -65,6 +70,13 @@ const MAX_CLASSES: usize = 1 << 20;
 pub struct ClassId(u32);
 
 impl ClassId {
+    /// The class with the number `index`: the generated bindings name
+    /// their classes by constants, in the order of their registration. A
+    /// number without a class fails every brand check.
+    pub const fn from_index(index: u32) -> ClassId {
+        ClassId(index)
+    }
+
     /// The number of the class.
     pub fn index(self) -> u32 {
         self.0

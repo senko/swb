@@ -1,0 +1,16 @@
+[package]
+name = "swb-web"
+description = "Web API bindings: the glue generated from WebIDL, conversions, exceptions."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+swb-dom.workspace = true
+swb-js.workspace = true

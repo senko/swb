@@ -12,6 +12,20 @@ Format: source, license (for code), what it influenced.
 ## Specifications
 
 - WHATWG HTML Living Standard — https://html.spec.whatwg.org/
+- WHATWG Web IDL Standard — https://webidl.spec.whatwg.org/ — the
+  conversions of `swb-web` (§3.2), overload resolution (§3.6), the
+  interface objects and members (§3.7), exceptions and `DOMException`
+  (§3.14, §4.3), the grammar of `swb-webidl`. Its `DOMException` IDL is
+  copied into `crates/web/idl/webidl.idl` (BSD-3-Clause for IDL in source
+  code, WHATWG IPR policy 7.1.1; see THIRD_PARTY_NOTICES.md).
+- WHATWG DOM Standard — https://dom.spec.whatwg.org/ — the IDL of
+  `Event`, `EventTarget` and `Node`, copied into `crates/web/idl/dom.idl`
+  (BSD-3-Clause, as above).
+- W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
+  typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
+  Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
+- WHATWG HTML §2.6.1, reflecting content attributes in IDL attributes —
+  the getters and setters of `[Reflect]` in `swb-web`.
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,
   https://fetch.spec.whatwg.org/, https://encoding.spec.whatwg.org/
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
