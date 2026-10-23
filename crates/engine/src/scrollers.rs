@@ -3,7 +3,7 @@
 //! offsets, kept across layouts and keyed by the element; their scroll
 //! ranges from the last layout; the scroll chain of a node; and the
 //! alignment of a box in a scrollport for "scroll into view". The viewport
-//! is scrolled by `Page` (`page/scroll.rs`). Design: ADR 0019.
+//! is scrolled by `DocumentState` (`document/queries.rs`). Design: ADR 0019.
 
 use std::collections::{HashMap, HashSet};
 

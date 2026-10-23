@@ -1,26 +1,19 @@
 //! Input handling of a page: the pointer (hover, `:active`, clicks, text
 //! selection), the keyboard (focus navigation, scrolling, activation), and
-//! the element states that depend on them.
+//! the element states that depend on them. The element states and the
+//! selection belong to the document (`crate::document`); the pointer and
+//! the press are the page's.
 
-use swb_dom::{Document, NodeId};
-use swb_layout::{FragmentTree, Point, Size};
-use swb_style::{Cursor, ElementStates, StyleMap, UserSelect, Visibility};
+use swb_dom::NodeId;
+use swb_layout::{Point, Size};
+use swb_style::{Cursor, ElementStates, UserSelect};
 
 use super::Page;
+use crate::document::is_rendered_in;
 use crate::focus;
 use crate::hit_test::{self, HitResult};
 use crate::input::{Key, Modifiers, MouseButton};
 use crate::selection::{self, Selection, Snap, TextPosition};
-
-/// True if the element has a box, is visible and is not in the content of
-/// a closed `details`.
-fn is_rendered(doc: &Document, tree: &FragmentTree, styles: &StyleMap, node: NodeId) -> bool {
-    tree.element_boxes().contains_key(&node)
-        && !doc.in_closed_details_content(node)
-        && styles
-            .get(node)
-            .is_some_and(|s| s.visibility == Visibility::Visible)
-}
 
 /// How far (in CSS px) the pointer must move with the button held before a
 /// press becomes a drag that selects text. Chromium uses 4 px.
@@ -46,18 +39,16 @@ struct Press {
     dragging: bool,
 }
 
-/// The pointer, keyboard and focus state of a page. Reset for each
-/// document, except the pointer position.
+/// The pointer and keyboard state of a page. Reset for each document,
+/// except the pointer position.
 #[derive(Clone, Debug, Default)]
 pub(super) struct InputState {
-    pub(super) states: ElementStates,
     /// The pointer position in viewport coordinates, while it is over the
     /// page.
     pub(super) pointer: Option<Point>,
     press: Option<Press>,
     hovered_link: Option<swb_net::Url>,
     cursor: Cursor,
-    pub(super) selection: Option<Selection>,
     /// Where sequential focus navigation starts when no element is
     /// focused: the node of the last click or the target of the last
     /// fragment navigation.
@@ -80,11 +71,8 @@ impl InputState {
 impl Page {
     /// Hit-tests a point in viewport coordinates (CSS px).
     pub fn hit_test(&mut self, x: f32, y: f32) -> Option<HitResult> {
-        self.update_display_list();
-        let doc = self.document.as_ref()?;
-        let list = self.display_list.as_ref()?;
-        let point = Point::new(x + self.scroll.x, y + self.scroll.y);
-        hit_test::hit_test(doc, list, point, self.scroll, self.base_url.as_ref())
+        let (doc, fonts) = self.parts()?;
+        doc.hit_test(x, y, fonts)
     }
 
     /// The URL of the link under the mouse pointer.
@@ -102,14 +90,14 @@ impl Page {
 
     /// The focused element.
     pub fn focused_element(&self) -> Option<NodeId> {
-        self.input.states.focus
+        self.doc.as_ref()?.states.focus
     }
 
     // ----- Selection -----
 
     /// The text selection, if there is one and it is not empty.
     pub fn selection(&self) -> Option<Selection> {
-        self.input.selection.filter(|s| !s.is_collapsed())
+        self.doc.as_ref()?.visible_selection()
     }
 
     /// The selected text, with white space collapsed and line breaks
@@ -117,48 +105,25 @@ impl Page {
     /// text control has the focus, the text selected in it (nothing for a
     /// password field).
     pub fn selected_text(&mut self) -> String {
-        if let Some(text) = self.control_selected_text() {
-            return text;
-        }
-        self.update_layout();
-        let (Some(selection), Some(doc), Some(styles)) =
-            (self.selection(), &self.document, &self.styles)
-        else {
-            return String::new();
-        };
-        let (start, end) = selection.ordered(&self.tree_order);
-        selection::selected_text(doc, styles, start, end, &self.tree_order)
+        self.parts()
+            .map(|(doc, fonts)| doc.selected_text(fonts))
+            .unwrap_or_default()
     }
 
     /// The rendered text of an element (or text node), as `innerText`:
     /// collapsed white space, line breaks between blocks. Empty if the
     /// node has no rendered text.
     pub fn element_text(&mut self, node: NodeId) -> String {
-        self.update_layout();
-        let (Some(doc), Some(tree), Some(styles)) = (&self.document, &self.fragments, &self.styles)
-        else {
-            return String::new();
-        };
-        if doc.get(node).is_none() {
-            return String::new();
-        }
-        let extents = selection::text_extents(tree);
-        let Some(range) = selection::subtree_range(doc, node, &extents) else {
-            return String::new();
-        };
-        let (start, end) = range.ordered(&self.tree_order);
-        selection::selected_text(doc, styles, start, end, &self.tree_order)
+        self.parts()
+            .map(|(doc, fonts)| doc.element_text(node, fonts))
+            .unwrap_or_default()
     }
 
     /// Selects all text of the document. Returns true if the selection
     /// changed.
     pub fn select_all(&mut self) -> bool {
-        self.update_layout();
-        let (Some(doc), Some(tree)) = (&self.document, &self.fragments) else {
-            return false;
-        };
-        let range = selection::subtree_range(doc, NodeId::DOCUMENT, &selection::text_extents(tree));
-        self.set_selection(range)
+        self.parts()
+            .is_some_and(|(doc, fonts)| doc.select_all(fonts))
     }
 
     /// Removes the selection. Returns true if there was one.
@@ -168,16 +133,9 @@ impl Page {
 
     /// Replaces the selection. Returns true if it changed.
     fn set_selection(&mut self, selection: Option<Selection>) -> bool {
-        if selection == self.input.selection {
-            return false;
-        }
-        let visible_before = self.selection().is_some();
-        self.input.selection = selection;
-        if visible_before || self.selection().is_some() {
-            // The highlight is part of the display list.
-            self.display_list = None;
-        }
-        true
+        self.doc
+            .as_deref_mut()
+            .is_some_and(|doc| doc.set_selection(selection))
     }
 
     // ----- Pointer -----
@@ -256,13 +214,15 @@ impl Page {
         self.input.pointer = Some(point);
         let hit = self.hit_test(x, y);
         let element = hit.as_ref().and_then(|h| self.element_of(h.node));
-        let focus = hit.as_ref().and_then(|h| self.click_focus_target(h.node));
+        let focus = hit
+            .as_ref()
+            .and_then(|h| self.doc.as_ref()?.click_focus_target(h.node));
         if focus.is_none() {
             self.input.focus_start = hit.as_ref().map(|h| h.node);
         }
         self.input.last_press = hit.as_ref().map(|h| h.node);
         // A text control gets the caret; the page selection goes away.
-        let control = focus.filter(|&n| self.forms.is_text_control(n));
+        let control = focus.filter(|&n| self.is_text_control(n));
         let (selection, anchor) = match control {
             Some(_) => (None, None),
             None => self.press_selection(point, modifiers, click_count),
@@ -303,13 +263,19 @@ impl Page {
         match click_count {
             2 => {
                 let position = self.position_at(point, Snap::Character);
-                let word = position.and_then(|p| selection::word_at(self.document.as_ref()?, p));
+                let word = position.and_then(|p| selection::word_at(self.document()?, p));
                 (word, None)
             }
-            n if n >= 3 => (self.paragraph_selection(point), None),
+            n if n >= 3 => {
+                let selection = self
+                    .parts()
+                    .and_then(|(doc, fonts)| doc.paragraph_selection(point, fonts));
+                (selection, None)
+            }
             _ => {
                 let position = self.position_at(point, Snap::Nearest);
-                match (self.input.selection, position) {
+                let current = self.doc.as_ref().and_then(|d| d.selection);
+                match (current, position) {
                     (Some(current), Some(position)) if modifiers.shift => (
                         Some(Selection::new(current.anchor, position)),
                         Some(current.anchor),
@@ -398,14 +364,13 @@ impl Page {
     pub fn focus(&mut self, node: Option<NodeId>, visible: bool) -> bool {
         if let Some(node) = node {
             let focusable = self
-                .document
-                .as_ref()
+                .document()
                 .is_some_and(|doc| doc.get(node).is_some() && focus::is_focusable(doc, node));
             if !focusable || !self.is_rendered(node) {
                 return false;
             }
         }
-        let before = (self.input.states.focus, self.input.states.focus_visible);
+        let before = self.focus_state();
         self.update_states(|s| {
             s.focus = node;
             s.focus_visible = visible && node.is_some();
@@ -413,7 +378,14 @@ impl Page {
         if visible && let Some(node) = node {
             self.scroll_into_view(node);
         }
-        before != (self.input.states.focus, self.input.states.focus_visible)
+        before != self.focus_state()
+    }
+
+    /// The focused element and whether it matches `:focus-visible`.
+    fn focus_state(&self) -> (Option<NodeId>, bool) {
+        self.doc
+            .as_ref()
+            .map_or((None, false), |d| (d.states.focus, d.states.focus_visible))
     }
 
     /// Moves the focus for a navigation to a fragment of this document:
@@ -424,7 +396,7 @@ impl Page {
         let Some(target) = target else {
             return;
         };
-        if !self.focus(Some(target), false) && self.input.states.focus != Some(target) {
+        if !self.focus(Some(target), false) && self.focused_element() != Some(target) {
             self.focus(None, false);
             self.input.focus_start = Some(target);
         }
@@ -434,14 +406,18 @@ impl Page {
     /// focus order. After the last element, the focus leaves the page; the
     /// next Tab starts at the first element again.
     fn focus_next(&mut self, backward: bool) -> bool {
-        self.update_layout();
-        let (Some(doc), Some(tree), Some(styles)) = (&self.document, &self.fragments, &self.styles)
-        else {
+        let from_start = self.input.focus_start;
+        let Some((doc, fonts)) = self.parts() else {
             return false;
         };
-        let rendered = |n: NodeId| is_rendered(doc, tree, styles, n);
-        let from = self.input.states.focus.or(self.input.focus_start);
-        let next = focus::next_in_order(doc, from, backward, rendered);
+        doc.update_layout(fonts);
+        let (Some(tree), Some(styles)) = (&doc.fragments, &doc.styles) else {
+            return false;
+        };
+        let dom = &doc.dom;
+        let rendered = |n: NodeId| is_rendered_in(dom, tree, styles, n);
+        let from = doc.states.focus.or(from_start);
+        let next = focus::next_in_order(dom, from, backward, rendered);
         self.input.focus_start = None;
         self.focus(next, true);
         // Keyboard focus selects the text of a text field.
@@ -453,30 +429,26 @@ impl Page {
 
     /// The `details` element whose summary has the focus.
     fn focused_summary(&self) -> Option<NodeId> {
-        let doc = self.document.as_ref()?;
-        doc.details_of_summary(self.input.states.focus?)
+        let doc = self.doc.as_ref()?;
+        doc.dom().details_of_summary(doc.states.focus?)
     }
 
     /// Follows the focused link, if there is one and it is rendered.
     fn activate_focused(&mut self) -> bool {
-        let Some(focus) = self.input.states.focus.filter(|&n| self.is_rendered(n)) else {
+        let Some(focus) = self.focused_element().filter(|&n| self.is_rendered(n)) else {
             return false;
         };
-        let link = match (&self.document, &self.base_url) {
-            (Some(doc), Some(base)) => hit_test::link_target(doc, focus, base),
-            _ => None,
-        };
+        let link = self
+            .doc
+            .as_ref()
+            .and_then(|d| hit_test::link_target(d.dom(), focus, d.base_url()));
         link.is_some_and(|link| self.follow_link(link))
     }
 
     /// True if the element has a box and is visible.
     fn is_rendered(&mut self, node: NodeId) -> bool {
-        self.update_layout();
-        let (Some(doc), Some(tree), Some(styles)) = (&self.document, &self.fragments, &self.styles)
-        else {
-            return false;
-        };
-        is_rendered(doc, tree, styles, node)
+        self.parts()
+            .is_some_and(|(doc, fonts)| doc.is_rendered(node, fonts))
     }
 
     /// Scrolls for a scrolling key. Returns true if the key is one. As in
@@ -503,10 +475,10 @@ impl Page {
                 _ => return None,
             })
         };
-        let Some(viewport) = delta(self.viewport) else {
+        let Some(viewport) = delta(self.view.viewport) else {
             return false;
         };
-        let start = self.input.states.focus.or(self.input.last_press);
+        let start = self.focused_element().or(self.input.last_press);
         self.user_scroll(start, |port| delta(port).unwrap_or_default(), viewport);
         true
     }
@@ -515,41 +487,14 @@ impl Page {
 
     /// The text position at a point in viewport coordinates.
     fn position_at(&mut self, point: Point, snap: Snap) -> Option<TextPosition> {
-        self.update_layout();
-        let tree = self.fragments.as_ref()?;
-        let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
-        selection::position_at(tree, self.scroll_offsets(), document_point, snap)
-    }
-
-    /// The selection of a triple click: the paragraph at a point.
-    fn paragraph_selection(&mut self, point: Point) -> Option<Selection> {
-        let position = self.position_at(point, Snap::Character)?;
-        let (doc, styles, tree) = (
-            self.document.as_ref()?,
-            self.styles.as_ref()?,
-            self.fragments.as_ref()?,
-        );
-        selection::paragraph_at(doc, styles, &selection::text_extents(tree), position)
-    }
-
-    /// The element that a click on `node` focuses.
-    fn click_focus_target(&self, node: NodeId) -> Option<NodeId> {
-        let (doc, tree) = (self.document.as_ref()?, self.fragments.as_ref()?);
-        let boxes = tree.element_boxes();
-        focus::click_target(doc, node, |n| {
-            boxes.contains_key(&n) && !doc.in_closed_details_content(n)
-        })
+        let (doc, fonts) = self.parts()?;
+        doc.position_at(point, snap, fonts)
     }
 
     /// The element of a hit node: the node itself, or the parent of a text
     /// node.
     fn element_of(&self, node: NodeId) -> Option<NodeId> {
-        let doc = self.document.as_ref()?;
-        if doc.get(node)?.is_element() {
-            Some(node)
-        } else {
-            doc.parent_element(node)
-        }
+        self.doc.as_ref()?.element_of(node)
     }
 
     /// The cursor over a hit node: the computed `cursor`, where `auto` is
@@ -564,11 +509,17 @@ impl Page {
         {
             return Cursor::Text;
         }
-        let (Some(hit), Some(doc), Some(styles)) = (hit, &self.document, &self.styles) else {
+        let (Some(hit), Some(doc)) = (hit, self.doc.as_ref()) else {
             return Cursor::Auto;
         };
-        let is_text = doc.get(hit.node).is_some_and(|n| n.as_text().is_some());
-        let Some(style) = self.element_of(hit.node).and_then(|e| styles.get(e)) else {
+        let Some(styles) = doc.styles() else {
+            return Cursor::Auto;
+        };
+        let is_text = doc
+            .dom()
+            .get(hit.node)
+            .is_some_and(|n| n.as_text().is_some());
+        let Some(style) = doc.element_of(hit.node).and_then(|e| styles.get(e)) else {
             return Cursor::Auto;
         };
         match style.cursor {
@@ -577,31 +528,15 @@ impl Page {
         }
     }
 
-    /// Changes the element states with `change`. See
-    /// [`Page::set_states`].
+    /// Changes the element states with `change`. Restyles if a selector
+    /// depends on a state that changed; a focus that moves between form
+    /// controls lays out again. Returns true if a repaint is needed.
     pub(super) fn update_states(&mut self, change: impl FnOnce(&mut ElementStates)) -> bool {
-        let mut states = self.input.states.clone();
-        change(&mut states);
-        self.set_states(states)
-    }
-
-    /// Changes the element states. Restyles if a selector depends on a
-    /// state that changed. Returns true if a repaint is needed.
-    fn set_states(&mut self, states: ElementStates) -> bool {
-        let changed = self.input.states.changes(&states);
-        let old_focus = self.input.states.focus;
-        self.input.states = states;
-        let focus_moved = old_focus != self.input.states.focus && self.focus_changed(old_focus);
-        if changed.is_empty() {
-            return focus_moved;
-        }
-        let affected = self
-            .stylist
-            .as_ref()
-            .is_none_or(|s| s.state_dependencies().intersects(changed));
-        if affected {
-            self.restyle();
-        }
+        let Some(doc) = self.doc.as_deref_mut() else {
+            return false;
+        };
+        let (affected, old_focus) = doc.update_states(change);
+        let focus_moved = old_focus != doc.states.focus && self.focus_changed(old_focus);
         affected || focus_moved
     }
 }

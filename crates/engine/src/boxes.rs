@@ -24,10 +24,13 @@ pub struct ElementBox {
 /// All elements of the page's document in tree order, with their boxes.
 /// Empty if there is no document or layout.
 pub fn element_boxes(page: &Page) -> Vec<ElementBox> {
-    let (Some(doc), Some(tree)) = (page.document(), page.fragments()) else {
+    let Some(state) = page.document_state() else {
         return Vec::new();
     };
-    let boxes = tree.element_boxes_scrolled(page.scroll_offsets(), page.scroll_position());
+    let (doc, Some(tree)) = (state.dom(), state.fragments()) else {
+        return Vec::new();
+    };
+    let boxes = tree.element_boxes_scrolled(state.scroll_offsets(), state.scroll_position());
     let mut out = Vec::new();
     let mut index_of = std::collections::HashMap::new();
     for node in doc.descendants(NodeId::DOCUMENT) {

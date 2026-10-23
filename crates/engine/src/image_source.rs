@@ -28,7 +28,9 @@
 //! replace the image's own (the "dimension attribute source").
 //!
 //! The engine selects the sources of a document when its subresources
-//! start to load, and again at the next style computation after a change
+//! start to load, the source of an image when a DOM change inserts it or
+//! changes it or its `picture` sources (the journal drain,
+//! `crate::document`), and again at the next style computation after a change
 //! of the viewport or the scale ("react to changes in the environment",
 //! <https://html.spec.whatwg.org/multipage/images.html#img-environment-changes>):
 //! an image keeps its current source until the new one has loaded
@@ -86,9 +88,11 @@ pub(crate) struct Selection {
     pub(crate) auto: bool,
 }
 
-/// Selects the image source of every HTML `<img>` element of `doc`, in
-/// tree order. Relative URLs resolve against `base`; `env` gives the
-/// viewport and the device pixel ratio.
+/// Selects the image source of each HTML `<img>` element of `nodes`
+/// (other nodes are skipped), in their order: all nodes of the document,
+/// or the images that a change of the DOM inserted or changed. Relative
+/// URLs resolve against `base`; `env` gives the viewport and the device
+/// pixel ratio.
 ///
 /// The work is linear in the size of the document: the `<source>`
 /// children of each `<picture>` are examined at most once, also when the
@@ -97,10 +101,11 @@ pub(crate) fn select_images(
     doc: &Document,
     base: &Url,
     env: &MediaEnvironment,
+    nodes: impl IntoIterator<Item = NodeId>,
 ) -> Vec<(NodeId, Selection)> {
     let mut pictures: HashMap<NodeId, PictureScan<'_>> = HashMap::new();
     let mut out = Vec::new();
-    for node in doc.descendants(NodeId::DOCUMENT) {
+    for node in nodes {
         if !doc.is_html_element(node, &local_name!("img")) {
             continue;
         }

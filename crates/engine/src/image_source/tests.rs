@@ -239,7 +239,7 @@ fn env(dpr: f32) -> MediaEnvironment {
 fn select_in(html: &str, dpr: f32) -> Vec<(String, String, f32, bool)> {
     let doc = swb_dom::parse_html(html);
     let base = Url::parse("https://example.com/dir/page.html").unwrap();
-    select_images(&doc, &base, &env(dpr))
+    select_images(&doc, &base, &env(dpr), doc.descendants(NodeId::DOCUMENT))
         .into_iter()
         .filter_map(|(node, selection)| {
             let id = doc.element(node)?.attr("id")?.to_owned();
@@ -382,7 +382,7 @@ fn lazy_auto_sizes_wait_for_the_width() {
     let doc = swb_dom::parse_html(&html);
     let base = Url::parse("https://example.com/dir/page.html").unwrap();
     let env = env(1.0);
-    let selected = select_images(&doc, &base, &env);
+    let selected = select_images(&doc, &base, &env, doc.descendants(NodeId::DOCUMENT));
     let waiting: Vec<_> = selected
         .iter()
         .map(|(node, s)| (doc.element(*node).unwrap().attr("id").unwrap(), s.auto))

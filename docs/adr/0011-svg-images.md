@@ -309,7 +309,7 @@ swb follows the specification and Chromium 148 (measured with
 - There is no box when the sources are selected. An image that allows
   auto-sizes and has a `w` descriptor in its own `srcset` is not selected
   then (`Selection::auto`), so that its `100vw` candidates are not
-  requested. After each layout the page (`engine/src/page/auto_sizes.rs`)
+  requested. After each layout the page (`engine/src/document/loads.rs`)
   reads the content width of each such box and selects again if the width,
   the viewport or the scale changed since the last selection
   (`resources::AutoSizes`). An image without a box (`display: none`) uses

@@ -114,7 +114,7 @@ with 2^14 nested copies of a 3,000-point contour draws nothing and costs
 ### Loading model
 
 The text crate owns the face set (`text/src/web.rs`); the engine owns
-the files (`engine/src/web_fonts.rs`, `engine/src/page/fonts.rs`).
+the files (`engine/src/web_fonts.rs`, `engine/src/document/loads.rs`).
 
 1. After each style computation whose stylist or media environment
    changed, the engine gives the font context the applicable faces

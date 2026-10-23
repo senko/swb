@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 3b, the engine for scripts
+
+- `Page` is split into the page (history, pending navigation, loader,
+  font context, viewport, pointer state) and a boxed `DocumentState`
+  (the DOM and its parser, sheets, stylist, styles, layout, images, web
+  fonts, requests, forms, scroll offsets, selection, element states). The
+  box is `'static`, so feature 4c can lend it to a script runtime for a
+  task (ADR 0028 section 2). Style, layout and the queries are its
+  methods; the loader is shared through an `Rc`, the font context is an
+  argument.
+- With JavaScript on, the page parses with `HtmlParser` in steps (no
+  script runs yet) and drains the change journal after each step:
+  sheets, images and posters start to load as their elements are
+  inserted. `Page::change_dom`, and a lent state that comes back, drain
+  the same way. The drain reconciles the touched elements in tree order
+  (a moved link keeps its sheet, a removed one loses it, a new `src`
+  loads) and marks styles or the stylist dirty. Style and layout run on
+  the next frame or query; a flush after no change does nothing.
+- The stylist keeps each sheet parsed, so a rebuild makes only the rule
+  index again; the `stylesheets` stage is 10 % faster on the large
+  pages. Title, base URL, tree order and form controls (with dirty
+  flags) are derived data keyed by the DOM generation.
+- With JavaScript off, the parse and the one walk are as before. The
+  snapshot does not change, also with `--js`. A test checks that the
+  journal and the walk find the same loads for every fixture and layout
+  test.
+- Review fixes: with distinct image URLs, each parser step scanned all
+  images (20,000 images with a script after each took 40 s; now
+  0.25 s). A network completion that arrived while the state was lent
+  was lost and the page never finished loading; completions now stay
+  queued until the state returns. A removal scans the sheets only when
+  the removed subtree held a `style` or `link`.
+- Next: feature 4a, host classes and the embedding hooks in `js`.
+
 ## 2026-10-23: M8 feature 3a, the DOM for scripts
 
 - The `dom` crate gets what scripts need (ADR 0028 section 3). A

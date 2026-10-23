@@ -1673,3 +1673,51 @@ def noscript_flood_js_on() -> Page:
     item = "<noscript><link rel=stylesheet href=a.css><img src=b.png><p>text &amp; more</p>"
     item += "</noscript>"
     return Page(f"<!doctype html><head>{item * 100}</head><body>{item * 50_000}")
+
+
+@case(
+    "20,000 style elements, each after a script, with JavaScript on: the parse pauses at "
+    "each script and the engine drains the change journal after each step; a drain does not "
+    "scan or sort the whole list of sheets (ADR 0028 sections 3 and 9)",
+    swb_args=("--js",),
+)
+def parse_steps_many_sheets_js_on() -> Page:
+    items = "".join(
+        f"<style>#p{i}{{color:#c00}}</style><script>x=1</script><p id=p{i}>t</p>"
+        for i in range(20_000)
+    )
+    return Page(doc(items))
+
+
+@case(
+    "50,000 images and 1,000 scripts inside 400 nested divs, with JavaScript on: each parser "
+    "step starts the loads of the images that it inserted; the drain does not walk the "
+    "ancestors of each change (ADR 0028 section 9)",
+    swb_args=("--js",),
+)
+def parse_steps_deep_images_js_on() -> Page:
+    items = ("<img src=a.svg>x" * 50 + "<script></script>") * 1_000
+    svg = "<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'/>"
+    return Page(doc(nest("<div>", "</div>", 400, items)), {"a.svg": svg})
+
+
+@case(
+    "20,000 images with unique URLs, each followed by a script, with JavaScript on: each "
+    "parser step selects only its own image; the work of a step does not grow with the "
+    "number of images (ADR 0028 section 9)",
+    swb_args=("--js",),
+)
+def parse_steps_unique_images_js_on() -> Page:
+    items = "".join(f"<img src=i{i}.png><script></script>" for i in range(20_000))
+    return Page(doc(items))
+
+
+@case(
+    "1,100,000 comments with a script after each 1,000, with JavaScript on: past the node "
+    "limit while the parser runs in steps and the journal records each node (ADR 0028 "
+    "section 16)",
+    expect_log="HTML parser stopped",
+    swb_args=("--js",),
+)
+def dom_node_limit_js_on() -> Page:
+    return Page(doc(("<!---->" * 1_000 + "<script></script>") * 1_100))

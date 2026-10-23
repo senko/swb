@@ -1,5 +1,13 @@
-//! A page: one document in one viewport, with its loading state, rendering
-//! pipeline, scroll position, input handling and session history.
+//! A page: one document in one viewport, with its loading state, session
+//! history and input handling.
+//!
+//! The page owns the state of its current document in a box
+//! ([`DocumentState`], ADR 0028 section 2): the DOM, the stylesheets, the
+//! styles, the layout, the subresources, the form controls and the scroll
+//! offsets. The page itself holds what outlives a document: the history,
+//! the pending navigation, the loader, the font context, the viewport and
+//! the state of the pointer. A script runtime can take the box for a task
+//! ([`Page::take_document_state`]) and give it back.
 //!
 //! Navigation: [`Page::navigate`], [`Page::reload`] and history traversal
 //! start a *pending navigation*. Starting one cancels all requests that
@@ -14,45 +22,36 @@
 //! instead of sending it silently (ADR 0013).
 //!
 //! This file has the page state, navigation and the accessors. The other
-//! parts of `Page` are in `loading.rs` (network completions, documents and
-//! subresources), `auto_sizes.rs` (image sources that depend on the laid-out
-//! width), `pipeline.rs` (style, layout, display list, raster),
-//! `scroll.rs` (scrolling of the viewport and of scroll containers, and
-//! fragment targets), `input.rs` (pointer,
-//! keyboard, focus, selection) and `forms.rs` (form controls: editing,
-//! activation, submission).
+//! parts of `Page` are in `loading.rs` (network completions, the document
+//! of a navigation), `pipeline.rs` (rendering, the viewport and its
+//! accepted limits, screenshots), `scroll.rs` (scrolling by the user and
+//! the scroll queries), `input.rs` (pointer, keyboard, focus, selection)
+//! and `forms.rs` (form controls: editing, activation, submission).
 
-mod auto_sizes;
-mod fonts;
 mod forms;
 mod input;
 mod loading;
 mod pipeline;
 mod scroll;
 
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use encoding_rs::Encoding;
 use swb_dom::{Document, NodeId};
 use swb_layout::{FragmentTree, Point, Size};
-use swb_net::{CookieJar, Destination, Fetcher, Loader, Method, Origin, Request, Url};
-use swb_paint::DisplayList;
-use swb_style::{StyleMap, Stylist};
+use swb_net::{CookieJar, Destination, Fetcher, Loader, Method, Origin, Request, RequestId, Url};
+use swb_style::StyleMap;
 use swb_text::FontContext;
 
-use crate::forms::Forms;
+use crate::document::{DocumentState, ScrollTarget, View};
 use crate::history::{Commit, Entry, History, PostData};
-use crate::resources::{Images, Pending, Requests, SheetSlot};
-use crate::scrollers::Scrollers;
-use crate::selection::TreeOrder;
-use crate::web_fonts::WebFonts;
 
+pub use crate::document::ElementScroll;
 pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
     check_scale, check_viewport_size, device_size,
 };
-pub use scroll::ElementScroll;
 
 /// The loading state of a page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,103 +131,73 @@ struct PendingNavigation {
     redirected: bool,
 }
 
-/// Where to scroll after each layout until the page is loaded.
-#[derive(Clone, Debug)]
-enum ScrollTarget {
-    Fragment(String),
-    Position(Point),
-}
-
 /// A page.
 pub struct Page {
-    loader: Loader,
+    /// Shared with the document state, which starts the loads of its
+    /// subresources.
+    loader: Rc<Loader>,
     fonts: FontContext,
     history: History,
     pending: Option<PendingNavigation>,
-    requests: Requests,
+    /// The request of the pending navigation's document.
+    document_request: Option<RequestId>,
+    /// The loading state; `Complete` stands for both `LoadingResources`
+    /// and `Complete`, which the document's requests tell apart
+    /// ([`Page::load_state`]).
     state: LoadState,
     error: Option<String>,
 
     /// The URL shown to the user: the pending navigation's URL while it
     /// loads, otherwise the document URL.
     url: Option<Url>,
-    document_url: Option<Url>,
-    base_url: Option<Url>,
-    document: Option<Document>,
+    /// The current document; `None` before the first one, and while a
+    /// script runtime holds it.
+    doc: Option<Box<DocumentState>>,
+    /// True between [`Page::take_document_state`] and the return of the
+    /// state. Completions stay queued in the loader meanwhile (the
+    /// requests map is in the state).
+    lent: bool,
     /// The JavaScript setting. A new document takes the value it has when
     /// the document is created; the current document keeps its own
     /// ([`Document::scripting`]), so a change applies to the next
     /// document (ADR 0028 section 15).
     javascript: bool,
-    /// The character encoding of the document (forms submit in it).
-    encoding: &'static Encoding,
     /// The number of the current document: it grows with every committed
     /// document. History entries of the same document can be traversed
     /// without loading.
     document_number: u64,
-    /// The state of the document's form controls.
-    forms: Forms,
-    title: String,
-    sheets: Vec<SheetSlot>,
-    images: Images,
-    /// The web fonts of the document (`@font-face`) and their files.
-    web_fonts: WebFonts,
-
-    viewport: Size,
-    scale: f32,
-    scroll: Point,
-    pending_scroll: Option<ScrollTarget>,
-    /// The scroll containers of the document and their scroll offsets.
-    scrollers: Scrollers,
-    /// True to draw overlay scroll indicators (the GUI).
-    scroll_indicators: bool,
-
-    stylist: Option<Stylist>,
-    styles: Option<StyleMap>,
-    fragments: Option<FragmentTree>,
-    display_list: Option<DisplayList>,
-    /// The tree order of the document's nodes, for the selection.
-    tree_order: TreeOrder,
+    /// The viewport, the scale and the scroll indicator setting; the
+    /// document has a copy.
+    view: View,
     input: input::InputState,
-    timings: StageTimings,
 }
 
 impl Page {
     /// Creates an empty page.
     pub fn new(config: PageConfig, fonts: FontContext, viewport: Size, scale: f32) -> Self {
         Page {
-            loader: Loader::new(config.fetcher, config.network_threads, config.notify),
+            loader: Rc::new(Loader::new(
+                config.fetcher,
+                config.network_threads,
+                config.notify,
+            )),
             fonts,
             history: History::default(),
             pending: None,
-            requests: Requests::default(),
+            document_request: None,
             state: LoadState::Idle,
             error: None,
             url: None,
-            document_url: None,
-            base_url: None,
-            document: None,
+            doc: None,
+            lent: false,
             javascript: false,
-            encoding: encoding_rs::UTF_8,
             document_number: 0,
-            forms: Forms::default(),
-            title: String::new(),
-            sheets: Vec::new(),
-            images: Images::default(),
-            web_fonts: WebFonts::default(),
-            viewport,
-            scale,
-            scroll: Point::default(),
-            pending_scroll: None,
-            scrollers: Scrollers::default(),
-            scroll_indicators: false,
-            stylist: None,
-            styles: None,
-            fragments: None,
-            display_list: None,
-            tree_order: TreeOrder::default(),
+            view: View {
+                viewport,
+                scale,
+                indicators: false,
+            },
             input: input::InputState::default(),
-            timings: StageTimings::default(),
         }
     }
 
@@ -250,7 +219,64 @@ impl Page {
 
     /// True if the current document was created with JavaScript on.
     pub fn document_has_scripting(&self) -> bool {
-        self.document.as_ref().is_some_and(Document::scripting)
+        self.doc.as_ref().is_some_and(|d| d.scripting())
+    }
+
+    // ----- The document state -----
+
+    /// The state of the current document.
+    pub fn document_state(&self) -> Option<&DocumentState> {
+        self.doc.as_deref()
+    }
+
+    /// The state of the current document, for changes and queries.
+    pub fn document_state_mut(&mut self) -> Option<&mut DocumentState> {
+        self.doc.as_deref_mut()
+    }
+
+    /// Takes the state of the current document out of the page, for a
+    /// script runtime that runs a task (ADR 0028 section 2). Until
+    /// [`Page::return_document_state`], the page has no document: queries
+    /// give empty values (`title()` is empty, `scroll_position()` is
+    /// zero), and a navigation or reload in this time saves scroll 0 into
+    /// the history entry, so a script task must end before a navigation
+    /// commits. Network completions stay queued in the loader meanwhile
+    /// ([`Page::process_network`] does nothing, [`Page::wait_until_loaded`]
+    /// returns at once); they are handled after the return, in their
+    /// order. Moving the box costs a pointer copy.
+    pub fn take_document_state(&mut self) -> Option<Box<DocumentState>> {
+        let state = self.doc.take();
+        self.lent = state.is_some();
+        state
+    }
+
+    /// Gives back the state that [`Page::take_document_state`] took and
+    /// processes the DOM changes of the task. A state that is not the
+    /// current document's (the page navigated meanwhile) is dropped.
+    pub fn return_document_state(&mut self, mut state: Box<DocumentState>) {
+        self.lent = false;
+        if self.doc.is_some() {
+            log::debug!("a document came back after a navigation; dropped");
+            return;
+        }
+        state.sync();
+        self.doc = Some(state);
+    }
+
+    /// Changes the DOM of the current document with `change` (through the
+    /// change functions of `swb_dom`), then processes the changes: loads
+    /// of inserted elements start, removed stylesheets go away, and the
+    /// styles and the layout are computed again when needed. Returns
+    /// `None` without a document.
+    pub fn change_dom<R>(&mut self, change: impl FnOnce(&mut Document) -> R) -> Option<R> {
+        let result = self.doc.as_deref_mut()?.change_dom(change);
+        Some(result)
+    }
+
+    /// The document state and the font context, for the calls that lay
+    /// out.
+    fn parts(&mut self) -> Option<(&mut DocumentState, &mut FontContext)> {
+        Some((self.doc.as_deref_mut()?, &mut self.fonts))
     }
 
     // ----- Navigation -----
@@ -354,11 +380,12 @@ impl Page {
             return;
         }
         if let Some(entry) = self.history.current().cloned() {
+            let scroll = self.scroll_position();
             self.start_navigation(
                 entry.commit.url,
                 entry.commit.post,
                 HistoryHandling::Replace,
-                Some(self.scroll),
+                Some(scroll),
                 entry.commit.initiator,
             );
         }
@@ -372,22 +399,13 @@ impl Page {
             return;
         }
         self.loader.cancel_all();
-        self.requests = Requests::default();
+        self.document_request = None;
         self.pending = None;
-        self.url.clone_from(&self.document_url);
-        let mut sheets_dropped = false;
-        for sheet in &mut self.sheets {
-            if !sheet.is_settled() {
-                sheet.failed = true;
-                sheets_dropped = true;
-            }
+        self.url = self.doc.as_ref().map(|d| d.url().clone());
+        if let Some((doc, fonts)) = self.parts() {
+            doc.stop_loading(fonts);
         }
-        if sheets_dropped {
-            self.invalidate_style();
-        }
-        self.cancel_font_loads();
-        self.invalidate_layout();
-        self.state = if self.document.is_some() {
+        self.state = if self.doc.is_some() {
             LoadState::Complete
         } else {
             LoadState::Idle
@@ -434,7 +452,7 @@ impl Page {
     /// sends it.
     fn traverse_to_post(&mut self, target: usize, commit: Commit) {
         self.loader.cancel_all();
-        self.requests = Requests::default();
+        self.document_request = None;
         self.pending = Some(PendingNavigation {
             handling: HistoryHandling::Traverse(target),
             restore_scroll: None,
@@ -458,9 +476,8 @@ impl Page {
         let Some(Entry { commit, scroll }) = self.history.get(target).cloned() else {
             return false;
         };
-        let same_document = self.pending.is_none()
-            && self.document.is_some()
-            && commit.document == self.document_number;
+        let same_document =
+            self.pending.is_none() && self.doc.is_some() && commit.document == self.document_number;
         if !same_document && commit.post.is_some() {
             self.traverse_to_post(target, commit);
             return true;
@@ -506,7 +523,9 @@ impl Page {
         initiator: Option<Origin>,
     ) {
         self.loader.cancel_all();
-        self.requests = Requests::default();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.requests = crate::resources::Requests::default();
+        }
         self.pending = Some(PendingNavigation {
             handling,
             restore_scroll,
@@ -520,15 +539,15 @@ impl Page {
         let id = self
             .loader
             .start(document_request(url.clone(), post).with_initiator(initiator));
-        self.requests.pending.insert(id, Pending::Document);
+        self.document_request = Some(id);
         log::info!("navigating to {url}");
         // Keep showing the old page until the new document arrives, but
         // show the new URL in the address bar.
         self.url = Some(url);
     }
 
-    /// Updates the session history for the document that just arrived,
-    /// and decides where to scroll after the first layout.
+    /// Updates the session history for the document that just arrived.
+    /// Returns where to scroll after the first layout.
     ///
     /// A `POST` that redirects is followed by a `GET`
     /// ("POST/redirect/GET"), so its history entry keeps no body and a
@@ -539,7 +558,7 @@ impl Page {
     /// standard turns every navigation to the current URL into a
     /// replacement; Chromium (measured) adds an entry for a `POST`, and so
     /// does swb.
-    fn commit_navigation(&mut self, url: &Url) {
+    fn commit_navigation(&mut self, url: &Url) -> Option<ScrollTarget> {
         self.save_scroll();
         let pending = self.pending.take();
         self.document_number += 1;
@@ -564,10 +583,10 @@ impl Page {
                 self.history.replace_current(commit);
             }
         }
-        self.pending_scroll = match pending.and_then(|p| p.restore_scroll) {
+        match pending.and_then(|p| p.restore_scroll) {
             Some(position) => Some(ScrollTarget::Position(position)),
             None => url.fragment().map(|f| ScrollTarget::Fragment(f.to_owned())),
-        };
+        }
     }
 
     /// Records that the document of the pending navigation arrived after a
@@ -580,7 +599,7 @@ impl Page {
 
     /// Stores the scroll position in the current history entry.
     fn save_scroll(&mut self) {
-        let scroll = self.scroll;
+        let scroll = self.scroll_position();
         if let Some(entry) = self.history.current_mut() {
             entry.scroll = scroll;
         }
@@ -589,22 +608,32 @@ impl Page {
     /// True if `url` is the URL of the current document, ignoring the
     /// fragment.
     fn is_same_document(&self, url: &Url) -> bool {
-        self.document.is_some()
-            && self
-                .document_url
-                .as_ref()
-                .is_some_and(|current| strip_fragment(current) == strip_fragment(url))
+        self.doc
+            .as_ref()
+            .is_some_and(|d| strip_fragment(d.url()) == strip_fragment(url))
     }
 
     fn set_document_url(&mut self, url: Url) {
         self.url = Some(url.clone());
-        self.document_url = Some(url);
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.url = url;
+        }
     }
 
     /// The origin of the current document: the initiator of its
     /// subresource requests and of the navigations it starts.
     fn document_origin(&self) -> Option<Origin> {
-        self.document_url.as_ref().map(Url::origin)
+        self.doc.as_ref().map(|d| d.origin())
+    }
+
+    /// True if the current document may load `url` (see
+    /// [`DocumentState::may_load`]). Without a document, only loadable
+    /// schemes other than `file:`.
+    pub(super) fn may_load_subresource(&self, url: &Url) -> bool {
+        match &self.doc {
+            Some(doc) => doc.may_load(url),
+            None => is_loadable(url) && url.scheme() != "file",
+        }
     }
 
     // ----- Accessors -----
@@ -617,12 +646,20 @@ impl Page {
 
     /// The document title.
     pub fn title(&self) -> &str {
-        &self.title
+        self.doc.as_ref().map_or("", |d| d.title())
     }
 
     /// The loading state.
     pub fn load_state(&self) -> LoadState {
-        self.state
+        match self.state {
+            LoadState::Complete | LoadState::LoadingResources
+                if self.doc.as_ref().is_some_and(|d| d.is_loading()) =>
+            {
+                LoadState::LoadingResources
+            }
+            LoadState::LoadingResources => LoadState::Complete,
+            state => state,
+        }
     }
 
     /// The error of a failed navigation.
@@ -639,31 +676,31 @@ impl Page {
     /// True while the document or subresources are loading.
     pub fn is_loading(&self) -> bool {
         matches!(
-            self.state,
+            self.load_state(),
             LoadState::LoadingDocument | LoadState::LoadingResources
         )
     }
 
     /// The document, if one is loaded.
     pub fn document(&self) -> Option<&Document> {
-        self.document.as_ref()
+        self.doc.as_ref().map(|d| d.dom())
     }
 
     /// The computed styles (after [`Page::update_layout`]).
     pub fn styles(&self) -> Option<&StyleMap> {
-        self.styles.as_ref()
+        self.doc.as_ref()?.styles()
     }
 
     /// The fragment tree (after [`Page::update_layout`]).
     pub fn fragments(&self) -> Option<&FragmentTree> {
-        self.fragments.as_ref()
+        self.doc.as_ref()?.fragments()
     }
 
     /// The elements that match a selector list, in tree order (as
     /// `querySelectorAll`). `None` if the selector list is invalid or there
     /// is no document.
     pub fn query_selector_all(&self, selectors: &str) -> Option<Vec<NodeId>> {
-        swb_style::query_selector_all(self.document.as_ref()?, selectors, &self.input.states)
+        self.doc.as_ref()?.query_selector_all(selectors)
     }
 
     /// The union of the border boxes of an element as painted, in document
@@ -672,12 +709,8 @@ impl Page {
     /// positioning at the current scroll position (as
     /// `getBoundingClientRect()` plus the scroll offset).
     pub fn element_box(&mut self, node: NodeId) -> Option<swb_layout::Rect> {
-        self.update_layout();
-        self.fragments
-            .as_ref()?
-            .element_boxes_scrolled(self.scrollers.offsets(), self.scroll)
-            .get(&node)
-            .copied()
+        let (doc, fonts) = self.parts()?;
+        doc.element_box(node, fonts)
     }
 
     /// The font context.
@@ -687,17 +720,17 @@ impl Page {
 
     /// The viewport size in CSS px.
     pub fn viewport(&self) -> Size {
-        self.viewport
+        self.view.viewport
     }
 
     /// The device pixel ratio.
     pub fn scale(&self) -> f32 {
-        self.scale
+        self.view.scale
     }
 
     /// The scroll position in CSS px.
     pub fn scroll_position(&self) -> Point {
-        self.scroll
+        self.doc.as_ref().map_or(Point::default(), |d| d.scroll)
     }
 }
 
@@ -728,7 +761,7 @@ fn post_data(request: &Request) -> Option<PostData> {
 }
 
 /// True for URL schemes that the browser can load.
-fn is_loadable(url: &Url) -> bool {
+pub(crate) fn is_loadable(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https" | "file" | "data" | "about")
 }
 

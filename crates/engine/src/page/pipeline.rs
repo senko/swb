@@ -1,244 +1,21 @@
-//! The rendering pipeline: style, layout, display list and raster, with
-//! per-stage timings; restyles after state changes; the viewport, its
-//! accepted limits, and screenshots.
+//! Rendering of the page: the document's pipeline (style, layout, display
+//! list, raster; in `crate::document`) driven for frames and screenshots;
+//! the viewport, its accepted limits, and screenshots.
 
-use std::time::Instant;
+use swb_layout::Size;
+use swb_paint::Pixmap;
 
-use swb_css::{MediaEnvironment, MediaQueryList};
-use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point, Rect, Size};
-use swb_net::Url;
-use swb_paint::{DisplayList, NoHighlights, Pixmap, RasterParams, Scrolling};
-use swb_style::Stylist;
-
-use super::{LoadState, Page, ScrollTarget, StageTimings, about_blank};
-
-use crate::forms::LayoutControls;
-use crate::selection::Highlight;
-
-/// The most layout passes of one [`Page::update_layout`]: web fonts that
-/// are already loaded make layout run again.
-const MAX_LAYOUT_PASSES: usize = 4;
-
-/// What [`Page::render_in_strips`] draws.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Rendering {
-    /// The viewport at the page's scroll offset, with the scroll
-    /// indicators of the viewport.
-    Viewport,
-    /// The page from its top-left corner, without the viewport's scroll
-    /// indicators (full-page screenshots).
-    Page,
-}
+use super::{Page, StageTimings};
+use crate::document::Rendering;
 
 impl Page {
-    /// Drops the parsed stylesheets, the styles and everything after them.
-    pub(super) fn invalidate_style(&mut self) {
-        self.stylist = None;
-        self.web_fonts.env = None;
-        self.styles = None;
-        self.invalidate_layout();
-    }
-
-    /// Drops the layout and the display list.
-    pub(super) fn invalidate_layout(&mut self) {
-        self.fragments = None;
-        self.display_list = None;
-    }
-
-    /// Recomputes the styles after a change of the element states. The
-    /// layout stays if no style changed.
-    pub(super) fn restyle(&mut self) {
-        let Some(old) = self.styles.take() else {
-            return;
-        };
-        self.compute_styles();
-        if !self
-            .styles
-            .as_ref()
-            .is_some_and(|new| new.same_styles(&old))
-        {
-            self.invalidate_layout();
-        }
-    }
-
-    pub(super) fn media_environment(&self) -> MediaEnvironment {
-        MediaEnvironment {
-            viewport_width: self.viewport.width,
-            viewport_height: self.viewport.height,
-            device_pixel_ratio: self.scale,
-            scripting: self.document_has_scripting(),
-            ..MediaEnvironment::default()
-        }
-    }
-
     /// Brings styles and layout up to date. Rendering waits for
     /// stylesheets: until they are loaded, there is no layout. After the
     /// first layout of a document, scrolls to the fragment or to the
     /// restored position.
-    ///
-    /// Layout can request web fonts. A font whose file is already loaded
-    /// (another face of the same file) is used at once and invalidates the
-    /// layout; layout then runs again, up to [`MAX_LAYOUT_PASSES`] times.
     pub fn update_layout(&mut self) {
-        if self.document.is_none() || !self.stylesheets_settled() {
-            return;
-        }
-        if self.styles.is_none() {
-            self.compute_styles();
-        }
-        let mut laid_out = false;
-        // After the last pass, `fragments` can be `None` again: a font that
-        // loaded at once invalidated the layout. This is correct: every
-        // caller (paint, scroll, hit testing) calls `update_layout` before
-        // it uses the fragments, so the next call lays out again. The pass
-        // limit only bounds the work of one call.
-        for _ in 0..MAX_LAYOUT_PASSES {
-            if self.fragments.is_some() || !self.run_layout() {
-                break;
-            }
-            laid_out = true;
-            self.start_font_loads();
-        }
-        if laid_out && !self.requests.is_empty() && self.state == LoadState::Complete {
-            self.state = LoadState::LoadingResources;
-        }
-        if laid_out && self.fragments.is_some() {
-            // The scroll target is applied after every layout until the
-            // page is loaded, because images that arrive later move it.
-            // Scrolling by the user cancels it.
-            match self.pending_scroll.clone() {
-                Some(ScrollTarget::Fragment(fragment)) => {
-                    self.reveal_fragment(&fragment);
-                }
-                Some(ScrollTarget::Position(position)) => self.scroll = position,
-                None => {}
-            }
-            self.clamp_scroll();
-            if !self.is_loading() {
-                self.pending_scroll = None;
-            }
-        }
-    }
-
-    /// Lays out the document, if it has styles. Returns false if not.
-    fn run_layout(&mut self) -> bool {
-        let (Some(doc), Some(styles)) = (&self.document, &self.styles) else {
-            return false;
-        };
-        let controls = LayoutControls {
-            doc,
-            forms: &self.forms,
-            focus: self.input.states.focus,
-        };
-        let input = LayoutInput {
-            document: doc,
-            styles,
-            viewport: self.viewport,
-            replaced: &self.images,
-            controls: &controls,
-        };
-        let started = Instant::now();
-        let fragments = swb_layout::layout(&input, &mut self.fonts);
-        self.timings.layout = started.elapsed();
-        log::debug!("layout: {:?}", self.timings.layout);
-        self.scrollers.update(&fragments);
-        self.fragments = Some(fragments);
-        self.keep_control_scroll();
-        self.select_auto_sized_images();
-        true
-    }
-
-    /// Stores the scroll offsets of the text in form controls that layout
-    /// used, so that the next layout starts from them.
-    fn keep_control_scroll(&mut self) {
-        let Some(tree) = &self.fragments else {
-            return;
-        };
-        let forms = &mut self.forms;
-        tree.walk(|fragment, _| {
-            if let FragmentRef::Box(b) = fragment
-                && let (Some(node), BoxContent::Control(c)) = (b.node, &b.content)
-                && let Some(state) = forms.get_mut(node)
-            {
-                state.scroll = c.scroll;
-            }
-        });
-    }
-
-    /// Brings the display list up to date.
-    pub(super) fn update_display_list(&mut self) {
-        self.update_layout();
-        if self.display_list.is_none()
-            && let (Some(fragments), Some(doc)) = (&self.fragments, &self.document)
-        {
-            let started = Instant::now();
-            let page = self.selection().map(|s| s.ordered(&self.tree_order));
-            let control = self.control_selection();
-            let scrolling = Scrolling {
-                offsets: self.scrollers.offsets(),
-                indicators: self.scroll_indicators,
-                scale: self.scale,
-            };
-            let list = if page.is_some() || control.is_some() {
-                let highlight = Highlight {
-                    page,
-                    control,
-                    order: &self.tree_order,
-                    doc,
-                };
-                swb_paint::build_display_list(fragments, &self.images, &highlight, &scrolling)
-            } else {
-                swb_paint::build_display_list(fragments, &self.images, &NoHighlights, &scrolling)
-            };
-            self.timings.display_list = started.elapsed();
-            log::debug!("display list: {:?}", self.timings.display_list);
-            self.display_list = Some(list);
-        }
-    }
-
-    fn compute_styles(&mut self) {
-        if self.images.sources_outdated {
-            self.select_image_sources();
-        }
-        let Some(doc) = &self.document else {
-            return;
-        };
-        let env = self.media_environment();
-        if self.stylist.is_none() {
-            let started = Instant::now();
-            let mut stylist = Stylist::new(doc.quirks_mode);
-            for sheet in &self.sheets {
-                let Some(css) = &sheet.css else {
-                    continue;
-                };
-                if let Some(media) = &sheet.media
-                    && !MediaQueryList::parse_str(media).matches(&env)
-                {
-                    continue;
-                }
-                stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &sheet.base_url);
-            }
-            self.stylist = Some(stylist);
-            self.timings.stylesheets = started.elapsed();
-        }
-        let Some(stylist) = &self.stylist else {
-            return;
-        };
-        let started = Instant::now();
-        let base = self.base_url.clone().unwrap_or_else(about_blank);
-        let styles = swb_style::compute_styles(doc, stylist, &env, &self.input.states, &base);
-        self.timings.style = started.elapsed();
-        log::debug!("style: {:?}", self.timings.style);
-        let image_urls = styles.image_urls();
-        self.styles = Some(styles);
-        self.update_web_font_faces();
-        for url in image_urls {
-            if let Ok(url) = Url::parse(&url) {
-                self.start_image(url);
-            }
-        }
-        if !self.requests.is_empty() && self.state == LoadState::Complete {
-            self.state = LoadState::LoadingResources;
+        if let Some((doc, fonts)) = self.parts() {
+            doc.update_layout(fonts);
         }
     }
 
@@ -249,77 +26,29 @@ impl Page {
         self.render_in_strips(target, rows, Rendering::Viewport);
     }
 
-    /// Renders `what` into `target` in strips of `strip_rows` device rows,
-    /// each with the rasterizer's budgets of a viewport
-    /// ([`swb_paint::rasterize_in_strips`]). Fixed and sticky boxes are
-    /// where they are at the page's scroll offset.
+    /// Renders `what` into `target` in strips of `strip_rows` device rows
+    /// (see [`crate::document::DocumentState`]); white without a document.
     fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32, what: Rendering) {
-        swb_paint::fill(target, swb_style::Rgba::WHITE);
-        self.update_display_list();
-        // The document point at the top-left corner of the target.
-        let origin = match what {
-            Rendering::Viewport => self.scroll,
-            Rendering::Page => Point::default(),
-        };
-        if let Some(list) = &self.display_list {
-            let params = RasterParams {
-                scroll: origin,
-                viewport_scroll: self.scroll,
-                scale: self.scale,
-            };
-            let started = Instant::now();
-            swb_paint::rasterize_in_strips(
-                list,
-                target,
-                params,
-                strip_rows,
-                &mut self.fonts,
-                &self.images,
-            );
-            self.timings.raster = started.elapsed();
+        match self.parts() {
+            Some((doc, fonts)) => doc.render_in_strips(target, strip_rows, what, fonts),
+            None => swb_paint::fill(target, swb_style::Rgba::WHITE),
         }
-        // The viewport indicators belong on a rendering of the viewport.
-        if self.scroll_indicators && what == Rendering::Viewport {
-            self.render_viewport_indicators(target);
-        }
-    }
-
-    /// Draws the overlay scroll indicators of the viewport over the page
-    /// (the same indicators as those of scroll containers).
-    fn render_viewport_indicators(&mut self, target: &mut Pixmap) {
-        let Some(fragments) = &self.fragments else {
-            return;
-        };
-        if fragments.viewport_scrollbar_hidden {
-            return;
-        }
-        let port = Rect::new(0.0, 0.0, self.viewport.width, self.viewport.height);
-        // No indicator on axes with `overflow: hidden`.
-        let (user_x, user_y) = self.viewport_user_axes();
-        let size = fragments.scroll_size;
-        let items = swb_paint::scroll_indicators(port, size, self.scroll, user_x, user_y);
-        if items.is_empty() {
-            return;
-        }
-        let params = RasterParams {
-            scroll: Point::default(),
-            viewport_scroll: Point::default(),
-            scale: self.scale,
-        };
-        let list = DisplayList { items };
-        swb_paint::rasterize(&list, target, params, &mut self.fonts, &self.images);
     }
 
     /// The duration of each pipeline stage, the last time it ran.
     pub fn timings(&self) -> StageTimings {
-        self.timings
+        self.doc
+            .as_ref()
+            .map_or_else(StageTimings::default, |d| d.timings)
     }
 
     /// Discards the parsed stylesheets, the styles, the layout and the
     /// display list, so that the next render runs all stages again. For
     /// benchmarks.
     pub fn restart_pipeline(&mut self) {
-        self.invalidate_style();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.restart_pipeline();
+        }
     }
 
     /// Renders a screenshot: the viewport, or with `full_page` the whole
@@ -331,7 +60,7 @@ impl Page {
     /// more: the rasterizer's budgets (group layers, masks, transform
     /// layers) apply to each strip as to a window.
     pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
-        let (viewport, scale) = (self.viewport, self.scale);
+        let (viewport, scale) = (self.view.viewport, self.view.scale);
         let size = if full_page {
             let content = self.content_size();
             // One row less than the limit, so that rounding cannot exceed
@@ -368,15 +97,26 @@ impl Page {
 
     /// Changes the viewport size (CSS px) and scale factor.
     pub fn set_viewport(&mut self, viewport: Size, scale: f32) {
-        if viewport == self.viewport && (scale - self.scale).abs() < f32::EPSILON {
+        if viewport == self.view.viewport && (scale - self.view.scale).abs() < f32::EPSILON {
             return;
         }
-        self.viewport = viewport;
-        self.scale = scale;
+        self.view.viewport = viewport;
+        self.view.scale = scale;
         // Image sources (selected at the next style computation) and media
         // queries may change, so styles are recomputed.
-        self.images.sources_outdated = true;
-        self.invalidate_style();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.set_view(self.view);
+        }
+    }
+
+    /// Shows or hides the overlay scroll indicators of the scroll
+    /// containers and the viewport (the GUI shows them; screenshots for
+    /// comparisons with Chromium do not).
+    pub fn set_scroll_indicators(&mut self, show: bool) {
+        self.view.indicators = show;
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.set_view(self.view);
+        }
     }
 }
 

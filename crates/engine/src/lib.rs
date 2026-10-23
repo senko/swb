@@ -5,6 +5,7 @@
 //! both drive a [`Page`].
 
 mod boxes;
+mod document;
 mod edit;
 mod focus;
 mod forms;
@@ -19,6 +20,7 @@ mod selection;
 mod web_fonts;
 
 pub use boxes::{ElementBox, element_boxes};
+pub use document::DocumentState;
 pub use edit::TextEdit;
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};

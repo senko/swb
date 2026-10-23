@@ -6,9 +6,11 @@
 //!
 //! The state is not in the DOM: the `value`, `checked` and `selected`
 //! attributes are only the defaults. [`Forms`] holds the state of every
-//! control of a document, keyed by element. swb runs no scripts, so the
-//! DOM does not change after parsing: form owners and the other
-//! attribute-derived facts are computed once.
+//! control of a document, keyed by element, with the form owners and the
+//! other facts that derive from attributes. The document rebuilds it when
+//! the DOM changed ([`Forms::rebuild`], keyed by the DOM generation); a
+//! control that the user changed keeps its state (its dirty flag), the
+//! others take the defaults of their new attributes.
 //!
 //! <https://html.spec.whatwg.org/multipage/forms.html>. Deliberate
 //! simplifications: date, time, color and range inputs are text fields;
@@ -273,6 +275,13 @@ pub(crate) struct ControlState {
     /// (disabled, read-only, hidden, in a `datalist`, or a button that
     /// does not submit).
     barred: bool,
+    /// True after the user changed the control: the dirty value flag of
+    /// text fields and text areas, the dirty checkedness flag of
+    /// checkboxes and radio buttons, and for a select, that the user
+    /// selected an option. A dirty control keeps its state when the DOM
+    /// changes; a reset clears the flag.
+    /// <https://html.spec.whatwg.org/multipage/input.html#concept-input-value-dirty-flag>
+    pub(crate) dirty: bool,
 }
 
 impl ControlState {
@@ -327,6 +336,67 @@ impl Forms {
             forms.controls.insert(node, state);
         }
         forms.keep_last_checked(doc, &radios);
+        forms
+    }
+
+    /// The controls of `doc` after a change of the DOM, from the states
+    /// before it (`old`). The form owners, the disabled states, the options
+    /// of selects and the defaults are computed again. A control that the
+    /// user changed (its dirty flag) keeps its value, checkedness or
+    /// selected options; another one keeps its caret and selection if its
+    /// value stays the same. Of the checked radio buttons of a group, the
+    /// last one in tree order stays checked.
+    pub(crate) fn rebuild(old: &Forms, doc: &Document) -> Forms {
+        let mut forms = Forms::new(doc);
+        if old.controls.is_empty() {
+            return forms;
+        }
+        let mut radios_restored = false;
+        for (node, state) in &mut forms.controls {
+            let Some(previous) = old.controls.get(node).filter(|p| p.ty == state.ty) else {
+                continue;
+            };
+            state.scroll = previous.scroll;
+            if !previous.dirty {
+                if state.ty.is_text() && previous.edit.text() == state.edit.text() {
+                    state.edit = previous.edit.clone();
+                }
+                continue;
+            }
+            state.dirty = true;
+            if state.ty.is_text() {
+                state.edit = previous.edit.clone();
+            }
+            if state.ty.is_checkable() {
+                radios_restored |= state.ty == ControlType::Input(InputType::Radio)
+                    && previous.checked != state.checked;
+                state.checked = previous.checked;
+            }
+            if state.ty == ControlType::Select {
+                let selected: HashSet<NodeId> = previous
+                    .options
+                    .iter()
+                    .filter(|o| o.selected)
+                    .map(|o| o.node)
+                    .collect();
+                if state.options.iter().any(|o| selected.contains(&o.node)) {
+                    for option in &mut state.options {
+                        option.selected = selected.contains(&option.node);
+                    }
+                }
+            }
+        }
+        if radios_restored {
+            let checked: Vec<NodeId> = doc
+                .descendants(NodeId::DOCUMENT)
+                .filter(|&n| {
+                    forms
+                        .get(n)
+                        .is_some_and(|s| s.ty == ControlType::Input(InputType::Radio) && s.checked)
+                })
+                .collect();
+            forms.keep_last_checked(doc, &checked);
+        }
         forms
     }
 
@@ -439,6 +509,7 @@ impl Forms {
         };
         let changed = state.checked != checked;
         state.checked = checked;
+        state.dirty = true;
         let is_radio = state.ty == ControlType::Input(InputType::Radio);
         if !(checked && is_radio) {
             return changed;
@@ -449,6 +520,7 @@ impl Forms {
                 && let Some(state) = self.get_mut(other)
             {
                 changed |= state.checked;
+                state.dirty |= state.checked;
                 state.checked = false;
             }
         }
@@ -467,6 +539,7 @@ impl Forms {
         for (i, option) in state.options.iter_mut().enumerate() {
             option.selected = i == index;
         }
+        state.dirty = true;
         true
     }
 
@@ -694,6 +767,7 @@ fn default_state(
         owner: None,
         disabled: false,
         barred: false,
+        dirty: false,
     }
 }
 
@@ -940,6 +1014,55 @@ mod tests {
         );
         assert_eq!(labeled_control(&doc, id(&doc, "l1")), Some(id(&doc, "b")));
         assert_eq!(labeled_control(&doc, id(&doc, "l2")), Some(id(&doc, "a")));
+    }
+
+    #[test]
+    fn a_rebuild_keeps_what_the_user_changed() {
+        let mut doc = parse_html(
+            "<form id=f><input id=t value=a><input id=u value=b>\
+             <input id=c type=checkbox checked><input id=d type=checkbox>\
+             <select id=s><option>x</option><option id=y>y</option></select></form>",
+        );
+        let mut forms = Forms::new(&doc);
+        let (typed, other, unchecked, checked, select) = (
+            id(&doc, "t"),
+            id(&doc, "u"),
+            id(&doc, "c"),
+            id(&doc, "d"),
+            id(&doc, "s"),
+        );
+        // The user types into `t`, unchecks `c` and selects `y`.
+        let state = forms.get_mut(typed).expect("t");
+        state.edit.text_end(false);
+        state.edit.insert("!");
+        state.dirty = true;
+        forms.set_checked(&doc, unchecked, false);
+        forms.select_option(select, 1);
+        // Scripts change the defaults of all of them.
+        for (node, name, value) in [
+            (typed, "value", "new"),
+            (other, "value", "new"),
+            (unchecked, "checked", ""),
+            (checked, "checked", ""),
+            (other, "disabled", ""),
+        ] {
+            doc.set_attr(node, name, value).unwrap();
+        }
+        let forms = Forms::rebuild(&forms, &doc);
+        assert_eq!(forms.value(&doc, typed).as_deref(), Some("a!"));
+        assert_eq!(forms.value(&doc, other).as_deref(), Some("new"));
+        assert!(forms.is_disabled(other));
+        assert_eq!(
+            (forms.checked(unchecked), forms.checked(checked)),
+            (Some(false), Some(true))
+        );
+        assert_eq!(forms.value(&doc, select).as_deref(), Some("y"));
+        // A reset clears the dirty flags.
+        let mut forms = forms;
+        forms.reset(&doc, id(&doc, "f"));
+        doc.set_attr(typed, "value", "newer").unwrap();
+        let forms = Forms::rebuild(&forms, &doc);
+        assert_eq!(forms.value(&doc, typed).as_deref(), Some("newer"));
     }
 
     #[test]

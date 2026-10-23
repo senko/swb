@@ -20,7 +20,7 @@ times:
 | Stage | What it measures |
 |-------|------------------|
 | `parse` | HTML parsing of the document (the bytes are fetched again from the fixture and parsed N times) |
-| `stylesheets` | Parsing all stylesheets and building the rule index (`Stylist`) |
+| `stylesheets` | Parsing all stylesheets and building the rule index (`Stylist`); in the browser a rebuild of the stylist after a change parses only new or changed sheets, the benchmark drops the parsed sheets before each run |
 | `style` | The cascade: computed styles of all elements |
 | `layout` | Box tree construction and layout (text shaping included) |
 | `display_list` | Building the display list |
@@ -71,13 +71,31 @@ Observations:
 - The whole pipeline, HTML parsing included, takes at most 30 ms
   (Wikipedia), without any incremental work.
 - On Wikipedia, stylesheet parsing (6.8 ms) runs only when the stylesheets
-  or the media query results change, but a resize currently recomputes it
-  (backlog: keep parsed stylesheets across resizes).
+  or the media query results change. Since M8 feature 3b, a sheet is
+  parsed once (`SheetSlot::parsed`): a resize or a DOM change that marks
+  the stylist dirty builds only the rule index again.
 - A hover change on a page with `:hover` rules costs style plus layout
   (about 16 ms on Wikipedia), see ADR 0009. Scrolling does not restyle for
   `:hover`; the next mouse movement does.
 - Raster time depends on the window size and on how much of the page has
   text; glyph masks are cached.
+
+M8 feature 3b (the split of `Page` into the page and `DocumentState`, the
+journal drain, the parsed-stylesheet cache), 2026-10-23: four interleaved
+runs of the base (77f26a3) and the new binary, 60 runs each, mean of the
+medians in ms. All stages within ±3 % except `stylesheets`, which is 10 to
+11 % faster on the large pages: the parsed sheets are no longer freed
+inside the timed stage. (The `parse` stage of senko-net, 0.06 ms, is
+bimodal for both binaries: 0.06 or 0.09 ms in single runs.)
+
+| Fixture | parse | stylesheets | style | layout | display list | raster | Total |
+|---|---|---|---|---|---|---|---|
+| ars-technica | 3.10 → 3.12 | 3.94 → 3.54 | 19.66 → 19.68 | 6.45 → 6.49 | 0.43 → 0.44 | 4.77 → 4.82 | 38.34 → 38.09 |
+| bbc | 4.02 → 3.99 | 2.19 → 1.95 | 4.46 → 4.43 | 9.91 → 9.84 | 0.66 → 0.65 | 3.17 → 3.17 | 24.41 → 24.02 |
+| craigslist-posting | 0.27 → 0.28 | 0.27 → 0.27 | 0.17 → 0.17 | 0.24 → 0.24 | 0.03 → 0.03 | 0.96 → 0.95 | 1.94 → 1.94 |
+| hacker-news | 0.66 → 0.65 | 0.43 → 0.42 | 1.40 → 1.39 | 1.73 → 1.75 | 0.13 → 0.13 | 0.66 → 0.65 | 5.02 → 4.98 |
+| senko-net | 0.06 → 0.07 | 0.22 → 0.22 | 0.07 → 0.07 | 0.37 → 0.36 | 0.02 → 0.02 | 0.54 → 0.52 | 1.29 → 1.26 |
+| wikipedia-web-browser | 5.17 → 5.11 | 5.27 → 4.67 | 9.49 → 9.43 | 12.06 → 11.98 | 0.94 → 0.92 | 2.02 → 2.03 | 34.95 → 34.14 |
 
 ## JavaScript engine
 

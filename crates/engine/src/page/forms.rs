@@ -4,15 +4,15 @@
 
 use std::sync::Arc;
 
-use swb_dom::{NodeId, local_name};
+use swb_dom::{Document, NodeId, local_name};
 use swb_layout::{FragmentRef, Point};
 use swb_style::{PseudoKind, is_actually_disabled};
 
 use super::{HistoryHandling, Page};
 use crate::edit::TextEdit;
 use crate::forms::{
-    ButtonType, ControlType, FormContext, InputType, Submitter, blocking_fields, default_button,
-    display_offset, form_submission, labeled_control, option_label, value_offset,
+    ButtonType, ControlType, FormContext, Forms, InputType, Submitter, blocking_fields,
+    default_button, form_submission, labeled_control, option_label, value_offset,
 };
 use crate::hit_test::link_around;
 use crate::input::{Key, Modifiers};
@@ -34,7 +34,7 @@ impl Page {
         let Some(node) = self.editable_focus() else {
             return false;
         };
-        let Some(state) = self.forms.get_mut(node) else {
+        let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
             return false;
         };
         let text = if state.ty == ControlType::Input(InputType::Number) {
@@ -43,6 +43,7 @@ impl Page {
             text.to_owned()
         };
         if state.edit.insert(&text) {
+            state.dirty = true;
             self.control_changed();
         }
         true
@@ -52,14 +53,19 @@ impl Page {
     /// the selected text and deletes it. Empty without a selection (and
     /// for password fields, which cannot be copied).
     pub fn cut_selection(&mut self) -> String {
-        let text = self.control_selected_text().unwrap_or_default();
+        let text = self
+            .doc
+            .as_ref()
+            .and_then(|d| d.control_selected_text())
+            .unwrap_or_default();
         if text.is_empty() {
             return text;
         }
         if let Some(node) = self.editable_focus()
-            && let Some(state) = self.forms.get_mut(node)
+            && let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node))
             && state.edit.delete_selection()
         {
+            state.dirty = true;
             self.control_changed();
         }
         text
@@ -69,56 +75,53 @@ impl Page {
     /// first selected option of a select, or of an option. `None` for
     /// other elements.
     pub fn control_value(&self, node: NodeId) -> Option<String> {
-        self.forms.value(self.document.as_ref()?, node)
+        self.forms()?.value(self.document()?, node)
     }
 
     /// The checkedness of a checkbox or radio button, or the selectedness
     /// of an option. `None` for other elements.
     pub fn control_checked(&self, node: NodeId) -> Option<bool> {
-        self.forms.checked(node)
+        self.forms()?.checked(node)
     }
 
     // ----- Selection and focus -----
 
+    /// The form controls of the current document.
+    fn forms(&self) -> Option<&Forms> {
+        Some(self.doc.as_ref()?.forms.value())
+    }
+
+    /// The form controls of the current document, for user input.
+    fn forms_mut(&mut self) -> Option<&mut Forms> {
+        Some(self.doc.as_deref_mut()?.forms.value_mut())
+    }
+
+    /// The document and its form controls, for user input.
+    fn dom_and_forms(&mut self) -> Option<(&Document, &mut Forms)> {
+        let doc = self.doc.as_deref_mut()?;
+        Some((&doc.dom, doc.forms.value_mut()))
+    }
+
+    /// True if `node` is a text field or a text area.
+    pub(super) fn is_text_control(&self, node: NodeId) -> bool {
+        self.forms().is_some_and(|f| f.is_text_control(node))
+    }
+
+    /// The type of control `node`.
+    fn control_type(&self, node: NodeId) -> Option<ControlType> {
+        self.forms()?.control_type(node)
+    }
+
+    /// True if control `node` is disabled.
+    fn is_disabled(&self, node: NodeId) -> bool {
+        self.forms().is_some_and(|f| f.is_disabled(node))
+    }
+
     /// The focused text control, if it can be edited.
     fn editable_focus(&self) -> Option<NodeId> {
-        let node = self.input.states.focus?;
-        let e = self.document.as_ref()?.element(node)?;
-        self.forms.get(node)?.is_editable(e).then_some(node)
-    }
-
-    /// The focused text control and its type.
-    fn text_focus(&self) -> Option<(NodeId, ControlType)> {
-        let node = self.input.states.focus?;
-        let ty = self.forms.control_type(node).filter(|t| t.is_text())?;
-        Some((node, ty))
-    }
-
-    /// The selection in the focused text control, as offsets in its shown
-    /// text (for the highlight).
-    pub(super) fn control_selection(&self) -> Option<(NodeId, u32, u32)> {
-        let (node, ty) = self.text_focus()?;
-        let edit = &self.forms.get(node)?.edit;
-        let range = edit.selection();
-        if range.is_empty() {
-            return None;
-        }
-        let password = ty == ControlType::Input(InputType::Password);
-        let to_u32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
-        let start = display_offset(edit.text(), range.start, password);
-        let end = display_offset(edit.text(), range.end, password);
-        Some((node, to_u32(start), to_u32(end)))
-    }
-
-    /// The selected text of the focused text control: `Some("")` if a
-    /// text control has the focus but nothing is selected, or if it is a
-    /// password field. `None` without a focused text control.
-    pub(super) fn control_selected_text(&self) -> Option<String> {
-        let (node, ty) = self.text_focus()?;
-        if ty == ControlType::Input(InputType::Password) {
-            return Some(String::new());
-        }
-        Some(self.forms.get(node)?.edit.selected_text().to_owned())
+        let node = self.focused_element()?;
+        let e = self.document()?.element(node)?;
+        self.forms()?.get(node)?.is_editable(e).then_some(node)
     }
 
     /// Called when the focus moved from `old` to the current focus. A text
@@ -126,8 +129,12 @@ impl Page {
     /// start (as an unfocused field shows it). Returns true if the layout
     /// changes (the caret moved between controls).
     pub(super) fn focus_changed(&mut self, old: Option<NodeId>) -> bool {
-        let new = self.input.states.focus;
-        if let Some(state) = new.and_then(|n| self.forms.get_mut(n))
+        let Some(doc) = self.doc.as_deref_mut() else {
+            return false;
+        };
+        let new = doc.states.focus;
+        let forms = doc.forms.value_mut();
+        if let Some(state) = new.and_then(|n| forms.get_mut(n))
             && state.ty != ControlType::TextArea
         {
             state.scroll = Point::default();
@@ -135,17 +142,24 @@ impl Page {
         let involves_control = [old, new]
             .into_iter()
             .flatten()
-            .any(|n| self.forms.get(n).is_some());
+            .any(|n| forms.get(n).is_some());
         if involves_control {
-            self.invalidate_layout();
+            doc.invalidate_layout();
         }
         involves_control
+    }
+
+    /// Drops the layout of the current document.
+    fn invalidate_layout(&mut self) {
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.invalidate_layout();
+        }
     }
 
     /// Keyboard focus selects the whole text of a text field (not of a
     /// text area), as in Chromium.
     pub(super) fn select_field_text(&mut self, node: NodeId) {
-        if let Some(state) = self.forms.get_mut(node)
+        if let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node))
             && let ControlType::Input(t) = state.ty
             && t.is_text()
         {
@@ -160,14 +174,18 @@ impl Page {
     /// viewport coordinates.
     pub(super) fn control_offset_at(&mut self, node: NodeId, point: Point) -> usize {
         self.update_layout();
-        let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
-        let offsets = self.scroll_offsets();
-        let shown = self
+        let Some(doc) = self.doc.as_deref() else {
+            return 0;
+        };
+        let document_point = Point::new(point.x + doc.scroll.x, point.y + doc.scroll.y);
+        let shown = doc
             .fragments
             .as_ref()
-            .and_then(|tree| selection::control_offset_at(tree, offsets, node, document_point))
+            .and_then(|tree| {
+                selection::control_offset_at(tree, doc.scroll_offsets(), node, document_point)
+            })
             .unwrap_or(0) as usize;
-        let Some(state) = self.forms.get(node) else {
+        let Some(state) = doc.forms.value().get(node) else {
             return 0;
         };
         let password = state.ty == ControlType::Input(InputType::Password);
@@ -185,7 +203,7 @@ impl Page {
         shift: bool,
         clicks: u32,
     ) {
-        let Some(state) = self.forms.get_mut(node) else {
+        let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
             return;
         };
         let password = state.ty == ControlType::Input(InputType::Password);
@@ -200,7 +218,7 @@ impl Page {
     /// A drag in text control `node`: extends its selection to the point.
     pub(super) fn drag_in_control(&mut self, node: NodeId, point: Point) -> bool {
         let offset = self.control_offset_at(node, point);
-        let Some(state) = self.forms.get_mut(node) else {
+        let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
             return false;
         };
         if state.edit.cursor() == offset {
@@ -222,7 +240,7 @@ impl Page {
     /// disabled control gets no click events, so nothing above it
     /// activates (as in Chromium).
     pub(super) fn activation_target(&self, node: NodeId, point: Point) -> Option<NodeId> {
-        let doc = self.document.as_ref()?;
+        let doc = self.document()?;
         let mut in_interactive = false;
         for n in std::iter::once(node).chain(doc.ancestors(node)) {
             let Some(e) = doc.element(n).filter(|e| e.is_html()) else {
@@ -243,8 +261,8 @@ impl Page {
                 }
                 _ => {}
             }
-            match self.forms.control_type(n) {
-                Some(_) if self.forms.is_disabled(n) => return None,
+            match self.control_type(n) {
+                Some(_) if self.is_disabled(n) => return None,
                 Some(t) if t.is_button() || t.is_checkable() => return Some(n),
                 Some(t) => in_interactive |= t != ControlType::Input(InputType::Hidden),
                 None => in_interactive |= is_interactive(e),
@@ -261,7 +279,7 @@ impl Page {
     /// control is disabled handles the click and does nothing. Returns true
     /// if something happened.
     pub(super) fn activate(&mut self, target: NodeId, point: Point) -> bool {
-        let Some(doc) = self.document.as_ref() else {
+        let Some(doc) = self.document() else {
             return false;
         };
         let Some(e) = doc.element(target) else {
@@ -279,15 +297,16 @@ impl Page {
             if let Some(control) = labeled_control(doc, target) {
                 return self.activate_label(control);
             }
-        } else if self.forms.control_type(target).is_some() {
-            if self.forms.is_disabled(target) {
+        } else if self.control_type(target).is_some() {
+            if self.is_disabled(target) {
                 // A disabled control gets no click events at all.
                 return false;
             }
             if self.has_activation_behavior(target) {
+                let scroll = self.scroll_position();
                 let coordinate = self.element_box(target).map(|r| {
-                    let x = point.x + self.scroll.x - r.x;
-                    let y = point.y + self.scroll.y - r.y;
+                    let x = point.x + scroll.x - r.x;
+                    let y = point.y + scroll.y - r.y;
                     (x.floor().max(0.0) as i32, y.floor().max(0.0) as i32)
                 });
                 return self.activate_control(target, coordinate);
@@ -299,14 +318,17 @@ impl Page {
     /// True if `point` (viewport coordinates) is in the default summary of
     /// `details`, which has no summary element.
     fn in_default_summary(&self, details: NodeId, point: Point) -> bool {
-        let Some(tree) = &self.fragments else {
+        let Some(doc) = self.doc.as_deref() else {
             return false;
         };
-        let point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
+        let Some(tree) = &doc.fragments else {
+            return false;
+        };
+        let point = Point::new(point.x + doc.scroll.x, point.y + doc.scroll.y);
         let mut inside = false;
         tree.walk_painted(
-            self.scrollers.offsets(),
-            self.scroll,
+            doc.scroll_offsets(),
+            doc.scroll,
             |fragment, rect, matrix| {
                 if let FragmentRef::Box(b) = fragment
                     && b.node == Some(details)
@@ -324,24 +346,22 @@ impl Page {
     /// content that is no longer rendered. Returns true.
     /// <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-summary-element>
     pub(super) fn toggle_details(&mut self, details: NodeId) -> bool {
-        let Some(doc) = self.document.as_mut() else {
-            return false;
-        };
-        if doc.element(details).is_none() {
+        if self.document().and_then(|d| d.element(details)).is_none() {
             return false;
         }
-        if !doc.remove_attr(details, "open") && doc.set_attr(details, "open", "").is_err() {
-            log::warn!("cannot open the details element: the document is at its limit");
-        }
-        self.styles = None;
-        self.invalidate_layout();
-        if let (Some(doc), Some(focus)) = (&self.document, self.input.states.focus)
+        self.change_dom(|doc| {
+            if !doc.remove_attr(details, "open") && doc.set_attr(details, "open", "").is_err() {
+                log::warn!("cannot open the details element: the document is at its limit");
+            }
+        });
+        if let (Some(doc), Some(focus)) = (self.document(), self.focused_element())
             && doc.in_closed_details_content(focus)
         {
             self.update_states(|s| s.focus = None);
         }
         // A selection that starts or ends in the hidden content goes away.
-        if let (Some(doc), Some(selection)) = (&self.document, self.input.selection)
+        let selection = self.doc.as_ref().and_then(|d| d.selection);
+        if let (Some(doc), Some(selection)) = (self.document(), selection)
             && (doc.in_closed_details_content(selection.anchor.node)
                 || doc.in_closed_details_content(selection.focus.node))
         {
@@ -353,24 +373,27 @@ impl Page {
     /// Follows the nearest link that contains `node` (or is `node`).
     /// Returns true if a navigation started or the page scrolled.
     fn follow_link_around(&mut self, node: NodeId) -> bool {
-        let (Some(doc), Some(base)) = (self.document.as_ref(), self.base_url.as_ref()) else {
+        let Some(doc) = self.doc.as_deref() else {
             return false;
         };
-        let link = link_around(doc, node, base);
+        let link = link_around(doc.dom(), node, doc.base_url());
         link.is_some_and(|(_, link)| self.follow_link(link))
     }
 
     /// True if a click on control `node` does something: checkboxes and
     /// radio buttons, and submit and reset buttons with a form owner.
     fn has_activation_behavior(&self, node: NodeId) -> bool {
-        let Some(ty) = self.forms.control_type(node) else {
+        let Some(forms) = self.forms() else {
+            return false;
+        };
+        let Some(ty) = forms.control_type(node) else {
             return false;
         };
         let resets = matches!(
             ty,
             ControlType::Input(InputType::Reset) | ControlType::Button(ButtonType::Reset)
         );
-        ty.is_checkable() || ((ty.is_submit_button() || resets) && self.forms.owner(node).is_some())
+        ty.is_checkable() || ((ty.is_submit_button() || resets) && forms.owner(node).is_some())
     }
 
     /// The activation of a label: focuses its control and clicks it. The
@@ -379,7 +402,7 @@ impl Page {
     /// a link around the control (as in Chromium, where the simulated click
     /// bubbles up from the control). A disabled control gets no click.
     fn activate_label(&mut self, control: NodeId) -> bool {
-        if self.forms.is_disabled(control) {
+        if self.is_disabled(control) {
             return false;
         }
         let focused = self.focus(Some(control), false);
@@ -394,18 +417,21 @@ impl Page {
     /// point of a click relative to the control (for image buttons).
     /// Returns true if something happened.
     fn activate_control(&mut self, node: NodeId, coordinate: Option<(i32, i32)>) -> bool {
-        let (Some(doc), Some(ty)) = (self.document.as_ref(), self.forms.control_type(node)) else {
+        let Some(ty) = self.control_type(node) else {
             return false;
         };
-        if self.forms.is_disabled(node) {
+        if self.is_disabled(node) {
             return false;
         }
-        let owner = self.forms.owner(node);
+        let owner = self.forms().and_then(|f| f.owner(node));
         match ty {
             ControlType::Input(InputType::Checkbox | InputType::Radio) => {
+                let Some((doc, forms)) = self.dom_and_forms() else {
+                    return false;
+                };
                 let checked = ty == ControlType::Input(InputType::Radio)
-                    || !self.forms.checked(node).unwrap_or(false);
-                let changed = self.forms.set_checked(doc, node, checked);
+                    || !forms.checked(node).unwrap_or(false);
+                let changed = forms.set_checked(doc, node, checked);
                 if changed {
                     self.control_changed();
                 }
@@ -414,10 +440,10 @@ impl Page {
             t if t.is_submit_button() => owner
                 .is_some_and(|form| self.submit_form(form, Submitter::Button { node, coordinate })),
             ControlType::Input(InputType::Reset) | ControlType::Button(ButtonType::Reset) => {
-                let Some(form) = owner else {
+                let (Some(form), Some((doc, forms))) = (owner, self.dom_and_forms()) else {
                     return false;
                 };
-                self.forms.reset(doc, form);
+                forms.reset(doc, form);
                 self.control_changed();
                 true
             }
@@ -431,8 +457,8 @@ impl Page {
     /// focus is not on a control or the control does not use the key (Tab,
     /// Escape, the page scrolling keys); the page handles it then.
     pub(super) fn control_key(&mut self, key: &Key, modifiers: Modifiers) -> Option<bool> {
-        let node = self.input.states.focus?;
-        let ty = self.forms.control_type(node)?;
+        let node = self.focused_element()?;
+        let ty = self.control_type(node)?;
         if modifiers.alt {
             return None;
         }
@@ -479,7 +505,7 @@ impl Page {
             return Some(true);
         }
         let editable = self.editable_focus() == Some(node);
-        let state = self.forms.get_mut(node)?;
+        let state = self.forms_mut()?.get_mut(node)?;
         let field = FieldKind {
             multiline: ty == ControlType::TextArea,
             number: ty == ControlType::Input(InputType::Number),
@@ -488,6 +514,7 @@ impl Page {
         };
         let changed = edit_key(&mut state.edit, field, key, modifiers)?;
         if changed {
+            state.dirty = true;
             self.control_changed();
         } else {
             self.invalidate_layout();
@@ -502,8 +529,8 @@ impl Page {
         if modifiers.ctrl || modifiers.meta {
             return None;
         }
-        let doc = self.document.as_ref()?;
-        let state = self.forms.get(node)?;
+        let doc = self.document()?;
+        let state = self.forms()?.get(node)?;
         let enabled: Vec<bool> = state
             .options
             .iter()
@@ -539,7 +566,9 @@ impl Page {
             _ => return None,
         };
         if let Some(index) = target
-            && self.forms.select_option(node, index)
+            && self
+                .forms_mut()
+                .is_some_and(|f| f.select_option(node, index))
         {
             self.control_changed();
         }
@@ -549,14 +578,13 @@ impl Page {
     /// Checks and focuses the next (or previous) radio button of the group
     /// of `node` that is not disabled, wrapping around.
     fn next_radio(&mut self, node: NodeId, backward: bool) -> bool {
-        let Some(doc) = self.document.as_ref() else {
+        let (Some(doc), Some(forms)) = (self.document(), self.forms()) else {
             return false;
         };
-        let group: Vec<NodeId> = self
-            .forms
+        let group: Vec<NodeId> = forms
             .radio_group(doc, node)
             .into_iter()
-            .filter(|&n| n == node || !self.forms.is_disabled(n))
+            .filter(|&n| n == node || !forms.is_disabled(n))
             .collect();
         let Some(index) = group.iter().position(|&n| n == node) else {
             return false;
@@ -582,15 +610,15 @@ impl Page {
     /// a submission started.
     /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#implicit-submission>
     fn implicit_submission(&mut self, control: NodeId) -> bool {
-        let Some(doc) = self.document.as_ref() else {
+        let (Some(doc), Some(forms)) = (self.document(), self.forms()) else {
             return false;
         };
-        let Some(form) = self.forms.owner(control) else {
+        let Some(form) = forms.owner(control) else {
             return false;
         };
-        match default_button(doc, &self.forms, form) {
+        match default_button(doc, forms, form) {
             Some(button) => self.activate_control(button, None),
-            None if blocking_fields(doc, &self.forms, form) > 1 => false,
+            None if blocking_fields(doc, forms, form) > 1 => false,
             None => self.submit_form(form, Submitter::Form),
         }
     }
@@ -598,27 +626,26 @@ impl Page {
     /// Submits `form`: validates it (unless `novalidate`), builds the
     /// request and navigates. Returns true if a navigation started.
     fn submit_form(&mut self, form: NodeId, submitter: Submitter) -> bool {
-        let (Some(doc), Some(base_url), Some(document_url)) =
-            (&self.document, &self.base_url, &self.document_url)
-        else {
+        let Some(state) = self.doc.as_deref() else {
             return false;
         };
+        let (doc, forms) = (state.dom(), state.forms.value());
         let novalidate = doc.element(form).is_some_and(|e| e.has_attr("novalidate"))
             || submitter
                 .node()
                 .and_then(|n| doc.element(n))
                 .is_some_and(|e| e.has_attr("formnovalidate"));
-        if !novalidate && let Some(&first) = self.forms.invalid_controls(doc, form).first() {
+        if !novalidate && let Some(&first) = forms.invalid_controls(doc, form).first() {
             log::info!("form not submitted: a required field has no value");
             self.focus(Some(first), true);
             return false;
         }
         let cx = FormContext {
             doc,
-            forms: &self.forms,
-            base_url,
-            document_url,
-            encoding: self.encoding,
+            forms,
+            base_url: state.base_url(),
+            document_url: state.url(),
+            encoding: state.encoding,
         };
         let Some(submission) = form_submission(&cx, form, submitter) else {
             return false;
@@ -647,8 +674,8 @@ impl Page {
     /// Updates the style states and the layout after a control's value,
     /// checkedness or selected option changed.
     fn control_changed(&mut self) {
-        if let Some(doc) = &self.document {
-            let states = Arc::new(self.forms.element_states(doc));
+        if let Some(doc) = self.doc.as_deref() {
+            let states = Arc::new(doc.forms.value().element_states(doc.dom()));
             self.update_states(|s| s.controls = states);
         }
         self.invalidate_layout();

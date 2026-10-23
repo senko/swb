@@ -16,26 +16,43 @@ use swb_style::Length;
 
 use crate::image_source::SelectedImage;
 
-/// What an in-flight request is for.
+/// What an in-flight request of a document's subresource is for. (The
+/// page tracks the request of a navigation's document itself.)
 #[derive(Clone, Debug)]
 pub(crate) enum Pending {
-    /// The document of the pending navigation. Starting a navigation
-    /// replaces all pending requests, so there is at most one.
-    Document,
-    /// The stylesheet in this slot of the author sheet list.
-    Stylesheet { slot: usize },
+    /// The stylesheet of a `link` element, from its load number `serial`:
+    /// a response for an older load of the element is ignored.
+    Stylesheet { owner: NodeId, serial: u64 },
     /// An image.
     Image { url: Url },
     /// A web font file.
     Font { url: Url },
 }
 
-/// An author stylesheet slot: inline `<style>` text or a `<link>` load.
+/// Where the text of an author stylesheet comes from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SheetSource {
+    /// The text of a `<style>` element.
+    Inline,
+    /// The URL of a `<link rel=stylesheet>`.
+    Link(Url),
+}
+
+/// An author stylesheet: inline `<style>` text or a `<link>` load. The
+/// parsed sheet is kept, so that a rebuild of the stylist after a change
+/// does not parse the CSS again (ADR 0028 section 9).
 #[derive(Debug)]
 pub(crate) struct SheetSlot {
+    /// The `style` or `link` element.
+    pub(crate) owner: NodeId,
+    pub(crate) source: SheetSource,
+    /// The load number of a `link` (see [`Pending::Stylesheet`]).
+    pub(crate) serial: u64,
     /// The CSS text, once available. `None` while loading or after an
     /// error (`failed` tells which).
     pub(crate) css: Option<String>,
+    /// The parsed `css`, after the first stylist build that used it.
+    pub(crate) parsed: Option<swb_css::Stylesheet>,
     /// The URL relative `url()` values resolve against.
     pub(crate) base_url: Url,
     /// The `media` attribute.
@@ -45,10 +62,133 @@ pub(crate) struct SheetSlot {
 }
 
 impl SheetSlot {
+    /// The sheet of a `<style>` element.
+    pub(crate) fn inline(owner: NodeId, css: String, base_url: Url, media: Option<String>) -> Self {
+        SheetSlot {
+            owner,
+            source: SheetSource::Inline,
+            serial: 0,
+            css: Some(css),
+            parsed: None,
+            base_url,
+            media,
+            failed: false,
+        }
+    }
+
+    /// The sheet of a `<link>` whose load `serial` is about to start.
+    pub(crate) fn link(owner: NodeId, url: Url, serial: u64, media: Option<String>) -> Self {
+        SheetSlot {
+            owner,
+            source: SheetSource::Link(url.clone()),
+            serial,
+            css: None,
+            parsed: None,
+            base_url: url,
+            media,
+            failed: false,
+        }
+    }
+
     /// True if the sheet arrived or failed: rendering no longer waits for
     /// it.
     pub(crate) fn is_settled(&self) -> bool {
         self.css.is_some() || self.failed
+    }
+
+    /// The parsed sheet, parsed now if it was not yet. `None` without
+    /// text.
+    pub(crate) fn parsed(&mut self) -> Option<&swb_css::Stylesheet> {
+        let css = self.css.as_deref()?;
+        Some(
+            self.parsed
+                .get_or_insert_with(|| swb_css::parse_stylesheet(css)),
+        )
+    }
+}
+
+/// The author stylesheets of a document, in tree order of their owner
+/// elements, with the set of owners (a lookup by an element that has no
+/// sheet costs no scan: a parse in steps looks up every inserted `style`
+/// and `link` element).
+#[derive(Debug, Default)]
+pub(crate) struct Sheets {
+    list: Vec<SheetSlot>,
+    owners: HashSet<NodeId>,
+}
+
+impl Sheets {
+    pub(crate) fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    pub(crate) fn iter(&self) -> std::slice::Iter<'_, SheetSlot> {
+        self.list.iter()
+    }
+
+    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<'_, SheetSlot> {
+        self.list.iter_mut()
+    }
+
+    pub(crate) fn get(&self, index: usize) -> Option<&SheetSlot> {
+        self.list.get(index)
+    }
+
+    /// The index of the sheet of `owner`. Sheets added last are found
+    /// first.
+    pub(crate) fn position(&self, owner: NodeId) -> Option<usize> {
+        if !self.owners.contains(&owner) {
+            return None;
+        }
+        self.list.iter().rposition(|s| s.owner == owner)
+    }
+
+    /// The sheet of `owner`.
+    pub(crate) fn of(&mut self, owner: NodeId) -> Option<&mut SheetSlot> {
+        let index = self.position(owner)?;
+        self.list.get_mut(index)
+    }
+
+    /// Inserts `slot` at `index` (at most the length).
+    pub(crate) fn insert(&mut self, index: usize, slot: SheetSlot) {
+        self.owners.insert(slot.owner);
+        self.list.insert(index.min(self.list.len()), slot);
+    }
+
+    pub(crate) fn push(&mut self, slot: SheetSlot) {
+        self.owners.insert(slot.owner);
+        self.list.push(slot);
+    }
+
+    pub(crate) fn remove(&mut self, index: usize) -> SheetSlot {
+        let slot = self.list.remove(index);
+        self.owners.remove(&slot.owner);
+        slot
+    }
+
+    /// Keeps the sheets for which `keep` is true.
+    pub(crate) fn retain(&mut self, mut keep: impl FnMut(&SheetSlot) -> bool) {
+        let owners = &mut self.owners;
+        self.list.retain(|s| {
+            let kept = keep(s);
+            if !kept {
+                owners.remove(&s.owner);
+            }
+            kept
+        });
+    }
+
+    /// Takes all sheets out.
+    pub(crate) fn take(&mut self) -> Vec<SheetSlot> {
+        self.owners.clear();
+        std::mem::take(&mut self.list)
+    }
+
+    pub(crate) fn sort_by(
+        &mut self,
+        compare: impl FnMut(&SheetSlot, &SheetSlot) -> std::cmp::Ordering,
+    ) {
+        self.list.sort_by(compare);
     }
 }
 
@@ -166,8 +306,14 @@ pub(crate) struct Images {
     pub(crate) sources_outdated: bool,
     /// The `img` elements that allow auto-sizes and whose source depends on
     /// their width, each with its state. They are selected after layout
-    /// (`Page::select_auto_sized_images`).
+    /// (`DocumentState::select_auto_sized_images`).
     pub(crate) auto: Vec<(NodeId, AutoSizes)>,
+    /// The elements of `auto`, for a quick test.
+    pub(crate) auto_set: HashSet<NodeId>,
+    /// The number of calls of [`Images::forget_cancelled`], to test that a
+    /// partial selection does not make them.
+    #[cfg(test)]
+    pub(crate) forget_calls: usize,
     /// Renderings of the page's SVG images.
     vector_cache: VectorCache,
     /// What counting spans may still take for the page's SVG images.
@@ -218,6 +364,10 @@ impl Images {
     /// and the selections that wait for them, so that a new selection or
     /// style computation requests them again.
     pub(crate) fn forget_cancelled(&mut self, in_flight: &HashSet<&Url>) {
+        #[cfg(test)]
+        {
+            self.forget_calls += 1;
+        }
         self.by_url
             .retain(|url, state| !matches!(state, ImageState::Loading) || in_flight.contains(url));
         let by_url = &self.by_url;

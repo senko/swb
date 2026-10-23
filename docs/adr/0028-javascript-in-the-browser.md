@@ -145,7 +145,23 @@ So the engine cannot pass a borrowed `&mut Page`. Instead:
 - Before it runs a task, the engine moves the box (and the shared parts
   that queries need: the font context, a loader handle) into the
   runtime's host data; after the task it takes them back. A move of a
-  box costs a pointer copy.
+  box costs a pointer copy. (Feature 3b: the loader handle is an
+  `Rc<Loader>` that the box holds itself, shared with the page, and the
+  box keeps a copy of the viewport; the font context stays in the page,
+  and the methods of `DocumentState` that lay out or paint take it as an
+  argument, so a runtime holds it next to the box for the task. The
+  viewport scroll position and the selection are in the box too: scripts
+  read and change them. `Page::take_document_state` and
+  `return_document_state` lend the box; the return drains the journal of
+  the task. While the box is out, the page keeps a `lent` flag: the
+  requests map is in the box, so the page cannot match a completion to
+  its request. `process_network` then reads nothing from the loader and
+  `wait_until_loaded` returns at once; the completions stay queued in the
+  loader and are handled in their order after the box returns. `title()`
+  and `scroll_position()` give empty and zero values, and a navigation or
+  reload in this time saves scroll 0 into the history entry, so a script
+  task must end before a navigation commits. A box that comes back after
+  a navigation is dropped.)
 - A native function gets the host through a closure that borrows the
   runtime's host data (`with_host(rt, |host| ...)`). While the closure
   runs, the runtime is borrowed, so the Rust compiler rejects any call
@@ -218,7 +234,14 @@ Changes in `dom`:
 - **Generation.** A counter that grows with every change. Derived data
   (tree order, disabled elements, the id map, live collections, cached
   query results) records the generation it was built for and is rebuilt
-  lazily when the generation differs.
+  lazily when the generation differs. (Feature 3b: the engine's derived
+  data is `Derived<T>` in `engine/src/document/derived.rs`. The base URL
+  and the title are rebuilt at the drain of the journal when a change
+  touched a `base` or `title` element, and confirmed for the new
+  generation otherwise, because the page reads them without `&mut`. The
+  form controls with their dirty flags and the disabled elements are
+  rebuilt together at the next flush; the tree order when a selection
+  needs it.)
 - **Id index.** A map from `id` values to elements, kept up to date by
   the attribute and tree changes; with several elements of one id, the
   first in tree order is found by a walk of only those elements.
@@ -574,6 +597,18 @@ element, an arriving stylesheet or a CSSOM rule change marks the
 stylist as dirty. The stylist keeps each stylesheet parsed, so a
 rebuild makes only the rule index again (today `invalidate_style`
 parses all sheets again). New elements start their loads at insertion.
+(Feature 3b: implemented with the parsed-stylesheet cache, which section
+9's plan gave to feature 7a. A drain reconciles the `style`, `link`,
+`img`, `video`, `picture` sources, `base` and `title` elements that the
+changes touched, in tree order: a moved element keeps its sheet or image
+and loads nothing again; a removed one loses its sheet. A changed base
+URL marks the stylist dirty too. A changed image source keeps the current
+image until the new one has loaded, as the HTML pending request does. The
+loads of one drain start in the order stylesheets, posters, images, as
+the walk of a complete document does. With the parse in steps, the loads
+of successive drains interleave: the images of one step start before the
+stylesheets of the next. So the walk and the journal start the same loads
+in the same order within each kind, but not across kinds.)
 
 **Flushes.** Style and layout run when something needs them, not after
 each change: in the rendering update (section 7); for a style query
@@ -593,7 +628,9 @@ the larger pages load and scroll. If swb flushed fully that often, a
 page would spend up to 3 s in style alone. The plan:
 
 1. Feature 7a builds the full flush with counters of forced style and
-   layout runs per load, and the parsed-stylesheet cache.
+   layout runs per load, and the parsed-stylesheet cache. (Feature 3b
+   built the flush on demand and the parsed-stylesheet cache; 7a adds the
+   counters.)
 2. If a page's forced style time is above 20 % of its load-time budget
    (section 16), the next feature adds the two measures that cut style
    time, in this order:

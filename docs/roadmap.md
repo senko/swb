@@ -2377,6 +2377,24 @@ Steps:
         stylist rebuild does not parse CSS again. Tests: engine tests
         that change the DOM through the API and check style, layout and
         loads; `just snapshot` and `just perf` (JS off) within noise.
+        Done 2026-10-23. `Page` holds a boxed, `'static`
+        `DocumentState` (DOM and parser, sheets, stylist, styles, layout,
+        images, web fonts, requests, forms, scroll offsets, selection,
+        element states); it shares the loader through an `Rc`, and the
+        font context is an argument of the methods that lay out.
+        `take_document_state` and `return_document_state` lend it; while
+        it is lent, network completions stay queued. `change_dom`
+        changes the DOM and drains the journal. With JavaScript on, the
+        page parses with `HtmlParser` in steps; each drain reconciles the
+        touched `style`, `link`, `img`, `video`, `picture` source, `base`
+        and `title` elements in tree order and marks styles or the
+        stylist dirty; flushes run on demand and do nothing without a
+        new generation. The stylist keeps each sheet parsed (the
+        parsed-stylesheet cache of 7a's plan). Title, base URL, tree
+        order and forms (with dirty flags) are `Derived<T>` by
+        generation. Snapshot unchanged with and without `--js`; perf
+        within 3 % (stylesheets 10 % faster on large pages); hostile set
+        ok with four new JS-on cases.
       Exit: snapshot unchanged, the JS-off perf table within 5 %, the
       hostile set passes.
    4. Embedding (`implementer-hard`), three sessions.
@@ -2719,6 +2737,34 @@ Steps:
 - DOM: `Document::nodes` never shrinks, and the node limit counts every
   node ever created (immortal nodes, ADR 0028 section 3). A page that
   re-renders for hours reaches the limit; node reclamation is the fix.
+- Engine (found in feature 3b): a change in a detached subtree or in
+  template contents marks the styles dirty (the drain does not check
+  that a change is in the document). Fix when 7a counts forced restyles.
+- Engine, 6a/6b: `img` elements that are not in the document do not load
+  (`new Image()` with `src` loads in browsers).
+- Engine: the text of `style` and `title` elements is their descendant
+  text; HTML uses the child text content.
+- Engine, forms: after a rebuild, when a script sets `checked` on a
+  radio button whose group has a dirty checked button, the last in tree
+  order wins; HTML says the newly checked one wins.
+- Engine: when the focused element is removed, focus becomes none, but
+  `focus_start` and `last_press` can still name the removed node (a
+  start for Tab and keyboard scrolling). A selection whose end is
+  removed goes away; DOM ranges move the boundary instead.
+- Engine: a `link` that is removed and inserted again in another drain
+  fetches its sheet again; a small cache of sheet text by URL (as
+  Chromium's memory cache) would avoid it.
+- Engine: `traverse_to_post` cancels the loader's requests without
+  clearing the old document's request map or forgetting its loading
+  images; `start_navigation` does not forget cancelled images. Harmless
+  while the old document is replaced at commit.
+- Engine: the loader has no priorities; with the parse in steps, the
+  images of one step start before the sheets of the next. Sheets first
+  would load pages faster on slow networks.
+- `link` with the `disabled` attribute still applies (older than M8).
+- Tools: `snapshot` has no `--js` option (feature 3b used a copy of the
+  script). The `parse` stage of `--bench` is bimodal on small pages
+  (senko-net 0.06 or 0.09 ms).
 
 ## Backlog from M6
 

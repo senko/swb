@@ -1001,7 +1001,8 @@ containers, SVG images, inline SVG, counters, custom properties, box depth, web
 fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
-`var()` chains, huge lists).
+`var()` chains, huge lists), and pages that make the parse in steps with
+JavaScript on pause many times (`parse-steps-*-js-on`).
 
 ```
 just hostile                    # all cases; builds the release binary first

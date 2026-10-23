@@ -4,7 +4,7 @@
 //!
 //! The text crate decides which faces text needs
 //! ([`swb_text::FontContext::take_web_font_requests`]); the page loads
-//! their sources in order (`page/fonts.rs`). Each URL is fetched once and
+//! their sources in order (`document/loads.rs`). Each URL is fetched once and
 //! decoded once, also when several faces use it (a variable font for
 //! many `font-weight` rules).
 

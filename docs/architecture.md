@@ -42,7 +42,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree, the geometry of inline SVG (ADR 0023). | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011), inline SVG drawing commands, hit testing of SVG shapes, group bounds, image reduction, and the cost model of path rasterization (`path_cost`). | `dom`, `layout`, `style`, `text` |
-| `engine`     | Page lifecycle: loading, pipeline, input, focus, selection, form controls, hit testing, navigation, history. | all of the above |
+| `engine`     | Page lifecycle (`page/`: navigation, history, loading, input) and the state of one document (`document/`: the DOM and its parser, the journal drain, subresources, style and layout pipeline, queries); focus, selection, form controls, hit testing. | all of the above |
 | `automation` | Remote-control protocol: WebSocket server, methods, headless runner, Rust client. | `engine`, `net`, `dom`       |
 | `js-text`    | JavaScript text: code units of both widths (`Str16`, `String16`), code points, the Unicode data (`unicode/`; generated tables from the UCD 17.0.0: the character classes of the lexer; case mapping with the full mappings and `Final_Sigma` (`case.rs`); normalization after UAX #15 with Hangul by the algorithm, a stable sort of the non-starters and a one-pass composition, in slices (`normalize.rs`); the four-level order of `localeCompare` on the canonical decomposition (`collate.rs`); the names and aliases of the Unicode properties of regular expressions (`property.rs`) and their code point sets, General_Category, Script, Script_Extensions, the binary properties and the emoji strings, as delta-encoded ranges that are decoded on use (`property_sets.rs`, data in `property_data.rs`), and the Canonicalize rule of regular expressions without `u`), numbers and their text forms (`number/`: `StringToNumber`, `parseFloat` and `parseInt` in one bounded pass, decimal digits to Rust's float parser, `parseInt` exact in all radixes; `Number::toString` in all radixes, in radixes other than 10 the shortest digits that read back, the closest of them (Burger and Dybvig's free format, `number/shortest.rs`); exact `toFixed`, `toExponential` and `toPrecision` on multi-precision integers; the en-US `toLocaleString`; the exact sum of `Math.sumPrecise` and `Math.f16round`; the binary16 bits of `getFloat16` and `setFloat16`, `number/binary16.rs`), the integers of `BigInt` (`bigint/`: sign and magnitude in 64-bit limbs, schoolbook multiplication, Knuth's Algorithm D and the single-limb division with a precomputed reciprocal, powers, shifts and the bitwise operators on the two's complement form, `asIntN` and `asUintN`, the exact conversions and comparisons with doubles, `StringToBigInt` and the literals, `toString` in all radixes; a size limit of 2^18 bits, fallible allocation and a cost per operation for the engine's time countdown), a keyed hasher for small integer keys, and the engine's shared recursion budget (`RecursionBudget`). ADR 0026. | — |
 | `js-regexp`  | Regular expressions (ADR 0026 section 10). The parser (`parser/`) reads a pattern in the grammar of the `u` and `v` flags or in the web grammar of Annex B.1.2, with all early errors and V8's messages, and builds a tree (`ast.rs`) bottom-up with an explicit stack; the flags of modifiers and the case closure of `i` are resolved into the leaves (character sets of `charset.rs`). The compiler (`compile.rs`) emits a backtracking program of enum instructions (`program.rs`) with counter registers for counted quantifiers and backward instructions for lookbehinds. The matcher (`exec.rs`) is a loop with a backtrack stack and an undo log over both string widths; it stops after a given number of steps and continues on the next call (`Matcher`), within a memory limit that the caller passes; `Matcher::reset` reuses its vectors for the next match. `check_literal` checks literals for `js-syntax` without building the tree. The sets of `\p{...}` and `\P{...}` come from `js-text` and are cached per property in the parser. | `js-text` |
@@ -142,8 +142,9 @@ Rules:
   processed text to the node's data (`layout/src/source_map.rs`).
 - **Selection** (`engine`): a range between two positions in text nodes
   (node and byte offset). It refers to the DOM, so it survives a new
-  layout. The tree order of nodes is computed once per document for
-  comparisons.
+  layout. The tree order of nodes for comparisons is derived data of the
+  document state (built when a selection needs it, again after a DOM
+  change).
 - **Element states** (`engine` → `style`): hovered, active, focused and
   target elements. A change restyles only if a selector depends on that
   state; the layout stays if no style changed (ADR 0009).
@@ -161,10 +162,14 @@ Rules:
   the request and, for `POST` results, the body.
 - **Form controls** (`engine/src/forms/`, ADR 0013): per-document `Forms`
   keyed by `NodeId` (value as `TextEdit`, checkedness, select options,
-  form owner). Layout gets them through `LayoutInput::controls`; style
-  gets `:checked`, `:placeholder-shown`, `:valid` and `:invalid` through
+  form owner, a dirty flag for what the user changed). Layout gets them
+  through `LayoutInput::controls`; style gets `:checked`,
+  `:placeholder-shown`, `:valid` and `:invalid` through
   `ElementStates::controls`. The disabled state of all elements comes
-  from one tree walk (`DisabledElements`, linear time).
+  from one tree walk (`DisabledElements`, linear time). After a DOM change
+  the document state rebuilds `Forms` for the new generation
+  (`Forms::rebuild`): owners, disabled states, options and defaults are
+  computed again, a dirty control keeps its state.
 - **Natural sizes** (`layout`): `NaturalSize` has an optional width,
   height and aspect ratio (SVG images, videos without a loaded poster and
   audio can lack any of them). Replaced elements and backgrounds use the
@@ -239,7 +244,7 @@ Rules:
   face set: families, composite fonts by `unicode-range`, the load state
   of each face and the requests that layout makes
   (`text/src/web.rs`). After layout the engine takes the requests and
-  loads the sources (`engine/src/page/fonts.rs`; each URL once,
+  loads the sources (`engine/src/document/loads.rs`; each URL once,
   `engine/src/web_fonts.rs`); `text/src/decode.rs` decodes WOFF and
   WOFF2 (`wuff`) within size limits. A font that arrives invalidates the
   layout. A font is a face with synthesis flags and variation axis
@@ -284,6 +289,53 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   runs the page on the main thread and reads the stack limit of the process
   at start: below 8 MiB it keeps JavaScript off (ADR 0028 section 2).
 
+## Page and document state
+
+`Page` (`engine/src/page/`) is one browsing context: the session history,
+the pending navigation, the loader (shared through an `Rc`), the font
+context, the viewport and the state of the pointer and the press. The
+current document is a boxed `DocumentState` (`engine/src/document/`, ADR
+0028 section 2): the DOM and its parser, the stylesheets and the stylist,
+the styles, the fragments and the display list, the images and web fonts
+with their requests, the form controls, the scroll offsets, the selection
+and the element states. Style, layout, display list, raster and the
+queries (geometry, scroll state, hit testing, rendered text, selector
+queries) are methods of `DocumentState`; those that lay out take the font
+context as an argument. The state is `'static` and borrows nothing from the
+page, so a script runtime can hold the box for a task
+(`Page::take_document_state`, `return_document_state`; feature 4c). The
+load state of the page is derived: `LoadingResources` while the document
+state has requests or a parse in steps.
+
+Parsing: with JavaScript off, `parse_html*` parses to the end without a
+journal, and the document state walks the new document once. With
+JavaScript on, the page parses with `HtmlParser` in steps (one per
+`script` end tag; no script runs yet) and the document state drains the
+journal after each step.
+
+The journal drain (`DocumentState::process_changes`, `document/changes.rs`)
+runs after each parser step, after each DOM change through the change API
+(`Page::change_dom`, `DocumentState::change_dom`, the return of a lent
+state) and before each flush. It reconciles the elements that the changes
+touched, in tree order: a `style` or `link` gets the sheet that its
+attributes ask for (a moved one keeps its sheet; a removed one loses it),
+an `img` or a `video` its image or poster, so loads start at insertion; a
+`base` or `title` change rebuilds the base URL or the title. Any change
+marks the styles dirty; a sheet change or a new base URL marks the
+stylist dirty. A drain with an unchanged DOM generation does nothing, and
+style and layout run only when a frame or a query needs them (full restyle
+and full layout in M8). An incomplete journal (the parse without scripts,
+an overflow) reconciles every element in one walk.
+
+Caches: the stylist keeps each sheet parsed (`SheetSlot::parsed`), so a
+rebuild of the stylist after a change builds only the rule index again
+(the benchmark's `restart_pipeline` drops the parses too). Derived data
+records the DOM generation it was built for (`document/derived.rs`,
+`Derived<T>`): the base URL and the title (kept current by the drain; a
+drain that did not touch them confirms them), the form controls (rebuilt
+at the next flush or Page-level drain) and the tree order (rebuilt when
+the selection needs it).
+
 ## The JavaScript setting
 
 `Page` holds the setting (`set_javascript`, off by default; command line
@@ -318,7 +370,8 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   selection and scrolling see only `children`, while the box dump
   (`FragmentTree::element_boxes`) also walks `hidden`. The engine toggles
   the `open` attribute on a click on the summary or Enter/Space on it
-  (`page/forms.rs`), restyles, and skips elements in closed contents in
+  (`page/forms.rs`, through `Page::change_dom`, so the journal drain
+  restyles), and skips elements in closed contents in
   the focus order (`Document::in_closed_details_content`).
 - Flex layout (`flex.rs`) follows CSS Flexbox 1 §9: lines, flexible
   lengths, cross sizes, `align-content`, first baselines and automatic
@@ -474,17 +527,30 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
 
 ## Engine modules
 
-- `page/mod.rs`: page state, navigation, history, links, accessors.
+- `page/mod.rs`: page state, navigation, history, links, accessors, the
+  DOM change API (`change_dom`) and the lending of the document state.
 - `page/loading.rs`: network completions, documents (HTML, text, image,
-  error pages), stylesheets and images.
-- `page/fonts.rs`, `web_fonts.rs`: web fonts: the face set of the
+  error pages), the parse to the end or in steps.
+- `page/pipeline.rs`: rendering and screenshots, the viewport and its
+  limits.
+- `page/scroll.rs`: scrolling by the user (wheel, keys) and the scroll
+  calls of the front ends, with the hover state after a scroll.
+- `document/mod.rs`: `DocumentState`, its construction and the parse in
+  steps, element states and the selection.
+- `document/changes.rs`: the journal drain: resource discovery,
+  sheets of removed elements, invalidation, title and base URL.
+- `document/derived.rs`: `Derived<T>` (data keyed by the DOM generation),
+  the base URL and the title.
+- `document/loads.rs`, `web_fonts.rs`: stylesheet, image and font
+  requests and their completions; image source selection (also
+  `sizes="auto"` after each layout); web fonts: the face set of the
   document, loading the faces that layout requested (`url()` through the
   loader, `local()` from the installed fonts), font files by URL.
-- `page/pipeline.rs`: style, layout, display list and raster with
-  per-stage timings; restyles after state changes; viewport and
-  screenshots.
-- `page/scroll.rs`: scrolling of the viewport and of scroll containers
-  (wheel, keys, scroll into view), scrolling to a fragment, `:target`.
+- `document/pipeline.rs`: style, layout, display list and raster with
+  per-stage timings; restyles after state changes.
+- `document/queries.rs`: element boxes, scroll state and scrolls that
+  scripts can ask for, scrolling to a fragment, hit testing, rendered
+  text and the selection.
 - `scrollers.rs`: scroll offsets per element, scroll ranges, scroll
   chains, alignment for scroll into view.
 - `page/input.rs`: mouse and key events, element states, cursor, focus
@@ -497,9 +563,8 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
 - `image_source.rs`: image source selection for `<img>` (`srcset`,
   `sizes`, `<picture>` and `<source>`, the source of the dimension
   attributes); `resources.rs` keeps each image's URL and pixel density
-  and selects sources again after viewport or scale changes;
-  `page/auto_sizes.rs` selects the sources of lazy images with
-  `sizes="auto"` after each layout, by the width of their boxes.
+  (and selects sources again after viewport or scale changes) and the
+  author stylesheets of a document (`Sheets`).
 - `selection.rs`: text positions, the position at a point, words and
   blocks, the highlight for paint, and the selected text (`innerText`
   rules).
