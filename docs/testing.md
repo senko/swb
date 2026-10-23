@@ -2208,11 +2208,15 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   `[SwbCustom]`, static operations, `stringifier`). A test host with a
   fake document implements its traits. Each case is a script whose
   string value (and, after the jobs, the global `out` if the script sets
-  it) is compared with the expected text.
+  it) is compared with the expected text. `crates/web/tests/legacy/` has
+  the legacy platform objects and iterable declarations of the test IDL
+  (interfaces shaped like `NodeList`, `HTMLCollection`,
+  `HTMLOptionsCollection`, `DOMStringMap`, `Storage`, `HTMLFormElement`
+  and `Headers`) with their test implementation and cases.
 - `crates/web/tests/interfaces.rs`: the browser's glue (`EventTarget`,
-  `Event`, `Node`, `DOMException`) with stand-in behaviour: interface
-  objects, prototype chains, property names in order, descriptors,
-  `length` and `name`, constants, the argument checks, and
+  `Event`, `Node`, `NodeList`, `DOMException`) with stand-in behaviour:
+  interface objects, prototype chains, property names in order,
+  descriptors, `length` and `name`, constants, the argument checks, and
   `DOMException`.
 
 Both run every case with and without the GC stress mode and check that no
@@ -2222,7 +2226,13 @@ where a real API shows the conversion (`tools/probes/web-bindings.json`,
 `'12abc'`, `tabIndex` for `long`, `Blob.slice` for `[Clamp] long long`,
 `getImageData` for `[EnforceRange]`, enumeration, dictionary, sequence,
 record and union messages, the descriptors of `Node.prototype` and
-`DOMException`); the rest follows Web IDL.
+`DOMException`) and for indexed and named properties and iterators
+(`tools/probes/web-legacy.json`: `NodeList`, `document.forms`,
+`dataset`, `localStorage`, `select.options`, a form, `Headers`, and the
+immutable prototypes of `window`); the rest follows Web IDL. Where
+Chromium departs from Web IDL (the comments of
+`crates/web/tests/legacy/cases.rs` list the cases), the tests follow Web
+IDL.
 
 ## Python tools: development
 

@@ -2397,7 +2397,7 @@ Steps:
         ok with four new JS-on cases.
       Exit: snapshot unchanged, the JS-off perf table within 5 %, the
       hostile set passes.
-   4. Embedding (`implementer-hard`), three sessions.
+   4. Embedding (`implementer-hard`), four sessions.
       - 4a `js`: host classes with parents, prototypes and interface
         objects per realm, the brand check; host hooks for the internal
         methods; the host-defined global object; host data that the
@@ -2444,12 +2444,41 @@ Steps:
         generated yet: indexed and named properties, `iterable`,
         `[LegacyFactoryFunction]`. test262 unchanged; jsbench within
         noise.
-      - 4c `web`: the runtime per document, the lending of
+      - 4c1 `webidl` (split from 4c after 4b): the generator for
+        legacy platform objects (Web IDL §3.9): indexed and named
+        getters, setters and deleters through the 4a hooks, with
+        `[LegacyOverrideBuiltIns]` and
+        `[LegacyUnenumerableNamedProperties]`; `iterable` (value and
+        pair iterators: `keys`, `values`, `entries`, `forEach`,
+        `@@iterator`); the `js` hooks for `[[PreventExtensions]]` and
+        `[[SetPrototypeOf]]` (legacy platform objects refuse to become
+        non-extensible; `Window` and `WindowProperties` have immutable
+        prototypes); Chromium's messages for refused indexed and named
+        writes. Tests: the test IDL and a probe of `NodeList`,
+        `HTMLCollection` and `DOMStringMap` in Chromium (property
+        names, descriptors, `in`, strict-mode writes, `Object.freeze`,
+        iteration).
+        Done 2026-10-23. The special operations become trait functions
+        of the declaring interface and hooks on every class whose
+        instances have indexed or named properties (also by
+        inheritance). Refused writes, definitions and deletions throw
+        Chromium's messages in strict code; sloppy writes stay silent.
+        Value iterators use the `Array.prototype` functions; pair
+        iterators get generated "X Iterator" classes. `js` gained the
+        `[[PreventExtensions]]` and refusal hooks and a `set` hook that
+        can hand the property to the ordinary steps. Departure from the
+        scope: `[[SetPrototypeOf]]` is not a hook but an
+        immutable-prototype mark on any object, because a class with
+        hooks makes its objects exotic and the global object must stay
+        cacheable; Web IDL and HTML only need SetImmutablePrototype.
+        `NodeList` is generated. Where Chromium departs from Web IDL
+        (ADR 0028 section 5), swb follows Web IDL. test262 unchanged in
+        both modes; jsbench geomean −0.6 %.
+      - 4c2 `web`: the runtime per document, the lending of
         `DocumentState`, the wrapper vector and side table, `Window` as
         the global object, `Document`, `Node`, `Element` and
         `CharacterData` with their read-only tree accessors, `NodeList`
-        for `childNodes` (the generator gets indexed getters and
-        `iterable`, which 4b left out), `console`
+        for `childNodes`, `console`
         to the log and to the automation console buffer,
         `page.evaluate`, `page.consoleMessages`, `swb --eval`. Classic
         inline scripts run at the end of the parse (the real script
@@ -2795,18 +2824,6 @@ Steps:
 - Tools: `snapshot` has no `--js` option (feature 3b used a copy of the
   script). The `parse` stage of `--bench` is bimodal on small pages
   (senko-net 0.06 or 0.09 ms).
-- `js`, feature 4b (found in feature 4a): the messages of refused writes
-  and definitions on host objects with hooks read the stored properties
-  only: `'use strict'; list[0] = 1` says "Cannot add property 0, object
-  is not extensible". Chromium words them per interface ("Failed to set
-  an indexed property [0] on 'NodeList': Index property setter is not
-  supported."); the generated `set` hooks can throw them.
-- `js`, feature 4b: no hooks for `[[PreventExtensions]]` and
-  `[[SetPrototypeOf]]`. `Object.freeze(list)` throws "Cannot redefine
-  property: 0" (Web IDL legacy platform objects refuse to become
-  non-extensible), and `Object.setPrototypeOf(globalThis, x)` succeeds
-  (`Window`, `WindowProperties` and `Location` have immutable
-  prototypes).
 - `js`, feature 4c: an empty handler attribute (`onclick=""`) gives
   `function onclick() { [native code] }` in Chromium; swb would give
   `function onclick(event) {\n\n}`.
@@ -2867,6 +2884,39 @@ Steps:
   real source size in 4a made `toLowerCase` +17 % and a regexp row
   +15 %). A collection before each timed run, or the median, would make
   such rows stable.
+- `web` (found in feature 4c1): where Chromium departs from Web IDL §3.9,
+  swb follows Web IDL. `Reflect.defineProperty` of a refused index or
+  name answers `true` in Chromium; `Object.create(list)[0] = x` writes in
+  Chromium (Web IDL refuses); `Object.create(collection).f1 = x` is
+  refused in Chromium (Web IDL defines it on the receiver); Chromium's
+  `[[OwnPropertyKeys]]` lists stored strings before the names, symbols
+  first for `DOMStringMap`, all supported names (also hidden ones such as
+  `length`), and no names for `HTMLFormElement`; `storage.getItem = x`
+  makes an own property in Chromium (Web IDL: the named setter). Change
+  only if a page depends on one.
+- `web`: the message prefixes of exceptions from indexed and named
+  getters and from the name enumeration ("Failed to read an indexed
+  property [0] from 'X': ") are guesses in Chromium's form; a probe needs
+  an interface whose getter throws.
+- `web`, 4c2: `Object.preventExtensions(window)` throws in Chromium (the
+  WindowProxy refuses); swb's global object becomes non-extensible. A
+  mark like the immutable-prototype one would do (a hook would make the
+  global object exotic).
+- `web`, 4c2: the cost of legacy platform objects. Every property read on
+  an object with named properties converts the key to a string and calls
+  `is_supported_name` (also `c.length`); every indexed read calls
+  `index_count`; `Object.keys(c)` is O(n²) with the default
+  `is_supported_name`; a pair iterator's `next` calls `pair_at` per step.
+  Live collections need the cache keyed by the DOM generation.
+- `web`, 4c2: the named property visibility algorithm does not skip a
+  named properties object on the prototype chain (Web IDL §3.9.7); add
+  it with the `WindowProperties` hooks.
+- `web`, 6x: `Location` needs the immutable-prototype mark; Chromium's
+  message names it `'[object Location]'`, swb's `object_text` would give
+  `#<Location>`.
+- `js`: `[[OwnPropertyKeys]]` of a host object with hooks lists stored
+  index keys before stored strings; Web IDL lists the stored strings in
+  creation order. Not observable while indexed definitions are refused.
 
 ## Backlog from M6
 

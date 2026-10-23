@@ -9,7 +9,14 @@
 //! key or leave it to the ordinary method (`None`), which then works on the
 //! object's stored properties (expandos). Without a `get` hook, `[[Get]]`
 //! is the ordinary one, with the `get_own_property` hook at this object;
-//! `[[HasProperty]]` uses the `get_own_property` hook the same way.
+//! `[[HasProperty]]` uses the `get_own_property` hook the same way. A
+//! `set` hook can also hand the own property to the ordinary steps
+//! ([`SetAnswer`]). When the engine throws for a refused `[[Set]]`,
+//! `[[DefineOwnProperty]]` or `[[Delete]]`, the `refusal` hook can give the
+//! message ([`Refusal`]). `[[SetPrototypeOf]]` is not a hook: the objects
+//! that Web IDL gives another one are immutable prototype objects
+//! (`Runtime::set_immutable_prototype`), and most of them (the global
+//! object, interface prototypes) must stay ordinary for the caches.
 //!
 //! A hook may run script code (a named setter converts its value with
 //! `ToString`), allocate and collect. Each call charges the recursion
@@ -41,18 +48,58 @@ pub type DefineOwnPropertyHook =
 /// method (which uses the `get_own_property` hook at this object).
 pub type GetHook = fn(&mut Runtime, Gc<Object>, PropertyKey, Value) -> VmResult<Option<Value>>;
 
-/// `[[Set]](P, V, Receiver)`: `Some(result)`, or `None` for the ordinary
-/// method (`OrdinarySet` with the other hooks).
-pub type SetHook =
-    fn(&mut Runtime, Gc<Object>, PropertyKey, Value, Value) -> VmResult<Option<bool>>;
+/// `[[Set]](P, V, Receiver)` (see [`SetAnswer`]).
+pub type SetHook = fn(&mut Runtime, Gc<Object>, PropertyKey, Value, Value) -> VmResult<SetAnswer>;
+
+/// The answer of a [`SetHook`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SetAnswer {
+    /// The hook performed `[[Set]]`; its result.
+    Done(bool),
+    /// The ordinary method: `OrdinarySet`, which reads the own property
+    /// with the `get_own_property` hook.
+    Ordinary,
+    /// `OrdinarySetWithOwnDescriptor` (ECMA-262 §10.1.9.2) with this own
+    /// property of the object (Web IDL §3.9.2: the indexed property without
+    /// the named ones). The value of a data property is not used.
+    WithOwn(Property),
+    /// `OrdinarySetWithOwnDescriptor` with the object's stored property
+    /// (or none), without the `get_own_property` hook.
+    WithStored,
+}
+
+/// `[[PreventExtensions]]()`: `Some(result)`, or `None` for the ordinary
+/// method. Web IDL legacy platform objects answer `Some(false)` (§3.9.5).
+pub type PreventExtensionsHook = fn(&mut Runtime, Gc<Object>) -> VmResult<Option<bool>>;
+
+/// The internal method that refused, for a [`RefusalHook`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// `[[Set]]` returned `false` in strict code (or `Reflect.set`'s caller
+    /// throws).
+    Set,
+    /// `[[DefineOwnProperty]]` returned `false` in `DefinePropertyOrThrow`
+    /// (`Object.defineProperty`).
+    Define,
+    /// `[[Delete]]` returned `false` in strict code.
+    Delete,
+}
+
+/// The message of the `TypeError` for a refused internal method of the
+/// object (Chromium words these per interface), or `None` for V8's own
+/// message. Called only when the engine throws; it may read the host state
+/// but should not run script code.
+pub type RefusalHook =
+    fn(&mut Runtime, Gc<Object>, PropertyKey, Refusal) -> VmResult<Option<String>>;
 
 /// `[[Delete]](P)`: `Some(result)`, or `None` for the ordinary method.
 pub type DeleteHook = fn(&mut Runtime, Gc<Object>, PropertyKey) -> VmResult<Option<bool>>;
 
-/// `[[OwnPropertyKeys]]()`: appends the keys of the host (indices in
-/// ascending order, then names) to the list; the runtime appends the
-/// ordinary keys of the object after them. The hook must not list a key
-/// that the object also stores.
+/// `[[OwnPropertyKeys]]()`: appends the keys of the host to the list, in
+/// the order that the host gives them (Web IDL §3.9.6: the supported
+/// indices in ascending order, then the supported names); the runtime
+/// appends the ordinary keys of the object after them and drops
+/// duplicates.
 pub type OwnKeysHook = fn(&mut Runtime, Gc<Object>, &mut Vec<PropertyKey>) -> VmResult<()>;
 
 /// The hooks of a class. A missing hook is the ordinary method.
@@ -70,6 +117,12 @@ pub struct HostHooks {
     pub delete: Option<DeleteHook>,
     /// `[[OwnPropertyKeys]]`.
     pub own_keys: Option<OwnKeysHook>,
+    /// `[[PreventExtensions]]` (also behind `Object.freeze`,
+    /// `Object.seal`, `Object.preventExtensions` and
+    /// `Reflect.preventExtensions`).
+    pub prevent_extensions: Option<PreventExtensionsHook>,
+    /// The messages of refused writes, definitions and deletions.
+    pub refusal: Option<RefusalHook>,
 }
 
 /// The recursion budget weight of a hook call: the Rust frames of the
@@ -189,22 +242,58 @@ impl Runtime {
         })
     }
 
-    /// The `set` hook of `O.[[Set]](P, V, Receiver)`: its answer, or `None`
-    /// for the ordinary steps.
+    /// The `set` hook of `O.[[Set]](P, V, Receiver)`: its answer
+    /// ([`SetAnswer::Ordinary`] without a hook).
     pub(crate) fn host_set(
         &mut self,
         object: Gc<Object>,
         (key, value, receiver): (PropertyKey, Value, Value),
         hooks: &HostHooks,
-    ) -> VmResult<Option<bool>> {
+    ) -> VmResult<SetAnswer> {
         let Some(hook) = hooks.set else {
-            return Ok(None);
+            return Ok(SetAnswer::Ordinary);
         };
         self.heap.record(object);
         self.heap.record(key);
         self.heap.record(value);
         self.heap.record(receiver);
-        self.hook_level(|rt| hook(rt, object, key, value, receiver))
+        let answer = self.hook_level(|rt| hook(rt, object, key, value, receiver))?;
+        if let SetAnswer::WithOwn(property) = answer {
+            self.record_property(property)?;
+        }
+        Ok(answer)
+    }
+
+    /// `O.[[PreventExtensions]]()` of a host object with hooks.
+    pub(crate) fn host_prevent_extensions(
+        &mut self,
+        object: Gc<Object>,
+        hooks: &HostHooks,
+    ) -> VmResult<bool> {
+        if let Some(hook) = hooks.prevent_extensions {
+            self.heap.record(object);
+            if let Some(done) = self.hook_level(|rt| hook(rt, object))? {
+                return Ok(done);
+            }
+        }
+        Ok(self.heap.prevent_extensions(object)?)
+    }
+
+    /// The host's `TypeError` for a refused internal method of `object`,
+    /// if it is a host object whose class words it.
+    pub(crate) fn host_refusal(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        why: Refusal,
+    ) -> VmResult<Option<VmError>> {
+        let Some(hook) = self.host_hooks(object)?.and_then(|hooks| hooks.refusal) else {
+            return Ok(None);
+        };
+        self.heap.record(object);
+        self.heap.record(key);
+        let message = self.hook_level(|rt| hook(rt, object, key, why))?;
+        Ok(message.map(VmError::type_error))
     }
 
     /// `O.[[Delete]](P)` of a host object with hooks.
@@ -225,12 +314,11 @@ impl Runtime {
     }
 
     /// `O.[[OwnPropertyKeys]]()` of a host object with hooks: the keys of
-    /// the hook and the stored keys in the order of ordinary
-    /// `[[OwnPropertyKeys]]` (ECMA-262 §10.1.11.1; for Web IDL legacy
-    /// platform objects §3.9.6: the supported indices, the supported names,
-    /// then the rest): array indices ascending, then strings, then
-    /// symbols, each group with the hook's keys before the stored ones and
-    /// without duplicates. The keys are recorded.
+    /// the hook in its order, then the stored keys in the order of ordinary
+    /// `[[OwnPropertyKeys]]` (ECMA-262 §10.1.11.1), without duplicates (Web
+    /// IDL §3.9.6: the supported indices, the supported names, then the
+    /// own properties; a supported name such as `"7"` stays among the
+    /// names). The keys are recorded.
     pub(crate) fn host_own_keys(
         &mut self,
         object: Gc<Object>,
@@ -251,7 +339,7 @@ impl Runtime {
         keys.try_reserve(stored.len())
             .map_err(crate::error::Error::from)?;
         keys.extend(stored);
-        Ok(order_keys(keys))
+        Ok(without_duplicates(keys))
     }
 
     /// Records the values of a property in the current handle scope.
@@ -270,27 +358,9 @@ impl Runtime {
     }
 }
 
-/// Puts keys in the order of `[[OwnPropertyKeys]]`: indices ascending, then
-/// strings, then symbols (the order of arrival within strings and
-/// symbols), and drops the duplicates.
-fn order_keys(keys: Vec<PropertyKey>) -> Vec<PropertyKey> {
+/// Drops the later copies of keys that occur twice (a supported name that
+/// is also a supported index, `"0"`).
+fn without_duplicates(keys: Vec<PropertyKey>) -> Vec<PropertyKey> {
     let mut seen = std::collections::HashSet::with_capacity(keys.len());
-    let mut indices = Vec::new();
-    let mut strings = Vec::new();
-    let mut symbols = Vec::new();
-    for key in keys {
-        if !seen.insert(key) {
-            continue;
-        }
-        match key {
-            PropertyKey::Index(index) => indices.push(index),
-            PropertyKey::String(_) => strings.push(key),
-            PropertyKey::Symbol(_) => symbols.push(key),
-        }
-    }
-    indices.sort_unstable();
-    let mut out: Vec<PropertyKey> = indices.into_iter().map(PropertyKey::Index).collect();
-    out.extend(strings);
-    out.extend(symbols);
-    out
+    keys.into_iter().filter(|key| seen.insert(*key)).collect()
 }

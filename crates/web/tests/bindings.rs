@@ -3,7 +3,8 @@
 //! `swb_js::Runtime`: the conversions of each type and extended attribute,
 //! Chromium's error messages, overloads, `[Reflect]`, dictionaries,
 //! enumerations, callbacks, unions, sequences, records, promises,
-//! `[Global]`, `[LegacyUnforgeable]`, `[Replaceable]`, `[PutForwards]`.
+//! `[Global]`, `[LegacyUnforgeable]`, `[Replaceable]`, `[PutForwards]`;
+//! legacy platform objects and iterable declarations in `legacy/`.
 //! Every case runs with and without the GC stress mode. The expected
 //! values come from Chromium where a conversion is observable with a real
 //! API (`tools/probes/web-bindings.json`); the rest follow Web IDL.
@@ -18,6 +19,7 @@
 #[rustfmt::skip]
 #[allow(dead_code, unreachable_pub, unused_qualifications, clippy::all, clippy::pedantic)]
 mod generated;
+mod legacy;
 
 use generated::types::{
     LongOrBoolean, LongOrDomString, LongSequenceOrLongRecordOrDomString, TestCallback,
@@ -34,7 +36,11 @@ use swb_web::bindings::{self as b, Cx, Exception, GlueState, Host, NodeId, Platf
 struct FakeNode {
     name: String,
     element: bool,
+    /// A `TestForm` (a legacy platform object that is a node).
+    form: bool,
     attributes: Vec<(String, String)>,
+    /// The elements of a form.
+    children: Vec<NodeId>,
 }
 
 /// The host state of the test runtime.
@@ -84,7 +90,9 @@ fn new_node(rt: &mut Runtime, name: &str, element: bool) -> b::Result<NodeId> {
     host.nodes.push(FakeNode {
         name: name.to_owned(),
         element,
+        form: false,
         attributes: Vec::new(),
+        children: Vec::new(),
     });
     NodeId::from_index(host.nodes.len() - 1).ok_or_else(|| Exception::type_error("too many nodes"))
 }
@@ -118,11 +126,10 @@ impl Host for TestHost {
         if let Some(Some(wrapper)) = state.wrappers.get(node.index()) {
             return Ok(*wrapper);
         }
-        let element = state.nodes.get(node.index()).is_some_and(|n| n.element);
-        let class = if element {
-            generated::TEST_ELEMENT
-        } else {
-            generated::NODE
+        let class = match state.nodes.get(node.index()) {
+            Some(n) if n.form => generated::TEST_FORM,
+            Some(n) if n.element => generated::TEST_ELEMENT,
+            _ => generated::NODE,
         };
         let wrapper = rt.new_host_object(realm, class, b::node_data(node))?;
         b::glue::install_unforgeables::<TestHost>(rt, realm, class, wrapper)?;
@@ -688,8 +695,7 @@ fn runtime(stress: bool) -> Runtime {
     generated::define_classes::<TestHost>(&mut rt).unwrap();
     rt.set_host_data(TestHost::default());
     generated::create_interfaces::<TestHost>(&mut rt, 0).unwrap();
-    rt.init_global(0, generated::WINDOW, HostData::Word(7))
-        .unwrap();
+    generated::init_global::<TestHost>(&mut rt, 0, HostData::Word(7)).unwrap();
     let functions: [(&str, u32, swb_js::NativeFn); 5] = [
         ("makeElement", 1, make_element),
         ("makeNode", 0, make_node),
@@ -697,7 +703,10 @@ fn runtime(stress: bool) -> Runtime {
         ("setAttr", 3, set_attr),
         ("gc", 0, gc),
     ];
-    for (name, length, func) in functions {
+    for (name, length, func) in functions
+        .into_iter()
+        .chain(legacy::FUNCTIONS.iter().copied())
+    {
         rt.define_global_function(name, length, func).unwrap();
     }
     rt.eval(PRELUDE).unwrap();

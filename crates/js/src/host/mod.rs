@@ -42,7 +42,8 @@ use std::any::Any;
 
 pub use handler::EventHandler;
 pub use hooks::{
-    DefineOwnPropertyHook, DeleteHook, GetHook, GetOwnPropertyHook, HostHooks, OwnKeysHook, SetHook,
+    DefineOwnPropertyHook, DeleteHook, GetHook, GetOwnPropertyHook, HostHooks, OwnKeysHook,
+    PreventExtensionsHook, Refusal, RefusalHook, SetAnswer, SetHook,
 };
 pub use interface::{Attributes, Interface};
 pub use ops::ScriptIterator;

@@ -128,3 +128,58 @@ interface Tester {
   static DOMString version();
   stringifier;
 };
+
+// Legacy platform objects (Web IDL §3.9) and iterable declarations
+// (§3.7.9), shaped like NodeList, HTMLCollection, DOMStringMap, Storage,
+// HTMLOptionsCollection, HTMLFormElement and Headers.
+
+[Exposed=Window]
+interface TestList {
+  getter Node? item(unsigned long index);
+  readonly attribute unsigned long length;
+  iterable<Node>;
+};
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface TestCollection {
+  readonly attribute unsigned long length;
+  getter TestElement? item(unsigned long index);
+  getter TestElement? namedItem(DOMString name);
+};
+
+[Exposed=Window]
+interface TestOptionList : TestCollection {
+  setter undefined (unsigned long index, TestElement? option);
+};
+
+[Exposed=Window, LegacyOverrideBuiltIns]
+interface TestStringMap {
+  getter DOMString (DOMString name);
+  [CEReactions] setter undefined (DOMString name, DOMString value);
+  [CEReactions] deleter undefined (DOMString name);
+};
+
+[Exposed=Window]
+interface TestStorage {
+  readonly attribute unsigned long length;
+  DOMString? key(unsigned long index);
+  getter DOMString? getItem(DOMString key);
+  setter undefined setItem(DOMString key, DOMString value);
+  deleter undefined removeItem(DOMString key);
+  undefined clear();
+};
+
+[Exposed=Window, LegacyOverrideBuiltIns, LegacyUnenumerableNamedProperties]
+interface TestForm : TestElement {
+  readonly attribute unsigned long length;
+  getter TestElement (unsigned long index);
+  getter TestElement (DOMString name);
+};
+
+[Exposed=Window]
+interface TestHeaders {
+  constructor();
+  undefined append(ByteString name, ByteString value);
+  undefined delete(ByteString name);
+  iterable<ByteString, ByteString>;
+};

@@ -9,11 +9,11 @@
 // THIRD_PARTY_NOTICES.md for the license text.
 //
 // swb cut these IDL blocks to the members that it implements (features 4c
-// and 5a of M8): Event, EventTarget and EventListener are complete;
-// AddEventListenerOptions has no `signal` (no AbortSignal yet); Node has
-// no `ownerDocument`, `parentElement` and `childNodes` (they come with
-// Document, Element and NodeList in feature 4c). The order of the
-// remaining members is the specification's.
+// and 5a of M8): Event, EventTarget, EventListener and NodeList are
+// complete; AddEventListenerOptions has no `signal` (no AbortSignal yet);
+// Node has no `ownerDocument`, `parentElement` and `childNodes` (they come
+// with Document and Element in feature 4c). The order of the remaining
+// members is the specification's.
 
 [Exposed=*]
 interface Event {
@@ -129,6 +129,13 @@ interface Node : EventTarget {
   [CEReactions] Node appendChild(Node node);
   [CEReactions] Node replaceChild(Node node, Node child);
   [CEReactions] Node removeChild(Node child);
+};
+
+[Exposed=Window]
+interface NodeList {
+  getter Node? item(unsigned long index);
+  readonly attribute unsigned long length;
+  iterable<Node>;
 };
 
 dictionary GetRootNodeOptions {

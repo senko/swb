@@ -34,6 +34,7 @@ use std::collections::HashSet;
 use swb_js_text::hash::BuildKeyedHasher;
 
 use crate::heap::Gc;
+use crate::host::hooks::{Refusal, SetAnswer};
 use crate::object::{Object, ObjectKind, Property, PropertyDescriptor};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
@@ -218,6 +219,9 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return self.proxy_prevent_extensions(object, throw);
         }
+        if let Some(hooks) = self.host_hooks(object)? {
+            return self.host_prevent_extensions(object, &hooks);
+        }
         Ok(self.heap.prevent_extensions(object)?)
     }
 
@@ -237,6 +241,9 @@ impl Runtime {
             None => self.heap.delete(object, key)?,
         };
         if !deleted && throw {
+            if let Some(error) = self.host_refusal(object, key, Refusal::Delete)? {
+                return Err(error);
+            }
             return Err(VmError::type_error(format!(
                 "Cannot delete property '{}' of {}",
                 self.key_text(key),
@@ -413,13 +420,19 @@ impl Runtime {
             if self.heap.is_proxy(current)? {
                 return self.proxy_set(current, key, value, receiver, throw);
             }
-            if let Some(hooks) = self.host_hooks(current)?
-                && let Some(done) = self.host_set(current, (key, value, receiver), &hooks)?
-            {
-                if !done {
-                    return self.refuse_set(throw, current, receiver, key);
+            let mut own = None;
+            if let Some(hooks) = self.host_hooks(current)? {
+                match self.host_set(current, (key, value, receiver), &hooks)? {
+                    SetAnswer::Done(true) => return Ok(SetDone::Done(true)),
+                    SetAnswer::Done(false) => {
+                        return self.refuse_set(throw, current, receiver, key);
+                    }
+                    SetAnswer::Ordinary => {}
+                    SetAnswer::WithOwn(property) => own = Some(Some(property)),
+                    SetAnswer::WithStored => {
+                        own = Some(self.heap.get_own_property(current, key)?);
+                    }
                 }
-                return Ok(SetDone::Done(true));
             }
             // §10.4.5: a numeric key of a typed array.
             if let Some((data, index)) = self.typed_numeric(current, key)? {
@@ -432,7 +445,11 @@ impl Runtime {
                 }
                 break;
             }
-            match self.own_property(current, key)? {
+            let own = match own {
+                Some(own) => own,
+                None => self.own_property(current, key)?,
+            };
+            match own {
                 Some(Property::Data { writable: true, .. }) => break,
                 Some(Property::Data { .. }) => {
                     return self.refuse_set(throw, current, receiver, key);
@@ -470,22 +487,42 @@ impl Runtime {
                 },
             ) => self.refuse_set(throw, target, receiver, key),
             Some(Property::Data { .. }) => {
-                let done =
-                    self.define_generic(target, key, PropertyDescriptor::value(value), throw)?;
-                Ok(SetDone::Done(done))
+                let desc = PropertyDescriptor::value(value);
+                self.define_for_set(target, key, desc, receiver, throw)
             }
             None => {
                 let desc = PropertyDescriptor::data(value, true, true, true);
-                let done = self.define_generic(target, key, desc, throw)?;
-                Ok(SetDone::Done(done))
+                self.define_for_set(target, key, desc, receiver, throw)
             }
         }
     }
 
+    /// The definition on the receiver of `[[Set]]` (§10.1.9.2 steps 2.c
+    /// and 2.d). A host object that refuses it reports a refused `[[Set]]`
+    /// (Chromium's messages differ from those of a definition).
+    fn define_for_set(
+        &mut self,
+        target: Gc<Object>,
+        key: PropertyKey,
+        desc: PropertyDescriptor,
+        receiver: Value,
+        throw: bool,
+    ) -> VmResult<SetDone> {
+        if self.host_hooks(target)?.is_none() {
+            let done = self.define_generic(target, key, desc, throw)?;
+            return Ok(SetDone::Done(done));
+        }
+        if self.define_generic(target, key, desc, false)? {
+            return Ok(SetDone::Done(true));
+        }
+        self.refuse_set(throw, target, receiver, key)
+    }
+
     /// A refused `[[Set]]` at `holder` (a read-only property, or an
-    /// accessor without a setter): `false`, or V8's `TypeError`.
+    /// accessor without a setter): `false`, or a `TypeError` with the
+    /// host's message for its own objects, otherwise V8's.
     fn refuse_set(
-        &self,
+        &mut self,
         throw: bool,
         holder: Gc<Object>,
         receiver: Value,
@@ -493,6 +530,9 @@ impl Runtime {
     ) -> VmResult<SetDone> {
         if !throw {
             return Ok(SetDone::Done(false));
+        }
+        if let Some(error) = self.host_refusal(holder, key, Refusal::Set)? {
+            return Err(error);
         }
         match receiver {
             Value::Object(_) => Err(self.failed_write(holder, key)),
@@ -516,6 +556,9 @@ impl Runtime {
         if let Some(hooks) = self.host_hooks(object)? {
             let done = self.host_define(object, key, desc, &hooks)?;
             if !done && throw {
+                if let Some(error) = self.host_refusal(object, key, Refusal::Define)? {
+                    return Err(error);
+                }
                 return Err(self.define_failure(object, key));
             }
             return Ok(done);

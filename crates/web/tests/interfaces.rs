@@ -339,6 +339,58 @@ impl generated::node::NodeImpl for TestHost {
     }
 }
 
+/// The nodes of a stand-in `NodeList`.
+struct ListData(Vec<NodeId>);
+
+impl GenericData for ListData {
+    fn trace(&self, _tracer: &mut Tracer<'_>) {}
+
+    fn heap_size(&self) -> usize {
+        self.0.capacity() * size_of::<NodeId>()
+    }
+}
+
+fn list<'a>(cx: &'a Cx<'_>, this: Platform) -> b::Result<&'a [NodeId]> {
+    let swb_js::HostData::Generic(data) = this.data else {
+        return missing();
+    };
+    Ok(&cx
+        .rt
+        .heap()
+        .generic::<ListData>(data)
+        .map_err(VmError::from)?
+        .0)
+}
+
+impl generated::node_list::NodeListImpl for TestHost {
+    fn length(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
+        u32::try_from(list(cx, this)?.len()).map_err(|_| Exception::range_error("long"))
+    }
+
+    fn item(cx: &mut Cx<'_>, this: Platform, index: u32) -> b::Result<Option<NodeId>> {
+        Ok(list(cx, this)?.get(index as usize).copied())
+    }
+
+    fn index_count(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
+        Self::length(cx, this)
+    }
+}
+
+/// `makeList(...nodes)`: a stand-in `NodeList` of the nodes.
+fn make_list(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    let mut nodes = Vec::new();
+    for i in 0..call.argc() {
+        let node = rt
+            .host_object(rt.arg(call, i))
+            .and_then(|(_, data)| b::node_of(data))
+            .ok_or(VmError::type_error("not a node"))?;
+        nodes.push(node);
+    }
+    let data = rt.alloc_host_data(ListData(nodes))?;
+    let object = rt.new_host_object(call.realm(), generated::NODE_LIST, data)?;
+    Ok(NativeReturn::Value(object.into()))
+}
+
 fn make_node(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let count = rt.host_data::<TestHost>().map_or(0, |h| h.wrappers.len());
     let id = NodeId::from_index(count).ok_or(VmError::type_error("node"))?;
@@ -362,6 +414,7 @@ fn runtime(stress: bool) -> Runtime {
     rt.set_host_data(TestHost::default());
     generated::create_interfaces::<TestHost>(&mut rt, 0).unwrap();
     rt.define_global_function("makeNode", 0, make_node).unwrap();
+    rt.define_global_function("makeList", 0, make_list).unwrap();
     rt.eval(PRELUDE).unwrap();
     rt
 }
@@ -447,6 +500,30 @@ fn node_and_event_target_interfaces() {
         (
             "class T extends EventTarget {} const x = new T(); [x instanceof T, x instanceof EventTarget, typeof x.addEventListener].join()",
             "true,true,function",
+        ),
+    ]);
+}
+
+/// `NodeList` (DOM §4.2.10.1) as Chromium 148 shows it
+/// (`tools/probes/web-legacy.json`).
+#[test]
+fn node_list_interface() {
+    check(&[
+        (
+            "[Object.getOwnPropertyNames(NodeList.prototype), Reflect.ownKeys(NodeList.prototype).map(String)].join(' | ')",
+            "entries,keys,values,forEach,length,item,constructor | entries,keys,values,forEach,length,item,constructor,Symbol(Symbol.toStringTag),Symbol(Symbol.iterator)",
+        ),
+        (
+            "const p = NodeList.prototype; [p[Symbol.iterator] === Array.prototype.values, p.forEach === Array.prototype.forEach, p.entries === Array.prototype.entries, p.keys === Array.prototype.keys, p.values === Array.prototype.values, p.item.length, t(() => new NodeList())].join()",
+            "true,true,true,true,true,1,TypeError: Failed to construct 'NodeList': Illegal constructor",
+        ),
+        (
+            "const a = makeNode(); const l = makeList(a, makeNode()); [Object.keys(l), l[0] === a, l.item(0) === a, l.length, l[2], [...l].length, 1 in l, Object.prototype.toString.call(l)].join(' | ')",
+            "0,1 | true | true | 2 |  | 2 | true | [object NodeList]",
+        ),
+        (
+            "const l = makeList(makeNode()); [t(() => { 'use strict'; l[0] = 1; }), t(() => { 'use strict'; delete l[0]; }), t(() => Object.defineProperty(l, 0, { value: 1 })), t(() => Object.freeze(l))].join(' | ')",
+            "TypeError: Failed to set an indexed property [0] on 'NodeList': Indexed property setter is not supported. | TypeError: Failed to delete an indexed property [0] from 'NodeList': Index property deleter is not supported. | TypeError: Failed to set an indexed property [0] on 'NodeList': Index property setter is not supported. | TypeError: Cannot freeze",
         ),
     ]);
 }

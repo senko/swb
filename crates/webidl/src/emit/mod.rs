@@ -16,6 +16,7 @@
 
 mod iface;
 mod items;
+mod legacy;
 pub(crate) mod names;
 mod types;
 
@@ -103,6 +104,16 @@ impl Gen<'_> {
                 constant(&iface.name)
             );
         }
+        let iterators = self.pair_iterables();
+        for (i, iface) in iterators.iter().enumerate() {
+            let _ = writeln!(
+                out,
+                "/// The class of the default iterator objects of `{}` (Web IDL §3.7.9.1).\npub const {}: swb_js::ClassId = swb_js::ClassId::from_index({});",
+                iface.name,
+                legacy::iterator_constant(&iface.name),
+                self.model.interfaces.len() + i
+            );
+        }
         let traits: Vec<String> = self
             .model
             .interfaces
@@ -128,10 +139,21 @@ impl Gen<'_> {
                     snake(&iface.name)
                 );
             }
+            if self.model.legacy(iface).is_legacy() {
+                let _ = write!(spec, ".hooks({}::hooks::<H>())", snake(&iface.name));
+            }
             let _ = writeln!(
                 out,
                 "    b::glue::define_class(rt, {spec}, {})?;",
                 constant(&iface.name)
+            );
+        }
+        for iface in &iterators {
+            let _ = writeln!(
+                out,
+                "    b::glue::define_class(rt, swb_js::ClassSpec::new({}), {})?;",
+                literal(&format!("{} Iterator", iface.name)),
+                legacy::iterator_constant(&iface.name)
             );
         }
         out.push_str("    Ok(())\n}\n\n");
@@ -148,8 +170,44 @@ impl Gen<'_> {
                 let _ = writeln!(out, "    {module}::define::<H>(rt, realm)?;");
             }
         }
+        let global = self
+            .model
+            .interfaces
+            .iter()
+            .find(|i| i.ext_attrs.has("Global"));
+        if let Some(global) = global {
+            let chain: Vec<String> = self
+                .model
+                .chain(global)
+                .iter()
+                .map(|i| constant(&i.name))
+                .collect();
+            let _ = writeln!(
+                out,
+                "    // Web IDL §3.7.3: the prototypes of a [Global] interface and of its\n    // ancestors are immutable prototype objects.\n    b::glue::immutable_prototypes(rt, realm, &[{}])?;",
+                chain.join(", ")
+            );
+        }
         out.push_str("    Ok(())\n}\n");
+        if let Some(global) = global {
+            let _ = write!(
+                out,
+                "\n/// Makes the global object of `realm` an instance of `{0}` with `data`\n/// (after [`create_interfaces`]); it is an immutable prototype object\n/// (Web IDL §3.8.1).\npub fn init_global<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, data: swb_js::HostData) -> swb_js::VmResult<()> {{\n    rt.init_global(realm, {1}, data)?;\n    let global = rt.global(realm)?;\n    rt.set_immutable_prototype(global)\n}}\n",
+                global.name,
+                constant(&global.name)
+            );
+        }
         out
+    }
+
+    /// The interfaces with a pair iterator, in class order (their
+    /// iterator classes follow the interface classes).
+    fn pair_iterables(&self) -> Vec<&Iface> {
+        self.model
+            .interfaces
+            .iter()
+            .filter(|i| crate::legacy::iterable(i).is_some_and(|it| it.key.is_some()))
+            .collect()
     }
 }
 

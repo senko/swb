@@ -9,8 +9,8 @@
 use swb_js::Gc;
 use swb_js::{
     Attributes, ClassId, ClassSpec, HeapConfig, HostData, HostHooks, HostState, NativeCall,
-    NativeFn, NativeReturn, Object, Property, PropertyDescriptor, PropertyKey, Runtime,
-    RuntimeConfig, Tracer, Value, VmError, VmResult,
+    NativeFn, NativeReturn, Object, Property, PropertyDescriptor, PropertyKey, Refusal, Runtime,
+    RuntimeConfig, SetAnswer, Tracer, Value, VmError, VmResult,
 };
 
 /// The classes of the test host, in the order of their registration.
@@ -182,6 +182,24 @@ fn list_delete(rt: &mut Runtime, object: Gc<Object>, key: PropertyKey) -> VmResu
     Ok(Some(index as usize >= list_items(rt, object)?.len()))
 }
 
+/// Legacy platform objects stay extensible (Web IDL §3.9.5).
+fn refuse_prevent_extensions(_: &mut Runtime, _: Gc<Object>) -> VmResult<Option<bool>> {
+    Ok(Some(false))
+}
+
+/// The message of a refused index: the host words it.
+fn list_refusal(
+    _: &mut Runtime,
+    _: Gc<Object>,
+    key: PropertyKey,
+    why: Refusal,
+) -> VmResult<Option<String>> {
+    Ok(match key {
+        PropertyKey::Index(index) => Some(format!("List refused {why:?} of [{index}]")),
+        _ => None,
+    })
+}
+
 fn list_own_keys(
     rt: &mut Runtime,
     object: Gc<Object>,
@@ -284,18 +302,18 @@ fn map_set(
     key: PropertyKey,
     value: Value,
     receiver: Value,
-) -> VmResult<Option<bool>> {
+) -> VmResult<SetAnswer> {
     let Some(name) = name_of(rt, key) else {
-        return Ok(None);
+        return Ok(SetAnswer::Ordinary);
     };
     if receiver != Value::Object(object) {
-        return Ok(None);
+        return Ok(SetAnswer::WithStored);
     }
     if name == "stop" {
         return Err(rt.terminate("map limit"));
     }
     map_store(rt, object, name, value)?;
-    Ok(Some(true))
+    Ok(SetAnswer::Done(true))
 }
 
 fn map_define(
@@ -454,6 +472,8 @@ fn define_classes(rt: &mut Runtime) -> VmResult<Classes> {
         define_own_property: Some(list_define),
         delete: Some(list_delete),
         own_keys: Some(list_own_keys),
+        prevent_extensions: Some(refuse_prevent_extensions),
+        refusal: Some(list_refusal),
         ..HostHooks::default()
     }))?;
     let map = rt.define_class(ClassSpec::new("NamedMap").hooks(HostHooks {
@@ -462,7 +482,7 @@ fn define_classes(rt: &mut Runtime) -> VmResult<Classes> {
         set: Some(map_set),
         delete: Some(map_delete),
         own_keys: Some(map_own_keys),
-        get: None,
+        ..HostHooks::default()
     }))?;
     Ok(Classes {
         event_target,
@@ -554,7 +574,13 @@ fn create_global(rt: &mut Runtime, classes: &Classes) -> VmResult<()> {
         configurable: true,
     };
     rt.define_value_with_key(named, key, tag, attributes)?;
-    rt.init_global(0, classes.window, HostData::Word(0))
+    rt.init_global(0, classes.window, HostData::Word(0))?;
+    // Immutable prototypes (Web IDL §3.7.3, §3.7.4.4, §3.8.1).
+    let global = rt.global(0)?;
+    for object in [global, named, window.prototype, event_target.prototype] {
+        rt.set_immutable_prototype(object)?;
+    }
+    Ok(())
 }
 
 /// A runtime with the test host (`stress`: the GC stress mode).

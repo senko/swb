@@ -11,6 +11,13 @@ pub mod window;
 pub mod node;
 pub mod test_element;
 pub mod tester;
+pub mod test_list;
+pub mod test_collection;
+pub mod test_option_list;
+pub mod test_string_map;
+pub mod test_storage;
+pub mod test_form;
+pub mod test_headers;
 pub mod types;
 
 use swb_web::bindings as b;
@@ -25,11 +32,27 @@ pub const NODE: swb_js::ClassId = swb_js::ClassId::from_index(2);
 pub const TEST_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(3);
 /// The class of `Tester`.
 pub const TESTER: swb_js::ClassId = swb_js::ClassId::from_index(4);
+/// The class of `TestList`.
+pub const TEST_LIST: swb_js::ClassId = swb_js::ClassId::from_index(5);
+/// The class of `TestCollection`.
+pub const TEST_COLLECTION: swb_js::ClassId = swb_js::ClassId::from_index(6);
+/// The class of `TestOptionList`.
+pub const TEST_OPTION_LIST: swb_js::ClassId = swb_js::ClassId::from_index(7);
+/// The class of `TestStringMap`.
+pub const TEST_STRING_MAP: swb_js::ClassId = swb_js::ClassId::from_index(8);
+/// The class of `TestStorage`.
+pub const TEST_STORAGE: swb_js::ClassId = swb_js::ClassId::from_index(9);
+/// The class of `TestForm`.
+pub const TEST_FORM: swb_js::ClassId = swb_js::ClassId::from_index(10);
+/// The class of `TestHeaders`.
+pub const TEST_HEADERS: swb_js::ClassId = swb_js::ClassId::from_index(11);
+/// The class of the default iterator objects of `TestHeaders` (Web IDL §3.7.9.1).
+pub const TEST_HEADERS_ITERATOR: swb_js::ClassId = swb_js::ClassId::from_index(12);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + dom_exception::DOMExceptionImpl + window::WindowImpl + node::NodeImpl + test_element::TestElementImpl + tester::TesterImpl {}
+pub trait Bindings: b::Host + dom_exception::DOMExceptionImpl + window::WindowImpl + node::NodeImpl + test_element::TestElementImpl + tester::TesterImpl + test_list::TestListImpl + test_collection::TestCollectionImpl + test_option_list::TestOptionListImpl + test_string_map::TestStringMapImpl + test_storage::TestStorageImpl + test_form::TestFormImpl + test_headers::TestHeadersImpl {}
 
-impl<T: b::Host + dom_exception::DOMExceptionImpl + window::WindowImpl + node::NodeImpl + test_element::TestElementImpl + tester::TesterImpl> Bindings for T {}
+impl<T: b::Host + dom_exception::DOMExceptionImpl + window::WindowImpl + node::NodeImpl + test_element::TestElementImpl + tester::TesterImpl + test_list::TestListImpl + test_collection::TestCollectionImpl + test_option_list::TestOptionListImpl + test_string_map::TestStringMapImpl + test_storage::TestStorageImpl + test_form::TestFormImpl + test_headers::TestHeadersImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -39,6 +62,14 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Node"), NODE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("TestElement").parent(NODE), TEST_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Tester").constructor(tester::construct::<H>, 0), TESTER)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestList").hooks(test_list::hooks::<H>()), TEST_LIST)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestCollection").hooks(test_collection::hooks::<H>()), TEST_COLLECTION)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestOptionList").parent(TEST_COLLECTION).hooks(test_option_list::hooks::<H>()), TEST_OPTION_LIST)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestStringMap").hooks(test_string_map::hooks::<H>()), TEST_STRING_MAP)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestStorage").hooks(test_storage::hooks::<H>()), TEST_STORAGE)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestForm").parent(TEST_ELEMENT).hooks(test_form::hooks::<H>()), TEST_FORM)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestHeaders").constructor(test_headers::construct::<H>, 0), TEST_HEADERS)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("TestHeaders Iterator"), TEST_HEADERS_ITERATOR)?;
     Ok(())
 }
 
@@ -55,5 +86,31 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "TestElement", interface)?;
     let interface = tester::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Tester", interface)?;
+    let interface = test_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestList", interface)?;
+    let interface = test_collection::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestCollection", interface)?;
+    let interface = test_option_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestOptionList", interface)?;
+    let interface = test_string_map::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestStringMap", interface)?;
+    let interface = test_storage::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestStorage", interface)?;
+    let interface = test_form::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestForm", interface)?;
+    let interface = test_headers::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "TestHeaders", interface)?;
+    // Web IDL §3.7.3: the prototypes of a [Global] interface and of its
+    // ancestors are immutable prototype objects.
+    b::glue::immutable_prototypes(rt, realm, &[WINDOW])?;
     Ok(())
+}
+
+/// Makes the global object of `realm` an instance of `Window` with `data`
+/// (after [`create_interfaces`]); it is an immutable prototype object
+/// (Web IDL §3.8.1).
+pub fn init_global<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, data: swb_js::HostData) -> swb_js::VmResult<()> {
+    rt.init_global(realm, WINDOW, data)?;
+    let global = rt.global(realm)?;
+    rt.set_immutable_prototype(global)
 }

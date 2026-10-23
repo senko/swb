@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 4c1, legacy platform objects and iterables
+
+- Feature 4c was split into 4c1 (the generator) and 4c2 (the runtime per
+  document) after 4b.
+- The generator makes the indexed and named properties of Web IDL §3.9.
+  The interface that declares a getter, setter or deleter gets trait
+  functions for the supported indices and names and the special
+  operations. Every class whose instances have them (also by
+  inheritance) gets hooks for [[GetOwnProperty]], [[Set]],
+  [[DefineOwnProperty]], [[Delete]], [[PreventExtensions]] and
+  [[OwnPropertyKeys]], with `[LegacyOverrideBuiltIns]` and
+  `[LegacyUnenumerableNamedProperties]`. Refused writes in strict code,
+  definitions and deletions throw Chromium's messages ("Failed to set an
+  indexed property [0] on 'NodeList': Indexed property setter is not
+  supported."); `Object.freeze(list)` throws "Cannot freeze".
+- `iterable<V>` uses the `Array.prototype` functions; `iterable<K, V>`
+  gets default iterator objects with an "X Iterator" prototype, `next`
+  and `forEach`.
+- `js`: hooks for [[PreventExtensions]] and for the messages of
+  refusals (asked only when the engine throws, so sloppy writes stay
+  silent); a `set` hook can hand the property to the ordinary steps;
+  hook keys keep their order. [[SetPrototypeOf]] is not a hook: any
+  object can carry an immutable-prototype mark, so the global object,
+  `Window.prototype` and its ancestors stay cacheable. test262 unchanged
+  in both modes; jsbench geomean −0.6 %.
+- `NodeList` is in `dom.idl`. Tests: interfaces shaped like `NodeList`,
+  `HTMLCollection`, `HTMLOptionsCollection`, `DOMStringMap`, `Storage`,
+  `HTMLFormElement` and `Headers`, in both GC modes, against a new probe
+  (`tools/probes/web-legacy.json`). Where Chromium departs from Web IDL
+  (`Reflect.defineProperty` answers, key order, writes through another
+  receiver), swb follows Web IDL.
+- Review fixes: the exception prefixes of the special operations are
+  made only for an exception (each `list[i]` read allocated two strings);
+  the key list of `[[OwnPropertyKeys]]` is reserved with a failure
+  check; a test ends a run at its deadline inside a named setter's
+  conversion.
+- Next: feature 4c2, the runtime per document.
+
 ## 2026-10-23: M8 feature 4b, the WebIDL generator and the binding glue
 
 - New crate `swb-webidl`: a parser for the WebIDL subset of ADR 0028

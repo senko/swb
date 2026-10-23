@@ -99,6 +99,17 @@ pub fn expose(rt: &mut Runtime, realm: u32, name: &str, interface: Interface) ->
     rt.define_value(global, name, interface.object.into(), Attributes::HIDDEN)
 }
 
+/// Makes the prototypes of `classes` in `realm` immutable prototype
+/// objects (Web IDL §3.7.3: a `[Global]` interface and its ancestors).
+pub fn immutable_prototypes(rt: &mut Runtime, realm: u32, classes: &[ClassId]) -> VmResult<()> {
+    for &class in classes {
+        if let Some(interface) = rt.interface(realm, class) {
+            rt.set_immutable_prototype(interface.prototype)?;
+        }
+    }
+    Ok(())
+}
+
 /// Makes `%Error.prototype%` of `realm` the `[[Prototype]]` of the
 /// interface prototype object (`DOMException`, Web IDL §3.14.1). It reads
 /// `Error.prototype` from the global object, so it runs before any script.

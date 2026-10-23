@@ -20,6 +20,8 @@ use crate::ast::{
 const INTERFACE_ATTRS: &[&str] = &[
     "Exposed",
     "Global",
+    "LegacyOverrideBuiltIns",
+    "LegacyUnenumerableNamedProperties",
     "Serializable",
     "Transferable",
     "SecureContext",
@@ -381,6 +383,12 @@ impl Model {
                 self.check_member(iface, member)?;
             }
         }
+        for iface in &self.interfaces {
+            self.check_legacy(iface, false)?;
+        }
+        for iface in &self.callback_interfaces {
+            self.check_legacy(iface, true)?;
+        }
         for dict in &self.dictionaries {
             if let Some(parent) = &dict.inherits
                 && self.kind(parent) != Some(Kind::Dictionary)
@@ -422,12 +430,6 @@ impl Model {
             }
             Member::Operation(op) | Member::Constructor(op) => {
                 check_attrs(&op.ext_attrs, OPERATION_ATTRS, &op.place, "operation")?;
-                if op.special.is_some() {
-                    return error(
-                        &op.place,
-                        "indexed and named properties (getter, setter, deleter) are not generated yet",
-                    );
-                }
                 if iface.ext_attrs.has("Global") && op.is_static {
                     return error(
                         &op.place,
@@ -437,8 +439,8 @@ impl Model {
                 self.check_type(&op.ret, &op.place)?;
                 self.check_args(&op.args, &op.place)
             }
-            Member::Stringifier(_) => Ok(()),
-            Member::Iterable(it) => error(&it.place, "iterable declarations are not generated yet"),
+            // `legacy.rs` checks iterable declarations.
+            Member::Stringifier(_) | Member::Iterable(_) => Ok(()),
         }
     }
 
@@ -464,7 +466,7 @@ impl Model {
         Ok(())
     }
 
-    fn check_type(&self, ty: &Type, place: &Place) -> Result<(), Error> {
+    pub(crate) fn check_type(&self, ty: &Type, place: &Place) -> Result<(), Error> {
         check_attrs(&ty.ext_attrs, TYPE_ATTRS, place, "type")?;
         match &ty.kind {
             TypeKind::Named(name) => {

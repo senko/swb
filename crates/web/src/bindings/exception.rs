@@ -160,15 +160,27 @@ pub fn throw(
     dom_exception: ClassId,
     exception: Exception,
 ) -> VmError {
+    throw_with_prefix(rt, realm, &context.prefix(), dom_exception, exception)
+}
+
+/// [`throw`] with the prefix as text (the indexed and named properties of
+/// legacy platform objects: "Failed to set an indexed property [0] on
+/// 'X': ").
+pub fn throw_with_prefix(
+    rt: &mut Runtime,
+    realm: u32,
+    prefix: &str,
+    dom_exception: ClassId,
+    exception: Exception,
+) -> VmError {
     match exception {
-        Exception::Type(message) => VmError::type_error(format!("{}{message}", context.prefix())),
-        Exception::Range(message) => VmError::range_error(format!("{}{message}", context.prefix())),
-        Exception::NotOfType(ty) => VmError::type_error(format!(
-            "{}The provided value is not of type '{ty}'.",
-            context.prefix()
-        )),
+        Exception::Type(message) => VmError::type_error(format!("{prefix}{message}")),
+        Exception::Range(message) => VmError::range_error(format!("{prefix}{message}")),
+        Exception::NotOfType(ty) => {
+            VmError::type_error(format!("{prefix}The provided value is not of type '{ty}'."))
+        }
         Exception::Dom { name, message } => {
-            let message = format!("{}{message}", context.prefix());
+            let message = format!("{prefix}{message}");
             match super::dom_exception::create(rt, realm, dom_exception, name, &message) {
                 Ok(object) => VmError::Throw(object.into()),
                 Err(error) => error,

@@ -44,6 +44,33 @@ impl Runtime {
         self.is_callable(value)
     }
 
+    /// The realm of the running code (of the innermost function; realm 0
+    /// when no script runs).
+    pub fn running_realm(&self) -> u32 {
+        self.current_realm()
+    }
+
+    /// `O.[[GetPrototypeOf]]()` (ECMA-262 §10.1.1; a proxy's trap can run
+    /// script code). Charges a time step.
+    pub fn prototype_of(&mut self, object: Gc<Object>) -> VmResult<Option<Gc<Object>>> {
+        self.tick()?;
+        self.in_scope(|rt| rt.get_prototype_of(object))
+    }
+
+    /// The own property `key` that `object` stores (`OrdinaryGetOwnProperty`,
+    /// ECMA-262 §10.1.5.1), without the hooks of a host object: the
+    /// expandos of a legacy platform object. A proxy has none.
+    pub fn stored_own_property(
+        &self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> VmResult<Option<Property>> {
+        if self.heap.is_proxy(object)? {
+            return Ok(None);
+        }
+        Ok(self.heap.get_own_property(object, key)?)
+    }
+
     /// `GetV(base, key)` (ECMA-262 §7.3.3): a getter runs as a re-entry.
     pub fn get_key(&mut self, base: Value, key: PropertyKey) -> VmResult<Value> {
         self.in_scope(|rt| rt.get_value(base, key))

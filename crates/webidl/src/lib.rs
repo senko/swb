@@ -5,7 +5,8 @@
 //!
 //! - `lexer` and `parser`: the IDL text to definitions (`ast`). Errors name
 //!   the file and the line.
-//! - `model`: the definitions of a set of files merged and checked.
+//! - `model`: the definitions of a set of files merged and checked;
+//!   `legacy`: the special operations and `iterable` declarations.
 //! - `emit`: the Rust modules.
 //!
 //! A *set* is a list of IDL files and the directory of its generated
@@ -14,6 +15,7 @@
 
 pub mod ast;
 mod emit;
+mod legacy;
 mod lexer;
 mod model;
 mod parser;
@@ -224,6 +226,57 @@ mod tests {
     }
 
     #[test]
+    fn output_of_indexed_and_named_properties() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window, LegacyUnenumerableNamedProperties] interface C { getter Node? item(unsigned long index); getter Node (DOMString name); setter undefined (unsigned long index, Node? n); };\n[Exposed=Window] interface D : C {};\n[Exposed=Window] interface L { getter Node? item(unsigned long index); iterable<Node>; };";
+        let c = file(idl, "c.rs");
+        assert!(c.contains(
+            "    fn index_count(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<u32>;"
+        ));
+        assert!(c.contains("    fn supported_names(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Vec<String>>;"));
+        assert!(c.contains("    fn is_supported_name(cx: &mut b::Cx<'_>, this: b::Platform, name: &str) -> b::Result<bool> {"));
+        assert!(c.contains("    fn named_getter(cx: &mut b::Cx<'_>, this: b::Platform, name: String) -> b::Result<b::NodeId>;"));
+        assert!(c.contains("    fn indexed_setter(cx: &mut b::Cx<'_>, this: b::Platform, index: u32, value: Option<b::NodeId>) -> b::Result<()>;"));
+        assert!(c.contains("let result = <H as CImpl>::item(&mut b::Cx::without_call(rt, realm, super::C), this, index)?;"));
+        assert!(c.contains("unenumerable: true,"));
+        assert!(c.contains("prevent_extensions: Some(b::legacy::prevent_extensions),"));
+        assert!(
+            c.contains("b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;")
+        );
+        // The subclass gets hooks that call the parent's trait.
+        let d = file(idl, "d.rs");
+        assert!(d.contains("<H as super::c::CImpl>::named_getter(&mut b::Cx::without_call(rt, realm, super::C), this, name)?;"));
+        assert!(!d.contains("define_indexed_iterator"));
+        let module = file(idl, "mod.rs");
+        assert!(module.contains("swb_js::ClassSpec::new(\"D\").parent(C).hooks(d::hooks::<H>())"));
+        let l = file(idl, "l.rs");
+        assert!(l.contains("b::iterable::define_value_iterator(rt, realm, interface.prototype)?;\n    rt.define_method(realm, target, \"item\""));
+    }
+
+    #[test]
+    fn output_of_a_pair_iterator_and_a_global() {
+        let idl = "[Global=Window, Exposed=Window] interface Window {};\n[Exposed=Window] interface H { iterable<DOMString, long>; };";
+        let h = file(idl, "h.rs");
+        assert!(h.contains("    fn pair_at(cx: &mut b::Cx<'_>, this: b::Platform, index: u32) -> b::Result<Option<(String, i32)>>;"));
+        assert!(h.contains("b::iterable::iterator_prototype::<H>(rt, realm, super::H_ITERATOR, iterator_next::<H>)?;"));
+        assert!(h.contains("rt.define_method(realm, interface.prototype, \"forEach\", 1, op_for_each::<H>, swb_js::Attributes::MEMBER)?;"));
+        assert!(
+            h.contains("b::iterable::define_pair_iterator(rt, interface.prototype, entries)?;")
+        );
+        let module = file(idl, "mod.rs");
+        assert!(
+            module.contains(
+                "pub const H_ITERATOR: swb_js::ClassId = swb_js::ClassId::from_index(3);"
+            )
+        );
+        assert!(module.contains(
+            "b::glue::define_class(rt, swb_js::ClassSpec::new(\"H Iterator\"), H_ITERATOR)?;"
+        ));
+        assert!(module.contains("b::glue::immutable_prototypes(rt, realm, &[WINDOW])?;"));
+        assert!(module.contains("pub fn init_global<H: Bindings>("));
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines, reason = "a table of cases")]
     fn errors_name_the_file_and_line() {
         let cases = [
             (
@@ -245,10 +298,6 @@ mod tests {
             (
                 "[LegacyFactoryFunction=Image] interface A {};",
                 "t.idl:1: [LegacyFactoryFunction] is not generated yet",
-            ),
-            (
-                "interface A {\n getter long item(unsigned long i);\n};",
-                "t.idl:2: indexed and named properties (getter, setter, deleter) are not generated yet",
             ),
             (
                 "interface A { [Reflect] attribute DOMString x; };",
@@ -276,7 +325,59 @@ mod tests {
             ),
             (
                 "interface A { iterable<long>; };",
-                "t.idl:1: iterable declarations are not generated yet",
+                "t.idl:1: a value iterator needs an indexed property getter",
+            ),
+            (
+                "interface A {\n getter long (long i);\n};",
+                "t.idl:2: the first argument of a special operation must be unsigned long (indexed) or DOMString (named)",
+            ),
+            (
+                "interface A { getter long (unsigned long i, long j); };",
+                "t.idl:1: this special operation takes 1 required argument(s)",
+            ),
+            (
+                "interface A { getter long (unsigned long i); deleter undefined (unsigned long i); };",
+                "t.idl:1: indexed property deleters do not exist in Web IDL",
+            ),
+            (
+                "interface A { getter long (unsigned long i); getter long item(unsigned long i); };",
+                "t.idl:1: 'A' declares this special operation twice",
+            ),
+            (
+                "interface A { setter undefined (DOMString n, long v); };",
+                "t.idl:1: a named property setter or deleter needs a named property getter",
+            ),
+            (
+                "interface A { getter long (DOMString n); setter long (DOMString n, long v); };",
+                "t.idl:1: a setter must return undefined",
+            ),
+            (
+                "interface A { getter long item(unsigned long i); long item(DOMString s); };",
+                "t.idl:1: the special operation 'item' cannot be overloaded",
+            ),
+            (
+                "[LegacyOverrideBuiltIns] interface A { getter long (unsigned long i); };",
+                "t.idl:1: [LegacyOverrideBuiltIns] needs a named property getter",
+            ),
+            (
+                "[Global=Window, Exposed=Window] interface Window { getter object (DOMString name); };",
+                "t.idl:1: special operations of a [Global] interface (the named properties object) are not generated yet",
+            ),
+            (
+                "interface A { getter long (unsigned long i); iterable<DOMString>; };",
+                "t.idl:1: the value type of a value iterator must be the type of the indexed property getter",
+            ),
+            (
+                "interface A { getter long (unsigned long i); iterable<DOMString, long>; };",
+                "t.idl:1: a pair iterator cannot be declared on an interface with indexed properties",
+            ),
+            (
+                "interface A { undefined keys(); iterable<DOMString, long>; };",
+                "t.idl:1: an iterable interface cannot have a member named 'keys'",
+            ),
+            (
+                "interface A { iterable<DOMString, long>; iterable<long, long>; };",
+                "t.idl:1: an interface has at most one iterable declaration",
             ),
             (
                 "interface Node {}; interface E : Node { [Reflect] attribute double d; };",

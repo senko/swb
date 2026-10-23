@@ -18,6 +18,8 @@ pub mod convert;
 pub mod dom_exception;
 pub mod exception;
 pub mod glue;
+pub mod iterable;
+pub mod legacy;
 pub mod overload;
 pub mod reflect;
 pub mod to_js;
@@ -158,17 +160,21 @@ pub trait Host: HostState + Sized {
 
 /// The state of the glue in a runtime: the templates of the
 /// `[LegacyUnforgeable]` members (an object per realm and interface that
-/// holds the accessors, which every instance shares).
+/// holds the accessors, which every instance shares) and the iterator
+/// prototype objects of pair iterators.
 #[derive(Debug, Default)]
 pub struct GlueState {
     pub(crate) unforgeable: Vec<((u32, ClassId), Gc<Object>)>,
+    /// The iterator prototype objects of the interfaces with pair
+    /// iterators (Web IDL §3.7.9.2), per realm and iterator class.
+    pub(crate) iterator_prototypes: Vec<((u32, ClassId), Gc<Object>)>,
 }
 
 impl GlueState {
     /// Reports the objects that the state holds (call it from the host
     /// state's [`HostState::trace`]).
     pub fn trace(&self, tracer: &mut Tracer<'_>) {
-        for (_, object) in &self.unforgeable {
+        for (_, object) in self.unforgeable.iter().chain(&self.iterator_prototypes) {
             tracer.object(*object);
         }
     }

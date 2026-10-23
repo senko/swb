@@ -200,13 +200,30 @@ impl Runtime {
         })
     }
 
-    /// Whether `object` is the `%Object.prototype%` of a realm, an
-    /// immutable prototype object (§10.4.7).
-    fn is_immutable_prototype(&self, object: Gc<Object>) -> bool {
+    /// Whether `object` is the `%Object.prototype%` of a realm.
+    fn is_object_prototype(&self, object: Gc<Object>) -> bool {
         self.vm
             .realms
             .iter()
             .any(|realm| realm.intrinsic(Intrinsic::ObjectPrototype) == Some(object))
+    }
+
+    /// Whether `object` is an immutable prototype object (§10.4.7): the
+    /// `%Object.prototype%` of a realm, or an object that the host marked
+    /// ([`Runtime::set_immutable_prototype`]).
+    fn is_immutable_prototype(&self, object: Gc<Object>) -> VmResult<bool> {
+        Ok(self.heap.object(object)?.immutable_prototype || self.is_object_prototype(object))
+    }
+
+    /// Makes `object` an immutable prototype exotic object (ECMA-262
+    /// §10.4.7): from now on its `[[SetPrototypeOf]]` is
+    /// `SetImmutablePrototype`, which only accepts the current prototype.
+    /// Web IDL and HTML give this to the global object and the prototypes
+    /// of its interfaces (Web IDL §3.7.3, §3.8.1) and to the named
+    /// properties object (§3.7.4.4); the mark is permanent.
+    pub fn set_immutable_prototype(&mut self, object: Gc<Object>) -> VmResult<()> {
+        self.heap.object_mut(object)?.immutable_prototype = true;
+        Ok(())
     }
 
     /// `[[SetPrototypeOf]]` (§10.1.2, §10.4.7.1). The cycle check charges
@@ -219,7 +236,7 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return self.proxy_set_prototype_of(object, proto);
         }
-        if self.is_immutable_prototype(object) {
+        if self.is_immutable_prototype(object)? {
             // SetImmutablePrototype (§10.4.7.2).
             let same = self.heap.get_prototype_of(object)? == proto;
             return Ok(if same {
@@ -244,9 +261,18 @@ impl Runtime {
             ProtoSet::NotExtensible => {
                 VmError::type_error(format!("{} is not extensible", self.object_text(object)))
             }
-            ProtoSet::Immutable => VmError::type_error(
-                "Immutable prototype object 'Object.prototype' cannot have their prototype set",
-            ),
+            // V8 names `Object.prototype` so, other objects by their
+            // constructor (`'#<Window>'`, measured in Chromium 148).
+            ProtoSet::Immutable => {
+                let text = if self.is_object_prototype(object) {
+                    "Object.prototype".to_owned()
+                } else {
+                    self.object_text(object)
+                };
+                VmError::type_error(format!(
+                    "Immutable prototype object '{text}' cannot have their prototype set"
+                ))
+            }
             ProtoSet::TrapFalse => {
                 VmError::type_error("'setPrototypeOf' on proxy: trap returned falsish")
             }

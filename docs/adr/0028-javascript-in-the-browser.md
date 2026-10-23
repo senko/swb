@@ -465,11 +465,66 @@ Feature 4b notes:
   `crates/web/tests/bindings.rs`. `swb_webidl::binding_sets` names both
   sets; the freshness test (`crates/webidl/tests/freshness.rs`) checks
   both.
-- (Feature 4b: not generated yet.) Indexed and named properties (special
-  operations: the hooks of legacy platform objects), `iterable`,
-  `[LegacyFactoryFunction]`, static attributes, `[Reflect]` of `double`
-  and of element references: the generator refuses them with a message
-  and the line.
+- (Feature 4b: not generated yet.) `[LegacyFactoryFunction]`, static
+  attributes, `[Reflect]` of `double` and of element references: the
+  generator refuses them with a message and the line. (Indexed and named
+  properties and `iterable` came with feature 4c1.)
+
+Feature 4c1 notes:
+
+- (Feature 4c1: legacy platform objects.) The interface that declares a
+  special operation gets trait functions: `index_count` (the supported
+  property indices are `0..n`), `supported_names` and
+  `is_supported_name` (a default body searches the names; every property
+  access of an object with named properties asks, so a live collection
+  should answer from a cache), and `indexed_getter`, `indexed_setter`,
+  `named_getter`, `named_setter`, `named_deleter` for special operations
+  without an identifier; one with an identifier (`getter Node? item(...)`)
+  calls its regular operation. Every class whose instances support
+  indexed or named properties, also through inheritance (hooks are not
+  inherited in `js`), gets hooks that follow Web IDL §3.9
+  (`bindings/legacy.rs`): `[[GetOwnProperty]]`, `[[Set]]` (the setters
+  when the object is the receiver, else the ordinary steps with the own
+  property without the named ones), `[[DefineOwnProperty]]`, `[[Delete]]`,
+  `[[PreventExtensions]]` (refused: `Object.freeze` throws "Cannot
+  freeze") and `[[OwnPropertyKeys]]` (indices, visible names, then the
+  stored keys), with `[LegacyOverrideBuiltIns]` and
+  `[LegacyUnenumerableNamedProperties]`. Chromium's messages of refused
+  writes, definitions and deletions in strict code ("Failed to set an
+  indexed property [0] on 'NodeList': Indexed property setter is not
+  supported.", "Index property setter" for `defineProperty`, "Named
+  property setter", "Index/Named property deleter", "Accessor properties
+  are not allowed.") and the prefixes of exceptions of the special
+  operations ("Failed to set a named property 'a-b' on 'DOMStringMap': ")
+  were measured (`tools/probes/web-legacy.json`). Where Chromium departs
+  from Web IDL, swb follows Web IDL: `Reflect.defineProperty` of a
+  refused index or name is `false` (Chromium: `true`); a write through
+  another receiver (`Object.create(list)[0] = x`) follows §3.9.2;
+  `[[OwnPropertyKeys]]` lists the visible names before the stored keys
+  and leaves out the names that the prototype hides (Chromium lists
+  stored keys first, every supported name, and no names of a form); a
+  named setter takes `storage.getItem = x` (Chromium makes an own
+  property). One Chromium behaviour is followed: a definition with a
+  generic descriptor (`{ enumerable: true }`) calls the setter with
+  `undefined` (Web IDL refuses it).
+- (Feature 4c1: iterable declarations.) A value iterator puts
+  `%Array.prototype%`'s `entries`, `keys`, `values` and `forEach` first
+  on the prototype; every interface that declares an indexed property
+  getter gets `@@iterator` = `%Array.prototype.values%` (not
+  enumerable). A pair iterator adds the trait function `pair_at(index)`
+  (the value pairs to iterate over, read at each step), a class "X
+  Iterator" registered after the interface classes, an iterator prototype
+  per realm (`next`, `@@toStringTag`, `[[Prototype]]`
+  `%Iterator.prototype%`, kept in the glue state), and `entries`,
+  `forEach`, `keys`, `values` after the operations, with `@@iterator` =
+  `entries`. Iterator results list `done` before `value`, as Chromium's
+  do.
+- (Feature 4c1: `[Global]`.) The prototypes of a `[Global]` interface and
+  of its ancestors are immutable prototype objects
+  (`glue::immutable_prototypes` in `create_interfaces`, Web IDL §3.7.3),
+  and the generated `init_global` makes the global object one (§3.8.1);
+  Chromium's message: "Immutable prototype object '#<Window>' cannot
+  have their prototype set".
 
 ### 6. Changes to `js`
 
@@ -525,6 +580,20 @@ lists the design; these are the parts to build):
    `[[SetPrototypeOf]]`) stay ordinary; the refusal of
    `preventExtensions` by legacy platform objects comes with the first
    binding that needs it.)
+   (Feature 4c1: a `prevent_extensions` hook (also behind `Object.freeze`,
+   `Object.seal` and `Reflect.preventExtensions`) and a `refusal` hook
+   that words the `TypeError` of a refused `[[Set]]`,
+   `[[DefineOwnProperty]]` or `[[Delete]]`, asked only when the engine
+   throws. A `set` hook can hand an own property to the ordinary steps
+   (`SetAnswer::WithOwn`, `WithStored`: Web IDL's [[Set]] ignores the
+   named properties). The hook's keys keep their order in
+   `[[OwnPropertyKeys]]` (a numeric name stays among the names); the
+   stored keys follow. `[[SetPrototypeOf]]` has no hook: Web IDL and HTML
+   only give objects `SetImmutablePrototype`, and most of those objects
+   (the global object, interface prototypes) must stay ordinary and
+   cacheable, so `Runtime::set_immutable_prototype` marks any object with
+   a flag in its slot (ECMA-262 §10.4.7), which `[[SetPrototypeOf]]`
+   checks, as it checks `%Object.prototype%`.)
 3. **A host-defined global object** (InitializeHostDefinedRealm with a
    global object and `this` value from the host). Host objects are not
    cacheable today (`object/cache.rs`), and every global read

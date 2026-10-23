@@ -114,6 +114,7 @@ impl Heap {
             kind,
             extensible: true,
             watched: false,
+            immutable_prototype: false,
         };
         self.charge(Arena::<Object>::slot_size() + object.heap_size() + object.kind.heap_size());
         self.arenas.objects.insert(object)

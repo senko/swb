@@ -479,6 +479,10 @@ pub struct Object {
     /// the heap's watch epoch: set for every object that is or was the
     /// prototype of a shape, and for global objects (`cache.rs`).
     pub(crate) watched: bool,
+    /// Whether the object is an immutable prototype exotic object
+    /// (ECMA-262 §10.4.7): `[[SetPrototypeOf]]` only accepts the current
+    /// prototype (`Runtime::set_immutable_prototype`).
+    pub(crate) immutable_prototype: bool,
 }
 
 impl Object {
@@ -546,6 +550,7 @@ impl Heap {
             kind,
             extensible: true,
             watched: false,
+            immutable_prototype: false,
         })
     }
 

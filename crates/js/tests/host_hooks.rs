@@ -51,9 +51,31 @@ fn an_indexed_object_is_array_like() {
             "var l = makeList('x'); [Reflect.defineProperty(l, 0, { value: 1 }), delete l[0], delete l[1]].join()",
             "=> false,false,true",
         ),
+        // The host words the refusals (strict writes, definitions and
+        // deletions); other keys keep V8's messages.
         (
             "var l = makeList('x'); Object.defineProperty(l, 1, { value: 1 })",
-            "Uncaught TypeError: Cannot define property 1, object is not extensible",
+            "Uncaught TypeError: List refused Define of [1]",
+        ),
+        (
+            "'use strict'; var l = makeList('x'); l[0] = 1",
+            "Uncaught TypeError: List refused Set of [0]",
+        ),
+        (
+            "'use strict'; var l = makeList('x'); l[3] = 1",
+            "Uncaught TypeError: List refused Set of [3]",
+        ),
+        (
+            "'use strict'; var l = makeList('x'); delete l[0]",
+            "Uncaught TypeError: List refused Delete of [0]",
+        ),
+        (
+            "'use strict'; var l = makeList('x'); l.length = 1",
+            "Uncaught TypeError: Cannot set property length of #<List> which has only a getter",
+        ),
+        (
+            "'use strict'; var l = makeList('x'); Object.defineProperty(l, 'k', { value: 1 }); l.k = 2",
+            "Uncaught TypeError: Cannot assign to read only property 'k' of object '#<List>'",
         ),
         // The list changes under the script (the object reads the host at
         // each access, also through one cached site).
@@ -105,10 +127,12 @@ fn a_named_property_object_converts_with_to_string() {
             "var m = makeMap(); var s = Symbol('s'); m[s] = 5; [m[s], Object.keys(m).length].join()",
             "=> 5,0",
         ),
-        // [[OwnPropertyKeys]] order: indices ascending, then names.
+        // [[OwnPropertyKeys]] order: the hook's keys in its order, then the
+        // stored keys (here the indices, which this map leaves to the
+        // ordinary methods) in the ordinary order.
         (
-            "var m = makeMap(); m[1] = 'a'; m[0] = 'b'; m.z = 'c'; Reflect.ownKeys(m).join() + ' ' + JSON.stringify(m)",
-            "=> 0,1,z {\"0\":\"b\",\"1\":\"a\",\"z\":\"c\"}",
+            "var m = makeMap(); m[1] = 'a'; m[0] = 'b'; m.z = 'c'; m.y = 'd'; Reflect.ownKeys(m).join() + ' ' + JSON.stringify(m)",
+            "=> z,y,0,1 {\"z\":\"c\",\"y\":\"d\",\"0\":\"b\",\"1\":\"a\"}",
         ),
         // The stored keys follow the hook's within a group, without
         // duplicates; the hook refuses stored indices.
@@ -179,4 +203,88 @@ fn the_runtime_stays_clean_after_hook_errors() {
         assert_eq!(run_host(&mut rt, "makeList('a')[0]"), "=> a");
         assert_eq!(rt.recursion_budget(), swb_js::RecursionBudget::DEFAULT);
     });
+}
+
+#[test]
+fn legacy_objects_stay_extensible() {
+    check_host_cases(&[
+        (
+            "var l = makeList('x'); Object.preventExtensions(l)",
+            "Uncaught TypeError: Cannot prevent extensions",
+        ),
+        (
+            "var l = makeList('x'); Object.freeze(l)",
+            "Uncaught TypeError: Cannot freeze",
+        ),
+        (
+            "var l = makeList(); Object.seal(l)",
+            "Uncaught TypeError: Cannot seal",
+        ),
+        (
+            "var l = makeList('x'); [Reflect.preventExtensions(l), Object.isExtensible(l), Object.isFrozen(l), Object.isSealed(l)].join()",
+            "=> false,true,false,false",
+        ),
+        // A class without the hook makes objects that become
+        // non-extensible.
+        (
+            "var m = makeMap(); Object.preventExtensions(m); Object.isExtensible(m)",
+            "=> false",
+        ),
+    ]);
+}
+
+#[test]
+fn immutable_prototypes_refuse_other_prototypes() {
+    check_host_cases(&[
+        (
+            "Object.setPrototypeOf(globalThis, {})",
+            "Uncaught TypeError: Immutable prototype object '#<Window>' cannot have their prototype set",
+        ),
+        (
+            "globalThis.__proto__ = {}",
+            "Uncaught TypeError: Immutable prototype object '#<Window>' cannot have their prototype set",
+        ),
+        (
+            "[Reflect.setPrototypeOf(globalThis, {}), Reflect.setPrototypeOf(globalThis, null), \
+             Reflect.setPrototypeOf(globalThis, Window.prototype), \
+             Object.getPrototypeOf(globalThis) === Window.prototype].join()",
+            "=> false,false,true,true",
+        ),
+        (
+            "var wp = Object.getPrototypeOf(Window.prototype); [Reflect.setPrototypeOf(wp, {}), \
+             Reflect.setPrototypeOf(Window.prototype, {}), \
+             Reflect.setPrototypeOf(EventTarget.prototype, null)].join()",
+            "=> false,false,false",
+        ),
+        (
+            "Object.setPrototypeOf(Object.getPrototypeOf(Window.prototype), {})",
+            "Uncaught TypeError: Immutable prototype object '#<EventTarget>' cannot have their prototype set",
+        ),
+        (
+            "Object.setPrototypeOf(Object.prototype, {})",
+            "Uncaught TypeError: Immutable prototype object 'Object.prototype' cannot have their prototype set",
+        ),
+        // Other host objects keep the ordinary [[SetPrototypeOf]].
+        (
+            "var l = makeList(); Object.setPrototypeOf(l, Array.prototype); Object.getPrototypeOf(l) === Array.prototype",
+            "=> true",
+        ),
+    ]);
+}
+
+#[test]
+fn a_set_hook_hands_the_own_property_to_the_ordinary_steps() {
+    check_host_cases(&[
+        // `Object.create(map)` as the receiver: the hook hands over the
+        // stored property (none), so the write defines on the receiver.
+        (
+            "var m = makeMap(); m.a = 'x'; var o = Object.create(m); o.a = 'y'; [o.a, m.a, Object.keys(o).join()].join()",
+            "=> y,x,a",
+        ),
+        // A stored read-only expando refuses the write through the chain.
+        (
+            "var m = makeMap(); Object.defineProperty(m, Symbol.for('k'), { value: 1 }); var o = Object.create(m); o[Symbol.for('k')] = 2; o[Symbol.for('k')]",
+            "=> 1",
+        ),
+    ]);
 }

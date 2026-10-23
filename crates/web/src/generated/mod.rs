@@ -9,6 +9,7 @@
 pub mod event;
 pub mod event_target;
 pub mod node;
+pub mod node_list;
 pub mod dom_exception;
 pub mod types;
 
@@ -20,13 +21,15 @@ pub const EVENT: swb_js::ClassId = swb_js::ClassId::from_index(0);
 pub const EVENT_TARGET: swb_js::ClassId = swb_js::ClassId::from_index(1);
 /// The class of `Node`.
 pub const NODE: swb_js::ClassId = swb_js::ClassId::from_index(2);
+/// The class of `NodeList`.
+pub const NODE_LIST: swb_js::ClassId = swb_js::ClassId::from_index(3);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(3);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(4);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + node_list::NodeListImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + node_list::NodeListImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -34,6 +37,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Event").constructor(event::construct::<H>, 1), EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("EventTarget").constructor(event_target::construct::<H>, 0), EVENT_TARGET)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Node").parent(EVENT_TARGET), NODE)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("NodeList").hooks(node_list::hooks::<H>()), NODE_LIST)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMException").constructor(dom_exception::construct::<H>, 0), DOM_EXCEPTION)?;
     Ok(())
 }
@@ -47,6 +51,8 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "EventTarget", interface)?;
     let interface = node::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Node", interface)?;
+    let interface = node_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "NodeList", interface)?;
     let interface = dom_exception::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMException", interface)?;
     Ok(())

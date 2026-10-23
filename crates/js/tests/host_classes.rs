@@ -202,10 +202,15 @@ fn messages_name_host_objects_by_their_constructor() {
             "'use strict'; Object.defineProperty(globalThis, 'qq', { value: 1 }); try { globalThis.qq = 2; } catch (e) { String(e); }",
             "=> TypeError: Cannot assign to read only property 'qq' of object '#<Window>'",
         ),
-        // An exotic host object (hooks) is named the same way.
+        // An exotic host object (hooks) is named the same way, where its
+        // refusal hook leaves the message to the engine.
+        (
+            "'use strict'; var l = makeList('a'); Object.defineProperty(l, 'k', { value: 1 }); try { delete l.k; } catch (e) { String(e); }",
+            "=> TypeError: Cannot delete property 'k' of #<List>",
+        ),
         (
             "'use strict'; var l = makeList('a'); try { Array.prototype.pop.call(l); } catch (e) { String(e); }",
-            "=> TypeError: Cannot delete property '0' of #<List>",
+            "=> TypeError: List refused Delete of [0]",
         ),
     ]);
 }

@@ -80,6 +80,9 @@ impl Gen<'_> {
             );
             self.stringifier_glue(iface, "stringify", &mut glue);
         }
+        self.legacy_trait_items(iface, &mut trait_items, &mut claim)?;
+        self.legacy_glue(iface, &mut glue);
+        self.pair_iterator_glue(iface, &mut glue);
         let trait_name = format!("{}Impl", iface.name);
         let _ = writeln!(out, "/// The hand-written behaviour of `{}`.", iface.name);
         let _ = writeln!(out, "pub trait {trait_name}: b::Host {{");
@@ -91,7 +94,7 @@ impl Gen<'_> {
     }
 
     /// The Rust type of `this`.
-    fn this_type(&self, iface: &Iface) -> &'static str {
+    pub(super) fn this_type(&self, iface: &Iface) -> &'static str {
         if self.model.is_node(&iface.name) {
             "b::NodeId"
         } else {
@@ -754,9 +757,12 @@ impl Gen<'_> {
                 "    let template = b::glue::new_unforgeable_template::<H>(rt, realm, {class}, {parent})?;"
             );
         }
+        let (first, last) = self.iteration_definitions(iface);
+        out.push_str(&first);
         define_attributes(iface, global, out);
         define_constants(iface, out)?;
         define_operations(iface, groups, global, out);
+        out.push_str(&last);
         out.push_str("    rt.end_interface(interface)?;\n    Ok(interface)\n}\n");
         Ok(())
     }
