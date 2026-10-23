@@ -1,5 +1,6 @@
-//! The browser toolbar (back, forward, reload, address bar) and the status
-//! bubble, drawn with the same display list and rasterizer as pages.
+//! The browser toolbar (back, forward, reload, the JavaScript toggle,
+//! address bar) and the status bubble, drawn with the same display list
+//! and rasterizer as pages.
 
 use std::sync::Arc;
 
@@ -29,6 +30,8 @@ pub(crate) enum ToolbarHit {
     Back,
     Forward,
     Reload,
+    /// The JavaScript toggle.
+    JavaScript,
     /// The address field; the value is the x position inside the text.
     Address(f32),
 }
@@ -38,6 +41,11 @@ pub(crate) struct ToolbarState<'a> {
     pub(crate) can_go_back: bool,
     pub(crate) can_go_forward: bool,
     pub(crate) loading: bool,
+    /// The JavaScript setting.
+    pub(crate) javascript: bool,
+    /// False if the stack limit of the process rules JavaScript out
+    /// (the toggle is dimmed and does nothing).
+    pub(crate) javascript_allowed: bool,
     pub(crate) status: Option<&'a str>,
 }
 
@@ -58,7 +66,7 @@ fn button_rect(index: usize) -> Rect {
 }
 
 fn field_rect(width: f32) -> Rect {
-    let x = button_rect(3).x + 4.0;
+    let x = button_rect(4).x + 4.0;
     Rect::new(x, 5.0, (width - x - 8.0).max(40.0), TOOLBAR_HEIGHT - 10.0)
 }
 
@@ -74,6 +82,9 @@ impl Toolbar {
         }
         if button_rect(2).contains(p) {
             return Some(ToolbarHit::Reload);
+        }
+        if button_rect(3).contains(p) {
+            return Some(ToolbarHit::JavaScript);
         }
         field_rect(width)
             .contains(p)
@@ -140,6 +151,8 @@ impl Toolbar {
             );
         }
 
+        javascript_toggle(&mut items, fonts, state);
+
         let field = field_rect(width);
         items.push(DisplayItem::Rect {
             rect: field,
@@ -196,6 +209,35 @@ impl Toolbar {
         }
         DisplayList { items }
     }
+}
+
+/// The JavaScript toggle: "JS" on a blue pill when JavaScript is on, gray
+/// text when it is off, light gray text when it is not available.
+fn javascript_toggle(
+    items: &mut Vec<DisplayItem>,
+    fonts: &mut FontContext,
+    state: &ToolbarState<'_>,
+) {
+    let r = button_rect(3);
+    let color = if state.javascript && state.javascript_allowed {
+        let radius = r.height / 2.0;
+        items.push(DisplayItem::Rect {
+            rect: r,
+            radii: [(radius, radius); 4],
+            color: Rgba::rgb(0x1A, 0x73, 0xE8),
+        });
+        Rgba::WHITE
+    } else if state.javascript_allowed {
+        ICON
+    } else {
+        ICON_DISABLED
+    };
+    let line = shape_line(fonts, "JS", 13.0);
+    let origin = Point::new(
+        r.x + (r.width - line.width) / 2.0,
+        r.y + r.height / 2.0 + 4.5,
+    );
+    line.push_items(items, origin, color);
 }
 
 /// The status bubble at the bottom left (the URL of the hovered link).

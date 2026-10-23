@@ -10,12 +10,13 @@
 //! (`<source>`, `<track>`, fallback content) are not rendered.
 //!
 //! HTML exposes a user interface "if the `controls` attribute is present,
-//! or if scripting is disabled for the media element". swb runs no
-//! scripts, so every video has controls, as in Chromium with JavaScript
-//! disabled; audio without `controls` is `display: none` (user-agent
-//! style sheet). The controls approximate Chromium 148's (measured on
-//! Linux at device scale 1; the parts that paint draws are described in
-//! `paint/src/media.rs`).
+//! or if scripting is disabled for the media element". So with the
+//! scripting flag of the document off, every video has controls, as in
+//! Chromium with JavaScript disabled; with it on, only a video with the
+//! `controls` attribute has (ADR 0020). Audio without `controls` is
+//! `display: none` (user-agent style sheet). The controls approximate
+//! Chromium 148's (measured on Linux at device scale 1; the parts that
+//! paint draws are described in `paint/src/media.rs`).
 //!
 //! Video controls, for a content box of `w` × `h` px:
 //!
@@ -101,6 +102,9 @@ pub(crate) struct Media {
     /// True if the element has a media resource: a `src` attribute or a
     /// `<source>` child with one (not blank).
     pub(crate) source: bool,
+    /// True if the element shows its controls: it has the `controls`
+    /// attribute, or scripting is disabled for the document.
+    pub(crate) controls: bool,
 }
 
 impl Media {
@@ -124,6 +128,7 @@ impl Media {
             audio,
             poster: !audio && present(element.attr("poster")),
             source,
+            controls: !doc.scripting() || element.has_attr("controls"),
         })
     }
 }
@@ -143,13 +148,18 @@ pub(crate) fn content(
     };
     MediaContent {
         node,
-        default_poster: !media.audio && !media.poster,
+        // Chromium paints the dark fill of a video without a poster as part
+        // of its controls: a video without controls paints nothing.
+        default_poster: !media.audio && !media.poster && media.controls,
         audio: media.audio,
         parts,
     }
 }
 
 fn video_parts(ctx: &mut LayoutContext<'_>, media: Media, size: Size) -> Vec<MediaPart> {
+    if !media.controls {
+        return Vec::new();
+    }
     let (w, h) = (size.width, size.height);
     let gradient = Rect::new(0.0, h - GRADIENT_HEIGHT, w, GRADIENT_HEIGHT);
     let mut parts = vec![part(MediaPartKind::Panel, gradient, true)];
@@ -288,12 +298,15 @@ fn time(ctx: &mut LayoutContext<'_>, text: &str, x: f32, baseline: f32) -> Media
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::layout_html;
+    use crate::test_support::{layout_html, layout_html_scripting};
     use crate::{BoxContent, FragmentRef};
 
     /// The media content of the first element with this tag in `html`.
     fn media_content(html: &str, tag: &str) -> MediaContent {
-        let layout = layout_html(html);
+        media_content_in(&layout_html(html), tag)
+    }
+
+    fn media_content_in(layout: &crate::test_support::TestLayout, tag: &str) -> MediaContent {
         let mut found = None;
         layout.tree.walk(|f, _| {
             if let FragmentRef::Box(b) = f
@@ -436,6 +449,30 @@ mod tests {
         assert!(c.parts[1].enabled);
         let c = media_content("<video><source></video>", "video");
         assert!(!c.parts[1].enabled, "a source without src is no source");
+    }
+
+    /// With scripting, a video shows controls only with the `controls`
+    /// attribute, and paints no default poster without them.
+    #[test]
+    fn video_controls_follow_the_scripting_flag() {
+        let html = "<video width=300 height=150></video>";
+        let off = media_content(html, "video");
+        assert!(off.default_poster);
+        assert!(off.parts.len() > 1, "controls with scripting off");
+        let off_attr = media_content("<video controls></video>", "video");
+        assert_eq!(off_attr.parts, off.parts);
+
+        let on = media_content_in(&layout_html_scripting(html), "video");
+        assert!(on.parts.is_empty(), "no controls");
+        assert!(!on.default_poster, "no dark fill without controls");
+        let on_attr = media_content_in(
+            &layout_html_scripting("<video width=300 height=150 controls></video>"),
+            "video",
+        );
+        assert_eq!(on_attr.parts, off.parts);
+        assert!(on_attr.default_poster);
+        let audio = media_content_in(&layout_html_scripting("<audio controls></audio>"), "audio");
+        assert!(audio.parts.len() > 1);
     }
 
     #[test]

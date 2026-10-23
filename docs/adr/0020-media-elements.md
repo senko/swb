@@ -29,7 +29,9 @@ scripts, and the Chromium references run with JavaScript disabled.
   `preload` asks for it. A video shows its poster image.
 - `<canvas>` stays a non-replaced element: with scripting disabled it
   represents its fallback content (HTML), as in Chromium with JavaScript
-  disabled.
+  disabled. (Since M8 feature 2: with the scripting flag of the document
+  on, `<canvas>` is a replaced element that paints nothing; see "Update:
+  the scripting flag" below.)
 
 ### Sizes
 
@@ -69,7 +71,9 @@ matches Chromium for all five `object-fit` values (unit test
 
 HTML exposes a user interface "if the `controls` attribute is present,
 or if scripting is disabled for the media element". So every video in
-swb has controls, as in Chromium with JavaScript disabled.
+swb has controls, as in Chromium with JavaScript disabled. (With the
+scripting flag on, only a video with `controls` has; see "Update: the
+scripting flag".)
 
 Chromium's controls are a shadow tree with style sheets and SVG icons.
 swb does not build that tree; it draws an approximation of what Chromium
@@ -129,3 +133,26 @@ anti-aliasing.
   nothing), right-to-left controls, controls at device scales other than
   1 (the geometry scales; Chromium may change the layout), the
   `aspect-ratio` hint on `<img>` and image buttons.
+
+## Update: the scripting flag (M8 feature 2, ADR 0028 section 15)
+
+Controls and `<canvas>` follow the scripting flag of the document (the
+JavaScript setting when the document was created). With it off, nothing
+changes from the text above. With it on (measured in Chromium 148 with
+`tools/probes/web-scripting.json`):
+
+- A `<video>` shows its controls only with the `controls` attribute. The
+  dark default poster (#333) is part of the controls in Chromium: a video
+  without controls and without a loaded poster paints nothing; a poster
+  still paints. The boxes do not change. `<audio>` without `controls` is
+  still `display: none`.
+- `<canvas>` is a replaced element. Its natural size is the size of its
+  bitmap: `width` and `height` by the rules for parsing non-negative
+  integers (300×150 when missing, invalid or above 2147483647), with the
+  natural aspect ratio and an `aspect-ratio: auto w / h` hint. Lengths are
+  clamped as for other boxes. It paints its background and border and
+  nothing else (no script draws on it yet), and its fallback content is
+  not rendered. A bitmap is never allocated.
+- `noscript` generates no box (HTML rendering: `display: none !important`
+  with scripting enabled; the cascade sets `display: none`, where Chromium
+  keeps the authored computed value).

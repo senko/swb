@@ -1614,3 +1614,42 @@ def details_much_hidden_content() -> Page:
     item = "<li><a href='#x'>link text that is a little longer</a>"
     items = (item + "<details><summary>n</summary>sub</details></li>") * 1_500
     return Page(doc(f"<details><summary>menu</summary><ul>{items}</ul></details>" * 20))
+
+
+@case(
+    "3,000 canvas elements with huge, zero, invalid and out-of-range width and height "
+    "attributes in blocks, flex and grid containers, a table and a percentage context, with "
+    "JavaScript on: lengths are clamped, nothing allocates a bitmap (ADR 0028 section 15)",
+    swb_args=("--js",),
+)
+def canvas_huge_sizes_js_on() -> Page:
+    sizes = [
+        "width=2147483647 height=2147483647",
+        "width=99999999999999999999 height=1",
+        "width=0 height=0",
+        "width=-1 height=-1",
+        "width=1e9 height=abc",
+        "width=4294967296 height=2147483648",
+        "width=16384 height=16384 style='width:50%'",
+        "width=100000 height=100000 style='height:100%;max-width:50vw'",
+    ]
+    canvases = "".join(
+        f"<canvas {sizes[i % len(sizes)]}>fallback <b>text</b></canvas>" for i in range(1000)
+    )
+    flex = f"<div style='display:flex;flex-wrap:wrap'>{canvases}</div>"
+    grid = f"<div style='display:grid;grid-template-columns:repeat(4,1fr)'>{canvases}</div>"
+    block = f"<div style='width:300px'>{canvases}</div>"
+    table = f"<table><tr><td>{canvases[: len(canvases) // 4]}</td></tr></table>"
+    return Page(doc(flex + grid + block + table, "canvas{display:block;background:#c00}"))
+
+
+@case(
+    "50,000 noscript elements with markup text in body and head, with JavaScript on: the "
+    "content is raw text, nothing is loaded (ADR 0028 section 15)",
+    time_limit_s=5,
+    swb_args=("--js",),
+)
+def noscript_flood_js_on() -> Page:
+    item = "<noscript><link rel=stylesheet href=a.css><img src=b.png><p>text &amp; more</p>"
+    item += "</noscript>"
+    return Page(f"<!doctype html><head>{item * 100}</head><body>{item * 50_000}")

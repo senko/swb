@@ -54,6 +54,7 @@ pub(crate) fn run(
     fonts: FontContext,
     start_url: Option<Url>,
     remote_port: Option<u16>,
+    javascript: bool,
 ) -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
@@ -74,7 +75,7 @@ pub(crate) fn run(
         }
         None => None,
     };
-    let mut app = App::new(fetcher, fonts, start_url, proxy);
+    let mut app = App::new(fetcher, fonts, start_url, proxy, javascript);
     app.automation = automation;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
@@ -87,6 +88,8 @@ struct Gfx {
 
 struct App {
     page: Page,
+    /// False if the stack limit of the process rules JavaScript out.
+    javascript_allowed: bool,
     start_url: Option<Url>,
     gfx: Option<Gfx>,
     toolbar: Toolbar,
@@ -129,6 +132,7 @@ impl App {
         fonts: FontContext,
         start_url: Option<Url>,
         proxy: EventLoopProxy<UserEvent>,
+        javascript: bool,
     ) -> Self {
         let notify = Arc::new(move || {
             // The event loop may already be gone at shutdown.
@@ -140,10 +144,21 @@ impl App {
             network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
         };
         let mut page = Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0);
+        // The page runs on the main thread: its stack limit must be enough
+        // for JavaScript (ADR 0028 section 2).
+        let javascript_allowed = crate::stack::main_stack_is_enough();
+        if !javascript_allowed {
+            log::warn!(
+                "the stack limit of the process is below {} MiB: JavaScript stays off (see `ulimit -s`)",
+                crate::stack::MIN_MAIN_STACK / (1024 * 1024)
+            );
+        }
+        page.set_javascript(javascript && javascript_allowed);
         // Scrollbars take no space; overlay indicators show what scrolls.
         page.set_scroll_indicators(true);
         App {
             page,
+            javascript_allowed,
             start_url,
             gfx: None,
             toolbar: Toolbar::default(),
@@ -311,7 +326,13 @@ impl App {
             .resize(w, h)
             .map_err(|e| anyhow::anyhow!("resize failed: {e}"))?;
 
-        let frame = compose_frame(&mut self.page, &self.toolbar, w.get(), h.get(), scale)?;
+        let frame = compose_frame(
+            &mut self.page,
+            &self.toolbar,
+            self.javascript_allowed,
+            (w.get(), h.get()),
+            scale,
+        )?;
 
         let Some(gfx) = &mut self.gfx else {
             return Ok(());
@@ -336,6 +357,10 @@ impl App {
             return false;
         };
         let executed = automation.process(&mut self.page);
+        if !self.javascript_allowed && self.page.javascript() {
+            log::warn!("JavaScript is not available: the stack limit of the process is too low");
+            self.page.set_javascript(false);
+        }
         if automation.close_requested() {
             automation.finish_close();
             event_loop.exit();
@@ -363,6 +388,12 @@ impl App {
                 self.toolbar.address.select_all();
             }
             Key::Character(c) if ctrl && c.eq_ignore_ascii_case("r") => self.page.reload(),
+            // Ctrl+Shift+J: the JavaScript toggle.
+            Key::Character(c)
+                if ctrl && self.modifiers.shift_key() && c.eq_ignore_ascii_case("j") =>
+            {
+                self.toggle_javascript();
+            }
             Key::Named(NamedKey::F5) => self.page.reload(),
             Key::Named(NamedKey::ArrowLeft) if alt => {
                 self.page.go_back();
@@ -535,6 +566,21 @@ impl App {
         }
     }
 
+    /// Flips the JavaScript setting. It applies to the next document (a
+    /// reload). It does nothing if the stack limit rules JavaScript out.
+    fn toggle_javascript(&mut self) {
+        if !self.javascript_allowed {
+            log::warn!("JavaScript is not available: the stack limit of the process is too low");
+            return;
+        }
+        let enabled = !self.page.javascript();
+        self.page.set_javascript(enabled);
+        log::info!(
+            "JavaScript {} for the next document",
+            if enabled { "on" } else { "off" }
+        );
+    }
+
     /// A press of the left button at (x, y) in the toolbar (CSS px of the
     /// window).
     fn press_toolbar(&mut self, x: f32, y: f32) {
@@ -553,6 +599,7 @@ impl App {
                     self.page.reload();
                 }
             }
+            Some(ToolbarHit::JavaScript) => self.toggle_javascript(),
             Some(ToolbarHit::Address(text_x)) => {
                 if self.toolbar.focused {
                     self.toolbar.place_cursor(
@@ -710,8 +757,8 @@ fn set_primary(_clipboard: &mut arboard::Clipboard, _text: String) -> Result<(),
 fn compose_frame(
     page: &mut Page,
     toolbar: &Toolbar,
-    width: u32,
-    height: u32,
+    javascript_allowed: bool,
+    (width, height): (u32, u32),
     scale: f32,
 ) -> Result<Pixmap> {
     let mut frame = Pixmap::new(width, height).context("cannot allocate frame")?;
@@ -733,6 +780,8 @@ fn compose_frame(
         can_go_back: page.can_go_back(),
         can_go_forward: page.can_go_forward(),
         loading: page.is_loading(),
+        javascript: page.javascript(),
+        javascript_allowed,
         status: status.as_deref(),
     };
     let css_width = width as f32 / scale;
@@ -765,7 +814,7 @@ pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result
     );
     let w = (window.width * scale).round() as u32;
     let h = (window.height * scale).round() as u32;
-    compose_frame(page, &toolbar, w.max(1), h.max(1), scale)
+    compose_frame(page, &toolbar, true, (w.max(1), h.max(1)), scale)
 }
 
 impl ApplicationHandler<UserEvent> for App {

@@ -42,6 +42,10 @@ url = "2.5"
 # /usr/share/zoneinfo is read) and without the other formats and parsers.
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
 
+# swb (the GUI): the stack limit of the process (`getrlimit`), ADR 0028
+# section 2. Already in the tree through winit; safe API, no `unsafe`.
+rustix = { version = "1", default-features = false, features = ["std", "process"] }
+
 # Tests only.
 similar = "2"
 

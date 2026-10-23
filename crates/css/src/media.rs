@@ -11,8 +11,9 @@
 //! The environment ([`MediaEnvironment`]) describes the viewport and user
 //! preferences. Features that swb does not vary report fixed values:
 //! 8 bits per color channel, sRGB gamut, no monochrome, bitmap (not grid)
-//! display, no scripting, no forced or inverted colors, `browser` display
-//! mode, standard dynamic range.
+//! display, no forced or inverted colors, `browser` display
+//! mode, standard dynamic range. `scripting` follows the document
+//! ([`MediaEnvironment::scripting`]).
 //!
 //! Lengths: `em` and `rem` use [`MediaEnvironment::root_font_size`]; `ex`
 //! and `ch` are approximated as half of it.
@@ -74,6 +75,9 @@ pub struct MediaEnvironment {
     pub fine_pointer: bool,
     /// The initial font size in CSS px, for `em` and `rem`.
     pub root_font_size: f32,
+    /// Scripting is enabled for the document (`scripting: enabled`);
+    /// otherwise `scripting: none`.
+    pub scripting: bool,
 }
 
 impl Default for MediaEnvironment {
@@ -88,6 +92,7 @@ impl Default for MediaEnvironment {
             hover: true,
             fine_pointer: true,
             root_font_size: 16.0,
+            scripting: false,
         }
     }
 }
@@ -1008,9 +1013,8 @@ impl FeatureName {
             FeatureName::PrefersReducedTransparency | FeatureName::PrefersContrast => {
                 keyword("no-preference")
             }
-            FeatureName::ForcedColors | FeatureName::InvertedColors | FeatureName::Scripting => {
-                keyword("none")
-            }
+            FeatureName::ForcedColors | FeatureName::InvertedColors => keyword("none"),
+            FeatureName::Scripting => keyword(if env.scripting { "enabled" } else { "none" }),
             FeatureName::Hover | FeatureName::AnyHover => {
                 keyword(if env.hover { "hover" } else { "none" })
             }
@@ -1148,6 +1152,7 @@ mod tests {
             hover: true,
             fine_pointer: true,
             root_font_size: 16.0,
+            scripting: false,
         }
     }
 
@@ -1318,6 +1323,25 @@ mod tests {
     fn evaluation_table() {
         for (query, expected) in EVALUATION_CASES {
             assert_eq!(eval(query), *expected, "{query}");
+        }
+    }
+
+    #[test]
+    fn scripting_follows_the_environment() {
+        let on = MediaEnvironment {
+            scripting: true,
+            ..env()
+        };
+        for (query, off_value, on_value) in [
+            ("(scripting)", false, true),
+            ("(scripting: enabled)", false, true),
+            ("(scripting: none)", true, false),
+            ("(scripting: initial-only)", false, false),
+            ("not (scripting)", true, false),
+        ] {
+            let list = MediaQueryList::parse_str(query);
+            assert_eq!(list.matches(&env()), off_value, "{query} off");
+            assert_eq!(list.matches(&on), on_value, "{query} on");
         }
     }
 

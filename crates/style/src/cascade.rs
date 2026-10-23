@@ -299,6 +299,13 @@ impl Styler<'_> {
         if contents_is_none && style.display == Display::Contents {
             style.display = Display::None;
         }
+        // HTML rendering: `noscript { display: none !important }` when
+        // scripting is enabled (the element is also not rendered if an
+        // author sets `display`; measured in Chromium 148). Chromium keeps
+        // the authored value as the computed one; swb sets `none`.
+        if self.cx.env.scripting && data.is_html_named(&swb_dom::local_name!("noscript")) {
+            style.display = Display::None;
+        }
         self.matched = matched;
         let style = Arc::new(style);
         if let Some(key) = key {

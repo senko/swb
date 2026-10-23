@@ -2,7 +2,9 @@
 //!
 //! Follows the HTML fragment serialization algorithm:
 //! <https://html.spec.whatwg.org/multipage/parsing.html#serialising-html-fragments>.
-//! Scripting is disabled in swb, so `<noscript>` content is escaped.
+//! With the scripting flag of the document off, `<noscript>` content is
+//! markup and is escaped as usual; with it on, the text of `<noscript>` is
+//! written as it is (the spec: "scripting is enabled for the parent").
 
 use html5ever::{local_name, ns};
 
@@ -46,7 +48,7 @@ pub fn outer_html(doc: &Document, node: NodeId) -> String {
                 let raw = doc
                     .parent(id)
                     .and_then(|p| doc.element(p))
-                    .is_some_and(is_raw_text_parent);
+                    .is_some_and(|p| is_raw_text_parent(p, doc.scripting()));
                 if raw {
                     out.push_str(text);
                 } else {
@@ -143,19 +145,21 @@ fn is_void(element: &ElementData) -> bool {
         )
 }
 
-/// True for elements whose text is serialized without escaping.
-fn is_raw_text_parent(element: &ElementData) -> bool {
+/// True for elements whose text is serialized without escaping (`noscript`
+/// only with the scripting flag on).
+fn is_raw_text_parent(element: &ElementData, scripting: bool) -> bool {
     element.is_html()
-        && matches!(
-            *element.local_name(),
+        && match *element.local_name() {
+            local_name!("noscript") => scripting,
             local_name!("style")
-                | local_name!("script")
-                | local_name!("xmp")
-                | local_name!("iframe")
-                | local_name!("noembed")
-                | local_name!("noframes")
-                | local_name!("plaintext")
-        )
+            | local_name!("script")
+            | local_name!("xmp")
+            | local_name!("iframe")
+            | local_name!("noembed")
+            | local_name!("noframes")
+            | local_name!("plaintext") => true,
+            _ => false,
+        }
 }
 
 /// Escapes text (or an attribute value).
@@ -191,6 +195,26 @@ mod tests {
             ),
             "<div id=\"d\" class=\"a&quot;b\">x &amp; <b>y</b><br>&nbsp;<!--c--></div>"
         );
+    }
+
+    #[test]
+    fn noscript_text_is_raw_only_with_scripting() {
+        let html = "<!DOCTYPE html><body><noscript id=n><p>a &amp; b</p></noscript>";
+        let off = parse_html(html);
+        let n = off.element_by_id("n").expect("noscript");
+        assert_eq!(
+            outer_html(&off, n),
+            "<noscript id=\"n\"><p>a &amp; b</p></noscript>"
+        );
+        let on = crate::parse_html_with(html, true);
+        let n = on.element_by_id("n").expect("noscript");
+        // The text node holds the markup as text, written as it is.
+        assert_eq!(
+            outer_html(&on, n),
+            "<noscript id=\"n\"><p>a &amp; b</p></noscript>"
+        );
+        let text = on.children(n).next().expect("text");
+        assert_eq!(on.text_content(text), "<p>a &amp; b</p>");
     }
 
     #[test]

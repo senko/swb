@@ -38,6 +38,23 @@ pub fn parse_non_negative_integer(input: &str) -> Option<i64> {
     parse_integer(input).filter(|v| *v >= 0)
 }
 
+/// The size of the bitmap of a `<canvas>` element: its `width` and
+/// `height` attributes by the rules for parsing non-negative integers; a
+/// missing, invalid or out-of-range value (above 2147483647) is 300 or
+/// 150.
+/// <https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-element>
+pub fn canvas_size(canvas: &crate::ElementData) -> (u32, u32) {
+    let dimension = |name: &str, default: u32| {
+        canvas
+            .attr(name)
+            .and_then(parse_non_negative_integer)
+            .and_then(|v| i32::try_from(v).ok())
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(default)
+    };
+    (dimension("width", 300), dimension("height", 150))
+}
+
 /// [`parse_non_negative_integer`] for 32-bit attributes: values above
 /// `u32::MAX` saturate.
 pub fn parse_non_negative_u32(input: &str) -> Option<u32> {

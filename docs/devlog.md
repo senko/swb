@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-22: M8 feature 2, the JavaScript setting
+
+- The setting: `--js` (`--javascript on|off`), the session option
+  `javascript`, `page.setJavaScript`, and `page.info` (`javascript`
+  for the setting, `documentJavascript` for the shown document). In
+  the GUI, a "JS" toolbar button and Ctrl+Shift+J. Off by default. A
+  change applies to the next document; a reload applies it.
+- Each document has a scripting flag (`Document::scripting`), so two
+  pages in one process can differ. With it on: the parser reads
+  `<noscript>` as raw text (its `<link>` and `<img>` do not load), the
+  serializer and the DOM dump follow; `@media (scripting)` matches;
+  `noscript` gets no box; a video shows controls only with `controls`;
+  `<canvas>` is a replaced element (300×150 by default) that paints
+  only its background and border. No script runs yet.
+- Measured in Chromium (26 probe cases, all boxes equal): a `noscript`
+  with an author `display: block` still gets no box; a video without
+  `controls` paints only its poster (the dark default fill belongs to
+  the controls); huge canvas sizes clamp.
+- Stack (ADR 0028 section 2): the headless runner and server run the
+  page on a thread with a 16 MiB stack. The GUI reads the process stack
+  limit with `rustix` (now a direct dependency) and keeps JavaScript
+  off below 8 MiB.
+- The JS-off snapshot does not change. `compare --js` now runs swb with
+  `--js`: senko-net and Hacker News keep geometry 1.0000; the
+  Craigslist posting's pixel score goes from 0.6897 to 0.7747 (its
+  `noscript` notice is gone).
+- Next: feature 3a, the resumable parser and the change journal.
+
 ## 2026-10-22: M8 feature 1, test tools with JavaScript on
 
 - `reference --js NAME` and `compare --js NAME` render the local

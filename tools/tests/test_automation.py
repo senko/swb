@@ -72,3 +72,26 @@ def test_typing_into_a_text_field():
         b.click_node(b.query_selector("#t"))
         b.type_text("one\ntwo")
         assert b.value(b.query_selector("#t")) == "one\ntwo"
+
+
+def test_javascript_setting():
+    page = "data:text/html,<noscript id=n><p id=p>x</p></noscript>"
+    with Browser.start() as b:
+        assert b.info()["javascript"] is False
+        b.set_javascript(True)
+        info = b.info()
+        assert info["javascript"] is True
+        assert info["documentJavascript"] is False
+        b.navigate(page)
+        assert b.wait_for_load()
+        assert b.info()["documentJavascript"] is True
+        assert b.query_selector("#p") is None
+    with Browser.start(javascript=True) as b:
+        assert b.info()["javascript"] is True
+        b.navigate(page)
+        assert b.wait_for_load()
+        assert b.query_selector("#p") is None
+    with Browser.start() as b:
+        b.navigate(page)
+        assert b.wait_for_load()
+        assert b.query_selector("#p") is not None

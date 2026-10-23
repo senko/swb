@@ -1464,6 +1464,8 @@ pub(crate) fn layout_sized(
                 crate::geom::Size::new(content_width, height),
             ))),
             (None, Some(svg)) => BoxContent::Svg(Arc::clone(svg)),
+            // A canvas paints nothing (no script draws on it yet).
+            (None, None) if r.canvas => BoxContent::None,
             (None, None) => BoxContent::Image(r.node),
         };
     } else if crate::scroll::is_scroll_container(style) {

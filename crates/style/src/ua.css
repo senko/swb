@@ -40,7 +40,9 @@ embed[hidden] { display: inline; height: 0; width: 0; }
 
 input[type=hidden i] { display: none !important; }
 
-/* swb runs no scripts, so noscript content is displayed. */
+/* `noscript { display: none !important }` applies with scripting enabled;
+   the cascade does it (cascade.rs). With scripting disabled, noscript
+   content is displayed. */
 
 /* 15.3.2 The page */
 

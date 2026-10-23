@@ -24,11 +24,17 @@ fn repo_root() -> PathBuf {
 /// Starts a headless browser (1280×800, test fonts) on a free port on its
 /// own thread. Returns the thread and the port.
 fn spawn(fetcher: Arc<dyn Fetcher>) -> (JoinHandle<()>, u16) {
+    spawn_with(fetcher, false)
+}
+
+/// [`spawn`] with the JavaScript setting of the session.
+fn spawn_with(fetcher: Arc<dyn Fetcher>, javascript: bool) -> (JoinHandle<()>, u16) {
     let (sender, port) = mpsc::channel();
     let thread = thread::spawn(move || {
         let size = Size::new(1280.0, 800.0);
-        let browser =
+        let mut browser =
             HeadlessBrowser::new(fetcher, FontContext::for_tests(), size, 1.0, 0).unwrap();
+        browser.page().set_javascript(javascript);
         sender.send(browser.port()).unwrap();
         browser.run();
     });
@@ -573,4 +579,91 @@ fn typing_into_a_form_and_submitting_it() {
     assert!(url.ends_with("result.html?q=hello+world&c=on"), "{url}");
     stop(client, thread);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// (`%23` is `#`, which would start the fragment of the URL.)
+const SCRIPTING_PAGE: &str = "data:text/html,<!DOCTYPE html><style>%23m{width:10px;height:10px}\
+    @media (scripting){%23m{width:20px}}</style><div id=m></div><noscript id=n><p id=p>x</p></noscript>";
+
+/// The width of `#m`, which is 20 if scripting is enabled for the document.
+fn media_width(client: &mut Client) -> f64 {
+    let m = client.query_selector("#m").unwrap().unwrap();
+    rect(client, m)[2]
+}
+
+#[test]
+fn the_javascript_setting_applies_to_the_next_document() {
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    // Off by default.
+    let info = client.info().unwrap();
+    assert_eq!(info["javascript"], false);
+    assert_eq!(info["documentJavascript"], false);
+    client.navigate(SCRIPTING_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    assert_eq!(media_width(&mut client), 10.0);
+    assert!(client.query_selector("#p").unwrap().is_some());
+
+    // The change shows in `page.info` at once, but not in the document.
+    assert_eq!(
+        client
+            .call("page.setJavaScript", json!({ "enabled": true }))
+            .unwrap(),
+        json!({})
+    );
+    let info = client.info().unwrap();
+    assert_eq!(info["javascript"], true);
+    assert_eq!(info["documentJavascript"], false);
+    assert_eq!(media_width(&mut client), 10.0);
+
+    // A reload applies it: the noscript content is text now.
+    client.call("page.reload", Value::Null).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let info = client.info().unwrap();
+    assert_eq!(info["javascript"], true);
+    assert_eq!(info["documentJavascript"], true);
+    assert_eq!(media_width(&mut client), 20.0);
+    assert!(client.query_selector("#p").unwrap().is_none());
+    let n = client.query_selector("#n").unwrap().unwrap();
+    let html = client
+        .call("dom.outerHtml", json!({ "nodeId": n }))
+        .unwrap();
+    assert_eq!(html["html"], "<noscript id=\"n\"><p id=p>x</p></noscript>");
+
+    // A navigation applies it as well; turn it off again.
+    client
+        .call("page.setJavaScript", json!({ "enabled": false }))
+        .unwrap();
+    assert_eq!(client.info().unwrap()["documentJavascript"], true);
+    client.navigate(SCRIPTING_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let info = client.info().unwrap();
+    assert_eq!(info["javascript"], false);
+    assert_eq!(info["documentJavascript"], false);
+    assert_eq!(media_width(&mut client), 10.0);
+    stop(client, thread);
+}
+
+#[test]
+fn the_javascript_option_of_the_session() {
+    let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);
+    let mut client = Client::connect(port).unwrap();
+    assert_eq!(client.info().unwrap()["javascript"], true);
+    client.navigate(SCRIPTING_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    assert_eq!(client.info().unwrap()["documentJavascript"], true);
+    assert_eq!(media_width(&mut client), 20.0);
+    stop(client, thread);
+}
+
+#[test]
+fn set_javascript_checks_its_parameters() {
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    for params in [json!({}), json!({ "enabled": "yes" }), Value::Null] {
+        assert_eq!(
+            rpc_code(client.call("page.setJavaScript", params)),
+            RpcError::INVALID_PARAMS
+        );
+    }
+    assert_eq!(client.info().unwrap()["javascript"], false);
+    stop(client, thread);
 }

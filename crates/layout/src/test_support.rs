@@ -65,6 +65,12 @@ pub(crate) fn layout_html(html: &str) -> TestLayout {
     layout_document(parse_html(html))
 }
 
+/// Lays out an HTML document that was created with scripting enabled
+/// (JavaScript on).
+pub(crate) fn layout_html_scripting(html: &str) -> TestLayout {
+    layout_document(swb_dom::parse_html_with(html, true))
+}
+
 /// Lays out a document.
 fn layout_document(doc: Document) -> TestLayout {
     let styles = styles_for(&doc);
@@ -177,7 +183,10 @@ pub(crate) fn styles_for(doc: &Document) -> StyleMap {
     compute_styles(
         doc,
         &stylist,
-        &MediaEnvironment::default(),
+        &MediaEnvironment {
+            scripting: doc.scripting(),
+            ..MediaEnvironment::default()
+        },
         &ElementStates::default(),
         &base,
     )

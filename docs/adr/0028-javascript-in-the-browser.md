@@ -124,7 +124,8 @@ engine's other work.
   `process` feature is in the tree through winit; feature 2 makes it a
   direct workspace dependency after the ADR 0003 check). No limit
   (`RLIM_INFINITY`) counts as enough. Below 8 MiB, the GUI runs with
-  JavaScript off and logs a warning. This replaces the statement of
+  JavaScript off and logs a warning (the toolbar toggle, the shortcut and
+  `page.setJavaScript` then keep it off). This replaces the statement of
   ADR 0026 section 9 that the main thread's stack cannot be checked in
   safe Rust.
 - A page thread for the GUI (the window thread sends input and receives
@@ -155,6 +156,14 @@ So the engine cannot pass a borrowed `&mut Page`. Instead:
   allocation: a binding that creates a wrapper looks up the wrapper
   vector, releases the host data, allocates the object, and then stores
   it.
+
+**Dependency check (feature 2, ADR 0003).** `rustix` 1.x (licence
+`Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`; maintained, widely
+used) with the features `std` and `process`: the safe `getrlimit`. It is
+already in the tree through winit (version 1.1.5), so it adds no new
+crate; the feature `process` adds only the `prctl` constants of
+`linux-raw-sys`. It is a direct workspace dependency of `swb` on Unix.
+`cargo deny` passes. It is not in the scope exclusions of ADR 0003.
 
 ### 3. The DOM for scripts
 

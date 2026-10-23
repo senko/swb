@@ -18,7 +18,8 @@
 //!
 //! Modules: `align` (self-alignment helpers), `aspect` (`aspect-ratio` of
 //! boxes that are not replaced), `block` (block layout, sizes
-//! and margins), `box_tree` (the box tree), `collapsed_margin` (margin
+//! and margins), `box_tree` (the box tree), `canvas` (the size of
+//! `<canvas>`), `collapsed_margin` (margin
 //! collapsing), `control` (form controls), `flex`, `floats`, `fonts`,
 //! `fragment` (the fragment tree), `geom` (points, sizes, rectangles),
 //! `grid`, `inline` (line layout), `intrinsic` (min- and max-content
@@ -32,6 +33,7 @@ mod aspect;
 pub mod bezier;
 mod block;
 mod box_tree;
+mod canvas;
 mod collapsed_margin;
 mod control;
 mod flex;

@@ -192,16 +192,20 @@ def serve_command(
     viewport: tuple[int, int],
     fixture: Path | None = None,
     test_fonts: bool = True,
+    javascript: bool = False,
 ) -> list[str]:
     """Command line that starts a headless swb with the automation server on
     a free port (swb prints the address on its first output line). With
-    `fixture`, all requests are served from it."""
+    `fixture`, all requests are served from it. With `javascript`, the
+    session starts with JavaScript on (`--js`)."""
     width, height = viewport
     command = [str(swb), "--headless", "--remote-port", "0", "--size", f"{width}x{height}"]
     if fixture is not None:
         command += ["--replay", str(fixture)]
     if test_fonts:
         command.append("--test-fonts")
+    if javascript:
+        command.append("--js")
     return command
 
 

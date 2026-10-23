@@ -168,6 +168,8 @@ pub(crate) struct Replaced {
     pub(crate) media: Option<Media>,
     /// The content of an inline `<svg>` element.
     pub(crate) svg: Option<Arc<SvgContent>>,
+    /// True for a `<canvas>` (it paints nothing yet).
+    pub(crate) canvas: bool,
 }
 
 /// A list item marker.
@@ -486,9 +488,9 @@ pub(crate) fn build_independent(
 }
 
 /// The replaced element `node` (an image, a video or audio, an inline
-/// `<svg>`), or `None` if it is not one. `<canvas>` is not: without
-/// scripts, it shows its fallback content (as in Chromium with JavaScript
-/// disabled).
+/// `<svg>`, a `<canvas>` in a document with scripting enabled), or `None`
+/// if it is not one. With scripting disabled, `<canvas>` is not: it shows
+/// its fallback content (as in Chromium with JavaScript disabled).
 fn replaced(
     ctx: &BuildContext<'_>,
     node: NodeId,
@@ -508,6 +510,27 @@ fn replaced(
             natural_size: Some(natural_size),
             media: None,
             svg: Some(Arc::new(content)),
+            canvas: false,
+        });
+    }
+    if element.is_html_named(&local_name!("canvas")) {
+        if !ctx.doc.scripting() {
+            return None;
+        }
+        // The natural size is the size of the bitmap; the canvas has no
+        // other content, so it paints nothing (HTML "the canvas element").
+        let (width, height) = crate::canvas::size(element);
+        let natural_size = if style.contain.size {
+            contained_natural_size(style)
+        } else {
+            NaturalSize::fixed(width, height)
+        };
+        return Some(Replaced {
+            node,
+            natural_size: Some(natural_size),
+            media: None,
+            svg: None,
+            canvas: true,
         });
     }
     let media = if element.is_html_named(&local_name!("img")) {
@@ -532,6 +555,7 @@ fn replaced(
         },
         media,
         svg: None,
+        canvas: false,
     })
 }
 
@@ -564,7 +588,7 @@ pub(crate) fn is_atomic(ctx: &BuildContext<'_>, node: NodeId) -> bool {
 fn is_replaced(ctx: &BuildContext<'_>, node: NodeId) -> bool {
     ctx.doc
         .element(node)
-        .is_some_and(swb_style::is_replaced_element)
+        .is_some_and(|e| swb_style::is_replaced_element(e, ctx.doc.scripting()))
 }
 
 /// The marker of list item `node` (an element, not a pseudo-element). Its

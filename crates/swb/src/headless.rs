@@ -27,6 +27,8 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) dump_layout: bool,
     pub(crate) dump_boxes: Option<&'a Path>,
     pub(crate) bench: Option<usize>,
+    /// The JavaScript setting.
+    pub(crate) javascript: bool,
 }
 
 /// Runs a headless page with the automation server until a client sends
@@ -38,9 +40,11 @@ pub(crate) fn serve(
     scale: f32,
     port: u16,
     url: Option<Url>,
+    javascript: bool,
 ) -> Result<()> {
     let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port)
         .with_context(|| format!("cannot start the automation server on port {port}"))?;
+    browser.page().set_javascript(javascript);
     crate::print_server_address(browser.port())?;
     if let Some(url) = url {
         browser.page().navigate(url);
@@ -57,6 +61,7 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
         network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
     };
     let mut page = Page::new(config, fonts, options.viewport, options.scale);
+    page.set_javascript(options.javascript);
     page.navigate(options.url.clone());
     if !page.wait_until_loaded(options.timeout) {
         log::warn!("timed out waiting for the page to load");

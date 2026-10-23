@@ -154,7 +154,7 @@ pub(crate) fn resolve(doc: &Document, map: &mut StyleMap) {
                 }
                 pass.enter(node, &style, depth, map);
                 stack.push(Visit::Leave(node, depth));
-                if renders_children(doc.element(node)) {
+                if renders_children(doc.element(node), doc.scripting()) {
                     children.clear();
                     children.extend(doc.element_children(node));
                     stack.extend(children.iter().rev().map(|&c| Visit::Enter(c, depth + 1)));
@@ -175,15 +175,16 @@ enum Visit<T> {
 
 /// False for elements whose element children generate no boxes
 /// ([`element_kinds::renders_children`]).
-fn renders_children(element: Option<&ElementData>) -> bool {
-    element.is_none_or(element_kinds::renders_children)
+fn renders_children(element: Option<&ElementData>, scripting: bool) -> bool {
+    element.is_none_or(|e| element_kinds::renders_children(e, scripting))
 }
 
 /// True for a list item: an element with `display: list-item` that can
 /// be one ([`element_kinds::cannot_be_list_item`]). Layout draws markers
 /// only for list items.
-fn is_list_item(element: Option<&ElementData>, style: &ComputedStyle) -> bool {
-    style.display == Display::ListItem && !element.is_some_and(element_kinds::cannot_be_list_item)
+fn is_list_item(element: Option<&ElementData>, style: &ComputedStyle, scripting: bool) -> bool {
+    style.display == Display::ListItem
+        && !element.is_some_and(|e| element_kinds::cannot_be_list_item(e, scripting))
 }
 
 /// True for the elements that own the list items inside them (`ol`, `ul`
@@ -222,7 +223,7 @@ impl Pass<'_> {
     fn enter(&mut self, node: NodeId, style: &ComputedStyle, depth: usize, map: &mut StyleMap) {
         let element = self.doc.element(node);
         let mut list = None;
-        if is_list_item(element, style) {
+        if is_list_item(element, style, self.doc.scripting()) {
             let parent = self.doc.parent(node).unwrap_or(NodeId::DOCUMENT);
             let enclosing = self.lists.enclosing(parent);
             let ordinal = self.lists.ordinal(self.doc, map, element, style, enclosing);
@@ -811,7 +812,7 @@ fn reversed_list_counts(doc: &Document, map: &StyleMap) -> HashMap<NodeId, i64> 
                     .count();
                 found.push(i64::try_from(pseudo_items).unwrap_or(0));
                 stack.push(Visit::Leave(node, ()));
-                if renders_children(doc.element(node)) {
+                if renders_children(doc.element(node), doc.scripting()) {
                     children.clear();
                     children.extend(doc.element_children(node));
                     stack.extend(children.iter().rev().map(|&c| Visit::Enter(c, ())));
@@ -830,7 +831,7 @@ fn reversed_list_counts(doc: &Document, map: &StyleMap) -> HashMap<NodeId, i64> 
                 // itself does not count (also if it is a list item).
                 let owner = style.display != Display::Contents && is_list_owner(element);
                 if !owner && let Some(outer) = found.last_mut() {
-                    *outer += inner + i64::from(is_list_item(element, style));
+                    *outer += inner + i64::from(is_list_item(element, style, doc.scripting()));
                 }
             }
         }

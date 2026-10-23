@@ -2327,6 +2327,18 @@ Steps:
       `controls` and `<canvas>`, compared with `--with-swb`;
       automation tests for the setting.
       Exit: `just snapshot` unchanged; the cases match Chromium.
+      Done 2026-10-22. The flag is data of the document
+      (`Document::scripting`), copied from the page's setting when the
+      response is parsed. With it on, `noscript` gets no box (Chromium
+      builds none even with an author `display`; swb computes `display:
+      none`, which `getComputedStyle` will show in 7a), and a video
+      without `controls` paints only its poster. GUI: a "JS" toolbar
+      button and Ctrl+Shift+J; below an 8 MiB stack limit the GUI
+      ignores the toggle and `page.setJavaScript`. The 26 probe cases
+      of `tools/probes/web-scripting.json` match Chromium; `compare --js`
+      (geometry / pixels): senko-net 1.0000 / 0.9990, hacker-news
+      1.0000 / 0.9986, wikipedia-web-browser 0.1810 / 0.9735,
+      craigslist-posting 0.0000 / 0.7747.
    3. The DOM and the engine for scripts (`implementer-hard`), two
       sessions. No script runs yet; JavaScript off must not change.
       - 3a `dom`: the resumable parser (html5ever tokenizer with a
@@ -2638,6 +2650,19 @@ Steps:
 
 ## Backlog from M8
 
+- Canvas with JavaScript off (found in feature 2): Chromium gives a
+  block-level `<canvas>` with `width` and `height` attributes the
+  `aspect-ratio: auto w / h` hint also with scripting off (an empty
+  canvas with `width: 60px` and `width=2 height=1` is 30 px high); swb
+  adds the hint only with scripting on. A small change in `hints.rs`,
+  but it changes JS-off rendering, so check the fixtures.
+- `noscript` with JavaScript off (found in feature 2): an inline
+  `noscript` with block children gets another union box than in
+  Chromium (block-in-inline; Chromium y=42 h=134, swb y=26 h=150).
+- Feature 4c: the GUI refuses JavaScript below an 8 MiB stack in the
+  GUI shell (it resets `page.setJavaScript true`). Move the refusal
+  into the engine (a capability of the page), so that no path can run
+  a script on a small stack.
 - CSS (found by the GitHub candidate, 2026-10-22): the header
   navigation of github.com/senko/swb is 402 px wide in swb and 627 px
   in Chromium, because the menu buttons have no side padding. The rule

@@ -167,8 +167,20 @@ pub(crate) fn collect_hints(
                 push(LonghandValue::CaptionSide(side));
             }
         }
-        // `canvas` maps its attributes only to `aspect-ratio` (not
-        // supported), not to `width` and `height`.
+        // `canvas` maps its attributes only to `aspect-ratio`, not to
+        // `width` and `height`. The hint applies with scripting enabled,
+        // where the canvas is a replaced element. (Chromium applies it
+        // also with scripting disabled, to a block-level canvas; swb does
+        // not yet.)
+        "canvas" => {
+            if doc.scripting() {
+                let (w, h) = swb_dom::canvas_size(e);
+                push(LonghandValue::AspectRatio(AspectRatio {
+                    auto: true,
+                    ratio: (w > 0 && h > 0).then(|| w as f32 / h as f32),
+                }));
+            }
+        }
         "img" | "object" | "embed" | "iframe" | "video" | "input" => {
             if name == "input"
                 && !e

@@ -37,10 +37,12 @@ pub(crate) fn run(
     )
     .context("cannot fetch the document again")?;
     let charset = response.content_type().and_then(|c| c.charset);
+    let scripting = page.document_has_scripting();
     let parse: Vec<Duration> = (0..runs)
         .map(|_| {
             let started = Instant::now();
-            let document = swb_dom::parse_html_bytes(&response.body, charset.as_deref());
+            let document =
+                swb_dom::parse_html_bytes_with(&response.body, charset.as_deref(), scripting);
             drop(document);
             started.elapsed()
         })

@@ -64,14 +64,16 @@ class Browser:
         viewport: tuple[int, int] = (1280, 800),
         test_fonts: bool = True,
         log_file: Path | None = None,
+        javascript: bool = False,
     ) -> Self:
         """Starts a headless swb and connects to it. `fixture` serves all
         requests from a fixture directory. `log_file` receives swb's stderr
-        (default: the terminal)."""
+        (default: the terminal). `javascript` starts the session with
+        JavaScript on."""
         binary = swb.find_swb(swb_path)
         if binary is None:
             raise FileNotFoundError("the swb binary does not exist; run `just build`")
-        command = swb.serve_command(binary, viewport, fixture, test_fonts)
+        command = swb.serve_command(binary, viewport, fixture, test_fonts, javascript)
         log.info("running %s", " ".join(command))
         if log_file is None:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)
@@ -111,6 +113,12 @@ class Browser:
     def info(self) -> dict[str, Any]:
         """The page state: URL, title, load state, scroll position, ..."""
         return self.call("page.info")
+
+    def set_javascript(self, enabled: bool) -> None:
+        """Sets the JavaScript setting. It applies to the next document: a
+        reload or a navigation applies it. `info()["javascript"]` is the
+        setting, `info()["documentJavascript"]` the value of the document."""
+        self.call("page.setJavaScript", enabled=enabled)
 
     def query_selector_all(self, selector: str) -> list[int]:
         """The node IDs of the elements that match `selector`."""

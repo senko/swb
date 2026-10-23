@@ -242,6 +242,22 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   runner through its wake-up channel); the response comes back through a
   reply channel. `page.waitForLoad` stays pending on the page thread until
   the page is loaded or its timeout expires.
+- The headless runner and the headless automation server run the page on a
+  thread that swb creates with a 16 MiB stack (`swb/src/stack.rs`). The GUI
+  runs the page on the main thread and reads the stack limit of the process
+  at start: below 8 MiB it keeps JavaScript off (ADR 0028 section 2).
+
+## The JavaScript setting
+
+`Page` holds the setting (`set_javascript`, off by default; command line
+`--js`, automation `page.setJavaScript`, GUI toggle). A new document copies
+it when it is created: the parser gets it as the scripting flag
+(`<noscript>` is raw text) and the `Document` keeps it (`Document::scripting`,
+set at parse time, not changed afterwards). Later stages read the flag from
+the document, not from a global, so two pages in one process can differ: the
+media environment (`scripting`), the cascade (`noscript` is `display: none`),
+the serializer, layout (video controls, `<canvas>` as a replaced element) and
+the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
 
 ## Layout details
 

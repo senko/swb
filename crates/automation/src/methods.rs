@@ -48,6 +48,7 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         }
         "page.waitForLoad" => return wait_for_load(params),
         "page.info" => Ok(info(page)),
+        "page.setJavaScript" => set_javascript(page, params),
         "page.setViewport" => set_viewport(page, params),
         "page.screenshot" => screenshot(page, params),
         "page.scrollTo" => scroll_to(page, params),
@@ -197,7 +198,21 @@ fn info(page: &mut Page) -> Value {
         "focusedNode": page.focused_element().map(NodeId::index),
         "hoveredLink": page.hovered_link().map(Url::as_str),
         "cursor": page.cursor().as_str(),
+        "javascript": page.javascript(),
+        "documentJavascript": page.document_has_scripting(),
     })
+}
+
+#[derive(Deserialize)]
+struct JavaScriptParams {
+    enabled: bool,
+}
+
+/// `page.setJavaScript`: the setting for the next document.
+fn set_javascript(page: &mut Page, params: Value) -> MethodResult {
+    let params: JavaScriptParams = parse(params)?;
+    page.set_javascript(params.enabled);
+    Ok(json!({}))
 }
 
 #[derive(Deserialize)]

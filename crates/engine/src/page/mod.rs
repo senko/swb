@@ -155,6 +155,11 @@ pub struct Page {
     document_url: Option<Url>,
     base_url: Option<Url>,
     document: Option<Document>,
+    /// The JavaScript setting. A new document takes the value it has when
+    /// the document is created; the current document keeps its own
+    /// ([`Document::scripting`]), so a change applies to the next
+    /// document (ADR 0028 section 15).
+    javascript: bool,
     /// The character encoding of the document (forms submit in it).
     encoding: &'static Encoding,
     /// The number of the current document: it grows with every committed
@@ -203,6 +208,7 @@ impl Page {
             document_url: None,
             base_url: None,
             document: None,
+            javascript: false,
             encoding: encoding_rs::UTF_8,
             document_number: 0,
             forms: Forms::default(),
@@ -224,6 +230,27 @@ impl Page {
             input: input::InputState::default(),
             timings: StageTimings::default(),
         }
+    }
+
+    // ----- JavaScript setting -----
+
+    /// The JavaScript setting (off by default).
+    pub fn javascript(&self) -> bool {
+        self.javascript
+    }
+
+    /// Sets the JavaScript setting. It applies to the next document: the
+    /// current document keeps the value it was created with, and a reload
+    /// applies the change. No script runs yet; the setting is the
+    /// document's scripting flag (the parser's scripting flag, the
+    /// `scripting` media feature, media controls and `<canvas>`).
+    pub fn set_javascript(&mut self, enabled: bool) {
+        self.javascript = enabled;
+    }
+
+    /// True if the current document was created with JavaScript on.
+    pub fn document_has_scripting(&self) -> bool {
+        self.document.as_ref().is_some_and(Document::scripting)
     }
 
     // ----- Navigation -----

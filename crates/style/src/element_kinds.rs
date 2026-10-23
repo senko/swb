@@ -12,15 +12,19 @@
 use swb_dom::{ElementData, local_name, ns, parse_integer};
 
 /// True for the replaced elements that swb lays out as replaced boxes:
-/// `img`, `video`, `audio` and `svg` in the SVG namespace (an `svg`
-/// element that layout reaches is always the outermost one: the content
-/// of a replaced box gets no boxes).
-pub fn is_replaced_element(element: &ElementData) -> bool {
+/// `img`, `video`, `audio`, `canvas` (only if `scripting` is true: with
+/// scripting disabled, a canvas shows its fallback content) and `svg` in
+/// the SVG namespace (an `svg` element that layout reaches is always the
+/// outermost one: the content of a replaced box gets no boxes).
+/// `scripting` is the scripting flag of the document
+/// ([`swb_dom::Document::scripting`]).
+pub fn is_replaced_element(element: &ElementData, scripting: bool) -> bool {
     element.is_html()
-        && matches!(
-            element.local_name(),
-            &local_name!("img") | &local_name!("video") | &local_name!("audio")
-        )
+        && match element.local_name() {
+            &local_name!("img") | &local_name!("video") | &local_name!("audio") => true,
+            &local_name!("canvas") => scripting,
+            _ => false,
+        }
         || is_svg_element(element)
 }
 
@@ -35,7 +39,7 @@ pub(crate) fn is_svg_element(element: &ElementData) -> bool {
 /// its child elements are not), and `progress` and `meter`. swb's layout
 /// still renders the content of `progress`, `meter` and `option` outside
 /// a `select` (a layout gap); counters in it have no text.
-pub(crate) fn renders_children(element: &ElementData) -> bool {
+pub(crate) fn renders_children(element: &ElementData, scripting: bool) -> bool {
     if !element.is_html() {
         return true;
     }
@@ -46,7 +50,7 @@ pub(crate) fn renders_children(element: &ElementData) -> bool {
         | &local_name!("progress")
         | &local_name!("meter") => false,
         &local_name!("select") => is_list_box(element),
-        _ => !is_replaced_element(element),
+        _ => !is_replaced_element(element, scripting),
     }
 }
 
@@ -69,14 +73,14 @@ fn is_list_box(select: &ElementData) -> bool {
 /// True for elements that are not list items with `display: list-item`,
 /// as measured in Chromium 148: the replaced elements, form controls
 /// (`input`, `select`, `textarea`, `button`), `iframe`, `embed`, `svg`,
-/// `fieldset`, `progress`, `meter`, `br` and `wbr`. `object` and `canvas`
-/// are list items, because they show their fallback content (swb loads
-/// no plugins and runs no scripts). Chromium also gives a number (with
-/// an empty marker) to an `img` that failed to load and has `alt` text,
-/// and to an `input type=image`; swb does not (style does not know the
-/// load state).
-pub(crate) fn cannot_be_list_item(element: &ElementData) -> bool {
-    is_replaced_element(element)
+/// `fieldset`, `progress`, `meter`, `br` and `wbr`. `object` is a list
+/// item, because it shows its fallback content (swb loads no plugins);
+/// so is `canvas` with scripting disabled (its fallback content shows).
+/// Chromium also gives a number (with an empty marker) to an `img` that
+/// failed to load and has `alt` text, and to an `input type=image`; swb
+/// does not (style does not know the load state).
+pub(crate) fn cannot_be_list_item(element: &ElementData, scripting: bool) -> bool {
+    is_replaced_element(element, scripting)
         || element.is_html()
             && matches!(
                 element.local_name(),
@@ -147,9 +151,9 @@ mod tests {
             .map(|e| {
                 (
                     e.local_name().to_string(),
-                    is_replaced_element(e),
-                    renders_children(e),
-                    cannot_be_list_item(e),
+                    is_replaced_element(e, false),
+                    renders_children(e, false),
+                    cannot_be_list_item(e, false),
                 )
             })
             .collect();
@@ -185,5 +189,20 @@ mod tests {
             .map(|&(n, a, b, c)| (n.to_owned(), a, b, c))
             .collect();
         assert_eq!(kinds, expected);
+    }
+
+    #[test]
+    fn canvas_is_replaced_with_scripting() {
+        let doc = parse_html("<canvas></canvas>");
+        let canvas = doc
+            .descendants(swb_dom::NodeId::DOCUMENT)
+            .find_map(|n| doc.element(n).filter(|e| &**e.local_name() == "canvas"))
+            .expect("a canvas");
+        assert!(!is_replaced_element(canvas, false));
+        assert!(is_replaced_element(canvas, true));
+        assert!(renders_children(canvas, false));
+        assert!(!renders_children(canvas, true));
+        assert!(!cannot_be_list_item(canvas, false));
+        assert!(cannot_be_list_item(canvas, true));
     }
 }

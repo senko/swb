@@ -29,3 +29,6 @@ swb-text.workspace = true
 tiny-skia.workspace = true
 winit.workspace = true
 serde_json.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true

@@ -9,6 +9,7 @@
 mod bench;
 mod gui;
 mod headless;
+mod stack;
 mod url_input;
 
 use std::io::Write as _;
@@ -88,6 +89,16 @@ struct Args {
     #[arg(long, value_name = "DIR")]
     record_missing: Option<PathBuf>,
 
+    /// Run the scripts of pages (JavaScript on). Off by default; the
+    /// setting applies to the documents that load after it is set. The
+    /// GUI keeps it off if the stack limit of the process is below 8 MiB.
+    #[arg(long, conflicts_with = "javascript")]
+    js: bool,
+
+    /// JavaScript on or off (`--js` is `--javascript on`).
+    #[arg(long, value_name = "on|off", value_parser = parse_on_off)]
+    javascript: Option<bool>,
+
     /// Use the bundled test fonts instead of the system fonts.
     #[arg(long)]
     test_fonts: bool,
@@ -110,6 +121,14 @@ fn parse_size(s: &str) -> Result<Size, String> {
     let size = Size::new(w, h);
     check_viewport_size(size).map_err(|e| e.to_string())?;
     Ok(size)
+}
+
+fn parse_on_off(s: &str) -> Result<bool, String> {
+    match s {
+        "on" => Ok(true),
+        "off" => Ok(false),
+        _ => Err("expected `on` or `off`".to_owned()),
+    }
 }
 
 fn parse_scale(s: &str) -> Result<f32, String> {
@@ -158,10 +177,14 @@ fn main() -> Result<()> {
         .transpose()
         .map_err(anyhow::Error::msg)?;
 
+    let javascript = args.js || args.javascript == Some(true);
+
     if args.headless
         && let Some(port) = args.remote_port
     {
-        return headless::serve(fetcher, fonts, args.size, args.scale, port, url);
+        return stack::on_page_thread(|| {
+            headless::serve(fetcher, fonts, args.size, args.scale, port, url, javascript)
+        })?;
     }
     if args.headless {
         let Some(url) = url else {
@@ -180,8 +203,9 @@ fn main() -> Result<()> {
             dump_layout: args.dump_layout,
             dump_boxes: args.dump_boxes.as_deref(),
             bench: args.bench,
+            javascript,
         };
-        return headless::run(fonts, &options);
+        return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }
-    gui::run(fetcher, fonts, url, args.remote_port)
+    gui::run(fetcher, fonts, url, args.remote_port, javascript)
 }

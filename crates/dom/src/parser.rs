@@ -1,9 +1,12 @@
 //! HTML parsing: html5ever's tree builder writes directly into our
 //! [`Document`] through the [`TreeSink`] trait.
 //!
-//! Scripting is reported as disabled to the tree builder, because swb does
-//! not run JavaScript. As a result, `<noscript>` content is parsed as normal
-//! markup and is rendered, as in a browser with JavaScript turned off.
+//! The tree builder gets the scripting flag of the document (the JavaScript
+//! setting when the document was created, ADR 0028 section 15). With the
+//! flag off, `<noscript>` content is parsed as normal markup and rendered,
+//! as in a browser with JavaScript turned off. With it on, `<noscript>` in
+//! `head` and `body` holds raw text, and the document remembers the flag
+//! ([`Document::scripting`]).
 //!
 //! The tree depth is limited to about [`MAX_TREE_DEPTH`], as in Blink:
 //! elements that would be deeper are attached to the ancestor at the limit.
@@ -24,16 +27,23 @@ use html5ever::{ParseOpts, QualName, parse_document};
 use crate::encoding::decode_html;
 use crate::tree::{Attribute, Document, NodeData, NodeId, QuirksMode};
 
-/// Parses an HTML document from text.
+/// Parses an HTML document from text, with scripting disabled.
 pub fn parse_html(text: &str) -> Document {
+    parse_html_with(text, false)
+}
+
+/// Parses an HTML document from text. `scripting` is the scripting flag
+/// of the new document.
+pub fn parse_html_with(text: &str, scripting: bool) -> Document {
     let opts = ParseOpts {
         tree_builder: html5ever::tree_builder::TreeBuilderOpts {
-            scripting_enabled: false,
+            scripting_enabled: scripting,
             ..Default::default()
         },
         ..Default::default()
     };
     let sink = Sink::default();
+    sink.doc.borrow_mut().set_scripting(scripting);
     parse_document(sink, opts).one(StrTendril::from(text))
 }
 
@@ -42,8 +52,17 @@ pub fn parse_html(text: &str) -> Document {
 /// `Content-Type` header), `<meta>` tags, and content sniffing, in that
 /// order. Returns the document and the name of the encoding used.
 pub fn parse_html_bytes(bytes: &[u8], transport_charset: Option<&str>) -> (Document, &'static str) {
+    parse_html_bytes_with(bytes, transport_charset, false)
+}
+
+/// [`parse_html_bytes`] with the scripting flag `scripting`.
+pub fn parse_html_bytes_with(
+    bytes: &[u8],
+    transport_charset: Option<&str>,
+    scripting: bool,
+) -> (Document, &'static str) {
     let (text, encoding) = decode_html(bytes, transport_charset);
-    (parse_html(&text), encoding.name())
+    (parse_html_with(&text, scripting), encoding.name())
 }
 
 /// The maximum depth of a node below the root of its tree (the document,
@@ -301,6 +320,33 @@ mod tests {
     fn noscript_content_is_parsed_as_markup() {
         let doc = parse_html("<!DOCTYPE html><body><noscript><p>no js</p></noscript>");
         assert!(dump_tree(&doc).contains("<noscript>\n|       <p>"));
+    }
+
+    #[test]
+    fn noscript_is_raw_text_with_scripting() {
+        let html = "<!DOCTYPE html><head><noscript><link rel=stylesheet href=a.css><style>p{}</style></noscript></head>\
+                    <body><noscript><p>no js</p><img src=x></noscript><p id=after>";
+        let tags = |doc: &Document| {
+            doc.descendants(NodeId::DOCUMENT)
+                .filter_map(|n| doc.element(n).map(|e| e.local_name().to_string()))
+                .collect::<Vec<_>>()
+        };
+        let on = parse_html_with(html, true);
+        assert!(on.scripting());
+        assert_eq!(
+            tags(&on),
+            ["html", "head", "noscript", "body", "noscript", "p"]
+        );
+        let dump = dump_tree(&on);
+        assert!(dump.contains("<noscript>\n|       \"<p>no js</p><img src=x>\""));
+        // The flag is a property of the document: off by default.
+        let off = parse_html(html);
+        assert!(!off.scripting());
+        let tags_off = tags(&off);
+        assert!(tags_off.contains(&"link".to_owned()), "{tags_off:?}");
+        assert!(tags_off.contains(&"img".to_owned()), "{tags_off:?}");
+        let (from_bytes, _) = parse_html_bytes_with(html.as_bytes(), None, true);
+        assert!(from_bytes.scripting());
     }
 
     #[test]

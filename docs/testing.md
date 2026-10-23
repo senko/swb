@@ -749,6 +749,11 @@ Baseline of 2026-10-22 (swb without `--js`; geometry, pixels):
 senko-net 1.0000, 0.9990; hacker-news 1.0000, 0.9986;
 wikipedia-web-browser 0.1810, 0.9735; craigslist-posting 0.0000, 0.6897.
 
+Since M8 feature 2 swb has `--js` (the scripting flag; no script runs
+yet). Scores of 2026-10-22 with it: senko-net 1.0000, 0.9990; hacker-news
+1.0000, 0.9986; wikipedia-web-browser 0.1810, 0.9735; craigslist-posting
+0.0000, 0.7747.
+
 ### Add a layout test
 
 1. Write `tests/layout/<name>.html`: one feature, a `<!DOCTYPE html>`, a
@@ -1045,7 +1050,7 @@ description names the limit and the ADR. Size the page just past the limit
 (at most 20 MB; `tools/tests/test_hostile.py` checks this and that names are
 unique). Options: `time_limit_s` and `rss_limit_mib` where an ADR documents
 a higher cost, `expect_log` (a part of the warning that swb logs when the
-limit acts), `swb_args` (for example `--full-page`, `--scale 8`) and
+limit acts), `swb_args` (for example `--full-page`, `--scale 8`, `--js`) and
 `known_failure="reason"` for an open bug. Put the bug in the backlog in
 `docs/roadmap.md`; when it is fixed, `just hostile` reports `unexpected pass`
 and the mark goes.

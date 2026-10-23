@@ -66,6 +66,7 @@ impl Page {
             viewport_width: self.viewport.width,
             viewport_height: self.viewport.height,
             device_pixel_ratio: self.scale,
+            scripting: self.document_has_scripting(),
             ..MediaEnvironment::default()
         }
     }

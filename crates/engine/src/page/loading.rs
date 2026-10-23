@@ -133,22 +133,29 @@ impl Page {
         let document = if essence == "text/html" || essence == "application/xhtml+xml" {
             let charset = content_type.as_ref().and_then(|c| c.charset.as_deref());
             let started = Instant::now();
-            let (document, name) = swb_dom::parse_html_bytes(&response.body, charset);
+            let (document, name) =
+                swb_dom::parse_html_bytes_with(&response.body, charset, self.javascript);
             self.timings.parse = started.elapsed();
             encoding = Encoding::for_label(name.as_bytes()).unwrap_or(encoding_rs::UTF_8);
             document
         } else if essence.starts_with("text/") || essence == "application/json" {
             let text = String::from_utf8_lossy(&response.body);
-            swb_dom::parse_html(&format!("<pre>{}</pre>", escape_html(&text)))
+            swb_dom::parse_html_with(
+                &format!("<pre>{}</pre>", escape_html(&text)),
+                self.javascript,
+            )
         } else if essence.starts_with("image/") {
             // The image is already here; the generated <img> uses it
             // without fetching it again.
             let state = ImageState::decode(&response.url, &response, &images.counting);
             images.by_url.insert(response.url.clone(), state);
-            swb_dom::parse_html(&format!(
-                "<body style=\"margin:0\"><img src=\"{}\">",
-                escape_html(response.url.as_str())
-            ))
+            swb_dom::parse_html_with(
+                &format!(
+                    "<body style=\"margin:0\"><img src=\"{}\">",
+                    escape_html(response.url.as_str())
+                ),
+                self.javascript,
+            )
         } else {
             self.show_error(&format!("Cannot display content of type {essence}"));
             return;
@@ -172,7 +179,7 @@ impl Page {
         );
         let url = self.url.clone().unwrap_or_else(about_blank);
         self.set_document(
-            swb_dom::parse_html(&html),
+            swb_dom::parse_html_with(&html, self.javascript),
             url,
             Images::default(),
             encoding_rs::UTF_8,

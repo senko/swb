@@ -14,10 +14,12 @@ mod tree;
 pub use dump::dump_tree;
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
 pub use microsyntax::{
-    is_valid_float, is_valid_non_negative_integer, parse_integer, parse_non_negative_integer,
-    parse_non_negative_u32,
+    canvas_size, is_valid_float, is_valid_non_negative_integer, parse_integer,
+    parse_non_negative_integer, parse_non_negative_u32,
 };
-pub use parser::{MAX_TREE_DEPTH, parse_html, parse_html_bytes};
+pub use parser::{
+    MAX_TREE_DEPTH, parse_html, parse_html_bytes, parse_html_bytes_with, parse_html_with,
+};
 pub use serialize::outer_html;
 pub use tree::{
     Attribute, Children, Descendants, Document, ElementData, Node, NodeData, NodeId, QuirksMode,

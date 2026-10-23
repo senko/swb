@@ -289,6 +289,12 @@ pub struct Document {
     nodes: Vec<Node>,
     /// The quirks mode, set by the parser.
     pub quirks_mode: QuirksMode,
+    /// The scripting flag of the document: true if the document was
+    /// created with JavaScript on (ADR 0028 section 15). The parser reads it
+    /// as its scripting flag; media queries, the serializer, media
+    /// controls and `<canvas>` follow it. Set by the parser; it does not
+    /// change during the life of the document.
+    scripting: bool,
 }
 
 impl Default for Document {
@@ -303,7 +309,21 @@ impl Document {
         Document {
             nodes: vec![Node::new(NodeData::Document)],
             quirks_mode: QuirksMode::NoQuirks,
+            scripting: false,
         }
+    }
+
+    /// True if scripting is enabled for the document (the document was
+    /// created with JavaScript on).
+    /// <https://html.spec.whatwg.org/multipage/webappapis.html#concept-n-script>
+    pub fn scripting(&self) -> bool {
+        self.scripting
+    }
+
+    /// Sets the scripting flag. Only the parser (and tests that build a
+    /// document by hand) call it, before the document is used.
+    pub fn set_scripting(&mut self, enabled: bool) {
+        self.scripting = enabled;
     }
 
     /// The number of nodes in the arena, including detached nodes.

@@ -7,9 +7,13 @@ its reasons are in [ADR 0008](adr/0008-automation-protocol.md).
 ## Starting the server
 
 ```
-swb --headless --remote-port 0 [--replay DIR] [--test-fonts] [--size WxH] [URL]
+swb --headless --remote-port 0 [--replay DIR] [--test-fonts] [--size WxH] [--js] [URL]
 swb --remote-port 9222 [URL]          # with a window
 ```
+
+- `--js` (or `--javascript on`) starts the session with JavaScript on; the
+  default is off. This is the `javascript` option of the session. See
+  "The JavaScript setting" below.
 
 - The server listens on 127.0.0.1 only. Port 0 picks a free port.
 - swb prints the address on standard output, as the first line:
@@ -101,6 +105,7 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 | `page.stop` | — | `{}` |
 | `page.waitForLoad` | `timeoutMs` (default 30000, at most 3600000) | `{"loaded": bool}`: false on timeout. Loaded means the document and all its resources (stylesheets, images, background images) are loaded. A failed navigation counts as loaded: then `page.info` has `loadState` `failed`. |
 | `page.info` | — | see below |
+| `page.setJavaScript` | `enabled` (boolean) | `{}`. Sets the JavaScript setting. It applies to the next document: the current document keeps the value it was created with, and a reload or a navigation applies the change. See "The JavaScript setting". |
 | `page.setViewport` | `width`, `height` (1 to 16384), `scale` (above 0, at most 8; default 1) | `{}`. For headless mode: with a window, the next resize of the window sets the viewport again. |
 | `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx; as in Chromium, it shows the page from its top with the layout of the viewport; fixed and sticky boxes are where they are at the page's scroll offset, and scroll containers keep their offsets. |
 | `page.scrollTo` | `x`, `y` | `{"scroll": {"x", "y"}}` (whole CSS px, clamped to the content, also on an axis with `overflow: hidden`) |
@@ -121,7 +126,9 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   "canGoForward": false,
   "focusedNode": null,
   "hoveredLink": null,
-  "cursor": "default"
+  "cursor": "default",
+  "javascript": false,
+  "documentJavascript": false
 }
 ```
 
@@ -129,6 +136,29 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   `failed` (the page shows an error document; `error` has the reason).
 - `url`: while a navigation is pending, its URL.
 - `cursor`: the CSS cursor keyword for the last pointer position.
+- `javascript`: the JavaScript setting (what the next document gets).
+- `documentJavascript`: the value that the current document was created
+  with (its scripting flag).
+
+### The JavaScript setting
+
+JavaScript is off by default ([ADR 0025](adr/0025-javascript-approach.md),
+[ADR 0028](adr/0028-javascript-in-the-browser.md) section 15). The setting
+is a property of the session: `--js` on the command line sets it at the
+start, `page.setJavaScript` changes it, `page.info` reports it. A change
+applies to the next document, not to the one that is shown; a reload (or
+any navigation) applies it. `page.info.documentJavascript` tells what the
+shown document has.
+
+With JavaScript on, the document has the scripting flag: the HTML parser
+reads `<noscript>` in `head` and `body` as raw text (so `dom.querySelector`
+does not find elements inside it, and nothing in it loads); `@media
+(scripting)` matches; a `<video>` shows controls only with the `controls`
+attribute; `<canvas>` is a replaced element that paints nothing. No script
+runs yet (M8 feature 4 adds that). In the GUI, the toolbar button "JS" and
+Ctrl+Shift+J flip the setting, and `page.setJavaScript` works the same; if
+the stack limit of the process is below 8 MiB (`ulimit -s`), the GUI keeps
+JavaScript off and ignores both.
 
 ### dom
 
