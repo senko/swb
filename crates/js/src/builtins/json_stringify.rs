@@ -966,7 +966,7 @@ fn key_string(rt: &mut Runtime, key: PropertyKey, made: &mut Option<Value>) -> V
 /// `EnumerableOwnProperties(object, key)` as far as it matters here:
 /// the enumerable own string keys, in `[[OwnPropertyKeys]]` order, rooted.
 fn enumerable_keys(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Keys> {
-    if rt.heap.is_proxy(object)? {
+    if rt.heap.needs_runtime(object)? {
         // `[[OwnPropertyKeys]]`, then `[[GetOwnProperty]]` of each string
         // key, all before the first `Get` (§7.3.23).
         let own = rt.own_keys(object)?;

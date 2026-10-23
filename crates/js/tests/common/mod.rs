@@ -7,6 +7,8 @@
 // part of it, so the helpers that a file does not use are dead code there.
 #![allow(dead_code, clippy::unwrap_used, clippy::unnecessary_wraps)]
 
+pub(crate) mod host;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -19,6 +21,8 @@ use swb_js::{
 /// The output lines of `print` and `console.log`.
 #[derive(Clone, Default)]
 pub(crate) struct Output(pub(crate) Rc<RefCell<Vec<String>>>);
+
+impl swb_js::HostState for Output {}
 
 impl Output {
     /// Takes the lines written so far.

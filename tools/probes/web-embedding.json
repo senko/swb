@@ -1,0 +1,60 @@
+{"viewport": [400, 200],
+ "javascript": true,
+ "cases": [
+   {"name": "brand-check",
+    "html": "<!DOCTYPE html><div id=a></div>",
+    "measure": [
+      {"js": "(() => { try { Object.getOwnPropertyDescriptor(Node.prototype, 'firstChild').get.call({}); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Node.prototype.appendChild.call({}, document.body); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Node.prototype.appendChild.call(window, document.body); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Element.prototype.getAttribute.call(document, 'x'); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Element.prototype.getAttribute.call(Object.create(Element.prototype), 'x'); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Object.getOwnPropertyDescriptor(Node.prototype, 'firstChild').get.call(undefined); return 'no error'; } catch (e) { return String(e); } })()"}
+    ]},
+   {"name": "interface-objects",
+    "html": "<!DOCTYPE html><div id=a></div>",
+    "measure": [
+      {"js": "[Node.name, Node.length, Element.name, Element.length, HTMLElement.length, EventTarget.length]"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(Node, 'prototype'))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(Node.prototype, 'constructor'))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(window, 'Node'))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(Node, 'name'))"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(Node, 'length'))"},
+      {"js": "[Object.getPrototypeOf(Element) === Node, Object.getPrototypeOf(Node) === EventTarget, Object.getPrototypeOf(EventTarget) === Function.prototype]"},
+      {"js": "[Object.getPrototypeOf(Element.prototype) === Node.prototype, Object.getPrototypeOf(EventTarget.prototype) === Object.prototype]"},
+      {"js": "[document.body instanceof Node, document.body instanceof Element, document.body instanceof EventTarget, document instanceof Element]"},
+      {"js": "(() => { try { new Node(); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { Node(); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "(() => { try { EventTarget(); return 'no error'; } catch (e) { return String(e); } })()"},
+      {"js": "Object.prototype.toString.call(Node.prototype) + ' ' + Object.prototype.toString.call(document.body) + ' ' + Object.prototype.toString.call(Node)"},
+      {"js": "JSON.stringify(Object.getOwnPropertyDescriptor(Node.prototype, Symbol.toStringTag))"},
+      {"js": "String(Node)"},
+      {"js": "JSON.stringify(Object.getOwnPropertyNames(Node.prototype).slice(0, 4))"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(Node.prototype, 'firstChild'); return [typeof d.get, d.set, d.enumerable, d.configurable, d.get.name, d.get.length]; })()"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(Node.prototype, 'appendChild'); return [d.writable, d.enumerable, d.configurable, d.value.name, d.value.length]; })()"},
+      {"js": "(() => { const d = Object.getOwnPropertyDescriptor(Node, 'ELEMENT_NODE'); return [d.value, d.writable, d.enumerable, d.configurable]; })()"}
+    ]},
+   {"name": "global-object",
+    "html": "<!DOCTYPE html><div id=a></div>",
+    "measure": [
+      {"js": "Object.prototype.toString.call(window) + ' ' + Object.prototype.toString.call(Object.getPrototypeOf(window)) + ' ' + Object.prototype.toString.call(Object.getPrototypeOf(Object.getPrototypeOf(window)))"},
+      {"js": "[window === globalThis, window === self, this === window]"},
+      {"js": "[Object.getPrototypeOf(window) === Window.prototype, Object.getPrototypeOf(Object.getPrototypeOf(Window.prototype)) === EventTarget.prototype]"},
+      {"js": "typeof a + ' ' + (a === document.getElementById('a')) + ' ' + Object.prototype.hasOwnProperty.call(window, 'a') + ' ' + ('a' in Window.prototype)"}
+    ]},
+   {"name": "event-handler",
+    "html": "<!DOCTYPE html><form id=f name=fname action=x><input id=i name=iname onclick=\"return [typeof value, typeof action, typeof title, typeof body, typeof alert, iname, this.id].join(' ')\"></form><div id=d onclick=\"return event + ' ' + typeof action\"></div><div id=s onclick=\"}\"></div><div id=r onclick=\"'use strict'; return typeof this\"></div><div id=n onmouseover=\"onmouseover = 5; return typeof onmouseover\"></div>",
+    "measure": [
+      {"js": "document.getElementById('i').onclick.toString()"},
+      {"js": "[document.getElementById('i').onclick.name, document.getElementById('i').onclick.length]"},
+      {"js": "document.getElementById('i').onclick.call(document.getElementById('i'))"},
+      {"js": "document.getElementById('d').onclick('ev')"},
+      {"js": "String(document.getElementById('s').onclick)"},
+      {"js": "document.getElementById('r').onclick.call(undefined)"},
+      {"js": "[document.getElementById('n').onmouseover.call(document.getElementById('n')), String(document.getElementById('n').onmouseover)]"},
+      {"js": "(() => { const errors = []; window.onerror = (m) => { errors.push(m); }; const d = document.createElement('div'); d.setAttribute('onclick', '}'); const h = d.onclick; window.onerror = null; return [String(h), errors.join('|')]; })()"},
+      {"js": "(() => { const d = document.createElement('div'); d.setAttribute('onclick', 'return 1'); return [typeof d.onclick, Object.prototype.hasOwnProperty.call(d.onclick, 'prototype')]; })()"},
+      {"js": "(() => { document.body.setAttribute('onerror', 'return 1'); return String(window.onerror); })()"},
+      {"js": "(() => { const d = document.createElement('div'); d.id = 'zz'; d.setAttribute('onclick', 'return [eval(\\'id\\'), eval(\\'typeof createElement\\'), (() => eval(\\'id\\'))()].join()'); return d.onclick.call(d); })()"}
+    ]}
+ ]}

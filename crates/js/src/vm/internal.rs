@@ -10,7 +10,8 @@
 //! (V8's wording) of the failing `DefinePropertyOrThrow` and
 //! `[[SetPrototypeOf]]`. The result of a read is recorded in the current
 //! handle scope. Each method dispatches a proxy to its internal method
-//! (`proxy.rs`).
+//! (`proxy.rs`) and a host object with hooks to its hooks
+//! (`host/hooks.rs`).
 
 use crate::heap::Gc;
 use crate::object::{INVALID_ARRAY_LENGTH, Object, ObjectKind, Property, PropertyDescriptor};
@@ -44,8 +45,8 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<Option<Property>> {
-        if self.heap.is_proxy(object)? {
-            return self.proxy_get_own_property(object, key);
+        if self.heap.needs_runtime(object)? {
+            return self.exotic_own_property(object, key);
         }
         if let Some((data, index)) = self.typed_numeric(object, key)? {
             return self.typed_own_property(&data, index);
@@ -73,7 +74,7 @@ impl Runtime {
         key: PropertyKey,
         mut desc: PropertyDescriptor,
     ) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.needs_runtime(object)? {
             return self.define_generic(object, key, desc, false);
         }
         if let Some((data, index)) = self.typed_numeric(object, key)? {
@@ -111,7 +112,7 @@ impl Runtime {
         key: PropertyKey,
         desc: PropertyDescriptor,
     ) -> VmResult<()> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.needs_runtime(object)? {
             self.define_generic(object, key, desc, true)?;
             return Ok(());
         }
@@ -148,7 +149,7 @@ impl Runtime {
         {
             return Ok(());
         }
-        if self.heap.is_proxy(object)? || self.typed_numeric(object, key)?.is_some() {
+        if self.heap.needs_runtime(object)? || self.typed_numeric(object, key)?.is_some() {
             let desc = PropertyDescriptor::data(value, true, true, true);
             self.define_generic(object, key, desc, true)?;
             return Ok(());

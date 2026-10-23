@@ -136,6 +136,10 @@ impl Vm {
     /// [`Runtime::check_time`] on the VM alone.
     #[cold]
     fn check_time(&mut self) -> Result<(), Termination> {
+        if let Some(termination) = self.terminating {
+            self.countdown.set(1);
+            return Err(termination);
+        }
         self.countdown.set(TIME_CHECK_INTERVAL);
         if self.termination.take() {
             return Err(Termination::HostRequest);

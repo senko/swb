@@ -38,9 +38,9 @@ pub enum GetResult {
         /// The `this` value of the call.
         receiver: Value,
     },
-    /// The walk met a proxy, whose internal methods run script code: the
-    /// runtime takes the generic path from the start (nothing happened
-    /// yet).
+    /// The walk met a proxy or a host object with hooks, whose internal
+    /// methods run script code: the runtime takes the generic path from
+    /// the start (nothing happened yet).
     Generic,
 }
 
@@ -58,8 +58,9 @@ pub enum SetResult {
         /// The `this` value of the call.
         receiver: Value,
     },
-    /// The walk met a proxy, or the receiver is one: the runtime takes the
-    /// generic path from the start (nothing was written).
+    /// The walk met a proxy or a host object with hooks, or the receiver
+    /// is one: the runtime takes the generic path from the start (nothing
+    /// was written).
     Generic,
 }
 
@@ -240,9 +241,9 @@ impl Heap {
         }
         match &self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
-            ObjectKind::Proxy(_) => {
-                Err(Error::invariant("a heap [[DefineOwnProperty]] of a proxy"))
-            }
+            ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => Err(Error::invariant(
+                "a heap [[DefineOwnProperty]] of a proxy or a host object with hooks",
+            )),
             ObjectKind::TypedArray(_) => self.typed_or_ordinary_define(object, key, desc, roots),
             _ => self.ordinary_define_own_property(object, key, desc, roots),
         }
@@ -555,11 +556,15 @@ impl Heap {
 
     /// Writes an existing own writable data property without the general
     /// path: an element of the dense vector or a named slot. Returns false
-    /// if the fast path does not apply.
+    /// if the fast path does not apply (also for a host object with hooks,
+    /// whose `[[Set]]` the runtime runs).
     fn set_own_fast(&mut self, object: Gc<Object>, key: PropertyKey, value: Value) -> Result<bool> {
         match key {
             PropertyKey::Index(index) => {
                 let record = self.object_mut(object)?;
+                if let ObjectKind::HostExotic(_) = record.kind {
+                    return Ok(false);
+                }
                 match record.elements.write_dense(index, value) {
                     DenseWrite::Done => Ok(true),
                     // §10.4.4.4: a mapped argument writes its parameter.
@@ -583,6 +588,9 @@ impl Heap {
             }
             _ => {
                 let record = self.object(object)?;
+                if let ObjectKind::HostExotic(_) = record.kind {
+                    return Ok(false);
+                }
                 let shape = self.arenas.shapes.get(record.shape)?;
                 let Some(entry) = shape.find(key, &self.arenas.key_lists)? else {
                     return Ok(false);
@@ -680,7 +688,11 @@ impl Heap {
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         let record = self.object(object)?;
         match &record.kind {
-            ObjectKind::Proxy(_) => return Err(Error::invariant("a heap [[Delete]] of a proxy")),
+            ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => {
+                return Err(Error::invariant(
+                    "a heap [[Delete]] of a proxy or a host object with hooks",
+                ));
+            }
             ObjectKind::TypedArray(data) => {
                 if let Some(index) = self.numeric_index(key)? {
                     return Ok(self.valid_index(data, index)?.is_none());
@@ -691,6 +703,12 @@ impl Heap {
         if self.string_unit_of(record, key)?.is_some() {
             return Ok(false);
         }
+        self.ordinary_delete(object, key)
+    }
+
+    /// `OrdinaryDelete` (§10.1.10.1) of a stored property (for the host
+    /// objects with hooks, whose hook leaves a key to the ordinary method).
+    pub(crate) fn ordinary_delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         let Some(current) = self.get_own_property(object, key)? else {
             return Ok(true);
         };
@@ -920,9 +938,10 @@ enum ExoticSet {
 }
 
 impl Heap {
-    /// The `[[Get]]` walk at a proxy or typed array (`record`): `Generic`
-    /// for a proxy, the result for a numeric key of a typed array, `None`
-    /// for another key of a typed array (an ordinary property).
+    /// The `[[Get]]` walk at a proxy, a host object with hooks or a typed
+    /// array (`record`): `Generic` for a proxy or a host object, the result
+    /// for a numeric key of a typed array, `None` for another key of a
+    /// typed array (an ordinary property).
     #[cold]
     #[inline(never)]
     pub(super) fn exotic_get(
@@ -975,8 +994,9 @@ impl Heap {
         Ok(ExoticSet::Element)
     }
 
-    /// Step 3 of the heap's `[[Set]]` for a receiver that is a proxy (its
-    /// `[[GetOwnProperty]]` and `[[DefineOwnProperty]]` run traps), a
+    /// Step 3 of the heap's `[[Set]]` for a receiver that is a proxy or a
+    /// host object with hooks (its `[[GetOwnProperty]]` and
+    /// `[[DefineOwnProperty]]` run traps or hooks), a
     /// typed array with a numeric key (the definition converts the value)
     /// or a String object with a character at the key (not writable): the
     /// result; `None` for an ordinary property.
@@ -984,7 +1004,7 @@ impl Heap {
     #[inline(never)]
     fn exotic_receiver(&self, record: &Object, key: PropertyKey) -> Result<Option<SetResult>> {
         Ok(match record.kind {
-            ObjectKind::Proxy(_) => Some(SetResult::Generic),
+            ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => Some(SetResult::Generic),
             ObjectKind::TypedArray(_) if self.numeric_index(key)?.is_some() => {
                 Some(SetResult::Generic)
             }

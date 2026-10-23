@@ -1,7 +1,8 @@
 //! The internal methods of Proxy exotic objects (ECMA-262 §10.5,
 //! <https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots>)
 //! and the generic forms of the internal methods that dispatch to them
-//! (ADR 0026 sections 6 and 15).
+//! (ADR 0026 sections 6 and 15), and to the hooks of host objects
+//! (`host/hooks.rs`).
 //!
 //! Each method follows the steps of the specification in their order: the
 //! check of a revoked proxy, the trap lookup (`GetMethod` on the handler,
@@ -231,7 +232,10 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return self.proxy_delete(object, key, throw);
         }
-        let deleted = self.heap.delete(object, key)?;
+        let deleted = match self.host_hooks(object)? {
+            Some(hooks) => self.host_delete(object, key, &hooks)?,
+            None => self.heap.delete(object, key)?,
+        };
         if !deleted && throw {
             return Err(VmError::type_error(format!(
                 "Cannot delete property '{}' of {}",
@@ -249,8 +253,8 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
-            return Ok(self.proxy_get_own_property(object, key)?.is_some());
+        if self.heap.needs_runtime(object)? {
+            return Ok(self.exotic_own_property(object, key)?.is_some());
         }
         if let Some((data, index)) = self.typed_numeric(object, key)? {
             return Ok(self.heap.valid_index(&data, index)?.is_some());
@@ -267,9 +271,9 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.needs_runtime(object)? {
             return Ok(self
-                .proxy_get_own_property(object, key)?
+                .exotic_own_property(object, key)?
                 .is_some_and(|property| property.enumerable()));
         }
         if self.heap.string_object_unit(object, key)?.is_some() {
@@ -292,8 +296,8 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<Option<Property>> {
-        if self.heap.is_proxy(object)? {
-            return self.proxy_get_own_property(object, key);
+        if self.heap.needs_runtime(object)? {
+            return self.exotic_own_property(object, key);
         }
         if let Some((data, index)) = self.typed_numeric(object, key)? {
             return self.typed_own_property(&data, index);
@@ -302,8 +306,9 @@ impl Runtime {
     }
 
     /// `O.[[Get]](P, Receiver)` along a prototype chain that has a proxy
-    /// (§10.1.8.1 `OrdinaryGet` as a loop, §10.5.8 at a proxy). An accessor
-    /// is returned for the caller to call.
+    /// or a host object with hooks (§10.1.8.1 `OrdinaryGet` as a loop,
+    /// §10.5.8 at a proxy, the hooks at a host object). An accessor is
+    /// returned for the caller to call.
     #[cold]
     #[inline(never)]
     pub(crate) fn get_generic(
@@ -316,6 +321,17 @@ impl Runtime {
         loop {
             if self.heap.is_proxy(current)? {
                 return self.proxy_get(current, key, receiver);
+            }
+            if let Some(hooks) = self.host_hooks(current)? {
+                if let Some(found) = self.host_get(current, key, receiver, &hooks)? {
+                    return Ok(found);
+                }
+                current = match self.heap.get_prototype_of(current)? {
+                    Some(proto) => proto,
+                    None => return Ok(Lookup::Value(Value::Undefined)),
+                };
+                self.tick()?;
+                continue;
             }
             // §10.4.5: a numeric key of a typed array ends the walk.
             if let Some((data, index)) = self.typed_numeric(current, key)? {
@@ -357,9 +373,14 @@ impl Runtime {
             if let Some((data, index)) = self.typed_numeric(current, key)? {
                 return Ok(self.heap.valid_index(&data, index)?.is_some());
             }
-            if self.heap.get_own_property(current, key)?.is_some()
-                || self.heap.string_object_unit(current, key)?.is_some()
-            {
+            let own = match self.host_hooks(current)? {
+                Some(hooks) => self.host_own_property(current, key, &hooks)?.is_some(),
+                None => {
+                    self.heap.get_own_property(current, key)?.is_some()
+                        || self.heap.string_object_unit(current, key)?.is_some()
+                }
+            };
+            if own {
                 return Ok(true);
             }
             match self.heap.get_prototype_of(current)? {
@@ -391,6 +412,14 @@ impl Runtime {
         loop {
             if self.heap.is_proxy(current)? {
                 return self.proxy_set(current, key, value, receiver, throw);
+            }
+            if let Some(hooks) = self.host_hooks(current)?
+                && let Some(done) = self.host_set(current, (key, value, receiver), &hooks)?
+            {
+                if !done {
+                    return self.refuse_set(throw, current, receiver, key);
+                }
+                return Ok(SetDone::Done(true));
             }
             // §10.4.5: a numeric key of a typed array.
             if let Some((data, index)) = self.typed_numeric(current, key)? {
@@ -483,6 +512,13 @@ impl Runtime {
     ) -> VmResult<bool> {
         if self.heap.is_proxy(object)? {
             return self.proxy_define_own_property(object, key, desc, throw);
+        }
+        if let Some(hooks) = self.host_hooks(object)? {
+            let done = self.host_define(object, key, desc, &hooks)?;
+            if !done && throw {
+                return Err(self.define_failure(object, key));
+            }
+            return Ok(done);
         }
         if throw {
             self.define_or_throw(object, key, desc)?;

@@ -2407,6 +2407,19 @@ Steps:
         section 6, items 1 to 6 and 8). Tests: unit tests in `js`
         with a test host (a class tree, a legacy indexed object, a
         named-property object), the GC stress mode, test262 unchanged.
+        Done 2026-10-23. Host objects of classes without hooks
+        (wrappers, the global object) are ordinary for the inline
+        caches, a departure from ADR 0028 section 6 item 2; a class
+        with hooks makes exotic objects that take the paths of proxies.
+        Host data is a word (a `NodeId`) or traced generic data. The
+        global object becomes a `Window` host object (`init_global`;
+        dictionary mode afterwards); global reads +3 % on a micro row.
+        A native's termination repeats until the outermost run returns,
+        and a dropped one still ends the task. Event handlers compile as
+        direct eval code with a captured chain of object environments.
+        test262 unchanged in normal and stress mode; jsbench geomean
+        −0.4 % (`toLowerCase` and a regexp row +15 to 20 % from a moved
+        collection: the real source size, as the M7 13e item predicted).
       - 4b `webidl`: the IDL parser for the subset, the generator of
         the glue (section 5), the conversions, `DOMException`,
         `[Reflect]`, the freshness test, `just bindings`; the IDL files
@@ -2765,6 +2778,42 @@ Steps:
 - Tools: `snapshot` has no `--js` option (feature 3b used a copy of the
   script). The `parse` stage of `--bench` is bimodal on small pages
   (senko-net 0.06 or 0.09 ms).
+- `js`, feature 4b (found in feature 4a): the messages of refused writes
+  and definitions on host objects with hooks read the stored properties
+  only: `'use strict'; list[0] = 1` says "Cannot add property 0, object
+  is not extensible". Chromium words them per interface ("Failed to set
+  an indexed property [0] on 'NodeList': Index property setter is not
+  supported."); the generated `set` hooks can throw them.
+- `js`, feature 4b: no hooks for `[[PreventExtensions]]` and
+  `[[SetPrototypeOf]]`. `Object.freeze(list)` throws "Cannot redefine
+  property: 0" (Web IDL legacy platform objects refuse to become
+  non-extensible), and `Object.setPrototypeOf(globalThis, x)` succeeds
+  (`Window`, `WindowProperties` and `Location` have immutable
+  prototypes).
+- `js`, feature 4c: an empty handler attribute (`onclick=""`) gives
+  `function onclick() { [native code] }` in Chromium; swb would give
+  `function onclick(event) {\n\n}`.
+- `js`: stack frames of event handlers show no function name (Chromium:
+  `at HTMLDivElement.onclick`), and their positions count from the
+  synthesized source, not from the attribute's line.
+- `js`: a handler body that closes the function early and continues
+  (`}); x; ({`) gives "Single function literal required"; Chromium
+  parses the body alone and says "Unexpected token '}'".
+- `js`: the global object is a dictionary after `init_global`. Global
+  reads stay cached, but `window.x` and `globalThis.x` reads are not
+  (dictionary receivers never are). If pages read `window.foo` in hot
+  loops, an entry for the global object keyed by its epoch would cache
+  them.
+- `js`: `HOOK_WEIGHT` is the proxy weight (2 KiB), not measured.
+- `js`: `Runtime::heap_mut` and `Heap::new_host_object` are a wide
+  `pub` surface; narrow them before 4b and 4c depend on them.
+- `js`: the source text of a script is charged only while the script's
+  code object lives; its functions keep the shared text alive after
+  that, uncharged (older than M8).
+- `jsbench`: the best of 5 runs depends on where collections fall (the
+  real source size in 4a made `toLowerCase` +17 % and a regexp row
+  +15 %). A collection before each timed run, or the median, would make
+  such rows stable.
 
 ## Backlog from M6
 

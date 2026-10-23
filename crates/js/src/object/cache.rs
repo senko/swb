@@ -28,13 +28,15 @@
 //!   would find the same holder and slot.
 //! - Kinds: the shape does not fix the kind of an object (an array and
 //!   `Object.create(Array.prototype)` share the root shape). Proxies and
-//!   host objects never match; a typed array matches an entry of the
+//!   host objects with hooks never match (host objects without hooks are
+//!   ordinary objects with a class: wrappers, the global object); a typed
+//!   array matches an entry of the
 //!   chain only when the walk proved that the key is not a canonical
 //!   numeric string; `length` is never cached through the chain (an
 //!   array's `length` is not in its shape).
 //!
-//! Exotic objects on the walked path (a proxy, a host object, a typed
-//! array with a numeric key, an array's `length`) give no entry; the
+//! Exotic objects on the walked path (a proxy, a host object with hooks, a
+//! typed array with a numeric key, an array's `length`) give no entry; the
 //! access then takes the general path as before.
 
 use crate::error::Result;
@@ -160,10 +162,10 @@ pub(crate) enum SetPlan {
 
 /// Whether an object of this kind can match an entry of its own
 /// properties. Proxies have no named properties in their shape and host
-/// objects can have their own internal methods (ADR 0026 section 12).
+/// objects with hooks have their own internal methods (ADR 0028 section 6).
 #[inline]
 fn own_cacheable(kind: &ObjectKind) -> bool {
-    !matches!(kind, ObjectKind::Proxy(_) | ObjectKind::Host { .. })
+    !matches!(kind, ObjectKind::Proxy(_) | ObjectKind::HostExotic(_))
 }
 
 /// Whether an object of this kind can match an entry of its prototype
@@ -171,7 +173,7 @@ fn own_cacheable(kind: &ObjectKind) -> bool {
 #[inline]
 fn chain_cacheable(kind: &ObjectKind, typed: bool) -> bool {
     match kind {
-        ObjectKind::Proxy(_) | ObjectKind::Host { .. } => false,
+        ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => false,
         ObjectKind::TypedArray(_) => typed,
         _ => true,
     }
@@ -411,7 +413,7 @@ impl Heap {
             }
             // A prototype that is not watched cannot happen (see the module
             // comment); it would make the entry unsafe.
-            if matches!(record.kind, ObjectKind::Host { .. }) || (depth > 0 && !record.watched) {
+            if matches!(record.kind, ObjectKind::HostExotic(_)) || (depth > 0 && !record.watched) {
                 cacheable = false;
             }
             if is_length && let ObjectKind::Array { length, .. } = record.kind {
@@ -632,7 +634,7 @@ impl Heap {
                 return Ok(GENERAL);
             }
             match record.kind {
-                ObjectKind::Proxy(_) | ObjectKind::Host { .. } => return Ok(GENERAL),
+                ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => return Ok(GENERAL),
                 ObjectKind::TypedArray(_) => {
                     if self.numeric_index(key)?.is_some() {
                         return Ok(GENERAL);

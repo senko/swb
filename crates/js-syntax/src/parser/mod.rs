@@ -228,6 +228,27 @@ pub fn parse_dynamic_function(
         .parse_dynamic_function(params_end))
 }
 
+/// Parses the source text of an event handler (HTML "getting the current
+/// value of the event handler",
+/// <https://html.spec.whatwg.org/multipage/webappapis.html#getting-the-current-value-of-the-event-handler>):
+/// `(function NAME(PARAMS) {\n` body `\n})`, with the checks of
+/// [`parse_dynamic_function`] (the parameters end at `params_end`, the
+/// script is exactly the parenthesized function) and its function without
+/// a binding of its name. The difference: the code is direct eval code,
+/// so the names that the function does not declare resolve against an
+/// outer environment ([`crate::Resolution::Caller`]); the engine looks
+/// them up in the object environments of the handler's scope (the
+/// element, its form owner, the document) and then in the global
+/// environment.
+pub fn parse_event_handler(
+    source: Str16<'_>,
+    params_end: u32,
+    budget: &mut RecursionBudget,
+) -> Result<Script, ParseError> {
+    run_parser!(source, budget, CodeKind::DirectEval, |parser| parser
+        .parse_dynamic_function(params_end))
+}
+
 /// The state of the parse of a `Function` constructor source
 /// ([`parse_dynamic_function`]).
 #[derive(Clone, Copy, Debug)]

@@ -291,6 +291,9 @@ pub(crate) struct Realm {
     /// array, by element type (`ElementType as usize`); set when the
     /// built-in functions are installed.
     pub(crate) typed_arrays: [Option<(Gc<Object>, Gc<Object>)>; TYPED_ARRAY_TYPES],
+    /// The interface object and prototype of each host class, by class
+    /// number (`host/interface.rs`).
+    pub(crate) interfaces: Vec<Option<crate::host::Interface>>,
 }
 
 impl Realm {
@@ -302,6 +305,10 @@ impl Realm {
         for (constructor, prototype) in self.typed_arrays.iter().flatten() {
             tracer.object(*constructor);
             tracer.object(*prototype);
+        }
+        for interface in self.interfaces.iter().flatten() {
+            tracer.object(interface.object);
+            tracer.object(interface.prototype);
         }
         for (name, binding) in self.lexical.iter() {
             tracer.string(*name);
@@ -547,6 +554,7 @@ impl Runtime {
             arguments: [None, None],
             iter_result_shape: None,
             typed_arrays: [None; TYPED_ARRAY_TYPES],
+            interfaces: Vec::new(),
         };
         Ok(realm)
     }

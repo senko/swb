@@ -146,7 +146,7 @@ impl Runtime {
         let mut current = object;
         loop {
             self.tick()?;
-            if self.heap.is_proxy(current)? {
+            if self.heap.needs_runtime(current)? {
                 return self.with_scope(|rt| rt.has_generic(current, key));
             }
             // A numeric key (`NaN`, `Infinity`) of a typed array ends the

@@ -313,7 +313,8 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Environment(_)
         | ObjectKind::Promise(_)
         | ObjectKind::Ordinary
-        | ObjectKind::Host { .. }
+        | ObjectKind::Host(_)
+        | ObjectKind::HostExotic(_)
         | ObjectKind::RawJson
         | ObjectKind::SymbolWrapper(_)
         | ObjectKind::BigIntWrapper(_)

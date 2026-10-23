@@ -333,6 +333,44 @@ pub(crate) fn compile_dynamic_function(
     result
 }
 
+/// Compiles the source of an event handler (parsed by
+/// `swb_js_syntax::parse_event_handler`, `host/handler.rs`) and returns
+/// the code of its function (not rooted), named `name`. The function's
+/// free names are dynamic references through the records of an
+/// environment chain, its only capture (the first capture of the eval
+/// code around it, `EvalSlot::Capture(0)`), then global names.
+pub(crate) fn compile_event_handler(
+    heap: &mut Heap,
+    script: &Script,
+    (source, script_name): (Str16<'_>, Rc<str>),
+    name: String16,
+    budget: &mut RecursionBudget,
+) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
+    let function = script
+        .dynamic_function
+        .ok_or(CompileError::Heap(Error::invariant(
+            "an event handler source without its function",
+        )))?;
+    let mut text = crate::bytecode::Source::new(source, script_name);
+    text.dynamic_function = true;
+    let shared = Rc::new(text);
+    let input = eval::EvalInput {
+        caller: Some(eval::EvalCaller {
+            record: Some(crate::bytecode::EvalSlot::Capture(0)),
+            ..eval::EvalCaller::default()
+        }),
+        function_name: Some(name),
+        ..eval::EvalInput::default()
+    };
+    let initial = *budget;
+    let result =
+        compile_functions(script, source, budget, Some(input)).and_then(|(builders, session)| {
+            materialize(heap, script, builders, session, &shared, function)
+        });
+    *budget = initial;
+    result
+}
+
 fn compile_code(
     heap: &mut Heap,
     script: &Script,

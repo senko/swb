@@ -41,6 +41,8 @@ struct Host {
     out: Output,
 }
 
+impl swb_js::HostState for Host {}
+
 /// Creates a runtime with `print`, `console.log` and `$262`.
 pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, ScriptError> {
     let mut heap = HeapConfig {

@@ -117,3 +117,50 @@ fn a_huge_parameter_list_stops_at_the_limit() {
         "Too many parameters in function definition (only 65534 allowed)"
     );
 }
+
+/// Parses the source of an event handler `onclick` with `params` and
+/// `body` (`parse_event_handler`).
+fn parse_handler(params: &str, body: &str) -> Result<Script, ParseError> {
+    let prefix = "(function onclick(";
+    let source = format!("{prefix}{params}) {{\n{body}\n}})");
+    let units: Vec<u16> = source.encode_utf16().collect();
+    let params_end = (prefix.encode_utf16().count() + params.encode_utf16().count()) as u32;
+    let mut budget = RecursionBudget::DEFAULT;
+    let result = crate::parser::parse_event_handler(Str16::Wide(&units), params_end, &mut budget);
+    assert_eq!(budget, RecursionBudget::DEFAULT, "the budget comes back");
+    result
+}
+
+#[test]
+fn event_handler_names_resolve_against_the_outer_environment() {
+    let script =
+        parse_handler("event", "return [event, onclick, value]").unwrap_or_else(|e| panic!("{e}"));
+    let function = script.dynamic_function.expect("the function");
+    assert!(script.ast.function(function).name.is_none());
+    let resolution = |name: &str| {
+        script
+            .scopes
+            .reference_ids()
+            .find(|&id| script.name_text(script.scopes.reference(id).name) == name)
+            .map(|id| script.scopes.reference(id).resolution)
+    };
+    // The parameter is local; the handler's own name and the other free
+    // names resolve outside (the element's `onclick`, the form's `value`).
+    assert_ne!(resolution("event"), Some(crate::Resolution::Caller));
+    assert_eq!(resolution("onclick"), Some(crate::Resolution::Caller));
+    assert_eq!(resolution("value"), Some(crate::Resolution::Caller));
+    for (body, expected) in [
+        ("}", "Unexpected token '}'"),
+        ("}); alert(1); ({", "Single function literal required"),
+        ("return )", "Unexpected token ')'"),
+        ("let event", "Identifier 'event' has already been declared"),
+        ("return yield + await", "ok"),
+    ] {
+        let message = match parse_handler("event", body) {
+            Ok(_) => "ok".to_owned(),
+            Err(error) => error.message.into_owned(),
+        };
+        assert_eq!(message, expected, "{body}");
+    }
+    assert!(parse_handler("event", "'use strict'; return yield").is_err());
+}

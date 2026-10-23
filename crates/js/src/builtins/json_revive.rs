@@ -147,7 +147,8 @@ pub(super) fn internalize(
                 let (object, key) = (level.object, level.current);
                 if result.is_undefined() {
                     rt.delete_generic(object, key, false)?;
-                } else if rt.heap.is_proxy(object)? || rt.typed_numeric(object, key)?.is_some() {
+                } else if rt.heap.needs_runtime(object)? || rt.typed_numeric(object, key)?.is_some()
+                {
                     // A trap, or the conversion of a typed array element,
                     // can run script code.
                     let desc = crate::object::PropertyDescriptor::data(result, true, true, true);
@@ -240,8 +241,9 @@ fn list_members(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Members> {
         let length = rt.length_of_array_like(object)?;
         return Ok(Members::Elements(length));
     }
-    if rt.heap.is_proxy(object)? {
-        // `[[OwnPropertyKeys]]` and `[[GetOwnProperty]]` through the traps.
+    if rt.heap.needs_runtime(object)? {
+        // `[[OwnPropertyKeys]]` and `[[GetOwnProperty]]` through the traps
+        // (or the hooks of a host object).
         let own = rt.own_keys(object)?;
         rt.heap.record_keys(&own);
         let mut keys = Vec::new();

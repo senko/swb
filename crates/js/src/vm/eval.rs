@@ -44,7 +44,7 @@ use crate::vm::{Intrinsic, NativeCall, NativeReturn, ReturnTo, VmError, VmResult
 /// `y;y;y;` about 30. The exact size is checked after the parse, so a
 /// script that evals dense code can make the parse allocate up to a few
 /// times this check beyond the heap limit, for as long as the parse runs.
-const PARSE_BYTES_PER_UNIT: usize = 8;
+pub(crate) const PARSE_BYTES_PER_UNIT: usize = 8;
 
 /// The bytes of the compile for each handed capture: the entry of the
 /// capture plan, the capture of the closure and the copied name of the
@@ -193,6 +193,7 @@ impl Runtime {
             let input = EvalInput {
                 caller: Some(caller),
                 skip_block_functions: declarations.skip.clone(),
+                function_name: None,
             };
             let (handle, compiled) = rt.compile_eval_code(&script, text.as_str16(), input)?;
             rt.heap.record(handle);
@@ -238,6 +239,7 @@ impl Runtime {
         let input = EvalInput {
             caller: None,
             skip_block_functions: declarations.skip.clone(),
+            function_name: None,
         };
         let (handle, compiled) = self.compile_eval_code(&script, text.as_str16(), input)?;
         self.heap.record(handle);

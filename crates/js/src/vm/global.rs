@@ -49,23 +49,24 @@ impl Runtime {
                 }));
             }
             current = self.heap.get_prototype_of(object)?;
-            // The global object is not a proxy; a prototype can be.
+            // The global object is not a proxy or a host object with hooks;
+            // a prototype can be one.
             if let Some(proto) = current
-                && self.heap.is_proxy(proto)?
+                && self.heap.needs_runtime(proto)?
             {
-                return self.global_through_proxy(global, proto, key);
+                return self.global_through_generic(global, proto, key);
             }
         }
         Ok(None)
     }
 
-    /// The rest of a global read whose walk met a proxy on the prototype
-    /// chain of the global object: `HasBinding` (the proxy's
-    /// `[[HasProperty]]`), then `GetBindingValue` of the object record
+    /// The rest of a global read whose walk met a proxy or a host object
+    /// with hooks on the prototype chain of the global object: `HasBinding`
+    /// (its `[[HasProperty]]`), then `GetBindingValue` of the object record
     /// (`HasProperty` and `Get` of the global object, §9.1.1.2.6).
     #[cold]
     #[inline(never)]
-    fn global_through_proxy(
+    fn global_through_generic(
         &mut self,
         global: Gc<Object>,
         proxy: Gc<Object>,
@@ -237,7 +238,7 @@ impl Runtime {
             let object_record = self.heap.object(object)?;
             let plain = !matches!(
                 object_record.kind,
-                ObjectKind::Proxy(_) | ObjectKind::Host { .. } | ObjectKind::TypedArray(_)
+                ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) | ObjectKind::TypedArray(_)
             );
             if !plain || !object_record.watched {
                 return Ok(SiteCache::Empty);

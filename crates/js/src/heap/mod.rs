@@ -224,6 +224,14 @@ impl Heap {
         &self.config
     }
 
+    /// Sets the heap limit (bytes). A heap that is above the new limit
+    /// collects at the next safepoint and ends the script if it stays
+    /// above it.
+    pub fn set_limit(&mut self, limit: usize) {
+        self.config.limit = limit;
+        self.update_trigger();
+    }
+
     /// Collector statistics.
     pub fn stats(&self) -> GcStats {
         self.stats
@@ -459,6 +467,15 @@ impl Heap {
     pub fn generic<T: GenericData>(&self, handle: Gc<Generic>) -> Result<&T> {
         let data: &dyn Any = &*self.arenas.generic.get(handle)?.0;
         data.downcast_ref()
+            .ok_or(Error::invariant("generic data of another type"))
+    }
+
+    /// The generic data of a handle, if it has the type `T`, for writing
+    /// (the data of a host object). A change of its size is not charged
+    /// until the next collection measures it.
+    pub fn generic_mut<T: GenericData>(&mut self, handle: Gc<Generic>) -> Result<&mut T> {
+        let data: &mut dyn Any = &mut *self.arenas.generic.get_mut(handle)?.0;
+        data.downcast_mut()
             .ok_or(Error::invariant("generic data of another type"))
     }
 

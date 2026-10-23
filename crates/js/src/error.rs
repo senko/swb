@@ -62,6 +62,10 @@ pub enum Termination {
     /// example from another thread).
     #[error("the host ended the script")]
     HostRequest,
+    /// A native function ended the task (`Runtime::terminate`, for
+    /// example at a DOM limit, ADR 0028 section 16); the reason names it.
+    #[error("a native function ended the script: {0}")]
+    Native(&'static str),
 }
 
 /// The kind of error object that the caller throws for [`Error::Throw`]

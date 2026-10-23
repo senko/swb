@@ -7,7 +7,9 @@
 //! in [`ops`] (ordinary objects, §10.1), [`array`] (array exotic
 //! objects, §10.4.2), [`typed_array`] (`TypedArray` exotic objects,
 //! §10.4.5) and [`proxy`] (the slots of Proxy objects; the internal
-//! methods are in `vm/proxy.rs`).
+//! methods are in `vm/proxy.rs`). `host` has the slot of host objects
+//! (their class and host data); the internal methods of host objects with
+//! hooks are in `host/hooks.rs`.
 //!
 //! The other modules: `shape` (shapes and transitions), `cache` (inline
 //! cache entries), `elements` and `dense` (the element storage),
@@ -24,6 +26,7 @@ mod collection;
 mod dense;
 mod element_access;
 mod elements;
+mod host;
 mod iterator_helper;
 mod ops;
 mod private;
@@ -51,6 +54,8 @@ pub(crate) use cache::{SetPlan, SiteCache};
 pub(crate) const LITERAL_KEY_LIMIT: usize = shape::DICTIONARY_LIMIT as usize;
 pub(crate) use collection::CollectionIterator;
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
+pub use host::HostData;
+pub(crate) use host::HostSlot;
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub(crate) use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
@@ -75,7 +80,7 @@ pub(crate) use shape::{ShapeKind, Transition};
 use std::fmt;
 
 use crate::error::Result;
-use crate::heap::{Arena, Gc, Generic, Heap, RootSource, Tracer};
+use crate::heap::{Arena, Gc, Heap, RootSource, Tracer};
 use crate::string::{JsString, PropertyKey};
 use crate::value::{BigInt, Symbol, Value};
 use crate::vm::{
@@ -96,15 +101,11 @@ pub enum ObjectKind {
         /// Whether `length` is writable.
         length_writable: bool,
     },
-    /// A host object: native data that the embedder owns (ADR 0026
-    /// section 12). The host classes of M8 build on it; only a test creates
-    /// it today.
-    Host {
-        /// The class of the host object (chosen by the embedder).
-        class: u32,
-        /// The native data; the collector traces it with the object.
-        data: Gc<Generic>,
-    },
+    /// A host object of a class without hooks (ADR 0026 section 12, ADR
+    /// 0028 section 4; `host.rs`): its class and host data. Its internal
+    /// methods are the ordinary ones; the inline caches treat it as an
+    /// ordinary object.
+    Host(HostSlot),
     /// A function of script code (§10.2): its code, captured cells and
     /// `this` mode.
     Function(Box<Closure>),
@@ -187,8 +188,8 @@ pub enum ObjectKind {
     /// `[[DefineOwnProperty]]` and `[[Set]]` for them; the VM reads the
     /// characters, which are new strings). The string is flat: the code
     /// that makes a String object flattens a rope first.
-    /// (Before `Proxy` and `TypedArray`: [`ObjectKind::sets_exotic`] tests
-    /// the three with one comparison.)
+    /// (Before `Proxy`, `TypedArray` and `HostExotic`:
+    /// [`ObjectKind::sets_exotic`] tests the four with one comparison.)
     StringWrapper(Gc<JsString>),
     /// A Proxy exotic object (§10.5): its target and handler (`proxy.rs`;
     /// the internal methods are in `vm/proxy.rs`).
@@ -198,6 +199,12 @@ pub enum ObjectKind {
     /// object. (Next to `Proxy`: [`ObjectKind::walks_exotic`] tests both
     /// with one comparison.)
     TypedArray(Box<TypedArrayData>),
+    /// A host object of a class with hooks for its internal methods
+    /// (`host/hooks.rs`): the runtime calls them, as it calls the traps of
+    /// a proxy; the heap's walks return `Generic` at it and the inline
+    /// caches never store it. (Next to `TypedArray`, for the comparisons of
+    /// [`ObjectKind::walks_exotic`] and [`ObjectKind::sets_exotic`].)
+    HostExotic(HostSlot),
     /// A `WeakMap` (`[[WeakMapData]]`, §24.3): the hash table of `Map`,
     /// whose entries the collector treats as ephemerons (`weak.rs`).
     WeakMap(Box<Table>),
@@ -267,7 +274,8 @@ impl fmt::Debug for ObjectKind {
         let name = match self {
             ObjectKind::Ordinary => "Ordinary",
             ObjectKind::Array { .. } => "Array",
-            ObjectKind::Host { .. } => "Host",
+            ObjectKind::Host(_) => "Host",
+            ObjectKind::HostExotic(_) => "HostExotic",
             ObjectKind::Function(_) => "Function",
             ObjectKind::Native(_) => "Native",
             ObjectKind::Bound(_) => "Bound",
@@ -313,12 +321,16 @@ impl fmt::Debug for ObjectKind {
 impl ObjectKind {
     /// Whether the walks of the heap's `[[Get]]`, `[[Set]]` and
     /// `[[HasProperty]]` along the prototype chain must look at this kind
-    /// before its stored properties: a proxy (whose traps run script code)
-    /// or a typed array (whose numeric keys end the walk). The hot paths
-    /// test this first and handle both kinds out of line.
+    /// before its stored properties: a proxy or a host object with hooks
+    /// (which run script code) or a typed array (whose numeric keys end the
+    /// walk). The hot paths test this first and handle these kinds out of
+    /// line.
     #[inline]
     pub(crate) fn walks_exotic(&self) -> bool {
-        matches!(self, ObjectKind::Proxy(_) | ObjectKind::TypedArray(_))
+        matches!(
+            self,
+            ObjectKind::Proxy(_) | ObjectKind::TypedArray(_) | ObjectKind::HostExotic(_)
+        )
     }
 
     /// [`ObjectKind::walks_exotic`] for the heap's `[[Set]]`, which also
@@ -327,7 +339,10 @@ impl ObjectKind {
     pub(crate) fn sets_exotic(&self) -> bool {
         matches!(
             self,
-            ObjectKind::StringWrapper(_) | ObjectKind::Proxy(_) | ObjectKind::TypedArray(_)
+            ObjectKind::StringWrapper(_)
+                | ObjectKind::Proxy(_)
+                | ObjectKind::TypedArray(_)
+                | ObjectKind::HostExotic(_)
         )
     }
 
@@ -352,7 +367,11 @@ impl ObjectKind {
                 }
             }
             ObjectKind::Native(native) => native.trace(tracer),
-            ObjectKind::Host { data, .. } => tracer.generic(*data),
+            ObjectKind::Host(slot) | ObjectKind::HostExotic(slot) => {
+                if let Some(generic) = slot.generic() {
+                    tracer.generic(generic);
+                }
+            }
             ObjectKind::Function(closure) => closure.trace(tracer),
             ObjectKind::Bound(bound) => bound.trace(tracer),
             ObjectKind::Generator(state) => state.trace(tracer),
@@ -485,19 +504,6 @@ impl Heap {
     /// (`OrdinaryObjectCreate`, §10.1.12, without additional slots).
     pub fn new_object(&mut self, proto: Option<Gc<Object>>) -> Result<Gc<Object>> {
         self.new_object_of_kind(proto, ObjectKind::Ordinary)
-    }
-
-    /// A new host object with a class and native data (see
-    /// [`ObjectKind::Host`]). (For embedders and tests; the engine itself
-    /// does not call it.)
-    pub fn new_host_object(
-        &mut self,
-        proto: Option<Gc<Object>>,
-        class: u32,
-        data: Gc<Generic>,
-    ) -> Result<Gc<Object>> {
-        self.generic_check(data)?;
-        self.new_object_of_kind(proto, ObjectKind::Host { class, data })
     }
 
     /// A new array with the given prototype and `length` (`ArrayCreate`,

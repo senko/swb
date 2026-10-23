@@ -31,7 +31,6 @@
 //! until the host runs each as a task of its own
 //! ([`Runtime::run_finalization_cleanup`]).
 
-use std::any::Any;
 use std::borrow::Cow;
 use std::fmt;
 use std::rc::Rc;
@@ -146,7 +145,6 @@ pub struct Runtime {
     pub(crate) heap: Heap,
     pub(crate) vm: Vm,
     pub(crate) budget: RecursionBudget,
-    host: Option<Box<dyn Any>>,
     console: Option<ConsoleSink>,
 }
 
@@ -187,12 +185,13 @@ impl Runtime {
             regexp_matcher: None,
             array_pattern: None,
             jobs: crate::vm::jobs::JobQueue::default(),
+            host: crate::host::Host::default(),
+            terminating: None,
         };
         let mut runtime = Runtime {
             heap,
             vm,
             budget: config.recursion_budget,
-            host: None,
             console: None,
         };
         runtime.create_realm().map_err(finish_error)?;
@@ -219,15 +218,12 @@ impl Runtime {
         self.budget
     }
 
-    /// Stores host data that native functions can reach with
-    /// [`Runtime::host_data_mut`].
-    pub fn set_host_data<T: Any>(&mut self, data: T) {
-        self.host = Some(Box::new(data));
-    }
-
-    /// The host data, if it has the type `T`.
-    pub fn host_data_mut<T: Any>(&mut self) -> Option<&mut T> {
-        self.host.as_mut()?.downcast_mut()
+    /// Sets the heap limit of the runtime in bytes (ADR 0028 section 16:
+    /// the JavaScript heap of a document). The host can change it between
+    /// tasks; a heap above the new limit ends the next script that reaches
+    /// a safepoint with [`Termination::HeapLimit`].
+    pub fn set_heap_limit(&mut self, limit: usize) {
+        self.heap.set_limit(limit);
     }
 
     /// Sets the receiver of the lines of `console.log` (one call per
@@ -280,8 +276,13 @@ impl Runtime {
         (self.vm.frames.len(), self.vm.stack.len())
     }
 
-    /// The lengths of the VM's stacks before a host run.
-    fn run_start(&self) -> RunStart {
+    /// The lengths of the VM's stacks before a host run. The outermost
+    /// run (no frames) starts a new task: a termination that a native
+    /// requested in the last one is over.
+    fn run_start(&mut self) -> RunStart {
+        if self.vm.frames.is_empty() {
+            self.vm.terminating = None;
+        }
         RunStart {
             frames: self.vm.frames.len(),
             stack: self.vm.stack.len(),
@@ -430,10 +431,19 @@ impl Runtime {
     /// Turns the result of a run into the API's result and keeps the value
     /// alive until the next run.
     fn finish(&mut self, result: VmResult<Value>) -> Result<Value, ScriptError> {
+        let mut dropped = None;
+        if self.vm.frames.is_empty() {
+            dropped = self.vm.terminating.take();
+        }
         match result {
             Ok(value) => {
                 self.vm.last_value = value;
-                Ok(value)
+                // A native requested a termination and script code dropped
+                // the error: the task still ends as terminated.
+                match dropped {
+                    Some(reason) => Err(ScriptError::Terminated(reason)),
+                    None => Ok(value),
+                }
             }
             Err(VmError::Throw(value)) => {
                 self.vm.last_value = value;
@@ -635,6 +645,11 @@ impl Runtime {
                 break;
             };
             match self.run_job(job, realm) {
+                Ok(()) if self.vm.terminating.is_some() => {
+                    // The job dropped a native's termination.
+                    self.restore_run_start(&start);
+                    return self.finish(Ok(Value::Undefined)).map(|_| ());
+                }
                 Ok(()) => self
                     .heap
                     .close_scope(scope)
@@ -692,6 +707,10 @@ impl Runtime {
         let scope = self.heap.open_scope();
         self.heap.record(registry);
         match self.cleanup_registry(registry) {
+            Ok(()) if self.vm.terminating.is_some() => {
+                self.restore_run_start(&start);
+                self.finish(Ok(Value::Undefined)).map(|_| true)
+            }
             Ok(()) => {
                 self.heap
                     .close_scope(scope)
@@ -842,7 +861,7 @@ fn make_atoms(heap: &mut Heap) -> Result<Atoms, Error> {
 }
 
 /// The API error of an abrupt completion other than a thrown value.
-fn finish_error(error: VmError) -> ScriptError {
+pub(crate) fn finish_error(error: VmError) -> ScriptError {
     match error {
         VmError::Throw(_) => ScriptError::Uncaught {
             name: String::new(),
@@ -863,7 +882,7 @@ fn finish_error(error: VmError) -> ScriptError {
 }
 
 /// The API error of a failed compile.
-fn compile_error(error: CompileError) -> ScriptError {
+pub(crate) fn compile_error(error: CompileError) -> ScriptError {
     match error {
         CompileError::Script {
             kind,

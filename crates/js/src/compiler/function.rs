@@ -292,7 +292,7 @@ impl<'a> FunctionCompiler<'a> {
             .map(|ident| self.name_text(ident.name))
             .or_else(|| super::class::initializer_name(self.function.kind))
             .or_else(|| (kind == CodeKind::Eval).then(|| String16::from("eval")))
-            .or_else(|| dynamic.then(|| String16::from("anonymous")));
+            .or_else(|| dynamic.then(|| self.dynamic_name()));
         // A function with a direct `eval` has an `arguments` binding when
         // §10.2.11 needs the object (the scope analysis adds it). A rest
         // parameter needs the extra arguments too.
@@ -590,6 +590,17 @@ impl<'a> FunctionCompiler<'a> {
         let index = self.sites.len() as u32;
         self.sites.push(key);
         index
+    }
+
+    /// The name of the function of a dynamic source: `anonymous` for the
+    /// `Function` constructor (`CreateDynamicFunction` step 33), the
+    /// handler's name for an event handler.
+    fn dynamic_name(&self) -> String16 {
+        self.session
+            .caller
+            .as_ref()
+            .and_then(|plan| plan.input.function_name.clone())
+            .unwrap_or_else(|| String16::from("anonymous"))
     }
 
     /// The text of a name.

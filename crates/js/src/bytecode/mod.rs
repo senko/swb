@@ -1652,10 +1652,10 @@ impl FunctionCode {
             + self.handlers.len() * size_of::<Handler>()
             + self.call_names.len() * 8
             // Only the script's code (or the function of a `Function`
-            // call) owns the source text for the heap limit; the
-            // functions share it.
+            // call or of an event handler) owns the source text for the
+            // heap limit, with its real size; the functions share it.
             + if self.is_dynamic() || matches!(self.kind, CodeKind::Script | CodeKind::Eval) {
-                self.source.text.len() * 2
+                self.source.text.byte_size()
             } else {
                 0
             }
@@ -1858,6 +1858,27 @@ mod tests {
             span: (0, 0),
             eval: None,
         }
+    }
+
+    #[test]
+    fn a_script_owns_the_real_size_of_its_source_text() {
+        let mut empty = code(vec![Insn::Nop], 1);
+        empty.kind = CodeKind::Script;
+        let base = empty.heap_size();
+        let latin1 = vec![b'a'; 1000];
+        let mut narrow = code(vec![Insn::Nop], 1);
+        narrow.kind = CodeKind::Script;
+        narrow.source = Rc::new(Source::new(Str16::Latin1(&latin1), Rc::from("")));
+        assert_eq!(narrow.heap_size() - base, 1000);
+        // Mostly wide text: two bytes per unit.
+        let wide: Vec<u16> = (0..1000).map(|i| 0x4E00 + i).collect();
+        narrow.source = Rc::new(Source::new(Str16::Wide(&wide), Rc::from("")));
+        assert_eq!(narrow.heap_size() - base, 2000);
+        // A function shares the script's text and owns none of it.
+        narrow.kind = CodeKind::Normal;
+        let mut function = code(vec![Insn::Nop], 1);
+        function.kind = CodeKind::Normal;
+        assert_eq!(narrow.heap_size(), function.heap_size());
     }
 
     #[test]

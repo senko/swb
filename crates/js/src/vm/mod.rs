@@ -78,7 +78,7 @@ use std::rc::Rc;
 
 pub(crate) use create_function::DynamicKind;
 pub(crate) use env::EnvRecord;
-pub(crate) use eval::eval_function;
+pub(crate) use eval::{PARSE_BYTES_PER_UNIT, eval_function};
 pub(crate) use function::{BoundFunction, Closure, LoopState, NativeFunction, ResumeMode};
 pub use function::{NativeCall, NativeFn, NativeReturn, Resume};
 pub(crate) use generator::GeneratorState;
@@ -424,6 +424,14 @@ pub(crate) struct Vm {
     /// What the last array pattern found out about plain arrays
     /// (`array_pattern.rs`).
     pub(crate) array_pattern: Option<array_pattern::ArrayPatternCache>,
+    /// The host classes and the host state (`host/mod.rs`); the host
+    /// state is a root.
+    pub(crate) host: crate::host::Host,
+    /// A termination that a native function requested
+    /// ([`Runtime::terminate`]): every time check repeats it until the
+    /// host's outermost run ends, so that no handler that dropped the error
+    /// keeps the task running.
+    pub(crate) terminating: Option<Termination>,
 }
 
 impl RootSource for Vm {
@@ -449,6 +457,7 @@ impl RootSource for Vm {
             tracer.object(cache.pieces);
         }
         self.jobs.trace(tracer);
+        self.host.trace(tracer);
     }
 
     fn extra_bytes(&self) -> usize {

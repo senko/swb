@@ -126,9 +126,9 @@ impl Runtime {
     fn still_has(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
         let mut current = object;
         loop {
-            let next = if self.heap.is_proxy(current)? {
+            let next = if self.heap.needs_runtime(current)? {
                 let found = self.with_scope(|rt| {
-                    let Some(property) = rt.proxy_get_own_property(current, key)? else {
+                    let Some(property) = rt.exotic_own_property(current, key)? else {
                         return Ok(Err(rt.get_prototype_of(current)?));
                     };
                     Ok(Ok(property.enumerable()))
@@ -188,8 +188,8 @@ impl Runtime {
                 keys.push(rt.heap.record(key));
                 Ok(())
             };
-            if self.heap.is_proxy(o)? {
-                let own = self.proxy_own_keys(o)?;
+            if self.heap.needs_runtime(o)? {
+                let own = self.own_keys(o)?;
                 self.charge(own.len())?;
                 for key in own {
                     if !key.is_symbol() {
@@ -240,7 +240,7 @@ impl Runtime {
         let mut position = 0;
         while let Some(o) = current {
             self.tick()?;
-            if self.heap.is_proxy(o)? {
+            if self.heap.needs_runtime(o)? {
                 return Ok(None);
             }
             let bound = self.heap.own_key_bound(o)?;

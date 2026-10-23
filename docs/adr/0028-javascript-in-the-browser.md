@@ -397,12 +397,43 @@ lists the design; these are the parts to build):
 1. **Host classes:** a registry per runtime (number, parent, name),
    prototypes and interface objects per realm, the brand check of
    section 4, and objects created with a class and host data.
+   (Feature 4a: classes are numbered in the order of
+   `Runtime::define_class`, from 0, so generated glue can name them by
+   constants. Host data is a word (a `NodeId`) or traced generic data, in
+   12 bytes of the object kind, so an object stays 88 bytes. A class
+   without hooks makes ordinary objects with a class, which the inline
+   caches store (the wrappers of nodes, the global object); only a class
+   with hooks makes exotic objects. The brand check takes `undefined` and
+   `null` as the global object of the function's realm (Web IDL §3.7.6),
+   so `Node.prototype.appendChild.call(undefined)` is an `Illegal
+   invocation` as in Chromium. An interface object is a native
+   constructor: a call without `new` throws `Illegal constructor` (or,
+   for a class with a constructor, Chromium's "Please use the 'new'
+   operator" message), `new` without a constructor throws `Failed to
+   construct 'Name': Illegal constructor`; a constructor gets the
+   prototype of `new.target` with `Runtime::prototype_from_new_target`,
+   so script subclasses work.)
 2. **Host hooks for internal methods:** optional functions per class
    for `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, `[[Get]]`,
    `[[Set]]`, `[[Delete]]` and `[[OwnPropertyKeys]]`. A hook may run
    script (a named setter converts its value with `ToString`); such a
    re-entry charges the recursion budget as other native re-entries do.
    Inline caches already treat host objects as uncacheable.
+   (Feature 4a: a hook answers for a key or leaves it to the ordinary
+   method on the object's stored properties (expandos); `[[Get]]` and
+   `[[HasProperty]]` without a hook use the `[[GetOwnProperty]]` hook at
+   the object; `[[OwnPropertyKeys]]` merges the hook's keys with the
+   stored ones: indices in ascending order, then strings, then symbols,
+   the hook's keys first within each group, without duplicates. The
+   heap's walks stop at such an object with `Generic`,
+   and the runtime's generic internal methods call the hooks where they
+   call the traps of a proxy; the inline caches treat these objects as
+   proxies, and only these: host objects of classes without hooks are
+   cacheable. Each hook call charges the weight of a proxy level and a
+   time step. The other internal methods (`[[PreventExtensions]]`,
+   `[[SetPrototypeOf]]`) stay ordinary; the refusal of
+   `preventExtensions` by legacy platform objects comes with the first
+   binding that needs it.)
 3. **A host-defined global object** (InitializeHostDefinedRealm with a
    global object and `this` value from the host). Host objects are not
    cacheable today (`object/cache.rs`), and every global read
@@ -411,16 +442,47 @@ lists the design; these are the parts to build):
    class and host data; only `WindowProperties` (named access to
    elements by id) in its prototype chain is exotic. Feature 4a
    measures global reads before and after.
+   (Feature 4a: `Runtime::init_global` turns the realm's global object
+   into a host object of a class without hooks with that class's
+   prototype, after the interfaces exist; the global `this` is the global
+   object (section 4). The change of the prototype puts the global object
+   into dictionary mode; the global caches work on dictionaries (holder,
+   slot and the watch epoch), so global reads stay cached. A read that
+   reaches the exotic `WindowProperties` is never cached. Measured with
+   the `vm_bench` row "global: 3 reads of globals per step, 5M steps":
+   135.7 ms with the plain global, 140.3 ms with a `Window` global that
+   has 300 more own properties and an exotic object on its chain
+   (`vm_bench --only global --host-global`, best of 5, three runs each),
+   +3 %; `fib(27)`, whose calls read a global, 31.7 and 31.5 ms.)
 4. **Host data that the collector traces:** the runtime's host data
    gets a trace method, and the collector treats it as a root; the
    binding state (wrapper vector, listener table, timers) is traced
    through it, without one persistent root per value.
+   (Feature 4a: the host data is a value of any type that implements
+   `HostState`; it lives in the VM, whose roots include its `trace`.)
 5. **Termination from a native function:** a native can end the running
    task with a termination reason (the DOM limits of section 16).
+   (Feature 4a: `Err(rt.terminate(reason))` ends the task with
+   `Termination::Native(reason)`, which no handler, `finally` block or
+   promise sees, as the time limit. The runtime remembers the request
+   until the host's outermost run returns, and each time check repeats
+   it, so a native that drops the error does not keep the task running;
+   a run that ends normally after a dropped request still returns the
+   termination. The next run starts without it.)
 6. **Event handler functions:** compile a function from source text and
    parameter names with a scope chain of object environments (HTML
    "getting the current value of the event handler": the document, the
    form owner, the element), with the early errors of a function body.
+   (Feature 4a: `Runtime::compile_event_handler` builds the source
+   `(function NAME(PARAMS) {\n` body `\n})`, so that `toString` gives
+   Chromium's text, and parses it with the checks of the `Function`
+   constructor as direct eval code (`swb_js_syntax::parse_event_handler`):
+   the free names of the function are dynamic references through a
+   captured chain of object environment records (with `@@unscopables`, as
+   `NewObjectEnvironment(O, true, E)`), then global names. `NAME` is the
+   function's `name`, not a binding (`onclick` in the body is the
+   element's property, measured in Chromium). An early error is
+   `ScriptError::Compile` with the offset in the body.)
 7. **Module scripts without imports:** a Module goal script with no
    `import`, `export`, `import()` or `import.meta` runs as strict code
    with `this` undefined and its top-level declarations local to the
@@ -430,6 +492,8 @@ lists the design; these are the parts to build):
 8. **The heap accounting of source text** charges its real size
    (`SourceText::byte_size`), together with the per-document heap limit
    (backlog item of M7 13e).
+   (Feature 4a: done; `Runtime::set_heap_limit` changes the limit between
+   tasks.)
 
 ### 7. The event loop
 

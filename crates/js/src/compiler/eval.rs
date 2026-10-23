@@ -66,6 +66,10 @@ pub(crate) struct EvalInput {
     /// The block function declarations that Annex B.3.2.3 does not
     /// hoist (their var binding was not created).
     pub(crate) skip_block_functions: HashSet<BindingId>,
+    /// The name of the function of a dynamic source
+    /// (`Script::dynamic_function`) when it is not `anonymous`: the name
+    /// of an event handler.
+    pub(crate) function_name: Option<String16>,
 }
 
 /// The most captures of the caller's cells that the functions of one
@@ -406,8 +410,18 @@ impl FunctionCompiler<'_> {
         } else {
             None
         };
+        // The record chain that the caller hands on (an event handler's
+        // scope objects, or the `with` records around a caller) is the
+        // outer link of this function's own dynamic record.
+        let handed_record = (entry.is_none() && reference.name == names::DYNAMIC_ENV)
+            .then(|| caller.record.and_then(|r| plan.capture_index(self.id, r)))
+            .flatten();
         Some(CallerAccess {
-            capture: if entry.is_some() { capture } else { None },
+            capture: if entry.is_some() {
+                capture
+            } else {
+                handed_record
+            },
             kind: entry.map(|e| e.kind),
             private: entry.map_or(0, |e| e.private),
             derived: entry.is_some_and(|e| e.derived),

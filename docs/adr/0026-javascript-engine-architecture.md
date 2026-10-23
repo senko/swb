@@ -425,9 +425,11 @@ then string keys and then symbols, each in insertion order
 paths handle ordinary objects and arrays; all other kinds go through one
 `match` per internal method (§10.1, §10.4, §10.5); the walks of
 `[[Get]]`, `[[Set]]` and `[[HasProperty]]` test one predicate for the
-kinds that need their own step (proxies and typed arrays, section 15,
-feature 11b). Host classes (section
-12) provide functions for any of the internal methods. This covers the
+kinds that need their own step (proxies, typed arrays and host objects
+with hooks; section 15, feature 11b). Host classes (section
+12) provide functions for internal methods (M8 feature 4a: for
+`[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, `[[Get]]`, `[[Set]]`,
+`[[Delete]]` and `[[OwnPropertyKeys]]`). This covers the
 WebIDL legacy platform objects, `WindowProxy` and `document.all`
 (Annex B.3.6). Proxy implements all internal methods with the invariant
 checks of §10.5; trap recursion charges the recursion budget.
@@ -440,7 +442,9 @@ reused shape slot cannot match an old entry (memo 3.3). An entry that
 depends on the prototype chain also checks the heap's watch epoch,
 which every change of the keys, attributes or prototype of a prototype
 or a global object increments. Dictionary shapes are never stored in an
-entry; proxies and host objects never match. A miss runs the direct
+entry; proxies and host objects of classes with hooks never match
+(host objects of classes without hooks are ordinary objects with a
+class, M8 feature 4a). A miss runs the direct
 lookup in the shape's key list and along the prototype chain, which
 gives the result and the new entry in one walk.
 
@@ -704,16 +708,39 @@ This section is the design for the engine integration (ADR 0025 layers 2
 and 3: the web API bindings and the event loop). Parts of it exist;
 the rest comes with the first target that needs it.
 
-Implemented so far (`runtime.rs`, `heap/`, `object/mod.rs`): `Runtime`
-with one global object per realm; `eval`, `eval_named`, `call_function`,
-`define_global_function`, `define_global_object`; `run_jobs` (the host
-runs the job queue, which ends with `ClearKeptObjects`),
-`take_unhandled_rejections`, `run_finalization_cleanup`; `set_console`,
-`set_clock`, `set_time_zone`, `set_deadline` and a `TerminationHandle`;
-`set_host_data` and `host_data_mut` (one value of any type); persistent
-roots (`Persistent`); `GenericData` for host-owned heap data and
-`ObjectKind::Host` objects with a class and data. There is no host
-trait yet, and no module loader.
+Implemented so far (`runtime.rs`, `heap/`, `object/mod.rs`, `host/`):
+`Runtime` with one global object per realm; `eval`, `eval_named`,
+`call_function`, `define_global_function`, `define_global_object`;
+`run_jobs` (the host runs the job queue, which ends with
+`ClearKeptObjects`), `take_unhandled_rejections`,
+`run_finalization_cleanup`; `set_console`, `set_clock`, `set_time_zone`,
+`set_deadline` and a `TerminationHandle`; `set_heap_limit`; persistent
+roots (`Persistent`); `GenericData` for host-owned heap data. Since M8
+feature 4a (ADR 0028 section 6):
+
+- the host state (`set_host_data`, `host_data`, `host_data_mut`): one
+  value of a type that implements `HostState`, whose `trace` is a root;
+- host classes (`define_class` with a `ClassSpec`: name, parent,
+  `HostHooks`, constructor), numbered in registration order;
+- interfaces per realm (`create_interface`: the interface object and the
+  prototype, linked to the parent's; `define_method`, `define_accessor`,
+  `define_value` with `Attributes`; `prototype_from_new_target`);
+- host objects (`new_host_object`, `alloc_host_data`) with `HostData`
+  (a word, or generic data); the brand check (`host_data_of`,
+  `this_host_data`, `implements`), whose failure is Chromium's
+  `TypeError: Illegal invocation`;
+- hooks for `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, `[[Get]]`,
+  `[[Set]]`, `[[Delete]]` and `[[OwnPropertyKeys]]` (`HostHooks`): a
+  class with hooks makes `ObjectKind::HostExotic` objects, which take the
+  generic paths of the runtime like proxies; a class without hooks makes
+  `ObjectKind::Host` objects, which are ordinary and cacheable;
+- the host-defined global object (`init_global`);
+- `terminate` (`Termination::Native`) for a native that ends the task;
+- `compile_event_handler` (an `EventHandler`: name, parameters, body,
+  the scope objects).
+
+There is no host trait for the hooks of the design below yet (jobs,
+rejections, modules, `eval`), and no module loader.
 
 Design:
 

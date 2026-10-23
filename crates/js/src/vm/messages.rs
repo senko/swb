@@ -289,7 +289,12 @@ impl Runtime {
     /// The text of an object in messages (V8 shows the constructor name;
     /// the global object as Node.js shows it).
     pub(crate) fn object_text(&self, object: Gc<Object>) -> String {
-        if self.vm.realms.iter().any(|realm| realm.global == object) {
+        let host = matches!(
+            self.heap.object(object).map(|o| &o.kind),
+            Ok(ObjectKind::Host(_) | ObjectKind::HostExotic(_))
+        );
+        // A host global object is a `Window`: V8 names its constructor.
+        if !host && self.vm.realms.iter().any(|realm| realm.global == object) {
             return "[object Object]".to_owned();
         }
         // V8 shows a proxy as its target (measured in Chromium 148).
@@ -319,7 +324,9 @@ impl Runtime {
                 | ObjectKind::WeakRef(_)
                 | ObjectKind::FinalizationRegistry(_)
                 | ObjectKind::ArrayBuffer(_)
-                | ObjectKind::DataView(_),
+                | ObjectKind::DataView(_)
+                | ObjectKind::Host(_)
+                | ObjectKind::HostExotic(_),
             ) => format!(
                 "#<{}>",
                 self.chain_constructor_name(object)

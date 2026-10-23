@@ -7,8 +7,10 @@
 //! roots, safepoints), `value`, `string` (strings and atoms), `object`
 //! (shapes, elements, the ordinary internal methods, arrays), `compiler`
 //! and `bytecode`, `vm` (the interpreter, frames, closures, generators,
-//! realms, conversions, the time limit), `builtins`, and `runtime` (the
-//! embedding API, [`Runtime`]). The front end is in `swb-js-syntax`, the
+//! realms, conversions, the time limit), `builtins`, `runtime` (the
+//! embedding API, [`Runtime`]) and `host` (host classes, hooks, host data,
+//! event handlers: the parts of the embedding API for the Web API
+//! bindings). The front end is in `swb-js-syntax`, the
 //! code units and Unicode data in `swb-js-text`, and regular expressions
 //! in `swb-js-regexp`.
 
@@ -18,6 +20,7 @@ mod compiler;
 mod date;
 mod error;
 mod heap;
+mod host;
 mod object;
 mod runtime;
 mod source_text;
@@ -30,7 +33,11 @@ pub use heap::{
     Gc, Generic, GenericData, HandleScope, Heap, HeapConfig, NoRoots, Persistent, Root, RootSource,
     Tracer,
 };
-pub use object::{GetResult, Object, Property, PropertyDescriptor, SetResult};
+pub use host::{
+    Attributes, ClassId, ClassSpec, DefineOwnPropertyHook, DeleteHook, EventHandler, GetHook,
+    GetOwnPropertyHook, HostHooks, HostState, Interface, OwnKeysHook, SetHook,
+};
+pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Symbol, Value, ValueCell};
 

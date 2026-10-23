@@ -4,6 +4,50 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 4a, the embedding hooks in `js`
+
+- Host classes (ADR 0028 section 6): a registry per runtime with
+  parents, numbered in the order of registration, so generated glue can
+  use constants. Per realm, each class gets an interface object and a
+  prototype linked to the parent's, with methods, accessors and
+  constants. A host object has a class and host data: a word (a
+  `NodeId`) or generic data that the collector traces, in 12 bytes, so
+  an object stays 88 bytes. A wrong `this` gives Chromium's
+  `TypeError: Illegal invocation`; interface objects throw Chromium's
+  `Illegal constructor` messages (probe
+  `tools/probes/web-embedding.json`).
+- Hooks for six internal methods. A class with hooks makes exotic
+  objects: the heap's walks stop at them as at a proxy, the runtime's
+  generic methods call the hooks, and the inline caches never store
+  them. Host objects of classes without hooks (wrappers, the global
+  object) stay ordinary and cacheable. ADR 0028 said that all host
+  objects are uncacheable; that would leave every wrapper access
+  uncached.
+- `init_global` makes the realm's global object a `Window` host object
+  with its prototype chain (and a named properties object on it). The
+  global becomes a dictionary; global reads stay cached, +3 % on a
+  micro row, `fib(27)` unchanged.
+- The host state has a trace method and is a root. A native ends the
+  task with `terminate(reason)`: uncatchable, and repeated at each time
+  check until the outermost run returns. Event handlers compile as
+  direct eval code with a captured chain of object environments
+  (element, form, document; `@@unscopables` honoured); `toString`,
+  `name`, the lookups and the early errors match Chromium. A script
+  charges the real size of its source text; `set_heap_limit`.
+- Tests: a test host (a class tree, a `Window` global with a named
+  properties object, a legacy indexed object, a named-property object)
+  and tests for termination, handlers and host data, all in both GC
+  modes. test262 unchanged in both modes. jsbench geomean −0.4 %; two
+  rows lose 15 to 20 % to a moved collection (the real source size, as
+  M7 13e predicted).
+- Review fixes: direct `eval` in a handler sees the scope objects; the
+  `onerror` parameters are separated by ", " as in Chromium; a native
+  that drops the termination error no longer lets the task end as a
+  success; `Reflect.ownKeys` on a host object with hooks lists indices
+  first; error messages name host objects by their constructor
+  (`#<NodeList>`, `#<Window>`).
+- Next: feature 4b, the WebIDL generator.
+
 ## 2026-10-23: M8 feature 3b, the engine for scripts
 
 - `Page` is split into the page (history, pending navigation, loader,

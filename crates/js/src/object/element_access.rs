@@ -102,7 +102,7 @@ fn ordinary_elements(kind: &ObjectKind) -> bool {
     !matches!(
         kind,
         ObjectKind::StringWrapper(_)
-            | ObjectKind::Host { .. }
+            | ObjectKind::HostExotic(_)
             | ObjectKind::Proxy(_)
             | ObjectKind::TypedArray(_)
     )

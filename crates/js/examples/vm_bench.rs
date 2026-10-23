@@ -5,12 +5,19 @@
 //! `--print-js` option writes them as a Node.js script). `--only TEXT`
 //! runs only the programs whose name contains TEXT, without the code size
 //! and time limit measurements (for A/B runs of a few programs).
+//! `--host-global` (with `--only`) runs them with a global object as the
+//! browser makes it (ADR 0028 section 4): a host object of class `Window`
+//! with 300 more own properties and a prototype chain with an exotic
+//! named properties object.
 //!
-//! `cargo run --release -p swb-js --example vm_bench [-- --print-js | --only TEXT]`
+//! `cargo run --release -p swb-js --example vm_bench [-- --print-js | --only TEXT [--host-global]]`
 
 use std::time::{Duration, Instant};
 
-use swb_js::{Runtime, RuntimeConfig, Value};
+use swb_js::{
+    Attributes, ClassSpec, Gc, HostData, HostHooks, Object, Property, PropertyKey, Runtime,
+    RuntimeConfig, Value, VmResult,
+};
 
 /// The benchmark programs: (name, source). Each source defines `run()`;
 /// locals keep the loops out of the global object.
@@ -100,6 +107,11 @@ const PROGRAMS: &[(&str, &str)] = &[
         "1M calls of new Function code",
         "var add = new Function('a', 'b', 'return a + b');
          function run() { var s = 0; for (var i = 0; i < 1000000; i++) { s = add(s, 1); } return s; }",
+    ),
+    (
+        "global: 3 reads of globals per step, 5M steps",
+        "var step = 1;
+         function run() { var s = 0; for (var i = 0; i < 5000000; i++) { s += step; if (Math === undefined) s = 0; } return s; }",
     ),
     (
         "string: indexOf 1M calls",
@@ -547,10 +559,11 @@ fn main() {
         .iter()
         .position(|a| a == "--only")
         .and_then(|i| args.get(i + 1).cloned());
+    let host_global = args.iter().any(|a| a == "--host-global");
     std::thread::Builder::new()
         .stack_size(64 << 20)
         .spawn(move || match only {
-            Some(only) => measure_programs(Some(&only)),
+            Some(only) => measure_programs(Some(&only), host_global),
             None => measure(),
         })
         .expect("a thread")
@@ -619,16 +632,52 @@ fn measure() {
             late.as_secs_f64() * 1000.0
         );
     }
-    measure_programs(None);
+    measure_programs(None, false);
 }
 
-/// The time of the programs (those whose name contains `only`, if given).
-fn measure_programs(only: Option<&str>) {
+/// The named properties object of the host global: no named property.
+#[allow(clippy::unnecessary_wraps, reason = "the signature of the hook")]
+fn no_named_property(_: &mut Runtime, _: Gc<Object>, _: PropertyKey) -> VmResult<Option<Property>> {
+    Ok(None)
+}
+
+/// Makes the global object of `rt` a `Window` (`EventTarget` <- `Window`, a
+/// named properties object between `Window.prototype` and
+/// `EventTarget.prototype`) with 300 more own properties.
+fn host_global(rt: &mut Runtime) -> VmResult<()> {
+    let event_target = rt.define_class(ClassSpec::new("EventTarget"))?;
+    let window = rt.define_class(ClassSpec::new("Window").parent(event_target))?;
+    let named = rt.define_class(ClassSpec::new("WindowProperties").hooks(HostHooks {
+        get_own_property: Some(no_named_property),
+        ..HostHooks::default()
+    }))?;
+    let global = rt.global(0)?;
+    let base = rt.create_interface(0, event_target)?;
+    let interface = rt.create_interface(0, window)?;
+    for (name, object) in [("EventTarget", base.object), ("Window", interface.object)] {
+        rt.define_value(global, name, object.into(), Attributes::HIDDEN)?;
+    }
+    let properties =
+        rt.new_host_object_with_proto(Some(base.prototype), named, HostData::Word(0))?;
+    rt.heap_mut()
+        .set_prototype_of(interface.prototype, Some(properties))?;
+    rt.init_global(0, window, HostData::Word(0))?;
+    rt.eval("for (var k = 0; k < 300; k++) globalThis['p' + k] = k;")
+        .map(|_| ())
+        .map_err(|error| swb_js::VmError::type_error(error.to_string()))
+}
+
+/// The time of the programs (those whose name contains `only`, if given),
+/// with a host global object if `host`.
+fn measure_programs(only: Option<&str>, host: bool) {
     for (name, source) in PROGRAMS {
         if only.is_some_and(|only| !name.contains(only)) {
             continue;
         }
         let mut rt = Runtime::new(RuntimeConfig::default()).expect("a runtime");
+        if host {
+            host_global(&mut rt).expect("the host global object");
+        }
         rt.eval(source).expect("the program compiles");
         let mut best = Duration::MAX;
         let mut gc = Duration::ZERO;

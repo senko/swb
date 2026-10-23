@@ -72,6 +72,9 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return self.proxy_own_keys(object);
         }
+        if let Some(hooks) = self.host_hooks(object)? {
+            return self.host_own_keys(object, &hooks);
+        }
         let bound = self.heap.own_key_bound(object)?;
         self.charge(bound)?;
         Ok(self.heap.own_property_keys(object)?)
@@ -167,11 +170,11 @@ impl Runtime {
         })
     }
 
-    /// [`Runtime::delete_generic`] of a proxy in a handle scope of its own,
-    /// out of line.
+    /// [`Runtime::delete_generic`] of a proxy or a host object with hooks
+    /// in a handle scope of its own, out of line.
     #[cold]
     #[inline(never)]
-    fn delete_proxy_scoped(
+    fn delete_generic_scoped(
         &mut self,
         proxy: Gc<Object>,
         key: PropertyKey,
@@ -212,7 +215,8 @@ impl Runtime {
     }
 
     /// `HasProperty` (§7.3.12); the heap knows the index properties of
-    /// String objects, a chain with a proxy takes the generic path.
+    /// String objects, a chain with a proxy or a host object with hooks
+    /// takes the generic path.
     pub(crate) fn has_property(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
         match self.heap.has_property_fast(object, key)? {
             Some(found) => Ok(found),
@@ -434,8 +438,8 @@ impl Runtime {
         strict: bool,
     ) -> VmResult<bool> {
         let deleted = match base {
-            Value::Object(object) if self.heap.is_proxy(object)? => {
-                self.delete_proxy_scoped(object, key, strict)?
+            Value::Object(object) if self.heap.needs_runtime(object)? => {
+                self.delete_generic_scoped(object, key, strict)?
             }
             Value::Object(object) => {
                 let deleted = self.heap.delete(object, key)?;
