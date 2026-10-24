@@ -1834,3 +1834,131 @@ def event_listener_limit_js_on() -> Page:
         "console.log('not reached');</script>"
     )
     return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "Four timers with endless loops, with JavaScript on and 16 s of settle time: each timer "
+    "task ends at the time limit of 5 s, and after the third the document runs no more "
+    "scripts (ADR 0028 sections 7 and 16)",
+    time_limit_s=25,
+    expect_log="the scripts of the document stop",
+    swb_args=("--js", "--settle-ms", "16000"),
+)
+def timer_endless_loops_js_on() -> Page:
+    script = "<script>for (let i = 0; i < 4; i++) setTimeout(() => { for (;;) {} }, i);</script>"
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "An endless chain of microtasks (queueMicrotask and promise reactions), with JavaScript "
+    "on: the checkpoint of the script's task runs under its time limit of 5 s and ends "
+    "there (ADR 0028 section 7)",
+    time_limit_s=12,
+    expect_log="the time limit was exceeded",
+    swb_args=("--js",),
+)
+def microtask_endless_chain_js_on() -> Page:
+    script = (
+        "<script>(function f() { queueMicrotask(f); })(); "
+        "Promise.resolve().then(function g() { Promise.resolve().then(g); });</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A promise chain where each reaction returns the next promise, with JavaScript on: the "
+    "chain of resolutions grows until the heap limit of 256 MiB, the scripts stop, and the "
+    "engine drops the runtime; the page stays (ADR 0028 sections 7 and 16)",
+    time_limit_s=10,
+    expect_log="reached the heap limit and is dropped",
+    swb_args=("--js",),
+)
+def promise_chain_heap_limit_js_on() -> Page:
+    script = (
+        "<script>Promise.resolve().then(function g() { return Promise.resolve().then(g); });"
+        "</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "setInterval(f, 0) and a chain of setTimeout(f, 0), with JavaScript on and 2 s of settle "
+    "time: the nesting clamp gives 4 ms after level 5, each turn of the event loop runs at "
+    "most 16 ms of tasks, and swb ends after the settle time (HTML §8.7)",
+    time_limit_s=6,
+    swb_args=("--js", "--settle-ms", "2000"),
+)
+def interval_zero_and_timer_chain_js_on() -> Page:
+    script = (
+        "<script>let n = 0, c = 0; setInterval(() => { n++; document.title = 'n' + n; }, 0); "
+        "(function f() { c++; setTimeout(f, 0); })();</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A script that schedules timers without end, with JavaScript on: the timers live outside "
+    "the JavaScript heap, so the one past 1,048,576 timers and extra arguments ends the task "
+    "(ADR 0028 section 16)",
+    time_limit_s=10,
+    expect_log="the timers of the document reached the limit",
+    swb_args=("--js",),
+)
+def timer_limit_js_on() -> Page:
+    script = "<script>for (;;) setTimeout(() => {}, 1e9, 1, 2, 3);</script>"
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A script that schedules timers with a string handler of 20 MB without end, with "
+    "JavaScript on: each timer keeps a copy of the code outside the JavaScript heap, so the "
+    "one past 32 MiB of handler code ends the task (ADR 0028 section 16)",
+    time_limit_s=10,
+    expect_log="the string handlers of the timers of the document reached the limit",
+    swb_args=("--js",),
+)
+def timer_string_handlers_js_on() -> Page:
+    script = "<script>const s = 'x'.repeat(20e6); for (;;) setTimeout(s, 1e9);</script>"
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "200,000 timers of 0 ms that each schedule one more and 200,000 cleared timers, with "
+    "JavaScript on and 1 s of settle time: the queue orders them by due time in O(log n), "
+    "and cleared timers leave no task behind (HTML §8.7)",
+    time_limit_s=8,
+    swb_args=("--js", "--settle-ms", "1000"),
+)
+def many_timers_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 200000; i++) setTimeout(() => { n++; "
+        "setTimeout(() => n++, 1); }, 0); "
+        "for (let i = 0; i < 200000; i++) clearTimeout(setTimeout(() => {}, 10));</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "Inline scripts that each run for 4.9 s, just under the time limit, with JavaScript on: "
+    "the long tasks of a document may run for 30 s in total, then the document runs no more "
+    "scripts (ADR 0028 section 16)",
+    time_limit_s=40,
+    expect_log="its long tasks ran for",
+    swb_args=("--js",),
+)
+def scripts_under_the_time_limit_js_on() -> Page:
+    script = "<script>{ const t = Date.now(); while (Date.now() - t < 4900) {} }</script>"
+    return Page(doc("<p>text</p>" + script * 1000))
+
+
+@case(
+    "A script that writes console.error lines in an endless loop, with JavaScript on: the "
+    "log gets the first 1,000 lines of the document, the next ones go to the debug level, "
+    "and the task ends at the time limit of 5 s (ADR 0028 section 13)",
+    time_limit_s=12,
+    expect_log="the next ones go to the debug log",
+    swb_args=("--js",),
+)
+def console_error_loop_js_on() -> Page:
+    script = "<script>for (let i = 0; ; i++) console.error('line ' + i);</script>"
+    return Page(doc("<p>text</p>" + script))

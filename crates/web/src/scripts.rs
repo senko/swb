@@ -51,6 +51,12 @@ fn is_classic(dom: &Document, node: NodeId) -> bool {
         && !element.has_attr("nomodule")
 }
 
+/// The URL of the lent document (the name of the scripts of string
+/// timer handlers), or empty without one.
+pub(crate) fn document_url(rt: &swb_js::Runtime) -> String {
+    crate::state::engine(rt).map_or_else(|_| String::new(), crate::host::EngineHost::url)
+}
+
 /// The inline classic scripts of the document, in tree order: the text
 /// of each connected HTML `script` element without `src` whose type is
 /// JavaScript. Scripts with `src` are skipped (feature 5c loads them).

@@ -8,7 +8,7 @@ use std::any::Any;
 
 use swb_dom::Document;
 use swb_js::{HeapConfig, RuntimeConfig};
-use swb_web::{EngineHost, Evaluation, JsonForm, ScriptRuntime};
+use swb_web::{ClockMode, EngineHost, Evaluation, JsonForm, PageClock, ScriptRuntime};
 
 /// The URL of the test documents.
 pub(crate) const URL: &str = "file:///probe/page.html";
@@ -65,10 +65,17 @@ impl EngineHost for TestDocument {
     }
 }
 
-/// A runtime (in the GC stress mode with `stress`) with `html` parsed and
-/// its inline scripts run in tree order (what the engine does at the end
-/// of the parse).
+/// A runtime (in the GC stress mode with `stress`, in real time) with
+/// `html` parsed, its inline scripts run in tree order (what the engine
+/// does at the end of the parse) and the tasks run that are due then.
 pub(crate) fn load(html: &str, stress: bool) -> ScriptRuntime {
+    load_in(html, stress, ClockMode::Real)
+}
+
+/// [`load`] with a page clock in `mode`. In virtual time timers do not
+/// wait, and the order of tasks does not depend on the speed of the
+/// machine.
+pub(crate) fn load_in(html: &str, stress: bool, mode: ClockMode) -> ScriptRuntime {
     let config = RuntimeConfig {
         heap: HeapConfig {
             stress,
@@ -77,10 +84,14 @@ pub(crate) fn load(html: &str, stress: bool) -> ScriptRuntime {
         },
         ..RuntimeConfig::default()
     };
-    let mut rt = ScriptRuntime::with_config(config).expect("a runtime");
+    let clock = PageClock::new(mode, None);
+    let mut rt = ScriptRuntime::with_config(config, clock).expect("a runtime");
     let dom = swb_dom::parse_html_with(html, true);
     rt.lend(Box::new(TestDocument { dom }));
     rt.run_inline_scripts(URL);
+    // The tasks that the scripts queued for now (notifications of
+    // rejected promises; timers of 0 ms).
+    rt.run_due_tasks(std::time::Duration::from_secs(5));
     rt
 }
 
@@ -121,11 +132,20 @@ pub(crate) fn probe_failures(
     cases: &'static [Case],
     departures: &'static [Departure],
 ) -> Vec<String> {
+    probe_failures_in(cases, departures, ClockMode::Real)
+}
+
+/// [`probe_failures`] with a page clock in `mode`.
+pub(crate) fn probe_failures_in(
+    cases: &'static [Case],
+    departures: &'static [Departure],
+    mode: ClockMode,
+) -> Vec<String> {
     on_big_stack(move || {
         let mut failures = Vec::new();
         for case in cases {
             for stress in [false, true] {
-                let mut rt = load(case.html, stress);
+                let mut rt = load_in(case.html, stress, mode);
                 for (index, &(query, chromium)) in case.queries.iter().enumerate() {
                     let want = departures
                         .iter()

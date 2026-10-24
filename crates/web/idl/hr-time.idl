@@ -7,7 +7,18 @@
 // (W3C Software and Document License; the full notice is in
 // THIRD_PARTY_NOTICES.md).
 //
-// swb cut this file to the typedef DOMHighResTimeStamp (Event.timeStamp
-// uses it); Performance comes later.
+// swb cut this file to the typedef DOMHighResTimeStamp, `now()` and
+// `timeOrigin` of Performance (without `toJSON`), and the `performance`
+// attribute of WindowOrWorkerGlobalScope (feature 5b of M8).
 
 typedef double DOMHighResTimeStamp;
+
+[Exposed=(Window,Worker)]
+interface Performance : EventTarget {
+  DOMHighResTimeStamp now();
+  readonly attribute DOMHighResTimeStamp timeOrigin;
+};
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  [Replaceable] readonly attribute Performance performance;
+};

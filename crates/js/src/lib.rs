@@ -44,7 +44,7 @@ pub use value::{BigInt, Symbol, Value, ValueCell};
 
 pub use date::{Clock, TimeZone, TimeZoneError};
 pub use runtime::{
-    ConsoleLevel, ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError,
+    ConsoleLevel, ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError, SourceLocation,
 };
 pub use swb_js_text::RecursionBudget;
 pub use vm::{

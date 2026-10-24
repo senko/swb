@@ -21,7 +21,7 @@ use crate::heap::{Gc, Heap, Tracer};
 use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::value::Value;
-use crate::vm::promise::{Capability, Handler, ReactionKind};
+use crate::vm::promise::{Capability, Continuation, Handler, ReactionKind};
 use crate::vm::{VmError, VmResult};
 
 /// A job of the queue.
@@ -142,6 +142,23 @@ impl Runtime {
         self.vm.jobs.queue.push_back(QueuedJob { job, realm });
     }
 
+    /// Enqueues a job that calls `callback` with no arguments and
+    /// `undefined` as `this` (HTML "queue a microtask" to invoke a callback,
+    /// for `queueMicrotask`). An exception of the callback reaches the host
+    /// from `Runtime::run_jobs`.
+    pub(crate) fn enqueue_callback_job(&mut self, callback: Value) {
+        let job = Job::Reaction {
+            capability: None,
+            handler: Handler::Internal(Continuation {
+                func: call_without_arguments,
+                data: callback,
+            }),
+            kind: ReactionKind::Fulfill,
+            argument: Value::Undefined,
+        };
+        self.enqueue_job(job, None);
+    }
+
     /// `HostPromiseRejectionTracker(promise, "reject")`.
     pub(crate) fn track_rejection(&mut self, promise: Gc<Object>) {
         let tracker = &mut self.vm.jobs;
@@ -246,10 +263,21 @@ impl Runtime {
     }
 }
 
+/// The continuation of a callback job: calls the function in its data.
+fn call_without_arguments(
+    rt: &mut Runtime,
+    callback: Value,
+    _kind: ReactionKind,
+    _argument: Value,
+) -> VmResult<Value> {
+    rt.call(callback, Value::Undefined, &[])
+}
+
 #[cfg(test)]
 mod tests {
     use super::QueuedJob;
     use crate::runtime::{Runtime, RuntimeConfig};
+    use crate::value::Value;
 
     #[test]
     fn a_drained_queue_and_taken_lists_give_back_their_memory() {
@@ -265,5 +293,45 @@ mod tests {
         // The taken promises stay alive until the next take.
         assert_eq!(rt.take_unhandled_rejections(), []);
         assert_eq!(rt.vm.jobs.bytes(), 0);
+    }
+
+    #[test]
+    fn host_microtasks_run_in_order_without_arguments_and_report_exceptions() {
+        let mut rt = Runtime::new(RuntimeConfig::default()).expect("runtime");
+        let f = rt
+            .eval("var log = []; Promise.resolve().then(() => log.push('p')); (function () { log.push('m' + arguments.length); })")
+            .expect("script");
+        rt.queue_microtask(f);
+        let g = rt
+            .eval("(() => { throw new Error('in a microtask'); })")
+            .expect("script");
+        rt.queue_microtask(g);
+        rt.queue_microtask(f);
+        assert!(rt.run_jobs().is_err());
+        rt.run_jobs().expect("the rest");
+        let log = rt.eval("log.join()").expect("script");
+        assert_eq!(rt.display(log), "p,m0,m0");
+    }
+
+    #[test]
+    fn handled_flags_and_error_locations() {
+        let mut rt = Runtime::new(RuntimeConfig::default()).expect("runtime");
+        let p = rt.eval("var p = Promise.reject(1); p").expect("script");
+        assert_eq!(rt.promise_is_handled(p), Some(false));
+        rt.eval("p.catch(() => {})").expect("script");
+        assert_eq!(rt.promise_is_handled(p), Some(true));
+        assert_eq!(rt.promise_is_handled(Value::Undefined), None);
+        let error = rt
+            .eval_named("\n  new TypeError('x')", "file:///a.js")
+            .expect("script");
+        let location = rt.error_location(error).expect("a location");
+        assert_eq!(
+            (location.name.as_str(), location.line, location.column),
+            ("file:///a.js", 2, 3)
+        );
+        assert!(rt.eval_named("1;\n  throw 5", "file:///b.js").is_err());
+        let location = rt.throw_location().expect("a location");
+        assert_eq!((location.name.as_str(), location.line), ("file:///b.js", 2));
+        assert_eq!(Runtime::source_location("a\nbc", 3), (2, 2));
     }
 }

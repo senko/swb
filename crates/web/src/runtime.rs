@@ -1,22 +1,31 @@
 //! The script runtime of a document (ADR 0028 section 2): a `js::Runtime`
-//! with the bindings, whose global object is the `Window`, and the
-//! console buffer.
+//! with the bindings, whose global object is the `Window`, the console
+//! buffer, and the runs of tasks (ADR 0028 section 7).
 //!
 //! The engine creates one when it commits a document with JavaScript on
 //! and drops it with the document. For each task it lends the document
-//! state ([`ScriptRuntime::lend`]), runs scripts, and takes the state back
+//! state ([`ScriptRuntime::lend`]), runs scripts or due tasks of the event
+//! loop ([`ScriptRuntime::run_due_tasks`]), and takes the state back
 //! ([`ScriptRuntime::take_back`]). A task has a time limit
-//! ([`TASK_TIME_LIMIT`]) and ends with a microtask checkpoint. After three
-//! tasks that reach the time limit, or one that reaches the heap limit,
-//! the document runs no more scripts (ADR 0028 sections 7 and 16).
+//! ([`TASK_TIME_LIMIT`]) and ends with a microtask checkpoint. The
+//! document runs no more scripts after three tasks that reach the time
+//! limit, one that reaches the heap limit (then the engine drops the
+//! runtime), or when its long tasks used the budget of the document
+//! ([`SCRIPT_BUDGET`]; ADR 0028 sections 7 and 16).
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use swb_js::{ConsoleLevel, PromiseStatus, Runtime, RuntimeConfig, ScriptError, Value, VmError};
+use swb_js::{
+    ConsoleLevel, PromiseStatus, ReactionKind, Runtime, RuntimeConfig, ScriptError, Value, VmError,
+    VmResult,
+};
 
+use crate::clock::{DocumentClock, PageClock};
+use crate::errors::Site;
+use crate::event_loop::Task;
 use crate::events::{DispatchTarget, TrustedEvent};
 use crate::generated as g;
 use crate::host::EngineHost;
@@ -28,9 +37,20 @@ pub const TASK_TIME_LIMIT: Duration = Duration::from_secs(5);
 /// The heap limit of a document's runtime (ADR 0028 section 16).
 pub const HEAP_LIMIT: usize = 256 << 20;
 
+/// The real time that the long tasks (of 50 ms or more) of a document may
+/// take in total; then the document runs no more scripts (ADR 0028
+/// section 16).
+pub const SCRIPT_BUDGET: Duration = Duration::from_secs(30);
+
 /// The number of tasks that may reach the time limit before the document
 /// runs no more scripts (ADR 0028 section 7).
 const MAX_TIMEOUTS: u32 = 3;
+
+/// The page time that each task takes in virtual time, in milliseconds.
+/// Without it, a chain of tasks that are due at once (an
+/// `unhandledrejection` listener that rejects a new promise) keeps virtual
+/// time still, and a wait for page time never ends.
+const VIRTUAL_TASK_TIME: f64 = 0.01;
 
 /// The most console messages that the buffer keeps (the oldest go first).
 const MAX_CONSOLE_MESSAGES: usize = 1000;
@@ -124,13 +144,36 @@ const SERIALIZER: &str = r"(() => {
 pub struct ScriptRuntime {
     rt: Runtime,
     console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
+    /// The page clock (shared with the binding state).
+    clock: PageClock,
     /// The time limit of a task.
     time_limit: Duration,
     /// The tasks that reached the time limit.
     timeouts: u32,
     /// True when the document runs no more scripts.
     stopped: bool,
+    /// True after a task reached the heap limit: the runtime cannot
+    /// recover, and the engine drops it.
+    failed: bool,
+    /// The real time of the document's long tasks so far.
+    long_task_time: Duration,
+    /// The most real time that long tasks may take per document.
+    script_budget: Duration,
 }
+
+/// The result of [`ScriptRuntime::start_evaluation`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EvaluationStart {
+    /// The value or the error.
+    Done(Evaluation),
+    /// A promise that has not settled yet: ask again with
+    /// [`ScriptRuntime::poll_evaluation`] after the event loop ran.
+    Pending(EvaluationId),
+}
+
+/// An evaluation that waits for its promise.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EvaluationId(u64);
 
 /// The termination of a task that does not start because the document's
 /// scripts were stopped.
@@ -139,43 +182,58 @@ const STOPPED: ScriptError = ScriptError::Terminated(swb_js::Termination::Native
 ));
 
 impl ScriptRuntime {
-    /// A runtime with the bindings and the limits of ADR 0028 section 16.
-    pub fn new() -> Result<ScriptRuntime, ScriptError> {
+    /// A runtime with the bindings and the limits of ADR 0028 section 16,
+    /// on the page clock `clock`.
+    pub fn new(clock: PageClock) -> Result<ScriptRuntime, ScriptError> {
         let mut config = RuntimeConfig::default();
         config.heap.limit = HEAP_LIMIT;
-        ScriptRuntime::with_config(config)
+        ScriptRuntime::with_config(config, clock)
     }
 
     /// A runtime with the bindings and another configuration (tests use
     /// the GC stress mode).
-    pub fn with_config(config: RuntimeConfig) -> Result<ScriptRuntime, ScriptError> {
+    pub fn with_config(
+        config: RuntimeConfig,
+        clock: PageClock,
+    ) -> Result<ScriptRuntime, ScriptError> {
         let mut rt = Runtime::new(config)?;
+        let document_clock = DocumentClock::new(clock.clone());
         let setup = |rt: &mut Runtime| -> Result<(), VmError> {
             g::define_classes::<WebState>(rt)?;
-            rt.set_host_data(WebState::default());
+            let mut state = WebState::default();
+            state.clock = document_clock;
+            rt.set_host_data(state);
             let window_properties = crate::window::define_class(rt)?;
             g::create_interfaces::<WebState>(rt, 0)?;
             crate::window::install(rt, 0, window_properties)?;
             g::init_global::<WebState>(rt, 0, crate::state::NOT_A_NODE)
         };
         setup(&mut rt).map_err(|e| internal(&e))?;
+        let wall = clock.clone();
+        rt.set_clock(Box::new(move || wall.wall_now()));
         let serializer = rt.eval_named(SERIALIZER, "swb:serializer")?;
         state_mut(&mut rt)
             .map_err(|e| internal(&e))?
             .pinned
             .push(serializer);
-        let console = Rc::clone(&state_mut(&mut rt).map_err(|e| internal(&e))?.console);
+        let state = state_mut(&mut rt).map_err(|e| internal(&e))?;
+        let console = Rc::clone(&state.console);
+        let logged = Rc::clone(&state.console_logged);
         let sink = Rc::clone(&console);
         rt.set_console(Box::new(move |level, line| {
-            log_console(level, line);
+            log_console(&logged, level, line);
             push_message(&sink, level, line);
         }));
         Ok(ScriptRuntime {
             rt,
             console,
+            clock,
             time_limit: TASK_TIME_LIMIT,
             timeouts: 0,
             stopped: false,
+            failed: false,
+            long_task_time: Duration::ZERO,
+            script_budget: SCRIPT_BUDGET,
         })
     }
 
@@ -184,10 +242,34 @@ impl ScriptRuntime {
         self.time_limit = limit;
     }
 
+    /// Sets the heap limit in bytes (tests use a small one).
+    pub fn set_heap_limit(&mut self, limit: usize) {
+        self.rt.set_heap_limit(limit);
+    }
+
+    /// Sets the budget of the document's long tasks (tests use a short
+    /// one).
+    pub fn set_script_budget(&mut self, budget: Duration) {
+        self.script_budget = budget;
+    }
+
     /// True if the document runs no more scripts: three tasks reached the
-    /// time limit, or one reached the heap limit.
+    /// time limit, one reached the heap limit, or the long tasks used the
+    /// document's budget.
     pub fn stopped(&self) -> bool {
         self.stopped
+    }
+
+    /// True after a task reached the heap limit: the runtime cannot
+    /// recover, and the engine drops it (ADR 0028 section 7). The DOM
+    /// stays as it is.
+    pub fn failed(&self) -> bool {
+        self.failed
+    }
+
+    /// The page clock.
+    pub fn clock(&self) -> &PageClock {
+        &self.clock
     }
 
     /// Lends the document state to the runtime for a task.
@@ -203,22 +285,17 @@ impl ScriptRuntime {
     }
 
     /// Runs a classic script as a task: the script, then a microtask
-    /// checkpoint, under the time limit. Errors (also uncaught ones of
-    /// promise jobs and unhandled rejections) go to the console and the
-    /// log, as Chromium's console shows them; the first error is returned.
+    /// checkpoint, under the time limit. Errors (also those of promise jobs)
+    /// are reported: an `error` event at the window, and a console line if
+    /// no listener canceled it; the first error is returned.
     pub fn run_classic_script(&mut self, source: &str, name: &str) -> Result<(), ScriptError> {
-        if self.stopped {
-            return Err(STOPPED);
-        }
-        self.start_task();
-        let result = self.rt.eval_named(source, name).map(|_| ());
-        if let Err(error) = &result {
-            self.report(name, error);
-            self.count_termination(error);
-        }
-        self.checkpoint(name, None);
-        self.rt.set_deadline(None);
-        result
+        self.task(name, |rt| {
+            let result = rt.eval_named(source, name).map(|_| ());
+            if let Err(error) = &result {
+                report_error(rt, &Site::script(name, source), error)?;
+            }
+            result
+        })
     }
 
     /// Runs the inline classic scripts of the lent document in tree order,
@@ -245,92 +322,250 @@ impl ScriptRuntime {
 
     /// Fires a trusted event at a node of the lent document or at the window
     /// as a task (DOM "fire an event"; ADR 0028 section 11): the dispatch
-    /// under the time limit, then a microtask checkpoint. Exceptions of
-    /// listeners go to the console and the dispatch goes on. Returns false
-    /// if a listener canceled the event; an error if the document's scripts
-    /// are stopped or the task ended (a termination, which counts like one
-    /// of a script).
+    /// under the time limit, a microtask checkpoint after each listener
+    /// (HTML "clean up after running a callback") and after the task.
+    /// Exceptions of listeners are reported and the dispatch goes on.
+    /// Returns false if a listener canceled the event; an error if the
+    /// document's scripts are stopped or the task ended (a termination,
+    /// which counts like one of a script).
     pub fn dispatch_event(
         &mut self,
         target: DispatchTarget,
         event: &TrustedEvent,
     ) -> Result<bool, ScriptError> {
-        if self.stopped {
-            return Err(STOPPED);
-        }
-        self.start_task();
-        let scope = self.rt.heap_mut().open_scope();
-        let result = crate::events::dispatch_trusted(&mut self.rt, target, event);
-        if let Err(error) = self.rt.heap_mut().close_scope(scope) {
-            log::warn!("the handle scope of an event was not the last one: {error:?}");
-        }
-        let result = result.map_err(task_error);
         let name = format!("the event '{}'", event.kind);
-        if let Err(error) = &result {
-            self.report(&name, error);
-            self.count_termination(error);
+        self.task(&name, |rt| {
+            set_listener_checkpoints(rt, true);
+            let result = crate::events::dispatch_trusted(rt, target, event).map_err(task_error);
+            set_listener_checkpoints(rt, false);
+            if let Err(error @ ScriptError::Uncaught { .. }) = &result {
+                // An exception of the bindings outside any listener.
+                report_line(rt, &name, &error.to_string());
+            }
+            result
+        })
+    }
+
+    /// Runs the tasks that are due at the page time now, in their order,
+    /// until none is due or `budget` of real time has passed (checked
+    /// between tasks). In virtual time each task moves the clock by
+    /// [`VIRTUAL_TASK_TIME`]. Returns the number of tasks that ran. A
+    /// stopped document runs none.
+    pub fn run_due_tasks(&mut self, budget: Duration) -> usize {
+        let started = Instant::now();
+        let mut ran = 0;
+        while !self.stopped {
+            let now = self.clock.now();
+            let task = state_mut(&mut self.rt)
+                .ok()
+                .and_then(|s| s.event_loop.tasks.pop_due(now));
+            let Some(task) = task else {
+                break;
+            };
+            // Errors are reported.
+            let _ = self.run_task(task);
+            self.clock.advance_to(now + VIRTUAL_TASK_TIME);
+            ran += 1;
+            if started.elapsed() >= budget {
+                break;
+            }
         }
-        self.checkpoint(&name, None);
-        self.rt.set_deadline(None);
-        result
+        ran
+    }
+
+    /// The page time (milliseconds) of the next task, or `None` if no task
+    /// waits or the document's scripts are stopped.
+    pub fn next_task_time(&self) -> Option<f64> {
+        if self.stopped {
+            return None;
+        }
+        crate::state::state(&self.rt)
+            .ok()?
+            .event_loop
+            .tasks
+            .next_due()
+    }
+
+    /// The number of tasks that wait (timers included).
+    pub fn pending_tasks(&self) -> usize {
+        crate::state::state(&self.rt).map_or(0, |s| s.event_loop.tasks.len())
+    }
+
+    /// The number of active timers.
+    pub fn active_timers(&self) -> usize {
+        crate::state::state(&self.rt).map_or(0, |s| s.event_loop.timers.len())
+    }
+
+    fn run_task(&mut self, task: Task) -> Result<(), ScriptError> {
+        match task {
+            Task::Timer { id, handle } => {
+                self.task("a timer", |rt| crate::timers::run_timer(rt, id, handle))
+            }
+            Task::NotifyRejections => self.task("unhandled rejections", |rt| {
+                crate::event_loop::notify_rejections(rt).map_err(task_error)
+            }),
+            Task::FinalizationCleanup => self.task("a finalization registry", |rt| {
+                if let Ok(state) = state_mut(rt) {
+                    state.event_loop.cleanup_queued = false;
+                }
+                match rt.run_finalization_cleanup() {
+                    Ok(_) => Ok(()),
+                    Err(error) => {
+                        report_error(rt, &Site::named("a finalization registry"), &error)?;
+                        Err(error)
+                    }
+                }
+            }),
+        }
     }
 
     /// Evaluates `source` as a classic script in the global scope (the
-    /// value of the last expression statement) as a task; a promise is
-    /// awaited as far as the microtask checkpoint settles it. Returns the
-    /// JSON text of the value in `form`, or the error.
+    /// value of the last expression statement) as a task, and waits for a
+    /// promise through this runtime's event loop (at most
+    /// [`EVALUATION_TIMEOUT`] of real time; virtual time jumps to the next
+    /// task). Returns the JSON text of the value in `form`, or the error.
+    /// The engine, which also waits for the network, uses
+    /// [`ScriptRuntime::start_evaluation`] instead.
     pub fn evaluate(&mut self, source: &str, form: JsonForm) -> Evaluation {
-        if self.stopped {
-            return Evaluation::Error(error_text(&STOPPED));
-        }
-        self.start_task();
-        let evaluation = match self.rt.eval_named(source, "") {
-            Ok(value) => {
-                // Held across the runs below (each replaces the last
-                // value). The evaluation handles a rejection of the value,
-                // so the checkpoint does not report it.
-                self.pin(value);
-                let evaluation = self.settle(value, form);
-                self.checkpoint("evaluate", Some(value));
-                self.unpin();
-                evaluation
-            }
-            Err(error) => {
-                let text = self.thrown_text(&error);
-                self.count_termination(&error);
-                self.checkpoint("evaluate", None);
-                Evaluation::Error(text)
-            }
+        let id = match self.start_evaluation(source, form) {
+            EvaluationStart::Done(evaluation) => return evaluation,
+            EvaluationStart::Pending(id) => id,
         };
-        self.rt.set_deadline(None);
-        evaluation
+        let deadline = Instant::now() + EVALUATION_TIMEOUT;
+        loop {
+            if let Some(evaluation) = self.poll_evaluation(id, form) {
+                return evaluation;
+            }
+            if self.run_due_tasks(Duration::from_millis(16)) > 0 {
+                continue;
+            }
+            let now = Instant::now();
+            match self.next_task_time() {
+                Some(time) if now < deadline => {
+                    if self.clock.is_virtual() {
+                        self.clock.advance_to(time);
+                    } else {
+                        let until = self.clock.instant_of(time).min(deadline);
+                        std::thread::sleep(until.saturating_duration_since(now));
+                    }
+                }
+                _ => break,
+            }
+        }
+        self.cancel_evaluation(id);
+        Evaluation::Error(NOT_SETTLED.to_owned())
     }
 
-    /// The value of a promise after a microtask checkpoint, then its JSON
-    /// text.
-    fn settle(&mut self, value: Value, form: JsonForm) -> Evaluation {
-        if let Err(error) = self.rt.run_jobs() {
-            let text = self.thrown_text(&error);
-            self.count_termination(&error);
-            return Evaluation::Error(text);
+    /// Evaluates `source` as a classic script in the global scope as a
+    /// task. A value that is not a promise, a settled promise (after the
+    /// microtask checkpoint) and an error are done; a pending promise waits
+    /// for [`ScriptRuntime::poll_evaluation`]. The evaluation handles a
+    /// rejection of its promise, so it is not reported as unhandled.
+    pub fn start_evaluation(&mut self, source: &str, form: JsonForm) -> EvaluationStart {
+        let mut error_text = None;
+        let started = self.task("evaluate", |rt| {
+            let value = match rt.eval_named(source, "") {
+                Ok(value) => value,
+                Err(error) => {
+                    error_text = Some(thrown_text(rt, &error));
+                    return Err(error);
+                }
+            };
+            if rt.promise_settlement(value).is_none() {
+                pin(rt, value);
+                let text = serialize(rt, value, form, false);
+                unpin(rt);
+                return Ok(EvaluationStart::Done(match text {
+                    Ok(text) => Evaluation::Value(text),
+                    Err(error) => Evaluation::Error(error_text_of(&error)),
+                }));
+            }
+            // A reaction marks the promise as handled.
+            rt.react_to_promise(value, ignore_settlement, Value::Undefined)?;
+            let event_loop = &mut state_mut(rt).map_err(task_error)?.event_loop;
+            let id = event_loop.next_evaluation;
+            event_loop.next_evaluation += 1;
+            event_loop.evaluations.push((id, value));
+            Ok(EvaluationStart::Pending(EvaluationId(id)))
+        });
+        match started {
+            Ok(EvaluationStart::Pending(id)) => match self.poll_evaluation(id, form) {
+                Some(evaluation) => EvaluationStart::Done(evaluation),
+                None => EvaluationStart::Pending(id),
+            },
+            Ok(done) => done,
+            Err(error) => EvaluationStart::Done(Evaluation::Error(
+                error_text.unwrap_or_else(|| error_text_of(&error)),
+            )),
         }
-        let (value, is_error) = match self.rt.promise_settlement(value) {
-            None => (value, false),
+    }
+
+    /// The result of a pending evaluation once its promise settled (the
+    /// JSON text of the value, or the error of a rejection), else `None`.
+    /// A stopped document gives an error.
+    pub fn poll_evaluation(&mut self, id: EvaluationId, form: JsonForm) -> Option<Evaluation> {
+        let promise = crate::state::state(&self.rt)
+            .ok()?
+            .event_loop
+            .evaluations
+            .iter()
+            .find(|(i, _)| *i == id.0)
+            .map(|&(_, value)| value);
+        let Some(promise) = promise else {
+            return Some(Evaluation::Error(NOT_SETTLED.to_owned()));
+        };
+        let settlement = self.rt.promise_settlement(promise);
+        let (value, is_error) = match settlement {
             Some((PromiseStatus::Fulfilled, result)) => (result, false),
             Some((PromiseStatus::Rejected, reason)) => (reason, true),
-            Some((PromiseStatus::Pending, _)) => {
-                return Evaluation::Error(
-                    "Error: the promise did not settle (swb has no event loop yet)".to_owned(),
-                );
+            _ if self.stopped => {
+                self.cancel_evaluation(id);
+                return Some(Evaluation::Error(error_text_of(&STOPPED)));
             }
+            _ => return None,
         };
-        self.pin(value);
-        let text = serialize(&mut self.rt, value, form, is_error);
-        self.unpin();
-        match text {
+        let text = self.task("evaluate", |rt| {
+            pin(rt, value);
+            let text = serialize(rt, value, form, is_error);
+            unpin(rt);
+            text
+        });
+        self.cancel_evaluation(id);
+        Some(match text {
             Ok(text) if is_error => Evaluation::Error(text),
             Ok(text) => Evaluation::Value(text),
-            Err(error) => Evaluation::Error(error_text(&error)),
+            Err(error) => Evaluation::Error(error_text_of(&error)),
+        })
+    }
+
+    /// True if the promise of a pending evaluation settled (or the
+    /// evaluation is unknown, or the document's scripts stopped), so that
+    /// [`ScriptRuntime::poll_evaluation`] gives a result.
+    pub fn evaluation_settled(&self, id: EvaluationId) -> bool {
+        let Ok(state) = crate::state::state(&self.rt) else {
+            return true;
+        };
+        let promise = state
+            .event_loop
+            .evaluations
+            .iter()
+            .find(|(i, _)| *i == id.0);
+        match promise {
+            Some(&(_, promise)) => {
+                self.stopped
+                    || !matches!(
+                        self.rt.promise_settlement(promise),
+                        Some((PromiseStatus::Pending, _))
+                    )
+            }
+            None => true,
+        }
+    }
+
+    /// Forgets a pending evaluation (its time ran out).
+    pub fn cancel_evaluation(&mut self, id: EvaluationId) {
+        if let Ok(state) = state_mut(&mut self.rt) {
+            state.event_loop.evaluations.retain(|(i, _)| *i != id.0);
         }
     }
 
@@ -348,11 +583,66 @@ impl ScriptRuntime {
     /// Runs a full collection (for tests).
     pub fn collect(&mut self) {
         self.rt.collect();
+        // A collection can make finalization cleanups due.
+        let _ = crate::event_loop::queue_finalization_cleanup(&mut self.rt);
     }
 
-    fn start_task(&mut self) {
+    /// Runs `body` as a task (HTML "run a task"): the deadline (the time
+    /// limit, or less when the document's budget is almost used), a handle
+    /// scope, the body, the microtask checkpoint, the cleanup tasks of
+    /// finalization registries, and the stop rules. `name` names the task
+    /// in the log. The body reports its own errors; a termination counts.
+    fn task<R>(
+        &mut self,
+        name: &str,
+        body: impl FnOnce(&mut Runtime) -> Result<R, ScriptError>,
+    ) -> Result<R, ScriptError> {
+        if self.stopped {
+            return Err(STOPPED);
+        }
+        let started = Instant::now();
+        let remaining = self.script_budget.saturating_sub(self.long_task_time) + LONG_TASK;
         self.rt
-            .set_deadline(Instant::now().checked_add(self.time_limit));
+            .set_deadline(started.checked_add(self.time_limit.min(remaining)));
+        let scope = self.rt.heap_mut().open_scope();
+        let result = body(&mut self.rt);
+        if let Err(error @ (ScriptError::Terminated(_) | ScriptError::Internal(_))) = &result {
+            report_line(&self.rt, name, &error.to_string());
+            self.count_termination(error);
+        }
+        if let Err(error) = crate::event_loop::microtask_checkpoint(&mut self.rt) {
+            report_line(&self.rt, name, &error.to_string());
+            self.count_termination(&error);
+        }
+        if let Err(error) = self.rt.heap_mut().close_scope(scope) {
+            log::warn!("the handle scope of a task was not the last one: {error:?}");
+        }
+        if let Ok(state) = state_mut(&mut self.rt) {
+            state.event_loop.nesting = 0;
+        }
+        if let Err(error) = crate::event_loop::queue_finalization_cleanup(&mut self.rt) {
+            log::warn!("cannot queue a finalization cleanup: {error:?}");
+        }
+        self.rt.set_deadline(None);
+        self.count_time(started.elapsed());
+        result
+    }
+
+    /// Adds the time of a long task to the document's total; stops the
+    /// document's scripts when the total reaches the budget.
+    fn count_time(&mut self, elapsed: Duration) {
+        if elapsed < LONG_TASK {
+            return;
+        }
+        self.long_task_time += elapsed;
+        if self.long_task_time >= self.script_budget && !self.stopped {
+            log::warn!(
+                "the scripts of the document stop: its long tasks ran for {:.1} s (the budget is {} s)",
+                self.long_task_time.as_secs_f64(),
+                self.script_budget.as_secs_f64()
+            );
+            self.stop();
+        }
     }
 
     /// Counts a task that reached a limit; stops the document's scripts
@@ -363,101 +653,69 @@ impl ScriptRuntime {
             ScriptError::Terminated(Termination::TimeLimit) => self.timeouts += 1,
             ScriptError::Terminated(Termination::HeapLimit | Termination::OutOfMemory) => {
                 self.timeouts = MAX_TIMEOUTS;
+                self.failed = true;
             }
             _ => return,
         }
         if self.timeouts >= MAX_TIMEOUTS && !self.stopped {
-            self.stopped = true;
             log::warn!("the scripts of the document stop after a task reached a limit ({error})");
-            self.rt.clear_jobs();
+            self.stop();
         }
     }
 
-    /// The microtask checkpoint at the end of a task (HTML "perform a
-    /// microtask checkpoint"), with the reports of unhandled rejections
-    /// other than of `handled`.
-    fn checkpoint(&mut self, name: &str, handled: Option<Value>) {
-        if let Err(error) = self.rt.run_jobs() {
-            self.report(name, &error);
-            self.count_termination(&error);
-            // A termination leaves jobs that would run in the next task
-            // without its time; drop them.
-            if matches!(error, ScriptError::Terminated(_)) {
-                self.rt.clear_jobs();
-            }
-        }
-        // The promises; their results are the reasons.
-        let reasons: Vec<Value> = self
-            .rt
-            .take_unhandled_rejections()
-            .into_iter()
-            .filter(|&p| Some(p) != handled)
-            .map(|p| {
-                self.rt
-                    .promise_settlement(p)
-                    .map_or(p, |(_, reason)| reason)
-            })
-            .collect();
-        for &reason in &reasons {
-            self.pin(reason);
-        }
-        for &reason in &reasons {
-            let text = match serialize(&mut self.rt, reason, JsonForm::Strict, true) {
-                Ok(text) => text,
-                Err(_) => self.rt.display(reason),
-            };
-            let text = format!("Uncaught (in promise) {text}");
-            log::warn!(target: "console", "{name}: {text}");
-            push_message(&self.console, ConsoleLevel::Error, &text);
-        }
-        for _ in &reasons {
-            self.unpin();
-        }
-    }
-
-    /// Reports an error of a script to the log and the console buffer.
-    fn report(&mut self, name: &str, error: &ScriptError) {
-        report(&mut self.rt, name, error);
-    }
-
-    fn thrown_text(&mut self, error: &ScriptError) -> String {
-        thrown_text(&mut self.rt, error)
-    }
-
-    fn pin(&mut self, value: Value) {
-        pin(&mut self.rt, value);
-    }
-
-    fn unpin(&mut self) {
-        unpin(&mut self.rt);
+    /// Stops the document's scripts: no task, job or callback runs again.
+    fn stop(&mut self) {
+        self.stopped = true;
+        self.rt.clear_jobs();
     }
 }
 
-/// Reports an error of a script (or of an event listener) to the log and
-/// the console buffer, as Chromium's console shows it: `Uncaught
-/// Name: message` for an exception. `name` (a script URL) names the source
-/// in the log.
-pub(crate) fn report(rt: &mut Runtime, name: &str, error: &ScriptError) {
-    let text = match error {
-        ScriptError::Uncaught { .. } => format!("Uncaught {}", thrown_text(rt, error)),
-        other => other.to_string(),
-    };
-    report_line(rt, name, &text);
+/// The time of a task from which it counts against the document's budget
+/// (the threshold of a long task in the Long Tasks API).
+const LONG_TASK: Duration = Duration::from_millis(50);
+
+/// The longest that [`ScriptRuntime::evaluate`] waits for a promise.
+pub const EVALUATION_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The error of an evaluation whose promise did not settle in time.
+const NOT_SETTLED: &str = "Error: the promise did not settle in time";
+
+/// The reaction that marks an evaluated promise as handled.
+#[allow(clippy::unnecessary_wraps, reason = "the type of a host reaction")]
+fn ignore_settlement(
+    _rt: &mut Runtime,
+    _data: Value,
+    _kind: ReactionKind,
+    _value: Value,
+) -> VmResult<Value> {
+    Ok(Value::Undefined)
 }
 
-/// Reports a thrown value that did not come from a run (the lookup of a
-/// listener's `handleEvent`), as [`report`] does.
-pub(crate) fn report_thrown(rt: &mut Runtime, name: &str, value: Value) {
-    let text = format!("Uncaught {}", thrown_value_text(rt, value));
-    report_line(rt, name, &text);
+/// Turns the per-listener checkpoints of an engine dispatch on or off.
+fn set_listener_checkpoints(rt: &mut Runtime, on: bool) {
+    if let Ok(state) = state_mut(rt) {
+        state.event_loop.listener_checkpoints = on;
+    }
+}
+
+/// Reports an error of a run (see [`crate::errors::report`]); a
+/// termination of the report goes up as the task's error.
+fn report_error(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> Result<(), ScriptError> {
+    crate::errors::report(rt, site, error).map_err(task_error)
 }
 
 /// Writes an error line to the log and the console buffer.
-fn report_line(rt: &Runtime, name: &str, text: &str) {
-    log::warn!(target: "console", "{name}: {text}");
-    if let Some(state) = rt.host_data::<WebState>() {
-        push_message(&state.console, ConsoleLevel::Error, text);
-    }
+pub(crate) fn report_line(rt: &Runtime, name: &str, text: &str) {
+    let Some(state) = rt.host_data::<WebState>() else {
+        log::warn!(target: "console", "{name}: {text}");
+        return;
+    };
+    log_line(
+        &state.console_logged,
+        log::Level::Warn,
+        &format!("{name}: {text}"),
+    );
+    push_message(&state.console, ConsoleLevel::Error, text);
 }
 
 /// The text of a script error, `Name: message`. The engine reads the
@@ -465,19 +723,19 @@ fn report_line(rt: &Runtime, name: &str, text: &str) {
 /// found no `message` (a `DOMException`, whose `name` and `message` are
 /// accessors), the serializer reads them, under the time limit of the
 /// task. Call it before the next run replaces the last value.
-fn thrown_text(rt: &mut Runtime, error: &ScriptError) -> String {
+pub(crate) fn thrown_text(rt: &mut Runtime, error: &ScriptError) -> String {
     if let ScriptError::Uncaught { name, .. } = error
         && name.is_empty()
         && let value @ Value::Object(_) = rt.last_value()
     {
         return thrown_value_text(rt, value);
     }
-    error_text(error)
+    error_text_of(error)
 }
 
 /// The text of a thrown value: `Name: message` of an object with a
 /// `message` (read by the serializer), else the value as a string.
-fn thrown_value_text(rt: &mut Runtime, value: Value) -> String {
+pub(crate) fn thrown_value_text(rt: &mut Runtime, value: Value) -> String {
     if !matches!(value, Value::Object(_)) {
         return rt.display(value);
     }
@@ -508,14 +766,14 @@ fn serialize(
 }
 
 /// Holds a value across runs (until [`unpin`]).
-fn pin(rt: &mut Runtime, value: Value) {
+pub(crate) fn pin(rt: &mut Runtime, value: Value) {
     if let Ok(state) = state_mut(rt) {
         state.pinned.push(value);
     }
 }
 
 /// Drops the last pinned value (never the serializer).
-fn unpin(rt: &mut Runtime) {
+pub(crate) fn unpin(rt: &mut Runtime) {
     if let Ok(state) = state_mut(rt)
         && state.pinned.len() > 1
     {
@@ -526,7 +784,7 @@ fn unpin(rt: &mut Runtime) {
 /// The API error of a task that a host call ended (the engine's event
 /// dispatch): a termination, an engine error, or an exception of the
 /// bindings outside any listener.
-fn task_error(error: VmError) -> ScriptError {
+pub(crate) fn task_error(error: VmError) -> ScriptError {
     match error {
         VmError::Terminated(termination) => ScriptError::Terminated(termination),
         VmError::Internal(error) => ScriptError::Internal(error),
@@ -544,7 +802,7 @@ fn task_error(error: VmError) -> ScriptError {
 }
 
 /// The text of a script error for an evaluation (`Name: message`).
-fn error_text(error: &ScriptError) -> String {
+fn error_text_of(error: &ScriptError) -> String {
     match error {
         ScriptError::Uncaught { name, message, .. } if name.is_empty() => message.clone(),
         ScriptError::Uncaught { name, message, .. } => format!("{name}: {message}"),
@@ -563,13 +821,37 @@ fn internal(error: &VmError) -> ScriptError {
 }
 
 /// Writes a console line to the log (target `console`).
-fn log_console(level: ConsoleLevel, line: &str) {
-    match level {
-        ConsoleLevel::Debug => log::debug!(target: "console", "{line}"),
-        ConsoleLevel::Log | ConsoleLevel::Info => log::info!(target: "console", "{line}"),
-        ConsoleLevel::Warn => log::warn!(target: "console", "{line}"),
-        ConsoleLevel::Error => log::error!(target: "console", "{line}"),
+fn log_console(logged: &Cell<usize>, level: ConsoleLevel, line: &str) {
+    let level = match level {
+        ConsoleLevel::Debug => log::Level::Debug,
+        ConsoleLevel::Log | ConsoleLevel::Info => log::Level::Info,
+        ConsoleLevel::Warn => log::Level::Warn,
+        ConsoleLevel::Error => log::Level::Error,
+    };
+    log_line(logged, level, line);
+}
+
+/// The most console lines and error reports of a document that the log
+/// gets at their own level; the next ones go to the debug level, so that a
+/// loop of `console.error` does not flood standard error.
+const MAX_LOGGED_LINES: usize = 1000;
+
+/// Writes a line to the log at `level`, or at the debug level after the
+/// first [`MAX_LOGGED_LINES`] lines of the document (counted in `logged`).
+fn log_line(logged: &Cell<usize>, level: log::Level, line: &str) {
+    let count = logged.get();
+    logged.set(count.saturating_add(1));
+    if count < MAX_LOGGED_LINES {
+        log::log!(target: "console", level, "{line}");
+        return;
     }
+    if count == MAX_LOGGED_LINES {
+        log::warn!(
+            target: "console",
+            "the document wrote {MAX_LOGGED_LINES} console lines; the next ones go to the debug log"
+        );
+    }
+    log::debug!(target: "console", "{line}");
 }
 
 /// Adds a message to the buffer, within its limits.

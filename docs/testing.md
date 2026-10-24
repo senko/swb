@@ -737,7 +737,12 @@ changes only `Date`. The wrapper keeps the statics, the prototype,
 (`tools/tests/test_js_tools.py`). Not covered: `Intl.DateTimeFormat().format()`
 without an argument, `Temporal`, and `performance.timeOrigin`. When swb gets
 `--now` (M8 feature 5b), `compare --js` passes the same `captured` time to
-swb; it does not pass it now.
+swb: `--now MS --virtual-time --settle-ms 1500` when `swb --help` lists
+`--now`. swb then starts its page clock at the capture time and runs its
+event loop for 1.5 s of virtual time after the load (Chromium: 500 ms of
+network idle and `JS_SETTLE_MS`), so the timers that fire in Chromium's
+wait fire in swb too, without the wait, and in the same order on every
+run.
 
 **swb side** (`compare --js`). `swb --help` lists the supported options (the
 result is cached per binary, `swb.supported_flags`). With `--js` in the help,
@@ -945,8 +950,9 @@ case  js     1 + 1  2
 case  swb    1 + 1  3  !
 ```
 
-**The `--eval` contract** (implemented by M8 feature 4c2; ADR 0028
-section 17). `swb --headless --js [--eval=EXPR]... URL`. swb must accept the
+**The `--eval` contract** (implemented by M8 feature 4c2; promises that
+timers settle since feature 5b; ADR 0028 section 17). `swb --headless
+--js [--eval=EXPR]... URL`. swb must accept the
 `--eval=EXPR` form with any EXPR, also one that starts with `-`. Directly
 after the page's `load` event (Chromium's probe evaluates when navigation
 returns at `load`, with no settle time; tasks that are due later, such as
@@ -955,7 +961,9 @@ with a promise), swb evaluates each EXPR in order as a classic script in the
 global scope of the page (the value is that of the last expression
 statement, as for Chromium's `Runtime.evaluate`; the evaluation is not in a
 function), and, if the result is a promise, waits for it (as `await`: a
-settled promise gives its value, a rejected one gives an error). It prints
+settled promise gives its value, a rejected one gives an error; swb runs
+its event loop meanwhile, at most `--timeout` seconds, then the answer is
+`{"error": "Error: the promise did not settle in time"}`). It prints
 exactly one line to stdout per EXPR, in order, and nothing else to stdout
 (logs go to stderr):
 
@@ -1009,8 +1017,13 @@ nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
 `var()` chains, huge lists), pages that make the parse in steps with
 JavaScript on pause many times (`parse-steps-*-js-on`), and pages with
 scripts: endless loops in inline scripts (the time limit and the stop
-after three), the wrappers and child lists of many nodes, and named
-lookups on the window after DOM changes.
+after three), the wrappers and child lists of many nodes, named lookups
+on the window after DOM changes, and the event loop (feature 5b):
+endless loops in timers, an endless microtask chain, `setInterval(f, 0)`
+with a chain of `setTimeout(f, 0)`, the timer limit, 400,000 timers, and
+inline scripts that run just under the time limit until the budget of
+the document stops them. The cases with timers pass `--settle-ms`, so
+that the timers run after the load.
 
 ```
 just hostile                    # all cases; builds the release binary first
@@ -2236,14 +2249,34 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   of `tools/probes/web-events.json` with Chromium's values
   (`tests/events/cases.rs`, generated from the probe's `--json` output as
   for `dom.rs`; `SWB_VALUES` overrides the values where swb departs: no
-  `signal` option, no `error` events at the window until feature 5b, the
-  `object` type of `PromiseRejectionEvent.promise`), the console lines of
+  `signal` option, the `object` type of `PromiseRejectionEvent.promise`), the console lines of
   exceptions in listeners (Chromium's messages of the probe's `error`
   events), the engine's entry for trusted events, an endless listener at
   the time limit, listeners across collections, nested dispatches and
   many listeners on one target. `tests/common/mod.rs` holds the test
   document, the evaluation helpers and the run of probe cases that
   `dom.rs` and `events.rs` share.
+- `crates/web/tests/event_loop.rs`: the event loop (feature 5b): every
+  case of `tools/probes/web-event-loop.json` (the order of tasks,
+  microtasks and timers, the nesting clamp, the arguments, `this` and ids
+  of timers, `error` and `unhandledrejection` events and their attributes,
+  the checkpoint after callbacks, the clock) with Chromium's values
+  (`tests/event_loop/cases.rs`, generated as for `dom.rs`) in virtual
+  time, both GC modes; `SWB_VALUES` has the two departures (lines of
+  inline scripts count from the script, `reportError` of a value that is
+  not an error has no position). Also: console lines of canceled and not
+  canceled reports, an error in an `error` listener, compile errors,
+  `setInterval(f, 0)`, endless timers and microtask chains at the time
+  limit, the budget of long tasks, the heap limit, the timer limit,
+  finalization cleanups, evaluations of promises in virtual time and a
+  fixed start time. The probe needs the real time of Chromium; with
+  `--with-swb` swb runs it in real time too (`swb` without
+  `--virtual-time`), and 46 of its 48 rows match.
+- `crates/engine/tests/event_loop.rs`: the page's event loop: timers that
+  fire through `Page::pump`, virtual time with a fixed start
+  (`run_event_loop`), `wait_until_idle` with a timer chain and an
+  interval, evaluations of promises that settle later, and the drop of a
+  runtime at the heap limit.
 - `crates/engine/tests/scripts.rs`: scripts in a page: the inline scripts
   after the parse, DOM changes that reach the engine, the console, a new
   runtime per document, JavaScript off, the page that refuses JavaScript

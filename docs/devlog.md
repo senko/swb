@@ -4,6 +4,71 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 5b, the event loop
+
+- Documents with JavaScript on have an event loop. The binding state
+  keeps one task queue, ordered by due time in page time and then by the
+  order of queuing. Timers are due when they expire; other tasks (the
+  notification of rejected promises, finalization cleanups) are due when
+  they are queued. This gives the order that Chromium shows.
+  `Page::pump` runs due tasks for at most 16 ms and returns the time of
+  the next one. The GUI calls it after each batch of window events and
+  sleeps until then; the headless server calls it in its loop; the load
+  waits run due tasks while the page loads.
+- Every task runs under the 5 s deadline and ends with a microtask
+  checkpoint. The checkpoint also runs after each listener of an event
+  that the engine fires and after a timer callback.
+- `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval` (string
+  handlers, extra arguments, ids shared by both kinds),
+  `queueMicrotask` and `reportError`. A new probe,
+  `tools/probes/web-event-loop.json`, has 48 Chromium 148 values: the
+  order of tasks, microtasks and timers, the nesting clamp (Chromium
+  uses HTML's threshold, so the seventh nested timer waits 4 ms, and
+  keeps the level in microtasks), timer arguments and ids, error events
+  and the clock. swb matches 46; the two others are error positions.
+- Uncaught exceptions of scripts, timers, listeners and microtasks fire
+  a cancelable `ErrorEvent` at the window. Only an event that no
+  listener canceled gives the console line. Unhandled rejections fire
+  `unhandledrejection`.
+- The page clock runs in real time or in virtual time
+  (`--virtual-time`), from the system time or from a fixed start
+  (`--now MS`). `Date.now()`, `performance.now()`,
+  `performance.timeOrigin` and `Event.timeStamp` use it. `compare --js`
+  starts swb's clock at the fixture's capture time, as Chromium's, and
+  runs 1.5 s of virtual time after the load. The headless runner has
+  `--settle-ms`, the automation API has `page.waitForIdle`, and
+  `page.evaluate` and `--eval` wait for promises that timers settle.
+- Limits (ADR 0028 section 16): a runtime that reaches the heap limit is
+  dropped, and the page stays. The long tasks of a document (50 ms or
+  more) may run for 30 s in total, so a page of 1,000 scripts of 4.9 s
+  stops after 30 s instead of 80 minutes. At most 1,048,576 timers and
+  their arguments per document. After 1,000 console lines, a document's
+  lines go to the debug log.
+- `js`: `queue_microtask`, `promise_is_handled` and the locations of
+  errors and throws. A first version grew the `Vm` struct by one field
+  and made the "1M small objects" benchmark 45 % slower; the throw site
+  now shares an existing field. jsbench geomean −0.7 %, test262
+  unchanged.
+- Nine new hostile cases pass (143 cases: 142 ok, 1 known failure).
+  JS-off snapshot unchanged; JS-off page loads within ±1.5 %.
+- Review fixes:
+  - An interval scheduled its next run from the end of the callback, as
+    HTML says. Chromium keeps a grid of beats from the first due time: a
+    20 ms interval whose first callback runs 30 ms fires at 20, 50, 60,
+    80. swb now does the same and matches five measured cases.
+  - Each string handler kept its own copy of the code outside the JS
+    heap, so `for (;;) setTimeout(s, 1e9)` with a 20 MB string used all
+    memory. Now at most 32 MiB of handler code per document.
+  - A chain of tasks that are due at once (an `unhandledrejection`
+    listener that rejects again) kept virtual time still, so
+    `--settle-ms` ran until the real time-out. Each task now moves
+    virtual time by 0.01 ms.
+  - `page.waitForIdle` and `page.evaluate` in virtual time block the
+    server for at most 30 s.
+  - In real time, `Date.now()` is the system time, so it stays correct
+    after the machine was suspended.
+- Next: feature 5c, script processing.
+
 ## 2026-10-24: M8 feature 5a, the DOM event core
 
 - `EventTarget` keeps listeners and dispatches events. The listeners of

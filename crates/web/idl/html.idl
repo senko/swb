@@ -1,6 +1,7 @@
 // Source: HTML Living Standard, https://html.spec.whatwg.org/
 // copied on 2026-10-23 (ErrorEvent, PromiseRejectionEvent and
-// PageTransitionEvent on 2026-10-24).
+// PageTransitionEvent on 2026-10-24; WindowOrWorkerGlobalScope, TimerHandler,
+// Function and VoidFunction on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -14,7 +15,11 @@
 // Document has `title`, `body` and `head`; HTMLElement has no members yet
 // and no constructor; HTMLHeadElement is complete apart from the
 // constructor; ErrorEvent, PromiseRejectionEvent and PageTransitionEvent
-// are complete. The order of the remaining members is the specification's.
+// are complete; WindowOrWorkerGlobalScope has the timers, `queueMicrotask`
+// and `reportError` (feature 5b), and TimerHandler has no TrustedScript
+// (swb has no Trusted Types). `Function` lacks its
+// [LegacyTreatNonObjectAsNull], which only event handler attributes
+// need. The order of the remaining members is the specification's.
 //
 // One line is swb's own: the typedef of WindowProxy. Without frames, the
 // WindowProxy of a window is the Window object itself (ADR 0028
@@ -93,3 +98,23 @@ interface PageTransitionEvent : Event {
 dictionary PageTransitionEventInit : EventInit {
   boolean persisted = false;
 };
+
+typedef (DOMString or Function) TimerHandler;
+
+callback Function = any (any... arguments);
+callback VoidFunction = undefined ();
+
+interface mixin WindowOrWorkerGlobalScope {
+  // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope-mixin
+  undefined reportError(any e);
+
+  // timers
+  long setTimeout(TimerHandler handler, optional long timeout = 0, any... arguments);
+  undefined clearTimeout(optional long id = 0);
+  long setInterval(TimerHandler handler, optional long timeout = 0, any... arguments);
+  undefined clearInterval(optional long id = 0);
+
+  // microtask queuing
+  undefined queueMicrotask(VoidFunction callback);
+};
+Window includes WindowOrWorkerGlobalScope;

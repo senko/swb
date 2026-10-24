@@ -556,6 +556,19 @@ def test_compare_js_passes_js_when_swb_has_it(js_repo, fake, capsys):
     argv = fake_argv(fake)[0]
     assert "--js" in argv and argv[argv.index("--replay") + 1].endswith("fixtures/js/tiny")
     assert "without JavaScript" not in capsys.readouterr().out
+    # Without `--now` (before feature 5b), no clock options.
+    assert "--now" not in argv and "--virtual-time" not in argv
+
+
+def test_compare_js_passes_the_capture_time_when_swb_has_now(js_repo, fake):
+    write_js_outputs(js_repo)
+    binary = fake("swb-now", ["--js", "--now <MS>", "--virtual-time", "--settle-ms <MS>"])
+    assert compare_fixture("tiny", binary, 2.0, 32, Options(javascript=True)) is not None
+    argv = fake_argv(fake)[0]
+    expected = round(datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC).timestamp() * 1000)
+    assert argv[argv.index("--now") + 1] == str(expected)
+    assert "--virtual-time" in argv
+    assert argv[argv.index("--settle-ms") + 1] == "1500"
 
 
 def test_plain_compare_never_passes_js(js_repo, fake):

@@ -677,6 +677,106 @@ Feature 5a notes (the event core; see also section 11):
   stack is empty (HTML "clean up after running a callback") comes with
   feature 5b.
 
+Feature 5b notes (the event loop; see also section 7):
+
+- (Feature 5b: the queue.) The binding state has one task queue, ordered
+  by due time in page time and then by the order of queuing: a timer is
+  due when its timeout has passed, any other task (the notification of
+  rejected promises, a finalization cleanup) when it is queued. A task
+  queued at time t therefore runs after the timers that were due at t and
+  were scheduled before it; this is the order that Chromium 148 shows
+  (measured: the `unhandledrejection` notification of a task runs after
+  the `setTimeout(0)` timers that the task scheduled and before a
+  `setTimeout(1)` timer). The task sources of section 7 (user
+  interaction first) come when the engine has tasks of more than one
+  source (feature 5c's parser tasks, 6d's input). `ScriptRuntime::run_due_tasks`
+  runs the due tasks for a budget of real time; `next_task_time` says
+  when the next is due. `Page::pump` is one turn: the network
+  completions, the due tasks for at most 16 ms, and the real time of the
+  next task. The GUI calls it in `about_to_wait` and waits with
+  `ControlFlow::WaitUntil` for the next task or input; the headless
+  automation server calls it in its loop and waits for the next task, a
+  request or a network completion; `Page::wait_until_loaded` runs due
+  tasks while the page loads. No loop busy-waits.
+- (Feature 5b: a task.) Each task: the deadline (the time limit, or less
+  near the end of the document's budget), a handle scope, the body, the
+  microtask checkpoint, the cleanup tasks of finalization registries
+  (one task per registry, queued after each task while
+  `pending_finalization_cleanups` is above 0), the stop rules. The
+  checkpoint runs the job queue to the end; an exception of a job is
+  reported and the next job runs; a termination drops the remaining jobs.
+  At its end the promises that the tracker reported are noted, and one
+  task fires `unhandledrejection` for those that still have no handler
+  (`Runtime::promise_is_handled`). The checkpoint also runs after each
+  listener of an event that the engine fires while no script runs (HTML
+  "clean up after running a callback"; `Page::dispatch_event`), after the
+  callback of a timer (before an interval repeats) and never inside a
+  checkpoint. The `error` event of an exception report has no checkpoint
+  between its listeners: Chromium runs their microtasks only after all
+  of them (measured).
+- (Feature 5b: timers.) `setTimeout`, `setInterval`, `clearTimeout`,
+  `clearInterval` with string handlers (a classic script named after the
+  document URL), extra arguments and the window as `this`; ids from 1, one
+  more per call for both kinds, as in Chromium. A cleared timer leaves the
+  queue at once. The nesting clamp follows HTML and Chromium (section 7).
+  An interval keeps the grid of its first due time, as in Chromium
+  (measured): after a slow callback the next run is due at the first beat
+  after the start of the late task, so the missed beats are skipped and
+  the later ones do not shift (HTML schedules from the end of the
+  callback). `queueMicrotask` enqueues a job that calls the callback
+  without arguments (`Runtime::queue_microtask`); `reportError` reports
+  its argument. At most 1,048,576 active timers and extra arguments and
+  32 MiB of string handlers per document (section 16).
+- (Feature 5b: error reports.) HTML "report an exception": an uncaught
+  exception of a script, a timer, a listener, a microtask or a cleanup
+  fires a cancelable `ErrorEvent` at the window (message `Uncaught
+  Name: message` as Chromium words it, `error` the thrown value, a
+  `SyntaxError` object for a compile error); a console line follows only
+  if no listener canceled it. While the window is in error reporting mode
+  (an `error` listener threw), the report goes to the console only.
+  `filename`, `lineno` and `colno` give where an error object was created
+  (the first frame of its stack, `Runtime::error_location`), else where
+  the value was thrown (`Runtime::throw_location`), else the place of a
+  compile error; lines count from the start of a script's own text, not
+  of the document (a departure for inline scripts until feature 5c knows
+  their positions). A listener whose `handleEvent` is not callable gets a
+  console line and no `error` event, as in Chromium (measured; HTML would
+  fire one). `unhandledrejection` is a cancelable `PromiseRejectionEvent`;
+  not canceled, it gives `Uncaught (in promise) ...`. `rejectionhandled`
+  is not fired.
+- (Feature 5b: the clock.) `PageClock` (one per page, shared by its
+  documents) counts page time in real time or in virtual time, from a
+  start time (the system time or `swb --now MS`). In virtual time the
+  clock moves only in the engine's blocking loops (`run_event_loop` for
+  `--settle-ms`, `wait_until_idle` for `page.waitForIdle`, the wait of an
+  evaluation), when no task is due and no request is pending; it stands
+  still while a task runs (a script that busy-waits on `Date.now()` runs
+  into the time limit) and moves 0.01 ms after each task (so that a chain
+  of tasks that are due at once does not keep it still). `Date.now()` is
+  the wall time of the page time (`Runtime::set_clock`), or in real time
+  without `--now` the system time (it counts the time that the machine
+  was suspended); `performance.now()`, `performance.timeOrigin`
+  and `Event.timeStamp` count from the document's time origin (the page
+  time when its runtime is created) in steps of 0.1 ms, as Chromium does
+  without cross-origin isolation (measured). `Performance` has `now`
+  and `timeOrigin` only (no `toJSON`, no marks).
+- (Feature 5b: limits.) A runtime that reached the heap limit is marked
+  failed; the engine drops it after the task (the DOM stays, evaluations
+  answer that the scripts stopped). The budget of long tasks is in
+  section 16.
+- (Feature 5b: evaluation.) An evaluated promise gets a host reaction
+  (so its rejection is handled) and waits in the binding state;
+  `Page::evaluate` runs the event loop until it settles or its time-out
+  passes (30 s; `--eval` uses `--timeout`), and the automation server
+  answers `page.evaluate` when it settles, without blocking other
+  requests in real time.
+- (Feature 5b: changes to `js`.) `Runtime::queue_microtask`,
+  `promise_is_handled`, `error_location`, `throw_location` and
+  `source_location`; the VM keeps the code of the frame of the last throw
+  with its offset, boxed so that the `Vm` keeps its size (one more word in
+  `Vm` made the `vm_bench` row "1M small objects" 45 % slower, measured).
+  Nothing else on the engine's paths changed.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -840,6 +940,12 @@ classic script), ordered by due time and then by sequence number. HTML
 greater than 5; feature 5b (the event loop) measures Chromium's
 threshold with a probe and uses it.
 `queueMicrotask` enqueues a job.
+(Feature 5b: Chromium 148 has the HTML threshold: in a chain of
+`setTimeout(f, 0)` the seventh timer, the first with a nesting level
+above 5, is the first that waits 4 ms, also for `setInterval(f, 0)` and
+`setTimeout(f, 2)`. Chromium keeps the nesting level of a timer task in
+its microtasks, so a timer scheduled from a promise reaction of a timer
+callback nests too; swb does the same. See the feature 5b notes.)
 
 **Rendering update** (§8.1.7.3, "update the rendering"): when a frame is
 due (every 16.7 ms of clock time while something needs it: animation
@@ -1208,10 +1314,28 @@ Per document, all settings with these defaults:
 | Nodes created in a document's arena | 1,048,576 | the task ends (termination) |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
 | Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
+| Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |
+| String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |
+| Long tasks (50 ms or more) of a document, their total real time (feature 5b) | 30 s | the document runs no more scripts |
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
 | Script fetches in flight | 64 | queued |
 | `localStorage` per origin | 5 MiB | `QuotaExceededError` |
 | Mutation observer records waiting | 1,000,000 | further records dropped with a warning |
+
+The budget of long tasks (feature 5b): the time limit of a task and the
+stop after three terminations do not bound a page of many scripts that
+each run just under the limit (1,000 inline scripts of 4.9 s run for 80
+minutes, and the GUI freezes for that time). So the real time of the
+tasks that take 50 ms or more (the threshold of a long task in the Long
+Tasks API) adds up per document, and at 30 s the document runs no more
+scripts; a task gets a deadline of at most the rest of the budget plus
+50 ms. The value is twice the 15 s that three terminations allow: the
+local JavaScript fixtures of the targets load with their inline scripts
+in at most 1.3 s each with swb's interpreter (measured in feature 4c2),
+so 30 s leaves a margin of more than twenty times, and a broken page
+stops within half a minute. Tasks shorter than 50 ms never
+count: a page that runs an animation or polls in short tasks runs for as
+long as it is open, as in Chromium.
 
 DOM algorithms that walk trees (clone, serialization, `textContent`,
 adoption, selector queries) are iterative, as the parser and the

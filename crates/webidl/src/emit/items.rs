@@ -223,7 +223,7 @@ impl Gen<'_> {
         for arg in args {
             let ty = self.rust_type(&arg.ty, "", true);
             let ty = if arg.variadic {
-                format!("Vec<{ty}>")
+                format!("&[{ty}]")
             } else if arg.optional && arg.default.is_none() {
                 format!("Option<{ty}>")
             } else {
@@ -241,19 +241,23 @@ impl Gen<'_> {
             if params.is_empty() { "" } else { ", " },
             params.join(", ")
         );
-        out.push_str("        let mut args: Vec<swb_js::Value> = Vec::new();\n");
+        if args.is_empty() {
+            out.push_str("        let args: Vec<swb_js::Value> = Vec::new();\n");
+        } else {
+            out.push_str("        let mut args: Vec<swb_js::Value> = Vec::new();\n");
+        }
         for arg in args {
             let name = ident(&arg.name);
             if arg.variadic {
                 let item = if self.is_copy(&arg.ty) {
-                    "x"
+                    "*x"
                 } else {
                     "x.clone()"
                 };
                 let value = self.rust_to_js(&arg.ty, item, "realm", true, 0);
                 let _ = writeln!(
                     out,
-                    "        for x in &{name} {{\n            let value = {value}?;\n            b::keep(rt, value);\n            args.push(value);\n        }}"
+                    "        for x in {name} {{\n            let value = {value}?;\n            b::keep(rt, value);\n            args.push(value);\n        }}"
                 );
             } else if arg.optional && arg.default.is_none() {
                 let value = self.rust_to_js(&arg.ty, "x", "realm", true, 0);

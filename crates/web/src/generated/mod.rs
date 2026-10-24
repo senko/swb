@@ -19,6 +19,7 @@ pub mod character_data;
 pub mod text;
 pub mod processing_instruction;
 pub mod comment;
+pub mod performance;
 pub mod window;
 pub mod html_element;
 pub mod html_head_element;
@@ -56,25 +57,27 @@ pub const TEXT: swb_js::ClassId = swb_js::ClassId::from_index(10);
 pub const PROCESSING_INSTRUCTION: swb_js::ClassId = swb_js::ClassId::from_index(11);
 /// The class of `Comment`.
 pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(12);
+/// The class of `Performance`.
+pub const PERFORMANCE: swb_js::ClassId = swb_js::ClassId::from_index(13);
 /// The class of `Window`.
-pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(13);
+pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(14);
 /// The class of `HTMLElement`.
-pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(14);
+pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(15);
 /// The class of `HTMLHeadElement`.
-pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(15);
+pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
 /// The class of `ErrorEvent`.
-pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
+pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
 /// The class of `PromiseRejectionEvent`.
-pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
+pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
 /// The class of `PageTransitionEvent`.
-pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
+pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(19);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(19);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(20);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -92,6 +95,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Text").parent(CHARACTER_DATA), TEXT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ProcessingInstruction").parent(CHARACTER_DATA), PROCESSING_INSTRUCTION)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Comment").parent(CHARACTER_DATA), COMMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("Performance").parent(EVENT_TARGET), PERFORMANCE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window").parent(EVENT_TARGET), WINDOW)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT), HTML_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT), HTML_HEAD_ELEMENT)?;
@@ -131,6 +135,8 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "ProcessingInstruction", interface)?;
     let interface = comment::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Comment", interface)?;
+    let interface = performance::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "Performance", interface)?;
     let interface = window::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Window", interface)?;
     let interface = html_element::define::<H>(rt, realm)?;

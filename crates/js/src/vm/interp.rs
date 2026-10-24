@@ -140,7 +140,10 @@ impl Runtime {
                 .find(|frame| frame.compiled.source.origin.is_none())
         {
             let pc = (frame.pc as usize).saturating_sub(1);
-            self.vm.error_offset = frame.compiled.source_offset(pc);
+            self.vm.error_offset = frame
+                .compiled
+                .source_offset(pc)
+                .map(|offset| Box::new((offset, Rc::clone(&frame.compiled))));
         }
     }
 

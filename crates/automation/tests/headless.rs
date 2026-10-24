@@ -736,3 +736,46 @@ fn evaluate_without_javascript_is_an_error() {
     );
     stop(client, thread);
 }
+
+/// A page whose timers change the title: after 50 ms and every 10 ms
+/// until the count reaches 5.
+const TIMER_PAGE: &str = "data:text/html,<!DOCTYPE html><title>0</title><script>\
+    let n = 0; setTimeout(() => { const id = setInterval(() => { document.title = String(++n); if (n === 5) clearInterval(id); }, 10); }, 50);\
+    </script>";
+
+#[test]
+fn timers_run_in_the_server_loop_and_wait_for_idle_and_promises() {
+    let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);
+    let mut client = Client::connect(port).unwrap();
+    client.navigate(TIMER_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    // The timers run in real time while the server waits.
+    let idle = json!({ "quietMs": 100, "timeoutMs": 5000 });
+    assert_eq!(
+        client.call("page.waitForIdle", idle).unwrap(),
+        json!({ "idle": true })
+    );
+    assert_eq!(client.info().unwrap()["title"], "5");
+    // A promise that a timer settles: the answer waits for it.
+    let later = "new Promise((r) => setTimeout(() => r(document.title + '!'), 30))";
+    assert_eq!(
+        client
+            .call("page.evaluate", json!({ "expression": later }))
+            .unwrap(),
+        json!({ "value": "5!" })
+    );
+    let never = json!({ "expression": "new Promise(() => {})", "timeoutMs": 50 });
+    assert_eq!(
+        client.call("page.evaluate", never).unwrap(),
+        json!({ "error": "Error: the promise did not settle in time" })
+    );
+    // An interval keeps the page busy.
+    let interval = json!({ "expression": "setInterval(() => {}, 5)" });
+    client.call("page.evaluate", interval).unwrap();
+    let busy = json!({ "quietMs": 50, "timeoutMs": 200 });
+    assert_eq!(
+        client.call("page.waitForIdle", busy).unwrap(),
+        json!({ "idle": false })
+    );
+    stop(client, thread);
+}

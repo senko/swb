@@ -2565,6 +2565,33 @@ Steps:
         Tests: order of tasks, microtasks and timers against Chromium
         (probe cases that log an order); hostile cases: endless loops
         in a script, a timer and a microtask chain, `setInterval(0)`.
+        Done 2026-10-24. One task queue, ordered by due time and then by
+        the order of queuing (timers, rejection notifications,
+        finalization cleanups). `Page::pump` runs due tasks for at most
+        16 ms and returns the time of the next; the GUI (`WaitUntil`, no
+        busy wait), the headless server and the load waits call it. The
+        checkpoint runs after tasks, after each listener of an event that
+        the engine fires and after timer callbacks. Timers with string
+        handlers, arguments and the nesting clamp (Chromium uses HTML's
+        threshold and keeps the level in microtasks); `queueMicrotask`,
+        `reportError`. Uncaught errors fire `error` at the window (the
+        console line only if no listener canceled it); rejections fire
+        `unhandledrejection`. The page clock runs in real or virtual
+        time: `--now`, `--virtual-time`, `--settle-ms`,
+        `page.waitForIdle`; `page.evaluate` and `--eval` wait for
+        promises; `compare --js` passes the capture time. Limits: the
+        runtime is dropped at the heap limit; 30 s of long tasks per
+        document; 1,048,576 timer units; console lines go to the debug
+        log after 1,000. Departures: error lines and columns count from
+        the inline script; `reportError` of a non-error has no position;
+        no `rejectionhandled`, no `performance.toJSON`. The probe
+        `web-event-loop.json` (48 values) matches Chromium except the two
+        positions; hostile 142 ok + 1 known failure; JS-off snapshot and
+        test262 unchanged. Review fixes: an interval keeps the grid of
+        its beats after a slow callback (Chromium, measured); at most
+        32 MiB of string handlers per document; virtual time moves
+        0.01 ms per task; blocking calls in virtual time take at most
+        30 s; `Date.now()` follows the system time in real time.
       - 5c: script processing (ADR 0028 section 8): parser-blocking
         classic scripts with the pause and resume, inline scripts,
         style sheets that block scripts, `defer`, `async`, scripts
@@ -2977,13 +3004,9 @@ Steps:
 - `web`: any change in the arena invalidates every `childNodes` cache
   (one generation counter); a generation per parent would avoid the
   rebuild of unrelated lists.
-- `web`, 5b: `page.evaluate` of a promise that settles later (timers)
-  needs the event loop; now it is an error.
 - `web`: `Object.getOwnPropertyNames` of `WindowProperties` lists no
   names (as in Chromium, measured); Web IDL with
   `[LegacyUnenumerableNamedProperties]` would list them.
-- Engine, 5b: after a heap-limit stop, drop the runtime (ADR 0028
-  section 7); now only the scripts stop.
 - `swb --eval` with JavaScript off prints an error line per expression;
   the probe contract does not say what a swb without JavaScript does.
 - `js`: `console.log` and the other levels take no format specifiers
@@ -2998,23 +3021,12 @@ Steps:
   them (the DOM node limit bounds them; the hostile wrapper case reaches
   366 MiB RSS). With the mutators of 6a, drop stale `childNodes` caches
   when the generation changes.
-- `web`: every `console.error` and `console.warn` line (up to 4 MiB) goes
-  to the log at error or warn level, which the default logger prints to
-  stderr; `for (;;) console.error(x)` writes stderr for up to 15 s.
-  Rate-limit the lines or log them at a lower level.
-- `web`, 5b: the time limit is per task (5 s; three hits stop the
-  scripts). A page of 1,000 inline scripts of 4.9 s each runs 80
-  minutes; 5b needs a budget per document.
 - `web`, 5c: the inline scripts are collected before the first runs, so
   a script that removes a later `<script>` (possible after 6a) does not
   stop it.
 - `web` (found in feature 5a): the `signal` option of
   `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
   reads `signal` after `passive`).
-- `web`, 5b: `Event.timeStamp` from the page clock (virtual time); now
-  it counts from the runtime's creation. The microtask checkpoint after
-  each listener that the engine calls (HTML "clean up after running a
-  callback").
 - `web`, 6d: the other `createEvent` names (`MouseEvent`,
   `KeyboardEvent`, `FocusEvent`, `UIEvent`), activation behaviour in the
   dispatch, the legacy `webkit` renames of animation events.
@@ -3034,6 +3046,40 @@ Steps:
   `PromiseRejectionEvent.reason` are not checked against Chromium (the
   HTML IDL has no default, so `undefined` is expected; swb's answer shows
   `null`). Add a `=== undefined` query.
+- `web`, 5c (found in feature 5b): the lines and columns of errors in
+  inline scripts count from the start of the script; Chromium counts
+  from the document. Pass the script's start position.
+- `web`: `reportError(v)` of a value that is not an error object has no
+  position (Chromium: the call site); it needs the caller's frame from
+  `js`.
+- `web`: `rejectionhandled` and the set of outstanding rejected
+  promises; it needs a report from `js` when a handler is added later.
+- `web`, 6d: the `window.onerror` handler attribute (five arguments,
+  `return true` cancels) and `onunhandledrejection`.
+- `web`: `Performance` has only `now` and `timeOrigin`. `toJSON` (the
+  generator has no `[Default]`), `mark`, `measure`, `getEntries*` and
+  `performance.timing` come when a page needs them (analytics scripts use
+  marks).
+- `web`/engine, 6d: task sources and the priority of user input (5b has
+  one queue).
+- Engine: in virtual time, `wait_until_idle` with an endless interval
+  advances virtual time as fast as it can until the real time-out;
+  `is_idle` lays out on each check (`is_fully_loaded`).
+- Engine: one task can block the pump for up to 5 s (the 16 ms budget is
+  checked between tasks), and the GUI does not respond for that time
+  (ADR 0028 section 2).
+- `web`: in virtual time a document's clock starts at 0, so
+  `Event.timeStamp` and `performance.now()` are 0 in its first task
+  (Chromium: the time since the navigation start).
+- `automation`: the Rust `Client` and the Python `automation.py` have no
+  helper for `page.waitForIdle`; `compare --click` with JavaScript could
+  use it after the clicks.
+- `web`: `ScriptRuntime::evaluate` (used by the `web` tests) sleeps in
+  real time when its clock is real; the engine has its own loop.
+- GUI (found in the 5b review): the GUI redraws after every pump that
+  ran a task, so a `setInterval(f, 0)` page redraws about 250 times a
+  second when the DOM does not change. `Pump` should say whether the DOM
+  or the layout changed.
 
 ## Backlog from M6
 

@@ -22,9 +22,19 @@
 //!   dispatch algorithm, and [`ScriptRuntime::dispatch_event`], the entry
 //!   for events that the engine fires ([`DispatchTarget`],
 //!   [`TrustedEvent`]).
+//! - The event loop (feature 5b): `event_loop` (the task queue, the
+//!   microtask checkpoint, the notification of rejected promises),
+//!   `timers` (`setTimeout`, `setInterval`, `queueMicrotask`,
+//!   `reportError`), `errors` (`error` and `unhandledrejection` events at
+//!   the window), the page clock with real and virtual time
+//!   ([`PageClock`]), and [`ScriptRuntime::run_due_tasks`], which the
+//!   engine calls from its loop.
 
 pub mod bindings;
+mod clock;
 mod dom;
+mod errors;
+mod event_loop;
 mod events;
 #[rustfmt::skip]
 pub mod generated;
@@ -32,11 +42,14 @@ mod host;
 mod runtime;
 mod scripts;
 mod state;
+mod timers;
 mod window;
 
+pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent};
 pub use host::EngineHost;
 pub use runtime::{
-    ConsoleMessage, Evaluation, HEAP_LIMIT, JsonForm, ScriptRuntime, TASK_TIME_LIMIT,
+    ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
+    JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
 pub use swb_js::{ConsoleLevel, ScriptError};

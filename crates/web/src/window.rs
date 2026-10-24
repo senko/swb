@@ -26,7 +26,7 @@ use swb_js::{
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
-use crate::generated::types::EventOrUndefined;
+use crate::generated::types::{DomStringOrFunction, EventOrUndefined, VoidFunction};
 use crate::state::{WebState, state, state_mut};
 
 impl g::window::WindowImpl for WebState {
@@ -68,6 +68,68 @@ impl g::window::WindowImpl for WebState {
                 None => EventOrUndefined::Undefined(()),
             },
         )
+    }
+
+    /// `performance` (HR Time §5): one object per window.
+    fn performance(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        if let Some(object) = state(cx.rt)?.performance {
+            return Ok(object);
+        }
+        // An `EventTarget` keeps its listeners in its data.
+        let data = cx
+            .rt
+            .alloc_host_data(crate::events::TargetData::default())?;
+        let object = cx.rt.new_host_object(0, g::PERFORMANCE, data)?;
+        state_mut(cx.rt)?.performance = Some(object);
+        Ok(object)
+    }
+
+    fn report_error(cx: &mut Cx<'_>, this: Platform, e: Value) -> b::Result<()> {
+        crate::timers::report_error(cx, this, e)
+    }
+
+    fn set_timeout(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        handler: DomStringOrFunction,
+        timeout: i32,
+        arguments: Vec<Value>,
+    ) -> b::Result<i32> {
+        crate::timers::set_timeout(cx, handler, timeout, arguments)
+    }
+
+    fn clear_timeout(cx: &mut Cx<'_>, _this: Platform, id: i32) -> b::Result<()> {
+        crate::timers::clear_timer(cx, id)
+    }
+
+    fn set_interval(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        handler: DomStringOrFunction,
+        timeout: i32,
+        arguments: Vec<Value>,
+    ) -> b::Result<i32> {
+        crate::timers::set_interval(cx, handler, timeout, arguments)
+    }
+
+    fn clear_interval(cx: &mut Cx<'_>, _this: Platform, id: i32) -> b::Result<()> {
+        crate::timers::clear_timer(cx, id)
+    }
+
+    fn queue_microtask(cx: &mut Cx<'_>, _this: Platform, callback: VoidFunction) -> b::Result<()> {
+        crate::timers::queue_microtask(cx, callback);
+        Ok(())
+    }
+}
+
+/// `Performance` (HR Time §5): the time of the document's clock.
+impl g::performance::PerformanceImpl for WebState {
+    fn time_origin(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(state(cx.rt)?.clock.time_origin())
+    }
+
+    fn now(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(state(cx.rt)?.clock.now())
     }
 }
 

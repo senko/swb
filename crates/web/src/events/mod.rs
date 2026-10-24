@@ -25,8 +25,9 @@ mod listeners;
 mod target;
 
 pub use dispatch::{DispatchTarget, EventInterface, TrustedEvent};
-pub(crate) use dispatch::{dispatch_trusted, new_event_object};
+pub(crate) use dispatch::{dispatch, dispatch_trusted, new_event_object};
 pub(crate) use listeners::Listeners;
+pub(crate) use target::TargetData;
 
 use swb_js::{
     Gc, Generic, GenericData, HostData, Object, Runtime, Tracer, Value, VmError, VmResult,
@@ -217,12 +218,10 @@ fn this_data_mut<'a>(cx: &'a mut Cx<'_>, this: Platform) -> b::Result<&'a mut Ev
 /// window, coarsened to 0.1 ms as Chromium does for pages without
 /// cross-origin isolation (HR Time §4,
 /// <https://w3c.github.io/hr-time/#dfn-current-high-resolution-time>).
+/// The time comes from the page clock (`clock.rs`), so it follows virtual
+/// time.
 pub(crate) fn now(rt: &Runtime) -> f64 {
-    let Ok(state) = state(rt) else {
-        return 0.0;
-    };
-    let ms = state.time_origin.elapsed().as_secs_f64() * 1000.0;
-    (ms * 10.0).floor() / 10.0
+    state(rt).map_or(0.0, |state| state.clock.now())
 }
 
 /// A new event object of a constructor (`new Event(...)` and the

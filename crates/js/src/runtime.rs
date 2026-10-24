@@ -78,6 +78,28 @@ impl Default for RuntimeConfig {
     }
 }
 
+/// A position in the source of a script ([`Runtime::error_location`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceLocation {
+    /// The name of the script (a URL; empty for an unnamed one).
+    pub name: String,
+    /// The line, from 1.
+    pub line: u32,
+    /// The column in code units, from 1.
+    pub column: u32,
+}
+
+impl SourceLocation {
+    fn of(code: &FunctionCode, offset: u32) -> SourceLocation {
+        let location = code.source.location(offset);
+        SourceLocation {
+            name: code.source.name.to_string(),
+            line: location.line,
+            column: location.column,
+        }
+    }
+}
+
 /// Why a script did not complete normally.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ScriptError {
@@ -481,7 +503,7 @@ impl Runtime {
                 Err(ScriptError::Uncaught {
                     name,
                     message,
-                    offset: self.vm.error_offset,
+                    offset: self.vm.error_offset.as_ref().map(|site| site.0),
                 })
             }
             Err(VmError::Raise { kind, message }) => {
@@ -493,7 +515,7 @@ impl Runtime {
                 Err(ScriptError::Uncaught {
                     name: kind.name().to_owned(),
                     message: message.into_owned(),
-                    offset: self.vm.error_offset,
+                    offset: self.vm.error_offset.as_ref().map(|site| site.0),
                 })
             }
             Err(error) => {
@@ -801,6 +823,61 @@ impl Runtime {
             .into_iter()
             .map(Value::Object)
             .collect()
+    }
+
+    /// Enqueues a job that calls `callback` with no arguments (HTML
+    /// `queueMicrotask`; the host checks that it is callable). It runs at
+    /// the next [`Runtime::run_jobs`], in order with the promise jobs; an
+    /// exception of the callback ends that run as
+    /// [`ScriptError::Uncaught`], and the host reports it.
+    pub fn queue_microtask(&mut self, callback: Value) {
+        self.enqueue_callback_job(callback);
+    }
+
+    /// `[[PromiseIsHandled]]` of a promise: whether it has (or had) a
+    /// handler; `None` for a value that is not a promise. HTML checks it
+    /// before it fires `unhandledrejection`.
+    pub fn promise_is_handled(&self, value: Value) -> Option<bool> {
+        let Value::Object(object) = value else {
+            return None;
+        };
+        match &self.heap.object(object).ok()?.kind {
+            crate::object::ObjectKind::Promise(state) => Some(state.is_handled),
+            _ => None,
+        }
+    }
+
+    /// Where an error object was created, for the host's error reports
+    /// (HTML "extract error information"; V8 reports this place): the
+    /// innermost script frame of its stack, while its frames are still
+    /// captured (until a script reads `stack`). `None` for other values.
+    pub fn error_location(&self, value: Value) -> Option<SourceLocation> {
+        let Value::Object(object) = value else {
+            return None;
+        };
+        match &self.heap.object(object).ok()?.kind {
+            crate::object::ObjectKind::Error(Some(data)) => {
+                let frame = data.frames.first()?;
+                Some(SourceLocation::of(&frame.compiled, frame.offset?))
+            }
+            _ => None,
+        }
+    }
+
+    /// Where the exception of the last run that ended with an uncaught
+    /// exception was thrown: the instruction in the innermost script frame
+    /// (as [`ScriptError::Uncaught`]'s offset), with its script.
+    pub fn throw_location(&self) -> Option<SourceLocation> {
+        let (offset, code) = self.vm.error_offset.as_deref()?;
+        Some(SourceLocation::of(code, *offset))
+    }
+
+    /// The line and column (both from 1) of a code-unit offset in a
+    /// script's source text (for the host's reports of compile errors).
+    pub fn source_location(source: &str, offset: u32) -> (u32, u32) {
+        let text = String16::from(source);
+        let location = swb_js_syntax::LineIndex::new(text.as_str16()).location(offset);
+        (location.line, location.column)
     }
 
     /// The state and the result of a promise (`undefined` while pending);

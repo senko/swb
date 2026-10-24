@@ -65,20 +65,26 @@ impl HeadlessBrowser {
         &mut self.page
     }
 
-    /// Processes network completions and requests until a client sends
-    /// `browser.close`.
+    /// Runs the page's event loop (network completions and due tasks) and
+    /// the requests until a client sends `browser.close`.
     pub fn run(mut self) {
         loop {
-            self.page.process_network();
+            self.page.pump();
             self.automation.process(&mut self.page);
             if self.automation.close_requested() {
                 self.automation.finish_close();
                 return;
             }
-            let timeout = self
-                .automation
-                .next_deadline()
-                .map_or(IDLE_WAIT, |d| d.saturating_duration_since(Instant::now()));
+            // Wake up for the next task of the page, a waiting request's
+            // deadline, a network completion or a request.
+            let next = [
+                self.automation.next_deadline(),
+                self.page.next_task_instant(),
+            ]
+            .into_iter()
+            .flatten()
+            .min();
+            let timeout = next.map_or(IDLE_WAIT, |d| d.saturating_duration_since(Instant::now()));
             if self.wake.recv_timeout(timeout).is_ok() {
                 // One pass handles everything that arrived.
                 while self.wake.try_recv().is_ok() {}

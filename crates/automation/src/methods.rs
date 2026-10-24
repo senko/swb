@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use swb_engine::{
-    Evaluation, JsonForm, Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Rect, Size,
-    Url, check_scale, check_viewport_size,
+    Evaluation, EvaluationId, EvaluationStart, JsonForm, Key, LoadState, Modifiers, MouseButton,
+    NodeId, Page, Point, Rect, Size, Url, check_scale, check_viewport_size,
 };
 use swb_net::CookieJar;
 
@@ -18,11 +18,56 @@ use crate::protocol::RpcError;
 pub(crate) enum Outcome {
     /// The result or the error.
     Done(Result<Value, RpcError>),
-    /// Answer when the page is loaded, or at the deadline.
-    WaitForLoad(Instant),
+    /// Answer when the condition holds, or at the deadline.
+    Wait(Condition, Instant),
     /// The client asked to close the browser.
     Close,
 }
+
+/// What a waiting request waits for.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Condition {
+    /// `page.waitForLoad`: the page and its subresources are loaded.
+    Load,
+    /// `page.waitForIdle`: nothing loads and no task is due within the
+    /// quiet time.
+    Idle(Duration),
+    /// `page.evaluate` of a promise: it settled.
+    Evaluation(EvaluationId),
+}
+
+impl Condition {
+    /// The answer if the condition holds now, or with `timed_out` at the
+    /// deadline.
+    pub(crate) fn answer(self, page: &mut Page, timed_out: bool) -> Option<MethodResult> {
+        match self {
+            Condition::Load => {
+                let loaded = page.is_fully_loaded();
+                (loaded || timed_out).then(|| Ok(json!({ "loaded": loaded })))
+            }
+            Condition::Idle(quiet) => {
+                let idle = page.is_idle(quiet);
+                (idle || timed_out).then(|| Ok(json!({ "idle": idle })))
+            }
+            Condition::Evaluation(id) => match page.poll_evaluation(id, JsonForm::Strict) {
+                Some(evaluation) => Some(evaluation_result(Some(evaluation))),
+                None if timed_out => {
+                    if let Some(script) = page.script_runtime_mut() {
+                        script.cancel_evaluation(id);
+                    }
+                    Some(Ok(json!({ "error": NOT_SETTLED })))
+                }
+                None => None,
+            },
+        }
+    }
+}
+
+/// The error of an evaluation whose promise did not settle in time.
+const NOT_SETTLED: &str = "Error: the promise did not settle in time";
+
+/// The default quiet time of `page.waitForIdle`.
+const DEFAULT_QUIET_MS: u64 = 100;
 
 type MethodResult = Result<Value, RpcError>;
 
@@ -31,6 +76,11 @@ const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 /// The longest accepted timeout: one hour.
 const MAX_TIMEOUT_MS: u64 = 3_600_000;
+
+/// The longest real time of a call that runs the event loop at once in
+/// virtual time: the server answers no other request meanwhile, and a page
+/// can keep the loop busy (an endless interval never lets it be idle).
+const MAX_BLOCKING_MS: u64 = 30_000;
 
 /// Executes a method.
 pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
@@ -47,9 +97,10 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
             Ok(json!({}))
         }
         "page.waitForLoad" => return wait_for_load(params),
+        "page.waitForIdle" => return wait_for_idle(page, params),
         "page.info" => Ok(info(page)),
         "page.setJavaScript" => set_javascript(page, params),
-        "page.evaluate" => evaluate(page, params),
+        "page.evaluate" => return evaluate(page, params),
         "page.consoleMessages" => Ok(console_messages(page)),
         "page.setViewport" => set_viewport(page, params),
         "page.screenshot" => screenshot(page, params),
@@ -146,10 +197,41 @@ fn wait_for_load(params: Value) -> Outcome {
     match parse::<WaitParams>(params) {
         Ok(p) => {
             let timeout = Duration::from_millis(p.timeout_ms.min(MAX_TIMEOUT_MS));
-            Outcome::WaitForLoad(Instant::now() + timeout)
+            Outcome::Wait(Condition::Load, Instant::now() + timeout)
         }
         Err(e) => Outcome::Done(Err(e)),
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IdleParams {
+    #[serde(default = "default_timeout")]
+    timeout_ms: u64,
+    #[serde(default = "default_quiet")]
+    quiet_ms: u64,
+}
+
+fn default_quiet() -> u64 {
+    DEFAULT_QUIET_MS
+}
+
+/// `page.waitForIdle`: in real time a waiting request; in virtual time the
+/// event loop runs at once (its clock jumps), up to the timeout and at most
+/// [`MAX_BLOCKING_MS`].
+fn wait_for_idle(page: &mut Page, params: Value) -> Outcome {
+    let p = match parse::<IdleParams>(params) {
+        Ok(p) => p,
+        Err(e) => return Outcome::Done(Err(e)),
+    };
+    let timeout = Duration::from_millis(p.timeout_ms.min(MAX_TIMEOUT_MS));
+    let quiet = Duration::from_millis(p.quiet_ms.min(MAX_TIMEOUT_MS));
+    if page.clock().is_virtual() {
+        let timeout = timeout.min(Duration::from_millis(MAX_BLOCKING_MS));
+        let idle = page.wait_until_idle(quiet, timeout);
+        return Outcome::Done(Ok(json!({ "idle": idle })));
+    }
+    Outcome::Wait(Condition::Idle(quiet), Instant::now() + timeout)
 }
 
 /// All cookies of the session, oldest first. Empty if the fetcher has no
@@ -218,16 +300,43 @@ fn set_javascript(page: &mut Page, params: Value) -> MethodResult {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct EvaluateParams {
     expression: String,
+    #[serde(default = "default_timeout")]
+    timeout_ms: u64,
 }
 
 /// `page.evaluate`: the value of an expression in the document's global
-/// scope as JSON, or the error. A document without a script runtime
+/// scope as JSON, or the error. A promise is awaited through the event
+/// loop: in real time as a waiting request, in virtual time at once (for
+/// at most [`MAX_BLOCKING_MS`]). A document without a script runtime
 /// (JavaScript off) is an error of the call.
-fn evaluate(page: &mut Page, params: Value) -> MethodResult {
-    let params: EvaluateParams = parse(params)?;
-    match page.evaluate(&params.expression, JsonForm::Strict) {
+fn evaluate(page: &mut Page, params: Value) -> Outcome {
+    let params: EvaluateParams = match parse(params) {
+        Ok(p) => p,
+        Err(e) => return Outcome::Done(Err(e)),
+    };
+    let timeout = Duration::from_millis(params.timeout_ms.min(MAX_TIMEOUT_MS));
+    if page.clock().is_virtual() {
+        let timeout = timeout.min(Duration::from_millis(MAX_BLOCKING_MS));
+        let evaluation = page.evaluate_with_timeout(&params.expression, JsonForm::Strict, timeout);
+        return Outcome::Done(evaluation_result(evaluation));
+    }
+    match page.start_evaluation(&params.expression, JsonForm::Strict) {
+        Some(EvaluationStart::Done(evaluation)) => {
+            Outcome::Done(evaluation_result(Some(evaluation)))
+        }
+        Some(EvaluationStart::Pending(id)) => {
+            Outcome::Wait(Condition::Evaluation(id), Instant::now() + timeout)
+        }
+        None => Outcome::Done(evaluation_result(None)),
+    }
+}
+
+/// The answer of `page.evaluate`.
+fn evaluation_result(evaluation: Option<Evaluation>) -> MethodResult {
+    match evaluation {
         Some(Evaluation::Value(text)) => {
             let value: Value = serde_json::from_str(&text).map_err(|e| {
                 RpcError::new(RpcError::FAILED, format!("the value is not JSON: {e}"))

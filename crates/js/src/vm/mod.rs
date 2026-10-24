@@ -397,8 +397,11 @@ pub(crate) struct Vm {
     /// The last result or uncaught exception that the host received; it
     /// stays alive until the next one.
     pub(crate) last_value: Value,
-    /// The source offset where the current uncaught error was thrown.
-    pub(crate) error_offset: Option<u32>,
+    /// Where the current uncaught error was thrown: the source offset and
+    /// the code of the frame. Boxed, so that the field keeps the size of
+    /// an `Option<u32>` (a bigger `Vm` made an allocation benchmark 45 %
+    /// slower).
+    pub(crate) error_offset: Option<Box<(u32, Rc<FunctionCode>)>>,
     /// The countdown to the next time check. A `Cell`, so that work done
     /// behind a shared borrow (the text of a message) is charged too
     /// ([`Vm::charge_deferred`]).

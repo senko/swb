@@ -340,6 +340,52 @@ impl PageTransitionEventInit {
     }
 }
 
+/// The callback function type `Function`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Function(pub swb_js::Gc<swb_js::Object>);
+
+impl Function {
+    /// Converts a JavaScript value (Web IDL §3.2.19).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<Function> {
+        Ok(Function(b::convert::callback_function(rt, value)?))
+    }
+
+    /// Invokes the function (Web IDL §3.11, "invoke a callback function") with
+    /// `this`. Call it inside a handle scope that keeps the results alive.
+    pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value, arguments: &[swb_js::Value]) -> b::Result<swb_js::Value> {
+        let mut args: Vec<swb_js::Value> = Vec::new();
+        for x in arguments {
+            let value = swb_js::VmResult::Ok(*x)?;
+            b::keep(rt, value);
+            args.push(value);
+        }
+        let result = rt.call(self.0.into(), this, &args)?;
+        b::Result::Ok(result)
+    }
+
+}
+
+/// The callback function type `VoidFunction`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VoidFunction(pub swb_js::Gc<swb_js::Object>);
+
+impl VoidFunction {
+    /// Converts a JavaScript value (Web IDL §3.2.19).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<VoidFunction> {
+        Ok(VoidFunction(b::convert::callback_function(rt, value)?))
+    }
+
+    /// Invokes the function (Web IDL §3.11, "invoke a callback function") with
+    /// `this`. Call it inside a handle scope that keeps the results alive.
+    pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value) -> b::Result<()> {
+        let args: Vec<swb_js::Value> = Vec::new();
+        let result = rt.call(self.0.into(), this, &args)?;
+        let _ = result;
+        Ok(())
+    }
+
+}
+
 /// The callback interface type `EventListener`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EventListener(pub swb_js::Gc<swb_js::Object>);
@@ -390,6 +436,33 @@ impl AddEventListenerOptionsOrBoolean {
         match self {
             AddEventListenerOptionsOrBoolean::AddEventListenerOptions(x) => (x.clone()).to_js::<H>(rt, realm),
             AddEventListenerOptionsOrBoolean::Boolean(x) => swb_js::VmResult::Ok(swb_js::Value::Bool(*x)),
+        }
+    }
+}
+
+/// The union type `(DOMString or Function)`.
+#[derive(Clone, Debug)]
+pub enum DomStringOrFunction {
+    /// `DOMString`.
+    DomString(String),
+    /// `Function`.
+    Function(Function),
+}
+
+impl DomStringOrFunction {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<DomStringOrFunction> {
+        if rt.callable(value)? {
+            return Ok(DomStringOrFunction::Function(Function::from_js(rt, value)?));
+        }
+        Ok(DomStringOrFunction::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            DomStringOrFunction::DomString(x) => b::to_js::string(rt, &x.clone()),
+            DomStringOrFunction::Function(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).0)),
         }
     }
 }

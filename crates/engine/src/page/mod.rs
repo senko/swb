@@ -54,6 +54,7 @@ pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
     check_scale, check_viewport_size, device_size,
 };
+pub use script::Pump;
 
 /// The loading state of a page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -166,6 +167,11 @@ pub struct Page {
     script: Option<swb_web::ScriptRuntime>,
     /// The page may run scripts ([`PageConfig::scripts_allowed`]).
     scripts_allowed: bool,
+    /// True if the current document's runtime was dropped after it reached
+    /// the heap limit.
+    scripts_dropped: bool,
+    /// The page clock: timers, `Date`, `performance` (ADR 0028 section 7).
+    clock: swb_web::PageClock,
     /// True between [`Page::take_document_state`] and the return of the
     /// state. Completions stay queued in the loader meanwhile (the
     /// requests map is in the state).
@@ -204,6 +210,8 @@ impl Page {
             doc: None,
             script: None,
             scripts_allowed: config.scripts_allowed,
+            scripts_dropped: false,
+            clock: swb_web::PageClock::real(),
             lent: false,
             javascript: false,
             document_number: 0,

@@ -26,16 +26,17 @@ pub use client::{Client, ClientError};
 pub use headless::HeadlessBrowser;
 pub use protocol::{Request, Response, RpcError};
 
-use methods::Outcome;
+use methods::{Condition, Outcome};
 use server::{Command, Listener, Reply};
 
 /// How long [`Automation::finish_close`] waits for the reply to be written.
 const CLOSE_REPLY_TIMEOUT: Duration = Duration::from_secs(1);
 
-/// A request that waits until the page is loaded.
+/// A request that waits until its condition holds or its time runs out.
 struct Waiter {
     id: Value,
     reply: Sender<Reply>,
+    condition: Condition,
     deadline: Instant,
 }
 
@@ -82,9 +83,10 @@ impl Automation {
                     // The client may be gone; then nobody needs the answer.
                     let _ = reply.send(Reply::new(Response::new(request.id, result)));
                 }
-                Outcome::WaitForLoad(deadline) => self.waiters.push(Waiter {
+                Outcome::Wait(condition, deadline) => self.waiters.push(Waiter {
                     id: request.id,
                     reply,
+                    condition,
                     deadline,
                 }),
                 Outcome::Close => {
@@ -106,14 +108,14 @@ impl Automation {
         if self.waiters.is_empty() {
             return;
         }
-        let loaded = page.is_fully_loaded();
         let now = Instant::now();
         self.waiters.retain(|w| {
-            if !loaded && now < w.deadline {
+            let Some(result) = w.condition.answer(page, now >= w.deadline) else {
                 return true;
-            }
-            let response = Response::new(w.id.clone(), Ok(json!({ "loaded": loaded })));
-            let _ = w.reply.send(Reply::new(response));
+            };
+            let _ = w
+                .reply
+                .send(Reply::new(Response::new(w.id.clone(), result)));
             false
         });
     }

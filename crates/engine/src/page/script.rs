@@ -1,23 +1,51 @@
-//! The scripts of the page (ADR 0028 section 2): one script runtime per
-//! document with JavaScript on, created when the document commits and
-//! dropped with it (a navigation, a reload). The page lends the document
-//! state to the runtime for each task and takes it back afterwards, which
-//! processes the DOM changes of the task.
+//! The scripts of the page (ADR 0028 sections 2 and 7): one script runtime
+//! per document with JavaScript on, created when the document commits and
+//! dropped with it (a navigation, a reload, or a heap-limit stop). The page
+//! lends the document state to the runtime for each task and takes it back
+//! afterwards, which processes the DOM changes of the task.
 //!
 //! Feature 4c2 runs the inline classic scripts of a document at the end of
 //! its parse ([`Page::start_scripts`]) and evaluates expressions for the
 //! automation API and `--eval` ([`Page::evaluate`]). Feature 5a adds the
-//! entry for DOM events that the engine fires ([`Page::dispatch_event`]);
-//! the engine fires none yet (`load` comes with feature 5c, input events
-//! with 6d). The event loop (feature 5b) and the script processing in the
-//! parser (5c) come later.
+//! entry for DOM events that the engine fires ([`Page::dispatch_event`]).
+//! Feature 5b adds the event loop: [`Page::pump`] runs the due tasks (timers,
+//! notifications of rejected promises, finalization cleanups) and says when
+//! the next one is due; the embedder calls it from its own loop.
+//! [`Page::run_event_loop`], [`Page::wait_until_idle`] and the evaluation of
+//! a promise block and run the loop themselves. All of them follow the
+//! page clock: in virtual time the clock jumps to the next task when
+//! nothing runs and no request is pending. The script processing in the
+//! parser comes with feature 5c.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use swb_web::{ConsoleMessage, DispatchTarget, Evaluation, JsonForm, ScriptRuntime, TrustedEvent};
+use swb_web::{
+    ConsoleMessage, DispatchTarget, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart,
+    JsonForm, PageClock, ScriptRuntime, TrustedEvent,
+};
 
 use super::Page;
 use crate::document::DocumentState;
+
+/// The most real time that one [`Page::pump`] spends on tasks (a frame at
+/// 60 Hz), so that the embedder's loop stays responsive.
+const PUMP_BUDGET: Duration = Duration::from_millis(16);
+
+/// The error of an evaluation after the document's runtime was dropped.
+const DROPPED: &str = "Error: the scripts of the document were stopped";
+
+/// What one turn of the event loop did ([`Page::pump`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Pump {
+    /// True if a network completion or a task ran (the page may need a
+    /// repaint).
+    pub changed: bool,
+    /// When the next task is due: the embedder calls [`Page::pump`] again
+    /// then (or earlier, on input or a network wake-up). `None` if no task
+    /// waits, or in virtual time if none is due now (virtual time moves
+    /// only in the blocking loops).
+    pub next: Option<Instant>,
+}
 
 impl Page {
     /// True if this page may run scripts: the thread that runs it has a
@@ -27,17 +55,29 @@ impl Page {
         self.scripts_allowed
     }
 
+    /// The page clock (real time unless [`Page::set_clock`] set another).
+    pub fn clock(&self) -> &PageClock {
+        &self.clock
+    }
+
+    /// Sets the page clock: virtual time and a fixed start time (`swb
+    /// --now`). It applies to the documents that commit after the call.
+    pub fn set_clock(&mut self, clock: PageClock) {
+        self.clock = clock;
+    }
+
     /// Creates the script runtime of the current document if the document
     /// has scripting on, and runs its inline classic scripts in tree order
     /// (feature 5c moves them into the parse). Called when a document
     /// commits.
     pub(super) fn start_scripts(&mut self) {
         self.script = None;
+        self.scripts_dropped = false;
         if !self.scripts_allowed || !self.document_has_scripting() {
             return;
         }
         let started = Instant::now();
-        let runtime = match ScriptRuntime::new() {
+        let runtime = match ScriptRuntime::new(self.clock.clone()) {
             Ok(runtime) => runtime,
             Err(error) => {
                 log::warn!("cannot create the script runtime: {error}");
@@ -56,8 +96,9 @@ impl Page {
     }
 
     /// Runs `task` with the document state lent to the script runtime, then
-    /// gives the state back (which processes the DOM changes). `None`
-    /// without a runtime or a document.
+    /// gives the state back (which processes the DOM changes). A runtime
+    /// that reached the heap limit is dropped afterwards (ADR 0028 section
+    /// 7). `None` without a runtime or a document.
     pub(crate) fn run_task<R>(&mut self, task: impl FnOnce(&mut ScriptRuntime) -> R) -> Option<R> {
         self.script.as_ref()?;
         let state = self.take_document_state()?;
@@ -72,27 +113,215 @@ impl Page {
             log::error!("the script runtime lost the document state");
             self.lent = false;
         }
+        if self.script.as_ref().is_some_and(ScriptRuntime::failed) {
+            log::warn!(
+                "the script runtime of the document reached the heap limit and is dropped; the page stays as it is"
+            );
+            self.script = None;
+            self.scripts_dropped = true;
+        }
         Some(result)
     }
 
+    // ----- The event loop -----
+
+    /// One turn of the event loop (ADR 0028 section 7): handles the network
+    /// completions, runs the tasks that are due (for at most 16 ms of real
+    /// time), and says when the next task is due. It never blocks. The GUI,
+    /// the headless runner and the automation server call it from their
+    /// loops.
+    pub fn pump(&mut self) -> Pump {
+        let mut changed = self.process_network();
+        changed |= self.run_due_tasks() > 0;
+        Pump {
+            changed,
+            next: self.next_task_instant(),
+        }
+    }
+
+    /// Runs the tasks that are due now (at most [`PUMP_BUDGET`]). Returns
+    /// how many ran.
+    pub(super) fn run_due_tasks(&mut self) -> usize {
+        if !self.task_due() {
+            return 0;
+        }
+        self.run_task(|script| script.run_due_tasks(PUMP_BUDGET))
+            .unwrap_or(0)
+    }
+
+    /// True if a task of the document is due at the page time now.
+    fn task_due(&self) -> bool {
+        self.next_task_time()
+            .is_some_and(|time| time <= self.clock.now())
+    }
+
+    /// The page time of the next task of the document.
+    fn next_task_time(&self) -> Option<f64> {
+        self.script.as_ref()?.next_task_time()
+    }
+
+    /// When the next task of the document is due, in real time; in virtual
+    /// time only a task that is due now counts.
+    pub fn next_task_instant(&self) -> Option<Instant> {
+        let time = self.next_task_time()?;
+        if self.clock.is_virtual() && time > self.clock.now() {
+            return None;
+        }
+        Some(self.clock.instant_of(time))
+    }
+
+    /// Runs the event loop for `duration` of page time (real time waits;
+    /// virtual time jumps from task to task while no request is pending),
+    /// but at most `timeout` of real time (the headless `--settle-ms`).
+    pub fn run_event_loop(&mut self, duration: Duration, timeout: Duration) {
+        self.run_until(Some(duration), timeout, |_| false);
+    }
+
+    /// Runs the event loop until the page is idle: nothing is loading and no
+    /// task is due within `quiet` of page time. Returns false if `timeout`
+    /// of real time passed first (`page.waitForIdle`).
+    pub fn wait_until_idle(&mut self, quiet: Duration, timeout: Duration) -> bool {
+        self.run_until(None, timeout, |page| page.is_idle(quiet))
+    }
+
+    /// True if nothing is loading and no task is due within `quiet` of page
+    /// time.
+    pub fn is_idle(&mut self, quiet: Duration) -> bool {
+        if self.is_loading() {
+            return false;
+        }
+        let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;
+        if self.next_task_time().is_some_and(|time| time <= horizon) {
+            return false;
+        }
+        // Layout can discover more resources.
+        self.is_fully_loaded()
+    }
+
+    /// Runs the event loop until `done` holds (true), `page_time` of page
+    /// time has passed or `timeout` of real time has passed (false). It
+    /// waits for the next task, the end or a network completion; in virtual
+    /// time, when nothing runs and no request is pending, the clock jumps
+    /// to the next task (or the end) instead.
+    fn run_until(
+        &mut self,
+        page_time: Option<Duration>,
+        timeout: Duration,
+        mut done: impl FnMut(&mut Page) -> bool,
+    ) -> bool {
+        let deadline = Instant::now().checked_add(timeout);
+        let end = page_time.map(|d| self.clock.now() + d.as_secs_f64() * 1000.0);
+        loop {
+            if done(self) {
+                return true;
+            }
+            if deadline.is_some_and(|d| Instant::now() >= d)
+                || end.is_some_and(|e| self.clock.now() >= e)
+                || self.lent
+            {
+                return false;
+            }
+            if self.pump().changed {
+                continue;
+            }
+            let next = self.next_task_time();
+            let loading = self.is_loading();
+            if self.clock.is_virtual() && !loading {
+                // Nothing runs and nothing is pending: time jumps.
+                let Some(target) = next.into_iter().chain(end).reduce(f64::min) else {
+                    return done(self);
+                };
+                self.clock.advance_to(target);
+                continue;
+            }
+            if !loading && next.is_none() && end.is_none() {
+                // Nothing can happen any more.
+                return done(self);
+            }
+            let mut until = deadline.unwrap_or_else(|| Instant::now() + Duration::from_secs(3600));
+            if !self.clock.is_virtual() {
+                for time in next.into_iter().chain(end) {
+                    until = until.min(self.clock.instant_of(time));
+                }
+            }
+            let wait = until.saturating_duration_since(Instant::now());
+            if let Some(completion) = self.loader.recv_timeout(wait) {
+                self.handle_completion(completion);
+            }
+        }
+    }
+
+    // ----- Evaluation -----
+
     /// Evaluates `source` as a classic script in the global scope of the
-    /// document (the value of the last expression statement; a promise is
-    /// awaited as far as the microtask checkpoint settles it) and returns
-    /// the JSON text of the value in `form`, or the error. `None` if the
-    /// document has no script runtime (JavaScript off).
+    /// document (the value of the last expression statement) and returns
+    /// the JSON text of the value in `form`, or the error. A promise is
+    /// awaited through the event loop for at most 30 s
+    /// ([`Page::evaluate_with_timeout`]). `None` if the document has no
+    /// script runtime (JavaScript off).
     pub fn evaluate(&mut self, source: &str, form: JsonForm) -> Option<Evaluation> {
-        self.run_task(|script| script.evaluate(source, form))
+        self.evaluate_with_timeout(source, form, EVALUATION_TIMEOUT)
+    }
+
+    /// [`Page::evaluate`], waiting at most `timeout` of real time for a
+    /// promise to settle.
+    pub fn evaluate_with_timeout(
+        &mut self,
+        source: &str,
+        form: JsonForm,
+        timeout: Duration,
+    ) -> Option<Evaluation> {
+        let id = match self.start_evaluation(source, form)? {
+            EvaluationStart::Done(evaluation) => return Some(evaluation),
+            EvaluationStart::Pending(id) => id,
+        };
+        let mut result = None;
+        self.run_until(None, timeout, |page| {
+            result = page.poll_evaluation(id, form);
+            result.is_some()
+        });
+        Some(result.unwrap_or_else(|| {
+            if let Some(script) = self.script.as_mut() {
+                script.cancel_evaluation(id);
+            }
+            Evaluation::Error("Error: the promise did not settle in time".to_owned())
+        }))
+    }
+
+    /// Starts an evaluation without waiting: a value, an error, or a promise
+    /// that has not settled ([`Page::poll_evaluation`]). `None` without a
+    /// script runtime; an error if the runtime was dropped.
+    pub fn start_evaluation(&mut self, source: &str, form: JsonForm) -> Option<EvaluationStart> {
+        if self.script.is_none() && self.scripts_dropped {
+            return Some(EvaluationStart::Done(Evaluation::Error(DROPPED.to_owned())));
+        }
+        self.run_task(|script| script.start_evaluation(source, form))
+    }
+
+    /// The result of a pending evaluation once its promise settled, else
+    /// `None`. A document whose runtime went away gives an error.
+    pub fn poll_evaluation(&mut self, id: EvaluationId, form: JsonForm) -> Option<Evaluation> {
+        if self.script.is_none() {
+            return Some(Evaluation::Error(DROPPED.to_owned()));
+        }
+        // Lend the state only when there is a result to write (its getters
+        // may read the DOM).
+        if !self.script.as_ref()?.evaluation_settled(id) {
+            return None;
+        }
+        self.run_task(|script| script.poll_evaluation(id, form))
+            .flatten()
     }
 
     /// Fires a trusted DOM event at a node of the current document or at
     /// its window as a task (DOM "fire an event"; ADR 0028 section 11):
-    /// the listeners run under the task's time limit, then a microtask
-    /// checkpoint; the DOM changes are processed when the state comes back.
-    /// Returns whether the default action should run (false if a listener
-    /// canceled the event; true when the dispatch failed or the
-    /// document's scripts are stopped), or `None` without a script
-    /// runtime. Features 5c (`load`, `DOMContentLoaded`, `pageshow`) and 6d
-    /// (input events) call it.
+    /// the listeners run under the task's time limit, with a microtask
+    /// checkpoint after each listener and after the task; the DOM changes
+    /// are processed when the state comes back. Returns whether the
+    /// default action should run (false if a listener canceled the event;
+    /// true when the dispatch failed or the document's scripts are
+    /// stopped), or `None` without a script runtime. Features 5c (`load`,
+    /// `DOMContentLoaded`, `pageshow`) and 6d (input events) call it.
     pub fn dispatch_event(&mut self, target: DispatchTarget, event: &TrustedEvent) -> Option<bool> {
         let result = self.run_task(|script| script.dispatch_event(target, event))?;
         Some(result.unwrap_or_else(|error| {
@@ -119,5 +348,11 @@ impl Page {
     /// (tests and measurements).
     pub fn script_heap_size(&self) -> Option<usize> {
         self.script.as_ref().map(ScriptRuntime::heap_size)
+    }
+
+    /// The script runtime of the current document, to change its limits
+    /// (tests and tools).
+    pub fn script_runtime_mut(&mut self) -> Option<&mut ScriptRuntime> {
+        self.script.as_mut()
     }
 }

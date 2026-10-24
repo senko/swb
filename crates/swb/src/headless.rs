@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use swb_automation::HeadlessBrowser;
-use swb_engine::{Evaluation, JsonForm, Page, PageConfig, Size, Url};
+use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, PageConfig, Size, Url};
 use swb_layout::FragmentRef;
 use swb_net::Fetcher;
 use swb_text::FontContext;
@@ -32,10 +32,16 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) javascript: bool,
     /// Expressions to evaluate after the load (`--eval`).
     pub(crate) eval: &'a [String],
+    /// The mode and the start time of the page clock (`--virtual-time`,
+    /// `--now`).
+    pub(crate) clock: (ClockMode, Option<f64>),
+    /// The page time to run the event loop after the load (`--settle-ms`).
+    pub(crate) settle: Duration,
 }
 
 /// Runs a headless page with the automation server until a client sends
 /// `browser.close`. Prints the server address on standard output.
+#[allow(clippy::too_many_arguments, reason = "the options of the command line")]
 pub(crate) fn serve(
     fetcher: Arc<dyn Fetcher>,
     fonts: FontContext,
@@ -44,11 +50,13 @@ pub(crate) fn serve(
     port: u16,
     url: Option<Url>,
     javascript: bool,
+    (mode, now): (ClockMode, Option<f64>),
 ) -> Result<()> {
     // `main` runs this on a page thread (`stack::on_page_thread`).
     let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port, true)
         .with_context(|| format!("cannot start the automation server on port {port}"))?;
     browser.page().set_javascript(javascript);
+    browser.page().set_clock(PageClock::new(mode, now));
     crate::print_server_address(browser.port())?;
     if let Some(url) = url {
         browser.page().navigate(url);
@@ -68,9 +76,13 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     };
     let mut page = Page::new(config, fonts, options.viewport, options.scale);
     page.set_javascript(options.javascript);
+    page.set_clock(PageClock::new(options.clock.0, options.clock.1));
     page.navigate(options.url.clone());
     if !page.wait_until_loaded(options.timeout) {
         log::warn!("timed out waiting for the page to load");
+    }
+    if !options.settle.is_zero() {
+        page.run_event_loop(options.settle, options.timeout);
     }
     if let Some(error) = page.error() {
         // The `--eval` contract: a page that does not load prints no
@@ -80,7 +92,7 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
         }
         log::warn!("{error}");
     }
-    evaluate(&mut page, options.eval)?;
+    evaluate(&mut page, options.eval, options.timeout)?;
     page.update_layout();
 
     if options.dump_dom {
@@ -120,11 +132,13 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
 /// Evaluates each expression in order and prints one line per expression
 /// (docs/testing.md, "The `--eval` contract"): `{"value": V}` with V in
 /// the probe's JSON form (`NaN`, `Infinity`, `-0.0` allowed), or
-/// `{"error": "Name: message"}`.
-fn evaluate(page: &mut Page, expressions: &[String]) -> Result<()> {
+/// `{"error": "Name: message"}`. A promise is awaited through the event
+/// loop for at most `timeout`.
+fn evaluate(page: &mut Page, expressions: &[String], timeout: Duration) -> Result<()> {
     let mut out = std::io::stdout().lock();
     for expression in expressions {
-        let line = answer_line(page.evaluate(expression, JsonForm::Probe));
+        let evaluation = page.evaluate_with_timeout(expression, JsonForm::Probe, timeout);
+        let line = answer_line(evaluation);
         writeln!(out, "{line}").context("cannot write to standard output")?;
     }
     out.flush().context("cannot write to standard output")

@@ -150,7 +150,7 @@ mod tests {
             .stack_size(32 << 20)
             .spawn(|| {
                 let html = format!("<body>{}", "<p></p>".repeat(2000));
-                let mut rt = ScriptRuntime::new().expect("a runtime");
+                let mut rt = ScriptRuntime::new(crate::PageClock::real()).expect("a runtime");
                 rt.lend(Box::new(Doc(swb_dom::parse_html_with(&html, true))));
                 let count = |rt: &mut ScriptRuntime, source: &str| {
                     let before = REBUILDS.with(Cell::get);

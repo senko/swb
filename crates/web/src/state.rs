@@ -2,8 +2,8 @@
 //! runtime's host data. It holds the document while the engine lends it
 //! for a task, the wrapper vector (one wrapper per node, indexed by
 //! `NodeId`), the side table of the `[SameObject]` objects of nodes, the
-//! event listeners of nodes and of the window, the window's current event
-//! and the glue state; the collector traces all of it, so wrappers, their
+//! event listeners of nodes and of the window, the window's current event,
+//! the clock, the event loop (tasks, timers) and the glue state; the collector traces all of it, so wrappers, their
 //! expandos, `WeakMap` entries keyed by them and listeners live as long as
 //! the runtime.
 //!
@@ -11,15 +11,16 @@
 //! function copies what it needs out of the DOM ([`dom`]), releases the
 //! borrow, and only then allocates or calls script.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
-use std::time::Instant;
 
 use swb_dom::{Document, NodeData, NodeId, local_name, ns};
 use swb_js::{ClassId, Gc, HostData, HostState, Object, Runtime, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx, GlueState};
+use crate::clock::DocumentClock;
+use crate::event_loop::EventLoop;
 use crate::events::Listeners;
 use crate::generated as g;
 use crate::host::EngineHost;
@@ -65,25 +66,16 @@ pub(crate) struct WebState {
     /// The console buffer of the runtime (also written by the reports of
     /// exceptions in event listeners).
     pub(crate) console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
-    /// The time origin of the window (`Event.timeStamp`).
-    pub(crate) time_origin: TimeOrigin,
-}
-
-/// The time origin of a window (HR Time §3): the creation of the runtime.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TimeOrigin(Instant);
-
-impl TimeOrigin {
-    /// The time since the origin.
-    pub(crate) fn elapsed(self) -> std::time::Duration {
-        self.0.elapsed()
-    }
-}
-
-impl Default for TimeOrigin {
-    fn default() -> TimeOrigin {
-        TimeOrigin(Instant::now())
-    }
+    /// The console lines and reports written to the log so far.
+    pub(crate) console_logged: Rc<Cell<usize>>,
+    /// The page clock and the time origin of the window
+    /// (`performance.now()`, `Event.timeStamp`, timers).
+    pub(crate) clock: DocumentClock,
+    /// The task queue, the timers and the state of the microtask
+    /// checkpoint and the error reports.
+    pub(crate) event_loop: EventLoop,
+    /// The window's `Performance` object, made at the first access.
+    pub(crate) performance: Option<Gc<Object>>,
 }
 
 impl HostState for WebState {
@@ -105,6 +97,10 @@ impl HostState for WebState {
         if let Some(event) = self.current_event {
             tracer.object(event);
         }
+        if let Some(performance) = self.performance {
+            tracer.object(performance);
+        }
+        self.event_loop.trace(tracer);
     }
 }
 

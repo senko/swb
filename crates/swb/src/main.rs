@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use swb_engine::{Size, check_scale, check_viewport_size};
+use swb_engine::{ClockMode, Size, check_scale, check_viewport_size};
 use swb_net::{ExtendingFetcher, Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
 use swb_text::FontContext;
 
@@ -115,6 +115,24 @@ struct Args {
     #[arg(long)]
     test_fonts: bool,
 
+    /// Start the page clock at this time, in milliseconds since the Unix
+    /// epoch (`Date.now()` starts there and runs on), instead of the system
+    /// time.
+    #[arg(long, value_name = "MS", value_parser = parse_now)]
+    now: Option<f64>,
+
+    /// Headless: run the page clock in virtual time. Timers do not wait:
+    /// when no task runs and no request is pending, the clock jumps to the
+    /// next timer (docs/testing.md).
+    #[arg(long, requires = "headless")]
+    virtual_time: bool,
+
+    /// Headless: after the page loaded, run its timers and other tasks for
+    /// this many milliseconds of page time before the evaluations and the
+    /// outputs.
+    #[arg(long, value_name = "MS", default_value_t = 0, requires = "headless")]
+    settle_ms: u64,
+
     /// Start the automation server on this port of 127.0.0.1 (0 picks a
     /// free port; the port is printed). In headless mode, swb then runs
     /// until a client sends `browser.close`. See docs/automation.md.
@@ -141,6 +159,18 @@ fn parse_on_off(s: &str) -> Result<bool, String> {
         "off" => Ok(false),
         _ => Err("expected `on` or `off`".to_owned()),
     }
+}
+
+fn parse_now(s: &str) -> Result<f64, String> {
+    let ms: f64 = s
+        .trim()
+        .parse()
+        .map_err(|_| "expected milliseconds since the epoch")?;
+    // The range of ECMAScript time values (§21.4.1.22, TimeClip).
+    if !ms.is_finite() || ms.abs() > 8.64e15 {
+        return Err("the time is outside the range of Date".to_owned());
+    }
+    Ok(ms)
 }
 
 fn parse_scale(s: &str) -> Result<f32, String> {
@@ -190,12 +220,20 @@ fn main() -> Result<()> {
         .map_err(anyhow::Error::msg)?;
 
     let javascript = args.js || args.javascript == Some(true);
+    let mode = if args.virtual_time {
+        ClockMode::Virtual
+    } else {
+        ClockMode::Real
+    };
+    let clock = (mode, args.now);
 
     if args.headless
         && let Some(port) = args.remote_port
     {
         return stack::on_page_thread(|| {
-            headless::serve(fetcher, fonts, args.size, args.scale, port, url, javascript)
+            headless::serve(
+                fetcher, fonts, args.size, args.scale, port, url, javascript, clock,
+            )
         })?;
     }
     if args.headless {
@@ -217,8 +255,10 @@ fn main() -> Result<()> {
             bench: args.bench,
             javascript,
             eval: &args.eval,
+            clock,
+            settle: Duration::from_millis(args.settle_ms),
         };
         return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }
-    gui::run(fetcher, fonts, url, args.remote_port, javascript)
+    gui::run(fetcher, fonts, url, args.remote_port, javascript, args.now)
 }

@@ -25,24 +25,6 @@ const SWB_VALUES: &[Departure] = &[
         "no `signal` option (no AbortSignal yet)",
     ),
     (
-        "duplicates",
-        6,
-        "[true, []]",
-        "swb reports exceptions to the console only (error events: feature 5b)",
-    ),
-    (
-        "exceptions",
-        0,
-        r#"["1,2,3,b", true, []]"#,
-        "swb reports exceptions to the console only (error events: feature 5b)",
-    ),
-    (
-        "exceptions",
-        1,
-        "[]",
-        "swb reports exceptions to the console only (error events: feature 5b)",
-    ),
-    (
         "event-attributes",
         3,
         r#"[true, "r", null, "TypeError: Failed to construct 'PromiseRejectionEvent': 2 arguments required, but only 1 present.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Required member is undefined.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Failed to convert value to 'object'.", 2, "[\"promise\",\"reason\",\"constructor\"]"]"#,
@@ -114,7 +96,9 @@ fn the_engine_fires_trusted_events_as_tasks() {
             assert_eq!(
                 answer(&mut rt, "log"),
                 expected(
-                    r#"["span,2,true,span,false", "document,3,true,span,false", "window,3,true,span,false", "microtask", "microtask", "microtask", "window,2,true,window,true", "microtask", "load document 1"]"#
+                    // A checkpoint after each listener (HTML "clean up
+                    // after running a callback", feature 5b).
+                    r#"["span,2,true,span,false", "microtask", "document,3,true,span,false", "microtask", "window,3,true,span,false", "microtask", "window,2,true,window,true", "microtask", "load document 1"]"#
                 ),
                 "stress {stress}"
             );

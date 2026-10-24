@@ -8,9 +8,10 @@
 //! [`Runtime::call_function`], so that a call from the engine gets the
 //! semantics of an outermost run and a call from `dispatchEvent` charges
 //! the recursion budget; an exception of a listener is reported (HTML
-//! "report the exception": a console line until feature 5b fires `error`
-//! at the window) and the dispatch goes on. A termination ends the
-//! dispatch after its cleanup and goes up.
+//! "report an exception": an `error` event at the window, `errors.rs`)
+//! and the dispatch goes on. After each listener of an event that the
+//! engine fires, a microtask checkpoint runs (`event_loop.rs`). A
+//! termination ends the dispatch after its cleanup and goes up.
 //!
 //! Not implemented: the legacy `webkit` renames of trusted animation
 //! events without listeners (DOM "invoke", step 9; swb fires no animation
@@ -347,6 +348,9 @@ fn inner_invoke(
         super::data_mut(rt, handle)?.in_passive_listener = false;
         state_mut(rt)?.current_event = current_event;
         result?;
+        // HTML "clean up after running a callback" (for the engine's
+        // events; a no-op while script runs).
+        crate::event_loop::after_listener(rt)?;
         if super::data(rt, handle)?.stop_immediate_propagation {
             break;
         }
@@ -385,31 +389,24 @@ fn call_listener(
         Err(ScriptError::Terminated(termination)) => Err(VmError::Terminated(termination)),
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
         Err(error) => {
-            crate::runtime::report(rt, &listener_name(kind), &error);
-            Ok(())
+            let name = listener_name(kind);
+            crate::errors::report(rt, &crate::errors::Site::named(&name), &error)
         }
     }
 }
 
 /// Reports an exception that is not of a call (the lookup of
-/// `handleEvent`); a termination or an engine error goes up.
+/// `handleEvent`) to the console only: Chromium fires no `error` event for
+/// it (measured; HTML would). A termination or an engine error goes up.
 fn report_vm_error(rt: &mut Runtime, kind: &str, error: VmError) -> VmResult<()> {
-    let name = listener_name(kind);
-    match error {
-        VmError::Throw(value) => {
-            b::keep(rt, value);
-            crate::runtime::report_thrown(rt, &name, value);
-        }
-        VmError::Raise { kind, message } => {
-            let error = ScriptError::Uncaught {
-                name: kind.name().to_owned(),
-                message: message.into_owned(),
-                offset: None,
-            };
-            crate::runtime::report(rt, &name, &error);
-        }
+    let value = match error {
+        VmError::Throw(value) => value,
+        VmError::Raise { kind, message } => Value::Object(rt.new_error(kind, &message)?),
         other => return Err(other),
-    }
+    };
+    b::keep(rt, value);
+    let text = format!("Uncaught {}", crate::runtime::thrown_value_text(rt, value));
+    crate::runtime::report_line(rt, &listener_name(kind), &text);
     Ok(())
 }
 

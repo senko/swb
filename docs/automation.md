@@ -68,7 +68,12 @@ Error codes:
 A connection handles its requests in order: the server reads the next
 request after it sent the response to the previous one. Several clients
 can connect at the same time; all requests go to the same page, and a
-waiting `page.waitForLoad` on one connection does not delay the others.
+waiting `page.waitForLoad`, `page.waitForIdle` or `page.evaluate` of a
+promise on one connection does not delay the others (in real time; with
+`--virtual-time` the last two run the event loop at once, for at most 30 s
+of real time). The server runs
+the page's event loop between requests, so timers fire while no request
+waits too.
 While a request waits, the server does not answer WebSocket pings on that
 connection, so clients must not close the connection for a missing pong.
 There are no events yet; use `page.waitForLoad` to wait for a load.
@@ -104,10 +109,11 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 | `page.back`, `page.forward` | — | `{"navigated": bool}` |
 | `page.stop` | — | `{}` |
 | `page.waitForLoad` | `timeoutMs` (default 30000, at most 3600000) | `{"loaded": bool}`: false on timeout. Loaded means the document and all its resources (stylesheets, images, background images) are loaded. A failed navigation counts as loaded: then `page.info` has `loadState` `failed`. |
+| `page.waitForIdle` | `quietMs` (default 100), `timeoutMs` (default 30000, at most 3600000) | `{"idle": bool}`: false on timeout. Runs the page's event loop until nothing is loading and no task (timer) of the document is due within `quietMs` of page time. In real time the request waits while the loop runs the timers; with `--virtual-time` the loop runs at once and its clock jumps from timer to timer. A page with an interval shorter than `quietMs` is never idle. |
 | `page.info` | — | see below |
 | `page.setJavaScript` | `enabled` (boolean) | `{}`. Sets the JavaScript setting. It applies to the next document: the current document keeps the value it was created with, and a reload or a navigation applies the change. See "The JavaScript setting". |
-| `page.evaluate` | `expression` (string) | `{"value": V}` or `{"error": "Name: message"}`. Evaluates the expression as a classic script in the global scope of the document (the value of the last expression statement, as Chromium's `Runtime.evaluate`). A promise is awaited as far as the microtask checkpoint settles it (no timers run yet: a promise that is still pending is an error). V is the value as JSON: arrays and the enumerable own properties of objects (cycles and functions are `null`), `undefined` is `null`, and `NaN`, `Infinity` and `-Infinity` are `null` and `-0` is `0`, as in `JSON.stringify`; a lone surrogate in a string or key becomes U+FFFD. A thrown value or a rejected promise gives `error`. The call fails (code -32000) if the document has no scripts (JavaScript off). |
-| `page.consoleMessages` | — | `{"messages": [{"level", "text"}]}`: the console lines of the current document in order (at most the last 1,000, each cut at 16 KiB). `level` is `log`, `info`, `warn`, `error` or `debug`; uncaught exceptions and unhandled promise rejections are `error` lines (`Uncaught TypeError: ...`, `Uncaught (in promise) ...`). A new document starts with no messages. |
+| `page.evaluate` | `expression` (string), `timeoutMs` (default 30000, at most 3600000) | `{"value": V}` or `{"error": "Name: message"}`. Evaluates the expression as a classic script in the global scope of the document (the value of the last expression statement, as Chromium's `Runtime.evaluate`). A promise is awaited through the event loop (its timers run meanwhile; other requests are answered) until it settles or `timeoutMs` passes (then the error is `Error: the promise did not settle in time`); the evaluation handles the rejection of its promise, so no `unhandledrejection` follows. V is the value as JSON: arrays and the enumerable own properties of objects (cycles and functions are `null`), `undefined` is `null`, and `NaN`, `Infinity` and `-Infinity` are `null` and `-0` is `0`, as in `JSON.stringify`; a lone surrogate in a string or key becomes U+FFFD. A thrown value or a rejected promise gives `error`. The call fails (code -32000) if the document has no scripts (JavaScript off). |
+| `page.consoleMessages` | — | `{"messages": [{"level", "text"}]}`: the console lines of the current document in order (at most the last 1,000, each cut at 16 KiB). `level` is `log`, `info`, `warn`, `error` or `debug`; uncaught exceptions and unhandled promise rejections are `error` lines (`Uncaught TypeError: ...`, `Uncaught (in promise) ...`) unless a listener of the window's `error` or `unhandledrejection` event canceled the event. A new document starts with no messages. |
 | `page.setViewport` | `width`, `height` (1 to 16384), `scale` (above 0, at most 8; default 1) | `{}`. For headless mode: with a window, the next resize of the window sets the viewport again. |
 | `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx; as in Chromium, it shows the page from its top with the layout of the viewport; fixed and sticky boxes are where they are at the page's scroll offset, and scroll containers keep their offsets. |
 | `page.scrollTo` | `x`, `y` | `{"scroll": {"x", "y"}}` (whole CSS px, clamped to the content, also on an axis with `overflow: hidden`) |

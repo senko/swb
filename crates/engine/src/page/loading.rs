@@ -83,14 +83,19 @@ impl Page {
         let deadline = Instant::now().checked_add(timeout);
         while self.is_loading() {
             let now = Instant::now();
-            let remaining = match deadline {
+            let mut remaining = match deadline {
                 Some(d) if now >= d => return false,
                 Some(d) => d - now,
                 None => Duration::from_secs(3600),
             };
+            // Timers of the document run while it loads (JavaScript on).
+            if let Some(next) = self.next_task_instant() {
+                remaining = remaining.min(next.saturating_duration_since(now));
+            }
             if let Some(completion) = self.loader.recv_timeout(remaining) {
                 self.handle_completion(completion);
             }
+            self.run_due_tasks();
             // Layout can discover more resources (background images).
             if !self.is_loading() {
                 self.update_layout();
@@ -102,7 +107,7 @@ impl Page {
     /// Handles one completed request. Completions of requests that were
     /// cancelled (by a navigation or by [`Page::stop`]) are not pending and
     /// are ignored.
-    fn handle_completion(&mut self, completion: swb_net::Completion) -> bool {
+    pub(super) fn handle_completion(&mut self, completion: swb_net::Completion) -> bool {
         if self.document_request == Some(completion.id) {
             self.document_request = None;
             self.document_loaded(completion.result);

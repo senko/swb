@@ -33,6 +33,27 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute (Event or undefined) event`.
     fn event(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<super::types::EventOrUndefined>;
 
+    /// `readonly attribute Performance performance`.
+    fn performance(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined reportError(any e)`.
+    fn report_error(cx: &mut b::Cx<'_>, this: b::Platform, e: swb_js::Value) -> b::Result<()>;
+
+    /// `long setTimeout(TimerHandler handler, optional long timeout, any... arguments)`.
+    fn set_timeout(cx: &mut b::Cx<'_>, this: b::Platform, handler: super::types::DomStringOrFunction, timeout: i32, arguments: Vec<swb_js::Value>) -> b::Result<i32>;
+
+    /// `undefined clearTimeout(optional long id)`.
+    fn clear_timeout(cx: &mut b::Cx<'_>, this: b::Platform, id: i32) -> b::Result<()>;
+
+    /// `long setInterval(TimerHandler handler, optional long timeout, any... arguments)`.
+    fn set_interval(cx: &mut b::Cx<'_>, this: b::Platform, handler: super::types::DomStringOrFunction, timeout: i32, arguments: Vec<swb_js::Value>) -> b::Result<i32>;
+
+    /// `undefined clearInterval(optional long id)`.
+    fn clear_interval(cx: &mut b::Cx<'_>, this: b::Platform, id: i32) -> b::Result<()>;
+
+    /// `undefined queueMicrotask(VoidFunction callback)`.
+    fn queue_microtask(cx: &mut b::Cx<'_>, this: b::Platform, callback: super::types::VoidFunction) -> b::Result<()>;
+
 }
 
 fn get_window<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -144,6 +165,101 @@ fn set_event<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
     })
 }
 
+fn get_performance<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "performance"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::performance(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn set_performance<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Window", "performance"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let _ = this;
+        let this = rt.this_or_global(call)?;
+        b::glue::replace(rt, call, this, "performance")
+    })
+}
+
+fn op_report_error<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "reportError"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
+        <H as WindowImpl>::report_error(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_set_timeout<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "setTimeout"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = super::types::DomStringOrFunction::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { 0 } else { b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))? };
+        let mut a2 = Vec::new();
+        for i in 2..call.argc() {
+            let v = rt.arg(call, i);
+            a2.push(b::Result::Ok(v).map_err(|e| e.argument(i))?);
+        }
+        let result = <H as WindowImpl>::set_timeout(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1, a2)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn op_clear_timeout<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "clearTimeout"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { 0 } else { b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))? };
+        <H as WindowImpl>::clear_timeout(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_set_interval<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "setInterval"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = super::types::DomStringOrFunction::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { 0 } else { b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))? };
+        let mut a2 = Vec::new();
+        for i in 2..call.argc() {
+            let v = rt.arg(call, i);
+            a2.push(b::Result::Ok(v).map_err(|e| e.argument(i))?);
+        }
+        let result = <H as WindowImpl>::set_interval(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1, a2)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn op_clear_interval<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "clearInterval"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { 0 } else { b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))? };
+        <H as WindowImpl>::clear_interval(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_queue_microtask<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "queueMicrotask"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = super::types::VoidFunction::from_js(rt, v).map_err(|e| e.argument(0))?;
+        <H as WindowImpl>::queue_microtask(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `Window` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -158,6 +274,13 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "top", (Some(get_top::<H> as swb_js::NativeFn), None), swb_js::Attributes { writable: false, enumerable: true, configurable: false })?;
     rt.define_accessor(realm, target, "parent", (Some(get_parent::<H> as swb_js::NativeFn), Some(set_parent::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "event", (Some(get_event::<H> as swb_js::NativeFn), Some(set_event::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "performance", (Some(get_performance::<H> as swb_js::NativeFn), Some(set_performance::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "clearInterval", 0, op_clear_interval::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "clearTimeout", 0, op_clear_timeout::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "queueMicrotask", 1, op_queue_microtask::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "reportError", 1, op_report_error::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setInterval", 1, op_set_interval::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setTimeout", 1, op_set_timeout::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

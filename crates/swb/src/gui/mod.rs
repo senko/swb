@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use swb_automation::Automation;
-use swb_engine::{Cursor, Modifiers, Page, PageConfig, Pixmap, Size, Url};
+use swb_engine::{ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, Url};
 use swb_net::Fetcher;
 use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 use swb_text::FontContext;
@@ -55,6 +55,7 @@ pub(crate) fn run(
     start_url: Option<Url>,
     remote_port: Option<u16>,
     javascript: bool,
+    now: Option<f64>,
 ) -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
@@ -76,6 +77,7 @@ pub(crate) fn run(
         None => None,
     };
     let mut app = App::new(fetcher, fonts, start_url, proxy, javascript);
+    app.page.set_clock(PageClock::new(ClockMode::Real, now));
     app.automation = automation;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
@@ -875,8 +877,21 @@ impl ApplicationHandler<UserEvent> for App {
         if self.apply_wheel() {
             self.request_redraw();
         }
-        // Wake up when a waiting automation request times out.
+        // The page's event loop: the timers and other tasks that are due.
+        let pump = self.page.pump();
+        if pump.changed {
+            // Tasks may have settled what a waiting request waits for.
+            self.process_automation(event_loop);
+            self.sync_address();
+            self.request_redraw();
+        }
+        // Wake up when the next task is due or a waiting automation request
+        // times out; otherwise wait for input or the network.
         let deadline = self.automation.as_ref().and_then(Automation::next_deadline);
+        let deadline = match (deadline, self.page.next_task_instant()) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
         event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
     }
 
