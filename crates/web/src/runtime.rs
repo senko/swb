@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 
 use swb_js::{ConsoleLevel, PromiseStatus, Runtime, RuntimeConfig, ScriptError, Value, VmError};
 
+use crate::events::{DispatchTarget, TrustedEvent};
 use crate::generated as g;
 use crate::host::EngineHost;
 use crate::state::{WebState, state_mut};
@@ -163,7 +164,7 @@ impl ScriptRuntime {
             .map_err(|e| internal(&e))?
             .pinned
             .push(serializer);
-        let console = Rc::new(RefCell::new(VecDeque::new()));
+        let console = Rc::clone(&state_mut(&mut rt).map_err(|e| internal(&e))?.console);
         let sink = Rc::clone(&console);
         rt.set_console(Box::new(move |level, line| {
             log_console(level, line);
@@ -242,6 +243,38 @@ impl ScriptRuntime {
         ran
     }
 
+    /// Fires a trusted event at a node of the lent document or at the window
+    /// as a task (DOM "fire an event"; ADR 0028 section 11): the dispatch
+    /// under the time limit, then a microtask checkpoint. Exceptions of
+    /// listeners go to the console and the dispatch goes on. Returns false
+    /// if a listener canceled the event; an error if the document's scripts
+    /// are stopped or the task ended (a termination, which counts like one
+    /// of a script).
+    pub fn dispatch_event(
+        &mut self,
+        target: DispatchTarget,
+        event: &TrustedEvent,
+    ) -> Result<bool, ScriptError> {
+        if self.stopped {
+            return Err(STOPPED);
+        }
+        self.start_task();
+        let scope = self.rt.heap_mut().open_scope();
+        let result = crate::events::dispatch_trusted(&mut self.rt, target, event);
+        if let Err(error) = self.rt.heap_mut().close_scope(scope) {
+            log::warn!("the handle scope of an event was not the last one: {error:?}");
+        }
+        let result = result.map_err(task_error);
+        let name = format!("the event '{}'", event.kind);
+        if let Err(error) = &result {
+            self.report(&name, error);
+            self.count_termination(error);
+        }
+        self.checkpoint(&name, None);
+        self.rt.set_deadline(None);
+        result
+    }
+
     /// Evaluates `source` as a classic script in the global scope (the
     /// value of the last expression statement) as a task; a promise is
     /// awaited as far as the microtask checkpoint settles it. Returns the
@@ -292,34 +325,13 @@ impl ScriptRuntime {
             }
         };
         self.pin(value);
-        let text = self.serialize(value, form, is_error);
+        let text = serialize(&mut self.rt, value, form, is_error);
         self.unpin();
         match text {
             Ok(text) if is_error => Evaluation::Error(text),
             Ok(text) => Evaluation::Value(text),
             Err(error) => Evaluation::Error(error_text(&error)),
         }
-    }
-
-    /// Calls the serializer.
-    fn serialize(
-        &mut self,
-        value: Value,
-        form: JsonForm,
-        is_error: bool,
-    ) -> Result<String, ScriptError> {
-        let serializer = self
-            .rt
-            .host_data::<WebState>()
-            .and_then(|s| s.pinned.first().copied())
-            .unwrap_or(Value::Undefined);
-        let strict = Value::Bool(form == JsonForm::Strict);
-        let text = self.rt.call_function(
-            serializer,
-            Value::Undefined,
-            &[value, strict, Value::Bool(is_error)],
-        )?;
-        self.rt.to_rust_string(text).map_err(|e| internal(&e))
     }
 
     /// The console messages of the document so far (at most the last
@@ -390,7 +402,7 @@ impl ScriptRuntime {
             self.pin(reason);
         }
         for &reason in &reasons {
-            let text = match self.serialize(reason, JsonForm::Strict, true) {
+            let text = match serialize(&mut self.rt, reason, JsonForm::Strict, true) {
                 Ok(text) => text,
                 Err(_) => self.rt.display(reason),
             };
@@ -405,47 +417,129 @@ impl ScriptRuntime {
 
     /// Reports an error of a script to the log and the console buffer.
     fn report(&mut self, name: &str, error: &ScriptError) {
-        let text = match error {
-            ScriptError::Uncaught { .. } => format!("Uncaught {}", self.thrown_text(error)),
-            other => other.to_string(),
-        };
-        log::warn!(target: "console", "{name}: {text}");
-        push_message(&self.console, ConsoleLevel::Error, &text);
+        report(&mut self.rt, name, error);
     }
 
-    /// The text of a script error, `Name: message`. The engine reads the
-    /// `name` and `message` of a thrown object without calling getters;
-    /// when it found no `message` (a `DOMException`, whose `name` and
-    /// `message` are accessors), the serializer reads them, under the
-    /// time limit of the task. Call it before the next run replaces the
-    /// last value.
     fn thrown_text(&mut self, error: &ScriptError) -> String {
-        if let ScriptError::Uncaught { name, .. } = error
-            && name.is_empty()
-            && let value @ Value::Object(_) = self.rt.last_value()
-        {
-            self.pin(value);
-            let text = self.serialize(value, JsonForm::Strict, true);
-            self.unpin();
-            if let Ok(text) = text {
-                return text;
-            }
-        }
-        error_text(error)
+        thrown_text(&mut self.rt, error)
     }
 
     fn pin(&mut self, value: Value) {
-        if let Ok(state) = state_mut(&mut self.rt) {
-            state.pinned.push(value);
-        }
+        pin(&mut self.rt, value);
     }
 
     fn unpin(&mut self) {
-        if let Ok(state) = state_mut(&mut self.rt)
-            && state.pinned.len() > 1
-        {
-            state.pinned.pop();
-        }
+        unpin(&mut self.rt);
+    }
+}
+
+/// Reports an error of a script (or of an event listener) to the log and
+/// the console buffer, as Chromium's console shows it: `Uncaught
+/// Name: message` for an exception. `name` (a script URL) names the source
+/// in the log.
+pub(crate) fn report(rt: &mut Runtime, name: &str, error: &ScriptError) {
+    let text = match error {
+        ScriptError::Uncaught { .. } => format!("Uncaught {}", thrown_text(rt, error)),
+        other => other.to_string(),
+    };
+    report_line(rt, name, &text);
+}
+
+/// Reports a thrown value that did not come from a run (the lookup of a
+/// listener's `handleEvent`), as [`report`] does.
+pub(crate) fn report_thrown(rt: &mut Runtime, name: &str, value: Value) {
+    let text = format!("Uncaught {}", thrown_value_text(rt, value));
+    report_line(rt, name, &text);
+}
+
+/// Writes an error line to the log and the console buffer.
+fn report_line(rt: &Runtime, name: &str, text: &str) {
+    log::warn!(target: "console", "{name}: {text}");
+    if let Some(state) = rt.host_data::<WebState>() {
+        push_message(&state.console, ConsoleLevel::Error, text);
+    }
+}
+
+/// The text of a script error, `Name: message`. The engine reads the
+/// `name` and `message` of a thrown object without calling getters; when it
+/// found no `message` (a `DOMException`, whose `name` and `message` are
+/// accessors), the serializer reads them, under the time limit of the
+/// task. Call it before the next run replaces the last value.
+fn thrown_text(rt: &mut Runtime, error: &ScriptError) -> String {
+    if let ScriptError::Uncaught { name, .. } = error
+        && name.is_empty()
+        && let value @ Value::Object(_) = rt.last_value()
+    {
+        return thrown_value_text(rt, value);
+    }
+    error_text(error)
+}
+
+/// The text of a thrown value: `Name: message` of an object with a
+/// `message` (read by the serializer), else the value as a string.
+fn thrown_value_text(rt: &mut Runtime, value: Value) -> String {
+    if !matches!(value, Value::Object(_)) {
+        return rt.display(value);
+    }
+    pin(rt, value);
+    let text = serialize(rt, value, JsonForm::Strict, true);
+    unpin(rt);
+    text.unwrap_or_else(|_| rt.display(value))
+}
+
+/// Calls the serializer (the first pinned value).
+fn serialize(
+    rt: &mut Runtime,
+    value: Value,
+    form: JsonForm,
+    is_error: bool,
+) -> Result<String, ScriptError> {
+    let serializer = rt
+        .host_data::<WebState>()
+        .and_then(|s| s.pinned.first().copied())
+        .unwrap_or(Value::Undefined);
+    let strict = Value::Bool(form == JsonForm::Strict);
+    let text = rt.call_function(
+        serializer,
+        Value::Undefined,
+        &[value, strict, Value::Bool(is_error)],
+    )?;
+    rt.to_rust_string(text).map_err(|e| internal(&e))
+}
+
+/// Holds a value across runs (until [`unpin`]).
+fn pin(rt: &mut Runtime, value: Value) {
+    if let Ok(state) = state_mut(rt) {
+        state.pinned.push(value);
+    }
+}
+
+/// Drops the last pinned value (never the serializer).
+fn unpin(rt: &mut Runtime) {
+    if let Ok(state) = state_mut(rt)
+        && state.pinned.len() > 1
+    {
+        state.pinned.pop();
+    }
+}
+
+/// The API error of a task that a host call ended (the engine's event
+/// dispatch): a termination, an engine error, or an exception of the
+/// bindings outside any listener.
+fn task_error(error: VmError) -> ScriptError {
+    match error {
+        VmError::Terminated(termination) => ScriptError::Terminated(termination),
+        VmError::Internal(error) => ScriptError::Internal(error),
+        VmError::Raise { kind, message } => ScriptError::Uncaught {
+            name: kind.name().to_owned(),
+            message: message.into_owned(),
+            offset: None,
+        },
+        VmError::Throw(_) => ScriptError::Uncaught {
+            name: String::new(),
+            message: "(exception)".to_owned(),
+            offset: None,
+        },
     }
 }
 

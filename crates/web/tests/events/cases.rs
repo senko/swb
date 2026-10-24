@@ -1,0 +1,335 @@
+// The cases of `tools/probes/web-events.json` with the values that
+// Chromium 148 gave (`just probe --json tools/probes/web-events.json`);
+// where swb departs on purpose, `tests/events.rs` overrides the value
+// (SWB_VALUES).
+
+use crate::common::Case;
+
+pub(crate) const CASES: &[Case] = &[
+    Case {
+        name: "phases",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const T = [window, document, document.documentElement, document.body, a, b, c]; const log = []; for (const x of T) { x.addEventListener('p1', (e) => log.push(N(e.currentTarget) + ':b' + e.eventPhase)); x.addEventListener('p1', (e) => log.push(N(e.currentTarget) + ':c' + e.eventPhase), true); } const r = c.dispatchEvent(new Event('p1', { bubbles: true })); return log.join(' ') + ' | ' + r; })()",
+                r#""window:c1 document:c1 html:c1 body:c1 div:c1 p:c1 span:c2 span:b2 p:b3 div:b3 body:b3 html:b3 document:b3 window:b3 | true""#,
+            ),
+            (
+                r"(() => { const T = [window, document, document.documentElement, document.body, a, b, c]; const log = []; for (const x of T) { x.addEventListener('p2', (e) => log.push(N(e.currentTarget) + ':c' + e.eventPhase), true); x.addEventListener('p2', (e) => log.push(N(e.currentTarget) + ':b' + e.eventPhase)); } c.dispatchEvent(new Event('p2')); return log.join(' '); })()",
+                r#""window:c1 document:c1 html:c1 body:c1 div:c1 p:c1 span:c2 span:b2""#,
+            ),
+            (
+                r"(() => { const log = []; window.addEventListener('p3', (e) => log.push('w ' + e.eventPhase + ' ' + N(e.target) + ' ' + N(e.currentTarget))); window.dispatchEvent(new Event('p3', { bubbles: true })); return log.join(); })()",
+                r#""w 2 window window""#,
+            ),
+            (
+                r"(() => { const log = []; document.addEventListener('p4', (e) => log.push('d' + e.eventPhase)); window.addEventListener('p4', (e) => log.push('w' + e.eventPhase)); document.dispatchEvent(new Event('p4', { bubbles: true })); return log.join(); })()",
+                r#""d2,w3""#,
+            ),
+            (
+                r"(() => { const e = new Event('p5', { bubbles: true }); let during; c.addEventListener('p5', () => { during = [N(e.target), N(e.srcElement), N(e.currentTarget), e.eventPhase]; }); c.dispatchEvent(e); return [during, N(e.target), N(e.srcElement), N(e.currentTarget), e.eventPhase, e.isTrusted]; })()",
+                r#"[["span", "span", "span", 2], "span", "span", "null", 0, false]"#,
+            ),
+            (
+                r"(() => { const log = []; window.addEventListener('load', () => log.push('window')); document.addEventListener('load', () => log.push('document')); c.addEventListener('load', (e) => log.push(e.composedPath().map(N).join('/'))); c.dispatchEvent(new Event('load', { bubbles: true })); return log.join(' '); })()",
+                r#""span/p/div/body/html/document document""#,
+            ),
+            (
+                r"[Event.NONE, Event.CAPTURING_PHASE, Event.AT_TARGET, Event.BUBBLING_PHASE, new Event('x').eventPhase, Event.prototype.AT_TARGET]",
+                r"[0, 1, 2, 3, 0, 2]",
+            ),
+        ],
+    },
+    Case {
+        name: "other-targets",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const p = c.firstChild; const log = []; window.addEventListener('d1', (e) => log.push('window ' + N(e.target))); c.addEventListener('d1', (e) => log.push(e.composedPath().map(N).join('/'))); p.dispatchEvent(new Event('d1', { bubbles: true })); return log.join(' '); })()",
+                r##""#3/span/p/div/body/html/document/window window #3""##,
+            ),
+            (
+                r"(() => { const t = new EventTarget(); const log = []; t.addEventListener('d2', (e) => log.push([e.eventPhase, e.target === t, e.currentTarget === t, e.composedPath().length, e.composedPath()[0] === t].join())); const r = t.dispatchEvent(new Event('d2', { bubbles: true, cancelable: true })); return log.join(' ') + ' | ' + r; })()",
+                r#""2,true,true,1,true | true""#,
+            ),
+            (
+                r"(() => { class T extends EventTarget { constructor() { super(); this.n = 'sub'; } } const t = new T(); let seen; t.addEventListener('d3', function (e) { seen = [this === t, e.target === t, this.n].join(); }); t.dispatchEvent(new Event('d3')); return seen; })()",
+                r#""true,true,sub""#,
+            ),
+        ],
+    },
+    Case {
+        name: "once-passive",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { let n = 0; const f = () => n++; c.addEventListener('o1', f, { once: true }); c.dispatchEvent(new Event('o1')); c.dispatchEvent(new Event('o1')); c.addEventListener('o1', f, { once: true }); c.dispatchEvent(new Event('o1')); return n; })()",
+                r"2",
+            ),
+            (
+                r"(() => { let n = 0; c.addEventListener('o2', () => { n++; c.dispatchEvent(new Event('o2')); }, { once: true }); c.dispatchEvent(new Event('o2')); return n; })()",
+                r"1",
+            ),
+            (
+                r"(() => { const r = []; c.addEventListener('o3', (e) => { e.preventDefault(); r.push(e.defaultPrevented, e.returnValue); }, { passive: true }); c.addEventListener('o3', (e) => { r.push(e.defaultPrevented); e.preventDefault(); r.push(e.defaultPrevented); }); const ok = c.dispatchEvent(new Event('o3', { cancelable: true })); return r.concat(ok); })()",
+                r"[false, true, false, true, false]",
+            ),
+            (
+                r"(() => { const r = []; c.addEventListener('o4', (e) => { e.returnValue = false; r.push(e.defaultPrevented, e.returnValue); }, { passive: true }); const e = new Event('o4', { cancelable: true }); const ok = c.dispatchEvent(e); return r.concat(ok, e.defaultPrevented); })()",
+                r"[false, true, true, false]",
+            ),
+            (
+                r"(() => { const r = []; c.addEventListener('o5', (e) => { e.preventDefault(); r.push(e.defaultPrevented); }); const ok = c.dispatchEvent(new Event('o5')); return r.concat(ok); })()",
+                r"[false, true]",
+            ),
+            (
+                r"(() => { const r = []; for (const x of [window, document, document.documentElement, document.body, c, new EventTarget()]) { for (const type of ['wheel', 'touchstart', 'touchmove', 'mousewheel', 'touchend']) { x.addEventListener(type, (e) => { e.preventDefault(); r.push(type + ':' + e.defaultPrevented); }); x.dispatchEvent(new Event(type, { cancelable: true })); } } return r.join(' '); })()",
+                r#""wheel:false touchstart:false touchmove:false mousewheel:false touchend:true wheel:false touchstart:false touchmove:false mousewheel:false touchend:true wheel:false touchstart:false touchmove:false mousewheel:false touchend:true wheel:false touchstart:false touchmove:false mousewheel:false touchend:true wheel:true touchstart:true touchmove:true mousewheel:true touchend:true wheel:true touchstart:true touchmove:true mousewheel:true touchend:true""#,
+            ),
+            (
+                r"(() => { const r = []; window.addEventListener('wheel', (e) => { e.preventDefault(); r.push('p' + e.defaultPrevented); }, { passive: false }); const ok = window.dispatchEvent(new Event('wheel', { cancelable: true })); return r.join() + ' ' + ok; })()",
+                r#""ptrue false""#,
+            ),
+            (
+                r"(() => { const order = []; const o = {}; for (const k of ['signal', 'passive', 'once', 'capture']) Object.defineProperty(o, k, { get() { order.push(k); return undefined; } }); c.addEventListener('o6', () => 1, o); const order2 = []; const p = {}; for (const k of ['signal', 'passive', 'once', 'capture']) Object.defineProperty(p, k, { get() { order2.push(k); return undefined; } }); c.removeEventListener('o6', () => 1, p); return order.join() + ' | ' + order2.join(); })()",
+                r#""capture,once,passive,signal | capture""#,
+            ),
+        ],
+    },
+    Case {
+        name: "duplicates",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { let n = 0; const f = () => n++; c.addEventListener('u1', f); c.addEventListener('u1', f); c.addEventListener('u1', f, false); c.addEventListener('u1', f, { capture: false, once: true }); c.dispatchEvent(new Event('u1')); return n; })()",
+                r"1",
+            ),
+            (
+                r"(() => { let n = 0; const f = () => n++; c.addEventListener('u2', f); c.addEventListener('u2', f, true); c.addEventListener('u2', f, { capture: true }); c.dispatchEvent(new Event('u2')); c.removeEventListener('u2', f, { capture: true }); c.dispatchEvent(new Event('u2')); c.removeEventListener('u2', f, true); c.dispatchEvent(new Event('u2')); c.removeEventListener('u2', f); c.dispatchEvent(new Event('u2')); return n; })()",
+                r"4",
+            ),
+            (
+                r"(() => { let n = 0; const f = () => n++; c.addEventListener('u3', f, { once: true }); c.addEventListener('u3', f); c.dispatchEvent(new Event('u3')); c.dispatchEvent(new Event('u3')); return n; })()",
+                r"1",
+            ),
+            (
+                r"(() => { const r = [t(() => c.addEventListener('u4', null)), t(() => c.removeEventListener('u4', null)), t(() => c.addEventListener('u4', undefined)), t(() => c.removeEventListener('u4')), t(() => c.removeEventListener('u4', () => 1, 5)), c.dispatchEvent(new Event('u4'))]; return r.join(); })()",
+                r#""undefined,undefined,undefined,TypeError: Failed to execute 'removeEventListener' on 'EventTarget': 2 arguments required, but only 1 present.,undefined,true""#,
+            ),
+            (
+                r"(() => { const log = []; const o = { handleEvent(e) { log.push(this === o, e.type); } }; c.addEventListener('u5', o); c.addEventListener('u5', o); c.dispatchEvent(new Event('u5')); o.handleEvent = function (e) { log.push('changed'); }; c.dispatchEvent(new Event('u5')); c.removeEventListener('u5', o); c.dispatchEvent(new Event('u5')); return log.join(); })()",
+                r#""true,u5,changed""#,
+            ),
+            (
+                r"(() => { const log = []; function f(e) { log.push(N(this)); } f.handleEvent = () => log.push('handleEvent'); c.addEventListener('u6', f); c.dispatchEvent(new Event('u6')); return log.join(); })()",
+                r#""span""#,
+            ),
+            (
+                r"(() => { const before = errors.length; let ran = false; c.addEventListener('u7', {}); c.addEventListener('u7', { handleEvent: 5 }); c.addEventListener('u7', () => { ran = true; }); c.dispatchEvent(new Event('u7')); return [ran, errors.slice(before)]; })()",
+                r"[true, []]",
+            ),
+        ],
+    },
+    Case {
+        name: "changes-during-dispatch",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const log = []; const g = () => log.push('g'); c.addEventListener('m1', () => { log.push('f'); c.removeEventListener('m1', g); }); c.addEventListener('m1', g); c.dispatchEvent(new Event('m1')); c.dispatchEvent(new Event('m1')); return log.join(); })()",
+                r#""f,f""#,
+            ),
+            (
+                r"(() => { const log = []; c.addEventListener('m2', () => { log.push('f'); c.addEventListener('m2', () => log.push('late')); }); c.dispatchEvent(new Event('m2')); return log.join(); })()",
+                r#""f""#,
+            ),
+            (
+                r"(() => { const log = []; a.addEventListener('m3', () => { log.push('a'); c.addEventListener('m3', () => log.push('c-added')); b.addEventListener('m3', () => log.push('b-added')); }, true); c.dispatchEvent(new Event('m3', { bubbles: true })); return log.join(); })()",
+                r#""a,c-added,b-added""#,
+            ),
+            (
+                r"(() => { const log = []; const g = () => log.push('g'); c.addEventListener('m4', () => { log.push('f'); c.removeEventListener('m4', g); c.addEventListener('m4', g); }); c.addEventListener('m4', g); c.dispatchEvent(new Event('m4')); return log.join(); })()",
+                r#""f""#,
+            ),
+            (
+                r"(() => { const log = []; const g = () => log.push('b'); a.addEventListener('m5', () => { log.push('a'); b.removeEventListener('m5', g); }, true); b.addEventListener('m5', g, true); c.dispatchEvent(new Event('m5')); return log.join(); })()",
+                r#""a,b""#,
+            ),
+        ],
+    },
+    Case {
+        name: "propagation",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const log = []; b.addEventListener('s1', (e) => { log.push('b1'); e.stopPropagation(); }, true); b.addEventListener('s1', () => log.push('b2'), true); c.addEventListener('s1', () => log.push('c')); a.addEventListener('s1', () => log.push('a')); const e = new Event('s1', { bubbles: true }); c.dispatchEvent(e); return log.join() + ' | ' + e.cancelBubble; })()",
+                r#""b1,b2 | false""#,
+            ),
+            (
+                r"(() => { const log = []; c.addEventListener('s2', (e) => { log.push('c1'); e.stopImmediatePropagation(); log.push(e.cancelBubble); }); c.addEventListener('s2', () => log.push('c2')); b.addEventListener('s2', () => log.push('b')); c.dispatchEvent(new Event('s2', { bubbles: true })); return log.join(); })()",
+                r#""c1,true""#,
+            ),
+            (
+                r"(() => { const log = []; c.addEventListener('s3', (e) => { log.push('c'); e.cancelBubble = true; log.push(e.cancelBubble); e.cancelBubble = false; log.push(e.cancelBubble); }); b.addEventListener('s3', () => log.push('b')); c.dispatchEvent(new Event('s3', { bubbles: true })); return log.join(); })()",
+                r#""c,true,true""#,
+            ),
+            (
+                r"(() => { const log = []; c.addEventListener('s4', () => log.push('c')); const e = new Event('s4'); e.stopPropagation(); const r = c.dispatchEvent(e); c.dispatchEvent(e); return log.join() + ' | ' + r + ' ' + e.cancelBubble; })()",
+                r#""c | true false""#,
+            ),
+            (
+                r"(() => { const log = []; const e = new Event('s5', { cancelable: true }); e.preventDefault(); const before = e.defaultPrevented; c.addEventListener('s5', (x) => log.push(x.defaultPrevented)); const r = c.dispatchEvent(e); e.initEvent('s5', false, true); return [before, log[0], r, e.defaultPrevented]; })()",
+                r"[true, true, false, false]",
+            ),
+            (
+                r"(() => { const log = []; c.addEventListener('s6', (e) => { e.initEvent('other', true, true); log.push(e.type, e.bubbles); e.stopPropagation(); }); const e = new Event('s6'); c.dispatchEvent(e); e.initEvent('s7', true); e.stopPropagation(); e.initEvent('s7', true); c.addEventListener('s7', () => log.push('s7 ran')); c.dispatchEvent(e); return log.join() + ' | ' + e.type + ' ' + e.bubbles + ' ' + e.cancelable; })()",
+                r#""s6,false,s7 ran | s7 true false""#,
+            ),
+            (
+                r"(() => { const log = []; b.addEventListener('s8', (e) => { e.stopPropagation(); }); c.addEventListener('s8', (e) => log.push(e.cancelBubble)); const e = new Event('s8', { bubbles: true }); c.dispatchEvent(e); c.dispatchEvent(e); return log.join() + ' ' + e.cancelBubble; })()",
+                r#""false,false false""#,
+            ),
+        ],
+    },
+    Case {
+        name: "dispatch-flag",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { let r; c.addEventListener('f1', (e) => { r = t(() => c.dispatchEvent(e)); }); c.dispatchEvent(new Event('f1')); return r; })()",
+                r#""InvalidStateError: Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.""#,
+            ),
+            (
+                r"(() => { let r; c.addEventListener('f2', (e) => { try { b.dispatchEvent(e); } catch (x) { r = [x instanceof DOMException, x.name, x.code].join(); } }); c.dispatchEvent(new Event('f2')); return r; })()",
+                r#""true,InvalidStateError,11""#,
+            ),
+            (
+                r"(() => { const e = document.createEvent('Event'); return [e.type, e.bubbles, e.isTrusted, t(() => c.dispatchEvent(e)), (e.initEvent('f3'), c.dispatchEvent(e)), e.type]; })()",
+                r#"["", false, false, "InvalidStateError: Failed to execute 'dispatchEvent' on 'EventTarget': The event provided is uninitialized.", true, "f3"]"#,
+            ),
+            (
+                r"(() => { const e = new Event('f4'); let n = 0; c.addEventListener('f4', () => n++); c.dispatchEvent(e); c.dispatchEvent(e); b.dispatchEvent(e); return [n, N(e.target)]; })()",
+                r#"[2, "p"]"#,
+            ),
+            (
+                r"['Event', 'events', 'HTMLEvents', 'htmlevents', 'SVGEvents', 'CustomEvent', 'customevent'].map((n) => { const e = document.createEvent(n); return Object.prototype.toString.call(e) + ':' + JSON.stringify(e.type); }).join(' ')",
+                r#""[object Event]:\"\" [object Event]:\"\" [object Event]:\"\" [object Event]:\"\" [object Event]:\"\" [object CustomEvent]:\"\" [object CustomEvent]:\"\"""#,
+            ),
+            (
+                r"[t(() => document.createEvent('Bogus')), t(() => document.createEvent('ErrorEvent')), t(() => document.createEvent('PageTransitionEvent')), t(() => document.createEvent('')), t(() => document.createEvent())].join(' | ')",
+                r#""NotSupportedError: Failed to execute 'createEvent' on 'Document': The provided event type ('Bogus') is invalid. | NotSupportedError: Failed to execute 'createEvent' on 'Document': The provided event type ('ErrorEvent') is invalid. | NotSupportedError: Failed to execute 'createEvent' on 'Document': The provided event type ('PageTransitionEvent') is invalid. | NotSupportedError: Failed to execute 'createEvent' on 'Document': The provided event type ('') is invalid. | TypeError: Failed to execute 'createEvent' on 'Document': 1 argument required, but only 0 present.""#,
+            ),
+            (
+                r"(() => { const e = document.createEvent('CustomEvent'); const r = [e.detail]; e.initCustomEvent('f5', true, true, { k: 1 }); r.push(e.type, e.bubbles, e.cancelable, e.detail.k); e.initCustomEvent('f6'); r.push(e.type, e.bubbles, e.detail); return r; })()",
+                r#"[null, "f5", true, true, 1, "f6", false, null]"#,
+            ),
+            (
+                r"(() => { const e = new Event('f7'); let inner; c.addEventListener('f7', () => { e.initEvent('changed', true, true); inner = [e.type, e.bubbles]; }); c.dispatchEvent(e); return inner.concat(e.type); })()",
+                r#"["f7", false, "f7"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: "composed-path",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const r = []; const e = new Event('c1', { bubbles: true }); for (const x of [window, document, b, c]) { x.addEventListener('c1', () => r.push(N(e.currentTarget) + '=' + e.composedPath().map(N).join('/')), true); } r.push(e.composedPath().length); c.dispatchEvent(e); r.push(e.composedPath().length); return r.join(' '); })()",
+                r#""0 window=span/p/div/body/html/document/window document=span/p/div/body/html/document/window p=span/p/div/body/html/document/window span=span/p/div/body/html/document/window 0""#,
+            ),
+            (
+                r"(() => { let p; window.addEventListener('c2', (e) => { p = e.composedPath().map(N).join('/'); }); window.dispatchEvent(new Event('c2')); return p; })()",
+                r#""window""#,
+            ),
+            (
+                r"(() => { let p; c.addEventListener('c3', (e) => { p = e.composedPath(); }); c.dispatchEvent(new Event('c3')); return [Array.isArray(p), p.length, p[0] === c, p[p.length - 1] === window]; })()",
+                r"[true, 7, true, true]",
+            ),
+        ],
+    },
+    Case {
+        name: "window-event",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const r = [window.event]; const outer = new Event('w1'); const inner = new Event('w2'); c.addEventListener('w1', () => { r.push(window.event === outer); c.dispatchEvent(inner); r.push(window.event === outer); }); c.addEventListener('w2', () => r.push(window.event === inner)); c.dispatchEvent(outer); r.push(window.event); return r; })()",
+                r"[null, true, true, true, null]",
+            ),
+            (
+                r"(() => { const d = Object.getOwnPropertyDescriptor(Window.prototype, 'event') || Object.getOwnPropertyDescriptor(window, 'event'); return [Object.prototype.hasOwnProperty.call(window, 'event'), typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set.name]; })()",
+                r#"[true, "function", "function", true, true, "get event", "set event"]"#,
+            ),
+            (
+                r"(() => { let r; const t2 = new EventTarget(); t2.addEventListener('w3', (e) => { r = window.event === e; }); t2.dispatchEvent(new Event('w3')); return r; })()",
+                r"true",
+            ),
+            (
+                r"(() => { let r; c.addEventListener('w4', () => { throw new Error('in w4'); }); c.addEventListener('w4', () => { r = window.event !== undefined; }); c.dispatchEvent(new Event('w4')); return [r, window.event]; })()",
+                r"[true, null]",
+            ),
+            (
+                r"(() => { window.event = 5; const r = [window.event, Object.getOwnPropertyDescriptor(window, 'event').value]; return r; })()",
+                r"[5, 5]",
+            ),
+        ],
+    },
+    Case {
+        name: "exceptions",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const log = []; const before = errors.length; c.addEventListener('x1', () => { log.push(1); throw new TypeError('first'); }); c.addEventListener('x1', () => { log.push(2); null.f(); }); c.addEventListener('x1', () => log.push(3)); b.addEventListener('x1', () => log.push('b')); const r = c.dispatchEvent(new Event('x1', { bubbles: true })); return [log.join(), r, errors.slice(before)]; })()",
+                r#"["1,2,3,b", true, ["Uncaught TypeError: first", "Uncaught TypeError: Cannot read properties of null (reading 'f')"]]"#,
+            ),
+            (
+                r"(() => { const before = errors.length; c.addEventListener('x2', () => { throw 'a string'; }); c.addEventListener('x2', () => { throw { custom: 1 }; }); c.addEventListener('x2', () => { throw new DOMException('dom message', 'NotFoundError'); }); c.dispatchEvent(new Event('x2')); return errors.slice(before); })()",
+                r#"["Uncaught a string", "Uncaught [object Object]", "Uncaught NotFoundError: dom message"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: "event-attributes",
+        html: r"<!DOCTYPE html><html><head></head><body><div id=a><p id=b><span id=c>t</span></p></div><script>function t(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.name + ': ' + e.message; } }function N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName; if (x.nodeType) return '#' + x.nodeType; return 'target'; }const errors = []; window.addEventListener('error', (e) => errors.push(e.message));</script>",
+        queries: &[
+            (
+                r"(() => { const e = new Event('a1'); return [typeof e.timeStamp, e.timeStamp > 0, e.isTrusted, e.composed, e.defaultPrevented, e.returnValue, e.cancelBubble, N(e.target), N(e.currentTarget)]; })()",
+                r#"["number", true, false, false, false, true, false, "null", "null"]"#,
+            ),
+            (
+                r"(() => { const e = new CustomEvent('a2', { detail: { x: 1 }, bubbles: true }); const f = new CustomEvent('a3'); return [e.detail.x, e.bubbles, f.detail, e instanceof Event, Object.prototype.toString.call(e), CustomEvent.length, JSON.stringify(Object.getOwnPropertyNames(CustomEvent.prototype))]; })()",
+                r#"[1, true, null, true, "[object CustomEvent]", 1, "[\"detail\",\"initCustomEvent\",\"constructor\"]"]"#,
+            ),
+            (
+                r"(() => { const e = new ErrorEvent('a4'); const err = new Error('x'); const f = new ErrorEvent('a5', { message: 'm', filename: 'f.js', lineno: 3, colno: 4, error: err }); return [e.message, e.filename, e.lineno, e.colno, e.error, f.message, f.filename, f.lineno, f.colno, f.error === err, ErrorEvent.length, JSON.stringify(Object.getOwnPropertyNames(ErrorEvent.prototype))]; })()",
+                r#"["", "", 0, 0, null, "m", "f.js", 3, 4, true, 1, "[\"message\",\"filename\",\"lineno\",\"colno\",\"error\",\"constructor\"]"]"#,
+            ),
+            (
+                r"(() => { const p = Promise.resolve(1); const e = new PromiseRejectionEvent('a6', { promise: p, reason: 'r' }); const f = new PromiseRejectionEvent('a7', { promise: p }); return [e.promise === p, e.reason, f.reason, t(() => new PromiseRejectionEvent('a8')), t(() => new PromiseRejectionEvent('a8', {})), t(() => new PromiseRejectionEvent('a8', { promise: 5 })), PromiseRejectionEvent.length, JSON.stringify(Object.getOwnPropertyNames(PromiseRejectionEvent.prototype))]; })()",
+                r#"[true, "r", null, "TypeError: Failed to construct 'PromiseRejectionEvent': 2 arguments required, but only 1 present.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Required member is undefined.", {"isTrusted": false}, 2, "[\"promise\",\"reason\",\"constructor\"]"]"#,
+            ),
+            (
+                r"(() => { const e = new PageTransitionEvent('a9', { persisted: true }); return [e.persisted, new PageTransitionEvent('x').persisted, PageTransitionEvent.length, JSON.stringify(Object.getOwnPropertyNames(PageTransitionEvent.prototype))]; })()",
+                r#"[true, false, 1, "[\"persisted\",\"constructor\"]"]"#,
+            ),
+            (
+                r"[Object.getPrototypeOf(CustomEvent) === Event, Object.getPrototypeOf(ErrorEvent.prototype) === Event.prototype, Object.getPrototypeOf(PromiseRejectionEvent) === Event, Object.getPrototypeOf(PageTransitionEvent.prototype) === Event.prototype, t(() => Object.getOwnPropertyDescriptor(CustomEvent.prototype, 'detail').get.call(new Event('x'))), t(() => Object.getOwnPropertyDescriptor(Event.prototype, 'type').get.call(new CustomEvent('ok')))].join()",
+                r#""true,true,true,true,TypeError: Illegal invocation,ok""#,
+            ),
+            (
+                r"(() => { const e = new CustomEvent('a10', { detail: 7 }); let seen; c.addEventListener('a10', (x) => { seen = x.detail; }); c.dispatchEvent(e); return [seen, Object.getOwnPropertyNames(e).join()]; })()",
+                r#"[7, "isTrusted"]"#,
+            ),
+            (
+                r"(() => { const e = new Event('a11', { cancelable: true }); e.returnValue = false; const a = e.defaultPrevented; e.returnValue = true; return [a, e.defaultPrevented, e.returnValue]; })()",
+                r"[true, true, false]",
+            ),
+            (
+                r"[String(new ErrorEvent('x').error), String(new PromiseRejectionEvent('x', { promise: Promise.resolve() }).reason), String(new CustomEvent('x').detail), String(new CustomEvent('x', { detail: undefined }).detail), String(window.event), typeof window.event, 'event' in window]",
+                r#"["undefined", "undefined", "null", "null", "undefined", "undefined", true]"#,
+            ),
+            (
+                r"(() => { c.addEventListener('a12', (e) => e.preventDefault()); return [c.dispatchEvent(new Event('a12', { cancelable: true })), c.dispatchEvent(new Event('a12'))]; })()",
+                r"[false, true]",
+            ),
+        ],
+    },
+];

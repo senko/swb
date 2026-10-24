@@ -13,7 +13,8 @@ Format: source, license (for code), what it influenced.
 
 - WHATWG HTML Living Standard — https://html.spec.whatwg.org/ — the IDL
   of `Window`, the tree accessors of `Document` (`title`, `body`, `head`),
-  `HTMLElement` and `HTMLHeadElement`, copied into `crates/web/idl/html.idl`
+  `HTMLElement`, `HTMLHeadElement`, `ErrorEvent`, `PromiseRejectionEvent`
+  and `PageTransitionEvent`, copied into `crates/web/idl/html.idl`
   (BSD-3-Clause for IDL in source code, WHATWG IPR policy 7.1.1); the
   title, body and named-access algorithms and the script type test of
   `swb-web`.
@@ -24,11 +25,13 @@ Format: source, license (for code), what it influenced.
   copied into `crates/web/idl/webidl.idl` (BSD-3-Clause for IDL in source
   code, WHATWG IPR policy 7.1.1; see THIRD_PARTY_NOTICES.md).
 - WHATWG DOM Standard — https://dom.spec.whatwg.org/ — the IDL of
-  `Event`, `EventTarget`, `Node`, `Document`, `DocumentType`,
+  `Event`, `CustomEvent`, `EventTarget`, `window.event`, `Node`,
+  `Document` (with `createEvent`), `DocumentType`,
   `DocumentFragment`, `NodeList`, `Element`, `CharacterData`, `Text`,
   `ProcessingInstruction`, `Comment` and the mixins `ParentNode` and
   `NonDocumentTypeChildNode`, copied into `crates/web/idl/dom.idl`
-  (BSD-3-Clause, as above).
+  (BSD-3-Clause, as above); the event listener, dispatch and
+  `composedPath` algorithms of `swb-web` (`events/`).
 - W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
   typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).

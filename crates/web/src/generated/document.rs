@@ -60,6 +60,9 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute unsigned long childElementCount`.
     fn child_element_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
+    /// `Event createEvent(DOMString interface)`.
+    fn create_event(cx: &mut b::Cx<'_>, this: b::NodeId, interface: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
 }
 
 fn get_url<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -202,6 +205,17 @@ fn get_child_element_count<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb
     })
 }
 
+fn op_create_event<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createEvent"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::create_event(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 /// Creates the interface object and the prototype of `Document` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -223,6 +237,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -3,7 +3,7 @@
 
 //! The binding glue of the dictionaries, enumerations, unions and callbacks.
 
-#![allow(clippy::large_enum_variant, clippy::too_many_arguments)]
+#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref)]
 
 use crate::bindings as b;
 
@@ -40,6 +40,49 @@ impl EventInit {
         b::to_js::dictionary_member(rt, object, "cancelable", value)?;
         let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
         b::to_js::dictionary_member(rt, object, "composed", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `CustomEventInit`.
+#[derive(Clone, Debug)]
+pub struct CustomEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `detail`.
+    pub detail: swb_js::Value,
+}
+
+impl CustomEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<CustomEventInit> {
+        let object = b::convert::dictionary_object(value, "CustomEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "detail")?;
+        let detail = if v.is_undefined() { swb_js::Value::Null } else { b::Result::Ok(v).map_err(|e| e.member("detail", "CustomEventInit"))? };
+        Ok(CustomEventInit { bubbles, cancelable, composed, detail })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = swb_js::VmResult::Ok(self.detail)?;
+        b::to_js::dictionary_member(rt, object, "detail", value)?;
         Ok(object.into())
     }
 }
@@ -133,6 +176,170 @@ impl GetRootNodeOptions {
     }
 }
 
+/// The dictionary `ErrorEventInit`.
+#[derive(Clone, Debug)]
+pub struct ErrorEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `colno`.
+    pub colno: u32,
+    /// `error`.
+    pub error: Option<swb_js::Value>,
+    /// `filename`.
+    pub filename: String,
+    /// `lineno`.
+    pub lineno: u32,
+    /// `message`.
+    pub message: String,
+}
+
+impl ErrorEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ErrorEventInit> {
+        let object = b::convert::dictionary_object(value, "ErrorEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "colno")?;
+        let colno = if v.is_undefined() { 0 } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.member("colno", "ErrorEventInit"))? };
+        let v = b::convert::member(rt, object, "error")?;
+        let error = if v.is_undefined() { None } else { Some(b::Result::Ok(v).map_err(|e| e.member("error", "ErrorEventInit"))?) };
+        let v = b::convert::member(rt, object, "filename")?;
+        let filename = if v.is_undefined() { String::new() } else { b::convert::usv_string(rt, v).map_err(|e| e.member("filename", "ErrorEventInit"))? };
+        let v = b::convert::member(rt, object, "lineno")?;
+        let lineno = if v.is_undefined() { 0 } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.member("lineno", "ErrorEventInit"))? };
+        let v = b::convert::member(rt, object, "message")?;
+        let message = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("message", "ErrorEventInit"))? };
+        Ok(ErrorEventInit { bubbles, cancelable, composed, colno, error, filename, lineno, message })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(f64::from(self.colno)))?;
+        b::to_js::dictionary_member(rt, object, "colno", value)?;
+        if let Some(x) = &self.error {
+            let value = swb_js::VmResult::Ok(*x)?;
+            b::to_js::dictionary_member(rt, object, "error", value)?;
+        }
+        let value = b::to_js::string(rt, &self.filename.clone())?;
+        b::to_js::dictionary_member(rt, object, "filename", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(f64::from(self.lineno)))?;
+        b::to_js::dictionary_member(rt, object, "lineno", value)?;
+        let value = b::to_js::string(rt, &self.message.clone())?;
+        b::to_js::dictionary_member(rt, object, "message", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `PromiseRejectionEventInit`.
+#[derive(Clone, Debug)]
+pub struct PromiseRejectionEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `promise`.
+    pub promise: swb_js::Gc<swb_js::Object>,
+    /// `reason`.
+    pub reason: Option<swb_js::Value>,
+}
+
+impl PromiseRejectionEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<PromiseRejectionEventInit> {
+        let object = b::convert::dictionary_object(value, "PromiseRejectionEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "promise")?;
+        if v.is_undefined() { return Err(b::convert::required_member("promise", "PromiseRejectionEventInit")); }
+        let promise = b::convert::object(v).map_err(|e| e.member("promise", "PromiseRejectionEventInit"))?;
+        let v = b::convert::member(rt, object, "reason")?;
+        let reason = if v.is_undefined() { None } else { Some(b::Result::Ok(v).map_err(|e| e.member("reason", "PromiseRejectionEventInit"))?) };
+        Ok(PromiseRejectionEventInit { bubbles, cancelable, composed, promise, reason })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Object(self.promise))?;
+        b::to_js::dictionary_member(rt, object, "promise", value)?;
+        if let Some(x) = &self.reason {
+            let value = swb_js::VmResult::Ok(*x)?;
+            b::to_js::dictionary_member(rt, object, "reason", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `PageTransitionEventInit`.
+#[derive(Clone, Debug)]
+pub struct PageTransitionEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `persisted`.
+    pub persisted: bool,
+}
+
+impl PageTransitionEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<PageTransitionEventInit> {
+        let object = b::convert::dictionary_object(value, "PageTransitionEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "persisted")?;
+        let persisted = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("persisted", "PageTransitionEventInit"))? };
+        Ok(PageTransitionEventInit { bubbles, cancelable, composed, persisted })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.persisted))?;
+        b::to_js::dictionary_member(rt, object, "persisted", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The callback interface type `EventListener`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EventListener(pub swb_js::Gc<swb_js::Object>);
@@ -212,6 +419,34 @@ impl EventListenerOptionsOrBoolean {
         match self {
             EventListenerOptionsOrBoolean::EventListenerOptions(x) => (x.clone()).to_js::<H>(rt, realm),
             EventListenerOptionsOrBoolean::Boolean(x) => swb_js::VmResult::Ok(swb_js::Value::Bool(*x)),
+        }
+    }
+}
+
+/// The union type `(Event or undefined)`.
+#[derive(Clone, Debug)]
+pub enum EventOrUndefined {
+    /// `Event`.
+    Event(b::Platform),
+    /// `undefined`.
+    Undefined(()),
+}
+
+impl EventOrUndefined {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<EventOrUndefined> {
+        if value.is_undefined() { return Ok(EventOrUndefined::Undefined(())); }
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::EVENT) { return Ok(EventOrUndefined::Event(b::convert::platform(rt, value, super::EVENT, "Event")?)); }
+        }
+        Err(b::Exception::NotOfType("(Event or undefined)".into()))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, _rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            EventOrUndefined::Event(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).object)),
+            EventOrUndefined::Undefined(()) => swb_js::VmResult::Ok(swb_js::Value::Undefined),
         }
     }
 }

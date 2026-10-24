@@ -1,23 +1,29 @@
 //! The binding state of a runtime (ADR 0028 sections 2 and 4): the
 //! runtime's host data. It holds the document while the engine lends it
 //! for a task, the wrapper vector (one wrapper per node, indexed by
-//! `NodeId`), the side table of the `[SameObject]` objects of nodes, and
-//! the glue state; the collector traces all of it, so wrappers, their
-//! expandos and `WeakMap` entries keyed by them live as long as the
-//! runtime.
+//! `NodeId`), the side table of the `[SameObject]` objects of nodes, the
+//! event listeners of nodes and of the window, the window's current event
+//! and the glue state; the collector traces all of it, so wrappers, their
+//! expandos, `WeakMap` entries keyed by them and listeners live as long as
+//! the runtime.
 //!
 //! Access from the bindings follows the rule of ADR 0028 section 2: a
 //! function copies what it needs out of the DOM ([`dom`]), releases the
 //! borrow, and only then allocates or calls script.
 
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
+use std::time::Instant;
 
 use swb_dom::{Document, NodeData, NodeId, local_name, ns};
 use swb_js::{ClassId, Gc, HostData, HostState, Object, Runtime, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx, GlueState};
+use crate::events::Listeners;
 use crate::generated as g;
 use crate::host::EngineHost;
+use crate::runtime::ConsoleMessage;
 
 /// The `[SameObject]` objects that belong to a node (the side table's
 /// second key).
@@ -47,6 +53,37 @@ pub(crate) struct WebState {
     /// properties (`window[name]`): the DOM generation it was built for and
     /// the first element of each name.
     pub(crate) window_names: Option<(u64, HashMap<String, NodeId>)>,
+    /// The event listener lists of nodes (a node with listeners has a
+    /// wrapper; both live as long as the document).
+    pub(crate) listeners: HashMap<NodeId, Listeners>,
+    /// The event listener list of the window.
+    pub(crate) window_listeners: Listeners,
+    /// The listeners in `listeners` and `window_listeners`.
+    pub(crate) listener_count: usize,
+    /// The window's current event (HTML `window.event`).
+    pub(crate) current_event: Option<Gc<Object>>,
+    /// The console buffer of the runtime (also written by the reports of
+    /// exceptions in event listeners).
+    pub(crate) console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
+    /// The time origin of the window (`Event.timeStamp`).
+    pub(crate) time_origin: TimeOrigin,
+}
+
+/// The time origin of a window (HR Time §3): the creation of the runtime.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TimeOrigin(Instant);
+
+impl TimeOrigin {
+    /// The time since the origin.
+    pub(crate) fn elapsed(self) -> std::time::Duration {
+        self.0.elapsed()
+    }
+}
+
+impl Default for TimeOrigin {
+    fn default() -> TimeOrigin {
+        TimeOrigin(Instant::now())
+    }
 }
 
 impl HostState for WebState {
@@ -60,6 +97,13 @@ impl HostState for WebState {
         }
         for value in &self.pinned {
             tracer.value(*value);
+        }
+        for list in self.listeners.values() {
+            list.trace(tracer);
+        }
+        self.window_listeners.trace(tracer);
+        if let Some(event) = self.current_event {
+            tracer.object(event);
         }
     }
 }

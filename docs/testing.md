@@ -2232,11 +2232,23 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   `childNodes`, the console buffer, the evaluation forms and the task time
   limit. A unit test in `web/src/dom/node_list.rs` counts the rebuilds of
   a `childNodes` cache (a loop over the list builds it once).
+- `crates/web/tests/events.rs`: the event core (feature 5a): every case
+  of `tools/probes/web-events.json` with Chromium's values
+  (`tests/events/cases.rs`, generated from the probe's `--json` output as
+  for `dom.rs`; `SWB_VALUES` overrides the values where swb departs: no
+  `signal` option, no `error` events at the window until feature 5b, the
+  `object` type of `PromiseRejectionEvent.promise`), the console lines of
+  exceptions in listeners (Chromium's messages of the probe's `error`
+  events), the engine's entry for trusted events, an endless listener at
+  the time limit, listeners across collections, nested dispatches and
+  many listeners on one target. `tests/common/mod.rs` holds the test
+  document, the evaluation helpers and the run of probe cases that
+  `dom.rs` and `events.rs` share.
 - `crates/engine/tests/scripts.rs`: scripts in a page: the inline scripts
   after the parse, DOM changes that reach the engine, the console, a new
   runtime per document, JavaScript off, the page that refuses JavaScript
-  without a big stack, and `document.title` on the page fixtures with
-  JavaScript on (Chromium's values). `crates/engine/tests/script_memory.rs`
+  without a big stack, `document.title` on the page fixtures with
+  JavaScript on (Chromium's values), and `Page::dispatch_event`. `crates/engine/tests/script_memory.rs`
   (one test, its own process) checks that the resident set size comes
   back after a navigation drops a runtime that held about 100 MiB.
 

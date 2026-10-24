@@ -1,5 +1,6 @@
 // Source: HTML Living Standard, https://html.spec.whatwg.org/
-// copied on 2026-10-23.
+// copied on 2026-10-23 (ErrorEvent, PromiseRejectionEvent and
+// PageTransitionEvent on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -8,11 +9,12 @@
 // 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
 // THIRD_PARTY_NOTICES.md for the license text.
 //
-// swb cut these IDL blocks to the members that it implements (feature 4c2
-// of M8): Window has the members that name windows and its document;
+// swb cut these IDL blocks to the members that it implements (features 4c2
+// and 5a of M8): Window has the members that name windows and its document;
 // Document has `title`, `body` and `head`; HTMLElement has no members yet
 // and no constructor; HTMLHeadElement is complete apart from the
-// constructor. The order of the remaining members is the specification's.
+// constructor; ErrorEvent, PromiseRejectionEvent and PageTransitionEvent
+// are complete. The order of the remaining members is the specification's.
 //
 // One line is swb's own: the typedef of WindowProxy. Without frames, the
 // WindowProxy of a window is the Window object itself (ADR 0028
@@ -47,4 +49,47 @@ interface HTMLElement : Element {
 
 [Exposed=Window]
 interface HTMLHeadElement : HTMLElement {
+};
+
+[Exposed=*]
+interface ErrorEvent : Event {
+  constructor(DOMString type, optional ErrorEventInit eventInitDict = {});
+
+  readonly attribute DOMString message;
+  readonly attribute USVString filename;
+  readonly attribute unsigned long lineno;
+  readonly attribute unsigned long colno;
+  readonly attribute any error;
+};
+
+dictionary ErrorEventInit : EventInit {
+  DOMString message = "";
+  USVString filename = "";
+  unsigned long lineno = 0;
+  unsigned long colno = 0;
+  any error;
+};
+
+[Exposed=*]
+interface PromiseRejectionEvent : Event {
+  constructor(DOMString type, PromiseRejectionEventInit eventInitDict);
+
+  readonly attribute object promise;
+  readonly attribute any reason;
+};
+
+dictionary PromiseRejectionEventInit : EventInit {
+  required object promise;
+  any reason;
+};
+
+[Exposed=Window]
+interface PageTransitionEvent : Event {
+  constructor(DOMString type, optional PageTransitionEventInit eventInitDict = {});
+
+  readonly attribute boolean persisted;
+};
+
+dictionary PageTransitionEventInit : EventInit {
+  boolean persisted = false;
 };

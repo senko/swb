@@ -227,6 +227,14 @@ impl g::document::DocumentImpl for WebState {
         Ok(head_element(dom(cx.rt)?, this))
     }
 
+    fn create_event(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        interface: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::events::create_event(cx, this, &interface)
+    }
+
     fn first_element_child(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
         first_element_child(cx, this)
     }

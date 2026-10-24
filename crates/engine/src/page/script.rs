@@ -6,12 +6,15 @@
 //!
 //! Feature 4c2 runs the inline classic scripts of a document at the end of
 //! its parse ([`Page::start_scripts`]) and evaluates expressions for the
-//! automation API and `--eval` ([`Page::evaluate`]). The event loop
-//! (feature 5b) and the script processing in the parser (5c) come later.
+//! automation API and `--eval` ([`Page::evaluate`]). Feature 5a adds the
+//! entry for DOM events that the engine fires ([`Page::dispatch_event`]);
+//! the engine fires none yet (`load` comes with feature 5c, input events
+//! with 6d). The event loop (feature 5b) and the script processing in the
+//! parser (5c) come later.
 
 use std::time::Instant;
 
-use swb_web::{ConsoleMessage, Evaluation, JsonForm, ScriptRuntime};
+use swb_web::{ConsoleMessage, DispatchTarget, Evaluation, JsonForm, ScriptRuntime, TrustedEvent};
 
 use super::Page;
 use crate::document::DocumentState;
@@ -55,7 +58,7 @@ impl Page {
     /// Runs `task` with the document state lent to the script runtime, then
     /// gives the state back (which processes the DOM changes). `None`
     /// without a runtime or a document.
-    fn run_task<R>(&mut self, task: impl FnOnce(&mut ScriptRuntime) -> R) -> Option<R> {
+    pub(crate) fn run_task<R>(&mut self, task: impl FnOnce(&mut ScriptRuntime) -> R) -> Option<R> {
         self.script.as_ref()?;
         let state = self.take_document_state()?;
         let script = self.script.as_mut()?;
@@ -79,6 +82,23 @@ impl Page {
     /// document has no script runtime (JavaScript off).
     pub fn evaluate(&mut self, source: &str, form: JsonForm) -> Option<Evaluation> {
         self.run_task(|script| script.evaluate(source, form))
+    }
+
+    /// Fires a trusted DOM event at a node of the current document or at
+    /// its window as a task (DOM "fire an event"; ADR 0028 section 11):
+    /// the listeners run under the task's time limit, then a microtask
+    /// checkpoint; the DOM changes are processed when the state comes back.
+    /// Returns whether the default action should run (false if a listener
+    /// canceled the event; true when the dispatch failed or the
+    /// document's scripts are stopped), or `None` without a script
+    /// runtime. Features 5c (`load`, `DOMContentLoaded`, `pageshow`) and 6d
+    /// (input events) call it.
+    pub fn dispatch_event(&mut self, target: DispatchTarget, event: &TrustedEvent) -> Option<bool> {
+        let result = self.run_task(|script| script.dispatch_event(target, event))?;
+        Some(result.unwrap_or_else(|error| {
+            log::debug!("the event '{}' ended early: {error}", event.kind);
+            true
+        }))
     }
 
     /// The console messages of the current document (at most the last

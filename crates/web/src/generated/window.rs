@@ -30,6 +30,9 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute WindowProxy? parent`.
     fn parent(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
+    /// `readonly attribute (Event or undefined) event`.
+    fn event(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<super::types::EventOrUndefined>;
+
 }
 
 fn get_window<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -124,6 +127,23 @@ fn set_parent<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
     })
 }
 
+fn get_event<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "event"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::event(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(result.to_js::<H>(rt, call.realm())?)
+    })
+}
+
+fn set_event<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Window", "event"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let _ = this;
+        let this = rt.this_or_global(call)?;
+        b::glue::replace(rt, call, this, "event")
+    })
+}
+
 /// Creates the interface object and the prototype of `Window` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -137,6 +157,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), Some(set_length::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "top", (Some(get_top::<H> as swb_js::NativeFn), None), swb_js::Attributes { writable: false, enumerable: true, configurable: false })?;
     rt.define_accessor(realm, target, "parent", (Some(get_parent::<H> as swb_js::NativeFn), Some(set_parent::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "event", (Some(get_event::<H> as swb_js::NativeFn), Some(set_event::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

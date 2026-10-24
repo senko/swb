@@ -2534,6 +2534,22 @@ Steps:
         `once`, `passive`, against Chromium (probe cases); hostile:
         recursion through nested `dispatchEvent`, an endless loop in a
         listener.
+        Done 2026-10-24. Listener lists by event type with an index by
+        callback and capture; those of nodes and the window live in the
+        binding state (at most 262,144 per document, then the task
+        ends), those of constructed targets in their own data. The
+        dispatch follows DOM §2.9 (the window last, not for `load`),
+        with `composedPath`, `window.event`, the dispatch-flag errors,
+        `once`, `passive` with its default, and changes during a
+        dispatch; an exception in a listener goes to the console and the
+        dispatch goes on. `CustomEvent`, `ErrorEvent`,
+        `PromiseRejectionEvent`, `PageTransitionEvent` and, brought
+        forward, `document.createEvent`. The engine fires trusted events
+        as tasks (`Page::dispatch_event`). Departures: no `signal`
+        option (no `AbortSignal` yet); `PromiseRejectionEvent.promise`
+        is an `object` as in HTML (Chromium takes any value). The probe
+        `web-events.json` (65 values) matches Chromium except the four
+        expected rows.
       - 5b: the task queues, `Page::pump`, the microtask checkpoint
         (after tasks and after callbacks), `setTimeout`,
         `setInterval`, their `clear*`, the nesting clamp (Chromium's
@@ -2992,6 +3008,32 @@ Steps:
 - `web`, 5c: the inline scripts are collected before the first runs, so
   a script that removes a later `<script>` (possible after 6a) does not
   stop it.
+- `web` (found in feature 5a): the `signal` option of
+  `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
+  reads `signal` after `passive`).
+- `web`, 5b: `Event.timeStamp` from the page clock (virtual time); now
+  it counts from the runtime's creation. The microtask checkpoint after
+  each listener that the engine calls (HTML "clean up after running a
+  callback").
+- `web`, 6d: the other `createEvent` names (`MouseEvent`,
+  `KeyboardEvent`, `FocusEvent`, `UIEvent`), activation behaviour in the
+  dispatch, the legacy `webkit` renames of animation events.
+- `web`: nested `dispatchEvent` ends with a RangeError at about 408
+  levels (release build); Chromium allows more. No page needs it.
+- `web`: a non-callable `handleEvent` reports a TypeError in swb's own
+  words; Chromium's console text is not observable with the probe.
+- `webidl`: unions in the web set give two clippy lints in generated
+  code (`collapsible_if`, `explicit_auto_deref`); `types.rs` allows them
+  instead of the emitter avoiding them.
+- `web` (found in the 5a review): a dispatch wraps every node of its
+  path in a JavaScript wrapper, also when no node has listeners; the
+  wrappers then live as long as the document. `invoke` clones the event
+  type's `String` for each struct of the path (an `Rc<str>` avoids it).
+- `web`, probe: the probe tool cannot tell `null` from `undefined` inside
+  arrays, so the defaults of `ErrorEvent.error` and
+  `PromiseRejectionEvent.reason` are not checked against Chromium (the
+  HTML IDL has no default, so `undefined` is expected; swb's answer shows
+  `null`). Add a `=== undefined` query.
 
 ## Backlog from M6
 

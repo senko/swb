@@ -36,4 +36,7 @@ pub use swb_net::Url;
 pub use swb_paint::Pixmap;
 pub use swb_style::Cursor;
 pub use swb_text::FontContext;
-pub use swb_web::{ConsoleLevel, ConsoleMessage, Evaluation, JsonForm};
+pub use swb_web::{
+    ConsoleLevel, ConsoleMessage, DispatchTarget, Evaluation, EventInterface, JsonForm,
+    TrustedEvent,
+};

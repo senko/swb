@@ -17,7 +17,7 @@ impl Gen<'_> {
     pub(crate) fn types_file(&self) -> Result<String, Error> {
         let mut out = String::new();
         out.push_str(&self.header("the dictionaries, enumerations, unions and callbacks"));
-        out.push_str("#![allow(clippy::large_enum_variant, clippy::too_many_arguments)]\n\n");
+        out.push_str("#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref)]\n\n");
         let _ = writeln!(out, "use {} as b;\n", self.support);
         for dict in &self.model.dictionaries {
             self.dictionary(&mut out, &dict.name)?;
@@ -325,9 +325,14 @@ impl Gen<'_> {
         for m in members {
             let owned = if self.is_copy(m) { "*x" } else { "x.clone()" };
             let value = self.rust_to_js(m, owned, "realm", false, 0);
+            let binding = if matches!(m.kind, TypeKind::Undefined) {
+                "()"
+            } else {
+                "x"
+            };
             let _ = writeln!(
                 text,
-                "            {name}::{}(x) => {value},",
+                "            {name}::{}({binding}) => {value},",
                 self.variant_name(m)
             );
         }
@@ -349,6 +354,13 @@ impl Gen<'_> {
         let find = |test: &dyn Fn(&Type) -> bool| members.iter().find(|m| test(m));
         let dictionary = find(&|m| kind_of(m) == Some(Kind::Dictionary));
         let object = find(&|m| matches!(m.kind, TypeKind::Object));
+        if let Some(u) = find(&|m| matches!(m.kind, TypeKind::Undefined)) {
+            let _ = writeln!(
+                body,
+                "        if value.is_undefined() {{ return Ok({name}::{}(())); }}",
+                self.variant_name(u)
+            );
+        }
         if let Some(d) = dictionary {
             let _ = writeln!(
                 body,

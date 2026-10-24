@@ -1,5 +1,6 @@
 // Source: DOM Living Standard, https://dom.spec.whatwg.org/
-// (Last Updated 19 October 2026), copied on 2026-10-23.
+// (Last Updated 19 October 2026), copied on 2026-10-23 (CustomEvent,
+// the partial Window interface and createEvent on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -9,16 +10,18 @@
 // THIRD_PARTY_NOTICES.md for the license text.
 //
 // swb cut these IDL blocks to the members that it implements (features 4c
-// and 5a of M8): Event, EventTarget, EventListener, NodeList and
-// DocumentType are complete; AddEventListenerOptions has no `signal` (no
-// AbortSignal yet). Node, Document, Element, CharacterData and the mixins
-// ParentNode and NonDocumentTypeChildNode have their read-only tree
-// accessors (feature 4c2), Document its URL, mode, encoding and content
-// type, Element its names and CharacterData its `data`; the members that
-// change the tree, the queries and the attributes come with feature 6.
-// Document, DocumentFragment, Text and Comment have no constructors yet,
-// Text no members, ProcessingInstruction only `target`. The order of the
-// remaining members is the specification's.
+// and 5a of M8): Event, CustomEvent, EventTarget, EventListener, NodeList
+// and DocumentType are complete, and so is the partial Window interface
+// with `event`; AddEventListenerOptions has no `signal` (no AbortSignal
+// yet). Node, Document, Element, CharacterData and the mixins ParentNode
+// and NonDocumentTypeChildNode have their read-only tree accessors
+// (feature 4c2), Document its URL, mode, encoding and content type and
+// `createEvent` (feature 5a), Element its names and CharacterData its
+// `data`; the members that change the tree, the queries and the
+// attributes come with feature 6. Document, DocumentFragment, Text and
+// Comment have no constructors yet, Text no members, ProcessingInstruction
+// only `target`. The order of the remaining members is the
+// specification's.
 
 [Exposed=*]
 interface Event {
@@ -57,6 +60,23 @@ dictionary EventInit {
   boolean bubbles = false;
   boolean cancelable = false;
   boolean composed = false;
+};
+
+partial interface Window {
+  [Replaceable] readonly attribute (Event or undefined) event; // legacy
+};
+
+[Exposed=*]
+interface CustomEvent : Event {
+  constructor(DOMString type, optional CustomEventInit eventInitDict = {});
+
+  readonly attribute any detail;
+
+  undefined initCustomEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any detail = null); // legacy
+};
+
+dictionary CustomEventInit : EventInit {
+  any detail = null;
 };
 
 [Exposed=*]
@@ -139,6 +159,8 @@ interface Document : Node {
 
   readonly attribute DocumentType? doctype;
   readonly attribute Element? documentElement;
+
+  [NewObject] Event createEvent(DOMString interface); // legacy
 };
 
 [Exposed=Window]

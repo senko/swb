@@ -26,6 +26,7 @@ use swb_js::{
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
+use crate::generated::types::EventOrUndefined;
 use crate::state::{WebState, state, state_mut};
 
 impl g::window::WindowImpl for WebState {
@@ -55,6 +56,18 @@ impl g::window::WindowImpl for WebState {
 
     fn parent(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
         Ok(Some(this.object))
+    }
+
+    /// `window.event` (DOM §2.3): the window's current event, or
+    /// `undefined`.
+    fn event(cx: &mut Cx<'_>, _this: Platform) -> b::Result<EventOrUndefined> {
+        let event = state(cx.rt)?.current_event;
+        Ok(
+            match event.and_then(|e| Some((e, cx.rt.host_object(e.into())?.1))) {
+                Some((object, data)) => EventOrUndefined::Event(Platform { object, data }),
+                None => EventOrUndefined::Undefined(()),
+            },
+        )
     }
 }
 

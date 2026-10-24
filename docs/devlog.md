@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 5a, the DOM event core
+
+- `EventTarget` keeps listeners and dispatches events. The listeners of
+  nodes and of the window live in the binding state (a node with
+  listeners has a wrapper, so both live as long as the document); a
+  target made by `new EventTarget()` keeps them in its own data. Each
+  list is per event type with an index by callback and capture: adding,
+  the duplicate check and removal take constant time, and a dispatch
+  copies only the listeners of its type. At most 262,144 listeners per
+  document (ADR 0028 section 16), because these lists are outside the JS
+  heap.
+- `addEventListener` takes `capture`, `once` and `passive` in both
+  forms, with the default passive value of touch and wheel events at the
+  window, the document and its body; `signal` waits for `AbortSignal`.
+- The dispatch follows DOM §2.9: the path up to the document and then
+  the window (not for `load`), the capture and bubble passes,
+  `stopPropagation`, `stopImmediatePropagation`, `cancelBubble`,
+  `preventDefault` with `cancelable` and passive listeners,
+  `returnValue`, `composedPath`, `window.event`, and the dispatch flag
+  with Chromium's `InvalidStateError` messages. An exception in a
+  listener goes to the console in the words of Chromium's `error` event,
+  and the dispatch goes on; a time-limit termination ends the task.
+- `CustomEvent`, `ErrorEvent`, `PromiseRejectionEvent`,
+  `PageTransitionEvent` and `document.createEvent` (for these
+  interfaces). The engine fires a trusted event at a node or the window
+  as a task (`Page::dispatch_event`) for 5c and 6d. The generator now
+  handles unions with `undefined`.
+- A new probe, `tools/probes/web-events.json`, has 65 Chromium values;
+  swb matches all but four expected ones (no `signal`, no `error` events
+  until 5b, `PromiseRejectionEvent.promise` as an `object`). Four new
+  hostile cases (nested dispatch, an endless listener, many listeners on
+  one target, the listener limit). JS-off snapshot unchanged.
+- Review fixes: a dispatch found each struct's adjusted target by a scan
+  back to the start of the path (O(depth²)); it now finds them once. A
+  type's list builds its index only from 8 listeners, and the listener
+  limit is 262,144 per document (was 1,048,576): the hostile case for
+  the limit used 590 MiB, now 141 MiB.
+- Next: feature 5b, the event loop and timers.
+
 ## 2026-10-23: M8 feature 4c2, the runtime of a document and the first DOM bindings
 
 - Each document with JavaScript on gets a script runtime

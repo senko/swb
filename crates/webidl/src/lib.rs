@@ -216,6 +216,24 @@ mod tests {
     }
 
     #[test]
+    fn unions_with_undefined_and_inherited_unforgeables() {
+        let idl = "[Exposed=Window] interface E { [LegacyUnforgeable] readonly attribute boolean isTrusted; };\n[Exposed=Window] interface C : E {};\n[Exposed=Window] interface W { readonly attribute (E or undefined) event; };";
+        let types = file(idl, "types.rs");
+        assert!(
+            types.contains("if value.is_undefined() { return Ok(EOrUndefined::Undefined(())); }")
+        );
+        assert!(types.contains(
+            "EOrUndefined::Undefined(()) => swb_js::VmResult::Ok(swb_js::Value::Undefined),"
+        ));
+        let e = file(idl, "e.rs");
+        assert!(e.contains("    let template = b::glue::new_unforgeable_template::<H>"));
+        // A subclass without unforgeable members of its own copies the
+        // parent's template only.
+        let c = file(idl, "c.rs");
+        assert!(c.contains("    let _template = b::glue::new_unforgeable_template::<H>(rt, realm, super::C, Some(super::E))?;"));
+    }
+
+    #[test]
     fn overloads_dispatch_by_count_and_type() {
         let idl = "[Exposed=Window] interface Node {}; [Exposed=Window] interface T { long f(); long f(Node n); long f(DOMString s); long f(long a, long b, long c); };";
         let t = file(idl, "t.rs");

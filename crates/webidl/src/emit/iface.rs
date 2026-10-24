@@ -752,9 +752,16 @@ impl Gen<'_> {
         let template =
             !global && (unforgeable_attrs || unforgeable_ops || self.inherits_unforgeable(iface));
         if template {
+            // An interface without unforgeable members of its own only
+            // copies its parent's template.
+            let name = if unforgeable_attrs || unforgeable_ops {
+                "template"
+            } else {
+                "_template"
+            };
             let _ = writeln!(
                 out,
-                "    let template = b::glue::new_unforgeable_template::<H>(rt, realm, {class}, {parent})?;"
+                "    let {name} = b::glue::new_unforgeable_template::<H>(rt, realm, {class}, {parent})?;"
             );
         }
         let (first, last) = self.iteration_definitions(iface);

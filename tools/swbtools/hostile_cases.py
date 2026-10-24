@@ -1764,3 +1764,73 @@ def window_named_lookups_after_changes_js_on() -> Page:
         "if (typeof missingGlobal !== 'undefined') break; }</script>"
     )
     return Page(doc("".join(f"<i id=e{i}></i>" for i in range(50_000)) + script))
+
+
+@case(
+    "A listener that dispatches a new event at its own target, with JavaScript on: each "
+    "nested dispatchEvent charges the shared recursion budget, the innermost one ends with "
+    "a RangeError that is reported, and the outer dispatches return (ADR 0028 section 16)",
+    expect_log="Uncaught RangeError: Maximum call stack size exceeded",
+    swb_args=("--js",),
+)
+def nested_dispatch_event_recursion_js_on() -> Page:
+    script = (
+        "<script>let depth = 0; const t = document.body; "
+        "t.addEventListener('r', () => { depth++; t.dispatchEvent(new Event('r')); }); "
+        "t.dispatchEvent(new Event('r')); console.log('depth ' + depth);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "An event listener with an endless loop, with JavaScript on: the task that dispatches "
+    "the event ends at the time limit of 5 s; the next listener does not run (ADR 0028 "
+    "section 16)",
+    time_limit_s=12,
+    expect_log="the time limit was exceeded",
+    swb_args=("--js",),
+)
+def event_listener_endless_loop_js_on() -> Page:
+    script = (
+        "<script>window.addEventListener('spin', () => { for (;;) {} }); "
+        "window.addEventListener('spin', () => console.log('not reached')); "
+        "window.dispatchEvent(new Event('spin'));</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "200,000 listeners of one type and 200,000 of different types on one element, with "
+    "JavaScript on: adding, the duplicate check, one dispatch and the removal of half stay "
+    "linear (DOM §2.7)",
+    swb_args=("--js",),
+)
+def many_event_listeners_on_one_target_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const t = document.body; const fs = []; "
+        "for (let i = 0; i < 200000; i++) { const f = () => n++; fs.push(f); "
+        "t.addEventListener('x', f); t.addEventListener('x', f); } "
+        "const g = () => n++; for (let i = 0; i < 200000; i++) t.addEventListener('t' + i, g); "
+        "t.dispatchEvent(new Event('x')); "
+        "for (let i = 0; i < 200000; i += 2) t.removeEventListener('x', fs[i]); "
+        "t.dispatchEvent(new Event('x')); t.dispatchEvent(new Event('t7')); "
+        "console.log('calls ' + n);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "More than 262,144 event listeners on the nodes of a document, with JavaScript on: "
+    "the lists live outside the JavaScript heap, so the add past the limit ends the task "
+    "(ADR 0028 section 16)",
+    time_limit_s=10,
+    expect_log="more than 262144 event listeners",
+    swb_args=("--js",),
+)
+def event_listener_limit_js_on() -> Page:
+    script = (
+        "<script>const f = () => 0; const t = document.body; "
+        "for (let i = 0; i < 300000; i++) t.addEventListener('t' + i, f); "
+        "console.log('not reached');</script>"
+    )
+    return Page(doc("<p>text</p>" + script))

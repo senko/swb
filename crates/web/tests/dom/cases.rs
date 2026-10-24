@@ -2,12 +2,7 @@
 // Chromium 148 gave (`just probe tools/probes/web-dom-tree.json`); where
 // swb departs on purpose, `tests/dom.rs` overrides the value (SWB_VALUES).
 
-/// A probe case: its name, its page and its queries with Chromium's values.
-pub(crate) struct Case {
-    pub(crate) name: &'static str,
-    pub(crate) html: &'static str,
-    pub(crate) queries: &'static [(&'static str, &'static str)],
-}
+use crate::common::Case;
 
 pub(crate) const CASES: &[Case] = &[
     Case {

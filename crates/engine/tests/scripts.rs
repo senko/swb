@@ -12,7 +12,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageConfig, Size, Url};
+use swb_engine::{
+    ConsoleLevel, DispatchTarget, Evaluation, FontContext, JsonForm, Page, PageConfig, Size,
+    TrustedEvent, Url,
+};
 use swb_net::Fetcher;
 
 mod common;
@@ -211,5 +214,36 @@ fn document_title_on_the_fixtures() {
             let got = value(&mut page, "document.title");
             assert_eq!(got, serde_json::to_string(title).unwrap(), "{name}");
         }
+    });
+}
+
+/// The engine's entry for DOM events (feature 5a): a trusted event at a
+/// node and at the window, each a task whose DOM changes are processed
+/// afterwards, with the result of `preventDefault`.
+#[test]
+fn the_engine_dispatches_trusted_events() {
+    on_page_thread(|| {
+        let mut page = load(
+            "<!DOCTYPE html><title>T</title><body><p id=p>x</p><script>window.log = []; const p = document.body.firstChild; p.addEventListener('poke', (e) => { log.push(e.type + ' ' + e.isTrusted + ' ' + e.eventPhase); e.preventDefault(); }); window.addEventListener('poke', (e) => { log.push('window ' + (e.target === p ? 'p' : e.target === window ? 'window' : '?')); document.title = 'poked'; });</script>",
+            "",
+        );
+        let p = page.document().unwrap().element_by_id("p").unwrap();
+        let mut poke = TrustedEvent::new("poke");
+        poke.bubbles = true;
+        poke.cancelable = true;
+        assert_eq!(
+            page.dispatch_event(DispatchTarget::Node(p), &poke),
+            Some(false)
+        );
+        assert_eq!(
+            page.dispatch_event(DispatchTarget::Window, &poke),
+            Some(true)
+        );
+        assert_eq!(
+            value(&mut page, "log"),
+            r#"["poke true 2","window p","window window"]"#
+        );
+        // The title change of the listener was processed with the task.
+        assert_eq!(page.title(), "poked");
     });
 }

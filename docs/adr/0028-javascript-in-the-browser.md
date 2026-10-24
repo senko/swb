@@ -619,6 +619,64 @@ Feature 4c2 notes:
   skipped, scripts with `src` skipped). A script therefore sees the whole
   document, not only the part above it.
 
+Feature 5a notes (the event core; see also section 11):
+
+- (Feature 5a: where listeners live.) A node's listener list is in the
+  binding state by `NodeId` (the node has a wrapper, and both live as long
+  as the document); the window's list is in the binding state too; a
+  target made by `new EventTarget()` (or a script subclass) keeps its list
+  in its generic data and dies with the object. The kinds are told apart
+  by class (`Node`, `Window`, else the generic data of `EventTarget`); a
+  later interface that inherits from `EventTarget` without being a node
+  adds its list to its own data and an arm to `events::target::kind_of`.
+  Each list is kept per event type in the order of addition, with an
+  index by callback and capture from 8 listeners of a type (shorter
+  lists are searched), so that the duplicate check and the removal are
+  O(1) and a dispatch clones only the listeners of its type. The lists
+  of nodes and of the window live outside the JavaScript heap: at most
+  262,144 of them per document, one more ends the task (a
+  termination, as the DOM limits of section 16). The lists of constructed
+  targets count as heap bytes of their objects.
+- (Feature 5a: dispatch.) DOM §2.9 with the path structs of the
+  specification (the shadow-tree fields stay false), `eventPhase`, the
+  capture listeners at the target before the others, the window last in
+  the bubble path (not for `load`, and only for the document of the
+  window), `composedPath` as specified, the dispatch flag
+  (`InvalidStateError` "The event is already being dispatched." and "The
+  event provided is uninitialized."), `once`, `passive` and its default
+  for touch and wheel events at the window, the document, its element and
+  its body, `window.event` (`[Replaceable]`, restored after each
+  listener), and listeners added or removed during the dispatch (the list
+  is cloned per target at its turn; removed listeners are skipped by
+  their flag). A listener is called with `Runtime::call_function`: from
+  the engine it is an outermost run, from `dispatchEvent` a re-entry that
+  charges the recursion budget (a recursion through nested dispatches
+  ends with a `RangeError` at a depth of about 400 in swb's release
+  build). An exception is reported as HTML "report the exception" would
+  write it to the console (`Uncaught TypeError: ...`; feature 5b adds the
+  `error` event at the window) and the dispatch goes on; a termination
+  ends the dispatch after the flags are reset. Not done: the legacy
+  `webkit` renames of trusted animation events, activation behaviour
+  (feature 6d), `relatedTarget` and touch target lists, the `signal`
+  option (no `AbortSignal` yet).
+- (Feature 5a: the interfaces.) `Event` (with `initEvent`, `returnValue`,
+  `cancelBubble`, `srcElement`, `timeStamp` from the runtime's time origin
+  coarsened to 0.1 ms), `CustomEvent` (with `initCustomEvent`),
+  `ErrorEvent`, `PromiseRejectionEvent` (`promise` is an `object` as in
+  HTML; Chromium takes any value), `PageTransitionEvent`, and
+  `document.createEvent` for the names of the interfaces that swb has
+  (`Event`, `Events`, `HTMLEvents`, `SVGEvents`, `CustomEvent`; others
+  give Chromium's `NotSupportedError`). The generator learned unions with
+  `undefined` (`(Event or undefined)`).
+- (Feature 5a: the engine's entry.) `ScriptRuntime::dispatch_event(target,
+  &TrustedEvent)` fires a trusted `Event` or `PageTransitionEvent` at a
+  node or the window (with the legacy target override for the window's
+  `load`) as a task: the deadline, the dispatch in a handle scope, the
+  microtask checkpoint, the stop rule; `Page::dispatch_event` lends the
+  document state for it. The checkpoint after each listener when the
+  stack is empty (HTML "clean up after running a callback") comes with
+  feature 5b.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -1149,6 +1207,7 @@ Per document, all settings with these defaults:
 | JavaScript heap | 256 MiB | termination; scripts stop, the runtime is dropped |
 | Nodes created in a document's arena | 1,048,576 | the task ends (termination) |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
+| Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
 | Script fetches in flight | 64 | queued |
 | `localStorage` per origin | 5 MiB | `QuotaExceededError` |

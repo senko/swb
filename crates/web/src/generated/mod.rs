@@ -7,6 +7,7 @@
 //! numbers, [`define_classes`] and [`create_interfaces`].
 
 pub mod event;
+pub mod custom_event;
 pub mod event_target;
 pub mod node;
 pub mod document;
@@ -21,6 +22,9 @@ pub mod comment;
 pub mod window;
 pub mod html_element;
 pub mod html_head_element;
+pub mod error_event;
+pub mod promise_rejection_event;
+pub mod page_transition_event;
 pub mod dom_exception;
 pub mod types;
 
@@ -28,46 +32,55 @@ use crate::bindings as b;
 
 /// The class of `Event`.
 pub const EVENT: swb_js::ClassId = swb_js::ClassId::from_index(0);
+/// The class of `CustomEvent`.
+pub const CUSTOM_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(1);
 /// The class of `EventTarget`.
-pub const EVENT_TARGET: swb_js::ClassId = swb_js::ClassId::from_index(1);
+pub const EVENT_TARGET: swb_js::ClassId = swb_js::ClassId::from_index(2);
 /// The class of `Node`.
-pub const NODE: swb_js::ClassId = swb_js::ClassId::from_index(2);
+pub const NODE: swb_js::ClassId = swb_js::ClassId::from_index(3);
 /// The class of `Document`.
-pub const DOCUMENT: swb_js::ClassId = swb_js::ClassId::from_index(3);
+pub const DOCUMENT: swb_js::ClassId = swb_js::ClassId::from_index(4);
 /// The class of `DocumentType`.
-pub const DOCUMENT_TYPE: swb_js::ClassId = swb_js::ClassId::from_index(4);
+pub const DOCUMENT_TYPE: swb_js::ClassId = swb_js::ClassId::from_index(5);
 /// The class of `DocumentFragment`.
-pub const DOCUMENT_FRAGMENT: swb_js::ClassId = swb_js::ClassId::from_index(5);
+pub const DOCUMENT_FRAGMENT: swb_js::ClassId = swb_js::ClassId::from_index(6);
 /// The class of `NodeList`.
-pub const NODE_LIST: swb_js::ClassId = swb_js::ClassId::from_index(6);
+pub const NODE_LIST: swb_js::ClassId = swb_js::ClassId::from_index(7);
 /// The class of `Element`.
-pub const ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(7);
+pub const ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(8);
 /// The class of `CharacterData`.
-pub const CHARACTER_DATA: swb_js::ClassId = swb_js::ClassId::from_index(8);
+pub const CHARACTER_DATA: swb_js::ClassId = swb_js::ClassId::from_index(9);
 /// The class of `Text`.
-pub const TEXT: swb_js::ClassId = swb_js::ClassId::from_index(9);
+pub const TEXT: swb_js::ClassId = swb_js::ClassId::from_index(10);
 /// The class of `ProcessingInstruction`.
-pub const PROCESSING_INSTRUCTION: swb_js::ClassId = swb_js::ClassId::from_index(10);
+pub const PROCESSING_INSTRUCTION: swb_js::ClassId = swb_js::ClassId::from_index(11);
 /// The class of `Comment`.
-pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(11);
+pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(12);
 /// The class of `Window`.
-pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(12);
+pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(13);
 /// The class of `HTMLElement`.
-pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(13);
+pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(14);
 /// The class of `HTMLHeadElement`.
-pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(14);
+pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(15);
+/// The class of `ErrorEvent`.
+pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
+/// The class of `PromiseRejectionEvent`.
+pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
+/// The class of `PageTransitionEvent`.
+pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(15);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(19);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + event::EventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
 pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {
     b::glue::define_class(rt, swb_js::ClassSpec::new("Event").constructor(event::construct::<H>, 1), EVENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("CustomEvent").parent(EVENT).constructor(custom_event::construct::<H>, 1), CUSTOM_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("EventTarget").constructor(event_target::construct::<H>, 0), EVENT_TARGET)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Node").parent(EVENT_TARGET), NODE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Document").parent(NODE), DOCUMENT)?;
@@ -82,6 +95,9 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window").parent(EVENT_TARGET), WINDOW)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT), HTML_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT), HTML_HEAD_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("ErrorEvent").parent(EVENT).constructor(error_event::construct::<H>, 1), ERROR_EVENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("PromiseRejectionEvent").parent(EVENT).constructor(promise_rejection_event::construct::<H>, 2), PROMISE_REJECTION_EVENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("PageTransitionEvent").parent(EVENT).constructor(page_transition_event::construct::<H>, 1), PAGE_TRANSITION_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMException").constructor(dom_exception::construct::<H>, 0), DOM_EXCEPTION)?;
     Ok(())
 }
@@ -91,6 +107,8 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
 pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {
     let interface = event::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Event", interface)?;
+    let interface = custom_event::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "CustomEvent", interface)?;
     let interface = event_target::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "EventTarget", interface)?;
     let interface = node::define::<H>(rt, realm)?;
@@ -119,6 +137,12 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "HTMLElement", interface)?;
     let interface = html_head_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLHeadElement", interface)?;
+    let interface = error_event::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "ErrorEvent", interface)?;
+    let interface = promise_rejection_event::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "PromiseRejectionEvent", interface)?;
+    let interface = page_transition_event::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "PageTransitionEvent", interface)?;
     let interface = dom_exception::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMException", interface)?;
     // Web IDL §3.7.3: the prototypes of a [Global] interface and of its
