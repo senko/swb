@@ -2718,6 +2718,45 @@ Steps:
         Tests: probe cases; live collections after changes; hostile:
         huge `innerHTML`, a selector that matches every node of a
         large tree.
+        Done 2026-10-24. Selectors use the `css` parser and the `style`
+        matcher (`style/src/query.rs`, no pass over the document;
+        `:scope`; the engine's element states, with the form states
+        rebuilt only for selectors that read them; Chromium's
+        `SyntaxError` messages; at most 100,000,000 steps per query).
+        `getElementsByTagName`, `...NS`, `getElementsByClassName`,
+        `getElementsByName` and the document collections (`forms`,
+        `images`, `links`, `scripts`, `anchors`, `embeds`, `plugins`,
+        `applets`) are live lists that cache their nodes per DOM
+        generation; the `getElementsBy*` lists are not in the registry,
+        so they can be collected. `window[name]` with several elements
+        is a live `HTMLCollection`. `innerHTML`, `outerHTML` and
+        `insertAdjacent{HTML,Element,Text}` (`web/src/dom/markup.rs`)
+        serialize and parse with the HTML algorithms, iteratively, with
+        Chromium's exceptions and its text-node join for `outerHTML`;
+        scripts in markup do not run. `DOMParser` (`text/html` only),
+        `document.implementation` (`createHTMLDocument`,
+        `createDocumentType`, `hasFeature`) and `template.content` make
+        more documents in the arena; each document has its own scripting
+        flag and quirks mode, so `noscript` in them is markup.
+        Departures: a new list object per `getElementsBy*` call
+        (Chromium keeps one); a lone surrogate in markup becomes U+FFFD;
+        XML types of `DOMParser` throw `NotSupportedError`. The probe
+        `web-dom-query.json` (78 cases, 406 values, three equal Chromium
+        runs) matches except the first two departures; the three 6a
+        probe cases that needed `template.content` are back. Hacker
+        News: `hn.js` runs to the end without an error, and its JS-on
+        boxes and pixels equal JS-off (821 of 821, 0 pixels). Hostile
+        166 ok + 1 known failure (eleven new cases); JS-off snapshot
+        identical, JS-off page loads within 1 %. Review fixes: `closest`
+        and every selector loop stop at the query bound, which also
+        counts each selector of a list (`closest` on 100,000 levels: 91 s
+        to 1.2 s; a list of 200,000 selectors: 9.2 s to 1.0 s); live lists
+        walk only as far as the item asked for, and `dom` keeps a child
+        count and an element-child count per node, so a drain loop over
+        `children` or `childNodes` is linear (50,000 children: 3.06 s to
+        0.07 s); one `innerHTML` write of `<p>x` makes 2 nodes, not 3 (the
+        parse reuses an empty fragment, and `insertAdjacentHTML` one
+        stand-in `body` per document).
       - 6c: the HTML element interfaces with `[Reflect]` attributes for
         the elements and attributes that the M8 targets use (`a`,
         `img`, `script`, `link`, `meta`, `input`, `button`, `form`,
@@ -2920,12 +2959,6 @@ Steps:
   `data:` URL of the same size.
 - DOM (found in feature 3a): `element_ids()` (SVG `use` references,
   layout) still scans the whole tree; it could use the id index.
-- DOM, feature 6b: the fragment parser takes its scripting flag from the
-  context's document. Probe Chromium for `<noscript>` in `innerHTML`
-  with JavaScript on.
-- DOM: only the document of `NodeId::DOCUMENT` has a quirks mode; other
-  documents of the arena are in no-quirks mode (matters for
-  `DOMParser`).
 - DOM: the parser can create a few nodes past the node limit (the token
   at hand finishes; at most about the list of active formatting
   elements). The public change functions are exact.
@@ -3049,8 +3082,8 @@ Steps:
   `is_supported_name` (also `c.length`); every indexed read calls
   `index_count`; `Object.keys(c)` is O(n²) with the default
   `is_supported_name`; a pair iterator's `next` calls `pair_at` per step.
-  Live collections need the cache keyed by the DOM generation
-  (`childNodes` has it since 4c2; `HTMLCollection` in 6b).
+  Live collections cache their nodes per DOM generation (`childNodes`
+  since 4c2, the `HTMLCollection` lists since 6a and 6b).
 - `web`, 4c2: the named property visibility algorithm does not skip a
   named properties object on the prototype chain (Web IDL §3.9.7); add
   it with the `WindowProperties` hooks.
@@ -3068,13 +3101,10 @@ Steps:
 - `web`, 6x: the element interfaces (`HTMLDivElement`,
   `HTMLHtmlElement`, ..., `SVGElement` and its subclasses) and
   `HTMLDocument`; the probe `web-dom-tree.json` has Chromium's chains.
-- `web`, 6b: `window[name]` of several elements must give an
-  `HTMLCollection`. The `name` cache rebuilds with a tree walk at the
+- `web`: the `window[name]` cache rebuilds with a tree walk at the
   first miss after each DOM change: a loop that changes the DOM and
   reads a missing global is O(n) per step (hostile case
   `window-named-lookups-after-changes-js-on`, 0.35 s for 1,000 × 50,000).
-- `web`: the `Document`, `Text` and `Comment` constructors;
-  `Text.splitText`, `wholeText`; `template.content`.
 - `web`: any change in the arena invalidates every `childNodes` cache
   (one generation counter); a generation per parent would avoid the
   rebuild of unrelated lists.
@@ -3193,8 +3223,6 @@ Steps:
   `Node` (`nodeType` 2, `instanceof Node`), `Element.slot`, shadow
   roots. Older libraries read `attributes[i].nodeName` and `nodeValue`;
   `Attr` has neither yet.
-- `web`, 6b (found in feature 6a): `template.content` (three probe cases
-  wait for it), `Document.implementation`.
 - `web`, 6c (found in feature 6a): `dataset` and `classList` on SVG
   elements (they need the SVG interfaces); `relList` and `supports`.
 - `web` (found in feature 6a): with expandos, `Reflect.ownKeys` of a
@@ -3231,6 +3259,71 @@ Steps:
 - `webidl` (found in feature 6a): the generator puts a stringifier's
   `toString` after the operations, sorted by ASCII; this matches the
   one interface measured (`DOMTokenList`). Check the next one.
+- `web` (found in feature 6b): XML documents: `DOMParser` for
+  `text/xml`, `application/xml`, `application/xhtml+xml` and
+  `image/svg+xml` (Chromium returns an `XMLDocument`; swb throws
+  `NotSupportedError`), `createDocument`, `XMLSerializer`.
+- `web` (found in feature 6b): Chromium returns the same collection
+  object for the same `getElementsBy*` arguments while it lives; swb
+  makes a new one per call, and one per `window[name]` read. This needs
+  a weak table keyed by (node, kind, arguments).
+- `web` (found in feature 6b): `p::-webkit-foo` throws `SyntaxError`
+  (Chromium accepts unknown prefixed pseudo-elements);
+  `createHTMLDocument` documents report `readyState` `complete`
+  (Chromium: `loading`); `HTMLDocument`, `designMode`,
+  `Range.createContextualFragment`, `setHTMLUnsafe`, `getHTML`,
+  `document.all`. Not in the probe.
+- `style` (found in feature 6b): a descendant selector that fails high
+  in a deep chain is quadratic in the depth (bounded at 100,000,000
+  steps, 0.7 s per query). A check of the selector's ancestor keys
+  against the names, ids and classes in the tree would make it linear;
+  `querySelector('#id')` could use the id index.
+- DOM (found in feature 6b): `el.innerHTML = '<div>'.repeat(100000)`
+  takes 13 s in the fragment parser, the same slow path as the known
+  hostile failure `nest-div-100000`; the task time limit does not stop
+  native code.
+- Engine (found in feature 6b): a text node of 50 MB in a visible
+  element costs 3.3 GB and 4 s in layout (also through the parser); in
+  a detached element it is cheap.
+- DOM (found in feature 6b): immortal nodes (ADR 0028 section 3): an
+  `innerHTML` write of `<p>x` makes 2 nodes, so about 520,000 writes
+  reach the node limit; each `DOMParser` or `createHTMLDocument` call
+  makes 4 to 8 nodes (150,000 calls).
+- Engine, `web` (found in feature 6b): the journal records changes in
+  documents that nobody renders; a loop of 100,000 `DOMParser` calls
+  can fill the journal (1,048,576 entries) and force a full walk. Do
+  not journal changes under a document other than `NodeId::DOCUMENT`.
+- DOM (found in the 6b review): html5ever, fragment case with a
+  `table` context: after a `thead` start tag, later `tbody`, `tfoot`
+  and `thead` start tags are ignored (`t.innerHTML =
+  '<thead><tbody>'` gives one `thead`; Chromium gives `thead` and
+  `tbody`). `tbody` or `tfoot` first and the whole-document parse are
+  correct, and swb sets up the fragment case as the standard says.
+  Report it upstream, or parse such markup another way.
+- `web` (found in the 6b review): a loop
+  `while (l.length > k) l[0].remove()` over a `getElementsBy*` list is
+  O(n) per step (its length needs a tree walk; 15,000 removals on
+  40,000 nodes: 1.7 s); a loop `root.children[i].innerHTML = ...` walks
+  `i` siblings per step, because each change drops the cache. Both
+  need invalidation from the journal (or per parent).
+- `web` (found in the 6b review): `baseURI` of a node in a `DOMParser`
+  document with a `base` element gives the page URL; Chromium follows
+  the `base` element.
+- `css` (found in the 6b review): Chromium accepts selectors that swb
+  refuses with `SyntaxError`: `|p` (no namespace), `& p` and `div &`
+  (the nesting selector, `:scope` in a query), `::part(x)` and
+  `::slotted(x)`. A type selector matches foreign elements without
+  regard to case in Chromium (`querySelectorAll('SVG')` and
+  `('foreignobject')` find one element each; swb finds none, in style
+  sheets too, as the HTML standard says). Measured in the review's
+  probe runs; add them to a probe file before a change.
+- Engine (found in the 6b review): `element_states(true)` processes the
+  journal and rebuilds the form tables at each query whose selector
+  reads form states, so a loop that changes the DOM and calls
+  `matches(':checked')` is O(n) per call. Look at it with 6c.
+- `web` (found in the 6b review): `Object.getOwnPropertyNames` of an
+  `HTMLCollection` with an expando lists the expandos before the named
+  properties; Chromium lists the named properties first.
 
 ## Backlog from M6
 

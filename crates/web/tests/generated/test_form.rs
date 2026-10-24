@@ -15,6 +15,13 @@ pub trait TestFormImpl: b::Host {
     /// The supported property indices of `TestForm` are `0..n` (Web IDL §3.9); returns `n`.
     fn index_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
+    /// Whether `index` is a supported property index. Every indexed access
+    /// asks; the default compares with [`Self::index_count`], and a list that
+    /// cannot count cheaply overrides it.
+    fn has_index(cx: &mut b::Cx<'_>, this: b::NodeId, index: u32) -> b::Result<bool> {
+        Ok(index < Self::index_count(cx, this)?)
+    }
+
     /// `getter TestElement (unsigned long index)`: the indexed property getter of `TestForm`.
     fn indexed_getter(cx: &mut b::Cx<'_>, this: b::NodeId, index: u32) -> b::Result<b::NodeId>;
 
@@ -45,6 +52,11 @@ fn legacy_count<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: 
     <H as TestFormImpl>::index_count(&mut b::Cx::without_call(rt, realm, super::TEST_FORM), this)
 }
 
+fn legacy_has<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<bool> {
+    let this = b::legacy::node(this)?;
+    <H as TestFormImpl>::has_index(&mut b::Cx::without_call(rt, realm, super::TEST_FORM), this, index)
+}
+
 fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<swb_js::Value> {
     let this = b::legacy::node(this)?;
     let result = <H as TestFormImpl>::indexed_getter(&mut b::Cx::without_call(rt, realm, super::TEST_FORM), this, index)?;
@@ -72,7 +84,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
     b::legacy::Legacy {
         interface: "TestForm",
         dom_exception: super::DOM_EXCEPTION,
-        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, get: legacy_indexed_get::<H>, set: None }),
+        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, has: legacy_has::<H>, get: legacy_indexed_get::<H>, set: None }),
         named: Some(b::legacy::Named { names: legacy_names::<H>, is_supported: legacy_is_supported::<H>, get: legacy_named_get::<H>, set: None, delete: None }),
         override_builtins: true,
         unenumerable: true,

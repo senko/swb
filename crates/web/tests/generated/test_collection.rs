@@ -21,6 +21,13 @@ pub trait TestCollectionImpl: b::Host {
     /// The supported property indices of `TestCollection` are `0..n` (Web IDL §3.9); returns `n`.
     fn index_count(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<u32>;
 
+    /// Whether `index` is a supported property index. Every indexed access
+    /// asks; the default compares with [`Self::index_count`], and a list that
+    /// cannot count cheaply overrides it.
+    fn has_index(cx: &mut b::Cx<'_>, this: b::Platform, index: u32) -> b::Result<bool> {
+        Ok(index < Self::index_count(cx, this)?)
+    }
+
     /// The supported property names of `TestCollection`, in order (Web IDL §3.9).
     fn supported_names(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Vec<String>>;
 
@@ -66,6 +73,10 @@ fn legacy_count<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: 
     <H as TestCollectionImpl>::index_count(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this)
 }
 
+fn legacy_has<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<bool> {
+    <H as TestCollectionImpl>::has_index(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this, index)
+}
+
 fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<swb_js::Value> {
     let result = <H as TestCollectionImpl>::item(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this, index)?;
     Ok((match result { Some(x0) => b::to_js::node::<H>(rt, realm, x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
@@ -89,7 +100,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
     b::legacy::Legacy {
         interface: "TestCollection",
         dom_exception: super::DOM_EXCEPTION,
-        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, get: legacy_indexed_get::<H>, set: None }),
+        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, has: legacy_has::<H>, get: legacy_indexed_get::<H>, set: None }),
         named: Some(b::legacy::Named { names: legacy_names::<H>, is_supported: legacy_is_supported::<H>, get: legacy_named_get::<H>, set: None, delete: None }),
         override_builtins: false,
         unenumerable: true,

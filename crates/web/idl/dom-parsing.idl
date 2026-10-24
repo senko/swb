@@ -1,0 +1,29 @@
+// Source: DOM Parsing and Serialization, W3C Editor's Draft,
+// https://w3c.github.io/DOM-Parsing/, DOMParser interface, copied on
+// 2026-10-24.
+//
+// This file includes material copied from DOM Parsing and Serialization,
+// https://w3c.github.io/DOM-Parsing/. Copyright © World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to DOMParser (feature 6b of M8). The enumeration is
+// named SupportedType, as in Chromium's messages (the specification calls
+// it DOMParserSupportedType). The members of InnerHTML, outerHTML and
+// insertAdjacentHTML are in dom.idl, on Element.
+
+[Exposed=Window]
+interface DOMParser {
+  constructor();
+
+  [NewObject] Document parseFromString(DOMString string, SupportedType type);
+};
+
+enum SupportedType {
+  "text/html",
+  "text/xml",
+  "application/xml",
+  "application/xhtml+xml",
+  "image/svg+xml"
+};

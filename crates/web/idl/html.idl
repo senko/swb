@@ -2,7 +2,9 @@
 // copied on 2026-10-23 (ErrorEvent, PromiseRejectionEvent and
 // PageTransitionEvent on 2026-10-24; WindowOrWorkerGlobalScope, TimerHandler,
 // Function and VoidFunction on 2026-10-24; DocumentReadyState,
-// `readyState`, `currentScript` and HTMLScriptElement on 2026-10-24).
+// `readyState`, `currentScript` and HTMLScriptElement on 2026-10-24; the
+// document collections, getElementsByName and HTMLTemplateElement on
+// 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -68,6 +70,21 @@ partial interface Document {
   readonly attribute WindowProxy? defaultView;
 };
 
+partial interface Document {
+  // DOM tree accessors
+  NodeList getElementsByName(DOMString elementName);
+
+  // special document collections
+  [SameObject] readonly attribute HTMLCollection images;
+  [SameObject] readonly attribute HTMLCollection embeds;
+  [SameObject] readonly attribute HTMLCollection plugins;
+  [SameObject] readonly attribute HTMLCollection links;
+  [SameObject] readonly attribute HTMLCollection forms;
+  [SameObject] readonly attribute HTMLCollection scripts;
+  [SameObject] readonly attribute HTMLCollection anchors;
+  [SameObject] readonly attribute HTMLCollection applets;
+};
+
 [Exposed=Window]
 interface HTMLElement : Element {
 };
@@ -86,6 +103,11 @@ interface DOMStringMap {
 
 [Exposed=Window]
 interface HTMLHeadElement : HTMLElement {
+};
+
+[Exposed=Window]
+interface HTMLTemplateElement : HTMLElement {
+  readonly attribute DocumentFragment content;
 };
 
 [Exposed=Window]

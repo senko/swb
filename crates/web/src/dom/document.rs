@@ -5,18 +5,23 @@
 //! 5c, `scripts.rs`); the node factories, `importNode`, `adoptNode`,
 //! `getElementById`, `referrer` and `defaultView` (feature 6a).
 //!
-//! Only the document of `NodeId::DOCUMENT` has a URL, an encoding and a
-//! quirks mode; the other documents of the arena (the inert documents of
-//! template contents) are `about:blank`, UTF-8 and no-quirks.
+//! Only the document of `NodeId::DOCUMENT` has a URL of its own and a
+//! script state; the other documents of the arena (the inert documents of
+//! template contents, `createHTMLDocument`, `DOMParser`) are UTF-8 and
+//! `text/html`, have their own quirks mode, and are `about:blank` except
+//! those of `DOMParser`, which have the URL of the window's document.
+//! Feature 6b adds the queries, the document collections and
+//! `implementation`.
 
 use swb_dom::{Document, ElementData, NodeData, NodeId, QualName, QuirksMode, local_name, ns};
 
 use super::attrs::{self, validate_and_extract};
+use super::lists::{self, DocCollection};
 use super::{dom_result, string_replace_all};
 use crate::bindings::{self as b, Cx, Exception};
 use crate::generated as g;
 use crate::generated::types::DomStringOrElementCreationOptions;
-use crate::state::{WebState, dom, dom_mut, engine};
+use crate::state::{WebState, dom, dom_mut, engine, state};
 
 /// The document element of the document `doc`: its element child.
 fn document_element(dom: &Document, doc: NodeId) -> Option<NodeId> {
@@ -90,7 +95,7 @@ fn is_main(this: NodeId) -> bool {
 
 impl g::document::DocumentImpl for WebState {
     fn url(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
-        if !is_main(this) {
+        if !is_main(this) && !state(cx.rt)?.parsed_documents.contains(&this) {
             return Ok("about:blank".to_owned());
         }
         Ok(engine(cx.rt)?.url())
@@ -101,7 +106,7 @@ impl g::document::DocumentImpl for WebState {
     }
 
     fn compat_mode(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
-        let quirks = is_main(this) && dom(cx.rt)?.quirks_mode == QuirksMode::Quirks;
+        let quirks = dom(cx.rt)?.quirks_mode_of(this) == QuirksMode::Quirks;
         Ok(if quirks { "BackCompat" } else { "CSS1Compat" }.to_owned())
     }
 
@@ -386,6 +391,75 @@ impl g::document::DocumentImpl for WebState {
         }
         let realm = cx.realm();
         Ok(Some(cx.rt.global(realm)?))
+    }
+
+    fn implementation(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        super::implementation::implementation(cx, this)
+    }
+
+    fn get_elements_by_tag_name(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        qualified_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::tag_name(cx, this, &qualified_name)
+    }
+
+    fn get_elements_by_tag_name_ns(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        namespace: Option<String>,
+        local_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::tag_name_ns(cx, this, namespace.as_deref(), &local_name)
+    }
+
+    fn get_elements_by_class_name(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        class_names: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::class_names(cx, this, &class_names)
+    }
+
+    fn get_elements_by_name(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        element_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::name(cx, this, &element_name)
+    }
+
+    fn images(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Images)
+    }
+
+    fn embeds(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Embeds)
+    }
+
+    fn plugins(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Plugins)
+    }
+
+    fn links(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Links)
+    }
+
+    fn forms(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Forms)
+    }
+
+    fn scripts(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Scripts)
+    }
+
+    fn anchors(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Anchors)
+    }
+
+    fn applets(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::document_collection(cx, this, DocCollection::Applets)
     }
 
     parent_node_methods!("Document");

@@ -35,6 +35,9 @@ Format: source, license (for code), what it influenced.
 - W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
   typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
+- W3C DOM Parsing and Serialization — https://w3c.github.io/DOM-Parsing/
+  — the `DOMParser` interface in `crates/web/idl/dom-parsing.idl` (W3C
+  Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
 - WHATWG HTML §2.6.1, reflecting content attributes in IDL attributes —
   the getters and setters of `[Reflect]` in `swb-web`.
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,

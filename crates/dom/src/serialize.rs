@@ -1,10 +1,15 @@
-//! HTML serialization of a node (`outerHTML`).
+//! HTML serialization of a node (`outerHTML`) and of the children of a
+//! node (`innerHTML`).
 //!
 //! Follows the HTML fragment serialization algorithm:
 //! <https://html.spec.whatwg.org/multipage/parsing.html#serialising-html-fragments>.
-//! With the scripting flag of the document off, `<noscript>` content is
-//! markup and is escaped as usual; with it on, the text of `<noscript>` is
-//! written as it is (the spec: "scripting is enabled for the parent").
+//! The text of a `<noscript>` is written as it is if scripting is enabled
+//! for the parent ([`Document::scripting_for`]), else it is escaped as
+//! usual. Departure from the algorithm, as in Chromium (measured in
+//! `tools/probes/web-dom-query.json`): the tag name of every element is its
+//! qualified name (the algorithm uses the local name in the HTML, SVG and
+//! `MathML` namespaces), and a `pre` gets no extra line feed. The walk is
+//! iterative, so a tree of any depth serializes.
 
 use html5ever::{local_name, ns};
 
@@ -12,12 +17,30 @@ use crate::tree::{Document, ElementData, NodeData, NodeId};
 
 /// Serializes `node` and its subtree as HTML (the value of `outerHTML`).
 pub fn outer_html(doc: &Document, node: NodeId) -> String {
-    enum Step {
-        Node(NodeId),
-        EndTag(String),
-    }
+    serialize(doc, vec![Step::Node(node)])
+}
+
+/// Serializes the children of `node` as HTML (the value of `innerHTML`);
+/// for a `template` element the children of its template contents.
+pub fn inner_html(doc: &Document, node: NodeId) -> String {
+    let content = doc
+        .element(node)
+        .and_then(|e| e.template_contents)
+        .unwrap_or(node);
+    let mut stack: Vec<Step> = doc.children(content).map(Step::Node).collect();
+    stack.reverse();
+    serialize(doc, stack)
+}
+
+/// A step of the serialization walk.
+enum Step {
+    Node(NodeId),
+    EndTag(String),
+}
+
+/// Runs the steps on a stack (the next step is the last).
+fn serialize(doc: &Document, mut stack: Vec<Step>) -> String {
     let mut out = String::new();
-    let mut stack = vec![Step::Node(node)];
     while let Some(step) = stack.pop() {
         let id = match step {
             Step::EndTag(name) => {
@@ -45,10 +68,10 @@ pub fn outer_html(doc: &Document, node: NodeId) -> String {
                 stack[first..].reverse();
             }
             NodeData::Text(text) => {
-                let raw = doc
-                    .parent(id)
-                    .and_then(|p| doc.element(p))
-                    .is_some_and(|p| is_raw_text_parent(p, doc.scripting()));
+                let raw = doc.parent(id).is_some_and(|parent| {
+                    doc.element(parent)
+                        .is_some_and(|p| is_raw_text_parent(p, doc.scripting_for(parent)))
+                });
                 if raw {
                     out.push_str(text);
                 } else {
@@ -82,13 +105,10 @@ pub fn outer_html(doc: &Document, node: NodeId) -> String {
     out
 }
 
-/// The tag name: the local name for HTML, SVG and `MathML` elements,
-/// otherwise the qualified name.
+/// The tag name: the qualified name (Chromium; see the module
+/// documentation).
 fn tag_name(element: &ElementData) -> String {
     let name = &element.name;
-    if name.ns == ns!(html) || name.ns == ns!(svg) || name.ns == ns!(mathml) {
-        return name.local.to_string();
-    }
     match &name.prefix {
         Some(prefix) => format!("{prefix}:{}", name.local),
         None => name.local.to_string(),
@@ -226,6 +246,38 @@ mod tests {
             ),
             "<div id=\"d\"><style>a > b {}</style><template><p>t</p></template></div>"
         );
+    }
+
+    #[test]
+    fn inner_html_serializes_the_children() {
+        let doc = parse_html("<div id=d><b>x</b>&amp;<template id=t><i>y</i></template></div>");
+        let d = doc.element_by_id("d").expect("element");
+        assert_eq!(
+            inner_html(&doc, d),
+            "<b>x</b>&amp;<template id=\"t\"><i>y</i></template>"
+        );
+        let t = doc.element_by_id("t").expect("element");
+        assert_eq!(inner_html(&doc, t), "<i>y</i>");
+    }
+
+    #[test]
+    fn a_deep_tree_serializes() {
+        let depth = 100_000;
+        let html = format!("{}x{}", "<span>".repeat(depth), "</span>".repeat(depth));
+        let doc = parse_html(&html);
+        let body = doc.body().expect("body");
+        assert_eq!(inner_html(&doc, body).len(), html.len());
+    }
+
+    #[test]
+    fn prefixed_elements_keep_the_prefix() {
+        let mut doc = Document::new();
+        let name =
+            html5ever::QualName::new(Some("s".into()), ns!(svg), html5ever::LocalName::from("g"));
+        let e = doc
+            .create_element(name, Vec::new())
+            .expect("an element in a new arena");
+        assert_eq!(outer_html(&doc, e), "<s:g></s:g>");
     }
 
     #[test]

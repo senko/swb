@@ -26,6 +26,9 @@ use super::{NodeId, Platform, Result, node_of};
 
 /// The supported property indices (`0..n`; the function returns `n`).
 pub type CountFn = fn(&mut Runtime, u32, Platform) -> Result<u32>;
+/// Whether an index is a supported property index (an index test needs
+/// no full count).
+pub type HasIndexFn = fn(&mut Runtime, u32, Platform, u32) -> Result<bool>;
 /// The indexed property getter, its result converted.
 pub type IndexedGetFn = fn(&mut Runtime, u32, Platform, u32) -> Result<Value>;
 /// The indexed property setter; it converts the value.
@@ -46,6 +49,8 @@ pub type NamedDeleteFn = fn(&mut Runtime, u32, Platform, String) -> Result<bool>
 pub struct Indexed {
     /// The number of supported property indices.
     pub count: CountFn,
+    /// The test of one index.
+    pub has: HasIndexFn,
     /// The getter.
     pub get: IndexedGetFn,
     /// The setter, if the interface has one.
@@ -138,7 +143,7 @@ pub fn set(
     // LegacyPlatformObjectGetOwnProperty(O, P, true): the indexed property,
     // else the stored one. The value is not needed.
     if let (Some(indexed), PropertyKey::Index(index)) = (spec.indexed, key)
-        && index < cx.count(rt, indexed, index)?
+        && cx.has_index(rt, indexed, index)?
     {
         return Ok(SetAnswer::WithOwn(Property::Data {
             value: Value::Undefined,
@@ -204,7 +209,7 @@ pub fn delete(
 ) -> VmResult<Option<bool>> {
     let cx = Call::new(rt, object, spec)?;
     if let (Some(indexed), PropertyKey::Index(index)) = (spec.indexed, key) {
-        return Ok(Some(index >= cx.count(rt, indexed, index)?));
+        return Ok(Some(!cx.has_index(rt, indexed, index)?));
     }
     if let Some(named) = spec.named
         && let Some(name) = name_of(rt, key)
@@ -352,7 +357,7 @@ impl<'a> Call<'a> {
         mut ignore_named: bool,
     ) -> VmResult<Option<Property>> {
         if let (Some(indexed), PropertyKey::Index(index)) = (self.spec.indexed, key) {
-            if index < self.count(rt, indexed, index)? {
+            if self.has_index(rt, indexed, index)? {
                 let value = (indexed.get)(rt, self.realm, self.this, index);
                 let value = self.check(rt, value, |_| self.index_prefix("read", index))?;
                 return Ok(Some(Property::Data {
@@ -408,6 +413,12 @@ impl<'a> Call<'a> {
     fn count(&self, rt: &mut Runtime, indexed: Indexed, index: u32) -> VmResult<u32> {
         let count = (indexed.count)(rt, self.realm, self.this);
         self.check(rt, count, |_| self.index_prefix("read", index))
+    }
+
+    /// True if `index` is a supported index.
+    fn has_index(&self, rt: &mut Runtime, indexed: Indexed, index: u32) -> VmResult<bool> {
+        let has = (indexed.has)(rt, self.realm, self.this, index);
+        self.check(rt, has, |_| self.index_prefix("read", index))
     }
 
     fn is_supported(&self, rt: &mut Runtime, named: Named, name: &str) -> VmResult<bool> {

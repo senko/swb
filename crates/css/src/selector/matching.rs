@@ -197,6 +197,10 @@ pub struct MatchingContext {
     /// Sibling indices for `:nth-*()`, by kind (see [`NthKind`]) and
     /// [`Element::cache_key`].
     nth_indices: [HashMap<usize, i32>; 4],
+    /// The elements that all matches with this context visited, for a
+    /// caller that bounds the total work of a query over many elements
+    /// (each match has its own budget of [`MATCH_BUDGET`]).
+    pub steps: u64,
 }
 
 impl MatchingContext {
@@ -254,7 +258,9 @@ pub fn matches_with_scope<E: Element>(
         has_pseudo_element: selector.pseudo_element.is_some(),
     };
     let result = matcher.match_from(&selector.components, element, None);
-    if matcher.exhausted {
+    let (left, exhausted) = (matcher.budget, matcher.exhausted);
+    context.steps += u64::from(MATCH_BUDGET - left);
+    if exhausted {
         debug!("selector `{selector}` is too expensive to match; treated as no match");
         return false;
     }

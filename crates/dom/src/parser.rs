@@ -44,7 +44,7 @@ use html5ever::tendril::StrTendril;
 use html5ever::tokenizer::{BufferQueue, Tokenizer, TokenizerOpts};
 use html5ever::tree_builder::{TreeBuilder, TreeBuilderOpts};
 
-pub use fragment::parse_fragment;
+pub use fragment::{parse_document, parse_fragment};
 use position::Positions;
 pub use position::TextPosition;
 use sink::Sink;

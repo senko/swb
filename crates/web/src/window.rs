@@ -11,20 +11,22 @@
 //! `EventTarget.prototype` and answers `window[name]` for the ids of
 //! elements and the `name` attributes of `embed`, `form`, `img` and
 //! `object` elements (HTML §7.2.2.3, "named access on the Window object").
-//! A name with several elements gives the first in tree order, an id
-//! before a `name` (HTML: an `HTMLCollection`, which swb does not have
-//! yet), and child navigables (frames) do not exist. Ids come from the
-//! DOM's id index; the `name` attributes are cached by DOM generation.
+//! A name with one element gives the element; a name with several gives a
+//! live `HTMLCollection` of them (`lists.rs`, as Chromium; measured in
+//! `tools/probes/web-dom-query.json`). Child navigables (frames) do not
+//! exist. Ids come from the DOM's id index; the `name` attributes are
+//! cached by DOM generation.
 
 use std::collections::HashMap;
 
-use swb_dom::{Document, NodeId, local_name};
+use swb_dom::{Document, NodeId};
 use swb_js::{
     ClassId, ClassSpec, Gc, HostHooks, Object, Property, PropertyDescriptor, PropertyKey, Runtime,
     Value, VmResult,
 };
 
 use crate::bindings::{self as b, Cx, Platform};
+use crate::dom::lists;
 use crate::generated as g;
 use crate::generated::types::{DomStringOrFunction, EventOrUndefined, VoidFunction};
 use crate::state::{WebState, state, state_mut};
@@ -191,36 +193,42 @@ pub(crate) fn install(rt: &mut Runtime, realm: u32, class: ClassId) -> VmResult<
     result
 }
 
-/// The elements that have each `name` of the window's named properties:
-/// the `name` of `embed`, `form`, `img` and `object` elements, in tree
-/// order (the first one of each name). Ids come from the DOM's id index.
-fn build_names(dom: &Document) -> HashMap<String, NodeId> {
-    let mut names = HashMap::new();
+/// The `embed`, `form`, `img` and `object` elements that have each `name`
+/// of the window's named properties: the first one in tree order and how
+/// many there are (counted up to 2). An element whose `id` is its `name`
+/// counts as an element of the id.
+fn build_names(dom: &Document) -> HashMap<String, (NodeId, u8)> {
+    let mut names: HashMap<String, (NodeId, u8)> = HashMap::new();
     for node in dom.descendants(NodeId::DOCUMENT) {
         let Some(element) = dom.element(node) else {
             continue;
         };
-        let named = element.is_html()
-            && [
-                local_name!("embed"),
-                local_name!("form"),
-                local_name!("img"),
-                local_name!("object"),
-            ]
-            .contains(element.local_name());
-        if named && let Some(name) = element.attr("name").filter(|n| !n.is_empty()) {
-            names.entry(name.to_owned()).or_insert(node);
+        let Some(name) = element.attr("name").filter(|n| !n.is_empty()) else {
+            continue;
+        };
+        if element.id() != Some(name) && lists::named_by_window(element, name) {
+            let entry = names.entry(name.to_owned()).or_insert((node, 0));
+            entry.1 = entry.1.saturating_add(1).min(2);
         }
     }
     names
 }
 
-/// The element of a supported property name of the window, or `None`: the
-/// element with that id (the DOM's id index, which changes keep up to
-/// date), else the first element with that `name` (cached by generation).
-/// An element of each kind gives the one with the id, not the first in tree
-/// order (HTML gives both in an `HTMLCollection`).
-fn named_element(rt: &mut Runtime, name: &str) -> VmResult<Option<NodeId>> {
+/// What a name of the window's named properties stands for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Named {
+    /// One element.
+    One(NodeId),
+    /// Several elements: a collection.
+    Many,
+}
+
+/// The element of a supported property name of the window, or `Many` if
+/// several elements have it, or `None`: the elements with that id (the
+/// DOM's id index, which changes keep up to date) and the elements with
+/// that `name` (cached by generation). One element of each kind gives the
+/// one with the id.
+fn named(rt: &mut Runtime, name: &str) -> VmResult<Option<Named>> {
     let state = state(rt)?;
     let Some(host) = state.host.as_deref() else {
         return Ok(None);
@@ -228,30 +236,47 @@ fn named_element(rt: &mut Runtime, name: &str) -> VmResult<Option<NodeId>> {
     if name.is_empty() {
         return Ok(None);
     }
-    if let Some(element) = host.dom().element_by_id(name) {
-        return Ok(Some(element));
-    }
-    let generation = host.dom().generation();
-    if let Some((built, names)) = &state.window_names
-        && *built == generation
-    {
-        return Ok(names.get(name).copied());
-    }
-    let names = build_names(host.dom());
-    let found = names.get(name).copied();
-    state_mut(rt)?.window_names = Some((generation, names));
-    Ok(found)
+    let dom = host.dom();
+    let by_id = dom.count_elements_by_id(NodeId::DOCUMENT, name, 2);
+    let first_id = if by_id > 0 {
+        dom.element_by_id(name)
+    } else {
+        None
+    };
+    let generation = dom.generation();
+    let (first_name, by_name) = match &state.window_names {
+        Some((built, names)) if *built == generation => names
+            .get(name)
+            .map_or((None, 0), |&(n, c)| (Some(n), usize::from(c))),
+        _ => {
+            let names = build_names(dom);
+            let found = names
+                .get(name)
+                .map_or((None, 0), |&(n, c)| (Some(n), usize::from(c)));
+            state_mut(rt)?.window_names = Some((generation, names));
+            found
+        }
+    };
+    Ok(match by_id + by_name {
+        0 => None,
+        1 => first_id.or(first_name).map(Named::One),
+        _ => Some(Named::Many),
+    })
 }
 
 /// The named property visibility algorithm (Web IDL §3.9.7) for the global
 /// object: the name is supported, and neither the global object nor a
 /// prototype other than the named properties object has an own property
-/// of that name. Returns the element.
-fn visible(rt: &mut Runtime, wp: Gc<Object>, key: PropertyKey) -> VmResult<Option<NodeId>> {
+/// of that name. Returns what the name stands for.
+fn visible(
+    rt: &mut Runtime,
+    wp: Gc<Object>,
+    key: PropertyKey,
+) -> VmResult<Option<(String, Named)>> {
     let Some(name) = string_key(rt, key) else {
         return Ok(None);
     };
-    let Some(element) = named_element(rt, &name)? else {
+    let Some(found) = named(rt, &name)? else {
         return Ok(None);
     };
     let global = rt.global(0)?;
@@ -265,7 +290,7 @@ fn visible(rt: &mut Runtime, wp: Gc<Object>, key: PropertyKey) -> VmResult<Optio
         }
         prototype = rt.prototype_of(object)?;
     }
-    Ok(Some(element))
+    Ok(Some((name, found)))
 }
 
 /// The text of a string or index key; `None` for a symbol.
@@ -284,12 +309,15 @@ fn get_own_property(
     object: Gc<Object>,
     key: PropertyKey,
 ) -> VmResult<Option<Property>> {
-    let Some(element) = visible(rt, object, key)? else {
+    let Some((name, found)) = visible(rt, object, key)? else {
         return Ok(None);
     };
-    let wrapper = <WebState as b::Host>::wrap_node(rt, 0, element)?;
+    let value = match found {
+        Named::One(element) => <WebState as b::Host>::wrap_node(rt, 0, element)?,
+        Named::Many => lists::window_name(rt, 0, &name)?,
+    };
     Ok(Some(Property::Data {
-        value: Value::Object(wrapper),
+        value: Value::Object(value),
         writable: true,
         enumerable: false,
         configurable: true,

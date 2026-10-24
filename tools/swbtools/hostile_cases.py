@@ -2168,3 +2168,215 @@ def deep_append_child_bottom_up_form_js_on() -> Page:
         "</script>"
     )
     return Page(doc("<form id=f><input name=a></form>" + script))
+
+
+@case(
+    "A script that sets innerHTML of a detached element to a text of 50 MB and reads innerHTML "
+    "and outerHTML back, and sets innerHTML of a page element to 100,000 elements with 300-byte "
+    "attributes (30 MB of markup), with JavaScript on: the fragment parser and the serializer "
+    "make a few copies of the text, not one per character or per level (ADR 0028 section 16)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=1024,
+)
+def inner_html_huge_markup_js_on() -> Page:
+    script = (
+        "<script>const d = document.createElement('div'); "
+        "d.innerHTML = 'x'.repeat(50 * 1024 * 1024); "
+        "const piece = '<i title=\"' + 'y'.repeat(290) + '\"></i>'; "
+        "document.getElementById('e').innerHTML = piece.repeat(100000); "
+        "console.log(d.innerHTML.length, d.outerHTML.length, "
+        "document.getElementById('e').childNodes.length);"
+        "</script>"
+    )
+    return Page(doc("<div id=e></div>" + script))
+
+
+@case(
+    "A script that sets innerHTML to 2,000,000 empty elements, with JavaScript on: the "
+    "parse stops at the node limit and the task ends (ADR 0028 section 16)",
+    expect_log="the DOM node limit",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def inner_html_node_limit_js_on() -> Page:
+    script = (
+        "<script>document.getElementById('e').innerHTML = '<i></i>'.repeat(2000000); "
+        "console.log('not reached');</script>"
+    )
+    return Page(doc("<div id=e></div>" + script))
+
+
+@case(
+    "A page of 500,000 elements and a script that runs querySelectorAll('*'), a selector "
+    "with a descendant combinator, :nth-child and :not on all of them, with JavaScript on: "
+    "each query is one pass over the tree",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=1536,
+)
+def query_selector_all_every_node_js_on() -> Page:
+    script = (
+        "<script>const r = []; for (const s of ['*', 'body i', 'i:nth-child(2n+1)', ':not(b)', "
+        "'body > i + i']) r.push(document.querySelectorAll(s).length); console.log(r.join());"
+        "</script>"
+    )
+    return Page(doc("<i></i>" * 500_000 + script))
+
+
+@case(
+    "Selectors with 40 descendant combinators over a chain of 100,000 nested divs built by a "
+    "script, with JavaScript on: one that matches, one that fails at the subject, one that "
+    "fails at the leftmost compound (every element walks all its ancestors: the work of a "
+    "query stops at 100,000,000 steps and returns what it has, with a warning)",
+    expect_log="a selector query is too expensive",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def selector_many_combinators_deep_tree_js_on() -> Page:
+    script = (
+        "<script>let n = document.createElement('div'); for (let i = 0; i < 100000; i++) "
+        "{ const w = document.createElement('div'); w.appendChild(n); n = w; } "
+        "document.body.appendChild(n); "
+        "const hit = 'div '.repeat(40) + 'div', miss = 'div '.repeat(40) + 'span', "
+        "high = 'span ' + 'div '.repeat(40) + 'div', child = 'div > '.repeat(40) + 'span'; "
+        "console.log(document.querySelectorAll(hit).length, "
+        "document.querySelectorAll(miss).length, "
+        "document.querySelectorAll(high).length, document.querySelectorAll(child).length, "
+        "n.querySelector(':scope ' + miss));</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A loop over a live getElementsByTagName('*') list with a change in each step, with "
+    "JavaScript on: the list walks again after each change, but only as far as the item "
+    "that the loop reads, 10,000 steps over 10,000 to 20,000 elements",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def live_list_loop_with_changes_js_on() -> Page:
+    script = (
+        "<script>const l = document.getElementsByTagName('*'); let seen = 0; "
+        "for (let i = 0; i < l.length && i < 10000; i++) { seen += l[i].nodeType; "
+        "document.body.appendChild(document.createElement('u')); } console.log(seen, l.length);"
+        "</script>"
+    )
+    return Page(doc("<i></i>" * 10_000 + script))
+
+
+@case(
+    "A chain of 100,000 nested divs built by a script, then innerHTML and outerHTML of the "
+    "chain read, with JavaScript on: the serializer is iterative, so a deep tree needs no "
+    "native stack (ADR 0028 section 16)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def inner_html_deep_tree_js_on() -> Page:
+    script = (
+        "<script>let n = document.createElement('div'); for (let i = 0; i < 100000; i++) "
+        "{ const w = document.createElement('div'); w.appendChild(n); n = w; } "
+        "document.body.appendChild(n); const html = document.body.innerHTML; "
+        "const out = n.outerHTML; console.log(html.length, out.length);"
+        "</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A script that sets outerHTML of an element 50,000 times, each time on the element that "
+    "the last set made, in a parent of 1,000 children, with JavaScript on: each set parses "
+    "one small fragment and replaces one node",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def outer_html_set_loop_js_on() -> Page:
+    script = (
+        "<script>const h = document.getElementById('h'); let e = h.children[500]; "
+        "for (let i = 0; i < 50000; i++) "
+        "{ e.outerHTML = '<b>' + i + '</b>'; e = h.children[500]; } "
+        "console.log(h.children.length, e.textContent);</script>"
+    )
+    return Page(doc("<div id=h>" + "<i></i>" * 1000 + "</div>" + script))
+
+
+@case(
+    "A script that calls DOMParser.parseFromString and createHTMLDocument 20,000 times each, "
+    "with JavaScript on: each document is a few nodes of the arena, and the node limit ends "
+    "a script that goes on (ADR 0028 section 16)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def parse_documents_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 20000; i++) { "
+        "n += new DOMParser().parseFromString('<p>' + i + '</p>', 'text/html')"
+        ".body.childNodes.length; "
+        "n += document.implementation.createHTMLDocument('t').body.childNodes.length; } "
+        "console.log(n);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A chain of 100,000 nested divs built by a script and closest() calls with descendant "
+    "selectors that fail (35 s and 91 s before the bound), with JavaScript on: closest stops "
+    "at the 100,000,000 steps of a query, with a warning, and returns null",
+    expect_log="a selector query is too expensive",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def closest_deep_tree_js_on() -> Page:
+    script = (
+        "<script>let leaf = document.createElement('div'); let n = leaf; "
+        "for (let i = 0; i < 100000; i++) { const w = document.createElement('div'); "
+        "w.appendChild(n); n = w; } document.body.appendChild(n); "
+        "console.log(String(leaf.closest('section div')), "
+        "String(leaf.closest('section > div div:not(.q)')));</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "querySelectorAll with a selector list of 200,000 entries on a page of 5,000 elements "
+    "(1,000,000,000 selector tests before the bound), with JavaScript on: each selector tried "
+    "counts as a step, so the query stops at 100,000,000 steps",
+    expect_log="a selector query is too expensive",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def selector_long_list_js_on() -> Page:
+    script = (
+        "<script>console.log(document.querySelectorAll('.a,'.repeat(200000) + 'p').length, "
+        "document.getElementById('c').matches('.a,'.repeat(200000) + 'p'));</script>"
+    )
+    return Page(doc("<p id=c></p>" + "<p></p>" * 5_000 + script))
+
+
+@case(
+    "A script that removes 100,000 children one by one with "
+    "while (r.children.length) r.removeChild(r.children[0]), and 100,000 more through "
+    "childNodes and the last child, with JavaScript on: length comes from the counts that the "
+    "DOM keeps and the item from the nearer end, so each step is O(1) (3 s for 50,000 "
+    "children before)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def children_drain_loop_js_on() -> Page:
+    script = (
+        "<script>const r = document.getElementById('r'), q = document.getElementById('q'); "
+        "let n = 0; while (r.children.length) { r.removeChild(r.children[0]); n++; } "
+        "while (q.childNodes.length) "
+        "{ q.removeChild(q.childNodes[q.childNodes.length - 1]); n++; } console.log(n);"
+        "</script>"
+    )
+    return Page(
+        doc(
+            "<div id=r>"
+            + "<p></p>" * 100_000
+            + "</div><div id=q>"
+            + "<i></i>" * 100_000
+            + "</div>"
+            + script
+        )
+    )

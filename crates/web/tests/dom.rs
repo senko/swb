@@ -49,12 +49,6 @@ const SWB_VALUES: &[Departure] = &[
         r#""[object Element] [object Node] [object EventTarget] [object Object]""#,
         "no SVG interfaces",
     ),
-    (
-        "window",
-        2,
-        r#"["[object HTMLElement]", null, "object", true]"#,
-        "a name of several elements gives the first (no HTMLCollection)",
-    ),
 ];
 
 /// Runs every probe case with and without the GC stress mode.

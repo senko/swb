@@ -2853,8 +2853,10 @@ version = "0.1.0"
 dependencies = [
  "log",
  "serde_json",
+ "swb-css",
  "swb-dom",
  "swb-js",
+ "swb-style",
 ]
 
 [[package]]

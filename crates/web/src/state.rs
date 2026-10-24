@@ -40,10 +40,18 @@ pub(crate) enum Slot {
     Attributes,
     /// `HTMLElement.dataset`.
     Dataset,
+    /// `Document.implementation`.
+    Implementation,
+    /// `document.forms` and the other collections of a document.
+    Collection(crate::dom::DocCollection),
 }
 
 /// The parsed tokens of token lists by element and attribute name.
 pub(crate) type TokenCache = HashMap<(NodeId, swb_dom::LocalName), Rc<Vec<String>>>;
+
+/// The elements of the window's named properties by `name`: the first one
+/// and how many there are (up to 2).
+pub(crate) type WindowNames = HashMap<String, (NodeId, u8)>;
 
 /// The binding state of a runtime.
 #[derive(Default)]
@@ -64,7 +72,7 @@ pub(crate) struct WebState {
     /// The cache of the `name` attributes of the window's named
     /// properties (`window[name]`): the DOM generation it was built for and
     /// the first element of each name.
-    pub(crate) window_names: Option<(u64, HashMap<String, NodeId>)>,
+    pub(crate) window_names: Option<(u64, WindowNames)>,
     /// The `Attr` objects that scripts have seen, by element and attribute
     /// name. An attribute that is removed keeps its object, which then has
     /// no owner (the entry is dropped).
@@ -76,6 +84,13 @@ pub(crate) struct WebState {
     /// The parsed tokens of the token lists that were read in one DOM
     /// generation (`dom/token_list.rs`), by element and attribute name.
     pub(crate) token_cache: (u64, TokenCache),
+    /// The parsed selector lists of `querySelector*`, `matches` and
+    /// `closest`, by text (the page that calls them in a loop parses each
+    /// string once).
+    pub(crate) selectors: HashMap<String, Rc<swb_css::SelectorList>>,
+    /// The documents that `DOMParser` made (they have the URL of the
+    /// window's document).
+    pub(crate) parsed_documents: std::collections::HashSet<NodeId>,
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,
@@ -193,6 +208,7 @@ fn class_of(dom: &Document, node: NodeId) -> ClassId {
         NodeData::Element(e) if e.name.ns == ns!(html) => match e.name.local {
             local_name!("head") => g::HTML_HEAD_ELEMENT,
             local_name!("script") => g::HTML_SCRIPT_ELEMENT,
+            local_name!("template") => g::HTML_TEMPLATE_ELEMENT,
             _ => g::HTML_ELEMENT,
         },
         NodeData::Element(_) => g::ELEMENT,

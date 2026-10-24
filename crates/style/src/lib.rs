@@ -21,6 +21,8 @@
 //!   states, disabled form controls and `querySelectorAll`;
 //!   `element_kinds`: the kinds of boxes of HTML elements that style and
 //!   layout share (replaced elements, possible list items).
+//! - `query`: the selector queries of scripts (`querySelector`, `matches`,
+//!   `closest`).
 //! - `values`, `computed`: computed value types.
 //! - `font_face`: `@font-face` rules and their descriptors;
 //!   `font_settings`: `font-variation-settings` and `font-feature-settings`.
@@ -45,6 +47,7 @@ mod font_settings;
 mod hints;
 mod parse;
 mod properties;
+mod query;
 mod style_map;
 mod stylist;
 mod svg_attributes;
@@ -59,6 +62,7 @@ pub use element::{
 pub use element_kinds::is_replaced_element;
 pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle};
 pub use font_settings::{FontFeatureSettings, FontTag, FontVariationSettings, MAX_SETTINGS};
+pub use query::{Matcher, parse_selectors};
 pub use style_map::{InstanceId, PseudoKind, StyleMap};
 pub use stylist::Stylist;
 pub use values::*;

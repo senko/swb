@@ -13,8 +13,10 @@ workspace = true
 
 [dependencies]
 log.workspace = true
+swb-css.workspace = true
 swb-dom.workspace = true
 swb-js.workspace = true
+swb-style.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

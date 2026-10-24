@@ -47,7 +47,7 @@ impl Gen<'_> {
                         claim("index_count", &op.place)?;
                         let _ = writeln!(
                             trait_items,
-                            "    /// The supported property indices of `{0}` are `0..n` (Web IDL §3.9); returns `n`.\n    fn index_count(cx: &mut b::Cx<'_>, this: {this_ty}) -> b::Result<u32>;\n",
+                            "    /// The supported property indices of `{0}` are `0..n` (Web IDL §3.9); returns `n`.\n    fn index_count(cx: &mut b::Cx<'_>, this: {this_ty}) -> b::Result<u32>;\n\n    /// Whether `index` is a supported property index. Every indexed access\n    /// asks; the default compares with [`Self::index_count`], and a list that\n    /// cannot count cheaply overrides it.\n    fn has_index(cx: &mut b::Cx<'_>, this: {this_ty}, index: u32) -> b::Result<bool> {{\n        Ok(index < Self::index_count(cx, this)?)\n    }}\n",
                             iface.name
                         );
                     }
@@ -138,10 +138,10 @@ impl Gen<'_> {
         if let Some(getter) = legacy.indexed_getter {
             let _ = writeln!(
                 glue,
-                "fn legacy_count<{bound}>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform) -> b::Result<u32> {{\n    {}<H as {}>::index_count({}, this)\n}}\n",
+                "fn legacy_count<{bound}>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform) -> b::Result<u32> {{\n    {1}<H as {2}>::index_count({0}, this)\n}}\n\nfn legacy_has<{bound}>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<bool> {{\n    {1}<H as {2}>::has_index({0}, this, index)\n}}\n",
+                legacy_cx(getter.owner),
                 self.legacy_this(getter.owner),
-                trait_path(getter.owner, iface),
-                legacy_cx(getter.owner)
+                trait_path(getter.owner, iface)
             );
             self.legacy_getter(
                 iface,
@@ -166,7 +166,7 @@ impl Gen<'_> {
                 },
             );
             indexed = format!(
-                "Some(b::legacy::Indexed {{ count: legacy_count::<H>, get: legacy_indexed_get::<H>, set: {set} }})"
+                "Some(b::legacy::Indexed {{ count: legacy_count::<H>, has: legacy_has::<H>, get: legacy_indexed_get::<H>, set: {set} }})"
             );
         }
         let mut named = "None".to_owned();

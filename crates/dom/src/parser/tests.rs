@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use html5ever::local_name;
+
 use super::*;
 use crate::dump::dump_tree;
 use crate::journal::Change;
@@ -448,6 +450,96 @@ fn fragments_follow_the_context() {
         parse_fragment(&mut doc, text, "<p>"),
         Err(DomError::InvalidNodeType)
     );
+}
+
+#[test]
+fn noscript_is_markup_unless_scripting_is_enabled_for_the_context() {
+    let mut doc = parse_html_with(
+        "<!DOCTYPE html><div id=d></div><template id=t></template>",
+        true,
+    );
+    let markup = "<noscript><b>x</b></noscript>";
+    for (context, text_child) in [("d", true), ("t", false)] {
+        let context = doc.element_by_id(context).expect("context");
+        let fragment = parse_fragment(&mut doc, context, markup).expect("fits");
+        let noscript = doc.children(fragment).next().expect("noscript");
+        let child = doc.children(noscript).next().expect("child");
+        assert_eq!(
+            matches!(doc.node(child).data, NodeData::Text(_)),
+            text_child,
+            "{context:?}"
+        );
+    }
+    // A document that scripts make has no scripting.
+    let other = doc.create_document().unwrap();
+    assert!(doc.scripting_for(NodeId::DOCUMENT));
+    assert!(!doc.scripting_for(other));
+}
+
+#[test]
+fn a_document_parse_makes_a_new_document_of_the_arena() {
+    let mut doc = parse_html("<!DOCTYPE html><p id=main>x</p>");
+    doc.take_journal();
+    let before = doc.len();
+    let document = parse_document(
+        &mut doc,
+        "<p id=main class=A>y<script>1</script><noscript><i>n</i></noscript><template><b>t</b></template>",
+    )
+    .unwrap();
+    assert!(doc.len() > before);
+    assert!(matches!(doc.node(document).data, NodeData::Document));
+    assert_eq!(doc.node_document(document), document);
+    // Without a doctype the new document is in quirks mode; the main
+    // document keeps its own.
+    assert_eq!(doc.quirks_mode_of(document), QuirksMode::Quirks);
+    assert_eq!(doc.quirks_mode_of(NodeId::DOCUMENT), QuirksMode::NoQuirks);
+    // The ids of the two documents are separate.
+    let main = doc.get_element_by_id(NodeId::DOCUMENT, "main").unwrap();
+    let other = doc.get_element_by_id(document, "main").unwrap();
+    assert_ne!(main, other);
+    assert_eq!(doc.node_document(other), document);
+    assert_eq!(doc.count_elements_by_id(NodeId::DOCUMENT, "main", 5), 1);
+    // Scripts are marked "already started", `noscript` is markup, and a
+    // template has contents of the inert document.
+    let script = doc
+        .descendants(document)
+        .find(|&n| doc.is_html_element(n, &local_name!("script")))
+        .unwrap();
+    assert!(doc.element(script).unwrap().script_already_started);
+    let noscript = doc
+        .descendants(document)
+        .find(|&n| doc.is_html_element(n, &local_name!("noscript")))
+        .unwrap();
+    assert!(
+        doc.node(doc.node(noscript).first_child().unwrap())
+            .is_element()
+    );
+    let template = doc
+        .descendants(document)
+        .find(|&n| doc.is_html_element(n, &local_name!("template")))
+        .unwrap();
+    let contents = doc.element(template).unwrap().template_contents.unwrap();
+    assert_eq!(doc.children(contents).count(), 1);
+    assert_eq!(
+        crate::serialize::inner_html(&doc, template),
+        "<b>t</b>",
+        "the contents"
+    );
+}
+
+#[test]
+fn a_document_parse_respects_the_limits() {
+    let mut doc = Document::with_limits(Limits {
+        max_nodes: 100,
+        max_text_bytes: 1 << 20,
+    });
+    let len = doc.len();
+    assert_eq!(
+        parse_document(&mut doc, &"<i></i>".repeat(500)),
+        Err(DomError::NodeLimit(100))
+    );
+    assert_eq!(doc.len(), len, "nothing was added");
+    assert!(parse_document(&mut doc, &"<i></i>".repeat(20)).is_ok());
 }
 
 #[test]

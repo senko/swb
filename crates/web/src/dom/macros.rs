@@ -58,6 +58,22 @@ macro_rules! parent_node_methods {
         ) -> $crate::bindings::Result<()> {
             $crate::dom::tree_ops::replace_children(cx, this, nodes)
         }
+
+        fn query_selector(
+            cx: &mut $crate::bindings::Cx<'_>,
+            this: ::swb_dom::NodeId,
+            selectors: String,
+        ) -> $crate::bindings::Result<Option<::swb_dom::NodeId>> {
+            $crate::dom::queries::query_selector(cx, this, &selectors)
+        }
+
+        fn query_selector_all(
+            cx: &mut $crate::bindings::Cx<'_>,
+            this: ::swb_dom::NodeId,
+            selectors: String,
+        ) -> $crate::bindings::Result<::swb_js::Gc<::swb_js::Object>> {
+            $crate::dom::queries::query_selector_all(cx, this, &selectors)
+        }
     };
 }
 

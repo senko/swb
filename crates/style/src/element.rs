@@ -1,6 +1,7 @@
 //! The DOM element handle that selectors match against, the dynamic
 //! element states (hover, focus, ...), the disabled state of form
-//! controls, and `querySelectorAll`.
+//! controls, and `querySelectorAll` (the queries of scripts are in
+//! `query.rs`).
 //!
 //! [`DomElement`] implements [`swb_css::Element`] for elements of a
 //! [`swb_dom::Document`]. Form-control pseudo-classes come from attributes,
@@ -255,6 +256,10 @@ pub fn query_selector_all(
 /// selectors test the classes of ancestors many times).
 #[derive(Clone, Debug)]
 pub(crate) struct StateSet<'a> {
+    doc: &'a Document,
+    /// False for the set of one query ([`StateSet::lazy`]): it has no class
+    /// lists and computes the disabled state of an element when asked.
+    full: bool,
     hover_chain: Vec<NodeId>,
     active_chain: Vec<NodeId>,
     focus_chain: Vec<NodeId>,
@@ -273,6 +278,11 @@ pub(crate) struct StateSet<'a> {
 impl<'a> StateSet<'a> {
     /// Prepares the states of `doc`.
     pub(crate) fn new(doc: &'a Document, states: &ElementStates) -> Self {
+        Self::new_with(doc, states, true)
+    }
+
+    /// [`StateSet::new`], with the per-document tables only if `tables`.
+    fn new_with(doc: &'a Document, states: &ElementStates, tables: bool) -> Self {
         let chain = |node: Option<NodeId>| -> Vec<NodeId> {
             let Some(node) = node.filter(|&n| doc.get(n).is_some()) else {
                 return Vec::new();
@@ -283,7 +293,11 @@ impl<'a> StateSet<'a> {
                 .collect()
         };
         let mut classes = Vec::new();
-        let mut class_ranges = vec![(0, 0); doc.len()];
+        let mut class_ranges = if tables {
+            vec![(0, 0); doc.len()]
+        } else {
+            Vec::new()
+        };
         for (index, range) in class_ranges.iter_mut().enumerate() {
             let Some(e) = NodeId::from_index(index).and_then(|id| doc.get(id)?.as_element()) else {
                 continue;
@@ -293,6 +307,8 @@ impl<'a> StateSet<'a> {
             *range = (start, classes.len() as u32);
         }
         StateSet {
+            doc,
+            full: true,
             hover_chain: chain(states.hover),
             active_chain: chain(states.active),
             focus_chain: chain(states.focus),
@@ -301,9 +317,31 @@ impl<'a> StateSet<'a> {
             target: states.target,
             controls: Arc::clone(&states.controls),
             dimension_sources: Arc::clone(&states.dimension_sources),
-            disabled: DisabledElements::new(doc),
+            disabled: if tables {
+                DisabledElements::new(doc)
+            } else {
+                DisabledElements::default()
+            },
             classes,
             class_ranges,
+        }
+    }
+
+    /// A set that costs no pass over the document, for a few matches (the
+    /// queries of scripts): the class names are read from the elements and
+    /// the disabled state of an element from its ancestors.
+    pub(crate) fn lazy(doc: &'a Document, states: &ElementStates) -> Self {
+        let mut set = StateSet::new_with(doc, states, false);
+        set.full = false;
+        set
+    }
+
+    /// True if the element is disabled ([`is_actually_disabled`]).
+    fn is_disabled(&self, id: NodeId) -> bool {
+        if self.full {
+            self.disabled.contains(id)
+        } else {
+            is_actually_disabled(self.doc, id)
         }
     }
 
@@ -402,7 +440,7 @@ impl<'a> DomElement<'a> {
             name,
             "button" | "input" | "select" | "textarea" | "optgroup" | "option" | "fieldset"
         );
-        let disabled = disableable && self.states.disabled.contains(self.id);
+        let disabled = disableable && self.states.is_disabled(self.id);
         if disableable {
             state |= if disabled {
                 ElementState::DISABLED
@@ -567,8 +605,12 @@ impl Element for DomElement<'_> {
         self.data.attr(local_name)
     }
 
+    /// The element child of a document node (also of the other documents
+    /// of the arena).
     fn is_root(&self) -> bool {
-        self.doc.document_element() == Some(self.id)
+        self.doc
+            .parent(self.id)
+            .is_some_and(|p| matches!(self.doc.node(p).data, NodeData::Document))
     }
 
     /// `a` and `area` elements with `href` (HTML: "all a elements that have

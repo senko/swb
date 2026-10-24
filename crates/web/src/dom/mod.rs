@@ -3,9 +3,12 @@
 //! (`element.rs`) with its attributes (`attrs.rs`, `token_list.rs`,
 //! `string_map.rs`), `CharacterData`, `Text`, `Comment`, `DocumentType`
 //! and `ProcessingInstruction` (`character_data.rs`), `Document`
-//! (`document.rs`), and the live lists `NodeList` and `HTMLCollection`
-//! (`lists.rs`). Features 4c2 (the read-only accessors), 5c (`appendChild`
-//! for scripts that insert scripts) and 6a (the rest).
+//! (`document.rs`), the live lists `NodeList` and `HTMLCollection`
+//! (`lists.rs`), the selector queries (`queries.rs`), markup and
+//! `insertAdjacent*` (`markup.rs`), and `DOMImplementation`, `DOMParser`
+//! and `template.content` (`implementation.rs`). Features 4c2 (the
+//! read-only accessors), 5c (`appendChild` for scripts that insert
+//! scripts), 6a (the rest) and 6b (queries, markup, more documents).
 //!
 //! Each function reads the lent DOM ([`crate::state::dom`]); a function
 //! that returns a node returns its `NodeId`, and the glue wraps it.
@@ -16,7 +19,10 @@ mod attrs;
 mod character_data;
 mod document;
 mod element;
-mod lists;
+mod implementation;
+pub(crate) mod lists;
+mod markup;
+mod queries;
 mod string_map;
 mod token_list;
 mod tree_ops;
@@ -25,6 +31,7 @@ use swb_dom::{DomError, NodeData, NodeId, ns};
 use swb_js::Runtime;
 
 pub(crate) use attrs::{remove_attribute, set_attribute};
+pub(crate) use lists::DocCollection;
 
 use crate::bindings::{self as b, Cx, Exception};
 use crate::generated as g;

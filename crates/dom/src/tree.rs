@@ -240,6 +240,11 @@ pub struct Node {
     pub(crate) last_child: Option<NodeId>,
     pub(crate) prev_sibling: Option<NodeId>,
     pub(crate) next_sibling: Option<NodeId>,
+    /// The number of children, and of element children. The link and
+    /// unlink primitives keep them, so that a script can read the length
+    /// of `childNodes` and `children` without a walk.
+    pub(crate) child_count: u32,
+    pub(crate) element_child_count: u32,
     /// The node document: a document node of the arena. A document node is
     /// its own node document.
     pub(crate) owner: NodeId,
@@ -255,6 +260,8 @@ impl Node {
             last_child: None,
             prev_sibling: None,
             next_sibling: None,
+            child_count: 0,
+            element_child_count: 0,
             owner,
             data,
         }
@@ -383,6 +390,15 @@ pub struct Document {
     /// Pairs of a template contents fragment and its template element
     /// (the fragment's host, for the host-including ancestor check).
     pub(crate) template_hosts: HashMap<NodeId, NodeId>,
+    /// The quirks mode of the other documents that are not no-quirks
+    /// (`DOMParser` documents without a doctype).
+    other_quirks: HashMap<NodeId, QuirksMode>,
+    /// An empty detached fragment that the markup setters give back for the
+    /// next fragment parse, and the stand-in `body` context of
+    /// `insertAdjacentHTML`: nodes are never freed, so a loop of `innerHTML`
+    /// writes reuses them.
+    pub(crate) scratch_fragment: Option<NodeId>,
+    pub(crate) scratch_body: Option<NodeId>,
     arena_id: u64,
 }
 
@@ -426,6 +442,9 @@ impl Document {
             mutation_sink: None,
             template_owners: HashMap::new(),
             template_hosts: HashMap::new(),
+            other_quirks: HashMap::new(),
+            scratch_fragment: None,
+            scratch_body: None,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
@@ -498,6 +517,38 @@ impl Document {
         self.scripting
     }
 
+    /// True if scripting is enabled for `node` (HTML: its node document
+    /// has a browsing context and scripting is on). Only the document of
+    /// [`NodeId::DOCUMENT`] has one; the documents that scripts make
+    /// (`DOMParser`, `createHTMLDocument`, the inert documents of template
+    /// contents) do not. The fragment parser reads it for a `noscript`
+    /// element and the serializer for the text of one.
+    pub fn scripting_for(&self, node: NodeId) -> bool {
+        self.scripting && self.node_document(node) == NodeId::DOCUMENT
+    }
+
+    /// The quirks mode of the document node `document`.
+    pub fn quirks_mode_of(&self, document: NodeId) -> QuirksMode {
+        if document == NodeId::DOCUMENT {
+            self.quirks_mode
+        } else {
+            self.other_quirks
+                .get(&document)
+                .copied()
+                .unwrap_or(QuirksMode::NoQuirks)
+        }
+    }
+
+    /// Sets the quirks mode of a document other than the one of
+    /// [`NodeId::DOCUMENT`] (the parser sets that one).
+    pub(crate) fn set_other_quirks_mode(&mut self, document: NodeId, mode: QuirksMode) {
+        if mode == QuirksMode::NoQuirks {
+            self.other_quirks.remove(&document);
+        } else {
+            self.other_quirks.insert(document, mode);
+        }
+    }
+
     /// Sets the scripting flag. Only the parser (and tests that build a
     /// document by hand) call it, before the document is used.
     pub fn set_scripting(&mut self, enabled: bool) {
@@ -563,6 +614,22 @@ impl Document {
             doc: self,
             next: self.node(id).first_child,
         }
+    }
+
+    /// The number of children of a node (kept, no walk).
+    pub fn child_count(&self, id: NodeId) -> usize {
+        self.node(id).child_count as usize
+    }
+
+    /// The number of element children of a node (kept, no walk).
+    pub fn element_child_count(&self, id: NodeId) -> usize {
+        self.node(id).element_child_count as usize
+    }
+
+    /// The node that follows `current` in tree order inside the subtree of
+    /// `root` (`None` after the last descendant of `root`).
+    pub fn next_in_tree_order(&self, current: NodeId, root: NodeId) -> Option<NodeId> {
+        self.successor(current, root)
     }
 
     /// Iterates over the element children of a node.
@@ -784,32 +851,34 @@ pub struct Descendants<'a> {
     next: Option<NodeId>,
 }
 
+impl Document {
+    /// The tree-order successor of `current` that is not above `root`.
+    fn successor(&self, current: NodeId, root: NodeId) -> Option<NodeId> {
+        if let Some(child) = self.node(current).first_child {
+            return Some(child);
+        }
+        // Go up until a node with a next sibling is found, but never
+        // above the root.
+        let mut n = current;
+        loop {
+            if n == root {
+                return None;
+            }
+            let node = self.node(n);
+            if let Some(sibling) = node.next_sibling {
+                return Some(sibling);
+            }
+            n = node.parent?;
+        }
+    }
+}
+
 impl Iterator for Descendants<'_> {
     type Item = NodeId;
 
     fn next(&mut self) -> Option<NodeId> {
         let current = self.next?;
-        let node = self.doc.node(current);
-        self.next = if let Some(child) = node.first_child {
-            Some(child)
-        } else {
-            // Go up until a node with a next sibling is found, but never
-            // above the root.
-            let mut n = current;
-            loop {
-                if n == self.root {
-                    break None;
-                }
-                let node = self.doc.node(n);
-                if let Some(sibling) = node.next_sibling {
-                    break Some(sibling);
-                }
-                match node.parent {
-                    Some(p) => n = p,
-                    None => break None,
-                }
-            }
-        };
+        self.next = self.doc.successor(current, self.root);
         Some(current)
     }
 }
@@ -820,6 +889,28 @@ mod tests {
 
     fn html(local: &str) -> QualName {
         QualName::new(None, ns!(html), LocalName::from(local))
+    }
+
+    #[test]
+    fn child_counts_follow_the_tree_changes() {
+        let mut doc = crate::parse_html("<div id=d>a<p id=p1></p>b<p id=p2></p></div>");
+        let d = doc.element_by_id("d").expect("d");
+        let p1 = doc.element_by_id("p1").expect("p1");
+        assert_eq!((doc.child_count(d), doc.element_child_count(d)), (4, 2));
+        doc.remove(p1);
+        assert_eq!((doc.child_count(d), doc.element_child_count(d)), (3, 1));
+        let text = doc.create_text("x").expect("text");
+        doc.append_child(d, text).expect("append");
+        doc.append_child(d, p1).expect("append");
+        assert_eq!((doc.child_count(d), doc.element_child_count(d)), (5, 2));
+        assert_eq!(doc.children(d).count(), doc.child_count(d));
+        let root = doc.document_element().expect("root");
+        let expected: Vec<NodeId> = doc.descendants(root).collect();
+        let mut walked = vec![root];
+        while let Some(n) = doc.next_in_tree_order(*walked.last().expect("one"), root) {
+            walked.push(n);
+        }
+        assert_eq!(walked, expected);
     }
 
     #[test]

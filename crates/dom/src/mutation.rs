@@ -173,6 +173,49 @@ impl Document {
         Ok(self.push_node(data, owner))
     }
 
+    /// Gives back a document fragment that the caller made with
+    /// [`parse_fragment`](crate::parse_fragment) and no script can reach,
+    /// so that the next fragment parse reuses it instead of making a new
+    /// node. Does nothing unless the fragment is detached and empty.
+    pub fn recycle_fragment(&mut self, fragment: NodeId) {
+        let node = self.node(fragment);
+        if matches!(node.data, NodeData::DocumentFragment)
+            && node.parent.is_none()
+            && node.first_child.is_none()
+            && !self.template_hosts.contains_key(&fragment)
+        {
+            self.scratch_fragment = Some(fragment);
+        }
+    }
+
+    /// The recycled fragment whose node document is `owner`, if any.
+    pub(crate) fn take_scratch_fragment(&mut self, owner: NodeId) -> Option<NodeId> {
+        let fragment = self.scratch_fragment.take()?;
+        (self.node_document(fragment) == owner).then_some(fragment)
+    }
+
+    /// A detached `body` element of `document`, for the context of a
+    /// fragment parse that has no element to use (`insertAdjacentHTML` on
+    /// a child of a document). The same element serves all such parses of
+    /// a document; no script can reach it.
+    ///
+    /// # Errors
+    ///
+    /// [`DomError::NodeLimit`] if the arena is full.
+    pub fn scratch_body(&mut self, document: NodeId) -> Result<NodeId, DomError> {
+        let owner = self.node_document(document);
+        if let Some(body) = self.scratch_body
+            && self.node_document(body) == owner
+        {
+            return Ok(body);
+        }
+        let name = QualName::new(None, ns!(html), local_name!("body"));
+        let body =
+            self.create_node_in(owner, NodeData::Element(ElementData::new(name, Vec::new())))?;
+        self.scratch_body = Some(body);
+        Ok(body)
+    }
+
     /// Creates a detached element in the document of [`NodeId::DOCUMENT`].
     pub fn create_element(
         &mut self,
@@ -230,6 +273,10 @@ impl Document {
             Some(b) => self.node_mut(b).prev_sibling = Some(node),
             None => self.node_mut(parent).last_child = Some(node),
         }
+        let is_element = self.node(node).is_element();
+        let p = self.node_mut(parent);
+        p.child_count += 1;
+        p.element_child_count += u32::from(is_element);
     }
 
     /// Unlinks `node` from its parent and removes its ids from the index if
@@ -257,6 +304,10 @@ impl Document {
         n.parent = None;
         n.prev_sibling = None;
         n.next_sibling = None;
+        let is_element = n.is_element();
+        let p = self.node_mut(parent);
+        p.child_count -= 1;
+        p.element_child_count -= u32::from(is_element);
     }
 
     /// Reports a change: bumps the generation, appends a journal entry and

@@ -4,6 +4,62 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 6b, DOM queries and markup
+
+- Selectors from scripts: `querySelector`, `querySelectorAll` (a static
+  list), `matches`, `closest` and `webkitMatchesSelector` use the
+  selector parser of `css` and the matcher of `style`. The new
+  `style::Matcher` makes no pass over the document. `:scope` is the
+  start element, the dynamic pseudo-classes follow the engine's states,
+  and an invalid selector throws Chromium's `SyntaxError`.
+- Live lists: `getElementsByTagName`, `...NS`, `getElementsByClassName`,
+  `getElementsByName` and the document collections (`forms`, `images`,
+  `links`, `scripts`, `anchors`, `embeds`, `plugins`, `applets`). They
+  cache their nodes per DOM generation. The lists that scripts make are
+  not in the registry, so the collector can free them. `window[name]`
+  with several elements gives a live `HTMLCollection`.
+- Markup: `innerHTML`, `outerHTML` and `insertAdjacent{HTML,Element,
+  Text}` serialize and parse with the HTML algorithms, with Chromium's
+  exceptions. The serializer is iterative: a read of a tree 100,000
+  levels deep takes 5 ms. Scripts in markup do not run; style sheets and
+  images in it apply and load.
+- More documents: `DOMParser` (`text/html`), `document.implementation`
+  (`createHTMLDocument`, `createDocumentType`, `hasFeature`) and
+  `template.content` make documents in the same arena. Nobody renders
+  them, their scripts do not run, and each has its own quirks mode and
+  scripting flag, so `noscript` in them is markup.
+- `hn.js` now runs to the end. The missing `getElementsByClassName` was
+  its last error; with JavaScript on, Hacker News still matches its
+  JS-off boxes and pixels (821 of 821, 0 pixels).
+- The probe `web-dom-query.json` has 78 cases (406 values, three equal
+  Chromium runs). swb matches except two departures: a new list object
+  per `getElementsBy*` call, and U+FFFD for a lone surrogate in markup.
+- Learned: a descendant selector that fails high in a chain of 100,000
+  levels walks all ancestors of each element, which is quadratic in the
+  depth; without a bound one query ran for over 60 s. One query now
+  stops after 100,000,000 steps with a warning (0.7 s).
+- Eleven new hostile cases: 166 of 167 pass, plus the known failure
+  `nest-div-100000`. JS-off snapshot identical, JS-off page loads within
+  1 %.
+- Review fixes:
+  - `closest` had no step bound (91 s on 100,000 levels); it now stops
+    at the query bound (1.2 s). The bound also counts each selector of
+    a list, so a list of 200,000 selectors takes 1.0 s, not 9.2 s.
+  - Live lists rebuilt in full after each change, so a drain loop
+    `while (r.children.length) r.removeChild(r.children[0])` was
+    quadratic (50,000 children: 3.06 s). Lists now walk only as far as
+    the item asked for, and each node keeps its child count and
+    element-child count, so `length` of `children` and `childNodes` is
+    O(1). The same loop takes 0.07 s; memory grows by 8 bytes per node
+    (0.5 % on a page of 900,000 nodes).
+  - An `innerHTML` write of `<p>x` makes 2 nodes instead of 3: the
+    parse reuses an empty fragment, and `insertAdjacentHTML` keeps one
+    stand-in `body` per document.
+  - Found, not fixed: in the `table` fragment case, html5ever ignores
+    `tbody` and `tfoot` after `thead` (backlog).
+
+Next: feature 6c, the HTML element interfaces.
+
 ## 2026-10-24: M8 feature 6a, DOM tree changes and attributes
 
 - Scripts can now change the DOM: `insertBefore`, `appendChild`,

@@ -18,6 +18,10 @@ fn legacy_count<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: 
     <H as super::test_collection::TestCollectionImpl>::index_count(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this)
 }
 
+fn legacy_has<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<bool> {
+    <H as super::test_collection::TestCollectionImpl>::has_index(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this, index)
+}
+
 fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<swb_js::Value> {
     let result = <H as super::test_collection::TestCollectionImpl>::item(&mut b::Cx::without_call(rt, realm, super::TEST_COLLECTION), this, index)?;
     Ok((match result { Some(x0) => b::to_js::node::<H>(rt, realm, x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
@@ -46,7 +50,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
     b::legacy::Legacy {
         interface: "TestOptionList",
         dom_exception: super::DOM_EXCEPTION,
-        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, get: legacy_indexed_get::<H>, set: Some(legacy_indexed_set::<H>) }),
+        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, has: legacy_has::<H>, get: legacy_indexed_get::<H>, set: Some(legacy_indexed_set::<H>) }),
         named: Some(b::legacy::Named { names: legacy_names::<H>, is_supported: legacy_is_supported::<H>, get: legacy_named_get::<H>, set: None, delete: None }),
         override_builtins: false,
         unenumerable: true,

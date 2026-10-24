@@ -112,6 +112,30 @@ impl Document {
         first
     }
 
+    /// The number of elements whose `id` is `id` in the tree of `root`,
+    /// counted up to `limit` (a lookup that only asks whether there are
+    /// several stops early).
+    pub fn count_elements_by_id(&self, root: NodeId, id: &str, limit: usize) -> usize {
+        if id.is_empty() {
+            return 0;
+        }
+        if !self.ids.borrow().active {
+            let index = self.build_id_index();
+            *self.ids.borrow_mut() = index;
+        }
+        let ids = self.ids.borrow();
+        let mut count = 0;
+        for &element in ids.get(id) {
+            if self.root(element) == root {
+                count += 1;
+                if count >= limit {
+                    break;
+                }
+            }
+        }
+        count
+    }
+
     /// The first element of `id` in tree order, by a walk of the tree of
     /// `root`; the result is kept until the next change.
     fn walk_for_id(&self, root: NodeId, id: &str) -> Option<NodeId> {

@@ -863,6 +863,158 @@ with the same values and `crates/engine/tests/script_dom.rs`):
   `CharacterData` that fall inside a surrogate pair round up to the end of
   the character (the DOM string cannot hold a lone surrogate).
 
+Feature 6b notes (queries and markup; measured with
+`tools/probes/web-dom-query.json`: 78 cases, 406 values, three Chromium runs
+with equal results; the Rust tests are `crates/web/tests/dom_query.rs` with
+the same values, and two tests in `crates/engine/tests/script_dom.rs`):
+
+- Code: `web/src/dom/` has `queries.rs` (`querySelector`, `querySelectorAll`,
+  `matches`, `closest`, `webkitMatchesSelector`), `markup.rs` (`innerHTML`,
+  `outerHTML`, `insertAdjacent*`), `implementation.rs` (`DOMImplementation`,
+  `DOMParser`, `template.content`) and a `lists.rs` that knows more kinds of
+  list. `dom` has `inner_html`, `parse_document`, `count_elements_by_id`, the
+  quirks mode and the scripting flag per document. `style` has `query.rs`
+  (`Matcher`). `web` now depends on `css` and `style`; the engine passes the
+  element states through `EngineHost::element_states`.
+- **Selectors.** The parser is `swb_css`'s and the matcher `swb_style`'s;
+  there is no second matcher. A `Matcher` costs no pass over the document
+  (`StateSet::lazy`: class names are read from the elements, the disabled
+  state of an element from its ancestors), so `matches` in a loop is linear
+  in the loop. Parsed lists are cached by text (256 entries). The states
+  that depend on the form controls (`:checked`, `:valid`, ...) are current
+  when the selector reads them (the engine rebuilds the control states
+  first, only then); `:hover`, `:focus` and `:target` are the engine's
+  current states, `:visited` never matches. `:scope` is the start element
+  of an element query; a query on a document or a fragment has none (the
+  root element for a document, nothing for a fragment). `:root` is the
+  element child of any document node (it was the document element of
+  `NodeId::DOCUMENT`). Errors: `SyntaxError` with `'X' is not a valid
+  selector.`, or `The provided selector is empty.` for the empty string
+  (whitespace is not empty); a pseudo-element matches nothing. The match of
+  one element has a budget of 200,000 ancestor steps (`MATCH_BUDGET`), and
+  one query stops at 100,000,000 steps in all with a warning and returns
+  what it found (`closest` returns null): a descendant selector that fails
+  high in a chain of 100,000 levels walks all ancestors of each element, a
+  square of the depth (about 0.7 s for 100,000,000 steps). A step is an
+  ancestor or sibling step of the matcher, and also each selector of a
+  list that a match tries, so a list of 200,000 selectors on thousands of
+  elements is bounded too. `closest` and the loops of `querySelector` and
+  `querySelectorAll` all check the bound. Departure: swb refuses
+  `p::-webkit-foo`, Chromium accepts unknown prefixed pseudo-elements (not
+  in the probe).
+- **Lists.** `ListKind` has `getElementsByTagName` (the qualified name;
+  lowercase for HTML elements), `getElementsByTagNameNS`, `getElementsByClassName`
+  (ASCII case-insensitive in quirks mode; an empty class set is an empty
+  list), `getElementsByName` (a live `NodeList` of HTML elements), the
+  document collections (`images`, `links` with `href`, `forms`, `scripts`,
+  `anchors` with `name`, `embeds`, `plugins`, `applets` always empty; HTML
+  elements only), and `querySelectorAll` (a static `NodeList`). The
+  cache per DOM generation is the one of `children`. Lists made by
+  `getElementsBy*` are not registered for the drop of stale caches (the
+  registry holds strong handles and these lists can be collected); the
+  document collections and `children` are (they live as long as their
+  node). A list builds its cache lazily: a read of item `i` walks the tree
+  only as far as item `i` and keeps what it found; `length` of a
+  `getElementsBy*` list or a document collection walks to the end. The
+  cache is valid for one DOM generation (one counter for the whole
+  document), so a DOM change drops it. `length` of `children` and
+  `childNodes` needs no cache: `dom` keeps the number of children and of
+  element children in each node (the link and unlink primitives update
+  them), and an item of these two lists is found from the nearer end. So
+  the drain loops `while (r.children.length) r.removeChild(r.children[0])`
+  (and the same with `childNodes`, or with the last child) cost O(1) per
+  step. A loop that reads item `i` of `children` and changes the tree at
+  each step (`for (i) r.children[i].innerHTML = ...`) walks `i` siblings at
+  each step; a loop `while (l.length) l[0].remove()` over a
+  `getElementsByTagName` list walks the tree at each step (its `length`).
+  The cost of these loops is not compared with Chromium's. Departure: Chromium returns the same
+  collection for the same arguments while it lives; swb makes a new one
+  (probe `collections-01`, query 5).
+- **`window[name]`.** One element gives the element; several (elements with
+  the id, and `embed`, `form`, `img`, `object` elements with the `name`,
+  an element whose id equals its name counted once) give a live
+  `HTMLCollection`. `Document::count_elements_by_id` asks the id index, and
+  the `name` cache holds the first element and the count of each name.
+- **Serialization.** The tag name is always the qualified name
+  (`x:y`, `s:g` for SVG, `H:P`): Chromium does not use the local name for the
+  HTML, SVG and MathML namespaces as the algorithm does. A `pre` gets no
+  extra line feed. Attributes are written as the algorithm says (`xml:`,
+  `xmlns:`, `xlink:`, the prefix); `<`, `>`, `&`, `"` and U+00A0 are escaped
+  in attribute values, `&`, `<`, `>` and U+00A0 in text. The text of
+  `script`, `style`, `xmp`, `iframe`, `noembed`, `noframes`, `plaintext` is
+  raw, and that of `noscript` only if scripting is enabled for its node.
+  Comments with `--` are written as they are; a processing instruction made
+  by the HTML parser is a comment. The walk is iterative (a tree of 100,000
+  levels reads in 5 ms).
+- **Scripting and documents.** Scripting is enabled only for nodes whose
+  node document is `NodeId::DOCUMENT` (`Document::scripting_for`). So
+  `noscript` in the fragment parser and in the serializer is markup in
+  `DOMParser` documents, `createHTMLDocument` documents and template
+  contents; also `template.innerHTML = '<noscript>..'` parses markup, as
+  Chromium (a `template` context uses the contents' flag). `innerHTML` of
+  other elements of the main document keeps `noscript` content as text.
+  Each document of the arena has its own quirks mode (`DOMParser` of
+  markup without a doctype is in quirks mode, `createHTMLDocument` is not),
+  which the class selector, `getElementsByClassName` and the fragment
+  parser read.
+- **Markup setters.** The fragment parser takes the context element; the
+  nodes go into the arena under a new fragment and enter the tree by the
+  ordinary insertion (`replace_all`, `replace`, `pre_insert`), so the
+  journal, the mutation sink and `scripts::after_insertion` see them. Scripts
+  in fragments are "already started" (the sink marks them), so no script
+  of markup runs, also after a clone or a move. Nodes are never freed, so
+  the setters give the empty fragment back to the document after the
+  insertion, and the next parse reuses it (a stand-in `body` context of
+  `insertAdjacentHTML` is also one node per document). A write costs the
+  nodes of its markup; with a one-element markup (`<p>x`) 2 nodes, so 500,000
+  writes fill the arena. A parse that stops at a
+  limit of the arena ends the task (node or byte limit). `innerHTML` of
+  a `template` fills its contents; `outerHTML` of an element without a
+  parent, or whose parent is a document or fragment, throws
+  `NoModificationAllowedError` (Chromium does not use a `body` context for
+  a fragment parent there); `insertAdjacentHTML` with `beforebegin` or
+  `afterend` on a parentless element throws `NoModificationAllowedError:
+  The element has no parent.` (also for a document parent), and with a
+  fragment parent or an `html` context parses as `body`.
+  `insertAdjacentElement` returns null and `insertAdjacentText` does
+  nothing without a parent. The position is ASCII case-insensitive, with
+  Chromium's `SyntaxError` message. `outerHTML = ...` joins text nodes as
+  Chromium does: the last new node (or the previous sibling, if the markup
+  made no node) with a text node that follows, then the first new node with
+  a text node that precedes (`a<span></span>b` with `outerHTML = 'X'` is
+  the one text node `aXb`, the node `a`); the other setters leave adjacent
+  text nodes alone.
+- **`DOMParser`, `DOMImplementation`, `template.content`.**
+  `parseFromString` for `text/html` runs the parser with scripting off into
+  a temporary arena and copies the nodes under a new document node (the
+  scripts are "already started"; `URL` is the window document's URL, as in
+  Chromium; `defaultView` is null). The XML types throw `NotSupportedError`
+  (swb has no XML parser; Chromium returns an `XMLDocument`); other values
+  throw Chromium's `TypeError` (`SupportedType` enum). `createHTMLDocument`
+  makes the doctype, `html`, `head`, `title` if a title is given (also an
+  empty one; `undefined` gives none), `body`; its `URL` is `about:blank`.
+  `createDocumentType` refuses ASCII whitespace, `>` and NUL in the name
+  (measured; `/`, `:`, `<` pass). `hasFeature()` is true. There is no
+  `createDocument`. `readyState` of these documents is `complete` (Chromium
+  says `loading` for `createHTMLDocument`; not in the probe). `baseURI` of a
+  node in these documents is the base URL of the window document; Chromium
+  follows a `base` element of the new document (departure, measured). The
+  table `innerHTML` with a `thead` first drops a later `tbody`, `tfoot` or
+  `thead` token in the fragment parse (a departure that comes from the
+  parser dependency; see the backlog). The engine
+  renders and loads nothing in these documents: its journal walk and the
+  `in_document` filters look at the tree of `NodeId::DOCUMENT` only (engine
+  tests `documents_that_scripts_parse_are_not_rendered_or_loaded`), and a
+  node that moves into the page is rendered and loads. `template.content`
+  returns the fragment of the inert document that `ElementData` holds;
+  `content` is read-only.
+- **Not done:** the XML types of `DOMParser`, `createDocument`,
+  `XMLSerializer`, `Range.createContextualFragment`, `document.all`,
+  `shadowRootMode` and the other members of `HTMLTemplateElement`,
+  `setHTMLUnsafe` and `getHTML`, the property reflection of `form`, `img`,
+  `input` and the other element interfaces (6c), `focus()` and the event
+  members (6d), `HTMLDocument` and `Location`.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -1487,6 +1639,8 @@ Per document, all settings with these defaults:
 | Time per task, checkpoint or callback | 5 s | termination; after three, scripts stop (section 7) |
 | JavaScript heap | 256 MiB | termination; scripts stop, the runtime is dropped |
 | Nodes created in a document's arena | 1,048,576 | the task ends (termination) |
+| Nodes of one `innerHTML` write (feature 6b) | the nodes of its markup (one fragment is reused) | `<p>x` costs 2 immortal nodes, so about 500,000 writes fill the arena; the arena limit ends the task |
+| Steps of one selector query (feature 6b) | 100,000,000 (ancestor steps and selectors tried) | the query stops with a warning |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
 | Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
 | Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |

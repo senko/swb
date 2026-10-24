@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and a W3C specification (W3C Software and Document
+  (BSD-3-Clause) and two W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -115,6 +115,19 @@ https://whatwg.org/ipr-policy). The generated glue in
 > LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 > NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 > SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## W3C DOM Parsing and Serialization: IDL (W3C Software and Document License)
+
+`crates/web/idl/dom-parsing.idl` contains the `DOMParser` interface and
+its type enumeration from DOM Parsing and Serialization (W3C Editor's
+Draft, https://w3c.github.io/DOM-Parsing/, copied on 2026-10-24); swb
+cut the file to this interface and renamed the enumeration. The license
+text is in the next section.
+
+> This software or document includes material copied from or derived
+> from DOM Parsing and Serialization, https://w3c.github.io/DOM-Parsing/.
+> Copyright © World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
 
 ## W3C High Resolution Time: IDL (W3C Software and Document License)
 

@@ -1,7 +1,8 @@
 // Source: DOM Living Standard, https://dom.spec.whatwg.org/
 // (Last Updated 19 October 2026), copied on 2026-10-23 (CustomEvent,
 // the partial Window interface and createEvent on 2026-10-24;
-// createElement and appendChild on 2026-10-24).
+// createElement and appendChild on 2026-10-24; the queries, DOMImplementation
+// and the insertAdjacent* methods on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -16,11 +17,13 @@
 // HTMLCollection are complete, and so is the partial Window interface with
 // `event`; AddEventListenerOptions has no `signal` (no AbortSignal yet).
 // Document has no constructor yet (`new Document()` makes an XML
-// document); it lacks the queries, `implementation`, createCDATASection,
-// createProcessingInstruction, createRange and the other members of
-// feature 6b and later; Element lacks the queries, `slot`, shadow trees
-// and the insertAdjacent* methods (6b); ProcessingInstruction has only
-// `target`. Two departures: Attr extends EventTarget, not Node (swb keeps
+// document); it lacks createCDATASection, createProcessingInstruction,
+// createRange and the other members of feature 6c and later;
+// DOMImplementation has no createDocument (swb has no XML documents);
+// Element lacks `slot` and shadow trees; the members of InnerHTML and
+// insertAdjacentHTML come from the DOM Parsing specification and sit on
+// Element (Chromium: Element has them, DocumentFragment does not);
+// ProcessingInstruction has only `target`. Two departures: Attr extends EventTarget, not Node (swb keeps
 // attributes in their element, not as nodes of the arena), and the
 // `[Unscopable]` attributes of the ParentNode and ChildNode methods are
 // left out (the generator has no @@unscopables yet). The order of the
@@ -179,6 +182,8 @@ interface Document : Node {
   readonly attribute DocumentType? doctype;
   readonly attribute Element? documentElement;
 
+  [SameObject] readonly attribute DOMImplementation implementation;
+
   [CEReactions, NewObject] Element createElement(DOMString localName, optional (DOMString or ElementCreationOptions) options = {});
   [CEReactions, NewObject] Element createElementNS(DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
   [NewObject] DocumentFragment createDocumentFragment();
@@ -192,6 +197,18 @@ interface Document : Node {
   [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName);
 
   [NewObject] Event createEvent(DOMString interface); // legacy
+
+  HTMLCollection getElementsByTagName(DOMString qualifiedName);
+  HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
+  HTMLCollection getElementsByClassName(DOMString classNames);
+};
+
+[Exposed=Window]
+interface DOMImplementation {
+  [NewObject] DocumentType createDocumentType(DOMString name, DOMString publicId, DOMString systemId);
+  [NewObject] Document createHTMLDocument(optional DOMString title);
+
+  boolean hasFeature(); // useless; always returns true
 };
 
 dictionary ElementCreationOptions {
@@ -225,6 +242,9 @@ interface mixin ParentNode {
   [CEReactions] undefined prepend((Node or DOMString)... nodes);
   [CEReactions] undefined append((Node or DOMString)... nodes);
   [CEReactions] undefined replaceChildren((Node or DOMString)... nodes);
+
+  Element? querySelector(DOMString selectors);
+  [NewObject] NodeList querySelectorAll(DOMString selectors);
 };
 Document includes ParentNode;
 DocumentFragment includes ParentNode;
@@ -290,6 +310,22 @@ interface Element : Node {
   [CEReactions] Attr? setAttributeNode(Attr attr);
   [CEReactions] Attr? setAttributeNodeNS(Attr attr);
   [CEReactions] Attr removeAttributeNode(Attr attr);
+
+  boolean matches(DOMString selectors);
+  Element? closest(DOMString selectors);
+  boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
+
+  HTMLCollection getElementsByTagName(DOMString qualifiedName);
+  HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
+  HTMLCollection getElementsByClassName(DOMString classNames);
+
+  [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
+  undefined insertAdjacentText(DOMString where, DOMString data); // legacy
+
+  // From DOM Parsing and Serialization.
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString innerHTML;
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerHTML;
+  [CEReactions] undefined insertAdjacentHTML(DOMString position, DOMString text);
 };
 
 [Exposed=Window, LegacyUnenumerableNamedProperties]

@@ -190,7 +190,7 @@ pub(super) fn replace(
 }
 
 /// DOM "replace all" `parent`'s children with `node` (`replaceChildren`).
-fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
+pub(super) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, None, false)?;
     let added = inserted(dom(cx.rt)?, node);
     let result = dom_mut(cx.rt)?.replace_all(parent, Some(node));

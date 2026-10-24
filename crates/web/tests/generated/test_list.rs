@@ -18,6 +18,13 @@ pub trait TestListImpl: b::Host {
     /// The supported property indices of `TestList` are `0..n` (Web IDL §3.9); returns `n`.
     fn index_count(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<u32>;
 
+    /// Whether `index` is a supported property index. Every indexed access
+    /// asks; the default compares with [`Self::index_count`], and a list that
+    /// cannot count cheaply overrides it.
+    fn has_index(cx: &mut b::Cx<'_>, this: b::Platform, index: u32) -> b::Result<bool> {
+        Ok(index < Self::index_count(cx, this)?)
+    }
+
 }
 
 fn get_length<H: TestListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -43,6 +50,10 @@ fn legacy_count<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: 
     <H as TestListImpl>::index_count(&mut b::Cx::without_call(rt, realm, super::TEST_LIST), this)
 }
 
+fn legacy_has<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<bool> {
+    <H as TestListImpl>::has_index(&mut b::Cx::without_call(rt, realm, super::TEST_LIST), this, index)
+}
+
 fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32) -> b::Result<swb_js::Value> {
     let result = <H as TestListImpl>::item(&mut b::Cx::without_call(rt, realm, super::TEST_LIST), this, index)?;
     Ok((match result { Some(x0) => b::to_js::node::<H>(rt, realm, x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
@@ -53,7 +64,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
     b::legacy::Legacy {
         interface: "TestList",
         dom_exception: super::DOM_EXCEPTION,
-        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, get: legacy_indexed_get::<H>, set: None }),
+        indexed: Some(b::legacy::Indexed { count: legacy_count::<H>, has: legacy_has::<H>, get: legacy_indexed_get::<H>, set: None }),
         named: None,
         override_builtins: false,
         unenumerable: false,

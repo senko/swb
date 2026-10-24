@@ -1045,7 +1045,18 @@ built by `appendChild` top-down and bottom-up (style, layout and paint
 run on it; once on a page with a parsed form), 100,000
 `getElementById` calls with 100,000 elements of one id, `cloneNode(true)`
 of a large tree in a loop, `classList.add` of 100,000 tokens and an indexed loop over them, and lists
-that cache children while the DOM changes. The cases with timers pass
+that cache children while the DOM changes. Cases for the queries and markup of
+feature 6b: `innerHTML` of 50 MB of text and of 30 MB of elements with
+long attributes, 2,000,000 elements (the node limit), `querySelectorAll`
+on 500,000 elements, selectors with 40 descendant combinators on a chain
+of 100,000 divs (the work of a query stops at 100,000,000 steps with a
+warning), a loop over a live `getElementsByTagName('*')` list that
+changes at each step, `innerHTML` and `outerHTML` of a chain of 100,000
+divs, 50,000 `outerHTML` sets, 40,000 `DOMParser` and
+`createHTMLDocument` calls, `closest` with failing descendant selectors on
+a chain of 100,000 divs, a selector list of 200,000 entries on 5,000
+elements, and a drain loop over `children` and `childNodes` of
+100,000 children. The cases with timers pass
 `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2261,8 +2272,7 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   (`tests/dom/cases.rs`, generated from the probe's `--json` output; the
   values where swb departs on purpose are overridden in `SWB_VALUES` of
   `dom.rs` with the reason: no `HTMLDocument`, HTML elements other than
-  `head` are `HTMLElement`, no SVG interfaces, a window name of several
-  elements gives the first), and the interface objects, property names,
+  `head` are `HTMLElement`, no SVG interfaces), and the interface objects, property names,
   descriptors, argument checks, `Event` and `DOMException` of the browser's
   glue; also expandos and identity across collections, the live
   `childNodes`, the console buffer, the evaluation forms and the task time
@@ -2282,6 +2292,28 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   `setAttribute('Q:C')` changes a namespaced `q:c`),
   each with and without the GC stress mode; also identity and expandos of
   the views across collections, live lists and the node limit.
+- `crates/web/tests/dom_query.rs`: the queries and markup of feature 6b:
+  every case of `tools/probes/web-dom-query.json` (78 cases, 406 values:
+  the selector methods with their `SyntaxError` messages, `:scope`, the
+  pseudo-classes of the document's states, the live collections of
+  `getElementsBy*` and of the document after changes, `window[name]` with
+  several elements, the serialization of void elements, quotes, `&`,
+  `template`, `noscript`, raw text elements, `pre`, SVG and MathML
+  namespaces and prefixes, `innerHTML`, `outerHTML` (with the text nodes
+  that Chromium joins) and `insertAdjacent*` with their exceptions, the
+  parse contexts, `template.content`, `DOMParser`, `createHTMLDocument`
+  and `createDocumentType`) with Chromium's values
+  (`tests/dom_query/cases.rs`, generated from the probe's `--json`
+  output; three Chromium runs gave equal values; `SWB_VALUES` has the two
+  departures: a new collection at each `getElementsByClassName` call, and
+  U+FFFD for a lone surrogate), each with and without the GC stress mode;
+  also a loop over live lists that change at each step, queries over a
+  tree of 4,000 elements and a read and write of `innerHTML` in a tree
+  of 100,000 levels. Unit tests in `web/src/dom/lists.rs` count the
+  rebuilds of the lists (the lists of `getElementsBy*` are not
+  registered); in `dom/src/parser/tests.rs` the `noscript` parse by
+  context, `parse_document` and its limits; in `style/src/query.rs` the
+  queries and a selector with many combinators on a deep tree.
 - `crates/web/tests/events.rs`: the event core (feature 5a): every case
   of `tools/probes/web-events.json` with Chromium's values
   (`tests/events/cases.rs`, generated from the probe's `--json` output as
@@ -2326,6 +2358,11 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   boxes, `classList`, `id`, `style`, `textContent` and `data` restyle and
   relayout, and an inserted `style`, `link rel=stylesheet` and `img` apply
   and load (the removal drops the sheet; a changed `src` loads again).
+  Feature 6b: markup (`insertAdjacentHTML`, `innerHTML`, `outerHTML`) with
+  a style, a link, an image and boxes reaches style, layout and the loads,
+  its scripts do not run, and the documents of `DOMParser` and
+  `createHTMLDocument` are not rendered and load nothing (a node that
+  moves into the page does).
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

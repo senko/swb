@@ -11,6 +11,7 @@
 use std::any::Any;
 
 use swb_dom::{Document, NodeId, ParseStep, TextPosition};
+use swb_style::ElementStates;
 
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
@@ -72,6 +73,16 @@ pub trait EngineHost: Any {
     fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
         let _ = (node, url);
         false
+    }
+
+    /// The states that selectors see (`:hover`, `:focus`, ...), for
+    /// `matches`, `closest` and `querySelector*`. With `controls`, the
+    /// states of the form controls (`:checked`, `:valid`, ...) are
+    /// current for the DOM as it is now; the caller asks for them only
+    /// when a selector reads them. The default has no state.
+    fn element_states(&mut self, controls: bool) -> ElementStates {
+        let _ = controls;
+        ElementStates::default()
     }
 
     /// The box as `Any`, so that the engine gets its own type back.

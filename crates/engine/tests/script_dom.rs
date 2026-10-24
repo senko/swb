@@ -275,3 +275,97 @@ fn a_cloned_fragment_with_a_style_sheet_applies() {
         assert_eq!(color(&mut page, "a"), RED);
     });
 }
+
+#[test]
+fn inserted_markup_reaches_style_layout_and_the_loads() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-markup");
+        site.file("blue.css", b"#a { color: rgb(0, 0, 255) }");
+        let png = Pixmap::new(2, 3).unwrap().encode_png().unwrap();
+        site.file("pic.png", &png);
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>body { margin: 0 } div { height: 20px }</style><div id=a>a</div><div id=host></div>",
+        );
+        let (mut page, recorder) = load(&url);
+
+        // A style element in `insertAdjacentHTML` applies.
+        run(
+            &mut page,
+            "document.head.insertAdjacentHTML('beforeend', '<style>#a { color: red }</style>')",
+        );
+        assert_eq!(color(&mut page, "a"), RED);
+
+        // A link in `innerHTML` loads its sheet, which applies afterwards.
+        run(
+            &mut page,
+            "document.getElementById('host').innerHTML = '<link rel=stylesheet href=blue.css><i id=m>m</i>'",
+        );
+        settle(&mut page);
+        assert_eq!(recorder.count("blue.css"), 1);
+        assert_eq!(color(&mut page, "a"), BLUE);
+
+        // An image loads and has its size; a box in the markup is laid out.
+        run(
+            &mut page,
+            "document.getElementById('host').innerHTML = '<img id=i src=pic.png><div id=n style=\"height: 30px\">n</div>'",
+        );
+        settle(&mut page);
+        assert_eq!(recorder.count("pic.png"), 1);
+        let r = rect(&mut page, "i");
+        assert_eq!((r.width, r.height), (2.0, 3.0));
+        assert_eq!(rect(&mut page, "n").height, 30.0);
+
+        // The old nodes are gone with their sheet: the link left the page.
+        assert_eq!(color(&mut page, "a"), RED);
+
+        // `outerHTML` replaces the element and its box.
+        run(
+            &mut page,
+            "document.getElementById('n').outerHTML = '<div id=o style=\"height: 40px\"></div>'",
+        );
+        assert_eq!(rect(&mut page, "o").height, 40.0);
+        assert!(page.document().unwrap().element_by_id("n").is_none());
+
+        // Scripts in markup do not run, with any of the entry points.
+        let ran = run(
+            &mut page,
+            "var h = document.getElementById('host'); h.innerHTML = '<script>window.ran1 = 1</script>'; h.insertAdjacentHTML('beforeend', '<script>window.ran2 = 1</script>'); h.firstChild.outerHTML = '<script>window.ran3 = 1</script>'; typeof window.ran1 + typeof window.ran2 + typeof window.ran3",
+        );
+        assert_eq!(ran, "\"undefinedundefinedundefined\"");
+    });
+}
+
+#[test]
+fn documents_that_scripts_parse_are_not_rendered_or_loaded() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-documents");
+        site.file("other.css", b"#a { color: rgb(0, 0, 255) }");
+        let png = Pixmap::new(2, 3).unwrap().encode_png().unwrap();
+        site.file("pic.png", &png);
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>body { margin: 0 } div { height: 20px }</style><div id=a>a</div>",
+        );
+        let (mut page, recorder) = load(&url);
+        let before = rect(&mut page, "a");
+        let value = run(
+            &mut page,
+            "var d = new DOMParser().parseFromString('<style>#a { color: red }</style><link rel=stylesheet href=other.css><img src=pic.png><div id=a style=\"height: 90px\">x</div>', 'text/html'); var h = document.implementation.createHTMLDocument('t'); h.body.innerHTML = '<style>#a { color: red }</style><img src=pic.png>'; [d.querySelectorAll('div').length, h.querySelectorAll('img').length, document.getElementById('a') === d.getElementById('a')]",
+        );
+        assert_eq!(value, "[1,1,false]");
+        settle(&mut page);
+        assert_eq!(recorder.count("other.css"), 0);
+        assert_eq!(recorder.count("pic.png"), 0);
+        assert_eq!(color(&mut page, "a"), Rgba::BLACK);
+        assert_eq!(rect(&mut page, "a"), before);
+        // A node that moves into the page is rendered and loads.
+        run(
+            &mut page,
+            "document.body.appendChild(d.querySelector('img')); document.head.appendChild(d.querySelector('style'));",
+        );
+        settle(&mut page);
+        assert_eq!(recorder.count("pic.png"), 1);
+        assert_eq!(color(&mut page, "a"), RED);
+    });
+}

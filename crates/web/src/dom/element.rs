@@ -6,7 +6,10 @@
 use swb_dom::{NodeId, local_name};
 
 use super::tag_name;
-use super::{attrs, next_element_sibling, previous_element_sibling, string_map, token_list};
+use super::{
+    attrs, lists, markup, next_element_sibling, previous_element_sibling, queries, string_map,
+    token_list,
+};
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
 use crate::state::{Slot, WebState, dom, same_object};
@@ -184,6 +187,90 @@ impl g::element::ElementImpl for WebState {
         attr: Platform,
     ) -> b::Result<swb_js::Gc<swb_js::Object>> {
         attrs::remove_attribute_node(cx, this, attr)
+    }
+
+    fn matches(cx: &mut Cx<'_>, this: NodeId, selectors: String) -> b::Result<bool> {
+        queries::matches(cx, this, &selectors)
+    }
+
+    fn closest(cx: &mut Cx<'_>, this: NodeId, selectors: String) -> b::Result<Option<NodeId>> {
+        queries::closest(cx, this, &selectors)
+    }
+
+    fn webkit_matches_selector(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        selectors: String,
+    ) -> b::Result<bool> {
+        queries::matches(cx, this, &selectors)
+    }
+
+    fn get_elements_by_tag_name(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        qualified_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::tag_name(cx, this, &qualified_name)
+    }
+
+    fn get_elements_by_tag_name_ns(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        namespace: Option<String>,
+        local_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::tag_name_ns(cx, this, namespace.as_deref(), &local_name)
+    }
+
+    fn get_elements_by_class_name(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        class_names: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        lists::class_names(cx, this, &class_names)
+    }
+
+    fn insert_adjacent_element(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        where_: String,
+        element: NodeId,
+    ) -> b::Result<Option<NodeId>> {
+        markup::insert_adjacent_element(cx, this, &where_, element)
+    }
+
+    fn insert_adjacent_text(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        where_: String,
+        data: String,
+    ) -> b::Result<()> {
+        markup::insert_adjacent_text(cx, this, &where_, data)
+    }
+
+    fn inner_html(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        markup::inner_html(cx, this)
+    }
+
+    fn set_inner_html(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        markup::set_inner_html(cx, this, &value)
+    }
+
+    fn outer_html(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        markup::outer_html(cx, this)
+    }
+
+    fn set_outer_html(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        markup::set_outer_html(cx, this, &value)
+    }
+
+    fn insert_adjacent_html(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        position: String,
+        text: String,
+    ) -> b::Result<()> {
+        markup::insert_adjacent_html(cx, this, &position, &text)
     }
 }
 

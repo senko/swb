@@ -264,6 +264,14 @@ impl swb_web::EngineHost for DocumentState {
         self.fetch_script(node, url)
     }
 
+    fn element_states(&mut self, controls: bool) -> ElementStates {
+        if controls {
+            self.process_changes();
+            self.refresh_forms();
+        }
+        self.states.clone()
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
