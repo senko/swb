@@ -9,6 +9,9 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `DocumentFragment`.
 pub trait DocumentFragmentImpl: b::Host {
+    /// `readonly attribute HTMLCollection children`.
+    fn children(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute Element? firstElementChild`.
     fn first_element_child(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -18,6 +21,29 @@ pub trait DocumentFragmentImpl: b::Host {
     /// `readonly attribute unsigned long childElementCount`.
     fn child_element_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
+    /// `constructor()`.
+    fn constructor(cx: &mut b::Cx<'_>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `Element? getElementById(DOMString elementId)`.
+    fn get_element_by_id(cx: &mut b::Cx<'_>, this: b::NodeId, element_id: String) -> b::Result<Option<b::NodeId>>;
+
+    /// `undefined prepend((DOMString or Node)... nodes)`.
+    fn prepend(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined append((DOMString or Node)... nodes)`.
+    fn append(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceChildren((DOMString or Node)... nodes)`.
+    fn replace_children(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+}
+
+fn get_children<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("DocumentFragment", "children"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_FRAGMENT)?;
+        let result = <H as DocumentFragmentImpl>::children(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
 }
 
 fn get_first_element_child<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -44,15 +70,77 @@ fn get_child_element_count<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, ca
     })
 }
 
+pub(super) fn construct<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("DocumentFragment"), super::DOM_EXCEPTION, |rt| {
+        let result = <H as DocumentFragmentImpl>::constructor(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT))?;
+        Ok(swb_js::Value::Object(result))
+    })
+}
+
+fn op_get_element_by_id<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentFragment", "getElementById"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_FRAGMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentFragmentImpl>::get_element_by_id(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_prepend<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentFragment", "prepend"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_FRAGMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentFragmentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_append<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentFragment", "append"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_FRAGMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentFragmentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_children<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentFragment", "replaceChildren"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_FRAGMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentFragmentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `DocumentFragment` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
     let interface = rt.begin_interface(realm, super::DOCUMENT_FRAGMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "children", (Some(get_children::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getElementById", 1, op_get_element_by_id::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "prepend", 0, op_prepend::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceChildren", 0, op_replace_children::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

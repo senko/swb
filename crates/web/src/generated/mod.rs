@@ -14,7 +14,11 @@ pub mod document;
 pub mod document_type;
 pub mod document_fragment;
 pub mod node_list;
+pub mod html_collection;
 pub mod element;
+pub mod named_node_map;
+pub mod attr;
+pub mod dom_token_list;
 pub mod character_data;
 pub mod text;
 pub mod processing_instruction;
@@ -22,6 +26,7 @@ pub mod comment;
 pub mod performance;
 pub mod window;
 pub mod html_element;
+pub mod dom_string_map;
 pub mod html_head_element;
 pub mod html_script_element;
 pub mod error_event;
@@ -48,39 +53,49 @@ pub const DOCUMENT_TYPE: swb_js::ClassId = swb_js::ClassId::from_index(5);
 pub const DOCUMENT_FRAGMENT: swb_js::ClassId = swb_js::ClassId::from_index(6);
 /// The class of `NodeList`.
 pub const NODE_LIST: swb_js::ClassId = swb_js::ClassId::from_index(7);
+/// The class of `HTMLCollection`.
+pub const HTML_COLLECTION: swb_js::ClassId = swb_js::ClassId::from_index(8);
 /// The class of `Element`.
-pub const ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(8);
+pub const ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(9);
+/// The class of `NamedNodeMap`.
+pub const NAMED_NODE_MAP: swb_js::ClassId = swb_js::ClassId::from_index(10);
+/// The class of `Attr`.
+pub const ATTR: swb_js::ClassId = swb_js::ClassId::from_index(11);
+/// The class of `DOMTokenList`.
+pub const DOM_TOKEN_LIST: swb_js::ClassId = swb_js::ClassId::from_index(12);
 /// The class of `CharacterData`.
-pub const CHARACTER_DATA: swb_js::ClassId = swb_js::ClassId::from_index(9);
+pub const CHARACTER_DATA: swb_js::ClassId = swb_js::ClassId::from_index(13);
 /// The class of `Text`.
-pub const TEXT: swb_js::ClassId = swb_js::ClassId::from_index(10);
+pub const TEXT: swb_js::ClassId = swb_js::ClassId::from_index(14);
 /// The class of `ProcessingInstruction`.
-pub const PROCESSING_INSTRUCTION: swb_js::ClassId = swb_js::ClassId::from_index(11);
+pub const PROCESSING_INSTRUCTION: swb_js::ClassId = swb_js::ClassId::from_index(15);
 /// The class of `Comment`.
-pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(12);
+pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
 /// The class of `Performance`.
-pub const PERFORMANCE: swb_js::ClassId = swb_js::ClassId::from_index(13);
+pub const PERFORMANCE: swb_js::ClassId = swb_js::ClassId::from_index(17);
 /// The class of `Window`.
-pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(14);
+pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(18);
 /// The class of `HTMLElement`.
-pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(15);
+pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(19);
+/// The class of `DOMStringMap`.
+pub const DOM_STRING_MAP: swb_js::ClassId = swb_js::ClassId::from_index(20);
 /// The class of `HTMLHeadElement`.
-pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
+pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(21);
 /// The class of `HTMLScriptElement`.
-pub const HTML_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
+pub const HTML_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(22);
 /// The class of `ErrorEvent`.
-pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
+pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(23);
 /// The class of `PromiseRejectionEvent`.
-pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(19);
+pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(24);
 /// The class of `PageTransitionEvent`.
-pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(20);
+pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(25);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(21);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(26);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + dom_string_map::DOMStringMapImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + dom_string_map::DOMStringMapImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -91,16 +106,21 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Node").parent(EVENT_TARGET), NODE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Document").parent(NODE), DOCUMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("DocumentType").parent(NODE), DOCUMENT_TYPE)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("DocumentFragment").parent(NODE), DOCUMENT_FRAGMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("DocumentFragment").parent(NODE).constructor(document_fragment::construct::<H>, 0), DOCUMENT_FRAGMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("NodeList").hooks(node_list::hooks::<H>()), NODE_LIST)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLCollection").hooks(html_collection::hooks::<H>()), HTML_COLLECTION)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Element").parent(NODE), ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("NamedNodeMap").hooks(named_node_map::hooks::<H>()), NAMED_NODE_MAP)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("Attr").parent(EVENT_TARGET), ATTR)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("DOMTokenList").hooks(dom_token_list::hooks::<H>()), DOM_TOKEN_LIST)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("CharacterData").parent(NODE), CHARACTER_DATA)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("Text").parent(CHARACTER_DATA), TEXT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("Text").parent(CHARACTER_DATA).constructor(text::construct::<H>, 0), TEXT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ProcessingInstruction").parent(CHARACTER_DATA), PROCESSING_INSTRUCTION)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("Comment").parent(CHARACTER_DATA), COMMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("Comment").parent(CHARACTER_DATA).constructor(comment::construct::<H>, 0), COMMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Performance").parent(EVENT_TARGET), PERFORMANCE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window").parent(EVENT_TARGET), WINDOW)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT), HTML_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("DOMStringMap").hooks(dom_string_map::hooks::<H>()), DOM_STRING_MAP)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT), HTML_HEAD_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLScriptElement").parent(HTML_ELEMENT), HTML_SCRIPT_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ErrorEvent").parent(EVENT).constructor(error_event::construct::<H>, 1), ERROR_EVENT)?;
@@ -129,8 +149,16 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "DocumentFragment", interface)?;
     let interface = node_list::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "NodeList", interface)?;
+    let interface = html_collection::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLCollection", interface)?;
     let interface = element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Element", interface)?;
+    let interface = named_node_map::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "NamedNodeMap", interface)?;
+    let interface = attr::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "Attr", interface)?;
+    let interface = dom_token_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "DOMTokenList", interface)?;
     let interface = character_data::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "CharacterData", interface)?;
     let interface = text::define::<H>(rt, realm)?;
@@ -145,6 +173,8 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "Window", interface)?;
     let interface = html_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLElement", interface)?;
+    let interface = dom_string_map::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "DOMStringMap", interface)?;
     let interface = html_head_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLHeadElement", interface)?;
     let interface = html_script_element::define::<H>(rt, realm)?;

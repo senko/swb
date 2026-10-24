@@ -24,6 +24,33 @@ pub trait CharacterDataImpl: b::Host {
     /// `readonly attribute Element? nextElementSibling`.
     fn next_element_sibling(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `DOMString substringData(unsigned long offset, unsigned long count)`.
+    fn substring_data(cx: &mut b::Cx<'_>, this: b::NodeId, offset: u32, count: u32) -> b::Result<String>;
+
+    /// `undefined appendData(DOMString data)`.
+    fn append_data(cx: &mut b::Cx<'_>, this: b::NodeId, data: String) -> b::Result<()>;
+
+    /// `undefined insertData(unsigned long offset, DOMString data)`.
+    fn insert_data(cx: &mut b::Cx<'_>, this: b::NodeId, offset: u32, data: String) -> b::Result<()>;
+
+    /// `undefined deleteData(unsigned long offset, unsigned long count)`.
+    fn delete_data(cx: &mut b::Cx<'_>, this: b::NodeId, offset: u32, count: u32) -> b::Result<()>;
+
+    /// `undefined replaceData(unsigned long offset, unsigned long count, DOMString data)`.
+    fn replace_data(cx: &mut b::Cx<'_>, this: b::NodeId, offset: u32, count: u32, data: String) -> b::Result<()>;
+
+    /// `undefined before((DOMString or Node)... nodes)`.
+    fn before(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined after((DOMString or Node)... nodes)`.
+    fn after(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceWith((DOMString or Node)... nodes)`.
+    fn replace_with(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined remove()`.
+    fn remove(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
 }
 
 fn get_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -68,6 +95,118 @@ fn get_next_element_sibling<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call
     })
 }
 
+fn op_substring_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "substringData"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        let result = <H as CharacterDataImpl>::substring_data(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0, a1)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn op_append_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "appendData"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as CharacterDataImpl>::append_data(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_insert_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "insertData"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        <H as CharacterDataImpl>::insert_data(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_delete_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "deleteData"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        <H as CharacterDataImpl>::delete_data(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_data<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "replaceData"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        b::glue::require_arguments(call, 3)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = b::convert::dom_string(rt, v).map_err(|e| e.argument(2))?;
+        <H as CharacterDataImpl>::replace_data(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0, a1, a2)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_before<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "before"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as CharacterDataImpl>::before(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_after<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "after"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as CharacterDataImpl>::after(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_with<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "replaceWith"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as CharacterDataImpl>::replace_with(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_remove<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CharacterData", "remove"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
+        <H as CharacterDataImpl>::remove(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `CharacterData` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -78,6 +217,15 @@ pub fn define<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "previousElementSibling", (Some(get_previous_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "nextElementSibling", (Some(get_next_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "after", 0, op_after::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "appendData", 1, op_append_data::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "before", 0, op_before::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "deleteData", 2, op_delete_data::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "insertData", 2, op_insert_data::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "remove", 0, op_remove::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceData", 3, op_replace_data::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceWith", 0, op_replace_with::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "substringData", 2, op_substring_data::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -9,6 +9,18 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `Comment`.
 pub trait CommentImpl: b::Host {
+    /// `constructor(optional DOMString data)`.
+    fn constructor(cx: &mut b::Cx<'_>, data: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+}
+
+pub(super) fn construct<H: CommentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("Comment"), super::DOM_EXCEPTION, |rt| {
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.argument(0))? };
+        let result = <H as CommentImpl>::constructor(&mut b::Cx::new(rt, call, super::COMMENT), a0)?;
+        Ok(swb_js::Value::Object(result))
+    })
 }
 
 /// Creates the interface object and the prototype of `Comment` in `realm`

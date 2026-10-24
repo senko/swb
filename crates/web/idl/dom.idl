@@ -10,21 +10,21 @@
 // 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
 // THIRD_PARTY_NOTICES.md for the license text.
 //
-// swb cut these IDL blocks to the members that it implements (features 4c
-// and 5a of M8): Event, CustomEvent, EventTarget, EventListener, NodeList
-// and DocumentType are complete, and so is the partial Window interface
-// with `event`; AddEventListenerOptions has no `signal` (no AbortSignal
-// yet). Node, Document, Element, CharacterData and the mixins ParentNode
-// and NonDocumentTypeChildNode have their read-only tree accessors
-// (feature 4c2), Document its URL, mode, encoding and content type and
-// `createEvent` (feature 5a), Element its names and CharacterData its
-// `data`; the members that change the tree, the queries and the
-// attributes come with feature 6. Feature 5c brought forward
-// `Node.appendChild` and `Document.createElement` without its `options`
-// argument (feature 6a completes them). Document, DocumentFragment, Text and
-// Comment have no constructors yet, Text no members, ProcessingInstruction
-// only `target`. The order of the remaining members is the
-// specification's.
+// swb cut these IDL blocks to the members that it implements (features 4c,
+// 5a and 6a of M8): Event, CustomEvent, EventTarget, EventListener,
+// NodeList, DocumentType, Attr, NamedNodeMap, DOMTokenList and
+// HTMLCollection are complete, and so is the partial Window interface with
+// `event`; AddEventListenerOptions has no `signal` (no AbortSignal yet).
+// Document has no constructor yet (`new Document()` makes an XML
+// document); it lacks the queries, `implementation`, createCDATASection,
+// createProcessingInstruction, createRange and the other members of
+// feature 6b and later; Element lacks the queries, `slot`, shadow trees
+// and the insertAdjacent* methods (6b); ProcessingInstruction has only
+// `target`. Two departures: Attr extends EventTarget, not Node (swb keeps
+// attributes in their element, not as nodes of the arena), and the
+// `[Unscopable]` attributes of the ParentNode and ChildNode methods are
+// left out (the generator has no @@unscopables yet). The order of the
+// members is the specification's.
 
 [Exposed=*]
 interface Event {
@@ -135,6 +135,12 @@ interface Node : EventTarget {
   readonly attribute Node? previousSibling;
   readonly attribute Node? nextSibling;
 
+  [CEReactions] attribute DOMString? nodeValue;
+  [CEReactions] attribute DOMString? textContent;
+  [CEReactions] undefined normalize();
+
+  [CEReactions, NewObject] Node cloneNode(optional boolean subtree = false);
+  boolean isEqualNode(Node? otherNode);
   boolean isSameNode(Node? otherNode); // legacy alias of ===
 
   const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
@@ -143,9 +149,17 @@ interface Node : EventTarget {
   const unsigned short DOCUMENT_POSITION_CONTAINS = 0x08;
   const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
   const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20;
+  unsigned short compareDocumentPosition(Node other);
   boolean contains(Node? other);
 
+  DOMString? lookupPrefix(DOMString? namespace);
+  DOMString? lookupNamespaceURI(DOMString? prefix);
+  boolean isDefaultNamespace(DOMString? namespace);
+
+  [CEReactions] Node insertBefore(Node node, Node? child);
   [CEReactions] Node appendChild(Node node);
+  [CEReactions] Node replaceChild(Node node, Node child);
+  [CEReactions] Node removeChild(Node child);
 };
 
 dictionary GetRootNodeOptions {
@@ -165,9 +179,23 @@ interface Document : Node {
   readonly attribute DocumentType? doctype;
   readonly attribute Element? documentElement;
 
-  [CEReactions, NewObject] Element createElement(DOMString localName);
+  [CEReactions, NewObject] Element createElement(DOMString localName, optional (DOMString or ElementCreationOptions) options = {});
+  [CEReactions, NewObject] Element createElementNS(DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
+  [NewObject] DocumentFragment createDocumentFragment();
+  [NewObject] Text createTextNode(DOMString data);
+  [NewObject] Comment createComment(DOMString data);
+
+  [CEReactions, NewObject] Node importNode(Node node, optional boolean subtree = false);
+  [CEReactions] Node adoptNode(Node node);
+
+  [NewObject] Attr createAttribute(DOMString localName);
+  [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName);
 
   [NewObject] Event createEvent(DOMString interface); // legacy
+};
+
+dictionary ElementCreationOptions {
+  DOMString is;
 };
 
 [Exposed=Window]
@@ -179,12 +207,24 @@ interface DocumentType : Node {
 
 [Exposed=Window]
 interface DocumentFragment : Node {
+  constructor();
 };
 
+interface mixin NonElementParentNode {
+  Element? getElementById(DOMString elementId);
+};
+Document includes NonElementParentNode;
+DocumentFragment includes NonElementParentNode;
+
 interface mixin ParentNode {
+  [SameObject] readonly attribute HTMLCollection children;
   readonly attribute Element? firstElementChild;
   readonly attribute Element? lastElementChild;
   readonly attribute unsigned long childElementCount;
+
+  [CEReactions] undefined prepend((Node or DOMString)... nodes);
+  [CEReactions] undefined append((Node or DOMString)... nodes);
+  [CEReactions] undefined replaceChildren((Node or DOMString)... nodes);
 };
 Document includes ParentNode;
 DocumentFragment includes ParentNode;
@@ -197,11 +237,28 @@ interface mixin NonDocumentTypeChildNode {
 Element includes NonDocumentTypeChildNode;
 CharacterData includes NonDocumentTypeChildNode;
 
+interface mixin ChildNode {
+  [CEReactions] undefined before((Node or DOMString)... nodes);
+  [CEReactions] undefined after((Node or DOMString)... nodes);
+  [CEReactions] undefined replaceWith((Node or DOMString)... nodes);
+  [CEReactions] undefined remove();
+};
+DocumentType includes ChildNode;
+Element includes ChildNode;
+CharacterData includes ChildNode;
+
 [Exposed=Window]
 interface NodeList {
   getter Node? item(unsigned long index);
   readonly attribute unsigned long length;
   iterable<Node>;
+};
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface HTMLCollection {
+  readonly attribute unsigned long length;
+  getter Element? item(unsigned long index);
+  getter Element? namedItem(DOMString name);
 };
 
 [Exposed=Window]
@@ -210,16 +267,87 @@ interface Element : Node {
   readonly attribute DOMString? prefix;
   readonly attribute DOMString localName;
   readonly attribute DOMString tagName;
+
+  [CEReactions, Reflect] attribute DOMString id;
+  [CEReactions, Reflect="class"] attribute DOMString className;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList classList;
+
+  boolean hasAttributes();
+  [SameObject] readonly attribute NamedNodeMap attributes;
+  sequence<DOMString> getAttributeNames();
+  DOMString? getAttribute(DOMString qualifiedName);
+  DOMString? getAttributeNS(DOMString? namespace, DOMString localName);
+  [CEReactions] undefined setAttribute(DOMString qualifiedName, DOMString value);
+  [CEReactions] undefined setAttributeNS(DOMString? namespace, DOMString qualifiedName, DOMString value);
+  [CEReactions] undefined removeAttribute(DOMString qualifiedName);
+  [CEReactions] undefined removeAttributeNS(DOMString? namespace, DOMString localName);
+  [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
+  boolean hasAttribute(DOMString qualifiedName);
+  boolean hasAttributeNS(DOMString? namespace, DOMString localName);
+
+  Attr? getAttributeNode(DOMString qualifiedName);
+  Attr? getAttributeNodeNS(DOMString? namespace, DOMString localName);
+  [CEReactions] Attr? setAttributeNode(Attr attr);
+  [CEReactions] Attr? setAttributeNodeNS(Attr attr);
+  [CEReactions] Attr removeAttributeNode(Attr attr);
+};
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface NamedNodeMap {
+  readonly attribute unsigned long length;
+  getter Attr? item(unsigned long index);
+  getter Attr? getNamedItem(DOMString qualifiedName);
+  Attr? getNamedItemNS(DOMString? namespace, DOMString localName);
+  [CEReactions] Attr? setNamedItem(Attr attr);
+  [CEReactions] Attr? setNamedItemNS(Attr attr);
+  [CEReactions] Attr removeNamedItem(DOMString qualifiedName);
+  [CEReactions] Attr removeNamedItemNS(DOMString? namespace, DOMString localName);
+};
+
+[Exposed=Window]
+interface Attr : EventTarget {
+  readonly attribute DOMString? namespaceURI;
+  readonly attribute DOMString? prefix;
+  readonly attribute DOMString localName;
+  readonly attribute DOMString name;
+  [CEReactions] attribute DOMString value;
+
+  readonly attribute Element? ownerElement;
+
+  readonly attribute boolean specified; // useless; always returns true
+};
+
+[Exposed=Window]
+interface DOMTokenList {
+  readonly attribute unsigned long length;
+  getter DOMString? item(unsigned long index);
+  boolean contains(DOMString token);
+  [CEReactions] undefined add(DOMString... tokens);
+  [CEReactions] undefined remove(DOMString... tokens);
+  [CEReactions] boolean toggle(DOMString token, optional boolean force);
+  [CEReactions] boolean replace(DOMString token, DOMString newToken);
+  boolean supports(DOMString token);
+  [CEReactions] stringifier attribute DOMString value;
+  iterable<DOMString>;
 };
 
 [Exposed=Window]
 interface CharacterData : Node {
   attribute [LegacyNullToEmptyString] DOMString data;
   readonly attribute unsigned long length;
+  DOMString substringData(unsigned long offset, unsigned long count);
+  undefined appendData(DOMString data);
+  undefined insertData(unsigned long offset, DOMString data);
+  undefined deleteData(unsigned long offset, unsigned long count);
+  undefined replaceData(unsigned long offset, unsigned long count, DOMString data);
 };
 
 [Exposed=Window]
 interface Text : CharacterData {
+  constructor(optional DOMString data = "");
+
+  [NewObject] Text splitText(unsigned long offset);
+  readonly attribute DOMString wholeText;
 };
 
 [Exposed=Window]
@@ -229,4 +357,5 @@ interface ProcessingInstruction : CharacterData {
 
 [Exposed=Window]
 interface Comment : CharacterData {
+  constructor(optional DOMString data = "");
 };

@@ -21,6 +21,15 @@ pub trait ElementImpl: b::Host {
     /// `readonly attribute DOMString tagName`.
     fn tag_name(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
+    /// `readonly attribute DOMTokenList classList`.
+    fn class_list(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute NamedNodeMap attributes`.
+    fn attributes(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute HTMLCollection children`.
+    fn children(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute Element? firstElementChild`.
     fn first_element_child(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -35,6 +44,75 @@ pub trait ElementImpl: b::Host {
 
     /// `readonly attribute Element? nextElementSibling`.
     fn next_element_sibling(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
+    /// `boolean hasAttributes()`.
+    fn has_attributes(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `sequence<DOMString> getAttributeNames()`.
+    fn get_attribute_names(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Vec<String>>;
+
+    /// `DOMString? getAttribute(DOMString qualifiedName)`.
+    fn get_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String) -> b::Result<Option<String>>;
+
+    /// `DOMString? getAttributeNS(DOMString? namespace, DOMString localName)`.
+    fn get_attribute_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, local_name: String) -> b::Result<Option<String>>;
+
+    /// `undefined setAttribute(DOMString qualifiedName, DOMString value)`.
+    fn set_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String, value: String) -> b::Result<()>;
+
+    /// `undefined setAttributeNS(DOMString? namespace, DOMString qualifiedName, DOMString value)`.
+    fn set_attribute_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, qualified_name: String, value: String) -> b::Result<()>;
+
+    /// `undefined removeAttribute(DOMString qualifiedName)`.
+    fn remove_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String) -> b::Result<()>;
+
+    /// `undefined removeAttributeNS(DOMString? namespace, DOMString localName)`.
+    fn remove_attribute_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, local_name: String) -> b::Result<()>;
+
+    /// `boolean toggleAttribute(DOMString qualifiedName, optional boolean force)`.
+    fn toggle_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String, force: Option<bool>) -> b::Result<bool>;
+
+    /// `boolean hasAttribute(DOMString qualifiedName)`.
+    fn has_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String) -> b::Result<bool>;
+
+    /// `boolean hasAttributeNS(DOMString? namespace, DOMString localName)`.
+    fn has_attribute_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, local_name: String) -> b::Result<bool>;
+
+    /// `Attr? getAttributeNode(DOMString qualifiedName)`.
+    fn get_attribute_node(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `Attr? getAttributeNodeNS(DOMString? namespace, DOMString localName)`.
+    fn get_attribute_node_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, local_name: String) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `Attr? setAttributeNode(Attr attr)`.
+    fn set_attribute_node(cx: &mut b::Cx<'_>, this: b::NodeId, attr: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `Attr? setAttributeNodeNS(Attr attr)`.
+    fn set_attribute_node_ns(cx: &mut b::Cx<'_>, this: b::NodeId, attr: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `Attr removeAttributeNode(Attr attr)`.
+    fn remove_attribute_node(cx: &mut b::Cx<'_>, this: b::NodeId, attr: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined prepend((DOMString or Node)... nodes)`.
+    fn prepend(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined append((DOMString or Node)... nodes)`.
+    fn append(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceChildren((DOMString or Node)... nodes)`.
+    fn replace_children(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined before((DOMString or Node)... nodes)`.
+    fn before(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined after((DOMString or Node)... nodes)`.
+    fn after(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceWith((DOMString or Node)... nodes)`.
+    fn replace_with(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined remove()`.
+    fn remove(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
 
 }
 
@@ -67,6 +145,75 @@ fn get_tag_name<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let result = <H as ElementImpl>::tag_name(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
         Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_id<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "id"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "id")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_id<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Element", "id"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "id", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_class_name<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "className"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "class")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_class_name<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Element", "className"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "class", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_class_list<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "classList"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::class_list(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn set_class_list<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Element", "classList"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let _ = this;
+        let this = rt.this_or_global(call)?;
+        b::glue::put_forwards(rt, call, this, "classList", "value")
+    })
+}
+
+fn get_attributes<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "attributes"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::attributes(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_children<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "children"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::children(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -110,6 +257,278 @@ fn get_next_element_sibling<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb
     })
 }
 
+fn op_has_attributes<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "hasAttributes"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::has_attributes(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_get_attribute_names<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "getAttributeNames"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::get_attribute_names(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(b::to_js::sequence(rt, call.realm(), &result, |rt, item0| b::to_js::string(rt, &item0.clone()))?)
+    })
+}
+
+fn op_get_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "getAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::get_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_get_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "getAttributeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as ElementImpl>::get_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_set_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "setAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        <H as ElementImpl>::set_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_set_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "setAttributeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 3)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = b::convert::dom_string(rt, v).map_err(|e| e.argument(2))?;
+        <H as ElementImpl>::set_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1, a2)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_remove_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "removeAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as ElementImpl>::remove_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_remove_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "removeAttributeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        <H as ElementImpl>::remove_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_toggle_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "toggleAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { None } else { Some(b::convert::boolean(rt, v).map_err(|e| e.argument(1))?) };
+        let result = <H as ElementImpl>::toggle_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_has_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "hasAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::has_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_has_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "hasAttributeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as ElementImpl>::has_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_get_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "getAttributeNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::get_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_get_attribute_node_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "getAttributeNodeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as ElementImpl>::get_attribute_node_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_set_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "setAttributeNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::set_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_set_attribute_node_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "setAttributeNodeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::set_attribute_node_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_remove_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "removeAttributeNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::remove_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_prepend<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "prepend"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::prepend(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_append<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "append"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::append(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_children<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "replaceChildren"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::replace_children(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_before<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "before"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::before(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_after<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "after"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::after(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_with<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "replaceWith"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as ElementImpl>::replace_with(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_remove<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "remove"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        <H as ElementImpl>::remove(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `Element` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: ElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -120,11 +539,39 @@ pub fn define<H: ElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::V
     rt.define_accessor(realm, target, "prefix", (Some(get_prefix::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "localName", (Some(get_local_name::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "tagName", (Some(get_tag_name::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "id", (Some(get_id::<H> as swb_js::NativeFn), Some(set_id::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "className", (Some(get_class_name::<H> as swb_js::NativeFn), Some(set_class_name::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "classList", (Some(get_class_list::<H> as swb_js::NativeFn), Some(set_class_list::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "attributes", (Some(get_attributes::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "children", (Some(get_children::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "previousElementSibling", (Some(get_previous_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "nextElementSibling", (Some(get_next_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "after", 0, op_after::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "before", 0, op_before::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAttribute", 1, op_get_attribute::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAttributeNS", 2, op_get_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAttributeNames", 0, op_get_attribute_names::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAttributeNode", 1, op_get_attribute_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAttributeNodeNS", 2, op_get_attribute_node_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "hasAttribute", 1, op_has_attribute::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "hasAttributeNS", 2, op_has_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "hasAttributes", 0, op_has_attributes::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "prepend", 0, op_prepend::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "remove", 0, op_remove::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "removeAttribute", 1, op_remove_attribute::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "removeAttributeNS", 2, op_remove_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "removeAttributeNode", 1, op_remove_attribute_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceChildren", 0, op_replace_children::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceWith", 0, op_replace_with::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setAttribute", 2, op_set_attribute::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setAttributeNS", 3, op_set_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setAttributeNode", 1, op_set_attribute_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setAttributeNodeNS", 1, op_set_attribute_node_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "toggleAttribute", 1, op_toggle_attribute::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

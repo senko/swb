@@ -630,14 +630,46 @@ pub(crate) fn fire(
 
 /// The HTML script elements that an insertion of `nodes` connected, in
 /// tree order (their inclusive descendants).
+///
+/// The search for scripts and the test of the connection (a walk up the
+/// parent chain) advance in turns, and stop as soon as one of them decides:
+/// no script, or a root that is not a document. A detached insertion costs
+/// O(min(depth of the parent, size of the subtree)), so a chain built in
+/// either direction stays linear. The search finishes only for a connected
+/// node.
 fn inserted_scripts(dom: &Document, nodes: &[NodeId]) -> Vec<NodeId> {
     let mut found = Vec::new();
     for &node in nodes {
-        if !dom.is_connected(node) {
-            continue;
+        let mut subtree = dom.descendants(node);
+        let mut scripts = Vec::new();
+        let mut searching = true;
+        let mut top = node;
+        let mut connected = None;
+        while searching || connected.is_none() {
+            if searching {
+                match subtree.next() {
+                    Some(n) if is_script(dom, n) => scripts.push(n),
+                    Some(_) => {}
+                    None => searching = false,
+                }
+                if !searching && scripts.is_empty() {
+                    break;
+                }
+            }
+            if connected.is_none() {
+                match dom.parent(top) {
+                    Some(parent) => top = parent,
+                    None => connected = Some(dom.is_connected(top)),
+                }
+                if connected == Some(false) {
+                    break;
+                }
+            }
         }
-        let mut subtree = std::iter::once(node).chain(dom.descendants(node));
-        found.extend(subtree.by_ref().filter(|&n| is_script(dom, n)));
+        if connected == Some(true) {
+            scripts.extend(subtree.filter(|&n| is_script(dom, n)));
+            found.extend(scripts);
+        }
     }
     found
 }
@@ -665,6 +697,64 @@ pub(crate) fn after_insertion(rt: &mut Runtime, parent: NodeId, nodes: &[NodeId]
         post_connection(rt, script)?;
     }
     Ok(())
+}
+
+/// The attribute change steps of a script element (HTML §4.12.1.1): a
+/// script element that gets an `async` attribute is no longer "force
+/// async"; one that gets a `src` attribute where it had none runs the
+/// post-connection steps (they prepare it if it is connected and not
+/// parser-inserted). `had_before` tells whether the attribute existed.
+pub(crate) fn attribute_changed(
+    rt: &mut Runtime,
+    element: NodeId,
+    name: &swb_dom::QualName,
+    had_before: bool,
+) -> VmResult<()> {
+    if had_before || name.ns != swb_dom::ns!() || !is_script(dom(rt)?, element) {
+        return Ok(());
+    }
+    match &*name.local {
+        "async" => ensure_entry(rt, element)?.force_async = false,
+        "src" => children_changed(rt, element)?,
+        _ => {}
+    }
+    Ok(())
+}
+
+/// The state of the script element `node`, made if the runtime has not
+/// met it (its "already started" flag comes from the DOM: the parser set
+/// it for the scripts it will not run, a clone copied it).
+fn ensure_entry(rt: &mut Runtime, node: NodeId) -> VmResult<&mut ScriptElement> {
+    let flag = dom(rt)?
+        .element(node)
+        .is_some_and(|e| e.script_already_started);
+    Ok(scripts_mut(rt)?.elements.entry(node).or_insert_with(|| {
+        let mut el = ScriptElement::new();
+        el.already_started = flag;
+        el
+    }))
+}
+
+/// True if the script element `node` has started (HTML "already
+/// started"): it was prepared, or the parser or a clone marked it.
+pub(crate) fn has_started(rt: &Runtime, node: NodeId) -> VmResult<bool> {
+    let marked = dom(rt)?
+        .element(node)
+        .is_some_and(|e| e.script_already_started);
+    Ok(marked
+        || scripts(rt)?
+            .elements
+            .get(&node)
+            .is_some_and(|el| el.already_started))
+}
+
+/// The text of a character data node changed: the children changed steps
+/// of a `script` parent.
+pub(crate) fn data_changed(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    match dom(rt)?.parent(node) {
+        Some(parent) if is_script(dom(rt)?, parent) => children_changed(rt, parent),
+        _ => Ok(()),
+    }
 }
 
 /// The children changed steps of a script element: the post-connection
@@ -728,16 +818,12 @@ impl g::html_script_element::HTMLScriptElementImpl for WebState {
     }
 
     fn set_async(cx: &mut Cx<'_>, this: NodeId, value: bool) -> b::Result<()> {
-        scripts_mut(cx.rt)?
-            .elements
-            .entry(this)
-            .or_insert_with(ScriptElement::new)
-            .force_async = false;
+        ensure_entry(cx.rt, this)?.force_async = false;
+        let name = swb_dom::QualName::new(None, swb_dom::ns!(), local_name!("async"));
         if value {
-            let result = dom_mut(cx.rt)?.set_attr(this, "async", "");
-            crate::dom::dom_result(cx.rt, result)
+            crate::dom::set_attribute(cx.rt, this, &name, "")
         } else {
-            dom_mut(cx.rt)?.remove_attr(this, "async");
+            crate::dom::remove_attribute(cx.rt, this, &name)?;
             Ok(())
         }
     }

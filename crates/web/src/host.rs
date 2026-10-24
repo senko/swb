@@ -38,6 +38,12 @@ pub trait EngineHost: Any {
     /// for example `UTF-8` or `windows-1252`).
     fn character_set(&self) -> &'static str;
 
+    /// The URL of the document that linked to this one
+    /// (`document.referrer`), serialized, or empty.
+    fn referrer(&self) -> String {
+        String::new()
+    }
+
     /// The content type of the document (`text/html`, `text/plain`,
     /// `image/png`).
     fn content_type(&self) -> &str;

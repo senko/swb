@@ -4,6 +4,66 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 6a, DOM tree changes and attributes
+
+- Scripts can now change the DOM: `insertBefore`, `appendChild`,
+  `replaceChild`, `removeChild`, `append`, `prepend`,
+  `replaceChildren`, `before`, `after`, `replaceWith`, `remove`,
+  `cloneNode`, `importNode`, `adoptNode`, `normalize`, `textContent`,
+  `nodeValue`, the `CharacterData` methods, `splitText`,
+  `compareDocumentPosition`, `isEqualNode` and the namespace lookups.
+  The exceptions come in Chromium's order and with its messages.
+- Attributes: `getAttribute`, `setAttribute`, `removeAttribute`,
+  `toggleAttribute`, the NS variants, `attributes` (`NamedNodeMap`),
+  `Attr`, `id`, `className`, `classList` (`DOMTokenList`) and `dataset`
+  (`DOMStringMap`). All attribute writes go through one function, so the
+  hooks see each of them.
+- Nodes come from `createElement` (with options), `createElementNS`,
+  `createTextNode`, `createComment`, `createDocumentFragment`, and the
+  constructors of `Text`, `Comment` and `DocumentFragment`. `children`
+  is a live `HTMLCollection`; `getElementById`, `referrer` and
+  `defaultView` complete the `Document` accessors.
+- Each insertion runs the steps of script elements: inline scripts run
+  inside the call, and a script that an earlier one removed does not
+  run. `src` and `async` added by a script, text changes in a script and
+  `cloneNode` of a started script follow HTML.
+- The change journal of the DOM already reached the engine. New engine
+  tests check that an inserted, moved or removed element changes the
+  boxes, that `class`, `id`, `style` and text changes restyle and
+  relayout, and that an inserted `style`, `link` and `img` apply or
+  load. A moved form control gets its form owner from its new
+  ancestors.
+- Lists cache their nodes per DOM generation and drop stale caches.
+  `getElementById` among thousands of equal ids walks the tree once per
+  generation. A tree of 100,000 nested divs built by `appendChild`
+  renders in 0.5 s (the node walks are iterative).
+- The probe `web-dom-mutation.json` has 476 cases, equal in three
+  Chromium runs. swb matches all but two: `Attr` is not a `Node` in swb,
+  and `setAttribute('Q:C')` next to a namespaced `q:c` replaces it (the
+  standard; Chromium adds a second attribute). Where Chromium departs
+  from the standard elsewhere, swb follows Chromium: looser attribute
+  names, `classList.add()` without tokens creates `class`, `namedItem`
+  prefers ids, and `textContent` keeps a single Text node that already
+  has the new data.
+- JS-off snapshot identical, JS-off page loads within 3 %, hostile set
+  155 ok + 1 known failure with nine new cases.
+- Review fixes:
+  - `createElement(name, {is})` set an `is` attribute. The implementer
+    had not measured it; Chromium sets none.
+  - Token list reads parsed the whole attribute at each call. Now the
+    parsed tokens stay for the DOM generation: an indexed loop over
+    5,000 tokens went from 4.8 s to 2 ms.
+  - A chain built bottom-up (wrap the tree in a new parent, repeat) was
+    quadratic in three places: the search for inserted scripts, the
+    form-owner reset and the engine's walk of the change journal. Now
+    the script search and the connection test advance in turns, the
+    reset walks only subtrees moved from a parent (removals clear the
+    parser's form pointers, so a detached subtree holds none), and the
+    journal walk skips subtrees it visited. 100,000 levels: from over
+    the 5 s limit to 0.3 s.
+
+Next: feature 6b, queries and markup.
+
 ## 2026-10-24: M8 feature 5c, scripts in the HTML parser
 
 - Scripts now run where the parser finds them. The runtime drives the

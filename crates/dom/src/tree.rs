@@ -127,6 +127,27 @@ impl ElementData {
             .map(|a| a.value.as_str())
     }
 
+    /// The attribute whose qualified name (`prefix:local`, or `local`
+    /// without a prefix) is `name`, case-sensitive.
+    /// <https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name>
+    pub fn attr_by_qualified_name(&self, name: &str) -> Option<&Attribute> {
+        self.attrs.iter().find(|a| match &a.name.prefix {
+            None => &*a.name.local == name,
+            Some(prefix) => name
+                .strip_prefix(&**prefix)
+                .and_then(|rest| rest.strip_prefix(':'))
+                .is_some_and(|local| local == &*a.name.local),
+        })
+    }
+
+    /// The attribute with this namespace (empty for none) and local name.
+    /// <https://dom.spec.whatwg.org/#concept-element-attributes-get-by-namespace>
+    pub fn attr_by_namespace(&self, namespace: &str, local: &str) -> Option<&Attribute> {
+        self.attrs
+            .iter()
+            .find(|a| &*a.name.ns == namespace && &*a.name.local == local)
+    }
+
     /// The `href` of an SVG element: the attribute `href`, or else
     /// `xlink:href` (SVG 2 §6.1: `href` wins).
     pub fn svg_href(&self) -> Option<&str> {
@@ -350,6 +371,10 @@ pub struct Document {
     /// (see [`Limits::max_text_bytes`]).
     pub(crate) text_bytes: usize,
     pub(crate) limits: Limits,
+    /// True once the parser gave an element a form element pointer
+    /// ([`ElementData::parser_form`]); the change functions then clear the
+    /// pointers of moved subtrees (HTML "reset the form owner").
+    pub(crate) parser_forms: bool,
     pub(crate) mutation_sink: Option<Box<dyn MutationSink>>,
     /// The template contents owner document of each document node that
     /// has one (created when the document gets its first template). An
@@ -397,6 +422,7 @@ impl Document {
             ids: RefCell::default(),
             text_bytes: 0,
             limits,
+            parser_forms: false,
             mutation_sink: None,
             template_owners: HashMap::new(),
             template_hosts: HashMap::new(),

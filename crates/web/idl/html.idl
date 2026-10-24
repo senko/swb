@@ -60,8 +60,28 @@ partial interface Document {
   readonly attribute HTMLOrSVGScriptElement? currentScript; // classic scripts in a document tree only
 };
 
+partial interface Document {
+  // resource metadata management
+  readonly attribute USVString referrer;
+
+  // the current browsing context
+  readonly attribute WindowProxy? defaultView;
+};
+
 [Exposed=Window]
 interface HTMLElement : Element {
+};
+HTMLElement includes HTMLOrSVGElement;
+
+interface mixin HTMLOrSVGElement {
+  [SameObject] readonly attribute DOMStringMap dataset;
+};
+
+[Exposed=Window, LegacyOverrideBuiltIns]
+interface DOMStringMap {
+  getter DOMString (DOMString name);
+  [CEReactions] setter undefined (DOMString name, DOMString value);
+  [CEReactions] deleter undefined (DOMString name);
 };
 
 [Exposed=Window]

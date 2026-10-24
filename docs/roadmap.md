@@ -2671,6 +2671,43 @@ Steps:
         `title`, `URL`, `referrer`, `characterSet`, `compatMode`,
         `defaultView`). Tests: probe cases for each group; hostile:
         DOM growth past the node limit, deep `appendChild` nesting.
+        Done 2026-10-24. `web/src/dom/` has the tree changes
+        (`tree_ops.rs`: pre-insert, replace, remove, the `ParentNode`
+        and `ChildNode` methods, `replaceChildren`; Chromium's
+        exceptions in its order and with its messages), the attributes
+        (`attrs.rs`: the attribute methods and their NS variants, `Attr`,
+        `NamedNodeMap`), `classList`, `dataset`, `CharacterData`, `Text`
+        (`splitText`, `wholeText`), `Comment`, the node factories
+        (`createElement` with options, `createElementNS`,
+        `createTextNode`, `createComment`, `createDocumentFragment`,
+        `createAttribute`, the constructors, `importNode`, `adoptNode`),
+        `getElementById`, `children`, `referrer`, `defaultView`; `dom`
+        has `algorithms.rs` (iterative clone, equality, position,
+        `normalize`, the form-owner reset). Each insertion runs the steps
+        of script elements; `src` and `async` that a script adds, text
+        changes in a script and clones of a started script follow HTML.
+        Engine tests check that changes from scripts reach style and
+        layout and that an inserted `style`, `link` and `img` apply or
+        load. Lists drop stale caches; `getElementById` among many equal
+        ids walks the tree once per DOM generation. Departures: `Attr` is
+        not a `Node`; no `[Unscopable]`, `new Document()`,
+        `createCDATASection` or `createProcessingInstruction`; attribute
+        names, `classList.add()` without tokens, `namedItem` and
+        `textContent` (an equal single Text node stays) follow Chromium,
+        not the standard; `setAttribute('Q:C')` next to a namespaced
+        `q:c` follows the standard, not Chromium. The probe
+        `web-dom-mutation.json` (476 cases, three equal Chromium runs)
+        matches except these two departures (`Attr`, `Q:C`); hostile
+        155 ok + 1 known failure (nine new cases); JS-off snapshot
+        identical, JS-off page loads within 3 %. Review fixes:
+        `createElement` with `{is}` sets no `is` attribute (Chromium,
+        measured); token lists keep their parsed tokens per DOM
+        generation (an indexed loop over 5,000 tokens: 4.8 s to 2 ms);
+        chains built bottom-up are linear (the script search and the
+        connection test advance in turns, the form-owner reset walks only
+        subtrees moved from a parent, the engine's journal walk skips
+        visited subtrees; 100,000 levels: over the time limit to
+        0.3 s).
       - 6b: queries and markup: `getElementsByTagName`,
         `getElementsByClassName`, `getElementsByName`, `scripts`,
         `forms` (live collections), `querySelector`,
@@ -2883,16 +2920,9 @@ Steps:
   `data:` URL of the same size.
 - DOM (found in feature 3a): `element_ids()` (SVG `use` references,
   layout) still scans the whole tree; it could use the id index.
-- DOM, feature 6a: `getElementById` in a script loop with many elements
-  of one id walks the tree at each call; a cache of the result keyed by
-  the generation would help. Hostile case: 100,000 elements with one id
-  and `getElementById` in a loop.
-- DOM, feature 6a: the fragment parser takes its scripting flag from the
+- DOM, feature 6b: the fragment parser takes its scripting flag from the
   context's document. Probe Chromium for `<noscript>` in `innerHTML`
   with JavaScript on.
-- DOM, feature 6a: elements of a parsed fragment get no form element
-  pointer; the form owner must come from the ancestors at insertion
-  (HTML "reset the form owner").
 - DOM: only the document of `NodeId::DOCUMENT` has a quirks mode; other
   documents of the arena are in no-quirks mode (matters for
   `DOMParser`).
@@ -3063,8 +3093,7 @@ Steps:
   section 4); the wrapper vector, the side table and the window name
   cache are not counted in `heap_size`, so the heap limit does not see
   them (the DOM node limit bounds them; the hostile wrapper case reaches
-  366 MiB RSS). With the mutators of 6a, drop stale `childNodes` caches
-  when the generation changes.
+  366 MiB RSS).
 - `web` (found in feature 5a): the `signal` option of
   `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
   reads `signal` after `passive`).
@@ -3148,9 +3177,6 @@ Steps:
   `data:` and `about:` documents is not measured; swb treats them like
   files. A file document that waits for a style sheet gives a different
   Chromium order from run to run.
-- `web`, 6a (found in the 5c review): test that a script which removes
-  the current script or a later script during the parse gives
-  Chromium's result (it needs `removeChild` or `remove`).
 - Tools (found in the 5c review): a fast failure (a 404 or a missing
   file) cannot be compared in the probe: Chromium sees it within the
   parse task, swb's loader is asynchronous.
@@ -3158,6 +3184,53 @@ Steps:
   Chromium opens at most 6 connections per host, and its resource
   scheduler delays async scripts and images in the head, so a case must
   space its delays.
+
+- `web` (found in feature 6a): `[Unscopable]` is not generated;
+  Chromium has `Symbol.unscopables` on the prototypes of `Element`,
+  `Document`, `DocumentFragment`, `CharacterData` and `DocumentType`.
+- `web` (found in feature 6a): `new Document()` (an XML document),
+  `createCDATASection`, `createProcessingInstruction`, `Attr` as a
+  `Node` (`nodeType` 2, `instanceof Node`), `Element.slot`, shadow
+  roots. Older libraries read `attributes[i].nodeName` and `nodeValue`;
+  `Attr` has neither yet.
+- `web`, 6b (found in feature 6a): `template.content` (three probe cases
+  wait for it), `Document.implementation`.
+- `web`, 6c (found in feature 6a): `dataset` and `classList` on SVG
+  elements (they need the SVG interfaces); `relList` and `supports`.
+- `web` (found in feature 6a): with expandos, `Reflect.ownKeys` of a
+  `NamedNodeMap` lists the named properties first (Web IDL); Chromium
+  lists the expandos first.
+- Engine (found in feature 6a): a script that makes 1,048,576 inline
+  elements needs about 2.1 GB for layout and paint; the node limit
+  counts nodes, not boxes. Parser-made pages reach the same.
+- DOM (found in feature 6a): with the id index active, an insertion of a
+  node with an id costs O(depth) (`is_connected`), so a script that
+  gives ids to the nodes of a 100,000-deep chain while it builds it is
+  quadratic.
+- Engine (found in feature 6a): the engine keeps no referrer of a
+  navigation, so `document.referrer` is always empty.
+- `web` (found in feature 6a): `classList.add` parses the attribute at
+  each call, so 100,000 single-token calls on one list are quadratic
+  (Chromium too, through the serialization).
+- `web`, `dom` (found in the 6a review): quadratic paths that the 5 s
+  task limit bounds: `setAttribute` with many distinct names (a linear
+  search per call; 200,000 names reach the limit), `isEqualNode`
+  compares attributes in pairs, `substringData` finds its offset from
+  the start of the text, `DocumentFragment.getElementById` walks the
+  fragment at each call. On a page with a parsed form, each removal
+  walks the removed subtree to clear the parser's form pointers, so a
+  deep chain taken apart by repeated `remove` is quadratic.
+  `DOMTokenList.contains` searches the tokens (Chromium too).
+- `web`, 6c (found in the 6a review): `className` of an SVG element must
+  be an `SVGAnimatedString`.
+- `web` (found in the 6a review): `createElement('é')` gives an
+  `HTMLElement`; Chromium gives an `HTMLUnknownElement`.
+- Engine (found in the 6a review): `document.characterSet` of a file
+  page without a charset declaration is `UTF-8`; Chromium gives
+  `windows-1252`.
+- `webidl` (found in feature 6a): the generator puts a stringifier's
+  `toString` after the operations, sorted by ASCII; this matches the
+  one interface measured (`DOMTokenList`). Check the next one.
 
 ## Backlog from M6
 

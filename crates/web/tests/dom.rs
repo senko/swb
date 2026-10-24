@@ -266,10 +266,10 @@ fn check(cases: &[(&str, &str)]) {
 #[test]
 fn node_and_event_target_interfaces() {
     check(&[
-        // Chromium's list without the members that come with feature 6.
+        // Chromium's list (Node.prototype, from `web-dom-mutation.json`).
         (
             "JSON.stringify(Object.getOwnPropertyNames(Node.prototype))",
-            "[\"nodeType\",\"nodeName\",\"baseURI\",\"isConnected\",\"ownerDocument\",\"parentNode\",\"parentElement\",\"childNodes\",\"firstChild\",\"lastChild\",\"previousSibling\",\"nextSibling\",\"ELEMENT_NODE\",\"ATTRIBUTE_NODE\",\"TEXT_NODE\",\"CDATA_SECTION_NODE\",\"ENTITY_REFERENCE_NODE\",\"ENTITY_NODE\",\"PROCESSING_INSTRUCTION_NODE\",\"COMMENT_NODE\",\"DOCUMENT_NODE\",\"DOCUMENT_TYPE_NODE\",\"DOCUMENT_FRAGMENT_NODE\",\"NOTATION_NODE\",\"DOCUMENT_POSITION_DISCONNECTED\",\"DOCUMENT_POSITION_PRECEDING\",\"DOCUMENT_POSITION_FOLLOWING\",\"DOCUMENT_POSITION_CONTAINS\",\"DOCUMENT_POSITION_CONTAINED_BY\",\"DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC\",\"appendChild\",\"contains\",\"getRootNode\",\"hasChildNodes\",\"isSameNode\",\"constructor\"]",
+            "[\"nodeType\",\"nodeName\",\"baseURI\",\"isConnected\",\"ownerDocument\",\"parentNode\",\"parentElement\",\"childNodes\",\"firstChild\",\"lastChild\",\"previousSibling\",\"nextSibling\",\"nodeValue\",\"textContent\",\"ELEMENT_NODE\",\"ATTRIBUTE_NODE\",\"TEXT_NODE\",\"CDATA_SECTION_NODE\",\"ENTITY_REFERENCE_NODE\",\"ENTITY_NODE\",\"PROCESSING_INSTRUCTION_NODE\",\"COMMENT_NODE\",\"DOCUMENT_NODE\",\"DOCUMENT_TYPE_NODE\",\"DOCUMENT_FRAGMENT_NODE\",\"NOTATION_NODE\",\"DOCUMENT_POSITION_DISCONNECTED\",\"DOCUMENT_POSITION_PRECEDING\",\"DOCUMENT_POSITION_FOLLOWING\",\"DOCUMENT_POSITION_CONTAINS\",\"DOCUMENT_POSITION_CONTAINED_BY\",\"DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC\",\"appendChild\",\"cloneNode\",\"compareDocumentPosition\",\"contains\",\"getRootNode\",\"hasChildNodes\",\"insertBefore\",\"isDefaultNamespace\",\"isEqualNode\",\"isSameNode\",\"lookupNamespaceURI\",\"lookupPrefix\",\"normalize\",\"removeChild\",\"replaceChild\",\"constructor\"]",
         ),
         (
             "JSON.stringify(Object.getOwnPropertyNames(Node))",

@@ -2025,3 +2025,146 @@ def script_text_held_js_on() -> Page:
     return Page(
         doc("<p>text</p>" + scripts + "<p>after</p>"), {"big.js": big, "blocker.js": blocker}
     )
+
+
+# --- DOM changes from scripts (feature 6a) ----------------------------------
+
+
+@case(
+    "A script that appends comments with appendChild until the node limit of 1,048,576, with "
+    "JavaScript on: the task ends at the limit (ADR 0028 section 16)",
+    expect_log="the DOM node limit",
+    time_limit_s=10,
+    swb_args=("--js",),
+)
+def dom_growth_append_child_js_on() -> Page:
+    script = "<script>for (;;) document.body.appendChild(document.createComment(''));</script>"
+    return Page(doc("<p>text</p>" + script + "<p>after</p>"))
+
+
+@case(
+    "A script that builds a chain of 100,000 nested divs with appendChild, with JavaScript on: "
+    "style, layout (box depth limit 256) and paint run on a tree far deeper than the "
+    "parser's limit of 512 (ADR 0028 section 16)",
+    swb_args=("--js",),
+)
+def deep_append_child_js_on() -> Page:
+    script = (
+        "<script>let p = document.body; for (let i = 0; i < 100000; i++) "
+        "{ const d = document.createElement('div'); p.appendChild(d); p = d; } "
+        "p.textContent = 'deep'; console.log(document.body.cloneNode(true).textContent);</script>"
+    )
+    return Page(doc("<p>text</p>" + script + "<p>after</p>"))
+
+
+@case(
+    "100,000 elements with one id and a script that calls getElementById 100,000 times, with "
+    "JavaScript on: the first element in tree order is found once per DOM generation, not by "
+    "a walk at each call",
+    swb_args=("--js",),
+)
+def get_element_by_id_many_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 100000; i++) "
+        "if (document.getElementById('same')) n++; console.log(n);</script>"
+    )
+    return Page(doc("<p>x</p>" * 50_000 + "<i id=same></i>" * 100_000 + script))
+
+
+@case(
+    "A script that clones a subtree of 20,000 nodes deeply 45 times, with JavaScript on: "
+    "each clone is linear and the clones count against the node limit (900,000 nodes)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def clone_node_large_loop_js_on() -> Page:
+    script = (
+        "<script>const big = document.getElementById('big'); let c; "
+        "for (let i = 0; i < 45; i++) c = big.cloneNode(true); "
+        "console.log(c.childNodes.length);</script>"
+    )
+    return Page(doc("<div id=big>" + "<p>a<b>b</b></p>" * 5_000 + "</div>" + script))
+
+
+@case(
+    "A script that adds 100,000 class tokens with one classList.add call and then toggles "
+    "and removes tokens in a loop, with JavaScript on: each call parses the attribute once",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def class_list_many_tokens_js_on() -> Page:
+    script = (
+        "<script>const e = document.body; const tokens = []; "
+        "for (let i = 0; i < 100000; i++) tokens.push('t' + i); e.classList.add(...tokens); "
+        "for (let i = 0; i < 100; i++) { e.classList.toggle('x'); e.classList.remove('t' + i); } "
+        "console.log(e.classList.length);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A script that appends 2,000 elements to a parent and reads the length of the parent's "
+    "children and of the new element's childNodes after each, with JavaScript on: the "
+    "caches of the lists are rebuilt after each change and the stale ones are dropped",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def list_caches_after_changes_js_on() -> Page:
+    script = (
+        "<script>const p = document.getElementById('p'); const all = []; "
+        "for (let i = 0; i < 2000; i++) { const d = document.createElement('div'); "
+        "p.appendChild(d); all.push(d.childNodes.length, d.children.length, p.children.length); } "
+        "console.log(all.length, p.childNodes.length);</script>"
+    )
+    return Page(doc("<div id=p></div>" + script))
+
+
+@case(
+    "A script that adds 100,000 class tokens and then reads them with an indexed loop over "
+    "classList.length and classList[i], with JavaScript on: the parsed tokens are kept for the "
+    "DOM generation, so the loop is linear",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def class_list_indexed_loop_js_on() -> Page:
+    script = (
+        "<script>const e = document.body; const tokens = []; "
+        "for (let i = 0; i < 100000; i++) tokens.push('t' + i); e.classList.add(...tokens); "
+        "const l = e.classList; let n = 0; "
+        "for (let i = 0; i < l.length; i++) if (l[i] === 't' + i && l.item(i) === l[i]) n++; "
+        "console.log(n);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "A script that builds a chain of 100,000 nested divs bottom-up (each new div takes the "
+    "chain so far with appendChild), with JavaScript on: an insertion into a detached parent "
+    "walks neither the inserted subtree nor the whole parent chain",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def deep_append_child_bottom_up_js_on() -> Page:
+    script = (
+        "<script>let n = document.createElement('div'); for (let i = 0; i < 100000; i++) "
+        "{ const w = document.createElement('div'); w.appendChild(n); n = w; } "
+        "document.body.appendChild(n); console.log(document.body.childNodes.length);</script>"
+    )
+    return Page(doc("<p>text</p>" + script + "<p>after</p>"))
+
+
+@case(
+    "The same bottom-up chain of 100,000 nested divs on a page with a parsed form that holds "
+    "a control, with JavaScript on: the form owner reset walks only the subtrees that were "
+    "moved from another place",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def deep_append_child_bottom_up_form_js_on() -> Page:
+    script = (
+        "<script>let n = document.createElement('div'); for (let i = 0; i < 100000; i++) "
+        "{ const w = document.createElement('div'); w.appendChild(n); n = w; } "
+        "document.getElementById('f').appendChild(n); console.log(document.body.childNodes.length);"
+        "</script>"
+    )
+    return Page(doc("<form id=f><input name=a></form>" + script))

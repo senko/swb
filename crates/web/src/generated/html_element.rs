@@ -9,6 +9,17 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLElement`.
 pub trait HTMLElementImpl: b::Host {
+    /// `readonly attribute DOMStringMap dataset`.
+    fn dataset(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+}
+
+fn get_dataset<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "dataset"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::dataset(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLElement` in `realm`
@@ -17,6 +28,7 @@ pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_j
     let interface = rt.begin_interface(realm, super::HTML_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "dataset", (Some(get_dataset::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

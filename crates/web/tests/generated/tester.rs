@@ -805,11 +805,11 @@ pub fn define<H: TesterImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "throwDom", 2, op_throw_dom::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "throwRange", 0, op_throw_range::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "throwType", 0, op_throw_type::<H>, swb_js::Attributes::MEMBER)?;
-    rt.define_method(realm, target, "toString", 0, op_to_string::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "unionOut", 1, op_union_out::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "unions", 4, op_unions::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "variadic", 1, op_variadic::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, interface.object, "version", 0, op_version::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "toString", 0, op_to_string::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -2,8 +2,8 @@
 //! with the tree accessors of HTML §3.1.4
 //! (<https://html.spec.whatwg.org/multipage/dom.html#dom-tree-accessors>):
 //! `title`, `body` and `head`; `readyState` and `currentScript` (feature
-//! 5c, `scripts.rs`), and `createElement` without its options (brought
-//! forward from feature 6a).
+//! 5c, `scripts.rs`); the node factories, `importNode`, `adoptNode`,
+//! `getElementById`, `referrer` and `defaultView` (feature 6a).
 //!
 //! Only the document of `NodeId::DOCUMENT` has a URL, an encoding and a
 //! quirks mode; the other documents of the arena (the inert documents of
@@ -11,9 +11,11 @@
 
 use swb_dom::{Document, ElementData, NodeData, NodeId, QualName, QuirksMode, local_name, ns};
 
-use super::{child_element_count, dom_result, first_element_child, last_element_child};
+use super::attrs::{self, validate_and_extract};
+use super::{dom_result, string_replace_all};
 use crate::bindings::{self as b, Cx, Exception};
 use crate::generated as g;
+use crate::generated::types::DomStringOrElementCreationOptions;
 use crate::state::{WebState, dom, dom_mut, engine};
 
 /// The document element of the document `doc`: its element child.
@@ -176,7 +178,7 @@ impl g::document::DocumentImpl for WebState {
                 title
             }
         };
-        string_replace_all(cx, this, element, &value)
+        string_replace_all(cx, element, &value)
     }
 
     fn body(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
@@ -209,9 +211,9 @@ impl g::document::DocumentImpl for WebState {
         if old == Some(value) {
             return Ok(());
         }
-        let result = match (old, document_element(dom, this)) {
+        let (parent, result) = match (old, document_element(dom, this)) {
             (Some(old), _) => match dom.parent(old) {
-                Some(parent) => dom_mut(cx.rt)?.replace_child(parent, value, old),
+                Some(parent) => (parent, dom_mut(cx.rt)?.replace_child(parent, value, old)),
                 None => return Ok(()),
             },
             (None, None) => {
@@ -220,9 +222,10 @@ impl g::document::DocumentImpl for WebState {
                     "No document element exists.",
                 ));
             }
-            (None, Some(root)) => dom_mut(cx.rt)?.append_child(root, value),
+            (None, Some(root)) => (root, dom_mut(cx.rt)?.append_child(root, value)),
         };
-        dom_result(cx.rt, result)
+        dom_result(cx.rt, result)?;
+        Ok(crate::scripts::after_insertion(cx.rt, parent, &[value])?)
     }
 
     fn head(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
@@ -245,8 +248,13 @@ impl g::document::DocumentImpl for WebState {
 
     /// <https://dom.spec.whatwg.org/#dom-document-createelement>, for an
     /// HTML document: the name in ASCII lowercase, an element of the HTML
-    /// namespace. The `options` argument comes with feature 6a.
-    fn create_element(cx: &mut Cx<'_>, this: NodeId, local_name: String) -> b::Result<NodeId> {
+    /// namespace. Chromium puts the `is` option into an `is` attribute.
+    fn create_element(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        local_name: String,
+        _options: DomStringOrElementCreationOptions,
+    ) -> b::Result<NodeId> {
         if !is_valid_element_local_name(&local_name) {
             return Err(Exception::dom(
                 "InvalidCharacterError",
@@ -258,7 +266,87 @@ impl g::document::DocumentImpl for WebState {
             ns!(html),
             swb_dom::LocalName::from(local_name.to_ascii_lowercase()),
         );
+        // The `is` option is accepted and ignored: Chromium sets no attribute.
         create_element(cx, this, name)
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-document-createelementns>
+    fn create_element_ns(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        namespace: Option<String>,
+        qualified_name: String,
+        _options: DomStringOrElementCreationOptions,
+    ) -> b::Result<NodeId> {
+        let parts = validate_and_extract(namespace, &qualified_name, false)?;
+        let name = QualName::new(
+            parts.prefix.map(Into::into),
+            swb_dom::Namespace::from(parts.namespace.unwrap_or_default()),
+            swb_dom::LocalName::from(parts.local),
+        );
+        // The `is` option is accepted and ignored: Chromium sets no attribute.
+        create_element(cx, this, name)
+    }
+
+    fn create_document_fragment(cx: &mut Cx<'_>, this: NodeId) -> b::Result<NodeId> {
+        let result = dom_mut(cx.rt)?.create_node_in(this, NodeData::DocumentFragment);
+        dom_result(cx.rt, result)
+    }
+
+    fn create_text_node(cx: &mut Cx<'_>, this: NodeId, data: String) -> b::Result<NodeId> {
+        let result = dom_mut(cx.rt)?.create_node_in(this, NodeData::Text(data));
+        dom_result(cx.rt, result)
+    }
+
+    fn create_comment(cx: &mut Cx<'_>, this: NodeId, data: String) -> b::Result<NodeId> {
+        let result = dom_mut(cx.rt)?.create_node_in(this, NodeData::Comment(data));
+        dom_result(cx.rt, result)
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-document-importnode>
+    fn import_node(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        node: NodeId,
+        subtree: bool,
+    ) -> b::Result<NodeId> {
+        if matches!(dom(cx.rt)?.node(node).data, NodeData::Document) {
+            return Err(Exception::dom(
+                "NotSupportedError",
+                "The node provided is a document, which may not be imported.",
+            ));
+        }
+        super::clone(cx, node, this, subtree)
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-document-adoptnode>
+    fn adopt_node(cx: &mut Cx<'_>, this: NodeId, node: NodeId) -> b::Result<NodeId> {
+        if matches!(dom(cx.rt)?.node(node).data, NodeData::Document) {
+            return Err(Exception::dom(
+                "NotSupportedError",
+                "The node provided is of type '#document', which may not be adopted.",
+            ));
+        }
+        let result = dom_mut(cx.rt)?.adopt(node, this);
+        dom_result(cx.rt, result)?;
+        Ok(node)
+    }
+
+    fn create_attribute(
+        cx: &mut Cx<'_>,
+        _this: NodeId,
+        local_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        attrs::create_attribute(cx, &local_name)
+    }
+
+    fn create_attribute_ns(
+        cx: &mut Cx<'_>,
+        _this: NodeId,
+        namespace: Option<String>,
+        qualified_name: String,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        attrs::create_attribute_ns(cx, namespace, &qualified_name)
     }
 
     fn create_event(
@@ -269,31 +357,38 @@ impl g::document::DocumentImpl for WebState {
         crate::events::create_event(cx, this, &interface)
     }
 
-    fn first_element_child(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
-        first_element_child(cx, this)
+    /// <https://dom.spec.whatwg.org/#dom-nonelementparentnode-getelementbyid>
+    fn get_element_by_id(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        element_id: String,
+    ) -> b::Result<Option<NodeId>> {
+        if element_id.is_empty() {
+            return Ok(None);
+        }
+        Ok(dom(cx.rt)?.get_element_by_id(this, &element_id))
     }
 
-    fn last_element_child(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
-        last_element_child(cx, this)
+    fn referrer(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        if !is_main(this) {
+            return Ok(String::new());
+        }
+        Ok(engine(cx.rt)?.referrer())
     }
 
-    fn child_element_count(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
-        child_element_count(cx, this)
+    /// The window of the main document, or null.
+    fn default_view(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        if !is_main(this) {
+            return Ok(None);
+        }
+        let realm = cx.realm();
+        Ok(Some(cx.rt.global(realm)?))
     }
-}
 
-/// DOM "string replace all": replaces the children of `parent` with a text
-/// node of `value` (none for the empty string) of the document `doc`.
-/// <https://dom.spec.whatwg.org/#string-replace-all>
-fn string_replace_all(cx: &mut Cx<'_>, doc: NodeId, parent: NodeId, value: &str) -> b::Result<()> {
-    let node = if value.is_empty() {
-        None
-    } else {
-        let result = dom_mut(cx.rt)?.create_node_in(doc, NodeData::Text(value.to_owned()));
-        Some(dom_result(cx.rt, result)?)
-    };
-    let result = dom_mut(cx.rt)?.replace_all(parent, node);
-    dom_result(cx.rt, result)
+    parent_node_methods!("Document");
 }
 
 /// DOM "valid element local name"

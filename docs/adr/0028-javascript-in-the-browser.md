@@ -777,6 +777,92 @@ Feature 5b notes (the event loop; see also section 7):
   `Vm` made the `vm_bench` row "1M small objects" 45 % slower, measured).
   Nothing else on the engine's paths changed.
 
+Feature 6a notes (tree changes, attributes and node creation; measured
+with `tools/probes/web-dom-mutation.json`: 476 cases, three Chromium runs
+with equal results; the Rust tests are `crates/web/tests/dom_mutation.rs`
+with the same values and `crates/engine/tests/script_dom.rs`):
+
+- Code: `web/src/dom/` has `tree_ops.rs` (pre-insert, replace, remove and
+  the `ParentNode` and `ChildNode` methods), `element.rs`, `attrs.rs`
+  (the attribute algorithms, `Attr`, `NamedNodeMap`), `token_list.rs`
+  (`classList`), `string_map.rs` (`dataset`), `lists.rs` (`NodeList` and
+  `HTMLCollection`), `character_data.rs` and `document.rs`. `dom` has
+  `algorithms.rs`: `clone_node`, `is_equal_node`, `compare_position`,
+  `normalize` and the reset of form owners, all iterative.
+- **Exceptions.** The checks of "ensure pre-insertion validity" run in
+  `web` first, in Chromium's order and with its messages (a text node
+  in a document, a second element or doctype, an element before a
+  doctype, a node that contains the parent, a reference child that is
+  not a child); the change functions of `dom` check again. The glue adds
+  `Failed to execute 'NAME' on 'INTERFACE': ` to every exception, so the
+  hand-written code states only the rest. Mixin methods use the name of
+  the interface that includes them (`append` on `Element`).
+- **Hooks of scripts (HTML §4.12.1.1).** Every insertion calls
+  `scripts::after_insertion` with the nodes it added (the children of a
+  fragment, read before the insertion). `scripts::attribute_changed` runs
+  for each attribute that a script adds: `async` clears "force async",
+  `src` runs the post-connection steps. A change of text in a `script`
+  (`data`, `nodeValue`, `textContent`, `appendData` ...) runs the
+  children-changed steps of the parent. `cloneNode` copies "already
+  started" into the DOM flag of the clone. The search for inserted
+  scripts and the test of the connection (a walk up the parent chain)
+  advance in turns and stop when one decides (no script, or a root that
+  is no document), so an insertion into a detached parent costs
+  O(min(depth of the parent, size of the subtree)) and a chain of
+  100,000 nested elements built top-down or bottom-up stays linear. The
+  engine's journal walk skips a subtree that an earlier entry of the
+  same drain visited, for the same reason.
+- **Attributes.** The element keeps its attributes; an `Attr` is a view
+  (element, name) in a table of the binding state, so
+  `el.getAttributeNode('a') === el.attributes[0]`; a removed attribute
+  leaves its object detached with its last value. Departure: `Attr`
+  extends `EventTarget`, not `Node`. Names follow Chromium, which is looser
+  than the DOM standard: `setAttribute`, `toggleAttribute` and
+  `createAttribute` refuse only an empty name and ASCII whitespace, NUL,
+  `/`, `>` and `=`; `createElement`, `createElementNS` and the NS methods
+  use the XML name start rule for each part of a qualified name.
+  `setAttribute` lowercases the name for an HTML element.
+  `createElement` and `createElementNS` accept `{is}` and ignore it:
+  Chromium 148 sets no `is` attribute (measured, also for `{is: null}`).
+  Departure from Chromium, as the DOM standard: `setAttribute('Q:C', v)`
+  changes an existing attribute `q:c` of another namespace (made with
+  `setAttributeNS`); Chromium adds a second attribute (probe case m451,
+  `SWB_VALUES`). `textContent = s` keeps the node, as Chromium, when the
+  only child is a Text node with the data `s`; every other case makes a
+  new Text node.
+- **Live objects.** `classList`, `attributes`, `dataset`, `childNodes` and
+  `children` are `[SameObject]` (side table). A `DOMTokenList` parses its
+  attribute at each call of a change and uses hash sets (`add` of
+  100,000 tokens is linear); the reads (`length`, `item`, `contains`,
+  indexed access) use the parsed tokens, which the binding state keeps
+  for the DOM generation, so an indexed loop is linear; `add()` without a token creates the attribute (Chromium; the
+  update steps say not to). `DOMStringMap` has no
+  `[LegacyUnenumerableNamedProperties]`: `Object.keys(el.dataset)` lists
+  the names, as in Chromium. `HTMLCollection.namedItem` looks at
+  `id` before `name` (Chromium). Lists cache their nodes by DOM
+  generation; the lists that hold a cache are registered, and the first
+  list that builds one after a change drops the stale ones, so the old
+  children are not kept alive.
+- **Ids.** The id index finds the first element of an id among more
+  than 8 by a walk of the tree; the result is kept for the DOM
+  generation, so a loop of `getElementById` walks once.
+- **Form owners.** The engine computes the form owner from the `form`
+  attribute, the parser's form pointer and the ancestors at each
+  rebuild. A script that moves a control or its subtree clears the
+  pointers in the subtree (HTML "reset the form owner" unsets the parser
+  flag), so the owner comes from the ancestors afterwards. Invariant: the
+  parser sets the pointers only through crate-private functions, and each
+  removal by a public function (`remove`, `remove_child`, `replace_child`,
+  `replace_all`, `adopt`) clears them in the removed subtree, so a subtree
+  whose root has no parent holds none and the insertion of such a root
+  needs no walk (the children of a fragment, and nodes with a parent, are
+  walked).
+- **Not done:** `[Unscopable]` (the generator has no `@@unscopables`),
+  `new Document()`, `createCDATASection`, `createProcessingInstruction`,
+  `Attr` as a `Node`, shadow roots, `slot`. The UTF-16 offsets of
+  `CharacterData` that fall inside a surrogate pair round up to the end of
+  the character (the DOM string cannot hold a lone surrogate).
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12

@@ -367,8 +367,8 @@ impl<'a> Call<'a> {
         if let Some(named) = self.spec.named
             && !ignore_named
             && let Some(name) = name_of(rt, key)
-            && self.is_supported(rt, named, &name)?
             && self.visible(rt, key)?
+            && self.is_supported(rt, named, &name)?
         {
             let value = (named.get)(rt, self.realm, self.this, name);
             let value = self.check(rt, value, |rt| self.key_prefix(rt, "read", key))?;

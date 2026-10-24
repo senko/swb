@@ -30,6 +30,10 @@ pub(crate) struct IdIndex {
     /// False until the first lookup.
     pub(crate) active: bool,
     map: HashMap<String, Vec<NodeId>>,
+    /// Results of walks for ids with many elements, valid for the DOM
+    /// generation `walked_at`: a loop of lookups does not walk again.
+    walked: HashMap<(NodeId, String), Option<NodeId>>,
+    walked_at: u64,
 }
 
 impl IdIndex {
@@ -93,9 +97,8 @@ impl Document {
         let ids = self.ids.borrow();
         let elements = ids.get(id);
         if elements.len() > MAX_PAIRWISE {
-            return self
-                .descendants(root)
-                .find(|&n| self.element(n).and_then(ElementData::id) == Some(id));
+            drop(ids);
+            return self.walk_for_id(root, id);
         }
         let mut first: Option<NodeId> = None;
         for &element in elements {
@@ -109,12 +112,34 @@ impl Document {
         first
     }
 
+    /// The first element of `id` in tree order, by a walk of the tree of
+    /// `root`; the result is kept until the next change.
+    fn walk_for_id(&self, root: NodeId, id: &str) -> Option<NodeId> {
+        {
+            let mut ids = self.ids.borrow_mut();
+            if ids.walked_at != self.generation {
+                ids.walked.clear();
+                ids.walked_at = self.generation;
+            } else if let Some(found) = ids.walked.get(&(root, id.to_owned())) {
+                return *found;
+            }
+        }
+        let found = self
+            .descendants(root)
+            .find(|&n| self.element(n).and_then(ElementData::id) == Some(id));
+        self.ids
+            .borrow_mut()
+            .walked
+            .insert((root, id.to_owned()), found);
+        found
+    }
+
     /// The index of all connected elements: a walk of the tree of each
     /// document node.
     fn build_id_index(&self) -> IdIndex {
         let mut index = IdIndex {
             active: true,
-            map: HashMap::new(),
+            ..IdIndex::default()
         };
         let documents = self
             .nodes

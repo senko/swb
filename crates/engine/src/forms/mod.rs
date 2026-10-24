@@ -925,6 +925,43 @@ mod tests {
         assert_eq!(owner("d"), Some(id(&doc, "f3")));
     }
 
+    /// A script that moves a control (HTML "reset the form owner"): the
+    /// owner comes from the new ancestors, not from the parser's pointer.
+    #[test]
+    fn a_moved_control_gets_the_owner_of_its_new_ancestors() {
+        let mut doc = parse_html(
+            "<form id=f1><table><tr><td><input id=a></td></tr></table></form>\
+             <form id=f2><div id=d></div></form><div id=out></div>",
+        );
+        let (a, d, out) = (id(&doc, "a"), id(&doc, "d"), id(&doc, "out"));
+        assert_eq!(Forms::new(&doc).owner(a), Some(id(&doc, "f1")));
+        doc.append_child(d, a).expect("a valid insertion");
+        assert_eq!(Forms::new(&doc).owner(a), Some(id(&doc, "f2")));
+        doc.append_child(out, a).expect("a valid insertion");
+        assert_eq!(Forms::new(&doc).owner(a), None);
+    }
+
+    /// A removal clears the parser's pointer, so a later insertion of the
+    /// detached control (which does not walk its subtree) sees the owner
+    /// of its new ancestors; so does an insertion of a wrapper that holds
+    /// the control.
+    #[test]
+    fn a_removed_control_loses_the_parser_pointer() {
+        let mut doc = parse_html(
+            "<form id=f1><table><tr><td><input id=a><b id=w><input id=c></b></td></tr></table>\
+             </form><form id=f2><div id=d></div></form>",
+        );
+        let (a, c, w, d) = (id(&doc, "a"), id(&doc, "c"), id(&doc, "w"), id(&doc, "d"));
+        let td = doc.parent(w).expect("w has a parent");
+        doc.remove(a);
+        doc.remove_child(td, w).expect("w is a child of td");
+        doc.append_child(d, a).expect("a valid insertion");
+        assert_eq!(Forms::new(&doc).owner(a), Some(id(&doc, "f2")));
+        assert_eq!(Forms::new(&doc).owner(c), None);
+        doc.append_child(d, w).expect("a valid insertion");
+        assert_eq!(Forms::new(&doc).owner(c), Some(id(&doc, "f2")));
+    }
+
     #[test]
     fn reset_restores_defaults() {
         let doc = parse_html(

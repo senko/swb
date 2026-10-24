@@ -269,6 +269,7 @@ impl TreeSink for Sink {
         }
         if let Some(element) = doc.element_mut(*target) {
             element.parser_form = Some(*form);
+            doc.parser_forms = true;
         }
     }
 }

@@ -8,6 +8,7 @@
 //! and mutation sink ([`MutationSink`]), the id index, fragment parsing,
 //! more documents in one arena, and the limits ([`Limits`]).
 
+mod algorithms;
 mod dump;
 mod encoding;
 mod id_index;
@@ -18,6 +19,7 @@ mod parser;
 mod serialize;
 mod tree;
 
+pub use algorithms::{Cloned, position};
 pub use dump::dump_tree;
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
 pub use journal::{Change, Journal, MAX_JOURNAL_ENTRIES, MutationSink};

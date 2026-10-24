@@ -1039,8 +1039,14 @@ the document stops them; and scripts that insert scripts (feature 5c): an
 endless chain of inline scripts (each runs inside the insertion of the
 next, so the recursion budget ends it), a chain of 3,000 external scripts,
 and external scripts that each insert two more until 20,000 ran (at most
-64 fetches at once). The cases with timers pass `--settle-ms`, so
-that the timers run after the load.
+64 fetches at once). Cases for the DOM changes of feature 6a: growth
+by `appendChild` past the node limit, a chain of 100,000 nested divs
+built by `appendChild` top-down and bottom-up (style, layout and paint
+run on it; once on a page with a parsed form), 100,000
+`getElementById` calls with 100,000 elements of one id, `cloneNode(true)`
+of a large tree in a loop, `classList.add` of 100,000 tokens and an indexed loop over them, and lists
+that cache children while the DOM changes. The cases with timers pass
+`--settle-ms`, so that the timers run after the load.
 
 ```
 just hostile                    # all cases; builds the release binary first
@@ -2260,8 +2266,22 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   descriptors, argument checks, `Event` and `DOMException` of the browser's
   glue; also expandos and identity across collections, the live
   `childNodes`, the console buffer, the evaluation forms and the task time
-  limit. A unit test in `web/src/dom/node_list.rs` counts the rebuilds of
-  a `childNodes` cache (a loop over the list builds it once).
+  limit. Unit tests in `web/src/dom/lists.rs` count the rebuilds of the
+  caches of `childNodes` and `children` (a loop over a list builds it once;
+  the first list built after a change drops the stale caches).
+- `crates/web/tests/dom_mutation.rs`: the DOM changes of feature 6a: every
+  case of `tools/probes/web-dom-mutation.json` (476 cases: the results and
+  the exceptions of the tree changes, the `ParentNode` and `ChildNode`
+  methods, `cloneNode`, `normalize`, `compareDocumentPosition`,
+  `isEqualNode`, `textContent`, the attribute methods, `Attr`,
+  `NamedNodeMap`, `classList`, `dataset`, the node factories,
+  `getElementById`, and scripts that remove or move script elements
+  during the parse) with Chromium's values
+  (`tests/dom_mutation/cases.rs`, generated from the probe's `--json`
+  output; `SWB_VALUES` has the two departures: `Attr` is not a `Node`, and
+  `setAttribute('Q:C')` changes a namespaced `q:c`),
+  each with and without the GC stress mode; also identity and expandos of
+  the views across collections, live lists and the node limit.
 - `crates/web/tests/events.rs`: the event core (feature 5a): every case
   of `tools/probes/web-events.json` with Chromium's values
   (`tests/events/cases.rs`, generated from the probe's `--json` output as
@@ -2301,6 +2321,11 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   JavaScript on (Chromium's values), and `Page::dispatch_event`. `crates/engine/tests/script_memory.rs`
   (one test, its own process) checks that the resident set size comes
   back after a navigation drops a runtime that held about 100 MiB.
+- `crates/engine/tests/script_dom.rs`: DOM changes from scripts reach the
+  engine (feature 6a): an inserted, moved and removed element changes the
+  boxes, `classList`, `id`, `style`, `textContent` and `data` restyle and
+  relayout, and an inserted `style`, `link rel=stylesheet` and `img` apply
+  and load (the removal drops the sheet; a changed `src` loads again).
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

@@ -57,6 +57,15 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute HTMLOrSVGScriptElement? currentScript`.
     fn current_script(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `readonly attribute USVString referrer`.
+    fn referrer(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// `readonly attribute WindowProxy? defaultView`.
+    fn default_view(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `readonly attribute HTMLCollection children`.
+    fn children(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute Element? firstElementChild`.
     fn first_element_child(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -66,11 +75,47 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute unsigned long childElementCount`.
     fn child_element_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
-    /// `Element createElement(DOMString localName)`.
-    fn create_element(cx: &mut b::Cx<'_>, this: b::NodeId, local_name: String) -> b::Result<b::NodeId>;
+    /// `Element createElement(DOMString localName, optional (DOMString or ElementCreationOptions) options)`.
+    fn create_element(cx: &mut b::Cx<'_>, this: b::NodeId, local_name: String, options: super::types::DomStringOrElementCreationOptions) -> b::Result<b::NodeId>;
+
+    /// `Element createElementNS(DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options)`.
+    fn create_element_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, qualified_name: String, options: super::types::DomStringOrElementCreationOptions) -> b::Result<b::NodeId>;
+
+    /// `DocumentFragment createDocumentFragment()`.
+    fn create_document_fragment(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<b::NodeId>;
+
+    /// `Text createTextNode(DOMString data)`.
+    fn create_text_node(cx: &mut b::Cx<'_>, this: b::NodeId, data: String) -> b::Result<b::NodeId>;
+
+    /// `Comment createComment(DOMString data)`.
+    fn create_comment(cx: &mut b::Cx<'_>, this: b::NodeId, data: String) -> b::Result<b::NodeId>;
+
+    /// `Node importNode(Node node, optional boolean subtree)`.
+    fn import_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId, subtree: bool) -> b::Result<b::NodeId>;
+
+    /// `Node adoptNode(Node node)`.
+    fn adopt_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId) -> b::Result<b::NodeId>;
+
+    /// `Attr createAttribute(DOMString localName)`.
+    fn create_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, local_name: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName)`.
+    fn create_attribute_ns(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>, qualified_name: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `Event createEvent(DOMString interface)`.
     fn create_event(cx: &mut b::Cx<'_>, this: b::NodeId, interface: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `Element? getElementById(DOMString elementId)`.
+    fn get_element_by_id(cx: &mut b::Cx<'_>, this: b::NodeId, element_id: String) -> b::Result<Option<b::NodeId>>;
+
+    /// `undefined prepend((DOMString or Node)... nodes)`.
+    fn prepend(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined append((DOMString or Node)... nodes)`.
+    fn append(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceChildren((DOMString or Node)... nodes)`.
+    fn replace_children(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
 
 }
 
@@ -206,6 +251,30 @@ fn get_current_script<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_referrer<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "referrer"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::referrer(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_default_view<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "defaultView"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::default_view(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn get_children<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "children"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::children(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn get_first_element_child<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Document", "firstElementChild"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -236,8 +305,103 @@ fn op_create_element<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
-        let result = <H as DocumentImpl>::create_element(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { super::types::DomStringOrElementCreationOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::DomStringOrElementCreationOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
+        let result = <H as DocumentImpl>::create_element(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_create_element_ns<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createElementNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { super::types::DomStringOrElementCreationOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::DomStringOrElementCreationOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(2))? };
+        let result = <H as DocumentImpl>::create_element_ns(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1, a2)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_create_document_fragment<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createDocumentFragment"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::create_document_fragment(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_create_text_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createTextNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::create_text_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_create_comment<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createComment"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::create_comment(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_import_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "importNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.argument(1))? };
+        let result = <H as DocumentImpl>::import_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_adopt_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "adoptNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::adopt_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_create_attribute<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createAttribute"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::create_attribute(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_create_attribute_ns<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createAttributeNS"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as DocumentImpl>::create_attribute_ns(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -249,6 +413,56 @@ fn op_create_event<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let result = <H as DocumentImpl>::create_event(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_get_element_by_id<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "getElementById"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::get_element_by_id(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_prepend<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "prepend"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_append<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "append"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_children<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "replaceChildren"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -272,11 +486,26 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "body", (Some(get_body::<H> as swb_js::NativeFn), Some(set_body::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "head", (Some(get_head::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "currentScript", (Some(get_current_script::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "referrer", (Some(get_referrer::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "defaultView", (Some(get_default_view::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "children", (Some(get_children::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "adoptNode", 1, op_adopt_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createAttribute", 1, op_create_attribute::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createAttributeNS", 2, op_create_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createComment", 1, op_create_comment::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createDocumentFragment", 0, op_create_document_fragment::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createElement", 1, op_create_element::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createElementNS", 2, op_create_element_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createTextNode", 1, op_create_text_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getElementById", 1, op_get_element_by_id::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "importNode", 1, op_import_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "prepend", 0, op_prepend::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceChildren", 0, op_replace_children::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

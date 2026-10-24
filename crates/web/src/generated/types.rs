@@ -176,6 +176,33 @@ impl GetRootNodeOptions {
     }
 }
 
+/// The dictionary `ElementCreationOptions`.
+#[derive(Clone, Debug)]
+pub struct ElementCreationOptions {
+    /// `is`.
+    pub is: Option<String>,
+}
+
+impl ElementCreationOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ElementCreationOptions> {
+        let object = b::convert::dictionary_object(value, "ElementCreationOptions")?;
+        let v = b::convert::member(rt, object, "is")?;
+        let is = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.member("is", "ElementCreationOptions"))?) };
+        Ok(ElementCreationOptions { is })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.is {
+            let value = b::to_js::string(rt, &x.clone())?;
+            b::to_js::dictionary_member(rt, object, "is", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `ErrorEventInit`.
 #[derive(Clone, Debug)]
 pub struct ErrorEventInit {
@@ -475,6 +502,34 @@ impl AddEventListenerOptionsOrBoolean {
     }
 }
 
+/// The union type `(DOMString or ElementCreationOptions)`.
+#[derive(Clone, Debug)]
+pub enum DomStringOrElementCreationOptions {
+    /// `DOMString`.
+    DomString(String),
+    /// `ElementCreationOptions`.
+    ElementCreationOptions(ElementCreationOptions),
+}
+
+impl DomStringOrElementCreationOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, realm: u32, value: swb_js::Value) -> b::Result<DomStringOrElementCreationOptions> {
+        if value.is_nullish() { return Ok(DomStringOrElementCreationOptions::ElementCreationOptions(ElementCreationOptions::from_js(rt, realm, value)?)); }
+        if let swb_js::Value::Object(_) = value {
+            return Ok(DomStringOrElementCreationOptions::ElementCreationOptions(ElementCreationOptions::from_js(rt, realm, value)?));
+        }
+        Ok(DomStringOrElementCreationOptions::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            DomStringOrElementCreationOptions::DomString(x) => b::to_js::string(rt, &x.clone()),
+            DomStringOrElementCreationOptions::ElementCreationOptions(x) => (x.clone()).to_js::<H>(rt, realm),
+        }
+    }
+}
+
 /// The union type `(DOMString or Function)`.
 #[derive(Clone, Debug)]
 pub enum DomStringOrFunction {
@@ -555,6 +610,33 @@ impl EventOrUndefined {
         match self {
             EventOrUndefined::Event(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).object)),
             EventOrUndefined::Undefined(()) => swb_js::VmResult::Ok(swb_js::Value::Undefined),
+        }
+    }
+}
+
+/// The union type `(DOMString or Node)`.
+#[derive(Clone, Debug)]
+pub enum NodeOrDomString {
+    /// `Node`.
+    Node(b::NodeId),
+    /// `DOMString`.
+    DomString(String),
+}
+
+impl NodeOrDomString {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<NodeOrDomString> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::NODE) { return Ok(NodeOrDomString::Node(b::convert::node(rt, value, super::NODE, "Node")?)); }
+        }
+        Ok(NodeOrDomString::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            NodeOrDomString::Node(x) => b::to_js::node::<H>(rt, realm, *x),
+            NodeOrDomString::DomString(x) => b::to_js::string(rt, &x.clone()),
         }
     }
 }

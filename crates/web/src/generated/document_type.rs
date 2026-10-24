@@ -18,6 +18,18 @@ pub trait DocumentTypeImpl: b::Host {
     /// `readonly attribute DOMString systemId`.
     fn system_id(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
+    /// `undefined before((DOMString or Node)... nodes)`.
+    fn before(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined after((DOMString or Node)... nodes)`.
+    fn after(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined replaceWith((DOMString or Node)... nodes)`.
+    fn replace_with(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::NodeOrDomString>) -> b::Result<()>;
+
+    /// `undefined remove()`.
+    fn remove(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
 }
 
 fn get_name<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -44,6 +56,53 @@ fn get_system_id<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn op_before<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentType", "before"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_TYPE)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentTypeImpl>::before(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_after<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentType", "after"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_TYPE)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentTypeImpl>::after(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace_with<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentType", "replaceWith"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_TYPE)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentTypeImpl>::replace_with(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_remove<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("DocumentType", "remove"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT_TYPE)?;
+        <H as DocumentTypeImpl>::remove(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `DocumentType` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -53,6 +112,10 @@ pub fn define<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_
     rt.define_accessor(realm, target, "name", (Some(get_name::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "publicId", (Some(get_public_id::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "systemId", (Some(get_system_id::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "after", 0, op_after::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "before", 0, op_before::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "remove", 0, op_remove::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceWith", 0, op_replace_with::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -32,7 +32,18 @@ use crate::runtime::ConsoleMessage;
 pub(crate) enum Slot {
     /// `Node.childNodes`.
     ChildNodes,
+    /// `ParentNode.children`.
+    Children,
+    /// `Element.classList`.
+    ClassList,
+    /// `Element.attributes`.
+    Attributes,
+    /// `HTMLElement.dataset`.
+    Dataset,
 }
+
+/// The parsed tokens of token lists by element and attribute name.
+pub(crate) type TokenCache = HashMap<(NodeId, swb_dom::LocalName), Rc<Vec<String>>>;
 
 /// The binding state of a runtime.
 #[derive(Default)]
@@ -54,6 +65,17 @@ pub(crate) struct WebState {
     /// properties (`window[name]`): the DOM generation it was built for and
     /// the first element of each name.
     pub(crate) window_names: Option<(u64, HashMap<String, NodeId>)>,
+    /// The `Attr` objects that scripts have seen, by element and attribute
+    /// name. An attribute that is removed keeps its object, which then has
+    /// no owner (the entry is dropped).
+    pub(crate) attr_objects: HashMap<(NodeId, swb_dom::Namespace, swb_dom::LocalName), Gc<Object>>,
+    /// The `childNodes` and `children` lists that hold a cache, and the DOM
+    /// generation of the caches (`dom/lists.rs` drops the stale ones).
+    pub(crate) list_registry: Vec<Gc<swb_js::Generic>>,
+    pub(crate) list_registry_generation: u64,
+    /// The parsed tokens of the token lists that were read in one DOM
+    /// generation (`dom/token_list.rs`), by element and attribute name.
+    pub(crate) token_cache: (u64, TokenCache),
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,
@@ -88,6 +110,12 @@ impl HostState for WebState {
         }
         for object in self.side.values() {
             tracer.object(*object);
+        }
+        for object in self.attr_objects.values() {
+            tracer.object(*object);
+        }
+        for list in &self.list_registry {
+            tracer.generic(*list);
         }
         for value in &self.pinned {
             tracer.value(*value);
@@ -227,12 +255,13 @@ impl b::Host for WebState {
     }
 
     fn reflect_set(cx: &mut Cx<'_>, element: NodeId, name: &str, value: &str) -> b::Result<()> {
-        let result = dom_mut(cx.rt)?.set_attr(element, name, value);
-        crate::dom::dom_result(cx.rt, result)
+        let name = swb_dom::QualName::new(None, ns!(), swb_dom::LocalName::from(name));
+        crate::dom::set_attribute(cx.rt, element, &name, value)
     }
 
     fn reflect_remove(cx: &mut Cx<'_>, element: NodeId, name: &str) -> b::Result<()> {
-        dom_mut(cx.rt)?.remove_attr(element, name);
+        let name = swb_dom::QualName::new(None, ns!(), swb_dom::LocalName::from(name));
+        crate::dom::remove_attribute(cx.rt, element, &name)?;
         Ok(())
     }
 

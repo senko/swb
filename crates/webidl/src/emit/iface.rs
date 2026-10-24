@@ -870,8 +870,9 @@ fn define_constants(iface: &Iface, out: &mut String) -> Result<(), Error> {
     Ok(())
 }
 
-/// The method definitions, sorted by name (Chromium's order), with the
-/// `toString` of a stringifier.
+/// The method definitions, sorted by name (Chromium's order), then the
+/// `toString` of a stringifier (Chromium puts it after the sorted
+/// operations: `DOMTokenList` has `toggle` before `toString`).
 fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &mut String) {
     let mut definitions: Vec<(String, String)> = Vec::new();
     for group in groups.iter().filter(|g| !g.name.is_empty()) {
@@ -916,6 +917,7 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
             .members
             .iter()
             .any(|m| matches!(m, Member::Stringifier(_)));
+    definitions.sort_by(|a, b| a.0.cmp(&b.0));
     if stringifier {
         let func = stringifier_attr.map_or_else(
             || "op_to_string::<H>".to_owned(),
@@ -926,7 +928,6 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
             format!("    rt.define_method(realm, target, \"toString\", 0, {func}, swb_js::Attributes::MEMBER)?;"),
         ));
     }
-    definitions.sort_by(|a, b| a.0.cmp(&b.0));
     for (_, line) in definitions {
         let _ = writeln!(out, "{line}");
     }

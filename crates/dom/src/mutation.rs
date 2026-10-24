@@ -202,6 +202,16 @@ impl Document {
     /// if it became connected. No record.
     #[inline]
     pub(crate) fn link(&mut self, parent: NodeId, node: NodeId, before: Option<NodeId>) {
+        self.link_raw(parent, node, before);
+        if self.may_have_ids(node) && self.is_connected(parent) {
+            self.index_ids(node);
+        }
+    }
+
+    /// [`link`](Self::link) without the id index: for a `parent` that is
+    /// not connected.
+    #[inline]
+    pub(crate) fn link_raw(&mut self, parent: NodeId, node: NodeId, before: Option<NodeId>) {
         let prev = match before {
             Some(b) => self.node(b).prev_sibling,
             None => self.node(parent).last_child,
@@ -219,9 +229,6 @@ impl Document {
         match before {
             Some(b) => self.node_mut(b).prev_sibling = Some(node),
             None => self.node_mut(parent).last_child = Some(node),
-        }
-        if self.may_have_ids(node) && self.is_connected(parent) {
-            self.index_ids(node);
         }
     }
 
@@ -409,8 +416,11 @@ impl Document {
         };
         for &child in &removed {
             self.remove_node(child, true);
+            self.reset_form_owners(child);
         }
         if let Some(n) = node {
+            let moved = self.moved_roots(n);
+            self.reset_moved(&moved);
             self.insert(n, parent, None, true);
         }
         if !added.is_empty() || !removed.is_empty() {
@@ -440,7 +450,9 @@ impl Document {
         } else {
             child
         };
+        let moved = self.moved_roots(node);
         self.insert(node, parent, before, false);
+        self.reset_moved(&moved);
         Ok(())
     }
 
@@ -453,6 +465,7 @@ impl Document {
     /// Does nothing for a node without parent.
     pub fn remove(&mut self, node: NodeId) {
         self.remove_node(node, false);
+        self.reset_form_owners(node);
     }
 
     /// DOM `removeChild`: removes `child` from `parent`.
@@ -462,6 +475,7 @@ impl Document {
             return Err(DomError::NotFound);
         }
         self.remove_node(child, false);
+        self.reset_form_owners(child);
         Ok(())
     }
 
@@ -486,6 +500,9 @@ impl Document {
         } else {
             vec![node]
         };
+        self.reset_form_owners(child);
+        let moved = self.moved_roots(node);
+        self.reset_moved(&moved);
         self.insert(node, parent, reference, true);
         self.record(&Change::Children {
             parent,
@@ -522,8 +539,44 @@ impl Document {
             return Err(DomError::NotSupported);
         }
         let document = self.node_document(document);
+        let had_parent = self.node(node).parent.is_some();
         self.adopt_into(node, document);
+        if had_parent {
+            self.reset_form_owners(node);
+        }
         Ok(())
+    }
+
+    /// The nodes that an insertion of `node` moves from another place: the
+    /// node, or the children of a fragment, that have a parent.
+    ///
+    /// Invariant for the parser form pointers ([`ElementData::parser_form`]):
+    /// the parser sets them only through its own crate-private functions,
+    /// and every removal by the public functions clears the pointers of the
+    /// removed subtree (`reset_form_owners`). A subtree whose root has no
+    /// parent therefore holds none (the parser never leaves one detached,
+    /// the fragment parser and `clone_node` clear them), and an insertion
+    /// of such a root needs no walk: building a chain bottom-up stays
+    /// linear. The children of a fragment all have a parent (the fragment),
+    /// so they are walked: the contents of a `template` may hold pointers.
+    fn moved_roots(&self, node: NodeId) -> Vec<NodeId> {
+        if !self.parser_forms {
+            return Vec::new();
+        }
+        if matches!(self.node(node).data, NodeData::DocumentFragment) {
+            self.child_list(node)
+        } else if self.node(node).parent.is_some() {
+            vec![node]
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Resets the form owners of the subtrees of `roots`.
+    fn reset_moved(&mut self, roots: &[NodeId]) {
+        for &root in roots {
+            self.reset_form_owners(root);
+        }
     }
 
     fn can_have_children(&self, node: NodeId) -> bool {
@@ -537,7 +590,7 @@ impl Document {
     /// inclusive ancestor, also across template contents to their
     /// template element.
     /// <https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor>
-    fn is_host_including_inclusive_ancestor(&self, node: NodeId, of: NodeId) -> bool {
+    pub fn is_host_including_inclusive_ancestor(&self, node: NodeId, of: NodeId) -> bool {
         // A node without children and template contents is an ancestor of
         // nothing: the common case (a new leaf) needs no walk, so that
         // building a deep tree is not quadratic.

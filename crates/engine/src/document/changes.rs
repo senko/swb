@@ -251,13 +251,22 @@ impl DocumentState {
             return;
         }
         let dom = &self.dom;
-        for node in dom.descendants(root) {
-            if node != root && !visited.insert(node) {
-                continue;
-            }
+        // Pre-order, with an explicit stack. A node that an earlier walk
+        // visited is skipped with its subtree: a chain that a script built
+        // bottom-up has one entry per level, and walking the whole subtree
+        // again at each level would be quadratic.
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
             if let Some(kind) = dom.element(node).and_then(Kind::of) {
                 batch.note(node, kind, removed);
             }
+            let first = stack.len();
+            for child in dom.children(node) {
+                if visited.insert(child) {
+                    stack.push(child);
+                }
+            }
+            stack[first..].reverse();
         }
     }
 

@@ -509,6 +509,30 @@ fn a_lookup_among_many_duplicate_ids_walks_the_tree() {
 }
 
 #[test]
+fn a_loop_of_lookups_among_many_duplicate_ids_walks_once() {
+    // 50,000 other siblings before the first of 20,000 elements of one id:
+    // a walk per call (50,000 steps) would take 1e9 steps for the loop.
+    let html = format!(
+        "<body>{}{}",
+        "<b></b>".repeat(50_000),
+        "<i id=x></i>".repeat(20_000)
+    );
+    let mut doc = parse_html(&html);
+    let body = doc.body().unwrap();
+    let first = doc.element_by_id("x").unwrap();
+    for _ in 0..20_000 {
+        assert_eq!(doc.element_by_id("x"), Some(first));
+    }
+    // A change drops the result.
+    doc.remove(first);
+    assert_ne!(doc.element_by_id("x"), Some(first));
+    let new = element_with_id(&mut doc, "p", "x");
+    let head = doc.children(body).next();
+    doc.insert_before(body, new, head).unwrap();
+    assert_eq!(doc.element_by_id("x"), Some(new));
+}
+
+#[test]
 fn the_change_functions_stop_at_the_limits() {
     let mut doc = Document::with_limits(Limits {
         max_nodes: 4,
