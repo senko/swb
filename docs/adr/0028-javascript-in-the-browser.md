@@ -1015,6 +1015,148 @@ the same values, and two tests in `crates/engine/tests/script_dom.rs`):
   `input` and the other element interfaces (6c), `focus()` and the event
   members (6d), `HTMLDocument` and `Location`.
 
+Feature 6c notes (the HTML element interfaces and form controls; measured
+with `tools/probes/web-html-elements.json`: 65 cases, 733 values, three
+Chromium runs with equal results; the Rust tests are
+`crates/web/tests/html_elements.rs` and `crates/engine/tests/script_html.rs`):
+
+- **Interfaces.** `idl/html.idl` has an interface for every element that
+  Chromium has one for, `HTMLUnknownElement` and `HTMLDocument` (swb's own
+  line: every document is an `HTMLDocument`). `state.rs` picks the class
+  of a wrapper with `html::class_of_html`, a table by tag name (a hash map
+  built once). A name outside the table is `HTMLElement` if it is a valid
+  custom element name, else `HTMLUnknownElement`. The constructors of the
+  element interfaces throw `Illegal constructor` (`[HTMLConstructor]`
+  makes the generator write a constructor that throws; swb has no custom
+  elements). The obsolete members (`align`, `bgColor`, ...) are not there.
+- **Reflection.** The generator got `[ReflectSetter]` for `long` and
+  `unsigned long`, `[SwbEnumerableNamedProperties]`, `[HTMLConstructor]`,
+  and the empty trait gets its implementation from the generated code
+  (no hand-written empty `impl`). The enumerated attributes have
+  `[SwbKeywords]` with the missing and invalid value defaults that the
+  probe measured. Departures from the standard that Chromium also has:
+  `img.width` and `height` reflect the content attribute (the standard
+  returns the rendered size), `input.width` and `height` are 0 except for
+  `type=image`, `autocomplete` is limited to valid autofill tokens,
+  `style.disabled` is not reflected (it belongs to the style sheet).
+- **Form state.** The value of a text field, the checkedness of a checkbox
+  or radio button and the selectedness of options are the engine's
+  (`crates/engine/src/forms`, `document/script_forms.rs`).
+  `EngineHost` has `control_value`, `set_control_value`, `control_checked`,
+  `set_control_checked`, `selected_index`, `set_selected_index`,
+  `option_selected` and `set_option_selected`. A value that a script
+  writes to a control without a state (a new `input`, a control in a
+  document whose states are not rebuilt) is a *seed*
+  (`forms/script.rs`); a rebuild applies the seeds, and keeps the dirty
+  state of controls that left the document. A read or write of a value or
+  of the checkedness of a checkbox costs O(1) after a DOM change; those of
+  a radio button and of a select rebuild the states first (the group and
+  the options need them). A write sets `controls_stale`; `refresh_forms`
+  (called by every flush) then computes the element states again and
+  restyles only if a selector depends on them. Checked radio buttons of a
+  group: the newest checkedness wins (a `stamp` per control); among
+  equal ones the last in tree order (this closes the backlog item
+  "after a rebuild, the last in tree order wins"). A select whose
+  options no `selected` attribute decides keeps its selected option when
+  options are added (the setting algorithm picks the first option only
+  when none is selected).
+- **Review fixes (6c1).**
+  *Budget of values.* A value copy lives in the engine, outside the heap
+  of the runtime and outside the DOM bytes, so it has its own budget:
+  `DocumentState::control_bytes` counts the dirty values of the states
+  and the values of the seeds (recomputed at each rebuild, adjusted at
+  each write). A write past 32 MiB stores nothing, logs a warning and
+  returns `ControlWrite::OverLimit`; the bindings end the task
+  (`html::write_control_value`). The number is small because a value of
+  a visible control costs 70 to 180 bytes per character in layout
+  (measured: a 5 MB textarea takes 350 MB, `ab ` repeated 1.1 GB), so a
+  larger budget could not be laid out; a page that keeps 32 MiB in
+  controls is outside the targets. The layout cost itself stays a
+  backlog item.
+  *Selectedness outside the document.* A select or an option that left
+  the document (or that went into a template or another document) keeps
+  what it held: a read or write of a select without a place in the
+  document checks whether the old states still have an entry for it, and
+  rebuilds first if so (the rebuild turns the dirty state of an orphan,
+  and the selectedness of options that left a select that stays, into
+  seeds). A select that never had a state costs no rebuild.
+  `refresh_forms` is split: `ensure_forms` rebuilds if the DOM changed,
+  and only `refresh_forms` (flush, queries) computes the element states;
+  a loop of writes does not compute them per write.
+  *Cloning steps.* `Cloned::controls` lists the pairs of `input` and
+  `textarea`; `EngineHost::copy_control_state` copies a dirty value and a
+  dirty checkedness to the copy (`cloneNode`, `importNode`, template
+  contents).
+  *Radio buttons.* A write of `checked=true` to a radio button in a
+  document whose states are outdated is a seed (no rebuild per write).
+  A rebuild stamps the seeds: the buttons that were in the document when
+  a script checked them come first, in the order of the writes, then the
+  buttons that were outside it, in tree order; all are newer than the
+  existing checked buttons (an inserted button wins, as in Chromium).
+  Departure: a button that a script checked in the document, removed and
+  inserted again does not win over a button that was checked in
+  between (the order of the insertion is not known without a hook).
+  *Option text.* `option.text`, `value` and `label` skip `script`
+  descendants of the HTML and SVG namespaces (`text_content_without_scripts`).
+  *Range.* The value sanitization of `type=range` clamps to `min` and
+  `max` (`max` below `min` counts as `min`), rounds to the nearest step
+  (`step` default 1, from `min`; `any` has none) and writes the number
+  (`10.0` gives `10`). It also applies to the `value` attribute. Departure:
+  Chromium clamps the stored value again when `max` changes; swb keeps the
+  text that the script wrote and sanitizes it at each read, so a later `max`
+  can give the old text back.
+  *Small items measured in Chromium.* `:indeterminate` matches a checkbox
+  whose `indeterminate` property is true (`EngineHost::set_control_indeterminate`)
+  and a radio button whose group has no checked button; a change of the
+  `type` attribute from a type with the value mode `value` to one with the
+  mode `default` or `default/on` writes the value to the `value`
+  attribute (`dom::set_attribute` calls `before_type_change` and
+  `after_type_change`); `select.add(option, before)` throws
+  `NotFoundError` unless `before` is a child of the select (the standard
+  says descendant); the `host` and `hostname` setters cut the value at
+  `/`, `\`, `?` and `#`, and the `hostname` setter ignores a value with a
+  port; `inputMode` and `enterKeyHint` are enumerated attributes of
+  `HTMLElement`; `tabIndex` is -1 for an element with `contenteditable`
+  (the standard says 0). Left as they are: a space in a host
+  (Chromium writes `%20`), a disabled option on a select whose state is
+  not built yet (the first build sees the attribute; Chromium selected
+  the option before), the implicit selection of an option that leaves a
+  select whose state no read has built, `setAttribute('selected')` on a
+  select that the user changed (no per-option dirty flag), the two radio
+  quirks (an ungrouped scripted radio next to an attribute-checked one
+  keeps both checked; a renamed checked radio is unchecked in Chromium),
+  `img.height = 1e10` (feature 7b).
+- **Lists.** `ListKind::Element(ElementList)` in `dom/lists.rs`:
+  `table.rows` (head rows, body rows, foot rows), `tBodies`, `tr.cells`,
+  `select.options` (`HTMLOptionsCollection`), `selectedOptions` (built
+  again at each access: the engine's state is not part of the DOM
+  generation), `form.elements` (`HTMLFormControlsCollection`, one pass
+  with the nearest form ancestor tracked), `fieldset.elements`,
+  `datalist.options`, `map.areas`. A collection finds `namedItem`
+  through an index by `id` and `name` that is built with the list of
+  supported names. `RadioNodeList` is a list with the nodes of one name.
+- **Form named properties.** `form[name]` and `form[index]` read
+  `form.elements`. Departure: `form` has no `[LegacyOverrideBuiltIns]`: a
+  control named `submit` or `action` does not hide the member of the
+  form. With the override every property read of a form (`f.appendChild`)
+  has to know whether a control has that name, and the list of controls is
+  rebuilt after each change (a loop that adds 8,000 controls took
+  seconds; now 18 ms). The standard's `img` elements, image buttons and
+  past names are not named properties.
+- **Cost.** The interfaces are created when the runtime is created:
+  1.55 ms and 464 KB of heap before, 1.57 ms and 725 KB after (senko.net,
+  release build). That is below the limit of about 1 ms or 1 MB, so no
+  lazy creation.
+- **Not done (6c2):** `Image` and `Option` (`[LegacyFactoryFunction]` needs
+  a function constructor with a given prototype in `js`), the SVG
+  interfaces (`SVGElement`, `className` as `SVGAnimatedString`,
+  `dataset` and `classList` on SVG elements), the obsolete members, the
+  selection members of `input` and `textarea`, constraint validation,
+  `files`, `valueAsNumber`, `labels`, `iframe.contentWindow`,
+  `canvas.getContext`, the media playback members, `meter` and `progress`
+  values, `naturalWidth`, `complete` and `currentSrc` from the loaded image
+  (they are 0, true without a source and false with one).
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -1642,6 +1784,7 @@ Per document, all settings with these defaults:
 | Nodes of one `innerHTML` write (feature 6b) | the nodes of its markup (one fragment is reused) | `<p>x` costs 2 immortal nodes, so about 500,000 writes fill the arena; the arena limit ends the task |
 | Steps of one selector query (feature 6b) | 100,000,000 (ancestor steps and selectors tried) | the query stops with a warning |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
+| Values that scripts write to text fields and text areas, in the states and in the seeds (feature 6c) | 32 MiB | the task ends (termination, warning) |
 | Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
 | Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |
 | String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |

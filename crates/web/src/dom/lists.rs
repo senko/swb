@@ -29,11 +29,12 @@
 //! `name` of each HTML element), because every property read on the object
 //! asks whether the key is one of them.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use swb_dom::{Document, ElementData, NodeId, QuirksMode, local_name, ns};
 use swb_js::{Gc, Generic, GenericData, HostData, Object, Runtime, Tracer, VmError, VmResult};
 
+use super::element_lists::{self, ElementList};
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::state::{WebState, dom, state_mut};
@@ -96,6 +97,12 @@ pub(crate) enum ListKind {
     /// `querySelectorAll`: the nodes found at the call (the list does not
     /// change).
     Static,
+    /// A list of an element: `table.rows`, `select.options` and the others
+    /// (`element_lists.rs`).
+    Element(ElementList),
+    /// The controls of a form (the root) with this `id` or `name`: a
+    /// `RadioNodeList`.
+    ControlsNamed(String),
 }
 
 impl ListKind {
@@ -103,8 +110,47 @@ impl ListKind {
     fn is_node_list(&self) -> bool {
         matches!(
             self,
-            ListKind::ChildNodes | ListKind::Name(_) | ListKind::Static
+            ListKind::ChildNodes
+                | ListKind::Name(_)
+                | ListKind::Static
+                | ListKind::ControlsNamed(_)
         )
+    }
+
+    /// The class of the list objects of this kind.
+    fn class(&self) -> swb_js::ClassId {
+        match self {
+            ListKind::ControlsNamed(_) => g::RADIO_NODE_LIST,
+            ListKind::Element(ElementList::FormControls) => g::HTML_FORM_CONTROLS_COLLECTION,
+            ListKind::Element(ElementList::SelectOptions) => g::HTML_OPTIONS_COLLECTION,
+            kind if kind.is_node_list() => g::NODE_LIST,
+            _ => g::HTML_COLLECTION,
+        }
+    }
+
+    /// True if the list is built in one pass and not lazily.
+    fn is_eager(&self) -> bool {
+        match self {
+            ListKind::Element(list) => list.is_eager(),
+            ListKind::ControlsNamed(_) => true,
+            _ => false,
+        }
+    }
+
+    /// True if the list is built again at each access (the state of the
+    /// controls that it depends on is not part of the DOM generation).
+    fn is_volatile(&self) -> bool {
+        matches!(self, ListKind::Element(ElementList::SelectedOptions))
+    }
+
+    /// True if the list holds children of its root (a walk along the
+    /// siblings).
+    fn is_child_list(&self) -> bool {
+        match self {
+            ListKind::ChildNodes | ListKind::Children => true,
+            ListKind::Element(list) => list.is_child_list(),
+            _ => false,
+        }
     }
 
     /// True if the binding state registers the list for the drop of stale
@@ -113,8 +159,11 @@ impl ListKind {
     fn registers(&self) -> bool {
         matches!(
             self,
-            ListKind::ChildNodes | ListKind::Children | ListKind::Document(_)
-        )
+            ListKind::ChildNodes
+                | ListKind::Children
+                | ListKind::Document(_)
+                | ListKind::Element(_)
+        ) && !self.is_volatile()
     }
 }
 
@@ -127,9 +176,20 @@ struct Built {
     nodes: Vec<NodeId>,
     visited: Option<NodeId>,
     complete: bool,
-    /// The supported property names of an `HTMLCollection`, in order, with
-    /// a set for the membership test; built at the first use.
-    names: Option<(Vec<String>, HashSet<String>)>,
+    /// The supported property names of an `HTMLCollection` and the index
+    /// of its nodes by `id` and `name`; built at the first use.
+    names: Option<Names>,
+}
+
+/// The supported property names of an `HTMLCollection`, in order, with a
+/// set for the membership test, and the positions in the list of the
+/// nodes that have each `id` and each `name` (HTML elements only), for the
+/// named lookups.
+struct Names {
+    list: Vec<String>,
+    set: HashSet<String>,
+    by_id: HashMap<String, Vec<usize>>,
+    by_name: HashMap<String, Vec<usize>>,
 }
 
 /// The data of a list.
@@ -146,8 +206,8 @@ impl GenericData for ListData {
 
     fn heap_size(&self) -> usize {
         self.built.as_ref().map_or(0, |b| {
-            let names = b.names.as_ref().map_or(0, |(list, set)| {
-                list.iter().map(|n| 2 * n.len() + 48).sum::<usize>() + set.capacity() * 8
+            let names = b.names.as_ref().map_or(0, |n| {
+                n.list.iter().map(|n| 4 * n.len() + 160).sum::<usize>() + n.set.capacity() * 8
             });
             b.nodes.capacity() * size_of::<NodeId>() + names
         })
@@ -162,11 +222,7 @@ pub(crate) fn new_list(
     root: NodeId,
     kind: ListKind,
 ) -> VmResult<Gc<Object>> {
-    let class = if kind.is_node_list() {
-        g::NODE_LIST
-    } else {
-        g::HTML_COLLECTION
-    };
+    let class = kind.class();
     let data = rt.alloc_host_data(ListData {
         kind,
         root,
@@ -255,7 +311,11 @@ fn element_matches(e: &ElementData, kind: &ListKind) -> bool {
         ListKind::Name(name) => e.is_html() && e.attr("name") == Some(name.as_str()),
         ListKind::Document(which) => document_collection_has(e, *which),
         ListKind::WindowName(name) => e.id() == Some(name.as_str()) || named_by_window(e, name),
-        ListKind::ChildNodes | ListKind::Children | ListKind::Static => false,
+        ListKind::ChildNodes
+        | ListKind::Children
+        | ListKind::Static
+        | ListKind::Element(_)
+        | ListKind::ControlsNamed(_) => false,
     }
 }
 
@@ -292,12 +352,13 @@ pub(crate) fn named_by_window(e: &ElementData, name: &str) -> bool {
         && e.attr("name") == Some(name)
 }
 
-/// True if the node `n` is in the list of `kind`.
-fn node_in_list(dom: &Document, n: NodeId, kind: &ListKind) -> bool {
+/// True if the node `n` is in the list of `kind` of `root`.
+fn node_in_list(dom: &Document, root: NodeId, n: NodeId, kind: &ListKind) -> bool {
     match kind {
         ListKind::ChildNodes => true,
         ListKind::Children => dom.element(n).is_some(),
-        ListKind::Static => false,
+        ListKind::Static | ListKind::ControlsNamed(_) => false,
+        ListKind::Element(list) => element_lists::matches(dom, root, n, *list),
         _ => dom.element(n).is_some_and(|e| element_matches(e, kind)),
     }
 }
@@ -311,7 +372,7 @@ fn next_to_visit(
     kind: &ListKind,
     visited: Option<NodeId>,
 ) -> Option<NodeId> {
-    let child_list = matches!(kind, ListKind::ChildNodes | ListKind::Children);
+    let child_list = kind.is_child_list();
     match (visited, child_list) {
         (None, true) => dom.node(root).first_child(),
         (Some(v), true) => dom.node(v).next_sibling(),
@@ -328,7 +389,7 @@ fn walk(built: &mut Built, dom: &Document, root: NodeId, kind: &ListKind, upto: 
             None => built.complete = true,
             Some(n) => {
                 built.visited = Some(n);
-                if node_in_list(dom, n, kind) {
+                if node_in_list(dom, root, n, kind) {
                     built.nodes.push(n);
                 }
             }
@@ -356,6 +417,7 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
     let generation = dom(cx.rt)?.generation();
     if let Some(built) = &list_of(cx.rt, data)?.built
         && built.generation == generation
+        && !list_of(cx.rt, data)?.kind.is_volatile()
     {
         return Ok(());
     }
@@ -391,6 +453,17 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
 /// all of them (`None`).
 fn extend(cx: &mut Cx<'_>, data: Gc<Generic>, upto: Option<usize>) -> b::Result<()> {
     fresh(cx, data)?;
+    if !built_of(cx.rt, data)?.complete && list_of(cx.rt, data)?.kind.is_eager() {
+        let (root, kind) = {
+            let list = list_of(cx.rt, data)?;
+            (list.root, list.kind.clone())
+        };
+        let nodes = element_lists::collect(cx, root, &kind)?;
+        if let Some(built) = &mut list_mut(cx.rt, data)?.built {
+            built.nodes = nodes;
+            built.complete = true;
+        }
+    }
     let mut built = list_mut(cx.rt, data)?
         .built
         .take()
@@ -477,7 +550,7 @@ fn nth_child_from_end(
     back: usize,
 ) -> Option<NodeId> {
     std::iter::successors(dom.node(root).last_child(), |&n| dom.node(n).prev_sibling())
-        .filter(|&n| node_in_list(dom, n, kind))
+        .filter(|&n| node_in_list(dom, root, n, kind))
         .nth(back)
 }
 
@@ -493,15 +566,19 @@ fn ensure_names(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
     {
         return Ok(());
     }
-    let mut list = Vec::new();
-    let mut set = HashSet::new();
+    let mut names = Names {
+        list: Vec::new(),
+        set: HashSet::new(),
+        by_id: HashMap::new(),
+        by_name: HashMap::new(),
+    };
     {
         let dom = dom(cx.rt)?;
         let built = list_of(cx.rt, data)?
             .built
             .as_ref()
             .ok_or_else(|| Exception::type_error("the list has no cache"))?;
-        for &node in &built.nodes {
+        for (position, &node) in built.nodes.iter().enumerate() {
             let Some(e) = dom.element(node) else {
                 continue;
             };
@@ -511,15 +588,25 @@ fn ensure_names(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
             } else {
                 None
             };
+            if let Some(id) = id {
+                names.by_id.entry(id.to_owned()).or_default().push(position);
+            }
+            if let Some(name) = name {
+                names
+                    .by_name
+                    .entry(name.to_owned())
+                    .or_default()
+                    .push(position);
+            }
             for n in [id, name].into_iter().flatten() {
-                if set.insert(n.to_owned()) {
-                    list.push(n.to_owned());
+                if names.set.insert(n.to_owned()) {
+                    names.list.push(n.to_owned());
                 }
             }
         }
     }
     if let Some(built) = &mut list_mut(cx.rt, data)?.built {
-        built.names = Some((list, set));
+        built.names = Some(names);
     }
     Ok(())
 }
@@ -627,6 +714,124 @@ pub(crate) fn window_name(rt: &mut Runtime, realm: u32, name: &str) -> VmResult<
     )
 }
 
+/// `namedItem(name)` of an `HTMLCollection` (DOM §4.2.10.2): the first
+/// element whose `id` is `name`, else the first HTML element whose `name`
+/// attribute is `name`. (The standard says the first element that matches
+/// either; Chromium looks at the ids first, and was measured so.)
+pub(crate) fn named_item(cx: &mut Cx<'_>, this: Platform, name: &str) -> b::Result<Option<NodeId>> {
+    if name.is_empty() {
+        return Ok(None);
+    }
+    let data = handle(this)?;
+    ensure_names(cx, data)?;
+    let built = built_of(cx.rt, data)?;
+    let Some(names) = &built.names else {
+        return Ok(None);
+    };
+    let position = names
+        .by_id
+        .get(name)
+        .or_else(|| names.by_name.get(name))
+        .and_then(|v| v.first());
+    Ok(position.and_then(|&p| built.nodes.get(p).copied()))
+}
+
+/// The nodes of the list that have `name` as `id` or as `name`, in list
+/// order.
+pub(crate) fn named_nodes(cx: &mut Cx<'_>, this: Platform, name: &str) -> b::Result<Vec<NodeId>> {
+    let data = handle(this)?;
+    ensure_names(cx, data)?;
+    let built = built_of(cx.rt, data)?;
+    let Some(names) = &built.names else {
+        return Ok(Vec::new());
+    };
+    let mut positions: Vec<usize> = names
+        .by_id
+        .get(name)
+        .into_iter()
+        .chain(names.by_name.get(name))
+        .flatten()
+        .copied()
+        .collect();
+    positions.sort_unstable();
+    positions.dedup();
+    Ok(positions
+        .into_iter()
+        .filter_map(|p| built.nodes.get(p).copied())
+        .collect())
+}
+
+/// The one list `list` of `root` (the `[SameObject]` attribute of an
+/// element).
+pub(crate) fn element_list(
+    cx: &mut Cx<'_>,
+    root: NodeId,
+    list: ElementList,
+) -> b::Result<Gc<Object>> {
+    let realm = cx.realm();
+    Ok(crate::state::same_object(
+        cx.rt,
+        root,
+        crate::state::Slot::ElementList(list),
+        |rt| new_list(rt, realm, root, ListKind::Element(list)),
+    )?)
+}
+
+/// The list object as a platform object.
+pub(crate) fn platform(rt: &Runtime, list: Gc<Object>) -> b::Result<Platform> {
+    match rt.host_object(list.into()) {
+        Some((_, data)) => Ok(Platform { object: list, data }),
+        None => Err(VmError::type_error("Illegal invocation").into()),
+    }
+}
+
+/// The number of items of a list.
+pub(crate) fn length_of(cx: &mut Cx<'_>, list: Platform) -> b::Result<u32> {
+    list_len(cx, list)
+}
+
+/// Item `index` of a list.
+pub(crate) fn item_of(cx: &mut Cx<'_>, list: Platform, index: u32) -> b::Result<Option<NodeId>> {
+    list_item(cx, list, index)
+}
+
+/// All the nodes of a list, in order.
+pub(crate) fn nodes_of(cx: &mut Cx<'_>, list: Platform) -> b::Result<Vec<NodeId>> {
+    let data = handle(list)?;
+    extend(cx, data, None)?;
+    Ok(built_of(cx.rt, data)?.nodes.clone())
+}
+
+/// The root of a list.
+pub(crate) fn root_of(rt: &Runtime, list: Platform) -> b::Result<NodeId> {
+    Ok(list_of(rt, handle(list)?)?.root)
+}
+
+/// A live `RadioNodeList` of the controls of `form` named `name`, with
+/// `nodes` as its cache for the current DOM generation.
+pub(crate) fn new_controls_named(
+    cx: &mut Cx<'_>,
+    form: NodeId,
+    name: &str,
+    nodes: Vec<NodeId>,
+) -> b::Result<Platform> {
+    let generation = dom(cx.rt)?.generation();
+    let realm = cx.realm();
+    let data = cx.rt.alloc_host_data(ListData {
+        kind: ListKind::ControlsNamed(name.to_owned()),
+        root: form,
+        built: Some(Built {
+            generation,
+            nodes,
+            visited: None,
+            complete: true,
+            names: None,
+        }),
+    })?;
+    let object = cx.rt.new_host_object(realm, g::RADIO_NODE_LIST, data)?;
+    Ok(Platform { object, data })
+}
+
 impl g::node_list::NodeListImpl for WebState {
     fn length(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
         list_len(cx, this)
@@ -663,24 +868,7 @@ impl g::html_collection::HTMLCollectionImpl for WebState {
     /// element that matches either; Chromium looks at the ids first, and
     /// was measured so.)
     fn named_item(cx: &mut Cx<'_>, this: Platform, name: String) -> b::Result<Option<NodeId>> {
-        if name.is_empty() {
-            return Ok(None);
-        }
-        let data = handle(this)?;
-        extend(cx, data, None)?;
-        let nodes = &built_of(cx.rt, data)?.nodes;
-        let dom = dom(cx.rt)?;
-        let by_id = nodes.iter().copied().find(|&n| {
-            dom.element(n)
-                .is_some_and(|e| e.id() == Some(name.as_str()))
-        });
-        Ok(by_id.or_else(|| {
-            nodes.iter().copied().find(|&n| {
-                dom.element(n).is_some_and(|e| {
-                    e.name.ns == ns!(html) && e.attr("name") == Some(name.as_str())
-                })
-            })
-        }))
+        named_item(cx, this, &name)
     }
 
     fn index_count(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
@@ -694,7 +882,7 @@ impl g::html_collection::HTMLCollectionImpl for WebState {
             .built
             .as_ref()
             .and_then(|b| b.names.as_ref())
-            .map(|(list, _)| list.clone())
+            .map(|n| n.list.clone())
             .unwrap_or_default())
     }
 
@@ -705,7 +893,7 @@ impl g::html_collection::HTMLCollectionImpl for WebState {
             .built
             .as_ref()
             .and_then(|b| b.names.as_ref())
-            .is_some_and(|(_, set)| set.contains(name)))
+            .is_some_and(|n| n.set.contains(name)))
     }
 }
 

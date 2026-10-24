@@ -2857,6 +2857,7 @@ dependencies = [
  "swb-dom",
  "swb-js",
  "swb-style",
+ "url",
 ]
 
 [[package]]

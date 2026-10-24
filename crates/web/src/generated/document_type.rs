@@ -3,7 +3,7 @@
 
 //! The binding glue of the interface `DocumentType`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
 
 use crate::bindings as b;
 

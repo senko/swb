@@ -22,6 +22,7 @@ const INTERFACE_ATTRS: &[&str] = &[
     "Global",
     "LegacyOverrideBuiltIns",
     "LegacyUnenumerableNamedProperties",
+    "SwbEnumerableNamedProperties",
     "Serializable",
     "Transferable",
     "SecureContext",
@@ -49,6 +50,7 @@ const ATTRIBUTE_ATTRS: &[&str] = &[
     "SecureContext",
 ];
 const OPERATION_ATTRS: &[&str] = &[
+    "HTMLConstructor",
     "CEReactions",
     "NewObject",
     "LegacyUnforgeable",

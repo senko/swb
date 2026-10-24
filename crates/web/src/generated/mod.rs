@@ -27,9 +27,81 @@ pub mod processing_instruction;
 pub mod comment;
 pub mod performance;
 pub mod window;
+pub mod html_document;
 pub mod html_element;
+pub mod html_unknown_element;
 pub mod dom_string_map;
+pub mod html_html_element;
 pub mod html_head_element;
+pub mod html_title_element;
+pub mod html_base_element;
+pub mod html_link_element;
+pub mod html_meta_element;
+pub mod html_style_element;
+pub mod html_body_element;
+pub mod html_heading_element;
+pub mod html_paragraph_element;
+pub mod htmlhr_element;
+pub mod html_pre_element;
+pub mod html_quote_element;
+pub mod htmlo_list_element;
+pub mod htmlu_list_element;
+pub mod html_menu_element;
+pub mod htmlli_element;
+pub mod htmld_list_element;
+pub mod html_div_element;
+pub mod html_anchor_element;
+pub mod html_data_element;
+pub mod html_time_element;
+pub mod html_span_element;
+pub mod htmlbr_element;
+pub mod html_mod_element;
+pub mod html_picture_element;
+pub mod html_source_element;
+pub mod html_image_element;
+pub mod htmli_frame_element;
+pub mod html_embed_element;
+pub mod html_object_element;
+pub mod html_media_element;
+pub mod html_video_element;
+pub mod html_audio_element;
+pub mod html_track_element;
+pub mod html_map_element;
+pub mod html_area_element;
+pub mod html_table_element;
+pub mod html_table_caption_element;
+pub mod html_table_col_element;
+pub mod html_table_section_element;
+pub mod html_table_row_element;
+pub mod html_table_cell_element;
+pub mod html_form_element;
+pub mod html_label_element;
+pub mod html_input_element;
+pub mod html_button_element;
+pub mod html_select_element;
+pub mod html_data_list_element;
+pub mod html_opt_group_element;
+pub mod html_option_element;
+pub mod html_text_area_element;
+pub mod html_output_element;
+pub mod html_progress_element;
+pub mod html_meter_element;
+pub mod html_field_set_element;
+pub mod html_legend_element;
+pub mod html_selected_content_element;
+pub mod html_details_element;
+pub mod html_dialog_element;
+pub mod html_form_controls_collection;
+pub mod radio_node_list;
+pub mod html_options_collection;
+pub mod html_slot_element;
+pub mod html_canvas_element;
+pub mod html_marquee_element;
+pub mod html_frame_set_element;
+pub mod html_frame_element;
+pub mod html_directory_element;
+pub mod html_font_element;
+pub mod html_param_element;
 pub mod html_template_element;
 pub mod html_script_element;
 pub mod error_event;
@@ -82,32 +154,177 @@ pub const COMMENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
 pub const PERFORMANCE: swb_js::ClassId = swb_js::ClassId::from_index(19);
 /// The class of `Window`.
 pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(20);
+/// The class of `HTMLDocument`.
+pub const HTML_DOCUMENT: swb_js::ClassId = swb_js::ClassId::from_index(21);
 /// The class of `HTMLElement`.
-pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(21);
+pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(22);
+/// The class of `HTMLUnknownElement`.
+pub const HTML_UNKNOWN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(23);
 /// The class of `DOMStringMap`.
-pub const DOM_STRING_MAP: swb_js::ClassId = swb_js::ClassId::from_index(22);
+pub const DOM_STRING_MAP: swb_js::ClassId = swb_js::ClassId::from_index(24);
+/// The class of `HTMLHtmlElement`.
+pub const HTML_HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(25);
 /// The class of `HTMLHeadElement`.
-pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(23);
+pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(26);
+/// The class of `HTMLTitleElement`.
+pub const HTML_TITLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(27);
+/// The class of `HTMLBaseElement`.
+pub const HTML_BASE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(28);
+/// The class of `HTMLLinkElement`.
+pub const HTML_LINK_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(29);
+/// The class of `HTMLMetaElement`.
+pub const HTML_META_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(30);
+/// The class of `HTMLStyleElement`.
+pub const HTML_STYLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(31);
+/// The class of `HTMLBodyElement`.
+pub const HTML_BODY_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(32);
+/// The class of `HTMLHeadingElement`.
+pub const HTML_HEADING_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(33);
+/// The class of `HTMLParagraphElement`.
+pub const HTML_PARAGRAPH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(34);
+/// The class of `HTMLHRElement`.
+pub const HTMLHR_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(35);
+/// The class of `HTMLPreElement`.
+pub const HTML_PRE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(36);
+/// The class of `HTMLQuoteElement`.
+pub const HTML_QUOTE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(37);
+/// The class of `HTMLOListElement`.
+pub const HTMLO_LIST_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(38);
+/// The class of `HTMLUListElement`.
+pub const HTMLU_LIST_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(39);
+/// The class of `HTMLMenuElement`.
+pub const HTML_MENU_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(40);
+/// The class of `HTMLLIElement`.
+pub const HTMLLI_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(41);
+/// The class of `HTMLDListElement`.
+pub const HTMLD_LIST_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(42);
+/// The class of `HTMLDivElement`.
+pub const HTML_DIV_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(43);
+/// The class of `HTMLAnchorElement`.
+pub const HTML_ANCHOR_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(44);
+/// The class of `HTMLDataElement`.
+pub const HTML_DATA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(45);
+/// The class of `HTMLTimeElement`.
+pub const HTML_TIME_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(46);
+/// The class of `HTMLSpanElement`.
+pub const HTML_SPAN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(47);
+/// The class of `HTMLBRElement`.
+pub const HTMLBR_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(48);
+/// The class of `HTMLModElement`.
+pub const HTML_MOD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(49);
+/// The class of `HTMLPictureElement`.
+pub const HTML_PICTURE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(50);
+/// The class of `HTMLSourceElement`.
+pub const HTML_SOURCE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(51);
+/// The class of `HTMLImageElement`.
+pub const HTML_IMAGE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(52);
+/// The class of `HTMLIFrameElement`.
+pub const HTMLI_FRAME_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(53);
+/// The class of `HTMLEmbedElement`.
+pub const HTML_EMBED_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(54);
+/// The class of `HTMLObjectElement`.
+pub const HTML_OBJECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(55);
+/// The class of `HTMLMediaElement`.
+pub const HTML_MEDIA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(56);
+/// The class of `HTMLVideoElement`.
+pub const HTML_VIDEO_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(57);
+/// The class of `HTMLAudioElement`.
+pub const HTML_AUDIO_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(58);
+/// The class of `HTMLTrackElement`.
+pub const HTML_TRACK_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(59);
+/// The class of `HTMLMapElement`.
+pub const HTML_MAP_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(60);
+/// The class of `HTMLAreaElement`.
+pub const HTML_AREA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(61);
+/// The class of `HTMLTableElement`.
+pub const HTML_TABLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(62);
+/// The class of `HTMLTableCaptionElement`.
+pub const HTML_TABLE_CAPTION_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(63);
+/// The class of `HTMLTableColElement`.
+pub const HTML_TABLE_COL_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(64);
+/// The class of `HTMLTableSectionElement`.
+pub const HTML_TABLE_SECTION_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(65);
+/// The class of `HTMLTableRowElement`.
+pub const HTML_TABLE_ROW_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(66);
+/// The class of `HTMLTableCellElement`.
+pub const HTML_TABLE_CELL_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(67);
+/// The class of `HTMLFormElement`.
+pub const HTML_FORM_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(68);
+/// The class of `HTMLLabelElement`.
+pub const HTML_LABEL_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(69);
+/// The class of `HTMLInputElement`.
+pub const HTML_INPUT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(70);
+/// The class of `HTMLButtonElement`.
+pub const HTML_BUTTON_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(71);
+/// The class of `HTMLSelectElement`.
+pub const HTML_SELECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(72);
+/// The class of `HTMLDataListElement`.
+pub const HTML_DATA_LIST_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(73);
+/// The class of `HTMLOptGroupElement`.
+pub const HTML_OPT_GROUP_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(74);
+/// The class of `HTMLOptionElement`.
+pub const HTML_OPTION_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(75);
+/// The class of `HTMLTextAreaElement`.
+pub const HTML_TEXT_AREA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(76);
+/// The class of `HTMLOutputElement`.
+pub const HTML_OUTPUT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(77);
+/// The class of `HTMLProgressElement`.
+pub const HTML_PROGRESS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(78);
+/// The class of `HTMLMeterElement`.
+pub const HTML_METER_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(79);
+/// The class of `HTMLFieldSetElement`.
+pub const HTML_FIELD_SET_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(80);
+/// The class of `HTMLLegendElement`.
+pub const HTML_LEGEND_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(81);
+/// The class of `HTMLSelectedContentElement`.
+pub const HTML_SELECTED_CONTENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(82);
+/// The class of `HTMLDetailsElement`.
+pub const HTML_DETAILS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(83);
+/// The class of `HTMLDialogElement`.
+pub const HTML_DIALOG_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(84);
+/// The class of `HTMLFormControlsCollection`.
+pub const HTML_FORM_CONTROLS_COLLECTION: swb_js::ClassId = swb_js::ClassId::from_index(85);
+/// The class of `RadioNodeList`.
+pub const RADIO_NODE_LIST: swb_js::ClassId = swb_js::ClassId::from_index(86);
+/// The class of `HTMLOptionsCollection`.
+pub const HTML_OPTIONS_COLLECTION: swb_js::ClassId = swb_js::ClassId::from_index(87);
+/// The class of `HTMLSlotElement`.
+pub const HTML_SLOT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(88);
+/// The class of `HTMLCanvasElement`.
+pub const HTML_CANVAS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(89);
+/// The class of `HTMLMarqueeElement`.
+pub const HTML_MARQUEE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(90);
+/// The class of `HTMLFrameSetElement`.
+pub const HTML_FRAME_SET_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(91);
+/// The class of `HTMLFrameElement`.
+pub const HTML_FRAME_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(92);
+/// The class of `HTMLDirectoryElement`.
+pub const HTML_DIRECTORY_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(93);
+/// The class of `HTMLFontElement`.
+pub const HTML_FONT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(94);
+/// The class of `HTMLParamElement`.
+pub const HTML_PARAM_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(95);
 /// The class of `HTMLTemplateElement`.
-pub const HTML_TEMPLATE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(24);
+pub const HTML_TEMPLATE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(96);
 /// The class of `HTMLScriptElement`.
-pub const HTML_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(25);
+pub const HTML_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(97);
 /// The class of `ErrorEvent`.
-pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(26);
+pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(98);
 /// The class of `PromiseRejectionEvent`.
-pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(27);
+pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(99);
 /// The class of `PageTransitionEvent`.
-pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(28);
+pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(100);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(29);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(101);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + dom_string_map::DOMStringMapImpl + html_head_element::HTMLHeadElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + dom_string_map::DOMStringMapImpl + html_head_element::HTMLHeadElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
+#[allow(clippy::too_many_lines)]
 pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMParser").constructor(dom_parser::construct::<H>, 0), DOM_PARSER)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Event").constructor(event::construct::<H>, 1), EVENT)?;
@@ -130,11 +347,83 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Comment").parent(CHARACTER_DATA).constructor(comment::construct::<H>, 0), COMMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Performance").parent(EVENT_TARGET), PERFORMANCE)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window").parent(EVENT_TARGET), WINDOW)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT), HTML_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDocument").parent(DOCUMENT), HTML_DOCUMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT).constructor(html_element::construct::<H>, 0), HTML_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLUnknownElement").parent(HTML_ELEMENT), HTML_UNKNOWN_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMStringMap").hooks(dom_string_map::hooks::<H>()), DOM_STRING_MAP)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT), HTML_HEAD_ELEMENT)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTemplateElement").parent(HTML_ELEMENT), HTML_TEMPLATE_ELEMENT)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLScriptElement").parent(HTML_ELEMENT), HTML_SCRIPT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHtmlElement").parent(HTML_ELEMENT).constructor(html_html_element::construct::<H>, 0), HTML_HTML_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT).constructor(html_head_element::construct::<H>, 0), HTML_HEAD_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTitleElement").parent(HTML_ELEMENT).constructor(html_title_element::construct::<H>, 0), HTML_TITLE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLBaseElement").parent(HTML_ELEMENT).constructor(html_base_element::construct::<H>, 0), HTML_BASE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLLinkElement").parent(HTML_ELEMENT).constructor(html_link_element::construct::<H>, 0), HTML_LINK_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMetaElement").parent(HTML_ELEMENT).constructor(html_meta_element::construct::<H>, 0), HTML_META_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLStyleElement").parent(HTML_ELEMENT).constructor(html_style_element::construct::<H>, 0), HTML_STYLE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLBodyElement").parent(HTML_ELEMENT).constructor(html_body_element::construct::<H>, 0), HTML_BODY_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadingElement").parent(HTML_ELEMENT).constructor(html_heading_element::construct::<H>, 0), HTML_HEADING_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLParagraphElement").parent(HTML_ELEMENT).constructor(html_paragraph_element::construct::<H>, 0), HTML_PARAGRAPH_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHRElement").parent(HTML_ELEMENT).constructor(htmlhr_element::construct::<H>, 0), HTMLHR_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLPreElement").parent(HTML_ELEMENT).constructor(html_pre_element::construct::<H>, 0), HTML_PRE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLQuoteElement").parent(HTML_ELEMENT).constructor(html_quote_element::construct::<H>, 0), HTML_QUOTE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLOListElement").parent(HTML_ELEMENT).constructor(htmlo_list_element::construct::<H>, 0), HTMLO_LIST_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLUListElement").parent(HTML_ELEMENT).constructor(htmlu_list_element::construct::<H>, 0), HTMLU_LIST_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMenuElement").parent(HTML_ELEMENT).constructor(html_menu_element::construct::<H>, 0), HTML_MENU_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLLIElement").parent(HTML_ELEMENT).constructor(htmlli_element::construct::<H>, 0), HTMLLI_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDListElement").parent(HTML_ELEMENT).constructor(htmld_list_element::construct::<H>, 0), HTMLD_LIST_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDivElement").parent(HTML_ELEMENT).constructor(html_div_element::construct::<H>, 0), HTML_DIV_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLAnchorElement").parent(HTML_ELEMENT).constructor(html_anchor_element::construct::<H>, 0), HTML_ANCHOR_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDataElement").parent(HTML_ELEMENT).constructor(html_data_element::construct::<H>, 0), HTML_DATA_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTimeElement").parent(HTML_ELEMENT).constructor(html_time_element::construct::<H>, 0), HTML_TIME_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLSpanElement").parent(HTML_ELEMENT).constructor(html_span_element::construct::<H>, 0), HTML_SPAN_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLBRElement").parent(HTML_ELEMENT).constructor(htmlbr_element::construct::<H>, 0), HTMLBR_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLModElement").parent(HTML_ELEMENT).constructor(html_mod_element::construct::<H>, 0), HTML_MOD_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLPictureElement").parent(HTML_ELEMENT).constructor(html_picture_element::construct::<H>, 0), HTML_PICTURE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLSourceElement").parent(HTML_ELEMENT).constructor(html_source_element::construct::<H>, 0), HTML_SOURCE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLImageElement").parent(HTML_ELEMENT).constructor(html_image_element::construct::<H>, 0), HTML_IMAGE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLIFrameElement").parent(HTML_ELEMENT).constructor(htmli_frame_element::construct::<H>, 0), HTMLI_FRAME_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLEmbedElement").parent(HTML_ELEMENT).constructor(html_embed_element::construct::<H>, 0), HTML_EMBED_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLObjectElement").parent(HTML_ELEMENT).constructor(html_object_element::construct::<H>, 0), HTML_OBJECT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMediaElement").parent(HTML_ELEMENT), HTML_MEDIA_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLVideoElement").parent(HTML_MEDIA_ELEMENT).constructor(html_video_element::construct::<H>, 0), HTML_VIDEO_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLAudioElement").parent(HTML_MEDIA_ELEMENT).constructor(html_audio_element::construct::<H>, 0), HTML_AUDIO_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTrackElement").parent(HTML_ELEMENT).constructor(html_track_element::construct::<H>, 0), HTML_TRACK_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMapElement").parent(HTML_ELEMENT).constructor(html_map_element::construct::<H>, 0), HTML_MAP_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLAreaElement").parent(HTML_ELEMENT).constructor(html_area_element::construct::<H>, 0), HTML_AREA_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableElement").parent(HTML_ELEMENT).constructor(html_table_element::construct::<H>, 0), HTML_TABLE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableCaptionElement").parent(HTML_ELEMENT).constructor(html_table_caption_element::construct::<H>, 0), HTML_TABLE_CAPTION_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableColElement").parent(HTML_ELEMENT).constructor(html_table_col_element::construct::<H>, 0), HTML_TABLE_COL_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableSectionElement").parent(HTML_ELEMENT).constructor(html_table_section_element::construct::<H>, 0), HTML_TABLE_SECTION_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableRowElement").parent(HTML_ELEMENT).constructor(html_table_row_element::construct::<H>, 0), HTML_TABLE_ROW_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTableCellElement").parent(HTML_ELEMENT).constructor(html_table_cell_element::construct::<H>, 0), HTML_TABLE_CELL_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFormElement").parent(HTML_ELEMENT).constructor(html_form_element::construct::<H>, 0).hooks(html_form_element::hooks::<H>()), HTML_FORM_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLLabelElement").parent(HTML_ELEMENT).constructor(html_label_element::construct::<H>, 0), HTML_LABEL_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLInputElement").parent(HTML_ELEMENT).constructor(html_input_element::construct::<H>, 0), HTML_INPUT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLButtonElement").parent(HTML_ELEMENT).constructor(html_button_element::construct::<H>, 0), HTML_BUTTON_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLSelectElement").parent(HTML_ELEMENT).constructor(html_select_element::construct::<H>, 0).hooks(html_select_element::hooks::<H>()), HTML_SELECT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDataListElement").parent(HTML_ELEMENT).constructor(html_data_list_element::construct::<H>, 0), HTML_DATA_LIST_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLOptGroupElement").parent(HTML_ELEMENT).constructor(html_opt_group_element::construct::<H>, 0), HTML_OPT_GROUP_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLOptionElement").parent(HTML_ELEMENT).constructor(html_option_element::construct::<H>, 0), HTML_OPTION_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTextAreaElement").parent(HTML_ELEMENT).constructor(html_text_area_element::construct::<H>, 0), HTML_TEXT_AREA_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLOutputElement").parent(HTML_ELEMENT).constructor(html_output_element::construct::<H>, 0), HTML_OUTPUT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLProgressElement").parent(HTML_ELEMENT).constructor(html_progress_element::construct::<H>, 0), HTML_PROGRESS_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMeterElement").parent(HTML_ELEMENT).constructor(html_meter_element::construct::<H>, 0), HTML_METER_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFieldSetElement").parent(HTML_ELEMENT).constructor(html_field_set_element::construct::<H>, 0), HTML_FIELD_SET_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLLegendElement").parent(HTML_ELEMENT).constructor(html_legend_element::construct::<H>, 0), HTML_LEGEND_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLSelectedContentElement").parent(HTML_ELEMENT).constructor(html_selected_content_element::construct::<H>, 0), HTML_SELECTED_CONTENT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDetailsElement").parent(HTML_ELEMENT).constructor(html_details_element::construct::<H>, 0), HTML_DETAILS_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDialogElement").parent(HTML_ELEMENT).constructor(html_dialog_element::construct::<H>, 0), HTML_DIALOG_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFormControlsCollection").parent(HTML_COLLECTION).hooks(html_form_controls_collection::hooks::<H>()), HTML_FORM_CONTROLS_COLLECTION)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("RadioNodeList").parent(NODE_LIST).hooks(radio_node_list::hooks::<H>()), RADIO_NODE_LIST)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLOptionsCollection").parent(HTML_COLLECTION).hooks(html_options_collection::hooks::<H>()), HTML_OPTIONS_COLLECTION)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLSlotElement").parent(HTML_ELEMENT).constructor(html_slot_element::construct::<H>, 0), HTML_SLOT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLCanvasElement").parent(HTML_ELEMENT).constructor(html_canvas_element::construct::<H>, 0), HTML_CANVAS_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLMarqueeElement").parent(HTML_ELEMENT).constructor(html_marquee_element::construct::<H>, 0), HTML_MARQUEE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFrameSetElement").parent(HTML_ELEMENT).constructor(html_frame_set_element::construct::<H>, 0), HTML_FRAME_SET_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFrameElement").parent(HTML_ELEMENT).constructor(html_frame_element::construct::<H>, 0), HTML_FRAME_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLDirectoryElement").parent(HTML_ELEMENT).constructor(html_directory_element::construct::<H>, 0), HTML_DIRECTORY_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLFontElement").parent(HTML_ELEMENT).constructor(html_font_element::construct::<H>, 0), HTML_FONT_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLParamElement").parent(HTML_ELEMENT).constructor(html_param_element::construct::<H>, 0), HTML_PARAM_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLTemplateElement").parent(HTML_ELEMENT).constructor(html_template_element::construct::<H>, 0), HTML_TEMPLATE_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLScriptElement").parent(HTML_ELEMENT).constructor(html_script_element::construct::<H>, 0), HTML_SCRIPT_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ErrorEvent").parent(EVENT).constructor(error_event::construct::<H>, 1), ERROR_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("PromiseRejectionEvent").parent(EVENT).constructor(promise_rejection_event::construct::<H>, 2), PROMISE_REJECTION_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("PageTransitionEvent").parent(EVENT).constructor(page_transition_event::construct::<H>, 1), PAGE_TRANSITION_EVENT)?;
@@ -144,6 +433,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
 
 /// Creates the interfaces of the set in `realm` and defines the exposed
 /// ones on the global object.
+#[allow(clippy::too_many_lines)]
 pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {
     let interface = dom_parser::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMParser", interface)?;
@@ -187,12 +477,156 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "Performance", interface)?;
     let interface = window::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Window", interface)?;
+    let interface = html_document::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDocument", interface)?;
     let interface = html_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLElement", interface)?;
+    let interface = html_unknown_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLUnknownElement", interface)?;
     let interface = dom_string_map::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMStringMap", interface)?;
+    let interface = html_html_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLHtmlElement", interface)?;
     let interface = html_head_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLHeadElement", interface)?;
+    let interface = html_title_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTitleElement", interface)?;
+    let interface = html_base_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLBaseElement", interface)?;
+    let interface = html_link_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLLinkElement", interface)?;
+    let interface = html_meta_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMetaElement", interface)?;
+    let interface = html_style_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLStyleElement", interface)?;
+    let interface = html_body_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLBodyElement", interface)?;
+    let interface = html_heading_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLHeadingElement", interface)?;
+    let interface = html_paragraph_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLParagraphElement", interface)?;
+    let interface = htmlhr_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLHRElement", interface)?;
+    let interface = html_pre_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLPreElement", interface)?;
+    let interface = html_quote_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLQuoteElement", interface)?;
+    let interface = htmlo_list_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLOListElement", interface)?;
+    let interface = htmlu_list_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLUListElement", interface)?;
+    let interface = html_menu_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMenuElement", interface)?;
+    let interface = htmlli_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLLIElement", interface)?;
+    let interface = htmld_list_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDListElement", interface)?;
+    let interface = html_div_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDivElement", interface)?;
+    let interface = html_anchor_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLAnchorElement", interface)?;
+    let interface = html_data_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDataElement", interface)?;
+    let interface = html_time_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTimeElement", interface)?;
+    let interface = html_span_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLSpanElement", interface)?;
+    let interface = htmlbr_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLBRElement", interface)?;
+    let interface = html_mod_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLModElement", interface)?;
+    let interface = html_picture_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLPictureElement", interface)?;
+    let interface = html_source_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLSourceElement", interface)?;
+    let interface = html_image_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLImageElement", interface)?;
+    let interface = htmli_frame_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLIFrameElement", interface)?;
+    let interface = html_embed_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLEmbedElement", interface)?;
+    let interface = html_object_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLObjectElement", interface)?;
+    let interface = html_media_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMediaElement", interface)?;
+    let interface = html_video_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLVideoElement", interface)?;
+    let interface = html_audio_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLAudioElement", interface)?;
+    let interface = html_track_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTrackElement", interface)?;
+    let interface = html_map_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMapElement", interface)?;
+    let interface = html_area_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLAreaElement", interface)?;
+    let interface = html_table_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableElement", interface)?;
+    let interface = html_table_caption_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableCaptionElement", interface)?;
+    let interface = html_table_col_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableColElement", interface)?;
+    let interface = html_table_section_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableSectionElement", interface)?;
+    let interface = html_table_row_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableRowElement", interface)?;
+    let interface = html_table_cell_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTableCellElement", interface)?;
+    let interface = html_form_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFormElement", interface)?;
+    let interface = html_label_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLLabelElement", interface)?;
+    let interface = html_input_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLInputElement", interface)?;
+    let interface = html_button_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLButtonElement", interface)?;
+    let interface = html_select_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLSelectElement", interface)?;
+    let interface = html_data_list_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDataListElement", interface)?;
+    let interface = html_opt_group_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLOptGroupElement", interface)?;
+    let interface = html_option_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLOptionElement", interface)?;
+    let interface = html_text_area_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLTextAreaElement", interface)?;
+    let interface = html_output_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLOutputElement", interface)?;
+    let interface = html_progress_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLProgressElement", interface)?;
+    let interface = html_meter_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMeterElement", interface)?;
+    let interface = html_field_set_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFieldSetElement", interface)?;
+    let interface = html_legend_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLLegendElement", interface)?;
+    let interface = html_selected_content_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLSelectedContentElement", interface)?;
+    let interface = html_details_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDetailsElement", interface)?;
+    let interface = html_dialog_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDialogElement", interface)?;
+    let interface = html_form_controls_collection::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFormControlsCollection", interface)?;
+    let interface = radio_node_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "RadioNodeList", interface)?;
+    let interface = html_options_collection::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLOptionsCollection", interface)?;
+    let interface = html_slot_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLSlotElement", interface)?;
+    let interface = html_canvas_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLCanvasElement", interface)?;
+    let interface = html_marquee_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLMarqueeElement", interface)?;
+    let interface = html_frame_set_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFrameSetElement", interface)?;
+    let interface = html_frame_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFrameElement", interface)?;
+    let interface = html_directory_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLDirectoryElement", interface)?;
+    let interface = html_font_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLFontElement", interface)?;
+    let interface = html_param_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLParamElement", interface)?;
     let interface = html_template_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLTemplateElement", interface)?;
     let interface = html_script_element::define::<H>(rt, realm)?;

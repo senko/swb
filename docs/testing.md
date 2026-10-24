@@ -1056,7 +1056,12 @@ divs, 50,000 `outerHTML` sets, 40,000 `DOMParser` and
 `createHTMLDocument` calls, `closest` with failing descendant selectors on
 a chain of 100,000 divs, a selector list of 200,000 entries on 5,000
 elements, and a drain loop over `children` and `childNodes` of
-100,000 children. The cases with timers pass
+100,000 children. Cases for the form controls of feature 6c: 100,000
+reflected attribute accesses, a form of 100,000 controls with 100,000 named
+lookups, a select of 100,000 options with `add` and `remove`, a value of
+24 MB, 400 writes of 5 MB to the values of controls (the budget of 32 MiB
+ends the task), 6,000 appended radio buttons that a script checks, and
+30,000 `option.selected` writes. The cases with timers pass
 `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2314,6 +2319,33 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   registered); in `dom/src/parser/tests.rs` the `noscript` parse by
   context, `parse_document` and its limits; in `style/src/query.rs` the
   queries and a selector with many combinators on a deep tree.
+- `crates/web/tests/html_elements.rs`: the HTML element interfaces of feature
+  6c: every case of `tools/probes/web-html-elements.json` that is not about
+  form controls (prototype chains and constructor names of all element
+  interfaces, `new` and calls of the constructors, the reflected
+  attributes of each interface from `idl/html.idl` with missing, invalid,
+  case-folded, negative and overflowing values and with writes of many
+  kinds, `HTMLElement` members, URL decomposition of `a` and `area`,
+  token lists with `supports`, tables) with Chromium's values
+  (`tests/html_elements/cases.rs`, generated from the probe's `--json`
+  output; three Chromium runs gave equal values), each with and without
+  the GC stress mode; also tests of the element lists with 2,000 to 5,000
+  rows, controls and options. The test document resolves URLs against
+  its `base` element.
+- `crates/engine/tests/script_html.rs`: form controls from scripts
+  (feature 6c): the `forms-` cases of the same probe file (input values and
+  their dirty flag, `checked` and radio groups, `textarea`, `select`,
+  `option`, `form.elements`, `label`, `legend`) run in a page with
+  JavaScript on, and checks of what a probe cannot see: a script write
+  reaches the fragments, `:checked`, `:valid` and `:placeholder-shown`;
+  values survive a move; 20,000 controls and options in a loop; the
+  budget of 32 MiB for the values of controls; selects, options and clones
+  that keep their state outside the document.
+  `SWB_VALUES` has the departures (a color name stays unconverted; a select
+  that grows between two reads; `img` is not a named property of a
+  form; a control named like a built-in member of its form does not hide
+  it; an option that leaves a select without a built state; a removed and
+  inserted radio button; a range value after a change of `max`).
 - `crates/web/tests/events.rs`: the event core (feature 5a): every case
   of `tools/probes/web-events.json` with Chromium's values
   (`tests/events/cases.rs`, generated from the probe's `--json` output as

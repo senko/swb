@@ -21,12 +21,12 @@ use crate::state::{dom, dom_mut};
 
 /// A `HierarchyRequestError`. The glue adds Chromium's prefix, `Failed to
 /// execute 'NAME' on 'INTERFACE': `, to the message of every exception.
-pub(super) fn hierarchy(message: &str) -> Exception {
+pub(crate) fn hierarchy(message: &str) -> Exception {
     Exception::dom("HierarchyRequestError", message.to_owned())
 }
 
 /// A `NotFoundError`.
-pub(super) fn not_found(message: &str) -> Exception {
+pub(crate) fn not_found(message: &str) -> Exception {
     Exception::dom("NotFoundError", message.to_owned())
 }
 
@@ -161,7 +161,7 @@ fn inserted(dom: &Document, node: NodeId) -> Vec<NodeId> {
 /// DOM "pre-insert" `node` into `parent` before `child`, then the steps
 /// of the script elements that the insertion connected.
 /// <https://dom.spec.whatwg.org/#concept-node-pre-insert>
-pub(super) fn pre_insert(
+pub(crate) fn pre_insert(
     cx: &mut Cx<'_>,
     parent: NodeId,
     node: NodeId,
@@ -176,7 +176,7 @@ pub(super) fn pre_insert(
 
 /// DOM "replace" `child` of `parent` with `node`.
 /// <https://dom.spec.whatwg.org/#concept-node-replace>
-pub(super) fn replace(
+pub(crate) fn replace(
     cx: &mut Cx<'_>,
     parent: NodeId,
     node: NodeId,
@@ -200,7 +200,7 @@ pub(super) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::R
 
 /// DOM "pre-remove": removes `child` from `parent`.
 /// <https://dom.spec.whatwg.org/#concept-node-pre-remove>
-pub(super) fn pre_remove(cx: &mut Cx<'_>, parent: NodeId, child: NodeId) -> b::Result<()> {
+pub(crate) fn pre_remove(cx: &mut Cx<'_>, parent: NodeId, child: NodeId) -> b::Result<()> {
     if dom(cx.rt)?.parent(child) != Some(parent) {
         return Err(not_found(
             "The node to be removed is not a child of this node.",
@@ -330,7 +330,7 @@ pub(super) fn replace_with(
 }
 
 /// `ChildNode.remove`.
-pub(super) fn remove(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+pub(crate) fn remove(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
     if dom(cx.rt)?.parent(this).is_some() {
         dom_mut(cx.rt)?.remove(this);
     }

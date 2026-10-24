@@ -17,22 +17,7 @@ pub(super) fn sanitize(e: &ElementData, ty: InputType, value: &str) -> String {
             .trim_matches(is_html_whitespace)
             .to_owned(),
         InputType::Number if !is_valid_float(value) => String::new(),
-        InputType::Range if !is_valid_float(value) => {
-            // The default value: the middle of `min` (0) and `max` (100).
-            let bound = |name: &str, default: f64| {
-                e.attr(name)
-                    .filter(|v| is_valid_float(v))
-                    .and_then(|v| v.parse::<f64>().ok())
-                    .unwrap_or(default)
-            };
-            let (min, max) = (bound("min", 0.0), bound("max", 100.0));
-            let middle = if max < min {
-                min
-            } else {
-                min + (max - min) / 2.0
-            };
-            format!("{middle}")
-        }
+        InputType::Range => sanitize_range(e, value),
         InputType::Date(kind) => {
             let value = value.replace(['\n', '\r'], "");
             normalized_date(kind, &value).unwrap_or_default()
@@ -49,6 +34,49 @@ pub(super) fn sanitize(e: &ElementData, ty: InputType, value: &str) -> String {
         }
         _ => value.to_owned(),
     }
+}
+
+/// The value sanitization of `type=range`: an invalid value becomes the
+/// default (the middle of the range); the value is clamped to `min` and
+/// `max`, rounded to the nearest step (`step` default 1, from `min`) and
+/// written as a number (`10.0` gives `10`; measured in Chromium).
+/// <https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range)>
+fn sanitize_range(e: &ElementData, value: &str) -> String {
+    let bound = |name: &str, default: f64| {
+        e.attr(name)
+            .filter(|v| is_valid_float(v))
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(default)
+    };
+    let min = bound("min", 0.0);
+    let max = bound("max", 100.0).max(min);
+    let parsed = is_valid_float(value)
+        .then(|| value.parse::<f64>().ok())
+        .flatten();
+    let number = parsed.unwrap_or(min + (max - min) / 2.0);
+    let step = match e.attr("step") {
+        Some(s) if s.eq_ignore_ascii_case("any") => None,
+        Some(s) if is_valid_float(s) => s.parse::<f64>().ok().filter(|&v| v > 0.0).or(Some(1.0)),
+        _ => Some(1.0),
+    };
+    let mut result = number.clamp(min, max);
+    if let Some(step) = step {
+        let steps = (result - min) / step;
+        if (steps - steps.round()).abs() > 1e-9 {
+            // The nearest step; the higher one if two are equally near.
+            let mut n = (steps + 0.5).floor();
+            while min + n * step > max && n > 0.0 {
+                n -= 1.0;
+            }
+            result = min + n * step;
+        }
+    }
+    format_range(result)
+}
+
+/// A range value as a number string (no `-0`).
+fn format_range(number: f64) -> String {
+    format!("{}", if number == 0.0 { 0.0 } else { number })
 }
 
 /// The latest date of date and time inputs: the end of the ECMAScript time

@@ -29,6 +29,7 @@ mod derived;
 mod loads;
 mod pipeline;
 mod queries;
+mod script_forms;
 mod scripts;
 #[cfg(test)]
 mod tests;
@@ -128,6 +129,16 @@ pub struct DocumentState {
     /// The state of the form controls; rebuilt by generation
     /// ([`DocumentState::refresh_forms`]).
     pub(crate) forms: Derived<Forms>,
+    /// What scripts wrote to controls that have no state in `forms`.
+    pub(crate) seeds: crate::forms::Seeds,
+    /// True if a script changed the state of a control: the element
+    /// states of the controls (`:checked`, `:valid`, ...) are outdated.
+    pub(crate) controls_stale: bool,
+    /// The bytes of the values that scripts wrote to text fields and text
+    /// areas (in the states and in the seeds); a budget of the document.
+    pub(crate) control_bytes: usize,
+    /// The inputs whose `indeterminate` property a script set to true.
+    pub(crate) indeterminate: std::collections::HashSet<NodeId>,
     /// The tree order of the nodes, for the selection; built when needed.
     tree_order: Derived<TreeOrder>,
     /// The author stylesheets, in tree order of their owner elements.
@@ -187,6 +198,10 @@ impl DocumentState {
             content_type: init.content_type,
             title: Derived::new(String::new()),
             forms: Derived::new(Forms::default()),
+            seeds: crate::forms::Seeds::default(),
+            controls_stale: false,
+            control_bytes: 0,
+            indeterminate: std::collections::HashSet::new(),
             tree_order: Derived::new(TreeOrder::default()),
             sheets: Sheets::default(),
             sheet_serial: 0,
@@ -272,6 +287,50 @@ impl swb_web::EngineHost for DocumentState {
         self.states.clone()
     }
 
+    fn control_value(&mut self, node: NodeId) -> Option<String> {
+        self.script_control_value(node)
+    }
+
+    fn set_control_value(&mut self, node: NodeId, value: &str) -> swb_web::ControlWrite {
+        self.script_set_control_value(node, value)
+    }
+
+    fn set_control_indeterminate(&mut self, node: NodeId, value: bool) {
+        self.script_set_indeterminate(node, value);
+    }
+
+    fn copy_control_state(&mut self, from: NodeId, to: NodeId) -> swb_web::ControlWrite {
+        self.script_copy_control_state(from, to)
+    }
+
+    fn control_checked(&mut self, node: NodeId) -> Option<bool> {
+        self.script_control_checked(node)
+    }
+
+    fn set_control_checked(&mut self, node: NodeId, checked: bool) -> bool {
+        self.script_set_control_checked(node, checked)
+    }
+
+    fn selected_index(&mut self, select: NodeId) -> i32 {
+        self.script_selected_index(select)
+    }
+
+    fn set_selected_index(&mut self, select: NodeId, index: i32) {
+        self.script_set_selected_index(select, index);
+    }
+
+    fn option_selected(&mut self, option: NodeId) -> bool {
+        self.script_option_selected(option)
+    }
+
+    fn set_option_selected(&mut self, option: NodeId, selected: bool) {
+        self.script_set_option_selected(option, selected);
+    }
+
+    fn parse_url_against_document_url(&mut self, value: &str) -> Option<String> {
+        self.url.join(value).ok().map(|u| u.to_string())
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
@@ -353,14 +412,40 @@ impl DocumentState {
     /// they were built. A rebuild keeps the values that the user changed
     /// (the dirty value and checkedness flags).
     pub(crate) fn refresh_forms(&mut self) {
+        if !self.ensure_forms() && self.controls_stale {
+            // A script changed a control without a change of the DOM.
+            self.controls_stale = false;
+            let states = Arc::new(
+                self.forms
+                    .value()
+                    .element_states(&self.dom, &self.indeterminate),
+            );
+            self.update_states(|s| s.controls = states);
+            self.invalidate_layout();
+        }
+    }
+
+    /// Rebuilds the state of the form controls if the DOM changed since
+    /// they were built, and leaves the element states of script writes for
+    /// [`DocumentState::refresh_forms`] (a loop of writes then does not
+    /// compute them for each write). True if it rebuilt.
+    pub(crate) fn ensure_forms(&mut self) -> bool {
         let generation = self.dom.generation();
         if self.forms.is_current(generation) {
-            return;
+            return false;
         }
         let dom = &self.dom;
-        self.forms
-            .rebuild(generation, |old| Forms::rebuild(old, dom));
-        self.states.controls = Arc::new(self.forms.value().element_states(dom));
+        let seeds = &mut self.seeds;
+        self.forms.rebuild(generation, |old| {
+            let mut forms = Forms::rebuild(old, dom);
+            forms.merge_seeds(old, dom, seeds);
+            forms
+        });
+        self.controls_stale = false;
+        self.control_bytes = self.forms.value().dirty_value_bytes() + self.seeds.value_bytes();
+        self.states.controls =
+            Arc::new(self.forms.value().element_states(dom, &self.indeterminate));
+        true
     }
 
     /// The tree order of the document's nodes, rebuilt if the DOM changed.

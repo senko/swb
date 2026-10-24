@@ -41,7 +41,7 @@ impl GenericData for ListData {
 }
 
 /// A new token list of the attribute `attribute` of `element`.
-pub(super) fn new_token_list(
+pub(crate) fn new_token_list(
     rt: &mut Runtime,
     realm: u32,
     element: NodeId,
@@ -259,11 +259,21 @@ impl g::dom_token_list::DOMTokenListImpl for WebState {
         Ok(true)
     }
 
-    /// The tokens of the `class` attribute have no supported tokens.
-    fn supports(_cx: &mut Cx<'_>, _this: Platform, _token: String) -> b::Result<bool> {
-        Err(Exception::type_error(
-            "DOMTokenList has no supported tokens.",
-        ))
+    /// The supported tokens of the list's attribute (`relList` of `link`,
+    /// `sandbox`, ...): the token in ASCII lowercase is one of them. The
+    /// tokens of `class` have none, and then the call throws.
+    fn supports(cx: &mut Cx<'_>, this: Platform, token: String) -> b::Result<bool> {
+        let (element, attribute) = list_of(cx.rt, this)?;
+        let tag = dom(cx.rt)?
+            .element(element)
+            .map(|e| e.local_name().to_string())
+            .unwrap_or_default();
+        match crate::html::supported_tokens(&tag, &attribute) {
+            Some(tokens) => Ok(tokens.contains(&token.to_ascii_lowercase().as_str())),
+            None => Err(Exception::type_error(
+                "DOMTokenList has no supported tokens.",
+            )),
+        }
     }
 
     fn index_count(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {

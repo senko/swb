@@ -46,6 +46,7 @@ mod events;
 #[rustfmt::skip]
 pub mod generated;
 mod host;
+mod html;
 mod runtime;
 mod scripts;
 mod state;
@@ -54,7 +55,7 @@ mod window;
 
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent};
-pub use host::EngineHost;
+pub use host::{ControlWrite, EngineHost};
 pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,

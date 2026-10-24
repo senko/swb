@@ -53,15 +53,29 @@ pub(super) fn select_options(
             selected: doc.element(node).is_some_and(|e| e.has_attr("selected")),
         })
         .collect();
+    settle(doc, select, &mut options, &|n| disabled.contains(n));
+    options
+}
+
+/// The selectedness setting algorithm: a drop-down select has one
+/// selected option (the first one that is not disabled if none is), and a
+/// select without `multiple` keeps only the last selected option.
+/// <https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm>
+pub(crate) fn settle(
+    doc: &Document,
+    select: NodeId,
+    options: &mut [OptionState],
+    is_disabled: &dyn Fn(NodeId) -> bool,
+) {
     let Some(e) = doc.element(select) else {
-        return options;
+        return;
     };
     if e.has_attr("multiple") {
-        return options;
+        return;
     }
     let selected = options.iter().filter(|o| o.selected).count();
     if selected == 0 && display_size(e) == 1 {
-        if let Some(first) = options.iter_mut().find(|o| !disabled.contains(o.node)) {
+        if let Some(first) = options.iter_mut().find(|o| !is_disabled(o.node)) {
             first.selected = true;
         }
     } else if selected > 1 {
@@ -70,13 +84,40 @@ pub(super) fn select_options(
             option.selected = Some(i) == last;
         }
     }
+}
+
+/// The options of a select for a select that is not in the document: the
+/// default selectedness with the selectedness that scripts wrote
+/// (`seeds`). An option is disabled if it or its `optgroup` parent has a
+/// `disabled` attribute.
+pub(crate) fn detached_options(
+    doc: &Document,
+    select: NodeId,
+    seed: &dyn Fn(NodeId) -> Option<bool>,
+) -> Vec<OptionState> {
+    let mut options: Vec<OptionState> = list_of_options(doc, select)
+        .into_iter()
+        .map(|node| OptionState {
+            node,
+            selected: seed(node)
+                .unwrap_or_else(|| doc.element(node).is_some_and(|e| e.has_attr("selected"))),
+        })
+        .collect();
+    let disabled = |n: NodeId| {
+        doc.element(n).is_some_and(|e| e.has_attr("disabled"))
+            || doc
+                .parent(n)
+                .and_then(|p| doc.element(p))
+                .is_some_and(|p| &**p.local_name() == "optgroup" && p.has_attr("disabled"))
+    };
+    settle(doc, select, &mut options, &disabled);
     options
 }
 
 /// The list of options of a select: its `option` children and the
 /// `option` children of its `optgroup` children, in tree order.
 /// <https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list>
-fn list_of_options(doc: &Document, select: NodeId) -> Vec<NodeId> {
+pub(crate) fn list_of_options(doc: &Document, select: NodeId) -> Vec<NodeId> {
     let mut out = Vec::new();
     for child in doc.element_children(select) {
         if doc.is_html_element(child, &local_name!("option")) {
@@ -95,7 +136,7 @@ fn list_of_options(doc: &Document, select: NodeId) -> Vec<NodeId> {
 /// and collapsed.
 /// <https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-text>
 fn option_text(doc: &Document, option: NodeId) -> String {
-    doc.text_content(option)
+    doc.text_content_without_scripts(option)
         .split(is_html_whitespace)
         .filter(|w| !w.is_empty())
         .collect::<Vec<_>>()

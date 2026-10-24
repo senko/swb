@@ -49,6 +49,22 @@ impl TestDocument {
     }
 }
 
+impl TestDocument {
+    /// The document base URL: the first `base` element with an `href`
+    /// (resolved against the document URL), else the document URL.
+    fn current_base(&self) -> url::Url {
+        let document = url::Url::parse(URL).expect("the test URL");
+        let href = self
+            .dom
+            .find_element(swb_dom::NodeId::DOCUMENT, |e| {
+                e.is_html() && &**e.local_name() == "base" && e.has_attr("href")
+            })
+            .and_then(|n| self.dom.element(n))
+            .and_then(|e| e.attr("href"));
+        href.and_then(|h| document.join(h).ok()).unwrap_or(document)
+    }
+}
+
 impl EngineHost for TestDocument {
     fn dom(&self) -> &Document {
         &self.dom
@@ -63,11 +79,16 @@ impl EngineHost for TestDocument {
     }
 
     fn base_url(&mut self) -> String {
-        URL.to_owned()
+        self.current_base().to_string()
     }
 
     fn parse_url(&mut self, value: &str) -> Option<String> {
-        Some(format!("file:///probe/{value}"))
+        self.current_base().join(value).ok().map(String::from)
+    }
+
+    fn parse_url_against_document_url(&mut self, value: &str) -> Option<String> {
+        let document = url::Url::parse(URL).ok()?;
+        document.join(value).ok().map(String::from)
     }
 
     fn character_set(&self) -> &'static str {

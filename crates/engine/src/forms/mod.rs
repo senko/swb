@@ -19,6 +19,7 @@
 //! text instead of the image.
 
 mod encode;
+mod script;
 mod select;
 mod submit;
 mod values;
@@ -33,7 +34,10 @@ use swb_style::DisabledElements;
 
 use crate::edit::TextEdit;
 
-pub(crate) use select::{option_label, option_value};
+pub(crate) use script::{
+    Seeds, option_is_disabled, options_of_detached, select_is_attached, select_of_option,
+};
+pub(crate) use select::{option_label, option_value, settle};
 pub(crate) use submit::{FormContext, Submitter, blocking_fields, default_button, form_submission};
 pub(crate) use view::{LayoutControls, display_offset, value_offset};
 
@@ -263,6 +267,10 @@ pub(crate) struct ControlState {
     /// selection. Other controls do not use it.
     pub(crate) edit: TextEdit,
     pub(crate) checked: bool,
+    /// When the control last became checked, by the clock of
+    /// [`Forms::next_stamp`] (0: from the `checked` attribute). Of the
+    /// checked radio buttons of a group, the newest stays checked.
+    pub(crate) checked_at: u64,
     /// The scroll offset of the text, from the last layout.
     pub(crate) scroll: Point,
     /// For a select: its options in tree order.
@@ -299,14 +307,31 @@ pub(crate) struct Forms {
     controls: HashMap<NodeId, ControlState>,
     /// The select of each option.
     option_select: HashMap<NodeId, NodeId>,
+    /// The last stamp of [`Forms::next_stamp`].
+    stamp: u64,
 }
 
 impl Forms {
     /// The controls of `doc` with their default state.
+    #[cfg(test)]
     pub(crate) fn new(doc: &Document) -> Forms {
+        Forms::new_with(doc, 0)
+    }
+
+    /// The next value of the clock that orders the checkedness changes.
+    pub(crate) fn next_stamp(&mut self) -> u64 {
+        self.stamp += 1;
+        self.stamp
+    }
+
+    /// [`Forms::new`] with the clock of the states before it.
+    fn new_with(doc: &Document, stamp: u64) -> Forms {
         let ids = doc.element_ids();
         let disabled_elements = DisabledElements::new(doc);
-        let mut forms = Forms::default();
+        let mut forms = Forms {
+            stamp,
+            ..Forms::default()
+        };
         let mut radios = Vec::new();
         for node in doc.descendants(NodeId::DOCUMENT) {
             let Some(e) = doc.element(node) else {
@@ -347,7 +372,7 @@ impl Forms {
     /// value stays the same. Of the checked radio buttons of a group, the
     /// last one in tree order stays checked.
     pub(crate) fn rebuild(old: &Forms, doc: &Document) -> Forms {
-        let mut forms = Forms::new(doc);
+        let mut forms = Forms::new_with(doc, old.stamp);
         if old.controls.is_empty() {
             return forms;
         }
@@ -361,6 +386,9 @@ impl Forms {
                 if state.ty.is_text() && previous.edit.text() == state.edit.text() {
                     state.edit = previous.edit.clone();
                 }
+                if state.ty == ControlType::Select {
+                    keep_implicit_selection(doc, state, previous);
+                }
                 continue;
             }
             state.dirty = true;
@@ -371,6 +399,7 @@ impl Forms {
                 radios_restored |= state.ty == ControlType::Input(InputType::Radio)
                     && previous.checked != state.checked;
                 state.checked = previous.checked;
+                state.checked_at = previous.checked_at;
             }
             if state.ty == ControlType::Select {
                 let selected: HashSet<NodeId> = previous
@@ -407,7 +436,12 @@ impl Forms {
         let mut last: HashMap<(Option<NodeId>, &str), NodeId> = HashMap::new();
         for &node in checked {
             if let Some(key) = self.radio_key(doc, node) {
-                last.insert(key, node);
+                let at = |n: NodeId| self.get(n).map_or(0, |s| s.checked_at);
+                // The newest checkedness wins; among equal ones, the last
+                // in tree order.
+                if last.get(&key).is_none_or(|&prev| at(prev) <= at(node)) {
+                    last.insert(key, node);
+                }
             }
         }
         let unchecked: Vec<NodeId> = checked
@@ -464,25 +498,7 @@ impl Forms {
             return Some(option_value(doc, node));
         }
         let state = self.get(node)?;
-        let e = doc.element(node)?;
-        Some(match state.ty {
-            ControlType::Input(
-                t @ (InputType::Number | InputType::Range | InputType::Color | InputType::Date(_)),
-            ) => sanitize(e, t, state.edit.text()),
-            ControlType::Input(InputType::Checkbox | InputType::Radio) => {
-                e.attr("value").unwrap_or("on").to_owned()
-            }
-            ControlType::Input(InputType::File) => String::new(),
-            ControlType::Input(t) if !t.is_text() => e.attr("value").unwrap_or("").to_owned(),
-            ControlType::Button(_) => e.attr("value").unwrap_or("").to_owned(),
-            ControlType::Select => state
-                .options
-                .iter()
-                .find(|o| o.selected)
-                .map(|o| option_value(doc, o.node))
-                .unwrap_or_default(),
-            _ => state.edit.text().to_owned(),
-        })
+        Some(state_value(doc.element(node)?, doc, state))
     }
 
     /// The checkedness of a checkbox or radio button, or the selectedness
@@ -511,6 +527,12 @@ impl Forms {
         state.checked = checked;
         state.dirty = true;
         let is_radio = state.ty == ControlType::Input(InputType::Radio);
+        if checked {
+            let stamp = self.next_stamp();
+            if let Some(state) = self.get_mut(node) {
+                state.checked_at = stamp;
+            }
+        }
         if !(checked && is_radio) {
             return changed;
         }
@@ -579,7 +601,11 @@ impl Forms {
     /// The states that style needs: [`swb_style::CONTROL_STATES`] of every
     /// control and option. Controls that are barred from constraint
     /// validation match neither `:valid` nor `:invalid`.
-    pub(crate) fn element_states(&self, doc: &Document) -> HashMap<NodeId, ElementState> {
+    pub(crate) fn element_states(
+        &self,
+        doc: &Document,
+        indeterminate: &HashSet<NodeId>,
+    ) -> HashMap<NodeId, ElementState> {
         let mut out = HashMap::with_capacity(self.controls.len());
         let groups = self.radio_groups(doc);
         for (&node, state) in &self.controls {
@@ -589,6 +615,21 @@ impl Forms {
             let mut flags = ElementState::empty();
             if state.checked && state.ty.is_checkable() {
                 flags |= ElementState::CHECKED;
+            }
+            // `:indeterminate`: a checkbox whose `indeterminate` property
+            // a script set, and a radio button whose group has no checked
+            // button.
+            // <https://html.spec.whatwg.org/multipage/semantics-other.html#selector-indeterminate>
+            let indeterminate = match state.ty {
+                ControlType::Input(InputType::Checkbox) => indeterminate.contains(&node),
+                ControlType::Input(InputType::Radio) => match self.radio_key(doc, node) {
+                    Some(key) => !groups.checked.contains(&key),
+                    None => !state.checked,
+                },
+                _ => false,
+            };
+            if indeterminate {
+                flags |= ElementState::INDETERMINATE;
             }
             for option in &state.options {
                 let selected = if option.selected {
@@ -718,6 +759,53 @@ struct RadioGroups<'a> {
     required: HashSet<(Option<NodeId>, &'a str)>,
 }
 
+/// A select that no `selected` attribute decides keeps the selected option
+/// when its list of options changes: the selectedness of an option stays,
+/// and the selectedness setting algorithm picks the first option only if
+/// none is selected (`previous` is the state before the change). Without
+/// this, adding an option before the selected one moved the selection.
+fn keep_implicit_selection(doc: &Document, state: &mut ControlState, previous: &ControlState) {
+    let by_attribute = state
+        .options
+        .iter()
+        .any(|o| doc.element(o.node).is_some_and(|e| e.has_attr("selected")));
+    if by_attribute {
+        return;
+    }
+    let Some(kept) = previous.options.iter().find(|o| o.selected) else {
+        return;
+    };
+    if state.options.iter().any(|o| o.node == kept.node) {
+        for option in &mut state.options {
+            option.selected = option.node == kept.node;
+        }
+    }
+}
+
+/// The value of a control with the state `state` as the `value` IDL
+/// attribute returns it
+/// (<https://html.spec.whatwg.org/multipage/input.html#dom-input-value>).
+pub(crate) fn state_value(e: &ElementData, doc: &Document, state: &ControlState) -> String {
+    match state.ty {
+        ControlType::Input(
+            t @ (InputType::Number | InputType::Range | InputType::Color | InputType::Date(_)),
+        ) => sanitize(e, t, state.edit.text()),
+        ControlType::Input(InputType::Checkbox | InputType::Radio) => {
+            e.attr("value").unwrap_or("on").to_owned()
+        }
+        ControlType::Input(InputType::File) => String::new(),
+        ControlType::Input(t) if !t.is_text() => e.attr("value").unwrap_or("").to_owned(),
+        ControlType::Button(_) => e.attr("value").unwrap_or("").to_owned(),
+        ControlType::Select => state
+            .options
+            .iter()
+            .find(|o| o.selected)
+            .map(|o| option_value(doc, o.node))
+            .unwrap_or_default(),
+        _ => state.edit.text().to_owned(),
+    }
+}
+
 /// The state of a control from its attributes and content. The form
 /// owner and the disabled and barred flags are not set.
 fn default_state(
@@ -732,14 +820,7 @@ fn default_state(
     } else {
         TextEdit::new()
     };
-    let default_value = match (ty, e) {
-        // The child text content; the parser already dropped a leading
-        // newline. Line breaks are normalized to LF (the API value).
-        (ControlType::TextArea, _) => normalize_newlines(&doc.text_content(node)),
-        (ControlType::Input(t), Some(e)) => sanitize(e, t, e.attr("value").unwrap_or("")),
-        _ => String::new(),
-    };
-    edit.replace_text(&default_value);
+    edit.replace_text(&default_text(doc, node, ty));
     // The caret starts at the start: in Chromium (measured), text typed
     // after a label or a script focused the field goes before its value.
     edit.text_start(false);
@@ -758,6 +839,7 @@ fn default_state(
         ty,
         edit,
         checked: e.is_some_and(|e| e.has_attr("checked")),
+        checked_at: 0,
         scroll: Point::default(),
         options: if ty == ControlType::Select {
             select_options(doc, node, disabled)
@@ -768,6 +850,27 @@ fn default_state(
         disabled: false,
         barred: false,
         dirty: false,
+    }
+}
+
+/// The default value of a text field or text area: the sanitized `value`
+/// attribute, or for a text area the child text content (the parser
+/// already dropped a leading newline; line breaks are normalized to LF,
+/// the API value).
+pub(crate) fn default_text(doc: &Document, node: NodeId, ty: ControlType) -> String {
+    match (ty, doc.element(node)) {
+        (ControlType::TextArea, _) => normalize_newlines(&doc.text_content(node)),
+        (ControlType::Input(t), Some(e)) => sanitize(e, t, e.attr("value").unwrap_or("")),
+        _ => String::new(),
+    }
+}
+
+/// The value of a text field or text area as a script's `value` is
+/// stored: sanitized for an `input`, with LF line breaks for a text area.
+pub(crate) fn sanitize_value(e: &ElementData, ty: ControlType, value: &str) -> String {
+    match ty {
+        ControlType::Input(t) => sanitize(e, t, value),
+        _ => normalize_newlines(value),
     }
 }
 
@@ -869,6 +972,30 @@ mod tests {
         assert_eq!(value("r2"), "15");
         assert_eq!(value("col"), "#abcdef");
         assert_eq!(value("col2"), "#000000");
+    }
+
+    #[test]
+    fn range_values_are_clamped_and_stepped() {
+        let doc = parse_html(
+            "<input id=a type=range value=500><input id=b type=range min=20 value=3>\
+             <input id=c type=range min=1 max=10 step=3>\
+             <input id=d type=range max=1 step=0.25 value=0.6>\
+             <input id=e type=range max=1 step=any value=0.3333>\
+             <input id=f type=range min=10 max=5 value=1>\
+             <input id=g type=range value=10.0><input id=h type=range value=1e1>",
+        );
+        let forms = Forms::new(&doc);
+        let value = |name: &str| forms.value(&doc, id(&doc, name)).expect("a control");
+        assert_eq!(value("a"), "100");
+        assert_eq!(value("b"), "20");
+        // The default is the middle, rounded to the step: 1, 4, 7, 10.
+        assert_eq!(value("c"), "7");
+        assert_eq!(value("d"), "0.5");
+        assert_eq!(value("e"), "0.3333");
+        // `max` below `min` counts as `min`.
+        assert_eq!(value("f"), "10");
+        assert_eq!(value("g"), "10");
+        assert_eq!(value("h"), "10");
     }
 
     #[test]
@@ -987,7 +1114,7 @@ mod tests {
              <input id=ro readonly required><input id=sb type=submit><input id=b type=button>",
         );
         let mut forms = Forms::new(&doc);
-        let states = forms.element_states(&doc);
+        let states = forms.element_states(&doc, &HashSet::new());
         let (p, r, c) = (id(&doc, "p"), id(&doc, "r"), id(&doc, "c"));
         assert!(states[&p].contains(ElementState::PLACEHOLDER_SHOWN));
         assert!(states[&r].contains(ElementState::VALID));
@@ -1001,7 +1128,7 @@ mod tests {
         forms.get_mut(r).expect("r").edit.select_all();
         forms.get_mut(r).expect("r").edit.delete_selection();
         forms.set_checked(&doc, c, true);
-        let states = forms.element_states(&doc);
+        let states = forms.element_states(&doc, &HashSet::new());
         assert!(!states[&p].contains(ElementState::PLACEHOLDER_SHOWN));
         assert!(states[&r].contains(ElementState::INVALID));
         assert!(states[&c].contains(ElementState::CHECKED));

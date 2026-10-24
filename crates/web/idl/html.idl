@@ -13,24 +13,45 @@
 // 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
 // THIRD_PARTY_NOTICES.md for the license text.
 //
-// swb cut these IDL blocks to the members that it implements (features 4c2
-// and 5a of M8): Window has the members that name windows and its document;
-// Document has `readyState`, `title`, `body`, `head` and `currentScript`
-// (feature 5c); HTMLScriptElement has `src`, `type`, `noModule`, `async`,
-// `defer` and `text` (feature 5c), and no constructor; HTMLElement has no members yet
-// and no constructor; HTMLHeadElement is complete apart from the
-// constructor; ErrorEvent, PromiseRejectionEvent and PageTransitionEvent
-// are complete; WindowOrWorkerGlobalScope has the timers, `queueMicrotask`
-// and `reportError` (feature 5b), and TimerHandler has no TrustedScript
-// (swb has no Trusted Types). `Function` lacks its
-// [LegacyTreatNonObjectAsNull], which only event handler attributes
-// need. The order of the remaining members is the specification's.
+// swb cut these IDL blocks to the members that it implements (features 4c2,
+// 5a, 5c, 6b and 6c of M8). Window has the members that name windows and its
+// document. Document has `readyState`, `title`, `body`, `head`,
+// `currentScript`, the document collections and `getElementsByName`.
+// HTMLElement has the metadata and user interaction attributes that need
+// no layout and no events (`title`, `lang`, `translate`, `dir`, `hidden`,
+// `inert`, `accessKey`, `draggable`, `spellcheck`, `autocapitalize`,
+// `inputMode`, `enterKeyHint`) and the
+// members of HTMLOrSVGElement without `nonce`, `focus` and `blur` (feature
+// 6d); it lacks `click`, `innerText`, `outerText`, `contentEditable`,
+// `popover`, `attachInternals` and the popover members. No element
+// interface has the obsolete members, `validity` and the other constraint
+// validation members, `labels`, `files`, `valueAsNumber`, `valueAsDate`,
+// the selection members of input and textarea, `form.submit()`,
+// `reset()`, `requestSubmit()`, `iframe.contentWindow` and
+// `contentDocument`, `canvas.getContext`, the media playback members,
+// `dialog.show*`, `meter` and `progress` values, `sheet` and the
+// `LegacyFactoryFunction` of `Image` and `Option` (added with feature 6c
+// part 4). The attributes whose prose says "limited to only known
+// values" have swb's `[SwbKeywords]` (see the generator). `width` and
+// `height` of `img` reflect the content attributes (the standard returns
+// the rendered or natural size). Two members are the standard's
+// `ReflectSetter` with swb's getter: `tabIndex` and `action`. Other
+// members whose getter the standard describes in prose are `[SwbCustom]`
+// or have a hand-written getter. The element interfaces keep
+// `[HTMLConstructor]`; swb has no custom elements, so the generator emits a
+// constructor that throws `Illegal constructor` for it. ErrorEvent, PromiseRejectionEvent and
+// PageTransitionEvent are complete; WindowOrWorkerGlobalScope has the
+// timers, `queueMicrotask` and `reportError` (feature 5b), and TimerHandler
+// has no TrustedScript (swb has no Trusted Types). `Function` lacks its
+// [LegacyTreatNonObjectAsNull], which only event handler attributes need.
+// The order of the remaining members is the specification's.
 //
-// Two lines are swb's own: the typedef of WindowProxy (without frames, the
-// WindowProxy of a window is the Window object itself, ADR 0028 section
-// 4), and the typedef of HTMLOrSVGScriptElement, which is the union of
-// HTMLScriptElement and SVGScriptElement in HTML (swb has no SVG
-// interfaces and runs no SVG scripts).
+// Three lines are swb's own: the typedef of WindowProxy (without frames,
+// the WindowProxy of a window is the Window object itself, ADR 0028
+// section 4), the typedef of HTMLOrSVGScriptElement, which is the union of
+// HTMLScriptElement and SVGScriptElement in HTML (swb runs no SVG
+// scripts), and `HTMLDocument` (Chromium's interface of every document;
+// the standard has none).
 
 typedef Window WindowProxy;
 typedef HTMLScriptElement HTMLOrSVGScriptElement;
@@ -85,13 +106,47 @@ partial interface Document {
   [SameObject] readonly attribute HTMLCollection applets;
 };
 
+// The interface of the elements of a document in the HTML namespace
+// (HTML §3.2.8 and the element index): HTMLElement, HTMLUnknownElement
+// and one interface for each element that has IDL members. HTMLDocument
+// is swb's own line (Chromium's `HTMLDocument` is the interface of every
+// document).
+
+[Exposed=Window]
+interface HTMLDocument : Document {
+};
+
 [Exposed=Window]
 interface HTMLElement : Element {
+  [HTMLConstructor] constructor();
+
+  // metadata attributes
+  [CEReactions, Reflect] attribute DOMString title;
+  [CEReactions, Reflect] attribute DOMString lang;
+  [CEReactions] attribute boolean translate;
+  [CEReactions, Reflect, SwbKeywords="ltr rtl auto"] attribute DOMString dir;
+
+  // user interaction
+  [CEReactions] attribute (boolean or unrestricted double or DOMString)? hidden;
+  [CEReactions, Reflect] attribute boolean inert;
+  [CEReactions, Reflect] attribute DOMString accessKey;
+  [CEReactions] attribute boolean draggable;
+  [CEReactions] attribute boolean spellcheck;
+  [CEReactions, Reflect, SwbKeywords="= none off=none on=sentences sentences words characters", SwbInvalid="sentences"] attribute DOMString autocapitalize;
+  [CEReactions, Reflect, SwbKeywords="none text tel url email numeric decimal search", SwbMissing="", SwbInvalid=""] attribute DOMString inputMode;
+  [CEReactions, Reflect, SwbKeywords="enter done go next previous search send", SwbMissing="", SwbInvalid=""] attribute DOMString enterKeyHint;
 };
 HTMLElement includes HTMLOrSVGElement;
 
+[Exposed=Window]
+interface HTMLUnknownElement : HTMLElement {
+};
+
 interface mixin HTMLOrSVGElement {
   [SameObject] readonly attribute DOMStringMap dataset;
+  [Reflect] attribute DOMString nonce;
+  [CEReactions, Reflect] attribute boolean autofocus;
+  [CEReactions, ReflectSetter] attribute long tabIndex;
 };
 
 [Exposed=Window, LegacyOverrideBuiltIns]
@@ -102,22 +157,678 @@ interface DOMStringMap {
 };
 
 [Exposed=Window]
+interface HTMLHtmlElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
 interface HTMLHeadElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLTitleElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions] attribute DOMString text;
+};
+
+[Exposed=Window]
+interface HTMLBaseElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectSetter] attribute USVString href;
+  [CEReactions, Reflect] attribute DOMString target;
+};
+
+[Exposed=Window]
+interface HTMLLinkElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString href;
+  [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  [CEReactions, Reflect] attribute DOMString rel;
+  [CEReactions, Reflect, SwbKeywords="fetch font image script style track"] attribute DOMString as;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+  [CEReactions, Reflect] attribute DOMString media;
+  [CEReactions, Reflect] attribute DOMString integrity;
+  [CEReactions, Reflect] attribute DOMString hreflang;
+  [CEReactions, Reflect] attribute DOMString type;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
+  [CEReactions, Reflect] attribute USVString imageSrcset;
+  [CEReactions, Reflect] attribute DOMString imageSizes;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+  [CEReactions, Reflect] attribute boolean disabled;
+  [CEReactions, Reflect, SwbKeywords="high low auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString fetchPriority;
+};
+
+[Exposed=Window]
+interface HTMLMetaElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect="http-equiv"] attribute DOMString httpEquiv;
+  [CEReactions, Reflect] attribute DOMString content;
+  [CEReactions, Reflect] attribute DOMString media;
+};
+
+[Exposed=Window]
+interface HTMLStyleElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString media;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+};
+
+[Exposed=Window]
+interface HTMLBodyElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLHeadingElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLParagraphElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLHRElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLPreElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLQuoteElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString cite;
+};
+
+[Exposed=Window]
+interface HTMLOListElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean reversed;
+  [CEReactions, Reflect, ReflectDefault=1] attribute long start;
+  [CEReactions, Reflect] attribute DOMString type;
+};
+
+[Exposed=Window]
+interface HTMLUListElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLMenuElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLLIElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute long value;
+};
+
+[Exposed=Window]
+interface HTMLDListElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLDivElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLAnchorElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString download;
+  [CEReactions, Reflect] attribute USVString ping;
+  [CEReactions, Reflect] attribute DOMString rel;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+  [CEReactions, Reflect] attribute DOMString hreflang;
+  [CEReactions, Reflect] attribute DOMString type;
+  [CEReactions] attribute DOMString text;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
+};
+HTMLAnchorElement includes HyperlinkElementUtils;
+HTMLAnchorElement includes HTMLHyperlinkElementUtils;
+
+[Exposed=Window]
+interface HTMLDataElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString value;
+};
+
+[Exposed=Window]
+interface HTMLTimeElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString dateTime;
+};
+
+[Exposed=Window]
+interface HTMLSpanElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLBRElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+interface mixin HyperlinkElementUtils {
+  readonly attribute USVString origin;
+  [CEReactions] attribute USVString protocol;
+  [CEReactions] attribute USVString username;
+  [CEReactions] attribute USVString password;
+  [CEReactions] attribute USVString host;
+  [CEReactions] attribute USVString hostname;
+  [CEReactions] attribute USVString port;
+  [CEReactions] attribute USVString pathname;
+  [CEReactions] attribute USVString search;
+  [CEReactions] attribute USVString hash;
+};
+
+interface mixin HTMLHyperlinkElementUtils {
+  [CEReactions, ReflectSetter] stringifier attribute USVString href;
+  [CEReactions, Reflect] attribute DOMString target;
+};
+
+[Exposed=Window]
+interface HTMLModElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString cite;
+  [CEReactions, Reflect] attribute DOMString dateTime;
+};
+
+[Exposed=Window]
+interface HTMLPictureElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLSourceElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString type;
+  [CEReactions, Reflect] attribute USVString srcset;
+  [CEReactions, Reflect] attribute DOMString sizes;
+  [CEReactions, Reflect] attribute DOMString media;
+  [CEReactions, Reflect] attribute unsigned long width;
+  [CEReactions, Reflect] attribute unsigned long height;
+};
+
+[Exposed=Window]
+interface HTMLImageElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString alt;
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute USVString srcset;
+  [CEReactions, Reflect] attribute DOMString sizes;
+  [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  [CEReactions, Reflect] attribute DOMString useMap;
+  [CEReactions, Reflect] attribute boolean isMap;
+  [CEReactions, Reflect, ReflectRange=(0, 4294967295)] attribute unsigned long width;
+  [CEReactions, Reflect, ReflectRange=(0, 4294967295)] attribute unsigned long height;
+  readonly attribute unsigned long naturalWidth;
+  readonly attribute unsigned long naturalHeight;
+  readonly attribute boolean complete;
+  readonly attribute USVString currentSrc;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
+  [CEReactions, Reflect, SwbKeywords="sync async auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString decoding;
+  [CEReactions, Reflect, SwbKeywords="lazy eager", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString loading;
+  [CEReactions, Reflect, SwbKeywords="high low auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString fetchPriority;
+};
+
+[Exposed=Window]
+interface HTMLIFrameElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString srcdoc;
+  [CEReactions, Reflect] attribute DOMString name;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
+  [CEReactions, Reflect] attribute DOMString allow;
+  [CEReactions, Reflect] attribute boolean allowFullscreen;
+  [CEReactions, Reflect] attribute DOMString width;
+  [CEReactions, Reflect] attribute DOMString height;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
+  [CEReactions, Reflect, SwbKeywords="lazy eager", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString loading;
+};
+
+[Exposed=Window]
+interface HTMLEmbedElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString type;
+  [CEReactions, Reflect] attribute DOMString width;
+  [CEReactions, Reflect] attribute DOMString height;
+};
+
+[Exposed=Window]
+interface HTMLObjectElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectURL] attribute USVString data;
+  [CEReactions, Reflect] attribute DOMString type;
+  [CEReactions, Reflect] attribute DOMString name;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, Reflect] attribute DOMString width;
+  [CEReactions, Reflect] attribute DOMString height;
+};
+
+[Exposed=Window]
+interface HTMLMediaElement : HTMLElement {
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect, SwbKeywords="=auto none metadata auto", SwbMissing="metadata", SwbInvalid="metadata"] attribute DOMString preload;
+  [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  [CEReactions, Reflect] attribute boolean autoplay;
+  [CEReactions, Reflect] attribute boolean loop;
+  [CEReactions, Reflect] attribute boolean controls;
+  [CEReactions, Reflect="muted"] attribute boolean defaultMuted;
+};
+
+[Exposed=Window]
+interface HTMLVideoElement : HTMLMediaElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute unsigned long width;
+  [CEReactions, Reflect] attribute unsigned long height;
+  [CEReactions, ReflectURL] attribute USVString poster;
+  [CEReactions, Reflect] attribute boolean playsInline;
+};
+
+[Exposed=Window]
+interface HTMLAudioElement : HTMLMediaElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLTrackElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect, SwbKeywords="subtitles captions descriptions chapters metadata", SwbMissing="subtitles", SwbInvalid="metadata"] attribute DOMString kind;
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString srclang;
+  [CEReactions, Reflect] attribute DOMString label;
+  [CEReactions, Reflect] attribute boolean default;
+};
+
+[Exposed=Window]
+interface HTMLMapElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString name;
+  [SameObject] readonly attribute HTMLCollection areas;
+};
+
+[Exposed=Window]
+interface HTMLAreaElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString alt;
+  [CEReactions, Reflect] attribute DOMString coords;
+  [CEReactions, Reflect] attribute DOMString shape;
+  [CEReactions, Reflect] attribute DOMString download;
+  [CEReactions, Reflect] attribute USVString ping;
+  [CEReactions, Reflect] attribute DOMString rel;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
+};
+HTMLAreaElement includes HyperlinkElementUtils;
+HTMLAreaElement includes HTMLHyperlinkElementUtils;
+
+[Exposed=Window]
+interface HTMLTableElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions] attribute HTMLTableCaptionElement? caption;
+  HTMLTableCaptionElement createCaption();
+  [CEReactions] undefined deleteCaption();
+
+  [CEReactions] attribute HTMLTableSectionElement? tHead;
+  HTMLTableSectionElement createTHead();
+  [CEReactions] undefined deleteTHead();
+
+  [CEReactions] attribute HTMLTableSectionElement? tFoot;
+  HTMLTableSectionElement createTFoot();
+  [CEReactions] undefined deleteTFoot();
+
+  [SameObject] readonly attribute HTMLCollection tBodies;
+  HTMLTableSectionElement createTBody();
+
+  [SameObject] readonly attribute HTMLCollection rows;
+  HTMLTableRowElement insertRow(optional long index = -1);
+  [CEReactions] undefined deleteRow(long index);
+};
+
+[Exposed=Window]
+interface HTMLTableCaptionElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLTableColElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect, ReflectDefault=1, ReflectRange=(1, 1000)] attribute unsigned long span;
+};
+
+[Exposed=Window]
+interface HTMLTableSectionElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [SameObject] readonly attribute HTMLCollection rows;
+  HTMLTableRowElement insertRow(optional long index = -1);
+  [CEReactions] undefined deleteRow(long index);
+};
+
+[Exposed=Window]
+interface HTMLTableRowElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  readonly attribute long rowIndex;
+  readonly attribute long sectionRowIndex;
+  [SameObject] readonly attribute HTMLCollection cells;
+  HTMLTableCellElement insertCell(optional long index = -1);
+  [CEReactions] undefined deleteCell(long index);
+};
+
+[Exposed=Window]
+interface HTMLTableCellElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect, ReflectDefault=1, ReflectRange=(1, 1000)] attribute unsigned long colSpan;
+  [CEReactions, Reflect, ReflectDefault=1, ReflectRange=(0, 65534)] attribute unsigned long rowSpan;
+  [CEReactions, Reflect] attribute DOMString headers;
+  readonly attribute long cellIndex;
+  [CEReactions, Reflect, SwbKeywords="row col rowgroup colgroup"] attribute DOMString scope;
+  [CEReactions, Reflect] attribute DOMString abbr;
+};
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface HTMLFormElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect="accept-charset"] attribute DOMString acceptCharset;
+  [CEReactions, ReflectSetter] attribute USVString action;
+  [CEReactions, Reflect, SwbKeywords="on off", SwbMissing="on", SwbInvalid="on"] attribute DOMString autocomplete;
+  [CEReactions, Reflect, SwbKeywords="application/x-www-form-urlencoded multipart/form-data text/plain", SwbMissing="application/x-www-form-urlencoded", SwbInvalid="application/x-www-form-urlencoded"] attribute DOMString enctype;
+  [CEReactions, Reflect="enctype", SwbKeywords="application/x-www-form-urlencoded multipart/form-data text/plain", SwbMissing="application/x-www-form-urlencoded", SwbInvalid="application/x-www-form-urlencoded"] attribute DOMString encoding;
+  [CEReactions, Reflect, SwbKeywords="get post dialog", SwbMissing="get", SwbInvalid="get"] attribute DOMString method;
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect] attribute boolean noValidate;
+  [CEReactions, Reflect] attribute DOMString target;
+  [CEReactions, Reflect] attribute DOMString rel;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+
+  [SameObject] readonly attribute HTMLFormControlsCollection elements;
+  readonly attribute unsigned long length;
+  getter Element (unsigned long index);
+  getter (RadioNodeList or Element) (DOMString name);
+};
+
+[Exposed=Window]
+interface HTMLLabelElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, Reflect="for"] attribute DOMString htmlFor;
+  readonly attribute HTMLElement? control;
+};
+
+[Exposed=Window]
+interface HTMLInputElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString accept;
+  [CEReactions, Reflect] attribute DOMString alt;
+  [CEReactions, ReflectSetter] attribute DOMString autocomplete;
+  [CEReactions, Reflect="checked"] attribute boolean defaultChecked;
+  attribute boolean checked;
+  [CEReactions, Reflect] attribute DOMString dirName;
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, ReflectSetter] attribute USVString formAction;
+  [CEReactions, Reflect, SwbKeywords="application/x-www-form-urlencoded multipart/form-data text/plain", SwbInvalid="application/x-www-form-urlencoded"] attribute DOMString formEnctype;
+  [CEReactions, Reflect, SwbKeywords="get post dialog", SwbInvalid="get"] attribute DOMString formMethod;
+  [CEReactions, Reflect] attribute boolean formNoValidate;
+  [CEReactions, Reflect] attribute DOMString formTarget;
+  [CEReactions, ReflectSetter] attribute unsigned long height;
+  attribute boolean indeterminate;
+  readonly attribute HTMLDataListElement? list;
+  [CEReactions, Reflect] attribute DOMString max;
+  [CEReactions, ReflectNonNegative] attribute long maxLength;
+  [CEReactions, Reflect] attribute DOMString min;
+  [CEReactions, ReflectNonNegative] attribute long minLength;
+  [CEReactions, Reflect] attribute boolean multiple;
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect] attribute DOMString pattern;
+  [CEReactions, Reflect] attribute DOMString placeholder;
+  [CEReactions, Reflect] attribute boolean readOnly;
+  [CEReactions, Reflect] attribute boolean required;
+  [CEReactions, ReflectPositive, ReflectDefault=20] attribute unsigned long size;
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString step;
+  [CEReactions, Reflect, SwbKeywords="hidden text search tel url email password date month week time datetime-local number range color checkbox radio file submit image reset button", SwbMissing="text", SwbInvalid="text"] attribute DOMString type;
+  [CEReactions, Reflect="value"] attribute DOMString defaultValue;
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString value;
+  [CEReactions, ReflectSetter] attribute unsigned long width;
+};
+
+[Exposed=Window]
+interface HTMLButtonElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, ReflectSetter] attribute USVString formAction;
+  [CEReactions, Reflect, SwbKeywords="application/x-www-form-urlencoded multipart/form-data text/plain", SwbInvalid="application/x-www-form-urlencoded"] attribute DOMString formEnctype;
+  [CEReactions, Reflect, SwbKeywords="get post dialog", SwbInvalid="get"] attribute DOMString formMethod;
+  [CEReactions, Reflect] attribute boolean formNoValidate;
+  [CEReactions, Reflect] attribute DOMString formTarget;
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect, SwbKeywords="submit reset button", SwbMissing="submit", SwbInvalid="submit"] attribute DOMString type;
+  [CEReactions, Reflect] attribute DOMString value;
+};
+
+[Exposed=Window]
+interface HTMLSelectElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectSetter] attribute DOMString autocomplete;
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, Reflect] attribute boolean multiple;
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect] attribute boolean required;
+  [CEReactions, Reflect, ReflectDefault=0] attribute unsigned long size;
+  readonly attribute DOMString type;
+  [SameObject] readonly attribute HTMLOptionsCollection options;
+  [CEReactions] attribute unsigned long length;
+  getter HTMLOptionElement? item(unsigned long index);
+  HTMLOptionElement? namedItem(DOMString name);
+  [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
+  [CEReactions] undefined remove();
+  [CEReactions] undefined remove(long index);
+  [CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
+  [SameObject] readonly attribute HTMLCollection selectedOptions;
+  [CEReactions] attribute long selectedIndex;
+  [CEReactions] attribute DOMString value;
+};
+
+[Exposed=Window]
+interface HTMLDataListElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [SameObject] readonly attribute HTMLCollection options;
+};
+
+[Exposed=Window]
+interface HTMLOptGroupElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean disabled;
+  [CEReactions, Reflect] attribute DOMString label;
+};
+
+[Exposed=Window]
+interface HTMLOptionElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, ReflectSetter] attribute DOMString label;
+  [CEReactions, Reflect="selected"] attribute boolean defaultSelected;
+  [CEReactions] attribute boolean selected;
+  [CEReactions, ReflectSetter] attribute DOMString value;
+  [CEReactions] attribute DOMString text;
+  readonly attribute long index;
+};
+
+[Exposed=Window]
+interface HTMLTextAreaElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, ReflectSetter] attribute DOMString autocomplete;
+  [CEReactions, ReflectPositiveWithFallback, ReflectDefault=20] attribute unsigned long cols;
+  [CEReactions, Reflect] attribute DOMString dirName;
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, ReflectNonNegative] attribute long maxLength;
+  [CEReactions, ReflectNonNegative] attribute long minLength;
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect] attribute DOMString placeholder;
+  [CEReactions, Reflect] attribute boolean readOnly;
+  [CEReactions, Reflect] attribute boolean required;
+  [CEReactions, ReflectPositiveWithFallback, ReflectDefault=2] attribute unsigned long rows;
+  [CEReactions, Reflect] attribute DOMString wrap;
+  readonly attribute DOMString type;
+  [CEReactions] attribute DOMString defaultValue;
+  attribute [LegacyNullToEmptyString] DOMString value;
+  readonly attribute unsigned long textLength;
+};
+
+[Exposed=Window]
+interface HTMLOutputElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList htmlFor;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, Reflect] attribute DOMString name;
+  readonly attribute DOMString type;
+  [CEReactions] attribute DOMString defaultValue;
+  [CEReactions] attribute DOMString value;
+};
+
+[Exposed=Window]
+interface HTMLProgressElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLMeterElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLFieldSetElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean disabled;
+  readonly attribute HTMLFormElement? form;
+  [CEReactions, Reflect] attribute DOMString name;
+  readonly attribute DOMString type;
+  [SameObject] readonly attribute HTMLCollection elements;
+};
+
+[Exposed=Window]
+interface HTMLLegendElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  readonly attribute HTMLFormElement? form;
+};
+
+[Exposed=Window]
+interface HTMLSelectedContentElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLDetailsElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString name;
+  [CEReactions, Reflect] attribute boolean open;
+};
+
+[Exposed=Window]
+interface HTMLDialogElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute boolean open;
+};
+
+[Exposed=Window, SwbEnumerableNamedProperties]
+interface HTMLFormControlsCollection : HTMLCollection {
+  getter (RadioNodeList or Element)? namedItem(DOMString name);
+};
+
+[Exposed=Window]
+interface RadioNodeList : NodeList {
+  attribute DOMString value;
+};
+
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface HTMLOptionsCollection : HTMLCollection {
+  [CEReactions] attribute unsigned long length;
+  [CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
+  [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
+  [CEReactions] undefined remove(long index);
+  attribute long selectedIndex;
+};
+
+[Exposed=Window]
+interface HTMLSlotElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString name;
+};
+
+[Exposed=Window]
+interface HTMLCanvasElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect, ReflectDefault=300] attribute unsigned long width;
+  [CEReactions, Reflect, ReflectDefault=150] attribute unsigned long height;
+};
+
+[Exposed=Window]
+interface HTMLMarqueeElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLFrameSetElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLFrameElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLDirectoryElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLFontElement : HTMLElement {
+  [HTMLConstructor] constructor();
+};
+
+[Exposed=Window]
+interface HTMLParamElement : HTMLElement {
+  [HTMLConstructor] constructor();
 };
 
 [Exposed=Window]
 interface HTMLTemplateElement : HTMLElement {
+  [HTMLConstructor] constructor();
   readonly attribute DocumentFragment content;
 };
 
 [Exposed=Window]
 interface HTMLScriptElement : HTMLElement {
+  [HTMLConstructor] constructor();
   [CEReactions, ReflectURL] attribute USVString src;
   [CEReactions, Reflect] attribute DOMString type;
   [CEReactions, Reflect="nomodule"] attribute boolean noModule;
   [CEReactions] attribute boolean async;
   [CEReactions, Reflect] attribute boolean defer;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+  [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url", SwbMissing="", SwbInvalid=""] attribute DOMString? referrerPolicy;
+  [CEReactions, Reflect] attribute DOMString integrity;
+  [CEReactions, Reflect, SwbKeywords="high low auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString fetchPriority;
   [CEReactions] attribute DOMString text;
+  static boolean supports(DOMString type);
 };
 
 [Exposed=*]

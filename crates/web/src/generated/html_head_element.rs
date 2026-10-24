@@ -3,12 +3,18 @@
 
 //! The binding glue of the interface `HTMLHeadElement`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
 
 use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLHeadElement`.
 pub trait HTMLHeadElementImpl: b::Host {
+}
+
+impl<T: b::Host> HTMLHeadElementImpl for T {}
+
+pub(super) fn construct<H: HTMLHeadElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("HTMLHeadElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
 }
 
 /// Creates the interface object and the prototype of `HTMLHeadElement` in `realm`

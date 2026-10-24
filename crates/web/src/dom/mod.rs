@@ -19,18 +19,20 @@ mod attrs;
 mod character_data;
 mod document;
 mod element;
+pub(crate) mod element_lists;
 mod implementation;
 pub(crate) mod lists;
 mod markup;
 mod queries;
-mod string_map;
-mod token_list;
-mod tree_ops;
+pub(crate) mod string_map;
+pub(crate) mod token_list;
+pub(crate) mod tree_ops;
 
 use swb_dom::{DomError, NodeData, NodeId, ns};
 use swb_js::Runtime;
 
 pub(crate) use attrs::{remove_attribute, set_attribute};
+pub(crate) use element_lists::ElementList;
 pub(crate) use lists::DocCollection;
 
 use crate::bindings::{self as b, Cx, Exception};
@@ -105,7 +107,7 @@ fn tag_name(data: &NodeData) -> String {
 /// text node of `value` (none for the empty string); the steps of a
 /// `script` parent follow (HTML "children changed").
 /// <https://dom.spec.whatwg.org/#string-replace-all>
-pub(super) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -> b::Result<()> {
+pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -> b::Result<()> {
     // Chromium keeps the node (and makes no change) when the only child is
     // a Text node that already has this data (measured in
     // `tools/probes/web-dom-mutation.json`; every other case makes a new
@@ -431,6 +433,13 @@ pub(super) fn clone(
     for (original, copy) in cloned.scripts {
         if crate::scripts::has_started(cx.rt, original)? {
             dom_mut(cx.rt)?.mark_script_started(copy);
+        }
+    }
+    // The cloning steps of `input` and `textarea` (HTML §4.10.5, §4.10.11):
+    // the copy gets the value and the checkedness with their dirty flags.
+    for (original, copy) in cloned.controls {
+        if engine_mut(cx.rt)?.copy_control_state(original, copy) == crate::ControlWrite::OverLimit {
+            return Err(cx.rt.terminate("the budget of form control values").into());
         }
     }
     Ok(cloned.root)

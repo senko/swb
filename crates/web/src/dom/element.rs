@@ -7,8 +7,7 @@ use swb_dom::{NodeId, local_name};
 
 use super::tag_name;
 use super::{
-    attrs, lists, markup, next_element_sibling, previous_element_sibling, queries, string_map,
-    token_list,
+    attrs, lists, markup, next_element_sibling, previous_element_sibling, queries, token_list,
 };
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
@@ -273,15 +272,3 @@ impl g::element::ElementImpl for WebState {
         markup::insert_adjacent_html(cx, this, &position, &text)
     }
 }
-
-impl g::html_element::HTMLElementImpl for WebState {
-    /// `dataset`: the one `DOMStringMap` of the element.
-    fn dataset(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
-        let realm = cx.realm();
-        Ok(same_object(cx.rt, this, Slot::Dataset, |rt| {
-            string_map::new_string_map(rt, realm, this)
-        })?)
-    }
-}
-
-impl g::html_head_element::HTMLHeadElementImpl for WebState {}

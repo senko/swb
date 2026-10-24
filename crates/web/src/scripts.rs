@@ -834,6 +834,20 @@ impl g::html_script_element::HTMLScriptElementImpl for WebState {
         Ok(child_text(dom(cx.rt)?, this))
     }
 
+    fn blocking(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::html::token_list(cx, this, "blocking")
+    }
+
+    /// `HTMLScriptElement.supports(type)`: the script types that swb runs
+    /// or accepts (`classic`, `module`, `importmap`).
+    /// <https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports>
+    fn supports(_cx: &mut Cx<'_>, type_: String) -> b::Result<bool> {
+        Ok(matches!(
+            type_.as_str(),
+            "classic" | "module" | "importmap" | "speculationrules"
+        ))
+    }
+
     /// "String replace all" with the value, then the children changed
     /// steps (a connected script that has not started runs now).
     fn set_text(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {

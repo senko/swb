@@ -3,7 +3,7 @@
 
 //! The binding glue of the interface `HTMLTemplateElement`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
 
 use crate::bindings as b;
 
@@ -20,6 +20,10 @@ fn get_content<H: HTMLTemplateElementImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let result = <H as HTMLTemplateElementImpl>::content(&mut b::Cx::new(rt, call, super::HTML_TEMPLATE_ELEMENT), this)?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
+}
+
+pub(super) fn construct<H: HTMLTemplateElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTemplateElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
 }
 
 /// Creates the interface object and the prototype of `HTMLTemplateElement` in `realm`

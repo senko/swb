@@ -21,24 +21,6 @@ use swb_web::{ConsoleLevel, Evaluation, JsonForm, ScriptRuntime};
 const SWB_VALUES: &[Departure] = &[
     (
         "chains",
-        1,
-        r#""[object Document] [object Node] [object EventTarget] [object Object]""#,
-        "no HTMLDocument interface",
-    ),
-    (
-        "chains",
-        2,
-        r#""[object HTMLElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
-        "HTML elements other than head are HTMLElement",
-    ),
-    (
-        "chains",
-        3,
-        r#""[object HTMLElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
-        "HTML elements other than head are HTMLElement",
-    ),
-    (
-        "chains",
         7,
         r#""[object Element] [object Node] [object EventTarget] [object Object]""#,
         "no SVG interfaces",

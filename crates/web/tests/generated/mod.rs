@@ -56,6 +56,7 @@ impl<T: b::Host + dom_exception::DOMExceptionImpl + window::WindowImpl + node::N
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
+#[allow(clippy::too_many_lines)]
 pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMException").constructor(dom_exception::construct::<H>, 0), DOM_EXCEPTION)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window"), WINDOW)?;
@@ -75,6 +76,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
 
 /// Creates the interfaces of the set in `realm` and defines the exposed
 /// ones on the global object.
+#[allow(clippy::too_many_lines)]
 pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {
     let interface = dom_exception::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMException", interface)?;

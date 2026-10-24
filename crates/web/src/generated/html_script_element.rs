@@ -3,7 +3,7 @@
 
 //! The binding glue of the interface `HTMLScriptElement`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
 
 use crate::bindings as b;
 
@@ -15,11 +15,17 @@ pub trait HTMLScriptElementImpl: b::Host {
     /// The setter of `attribute boolean async`.
     fn set_async(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
 
+    /// `readonly attribute DOMTokenList blocking`.
+    fn blocking(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `attribute DOMString text`.
     fn text(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
     /// The setter of `attribute DOMString text`.
     fn set_text(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `boolean supports(DOMString type)`.
+    fn supports(cx: &mut b::Cx<'_>, type_: String) -> b::Result<bool>;
 
 }
 
@@ -113,6 +119,95 @@ fn set_defer<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_blocking<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "blocking"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let result = <H as HTMLScriptElementImpl>::blocking(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn set_blocking<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLScriptElement", "blocking"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let _ = this;
+        let this = rt.this_or_global(call)?;
+        b::glue::put_forwards(rt, call, this, "blocking", "value")
+    })
+}
+
+fn get_cross_origin<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let result = b::reflect::get_nullable_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "crossorigin", &b::reflect::Keywords { keywords: &[("", "anonymous"), ("anonymous", "anonymous"), ("use-credentials", "use-credentials")], missing: None, invalid: Some("anonymous") })?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_cross_origin<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLScriptElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "crossorigin", value.as_deref())?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_referrer_policy<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "referrerPolicy"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let result = b::reflect::get_nullable_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "referrerpolicy", &b::reflect::Keywords { keywords: &[("no-referrer", "no-referrer"), ("no-referrer-when-downgrade", "no-referrer-when-downgrade"), ("same-origin", "same-origin"), ("origin", "origin"), ("strict-origin", "strict-origin"), ("origin-when-cross-origin", "origin-when-cross-origin"), ("strict-origin-when-cross-origin", "strict-origin-when-cross-origin"), ("unsafe-url", "unsafe-url")], missing: Some(""), invalid: Some("") })?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_referrer_policy<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLScriptElement", "referrerPolicy"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "referrerpolicy", value.as_deref())?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_integrity<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "integrity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "integrity")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_integrity<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLScriptElement", "integrity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "integrity", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_fetch_priority<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "fetchPriority"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "fetchpriority", &b::reflect::Keywords { keywords: &[("high", "high"), ("low", "low"), ("auto", "auto")], missing: Some("auto"), invalid: Some("auto") })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_fetch_priority<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLScriptElement", "fetchPriority"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "fetchpriority", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn get_text<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLScriptElement", "text"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
@@ -131,6 +226,20 @@ fn set_text<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+pub(super) fn construct<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("HTMLScriptElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+}
+
+fn op_supports<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLScriptElement", "supports"), super::DOM_EXCEPTION, |rt| {
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as HTMLScriptElementImpl>::supports(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
 /// Creates the interface object and the prototype of `HTMLScriptElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -142,7 +251,13 @@ pub fn define<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, realm: u32) ->
     rt.define_accessor(realm, target, "noModule", (Some(get_no_module::<H> as swb_js::NativeFn), Some(set_no_module::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "async", (Some(get_async::<H> as swb_js::NativeFn), Some(set_async::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "defer", (Some(get_defer::<H> as swb_js::NativeFn), Some(set_defer::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "blocking", (Some(get_blocking::<H> as swb_js::NativeFn), Some(set_blocking::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "crossOrigin", (Some(get_cross_origin::<H> as swb_js::NativeFn), Some(set_cross_origin::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "referrerPolicy", (Some(get_referrer_policy::<H> as swb_js::NativeFn), Some(set_referrer_policy::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "integrity", (Some(get_integrity::<H> as swb_js::NativeFn), Some(set_integrity::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "fetchPriority", (Some(get_fetch_priority::<H> as swb_js::NativeFn), Some(set_fetch_priority::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "text", (Some(get_text::<H> as swb_js::NativeFn), Some(set_text::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, interface.object, "supports", 1, op_supports::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

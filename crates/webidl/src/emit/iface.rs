@@ -38,7 +38,7 @@ impl Gen<'_> {
     pub(crate) fn iface_file(&self, iface: &Iface) -> Result<String, Error> {
         let mut out = String::new();
         out.push_str(&self.header(&format!("the interface `{}`", iface.name)));
-        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]\n\n");
+        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]\n\n");
         let _ = writeln!(out, "use {} as b;\n", self.support);
         let groups = op_groups(iface);
         let mut trait_items = String::new();
@@ -88,6 +88,10 @@ impl Gen<'_> {
         let _ = writeln!(out, "pub trait {trait_name}: b::Host {{");
         out.push_str(&trait_items);
         out.push_str("}\n\n");
+        if trait_items.is_empty() {
+            // Nothing to write by hand: the implementation is ready.
+            let _ = writeln!(out, "impl<T: b::Host> {trait_name} for T {{}}\n");
+        }
         out.push_str(&glue);
         self.define_fn(iface, &groups, &mut out)?;
         Ok(out)
@@ -232,17 +236,29 @@ impl Gen<'_> {
             self.reflect_set(attr, *kind)?
         } else if attr.ext_attrs.has("ReflectSetter") {
             let name = content_attribute(attr);
-            if !matches!(
-                self.model.resolve(&attr.ty).kind,
-                TypeKind::DomString | TypeKind::UsvString
-            ) {
-                return Err(err(&attr.place, "[ReflectSetter] needs a string attribute"));
+            match self.model.resolve(&attr.ty).kind {
+                TypeKind::DomString | TypeKind::UsvString => format!(
+                    "b::reflect::set_string::<H>({}, this, {}, &value)",
+                    cx(iface),
+                    literal(&name)
+                ),
+                TypeKind::Integer(crate::ast::IntegerType::Long) => format!(
+                    "b::reflect::set_long::<H>({}, this, {}, false, value)",
+                    cx(iface),
+                    literal(&name)
+                ),
+                TypeKind::Integer(crate::ast::IntegerType::UnsignedLong) => format!(
+                    "b::reflect::set_unsigned_long::<H>({}, this, {}, b::reflect::UnsignedLimit::None, None, value)",
+                    cx(iface),
+                    literal(&name)
+                ),
+                _ => {
+                    return Err(err(
+                        &attr.place,
+                        "[ReflectSetter] needs a string, long or unsigned long attribute",
+                    ));
+                }
             }
-            format!(
-                "b::reflect::set_string::<H>({}, this, {}, &value)",
-                cx(iface),
-                literal(&name)
-            )
         } else {
             claim(&set_fn, &attr.place)?;
             let _ = writeln!(
@@ -377,6 +393,22 @@ impl Gen<'_> {
             ident(&group.name)
         };
         let overloaded = group.overloads.len() > 1;
+        if constructor
+            && group
+                .overloads
+                .iter()
+                .any(|op| op.ext_attrs.has("HTMLConstructor"))
+        {
+            // Element constructors are for custom elements; swb has none,
+            // so `new` throws (Chromium: "Illegal constructor").
+            let _ = writeln!(
+                glue,
+                "pub(super) fn construct<H: {0}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, b::Context::Constructor({1}), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error(\"Illegal constructor\")))\n}}\n",
+                iface.name,
+                literal(&iface.name)
+            );
+            return Ok(());
+        }
         let custom = group
             .overloads
             .iter()

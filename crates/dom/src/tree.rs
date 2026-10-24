@@ -749,6 +749,31 @@ impl Document {
         out
     }
 
+    /// The concatenated data of the text node descendants of `id`, except
+    /// those inside a descendant `script` element of the HTML or SVG
+    /// namespace (the "child text content" of an `option`).
+    /// <https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-label>
+    pub fn text_content_without_scripts(&self, id: NodeId) -> String {
+        let mut out = String::new();
+        let mut stack: Vec<NodeId> = self.children(id).collect();
+        stack.reverse();
+        while let Some(n) = stack.pop() {
+            if let Some(t) = self.node(n).as_text() {
+                out.push_str(t);
+                continue;
+            }
+            let script = self.element(n).is_some_and(|e| {
+                &**e.local_name() == "script" && (e.is_html() || e.name.ns == ns!(svg))
+            });
+            if !script {
+                let start = stack.len();
+                stack.extend(self.children(n));
+                stack[start..].reverse();
+            }
+        }
+        out
+    }
+
     /// The first element in tree order (under `root`) that satisfies `pred`.
     pub fn find_element(
         &self,

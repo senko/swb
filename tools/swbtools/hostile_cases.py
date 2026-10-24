@@ -2380,3 +2380,127 @@ def children_drain_loop_js_on() -> Page:
             + script
         )
     )
+
+
+@case(
+    "100,000 elements whose reflected attributes a script reads and writes in a loop (string, "
+    "URL, enumerated, boolean and number kinds), with JavaScript on: each access is O(1) in "
+    "the number of elements (feature 6c)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def reflected_attribute_loop_js_on() -> Page:
+    script = (
+        "<script>const l = Array.from(document.getElementsByTagName('a')); let n = 0; "
+        "for (let i = 0; i < l.length; i++) { const a = l[i]; a.href = '/p' + i; a.rel = 'x'; "
+        "a.hidden = i % 2 === 0; a.tabIndex = i % 5; a.title = a.hash + a.pathname.length; "
+        "a.draggable = true; n += a.href.length + a.tabIndex + (a.hidden ? 1 : 0) + "
+        "a.referrerPolicy.length; } console.log(n);</script>"
+    )
+    return Page(doc("<a>x</a>" * 100_000 + script))
+
+
+@case(
+    "A form of 100,000 controls and a loop of 100,000 named lookups through form.elements and "
+    "through the form itself, with JavaScript on: the list is built once, and the names are "
+    "found through an index (feature 6c)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def form_elements_named_lookups_js_on() -> Page:
+    script = (
+        "<script>const f = document.getElementById('f'); let found = 0; "
+        "for (let i = 0; i < 100000; i++) { if (f.elements['n' + i]) found++; "
+        "if (f['n' + i]) found++; } console.log(f.length, found);</script>"
+    )
+    controls = "".join(f"<input name=n{i}>" for i in range(100_000))
+    return Page(doc(f"<form id=f>{controls}</form>" + script))
+
+
+@case(
+    "A select with 100,000 options (50,000 in the page, 50,000 added by a script) and a loop "
+    "of add and remove calls, with JavaScript on: adding at the end, removing at the front "
+    "and reading length stay cheap (feature 6c)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def select_options_add_remove_js_on() -> Page:
+    script = (
+        "<script>const s = document.getElementById('s'); for (let i = 0; i < 50000; i++) { "
+        "const o = document.createElement('option'); o.value = i; s.add(o); } "
+        "let n = s.options.length; for (let i = 0; i < 50000; i++) { s.remove(0); "
+        "s.add(document.createElement('option')); } console.log(n, s.length);</script>"
+    )
+    options = "".join(f"<option value={i}>{i}</option>" for i in range(50_000))
+    return Page(doc(f"<select id=s>{options}</select>" + script))
+
+
+@case(
+    "An input whose value a script sets to a string of 24 MB, reads back and replaces, with "
+    "JavaScript on: the value is stored once and the page does not lay out the whole string "
+    "(feature 6c; the values of controls have a budget of 32 MiB)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=1536,
+)
+def input_huge_value_js_on() -> Page:
+    script = (
+        "<script>const i = document.getElementById('i'); const big = 'x'.repeat(24 << 20); "
+        "i.value = big; console.log(i.value.length); i.value = ''; i.value = big + 'y'; "
+        "console.log(i.value.length); i.value = '';</script>"
+    )
+    return Page(doc("<input id=i>" + script))
+
+
+@case(
+    "A script that writes a string of 5 MB to the value of 400 new inputs and, in a second "
+    "page script, to 400 textareas in a hidden element, with JavaScript on: the values of "
+    "controls have a budget of 32 MiB (ADR 0028 section 16), and the task that reaches it "
+    "ends (feature 6c review)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    expect_log="values of form controls reached the limit",
+)
+def form_values_budget_js_on() -> Page:
+    detached = (
+        "<script>const big = 'a'.repeat(5e6); for (let i = 0; i < 400; i++) { "
+        "document.createElement('input').value = big; }</script>"
+    )
+    attached = (
+        "<script>const big2 = 'a'.repeat(5e6); const h = document.getElementById('h'); "
+        "for (let i = 0; i < 400; i++) { const t = document.createElement('textarea'); "
+        "h.appendChild(t); t.value = big2; }</script>"
+    )
+    return Page(doc("<div id=h style='display:none'></div>" + detached + attached))
+
+
+@case(
+    "6,000 radio buttons that a script creates, appends to a form and checks one after the "
+    "other, with JavaScript on: a write costs no rebuild of the form state (feature 6c review)",
+    swb_args=("--js",),
+    time_limit_s=2,
+)
+def radio_append_checked_loop_js_on() -> Page:
+    script = (
+        "<script>const f = document.getElementById('f'); for (let i = 0; i < 6000; i++) { "
+        "const r = document.createElement('input'); r.type = 'radio'; r.name = 'g'; "
+        "f.appendChild(r); r.checked = true; } console.log(f.length);</script>"
+    )
+    return Page(doc("<form id=f></form>" + script))
+
+
+@case(
+    "A select of 30,000 options and a loop that sets option.selected to true on each one, "
+    "with JavaScript on: a write changes the options in place, without a copy of them "
+    "(feature 6c review)",
+    swb_args=("--js",),
+    time_limit_s=2,
+)
+def option_selected_loop_js_on() -> Page:
+    script = (
+        "<script>const s = document.getElementById('s'); s.length = 30000; "
+        "const o = Array.from(s.options); for (let i = 0; i < o.length; i++) { "
+        "o[i].selected = true; } console.log(s.selectedIndex);</script>"
+    )
+    return Page(doc("<select id=s></select>" + script))

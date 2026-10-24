@@ -3,7 +3,7 @@
 
 //! The binding glue of the dictionaries, enumerations, unions and callbacks.
 
-#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref)]
+#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms)]
 
 use crate::bindings as b;
 
@@ -545,6 +545,35 @@ impl AddEventListenerOptionsOrBoolean {
     }
 }
 
+/// The union type `(DOMString or boolean or unrestricted double)`.
+#[derive(Clone, Debug)]
+pub enum BooleanOrUnrestrictedDoubleOrDomString {
+    /// `boolean`.
+    Boolean(bool),
+    /// `unrestricted double`.
+    UnrestrictedDouble(f64),
+    /// `DOMString`.
+    DomString(String),
+}
+
+impl BooleanOrUnrestrictedDoubleOrDomString {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<BooleanOrUnrestrictedDoubleOrDomString> {
+        if let swb_js::Value::Bool(_) = value { return Ok(BooleanOrUnrestrictedDoubleOrDomString::Boolean(b::convert::boolean(rt, value)?)); }
+        if let swb_js::Value::Int(_) | swb_js::Value::Double(_) = value { return Ok(BooleanOrUnrestrictedDoubleOrDomString::UnrestrictedDouble(b::convert::unrestricted_double(rt, value)?)); }
+        Ok(BooleanOrUnrestrictedDoubleOrDomString::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            BooleanOrUnrestrictedDoubleOrDomString::Boolean(x) => swb_js::VmResult::Ok(swb_js::Value::Bool(*x)),
+            BooleanOrUnrestrictedDoubleOrDomString::UnrestrictedDouble(x) => swb_js::VmResult::Ok(swb_js::Value::number(*x)),
+            BooleanOrUnrestrictedDoubleOrDomString::DomString(x) => b::to_js::string(rt, &x.clone()),
+        }
+    }
+}
+
 /// The union type `(DOMString or ElementCreationOptions)`.
 #[derive(Clone, Debug)]
 pub enum DomStringOrElementCreationOptions {
@@ -657,6 +686,62 @@ impl EventOrUndefined {
     }
 }
 
+/// The union type `(HTMLElement or long)`.
+#[derive(Clone, Debug)]
+pub enum HTMLElementOrLong {
+    /// `HTMLElement`.
+    HTMLElement(b::NodeId),
+    /// `long`.
+    Long(i32),
+}
+
+impl HTMLElementOrLong {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<HTMLElementOrLong> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::HTML_ELEMENT) { return Ok(HTMLElementOrLong::HTMLElement(b::convert::node(rt, value, super::HTML_ELEMENT, "HTMLElement")?)); }
+        }
+        if let swb_js::Value::Int(_) | swb_js::Value::Double(_) = value { return Ok(HTMLElementOrLong::Long(b::convert::long(rt, value, b::convert::IntMode::Plain)?)); }
+        Ok(HTMLElementOrLong::Long(b::convert::long(rt, value, b::convert::IntMode::Plain)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            HTMLElementOrLong::HTMLElement(x) => b::to_js::node::<H>(rt, realm, *x),
+            HTMLElementOrLong::Long(x) => swb_js::VmResult::Ok(swb_js::Value::number(f64::from(*x))),
+        }
+    }
+}
+
+/// The union type `(HTMLOptGroupElement or HTMLOptionElement)`.
+#[derive(Clone, Debug)]
+pub enum HTMLOptionElementOrHTMLOptGroupElement {
+    /// `HTMLOptionElement`.
+    HTMLOptionElement(b::NodeId),
+    /// `HTMLOptGroupElement`.
+    HTMLOptGroupElement(b::NodeId),
+}
+
+impl HTMLOptionElementOrHTMLOptGroupElement {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<HTMLOptionElementOrHTMLOptGroupElement> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::HTML_OPTION_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(b::convert::node(rt, value, super::HTML_OPTION_ELEMENT, "HTMLOptionElement")?)); }
+            if rt.implements(value, super::HTML_OPT_GROUP_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(b::convert::node(rt, value, super::HTML_OPT_GROUP_ELEMENT, "HTMLOptGroupElement")?)); }
+        }
+        Err(b::Exception::NotOfType("(HTMLOptGroupElement or HTMLOptionElement)".into()))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(x) => b::to_js::node::<H>(rt, realm, *x),
+            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(x) => b::to_js::node::<H>(rt, realm, *x),
+        }
+    }
+}
+
 /// The union type `(DOMString or Node)`.
 #[derive(Clone, Debug)]
 pub enum NodeOrDomString {
@@ -680,6 +765,34 @@ impl NodeOrDomString {
         match self {
             NodeOrDomString::Node(x) => b::to_js::node::<H>(rt, realm, *x),
             NodeOrDomString::DomString(x) => b::to_js::string(rt, &x.clone()),
+        }
+    }
+}
+
+/// The union type `(Element or RadioNodeList)`.
+#[derive(Clone, Debug)]
+pub enum RadioNodeListOrElement {
+    /// `RadioNodeList`.
+    RadioNodeList(b::Platform),
+    /// `Element`.
+    Element(b::NodeId),
+}
+
+impl RadioNodeListOrElement {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<RadioNodeListOrElement> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::RADIO_NODE_LIST) { return Ok(RadioNodeListOrElement::RadioNodeList(b::convert::platform(rt, value, super::RADIO_NODE_LIST, "RadioNodeList")?)); }
+            if rt.implements(value, super::ELEMENT) { return Ok(RadioNodeListOrElement::Element(b::convert::node(rt, value, super::ELEMENT, "Element")?)); }
+        }
+        Err(b::Exception::NotOfType("(Element or RadioNodeList)".into()))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            RadioNodeListOrElement::RadioNodeList(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).object)),
+            RadioNodeListOrElement::Element(x) => b::to_js::node::<H>(rt, realm, *x),
         }
     }
 }

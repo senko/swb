@@ -675,7 +675,11 @@ impl Page {
     /// checkedness or selected option changed.
     fn control_changed(&mut self) {
         if let Some(doc) = self.doc.as_deref() {
-            let states = Arc::new(doc.forms.value().element_states(doc.dom()));
+            let states = Arc::new(
+                doc.forms
+                    .value()
+                    .element_states(doc.dom(), &doc.indeterminate),
+            );
             self.update_states(|s| s.controls = states);
         }
         self.invalidate_layout();

@@ -17,7 +17,7 @@ impl Gen<'_> {
     pub(crate) fn types_file(&self) -> Result<String, Error> {
         let mut out = String::new();
         out.push_str(&self.header("the dictionaries, enumerations, unions and callbacks"));
-        out.push_str("#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref)]\n\n");
+        out.push_str("#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms)]\n\n");
         let _ = writeln!(out, "use {} as b;\n", self.support);
         for dict in &self.model.dictionaries {
             self.dictionary(&mut out, &dict.name)?;

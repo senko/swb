@@ -2763,6 +2763,67 @@ Steps:
         `table` parts, `style`, `time`, `iframe` as an empty element)
         and the SVG element members that Leaflet uses. Tests: probe
         cases for reflection (enumerated attributes, URLs, numbers).
+        Split in two sessions:
+        - 6c1: the interfaces of all HTML elements, `HTMLUnknownElement`
+          and `HTMLDocument`; reflection; form controls with the
+          engine's form state; tables and the form and select
+          collections.
+          Done 2026-10-24. Every HTML element has its interface, with
+          `HTMLUnknownElement` for unknown names, `HTMLElement` for
+          valid custom element names and `HTMLDocument` for the
+          document; prototype chains, constructor names, `instanceof`
+          and `toString` match Chromium, and the constructors throw
+          `Illegal constructor`. `class_of` is a table lookup by tag
+          name. The IDL comes from the HTML standard; the generator has
+          `[HTMLConstructor]`, `[ReflectSetter]` for `long` and
+          `unsigned long` and `[SwbEnumerableNamedProperties]`.
+          Reflection of strings, URLs, enumerated attributes (Chromium's
+          missing and invalid value defaults), booleans and numbers with
+          their limits (`input.size = 0` throws `IndexSizeError`,
+          measured), `relList` with `supports`, `htmlFor`, and the URL
+          members of `a` and `area`. Form controls (`value`,
+          `defaultValue`, `checked`, `defaultChecked`, `selectedIndex`,
+          `selected`, `type`, `disabled`, `form`) read and write the
+          engine's form state through `EngineHost`; a write to a control
+          without state waits as a seed for the next rebuild; writes
+          reach the rendering and `:checked`, `:valid` and
+          `:placeholder-shown`; the newest checked radio button wins.
+          Collections: `table.rows`, `tBodies`, `tr.cells` and the
+          insert and delete methods, `select.options`
+          (`HTMLOptionsCollection`), `selectedOptions`, `form.elements`
+          (`HTMLFormControlsCollection`, `RadioNodeList`),
+          `fieldset.elements`. Departures: no obsolete members (`align`,
+          `bgColor`), constraint validation, selection members, `files`
+          or `labels`; `form` has no `[LegacyOverrideBuiltIns]` (a
+          control named `submit` does not hide `form.submit`), and an
+          `img` is not a named property of its form; color names in a
+          color input are not converted. The probe
+          `web-html-elements.json` (62 cases, 671 values, three equal
+          Chromium runs) matches except these departures; older probes
+          lost 13 differences (the `document`, `html` and `div` chains
+          of `web-dom-tree.json` now match). Runtime creation: 1.55 to
+          1.57 ms and 464 to 725 KB of heap (senko.net), so the
+          interfaces are made eagerly. Hostile: 173 ok + 1 known failure
+          (seven new cases); JS-off snapshot identical, JS-off page loads
+          within 1 %; Hacker News and senko.net with JavaScript on equal
+          JS-off (821 and 65 boxes, 0 pixels). Review fixes: the values
+          that scripts write to text controls have a budget of 32 MiB per
+          document (400 writes of 5 MB reached 6.4 GB); a select or
+          option that leaves the document keeps its selectedness;
+          `cloneNode` and `importNode` copy value and checkedness;
+          `option.text` skips scripts; an inserted checked radio button
+          wins its group; loops of `checked = true` and `selected = true`
+          are linear (6,000 radios: 4.5 s to 0.04 s); measured in
+          Chromium and fixed: range clamping and step, `:indeterminate`,
+          the value at a `type` change, `select.add` before an option in
+          an `optgroup`, the `host` and `hostname` setters, `inputMode`,
+          `enterKeyHint`, `tabIndex` of `contenteditable`. The probe has
+          65 cases and 733 values after the fixes.
+        - 6c2: `new Image()` and `new Option()`
+          (`[LegacyFactoryFunction]`, a `js` API for a native
+          constructor with a given prototype); the SVG interfaces that
+          the targets use (Leaflet), `className` as `SVGAnimatedString`,
+          `dataset` and `classList` on SVG elements.
       - 6d: input as DOM events (ADR 0028 section 11): `UIEvent`,
         `MouseEvent`, `PointerEvent`, `KeyboardEvent`, `FocusEvent`,
         `InputEvent`, `WheelEvent`; `on*` attributes and properties;
@@ -2978,9 +3039,6 @@ Steps:
   (`new Image()` with `src` loads in browsers).
 - Engine: the text of `style` and `title` elements is their descendant
   text; HTML uses the child text content.
-- Engine, forms: after a rebuild, when a script sets `checked` on a
-  radio button whose group has a dirty checked button, the last in tree
-  order wins; HTML says the newly checked one wins.
 - Engine: when the focused element is removed, focus becomes none, but
   `focus_start` and `last_press` can still name the removed node (a
   start for Tab and keyboard scrolling). A selection whose end is
@@ -3019,7 +3077,7 @@ Steps:
 - `js`: the source text of a script is charged only while the script's
   code object lives; its functions keep the shared text alive after
   that, uncharged (older than M8).
-- `webidl`, 6a/6b (found in feature 4b): `[LegacyFactoryFunction]`
+- `webidl`, 6c2 (found in feature 4b): `[LegacyFactoryFunction]`
   (`Image`, `Option`) is not generated; it needs a `js` API for a
   constructor function with a given `prototype`.
 - `web`: `DOMException`s that the bindings throw have no own `stack`
@@ -3035,9 +3093,7 @@ Steps:
 - `web`: `[SecureContext]` members are exposed everywhere; `[Exposed]`
   other than `Window` or `*` exposes nothing (no workers).
 - `web`: `[Reflect]` of `double` (needs the HTML float parser) and of
-  element references is not generated. The setter message of a
-  positive reflected integer ("The value provided is 0, which is an
-  invalid size.") is a guess; measure `input.size = 0`.
+  element references is not generated.
 - `web`: Chromium lists the attributes of `Event.prototype` and
   `DOMException.prototype` in its own order; swb uses the
   specifications' order.
@@ -3098,9 +3154,8 @@ Steps:
   (`document.characterSet` in the probe). This is the HTML sniffing
   default and changes JS-off rendering of such files, so check the
   fixtures before changing it.
-- `web`, 6x: the element interfaces (`HTMLDivElement`,
-  `HTMLHtmlElement`, ..., `SVGElement` and its subclasses) and
-  `HTMLDocument`; the probe `web-dom-tree.json` has Chromium's chains.
+- `web`, 6c2: `SVGElement` and its subclasses; the probe
+  `web-dom-tree.json` has Chromium's chains.
 - `web`: the `window[name]` cache rebuilds with a tree walk at the
   first miss after each DOM change: a loop that changes the DOM and
   reads a missing global is O(n) per step (hostile case
@@ -3223,8 +3278,8 @@ Steps:
   `Node` (`nodeType` 2, `instanceof Node`), `Element.slot`, shadow
   roots. Older libraries read `attributes[i].nodeName` and `nodeValue`;
   `Attr` has neither yet.
-- `web`, 6c (found in feature 6a): `dataset` and `classList` on SVG
-  elements (they need the SVG interfaces); `relList` and `supports`.
+- `web`, 6c2 (found in feature 6a): `dataset` and `classList` on SVG
+  elements (they need the SVG interfaces).
 - `web` (found in feature 6a): with expandos, `Reflect.ownKeys` of a
   `NamedNodeMap` lists the named properties first (Web IDL); Chromium
   lists the expandos first.
@@ -3249,10 +3304,8 @@ Steps:
   walks the removed subtree to clear the parser's form pointers, so a
   deep chain taken apart by repeated `remove` is quadratic.
   `DOMTokenList.contains` searches the tokens (Chromium too).
-- `web`, 6c (found in the 6a review): `className` of an SVG element must
+- `web`, 6c2 (found in the 6a review): `className` of an SVG element must
   be an `SVGAnimatedString`.
-- `web` (found in the 6a review): `createElement('é')` gives an
-  `HTMLElement`; Chromium gives an `HTMLUnknownElement`.
 - Engine (found in the 6a review): `document.characterSet` of a file
   page without a charset declaration is `UTF-8`; Chromium gives
   `windows-1252`.
@@ -3309,6 +3362,36 @@ Steps:
 - `web` (found in the 6b review): `baseURI` of a node in a `DOMParser`
   document with a `base` element gives the page URL; Chromium follows
   the `base` element.
+- Engine, forms (found in the 6c1 review): an option that leaves a
+  select whose state no read has built loses its implicit selectedness
+  (Chromium keeps the first option selected); a radio button removed
+  and inserted again, with another one checked in between, does not
+  win as in Chromium; an ungrouped radio checked by a script next to
+  one checked by its attribute: Chromium keeps both checked; a renamed
+  checked radio stays checked (Chromium unchecks it); a range value is
+  not sanitized again when `min`, `max` or `step` change; a disabled
+  option on a select without a built state gives `selectedIndex` -1
+  (Chromium 0); `setAttribute('selected')` on a select that the user
+  changed selects in swb (no per-option dirtiness).
+- `web` (found in the 6c1 review): a space in `a.host` or
+  `a.hostname` (Chromium writes `%20`; the `url` crate refuses it);
+  `option.index` and `options[i]` loops over 100,000 options are
+  quadratic (1.8 s); `img.height = 1e10` gives 1410065408 (Chromium
+  33554428, a layout limit; feature 7b).
+- `web` (found in feature 6c1): `select.length`, `options.length` and
+  `options[i]` after each DOM change walk the options again; the form's
+  control list is rebuilt after each change, so a loop that alternates
+  `appendChild` and `f.elements[name]` is quadratic (also why `form` has
+  no `[LegacyOverrideBuiltIns]`); obsolete members (`div.align`,
+  `body.bgColor`), `innerText`, `contentEditable`, `popover`, constraint
+  validation, selection members, `files`, `valueAsNumber`, `labels`,
+  `img.complete` and `naturalWidth` from the loaded image,
+  `iframe.contentWindow`; color names in a color input are not
+  converted; `form.img` is not a named property.
+- Engine (found in feature 6c1): with JavaScript on, the Craigslist
+  posting has no script error but differs from Chromium in the top
+  137 px; Wikipedia stops at `Cannot read properties of undefined
+  (reading 'match')`. Features 11 and 12 cover them.
 - `css` (found in the 6b review): Chromium accepts selectors that swb
   refuses with `SyntaxError`: `|p` (no namespace), `& p` and `div &`
   (the nesting selector, `:scope` in a query), `::part(x)` and

@@ -30,7 +30,7 @@ impl GenericData for MapData {
 }
 
 /// A new `DOMStringMap` of `element`.
-pub(super) fn new_string_map(
+pub(crate) fn new_string_map(
     rt: &mut Runtime,
     realm: u32,
     element: NodeId,

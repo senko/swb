@@ -82,10 +82,29 @@ impl Model {
 
     /// The special operations of the instances of `iface`.
     pub(crate) fn legacy<'a>(&'a self, iface: &'a Iface) -> Legacy<'a> {
-        let mut legacy = Legacy::default();
+        // The derived-most declaration decides whether the named properties
+        // are enumerable; `[SwbEnumerableNamedProperties]` undoes the
+        // inherited `[LegacyUnenumerableNamedProperties]` (Chromium's
+        // `HTMLFormControlsCollection`).
+        let unenumerable = self
+            .chain(iface)
+            .iter()
+            .find_map(|owner| {
+                if owner.ext_attrs.has("SwbEnumerableNamedProperties") {
+                    Some(false)
+                } else if owner.ext_attrs.has("LegacyUnenumerableNamedProperties") {
+                    Some(true)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(false);
+        let mut legacy = Legacy {
+            unenumerable,
+            ..Legacy::default()
+        };
         for owner in self.chain(iface) {
             legacy.override_builtins |= owner.ext_attrs.has("LegacyOverrideBuiltIns");
-            legacy.unenumerable |= owner.ext_attrs.has("LegacyUnenumerableNamedProperties");
             for member in &owner.members {
                 let Member::Operation(op) = member else {
                     continue;

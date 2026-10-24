@@ -3,15 +3,258 @@
 
 //! The binding glue of the interface `HTMLElement`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
 
 use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLElement`.
 pub trait HTMLElementImpl: b::Host {
+    /// `attribute boolean translate`.
+    fn translate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// The setter of `attribute boolean translate`.
+    fn set_translate(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
+
+    /// `attribute (DOMString or boolean or unrestricted double)? hidden`.
+    fn hidden(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<super::types::BooleanOrUnrestrictedDoubleOrDomString>>;
+
+    /// The setter of `attribute (DOMString or boolean or unrestricted double)? hidden`.
+    fn set_hidden(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<super::types::BooleanOrUnrestrictedDoubleOrDomString>) -> b::Result<()>;
+
+    /// `attribute boolean draggable`.
+    fn draggable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// The setter of `attribute boolean draggable`.
+    fn set_draggable(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
+
+    /// `attribute boolean spellcheck`.
+    fn spellcheck(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// The setter of `attribute boolean spellcheck`.
+    fn set_spellcheck(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
+
     /// `readonly attribute DOMStringMap dataset`.
     fn dataset(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `attribute long tabIndex`.
+    fn tab_index(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<i32>;
+
+}
+
+fn get_title<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "title"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "title")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_title<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "title"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "title", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_lang<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "lang"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "lang")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_lang<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "lang"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "lang", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_translate<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "translate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::translate(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_translate<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "translate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_translate(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_dir<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "dir"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "dir", &b::reflect::Keywords { keywords: &[("ltr", "ltr"), ("rtl", "rtl"), ("auto", "auto")], missing: None, invalid: None })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_dir<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "dir"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "dir", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_hidden<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "hidden"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::hidden(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok((match result { Some(x0) => x0.to_js::<H>(rt, call.realm()), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_hidden<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "hidden"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { super::types::BooleanOrUnrestrictedDoubleOrDomString::from_js(rt, call.realm(), v).map(Some) }).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_hidden(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_inert<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "inert"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "inert")?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_inert<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "inert"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "inert", value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_access_key<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "accessKey"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "accesskey")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_access_key<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "accessKey"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "accesskey", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_draggable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "draggable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::draggable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_draggable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "draggable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_draggable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_spellcheck<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "spellcheck"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::spellcheck(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_spellcheck<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "spellcheck"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_spellcheck(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_autocapitalize<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "autocapitalize"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "autocapitalize", &b::reflect::Keywords { keywords: &[("", ""), ("none", "none"), ("off", "none"), ("on", "sentences"), ("sentences", "sentences"), ("words", "words"), ("characters", "characters")], missing: None, invalid: Some("sentences") })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_autocapitalize<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "autocapitalize"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "autocapitalize", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_input_mode<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "inputMode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "inputmode", &b::reflect::Keywords { keywords: &[("none", "none"), ("text", "text"), ("tel", "tel"), ("url", "url"), ("email", "email"), ("numeric", "numeric"), ("decimal", "decimal"), ("search", "search")], missing: Some(""), invalid: Some("") })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_input_mode<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "inputMode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "inputmode", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_enter_key_hint<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "enterKeyHint"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "enterkeyhint", &b::reflect::Keywords { keywords: &[("enter", "enter"), ("done", "done"), ("go", "go"), ("next", "next"), ("previous", "previous"), ("search", "search"), ("send", "send")], missing: Some(""), invalid: Some("") })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_enter_key_hint<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "enterKeyHint"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "enterkeyhint", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
 }
 
 fn get_dataset<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -22,13 +265,86 @@ fn get_dataset<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
     })
 }
 
+fn get_nonce<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "nonce"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "nonce")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_nonce<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "nonce"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "nonce", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_autofocus<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "autofocus"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "autofocus")?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_autofocus<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "autofocus"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "autofocus", value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_tab_index<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "tabIndex"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::tab_index(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn set_tab_index<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "tabIndex"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
+        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "tabindex", false, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+pub(super) fn construct<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("HTMLElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+}
+
 /// Creates the interface object and the prototype of `HTMLElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
     let interface = rt.begin_interface(realm, super::HTML_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "title", (Some(get_title::<H> as swb_js::NativeFn), Some(set_title::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "lang", (Some(get_lang::<H> as swb_js::NativeFn), Some(set_lang::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "translate", (Some(get_translate::<H> as swb_js::NativeFn), Some(set_translate::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "dir", (Some(get_dir::<H> as swb_js::NativeFn), Some(set_dir::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "hidden", (Some(get_hidden::<H> as swb_js::NativeFn), Some(set_hidden::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "inert", (Some(get_inert::<H> as swb_js::NativeFn), Some(set_inert::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "accessKey", (Some(get_access_key::<H> as swb_js::NativeFn), Some(set_access_key::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "draggable", (Some(get_draggable::<H> as swb_js::NativeFn), Some(set_draggable::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "spellcheck", (Some(get_spellcheck::<H> as swb_js::NativeFn), Some(set_spellcheck::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "autocapitalize", (Some(get_autocapitalize::<H> as swb_js::NativeFn), Some(set_autocapitalize::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "inputMode", (Some(get_input_mode::<H> as swb_js::NativeFn), Some(set_input_mode::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "enterKeyHint", (Some(get_enter_key_hint::<H> as swb_js::NativeFn), Some(set_enter_key_hint::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "dataset", (Some(get_dataset::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "nonce", (Some(get_nonce::<H> as swb_js::NativeFn), Some(set_nonce::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "autofocus", (Some(get_autofocus::<H> as swb_js::NativeFn), Some(set_autofocus::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "tabIndex", (Some(get_tab_index::<H> as swb_js::NativeFn), Some(set_tab_index::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

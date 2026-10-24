@@ -221,8 +221,10 @@ pub(crate) fn set_attribute(
     let had = dom(rt)?
         .element(element)
         .is_some_and(|e| e.attr_by_namespace(&name.ns, &name.local).is_some());
+    let type_change = crate::html::before_type_change(rt, element, name)?;
     let result = dom_mut(rt)?.set_attribute(element, name, value);
     dom_result(rt, result)?;
+    crate::html::after_type_change(rt, element, type_change)?;
     Ok(crate::scripts::attribute_changed(rt, element, name, had)?)
 }
 

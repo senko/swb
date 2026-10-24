@@ -126,7 +126,7 @@ impl Gen<'_> {
             traits.join(" + "),
             traits.join(" + ")
         );
-        out.push_str("/// Registers the classes of the set in a new runtime, before any other\n/// class (the glue names them by number).\npub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {\n");
+        out.push_str("/// Registers the classes of the set in a new runtime, before any other\n/// class (the glue names them by number).\n#[allow(clippy::too_many_lines)]\npub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {\n");
         for iface in &self.model.interfaces {
             let mut spec = format!("swb_js::ClassSpec::new({})", literal(&iface.name));
             if let Some(parent) = &iface.parent {
@@ -157,7 +157,7 @@ impl Gen<'_> {
             );
         }
         out.push_str("    Ok(())\n}\n\n");
-        out.push_str("/// Creates the interfaces of the set in `realm` and defines the exposed\n/// ones on the global object.\npub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {\n");
+        out.push_str("/// Creates the interfaces of the set in `realm` and defines the exposed\n/// ones on the global object.\n#[allow(clippy::too_many_lines)]\npub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {\n");
         for iface in &self.model.interfaces {
             let module = snake(&iface.name);
             if crate::model::exposed_in_window(&iface.ext_attrs) {

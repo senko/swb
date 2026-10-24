@@ -16,8 +16,10 @@ use swb_dom::{Document, ElementData, NodeData, NodeId, local_name};
 
 /// The form-control states that depend on the current state of a control
 /// (its checkedness, its value) and not only on its attributes: `:checked`,
-/// `:placeholder-shown`, `:valid` and `:invalid`.
+/// `:placeholder-shown`, `:valid`, `:invalid` and `:indeterminate` (which
+/// only the `indeterminate` property of a checkbox sets).
 pub const CONTROL_STATES: ElementState = ElementState::CHECKED
+    .union(ElementState::INDETERMINATE)
     .union(ElementState::PLACEHOLDER_SHOWN)
     .union(ElementState::VALID)
     .union(ElementState::INVALID);

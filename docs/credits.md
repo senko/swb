@@ -12,12 +12,16 @@ Format: source, license (for code), what it influenced.
 ## Specifications
 
 - WHATWG HTML Living Standard — https://html.spec.whatwg.org/ — the IDL
-  of `Window`, the tree accessors of `Document` (`title`, `body`, `head`),
-  `HTMLElement`, `HTMLHeadElement`, `ErrorEvent`, `PromiseRejectionEvent`
-  and `PageTransitionEvent`, copied into `crates/web/idl/html.idl`
+  of `Window`, the members of `Document` and `HTMLDocument`,
+  `HTMLElement`, the interfaces of the HTML elements (from
+  `HTMLHtmlElement` to `HTMLUnknownElement`, with `HTMLFormControlsCollection`,
+  `RadioNodeList`, `HTMLOptionsCollection` and the mixin
+  `HTMLHyperlinkElementUtils`), `ErrorEvent`, `PromiseRejectionEvent` and
+  `PageTransitionEvent`, copied into `crates/web/idl/html.idl`
   (BSD-3-Clause for IDL in source code, WHATWG IPR policy 7.1.1); the
-  title, body and named-access algorithms and the script type test of
-  `swb-web`.
+  title, body and named-access algorithms, the script type test, the
+  reflection rules of content attributes, the form control, select and
+  table algorithms of `swb-web` and `swb-engine`.
 - WHATWG Web IDL Standard — https://webidl.spec.whatwg.org/ — the
   conversions of `swb-web` (§3.2), overload resolution (§3.6), the
   interface objects and members (§3.7), exceptions and `DOMException`

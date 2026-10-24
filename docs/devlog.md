@@ -4,6 +4,57 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 6c1, HTML element interfaces and form controls
+
+- Every HTML element has its interface: prototype chains, constructor
+  names, `instanceof` and `toString` match Chromium. Unknown names give
+  `HTMLUnknownElement`, valid custom element names `HTMLElement`, and
+  the document is an `HTMLDocument`. The constructors throw `Illegal
+  constructor`.
+- The reflected attributes come from the HTML standard's IDL: strings,
+  URLs, enumerated attributes with Chromium's missing and invalid value
+  defaults, booleans, numbers with their limits, `relList` with
+  `supports`, `htmlFor`. `a.href` and the other URL members of `a` and
+  `area` use the `url` crate.
+- Form controls keep their state in the engine. Scripts read and write
+  `value`, `checked`, `selectedIndex` and `selected` through
+  `EngineHost`; the writes reach the rendering and the `:checked`,
+  `:valid` and `:placeholder-shown` queries. A write to a control that
+  has no state yet (a new `input`) waits as a seed for the next rebuild.
+  A radio button that a script checks now wins over its group, as HTML
+  says.
+- Collections: `table.rows`, `tBodies`, `tr.cells` and the insert and
+  delete methods, `select.options`, `selectedOptions`, `form.elements`
+  with `RadioNodeList`, `fieldset.elements`.
+- Learned: with `[LegacyOverrideBuiltIns]` on `form`, every property
+  read of a form (`f.appendChild`) rebuilt the control list after each
+  change; a loop of 8,000 appends took seconds. `form` has no override
+  now (18 ms), so a control named `submit` does not hide `form.submit`.
+- The probe `web-html-elements.json` has 62 cases (671 values). The
+  older probes lost 13 differences. A runtime with all the interfaces
+  costs 725 KB of heap (464 KB before) and the same 1.6 ms to create.
+- `new Image()`, `new Option()` and the SVG interfaces move to 6c2:
+  `[LegacyFactoryFunction]` needs a `js` API for a native constructor
+  with a given prototype.
+- Review fixes:
+  - Values that scripts write to text controls bypassed the memory
+    limits: 400 writes of one 5 MB string reached 6.4 GB and an
+    allocation abort. A budget of 32 MiB per document now ends such a
+    script; it is low because a visible control costs 70 to 180 bytes
+    per character in layout.
+  - Fixed against Chromium: a removed select keeps its selectedness;
+    `cloneNode` copies value and checkedness; `option.text` skips
+    scripts; an inserted checked radio button wins; range clamping,
+    `:indeterminate`, the value at a `type` change, the `host` setters.
+  - A loop of `checked = true` on new radio buttons rebuilt the form
+    state per write (6,000 radios: 4.5 s); now 0.04 s. 30,000
+    `option.selected = true` writes went from the time limit to 0.2 s.
+- With JavaScript on, the Craigslist posting has no script error but
+  differs at the top of the page; Wikipedia stops at a `TypeError`
+  (`reading 'match'`). Features 11 and 12 take them up.
+
+Next: feature 6c2, `Image`, `Option` and the SVG interfaces.
+
 ## 2026-10-24: M8 feature 6b, DOM queries and markup
 
 - Selectors from scripts: `querySelector`, `querySelectorAll` (a static

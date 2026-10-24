@@ -70,6 +70,11 @@ impl Exception {
     #[must_use]
     pub fn argument(self, index: usize) -> Exception {
         match self {
+            // Chromium words the failure of a union differently
+            // (measured: `select.add(select)`).
+            Exception::NotOfType(ty) if ty.starts_with('(') => {
+                Exception::Type(format!("The provided value is not of type '{ty}'.").into())
+            }
             Exception::NotOfType(ty) => {
                 Exception::Type(format!("parameter {} is not of type '{ty}'.", index + 1).into())
             }

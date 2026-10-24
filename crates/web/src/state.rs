@@ -15,7 +15,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-use swb_dom::{Document, NodeData, NodeId, local_name, ns};
+use swb_dom::{Document, NodeData, NodeId, ns};
 use swb_js::{ClassId, Gc, HostData, HostState, Object, Runtime, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx, GlueState};
@@ -40,6 +40,12 @@ pub(crate) enum Slot {
     Attributes,
     /// `HTMLElement.dataset`.
     Dataset,
+    /// A `DOMTokenList` of the attribute with this name (`relList`,
+    /// `sizes`, `blocking`, `sandbox`, `htmlFor`).
+    TokenList(&'static str),
+    /// `table.rows`, `tBodies`, `tr.cells`, `select.options` and the
+    /// other lists of an element (feature 6c).
+    ElementList(crate::dom::ElementList),
     /// `Document.implementation`.
     Implementation,
     /// `document.forms` and the other collections of a document.
@@ -91,6 +97,8 @@ pub(crate) struct WebState {
     /// The documents that `DOMParser` made (they have the URL of the
     /// window's document).
     pub(crate) parsed_documents: std::collections::HashSet<NodeId>,
+    /// The `input` elements whose `indeterminate` is true.
+    pub(crate) indeterminate: std::collections::HashSet<NodeId>,
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,
@@ -198,19 +206,14 @@ pub(crate) fn dom_mut(rt: &mut Runtime) -> VmResult<&mut Document> {
 }
 
 /// The interface of a node's wrapper: its most derived interface among
-/// those that swb has (HTML elements other than `head` and `script` get
-/// `HTMLElement`; elements of other namespaces `Element`).
+/// those that swb has (HTML elements: a table by tag name, `html::classes`;
+/// elements of other namespaces `Element`; every document `HTMLDocument`).
 fn class_of(dom: &Document, node: NodeId) -> ClassId {
     match &dom.node(node).data {
-        NodeData::Document => g::DOCUMENT,
+        NodeData::Document => g::HTML_DOCUMENT,
         NodeData::DocumentFragment => g::DOCUMENT_FRAGMENT,
         NodeData::Doctype { .. } => g::DOCUMENT_TYPE,
-        NodeData::Element(e) if e.name.ns == ns!(html) => match e.name.local {
-            local_name!("head") => g::HTML_HEAD_ELEMENT,
-            local_name!("script") => g::HTML_SCRIPT_ELEMENT,
-            local_name!("template") => g::HTML_TEMPLATE_ELEMENT,
-            _ => g::HTML_ELEMENT,
-        },
+        NodeData::Element(e) if e.name.ns == ns!(html) => crate::html::class_of_html(&e.name.local),
         NodeData::Element(_) => g::ELEMENT,
         NodeData::Text(_) => g::TEXT,
         NodeData::Comment(_) => g::COMMENT,

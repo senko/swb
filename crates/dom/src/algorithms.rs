@@ -32,6 +32,17 @@ pub struct Cloned {
     pub root: NodeId,
     /// Pairs of the original and the copy of each `script` element.
     pub scripts: Vec<(NodeId, NodeId)>,
+    /// Pairs of the original and the copy of each HTML `input` and
+    /// `textarea` element (their cloning steps copy the value and the
+    /// checkedness).
+    pub controls: Vec<(NodeId, NodeId)>,
+}
+
+/// The pairs that a clone collects.
+#[derive(Default)]
+struct Pairs {
+    scripts: Vec<(NodeId, NodeId)>,
+    controls: Vec<(NodeId, NodeId)>,
 }
 
 impl Document {
@@ -47,8 +58,8 @@ impl Document {
         deep: bool,
     ) -> Result<Cloned, DomError> {
         let document = self.node_document(document);
-        let mut scripts = Vec::new();
-        let root = self.clone_one(node, document, &mut scripts)?;
+        let mut pairs = Pairs::default();
+        let root = self.clone_one(node, document, &mut pairs)?;
         if deep {
             // (original, copy): the children of the original are copied
             // next. Template contents go with their template element.
@@ -62,14 +73,18 @@ impl Document {
                     let owner = self.node_document(to);
                     let children: Vec<NodeId> = self.children(from).collect();
                     for child in children {
-                        let copy = self.clone_one(child, owner, &mut scripts)?;
+                        let copy = self.clone_one(child, owner, &mut pairs)?;
                         self.link_raw(to, copy, None);
                         stack.push((child, copy));
                     }
                 }
             }
         }
-        Ok(Cloned { root, scripts })
+        Ok(Cloned {
+            root,
+            scripts: pairs.scripts,
+            controls: pairs.controls,
+        })
     }
 
     /// Creates the copy of one node, without children.
@@ -77,7 +92,7 @@ impl Document {
         &mut self,
         src: NodeId,
         owner: NodeId,
-        scripts: &mut Vec<(NodeId, NodeId)>,
+        pairs: &mut Pairs,
     ) -> Result<NodeId, DomError> {
         let mut data = self.node(src).data.clone();
         let mut nodes = 1;
@@ -86,11 +101,20 @@ impl Document {
             e.parser_form = None;
         }
         self.check_room(nodes, crate::mutation::data_bytes(&data))?;
-        let is_script = matches!(&data, NodeData::Element(e)
-            if e.is_html_named(&html5ever::local_name!("script")));
+        let (is_script, is_control) = match &data {
+            NodeData::Element(e) => (
+                e.is_html_named(&html5ever::local_name!("script")),
+                e.is_html_named(&html5ever::local_name!("input"))
+                    || e.is_html_named(&html5ever::local_name!("textarea")),
+            ),
+            _ => (false, false),
+        };
         let copy = self.push_node(data, owner);
         if is_script {
-            scripts.push((src, copy));
+            pairs.scripts.push((src, copy));
+        }
+        if is_control {
+            pairs.controls.push((src, copy));
         }
         Ok(copy)
     }

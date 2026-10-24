@@ -17,6 +17,7 @@ swb-css.workspace = true
 swb-dom.workspace = true
 swb-js.workspace = true
 swb-style.workspace = true
+url.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

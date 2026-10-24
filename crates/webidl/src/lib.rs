@@ -271,6 +271,59 @@ mod tests {
     }
 
     #[test]
+    fn an_html_constructor_throws_illegal_constructor() {
+        let idl = "[Exposed=Window] interface E { [HTMLConstructor] constructor(); };";
+        let e = file(idl, "e.rs");
+        assert!(e.contains("pub(super) fn construct<H: EImpl>("));
+        assert!(e.contains("b::Context::Constructor(\"E\")"));
+        assert!(e.contains("Err(b::Exception::type_error(\"Illegal constructor\"))"));
+        // The trait has no constructor method to write.
+        assert!(!e.contains("fn constructor("));
+        // `new E()` is the only member, so the trait is empty and ready.
+        assert!(e.contains("impl<T: b::Host> EImpl for T {}"));
+    }
+
+    #[test]
+    fn reflect_setter_covers_strings_and_integers() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node { [ReflectSetter] attribute long a; [ReflectSetter] attribute unsigned long b; [ReflectSetter] attribute DOMString c; attribute long d; };";
+        let element = file(idl, "element.rs");
+        assert!(element.contains("b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, \"a\", false, value)"));
+        assert!(element.contains("b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, \"b\", b::reflect::UnsignedLimit::None, None, value)"));
+        assert!(element.contains(
+            "b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, \"c\", &value)"
+        ));
+        // The getters are written by hand, the setters are generated; a
+        // plain attribute has both in the trait.
+        assert!(element.contains("fn a(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<i32>;"));
+        assert!(!element.contains("fn set_a("));
+        assert!(!element.contains("fn set_b("));
+        assert!(!element.contains("fn set_c("));
+        assert!(element.contains("fn set_d("));
+        // Other types are an error.
+        let bad = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node { [ReflectSetter] attribute boolean x; };";
+        assert!(
+            error(bad).contains("[ReflectSetter] needs a string, long or unsigned long attribute")
+        );
+    }
+
+    #[test]
+    fn enumerable_named_properties_override_the_inherited_flag() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window, LegacyUnenumerableNamedProperties] interface C { getter Node? item(unsigned long index); getter Node (DOMString name); };\n[Exposed=Window, SwbEnumerableNamedProperties] interface D : C {};\n[Exposed=Window] interface E : D {};\n[Exposed=Window] interface F : C {};";
+        assert!(file(idl, "c.rs").contains("unenumerable: true,"));
+        // The derived-most declaration decides.
+        assert!(file(idl, "d.rs").contains("unenumerable: false,"));
+        assert!(file(idl, "e.rs").contains("unenumerable: false,"));
+        assert!(file(idl, "f.rs").contains("unenumerable: true,"));
+    }
+
+    #[test]
+    fn a_trait_without_items_has_a_blanket_implementation() {
+        let idl = "[Exposed=Window] interface Empty {};\n[Exposed=Window] interface Full { readonly attribute long x; };";
+        assert!(file(idl, "empty.rs").contains("impl<T: b::Host> EmptyImpl for T {}"));
+        assert!(!file(idl, "full.rs").contains("impl<T: b::Host> FullImpl for T {}"));
+    }
+
+    #[test]
     fn output_of_a_pair_iterator_and_a_global() {
         let idl = "[Global=Window, Exposed=Window] interface Window {};\n[Exposed=Window] interface H { iterable<DOMString, long>; };";
         let h = file(idl, "h.rs");
