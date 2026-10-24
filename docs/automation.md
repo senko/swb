@@ -106,6 +106,8 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 | `page.waitForLoad` | `timeoutMs` (default 30000, at most 3600000) | `{"loaded": bool}`: false on timeout. Loaded means the document and all its resources (stylesheets, images, background images) are loaded. A failed navigation counts as loaded: then `page.info` has `loadState` `failed`. |
 | `page.info` | — | see below |
 | `page.setJavaScript` | `enabled` (boolean) | `{}`. Sets the JavaScript setting. It applies to the next document: the current document keeps the value it was created with, and a reload or a navigation applies the change. See "The JavaScript setting". |
+| `page.evaluate` | `expression` (string) | `{"value": V}` or `{"error": "Name: message"}`. Evaluates the expression as a classic script in the global scope of the document (the value of the last expression statement, as Chromium's `Runtime.evaluate`). A promise is awaited as far as the microtask checkpoint settles it (no timers run yet: a promise that is still pending is an error). V is the value as JSON: arrays and the enumerable own properties of objects (cycles and functions are `null`), `undefined` is `null`, and `NaN`, `Infinity` and `-Infinity` are `null` and `-0` is `0`, as in `JSON.stringify`; a lone surrogate in a string or key becomes U+FFFD. A thrown value or a rejected promise gives `error`. The call fails (code -32000) if the document has no scripts (JavaScript off). |
+| `page.consoleMessages` | — | `{"messages": [{"level", "text"}]}`: the console lines of the current document in order (at most the last 1,000, each cut at 16 KiB). `level` is `log`, `info`, `warn`, `error` or `debug`; uncaught exceptions and unhandled promise rejections are `error` lines (`Uncaught TypeError: ...`, `Uncaught (in promise) ...`). A new document starts with no messages. |
 | `page.setViewport` | `width`, `height` (1 to 16384), `scale` (above 0, at most 8; default 1) | `{}`. For headless mode: with a window, the next resize of the window sets the viewport again. |
 | `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx; as in Chromium, it shows the page from its top with the layout of the viewport; fixed and sticky boxes are where they are at the page's scroll offset, and scroll containers keep their offsets. |
 | `page.scrollTo` | `x`, `y` | `{"scroll": {"x", "y"}}` (whole CSS px, clamped to the content, also on an axis with `overflow: hidden`) |
@@ -154,11 +156,17 @@ With JavaScript on, the document has the scripting flag: the HTML parser
 reads `<noscript>` in `head` and `body` as raw text (so `dom.querySelector`
 does not find elements inside it, and nothing in it loads); `@media
 (scripting)` matches; a `<video>` shows controls only with the `controls`
-attribute; `<canvas>` is a replaced element that paints nothing. No script
-runs yet (M8 feature 4 adds that). In the GUI, the toolbar button "JS" and
-Ctrl+Shift+J flip the setting, and `page.setJavaScript` works the same; if
-the stack limit of the process is below 8 MiB (`ulimit -s`), the GUI keeps
-JavaScript off and ignores both.
+attribute; `<canvas>` is a replaced element that paints nothing. The
+document gets a script runtime: its inline classic scripts run in tree
+order when the parse is done (M8 feature 5c moves them into the parse;
+external scripts, events and timers come with feature 5), and
+`page.evaluate` and `page.consoleMessages` work. In the GUI, the toolbar
+button "JS" and Ctrl+Shift+J flip the setting, and `page.setJavaScript`
+works the same. A page whose thread has too small a stack for scripts
+keeps JavaScript off whatever sets it: the GUI's page runs on the main
+thread, so if the stack limit of the process is below 8 MiB (`ulimit
+-s`), `page.setJavaScript true` and the toggle leave it off (the headless
+runner and server run the page on a thread with a 16 MiB stack).
 
 ### dom
 

@@ -43,7 +43,9 @@ pub use string::{JsString, PropertyKey};
 pub use value::{BigInt, Symbol, Value, ValueCell};
 
 pub use date::{Clock, TimeZone, TimeZoneError};
-pub use runtime::{ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError};
+pub use runtime::{
+    ConsoleLevel, ConsoleSink, MAX_STACK_LIMIT, Runtime, RuntimeConfig, ScriptError,
+};
 pub use swb_js_text::RecursionBudget;
 pub use vm::{
     DEFAULT_FRAME_LIMIT, DEFAULT_STACK_LIMIT, NativeCall, NativeFn, NativeReturn, PromiseStatus,

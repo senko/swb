@@ -1721,3 +1721,46 @@ def parse_steps_unique_images_js_on() -> Page:
 )
 def dom_node_limit_js_on() -> Page:
     return Page(doc(("<!---->" * 1_000 + "<script></script>") * 1_100))
+
+
+@case(
+    "6 inline scripts with endless loops, with JavaScript on: each task ends at the time "
+    "limit of 5 s, and after the third the document runs no more scripts (ADR 0028 "
+    "sections 7 and 16)",
+    time_limit_s=25,
+    expect_log="the scripts of the document stop",
+    swb_args=("--js",),
+)
+def inline_script_endless_loops_js_on() -> Page:
+    return Page(doc("<p>text</p>" + "<script>for (;;) {}</script>" * 6))
+
+
+@case(
+    "50,000 paragraphs whose wrappers, child lists and expandos a script creates, with "
+    "JavaScript on: one wrapper per node in the wrapper vector, the lists in the side "
+    "table, and each list walks its children once per DOM generation (ADR 0028 section 4)",
+    swb_args=("--js",),
+)
+def script_wrappers_of_many_nodes_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let e = document.body.firstChild; e; e = e.nextSibling) "
+        "{ e.mark = n++; const c = e.childNodes; for (let i = 0; i < c.length; i++) c[i].x = i; } "
+        "const all = document.body.childNodes; let sum = 0; "
+        "for (let i = 0; i < all.length; i++) sum += all[i].mark | 0; console.log(sum);</script>"
+    )
+    return Page(doc("<p>a<b>b</b></p>" * 50_000 + script))
+
+
+@case(
+    "50,000 elements with ids and a script that changes the DOM and reads a missing global "
+    "1,000 times, with JavaScript on: each read after a change looks up the window's named "
+    "properties again; the task ends at the time limit at the latest (ADR 0028 section 4)",
+    time_limit_s=12,
+    swb_args=("--js",),
+)
+def window_named_lookups_after_changes_js_on() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 1000; i++) { document.title = 't' + i; "
+        "if (typeof missingGlobal !== 'undefined') break; }</script>"
+    )
+    return Page(doc("".join(f"<i id=e{i}></i>" for i in range(50_000)) + script))

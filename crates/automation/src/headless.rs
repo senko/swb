@@ -24,13 +24,16 @@ pub struct HeadlessBrowser {
 
 impl HeadlessBrowser {
     /// Creates the page and starts the server on 127.0.0.1:`port` (0
-    /// picks a free port).
+    /// picks a free port). `scripts_allowed` states that the calling
+    /// thread, which runs the page, has a stack large enough for scripts
+    /// (`PageConfig::scripts_allowed`).
     pub fn new(
         fetcher: Arc<dyn Fetcher>,
         fonts: FontContext,
         viewport: Size,
         scale: f32,
         port: u16,
+        scripts_allowed: bool,
     ) -> io::Result<Self> {
         let (sender, wake) = mpsc::channel();
         let notify: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
@@ -41,6 +44,7 @@ impl HeadlessBrowser {
             fetcher,
             notify: Arc::clone(&notify),
             network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
+            scripts_allowed,
         };
         let page = Page::new(config, fonts, viewport, scale);
         let automation = Automation::start(port, notify)?;

@@ -88,8 +88,6 @@ struct Gfx {
 
 struct App {
     page: Page,
-    /// False if the stack limit of the process rules JavaScript out.
-    javascript_allowed: bool,
     start_url: Option<Url>,
     gfx: Option<Gfx>,
     toolbar: Toolbar,
@@ -138,27 +136,28 @@ impl App {
             // The event loop may already be gone at shutdown.
             let _ = proxy.send_event(UserEvent::Network);
         });
-        let config = PageConfig {
-            fetcher,
-            notify,
-            network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
-        };
-        let mut page = Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0);
         // The page runs on the main thread: its stack limit must be enough
-        // for JavaScript (ADR 0028 section 2).
-        let javascript_allowed = crate::stack::main_stack_is_enough();
-        if !javascript_allowed {
+        // for JavaScript (ADR 0028 section 2). Without it, the page keeps
+        // JavaScript off whatever sets it.
+        let scripts_allowed = crate::stack::main_stack_is_enough();
+        if !scripts_allowed {
             log::warn!(
                 "the stack limit of the process is below {} MiB: JavaScript stays off (see `ulimit -s`)",
                 crate::stack::MIN_MAIN_STACK / (1024 * 1024)
             );
         }
-        page.set_javascript(javascript && javascript_allowed);
+        let config = PageConfig {
+            fetcher,
+            notify,
+            network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
+            scripts_allowed,
+        };
+        let mut page = Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0);
+        page.set_javascript(javascript && scripts_allowed);
         // Scrollbars take no space; overlay indicators show what scrolls.
         page.set_scroll_indicators(true);
         App {
             page,
-            javascript_allowed,
             start_url,
             gfx: None,
             toolbar: Toolbar::default(),
@@ -326,13 +325,7 @@ impl App {
             .resize(w, h)
             .map_err(|e| anyhow::anyhow!("resize failed: {e}"))?;
 
-        let frame = compose_frame(
-            &mut self.page,
-            &self.toolbar,
-            self.javascript_allowed,
-            (w.get(), h.get()),
-            scale,
-        )?;
+        let frame = compose_frame(&mut self.page, &self.toolbar, (w.get(), h.get()), scale)?;
 
         let Some(gfx) = &mut self.gfx else {
             return Ok(());
@@ -357,10 +350,6 @@ impl App {
             return false;
         };
         let executed = automation.process(&mut self.page);
-        if !self.javascript_allowed && self.page.javascript() {
-            log::warn!("JavaScript is not available: the stack limit of the process is too low");
-            self.page.set_javascript(false);
-        }
         if automation.close_requested() {
             automation.finish_close();
             event_loop.exit();
@@ -567,9 +556,10 @@ impl App {
     }
 
     /// Flips the JavaScript setting. It applies to the next document (a
-    /// reload). It does nothing if the stack limit rules JavaScript out.
+    /// reload). It does nothing if the stack limit rules JavaScript out
+    /// (the page refuses it).
     fn toggle_javascript(&mut self) {
-        if !self.javascript_allowed {
+        if !self.page.javascript_available() {
             log::warn!("JavaScript is not available: the stack limit of the process is too low");
             return;
         }
@@ -757,7 +747,6 @@ fn set_primary(_clipboard: &mut arboard::Clipboard, _text: String) -> Result<(),
 fn compose_frame(
     page: &mut Page,
     toolbar: &Toolbar,
-    javascript_allowed: bool,
     (width, height): (u32, u32),
     scale: f32,
 ) -> Result<Pixmap> {
@@ -781,7 +770,7 @@ fn compose_frame(
         can_go_forward: page.can_go_forward(),
         loading: page.is_loading(),
         javascript: page.javascript(),
-        javascript_allowed,
+        javascript_allowed: page.javascript_available(),
         status: status.as_deref(),
     };
     let css_width = width as f32 / scale;
@@ -814,7 +803,7 @@ pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result
     );
     let w = (window.width * scale).round() as u32;
     let h = (window.height * scale).round() as u32;
-    compose_frame(page, &toolbar, true, (w.max(1), h.max(1)), scale)
+    compose_frame(page, &toolbar, (w.max(1), h.max(1)), scale)
 }
 
 impl ApplicationHandler<UserEvent> for App {

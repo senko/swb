@@ -1,13 +1,14 @@
 //! Headless mode: load a page without a window, then save a screenshot or
 //! print debugging dumps; or serve the automation protocol.
 
+use std::io::Write as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use swb_automation::HeadlessBrowser;
-use swb_engine::{Page, PageConfig, Size, Url};
+use swb_engine::{Evaluation, JsonForm, Page, PageConfig, Size, Url};
 use swb_layout::FragmentRef;
 use swb_net::Fetcher;
 use swb_text::FontContext;
@@ -29,6 +30,8 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) bench: Option<usize>,
     /// The JavaScript setting.
     pub(crate) javascript: bool,
+    /// Expressions to evaluate after the load (`--eval`).
+    pub(crate) eval: &'a [String],
 }
 
 /// Runs a headless page with the automation server until a client sends
@@ -42,7 +45,8 @@ pub(crate) fn serve(
     url: Option<Url>,
     javascript: bool,
 ) -> Result<()> {
-    let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port)
+    // `main` runs this on a page thread (`stack::on_page_thread`).
+    let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port, true)
         .with_context(|| format!("cannot start the automation server on port {port}"))?;
     browser.page().set_javascript(javascript);
     crate::print_server_address(browser.port())?;
@@ -59,6 +63,8 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
         fetcher: Arc::clone(&options.fetcher),
         notify: Arc::new(|| {}),
         network_threads: PageConfig::DEFAULT_NETWORK_THREADS,
+        // `main` runs this on a page thread (`stack::on_page_thread`).
+        scripts_allowed: true,
     };
     let mut page = Page::new(config, fonts, options.viewport, options.scale);
     page.set_javascript(options.javascript);
@@ -66,10 +72,16 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     if !page.wait_until_loaded(options.timeout) {
         log::warn!("timed out waiting for the page to load");
     }
-    page.update_layout();
     if let Some(error) = page.error() {
+        // The `--eval` contract: a page that does not load prints no
+        // lines, and swb exits with an error.
+        if !options.eval.is_empty() {
+            anyhow::bail!("the page did not load: {error}");
+        }
         log::warn!("{error}");
     }
+    evaluate(&mut page, options.eval)?;
+    page.update_layout();
 
     if options.dump_dom {
         let doc = page.document().context("no document")?;
@@ -105,6 +117,30 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     Ok(())
 }
 
+/// Evaluates each expression in order and prints one line per expression
+/// (docs/testing.md, "The `--eval` contract"): `{"value": V}` with V in
+/// the probe's JSON form (`NaN`, `Infinity`, `-0.0` allowed), or
+/// `{"error": "Name: message"}`.
+fn evaluate(page: &mut Page, expressions: &[String]) -> Result<()> {
+    let mut out = std::io::stdout().lock();
+    for expression in expressions {
+        let line = answer_line(page.evaluate(expression, JsonForm::Probe));
+        writeln!(out, "{line}").context("cannot write to standard output")?;
+    }
+    out.flush().context("cannot write to standard output")
+}
+
+/// The line of one `--eval` answer; `None` is a page without scripts.
+fn answer_line(evaluation: Option<Evaluation>) -> String {
+    match evaluation {
+        Some(Evaluation::Value(text)) => format!("{{\"value\": {text}}}"),
+        Some(Evaluation::Error(message)) => {
+            format!("{{\"error\": {}}}", serde_json::Value::String(message))
+        }
+        None => "{\"error\": \"JavaScript is off (use --js)\"}".to_owned(),
+    }
+}
+
 /// One line per box fragment: depth, element, and absolute border box.
 fn dump_layout(page: &Page) -> String {
     use std::fmt::Write;
@@ -136,4 +172,22 @@ fn dump_layout(page: &Page) -> String {
         }
     });
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn answer_lines_follow_the_eval_contract() {
+        let value = Evaluation::Value("[NaN,-0.0,\"a\"]".to_owned());
+        assert_eq!(answer_line(Some(value)), "{\"value\": [NaN,-0.0,\"a\"]}");
+        let error = Evaluation::Error("TypeError: \"x\" is not a function".to_owned());
+        assert_eq!(
+            answer_line(Some(error)),
+            "{\"error\": \"TypeError: \\\"x\\\" is not a function\"}"
+        );
+        let off: serde_json::Value = serde_json::from_str(&answer_line(None)).unwrap();
+        assert!(off["error"].is_string());
+    }
 }

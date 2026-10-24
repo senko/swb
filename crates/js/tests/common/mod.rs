@@ -97,7 +97,7 @@ pub(crate) fn runtime_with_tests(config: RuntimeConfig) -> Runtime {
     let mut rt = runtime_with(config);
     let output = Output::default();
     let sink = output.clone();
-    rt.set_console(Box::new(move |line| {
+    rt.set_console(Box::new(move |_level, line| {
         sink.0.borrow_mut().push(line.to_owned());
     }));
     rt.set_host_data(output);

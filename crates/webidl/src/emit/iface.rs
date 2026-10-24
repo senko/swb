@@ -38,7 +38,7 @@ impl Gen<'_> {
     pub(crate) fn iface_file(&self, iface: &Iface) -> Result<String, Error> {
         let mut out = String::new();
         out.push_str(&self.header(&format!("the interface `{}`", iface.name)));
-        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity)]\n\n");
+        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]\n\n");
         let _ = writeln!(out, "use {} as b;\n", self.support);
         let groups = op_groups(iface);
         let mut trait_items = String::new();

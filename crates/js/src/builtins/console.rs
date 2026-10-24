@@ -1,6 +1,7 @@
-//! `console.log` (WHATWG Console Standard, "Logger" with the formatting of
-//! Node.js, measured as a black box): the arguments joined by spaces,
-//! written as one line to the host's console sink.
+//! `console.log`, `info`, `warn`, `error` and `debug` (WHATWG Console
+//! Standard, "Logger" with the formatting of Node.js, measured as a black
+//! box): the arguments joined by spaces, written as one line with the
+//! method's level to the host's console sink.
 //!
 //! Strings print raw; other values print in Node.js's short form
 //! (`util.inspect` defaults): `[ 1, 2, 3 ]`, `{ a: 1, b: 'x' }`,
@@ -42,10 +43,10 @@ use std::fmt::Write;
 
 use crate::heap::Gc;
 use crate::object::{Object, ObjectKind, Property, RawValue};
-use crate::runtime::Runtime;
+use crate::runtime::{ConsoleLevel, Runtime};
 use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult, WellKnown};
+use crate::vm::{Intrinsic, NativeCall, NativeFn, NativeReturn, VmResult, WellKnown};
 
 /// The deepest level whose objects are shown (Node.js's default depth).
 const MAX_DEPTH: usize = 2;
@@ -61,20 +62,62 @@ const MAX_OUTPUT: usize = 4 << 20;
 /// Node.js 22, at nesting level 0; two less per level).
 const LINE_WIDTH: usize = 71;
 
+/// Installs `console` with `log`, `info`, `warn`, `error` and `debug`. The
+/// shape is Chromium's (measured, `tools/probes/web-dom-tree.json`): the
+/// methods are writable, enumerable and configurable; `@@toStringTag` is
+/// "console"; the object's prototype is an empty object whose prototype
+/// is `%Object.prototype%` (Web IDL gives a namespace object
+/// `%Object.prototype%` directly).
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
-    let proto = rt.intrinsic(realm, Intrinsic::ObjectPrototype)?;
+    let object_proto = rt.intrinsic(realm, Intrinsic::ObjectPrototype)?;
+    let proto = rt.heap.new_object(Some(object_proto))?;
+    rt.heap.record(proto);
     let console = rt.heap.new_object(Some(proto))?;
     rt.heap.record(console);
-    super::method(rt, realm, console, "log", 0, log)?;
+    let methods: [(&str, NativeFn); 5] = [
+        ("log", log),
+        ("info", info),
+        ("warn", warn),
+        ("error", error),
+        ("debug", debug),
+    ];
+    for (name, func) in methods {
+        let function = rt.new_builtin(realm, name, 0, func, false)?;
+        let key = rt.heap.key_from_str(name)?;
+        rt.define(console, key, function.into(), true, true, true)?;
+    }
+    super::to_string_tag(rt, console, "console")?;
     super::define_global(rt, realm, "console", console.into())
 }
 
 /// `console.log(...data)`.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of native functions"
-)]
 fn log(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    write(rt, call, ConsoleLevel::Log)
+}
+
+/// `console.info(...data)`.
+fn info(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    write(rt, call, ConsoleLevel::Info)
+}
+
+/// `console.warn(...data)`.
+fn warn(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    write(rt, call, ConsoleLevel::Warn)
+}
+
+/// `console.error(...data)`.
+fn error(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    write(rt, call, ConsoleLevel::Error)
+}
+
+/// `console.debug(...data)`.
+fn debug(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    write(rt, call, ConsoleLevel::Debug)
+}
+
+/// Formats the arguments of a console call into one line and writes it
+/// to the sink with `level`.
+fn write(rt: &mut Runtime, call: &NativeCall, level: ConsoleLevel) -> VmResult<NativeReturn> {
     let mut line = String::new();
     let mut steps = 0;
     for i in 0..call.argc() {
@@ -91,7 +134,7 @@ fn log(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
         }
     }
     steps += line.len() / crate::vm::time::UNITS_PER_STEP;
-    rt.console_line(&line);
+    rt.console_line(level, &line);
     rt.charge(steps)?;
     Ok(NativeReturn::Value(Value::Undefined))
 }

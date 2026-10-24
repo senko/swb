@@ -1,6 +1,6 @@
 [package]
 name = "swb-web"
-description = "Web API bindings: the glue generated from WebIDL, conversions, exceptions."
+description = "Web API bindings: the script runtime of a document, the DOM interfaces, the glue generated from WebIDL."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,5 +12,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+log.workspace = true
 swb-dom.workspace = true
 swb-js.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

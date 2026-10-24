@@ -99,6 +99,18 @@ struct Args {
     #[arg(long, value_name = "on|off", value_parser = parse_on_off)]
     javascript: Option<bool>,
 
+    /// Headless: after the page loaded, evaluate EXPR in the page's global
+    /// scope and print one JSON line, `{"value": V}` or `{"error": "..."}`
+    /// (repeatable; needs `--js`; write `--eval=EXPR` for an EXPR that
+    /// starts with `-`). See docs/testing.md, "The `--eval` contract".
+    #[arg(
+        long = "eval",
+        value_name = "EXPR",
+        allow_hyphen_values = true,
+        requires = "headless"
+    )]
+    eval: Vec<String>,
+
     /// Use the bundled test fonts instead of the system fonts.
     #[arg(long)]
     test_fonts: bool,
@@ -109,7 +121,7 @@ struct Args {
     #[arg(
         long,
         value_name = "PORT",
-        conflicts_with_all = ["screenshot", "dump_dom", "dump_layout", "dump_boxes", "bench", "with_chrome", "full_page"]
+        conflicts_with_all = ["screenshot", "dump_dom", "dump_layout", "dump_boxes", "bench", "with_chrome", "full_page", "eval"]
     )]
     remote_port: Option<u16>,
 }
@@ -204,6 +216,7 @@ fn main() -> Result<()> {
             dump_boxes: args.dump_boxes.as_deref(),
             bench: args.bench,
             javascript,
+            eval: &args.eval,
         };
         return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }

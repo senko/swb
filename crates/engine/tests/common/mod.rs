@@ -58,6 +58,10 @@ pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewpo
         fetcher,
         notify: Arc::new(|| {}),
         network_threads,
+        // The script tests run on a thread with a 16 MiB stack
+        // (`tests/scripts.rs`); other tests with JavaScript on run only
+        // trivial scripts (`var a = 1`) on the test thread.
+        scripts_allowed: true,
     };
     Page::new(config, FontContext::for_tests(), viewport, 1.0)
 }

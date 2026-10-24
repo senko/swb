@@ -33,6 +33,7 @@ fn url() -> Url {
 /// by `parser`.
 fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState {
     DocumentState::new(DocumentInit {
+        content_type: "text/html".to_owned(),
         dom,
         parser,
         url: url.clone(),

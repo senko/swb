@@ -945,7 +945,7 @@ case  js     1 + 1  2
 case  swb    1 + 1  3  !
 ```
 
-**The `--eval` contract** (what M8 feature 4c implements; ADR 0028
+**The `--eval` contract** (implemented by M8 feature 4c2; ADR 0028
 section 17). `swb --headless --js [--eval=EXPR]... URL`. swb must accept the
 `--eval=EXPR` form with any EXPR, also one that starts with `-`. Directly
 after the page's `load` event (Chromium's probe evaluates when navigation
@@ -966,8 +966,11 @@ exactly one line to stdout per EXPR, in order, and nothing else to stdout
   be the same in both; other thrown values (not an `Error`) are not
   specified.
 
-An `error` answer does not change swb's exit status. If the page does not
-load, swb prints no lines and exits with a status other than 0. The probe
+An `error` answer does not change swb's exit status. If the navigation
+fails (a network error), swb prints no lines and exits with a status other
+than 0. A response with an error status is a page, as in Chromium; swb
+also gives a missing `file:` page a 404 response with a short body, so it
+evaluates there, where Chromium's navigation fails. The probe
 reads stdout after swb exits, so buffering does not matter.
 
 V is JSON text for the same domain that the probe prints for Chromium:
@@ -1003,8 +1006,11 @@ containers, SVG images, inline SVG, counters, custom properties, box depth, web
 fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
-`var()` chains, huge lists), and pages that make the parse in steps with
-JavaScript on pause many times (`parse-steps-*-js-on`).
+`var()` chains, huge lists), pages that make the parse in steps with
+JavaScript on pause many times (`parse-steps-*-js-on`), and pages with
+scripts: endless loops in inline scripts (the time limit and the stop
+after three), the wrappers and child lists of many nodes, and named
+lookups on the window after DOM changes.
 
 ```
 just hostile                    # all cases; builds the release binary first
@@ -2213,13 +2219,28 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   (interfaces shaped like `NodeList`, `HTMLCollection`,
   `HTMLOptionsCollection`, `DOMStringMap`, `Storage`, `HTMLFormElement`
   and `Headers`) with their test implementation and cases.
-- `crates/web/tests/interfaces.rs`: the browser's glue (`EventTarget`,
-  `Event`, `Node`, `NodeList`, `DOMException`) with stand-in behaviour:
-  interface objects, prototype chains, property names in order,
-  descriptors, `length` and `name`, constants, the argument checks, and
-  `DOMException`.
+- `crates/web/tests/dom.rs`: the runtime of a document
+  (`ScriptRuntime` with a test document that the test parses and lends):
+  every case of `tools/probes/web-dom-tree.json` with Chromium's values
+  (`tests/dom/cases.rs`, generated from the probe's `--json` output; the
+  values where swb departs on purpose are overridden in `SWB_VALUES` of
+  `dom.rs` with the reason: no `HTMLDocument`, HTML elements other than
+  `head` are `HTMLElement`, no SVG interfaces, a window name of several
+  elements gives the first), and the interface objects, property names,
+  descriptors, argument checks, `Event` and `DOMException` of the browser's
+  glue; also expandos and identity across collections, the live
+  `childNodes`, the console buffer, the evaluation forms and the task time
+  limit. A unit test in `web/src/dom/node_list.rs` counts the rebuilds of
+  a `childNodes` cache (a loop over the list builds it once).
+- `crates/engine/tests/scripts.rs`: scripts in a page: the inline scripts
+  after the parse, DOM changes that reach the engine, the console, a new
+  runtime per document, JavaScript off, the page that refuses JavaScript
+  without a big stack, and `document.title` on the page fixtures with
+  JavaScript on (Chromium's values). `crates/engine/tests/script_memory.rs`
+  (one test, its own process) checks that the resident set size comes
+  back after a navigation drops a runtime that held about 100 MiB.
 
-Both run every case with and without the GC stress mode and check that no
+They run every case with and without the GC stress mode and check that no
 collection found a stale root. The expected values come from Chromium
 where a real API shows the conversion (`tools/probes/web-bindings.json`,
 `just probe tools/probes/web-bindings.json`: `setTimeout` with

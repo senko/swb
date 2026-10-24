@@ -7,7 +7,8 @@
 //! JavaScript on, the parser runs in steps (`HtmlParser`), which stop at
 //! each script end tag; the document state processes the journal after
 //! each step, so the loads of the elements start as they are inserted.
-//! No script runs yet (feature 5c).
+//! The inline scripts run after the parse (`script.rs`; feature 5c runs
+//! them at their place in the parse).
 
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -25,18 +26,21 @@ struct Parsed {
     dom: Document,
     parser: Option<HtmlParser>,
     encoding: &'static Encoding,
+    /// The content type of the document.
+    content_type: String,
     /// The time of a parse to the end (a parse in steps measures itself).
     parse: Duration,
 }
 
 impl Parsed {
-    /// A generated document (text, an image, an error message), parsed to
-    /// the end, in UTF-8.
-    fn complete(dom: Document) -> Parsed {
+    /// A generated document (text, an image, an error message) of
+    /// `content_type`, parsed to the end, in UTF-8.
+    fn complete(dom: Document, content_type: &str) -> Parsed {
         Parsed {
             dom,
             parser: None,
             encoding: encoding_rs::UTF_8,
+            content_type: content_type.to_owned(),
             parse: Duration::ZERO,
         }
     }
@@ -138,25 +142,33 @@ impl Page {
         let mut images = Images::default();
         let parsed = if essence == "text/html" || essence == "application/xhtml+xml" {
             let charset = content_type.as_ref().and_then(|c| c.charset.as_deref());
-            self.parse_document(&response.body, charset)
+            let mut parsed = self.parse_document(&response.body, charset);
+            essence.clone_into(&mut parsed.content_type);
+            parsed
         } else if essence.starts_with("text/") || essence == "application/json" {
             let text = String::from_utf8_lossy(&response.body);
-            Parsed::complete(swb_dom::parse_html_with(
-                &format!("<pre>{}</pre>", escape_html(&text)),
-                self.javascript,
-            ))
+            Parsed::complete(
+                swb_dom::parse_html_with(
+                    &format!("<pre>{}</pre>", escape_html(&text)),
+                    self.javascript,
+                ),
+                essence,
+            )
         } else if essence.starts_with("image/") {
             // The image is already here; the generated <img> uses it
             // without fetching it again.
             let state = ImageState::decode(&response.url, &response, &images.counting);
             images.by_url.insert(response.url.clone(), state);
-            Parsed::complete(swb_dom::parse_html_with(
-                &format!(
-                    "<body style=\"margin:0\"><img src=\"{}\">",
-                    escape_html(response.url.as_str())
+            Parsed::complete(
+                swb_dom::parse_html_with(
+                    &format!(
+                        "<body style=\"margin:0\"><img src=\"{}\">",
+                        escape_html(response.url.as_str())
+                    ),
+                    self.javascript,
                 ),
-                self.javascript,
-            ))
+                essence,
+            )
         } else {
             self.show_error(&format!("Cannot display content of type {essence}"));
             return;
@@ -175,6 +187,7 @@ impl Page {
                 dom,
                 parser: Some(parser),
                 encoding: encoding_for(name),
+                content_type: "text/html".to_owned(),
                 parse: Duration::ZERO,
             };
         }
@@ -184,6 +197,7 @@ impl Page {
             dom,
             parser: None,
             encoding: encoding_for(name),
+            content_type: "text/html".to_owned(),
             parse: started.elapsed(),
         }
     }
@@ -203,7 +217,10 @@ impl Page {
             escape_html(message)
         );
         let url = self.url.clone().unwrap_or_else(about_blank);
-        let parsed = Parsed::complete(swb_dom::parse_html_with(&html, self.javascript));
+        let parsed = Parsed::complete(
+            swb_dom::parse_html_with(&html, self.javascript),
+            "text/html",
+        );
         self.set_document(parsed, url, Images::default());
         self.state = LoadState::Failed;
     }
@@ -216,8 +233,9 @@ impl Page {
         // (for example images that a restyle of it started).
         self.loader.cancel_all();
         self.document_request = None;
-        // The old document goes first: its web fonts leave the font
-        // context.
+        // The old document goes first, with its script runtime: its web
+        // fonts leave the font context.
+        self.script = None;
         self.doc = None;
         self.lent = false;
         self.fonts.reset_web_fonts();
@@ -231,6 +249,7 @@ impl Page {
             parser: parsed.parser,
             url,
             encoding: parsed.encoding,
+            content_type: parsed.content_type,
             images,
             loader: Rc::clone(&self.loader),
             view: self.view,
@@ -247,6 +266,7 @@ impl Page {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
         self.doc = Some(Box::new(doc));
+        self.start_scripts();
     }
 }
 

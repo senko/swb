@@ -3,7 +3,7 @@
 
 //! The binding glue of the interface `Window`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters)]
 
 use swb_web::bindings as b;
 

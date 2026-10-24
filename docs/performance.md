@@ -97,6 +97,39 @@ bimodal for both binaries: 0.06 or 0.09 ms in single runs.)
 | senko-net | 0.06 → 0.07 | 0.22 → 0.22 | 0.07 → 0.07 | 0.37 → 0.36 | 0.02 → 0.02 | 0.54 → 0.52 | 1.29 → 1.26 |
 | wikipedia-web-browser | 5.17 → 5.11 | 5.27 → 4.67 | 9.49 → 9.43 | 12.06 → 11.98 | 0.94 → 0.92 | 2.02 → 2.03 | 34.95 → 34.14 |
 
+M8 feature 4c2 (the script runtime of a document, JavaScript off),
+2026-10-23: three interleaved runs of the base (f66e69e) and the new
+binary, 40 runs each, mean of the medians in ms. Every stage and total
+within ±2 % (one 5 % on a 0.07 ms stage); with JavaScript off no runtime
+is created.
+
+| Fixture | Total |
+|---|---|
+| ars-technica | 38.65 → 38.69 |
+| bbc | 24.27 → 24.21 |
+| craigslist-posting | 1.92 → 1.92 |
+| hacker-news | 5.00 → 4.98 |
+| senko-net | 1.28 → 1.26 |
+| wikipedia-web-browser | 34.84 → 34.86 |
+
+## Script runtime of a document
+
+The engine creates a `swb_web::ScriptRuntime` for each document that
+commits with JavaScript on (ADR 0028 section 2): a `js::Runtime` with its
+realm and built-ins, the 16 generated interface classes with their
+interface objects and prototypes, the named properties object, the
+`Window` global, and the serializer of `evaluate`. With
+`RUST_LOG=swb_engine::page::script=debug`, swb logs the time and the heap
+size after the creation.
+
+M8 feature 4c2, 2026-10-23, release build, Intel Core i5-13500, 30 runs of
+`swb --headless --js` on senko-net: median 1.25 ms (0.84 to 1.30 ms); the
+heap holds 360 KiB after the creation. A navigation drops the runtime with
+the document: `crates/engine/tests/script_memory.rs` measures the resident
+set size of a page whose script holds about 100 MiB (20 MiB before, 117
+MiB with the data, 52 MiB after the next document; the allocator keeps
+part of the freed memory).
+
 ## JavaScript engine
 
 The dated entries below are history. Where an entry says that something

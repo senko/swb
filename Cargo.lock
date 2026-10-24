@@ -2724,6 +2724,7 @@ dependencies = [
  "swb-paint",
  "swb-style",
  "swb-text",
+ "swb-web",
  "thiserror 2.0.21",
  "unicode-segmentation",
 ]
@@ -2850,6 +2851,8 @@ dependencies = [
 name = "swb-web"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "serde_json",
  "swb-dom",
  "swb-js",
 ]

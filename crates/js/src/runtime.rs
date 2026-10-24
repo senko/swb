@@ -137,8 +137,38 @@ impl From<ParseError> for ScriptError {
     }
 }
 
-/// The receiver of `console.log` lines.
-pub type ConsoleSink = Box<dyn FnMut(&str)>;
+/// The receiver of console lines: the level of the method (`log`,
+/// `info`, ...) and the line.
+pub type ConsoleSink = Box<dyn FnMut(ConsoleLevel, &str)>;
+
+/// The method of `console` that wrote a line (WHATWG Console Standard,
+/// the log levels of the "Logger" calls).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConsoleLevel {
+    /// `console.log`.
+    Log,
+    /// `console.info`.
+    Info,
+    /// `console.warn`.
+    Warn,
+    /// `console.error`.
+    Error,
+    /// `console.debug`.
+    Debug,
+}
+
+impl ConsoleLevel {
+    /// The name of the method.
+    pub fn name(self) -> &'static str {
+        match self {
+            ConsoleLevel::Log => "log",
+            ConsoleLevel::Info => "info",
+            ConsoleLevel::Warn => "warn",
+            ConsoleLevel::Error => "error",
+            ConsoleLevel::Debug => "debug",
+        }
+    }
+}
 
 /// A JavaScript runtime: one heap, one value stack, realms.
 pub struct Runtime {
@@ -226,8 +256,8 @@ impl Runtime {
         self.heap.set_limit(limit);
     }
 
-    /// Sets the receiver of the lines of `console.log` (one call per
-    /// line, without the line end).
+    /// Sets the receiver of the lines of `console.log`, `info`, `warn`,
+    /// `error` and `debug` (one call per line, without the line end).
     pub fn set_console(&mut self, sink: ConsoleSink) {
         self.console = Some(sink);
     }
@@ -245,9 +275,9 @@ impl Runtime {
     }
 
     /// Writes a line to the console sink.
-    pub(crate) fn console_line(&mut self, line: &str) {
+    pub(crate) fn console_line(&mut self, level: ConsoleLevel, line: &str) {
         if let Some(sink) = self.console.as_mut() {
-            sink(line);
+            sink(level, line);
         }
     }
 

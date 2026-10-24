@@ -21,6 +21,7 @@ swb-net.workspace = true
 swb-paint.workspace = true
 swb-style.workspace = true
 swb-text.workspace = true
+swb-web.workspace = true
 thiserror.workspace = true
 unicode-segmentation.workspace = true
 

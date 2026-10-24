@@ -4,6 +4,52 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-23: M8 feature 4c2, the runtime of a document and the first DOM bindings
+
+- Each document with JavaScript on gets a script runtime
+  (`swb_web::ScriptRuntime`), created at the commit and dropped with the
+  document. The engine lends its `DocumentState` for each task through
+  the trait `EngineHost` and takes it back by downcast; that drains the
+  task's journal.
+- The global object is the `Window` (generated `init_global`, immutable
+  prototype) with `WindowProperties` in its chain; `window[id]` uses the
+  DOM's id index and `window[name]` a cache keyed by the DOM generation.
+  Wrappers live in a vector indexed by `NodeId`, the `[SameObject]`
+  objects in a side table; both are traced, so identity, expandos and
+  `WeakMap` keys hold for the document's life.
+- Bindings: the read-only tree accessors of `Node`, `Element`,
+  `CharacterData`, `Document` (with HTML's `title`, `body` and `head`
+  and their setters), `DocumentType`, the `ParentNode` and
+  `NonDocumentTypeChildNode` mixins, and the live `childNodes`, whose
+  cache by DOM generation makes a loop over it walk the children once.
+  `Node`'s tree-changing members left the IDL until 6a. `Event` and
+  `EventTarget` are stand-ins until 5a.
+- `console` has `log`, `info`, `warn`, `error` and `debug` in Chromium's
+  shape; lines go to the log and to the buffer of
+  `page.consoleMessages`. `page.evaluate` and `swb --headless --js
+  --eval EXPR` return the value as JSON (`--eval` in the probe's
+  contract, so `just probe --with-swb` compares `js` rows).
+- Inline classic scripts run in tree order after the parse (5c moves
+  them into the parse). After three tasks that reach the 5 s limit, a
+  document runs no more scripts. The refusal of JavaScript on a small
+  stack moved from the GUI into the engine
+  (`PageConfig::scripts_allowed`).
+- A new probe, `tools/probes/web-dom-tree.json`, has 74 Chromium
+  values; the tests use them, with five departures (no element
+  interfaces beyond `HTMLElement` and `HTMLHeadElement`, no
+  `HTMLDocument`) and one for `window[name]` of several elements.
+- Feature 4 exit: `document.title` gives Chromium's value on all page
+  fixtures; RSS returns after a navigation; a runtime takes 1.25 ms to
+  create. JS-off snapshot unchanged, perf within 2 %, test262
+  unchanged, the hostile set as before with three new cases.
+- Review fixes: errors that throw a `DOMException` read as `Name:
+  message` in `--eval`, `page.evaluate` and the console (the engine's
+  description does not call the accessors; the serializer does);
+  `page.evaluate` replaces lone surrogates, which strict JSON parsers
+  refuse; `--eval` exits with an error when the navigation fails and
+  requires `--headless`.
+- Next: feature 5a, the event core.
+
 ## 2026-10-23: M8 feature 4c1, legacy platform objects and iterables
 
 - Feature 4c was split into 4c1 (the generator) and 4c2 (the runtime per

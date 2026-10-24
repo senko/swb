@@ -69,7 +69,7 @@ pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, Scr
     // `console.log` cannot fail, so it asks for the termination, which takes
     // effect at the next time check.
     let handle = rt.termination_handle();
-    rt.set_console(Box::new(move |line| {
+    rt.set_console(Box::new(move |_level, line| {
         if writeln!(sink.borrow_mut(), "{line}").is_err() {
             handle.terminate();
         }

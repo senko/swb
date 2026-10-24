@@ -1,0 +1,351 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "descriptors",
+   "html": "<!DOCTYPE html><html><head><title>  Hello \n  world </title></head><body><div id=a>x<!--c--><span id=s>y</span></div><svg id=g><circle></circle></svg><template id=t><p>q</p></template><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "D(Node.prototype, [\"nodeType\", \"nodeName\", \"baseURI\", \"isConnected\", \"ownerDocument\", \"parentNode\", \"parentElement\", \"childNodes\", \"firstChild\", \"lastChild\", \"previousSibling\", \"nextSibling\", \"ELEMENT_NODE\", \"DOCUMENT_POSITION_DISCONNECTED\", \"contains\", \"getRootNode\", \"hasChildNodes\", \"isSameNode\", \"constructor\"])"
+    },
+    {
+     "js": "D(Element.prototype, [\"namespaceURI\", \"prefix\", \"localName\", \"tagName\", \"firstElementChild\", \"lastElementChild\", \"childElementCount\", \"previousElementSibling\", \"nextElementSibling\", \"constructor\"])"
+    },
+    {
+     "js": "D(Document.prototype, [\"URL\", \"documentURI\", \"compatMode\", \"characterSet\", \"charset\", \"inputEncoding\", \"contentType\", \"doctype\", \"documentElement\", \"firstElementChild\", \"lastElementChild\", \"childElementCount\", \"title\", \"head\", \"body\", \"constructor\"])"
+    },
+    {
+     "js": "D(CharacterData.prototype, [\"data\", \"length\", \"previousElementSibling\", \"nextElementSibling\", \"constructor\"])"
+    },
+    {
+     "js": "D(DocumentType.prototype, [\"name\", \"publicId\", \"systemId\", \"constructor\"])"
+    },
+    {
+     "js": "D(window, [\"window\", \"self\", \"document\", \"frames\", \"top\", \"parent\", \"console\", \"Node\", \"Window\", \"globalThis\"])"
+    },
+    {
+     "js": "O(Node.prototype, [\"nodeType\", \"nodeName\", \"baseURI\", \"isConnected\", \"ownerDocument\", \"parentNode\", \"parentElement\", \"childNodes\", \"firstChild\", \"lastChild\", \"previousSibling\", \"nextSibling\", \"ELEMENT_NODE\", \"DOCUMENT_POSITION_DISCONNECTED\", \"contains\", \"getRootNode\", \"hasChildNodes\", \"isSameNode\", \"constructor\"])"
+    },
+    {
+     "js": "O(Element.prototype, [\"namespaceURI\", \"prefix\", \"localName\", \"tagName\", \"firstElementChild\", \"lastElementChild\", \"childElementCount\", \"previousElementSibling\", \"nextElementSibling\", \"constructor\"])"
+    },
+    {
+     "js": "O(Document.prototype, [\"URL\", \"documentURI\", \"compatMode\", \"characterSet\", \"charset\", \"inputEncoding\", \"contentType\", \"doctype\", \"documentElement\", \"firstElementChild\", \"lastElementChild\", \"childElementCount\", \"title\", \"head\", \"body\", \"constructor\"])"
+    },
+    {
+     "js": "O(CharacterData.prototype, [\"data\", \"length\", \"previousElementSibling\", \"nextElementSibling\", \"constructor\"])"
+    },
+    {
+     "js": "D(NodeList.prototype, ['item', 'length', 'forEach', 'keys', 'values', 'entries', 'constructor'])"
+    },
+    {
+     "js": "['childNodes', 'firstChild', 'parentElement'].map((n) => { const g = Object.getOwnPropertyDescriptor(Node.prototype, n).get; return g.name + '/' + g.length; }).concat([Node.prototype.contains.length, Node.prototype.getRootNode.length, Node.prototype.isSameNode.length, Node.prototype.hasChildNodes.length]).join(' ')"
+    },
+    {
+     "js": "[Object.getOwnPropertyDescriptor(Document.prototype, 'title').set.name, Object.getOwnPropertyDescriptor(Document.prototype, 'body').set.name, Object.getOwnPropertyDescriptor(CharacterData.prototype, 'data').set.name].join(' ')"
+    },
+    {
+     "js": "[Node.length, Element.length, CharacterData.length, Document.length, Text.length, Comment.length, DocumentType.length, HTMLElement.length, Window.length, NodeList.length].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "chains",
+   "html": "<!DOCTYPE html><html><head><title>  Hello \n  world </title></head><body><div id=a>x<!--c--><span id=s>y</span></div><svg id=g><circle></circle></svg><template id=t><p>q</p></template><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "C(window)"
+    },
+    {
+     "js": "C(document)"
+    },
+    {
+     "js": "C(document.documentElement)"
+    },
+    {
+     "js": "C(document.body.firstChild)"
+    },
+    {
+     "js": "C(document.body.firstChild.firstChild)"
+    },
+    {
+     "js": "C(document.body.firstChild.childNodes[1])"
+    },
+    {
+     "js": "C(document.doctype)"
+    },
+    {
+     "js": "C(document.body.childNodes[1])"
+    },
+    {
+     "js": "C(document.body.childNodes[1].firstChild)"
+    },
+    {
+     "js": "C(document.head)"
+    },
+    {
+     "js": "C(document.body.childNodes)"
+    },
+    {
+     "js": "C(Window.prototype)"
+    },
+    {
+     "js": "[Object.prototype.toString.call(window), Object.prototype.toString.call(Object.getPrototypeOf(Window.prototype)), Object.getPrototypeOf(Window.prototype)[Symbol.toStringTag], Object.getOwnPropertyNames(Object.getPrototypeOf(Window.prototype)).length, Object.getPrototypeOf(Object.getPrototypeOf(Window.prototype)) === EventTarget.prototype, 'WindowProperties' in window]"
+    },
+    {
+     "js": "[Object.getPrototypeOf(Element) === Node, Object.getPrototypeOf(CharacterData) === Node, Object.getPrototypeOf(Text) === CharacterData, Object.getPrototypeOf(Comment) === CharacterData, Object.getPrototypeOf(Document) === Node, Object.getPrototypeOf(DocumentType) === Node, Object.getPrototypeOf(HTMLElement) === Element, Object.getPrototypeOf(Window) === EventTarget, Object.getPrototypeOf(NodeList) === Function.prototype]"
+    }
+   ]
+  },
+  {
+   "name": "immutable",
+   "html": "<!DOCTYPE html><html><head><title>  Hello \n  world </title></head><body><div id=a>x<!--c--><span id=s>y</span></div><svg id=g><circle></circle></svg><template id=t><p>q</p></template><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "E(() => Object.setPrototypeOf(window, {}))"
+    },
+    {
+     "js": "E(() => Object.setPrototypeOf(Window.prototype, {}))"
+    },
+    {
+     "js": "E(() => Object.setPrototypeOf(Object.getPrototypeOf(Window.prototype), {}))"
+    },
+    {
+     "js": "E(() => Object.setPrototypeOf(EventTarget.prototype, {}))"
+    },
+    {
+     "js": "[Reflect.setPrototypeOf(window, {}), Reflect.setPrototypeOf(window, Window.prototype), Reflect.setPrototypeOf(Object.getPrototypeOf(Window.prototype), null), Reflect.setPrototypeOf(Node.prototype, Node.prototype.__proto__)]"
+    },
+    {
+     "js": "E(() => { window.__proto__ = {}; return 'set'; })"
+    }
+   ]
+  },
+  {
+   "name": "identity",
+   "html": "<!DOCTYPE html><body><div id=a>x<!--c--><span>y</span></div><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.body.firstChild; return [a === document.body.firstChild, a.firstChild === a.firstChild, a.childNodes === a.childNodes, a.childNodes[0] === a.firstChild, a.childNodes.item(2) === a.lastChild, document.body.parentNode === document.documentElement, document.documentElement.parentNode === document, a.ownerDocument === document, a.firstChild.getRootNode() === document]; })()"
+    },
+    {
+     "js": "(() => { const a = document.body.firstChild; a.foo = 42; a.firstChild.bar = { x: 'kept' }; a.childNodes.baz = 7; return 1; })()"
+    },
+    {
+     "js": "(() => { const a = document.body.firstChild; return [a.foo, a.firstChild.bar.x, a.childNodes.baz, Object.keys(a).join(), Object.keys(a.childNodes).join()]; })()"
+    },
+    {
+     "js": "(() => { const w = new WeakMap(); w.set(document.body, 'b'); return w.get(document.documentElement.lastChild); })()"
+    }
+   ]
+  },
+  {
+   "name": "instanceof",
+   "html": "<!DOCTYPE html><body><div id=a>x<!--c--><span>y</span></div><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.body.firstChild; return [a instanceof HTMLElement, a instanceof Element, a instanceof Node, a instanceof EventTarget, a instanceof CharacterData, a.firstChild instanceof Text, a.firstChild instanceof CharacterData, a.firstChild instanceof Element, a.childNodes[1] instanceof Comment, a.childNodes[1] instanceof Text, document instanceof Document, document instanceof Node, document instanceof Element, document.doctype instanceof DocumentType, window instanceof Window, window instanceof EventTarget, window instanceof Node, a.childNodes instanceof NodeList]; })()"
+    }
+   ]
+  },
+  {
+   "name": "brand-checks",
+   "html": "<!DOCTYPE html><body><div id=a>x</div><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Node.prototype, 'firstChild').get.call({}))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Node.prototype, 'childNodes').get.call(window))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Node.prototype, 'parentNode').get.call(undefined))"
+    },
+    {
+     "js": "E(() => Node.prototype.hasChildNodes.call(Object.create(Node.prototype)))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Element.prototype, 'tagName').get.call(document))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Element.prototype, 'tagName').get.call(document.body.firstChild.firstChild))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'title').get.call(document.body))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(CharacterData.prototype, 'data').get.call(document.body))"
+    },
+    {
+     "js": "E(() => NodeList.prototype.item.call({}, 0))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(NodeList.prototype, 'length').get.call(document.body))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(window, 'document').get.call({}))"
+    },
+    {
+     "js": "E(() => Node.prototype.firstChild)"
+    },
+    {
+     "js": "E(() => new Node())"
+    },
+    {
+     "js": "E(() => new Element())"
+    },
+    {
+     "js": "E(() => new NodeList())"
+    },
+    {
+     "js": "E(() => Node.prototype.contains.call(document, {}))"
+    },
+    {
+     "js": "E(() => document.contains())"
+    },
+    {
+     "js": "[document.contains(null), document.contains(document.body), document.body.contains(document)]"
+    }
+   ]
+  },
+  {
+   "name": "tree",
+   "html": "<!DOCTYPE html><html><head><title>  Hello \n  world </title></head><body><div id=a>x<!--c--><span id=s>y</span></div><svg id=g><circle></circle></svg><template id=t><p>q</p></template><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.body.firstChild; const g = document.body.childNodes[1]; return [document, document.doctype, document.documentElement, a, a.firstChild, a.childNodes[1], g, g.firstChild].map((n) => [n.nodeType, n.nodeName, n.tagName, n.localName, n.namespaceURI, n.prefix].map(String).join('|')).join(' '); })()"
+    },
+    {
+     "js": "(() => { const h = document.documentElement; const a = document.body.firstChild; return [h.parentNode === document, h.parentElement, document.parentNode, document.ownerDocument, document.isConnected, a.isConnected, a.ownerDocument === document]; })()"
+    },
+    {
+     "js": "(() => { const a = document.body.firstChild; return [a.hasChildNodes(), a.firstChild.hasChildNodes(), a.firstElementChild.nodeName, a.lastElementChild.nodeName, a.childElementCount, a.lastChild.previousElementSibling, a.nextElementSibling.nodeName, a.firstChild.nextElementSibling.nodeName, a.childNodes[1].previousElementSibling, document.firstElementChild.nodeName, document.childElementCount, document.lastElementChild === document.documentElement]; })()"
+    },
+    {
+     "js": "(() => { const a = document.body.firstChild; const c = a.childNodes; return [c.length, c.item(0).nodeName, c.item(5), c[5], c[-1], c.item(-1), c.item(4294967296).nodeName, [...c].map((n) => n.nodeName).join(), Object.keys(c).join(), 1 in c, 3 in c]; })()"
+    },
+    {
+     "js": "(() => { const t = document.body.firstChild.firstChild; const c = document.body.firstChild.childNodes[1]; return [t.data, t.length, c.data, c.length, document.doctype.name, document.doctype.publicId, document.doctype.systemId, document.head.firstChild.firstChild.data]; })()"
+    },
+    {
+     "js": "(() => { const a = document.body.firstChild; return [a.contains(a), a.contains(a.firstChild), a.firstChild.contains(a), document.contains(a), a.isSameNode(a), a.isSameNode(null), a.firstChild.getRootNode() === document, document.getRootNode() === document]; })()"
+    },
+    {
+     "js": "[document.URL.startsWith('file:'), document.documentURI === document.URL, document.body.baseURI === document.URL, document.compatMode, document.characterSet, document.charset, document.inputEncoding, document.contentType]"
+    },
+    {
+     "js": "[document.title, document.head.nodeName, document.body.nodeName]"
+    }
+   ]
+  },
+  {
+   "name": "quirks",
+   "html": "<html><body><p>x<script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "[document.compatMode, document.doctype, document.title, document.head.childNodes.length]"
+    }
+   ]
+  },
+  {
+   "name": "title",
+   "html": "<!DOCTYPE html><head><meta charset=utf-8></head><body><title>second</title><p>x<script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "[document.title, document.head.childNodes.length]"
+    },
+    {
+     "js": "(() => { document.title = '  New \\t title  '; return [document.title, document.body.firstChild.firstChild.data, document.head.childNodes.length]; })()"
+    }
+   ]
+  },
+  {
+   "name": "title-set",
+   "html": "<!DOCTYPE html><head><meta charset=windows-1252></head><body><p>x<script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "(() => { const c = document.head.childNodes; const n = c.length; document.title = 'Made'; return [n, c.length, c[n].nodeName, c[n].namespaceURI, document.title, document.head.lastChild.firstChild.data, document.characterSet]; })()"
+    },
+    {
+     "js": "(() => { document.title = ''; return [document.title, document.head.lastChild.childNodes.length]; })()"
+    }
+   ]
+  },
+  {
+   "name": "body-set",
+   "html": "<!DOCTYPE html><body><p>x<script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "E(() => { document.body = document.head; })"
+    },
+    {
+     "js": "E(() => { document.body = document.body; return document.body.nodeName; })"
+    },
+    {
+     "js": "E(() => { document.body = 5; })"
+    },
+    {
+     "js": "E(() => { document.body = null; })"
+    }
+   ]
+  },
+  {
+   "name": "window",
+   "html": "<!DOCTYPE html><body><div id=a>x</div><div id=b></div><div id=b></div><p id=window></p><form name=f></form><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "[window === self, window.window === window, frames === window, top === window, parent === window, globalThis === window, window.document === document, this === window]"
+    },
+    {
+     "js": "[typeof a, a === document.body.firstChild, 'a' in window, Object.getOwnPropertyDescriptor(window, 'a') === undefined, window.hasOwnProperty('a'), D(Object.getPrototypeOf(Window.prototype), ['a', 'zz']), typeof zz]"
+    },
+    {
+     "js": "[Object.prototype.toString.call(window.b), window.b.length, typeof f, window.window === window]"
+    },
+    {
+     "js": "E(() => { window.a = 5; return [window.a, Object.getOwnPropertyDescriptor(window, 'a').value]; })"
+    },
+    {
+     "js": "E(() => Object.keys(window).filter((k) => k === 'a' || k === 'document' || k === 'window').join())"
+    },
+    {
+     "js": "E(() => { delete window.document; return typeof window.document; })"
+    },
+    {
+     "js": "E(() => { 'use strict'; delete window.document; })"
+    },
+    {
+     "js": "E(() => { self = 5; return self; })"
+    },
+    {
+     "js": "E(() => { window.document = 5; return window.document === document; })"
+    }
+   ]
+  },
+  {
+   "name": "console",
+   "html": "<!DOCTYPE html><body><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "D(console, ['log', 'info', 'warn', 'error', 'debug'])"
+    },
+    {
+     "js": "[Object.prototype.toString.call(console), console.log.name, console.log.length, console.warn.name, typeof console.log('x'), Object.getPrototypeOf(Object.getPrototypeOf(console)) === Object.prototype, Object.getOwnPropertyNames(Object.getPrototypeOf(console)).length]"
+    }
+   ]
+  },
+  {
+   "name": "inline-scripts",
+   "html": "<!DOCTYPE html><body><script>window.r = [1];</script><script type=text/plain>window.r.push('plain');</script><script>throw new Error('stop');</script><script type='text/javascript'>window.r.push(2);</script><script language=vbscript>window.r.push('vb');</script><script type=' TEXT/JavaScript '>window.r.push(3);</script><script nomodule>window.r.push('nomodule');</script><script>function E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }function D(o, names) { return names.map((n) => { const d = Object.getOwnPropertyDescriptor(o, n); if (!d) return n + ':none'; const k = d.get || d.set ? (d.get ? 'get' : '') + (d.set ? 'set' : '') : typeof d.value + (d.writable ? 'W' : ''); return n + ':' + k + (d.enumerable ? 'E' : '') + (d.configurable ? 'C' : ''); }).join(' '); }function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }function O(o, names) { return Object.getOwnPropertyNames(o).filter((n) => names.includes(n)).join(' '); }</script>",
+   "measure": [
+    {
+     "js": "window.r"
+    }
+   ]
+  }
+ ]
+}

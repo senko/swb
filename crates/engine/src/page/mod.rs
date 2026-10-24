@@ -25,13 +25,15 @@
 //! parts of `Page` are in `loading.rs` (network completions, the document
 //! of a navigation), `pipeline.rs` (rendering, the viewport and its
 //! accepted limits, screenshots), `scroll.rs` (scrolling by the user and
-//! the scroll queries), `input.rs` (pointer, keyboard, focus, selection)
-//! and `forms.rs` (form controls: editing, activation, submission).
+//! the scroll queries), `input.rs` (pointer, keyboard, focus, selection),
+//! `forms.rs` (form controls: editing, activation, submission) and
+//! `script.rs` (the script runtime of the document).
 
 mod forms;
 mod input;
 mod loading;
 mod pipeline;
+mod script;
 mod scroll;
 
 use std::rc::Rc;
@@ -94,6 +96,12 @@ pub struct PageConfig {
     pub notify: Arc<dyn Fn() + Send + Sync>,
     /// Number of network worker threads.
     pub network_threads: usize,
+    /// True if the thread that runs the page has a stack large enough for
+    /// scripts (ADR 0028 section 2): a page thread of 16 MiB, or a main
+    /// thread whose stack limit is at least 8 MiB. Without it, the page
+    /// keeps JavaScript off ([`Page::set_javascript`]), so no path runs a
+    /// script on a small stack.
+    pub scripts_allowed: bool,
 }
 
 impl PageConfig {
@@ -153,6 +161,11 @@ pub struct Page {
     /// The current document; `None` before the first one, and while a
     /// script runtime holds it.
     doc: Option<Box<DocumentState>>,
+    /// The script runtime of the current document (JavaScript on); it is
+    /// dropped with the document.
+    script: Option<swb_web::ScriptRuntime>,
+    /// The page may run scripts ([`PageConfig::scripts_allowed`]).
+    scripts_allowed: bool,
     /// True between [`Page::take_document_state`] and the return of the
     /// state. Completions stay queued in the loader meanwhile (the
     /// requests map is in the state).
@@ -189,6 +202,8 @@ impl Page {
             error: None,
             url: None,
             doc: None,
+            script: None,
+            scripts_allowed: config.scripts_allowed,
             lent: false,
             javascript: false,
             document_number: 0,
@@ -210,11 +225,18 @@ impl Page {
 
     /// Sets the JavaScript setting. It applies to the next document: the
     /// current document keeps the value it was created with, and a reload
-    /// applies the change. No script runs yet; the setting is the
-    /// document's scripting flag (the parser's scripting flag, the
-    /// `scripting` media feature, media controls and `<canvas>`).
+    /// applies the change. The setting is the document's scripting flag
+    /// (the parser's scripting flag, the `scripting` media feature, media
+    /// controls and `<canvas>`) and gives the document a script runtime.
+    /// A page that may not run scripts ([`PageConfig::scripts_allowed`])
+    /// keeps it off and logs a warning.
     pub fn set_javascript(&mut self, enabled: bool) {
-        self.javascript = enabled;
+        if enabled && !self.scripts_allowed {
+            log::warn!(
+                "JavaScript is not available: the thread that runs the page has too small a stack (see `ulimit -s`)"
+            );
+        }
+        self.javascript = enabled && self.scripts_allowed;
     }
 
     /// True if the current document was created with JavaScript on.

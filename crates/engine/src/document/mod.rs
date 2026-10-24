@@ -83,6 +83,9 @@ pub(crate) struct DocumentInit {
     pub(crate) url: Url,
     /// The character encoding (forms submit in it).
     pub(crate) encoding: &'static Encoding,
+    /// The content type (`text/html`; `text/plain` and `image/png` for the
+    /// generated documents of other types).
+    pub(crate) content_type: String,
     /// Images that are already loaded (an image document).
     pub(crate) images: Images,
     /// The page's loader.
@@ -107,6 +110,8 @@ pub struct DocumentState {
     /// The document URL.
     pub(crate) url: Url,
     pub(crate) encoding: &'static Encoding,
+    /// The content type of the response (`document.contentType`).
+    content_type: String,
     /// The document base URL; [`DocumentState::process_changes`] keeps it
     /// current.
     pub(crate) base_url: Derived<Url>,
@@ -167,6 +172,7 @@ impl DocumentState {
             base_url: Derived::new(url.clone()),
             url,
             encoding: init.encoding,
+            content_type: init.content_type,
             title: Derived::new(String::new()),
             forms: Derived::new(Forms::default()),
             tree_order: Derived::new(TreeOrder::default()),
@@ -198,7 +204,49 @@ impl DocumentState {
         doc.sync();
         doc
     }
+}
 
+/// What the bindings read from the document (ADR 0028 section 2): the box
+/// goes to the script runtime for a task.
+impl swb_web::EngineHost for DocumentState {
+    fn dom(&self) -> &Document {
+        &self.dom
+    }
+
+    fn dom_mut(&mut self) -> &mut Document {
+        &mut self.dom
+    }
+
+    fn url(&self) -> String {
+        self.url.to_string()
+    }
+
+    fn base_url(&mut self) -> String {
+        // A script may have changed a `base` element in this task.
+        self.process_changes();
+        self.base_url.value().to_string()
+    }
+
+    fn parse_url(&mut self, value: &str) -> Option<String> {
+        self.process_changes();
+        let url = self.base_url.value().join(value).ok()?;
+        Some(url.to_string())
+    }
+
+    fn character_set(&self) -> &'static str {
+        self.encoding.name()
+    }
+
+    fn content_type(&self) -> &str {
+        &self.content_type
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+        self
+    }
+}
+
+impl DocumentState {
     /// Runs the parser to the end, if a parse in steps goes on, and
     /// processes the changes after each step. Feature 5c runs the scripts
     /// at the pauses.
@@ -315,6 +363,11 @@ impl DocumentState {
     /// True if the document was parsed with scripting on.
     pub fn scripting(&self) -> bool {
         self.dom.scripting()
+    }
+
+    /// The content type of the document.
+    pub fn content_type(&self) -> &str {
+        &self.content_type
     }
 
     /// Sets the viewport and the scale. Image sources and media queries

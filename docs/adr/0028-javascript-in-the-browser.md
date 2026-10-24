@@ -127,7 +127,13 @@ engine's other work.
   JavaScript off and logs a warning (the toolbar toggle, the shortcut and
   `page.setJavaScript` then keep it off). This replaces the statement of
   ADR 0026 section 9 that the main thread's stack cannot be checked in
-  safe Rust.
+  safe Rust. (Feature 4c2: the refusal is in the engine. The embedder
+  states in `PageConfig::scripts_allowed` whether the thread that runs
+  the page has a big enough stack: swb's page threads say yes, the GUI
+  the result of the stack check, `HeadlessBrowser::new` takes it as an
+  argument. A page without it keeps the setting off in
+  `Page::set_javascript`, whatever calls it, so no path creates a
+  runtime on a small stack.)
 - A page thread for the GUI (the window thread sends input and receives
   frames) is later work. Until then a script that runs to the end of its
   time budget (section 7) freezes the window for that time.
@@ -525,6 +531,93 @@ Feature 4c1 notes:
   and the generated `init_global` makes the global object one (§3.8.1);
   Chromium's message: "Immutable prototype object '#<Window>' cannot
   have their prototype set".
+
+Feature 4c2 notes:
+
+- (Feature 4c2: the runtime.) `swb_web::ScriptRuntime` is the runtime of
+  a document: `js::Runtime` with a 256 MiB heap limit, the generated
+  classes first, the binding state (`WebState`) as host data, the class
+  `WindowProperties` (hooks; registered after the generated classes),
+  the interfaces, the named properties object linked between
+  `Window.prototype` and `EventTarget.prototype` (immutable prototype,
+  `@@toStringTag` "WindowProperties"), then the generated `init_global`.
+  The engine's `DocumentState` implements the trait `EngineHost` (the DOM,
+  the URL, the base URL, URL parsing, the encoding, the content type),
+  and the page lends the box as `Box<dyn EngineHost>` and gets it back
+  with a downcast (`into_any`); `web` stays independent of `engine`. A
+  task sets the 5 s deadline, runs the script or the evaluation, then a
+  microtask checkpoint; uncaught errors and unhandled rejections go to
+  the console as Chromium words them (`Uncaught TypeError: ...`,
+  `Uncaught (in promise) ...`). The runtime is created when a document
+  with scripting on commits and dropped at the next commit. After three
+  tasks that reach the time limit, or one that reaches the heap limit,
+  the document runs no more scripts (the rule of section 7, brought
+  forward from feature 5b so that a page of endless inline scripts ends;
+  the drop of the runtime after a heap-limit stop stays in 5b). The
+  global object and the named properties object carry the host data
+  `Word(u64::MAX)`, which is no node index (the word 0 is the document
+  node), so that `node_of` never takes them for a node.
+- (Feature 4c2: wrappers.) The wrapper vector is indexed by `NodeId`;
+  the side table is keyed by `(NodeId, Slot)` (`Slot::ChildNodes` for
+  now). Both are traced from the host state, so identity, expandos and
+  `WeakMap` keys hold for the life of the document. A wrapper gets the
+  most derived interface that swb has: `Document`, `DocumentType`,
+  `DocumentFragment`, `HTMLHeadElement` for `head`, `HTMLElement` for the
+  other HTML elements, `Element` for SVG and MathML, `Text`, `Comment`,
+  `ProcessingInstruction` (a departure from Chromium until the element
+  interfaces exist: Chromium has `HTMLDivElement`, `SVGSVGElement`, and
+  `HTMLDocument` for the document).
+- (Feature 4c2: `childNodes`.) The list keeps its parent and a cache of
+  the children with the DOM generation it was built for; `length`,
+  `item` and the indexed getter read the cache, so a loop over the list
+  walks the children once while the DOM does not change. The generation
+  is one counter per arena: any change anywhere makes every list stale.
+- (Feature 4c2: the window.) Without frames, `window`, `self`, `frames`,
+  `top` and `parent` return the global object and `length` is 0; the IDL
+  has `typedef Window WindowProxy`. The named properties object answers
+  `window[name]` for element ids and the `name` of `embed`, `form`, `img`
+  and `object` elements, after the named property visibility algorithm
+  (the global object and the prototypes other than the named properties
+  object hide a name). Ids come from the DOM's id index; the `name`
+  attributes are cached by DOM generation (one walk per generation, at
+  the first miss of the id index). A name of several elements gives one
+  element, the one with the id first (HTML: an `HTMLCollection`, which
+  comes with feature 6b);
+  `[[OwnPropertyKeys]]` lists no names, as in Chromium.
+- (Feature 4c2: the IDL cut.) `Node` has its read-only tree accessors
+  (`ownerDocument`, `parentNode`, `parentElement`, `childNodes`, the
+  siblings and children, `getRootNode`, `hasChildNodes`, `contains`,
+  `isSameNode`, `isConnected`, `baseURI`); the members that change the
+  tree (`appendChild`, `textContent`, `nodeValue`, `normalize`,
+  `cloneNode`) and the comparisons and namespace lookups go to feature 6a
+  and are not in the IDL until then, so feature detection answers
+  truthfully. `Document` has `URL`, `documentURI`, `compatMode`,
+  `characterSet`, `charset`, `inputEncoding`, `contentType`, `doctype`,
+  `documentElement`, HTML's `title` (with the setter), `body` (with the
+  setter and Chromium's messages) and `head`, and `ParentNode`'s element
+  accessors. `CharacterData` has `data` (with the setter) and `length`.
+  `Event` and `EventTarget` are stand-ins until feature 5a: listeners are
+  accepted and never called.
+- (Feature 4c2: evaluation.) `ScriptRuntime::evaluate` runs the source as
+  a classic script, settles a promise with a microtask checkpoint (a
+  promise still pending is an error until the event loop exists), and
+  writes the value with a serializer that is compiled before any page
+  script and keeps the built-ins it uses (`JSON.stringify`,
+  `Array.isArray`, `Object.keys`, `String`). Two forms: the probe's form
+  of docs/testing.md (`NaN`, `Infinity`, `-0.0`) for `swb --eval`, and
+  valid JSON for `page.evaluate`.
+- (Feature 4c2: `console`.) The `js` crate's `console` has `log`,
+  `info`, `warn`, `error` and `debug` in Chromium's shape (enumerable
+  methods, `@@toStringTag` "console", an empty object as its prototype);
+  the sink gets the level. `ScriptRuntime` writes each line to the log
+  (target `console`) and to a buffer of the last 1,000 messages (16 KiB
+  each), which `page.consoleMessages` returns.
+- (Feature 4c2: inline scripts.) Until feature 5c, the inline classic
+  scripts of a document run in tree order after the parse, each as a
+  task (`scripts.rs`: the type string and the JavaScript MIME type
+  essence match of HTML "prepare the script element", `nomodule`
+  skipped, scripts with `src` skipped). A script therefore sees the whole
+  document, not only the part above it.
 
 ### 6. Changes to `js`
 
@@ -1002,7 +1095,7 @@ are not obvious from the specifications:
   empty replaced element of feature 2; the context comes with the first
   target that needs it.
 - **`console`** writes to the log and to a console buffer of the
-  automation API.
+  automation API. (Feature 4c2: see the notes of section 5.)
 - Members that pages use only for feature detection (`indexedDB`,
   `caches`, `cookieStore`, `trustedTypes`, `navigation`,
   `customElements`) stay absent until a page needs them. Absent is

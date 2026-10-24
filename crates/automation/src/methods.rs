@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use swb_engine::{
-    Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Rect, Size, Url, check_scale,
-    check_viewport_size,
+    Evaluation, JsonForm, Key, LoadState, Modifiers, MouseButton, NodeId, Page, Point, Rect, Size,
+    Url, check_scale, check_viewport_size,
 };
 use swb_net::CookieJar;
 
@@ -49,6 +49,8 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         "page.waitForLoad" => return wait_for_load(params),
         "page.info" => Ok(info(page)),
         "page.setJavaScript" => set_javascript(page, params),
+        "page.evaluate" => evaluate(page, params),
+        "page.consoleMessages" => Ok(console_messages(page)),
         "page.setViewport" => set_viewport(page, params),
         "page.screenshot" => screenshot(page, params),
         "page.scrollTo" => scroll_to(page, params),
@@ -213,6 +215,41 @@ fn set_javascript(page: &mut Page, params: Value) -> MethodResult {
     let params: JavaScriptParams = parse(params)?;
     page.set_javascript(params.enabled);
     Ok(json!({}))
+}
+
+#[derive(Deserialize)]
+struct EvaluateParams {
+    expression: String,
+}
+
+/// `page.evaluate`: the value of an expression in the document's global
+/// scope as JSON, or the error. A document without a script runtime
+/// (JavaScript off) is an error of the call.
+fn evaluate(page: &mut Page, params: Value) -> MethodResult {
+    let params: EvaluateParams = parse(params)?;
+    match page.evaluate(&params.expression, JsonForm::Strict) {
+        Some(Evaluation::Value(text)) => {
+            let value: Value = serde_json::from_str(&text).map_err(|e| {
+                RpcError::new(RpcError::FAILED, format!("the value is not JSON: {e}"))
+            })?;
+            Ok(json!({ "value": value }))
+        }
+        Some(Evaluation::Error(message)) => Ok(json!({ "error": message })),
+        None => Err(RpcError::new(
+            RpcError::FAILED,
+            "the document has no scripts (JavaScript is off)",
+        )),
+    }
+}
+
+/// `page.consoleMessages`: the console lines of the current document.
+fn console_messages(page: &Page) -> Value {
+    let messages: Vec<Value> = page
+        .console_messages()
+        .into_iter()
+        .map(|m| json!({ "level": m.level.name(), "text": m.text }))
+        .collect();
+    json!({ "messages": messages })
 }
 
 #[derive(Deserialize)]

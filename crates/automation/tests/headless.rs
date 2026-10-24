@@ -30,14 +30,20 @@ fn spawn(fetcher: Arc<dyn Fetcher>) -> (JoinHandle<()>, u16) {
 /// [`spawn`] with the JavaScript setting of the session.
 fn spawn_with(fetcher: Arc<dyn Fetcher>, javascript: bool) -> (JoinHandle<()>, u16) {
     let (sender, port) = mpsc::channel();
-    let thread = thread::spawn(move || {
-        let size = Size::new(1280.0, 800.0);
-        let mut browser =
-            HeadlessBrowser::new(fetcher, FontContext::for_tests(), size, 1.0, 0).unwrap();
-        browser.page().set_javascript(javascript);
-        sender.send(browser.port()).unwrap();
-        browser.run();
-    });
+    // A page thread with the stack of swb's own (16 MiB), so that the page
+    // may run scripts.
+    let thread = thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(move || {
+            let size = Size::new(1280.0, 800.0);
+            let mut browser =
+                HeadlessBrowser::new(fetcher, FontContext::for_tests(), size, 1.0, 0, true)
+                    .unwrap();
+            browser.page().set_javascript(javascript);
+            sender.send(browser.port()).unwrap();
+            browser.run();
+        })
+        .unwrap();
     (thread, port.recv().unwrap())
 }
 
@@ -665,5 +671,68 @@ fn set_javascript_checks_its_parameters() {
         );
     }
     assert_eq!(client.info().unwrap()["javascript"], false);
+    stop(client, thread);
+}
+
+/// A page whose inline script logs and changes the title.
+const SCRIPT_PAGE: &str = "data:text/html,<!DOCTYPE html><title>A</title><p id=p>x</p>\
+    <script>console.log('hello', 1); console.error('bad'); document.title = 'B';</script>";
+
+#[test]
+fn evaluate_and_console_messages() {
+    let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);
+    let mut client = Client::connect(port).unwrap();
+    client.navigate(SCRIPT_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    assert_eq!(client.info().unwrap()["title"], "B");
+    let evaluate = |client: &mut Client, expression: &str| {
+        client
+            .call("page.evaluate", json!({ "expression": expression }))
+            .unwrap()
+    };
+    assert_eq!(
+        evaluate(&mut client, "[document.title, p.nodeName, 1 / 0, -0]"),
+        json!({ "value": ["B", "P", null, 0] })
+    );
+    assert_eq!(
+        evaluate(&mut client, "null.x"),
+        json!({ "error": "TypeError: Cannot read properties of null (reading 'x')" })
+    );
+    assert_eq!(
+        evaluate(&mut client, "Promise.resolve({ a: [1] })"),
+        json!({ "value": { "a": [1] } })
+    );
+    assert_eq!(
+        evaluate(&mut client, "'\\ud800'"),
+        json!({ "value": "\u{fffd}" })
+    );
+    assert_eq!(
+        client.call("page.consoleMessages", Value::Null).unwrap(),
+        json!({ "messages": [
+            { "level": "log", "text": "hello 1" },
+            { "level": "error", "text": "bad" },
+        ] })
+    );
+    assert_eq!(
+        rpc_code(client.call("page.evaluate", json!({}))),
+        RpcError::INVALID_PARAMS
+    );
+    stop(client, thread);
+}
+
+#[test]
+fn evaluate_without_javascript_is_an_error() {
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    client.navigate(SCRIPT_PAGE).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    assert_eq!(client.info().unwrap()["title"], "A");
+    assert_eq!(
+        rpc_code(client.call("page.evaluate", json!({ "expression": "1" }))),
+        RpcError::FAILED
+    );
+    assert_eq!(
+        client.call("page.consoleMessages", Value::Null).unwrap(),
+        json!({ "messages": [] })
+    );
     stop(client, thread);
 }

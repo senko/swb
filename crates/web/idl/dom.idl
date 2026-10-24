@@ -9,11 +9,16 @@
 // THIRD_PARTY_NOTICES.md for the license text.
 //
 // swb cut these IDL blocks to the members that it implements (features 4c
-// and 5a of M8): Event, EventTarget, EventListener and NodeList are
-// complete; AddEventListenerOptions has no `signal` (no AbortSignal yet);
-// Node has no `ownerDocument`, `parentElement` and `childNodes` (they come
-// with Document and Element in feature 4c). The order of the remaining
-// members is the specification's.
+// and 5a of M8): Event, EventTarget, EventListener, NodeList and
+// DocumentType are complete; AddEventListenerOptions has no `signal` (no
+// AbortSignal yet). Node, Document, Element, CharacterData and the mixins
+// ParentNode and NonDocumentTypeChildNode have their read-only tree
+// accessors (feature 4c2), Document its URL, mode, encoding and content
+// type, Element its names and CharacterData its `data`; the members that
+// change the tree, the queries and the attributes come with feature 6.
+// Document, DocumentFragment, Text and Comment have no constructors yet,
+// Text no members, ProcessingInstruction only `target`. The order of the
+// remaining members is the specification's.
 
 [Exposed=*]
 interface Event {
@@ -96,20 +101,17 @@ interface Node : EventTarget {
   readonly attribute USVString baseURI;
 
   readonly attribute boolean isConnected;
+  readonly attribute Document? ownerDocument;
   Node getRootNode(optional GetRootNodeOptions options = {});
   readonly attribute Node? parentNode;
+  readonly attribute Element? parentElement;
   boolean hasChildNodes();
+  [SameObject] readonly attribute NodeList childNodes;
   readonly attribute Node? firstChild;
   readonly attribute Node? lastChild;
   readonly attribute Node? previousSibling;
   readonly attribute Node? nextSibling;
 
-  [CEReactions] attribute DOMString? nodeValue;
-  [CEReactions] attribute DOMString? textContent;
-  [CEReactions] undefined normalize();
-
-  [CEReactions, NewObject] Node cloneNode(optional boolean subtree = false);
-  boolean isEqualNode(Node? otherNode);
   boolean isSameNode(Node? otherNode); // legacy alias of ===
 
   const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
@@ -118,18 +120,53 @@ interface Node : EventTarget {
   const unsigned short DOCUMENT_POSITION_CONTAINS = 0x08;
   const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
   const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20;
-  unsigned short compareDocumentPosition(Node other);
   boolean contains(Node? other);
-
-  DOMString? lookupPrefix(DOMString? namespace);
-  DOMString? lookupNamespaceURI(DOMString? prefix);
-  boolean isDefaultNamespace(DOMString? namespace);
-
-  [CEReactions] Node insertBefore(Node node, Node? child);
-  [CEReactions] Node appendChild(Node node);
-  [CEReactions] Node replaceChild(Node node, Node child);
-  [CEReactions] Node removeChild(Node child);
 };
+
+dictionary GetRootNodeOptions {
+  boolean composed = false;
+};
+
+[Exposed=Window]
+interface Document : Node {
+  readonly attribute USVString URL;
+  readonly attribute USVString documentURI;
+  readonly attribute DOMString compatMode;
+  readonly attribute DOMString characterSet;
+  readonly attribute DOMString charset; // legacy alias of .characterSet
+  readonly attribute DOMString inputEncoding; // legacy alias of .characterSet
+  readonly attribute DOMString contentType;
+
+  readonly attribute DocumentType? doctype;
+  readonly attribute Element? documentElement;
+};
+
+[Exposed=Window]
+interface DocumentType : Node {
+  readonly attribute DOMString name;
+  readonly attribute DOMString publicId;
+  readonly attribute DOMString systemId;
+};
+
+[Exposed=Window]
+interface DocumentFragment : Node {
+};
+
+interface mixin ParentNode {
+  readonly attribute Element? firstElementChild;
+  readonly attribute Element? lastElementChild;
+  readonly attribute unsigned long childElementCount;
+};
+Document includes ParentNode;
+DocumentFragment includes ParentNode;
+Element includes ParentNode;
+
+interface mixin NonDocumentTypeChildNode {
+  readonly attribute Element? previousElementSibling;
+  readonly attribute Element? nextElementSibling;
+};
+Element includes NonDocumentTypeChildNode;
+CharacterData includes NonDocumentTypeChildNode;
 
 [Exposed=Window]
 interface NodeList {
@@ -138,6 +175,29 @@ interface NodeList {
   iterable<Node>;
 };
 
-dictionary GetRootNodeOptions {
-  boolean composed = false;
+[Exposed=Window]
+interface Element : Node {
+  readonly attribute DOMString? namespaceURI;
+  readonly attribute DOMString? prefix;
+  readonly attribute DOMString localName;
+  readonly attribute DOMString tagName;
+};
+
+[Exposed=Window]
+interface CharacterData : Node {
+  attribute [LegacyNullToEmptyString] DOMString data;
+  readonly attribute unsigned long length;
+};
+
+[Exposed=Window]
+interface Text : CharacterData {
+};
+
+[Exposed=Window]
+interface ProcessingInstruction : CharacterData {
+  readonly attribute DOMString target;
+};
+
+[Exposed=Window]
+interface Comment : CharacterData {
 };

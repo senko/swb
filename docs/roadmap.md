@@ -2486,11 +2486,40 @@ Steps:
         `instanceof` along the interface chain, brand-check errors as in
         Chromium (`Illegal invocation`), prototype chains and property
         descriptors of `Node.prototype` against Chromium (probe).
+        Done 2026-10-23. `swb_web::ScriptRuntime` per document; the
+        engine lends `DocumentState` as `Box<dyn EngineHost>` for each
+        task and takes it back by downcast. The wrapper vector and the
+        side table are traced. The `Window` global has `WindowProperties`
+        in its chain (named access by id and by `name`; a name of several
+        elements gives one element, not an `HTMLCollection`). Departures
+        from the scope: `Node` keeps only its read-only tree accessors
+        (the tree-changing members return with 6a, so that feature
+        detection does not find stubs); some read-only members of 6a's
+        list are already here (`Document.URL`, `characterSet`,
+        `compatMode`, `contentType`, `doctype`, `documentElement`,
+        `Element` names, the `ParentNode` and `NonDocumentTypeChildNode`
+        accessors), plus the `document.title`, `document.body` and
+        `CharacterData.data` setters. HTML elements are `HTMLElement`
+        (`head`: `HTMLHeadElement`) and there is no `HTMLDocument` yet.
+        The live `childNodes` caches its children by DOM generation.
+        `console` has five levels in Chromium's shape (a `js` change);
+        `page.evaluate`, `page.consoleMessages`, `swb --eval`; inline
+        scripts run after the parse; from 5b, three time-limit stops end
+        a document's scripts. `PageConfig::scripts_allowed` refuses
+        JavaScript on a small stack in the engine. The probe
+        `web-dom-tree.json` (74 values) matches Chromium except the
+        missing element interfaces.
       Exit: `swb --headless --js --eval 'document.title'` on the
       fixtures gives Chromium's value; a runtime per document is dropped
       on navigation (a test checks the memory returns); the time to
       create a runtime with the bindings is measured and in
       docs/performance.md.
+      Feature 4 done 2026-10-23: `document.title` gives Chromium's value
+      on all six page fixtures (a test); after a navigation the RSS
+      returns (20 → 117 → 52 MiB, a test); a runtime with the bindings
+      takes 1.25 ms (median) and 360 KiB of heap to create. With
+      JavaScript off the snapshot is unchanged and page loads are within
+      2 %; test262 unchanged.
    5. Events, the event loop and scripts in the parser
       (`implementer-hard`), three sessions.
       - 5a: the event core (ADR 0028 section 11): `EventTarget`
@@ -2752,10 +2781,6 @@ Steps:
 - `noscript` with JavaScript off (found in feature 2): an inline
   `noscript` with block children gets another union box than in
   Chromium (block-in-inline; Chromium y=42 h=134, swb y=26 h=150).
-- Feature 4c: the GUI refuses JavaScript below an 8 MiB stack in the
-  GUI shell (it resets `page.setJavaScript true`). Move the refusal
-  into the engine (a capability of the page), so that no path can run
-  a script on a small stack.
 - CSS (found by the GitHub candidate, 2026-10-22): the header
   navigation of github.com/senko/swb is 402 px wide in swb and 627 px
   in Chromium, because the menu buttons have no side padding. The rule
@@ -2907,7 +2932,8 @@ Steps:
   `is_supported_name` (also `c.length`); every indexed read calls
   `index_count`; `Object.keys(c)` is O(n²) with the default
   `is_supported_name`; a pair iterator's `next` calls `pair_at` per step.
-  Live collections need the cache keyed by the DOM generation.
+  Live collections need the cache keyed by the DOM generation
+  (`childNodes` has it since 4c2; `HTMLCollection` in 6b).
 - `web`, 4c2: the named property visibility algorithm does not skip a
   named properties object on the prototype chain (Web IDL §3.9.7); add
   it with the `WindowProperties` hooks.
@@ -2917,6 +2943,55 @@ Steps:
 - `js`: `[[OwnPropertyKeys]]` of a host object with hooks lists stored
   index keys before stored strings; Web IDL lists the stored strings in
   creation order. Not observable while indexed definitions are refused.
+- Engine (found in feature 4c2): a document without a declared encoding
+  (a `file:` page) is decoded as UTF-8; Chromium uses windows-1252
+  (`document.characterSet` in the probe). This is the HTML sniffing
+  default and changes JS-off rendering of such files, so check the
+  fixtures before changing it.
+- `web`, 6x: the element interfaces (`HTMLDivElement`,
+  `HTMLHtmlElement`, ..., `SVGElement` and its subclasses) and
+  `HTMLDocument`; the probe `web-dom-tree.json` has Chromium's chains.
+- `web`, 6b: `window[name]` of several elements must give an
+  `HTMLCollection`. The `name` cache rebuilds with a tree walk at the
+  first miss after each DOM change: a loop that changes the DOM and
+  reads a missing global is O(n) per step (hostile case
+  `window-named-lookups-after-changes-js-on`, 0.35 s for 1,000 × 50,000).
+- `web`: the `Document`, `Text` and `Comment` constructors;
+  `Text.splitText`, `wholeText`; `template.content`.
+- `web`: any change in the arena invalidates every `childNodes` cache
+  (one generation counter); a generation per parent would avoid the
+  rebuild of unrelated lists.
+- `web`, 5b: `page.evaluate` of a promise that settles later (timers)
+  needs the event loop; now it is an error.
+- `web`: `Object.getOwnPropertyNames` of `WindowProperties` lists no
+  names (as in Chromium, measured); Web IDL with
+  `[LegacyUnenumerableNamedProperties]` would list them.
+- Engine, 5b: after a heap-limit stop, drop the runtime (ADR 0028
+  section 7); now only the scripts stop.
+- `swb --eval` with JavaScript off prints an error line per expression;
+  the probe contract does not say what a swb without JavaScript does.
+- `js`: `console.log` and the other levels take no format specifiers
+  (`%s`, `%o`); older than M8.
+- `dom` (found in the 4c2 review): `CharacterData.data` and
+  `document.title` hold Rust strings, so `t.data = '\ud800'` reads back
+  U+FFFD (Chromium keeps the lone surrogate). A limit of the DOM string
+  type.
+- `web`: wrappers stay alive for the document's life (ADR 0028
+  section 4); the wrapper vector, the side table and the window name
+  cache are not counted in `heap_size`, so the heap limit does not see
+  them (the DOM node limit bounds them; the hostile wrapper case reaches
+  366 MiB RSS). With the mutators of 6a, drop stale `childNodes` caches
+  when the generation changes.
+- `web`: every `console.error` and `console.warn` line (up to 4 MiB) goes
+  to the log at error or warn level, which the default logger prints to
+  stderr; `for (;;) console.error(x)` writes stderr for up to 15 s.
+  Rate-limit the lines or log them at a lower level.
+- `web`, 5b: the time limit is per task (5 s; three hits stop the
+  scripts). A page of 1,000 inline scripts of 4.9 s each runs 80
+  minutes; 5b needs a budget per document.
+- `web`, 5c: the inline scripts are collected before the first runs, so
+  a script that removes a later `<script>` (possible after 6a) does not
+  stop it.
 
 ## Backlog from M6
 

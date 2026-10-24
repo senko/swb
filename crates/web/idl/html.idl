@@ -1,0 +1,50 @@
+// Source: HTML Living Standard, https://html.spec.whatwg.org/
+// copied on 2026-10-23.
+//
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
+// licensed under the Creative Commons Attribution 4.0 International
+// License; "to the extent portions of it are incorporated into source
+// code, such portions in the source code are licensed under the BSD
+// 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
+// THIRD_PARTY_NOTICES.md for the license text.
+//
+// swb cut these IDL blocks to the members that it implements (feature 4c2
+// of M8): Window has the members that name windows and its document;
+// Document has `title`, `body` and `head`; HTMLElement has no members yet
+// and no constructor; HTMLHeadElement is complete apart from the
+// constructor. The order of the remaining members is the specification's.
+//
+// One line is swb's own: the typedef of WindowProxy. Without frames, the
+// WindowProxy of a window is the Window object itself (ADR 0028
+// section 4).
+
+typedef Window WindowProxy;
+
+[Global=Window, Exposed=Window]
+interface Window : EventTarget {
+  // the current browsing context
+  [LegacyUnforgeable] readonly attribute WindowProxy window;
+  [Replaceable] readonly attribute WindowProxy self;
+  [LegacyUnforgeable] readonly attribute Document document;
+
+  // other browsing contexts
+  [Replaceable] readonly attribute WindowProxy frames;
+  [Replaceable] readonly attribute unsigned long length;
+  [LegacyUnforgeable] readonly attribute WindowProxy? top;
+  [Replaceable] readonly attribute WindowProxy? parent;
+};
+
+partial interface Document {
+  // DOM tree accessors
+  [CEReactions] attribute DOMString title;
+  [CEReactions] attribute HTMLElement? body;
+  readonly attribute HTMLHeadElement? head;
+};
+
+[Exposed=Window]
+interface HTMLElement : Element {
+};
+
+[Exposed=Window]
+interface HTMLHeadElement : HTMLElement {
+};
